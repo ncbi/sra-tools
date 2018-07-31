@@ -75,7 +75,8 @@ tag: \
 DELITE_SRC = \
 	delite  \
 	delite_r    \
-	delite_k
+	delite_k    \
+	delite_d
 
 DELITE_OBJ = \
 	$(addsuffix .$(OBJX),$(DELITE_SRC))

@@ -45,6 +45,7 @@
 #include <byteswap.h>
 
 #include "delite_k.h"
+#include "delite_d.h"
 #include "delite.h"
 
 #include <sysalloc.h>
@@ -65,47 +66,6 @@
  *  Useful forwards
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
-/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
- *  Data source, needed for unified access to node data
- *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-struct karChiveDS {
-    KRefcount _refcount;
-
-    rc_t ( CC * read ) (
-                        const struct karChiveDS * DataSource,
-                        uint64_t Ofsset,
-                        void * Buffer,
-                        size_t BuggerSize,
-                        size_t * NumReaded
-                        );
-    rc_t ( CC * size ) (
-                        const struct karChiveDS * DataSource,
-                        uint64_t * Size
-                        );
-};
-
-static
-rc_t
-karChiveDSInit (
-                struct karChiveDS * self,
-                rc_t ( CC * read ) (
-                                const struct karChiveDS * DataSource,
-                                uint64_t Ofsset,
-                                void * Buffer,
-                                size_t BuggerSize,
-                                size_t * NumReaded
-                                ),
-                rc_t ( CC * size ) (
-                                const struct karChiveDS * DataSource,
-                                uint64_t * Size
-                                )
-                );
-
-static
-rc_t
-karChiveDSWhack (
-                struct karChiveDS * self
-                );
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Misk Archive entries
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
@@ -140,6 +100,8 @@ struct karChiveFile
     struct karChiveEntry _da_da_dad;
 
     /* JOJOBA - put memory file here */
+
+    const struct karChiveDS * _data_source;
 
     uint64_t _byte_offset;
     uint64_t _byte_size;
@@ -730,6 +692,21 @@ _karChiveEntryDispose ( const struct karChiveEntry * self )
                         _skarChiveEntry_classname
                         );
         switch ( Entry -> _type ) {
+            case kptFile: 
+                {
+                    struct karChiveFile * File = ( struct karChiveFile * ) Entry;
+
+                    if ( File -> _data_source != NULL ) {
+                        karChiveDSRelease ( File -> _data_source );
+                    }
+
+                    File -> _data_source = NULL;
+                    File -> _byte_offset = 0;
+                    File -> _byte_size = 0;
+                    File -> _new_byte_offset = 0;
+                    File -> _new_byte_size = 0;
+                }
+                break;
             case kptDir:
                 { 
                     struct karChiveDir * Dir = ( struct karChiveDir * ) Entry;
@@ -1044,6 +1021,58 @@ _karChiveEntryForEach (
                     );
     }
 }   /* _karChiveEntryForEach () */
+
+static
+void CC
+_karChiveSetSourcesCallback (
+                            const struct karChiveEntry * Entry,
+                            void * Data
+)
+{
+    struct karChive * Chive;
+    struct karChiveFile * File;
+
+    Chive = Data;
+    File = NULL;
+
+    if ( Data == NULL ) {
+            /*  there is nothing to do ... don't know what to do here
+             */
+        return;
+    }
+
+    if ( Entry -> _type == kptFile ) {
+        File = ( struct karChiveFile * ) Entry;
+
+            /*  Another situation when I do not know what to do
+             *  Should Produce error
+             */
+        karChiveMMapDSMake (
+                                & ( File -> _data_source ),
+                                Chive -> _map,
+                                _karChiveDataOffset ( Chive )
+                                                + File -> _byte_offset,
+                                File -> _byte_size
+                                );
+    }
+}   /* _karChiveSetSourcesCallback () */
+
+static
+rc_t CC
+_karChiveSetSources ( struct karChive * self )
+{
+    if ( self == NULL ) {
+        return RC ( rcApp, rcPath, rcConverting, rcSelf, rcNull );
+    }
+
+    _karChiveEntryForEach (
+                        ( const struct karChiveEntry * ) self -> _root,
+                        _karChiveSetSourcesCallback,
+                        self
+                        );
+
+    return 0;
+}   /* _karChiveSetSources () */
 
 /*  JOJOBA: dangerous method ... debug only
  */
@@ -2159,6 +2188,8 @@ _karChiveTOCMake ( struct karChive * Chive )
 
                 if ( Brigade . _rc == 0 ) { 
                     Chive -> _root = Root;
+
+                    RCt = _karChiveSetSources ( Chive );
                 }
             }
 
@@ -2643,6 +2674,9 @@ struct karChiveWriter {
 
     struct KFile * _output;
 
+    char * _buffer;
+    size_t * _buffer_size;
+
     rc_t _rc;
 };
 
@@ -2677,6 +2711,12 @@ _karChiveWriterWhack ( struct karChiveWriter * self )
 
             self -> _output = NULL;
         }
+
+        if ( self -> _buffer != NULL ) {
+            free ( self -> _buffer );
+        }
+        self -> _buffer = NULL;
+        self -> _buffer_size = 0;
     }
 
     return 0;
@@ -3022,20 +3062,127 @@ _karChiveWriterWriteChiveHeaderAndTOC ( struct karChiveWriter * self )
 
 static
 rc_t
+_karChiveWriterAlignBytes ( struct karChiveWriter * self )
+{
+    rc_t RCt;
+    size_t AlignSize;
+    char AlignBuffer [ 4 ] = "0000";    /* LOL */
+
+    RCt = 0;
+    AlignSize = 0;
+
+    AlignSize = align_offset ( self -> _curr_pos, 4 )
+                                                    - self -> _curr_pos;
+
+    if ( AlignSize != 0 ) {
+        RCt =  KFileWriteAll (
+                            self -> _output,
+                            self -> _curr_pos,
+                            AlignBuffer,
+                            AlignSize,
+                            NULL
+                            );
+        if ( RCt == 0 ) {
+            self -> _curr_pos += AlignSize;
+        }
+    }
+
+    return RCt;
+}   /* _karChiveWriterAlignBytes () */
+
+static
+rc_t
+_karChiveWrtierCopyFile (
+                        struct karChiveWriter * self,
+                        const struct karChiveFile * File
+)
+{
+    rc_t RCt;
+    size_t Num2R, NumR, Pos, DSize, NumW;
+    size_t BufSz;
+
+    RCt = 0;
+    Num2R = NumR = Pos = DSize = NumW = 0;
+    BufSz = 1048576 * 32;
+
+    if ( self -> _curr_pos - self -> _start_pos != File -> _new_byte_offset ) {
+        return RC ( rcApp, rcFile, rcWriting, rcOffset, rcInvalid );
+    }
+
+    RCt = karChiveDSSize ( File -> _data_source, & DSize );
+    if ( RCt == 0 ) {
+        if ( self -> _buffer == NULL ) {
+            self -> _buffer = malloc ( sizeof ( char ) * BufSz );
+
+            if ( self -> _buffer == NULL ) {
+                RCt = RC ( rcApp, rcFile, rcWriting, rcMemory, rcExhausted );
+            }
+        }
+
+        if ( RCt == 0 ) {
+            while ( Pos < DSize ) {
+                Num2R = DSize - Pos;
+                if ( BufSz < Num2R ) {
+                    Num2R = BufSz;
+                }
+
+                RCt = karChiveDSRead (
+                                    File -> _data_source,
+                                    Pos,
+                                    self -> _buffer,
+                                    Num2R,
+                                    & NumR
+                                    );
+                if ( RCt == 0 ) {
+                    if ( NumR == 0 ) {
+                            /*  Actually it is end of file
+                             */
+                        break;
+                    }
+                    else {
+                        RCt = KFileWriteAll (
+                                            self -> _output,
+                                            self -> _curr_pos,
+                                            self -> _buffer,
+                                            NumR,
+                                            & NumW
+                                            );
+                        if ( RCt == 0 ) {
+                            if ( NumR != NumW ) {
+                                RCt = RC ( rcApp, rcFile, rcWriting, rcTransfer, rcIncomplete );
+                            }
+                            else {
+                                Pos += NumR;
+                            }
+                        }
+                    }
+                }
+
+                if ( RCt != 0 ) {
+                        /*  What did I expect here ?
+                         */
+                    break;
+                }
+            }
+
+            if ( RCt == 0 ) {
+                self -> _curr_pos += Pos;
+            }
+        }
+    }
+
+    return RCt;
+}   /* _karChiveWrtierCopyFile () */
+
+static
+rc_t
 _karChiveWriterWriteFile ( struct karChiveWriter * self, size_t FileNo )
 {
     rc_t RCt;
     const struct karChiveFile * File;
-    size_t AlignSize;
-    char AlignBuffer [ 4 ] = "0000";    /* LOL */
-    size_t NumWrit;
-    const void * Buf;
 
     RCt = 0;
     File = NULL;
-    AlignSize = 0;
-    NumWrit = 0;
-    Buf = NULL;
 
 
     if ( self == NULL ) {
@@ -3062,45 +3209,9 @@ _karChiveWriterWriteFile ( struct karChiveWriter * self, size_t FileNo )
 
         /*  First we do aligh file
          */
-    AlignSize = align_offset ( self -> _curr_pos, 4 )
-                                                    - self -> _curr_pos;
-
-    if ( AlignSize != 0 ) {
-        RCt =  KFileWriteAll (
-                            self -> _output,
-                            self -> _curr_pos,
-                            AlignBuffer,
-                            AlignSize,
-                            NULL
-                            );
-        if ( RCt == 0 ) {
-            self -> _curr_pos += AlignSize;
-        }
-    }
-
-    if ( self -> _curr_pos - self -> _start_pos != File -> _new_byte_offset ) {
-        RCt = RC ( rcApp, rcFile, rcWriting, rcOffset, rcInvalid );
-    }
-
+    RCt = _karChiveWriterAlignBytes ( self );
     if ( RCt == 0 ) {
-        Buf = ( char * ) self -> _chive -> _map_addr
-                            + _karChiveDataOffset ( self -> _chive )
-                            + File -> _byte_offset;
-        RCt = KFileWriteAll (
-                            self -> _output,
-                            self -> _curr_pos,
-                            Buf,
-                            File -> _new_byte_size,
-                            & NumWrit
-                            );
-        if ( RCt == 0 ) {
-            if ( NumWrit == File -> _new_byte_size ) {
-                self -> _curr_pos += NumWrit;
-            }
-            else {
-                RCt = RC ( rcApp, rcFile, rcWriting, rcTransfer, rcIncomplete );
-            }
-        }
+        RCt = _karChiveWrtierCopyFile ( self, File );
     }
 
     return RCt;
@@ -3234,7 +3345,7 @@ static rc_t _karChiveEntryCopy (
 
 static
 rc_t
-_karChiveEntryAllocCopyFileds (
+_karChiveEntryAllocCopyFields (
                                 const struct karChiveEntry * self,
                                 const struct karChiveDir * Parent,
                                 size_t Size,
@@ -3248,6 +3359,10 @@ _karChiveEntryAllocCopyFileds (
     Ret = NULL;
 
     /* No usual checks */
+
+    if ( Size < sizeof ( struct karChiveEntry ) ) {
+        return RC ( rcApp, rcNode, rcAllocating, rcParam, rcInvalid );
+    }
 
     Ret = calloc ( 1, sizeof ( char ) * Size );
     if ( Ret == NULL ) {
@@ -3282,7 +3397,7 @@ _karChiveEntryAllocCopyFileds (
     }
 
     return RCt;
-}   /* _karChiveEntryAllocCopyFileds () */
+}   /* _karChiveEntryAllocCopyFields () */
 
 static
 rc_t
@@ -3318,7 +3433,7 @@ _karChiveAliasCopy (
 
     Alias = ( struct karChiveAlias * ) self;
 
-    RCt = _karChiveEntryAllocCopyFileds (
+    RCt = _karChiveEntryAllocCopyFields (
                                 ( const struct karChiveEntry * ) self,
                                 Parent,
                                 sizeof ( struct karChiveAlias ),
@@ -3378,7 +3493,7 @@ _karChiveFileCopy (
         return RC ( rcApp, rcNode, rcCopying, rcSelf, rcInvalid );
     }
 
-    RCt = _karChiveEntryAllocCopyFileds (
+    RCt = _karChiveEntryAllocCopyFields (
                                 ( const struct karChiveEntry * ) self,
                                 Parent,
                                 sizeof ( struct karChiveFile ),
@@ -3480,7 +3595,7 @@ _karChiveDirCopy (
 
     Dir = ( struct karChiveDir * ) self;
 
-    RCt = _karChiveEntryAllocCopyFileds (
+    RCt = _karChiveEntryAllocCopyFields (
                                 ( const struct karChiveEntry * ) Dir,
                                 Parent,
                                 sizeof ( struct karChiveDir ),

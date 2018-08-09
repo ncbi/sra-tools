@@ -645,6 +645,8 @@ karChiveMemDSMake (
                                     Size
                                     );
         if ( RCt == 0 ) {
+            Ret -> _buf = NewBuf;
+            Ret -> _buf_size = Size;
             ( ( struct karChiveDS * ) Ret ) -> _on_dispose
                                         = _karChiveMemDS_on_dispose;
             * DS = ( struct karChiveDS * ) Ret;

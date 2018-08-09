@@ -42,13 +42,14 @@
 #include <vfs/path.h>
 #include <vfs/resolver.h>
 
-#include <byteswap.h>
-
 #include "delite_k.h"
 #include "delite_d.h"
+#include "delite_m.h"
 #include "delite.h"
 
 #include <sysalloc.h>
+
+#include <byteswap.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -771,9 +772,10 @@ _karChiveEntryAddRef ( const struct karChiveEntry * self )
         case krefLimit :
         case krefNegative :
             RCt = RC ( rcApp, rcArc, rcAccessing, rcParam, rcNull );
+            break;
         default :
             RCt = RC ( rcApp, rcArc, rcAccessing, rcParam, rcUnknown );
-        break;
+            break;
     }
 
     return RCt;
@@ -2563,9 +2565,10 @@ karChiveAddRef ( const struct karChive * self )
         case krefLimit :
         case krefNegative :
             RCt = RC ( rcApp, rcArc, rcAccessing, rcParam, rcNull );
+            break;
         default :
             RCt = RC ( rcApp, rcArc, rcAccessing, rcParam, rcUnknown );
-        break;
+            break;
     }
 
     return RCt;
@@ -2609,6 +2612,8 @@ karChiveRelease ( const struct karChive * self )
  *  There we do edit karChive
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+static rc_t CC karChiveEditMeta ( const struct karChiveFile * Meta );
+
 LIB_EXPORT rc_t karChiveEdit ( const struct karChive * self )
 {
     rc_t RCt;
@@ -2650,10 +2655,120 @@ LIB_EXPORT rc_t karChiveEdit ( const struct karChive * self )
         RCt = 0;
     }
 
+        /*  Modifying md/cur
+         */
+    RCt = _karChiveResolvePath (
+                                & Found,
+                                self -> _root,
+                                "md/cur"
+                                );
+    if ( RCt == 0 ) {
+        struct karChiveFile * File = ( struct karChiveFile * ) Found;
+        const char * Sig = "I was here";
+
+        RCt = karChiveEditMeta ( File );
+        if ( RCt == 0 ) {
+
+            if ( File -> _data_source != NULL ) {
+                karChiveDSRelease ( File -> _data_source );
+                File -> _data_source = NULL;
+            }
+
+            RCt = karChiveMemDSMake ( 
+                                & File -> _data_source,
+                                Sig,
+                                strlen ( Sig )
+                                );
+        }
+    }
+    else {
+        printf ( "Can not find that\n" );
+        RCt = 0;
+    }
+
 /* That's it for now */
 
     return RCt;
 }   /* karChiveEdit () */
+
+rc_t CC
+karChiveEditMeta ( const struct karChiveFile * Meta )
+{
+    rc_t RCt;
+    size_t Size;
+    char BBB [ 1024 * 64 ]; /* <<< JOJOBA!!!!! */
+    size_t NumR;
+    struct karChiveMD * MD;
+    const struct karChiveMDN * MDN;
+    const void * Packed;
+    size_t PSize;
+
+    RCt = 0;
+    Size = 0;
+    * BBB = 0;
+    NumR = 0;
+    MD = NULL;
+    MDN = NULL;
+    Packed = NULL;
+    PSize = 0;
+
+    if ( Meta == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
+    }
+
+    if ( Meta -> _data_source == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcInvalid );
+    }
+
+    RCt = karChiveDSSize ( Meta -> _data_source, & Size );
+    if ( RCt == 0 ) {
+        if ( sizeof ( BBB ) < Size ) {
+            RCt = RC ( rcApp, rcArc, rcProcessing, rcParam, rcCorrupt );
+        }
+        else {
+            RCt = karChiveDSRead (
+                                Meta -> _data_source,
+                                0,
+                                BBB,
+                                Size,
+                                & NumR
+                                );
+            if ( RCt == 0 ) {
+                if ( NumR != Size ) { 
+                    RCt = RC ( rcApp, rcArc, rcReading, rcSize, rcInvalid );
+                }
+                else {
+                    RCt = karChiveMDUnpack ( & MD, BBB, Size );
+                    if ( RCt == 0 ) {
+                        RCt = karChiveMDFind ( MD, "schema", & MDN );
+                        if ( RCt == 0 ) {
+                            char * PPP = NULL;
+
+                            RCt = karChiveMDNAsSting ( MDN, & PPP );
+                            if ( RCt == 0 ) {
+                                free ( PPP );
+                            }
+                        }
+                        else {
+printf ( "[NOT] [%p]\n", 0 );
+                        }
+
+/*  Here we should set new node and save it
+ */
+                        RCt = karChiveMDPack ( MD, & Packed, & PSize );
+                        if ( RCt == 0 ) {
+                            free ( ( void * ) Packed );
+                        }
+
+                        karChiveMDRelease ( MD );
+                    }
+                }
+            }
+        }
+    }
+
+    return RCt;
+}
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  There we do write KAR file
@@ -2887,10 +3002,25 @@ _karChiveWriterSortFilesCallback (
                                 void * Data
 )
 {
-    return    ( * ( ( struct karChiveFile ** ) Left ) ) -> _byte_size
-            - ( * ( ( struct karChiveFile ** ) Right ) ) -> _byte_size
-            ;
+    struct karChiveFile * Lf, * Rf;
+    size_t Ls, Rs;
 
+    Ls = Rs = 0;
+
+        /*  JOJOBA: we do not check if left or right for NULL.
+         *      Not our problem
+         */
+    Lf = * ( ( struct karChiveFile ** ) Left );
+    Rf = * ( ( struct karChiveFile ** ) Right );
+
+    karChiveDSSize ( Lf -> _data_source, & Ls );
+    Lf -> _new_byte_size = Ls;
+
+    karChiveDSSize ( Rf -> _data_source, & Rs );
+    Rf -> _new_byte_size = Rs;
+
+
+    return Lf -> _new_byte_size - Rf -> _new_byte_size;
 }   /* _karChiveWriterSortFilesCallback () */
 
 static
@@ -2974,10 +3104,9 @@ _karChiveWriterPrepareChiveTOC ( struct karChiveWriter * self )
                     /*  Going and assigning new offsets and file sizes
                      */
                 for ( llp = 0; llp < self -> _files_qty; llp ++ ) {
-                    Size = self -> _files [ llp ] -> _byte_size;
+                    Size = self -> _files [ llp ] -> _new_byte_size;
 
                     self -> _files [ llp ] -> _new_byte_offset = Offset;
-                    self -> _files [ llp ] -> _new_byte_size = Size;
 
                     Offset = align_offset ( Offset + Size, 4 );
                 }

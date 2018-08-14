@@ -47,7 +47,7 @@
  *  Does not allow to copy string of any length ... surprize?
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 LIB_EXPORT
-rc_t
+rc_t CC
 _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
                                                 const char ** Dst,
                                                 const char * Src
@@ -111,7 +111,7 @@ _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
 }   /* _copyStringSayNothingHopeKurtWillNeverSeeThatCode () */
 
 LIB_EXPORT
-rc_t
+rc_t CC
 _copyLStringSayNothing (
                         const char ** Dst,
                         const char * Str,
@@ -153,7 +153,7 @@ _copyLStringSayNothing (
 }   /* _copyLStringSayNothing () */
 
 LIB_EXPORT
-rc_t
+rc_t CC
 _copySStringSayNothing (
                         const char ** Dst,
                         const char * Begin,
@@ -187,7 +187,7 @@ _copySStringSayNothing (
  *  VPath to char *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 LIB_EXPORT
-rc_t
+rc_t CC
 DeLiteVPathToChar ( char ** CharPath, const struct VPath * Path )
 {
     rc_t RCt;
@@ -238,7 +238,7 @@ DeLiteVPathToChar ( char ** CharPath, const struct VPath * Path )
    \\\  third Resolve ...
    (((*/
 LIB_EXPORT
-rc_t
+rc_t CC
 DeLiteResolvePath (
                     char ** ResolvedLocalPath,
                     const char * PathOrAccession
@@ -309,3 +309,25 @@ DeLiteResolvePath (
 
     return RCt;
 }   /* DeLiteResolvePath () */
+
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Hardcored by Kurt's request
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+LIB_EXPORT
+bool CC
+IsQualityName ( const char * Name )
+{
+    if ( Name != NULL ) {
+        if ( strcmp ( Name, "QUALITY" ) == 0 ) {
+            return true;
+        }
+        if ( strcmp ( Name, "QUALITY2" ) == 0 ) {
+            return true;
+        }
+        if ( strcmp ( Name, "CMP_QUALITY" ) == 0 ) {
+            return true;
+        }
+    }
+    return false;
+}   /* IsQualityName () */

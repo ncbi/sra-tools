@@ -24,45 +24,36 @@
 *
 */
 
-#ifndef _delite_h_
-#define _delite_h_
+#ifndef _delite_s_h_
+#define _delite_s_h_
 
 #ifdef __cplusplus
 extern "C" {
 #endif  /* __cplusplus */
 
-    /*  length limit for strings I am working with
-     */
-#define KAR_MAX_ACCEPTED_STRING 16384
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  That file represents SCHEMA parsing and editing
+ *
+ *  Das JOJOBA!
+ *
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karChiveScm;
 
-LIB_EXPORT rc_t CC _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                            const char ** Dst,
-                                            const char * Src
-                                            );
+rc_t CC karChiveScmMake (
+                        struct karChiveScm ** Scm,
+                        const void * Buf,
+                        size_t BufSize
+                        );
+rc_t CC karChiveScmDispose ( struct karChiveScm * self );
 
-LIB_EXPORT rc_t CC _copySStringSayNothing (
-                                            const char ** Dst,
-                                            const char * Begin,
-                                            const char * End
-                                            );
-
-LIB_EXPORT rc_t CC _copyLStringSayNothing (
-                                            const char ** Dst,
-                                            const char * Str,
-                                            size_t Len
-                                            );
-
-LIB_EXPORT rc_t CC DeLiteResolvePath (
-                                            char ** ResolvedLocalPath,
-                                            const char * PathOrAccession
-                                            );
-
-    /*  Remember, ColumnName should be 'o' terminated
-     */
-LIB_EXPORT bool CC IsQualityName ( const char * Name );
+rc_t CC karChiveScmTransform (
+                        const struct karChiveScm * self,
+                        const char * Name
+                        /* And some parameters here */
+                        );
 
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */
 
-#endif  /* _delite_h_ */
+#endif  /* _delite_s_h_ */

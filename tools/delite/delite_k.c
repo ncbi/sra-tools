@@ -1130,6 +1130,27 @@ _karChiveEntryPath (
     return 0;
 }   /* _karChiveEntryPath () */
 
+static
+rc_t
+_karChiveEntryMakePath (
+                        const struct karChiveEntry * self,
+                        const char ** Path
+)
+{
+    rc_t RCt;
+    char BBB [ 4096 ];
+
+    RCt = _karChiveEntryPath ( self, BBB, sizeof ( BBB ) );
+    if ( RCt == 0 ) {
+        RCt = _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                                                                Path,
+                                                                BBB
+                                                                );
+    }
+
+    return RCt;
+}   /* _karChiveEntryMakePath () */
+
 /*  JOJOBA: dangerous method ... debug only
  */
 static
@@ -2614,6 +2635,83 @@ karChiveRelease ( const struct karChive * self )
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 static rc_t CC karChiveEditMeta ( const struct karChiveFile * Meta );
 
+static
+void CC
+_karChiveEditCallback (
+                    const struct karChiveEntry * Entry,
+                    void * Data
+)
+{
+    const char * Path = NULL;
+
+    if ( Entry != NULL ) {
+        if ( IsQualityName ( Entry -> _name ) ) {
+            if ( _karChiveEntryMakePath ( Entry, & Path ) == 0 ) {
+                VNamelistAppend ( ( struct VNamelist * ) Data, Path );
+                    /*  VNamelist did make copy of our patth
+                     */ 
+                free ( ( char * ) Path );
+            }
+        }
+    }
+}   /*  _karChiveEditCallback () */
+
+static rc_t CC _karChiveEditForPath (
+                                    const struct karChive * self,
+                                    const char * Path
+                                    );
+
+LIB_EXPORT
+rc_t CC
+karChiveEdit ( const struct karChive * self )
+{
+    rc_t RCt;
+    struct VNamelist * NL;
+    uint32_t Count, llp;
+    const char * Path;
+
+    RCt = 0;
+    NL = NULL;
+    Count = llp = 0;
+    Path = NULL;
+
+    RCt = VNamelistMake ( & NL, 4 );
+    if ( RCt == 0 ) {
+            /*  First we are travercing TOC looking for all tables
+             *  which contains QUALITY
+             */
+        _karChiveEntryForEach (
+                        ( const struct karChiveEntry * ) self -> _root,
+                        _karChiveEditCallback,
+                        NL
+                        );
+        RCt = VNameListCount ( NL, & Count );
+        if ( RCt == 0 ) {
+            if ( 0 < Count ) {
+                for ( llp = 0; llp < Count; llp ++ ) {
+                    RCt = VNameListGet ( NL, llp, & Path );
+                    if ( RCt == 0 ) {
+                        RCt = _karChiveEditForPath ( self, Path );
+                    }
+
+                    if ( RCt != 0 ) {
+                        break;
+                    }
+                }
+            }
+            else {
+                printf ( "There is no entries to remove\n" );
+            }
+        }
+
+        VNamelistRelease ( NL );
+    }
+
+    return RCt;
+}   /* karChiveEdint () */
+
+
+#ifdef JOJOBA
 LIB_EXPORT rc_t karChiveEdit ( const struct karChive * self )
 {
     rc_t RCt;
@@ -2690,6 +2788,7 @@ LIB_EXPORT rc_t karChiveEdit ( const struct karChive * self )
 
     return RCt;
 }   /* karChiveEdit () */
+#endif /* JOJOBA */
 
 rc_t CC
 karChiveEditMeta ( const struct karChiveFile * Meta )
@@ -2742,11 +2841,11 @@ karChiveEditMeta ( const struct karChiveFile * Meta )
                     if ( RCt == 0 ) {
                         RCt = karChiveMDFind ( MD, "schema", & MDN );
                         if ( RCt == 0 ) {
-                            char * PPP = NULL;
+                            const char * PPP = NULL;
 
                             RCt = karChiveMDNAsSting ( MDN, & PPP );
                             if ( RCt == 0 ) {
-                                free ( PPP );
+                                free ( ( char * ) PPP );
                             }
                         }
                         else {
@@ -2768,7 +2867,49 @@ printf ( "[NOT] [%p]\n", 0 );
     }
 
     return RCt;
-}
+}   /* karChiveEditMeta () */
+
+rc_t CC
+_karChiveEditForPath ( const struct karChive * self, const char * Path )
+{
+    rc_t RCt;
+    const struct karChiveEntry * Found;
+    const struct karChiveDir * Parent;
+
+    RCt = 0;
+    Found = NULL;
+    Parent = NULL;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcNull );
+    }
+
+    printf ( "Removing entry for [%s]\n", Path );
+
+    RCt = _karChiveResolvePath ( & Found, self -> _root, Path );
+    if ( RCt == 0 ) {
+        Parent = _karChiveEntryParent ( Found );
+        if ( Parent == NULL ) {
+                /*  The node is root itself and could not be deleted 
+                 */
+            RCt = RC ( rcApp, rcNode, rcRemoving, rcItem, rcUnsupported );
+        }
+        else {
+            if ( BSTreeUnlink ( ( struct BSTree * ) & ( Parent -> _entries ), ( struct BSTNode * ) & ( Found -> _da_da_dad ) ) ) {
+                _karChiveEntryRelease ( Found );
+            }
+            else {
+                RCt = RC ( rcApp, rcNode, rcRemoving, rcItem, rcFailed );
+            }
+        }
+    }
+    else {
+        printf ( "Can not find entry for [%s]\n", Path );
+        RCt = 0;
+    }
+
+    return RCt;
+}   /* _karChiveEditForPath () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  There we do write KAR file
@@ -3271,7 +3412,7 @@ _karChiveWrtierCopyFile (
                     else {
                         RCt = KFileWriteAll (
                                             self -> _output,
-                                            self -> _curr_pos,
+                                            self -> _curr_pos + Pos,
                                             self -> _buffer,
                                             NumR,
                                             & NumW
@@ -3292,6 +3433,7 @@ _karChiveWrtierCopyFile (
                          */
                     break;
                 }
+
             }
 
             if ( RCt == 0 ) {

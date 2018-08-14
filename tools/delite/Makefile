@@ -77,7 +77,8 @@ DELITE_SRC = \
 	delite_r    \
 	delite_k    \
 	delite_d    \
-	delite_m
+	delite_m    \
+	delite_s
 
 DELITE_OBJ = \
 	$(addsuffix .$(OBJX),$(DELITE_SRC))

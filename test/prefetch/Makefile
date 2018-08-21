@@ -36,8 +36,8 @@ KMER=$(SRA)/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
-SRR=$(SRA)/traces/sra6/SRR/000052/SRR053325
-SRRF=$(SRAF):data/sracloud/traces/sra6/SRR/000052/SRR053325
+SRR=$(SRA)/traces/sra59/SRR/000052/SRR053325
+SRRF=$(SRAF):data/sracloud/traces/sra59/SRR/000052/SRR053325
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 

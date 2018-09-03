@@ -36,10 +36,10 @@ extern "C" {
  *  and opertations with it
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
-
 struct karChiveDS;
 struct KMMap;
 struct KMFile;
+struct karCBuf;
 
 rc_t CC karChiveDSAddRef ( const struct karChiveDS * self );
 rc_t CC karChiveDSRelease ( const struct karChiveDS * self );

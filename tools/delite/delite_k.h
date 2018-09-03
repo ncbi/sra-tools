@@ -67,7 +67,8 @@ LIB_EXPORT rc_t karChiveOpen (
                             );
 
 LIB_EXPORT rc_t karChiveEdit (
-                            const struct karChive * self
+                            const struct karChive * self,
+                            bool IdleRun
                             );
 
 LIB_EXPORT rc_t karChiveWriteFile ( 
@@ -77,7 +78,8 @@ LIB_EXPORT rc_t karChiveWriteFile (
 LIB_EXPORT rc_t karChiveWrite ( 
                             const struct karChive * self,
                             const char * Path,
-                            bool Force
+                            bool Force,
+                            bool IdleRun
                             );
 
 LIB_EXPORT rc_t karChiveAddRef ( const struct karChive * self );

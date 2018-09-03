@@ -524,9 +524,11 @@ karChiveMMapDSMake (
         return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
     }
 
+/*  JOJOBA - Dont know if we need it here
     if ( Size == 0 ) {
         return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
     }
+*/
 
     RCt = KMMapAddRef ( Map );
     if ( RCt == 0 ) {

@@ -31,22 +31,36 @@
 extern "C" {
 #endif  /* __cplusplus */
 
+    /*  Very important structure, and most importatn method
+     */
+struct DeLiteParams {
+    const char * _program;          /* Program name */
+    const char * _accession;        /* Accession */
+    const char * _accession_path;   /* Resolved accession path */
+    const char * _config;           /* Config path */
+    const char * _output;           /* Output file path */
+    bool _output_stdout;            /* Output is stdout */
+    bool _noedit;                   /* Just perform repackint */
+};
+
+LIB_EXPORT rc_t Delite ( struct DeLiteParams * Params );
+
     /*  length limit for strings I am working with
      */
 #define KAR_MAX_ACCEPTED_STRING 16384
 
-LIB_EXPORT rc_t CC _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+LIB_EXPORT rc_t CC copyStringSayNothingHopeKurtWillNeverSeeThatCode (
                                             const char ** Dst,
                                             const char * Src
                                             );
 
-LIB_EXPORT rc_t CC _copySStringSayNothing (
+LIB_EXPORT rc_t CC copySStringSayNothing (
                                             const char ** Dst,
                                             const char * Begin,
                                             const char * End
                                             );
 
-LIB_EXPORT rc_t CC _copyLStringSayNothing (
+LIB_EXPORT rc_t CC copyLStringSayNothing (
                                             const char ** Dst,
                                             const char * Str,
                                             size_t Len
@@ -60,6 +74,65 @@ LIB_EXPORT rc_t CC DeLiteResolvePath (
     /*  Remember, ColumnName should be 'o' terminated
      */
 LIB_EXPORT bool CC IsQualityName ( const char * Name );
+
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ * Some weird stuff, we need to do eventually. Very simple buffer.
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karCBuf {
+    void * _b;  /* bufer */
+    size_t _s;  /* bufer size */
+    size_t _c;  /* bufer capacity */
+};
+
+/*  Two methods need to uses on preallocated structure itself
+ */
+    /*  If Reserve == 0, then it will be reserved by random size :lol:
+     */
+rc_t CC karCBufInit ( struct karCBuf * self, size_t Reserve );
+rc_t CC karCBufWhack ( struct karCBuf * self );
+
+/*  Two methods need to uses when You need allocate structure
+ */
+    /*  If Reserve == 0, then it will be reserved by random size :lol:
+     */
+rc_t CC karCBufMake ( struct karCBuf ** Buf, size_t Reserve );
+rc_t CC karCBufDispose ( struct karCBuf * self );
+
+
+    /*  Copy data to buffer to some certain position
+     */
+rc_t CC karCBufSet (
+                    struct karCBuf * self,
+                    size_t Offset,
+                    void * Data,
+                    size_t DSize
+                    );
+
+    /*  Appends data to buffer
+     */
+rc_t CC karCBufAppend (
+                    struct karCBuf * self,
+                    void * Data,
+                    size_t DSize
+                    );
+
+    /*  This one will return inner buffer to caller, and it is 
+     *  responcibility of caller not ot damage it :LOL:
+     */
+rc_t CC karCBufGet (
+                    struct karCBuf * self,
+                    const void ** Bufer,
+                    size_t * BSize
+                    );
+
+    /*  This one will safely detach inner bufer and return to caller
+     */
+rc_t CC karCBufDetatch (
+                    struct karCBuf * self,
+                    const void ** Bufer,
+                    size_t * BSize
+                    );
 
 #ifdef __cplusplus
 }

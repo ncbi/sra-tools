@@ -48,7 +48,7 @@
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 LIB_EXPORT
 rc_t CC
-_copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+copyStringSayNothingHopeKurtWillNeverSeeThatCode (
                                                 const char ** Dst,
                                                 const char * Src
 )
@@ -108,11 +108,11 @@ _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
     }
 
     return RCt;
-}   /* _copyStringSayNothingHopeKurtWillNeverSeeThatCode () */
+}   /* copyStringSayNothingHopeKurtWillNeverSeeThatCode () */
 
 LIB_EXPORT
 rc_t CC
-_copyLStringSayNothing (
+copyLStringSayNothing (
                         const char ** Dst,
                         const char * Str,
                         size_t Len
@@ -150,11 +150,11 @@ _copyLStringSayNothing (
     }
 
     return RCt;
-}   /* _copyLStringSayNothing () */
+}   /* copyLStringSayNothing () */
 
 LIB_EXPORT
 rc_t CC
-_copySStringSayNothing (
+copySStringSayNothing (
                         const char ** Dst,
                         const char * Begin,
                         const char * End
@@ -178,8 +178,8 @@ _copySStringSayNothing (
         return RC ( rcApp, rcString, rcCopying, rcParam, rcInvalid );
     }
 
-    return _copyLStringSayNothing ( Dst, Begin, End - Begin );
-}   /* _copySStringSayNothing () */
+    return copyLStringSayNothing ( Dst, Begin, End - Begin );
+}   /* copySStringSayNothing () */
 
 /******************************************************************************/
 
@@ -216,7 +216,7 @@ DeLiteVPathToChar ( char ** CharPath, const struct VPath * Path )
         string_copy ( BB, sizeof ( BB ), Str -> addr, Str -> size );
         BB [ Str -> size ] = 0;
 
-        RCt = _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
                                             ( const char ** ) & RetVal,
                                             BB
                                             );
@@ -331,3 +331,247 @@ IsQualityName ( const char * Name )
     }
     return false;
 }   /* IsQualityName () */
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Bufer for suffer
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+
+#define KAR_CBUF_INCS       32768       /* 1024 * 32 */
+
+rc_t CC
+karCBufWhack ( struct karCBuf * self )
+{
+    if ( self != NULL ) {
+        if ( self -> _b != NULL ) {
+            free ( self -> _b );
+        }
+        self -> _b = NULL;
+        self -> _s = 0;
+        self -> _c = 0;
+    }
+
+    return 0;
+}   /* karCBufWhack () */
+
+rc_t CC
+karCBufDispose ( struct karCBuf * self )
+{
+    if ( self != NULL ) {
+        karCBufWhack ( self );
+
+        free ( self );
+    }
+    return 0;
+}   /* karCBufDispose () */
+
+rc_t
+karCBufInit ( struct karCBuf * self, size_t Reserve )
+{
+    if ( self == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAllocating, rcSelf, rcNull );
+    }
+
+    if ( Reserve != 0 ) {
+        self -> _b = calloc ( Reserve, sizeof ( char ) );
+        if ( self -> _b == NULL ) {
+            return RC ( rcApp, rcBuffer, rcAllocating, rcMemory, rcExhausted );
+        }
+    }
+
+    self -> _c = Reserve;
+    self -> _s = 0;
+
+    return 0;
+}   /* karCBufInit () */
+
+/* Reserve could be '0' in that case it will be set randomly later
+ */
+rc_t CC
+karCBufMake ( struct karCBuf ** Buf, size_t Reserve )
+{
+    rc_t RCt;
+    struct karCBuf * Ret;
+
+    RCt = 0;
+    Ret = NULL;
+
+    if ( Buf != NULL ) {
+        * Buf = NULL;
+    }
+
+    if ( Buf == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAllocating, rcParam, rcNull );
+    }
+
+    Ret = calloc ( 1, sizeof ( struct karCBuf ) );
+    if ( Ret == NULL ) {
+        RCt = RC ( rcApp, rcBuffer, rcAllocating, rcMemory, rcExhausted );
+    }
+    else {
+        RCt = karCBufInit ( Ret, Reserve );
+        if ( RCt == 0 ) {
+            * Buf = Ret;
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * Buf = NULL;
+
+        if ( Ret != NULL ) {
+            karCBufDispose ( Ret );
+        }
+    } 
+
+    return RCt;
+}   /* karCBufMake () */
+
+static
+rc_t
+_karCBufRealloc ( struct karCBuf * self, size_t NewSize )
+{
+    rc_t RCt;
+    size_t NewCap;
+    void * NewBuf;
+
+    RCt = 0;
+    NewCap = 0;
+    NewBuf = NULL;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAllocating, rcParam, rcNull );
+    }
+
+    if ( NewSize == 0 ) {
+        return RC ( rcApp, rcBuffer, rcAllocating, rcParam, rcInvalid );
+    }
+
+    if ( self -> _c < NewSize  ) {
+        NewCap = ( ( NewSize / KAR_CBUF_INCS ) + 1 ) * KAR_CBUF_INCS;
+
+        NewBuf = calloc ( NewCap, sizeof ( char ) );
+        if ( NewBuf == NULL ) {
+            RCt = RC ( rcApp, rcBuffer, rcAllocating, rcMemory, rcExhausted );
+        }
+        else {
+            if ( self -> _s != 0 ) {
+                memmove (
+                        NewBuf,
+                        self -> _b,
+                        sizeof ( char ) * self -> _s
+                        );
+
+                free ( self -> _b );
+                self -> _b = NULL;
+            }
+
+            self -> _b = NewBuf;
+            self -> _c = NewCap;
+        }
+    }
+
+    return RCt;
+}   /* _karCBufRealloc () */
+
+rc_t
+karCBufSet (
+            struct karCBuf * self,
+            size_t Off,
+            void * Data,
+            size_t DSize
+)
+{
+    rc_t RCt;
+    size_t NewSize;
+
+    RCt = 0;
+    NewSize = Off + DSize;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAccessing, rcSelf, rcNull );
+    }
+
+    if ( Data == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAccessing, rcParam, rcNull );
+    }
+
+    if ( DSize == 0 ) {
+            /*  I bet it is better to return some smarty RC code here
+             */
+        return 0;
+    }
+
+    if ( self -> _s <= NewSize ) {
+        RCt = _karCBufRealloc ( self, NewSize );
+    }
+
+    if ( RCt == 0 ) {
+        memmove ( ( ( char * ) self -> _b ) + Off, Data, DSize );
+        self -> _s = NewSize;
+    }
+
+    return RCt;
+}   /* karCBufSet () */
+
+rc_t
+karCBufAppend ( struct karCBuf * self, void * Data, size_t DSize )
+{
+    if ( self == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAccessing, rcSelf, rcNull );
+    }
+
+    return karCBufSet ( self, self -> _s, Data, DSize );
+}   /* karCBufAppend () */
+
+rc_t
+karCBufGet (
+                struct karCBuf * self,
+                const void ** Data,
+                size_t * DSize
+)
+{
+    if ( Data != NULL ) {
+        * Data = NULL;
+    }
+
+    if ( DSize != NULL ) {
+        * DSize = 0;
+    }
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAccessing, rcSelf, rcNull );
+    }
+
+    if ( Data == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAccessing, rcParam, rcNull );
+    }
+
+    if ( DSize == NULL ) {
+        return RC ( rcApp, rcBuffer, rcAccessing, rcParam, rcNull );
+    }
+
+    * Data = self -> _b;
+    * DSize = self -> _s;
+
+    return 0;
+}   /* karCBufGet () */
+
+rc_t
+karCBufDetatch (
+                struct karCBuf * self,
+                const void ** Data,
+                size_t * DSize
+)
+{
+    rc_t RCt;
+
+    RCt = karCBufGet ( self, Data, DSize );
+    if ( RCt == 0 ) {
+        self -> _b = NULL;
+        self -> _s = 0;
+        self -> _c = 0;
+    }
+
+    return RCt;
+}   /* karCBufDetach () */
+
+

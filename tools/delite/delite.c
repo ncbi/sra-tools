@@ -29,7 +29,9 @@
 
 #include <klib/text.h>
 #include <klib/printf.h>
-#include <klib/out.h> /* OUTMSG */
+#include <klib/out.h>       /* OUTMSG, KOutHandlerSetStdOut */
+#include <klib/status.h>    /* KStsHandlerSetStdErr */
+#include <klib/debug.h>     /* KDbgHandlerSetStdErr */
 #include <klib/refcount.h>
 #include <klib/rc.h>
 #include <klib/log.h>
@@ -56,13 +58,6 @@
   (((*/
 
 const char * ProgNm = "delite";  /* Application program name */
-
-struct DeLiteParams {
-    const char * program;
-    const char * accession;
-    const char * config;
-    const char * output;
-};
 
 static rc_t DeLiteParamsInit ( struct DeLiteParams * Params );
 static rc_t DeLiteParamsWhack ( struct DeLiteParams * Params );
@@ -111,6 +106,12 @@ KMain ( int ArgC, char * ArgV [] )
 #define OPT_OUTPUT      "output"
 #define ALS_OUTPUT      "o"
 #define PRM_OUTPUT      NULL
+#define DFLT_OUTPUT     "jojo"
+#define STDOUT_OUTPUT   "--"
+
+#define OPT_NOEDIT      "noedit"
+#define ALS_NOEDIT      "n"
+#define PRM_NOEDIT      NULL
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Params
@@ -127,22 +128,31 @@ rc_t
 DeLiteParamsWhack ( struct DeLiteParams * Params )
 {
     if ( Params != NULL ) {
-        if ( Params -> program != NULL ) {
-            free ( ( char * ) Params -> program );
-            Params -> program = NULL;
+        if ( Params -> _program != NULL ) {
+            free ( ( char * ) Params -> _program );
+            Params -> _program = NULL;
         }
-        if ( Params -> accession != NULL ) {
-            free ( ( char * ) Params -> accession );
-            Params -> accession = NULL;
+        if ( Params -> _accession != NULL ) {
+            free ( ( char * ) Params -> _accession );
+            Params -> _accession = NULL;
         }
-        if ( Params -> config != NULL ) {
-            free ( ( char * ) Params -> config );
-            Params -> config = NULL;
+        if ( Params -> _accession_path != NULL ) {
+            free ( ( char * ) Params -> _accession_path );
+            Params -> _accession_path = NULL;
         }
-        if ( Params -> output != NULL ) {
-            free ( ( char * ) Params -> output );
-            Params -> output = NULL;
+        if ( Params -> _config != NULL ) {
+            free ( ( char * ) Params -> _config );
+            Params -> _config = NULL;
         }
+        if ( Params -> _output != NULL ) {
+            if ( strcmp ( Params -> _output, DFLT_OUTPUT ) != 0 ) {
+                free ( ( char * ) Params -> _output );
+            }
+            Params -> _output = NULL;
+        }
+        Params -> _output_stdout = false;
+
+        Params -> _noedit = false;
 
         /* NO_NO_NO free ( Params ); */
     }
@@ -168,10 +178,10 @@ DeLiteParamsSetProgram (
 
     RCt = ArgsProgram ( TheArgs, NULL, & Value );
     if ( RCt == 0 ) {
-        RCt = _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                    & Params -> program,
-                                                    Value
-                                                    );
+        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                                                & Params -> _program,
+                                                Value
+                                                );
     }
 
     return RCt;
@@ -205,10 +215,10 @@ DeLiteParamsSetAccession (
                                 ( const void ** ) & Value
                                 );
             if ( RCt == 0 ) {
-                RCt = _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                            & Params -> accession,
-                                            Value
-                                            );
+                RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                                                & Params -> _accession,
+                                                Value
+                                                );
             }
         }
         else {
@@ -248,10 +258,10 @@ DeLiteParamsSetConfig (
                                     ( const void ** ) & Value
                                     ); 
             if ( RCt == 0 ) {
-                RCt = _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                            & Params -> config,
-                                            Value
-                                            );
+                RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                                                & Params -> _config,
+                                                Value
+                                                );
             }
         }
     }
@@ -288,11 +298,21 @@ DeLiteParamsSetOutput (
                                     ( const void ** ) & Value
                                     ); 
             if ( RCt == 0 ) {
-                RCt = _copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                            & Params -> config,
-                                            Value
-                                            );
+                RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                                                & Params -> _output,
+                                                Value
+                                                );
             }
+        }
+    }
+
+    if ( RCt == 0 ) {
+        if ( Params -> _output == NULL ) {
+            Params -> _output = DFLT_OUTPUT;
+        }
+
+        if ( strcmp ( Params -> _output, STDOUT_OUTPUT ) == 0 ) {
+            Params -> _output_stdout = true;
         }
     }
 
@@ -302,11 +322,12 @@ DeLiteParamsSetOutput (
 /*)))
   \\\   KApp and Options ...
   (((*/
-static const char * UsgAppConfig [] = { "Application config file delite", NULL };
-static const char * UsgAppOutput [] = { "Name of output file, optional, by default it send data to STDOUT" };
+static const char * UsgAppConfig [] = { "Application config file delite. Usually contains mapping from old schema to new", NULL };
+static const char * UsgAppOutput [] = { "Name of output file, optional, by default it send data to file with name \"jojo\". If name is \"--\" output will be written to STDOUT", NULL };
+static const char * UsgAppNoedit [] = { "Do not delete qualities, just repack archive", NULL };
 
 struct OptDef DeeeOpts [] = {
-    {       /* Mystical Application Config option */
+    {       /* Where we will read config data to resolve entries */
         OPT_APPCONFIG,      /* option name */
         ALS_APPCONFIG,      /* option alias */
         NULL,               /* help generator */
@@ -319,9 +340,18 @@ struct OptDef DeeeOpts [] = {
         OPT_OUTPUT,         /* option name */
         ALS_OUTPUT,         /* option alias */
         NULL,               /* help generator */
-        UsgAppConfig,       /* help as text is here */
+        UsgAppOutput,       /* help as text is here */
         1,                  /* max amount */
         true,               /* need value */
+        false               /* is required */
+    },
+    {       /* Option do not edit archive, but repack it */
+        OPT_NOEDIT,         /* option name */
+        ALS_NOEDIT,         /* option alias */
+        NULL,               /* help generator */
+        UsgAppNoedit,       /* help as text is here */
+        1,                  /* max amount */
+        false,              /* need value */
         false               /* is required */
     }
 };  /* OptDef */
@@ -464,6 +494,13 @@ Usage ( const struct Args * TheArgs )
                 UsgAppOutput
                 );
 
+    HelpOptionLine (
+                ALS_NOEDIT,
+                OPT_NOEDIT,
+                PRM_NOEDIT,
+                UsgAppNoedit
+                );
+
     KOutMsg ( "\n" );
 
     KOutMsg ( "Standard Options:\n" );
@@ -478,57 +515,51 @@ Usage ( const struct Args * TheArgs )
  * Sanctuary
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
-static rc_t __readKar ( const char * Accession);
+static rc_t __readKar ( struct DeLiteParams * Params );
 
 rc_t
 __runKar ( struct DeLiteParams * Params )
 {
-    if ( Params -> config != NULL ) {
-        printf ( " KAR [%s] with KFG [%s]\n", Params -> accession, Params -> config ); 
+    if ( Params -> _config != NULL ) {
+        printf ( " KAR [%s] with KFG [%s]\n", Params -> _accession, Params -> _config ); 
     }
     else {
-        printf ( " KAR [%s] without KFG\n", Params -> accession ); 
+        printf ( " KAR [%s] with default KFG\n", Params -> _accession );
     }
 
-    return __readKar ( Params -> accession );
+        /*  Something very special
+         */
+    if ( Params -> _output_stdout ) {
+        KOutHandlerSetStdOut();
+        KStsHandlerSetStdErr();
+        KLogHandlerSetStdErr();
+        KDbgHandlerSetStdErr();
+    }
+
+    return __readKar ( Params );
 }   /* __runKar () */
 
 rc_t
-__readKar ( const char * Accession )
+__readKar ( struct DeLiteParams * Params )
 {
-    rc_t RCt;
-    char * Path;
-    const struct karChive * Chive;
+    rc_t RCt = 0;
 
-    RCt = 0;
-    Path = NULL;
-    Chive = NULL;
-
-    if ( Accession == NULL ) {
+    if ( Params == NULL ) {
         return RC ( rcApp, rcArc, rcReading, rcParam, rcNull );
     }
 
-    RCt = DeLiteResolvePath ( & Path, Accession );
+    RCt = DeLiteResolvePath (
+                            ( char ** ) & ( Params -> _accession_path ),
+                            Params -> _accession
+                            );
     if ( RCt == 0 ) {
-        printf ( "FOUND [%s] -> [%s]\n", Accession, Path );
+        printf ( "FOUND [%s] -> [%s]\n", Params -> _accession, Params -> _accession_path );
 
-        RCt = karChiveOpen ( & Chive, ( const char * ) Path );
-        if ( RCt == 0 ) {
-            karChiveDump ( Chive, true );
-
-            RCt = karChiveEdit ( Chive );
-            if ( RCt == 0 ) {
-                RCt = karChiveWrite ( Chive, "jojo", true );
-            }
-
-            karChiveRelease ( Chive );
-        }
+        RCt = Delite ( Params );
     }
     else {
-        printf ( "NOT FOUND [%s] RC [%u]\n", Accession, RCt );
+        printf ( "NOT FOUND [%s] RC [%u]\n", Params -> _accession, RCt );
     }
-
-    free ( Path );
 
     return RCt;
 }   /* __readKar () */

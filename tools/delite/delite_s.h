@@ -38,19 +38,73 @@ extern "C" {
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 struct karChiveScm;
+struct KMetadata;
 
-rc_t CC karChiveScmMake (
-                        struct karChiveScm ** Scm,
-                        const void * Buf,
-                        size_t BufSize
-                        );
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  UnOficial schema resolvin unit
+ *
+ *  By default schema will be resolved with using 'DELITE' section
+ *  from Konfig.
+ *
+ *  User may define his own Konfig, in that case he could load it 
+ *  with karChiveScmSetStandardResolver () method.
+ *
+ *  If user want to use his own resolving mechanism, he could set an 
+ *  instance of resolver with ksrChiveScmSetResolver method
+ *
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karChiveResolver {
+    void * _data;
+
+        /*  Note, returned SchemaPath and SchemaName will be
+         *  freed by caller ... so, please do not return any
+         *  valuables
+         */
+    rc_t ( CC * _resolve ) ( 
+                            struct karChiveResolver * Resolver,
+                            const char * Name,
+                            char ** SchemaPath,
+                            char ** SchemaName
+                            );
+
+        /*  if dat will be NULL, resolver will be 'free()'
+         */
+    rc_t ( CC * _dispose ) ( struct karChiveResolver * Resolver );
+};
+
+    /*  Once resolver is set, any attempt to set another will be
+     *  rejected, lol
+     */
+rc_t CC karChiveScmSetStandardResolver (
+                            struct karChiveScm * self,
+                            const char * KfgPath
+                            );
+
+    /*  Once resolver is set, any attempt to set another will be
+     *  rejected, lol
+     */
+rc_t CC ksrChiveScmSetResolver ( 
+                            struct karChiveScm * self,
+                            struct karChiveResolver * Rsl
+                            );
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Oficial schema processing unit
+ *
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+rc_t CC karChiveScmMake ( struct karChiveScm ** Scm );
 rc_t CC karChiveScmDispose ( struct karChiveScm * self );
 
+    /*  NOTE: 'schema_name' parameter could be null, in that
+     *      case original name will be used
+     *      NewSchemaName will not be disposed, so it is caller prblem
+     */
 rc_t CC karChiveScmTransform (
-                        const struct karChiveScm * self,
-                        const char * Name
-                        /* And some parameters here */
-                        );
+                            struct karChiveScm * self,
+                            struct KMetadata * Meta
+                            );
+
 
 #ifdef __cplusplus
 }

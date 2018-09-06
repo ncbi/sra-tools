@@ -29,8 +29,10 @@
 #include <klib/container.h>
 #include <klib/refcount.h>
 #include <klib/log.h>
+#include <klib/out.h>
 #include <klib/pbstree.h>
 #include <klib/sort.h>
+#include <klib/checksum.h>
 
 #include <kfs/file.h>
 #include <kfs/directory.h>
@@ -1232,12 +1234,12 @@ _karChiveEntryDumpCallback (
         _karChiveEntryPath ( self, B1, sizeof ( B1 ) );
         _karChiveEntryDetails ( self, B2, sizeof ( B2 ) );
 
-        printf ( "%24s %s\n", B2, B1 );
+        KOutMsg ( "%24s %s\n", B2, B1 );
     }
     else {
         _karChiveEntryPath ( self, B1, sizeof ( B1 ) );
 
-        printf ( "%s\n", B1 );
+        KOutMsg ( "%s\n", B1 );
     }
 
 }   /* _karChievEntryDumpCallback () */
@@ -2770,7 +2772,8 @@ karChiveEdit ( const struct karChive * self, bool IdleRun )
                 }
             }
             else {
-                printf ( "There is no entries to remove\n" );
+                KOutMsg ( "There is nothing to remove\n" );
+                LogMsg ( klogInfo, "There is no entries to remove" );
             }
         }
 
@@ -2855,7 +2858,8 @@ _karChiveEditForPath (
         return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
     }
 
-    printf ( "Removing entry for [%s]\n", Path );
+    KOutMsg ( "REM [%s]\n", Path );
+    pLogMsg ( klogInfo, "Removing entry for [$(path)]", "path=%s", Path );
 
     RCt = _karChiveResolvePath ( & Found, self -> _root, Path );
     if ( RCt == 0 ) {
@@ -2880,7 +2884,7 @@ _karChiveEditForPath (
         }
     }
     else {
-        printf ( "Can not find entry for [%s]\n", Path );
+        pLogMsg ( klogInfo, "Can not find entry for [$(path)]", "path=%s", Path );
         RCt = 0;
     }
 
@@ -2902,6 +2906,129 @@ LIB_EXPORT rc_t CC KMetadataFlushToMemory (
                                             size_t bsize,
                                             size_t * num_writ
                                             );
+
+static
+rc_t CC 
+_karChiveMakeMD5Line (
+                    const char * Data,
+                    size_t DataSize,
+                    char * Buf,
+                    size_t BufSize
+)
+{
+    rc_t RCt;
+    struct MD5State State;
+    uint8_t Digest [ 16 ];
+    size_t llp, Len, Total;
+
+    RCt = 0;
+    memset ( & State, 0, sizeof ( struct MD5State ) );
+    memset ( Digest, 0, sizeof ( Digest ) );
+    llp = Len = Total = 0;
+
+    memset ( Buf, 0, BufSize );
+
+    MD5StateInit ( & State );
+    MD5StateAppend ( & State, Data, DataSize );
+    MD5StateFinish ( & State, Digest );
+
+    for ( llp = 0; llp < 16; llp ++ ) {
+        Len = snprintf (
+                    Buf + Total,
+                    BufSize - Total,
+                    "%02x",
+                    Digest [ llp ]
+                    );
+        assert ( Len == 2 );
+        Total += Len;
+    }
+
+    Len = snprintf ( Buf + Total, BufSize - Total, " *%s\n", MD_CUR_NODE_PATH );
+    Total += Len;
+
+    return RCt;
+}   /* _karChiveMakeMD5Line () */
+
+static
+rc_t CC
+_karChiveUpdateMD5File (
+                        const struct karChiveEntry * self,
+                        const char * Data,
+                        size_t DataSize
+)
+{
+    rc_t RCt;
+    struct karChiveDir * ParPar;
+    const struct karChiveEntry * Found;
+    struct karChiveFile * File;
+    char Buf [ 128 ];
+
+    RCt = 0;
+    ParPar = NULL;
+    Found = NULL;
+    File = NULL;
+    * Buf = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcSelf, rcNull );
+    }
+
+    if ( Data == NULL ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcParam, rcNull );
+    }
+
+    if ( DataSize == 0 ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcParam, rcInvalid );
+    }
+
+        /*  First we should find appropriate carChiveFile with MD5 sum
+         *  of course it should be "../../md5"
+         */
+    ParPar = self -> _parent;
+    if ( ParPar == NULL ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcItem, rcInvalid );
+    }
+    else {
+        ParPar = ParPar -> _da_da_dad . _parent;
+        if ( ParPar == NULL ) {
+            return RC ( rcApp, rcArc, rcUpdating, rcItem, rcInvalid );
+        }
+    }
+
+    RCt = _karChiveResolvePath (
+                                & Found,
+                                ParPar,
+                                "md5"
+                                );
+    if ( RCt == 0 ) {
+        if ( Found -> _type != kptFile ) {
+            RCt = RC ( rcApp, rcArc, rcUpdating, rcItem, rcCorrupt );
+        }
+        else {
+            File = ( struct karChiveFile * ) Found;
+
+                /*  Here we are getting new MD5 sum
+                 */
+            RCt = _karChiveMakeMD5Line (
+                                        Data,
+                                        DataSize,
+                                        Buf,
+                                        sizeof ( Buf )
+                                        );
+            if ( RCt == 0 ) {
+                karChiveDSRelease ( File -> _data_source );
+
+                RCt = karChiveMemDSMake ( 
+                                    & ( File -> _data_source ),
+                                    Buf,
+                                    strlen ( Buf )
+                                    );
+            }
+        }
+    }
+
+    return RCt;
+}   /* _karChiveUpdateMD5File () */
 
 static
 rc_t CC
@@ -3051,6 +3178,13 @@ _karChiveEditMetaFile (
                                             MetaBuf,
                                             MetaSize
                                             );
+                            if ( RCt == 0 ) {
+                                RCt = _karChiveUpdateMD5File (
+                                            & ( cFile -> _da_da_dad ),
+                                            MetaBuf,
+                                            MetaSize
+                                            );
+                            }
                         }
                     }
                 }

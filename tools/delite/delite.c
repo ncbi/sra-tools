@@ -79,6 +79,15 @@ KMain ( int ArgC, char * ArgV [] )
             UsageSummary ( ProgNm );
         }
         else {
+                /*  Something very special
+                 */
+            if ( DLP . _output_stdout ) {
+                KOutHandlerSetStdErr();
+                KStsHandlerSetStdErr();
+                KLogHandlerSetStdErr();
+                KDbgHandlerSetStdErr();
+            }
+
             RCt = __runKar ( & DLP );
         }
     }
@@ -319,6 +328,33 @@ DeLiteParamsSetOutput (
     return RCt;
 }   /* DeLiteParamsSetOutput () */
 
+static
+rc_t
+DeLiteParamsSetNoedit (
+                        struct DeLiteParams * Params,
+                        const struct Args * TheArgs
+)
+{
+    rc_t RCt;
+    uint32_t OptCount;
+
+    RCt = 0;
+    OptCount = 0;
+
+    if ( Params == NULL ) {
+        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
+    }
+
+    RCt = ArgsOptionCount ( TheArgs, OPT_NOEDIT, & OptCount );
+    if ( RCt == 0 ) {
+        if ( OptCount != 0 ) {
+            Params -> _noedit = true;
+        }
+    }
+
+    return RCt;
+}   /* DeLiteParamsSetNoedit () */
+
 /*)))
   \\\   KApp and Options ...
   (((*/
@@ -423,6 +459,11 @@ __porseAndHandle (
                 break;
             }
 
+            RCt = DeLiteParamsSetNoedit ( Params, TheArgs );
+            if ( RCt != 0 ) {
+                break;
+            }
+
             break;
         }
 
@@ -520,20 +561,17 @@ static rc_t __readKar ( struct DeLiteParams * Params );
 rc_t
 __runKar ( struct DeLiteParams * Params )
 {
-    if ( Params -> _config != NULL ) {
-        printf ( " KAR [%s] with KFG [%s]\n", Params -> _accession, Params -> _config ); 
-    }
-    else {
-        printf ( " KAR [%s] with default KFG\n", Params -> _accession );
-    }
+    const char * KfgMsg = Params -> _config == NULL ? "default" : Params -> _config;
 
-        /*  Something very special
-         */
-    if ( Params -> _output_stdout ) {
-        KOutHandlerSetStdOut();
-        KStsHandlerSetStdErr();
-        KLogHandlerSetStdErr();
-        KDbgHandlerSetStdErr();
+    KOutMsg ( "KAR [%s]\n", Params -> _accession );
+    pLogMsg ( klogInfo, "KAR [$(acc)]", "acc=%s", Params -> _accession );
+
+    KOutMsg ( "KFG [%s]\n", KfgMsg );
+    pLogMsg ( klogInfo, "KFG [$(cfg)]", "cfg=%s", KfgMsg );
+
+    if ( Params -> _noedit ) {
+        KOutMsg ( "RUN [idle]\n" );
+        pLogMsg ( klogInfo, "RUN [idle]", "" );
     }
 
     return __readKar ( Params );
@@ -553,12 +591,30 @@ __readKar ( struct DeLiteParams * Params )
                             Params -> _accession
                             );
     if ( RCt == 0 ) {
-        printf ( "FOUND [%s] -> [%s]\n", Params -> _accession, Params -> _accession_path );
+        KOutMsg ( "PTH [%s]\n", Params -> _accession_path );
+        pLogMsg (
+                klogInfo,
+                "PTH [$(path)]",
+                "path=%s",
+                Params -> _accession_path
+                );
 
         RCt = Delite ( Params );
     }
     else {
-        printf ( "NOT FOUND [%s] RC [%u]\n", Params -> _accession, RCt );
+        KOutMsg ( "NOT FND [%s] RC [%d]\n", Params -> _accession, RCt );
+        pLogErr (
+                klogErr,
+                RCt,
+                "NOT FOUND [$(acc)] RC [$(rc)]",
+                "acc=%s,rc=%u",
+                Params -> _accession,
+                RCt
+                );
+    }
+
+    if ( RCt == 0 ) {
+        KOutMsg ( "DONE\n" );
     }
 
     return RCt;

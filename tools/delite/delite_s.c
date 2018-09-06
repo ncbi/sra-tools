@@ -27,6 +27,7 @@
 #include <klib/rc.h>
 #include <klib/refcount.h>
 #include <klib/log.h>
+#include <klib/out.h>
 #include <kfs/directory.h>
 #include <kfs/file.h>
 #include <kfg/config.h>
@@ -323,14 +324,39 @@ _karCRStandardResolve (
                                             SchemaPath
                                             );
             if ( RCt == 0 ) {
-printf ( "[%s] -> [%s][%s]\n", Name, * SchemaName, * SchemaPath );
+                KOutMsg ( "MAP [%s] -> [%s][%s]\n",
+                        Name,
+                        * SchemaName,
+                        * SchemaPath
+                        );
+
+                pLogMsg (
+                        klogInfo,
+                        "MAP [$(name)] -> [$(sname)][$(spath)]",
+                        "name=%s,sname=%s,spath=%s",
+                        Name,
+                        * SchemaName,
+                        * SchemaPath
+                        );
             }
             else {
-printf ( "[ERR] Can not resolve new [schema path] for [%s]\n", Name );
+                pLogErr (
+                        klogErr,
+                        RCt,
+                        "Can not map schema and path for [$(name)]",
+                        "name=%s",
+                        Name
+                        );
             }
         }
         else {
-printf ( "[ERR] Can not resolve new [schema name] for [%s]\n", Name );
+            pLogErr (
+                    klogErr,
+                    RCt,
+                    "Can not map schema and path for [$(name)]",
+                    "name=%s",
+                    Name
+                    );
         }
 
         free ( Key );
@@ -845,7 +871,6 @@ karChiveScmTransform (
                 free ( SchemaPath );
             }
         }
-        // JOJOBA ???
         karCBufWhack ( & Buf );
     } 
     return RCt;

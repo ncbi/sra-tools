@@ -371,6 +371,8 @@ karCBufInit ( struct karCBuf * self, size_t Reserve )
         return RC ( rcApp, rcBuffer, rcAllocating, rcSelf, rcNull );
     }
 
+    memset ( self, 0, sizeof ( struct karCBuf ) );
+
     if ( Reserve != 0 ) {
         self -> _b = calloc ( Reserve, sizeof ( char ) );
         if ( self -> _b == NULL ) {

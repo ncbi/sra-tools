@@ -1034,17 +1034,17 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
     else
         self->header = text;
     {
-    char *const copy = malloc(size + 1); /* an editable copy */
-    if (copy == NULL)
-        return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
-    self->headerData1 = copy; /* so it's not leaked */
-    memmove(copy, text, size + 1);
+        char *const copy = malloc(size + 1); /* an editable copy */
+        if (copy == NULL)
+            return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
+        self->headerData1 = copy; /* so it's not leaked */
+        memmove(copy, text, size + 1);
     
-    {
-    bool const parsed = ParseHeader(self, copy, size);
-    if (!parsed)
-        return RC(rcAlign, rcFile, rcParsing, rcData, rcInvalid);
-    }
+        {
+            bool const parsed = ParseHeader(self, copy, size);
+            if (!parsed)
+                return RC(rcAlign, rcFile, rcParsing, rcData, rcInvalid);
+        }
     }
     for (i = 0; i < self->readGroups; ++i)
         self->readGroup[i].id = i;
@@ -1236,19 +1236,23 @@ static unsigned FindRefSeqByName(char const name[], bool match, unsigned const N
     return match ? N : f;
 }
 
-static void FindAndSetupRefSeq(BAMRefSeq *rs, unsigned const refSeqs, BAMRefSeq const refSeq[])
+static void FindAndSetupRefSeq(BAM_File const *const self, BAMRefSeq *const dst, bool const overrideLength)
 {
-    unsigned const fnd = FindRefSeqByName(rs->name, true, refSeqs, refSeq);
-    if (fnd != refSeqs) {
-        rs->assemblyId = refSeq[fnd].assemblyId;
-        rs->uri = refSeq[fnd].uri;
-        rs->species = refSeq[fnd].species;
-        if (refSeq[fnd].checksum) {
-            rs->checksum = &rs->checksum_array[0];
-            memmove(rs->checksum_array, refSeq[fnd].checksum_array, 16);
+    char const *const name = dst->name;
+    unsigned const fnd = FindRefSeqByName(name, true, self->refSeqs, self->refSeq);
+    if (fnd != self->refSeqs) {
+        BAMRefSeq const *const src = &self->refSeq[fnd];
+        if (overrideLength)
+            dst->length = src->length;
+        dst->assemblyId = src->assemblyId;
+        dst->uri = src->uri;
+        dst->species = src->species;
+        if (src->checksum) {
+            dst->checksum = &dst->checksum_array[0];
+            memmove(dst->checksum_array, src->checksum_array, 16);
         }
         else
-            rs->checksum = NULL;
+            dst->checksum = NULL;
     }
 }
 
@@ -1262,6 +1266,7 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
     unsigned nrefs;
     BAMRefSeq *refSeq;
     rc_t rc = ReadMagic(self);
+    bool overrideHeader = !!0;
 
     if (rc) return rc;
 
@@ -1277,6 +1282,7 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
     }
 
     if (headerText) {
+        overrideHeader = !0;
         free(htxt);
         rc = ProcessHeaderText(self, headerText, true);
     }
@@ -1296,7 +1302,7 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
         refSeq[i].id = i;
         refSeq[i].name = name;
         refSeq[i].length = rlen;
-        FindAndSetupRefSeq(&refSeq[i], self->refSeqs, self->refSeq);
+        FindAndSetupRefSeq(self, &refSeq[i], overrideHeader);
     }
     free(self->refSeq);
     self->refSeq = refSeq;

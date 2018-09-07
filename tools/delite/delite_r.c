@@ -26,6 +26,10 @@
 
 #include <klib/text.h>
 #include <klib/rc.h>
+#include <klib/time.h>
+#include <klib/printf.h>
+
+#include <kapp/main.h>
 
 #include <vfs/manager.h>
 #include <vfs/path.h>
@@ -331,6 +335,103 @@ IsQualityName ( const char * Name )
     }
     return false;
 }   /* IsQualityName () */
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Time for fume
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+LIB_EXPORT
+rc_t CC
+NowAsString ( char ** Str )
+{
+    rc_t RCt;
+    char Buf [ 128 ];
+
+    RCt = 0;
+    * Buf = 0;
+
+    if ( Str != NULL ) {
+        * Str = NULL;
+    }
+
+    if ( Str == NULL ) {
+        return RC ( rcApp, rcApp, rcAccessing, rcParam, rcNull );
+    }
+
+    RCt = NowToString ( Buf, sizeof ( Buf ) );
+    if ( RCt == 0 ) {
+        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                                                ( const char ** ) Str,
+                                                Buf
+                                                );
+    }
+
+    return RCt;
+}   /* NowAsString () */
+
+LIB_EXPORT
+rc_t CC
+NowToString ( char * Buf, size_t BufSize )
+{
+    struct KTime Time;
+
+    memset ( & Time, 0, sizeof ( struct KTime ) );
+
+    if ( Buf == NULL ) {
+        return RC ( rcApp, rcApp, rcAccessing, rcParam, rcNull );
+    }
+
+    if ( BufSize < 32 ) {
+        return RC ( rcApp, rcApp, rcAccessing, rcParam, rcInvalid );
+    }
+
+    KTimeLocal ( & Time, KTimeStamp () );
+
+    return string_printf ( Buf, BufSize, NULL, "%lT", & Time );
+}   /* NowToString () */
+
+LIB_EXPORT
+rc_t CC
+VersAsString ( char ** Str )
+{
+    rc_t RCt;
+    char Buf [ 128 ];
+
+    RCt = 0;
+    * Buf = 0;
+
+    if ( Str != NULL ) {
+        * Str = NULL;
+    }
+
+    if ( Str == NULL ) {
+        return RC ( rcApp, rcApp, rcAccessing, rcParam, rcNull );
+    }
+
+    RCt = VersToString ( Buf, sizeof ( Buf ) );
+    if ( RCt == 0 ) {
+        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                                                ( const char ** ) Str,
+                                                Buf
+                                                );
+    }
+
+    return RCt;
+}   /* VersAsString () */
+
+LIB_EXPORT
+rc_t CC
+VersToString ( char * Buf, size_t BufSize )
+{
+    if ( Buf == NULL ) {
+        return RC ( rcApp, rcApp, rcAccessing, rcParam, rcNull );
+    }
+
+    if ( BufSize < 32 ) {
+        return RC ( rcApp, rcApp, rcAccessing, rcParam, rcInvalid );
+    }
+
+    return string_printf ( Buf, BufSize, NULL, "%.3V", KAppVersion () );
+}   /* VersToString () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Bufer for suffer

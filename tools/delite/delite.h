@@ -75,6 +75,14 @@ LIB_EXPORT rc_t CC DeLiteResolvePath (
      */
 LIB_EXPORT bool CC IsQualityName ( const char * Name );
 
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ * Time, more and more
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+LIB_EXPORT rc_t CC NowAsString ( char ** Str );
+LIB_EXPORT rc_t CC NowToString ( char * B, size_t BSize );
+
+LIB_EXPORT rc_t CC VersAsString ( char ** Str );
+LIB_EXPORT rc_t CC VersToString ( char * B, size_t BSize );
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Some weird stuff, we need to do eventually. Very simple buffer.

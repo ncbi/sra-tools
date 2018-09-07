@@ -63,6 +63,13 @@
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
 #define MD_CUR_NODE_PATH "md/cur"
+#define MD_CUR_NODE_NAME "cur"
+
+#define MD_SOFT_DELITE   "delite"
+#define MD_SOFT_SOFTWARE "SOFTWARE"
+#define MD_SOFT_DATE     "date"
+#define MD_SOFT_NAME     "name"
+#define MD_SOFT_VERS     "vers"
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Kar will NOT return directory
@@ -2687,6 +2694,10 @@ static rc_t CC _karChiveEditMetaFiles (
                                     const struct karChive * self,
                                     struct VNamelist * Filter
                                     );
+static void _karChiveCheckMetaDeliteCallback (
+                                    const struct karChiveEntry * Entry,
+                                    void * Data
+                                    );
 
 LIB_EXPORT
 rc_t CC
@@ -2698,6 +2709,7 @@ karChiveEdit ( const struct karChive * self, bool IdleRun )
     const struct karChiveEntry * Found;
     uint32_t Count, llp;
     const char * Path;
+    bool WasDelited;
 
     RCt = 0;
     NL = NULL;
@@ -2705,6 +2717,18 @@ karChiveEdit ( const struct karChive * self, bool IdleRun )
     Found = NULL;
     Count = llp = 0;
     Path = NULL;
+    WasDelited = false;
+
+        /*  Checking if here already was performed 'delite' procedure
+         */
+    _karChiveEntryForEach (
+                        ( const struct karChiveEntry * ) self -> _root,
+                        _karChiveCheckMetaDeliteCallback,
+                        ( void * ) & WasDelited
+                        );
+    if ( WasDelited ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcExcessive );
+    }
 
     RCt = VNamelistMake ( & NL, 4 );
     if ( RCt == 0 ) {
@@ -2782,6 +2806,125 @@ karChiveEdit ( const struct karChive * self, bool IdleRun )
 
     return RCt;
 }   /* karChiveEdit () */
+
+/*  Secret ingredient, it does not appear at any header
+ */
+LIB_EXPORT rc_t CC KMetadataMakeFromMemory (
+                                            struct KMetadata ** Meta,
+                                            const char * Path,
+                                            const void * Addr,
+                                            size_t Size,
+                                            bool ReadOnly
+                                            );
+LIB_EXPORT rc_t CC KMetadataFlushToMemory (
+                                            struct KMetadata * self,
+                                            char * buffer,
+                                            size_t bsize,
+                                            size_t * num_writ
+                                            );
+
+void
+_karChiveCheckMetaDeliteCallback (
+                                const struct karChiveEntry * Entry,
+                                void * Data
+)
+{
+    rc_t RCt;
+    struct karChiveFile * File;
+    bool WasDelited;
+    void * Buf;
+    size_t BufSize;
+    struct KMetadata * Meta;
+    const struct KMDataNode * NodeSoft;
+    const struct KMDataNode * NodeDeli;
+    char BBB [ 1024 ];
+
+    RCt = 0;
+    File = NULL;
+    WasDelited = false;
+    Buf = NULL;
+    BufSize = 0;
+    Meta = NULL;
+    NodeSoft = NULL;
+    NodeDeli = NULL;
+    * BBB = 0;
+
+    if ( Entry == NULL || Data == NULL ) {
+        /*  Should we complain here ?
+         */
+        return;
+    }
+
+    WasDelited = * ( ( bool * ) Data );
+    if ( WasDelited ) {
+        return;
+    }
+
+    if ( Entry -> _name == NULL ) {
+        return;
+    }
+
+    if ( Entry -> _type != kptFile ) {
+        return;
+    }
+
+    if ( strcmp ( Entry -> _name, MD_CUR_NODE_NAME ) != 0 ) {
+        return;
+    }
+
+    RCt = _karChiveEntryPath ( Entry, BBB, sizeof ( BBB ) );
+    if ( RCt == 0 ) {
+        File = ( struct karChiveFile * ) Entry;
+        RCt = karChiveDSReadAll ( File -> _data_source, & Buf, & BufSize );
+        if ( RCt == 0 ) {
+             RCt = KMetadataMakeFromMemory (
+                                            & Meta,
+                                            BBB,
+                                            Buf,
+                                            BufSize,
+                                            false
+                                            );
+            if ( RCt == 0 ) {
+                RCt = KMetadataOpenNodeRead (
+                                    ( const struct KMetadata * ) Meta,
+                                    & NodeSoft,
+                                    MD_SOFT_SOFTWARE
+                                    );
+                if ( RCt == 0 ) {
+                    RCt = KMDataNodeOpenNodeRead (
+                                                NodeSoft,
+                                                & NodeDeli,
+                                                MD_SOFT_DELITE
+                                                );
+                    if ( RCt == 0 ) {
+                        WasDelited = true;
+
+                        KOutMsg ( "ERROR: object already was delited [%s]\n", BBB );
+                        pLogMsg (
+                                klogErr,
+                                "ERROR: object already was delited [$(path)]",
+                                "path=%s",
+                                BBB
+                                );
+
+                        * ( ( bool * ) Data ) = true;
+
+                        KMDataNodeRelease ( NodeDeli );
+                    }
+
+                    KMDataNodeRelease ( NodeSoft );
+                }
+
+/*  That part is prihibited and leaved leaking
+ *                KMetadataRelease ( Meta );
+ */
+            }
+
+            free ( Buf );
+        }
+    }
+
+}   /* _karChiveCheckMetaDeliteCallback () */
 
 rc_t CC
 _karChiveAddMetaPath (
@@ -2890,22 +3033,6 @@ _karChiveEditForPath (
 
     return RCt;
 }   /* _karChiveEditForPath () */
-
-/*  Secret ingredient, it does not appear at any header
- */
-LIB_EXPORT rc_t CC KMetadataMakeFromMemory (
-                                            struct KMetadata ** Meta,
-                                            const char * Path,
-                                            const void * Addr,
-                                            size_t Size,
-                                            bool ReadOnly
-                                            );
-LIB_EXPORT rc_t CC KMetadataFlushToMemory (
-                                            struct KMetadata * self,
-                                            char * buffer,
-                                            size_t bsize,
-                                            size_t * num_writ
-                                            );
 
 static
 rc_t CC 
@@ -3032,6 +3159,74 @@ _karChiveUpdateMD5File (
 
 static
 rc_t CC
+_karChiveUpdateMetaSoft ( struct KMetadata * Meta )
+{
+    rc_t RCt;
+    struct KMDataNode * NodeSoft;
+    struct KMDataNode * NodeDeli;
+    char * Now;
+
+    RCt = 0;
+    NodeSoft = NULL;
+    NodeDeli = NULL;
+    Now = NULL;
+
+    if ( Meta == NULL ) {
+        return RC ( rcApp, rcMetadata, rcUpdating, rcSelf, rcNull );
+    }
+
+    RCt = KMetadataOpenNodeUpdate (
+                                    Meta,
+                                    & NodeSoft,
+                                    MD_SOFT_SOFTWARE
+                                    );
+    if ( RCt == 0 ) {
+        RCt = KMDataNodeOpenNodeUpdate (
+                                        NodeSoft,
+                                        & NodeDeli,
+                                        MD_SOFT_DELITE
+                                        );
+        if ( RCt == 0 ) {
+            RCt = NowAsString ( & Now );
+            if ( RCt == 0 ) {
+
+                RCt = KMDataNodeWriteAttr (
+                                            NodeDeli,
+                                            MD_SOFT_DATE,
+                                            Now
+                                            );
+                free ( Now );
+                if ( RCt == 0 ) {
+                    RCt = KMDataNodeWriteAttr (
+                                                NodeDeli,
+                                                MD_SOFT_NAME,
+                                                MD_SOFT_DELITE
+                                                );
+                    if ( RCt == 0 ) {
+                        RCt = VersAsString ( & Now );
+                        if ( RCt == 0 ) {
+                            RCt = KMDataNodeWriteAttr (
+                                                        NodeDeli,
+                                                        MD_SOFT_VERS,
+                                                        Now
+                                                        );
+                            free ( Now );
+                        }
+                    }
+                }
+            }
+
+            KMDataNodeRelease ( ( const KMDataNode * ) NodeDeli );
+        }
+
+        KMDataNodeRelease ( ( const KMDataNode * ) NodeSoft );
+    }
+
+    return RCt;
+}   /* _karChiveUpdateMetaSoft () */
+
+static
+rc_t CC
 _karChiveEditMetaFile (
                         const struct karChive * self,
                         const char * Path,
@@ -3044,9 +3239,6 @@ _karChiveEditMetaFile (
     struct KMetadata * Meta;
     char * Data;
     size_t DSize;
-    size_t Pos;
-    size_t Num2R;
-    size_t NumR;
     char * MetaBuf;
     size_t MetaBufSize;
     size_t MetaBufSizeEff;
@@ -3057,9 +3249,6 @@ _karChiveEditMetaFile (
     Meta = NULL;
     Data = NULL;
     DSize = 0;
-    Pos = 0;
-    Num2R = 0;
-    NumR = 0;
     MetaBuf = NULL;
     MetaBufSize = 0;
     MetaBufSizeEff = 0;
@@ -3082,50 +3271,14 @@ _karChiveEditMetaFile (
         /*  Reading metadata to buffer. Sorry, I did not do separate
          *  method :LOL:
          */
-    RCt = karChiveDSSize ( cFile -> _data_source, & DSize );
+    RCt = karChiveDSReadAll (
+                            cFile -> _data_source,
+                            ( void ** ) & Data,
+                            & DSize
+                            );
     if ( RCt == 0 ) {
-        if ( DSize == 0 ) {
-            RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcCorrupt );
-        }
-        else {
-            Data = calloc ( DSize, sizeof ( char ) );
-            if ( Data == NULL ) {
-                RCt = RC ( rcApp, rcArc, rcUpdating, rcMemory, rcExhausted );
-            }
-            else {
-                while ( Pos < DSize ) {
-                    Num2R = DSize - Pos;
-
-                    RCt = karChiveDSRead (
-                                    cFile -> _data_source,
-                                    Pos,
-                                    Data + Pos,
-                                    Num2R,
-                                    & NumR
-                                    );
-                    if ( RCt != 0 ) {
-                        break;
-                    }
-
-                    if ( NumR == 0 ) {
-                            /*  End of File 
-                             */
-                        break;
-                    }
-
-                    Pos += NumR;
-                }
-
-                if ( Pos != DSize ) {
-                    RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcCorrupt );
-                }
-            }
-        }
-    }
-
-        /*  Transforming metadata
-         */
-    if ( RCt == 0 ) {
+            /*  Transforming metadata
+             */
         RCt = KMetadataMakeFromMemory (
                                     & Meta,
                                     Path,
@@ -3137,53 +3290,56 @@ _karChiveEditMetaFile (
 
             RCt = karChiveScmTransform ( self -> _scm, Meta );
             if ( RCt == 0 ) {
-                    /*  Checking needed size and creating buffer
-                     */
-                RCt = KMetadataFlushToMemory (
+                RCt = _karChiveUpdateMetaSoft ( Meta );
+                if ( RCt == 0 ) {
+                        /*  Checking needed size and creating buffer
+                         */
+                    RCt = KMetadataFlushToMemory (
                                         Meta,
                                         NULL,
                                         0,
                                         & MetaBufSize
                                         );
-                if ( RCt == 0 ) {
-                    if ( 0 < MetaBufSize ) {
-                        MetaBufSizeEff = ( ( MetaBufSize / 1024 ) + 2 ) * 1024;
-                        MetaBuf = calloc ( MetaBufSizeEff, sizeof ( char ) );
-                        if ( MetaBuf == NULL ) {
-                            RCt = RC ( rcApp, rcArc, rcUpdating, rcMemory, rcExhausted );
-                        }
-                    }
-                    else {
-                        RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcInvalid );
-                    }
-                }
-
-                if ( RCt == 0 ) {
-
-                    RCt = KMetadataFlushToMemory (
-                                            Meta,
-                                            MetaBuf,
-                                            MetaBufSizeEff,
-                                            & MetaSize
-                                            );
                     if ( RCt == 0 ) {
-                        if ( MetaBufSize != MetaSize ) {
-                            RCt = RC ( rcApp, rcArc, rcUpdating, rcTransfer, rcInvalid );
+                        if ( 0 < MetaBufSize ) {
+                            MetaBufSizeEff = ( ( MetaBufSize / 1024 ) + 2 ) * 1024;
+                            MetaBuf = calloc ( MetaBufSizeEff, sizeof ( char ) );
+                            if ( MetaBuf == NULL ) {
+                                RCt = RC ( rcApp, rcArc, rcUpdating, rcMemory, rcExhausted );
+                            }
                         }
                         else {
-                            karChiveDSRelease ( cFile -> _data_source );
+                            RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcInvalid );
+                        }
+                    }
 
-                            RCt = karChiveMemDSMake ( 
+                    if ( RCt == 0 ) {
+
+                        RCt = KMetadataFlushToMemory (
+                                                Meta,
+                                                MetaBuf,
+                                                MetaBufSizeEff,
+                                                & MetaSize
+                                                );
+                        if ( RCt == 0 ) {
+                            if ( MetaBufSize != MetaSize ) {
+                                RCt = RC ( rcApp, rcArc, rcUpdating, rcTransfer, rcInvalid );
+                            }
+                            else {
+                                karChiveDSRelease ( cFile -> _data_source );
+
+                                RCt = karChiveMemDSMake ( 
                                             & ( cFile -> _data_source ),
                                             MetaBuf,
                                             MetaSize
                                             );
-                            if ( RCt == 0 ) {
-                                RCt = _karChiveUpdateMD5File (
+                                if ( RCt == 0 ) {
+                                    RCt = _karChiveUpdateMD5File (
                                             & ( cFile -> _da_da_dad ),
                                             MetaBuf,
                                             MetaSize
                                             );
+                                }
                             }
                         }
                     }

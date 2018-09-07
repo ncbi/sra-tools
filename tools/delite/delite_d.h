@@ -56,6 +56,14 @@ rc_t CC karChiveDSSize (
                         size_t * Size
                         );
 
+    /*  Do not use that method too often, it is too greedy, LOOL
+     */
+rc_t CC karChiveDSReadAll (
+                        const struct karChiveDS * self,
+                        void ** DataRead,
+                        size_t * ReadSize
+                        );
+
     /*  That one will create data source from MemoryMap
      */
 rc_t CC karChiveMMapDSMake (

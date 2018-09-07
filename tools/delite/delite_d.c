@@ -94,16 +94,16 @@ _karChiveDSMake (
     }
 
     if ( DS == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( StructSize < sizeof ( struct karChiveDS ) ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     Ret = calloc ( 1, StructSize );
     if ( Ret == NULL ) {
-        RCt = RC ( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
+        RCt = RC ( rcApp, rcData, rcAllocating, rcMemory, rcExhausted );
     }
     else {
         KRefcountInit (
@@ -219,25 +219,121 @@ karChiveDSRead (
 )
 {
     if ( self == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcReading, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcReading, rcSelf, rcNull );
     }
 
     if ( self -> _on_read == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcReading, rcInterface, rcUnsupported );
+        return RC ( rcApp, rcData, rcReading, rcInterface, rcUnsupported );
     }
 
     return self -> _on_read ( self, Offset, Buf, BufSize, NumRead ) ;
 }   /* karChiveDSRead () */
 
+
+rc_t CC
+karChiveDSReadAll (
+                        const struct karChiveDS * self,
+                        void ** DataRead,
+                        size_t * ReadSize
+)
+{
+    rc_t RCt;
+    size_t DSize, Pos, Num2R, NumR;
+    char * Buf;
+
+    RCt = 0;
+    DSize = Pos = Num2R = NumR = 0;
+    Buf = NULL;
+
+    if ( DataRead != NULL ) {
+        * DataRead = NULL;
+    }
+
+    if ( ReadSize != NULL ) {
+        * ReadSize = 0;
+    }
+
+    if ( self == 0 ) {
+        return RC ( rcApp, rcData, rcReading, rcSelf, rcNull );
+    }
+
+    if ( DataRead == NULL ) {
+        return RC ( rcApp, rcData, rcReading, rcParam, rcNull );
+    }
+
+    if ( ReadSize == NULL ) {
+        return RC ( rcApp, rcData, rcReading, rcParam, rcNull );
+    }
+
+    RCt = karChiveDSSize ( self, & DSize );
+    if ( RCt == 0 ) {
+        if ( DSize == 0 ) {
+            RCt = RC ( rcApp, rcData, rcReading, rcSize, rcEmpty );
+        }
+        else {
+            Buf = malloc ( DSize );
+            if ( Buf == NULL ) {
+                RCt = RC ( rcApp, rcData, rcAllocating, rcMemory, rcExhausted );
+            }
+            else {
+                while ( Pos < DSize ) {
+                    Num2R = DSize - Pos;
+
+                    RCt = karChiveDSRead (
+                                        self,
+                                        Pos,
+                                        Buf + Pos,
+                                        Num2R,
+                                        & NumR
+                                        );
+                    if ( RCt != 0 ) {
+                        break;
+                    }
+
+                    if ( NumR == 0 ) {
+                        /*  End of File
+                         */
+                        break;
+                    }
+
+                    Pos += NumR;
+                }
+
+                if ( RCt == 0 ) {
+                    if ( Pos != DSize ) {
+                        RCt = RC ( rcApp, rcData, rcReading, rcItem, rcCorrupt );
+                    }
+                    else {
+                        * DataRead = Buf;
+                        * ReadSize = DSize;
+                    }
+                }
+
+            }
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * DataRead = NULL;
+        * ReadSize = 0;
+
+        if ( Buf != NULL ) {
+            free ( Buf );
+        }
+    }
+
+    return RCt;
+}   /* karChiveDSReadAll () */
+
 rc_t CC
 karChiveDSSize ( const struct karChiveDS * self, size_t * Size )
 {
     if ( self == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcReading, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcReading, rcParam, rcNull );
     }
 
     if ( self -> _on_size == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcReading, rcInterface, rcUnsupported );
+        return RC ( rcApp, rcData, rcReading, rcInterface, rcUnsupported );
     }
 
     return self -> _on_size ( self, Size ) ;
@@ -299,19 +395,19 @@ _karChiveFileDS_on_read (
          *  are missed
          */
     if ( DS == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( Buffer == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( BufferSize == 0 ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     if ( FDS -> _file == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     return KFileReadAll (
@@ -338,15 +434,15 @@ _karChiveFileDS_on_size (
          *  are missed
          */
     if ( DS == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( Size == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( ( ( const struct karChiveFileDS * ) DS ) -> _file == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     * Size = ( ( const struct karChiveFileDS * ) DS ) -> _data_size;
@@ -375,19 +471,19 @@ _karChiveFileDSMake (
     }
 
     if ( DS == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( File == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( DataSize == 0 ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     if ( StructSize < sizeof ( struct karChiveFileDS ) ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
         /*  NOTE : we do not check boundaries, because it is caller
@@ -439,19 +535,19 @@ _karChiveRamFileDSMake (
     }
 
     if ( DS == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( Buffer == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( BufferSize == 0 ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     if ( StructSize < sizeof ( struct karChiveFileDS ) ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     RCt = KRamFileMakeRead ( & RamFile, Buffer, BufferSize );
@@ -517,16 +613,16 @@ karChiveMMapDSMake (
     }
 
     if ( DS == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( Map == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
 /*  JOJOBA - Dont know if we need it here
     if ( Size == 0 ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 */
 
@@ -537,7 +633,7 @@ karChiveMMapDSMake (
             RCt = KMMapAddrRead ( Map, & MapAddr );
             if ( RCt == 0 ) {
                 if ( MapSize < Offset + Size ) {
-                    RCt = RC ( rcApp, rcNoTarg, rcAllocating, rcSize, rcNull );
+                    RCt = RC ( rcApp, rcData, rcAllocating, rcSize, rcNull );
                 }
                 else {
                     RCt = _karChiveRamFileDSMake (
@@ -623,20 +719,20 @@ karChiveMemDSMake (
     }
 
     if ( DS == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( Buf == NULL ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
     }
 
     if ( Size == 0 ) {
-        return RC ( rcApp, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
     NewBuf = calloc ( Size, sizeof ( char ) );
     if ( NewBuf == NULL ) {
-        RCt = RC ( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
+        RCt = RC ( rcApp, rcData, rcAllocating, rcMemory, rcExhausted );
     }
     else {
         memmove ( NewBuf, Buf, sizeof ( char ) * Size );

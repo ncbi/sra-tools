@@ -1251,8 +1251,8 @@ static void FindAndSetupRefSeq(BAM_File const *const self, BAMRefSeq *const dst,
         dst->uri = src->uri;
         dst->species = src->species;
         if (src->checksum) {
-            dst->checksum = &dst->checksum_array[0];
             memmove(dst->checksum_array, src->checksum, 16);
+            dst->checksum = &dst->checksum_array[0];
         }
     }
 }
@@ -1266,7 +1266,7 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
     size_t hlen;
     unsigned nrefs;
     BAMRefSeq *refSeq;
-    bool const overrideHeader = headerText ? !0 : !!0;
+    bool const overrideHeader = headerText;
     rc_t rc = ReadMagic(self);
 
     if (rc) return rc;
@@ -1307,13 +1307,14 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
             PLOGMSG(klogWarn, (klogWarn,
                                "Reference '$(ref)' was not in the SAM header",
                                "ref=%s", name));
+            refSeq[i].length = rlen;
         }
         else if (!overrideHeader) {
             PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcAlign, rcFile, rcConstructing, rcData, rcInconsistent),
                                "Length mismatch for Reference '$(ref)'; SAM header length was $(hlen), not $(rlen)",
                                "ref=%s, hlen=%u, rlen=%u", name, (unsigned)refSeq[i].length, rlen));
+            refSeq[i].length = rlen;
         }
-        refSeq[i].length = rlen;
     }
     free(self->refSeq);
     self->refSeq = refSeq;

@@ -1236,23 +1236,24 @@ static unsigned FindRefSeqByName(char const name[], bool match, unsigned const N
     return match ? N : f;
 }
 
-static void FindAndSetupRefSeq(BAM_File const *const self, BAMRefSeq *const dst, bool const overrideLength)
+static void FindAndSetupRefSeq(BAM_File const *const self, BAMRefSeq *const dst, unsigned const id, char const *const name)
 {
-    char const *const name = dst->name;
     unsigned const fnd = FindRefSeqByName(name, true, self->refSeqs, self->refSeq);
+
+    memset(dst, 0, sizeof(*dst));
+    dst->id = id;
+    dst->name = name;
     if (fnd != self->refSeqs) {
         BAMRefSeq const *const src = &self->refSeq[fnd];
-        if (overrideLength)
-            dst->length = src->length;
+
+        dst->length = src->length;
         dst->assemblyId = src->assemblyId;
         dst->uri = src->uri;
         dst->species = src->species;
         if (src->checksum) {
             dst->checksum = &dst->checksum_array[0];
-            memmove(dst->checksum_array, src->checksum_array, 16);
+            memmove(dst->checksum_array, src->checksum, 16);
         }
-        else
-            dst->checksum = NULL;
     }
 }
 
@@ -1265,8 +1266,8 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
     size_t hlen;
     unsigned nrefs;
     BAMRefSeq *refSeq;
+    bool const overrideHeader = headerText ? !0 : !!0;
     rc_t rc = ReadMagic(self);
-    bool overrideHeader = !!0;
 
     if (rc) return rc;
 
@@ -1275,14 +1276,7 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
     
     DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("BAM Data records start at: %lu+%u\n", self->fpos_cur, self->bufCurrent));
 
-    if (nrefs) {
-        refSeq = calloc(nrefs, sizeof(self->refSeq[0]));
-        if (refSeq == NULL)
-            return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
-    }
-
-    if (headerText) {
-        overrideHeader = !0;
+    if (overrideHeader) {
         free(htxt);
         rc = ProcessHeaderText(self, headerText, true);
     }
@@ -1291,6 +1285,12 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
 
     if (rc) return rc;
         
+    if (nrefs) {
+        refSeq = malloc(nrefs * sizeof(*refSeq));
+        if (refSeq == NULL)
+            return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
+    }
+
     for (i = cp = 0; i < nrefs; ++i) {
         unsigned const nlen = LE2HUI32(rdat + cp);
         char *const name = rdat + cp + 4;
@@ -1299,10 +1299,21 @@ static rc_t ProcessBAMHeader(BAM_File *self, char const headerText[])
         cp += nlen + 8;
         name[nlen] = '\0';
 
-        refSeq[i].id = i;
-        refSeq[i].name = name;
+        FindAndSetupRefSeq(self, &refSeq[i], i, name);
+        if (rlen == refSeq[i].length)
+            continue;
+        
+        if (refSeq[i].length == 0) {
+            PLOGMSG(klogWarn, (klogWarn,
+                               "Reference '$(ref)' was not in the SAM header",
+                               "ref=%s", name));
+        }
+        else if (!overrideHeader) {
+            PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcAlign, rcFile, rcConstructing, rcData, rcInconsistent),
+                               "Length mismatch for Reference '$(ref)'; SAM header length was $(hlen), not $(rlen)",
+                               "ref=%s, hlen=%u, rlen=%u", name, (unsigned)refSeq[i].length, rlen));
+        }
         refSeq[i].length = rlen;
-        FindAndSetupRefSeq(self, &refSeq[i], overrideHeader);
     }
     free(self->refSeq);
     self->refSeq = refSeq;

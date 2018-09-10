@@ -115,7 +115,6 @@ KMain ( int ArgC, char * ArgV [] )
 #define OPT_OUTPUT      "output"
 #define ALS_OUTPUT      "o"
 #define PRM_OUTPUT      NULL
-#define DFLT_OUTPUT     "jojo"
 #define STDOUT_OUTPUT   "--"
 
 #define OPT_NOEDIT      "noedit"
@@ -154,9 +153,7 @@ DeLiteParamsWhack ( struct DeLiteParams * Params )
             Params -> _config = NULL;
         }
         if ( Params -> _output != NULL ) {
-            if ( strcmp ( Params -> _output, DFLT_OUTPUT ) != 0 ) {
-                free ( ( char * ) Params -> _output );
-            }
+            free ( ( char * ) Params -> _output );
             Params -> _output = NULL;
         }
         Params -> _output_stdout = false;
@@ -313,13 +310,12 @@ DeLiteParamsSetOutput (
                                                 );
             }
         }
+        else {
+            return RC ( rcApp, rcArgv, rcParsing, rcParam, rcInsufficient );
+        }
     }
 
     if ( RCt == 0 ) {
-        if ( Params -> _output == NULL ) {
-            Params -> _output = DFLT_OUTPUT;
-        }
-
         if ( strcmp ( Params -> _output, STDOUT_OUTPUT ) == 0 ) {
             Params -> _output_stdout = true;
         }
@@ -359,7 +355,7 @@ DeLiteParamsSetNoedit (
   \\\   KApp and Options ...
   (((*/
 static const char * UsgAppConfig [] = { "Application config file delite. Usually contains mapping from old schema to new", NULL };
-static const char * UsgAppOutput [] = { "Name of output file, optional, by default it send data to file with name \"jojo\". If name is \"--\" output will be written to STDOUT", NULL };
+static const char * UsgAppOutput [] = { "Name of output file, mondatory. If name is \"--\" output will be written to STDOUT", NULL };
 static const char * UsgAppNoedit [] = { "Do not delete qualities, just repack archive", NULL };
 
 struct OptDef DeeeOpts [] = {
@@ -379,7 +375,7 @@ struct OptDef DeeeOpts [] = {
         UsgAppOutput,       /* help as text is here */
         1,                  /* max amount */
         true,               /* need value */
-        false               /* is required */
+        true                /* is required, yes, it requires */
     },
     {       /* Option do not edit archive, but repack it */
         OPT_NOEDIT,         /* option name */

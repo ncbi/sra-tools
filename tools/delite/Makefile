@@ -32,7 +32,7 @@ MODULE = tools/delite
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	delite
+	sra-delite
     
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -84,12 +84,12 @@ DELITE_OBJ = \
 
 DELITE_LIB = -skapp -stk-version -sncbi-wvdb
 
-$(BINDIR)/delite: $(DELITE_OBJ)
+$(BINDIR)/sra-delite: $(DELITE_OBJ)
 	@echo $(TOP)
 	@echo $(OS)
 	@echo $(HOST_OS)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(DELITE_LIB)
 
 delite_tag:
-	@ $(TOP)/build/tag-module.sh $(MODULE) delite $(DELITE_OBJ)
+	@ $(TOP)/build/tag-module.sh $(MODULE) sra-delite $(DELITE_OBJ)
 

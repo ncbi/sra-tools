@@ -21,7 +21,10 @@
 /.cproject
 /.project
 /.pydevproject
+<<<<<<< HEAD
 *.stash
+=======
+>>>>>>> 9132e4e085f791db7f18cac63235885fbd9be6f7
 tmp.kfg
 .gdb_history
 .vscode/

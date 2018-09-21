@@ -65,7 +65,7 @@
 /*
 #define MD_454_SIG_PATH  "tbl/SEQUENCE/col/SIGNAL"
 */
-#define MD_454_SIG_PATH  "col/SIGNAL"
+#define MD_454_SIG_PATH  "/col/SIGNAL"
 
 #define MD_CUR_NODE_PATH "md/cur"
 #define MD_CUR_NODE_NAME "cur"
@@ -3266,6 +3266,33 @@ _karChiveUpdateMetaSoft ( struct KMetadata * Meta )
 
 static
 rc_t CC
+_karChiveUpdateMetaStats ( struct KMetadata * Meta )
+{
+    rc_t RCt;
+    struct KMDataNode * NodeStatQual;
+
+    RCt = 0;
+    NodeStatQual = NULL;
+
+    if ( Meta == NULL ) {
+        return RC ( rcApp, rcMetadata, rcUpdating, rcSelf, rcNull );
+    }
+
+    RCt = KMetadataOpenNodeUpdate ( Meta, & NodeStatQual, "/STATS/QUALITY" );
+    if ( RCt == 0 ) {
+        RCt = KMDataNodeDropAll ( NodeStatQual );
+    }
+    else {
+            /*  Not an error
+             */
+        RCt = 0;
+    }
+
+    return RCt;
+}   /* _karChiveUpdateMetaStats () */
+
+static
+rc_t CC
 _karChiveEditMetaFile (
                         const struct karChive * self,
                         const char * Path,
@@ -3338,53 +3365,56 @@ _karChiveEditMetaFile (
             if ( RCt == 0 ) {
                 RCt = _karChiveUpdateMetaSoft ( Meta );
                 if ( RCt == 0 ) {
-                        /*  Checking needed size and creating buffer
-                         */
-                    RCt = KMetadataFlushToMemory (
-                                        Meta,
-                                        NULL,
-                                        0,
-                                        & MetaBufSize
-                                        );
+                    RCt = _karChiveUpdateMetaStats ( Meta );
                     if ( RCt == 0 ) {
-                        if ( 0 < MetaBufSize ) {
-                            MetaBufSizeEff = ( ( MetaBufSize / 1024 ) + 2 ) * 1024;
-                            MetaBuf = calloc ( MetaBufSizeEff, sizeof ( char ) );
-                            if ( MetaBuf == NULL ) {
-                                RCt = RC ( rcApp, rcArc, rcUpdating, rcMemory, rcExhausted );
+                            /*  Checking needed size and creating buffer
+                             */
+                        RCt = KMetadataFlushToMemory (
+                                            Meta,
+                                            NULL,
+                                            0,
+                                            & MetaBufSize
+                                            );
+                        if ( RCt == 0 ) {
+                            if ( 0 < MetaBufSize ) {
+                                MetaBufSizeEff = ( ( MetaBufSize / 1024 ) + 2 ) * 1024;
+                                MetaBuf = calloc ( MetaBufSizeEff, sizeof ( char ) );
+                                if ( MetaBuf == NULL ) {
+                                    RCt = RC ( rcApp, rcArc, rcUpdating, rcMemory, rcExhausted );
+                                }
+                            }
+                            else {
+                                RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcInvalid );
                             }
                         }
-                        else {
-                            RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcInvalid );
-                        }
-                    }
 
-                    if ( RCt == 0 ) {
+                        if ( RCt == 0 ) {
 
-                        RCt = KMetadataFlushToMemory (
+                            RCt = KMetadataFlushToMemory (
                                                 Meta,
                                                 MetaBuf,
                                                 MetaBufSizeEff,
                                                 & MetaSize
                                                 );
-                        if ( RCt == 0 ) {
-                            if ( MetaBufSize != MetaSize ) {
-                                RCt = RC ( rcApp, rcArc, rcUpdating, rcTransfer, rcInvalid );
-                            }
-                            else {
-                                karChiveDSRelease ( cFile -> _data_source );
+                            if ( RCt == 0 ) {
+                                if ( MetaBufSize != MetaSize ) {
+                                    RCt = RC ( rcApp, rcArc, rcUpdating, rcTransfer, rcInvalid );
+                                }
+                                else {
+                                    karChiveDSRelease ( cFile -> _data_source );
 
-                                RCt = karChiveMemDSMake ( 
+                                    RCt = karChiveMemDSMake ( 
                                             & ( cFile -> _data_source ),
                                             MetaBuf,
                                             MetaSize
                                             );
-                                if ( RCt == 0 ) {
-                                    RCt = _karChiveUpdateMD5File (
+                                    if ( RCt == 0 ) {
+                                        RCt = _karChiveUpdateMD5File (
                                             & ( cFile -> _da_da_dad ),
                                             MetaBuf,
                                             MetaSize
                                             );
+                                    }
                                 }
                             }
                         }

@@ -116,8 +116,9 @@ runtests: wb parse set_schema smalltests
 set_schema:
 	echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
 
-SMALLRUN = @ export NCBI_SETTINGS=/ ; export VDB_CONFIG=`pwd` ; \
+SMALLRUN = export NCBI_SETTINGS=/ ; export VDB_CONFIG=`pwd` ; \
 	$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
+
 smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
 #   Small tests
@@ -237,7 +238,7 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 16.0 0 $(SRCDIR)/input/16.0.fasta --quality PHRED_33 --platform=PACBIO
 	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
 
-onetest:
+onetest: set_schema
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
+	$(SMALLRUN) 17.0 0 $(SRCDIR)/input/17.0.fastq --quality PHRED_33 --platform=PACBIO
 

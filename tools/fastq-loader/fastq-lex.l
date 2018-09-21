@@ -78,7 +78,7 @@ alphanum    [A-Za-z0-9\-]+
 eol         (\r\n|\r|\n)
 
 /* there are more: =ACMGRSVTWYHKDBN. plus lowercase */
-base [ACGTacgtNn.]
+base [ACGTacgtNnUu.]
 cskey [ACGTacgt]
 color   [0-3.]
 

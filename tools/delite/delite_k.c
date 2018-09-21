@@ -62,6 +62,11 @@
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
+/*
+#define MD_454_SIG_PATH  "tbl/SEQUENCE/col/SIGNAL"
+*/
+#define MD_454_SIG_PATH  "col/SIGNAL"
+
 #define MD_CUR_NODE_PATH "md/cur"
 #define MD_CUR_NODE_NAME "cur"
 
@@ -85,8 +90,7 @@
 
 struct karChiveDir;
 
-struct karChiveEntry
-{
+struct karChiveEntry {
     struct BSTNode _da_da_dad;
 
     KRefcount _refcount;
@@ -101,15 +105,13 @@ struct karChiveEntry
 
 static const char * _skarChiveEntry_classname = "karChiveEntry";
 
-struct karChiveDir
-{
+struct karChiveDir {
     struct karChiveEntry _da_da_dad;
     
     struct BSTree _entries;
 };  /* struct karChiveDir */
 
-struct karChiveFile
-{
+struct karChiveFile {
     struct karChiveEntry _da_da_dad;
 
     /* JOJOBA - put memory file here */
@@ -123,8 +125,7 @@ struct karChiveFile
     uint64_t _new_byte_size;
 };  /* struct karChiveFile */
 
-struct karChiveAlias
-{
+struct karChiveAlias {
     struct karChiveEntry _da_da_dad;
 
     struct karChiveEntry * _resolved;
@@ -134,8 +135,7 @@ struct karChiveAlias
     bool _is_invalid;
 };  /* struct karChiveAlias */
 
-enum
-{
+enum {
     karChive_unknown = -1,
     karChive_notfound,
     karChive_dir,
@@ -192,8 +192,7 @@ struct karChive {
         /* TOC, etc */
     struct karChiveDir * _root;     /* table of context */
 
-// JOJOBA - continue
-
+    bool _is_454_style;
 };  /* struct karChive */
 
 static const char * _skarChive_classname = "karChive";
@@ -2330,7 +2329,7 @@ _karChiveDispose ( const struct karChive * self )
             karChiveScmDispose ( Chive -> _scm );
         }
 
-// JOJOBA - continue
+        Chive -> _is_454_style = false;
 
         free ( Chive );
     }
@@ -2473,6 +2472,35 @@ _karChiveReadVerifyHeader ( const struct karChive * self )
 
 static
 rc_t
+_karChiveCheckIf454Style ( struct karChive * self )
+{
+    rc_t RCt;
+    const struct karChiveEntry * Found;
+
+    RCt = 0;
+    Found = NULL;
+
+    RCt = _karChiveResolvePath (
+                                & Found,
+                                self -> _root,
+                                MD_454_SIG_PATH
+                                );
+    if ( RCt == 0 ) {
+        self -> _is_454_style = true;
+        KOutMsg ( "ARC [454 style]\n" );
+        LogMsg ( klogInfo, "ARC [454 style]" );
+    }
+    else {
+            /*  Dat is not erroh
+             */
+        RCt = 0;
+    }
+
+    return RCt;
+}   /* _karChiveCheckIf454Style () */
+
+static
+rc_t
 _karChiveMake ( 
             const struct karChive ** Chive,
             const struct KFile * File
@@ -2518,7 +2546,10 @@ _karChiveMake (
                     if ( RCt == 0 ) {
                             /*  Here we are ready to go
                              */
-                        * Chive = RetChive;
+                        RCt = _karChiveCheckIf454Style ( RetChive );
+                        if ( RCt == 0 ) {
+                            * Chive = RetChive;
+                        }
                     }
                 }
             }
@@ -2748,20 +2779,28 @@ karChiveEdit ( const struct karChive * self, bool IdleRun )
                      */
                 RCt = VNamelistMake ( & SNL, 4 );
                 if ( RCt == 0 ) {
-                    for ( llp = 0; llp < Count; llp ++ ) {
-                        RCt = VNameListGet ( NL, llp, & Path );
-                        if ( RCt == 0 ) {
-                            RCt = _karChiveEditForPath (
-                                                        self,
-                                                        Path,
-                                                        SNL,
-                                                        IdleRun
-                                                        );
-                        }
+                        /*  We are leaving scores for all 454 machines
+                         */
+                    if ( ! self -> _is_454_style ) {
+                        for ( llp = 0; llp < Count; llp ++ ) {
+                            RCt = VNameListGet ( NL, llp, & Path );
+                            if ( RCt == 0 ) {
+                                RCt = _karChiveEditForPath (
+                                                            self,
+                                                            Path,
+                                                            SNL,
+                                                            IdleRun
+                                                            );
+                            }
 
-                        if ( RCt != 0 ) {
-                            break;
+                            if ( RCt != 0 ) {
+                                break;
+                            }
                         }
+                    }
+                    else {
+                        KOutMsg ( "REM [NOTHING : 454 style archive]\n" );
+                        pLogMsg ( klogInfo, "Removing nothing for 454 style archive", "" );
                     }
 
                     if ( RCt == 0 ) {
@@ -3277,8 +3316,6 @@ _karChiveEditMetaFile (
                             & DSize
                             );
     if ( RCt == 0 ) {
-            /*  Transforming metadata
-             */
         RCt = KMetadataMakeFromMemory (
                                     & Meta,
                                     Path,
@@ -3287,8 +3324,17 @@ _karChiveEditMetaFile (
                                     false
                                     );
         if ( RCt == 0 ) {
-
-            RCt = karChiveScmTransform ( self -> _scm, Meta );
+                /*  Transforming metadata
+                 */
+            if ( ! self -> _is_454_style ) {
+                RCt = karChiveScmTransform ( self -> _scm, Meta );
+            }
+            else {
+                    /*  That is bad, but we should do it, or it will
+                     *  crush :O
+                     */
+                KMetadataAddRef ( Meta );
+            }
             if ( RCt == 0 ) {
                 RCt = _karChiveUpdateMetaSoft ( Meta );
                 if ( RCt == 0 ) {
@@ -4180,421 +4226,6 @@ Delite ( struct DeLiteParams * Params )
  *  SANCTUARY: place for dead things
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-
-#ifdef NEED_DUPLICATE
-static rc_t _karChiveEntryCopy (
-                                const struct karChiveEntry * self,
-                                const struct karChiveDir * Parent,
-                                struct karChiveEntry ** Copy
-                                );
-
-static
-rc_t
-_karChiveEntryAllocCopyFields (
-                                const struct karChiveEntry * self,
-                                const struct karChiveDir * Parent,
-                                size_t Size,
-                                const struct karChiveEntry ** Copy
-)
-{
-    rc_t RCt;
-    struct karChiveEntry * Ret;
-
-    RCt = 0;
-    Ret = NULL;
-
-    /* No usual checks */
-
-    if ( Size < sizeof ( struct karChiveEntry ) ) {
-        return RC ( rcApp, rcNode, rcAllocating, rcParam, rcInvalid );
-    }
-
-    Ret = calloc ( 1, sizeof ( char ) * Size );
-    if ( Ret == NULL ) {
-        RCt = RC ( rcApp, rcNode, rcAllocating, rcMemory, rcExhausted );
-    }
-    else {
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                ( const char ** ) & ( Ret -> _name ),
-                                self -> _name
-                                );
-        if ( RCt == 0 ) {
-            Ret -> _parent = ( struct karChiveDir * ) Parent;
-            Ret -> _mod_time = self -> _mod_time;
-            Ret -> _access_mode = self -> _access_mode;
-            if ( ( self -> _type & kptAlias ) == kptAlias ) {
-                Ret -> _type = kptAlias;
-            }
-            else {
-                Ret -> _type = self -> _type;
-            }
-
-            * Copy = Ret;
-        }
-    }
-
-    if ( RCt != 0 ) {
-        * Copy = NULL;
-
-        if ( Ret != NULL ) {
-            _karChiveEntryRelease ( Ret );
-        }
-    }
-
-    return RCt;
-}   /* _karChiveEntryAllocCopyFields () */
-
-static
-rc_t
-_karChiveAliasCopy (
-                    const struct karChiveAlias * self,
-                    const struct karChiveDir * Parent,
-                    struct karChiveEntry ** Copy
-)
-{
-    rc_t RCt;
-    struct karChiveAlias * Alias;
-    struct karChiveAlias * Ret;
-
-    RCt = 0;
-    Alias = NULL;
-    Ret = NULL;
-
-    if ( Copy != NULL ) {
-        * Copy = NULL;
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcNull );
-    }
-
-    if ( Copy == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcParam, rcNull );
-    }
-
-    if ( ( self -> _da_da_dad . _type & kptAlias ) != kptAlias ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcInvalid );
-    }
-
-    Alias = ( struct karChiveAlias * ) self;
-
-    RCt = _karChiveEntryAllocCopyFields (
-                                ( const struct karChiveEntry * ) self,
-                                Parent,
-                                sizeof ( struct karChiveAlias ),
-                                ( const struct karChiveEntry ** ) & Ret
-                                );
-    if ( RCt == 0 ) {
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                ( const char ** ) & ( Ret -> _link ),
-                                self -> _link
-                                );
-        if ( RCt == 0 ) {
-            Ret -> _resolved = NULL;    /* don't need to do that */
-            Ret -> _is_invalid = Alias -> _is_invalid;
-
-            * Copy = ( struct karChiveEntry * ) Ret;
-        }
-    }
-
-    if ( RCt != 0 ) {
-        Copy = NULL;
-
-        if ( Ret != NULL ) {
-            _karChiveEntryRelease ( ( const struct karChiveEntry * ) Ret );
-        }
-    }
-
-    return RCt;
-}   /* _karChiveAliasCopy () */
-
-static
-rc_t
-_karChiveFileCopy (
-                    const struct karChiveFile * self,
-                    const struct karChiveDir * Parent,
-                    struct karChiveEntry ** Copy
-)
-{
-    rc_t RCt;
-    struct karChiveFile * Ret;
-
-    RCt = 0;
-    Ret = NULL;
-
-    if ( Copy != NULL ) {
-        * Copy = NULL;
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcNull );
-    }
-
-    if ( Copy == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcParam, rcNull );
-    }
-
-    if ( ( self -> _da_da_dad . _type ) != kptFile ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcInvalid );
-    }
-
-    RCt = _karChiveEntryAllocCopyFields (
-                                ( const struct karChiveEntry * ) self,
-                                Parent,
-                                sizeof ( struct karChiveFile ),
-                                ( const struct karChiveEntry ** ) & Ret
-                                );
-    if ( RCt == 0 ) {
-        Ret -> _byte_offset = self -> _byte_offset;
-        Ret -> _byte_size = self -> _byte_size;
-
-        Ret -> _new_byte_offset = 0;
-        Ret -> _new_byte_size = 0;
-
-        * Copy = ( struct karChiveEntry * ) Ret;
-    }
-
-    if ( RCt != 0 ) {
-        Copy = NULL;
-
-        if ( Ret != NULL ) {
-            _karChiveEntryRelease ( ( const struct karChiveEntry * ) Ret );
-        }
-    }
-
-    return RCt;
-}   /* _karChiveFileCopy () */
-
-static
-void
-_karChiveDirCopyCallback ( struct BSTNode * Node, void * Data )
-{
-    const struct karChiveEntry * Src;
-    struct karChiveEntry * Dst;
-    struct FrogBrigade * Brigade;
-
-    Src = ( const struct karChiveEntry * ) Node;
-    Dst = NULL;
-    Brigade = ( struct FrogBrigade * ) Data;
-
-    if ( Brigade == NULL ) {
-        return;
-    }
-
-    if ( Brigade -> _rc != 0 ) {
-        return;
-    }
-
-    if ( Src == NULL ) {
-        Brigade -> _rc = RC ( rcApp, rcNode, rcCopying, rcParam, rcNull );
-        return;
-    }
-
-    Brigade -> _rc = _karChiveEntryCopy (
-                                        Src,
-                                        Brigade -> _parent,
-                                        & Dst
-                                        );
-    if ( Brigade -> _rc == 0 ) {
-        Brigade -> _rc = BSTreeInsert (
-                                & ( Brigade -> _parent -> _entries ),
-                                & ( Dst -> _da_da_dad ),
-                                _compareEntries
-                                );
-    }
-}   /* _karChiveDirCopyCallback () */
-
-static
-rc_t
-_karChiveDirCopy (
-                    const struct karChiveDir * self,
-                    const struct karChiveDir * Parent,
-                    struct karChiveEntry ** Copy
-)
-{
-    rc_t RCt;
-    struct karChiveDir * Dir;
-    struct karChiveDir * Ret;
-    struct FrogBrigade Brigade;
-
-    RCt = 0;
-    Dir = NULL;
-    Ret = NULL;
-    memset ( & Brigade, 0, sizeof ( struct FrogBrigade ) );
-
-    if ( Copy != NULL ) {
-        * Copy = NULL;
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcNull );
-    }
-
-    if ( Copy == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcParam, rcNull );
-    }
-
-    if ( ( self -> _da_da_dad . _type ) != kptDir ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcInvalid );
-    }
-
-    Dir = ( struct karChiveDir * ) self;
-
-    RCt = _karChiveEntryAllocCopyFields (
-                                ( const struct karChiveEntry * ) Dir,
-                                Parent,
-                                sizeof ( struct karChiveDir ),
-                                ( const struct karChiveEntry ** ) & Ret
-                                );
-    if ( RCt == 0 ) {
-        BSTreeInit ( & ( Dir -> _entries ) );
-
-        Brigade . _parent = Dir;
-
-        BSTreeForEach (
-                        & ( Dir -> _entries ),
-                        false,
-                        _karChiveDirCopyCallback,
-                        & Brigade
-                        );
-
-        * Copy = ( struct karChiveEntry * ) Ret;
-    }
-
-    if ( RCt != 0 ) {
-        Copy = NULL;
-
-        if ( Ret != NULL ) {
-            _karChiveEntryRelease ( ( const struct karChiveEntry * ) Ret );
-        }
-    }
-
-    return RCt;
-}   /* _karDireFileCopy () */
-
-static
-rc_t
-_karChiveEntryCopy (
-                    const struct karChiveEntry * self,
-                    const struct karChiveDir * Parent,
-                    struct karChiveEntry ** Copy
-)
-{
-    rc_t RCt;
-    struct karChiveEntry * Ret;
-    uint8_t Type;
-
-    RCt = 0;
-    Ret = NULL;
-    Type = 0;
-
-    if ( Copy != NULL ) {
-        * Copy = NULL;
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcNull );
-    }
-
-    if ( Copy == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcParam, rcNull );
-    }
-
-    Type = self -> _type;
-    if ( ( Type & kptAlias ) == kptAlias ) {
-        Type = kptAlias;
-    }
-
-    switch ( Type ) {
-        case kptAlias :
-            RCt = _karChiveAliasCopy (
-                                ( const struct karChiveAlias * ) self,
-                                Parent,
-                                & Ret
-                                );
-            break;
-        case kptFile :
-            RCt = _karChiveFileCopy (
-                                ( const struct karChiveFile * ) self,
-                                Parent,
-                                & Ret
-                                );
-            break;
-        case kptDir :
-            RCt = _karChiveDirCopy (
-                                ( const struct karChiveDir * ) self,
-                                Parent,
-                                & Ret
-                                );
-            break;
-        default :
-            RCt =  RC ( rcApp, rcNode, rcCopying, rcParam, rcInvalid );
-            break;
-    }
-
-    if ( RCt == 0 ) {
-        * Copy = Ret;
-    }
-    else {
-        * Copy = NULL;
-
-        if ( Ret != NULL ) {
-            _karChiveEntryRelease ( Ret );
-        }
-    }
-
-    return RCt;
-}   /* _karChiveEntryCopy () */
-
-static
-rc_t
-_karChiveEntryDuplicate (
-                        const struct karChiveEntry * self,
-                        struct karChiveEntry ** Duplicate
-)
-{
-    rc_t RCt;
-    struct karChiveEntry * Ret;
-
-    RCt = 0;
-    Ret = NULL;
-
-    if ( Duplicate != NULL ) {
-        * Duplicate = NULL;
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcSelf, rcNull );
-    }
-
-    if ( Duplicate == NULL ) {
-        return RC ( rcApp, rcNode, rcCopying, rcParam, rcNull );
-    }
-
-    RCt = _karChiveEntryCopy ( self, NULL, & Ret );
-    if ( RCt == 0 ) {
-
-        if ( Ret -> _type == kptDir ) {
-            RCt = _karChiveResolveAliases (
-                                    ( const struct karChiveDir * ) Ret
-                                    );
-        }
-        if ( RCt == 0 ) {
-            * Duplicate = Ret;
-        }
-    }
-
-    if ( RCt != 0 ) {
-        * Duplicate = NULL;
-
-        if ( Ret != NULL ) {
-            _karChiveEntryRelease ( Ret );
-        }
-    }
-
-    return RCt;
-}   /* _karChiveEntryDuplicate () */
-#endif /* NEED_DUPLICATE */
 
 #ifdef NEED_ENTY_LIST
 static

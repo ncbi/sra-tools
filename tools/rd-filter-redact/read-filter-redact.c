@@ -57,8 +57,8 @@
 static KDirectory* __SpotIteratorDirectory = NULL;
 
 typedef struct CmdLine {
-	const char* table;
-	const char* file;
+    const char* table;
+    const char* file;
 } CmdLine;
 typedef struct SpotIterator {
     spotid_t crnSpotId;
@@ -505,18 +505,20 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
         db->locked = true; /* has to be locked in production mode */
         rc = VDBManagerOpenTableUpdate (db->mgr, &db->tbl, NULL, args->table);
         if (rc != 0) {
-	    VDatabase *vdb;
-	    rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &vdb, NULL , args->table );
-	    if( rc2 == 0) {
-		rc2 = VDatabaseOpenTableUpdate ( vdb, &db->tbl, "SEQUENCE" );
-		if (rc2 == 0 ) rc = 0;
-		VDatabaseRelease ( vdb );
-	    }
+            VDatabase *vdb;
+            rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &vdb, NULL,
+                                                args->table );
+            if( rc2 == 0) {
+                rc2 = VDatabaseOpenTableUpdate ( vdb, &db->tbl, "SEQUENCE" );
+                if (rc2 == 0 )
+                    rc = 0;
+                VDatabaseRelease ( vdb );
+            }
         }
-	if(rc != 0){
+        if(rc != 0){
             PLOGERR(klogErr, (klogErr, rc,
                 "while opening VTable '$(table)'", "table=%s", args->table));
-	}
+        }
     } 
     if( rc == 0) {
         rc = VTableCreateCursorRead(db->tbl, &db->rCursor);
@@ -623,7 +625,7 @@ static rc_t Work(Db* db, SpotIterator* it)
             rc = VCursorReadDirect(db->rCursor, row_id, db->rFilterIdx,
                 elem_bits, bufferIn, sizeof bufferIn, &row_len);
             DISP_RC(rc, "while reading READ_FILTER");
-	    nreads = row_len;
+        nreads = row_len;
         }
         if (toRedact) {
             buffer = filter;

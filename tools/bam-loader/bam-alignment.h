@@ -63,6 +63,7 @@ struct BAM_Alignment {
 
 	uint64_t keyId;
 	bool wasInserted;
+    bool isRNA;
 
     unsigned datasize;
     unsigned cigar;

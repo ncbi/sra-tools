@@ -44,6 +44,7 @@ struct DeLiteParams {
 };
 
 LIB_EXPORT rc_t Delite ( struct DeLiteParams * Params );
+LIB_EXPORT rc_t Checkite ( const char * PathToArchive );
 
     /*  length limit for strings I am working with
      */

@@ -57,7 +57,7 @@
   \\\   Celebrity is here ...
   (((*/
 
-const char * ProgNm = "delite";  /* Application program name */
+const char * ProgNm = "sra-delite";  /* Application program name */
 
 static rc_t DeLiteParamsInit ( struct DeLiteParams * Params );
 static rc_t DeLiteParamsWhack ( struct DeLiteParams * Params );
@@ -388,7 +388,7 @@ struct OptDef DeeeOpts [] = {
     }
 };  /* OptDef */
 
-const char UsageDefaultName[] = "delite";
+const char UsageDefaultName[] = "sra-delite";
 
 rc_t
 __porseAndHandle (
@@ -508,8 +508,9 @@ Usage ( const struct Args * TheArgs )
 
     KOutMsg (
             "\n"
-            "Hola, amigo ... "
-            "This programm will doo it well\n"
+            "This program will remove QUALITY column from SRA archive,"
+            " it will change schema, metadata, MD5 summ and repack archive"
+            " for all archives except 454 or similar"
             "\n"
             );
 

@@ -32,7 +32,8 @@ MODULE = tools/delite
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	sra-delite
+	sra-delite  \
+	sra-chkite
     
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -92,4 +93,29 @@ $(BINDIR)/sra-delite: $(DELITE_OBJ)
 
 delite_tag:
 	@ $(TOP)/build/tag-module.sh $(MODULE) sra-delite $(DELITE_OBJ)
+
+#-------------------------------------------------------------------------------
+# chkite
+#  test program for new XFS toy
+#
+CHKITE_SRC = \
+	chkite  \
+	delite_r    \
+	delite_k    \
+	delite_d    \
+	delite_s
+
+CHKITE_OBJ = \
+	$(addsuffix .$(OBJX),$(CHKITE_SRC))
+
+CHKITE_LIB = -skapp -stk-version -sncbi-wvdb
+
+$(BINDIR)/sra-chkite: $(CHKITE_OBJ)
+	@echo $(TOP)
+	@echo $(OS)
+	@echo $(HOST_OS)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(CHKITE_LIB)
+
+chkite_tag:
+	@ $(TOP)/build/tag-module.sh $(MODULE) sra-chkite $(CHKITE_OBJ)
 

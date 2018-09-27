@@ -62,19 +62,19 @@
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
-/*
-#define MD_454_SIG_PATH  "tbl/SEQUENCE/col/SIGNAL"
-*/
-#define MD_454_SIG_PATH  "/col/SIGNAL"
+const char * MD_454_SIG_PATH [] = {
+                                    "tbl/SEQUENCE/col/SIGNAL",
+                                    "col/SIGNAL"
+                                    };
 
-#define MD_CUR_NODE_PATH "md/cur"
-#define MD_CUR_NODE_NAME "cur"
+#define MD_CUR_NODE_PATH   "md/cur"
+#define MD_CUR_NODE_NAME   "cur"
 
-#define MD_SOFT_DELITE   "delite"
-#define MD_SOFT_SOFTWARE "SOFTWARE"
-#define MD_SOFT_DATE     "date"
-#define MD_SOFT_NAME     "name"
-#define MD_SOFT_VERS     "vers"
+#define MD_SOFT_DELITE     "delite"
+#define MD_SOFT_SOFTWARE   "SOFTWARE"
+#define MD_SOFT_DATE       "date"
+#define MD_SOFT_NAME       "name"
+#define MD_SOFT_VERS       "vers"
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Kar will NOT return directory
@@ -104,6 +104,9 @@ struct karChiveEntry {
 };  /* struct karChiveEntry */
 
 static const char * _skarChiveEntry_classname = "karChiveEntry";
+
+static rc_t _karChiveEntryRelease ( const struct karChiveEntry * self );
+static rc_t _karChiveEntryAddRef ( const struct karChiveEntry * self );
 
 struct karChiveDir {
     struct karChiveEntry _da_da_dad;
@@ -304,6 +307,211 @@ _karChiveEntryFind (
 
     return RCt;
 }   /* _karChiveEntryFind () */
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Struct karChive Resolving node by path
+ *
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karFVec {
+    struct karChiveFile ** _f;  /* files */
+    uint32_t _q;                /* qty */
+    uint32_t _c;                /* capacity */
+};
+
+typedef int64_t ( CC * karFVecComp ) (
+                                    struct karChiveFile * Left,
+                                    struct karChiveFile * Right
+                                    );
+
+struct karFVecCompHolder {
+    karFVecComp _comparator;
+};
+
+static
+rc_t
+_karFVecClear ( struct karFVec * self )
+{
+    int llp = 0;
+
+    if ( self != NULL ) {
+        if ( self -> _f != NULL ) {
+            for ( llp = 0; llp < self -> _q; llp ++ ) {
+                if ( self -> _f [ llp ] != NULL ) {
+                    _karChiveEntryRelease (
+                                & ( self -> _f [ llp ] -> _da_da_dad )
+                                );
+                    self -> _f [ llp ] = NULL;
+                }
+            }
+
+            memset (
+                    self -> _f,
+                    0,
+                    sizeof ( struct karChiveFile * ) * self -> _c
+                    );
+        }
+        self -> _q = 0;
+    }
+
+    return 0;
+}   /* _karFVecClear () */
+
+static
+rc_t
+_karFVecDispose ( struct karFVec * self )
+{
+    if ( self != NULL ) {
+
+        if ( self -> _f != NULL ) {
+            _karFVecClear ( self );
+
+            free ( self -> _f );
+        }
+        self -> _f = NULL;
+
+        self -> _q = 0;
+        self -> _c = 0;
+
+        free ( self );
+    }
+
+    return 0;
+}   /* _karFVecDispose () */
+
+static
+rc_t
+_karFVecMake ( struct karFVec ** Vec )
+{
+    rc_t RCt;
+    struct karFVec * Ret;
+
+    RCt = 0;
+    Ret = NULL;
+
+    Ret = calloc ( 1, sizeof ( struct karFVec ) );
+    if ( Ret == NULL ) {
+        RCt = RC ( rcApp, rcVector, rcAllocating, rcMemory, rcExhausted );
+    }
+    else {
+        * Vec = Ret;
+    }
+
+    return RCt;
+}   /* _karFVecMake () */
+
+static
+rc_t
+_karFVecRealloc ( struct karFVec * self, uint32_t Qty )
+{
+    rc_t RCt;
+    struct karChiveFile ** NewF;
+    uint32_t NewC;
+
+    RCt = 0;
+    NewF = NULL;
+    NewC = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcParam, rcNull );
+    }
+
+#define kFVI 64
+    NewC = ( ( Qty / kFVI ) + 1 ) * kFVI;
+
+    if ( self -> _c < NewC ) {
+        NewF = calloc ( NewC, sizeof ( struct karChiveFile * ) );
+        if ( NewF == NULL ) {
+            RCt = RC ( rcApp, rcVector, rcAllocating, rcMemory, rcExhausted );
+        }
+        else {
+            if ( self -> _q != 0 ) {
+                    /* JOJOBA: that is stupid situation, there should
+                     * be check that _f is not null, that is possilbe
+                     * lol
+                     */
+                memmove (
+                        NewF,
+                        self -> _f,
+                        sizeof ( struct karChiveFile * ) * self -> _q
+                        );
+
+                free ( self -> _f );
+            }
+
+            self -> _f = NewF;
+            self -> _c = NewC;
+        }
+    }
+#undef kFVI
+
+    return RCt;
+}   /* _karFVecRealloc () */
+
+static
+rc_t
+_karFVecAdd ( struct karFVec * self, struct karChiveFile * File )
+{
+    rc_t RCt;
+
+    RCt = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcVector, rcInserting, rcSelf, rcNull );
+    }
+
+    if ( File == NULL ) {
+        return RC ( rcApp, rcVector, rcInserting, rcParam, rcNull );
+    }
+
+    RCt = _karChiveEntryAddRef ( ( const struct karChiveEntry * ) File );
+    if ( RCt == 0 ) {
+        RCt = _karFVecRealloc ( self, self -> _q + 1 );
+        if ( RCt == 0 ) {
+            self -> _f [ self -> _q ] = File;
+            self -> _q ++;
+        }
+    }
+
+    return RCt;
+}   /* _karFVecAdd () */
+
+static
+int64_t
+_karFVecSortComparator (
+                    const void * Left,
+                    const void * Right,
+                    void * Data
+)
+{
+    struct karChiveFile * Lf;
+    struct karChiveFile * Rf;
+    struct karFVecCompHolder * Holder;
+
+    Lf = * ( ( struct karChiveFile ** ) Left );
+    Rf = * ( ( struct karChiveFile ** ) Right );
+    Holder = ( struct karFVecCompHolder * ) Data;
+
+    return Holder -> _comparator ( Lf, Rf );
+}   /* _karFVecSortComparator () */
+
+static
+rc_t
+_karFVecSort ( struct karFVec * self, karFVecComp Cmp )
+{
+    struct karFVecCompHolder Holder;
+
+    Holder . _comparator = Cmp;
+
+    ksort ( 
+            self -> _f,
+            self -> _q,
+            sizeof ( struct karChiveFile * ),
+            _karFVecSortComparator,
+            ( void * ) & Holder
+            );
+
+    return 0;
+}   /* _karVecSort () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Struct karChive Resolving node by path
@@ -603,8 +811,6 @@ _karCVecGet ( struct karCVec * self, size_t Idx )
     return NULL;
 }   /* _karCVecGet () */
 
-static rc_t _karChiveEntryAddRef ( const struct karChiveEntry * self );
-
 static
 rc_t
 _karChiveResolvePath (
@@ -689,8 +895,6 @@ _karChiveResolvePath (
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Struct karChive TOC - continued
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-static rc_t _karChiveEntryRelease ( const struct karChiveEntry * self );
-
 static
 void
 _karChiveEntryNodeWhack ( struct BSTNode * Node, void * Data )
@@ -2476,24 +2680,33 @@ _karChiveCheckIf454Style ( struct karChive * self )
 {
     rc_t RCt;
     const struct karChiveEntry * Found;
+    int Idx;
 
     RCt = 0;
     Found = NULL;
+    Idx = 0;
 
-    RCt = _karChiveResolvePath (
-                                & Found,
-                                self -> _root,
-                                MD_454_SIG_PATH
-                                );
-    if ( RCt == 0 ) {
-        self -> _is_454_style = true;
-        KOutMsg ( "ARC [454 style]\n" );
-        LogMsg ( klogInfo, "ARC [454 style]" );
-    }
-    else {
-            /*  Dat is not erroh
-             */
-        RCt = 0;
+    for (
+        Idx = 0;
+        Idx < sizeof ( MD_454_SIG_PATH ) / sizeof ( char * );
+        Idx ++
+    ) {
+        RCt = _karChiveResolvePath (
+                                    & Found,
+                                    self -> _root,
+                                    MD_454_SIG_PATH [ Idx ]
+                                    );
+        if ( RCt == 0 ) {
+            self -> _is_454_style = true;
+            KOutMsg ( "ARC [454 style]\n" );
+            LogMsg ( klogInfo, "ARC [454 style]" );
+            break;
+        }
+        else {
+                /*  Dat is not erroh
+                 */
+            RCt = 0;
+        }
     }
 
     return RCt;
@@ -3513,10 +3726,7 @@ _karChiveEditMetaFiles (
 struct karChiveWriter {
     const struct karChive * _chive;
 
-    struct karChiveFile ** _files;
-    uint32_t _files_qty;
-    uint32_t _files_cap;
-
+    struct karFVec * _files;
 
     size_t _toc_size;
 
@@ -3531,8 +3741,6 @@ struct karChiveWriter {
     rc_t _rc;
 };
 
-static rc_t _karChiveWriterClearFiles ( struct karChiveWriter * self );
-
 static
 rc_t
 _karChiveWriterWhack ( struct karChiveWriter * self )
@@ -3545,13 +3753,9 @@ _karChiveWriterWhack ( struct karChiveWriter * self )
         }
 
         if ( self -> _files != NULL ) {
-            _karChiveWriterClearFiles ( self );
-
-            free ( self -> _files );
+            _karFVecDispose ( self -> _files );
         }
         self -> _files = NULL;
-        self -> _files_qty = 0;
-        self -> _files_cap = 0;
 
         self -> _toc_size = 0;
         self -> _start_pos = 0;
@@ -3600,15 +3804,18 @@ _karChiveWriterInit (
 
     memset ( self, 0, sizeof ( struct karChiveWriter ) );
 
-    RCt = karChiveAddRef ( Chive );
+    RCt = _karFVecMake ( & ( self -> _files ) );
     if ( RCt == 0 ) {
-        RCt = KFileAddRef ( Output );
+        RCt = karChiveAddRef ( Chive );
         if ( RCt == 0 ) {
-            self -> _chive = Chive;
-            self -> _output = Output;
-        }
-        else {
-            karChiveRelease ( Chive );
+            RCt = KFileAddRef ( Output );
+            if ( RCt == 0 ) {
+                self -> _chive = Chive;
+                self -> _output = Output;
+            }
+            else {
+                karChiveRelease ( Chive );
+            }
         }
     }
 
@@ -3646,137 +3853,19 @@ _karChiveWriterFunction (
     return RCt;
 }   /* _karChiveWriterFunction () */
 
-rc_t
-_karChiveWriterClearFiles ( struct karChiveWriter * self )
-{
-    size_t llp = 0;
-
-    if ( self -> _files_qty != 0 ) {
-        if ( self -> _files != NULL ) {
-            for ( llp = 0; llp < self -> _files_qty; llp ++ ) {
-                if ( self -> _files [ llp ] != NULL ) {
-                    _karChiveEntryRelease (
-                            & ( self -> _files [ llp ] -> _da_da_dad )
-                            );
-                    self -> _files [ llp ] = NULL;
-                }
-            }
-
-            memset (
-                self -> _files,
-                0,
-                sizeof ( struct karChiveFile * ) * self -> _files_qty
-                );
-        }
-    }
-
-    self -> _files_qty = 0;
-
-    return 0;
-}   /* _karChiveWriterClearFiles () */
-
-static
-rc_t
-_karChiveWriterAddFile (
-                        struct karChiveWriter * self,
-                        struct karChiveFile * File
-)
-{
-    rc_t RCt;
-    uint32_t NewCap;
-    struct karChiveFile ** NewFiles;
-
-    RCt = 0;
-    NewCap = 0;
-    NewFiles = NULL;
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcWriting, rcSelf, rcNull );
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcWriting, rcParam, rcNull );
-    }
-
-    RCt = _karChiveEntryAddRef ( & File -> _da_da_dad );
-    if ( RCt == 0 ) {
-
-        NewCap = ( ( ( self -> _files_qty + 1 ) / 64 ) + 1 ) * 64;
-        if ( self -> _files_cap <= NewCap ) {
-            NewFiles = calloc ( NewCap, sizeof ( struct karChiveFile * ) );
-            if ( NewFiles == NULL ) {
-                RCt = RC ( rcApp, rcNode, rcWriting, rcMemory, rcExhausted );
-            }
-            else {
-                if ( self -> _files_qty != 0 ) {
-                    memmove (
-                            NewFiles,
-                            self -> _files,
-                            sizeof ( struct karChiveFile * ) * self -> _files_qty
-                            );
-
-                    free ( self -> _files );
-                }
-
-                self -> _files_cap = NewCap;
-                self -> _files = NewFiles;
-            }
-        }
-    }
-
-    self -> _files [ self -> _files_qty ] = File;
-    self -> _files_qty ++;
-
-    return RCt;
-}   /* _karChiveWriterAddFile () */
-
 static
 int64_t
 _karChiveWriterSortFilesCallback (
-                                const void * Left,
-                                const void * Right,
-                                void * Data
+                                struct karChiveFile * Left,
+                                struct karChiveFile * Right
 )
 {
-    struct karChiveFile * Lf, * Rf;
-    size_t Ls, Rs;
-
-    Ls = Rs = 0;
-
         /*  JOJOBA: we do not check if left or right for NULL.
          *      Not our problem
          */
-    Lf = * ( ( struct karChiveFile ** ) Left );
-    Rf = * ( ( struct karChiveFile ** ) Right );
 
-    karChiveDSSize ( Lf -> _data_source, & Ls );
-    Lf -> _new_byte_size = Ls;
-
-    karChiveDSSize ( Rf -> _data_source, & Rs );
-    Rf -> _new_byte_size = Rs;
-
-
-    return Lf -> _new_byte_size - Rf -> _new_byte_size;
+    return Left -> _new_byte_size - Right -> _new_byte_size;
 }   /* _karChiveWriterSortFilesCallback () */
-
-static
-rc_t
-_karChiveWriterSortFiles ( struct karChiveWriter * self )
-{
-    if ( self == NULL ) {
-        return RC ( rcApp, rcNode, rcWriting, rcSelf, rcNull );
-    }
-
-    ksort (
-            self -> _files,
-            self -> _files_qty,
-            sizeof ( struct karChiveFile * ),
-            _karChiveWriterSortFilesCallback,
-            NULL
-            );
-
-    return 0;
-}   /* _karChiveWriterSortFiles () */
 
 static
 void
@@ -3785,17 +3874,36 @@ _karChiveWriterPrepareChiveTOCCallback (
                                     void * Data
 )
 {
-    struct karChiveWriter * Writer = ( struct karChiveWriter * ) Data;
+    struct karChiveWriter * Writer;
+    struct karChiveFile * File;
+    size_t Size;
+
+    Writer = ( struct karChiveWriter * ) Data;
+    File = NULL;
+    Size = 0;
 
     if ( Writer -> _rc != 0 ) {
         return;
     }
 
     if ( Entry -> _type == kptFile ) {
-        Writer -> _rc = _karChiveWriterAddFile (
-                                        Writer,
-                                        ( struct karChiveFile * ) Entry
-                                        );
+        File = ( struct karChiveFile * ) Entry;
+
+        if ( File -> _data_source == 0 ) {
+            Size = 0;
+        }
+        else {
+            Writer -> _rc = karChiveDSSize (
+                                            File -> _data_source,
+                                            & Size
+                                            );
+        }
+
+        if ( Writer -> _rc == 0 ) {
+            File -> _new_byte_size = Size;
+
+            Writer -> _rc = _karFVecAdd ( Writer -> _files, File );
+        }
     }
 }   /* _karChiveWriterPrepareChiveTOCCallback () */
 
@@ -3826,7 +3934,9 @@ _karChiveWriterPrepareChiveTOC ( struct karChiveWriter * self )
         return self -> _rc;
     }
 
-    RCt = _karChiveWriterClearFiles ( self );
+        /*  JOJOBA: do we need to check if _files != NULL ???
+         */
+    RCt = _karFVecClear ( self -> _files );
     if ( RCt == 0 ) {
         _karChiveEntryForEach (
                         (const struct karChiveEntry * ) self -> _chive -> _root,
@@ -3835,21 +3945,26 @@ _karChiveWriterPrepareChiveTOC ( struct karChiveWriter * self )
                         );
         RCt = self -> _rc;
         if ( RCt == 0 ) {
-            RCt = _karChiveWriterSortFiles ( self );
-            if ( RCt == 0 ) {
-                    /*  Going and assigning new offsets and file sizes
-                     */
-                for ( llp = 0; llp < self -> _files_qty; llp ++ ) {
-                    Size = self -> _files [ llp ] -> _new_byte_size;
+                /*  Sorting files by size
+                 */
+            _karFVecSort (
+                        self -> _files,
+                        _karChiveWriterSortFilesCallback
+                        );
 
-                    self -> _files [ llp ] -> _new_byte_offset = Offset;
+                /*  Going and assigning new offsets and file sizes
+                 */
+            for ( llp = 0; llp < self -> _files -> _q; llp ++ ) {
+                Size = self -> _files -> _f [ llp ] -> _new_byte_size;
 
-                    Offset = align_offset ( Offset + Size, 4 );
-                }
+                self -> _files -> _f [ llp ] -> _new_byte_offset = Offset;
 
-                    /*  Evaluating TOC size
-                     */
-                RCt = BSTreePersist (
+                Offset = align_offset ( Offset + Size, 4 );
+            }
+
+                /*  Evaluating TOC size
+                 */
+            RCt = BSTreePersist (
                                 & ( self -> _chive -> _root -> _entries ),
                                 & ( self -> _toc_size ),
                                 NULL,
@@ -3857,7 +3972,6 @@ _karChiveWriterPrepareChiveTOC ( struct karChiveWriter * self )
                                 _karChivePersist,
                                 NULL
                                 );
-            }
         }
     }
 
@@ -4055,14 +4169,14 @@ _karChiveWriterWriteFile ( struct karChiveWriter * self, size_t FileNo )
         return RC ( rcApp, rcFile, rcWriting, rcSelf, rcNull );
     }
 
-    if ( self -> _files_qty <= FileNo ) {
+    if ( self -> _files -> _q <= FileNo ) {
         return RC ( rcApp, rcFile, rcWriting, rcParam, rcInvalid );
     }
 
         /* Temporarily, there will be small missunderstanding according
          * to that
          */
-    File = self -> _files [ FileNo ];
+    File = self -> _files -> _f [ FileNo ];
     if ( File == NULL ) {
         return RC ( rcApp, rcFile, rcWriting, rcParam, rcInvalid );
     }
@@ -4113,7 +4227,7 @@ karChiveWriteFile (
             if ( RCt == 0 ) {
                 RCt = _karChiveWriterWriteChiveHeaderAndTOC ( & Writer );
                 if ( RCt == 0 ) {
-                    for ( llp = 0; llp < Writer . _files_qty; llp ++ ) {
+                    for ( llp = 0; llp < Writer . _files -> _q; llp ++ ) {
                         RCt = _karChiveWriterWriteFile (
                                                         & Writer,
                                                         llp
@@ -4250,6 +4364,203 @@ Delite ( struct DeLiteParams * Params )
 
     return RCt;
 }   /* Delite () */
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *
+ *  The way how checkite works :
+ *     1) Open archive
+ *     2) Check if files are in right order
+ *     3) Check that all links are resolved
+ *     4) Check if metadata contains delite section, and does not
+ *        contains QUALITY if it is not 454 architecture
+ *     5) Check that it does not contains QUALITY columns if it is
+ *        not 454 machine
+ *     6) Check that MD5 files are in tact with md/cur files
+ *  That's it
+ *
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct Buhiripohl {
+    struct karFVec * _files;
+    rc_t _rc;
+};
+
+static
+void
+_karChiveCheckFileOrderCallback (
+                                    const struct karChiveEntry * Entry,
+                                    void * Data
+)
+{
+    struct Buhiripohl * Pohl = ( struct Buhiripohl * ) Data;
+
+    if ( Pohl -> _rc != 0 ) {
+        return;
+    }
+
+    if ( Entry -> _type == kptFile ) {
+        Pohl -> _rc = _karFVecAdd (
+                                    Pohl -> _files,
+                                    ( struct karChiveFile * ) Entry
+                                    );
+    }
+}   /* _karChiveCheckFileOrderCallback () */
+
+static
+int64_t
+_karChiveCheckFileOrderSortCallback (
+                                struct karChiveFile * Left,
+                                struct karChiveFile * Right
+)
+{
+        /*  JOJOBA: we do not check if left or right for NULL.
+         *      Not our problem
+         */
+
+    return ( Left -> _byte_offset - Right -> _byte_offset == 0 )
+                ? ( Left -> _byte_size - Right -> _byte_size )
+                : ( Left -> _byte_offset - Right -> _byte_offset )
+                ;
+    return Left -> _byte_offset - Right -> _byte_offset;
+}   /* _karChiveCheckFileOrderSortCallback () */
+
+static
+rc_t CC
+_karChiveCheckFileOrder ( const struct karChive * self )
+{
+    rc_t RCt;
+    struct karFVec * Files;
+    struct Buhiripohl Pohl;
+    size_t llp;
+    size_t CurrSize;
+
+    RCt = 0;
+    Files = 0;
+    memset ( & Pohl, 0, sizeof ( struct Buhiripohl ) );
+    llp = 0;
+    CurrSize = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcValidating, rcSelf, rcNull );
+    }
+
+    KOutMsg ( "Checking file order\n" );
+
+    RCt = _karFVecMake ( & Files );
+    if ( RCt == 0 ) {
+        Pohl . _files = Files;
+
+        _karChiveEntryForEach (
+                    ( const struct karChiveEntry * ) self -> _root,
+                    _karChiveCheckFileOrderCallback,
+                    & Pohl
+                    );
+        RCt = Pohl . _rc;
+        if ( RCt == 0 ) {
+            KOutMsg ( ".... found [%d] files\n", Files -> _q );
+
+            _karFVecSort ( Files, _karChiveCheckFileOrderSortCallback );
+
+            for ( llp = 0; llp < Files -> _q; llp ++ ) {
+                if ( Files -> _f [ llp ] -> _byte_size < CurrSize ) {
+                    RCt = RC ( rcApp, rcArc, rcValidating, rcSize, rcInvalid );
+                    break;
+                }
+
+                CurrSize = Files -> _f [ llp ] -> _byte_size;
+            }
+
+            if ( RCt != 0 ) {
+                KOutMsg ( ".... ERROR: files are unsorted by size\n" );
+                LogMsg ( klogErr, "Files are unsorted by size" );
+
+                    /*  and here we show where it did happen
+                     */
+                CurrSize = 0;
+                for ( llp = 0; llp < Files -> _q; llp ++ ) {
+                    KOutMsg ( ".... [%08d] [%08d] [%s]\n", Files -> _f [ llp ] -> _byte_offset, Files -> _f [ llp ] -> _byte_size, Files -> _f [ llp ] -> _da_da_dad . _name );
+                    if ( Files -> _f [ llp ] -> _byte_size < CurrSize ) {
+                        break;
+                    }
+
+                    CurrSize = Files -> _f [ llp ] -> _byte_size;
+                }
+            }
+        }
+
+        _karFVecDispose ( Files );
+    }
+
+    if ( RCt == 0 ) {
+        KOutMsg ( ".... DONE\n" );
+    }
+    else {
+        KOutMsg ( ".... FAILED\n" );
+    }
+
+    return RCt;
+}   /* _karChiveCheckFileOrder () */
+
+static
+rc_t CC
+_karChiveCheckMetaData ( const struct karChive * self )
+{
+    rc_t RCt;
+
+    RCt = 0;
+
+    return RCt;
+}   /* _karChiveCheckMetaData () */
+
+static
+rc_t CC
+_karChiveCheckQualityRemoved ( const struct karChive * self )
+{
+    rc_t RCt;
+
+    RCt = 0;
+
+    return RCt;
+}   /* _karChiveCheckQualityRemoved () */
+
+LIB_EXPORT
+rc_t CC
+Checkite ( const char * PathToArchive )
+{
+    rc_t RCt;
+    const struct karChive * Chive;
+
+    RCt = 0;
+    Chive = NULL;
+
+    if ( PathToArchive == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
+    }
+
+        /*  Phase #1: Open archive
+         *  Phase #3: Check if all links are resolved
+         */
+    RCt = karChiveOpen ( & Chive, PathToArchive );
+    if ( RCt == 0 ) {
+            /*  Phase #2: Check if all files are sorted by size
+             */
+        RCt = _karChiveCheckFileOrder ( Chive );
+        if ( RCt == 0 ) {
+                /*  Phase #4: metadata contain delite and does not
+                 *            have quality, if it is not 454 architect
+                 *  Phase #6: metadata has correct MD5 files
+                 */
+            RCt = _karChiveCheckMetaData ( Chive );
+            if ( RCt == 0 ) {
+                    /*  Phase #5: Check that quality does not present
+                     *            if it is not 454 machine
+                     */
+                RCt = _karChiveCheckQualityRemoved ( Chive );
+            }
+        }
+    }
+
+    return RCt;
+}   /* Checkite () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * 

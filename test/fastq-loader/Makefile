@@ -237,6 +237,8 @@ smalltests: $(TEST_TOOLS)
     # VDB-3413: multi-line reads and qualities
 	$(SMALLRUN) 16.0 0 $(SRCDIR)/input/16.0.fasta --quality PHRED_33 --platform=PACBIO
 	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
+    # VDB-3579: RNA input
+	$(SMALLRUN) 17.0 0 $(SRCDIR)/input/17.0.fastq --quality PHRED_33 --platform=PACBIO
 
 onetest: set_schema
 	rm -rf $(SRCDIR)/actual

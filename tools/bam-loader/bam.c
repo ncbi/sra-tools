@@ -2085,32 +2085,40 @@ static int SAM2BAM_ConvertBase(int base)
     return tr[base];
 }
 
-static rc_t SAM2BAM_ConvertSEQ(unsigned const insize, void /* inout */ *const data, void const *const endp)
+static rc_t SAM2BAM_ConvertSEQ(unsigned const insize, void /* inout */ *const data, void const *const endp, bool *isRNA)
 {
     char const *const value = data;
     uint8_t *const dst = data;
     unsigned const n = insize & ~((unsigned)1);
     unsigned j = 0;
     unsigned i;
+    bool rna = false;
 
     for (i = 0; i < n; i += 2, ++j) {
-        int const hi = SAM2BAM_ConvertBase(value[i + 0]);
-        int const lo = SAM2BAM_ConvertBase(value[i + 1]);
-        
+        int const b1 = value[i + 0];
+        int const b2 = value[i + 1];
+        int const hi = SAM2BAM_ConvertBase(b1 == 'U' ? 'T' : b1);
+        int const lo = SAM2BAM_ConvertBase(b2 == 'U' ? 'T' : b2);
+
+        rna |= b1 == 'U';
+        rna |= b2 == 'U';
         if (hi < 0 || lo < 0)
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
 
         dst[j] = (hi << 4) | lo;
     }
     if (n != insize) {
-        int const hi = SAM2BAM_ConvertBase(value[n]);
+        int const b1 = value[i + 0];
+        int const hi = SAM2BAM_ConvertBase(b1 == 'U' ? 'T' : b1);
         int const lo = 0;
         
+        rna |= b1 == 'U';
         if (hi < 0 || lo < 0)
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
         
         dst[j] = (hi << 4) | lo;
     }
+    *isRNA = rna;
     return 0;
 }
 
@@ -2328,6 +2336,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
     int *intScratch = NULL;
     int sgn = 1;
     unsigned i = 0;
+    bool isRNA = false;
 
     memset(raw, 0, sizeof(*raw));
     memset(&temp, 0, sizeof(temp));
@@ -2471,7 +2480,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
                     scratch += (temp.readlen + 1) / 2;
                     temp.QUAL = (uint8_t *)scratch;
                     {
-                        rc_t const rc = SAM2BAM_ConvertSEQ(i, temp.SEQ, endp);
+                        rc_t const rc = SAM2BAM_ConvertSEQ(i, temp.SEQ, endp, &isRNA);
                         if (rc) {
                             LOGERR(klogErr, rc, "SAM Record error converting SEQ");
                             field = 0;
@@ -2546,6 +2555,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
 
         if (BAM_AlignmentInitLog(y, rsltsize, datasize, self->buffer)) {
             y->parent = self;
+            y->isRNA = isRNA;
             rslt[0] = y;
         
             if (BAM_AlignmentIsEmpty(y))
@@ -3119,8 +3129,9 @@ static int get1Base(BAM_Alignment const *const self, unsigned const i)
     uint8_t const *const seq = &self->data->raw[self->seq];
     unsigned const b4na2 = seq[i >> 1];
     unsigned const b4na = (i & 1) == 0 ? (b4na2 >> 4) : (b4na2 & 0x0F);
+    char const base = tr[b4na];
     
-    return tr[b4na];
+    return base != 'T' ? base : self->isRNA ? 'U' : 'T';
 }
 
 static int get1Qual(BAM_Alignment const *const self, unsigned const i)

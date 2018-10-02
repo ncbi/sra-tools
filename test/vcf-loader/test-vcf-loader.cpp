@@ -65,13 +65,13 @@ TEST_SUITE(VcfLoaderTestSuite);
 class VcfScanFixture
 {
 public:
-    VcfScanFixture() 
+    VcfScanFixture()
     : consumed(0)
     {
         pb.self = this;
         pb.input = Input;
     }
-    ~VcfScanFixture() 
+    ~VcfScanFixture()
     {
         VCFScan_yylex_destroy(&pb);
     }
@@ -83,10 +83,10 @@ public:
     int Scan()
     {
         int tokenId=VCF_lex(&sym, pb.scanner);
-        
+
         if (tokenId != 0)
             tokenText=string(input.c_str() + sym.tokenStart, sym.tokenLength);
-            
+
         return tokenId;
     }
     static size_t CC Input(VCFParseBlock* sb, char* buf, size_t max_size)
@@ -125,72 +125,72 @@ public:
     REQUIRE_EQ(pb.lastToken->column_no, (size_t)col);
 
 FIXTURE_TEST_CASE(EmptyInput, VcfScanFixture)
-{   
+{
     InitScan("");
-    REQUIRE_TOKEN(0); 
+    REQUIRE_TOKEN(0);
 }
 FIXTURE_TEST_CASE(MetaLineSimple, VcfScanFixture)
-{   
+{
     InitScan("##fileformat=VCFv4.1\n");
-    REQUIRE_TOKEN_TEXT(vcfMETAKEY_FORMAT, "fileformat"); 
-    REQUIRE_TOKEN_TEXT('=', "="); 
-    REQUIRE_TOKEN_TEXT(vcfMETAVALUE, "VCFv4.1"); 
+    REQUIRE_TOKEN_TEXT(vcfMETAKEY_FORMAT, "fileformat");
+    REQUIRE_TOKEN_TEXT('=', "=");
+    REQUIRE_TOKEN_TEXT(vcfMETAVALUE, "VCFv4.1");
     REQUIRE_TOKEN(vcfENDLINE);
-    REQUIRE_TOKEN(0); 
+    REQUIRE_TOKEN(0);
 }
 FIXTURE_TEST_CASE(MetaLineComposite, VcfScanFixture)
-{   
+{
     InitScan("##fileformat=<key1=val1,key2=val2>\n");
-    REQUIRE_TOKEN_TEXT(vcfMETAKEY, "fileformat"); 
-    REQUIRE_TOKEN_TEXT('=', "="); 
-    REQUIRE_TOKEN_TEXT('<', "<"); 
-    REQUIRE_TOKEN_TEXT(vcfMETAKEY, "key1"); 
-    REQUIRE_TOKEN_TEXT('=', "="); 
-    REQUIRE_TOKEN_TEXT(vcfMETAVALUE, "val1"); 
-    REQUIRE_TOKEN_TEXT(',', ","); 
-    REQUIRE_TOKEN_TEXT(vcfMETAKEY, "key2"); 
-    REQUIRE_TOKEN_TEXT('=', "="); 
-    REQUIRE_TOKEN_TEXT(vcfMETAVALUE, "val2"); 
-    REQUIRE_TOKEN_TEXT('>', ">"); 
+    REQUIRE_TOKEN_TEXT(vcfMETAKEY, "fileformat");
+    REQUIRE_TOKEN_TEXT('=', "=");
+    REQUIRE_TOKEN_TEXT('<', "<");
+    REQUIRE_TOKEN_TEXT(vcfMETAKEY, "key1");
+    REQUIRE_TOKEN_TEXT('=', "=");
+    REQUIRE_TOKEN_TEXT(vcfMETAVALUE, "val1");
+    REQUIRE_TOKEN_TEXT(',', ",");
+    REQUIRE_TOKEN_TEXT(vcfMETAKEY, "key2");
+    REQUIRE_TOKEN_TEXT('=', "=");
+    REQUIRE_TOKEN_TEXT(vcfMETAVALUE, "val2");
+    REQUIRE_TOKEN_TEXT('>', ">");
     REQUIRE_TOKEN(vcfENDLINE);
-    REQUIRE_TOKEN(0); 
+    REQUIRE_TOKEN(0);
 }
 FIXTURE_TEST_CASE(HeaderLine, VcfScanFixture)
-{   
+{
     InitScan("#CHROM\tPOS\n");
     REQUIRE_TOKEN_TEXT(vcfHEADERITEM, "CHROM");
     REQUIRE_TOKEN_TEXT(vcfHEADERITEM, "POS");
     REQUIRE_TOKEN(vcfENDLINE);
-    REQUIRE_TOKEN(0); 
+    REQUIRE_TOKEN(0);
 }
 FIXTURE_TEST_CASE(DataItems, VcfScanFixture)
-{   
+{
     InitScan("20\tNS=3;DP=14;AF=0.5;DB;H2\n");
-    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "20"); 
-    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "NS=3;DP=14;AF=0.5;DB;H2"); 
+    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "20");
+    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "NS=3;DP=14;AF=0.5;DB;H2");
     REQUIRE_TOKEN(vcfENDLINE);
-    REQUIRE_TOKEN(0); 
+    REQUIRE_TOKEN(0);
 }
 FIXTURE_TEST_CASE(DataLine_TrailingTab, VcfScanFixture)
-{   
+{
     InitScan("20\tNS=3;DP=14;AF=0.5;DB;H2\t\n");
-    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "20"); 
-    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "NS=3;DP=14;AF=0.5;DB;H2"); 
+    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "20");
+    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "NS=3;DP=14;AF=0.5;DB;H2");
     REQUIRE_TOKEN(vcfENDLINE);
-    REQUIRE_TOKEN(0); 
+    REQUIRE_TOKEN(0);
 }
 FIXTURE_TEST_CASE(DataLine_EOF, VcfScanFixture)
-{   
+{
     InitScan("20\tNS=3;DP=14;AF=0.5;DB;H2");
-    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "20"); 
-    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "NS=3;DP=14;AF=0.5;DB;H2"); 
+    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "20");
+    REQUIRE_TOKEN_TEXT(vcfDATAITEM, "NS=3;DP=14;AF=0.5;DB;H2");
     REQUIRE_TOKEN(vcfENDLINE);
-    REQUIRE_TOKEN(0); 
+    REQUIRE_TOKEN(0);
 }
 
 // parser tests
 
-class VcfParseFixture 
+class VcfParseFixture
 {
 public:
     VcfParseFixture()
@@ -212,7 +212,7 @@ public:
     {
         VCFScan_yylex_destroy(&pb);
     }
-    
+
 protected:
     static size_t Input(VCFParseBlock* pb, char* buf, size_t max_size)
     {
@@ -226,12 +226,12 @@ protected:
         if (!self.expectError)
             throw logic_error(string("VcfParseFixture::Error:") + message);
     }
-    
+
     string TokenToString(const VCFToken& t)
     {
         return string(input.str().c_str() + t.tokenStart, t.tokenLength);
     }
-    
+
     static void AddMetaLine(VCFParseBlock* pb, VCFToken* key, VCFToken* value)
     {
         VcfParseFixture& self = *reinterpret_cast<VcfParseFixture*>(pb->self);
@@ -277,26 +277,26 @@ protected:
     static void CloseDataLine(VCFParseBlock* pb)
     {
     }
-    
+
     void InitScan(const char* p_input, bool trace=false)
     {
         input.str(p_input);
         VCFScan_yylex_init(&pb, trace);
     }
-    
+
 public:
     VCFParseBlock pb;
-    
+
     istringstream input;
-    
+
     typedef vector<pair<string, string> > MetaLine;
-    vector<MetaLine> meta;    
-    
+    vector<MetaLine> meta;
+
     vector<string> header;  // all tokens from the header line
-    
+
     typedef vector<string> DataLine;
-    vector<DataLine> data; 
-    
+    vector<DataLine> data;
+
     bool expectError;
 };
 
@@ -308,17 +308,17 @@ FIXTURE_TEST_CASE(EmptyFile, VcfParseFixture)
     REQUIRE_EQ( VCF_parse(&pb), 0 ); // EOF
 }
 
-// meta lines 
+// meta lines
 FIXTURE_TEST_CASE(FormatLineOnly, VcfParseFixture)
 {
     InitScan("##fileformat=VCFv4.0\n"
              "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
              "1\t2827693\t.\tCCGTC\tC\t.\tPASS\tSVTYPE=DEL\n");
     REQUIRE_EQ( VCF_parse(&pb), 1 );
-    REQUIRE_EQ( meta.size(), (size_t)1 ); 
-    REQUIRE_EQ( meta[0].size(), (size_t)1 ); 
-    REQUIRE_EQ( meta[0][0].first,   string("fileformat") ); 
-    REQUIRE_EQ( meta[0][0].second,  string("VCFv4.0") ); 
+    REQUIRE_EQ( meta.size(), (size_t)1 );
+    REQUIRE_EQ( meta[0].size(), (size_t)1 );
+    REQUIRE_EQ( meta[0][0].first,   string("fileformat") );
+    REQUIRE_EQ( meta[0][0].second,  string("VCFv4.0") );
 }
 
 FIXTURE_TEST_CASE(MetaLines, VcfParseFixture)
@@ -329,19 +329,19 @@ FIXTURE_TEST_CASE(MetaLines, VcfParseFixture)
              "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
              "1\t2827693\t.\tCCGTC\tC\t.\tPASS\tSVTYPE=DEL\n");
     REQUIRE_EQ( VCF_parse(&pb), 1 ); // EOF
-    REQUIRE_EQ( meta.size(), (size_t)3 ); 
+    REQUIRE_EQ( meta.size(), (size_t)3 );
 
-    REQUIRE_EQ( meta[0].size(), (size_t)1 ); 
-    REQUIRE_EQ( meta[0][0].first,   string("fileformat") ); 
-    REQUIRE_EQ( meta[0][0].second,  string("VCFv4.0") ); 
-    
-    REQUIRE_EQ( meta[1].size(), (size_t)1 ); 
-    REQUIRE_EQ( meta[1][0].first,   string("fileDate") ); 
-    REQUIRE_EQ( meta[1][0].second,  string("20090805") ); 
+    REQUIRE_EQ( meta[0].size(), (size_t)1 );
+    REQUIRE_EQ( meta[0][0].first,   string("fileformat") );
+    REQUIRE_EQ( meta[0][0].second,  string("VCFv4.0") );
 
-    REQUIRE_EQ( meta[2].size(), (size_t)1 ); 
-    REQUIRE_EQ( meta[2][0].first,   string("source") ); 
-    REQUIRE_EQ( meta[2][0].second,  string("myImputationProgramV3.1") ); 
+    REQUIRE_EQ( meta[1].size(), (size_t)1 );
+    REQUIRE_EQ( meta[1][0].first,   string("fileDate") );
+    REQUIRE_EQ( meta[1][0].second,  string("20090805") );
+
+    REQUIRE_EQ( meta[2].size(), (size_t)1 );
+    REQUIRE_EQ( meta[2][0].first,   string("source") );
+    REQUIRE_EQ( meta[2][0].second,  string("myImputationProgramV3.1") );
 }
 
 FIXTURE_TEST_CASE(Header, VcfParseFixture)
@@ -349,8 +349,8 @@ FIXTURE_TEST_CASE(Header, VcfParseFixture)
     InitScan("##fileformat=VCFv4.0\n"
              "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
              "1\t2827693\t.\tCCGTC\tC\t.\tPASS\tSVTYPE=DEL\n");
-    REQUIRE_EQ( VCF_parse(&pb), 1 ); 
-    REQUIRE_EQ( header.size(), (size_t)8 ); 
+    REQUIRE_EQ( VCF_parse(&pb), 1 );
+    REQUIRE_EQ( header.size(), (size_t)8 );
     REQUIRE_EQ( header[0], string("CHROM") );
     REQUIRE_EQ( header[1], string("POS") );
     REQUIRE_EQ( header[2], string("ID") );
@@ -367,14 +367,14 @@ FIXTURE_TEST_CASE(MetaHeaderData, VcfParseFixture)
         "##fileformat=VCFv4.0\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001\n"
         "1\t2827693\t.\tCCGTC\tC\t.\tPASS\tSVTYPE=DEL;END=2827680;BKPTID=Pindel_LCS_D1099159;HOMLEN=1;HOMSEQ=C;SVLEN=-66\tGT:GQ\t1/1:13.9\n");
-    REQUIRE_EQ( VCF_parse(&pb), 1 ); 
-    REQUIRE_EQ( data.size(), (size_t)1 ); 
-    
-    REQUIRE_EQ( data[0].size(), (size_t)10 ); 
-    REQUIRE_EQ( data[0][0], string("1") ); 
-    REQUIRE_EQ( data[0][1], string("2827693") ); 
-    REQUIRE_EQ( data[0][2], string(".") ); 
-    REQUIRE_EQ( data[0][3], string("CCGTC") ); 
+    REQUIRE_EQ( VCF_parse(&pb), 1 );
+    REQUIRE_EQ( data.size(), (size_t)1 );
+
+    REQUIRE_EQ( data[0].size(), (size_t)10 );
+    REQUIRE_EQ( data[0][0], string("1") );
+    REQUIRE_EQ( data[0][1], string("2827693") );
+    REQUIRE_EQ( data[0][2], string(".") );
+    REQUIRE_EQ( data[0][3], string("CCGTC") );
 }
 
 FIXTURE_TEST_CASE(InfoLine, VcfParseFixture)
@@ -383,25 +383,25 @@ FIXTURE_TEST_CASE(InfoLine, VcfParseFixture)
              "##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">\n"
              "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001\n"
              "1\t2827693\t.\tCCGTC\tC\t.\tPASS\tSVTYPE=DEL\n");
-        
-    REQUIRE_EQ( VCF_parse(&pb), 1 ); 
-    REQUIRE_EQ( meta.size(), (size_t)2 ); 
-    REQUIRE_EQ( meta[1].size(), (size_t)5 ); 
+
+    REQUIRE_EQ( VCF_parse(&pb), 1 );
+    REQUIRE_EQ( meta.size(), (size_t)2 );
+    REQUIRE_EQ( meta[1].size(), (size_t)5 );
     MetaLine& ml = meta[1];
-    REQUIRE_EQ( ml[0].first,   string("INFO") ); 
-    REQUIRE_EQ( ml[0].second,  string() ); 
-    REQUIRE_EQ( ml[1].first,   string("ID") ); 
-    REQUIRE_EQ( ml[1].second,  string("DP") ); 
-    REQUIRE_EQ( ml[2].first,   string("Number") ); 
-    REQUIRE_EQ( ml[2].second,  string("1") ); 
-    REQUIRE_EQ( ml[3].first,   string("Type") ); 
-    REQUIRE_EQ( ml[3].second,  string("Integer") ); 
-    REQUIRE_EQ( ml[4].first,   string("Description") ); 
-    REQUIRE_EQ( ml[4].second,  string("\"Total Depth\"") ); 
+    REQUIRE_EQ( ml[0].first,   string("INFO") );
+    REQUIRE_EQ( ml[0].second,  string() );
+    REQUIRE_EQ( ml[1].first,   string("ID") );
+    REQUIRE_EQ( ml[1].second,  string("DP") );
+    REQUIRE_EQ( ml[2].first,   string("Number") );
+    REQUIRE_EQ( ml[2].second,  string("1") );
+    REQUIRE_EQ( ml[3].first,   string("Type") );
+    REQUIRE_EQ( ml[3].second,  string("Integer") );
+    REQUIRE_EQ( ml[4].first,   string("Description") );
+    REQUIRE_EQ( ml[4].second,  string("\"Total Depth\"") );
 }
 
 
-// data lines 
+// data lines
 FIXTURE_TEST_CASE(MultiipleDataLines, VcfParseFixture)
 {
     InitScan(
@@ -409,16 +409,16 @@ FIXTURE_TEST_CASE(MultiipleDataLines, VcfParseFixture)
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNA00001\n"
         "1\t2827693\n"
         "2\t3\n");
-    REQUIRE_EQ( VCF_parse(&pb), 1 ); 
-    REQUIRE_EQ( data.size(), (size_t)2 ); 
-    
-    REQUIRE_EQ( data[0].size(), (size_t)2 ); 
-    REQUIRE_EQ( data[0][0], string("1") ); 
-    REQUIRE_EQ( data[0][1], string("2827693") ); 
+    REQUIRE_EQ( VCF_parse(&pb), 1 );
+    REQUIRE_EQ( data.size(), (size_t)2 );
 
-    REQUIRE_EQ( data[1].size(), (size_t)2 ); 
-    REQUIRE_EQ( data[1][0], string("2") ); 
-    REQUIRE_EQ( data[1][1], string("3") ); 
+    REQUIRE_EQ( data[0].size(), (size_t)2 );
+    REQUIRE_EQ( data[0][0], string("1") );
+    REQUIRE_EQ( data[0][1], string("2827693") );
+
+    REQUIRE_EQ( data[1].size(), (size_t)2 );
+    REQUIRE_EQ( data[1][0], string("2") );
+    REQUIRE_EQ( data[1][1], string("3") );
 }
 
 // VcfReader
@@ -431,27 +431,27 @@ public:
     {
         if (KDirectoryNativeDir(&wd) != 0)
             throw logic_error(string("VcfReaderFixture: KDirectoryNativeDir failed"));
-            
+
         if (VcfReaderMake((const VcfReader**)&reader) != 0)
             throw logic_error(string("VcfReaderFixture: VcfReaderMake failed"));
     }
     ~VcfReaderFixture()
     {
         KDirectoryRemove(wd, true, filename.c_str());
-            
+
         if (reader != 0 && VcfReaderWhack(reader) != 0)
             throw logic_error(string("~VcfReaderFixture: VcfReaderWhack failed"));
-            
+
         if (KDirectoryRelease(wd) != 0)
             throw logic_error(string("~VcfReaderFixture: KDirectoryRelease failed"));
     }
-    
+
     rc_t CreateFile(const char* p_filename, const char* contents)
-    {   
+    {
         KDirectoryRemove(wd, true, p_filename);
-        
+
         filename = p_filename;
-        
+
         KFile* file;
         rc_t rc = KDirectoryCreateFile(wd, &file, true, 0664, kcmInit, p_filename);
         if (rc == 0)
@@ -465,16 +465,16 @@ public:
         }
         return rc;
     }
-    
+
     rc_t ParseFile(const char* p_filename)
     {
         messages = 0;
         messageCount = 0;
-        
+
         KFile* file;
         rc_t rc = KDirectoryOpenFileRead(wd, (const KFile**)&file, p_filename);
         if (rc == 0)
-        {   
+        {
             rc = VcfReaderParse(reader, file, &messages);
             if (messages != NULL)
             {
@@ -482,7 +482,7 @@ public:
                 if (rc == 0)
                     rc = rc2;
             }
-            
+
             if (rc == 0)
                 rc = KFileRelease(file);
             else
@@ -490,7 +490,7 @@ public:
         }
         return rc;
     }
-    
+
     KDirectory* wd;
     VcfReader *reader;
     string filename;
@@ -500,13 +500,13 @@ public:
 
 FIXTURE_TEST_CASE(VcfReader_EmptyFile, VcfReaderFixture)
 {
-    REQUIRE_RC(CreateFile(GetName(), "")); 
-    REQUIRE_RC_FAIL(ParseFile(GetName())); 
+    REQUIRE_RC(CreateFile(GetName(), ""));
+    REQUIRE_RC_FAIL(ParseFile(GetName()));
     REQUIRE_NOT_NULL(messages);
     REQUIRE_EQ(1u, messageCount);
     const char* msg;
     REQUIRE_RC(VNameListGet ( messages, 0, &msg ));
-    REQUIRE_EQ(string("Empty file"), string(msg)); 
+    REQUIRE_EQ(string("Empty file"), string(msg));
 }
 
 static string StringToSTL(const String& str)
@@ -515,10 +515,10 @@ static string StringToSTL(const String& str)
 }
 
 FIXTURE_TEST_CASE(VcfReader_Parse, VcfReaderFixture)
-{   
-    REQUIRE_RC(CreateFile(GetName(), 
+{
+    REQUIRE_RC(CreateFile(GetName(),
         // this is taken from the spec:
-        //  http://www.1000genomes.org/wiki/analysis/variant-call-format/vcf-variant-call-format-version-42 
+        //  http://www.1000genomes.org/wiki/analysis/variant-call-format/vcf-variant-call-format-version-42
         "##fileformat=VCFv4.2\n"
         "##fileDate=20090805\n"
         "##source=myImputationProgramV3.1\n"
@@ -526,32 +526,32 @@ FIXTURE_TEST_CASE(VcfReader_Parse, VcfReaderFixture)
         "20\t14370\trs6054257\tG\tA\t29\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\n"
         "20\t17330\t.\tT\tA\t3\tq10\tNS=3;DP=11;AF=0.017\n"
         ));
-    REQUIRE_RC(ParseFile(GetName())); 
-        
+    REQUIRE_RC(ParseFile(GetName()));
+
     uint32_t count;
     REQUIRE_RC(VcfReaderGetDataLineCount(reader, &count));
     REQUIRE_EQ(2u, count);
-    
+
     const VcfDataLine* line;
     REQUIRE_RC(VcfReaderGetDataLine(reader, 0, &line));
     REQUIRE_NOT_NULL(line);
     REQUIRE_EQ(string("20"),        StringToSTL(line->chromosome));
-    REQUIRE_EQ(14370u,              line->position);   
+    REQUIRE_EQ(14370u,              line->position);
     REQUIRE_EQ(string("rs6054257"), StringToSTL(line->id));
     REQUIRE_EQ(string("G"),         StringToSTL(line->refBases));
     REQUIRE_EQ(string("A"),         StringToSTL(line->altBases));
-    REQUIRE_EQ(29u,                 (unsigned int)line->quality);   
+    REQUIRE_EQ(29u,                 (unsigned int)line->quality);
     REQUIRE_EQ(string("PASS"),      StringToSTL(line->filter));
     REQUIRE_EQ(string("NS=3;DP=14;AF=0.5;DB;H2"), StringToSTL(line->info));
-    
+
     REQUIRE_RC(VcfReaderGetDataLine(reader, 1, &line));
     REQUIRE_NOT_NULL(line);
     REQUIRE_EQ(string("20"),    StringToSTL(line->chromosome));
-    REQUIRE_EQ(17330u,          line->position);   
+    REQUIRE_EQ(17330u,          line->position);
     REQUIRE_EQ(string("."),     StringToSTL(line->id));
     REQUIRE_EQ(string("T"),     StringToSTL(line->refBases));
     REQUIRE_EQ(string("A"),     StringToSTL(line->altBases));
-    REQUIRE_EQ(3u,              (unsigned int)line->quality);   
+    REQUIRE_EQ(3u,              (unsigned int)line->quality);
     REQUIRE_EQ(string("q10"),   StringToSTL(line->filter));
     REQUIRE_EQ(string("NS=3;DP=11;AF=0.017"), StringToSTL(line->info));
 
@@ -560,28 +560,28 @@ FIXTURE_TEST_CASE(VcfReader_Parse, VcfReaderFixture)
 }
 
 FIXTURE_TEST_CASE(VcfReader_Parse_GenotypeFields, VcfReaderFixture)
-{   
-    REQUIRE_RC(CreateFile(GetName(), 
+{
+    REQUIRE_RC(CreateFile(GetName(),
         "##fileformat=VCFv4.2\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         "20\t14370\trs6054257\tG\tA\t29\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\tblah1\t2blah\tetc...\n"
         ));
-    REQUIRE_RC(ParseFile(GetName())); 
-        
+    REQUIRE_RC(ParseFile(GetName()));
+
     const VcfDataLine* line;
     REQUIRE_RC(VcfReaderGetDataLine(reader, 0, &line));
     REQUIRE_NOT_NULL(line);
-    
+
     uint32_t fieldCount;
-    REQUIRE_RC( VNameListCount(line->genotypeFields, &fieldCount) );    
+    REQUIRE_RC( VNameListCount(line->genotypeFields, &fieldCount) );
     REQUIRE_EQ(3u, fieldCount);
-    
+
     const char* name;
-    
+
     REQUIRE_RC(VNameListGet ( line->genotypeFields, 0, &name ));
     REQUIRE_NOT_NULL(name);
     REQUIRE_EQ(string("blah1"), string(name));
-    
+
     REQUIRE_RC(VNameListGet ( line->genotypeFields, 1, &name ));
     REQUIRE_NOT_NULL(name);
     REQUIRE_EQ(string("2blah"), string(name));
@@ -592,15 +592,15 @@ FIXTURE_TEST_CASE(VcfReader_Parse_GenotypeFields, VcfReaderFixture)
 }
 
 FIXTURE_TEST_CASE(VcfReader_Parse_Errors, VcfReaderFixture)
-{   
-    REQUIRE_RC(CreateFile(GetName(), 
+{
+    REQUIRE_RC(CreateFile(GetName(),
         "##fileformat=VCFv4.2\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         "20\t14370\trs6054257\tG\tA\t1000\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\tblah1\t2blah\tetc...\n"
         "20\t14370\trs6054257\tG\tA\t10\tPASS\n"
         )); // 1. 1000 is too much for a quality
             // 2. not all mandatory fields present
-    REQUIRE_RC_FAIL(ParseFile(GetName())); 
+    REQUIRE_RC_FAIL(ParseFile(GetName()));
     REQUIRE_EQ(2u, messageCount);
     const char* msg;
     REQUIRE_RC(VNameListGet ( messages, 0, &msg ));
@@ -623,23 +623,23 @@ public:
         if (VDBManagerRelease(m_vdbMgr) != 0)
             throw logic_error(string("~VcfDatabaseFixture: VDBManagerRelease failed"));
     }
-    
+
     void Setup(const string& p_caseName)
     {
         m_dbName = p_caseName+".db";
         m_cfgName = p_caseName+".cfg";
-        
+
         KDirectoryRemove(wd, true, m_dbName.c_str());
-        
+
         if (VDBManagerMakeSchema(m_vdbMgr, &m_schema) != 0)
             throw logic_error(string("VcfDatabaseFixture::Setup: VDBManagerMakeSchema failed"));
-        
+
         if (VSchemaParseText ( m_schema, "vcf_schema", schema_text, string_measure(schema_text, NULL) ) != 0)
             throw logic_error(string("VcfDatabaseFixture::Setup: VSchemaParseText failed"));
 
         if (VDBManagerCreateDB(m_vdbMgr, &m_db, m_schema, "vcf", kcmCreate | kcmMD5, m_dbName.c_str()) != 0)
             throw logic_error(string("VcfDatabaseFixture::Setup: VDBManagerCreateDB failed"));
-        
+
         if (CreateFile(m_cfgName.c_str(), "20	CM000682.1"))
             throw logic_error(string("VcfDatabaseFixture::Setup: CreateFile failed"));
     }
@@ -654,11 +654,11 @@ public:
         if (KDirectoryRemove(wd, true, m_cfgName.c_str()) != 0)
             throw logic_error(string("VcfDatabaseFixture::Teardown: KDirectoryRemove(m_cfgName) failed"));
     }
-    
+
 protected:
     static const char schema_text[];
     static const uint32_t basesPerRow = 5000;
-    
+
     VDBManager* m_vdbMgr;
     VSchema* m_schema;
     VDatabase* m_db;
@@ -716,7 +716,7 @@ const char VcfDatabaseFixture::schema_text[] =
 " };"
 
 "database vcf #1 { "
-"    table NCBI:align:tbl:reference #2  REFERENCE;"
+"    table NCBI:align:tbl:reference #3  REFERENCE;"
 "    table variant #1                   VARIANT;"
 "    table variant_phase #1             VARIANT_PHASE;"
 "    table alignment #1                 ALIGNMENT;"
@@ -733,7 +733,7 @@ FIXTURE_TEST_CASE(VcfDatabase_GetReference, VcfDatabaseFixture)
     bool dummy1 = false;
     bool dummy2 = false;
     REQUIRE_RC(ReferenceMgr_GetSeq(refMgr, &seq, "20", &dummy1, false, &dummy2));
-    
+
     INSDC_coord_zero coord = 14370;
     int64_t ref_id;
     INSDC_coord_zero ref_start;
@@ -752,9 +752,9 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
 {
     Setup(GetName());
 
-    REQUIRE_RC(CreateFile(GetName(), 
+    REQUIRE_RC(CreateFile(GetName(),
         // this is taken from the spec:
-        //  http://www.1000genomes.org/wiki/analysis/variant-call-format/vcf-variant-call-format-version-42 
+        //  http://www.1000genomes.org/wiki/analysis/variant-call-format/vcf-variant-call-format-version-42
         "##fileformat=VCFv4.2\n"
         "##fileDate=20090805\n"
         "##source=myImputationProgramV3.1\n"
@@ -762,7 +762,7 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
         "20\t14370\trs6054257\tG\tCCCC\t29\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\n"
         "20\t17330\t.\tT\tA\t3\tq10\tNS=3;DP=11;AF=0.017\n"
         ));
-    REQUIRE_RC(ParseFile(GetName())); 
+    REQUIRE_RC(ParseFile(GetName()));
 
     REQUIRE_RC(VcfDatabaseSave(reader, m_cfgName.c_str(), m_db));
 
@@ -771,56 +771,56 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
     REQUIRE_RC(VDBManagerOpenTableRead(m_vdbMgr, &tbl, m_schema, (m_dbName+"/tbl/VARIANT").c_str()));
     VCursor *cur;
     REQUIRE_RC(VTableCreateCursorRead( tbl, (const VCursor**)&cur ));
-    
+
     uint32_t ref_id_idx, position_idx, length_idx, sequence_idx;
     REQUIRE_RC(VCursorAddColumn( cur, &ref_id_idx, "ref_id" ));
     REQUIRE_RC(VCursorAddColumn( cur, &position_idx, "position" ));
     REQUIRE_RC(VCursorAddColumn( cur, &length_idx, "length" ));
-    REQUIRE_RC(VCursorAddColumn( cur, &sequence_idx, "sequence" ));    
-    
+    REQUIRE_RC(VCursorAddColumn( cur, &sequence_idx, "sequence" ));
+
     REQUIRE_RC(VCursorOpen( cur ));
-    
+
     char buf[256];
     uint32_t row_len;
     const uint32_t elemBits = 8;
 
     int64_t rowId = 1;
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 1, elemBits, buf, sizeof(buf), &row_len ));    
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 1, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(8u, row_len);
     REQUIRE_EQ(3u, *(uint32_t*)buf);
-    
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 2, elemBits, buf, sizeof(buf), &row_len ));    
+
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 2, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(sizeof(INSDC_coord_zero), (size_t)row_len);
     REQUIRE_EQ((INSDC_coord_zero)(14370u % basesPerRow), *(INSDC_coord_zero*)buf);
-    
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 3, elemBits, buf, sizeof(buf), &row_len ));    
+
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 3, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(sizeof(uint32_t), (size_t)row_len);
     REQUIRE_EQ(4u, *(uint32_t*)buf);
 
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 4, elemBits, buf, sizeof(buf), &row_len ));    
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 4, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(4u, row_len);
     REQUIRE_EQ(string(buf, 4), string("CCCC"));
 
     rowId = 2;
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 1, elemBits, buf, sizeof(buf), &row_len ));    
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 1, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(8u, row_len);
     REQUIRE_EQ(4u, *(uint32_t*)buf);
-    
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 2, elemBits, buf, sizeof(buf), &row_len ));    
+
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 2, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(sizeof(INSDC_coord_zero), (size_t)row_len);
     REQUIRE_EQ((INSDC_coord_zero)(17330u % basesPerRow), *(INSDC_coord_zero*)buf);
-    
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 3, elemBits, buf, sizeof(buf), &row_len ));    
+
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 3, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(sizeof(uint32_t), (size_t)row_len);
     REQUIRE_EQ(1u, *(uint32_t*)buf);
 
-    REQUIRE_RC(VCursorReadDirect(cur, rowId, 4, elemBits, buf, sizeof(buf), &row_len ));    
+    REQUIRE_RC(VCursorReadDirect(cur, rowId, 4, elemBits, buf, sizeof(buf), &row_len ));
     REQUIRE_EQ(1u, row_len);
     REQUIRE_EQ(string(buf, 1), string("A"));
 
     rowId = 3;
-    REQUIRE_RC_FAIL(VCursorReadDirect(cur, rowId, 1, elemBits, buf, sizeof(buf), &row_len ));    
-    
+    REQUIRE_RC_FAIL(VCursorReadDirect(cur, rowId, 1, elemBits, buf, sizeof(buf), &row_len ));
+
     REQUIRE_RC(VCursorRelease(cur));
     REQUIRE_RC(VTableRelease(tbl));
     Teardown();
@@ -853,7 +853,7 @@ rc_t CC Usage( const Args* args )
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-    
+
     rc_t rc = VcfLoaderTestSuite(argc, argv);
     return rc;
 }

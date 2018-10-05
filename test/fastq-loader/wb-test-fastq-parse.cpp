@@ -255,7 +255,7 @@ public:
         }
     }
 
-    bool Parse(bool traceLex = false)
+    bool Parse(bool traceLex = false, bool traceParse = false)
     {
         pb.self = this;
         pb.input = Input;
@@ -272,7 +272,7 @@ public:
             FAIL("ParserFixture::ParserFixture: malloc failed");
         KDataBufferMakeBytes ( & pb.record->source, 0 );
 
-        //FASTQ_debug = 1;
+        FASTQ_debug = traceParse ? 1 : 0;
         FASTQ_ParseBlockInit ( &pb );
         return FASTQ_parse( &pb ) == 1 && pb.record->rej == 0;
     }
@@ -334,7 +334,17 @@ FIXTURE_TEST_CASE(BufferBreakInMultilineQuality, ParserFixture)
     REQUIRE_EQ ( string ( "abcdefggg" ),
                  string ( ( const char *) ( pb . record -> source . base ) + pb . qualityOffset, pb . qualityLength ) );
 }
+/*
+FIXTURE_TEST_CASE(VDB_3579, ParserFixture)
+{
+    AddBuffer ( "@a b c");
+    AddBuffer ( "TTT\n" );
+    AddBuffer ( "+" );
+    AddBuffer ( "ggg\n" );
 
+    REQUIRE ( Parse(true, true) );
+}
+*/
 //////////////////////////////////////////// Main
 extern "C"
 {

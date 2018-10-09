@@ -2371,7 +2371,7 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     }
     if (rc == 0) {
         rc = KClientHttpRequestFormatMsg
-            ( req, b, sizeof b, "POST", NULL );
+            ( req, b, sizeof b, "POST", NULL, 0 );
     }
     if (rc == 0) {
         KHttpResult *rslt = NULL;
@@ -2508,7 +2508,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
         }
         if ( rc == 0 ) {
             rc = KClientHttpRequestFormatMsg
-                ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
+                ( req, b, sizeof_b, get ? "GET" : "HEAD", & len, 0 );
             if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
                     GetRCState ( rc ) == rcInsufficient )
             {
@@ -2521,7 +2521,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 else {
                     sizeof_b = len;
                     rc = KClientHttpRequestFormatMsg
-                        ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
+                        ( req, b, sizeof_b, get ? "GET" : "HEAD", & len, 0 );
                 }
             }
             if ( rc == 0 )

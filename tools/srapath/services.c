@@ -263,7 +263,7 @@ static rc_t names_remote_cache ( KService * service,
     assert ( request );
 
     rc = KServiceNamesQueryExt ( service, protocols, request -> names_url,
-                                 request -> names_ver, & response );
+                                 request -> names_ver, NULL, NULL, & response );
     if ( rc != 0 )
         OUTMSG ( ( "Error: %R\n", rc ) );
     else

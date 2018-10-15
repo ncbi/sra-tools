@@ -327,18 +327,18 @@ static size_t getSmallSize(int const workers)
 }
 #endif
 
-static void sortIndex(utility::SizedPointer<IndexRow> &index)
+static void sortIndex(utility::Array<IndexRow> &index)
 {
-    auto const N = index.count;
-    auto scratch = utility::SizedPointer<IndexRow>(index.count);
-    if (scratch.pointer == NULL) {
+    auto const N = index.elements();
+    auto scratch = utility::Array<IndexRow>(index.elements());
+    if (!scratch) {
         perror("error: insufficient memory to create temporary index");
         exit(1);
     }
     {
         auto const workers = getWorkerCount();
         auto const smallSize = getSmallSize(workers);
-        auto context = Context(index.pointer, scratch.pointer, N, smallSize);
+        auto context = Context(index.base(), scratch.base(), N, smallSize);
         
         for (auto i = 1; i < workers; ++i) {
             pthread_t tid = 0;
@@ -353,8 +353,8 @@ static void sortIndex(utility::SizedPointer<IndexRow> &index)
                                          return (v.first > 0 && v.second == i.key64()) ? v : std::make_pair(v.first + 1, i.key64());
                                      }).first;
     
-    auto tmp = utility::SizedPointer<IndexRow *>(keys);
-    if (tmp.pointer == NULL) {
+    auto tmp = utility::Array<IndexRow *>(keys);
+    if (!tmp) {
         perror("error: insufficient memory to create temporary index");
         exit(1);
     }
@@ -383,21 +383,21 @@ static void sortIndex(utility::SizedPointer<IndexRow> &index)
     std::cerr << "info: Number of keys " << keys << std::endl;
 }
 
-static utility::SizedPointer<IndexRow> makeIndex(VDB::Database const &run)
+static utility::Array<IndexRow> makeIndex(VDB::Database const &run)
 {
     static char const *const FLDS[] = { "READ_GROUP", "NAME" };
     auto const in = run["RAW"].read(2, FLDS);
     auto const range = in.rowRange();
-    auto const N = size_t(range.second - range.first);
+    auto const N = size_t(range.count());
     if (N == 0)
-        return utility::SizedPointer<IndexRow>();
+        return utility::Array<IndexRow>();
     
-    auto index = utility::SizedPointer<IndexRow>(N, false);
+    auto index = utility::Array<IndexRow>(N, false);
     auto const freq = N / 10.0;
     auto nextReport = 1;
     
     in.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &data) {
-        auto const i = row - range.first;
+        auto const i = row - range.beg();
         index[i] = makeIndexRow(row, data[0], data[1]);
         while (nextReport * freq <= i) {
             std::cerr << "prog: generating keys " << nextReport << "0%" << std::endl;;
@@ -487,7 +487,7 @@ void validate(RawRecord const &r) {
 }
 #endif
 
-static int process(Writer2 const &out, VDB::Cursor const &in, utility::SizedPointer<RawRecord::IndexT> const &index, bool const quality)
+static int process(Writer2 const &out, VDB::Cursor const &in, utility::Array<RawRecord::IndexT> const &index, bool const quality)
 {
     auto const otbl = out.table("RAW");
     std::array<Writer2::Column, 8> const columnsNoQual = {
@@ -513,15 +513,15 @@ static int process(Writer2 const &out, VDB::Cursor const &in, utility::SizedPoin
     };
 
     auto const range = in.rowRange();
-    if (index.count != range.second - range.first) {
+    if (index.elements() != range.count()) {
         std::cerr << "error: index size doesn't match input table" << std::endl;
         return -1;
     }
-    auto const freq = (range.second - range.first) / 10.0;
+    auto const freq = (range.count()) / 10.0;
     auto nextReport = 1;
     uint64_t written = 0;
 
-    std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
+    std::cerr << "info: processing " << (range.count()) << " records" << std::endl;
     
     auto const indexedCursor = VDB::CollidableIndexedCursor<RawRecord>(in, index.begin(), index.end());
     auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
@@ -538,8 +538,8 @@ static int process(Writer2 const &out, VDB::Cursor const &in, utility::SizedPoin
         }
     });
     assert(rows == written);
-    assert(rows == range.second - range.first);
-    assert(rows == index.count);
+    assert(rows == range.count());
+    assert(rows == index.elements());
     return 0;
 }
 
@@ -549,7 +549,7 @@ static int process(std::string const &irdb, FILE *out)
     auto const inDb = mgr[irdb];
 
     std::cerr << "prog: creating clustering index" << std::endl;
-    auto index = utility::SizedPointer<RawRecord::IndexT>(makeIndex(inDb), true);
+    auto index = utility::Array<RawRecord::IndexT>(makeIndex(inDb), true);
 
     auto writer = Writer2(out);
     int result;

@@ -43,8 +43,78 @@
 
 #include "fragment.hpp"
 
-void write(VDB::Writer const &out, unsigned const table, Fragment const &self, char const *const reason, bool const filter, bool const quality)
+struct RejectedReason {
+    enum Value { None, InvalidCIGAR, PartiallyAligned, NonEquivSeq, NoGoodAlignment } value;
+    bool operator !() const { return value != None; }
+    operator bool () const { return !(!(*this)); }
+    operator std::string () const {
+        switch (value) {
+            case InvalidCIGAR: return "invalid CIGAR string";
+            case PartiallyAligned: return "partially aligned";
+            case NonEquivSeq: return "non-equivalent sequences";
+            case NoGoodAlignment: return "no good whole-fragment alignment";
+            default:
+                throw std::logic_error("invalid");
+        }
+    }
+    RejectedReason(Value value = None) : value(value) {}
+    bool operator <(RejectedReason const &other) const { return value < other.value; }
+};
+
+#define REPORT 1
+class Report {
+#if REPORT
+    uintmax_t totalSpots = 0;
+    std::map<RejectedReason, uintmax_t> totalRejected;
+    std::map<unsigned, uintmax_t> totalAlignedByReadNo;
+    std::map<unsigned, uintmax_t> totalByReads, totalByWritten;
+#endif
+public:
+    void inline aligned(unsigned const readNo);
+    void inline newSpot();
+    void inline rejected(RejectedReason const &reason);
+    void inline written(unsigned const n);
+    void inline read(unsigned const n);
+    std::ostream &show(std::ostream &strm) const;
+};
+#if REPORT
+void Report::aligned(unsigned const readNo) { ++totalAlignedByReadNo[readNo]; }
+void Report::newSpot() { ++totalSpots; }
+void Report::rejected(RejectedReason const &reason) { if (reason) ++totalRejected[reason]; }
+void Report::written(unsigned const n) { ++totalByWritten[n]; }
+void Report::read(unsigned const n) { ++totalByReads[n]; }
+std::ostream &Report::show(std::ostream &strm) const {
+    strm << "info: total number of spots written: " << totalSpots << std::endl;
+    for (auto && i : totalRejected) {
+        strm << "info: total number of spots rejected for " << std::string(i.first) << ": " << i.second << std::endl;
+    }
+    for (auto && i : totalByReads) {
+        strm << "info: total number of spots read with " << i.first << " details: " << i.second << std::endl;
+    }
+    for (auto && i : totalByWritten) {
+        strm << "info: total number of spots written with " << i.first << " details: " << i.second << std::endl;
+    }
+    for (auto && i : totalAlignedByReadNo) {
+        strm << "info: total number of alignments for Read " << i.first << ": " << i.second << std::endl;
+    }
+    return strm;
+}
+#else
+void Report::aligned(unsigned const readNo) {}
+void Report::newSpot() {}
+void Report::rejected(RejectedReason const &reason) {}
+void Report::written(unsigned const n) {}
+void Report::read(unsigned const n) {}
+std::ostream &Report::show(std::ostream &strm) const {
+    return strm;
+}
+#endif
+static auto report = Report();
+
+static void write(VDB::Writer const &out, Fragment const &self, RejectedReason const &reason, bool const quality)
 {
+    auto const table = reason ? 2 : 1;
+    auto const filter = bool(reason);
     auto const groupCID     = 1 + (table - 1) * 8;
     auto const nameCID      = groupCID + 1;
     auto const readNoCID    = nameCID + 1;
@@ -56,15 +126,19 @@ void write(VDB::Writer const &out, unsigned const table, Fragment const &self, c
     auto const reasonCID    = (reason && table == 2) ? 17 : 0;
     auto const qualityCID   = (quality && table == 1) ? 18 : (quality && table == 2) ? 19 : 0;
 
+    unsigned written = 0;
+    
     for (auto && i : self.detail) {
         if (filter && !i.aligned) continue;
+        ++written;
         out.value(groupCID, self.group);
         out.value(nameCID, self.name);
         out.value(readNoCID, int32_t(i.readNo));
         out.value(sequenceCID, std::string(i.sequence));
         if (i.aligned) {
+            report.aligned(i.readNo);
             out.value(referenceCID, i.reference);
-            out.value(strandCID, i.strand);
+            out.value<char>(strandCID, i.strand);
             out.value(positionCID, int32_t(i.position));
             out.value(cigarCID, i.cigarString);
         }
@@ -74,9 +148,13 @@ void write(VDB::Writer const &out, unsigned const table, Fragment const &self, c
             out.value(qualityCID, i.quality);
         out.closeRow(table);
     }
+    report.newSpot();
+    report.rejected(reason);
+    report.written(written);
+    report.read(unsigned(self.detail.size()));
 }
 
-static bool shouldKeep(Fragment const &fragment, char const **const reason)
+static RejectedReason shouldKeep(Fragment const &fragment)
 {
     /* a spot is not kept if:
      *  any read has an invalid CIGAR
@@ -87,8 +165,7 @@ static bool shouldKeep(Fragment const &fragment, char const **const reason)
     // check for invalid CIGAR strings
     for (auto && i : fragment.detail) {
         if (i.aligned && (i.cigar.size() == 0 || i.cigar.qlength != i.sequence.length())) {
-            *reason = "invalid CIGAR string";
-            return false;
+            return RejectedReason::InvalidCIGAR;
         }
     }
     
@@ -109,8 +186,7 @@ static bool shouldKeep(Fragment const &fragment, char const **const reason)
                 ++aligned;
         }
         if (aligned == 0) {
-            *reason = "partially aligned";
-            return false;
+            return RejectedReason::PartiallyAligned;
         }
 
         for (auto i = first; i < next - 1; ++i) {
@@ -120,8 +196,7 @@ static bool shouldKeep(Fragment const &fragment, char const **const reason)
                 if (!fragment.detail[j].aligned) continue;
                 
                 if (!fragment.detail[i].sequenceEquivalentTo(fragment.detail[j])) {
-                    *reason = "non-equivalent sequences";
-                    return false;
+                    return RejectedReason::NonEquivSeq;
                 }
             }
         }
@@ -138,42 +213,34 @@ static bool shouldKeep(Fragment const &fragment, char const **const reason)
             }
         }
         if (goodPairs == 0) {
-            *reason = "no good whole fragment alignment";
-            return false;
+            return RejectedReason::NoGoodAlignment;
         }
     }
-    return true;
+    return RejectedReason::None;
 }
 
 static void process(VDB::Writer const &out, Fragment const &fragment, bool const quality)
 {
-    char const *reason = nullptr;
-    if (shouldKeep(fragment, &reason))
-        write(out, 1, fragment, nullptr, true, quality);
-    else
-        write(out, 2, fragment, reason, false, quality);
+    write(out, fragment, shouldKeep(fragment), quality);
 }
 
 static int process(VDB::Writer const &out, Fragment::Cursor const &in, bool const quality)
 {
     auto const range = in.rowRange();
-    auto const freq = (range.second - range.first) / 10.0;
+    auto const freq = range.count() / 10.0;
     auto nextReport = 1;
     
-    std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
-    for (auto row = range.first; row < range.second; ) {
-        auto spot = in.read(row, range.second);
-        if (spot.detail.empty())
-            continue;
-        std::sort(spot.detail.begin(), spot.detail.end());
-        process(out, spot, quality);
-        while (nextReport * freq <= (row - range.first)) {
+    std::cerr << "info: processing " << range.count() << " records" << std::endl;
+    in.forEach([&](VDB::Cursor::RowRange const &spotRange, std::string const &group, std::string const &name) {
+        auto const spot = in.read(spotRange);
+        if (!spot.detail.empty())
+            process(out, spot, quality);
+        while (nextReport * freq <= (spotRange.beg() - range.beg())) {
             std::cerr << "prog: processed " << nextReport << "0%" << std::endl;
             ++nextReport;
         }
-    }
-    std::cerr << "prog: Done" << std::endl;
-
+    });
+    report.show(std::cerr)  << "prog: Done" << std::endl;
     return 0;
 }
 
@@ -277,7 +344,6 @@ namespace filterIR {
 
 int main(int argc, char *argv[])
 {
-    Alignment::test();
     return filterIR::main(CommandLine(argc, argv));
 }
 

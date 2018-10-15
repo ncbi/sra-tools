@@ -110,6 +110,7 @@
 		BED896CE1FBDF3CC00294F36 /* text2ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = text2ir; sourceTree = BUILT_PRODUCTS_DIR; };
 		BED896CF1FBDF3E800294F36 /* text2ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = text2ir.cpp; sourceTree = "<group>"; };
 		BED896D31FBE0F5900294F36 /* generate-test-data.pl */ = {isa = PBXFileReference; lastKnownFileType = text.script.perl; path = "generate-test-data.pl"; sourceTree = "<group>"; };
+		BEECBC8D211B3D6400292330 /* graph_qv.pl */ = {isa = PBXFileReference; lastKnownFileType = text.script.perl; path = graph_qv.pl; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -175,6 +176,7 @@
 		BE4F77C51EA51DE900CB45D6 = {
 			isa = PBXGroup;
 			children = (
+				BEECBC8D211B3D6400292330 /* graph_qv.pl */,
 				BEA54EBE20D1F62B00BBA31F /* sam2ir.cpp */,
 				BE3BC8711EE8945A0033AC5F /* fragment.hpp */,
 				BE1766511ED4B0B0005ECFFB /* README.md */,
@@ -343,7 +345,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0830;
-				LastUpgradeCheck = 0900;
+				LastUpgradeCheck = 1000;
 				ORGANIZATIONNAME = "Kenneth Durbrow";
 				TargetAttributes = {
 					BE1766551ED4B15F005ECFFB = {
@@ -495,6 +497,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -502,6 +505,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
@@ -530,6 +534,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../ncbi-vdb/interfaces";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../shared";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../shared/include/";
@@ -553,6 +558,7 @@
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_EMPTY_BODY = YES;
@@ -560,6 +566,7 @@
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
@@ -582,6 +589,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../ncbi-vdb/interfaces";
 				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../shared";
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../shared/include/";
 				VALID_ARCHS = x86_64;

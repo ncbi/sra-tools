@@ -394,6 +394,10 @@ static rc_t DoFile ( Do * self, const char * url ) {
             toRead = to - pos;
         }
 
+        rc = Quitting ();
+        if ( rc != 0 )
+            break;
+
         rc = KFileRead ( self -> file, pos, self -> buffer,
                          toRead, & num_read );
         STSMSG ( STAT_PWR, ( "KFileRead(%lu, %zu) = %zu (%R)",
@@ -447,6 +451,10 @@ static rc_t DoStream ( const Do * self, const char * url ) {
             to = self -> max;
             toRead = to - pos;
         }
+
+        rc = Quitting ();
+        if ( rc != 0 )
+            break;
 
         rc = KStreamRead ( stream, self -> buffer, toRead, & num_read );
         STSMSG ( STAT_PWR, ( "KStreamRead(%lu, %zu) = %zu (%R)",

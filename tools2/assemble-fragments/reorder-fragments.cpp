@@ -45,18 +45,34 @@
 #include <pthread.h>
 
 struct IndexRow {
-    uint8_t key[8];
+    union key_u {
+        uint64_t u64;
+        uint8_t u8[8];
+    } key;
     VDB::Cursor::RowID row;
-    
+
+    IndexRow(VDB::Cursor::RowID row, VDB::Cursor::RowID contig, int32_t position)
+    : row(row)
+    {
+        auto pos64 = int64_t(position) + INT32_MAX;
+        assert(contig >= 0 && contig <= UINT32_MAX);
+        assert(pos64 >= 0 && pos64 <= UINT32_MAX);
+        
+        key.u8[7] = pos64; pos64 >>= 8;
+        key.u8[6] = pos64; pos64 >>= 8;
+        key.u8[5] = pos64; pos64 >>= 8;
+        key.u8[4] = pos64; pos64 >>= 8;
+        
+        key.u8[3] = contig; contig >>= 8;
+        key.u8[2] = contig; contig >>= 8;
+        key.u8[1] = contig; contig >>= 8;
+        key.u8[0] = contig; contig >>= 8;
+    }
     uint64_t key64() const {
-        return *reinterpret_cast<uint64_t const *>(&key[0]);
+        return key.u64;
     }
     static bool keyLess(IndexRow const &a, IndexRow const &b) {
-        for (auto i = 0; i < 8; ++i) {
-            if (a.key[i] < b.key[i]) return true;
-            if (a.key[i] > b.key[i]) return false;
-        }
-        return false;
+        return std::memcmp(a.key.u8, b.key.u8, 8) < 0;
     }
     static bool rowLess(IndexRow const &a, IndexRow const &b) {
         return a.row < b.row;
@@ -65,26 +81,9 @@ struct IndexRow {
 
 static IndexRow makeIndexRow(VDB::Cursor::RowID row, VDB::Cursor::RawData const &CONTIG, VDB::Cursor::RawData const &POSITION)
 {
-    IndexRow y;
-    
     auto contig = CONTIG.value<int64_t>();
-    assert(contig >= 0);
-    y.key[3] = contig & 0xFF; contig >>= 8;
-    y.key[2] = contig & 0xFF; contig >>= 8;
-    y.key[1] = contig & 0xFF; contig >>= 8;
-    y.key[0] = contig & 0xFF; contig >>= 8;
-    assert(contig == 0);
-
-    auto position = int64_t(POSITION.value<int32_t>()) + INT_MAX;
-    assert(position >= 0);
-    y.key[7] = position & 0xFF; position >>= 8;
-    y.key[6] = position & 0xFF; position >>= 8;
-    y.key[5] = position & 0xFF; position >>= 8;
-    y.key[4] = position & 0xFF; position >>= 8;
-    assert(position == 0);
-
-    y.row = row;
-    return y;
+    auto position = POSITION.value<int32_t>();
+    return IndexRow(row, contig, position);
 }
 
 struct WorkUnit {
@@ -104,36 +103,24 @@ struct WorkUnit {
     
     void process(std::vector<WorkUnit> &result) const
     {
-        static int const BPL[] = { 8, 8, 8, 8, 8, 8, 8, 8 };
-        static int const KPL[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-        static int const SPL[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-        assert(level < sizeof(BPL)/sizeof(BPL[0]));
-
-        auto const bins = 1 << BPL[level];
-        auto const m = bins - 1;
-        auto const k = KPL[level];
-        auto const s = SPL[level];
+        assert(level < 8);
         size_t start[256];
         IndexRow *cur = out;
         
-        for (auto bin = 0; bin < bins; ++bin) {
+        for (auto bin = 0; bin < 256; ++bin) {
             for (auto i = beg; i != end; ++i) {
-                auto const key = (i->key[k] >> s) & m;
+                auto const key = i->key.u8[level];
                 if (key == bin)
                     *cur++ = *i;
             }
             start[bin] = cur - out;
         }
-        
-        for (auto bin = 0; bin < bins; ++bin) {
+        for (auto bin = 0; bin < 256; ++bin) {
             auto const begin = (bin > 0 ? start[bin - 1] : 0);
             auto const count = start[bin] - begin;
             
-            if (count > 0) {
-                assert(level + 1 < sizeof(BPL)/sizeof(BPL[0]));
+            if (count > 0)
                 result.push_back(WorkUnit(out + begin, out + begin + count, beg + begin, level + 1));
-            }
         }
     }
 };
@@ -180,7 +167,7 @@ struct Context {
                 pthread_mutex_unlock(&mutex);
                 {
                     newWork.clear();
-                    if (unit.size() <= smallSize) {
+                    if (unit.size() <= smallSize || unit.level == 8) {
                         // sort in one shot
                         std::sort(unit.beg, unit.end, IndexRow::keyLess);
                         if (unit.beg >= out && unit.end <= outEnd)
@@ -215,6 +202,8 @@ static void *worker(void *p)
     static_cast<Context *>(p)->run();
     return nullptr;
 }
+
+// static auto const hw_info = utility::sys_hardware_info();
 
 #if __APPLE__
 #include <sys/sysctl.h>
@@ -310,7 +299,7 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
 {
     auto const in = run["FRAGMENTS"].read({ "CONTIG", "POSITION" });
     auto const range = in.rowRange();
-    auto const N = size_t(range.second - range.first);
+    auto const N = size_t(range.count());
     if (N == 0) return std::make_pair(nullptr, N);
     
     auto const index = reinterpret_cast<IndexRow *>(malloc(N * sizeof(IndexRow)));
@@ -318,7 +307,7 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
     auto nextReport = 1;
     
     in.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &data) {
-        auto const i = row - range.first;
+        auto const i = row - range.beg();
         index[i] = makeIndexRow(row, data[0], data[1]);
         while (nextReport * freq <= i) {
             std::cerr << "prog: generating keys " << nextReport << "0%" << std::endl;;
@@ -368,15 +357,15 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
     };
     
     auto const range = in.rowRange();
-    if (end - beg != range.second - range.first) {
+    if (end - beg != range.count()) {
         std::cerr << "error: index size doesn't match input table" << std::endl;
         return -1;
     }
-    auto const freq = (range.second - range.first) / 10.0;
+    auto const freq = range.count() / 10.0;
     auto nextReport = 1;
     uint64_t written = 0;
 
-    std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
+    std::cerr << "info: processing " << range.count() << " records" << std::endl;
     
     auto const indexedCursor = VDB::IndexedCursor<RawRecord>(in, beg, end);
     auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
@@ -389,7 +378,7 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
         }
     });
     assert(rows == written);
-    assert(rows == range.second - range.first);
+    assert(rows == range.count());
     assert(rows == end - beg);
     return 0;
 }
@@ -437,7 +426,7 @@ static int process(std::string const &irdb, FILE *out)
 
 using namespace utility;
 
-namespace reorderIR {
+namespace reorderFragments {
     static void usage(CommandLine const &commandLine, bool error) {
         (error ? std::cerr : std::cout)
         << "usage: " << commandLine.program[0] << " [-stable] [-out=<path>] <ir db>"
@@ -483,5 +472,5 @@ namespace reorderIR {
 
 int main(int argc, char *argv[])
 {
-    return reorderIR::main(CommandLine(argc, argv));
+    return reorderFragments::main(CommandLine(argc, argv));
 }

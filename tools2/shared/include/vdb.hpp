@@ -100,6 +100,16 @@ namespace VDB {
         Cursor(C::VCursor *const o_, unsigned columns_) noexcept :o(o_), N(columns_) {}
     public:
         using RowID = int64_t;
+        struct RowRange : private std::pair<RowID, RowID> {
+            RowRange(RowID const beg, RowID const end) : std::pair<RowID, RowID>(std::make_pair(beg, end)) {
+                if (end < beg)
+                    throw std::range_error("RowRange");
+            }
+            
+            RowID beg() const noexcept { return first; }
+            RowID end() const noexcept { return second; }
+            uint64_t count() const noexcept { return second - first; }
+        };
         struct Data {
             unsigned elem_bits;
             unsigned elements;
@@ -171,6 +181,17 @@ namespace VDB {
                 std::memmove(rslt->data(), this->data, size());
                 return rslt;
             }
+            template <typename T> bool equal(T beg, T const end) const {
+                if (elem_bits != sizeof(*beg) * 8)
+                    return false;
+
+                auto *cp = reinterpret_cast<typename T::value_type const *>(data);
+                auto const np = cp + elements;
+                while (cp != np && beg != end) {
+                    if (*cp++ != *beg++) return false;
+                }
+                return cp == np && beg == end;
+            }
             std::string string() const {
                 if (elem_bits == 8)
                     return elements == 0 ? std::string() : std::string((char *)data, elements);
@@ -196,13 +217,13 @@ namespace VDB {
         ~Cursor() { C::VCursorRelease(o); }
         unsigned columns() const { return N; }
         
-        std::pair<RowID, RowID> rowRange() const
+        RowRange rowRange() const
         {
             uint64_t count = 0;
             int64_t first = 0;
             C::rc_t rc = C::VCursorIdRange(o, 0, &first, &count);
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return std::make_pair(first, first + count);
+            return RowRange(first, first + count);
         }
         RawData read(RowID row, unsigned cid) const {
             RawData out;
@@ -227,13 +248,13 @@ namespace VDB {
             }
         }
         template <typename F>
-        uint64_t foreach(F f) const {
+        uint64_t foreach(F &&f) const {
             auto data = std::vector<RawData>();
             auto const range = rowRange();
             uint64_t rows = 0;
             
             data.resize(N);
-            for (auto row = range.first; row < range.second; ++row) {
+            for (auto row = range.beg(); row < range.end(); ++row) {
                 for (auto i = 0; i < N; ++i) {
                     try { data[i] = read(row, i + 1); }
                     catch (...) { return rows; }
@@ -244,13 +265,13 @@ namespace VDB {
             return rows;
         }
         template <typename FILT, typename FUNC>
-        uint64_t foreach(FILT filt, FUNC func) const {
+        uint64_t foreach(FILT &&filt, FUNC &&func) const {
             auto data = std::vector<RawData>();
             auto const range = rowRange();
             uint64_t rows = 0;
             
             data.resize(N);
-            for (auto row = range.first; row < range.second; ++row) {
+            for (auto row = range.beg(); row < range.end(); ++row) {
                 auto const keep = filt(*this, row);
                 if (keep) {
                     for (auto i = 0; i < N; ++i) {
@@ -458,7 +479,7 @@ namespace VDB {
         , end(indexEnd)
         {}
         template <typename F>
-        uint64_t foreach(F f) const {
+        uint64_t foreach(F &&f) const {
             auto firstTime = true;
             auto blockSize = std::min(size_t(1000000), size_t((end - beg) / 10));
             auto rowset = std::vector<RowID>();

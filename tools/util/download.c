@@ -29,6 +29,7 @@
 #include <klib/log.h> /* PLOGERR */
 #include <klib/out.h> /* OUTMSG */
 #include <klib/rc.h> /* RC */
+#include <klib/status.h> /* STSMSG */
 
 #include <kns/http.h> /* KNSManagerMakeHttpFile */
 #include <kns/manager.h> /* KNSManagerRelease */
@@ -48,6 +49,11 @@ static const char * BLOCK_USAGE [] = { "Bytes per block.",
 static const char * FUNCT_USAGE [] = {
     "Function to perform: FileRead or StreamRead. Default: StreamRead", NULL };
 
+#define CHUNK_ALIAS  "n"
+#define CHUNK_OPTION "chunks"
+static const char * CHUNK_USAGE [] = {
+    "Retrieve using specifies number of chunks", NULL };
+
 #define MINIM_ALIAS  "N"
 #define MINIM_OPTION "min"
 static const char * MINIM_USAGE [] = {
@@ -63,6 +69,7 @@ static OptDef Options [] = {
     { BLOCK_OPTION, BLOCK_ALIAS, NULL, BLOCK_USAGE, 1, true, false },
     { MINIM_OPTION, MINIM_ALIAS, NULL, MINIM_USAGE, 1, true, false },
     { MAXIM_OPTION, MAXIM_ALIAS, NULL, MAXIM_USAGE, 1, true, false },
+    { CHUNK_OPTION, CHUNK_ALIAS, NULL, CHUNK_USAGE, 1, true, false },
 };
 
 const char UsageDefaultName[] = "download";
@@ -96,9 +103,14 @@ rc_t CC Usage ( const Args * args ) {
 
     OUTMSG(("Options:\n"));
 
-    for ( i = 0; i < sizeof Options / sizeof Options [ 0 ]; ++ i )
+    for ( i = 0; i < sizeof Options / sizeof Options [ 0 ]; ++ i ) {
+        const char * param = "value";
+        assert ( Options [ i ] . aliases );
+        if ( Options [ i ] . aliases [ 0 ] == CHUNK_ALIAS [ 0 ] )
+            param = "number";
         HelpOptionLine ( Options [ i ] . aliases, Options [ i ] . name,
-                         "value",                 Options [ i ] . help );
+                         param,                   Options [ i ] . help );
+    }
 
     OUTMSG(("\n"));
 
@@ -113,16 +125,22 @@ typedef struct {
     bool useFile;
 
     char * buffer;
+    size_t allocated;
     size_t bufSize;
+    size_t fileSize;
+    uint64_t chunks;
 
     uint64_t min;
     uint64_t max;
 
     KNSManager * mgr;
+
+    const KFile * file;
 } Do;
 
 static size_t _sizeFromString ( const char * val ) {
     size_t s = 0;
+    size_t o = 1;
 
     assert ( val );
 
@@ -130,6 +148,18 @@ static size_t _sizeFromString ( const char * val ) {
         if ( * val < '0' || * val > '9' )
             break;
         s = s * 10 + * val - '0';
+    }
+
+    if ( * val == '.' ) {
+        size_t d = 0;
+        ++ val;
+        for ( d = 0; * val != '\0'; ++ val ) {
+            if ( * val < '0' || * val > '9' )
+                break;
+            d = d * 10 + * val - '0';
+            o *= 10;
+        }
+        s = s * o + d;
     }
 
     if      ( * val == 'k' || * val == 'K')
@@ -143,14 +173,18 @@ static size_t _sizeFromString ( const char * val ) {
     else if ( * val == 't' || * val == 'T')
         s *= 1024L * 1024 * 1024 * 1024;
 
+    s /= o;
+
     return s;
 }
 
-static rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] ) {
+static
+rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] )
+{
     rc_t rc = 0;
     assert ( self && args );
-    rc = ArgsMakeAndHandle ( args, argc, argv,
-                             1, Options, sizeof Options / sizeof Options [ 0 ] );
+    rc = ArgsMakeAndHandle ( args, argc, argv, 1,
+                             Options, sizeof Options / sizeof Options [ 0 ] );
     if ( rc == 0 ) do {
         uint32_t pcount = 0;
 
@@ -169,8 +203,8 @@ static rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] ) {
                 rc = ArgsOptionValue
                     ( * args, FUNCT_OPTION, 0, ( const void ** ) & val );
                 if ( rc != 0 ) {
-                    LOGERR ( klogInt, rc,
-                            "Failure to get '" FUNCT_OPTION "' argument value" );
+                    LOGERR ( klogInt, rc, "Failure to get '" FUNCT_OPTION
+                                          "' argument value" );
                     break;
                 }
             }
@@ -197,8 +231,8 @@ static rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] ) {
                 rc = ArgsOptionValue
                     ( * args, BLOCK_OPTION, 0, ( const void ** ) & val );
                 if ( rc != 0 ) {
-                    LOGERR ( klogInt, rc,
-                            "Failure to get '" BLOCK_OPTION "' argument value" );
+                    LOGERR ( klogInt, rc, "Failure to get '" BLOCK_OPTION
+                                          "' argument value" );
                     break;
                 }
             }
@@ -225,15 +259,17 @@ static rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] ) {
                 rc = ArgsOptionValue
                     ( * args, MINIM_OPTION, 0, ( const void ** ) & val );
                 if ( rc != 0 ) {
-                    LOGERR ( klogInt, rc,
-                            "Failure to get '" MINIM_OPTION "' argument value" );
+                    LOGERR ( klogInt, rc, "Failure to get '" MINIM_OPTION
+                                          "' argument value" );
                     break;
                 }
                 assert ( val );
                 for ( i = 0; val [ i ] != '\0'; ++ i ) {
                     if ( val [ i ] < '0' || val [ i ] > '9' ) {
-                        rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
-                        LOGERR ( klogErr, rc, "Invalid " MINIM_OPTION " value" );
+                        rc = RC ( rcExe, rcArgv, rcParsing,
+                                  rcParam, rcInvalid );
+                        LOGERR ( klogErr, rc, "Invalid " MINIM_OPTION
+                                              " value" );
                         break;
                     }
                     n = n * 10 + val [ i ] - '0';
@@ -257,15 +293,17 @@ static rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] ) {
                 rc = ArgsOptionValue
                     ( * args, MAXIM_OPTION, 0, ( const void ** ) & val );
                 if ( rc != 0 ) {
-                    LOGERR ( klogInt, rc,
-                            "Failure to get '" MINIM_OPTION "' argument value" );
+                    LOGERR ( klogInt, rc, "Failure to get '" MINIM_OPTION
+                                          "' argument value" );
                     break;
                 }
                 assert ( val );
                 for ( i = 0; val [ i ] != '\0'; ++ i ) {
                     if ( val [ i ] < '0' || val [ i ] > '9' ) {
-                        rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
-                        LOGERR ( klogErr, rc, "Invalid " MINIM_OPTION " value" );
+                        rc = RC ( rcExe, rcArgv, rcParsing,
+                                  rcParam, rcInvalid );
+                        LOGERR ( klogErr, rc,
+                                 "Invalid " MINIM_OPTION " value" );
                         break;
                     }
                     n = n * 10 + val [ i ] - '0';
@@ -274,26 +312,77 @@ static rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] ) {
             }
         }
 
+/* CHUNK_OPTION */
+        {
+            const char * val = NULL;
+            rc = ArgsOptionCount ( * args, CHUNK_OPTION, & pcount );
+            if ( rc != 0 ) {
+                LOGERR ( klogInt, rc,
+                         "Failure to get '" CHUNK_OPTION "' argument");
+                break;
+            }
+            if ( pcount > 0 ) {
+                uint64_t n = 0;
+                int i = 0;
+                rc = ArgsOptionValue
+                    ( * args, CHUNK_OPTION, 0, ( const void ** ) & val );
+                if ( rc != 0 ) {
+                    LOGERR ( klogInt, rc, "Failure to get '" CHUNK_OPTION
+                                          "' argument value" );
+                    break;
+                }
+                assert ( val );
+                for ( i = 0; val [ i ] != '\0'; ++ i ) {
+                    if ( val [ i ] < '0' || val [ i ] > '9' ) {
+                        rc = RC ( rcExe, rcArgv, rcParsing,
+                                  rcParam, rcInvalid );
+                        LOGERR ( klogErr, rc,
+                                 "Invalid " MINIM_OPTION " value" );
+                        break;
+                    }
+                    n = n * 10 + val [ i ] - '0';
+                }
+                self -> chunks = n;
+            }
+        }
+
     } while ( false );
 
     return rc;
 }
 
-static rc_t DoFile ( const Do * self, const char * url ) {
+static rc_t DoMakeHttpFileAndSize ( Do * self, const char * url ) {
     rc_t rc = 0;
-
+ 
     ver_t version = 0x01010000;
-
-    uint64_t pos = 0;
-
-    const KFile * file = NULL;
-
+    
     assert ( self );
-
-    rc = KNSManagerMakeHttpFile ( self -> mgr, & file, NULL, version, url );
+    
+    if ( self -> file != NULL )
+        return 0;
+    
+    rc = KNSManagerMakeHttpFile ( self -> mgr, & self -> file,
+                                  NULL, version, url );
     if ( rc != 0 )
         PLOGERR ( klogErr, ( klogErr, rc,
             "Cannot KNSManagerMakeHttpFile($(url)", "url=%s", url ) );
+
+    
+    rc = KFileSize ( self -> file, & self -> fileSize );
+    if ( rc == 0 &&  ( self -> max == 0 || self -> max > self -> fileSize ) )
+        self -> max = self -> fileSize;
+
+    return rc;
+}
+
+static rc_t DoFile ( Do * self, const char * url ) {
+    rc_t rc = 0;
+
+    uint64_t pos = 0;
+
+    assert ( self );
+
+    rc = DoMakeHttpFileAndSize ( self, url );
 
     for ( pos =  self -> min; rc == 0 ; ) {
         size_t num_read = 0;
@@ -305,7 +394,10 @@ static rc_t DoFile ( const Do * self, const char * url ) {
             toRead = to - pos;
         }
 
-        rc = KFileRead ( file, pos, self -> buffer, toRead, & num_read );
+        rc = KFileRead ( self -> file, pos, self -> buffer,
+                         toRead, & num_read );
+        STSMSG ( STAT_PWR, ( "KFileRead(%lu, %zu) = %zu (%R)",
+                                      pos, toRead, num_read, rc ) );
         if ( rc != 0 ) {
             PLOGERR ( klogErr, (klogErr, rc,
                 "Cannot KFileRead('$(url)',$(pos),$(size))",
@@ -323,8 +415,6 @@ static rc_t DoFile ( const Do * self, const char * url ) {
         if ( self -> max > 0 && pos >= self -> max )
             break;
     }
-
-    RELEASE ( KFile, file );
 
     return rc;
 }
@@ -359,6 +449,8 @@ static rc_t DoStream ( const Do * self, const char * url ) {
         }
 
         rc = KStreamRead ( stream, self -> buffer, toRead, & num_read );
+        STSMSG ( STAT_PWR, ( "KStreamRead(%lu, %zu) = %zu (%R)",
+                                        pos, toRead, num_read, rc ) );
         if ( rc != 0 ) {
             PLOGERR ( klogErr, (klogErr, rc,
                 "Cannot KStreamRead('$(url)',$(pos),$(size))",
@@ -396,24 +488,61 @@ rc_t CC KMain ( int argc, char * argv [] ) {
     rc_t rc = 0;
     Args * args = NULL;
     uint32_t argCount = 0, i = 0;
+    const char * url = NULL;
     Do data;
     memset ( & data, 0, sizeof data );
+    KStsHandlerSetStdErr    ();
+    KStsLibHandlerSetStdErr ();
     rc = DoArgs ( & data, & args, argc, argv );
-    data . buffer = calloc ( 1, data . bufSize );
-    if ( data . buffer == NULL )
-        return RC ( rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted );
     if ( rc == 0 )
         rc = ArgsParamCount ( args, & argCount );
-    if ( rc == 0 )
-        rc = KNSManagerMake ( & data . mgr );
-    if ( rc != 0 )
-        return rc;
+    if ( argCount > 0 ) {
+        if ( rc == 0 )
+            rc = KNSManagerMake ( & data . mgr );
+        if ( rc == 0 && data . chunks > 0 ) {
+            rc_t r2 = ArgsParamValue ( args, i, ( const void ** ) & url );
+            if ( r2 == 0 ) {
+                rc = DoMakeHttpFileAndSize ( & data, url );
+                if ( rc == 0 )
+                    data . bufSize = data . fileSize / data . chunks + 1;
+                if ( data . bufSize > data . fileSize )
+                    data . bufSize = data . fileSize;
+            }
+        }
+        data . allocated = data . bufSize;
+        data . buffer = calloc ( 1, data . allocated );
+        if ( data . buffer == NULL )
+            return RC ( rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted );
+        if ( rc != 0 )
+            return rc;
+    }
     for ( i = 0; i < argCount; ++ i ) {
-        const char * url = NULL;
+        rc_t r = 0;
+        const char * multiple = "";
+        size_t chunk = data . bufSize;
         rc_t r2 = ArgsParamValue ( args, i, ( const void ** ) & url );
         if ( r2 != 0 )
             continue;
+        if ( chunk >= 1024 ) {
+            chunk /= 1024;
+            multiple = "K";
+        }
+        if ( chunk >= 1024 ) {
+            chunk /= 1024;
+            multiple = "M";
+        }
+        if ( data . chunks > 0 )
+            STSMSG ( STAT_USR, ( "Downloading '%s' via %s using %lu %zu%s bytes"
+                " chunks", url, data . useFile ? "KFileRead" : "KStreamRead",
+                           data . chunks, chunk, multiple ) );
+        else
+            STSMSG ( STAT_USR, ( "Downloading '%s' via %s using %zu%s bytes"
+                " chunks", url, data . useFile ? "KFileRead" : "KStreamRead",
+                                          chunk, multiple ) );
         r2 = data . useFile ? DoFile ( & data, url ) : DoStream ( & data, url );
+        r = KFileRelease ( data . file );
+        if ( r != 0 && r2 == 0 )
+            r2 = r;
         if ( r2 != 0 && rc == 0 )
             rc = r2;
     }

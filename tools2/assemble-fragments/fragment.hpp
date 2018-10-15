@@ -30,6 +30,7 @@
 #include <vector>
 #include "vdb.hpp"
 #include "CIGAR.hpp"
+#include "utility.hpp"
 
 /** \class DNASequence
  * \brief A value type for a single nucleatide sequence
@@ -85,23 +86,50 @@ struct DNASequence : public std::string {
     DNASequence(std::string const &str) : std::string(str) {}
 };
 
+/** \class AlignmentShort
+ *  \brief Alignment without bases or qualities
+ */
 struct AlignmentShort {
     std::string reference;
     std::string cigarString;
     CIGAR cigar;
     int64_t row;
     int readNo;
-    int position;
+    int position; ///< reference position of first *aligned* base; query[cigar.qfirst] ~ reference[position]
     char strand;
     bool aligned;
     
-    int qstart() const {
-        return position - cigar.qfirst;
-    }
-    int qended() const {
-        return position + cigar.rlength + cigar.qclip;
+    /// reference position of first base; query[0] ~ reference[qstart()]
+    int qstart() const { return position - cigar.qfirst; }
+
+    /// reference position after last *aligned* base
+    int rended() const { return position + cigar.rlength; }
+
+    /// reference position after last base
+    int qended() const { return rended() + cigar.qclip; }
+    
+    int maxended() const { return std::max(qstart() + cigar.qlength, qended()); }
+    
+    /// this is in reference-space; it is influenced by clipping
+    int templateLength(AlignmentShort const &other) const {
+        return reference != other.reference
+             ? 0
+             : (std::max(rended(), other.rended()) - std::min(position, other.position));
     }
     
+    /// total length in reference-space
+    int referenceLength(AlignmentShort const &other) const { return cigar.rlength + other.cigar.rlength; }
+    
+    /// total length in query-space
+    int queryLength(AlignmentShort const &other) const { return cigar.qlength + other.cigar.qlength; }
+
+    /// this is in reference-space; it is NOT influenced by clipping
+    int fragmentLength(AlignmentShort const &other) const {
+        return reference != other.reference
+             ? queryLength(other)
+             : (std::max(qended(), other.qended()) - std::min(qstart(), other.qstart()));
+    }
+
     AlignmentShort(int readNo, int64_t const source)
     : readNo(readNo)
     , row(source)
@@ -154,16 +182,18 @@ struct AlignmentShort {
         throw std::logic_error("isBefore requires both arguments to be aligned");
     }
     
+    /// both aligned and not overlapping
     bool isGoodAlignedPair(AlignmentShort const &other) const {
         if (!aligned || !other.aligned) return false;
-        if (reference != other.reference) return true;
-        if (qstart() <= other.qstart())
-            return qended() <= other.qended();
-        else
-            return other.qended() <= qended();
+        auto const fl = fragmentLength(other);
+        auto const ql = queryLength(other);
+        return ql <= fl;
     }
 };
 
+/** \class Alignment
+ *  \brief Alignment with bases and (maybe) qualities
+ */
 struct Alignment : public AlignmentShort {
     DNASequence sequence;
     std::string quality;
@@ -194,11 +224,7 @@ struct Alignment : public AlignmentShort {
         else
             return Alignment(readNo, "", "", row);
     }
-#if 0
-    friend bool operator <(Alignment const &a, Alignment const &b) {
-        return static_cast<AlignmentShort const &>(a) < static_cast<AlignmentShort const &>(b);
-    }
-#endif
+
     friend std::ostream &operator <<(std::ostream &os, Alignment const &a) {
         os << a.readNo << '\t' << a.sequence << '\t';
         if (!a.syntheticQuality)
@@ -215,6 +241,9 @@ private:
 
     private:
         S() {}
+        /**
+         *  \brief the simplest, requires base for base exact match
+         */
         static bool equivFwd(char const *a, char const *b, unsigned const n) {
             auto const e = a + n;
             while (a != e) {
@@ -226,6 +255,9 @@ private:
             }
             return true;
         }
+        /**
+         *  \brief requires base for base exact match or either base is ambiguous
+         */
         static bool equivFwdClipped(char const *a, char const *b, unsigned const n) {
             auto const e = a + n;
             while (a != e) {
@@ -237,6 +269,9 @@ private:
             }
             return true;
         }
+        /**
+         *  \brief performs the same comparison as equivFwd, but one of the sequences is processed as reverse complement
+         */
         static bool equivRev(char const *a, char const *b, unsigned const n) {
             auto const e = a + n;
             while (a != e) {
@@ -248,6 +283,9 @@ private:
             }
             return true;
         }
+        /**
+         *  \brief performs the same comparison as equivFwdClipped, but one of the sequences is processed as reverse complement
+         */
         static bool equivRevClipped(char const *a, char const *b, unsigned const n) {
             auto const e = a + n;
             while (a != e) {
@@ -262,6 +300,9 @@ private:
     public:
         explicit S(Alignment const &o) : seq(o.sequence.data()), length((unsigned)o.sequence.length()), left(o.cigar.qfirst), right(o.cigar.qlength - o.cigar.qclip) {}
         
+        /**
+         * \brief two sequences are equivalent if every corresponding position is equivalent, there may be clipped regions where ambiguity is allowed to be equivalent to any base
+         */
         static bool equivalent(S const &a, S const &b, bool const adjoint) {
             if (a.length != b.length) return false;
             auto const length = a.length;
@@ -289,6 +330,7 @@ private:
             return true;
         }
         
+#if 0
         static void testFwd() {
             auto a = S();
             auto b = S();
@@ -317,16 +359,18 @@ private:
             if (!eq)
                 throw std::logic_error("assertion failed");
         }
+#endif
     };
 public:
     bool sequenceEquivalentTo(Alignment const &other) const {
         return S::equivalent(S(*this), S(other), strand != other.strand);
     }
-    
+#if 0
     static void test() {
         S::testFwd();
         S::testRev();
     }
+#endif
 };
 
 struct Fragment {
@@ -363,7 +407,7 @@ struct Fragment {
         }
         return n;
     }
-    
+#if 0
     static Fragment testFragment() {
         auto const spotGroup = std::string("06A010111-46676E3D");
         auto const spotName = std::string("661961051");
@@ -379,7 +423,7 @@ struct Fragment {
         auto const rslt = std::vector<Alignment>({read1, read2});
         return Fragment(spotGroup, spotName, rslt, firstRow);
     }
-    
+#endif
     friend std::ostream &operator <<(std::ostream &os, Fragment const &o) {
         os << o.group << '\t' << o.name << '\t' << o.firstRow << '\n';
         for (auto && i : o.detail) {
@@ -411,6 +455,10 @@ struct Fragment {
         }
         return bestIndex;
     }
+
+    struct RowRange : std::pair<int64_t, int64_t> {
+        
+    };
 
     struct Cursor : public VDB::Cursor {
     private:
@@ -469,7 +517,7 @@ struct Fragment {
                     auto const strand = in.read(row, STRAND).value<char>();
                     auto const position = posColData.value<int32_t>();
                     auto const cigar = in.read(row, CIGAR).string();
-                    auto const algn = Alignment(  readNo
+                    rslt.emplace_back(Alignment(  readNo
                                                 , sequence
                                                 , quality
                                                 , row
@@ -477,16 +525,14 @@ struct Fragment {
                                                 , strand
                                                 , position
                                                 , cigar
-                                                );
-                    rslt.push_back(algn);
+                                                ));
                 }
                 else {
-                    auto const algn = Alignment(  readNo
+                    rslt.emplace_back(Alignment(  readNo
                                                 , sequence
                                                 , quality
                                                 , row
-                                                );
-                    rslt.push_back(algn);
+                                                ));
                 }
                 ++row;
             }
@@ -521,14 +567,13 @@ struct Fragment {
                     auto const strand = in.read(row, STRAND).value<char>();
                     auto const position = posColData.value<int32_t>();
                     auto const cigar = in.read(row, CIGAR).string();
-                    auto const algn = Alignment(  readNo, "", ""
+                    rslt.emplace_back(Alignment(  readNo, "", ""
                                                 , row
                                                 , reference
                                                 , strand
                                                 , position
                                                 , cigar
-                                                );
-                    rslt.emplace_back(algn);
+                                                ));
                 }
                 else {
                     rslt.emplace_back(Alignment(readNo, "", "", row));
@@ -536,6 +581,123 @@ struct Fragment {
                 ++row;
             }
             return Fragment(spotGroup, spotName, rslt, firstRow);
+        }
+        Fragment read(VDB::Cursor::RowRange const &spotRange) const
+        {
+            auto &in = *static_cast<VDB::Cursor const *>(this);
+            auto rslt = std::vector<Alignment>();
+            auto spotGroup = std::string();
+            auto spotName = std::string();
+
+            rslt.reserve(spotRange.count());
+            for (auto row = spotRange.beg(); row < spotRange.end(); ++row) {
+                if (row == spotRange.beg()) {
+                    spotGroup = in.read(row, READ_GROUP).string();
+                    spotName = in.read(row, NAME).string();
+                }
+                
+                auto const posColData = in.read(row, POSITION);
+                auto const readNo = in.read(row, READNO).value<int32_t>();
+                auto const sequence = in.read(row, SEQUENCE).string();
+                auto const quality = hasQuality() ? in.read(row, QUALITY).string() : Alignment::SyntheticQuality();
+                if (posColData.elements > 0) {
+                    auto const reference = in.read(row, REFERENCE).string();
+                    auto const strand = in.read(row, STRAND).value<char>();
+                    auto const position = posColData.value<int32_t>();
+                    auto const cigar = in.read(row, CIGAR).string();
+                    rslt.emplace_back(Alignment(  readNo
+                                                , sequence
+                                                , quality
+                                                , row
+                                                , reference
+                                                , strand
+                                                , position
+                                                , cigar
+                                                ));
+                }
+                else {
+                    rslt.emplace_back(Alignment(  readNo
+                                                , sequence
+                                                , quality
+                                                , row
+                                                ));
+                }
+            }
+            return Fragment(spotGroup, spotName, rslt, spotRange.beg());
+        }
+        
+        ///: Skips reading READ and QUALITY (the two biggest columns)
+        Fragment readShort(VDB::Cursor::RowRange const &spotRange) const
+        {
+            auto &in = *static_cast<VDB::Cursor const *>(this);
+            auto rslt = std::vector<Alignment>();
+            auto spotGroup = std::string();
+            auto spotName = std::string();
+            
+            rslt.reserve(spotRange.count());
+            for (auto row = spotRange.beg(); row < spotRange.end(); ++row) {
+                if (row == spotRange.beg()) {
+                    spotGroup = in.read(row, READ_GROUP).string();
+                    spotName = in.read(row, NAME).string();
+                }
+
+                auto const posColData = in.read(row, POSITION);
+                auto const readNo = in.read(row, READNO).value<int32_t>();
+                if (posColData.elements > 0) {
+                    auto const reference = in.read(row, REFERENCE).string();
+                    auto const strand = in.read(row, STRAND).value<char>();
+                    auto const position = posColData.value<int32_t>();
+                    auto const cigar = in.read(row, CIGAR).string();
+                    rslt.emplace_back(Alignment(  readNo, "", ""
+                                                , row
+                                                , reference
+                                                , strand
+                                                , position
+                                                , cigar
+                                                ));
+                }
+                else {
+                    rslt.emplace_back(Alignment(readNo, "", "", row));
+                }
+            }
+            return Fragment(spotGroup, spotName, rslt, spotRange.beg());
+        }
+        template <typename FUNC>
+        void forEach(FUNC &&func) const {
+            auto const range = rowRange();
+            for (auto row = range.beg(); row < range.end(); ) {
+                auto const spotGroup = VDB::Cursor::read(row, READ_GROUP).string();
+                auto const spotName = VDB::Cursor::read(row, NAME).string();
+                auto const firstRow = row;
+                
+                while (++row < range.end()) {
+                    auto const name = VDB::Cursor::read(row, NAME);
+                    if (!name.equal(spotName.cbegin(), spotName.cend()))
+                        break;
+                    auto const group = VDB::Cursor::read(row, READ_GROUP);
+                    if (!group.equal(spotGroup.cbegin(), spotGroup.cend()))
+                        break;
+                }
+                func(VDB::Cursor::RowRange(firstRow, row), spotGroup, spotName);
+            }
+        }
+        int64_t count() const {
+            int64_t spots = 0;
+            
+            forEach([&](VDB::Cursor::RowRange const &spotRange, std::string const &group, std::string const &name) {
+                ++spots;
+            });
+            return spots;
+        }
+        template <typename FUNC>
+        int64_t countIf(FUNC &&func) const {
+            int64_t spots = 0;
+            
+            forEach([&](VDB::Cursor::RowRange const &spotRange, std::string const &group, std::string const &name) {
+                if (func(group, name))
+                    ++spots;
+            });
+            return spots;
         }
     };
 };

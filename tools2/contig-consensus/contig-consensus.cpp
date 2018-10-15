@@ -112,29 +112,49 @@ struct Contigs {
         auto const &m = mapulet(c);
         return (m.end1 - m.start1) + (m.end2 - m.start2);
     }
+    static void addTableTo(Writer2 &writer) {
+        writer.addTable("CONTIGS", {
+            { "FWD_FIRST", sizeof(uint32_t) },
+            { "FWD_LAST", sizeof(uint32_t) },
+            { "FWD_GAP_START", sizeof(uint32_t) },
+            { "FWD_GAP_ENDED", sizeof(uint32_t) },
+            { "FWD_A", sizeof(uint32_t) },
+            { "FWD_C", sizeof(uint32_t) },
+            { "FWD_G", sizeof(uint32_t) },
+            { "FWD_T", sizeof(uint32_t) },
+            
+            { "REV_FIRST", sizeof(uint32_t) },
+            { "REV_LAST", sizeof(uint32_t) },
+            { "REV_GAP_START", sizeof(uint32_t) },
+            { "REV_GAP_ENDED", sizeof(uint32_t) },
+            { "REV_A", sizeof(uint32_t) },
+            { "REV_C", sizeof(uint32_t) },
+            { "REV_G", sizeof(uint32_t) },
+            { "REV_T", sizeof(uint32_t) },
+        });
+    }
+    static std::array<Writer2::Column, 16> openColumns(Writer2 const &out) {
+        auto const &tbl = out.table("CONTIGS");
+        return {
+            tbl.column("FWD_FIRST"),
+            tbl.column("FWD_LAST"),
+            tbl.column("FWD_GAP_START"),
+            tbl.column("FWD_GAP_ENDED"),
+            tbl.column("FWD_A"),
+            tbl.column("FWD_C"),
+            tbl.column("FWD_G"),
+            tbl.column("FWD_T"),
+            tbl.column("REV_FIRST"),
+            tbl.column("REV_LAST"),
+            tbl.column("REV_GAP_START"),
+            tbl.column("REV_GAP_ENDED"),
+            tbl.column("REV_A"),
+            tbl.column("REV_C"),
+            tbl.column("REV_G"),
+            tbl.column("REV_T"),
+        };
+    }
 };
-
-static inline std::array<Writer2::Column, 16> openColumns(Writer2 const &out) {
-    auto const &tbl = out.table("CONTIGS");
-    return {
-        tbl.column("FWD_FIRST"),
-        tbl.column("FWD_LAST"),
-        tbl.column("FWD_GAP_START"),
-        tbl.column("FWD_GAP_ENDED"),
-        tbl.column("FWD_A"),
-        tbl.column("FWD_C"),
-        tbl.column("FWD_G"),
-        tbl.column("FWD_T"),
-        tbl.column("REV_FIRST"),
-        tbl.column("REV_LAST"),
-        tbl.column("REV_GAP_START"),
-        tbl.column("REV_GAP_ENDED"),
-        tbl.column("REV_A"),
-        tbl.column("REV_C"),
-        tbl.column("REV_G"),
-        tbl.column("REV_T"),
-    };
-}
 
 struct Cursor : public VDB::Cursor {
     enum { CONTIG, POSITION, LAYOUT, LENGTH, COL_CIGAR, SEQUENCE };
@@ -279,7 +299,7 @@ struct CycleStats {
         Key(unsigned group, unsigned readNo, int position) : group(group), readNo(readNo), position(position) {}
     };
     struct Value {
-        uint64_t occurence, consensus, oneOf;
+        uint64_t occurence, consensus;
         
         Value() : occurence(0), consensus(0) {}
     };
@@ -291,6 +311,36 @@ struct CycleStats {
         value.occurence += 1;
         if (consensus)
             value.consensus += 1;
+    }
+
+    void write(Writer2 const &out) const {
+        auto const table = out.table("ALIGNED_STATISTICS");
+        auto const READ_GROUP = table.column("READ_GROUP");
+        auto const READNO = table.column("READNO");
+        auto const CYCLE = table.column("READ_CYCLE");
+        auto const OCCURENCE = table.column("OCCURENCE");
+        auto const CONSENSUS = table.column("CONSENSUS");
+        
+        for (auto && i : stats) {
+            auto const &readGroup = groups[i.first.group];
+            
+            READ_GROUP.setValue(readGroup);
+            READNO.setValue(int32_t(i.first.readNo));
+            CYCLE.setValue(uint32_t(i.first.position));
+            OCCURENCE.setValue(i.second.occurence);
+            CONSENSUS.setValue(i.second.consensus);
+            
+            table.closeRow();
+        }
+    }
+    static void addTableTo(Writer2 &writer) {
+        writer.addTable("ALIGNED_STATISTICS", {
+            { "READ_GROUP", sizeof(char) },
+            { "READNO", sizeof(int32_t) },
+            { "READ_CYCLE", sizeof(uint32_t) },
+            { "OCCURENCE", sizeof(uint64_t) },
+            { "CONSENSUS", sizeof(uint64_t) },
+        });
     }
 };
 
@@ -439,6 +489,34 @@ struct HexamerStats {
         }
         return result;
     }
+    static void addTableTo(Writer2 &writer) {
+        writer.addTable("ALIGNED_KMER_STATISTICS", {
+            { "READ_GROUP", sizeof(char) },
+            { "KMER", sizeof(char) },
+            { "OCCURENCE", sizeof(uint64_t) },
+            { "CONSENSUS", sizeof(uint64_t) },
+        });
+    }
+
+    void write(Writer2 const &out) const {
+        auto const table = out.table("ALIGNED_KMER_STATISTICS");
+        auto const READ_GROUP = table.column("READ_GROUP");
+        auto const KMER = table.column("KMER");
+        auto const OCCURENCE = table.column("OCCURENCE");
+        auto const CONSENSUS = table.column("CONSENSUS");
+        char kmer[8];
+        
+        for (auto && i : stats) {
+            auto const &readGroup = groups[i.first.group];
+            
+            READ_GROUP.setValue(readGroup);
+            KMER.setValue(std::string(i.first.kmer(kmer)));
+            OCCURENCE.setValue(i.second.occurence);
+            CONSENSUS.setValue(i.second.consensus);
+            
+            table.closeRow();
+        }
+    }
 };
 
 struct Fragment {
@@ -494,14 +572,17 @@ struct Fragment {
         }
         auto const cigar = data.CIGAR();
         auto const length = data.length();
+        auto const l1 = cigar.first.qlength;
+        auto const l2 = cigar.second.qlength;
         auto const s = data.sequence();
-        auto s1 = s.substr(0, cigar.first.qlength);
-        auto s2 = s.substr(cigar.first.qlength);
+        assert(length >= l1 + l2);
+        assert(s.size() == l1 + l2);
+        auto s1 = s.substr(0, l1);
+        auto s2 = s.substr(l1);
         
-        assert(s2.size() == cigar.second.qlength);
-        split = int(s1.size());
+        split = l1;
         pos[0] = data.position();
-        pos[1] = length + pos[0] - int(s2.size());
+        pos[1] = length + pos[0] - l2;
         
         if ((layout[0] == '1' && layout[1] == '-') || (layout[2] == '1' && layout[3] == '-')) {
             for (auto && ch : s1)
@@ -621,10 +702,6 @@ static int process(std::string const &inpath, Writer2 const &out) {
     auto const mgr = VDB::Manager();
     auto const db = mgr[inpath];
     auto const contigs = Contigs::load(db);
-#if 0
-    auto const tbl = out.table("CONTIGS");
-    auto const columns = openColumns(out);
-#endif
     
     class Pileup {
         struct Edit {
@@ -636,8 +713,9 @@ static int process(std::string const &inpath, Writer2 const &out) {
         HexamerStats hexamerStats;
         CycleStats cycleStats;
         
-        std::vector<std::pair<unsigned, Count>> getCountsWithPosition(VDB::Cursor::RowID const contigID) const {
-            using Result = std::vector<std::pair<unsigned, Count>>;
+        using CountsWithPosition = std::vector<std::pair<unsigned, Count>>;
+        CountsWithPosition getCountsWithPosition() const {
+            using Result = CountsWithPosition;
             using Pair = Result::value_type;
             using Index = Pair::first_type;
 
@@ -651,25 +729,16 @@ static int process(std::string const &inpath, Writer2 const &out) {
                 result[i].first = i;
             }
             for (auto && frag : pileup) {
-                for (auto p : frag) {
-                    assert(p.first >= 0 && p.first < maxpos);
-                    auto & accum = result[p.first].second;
-                    accum.add(p.second);
+                for (auto posBase : frag) {
+                    assert(posBase.first >= 0 && posBase.first < maxpos);
+                    auto & accum = result[posBase.first].second;
+                    accum.add(posBase.second);
                 }
             }
             return result;
         }
-    public:
-        void add(Fragment frag) {
-            if (frag.pos[0] + frag.split > frag.pos[1])
-                return;
-            pileup.emplace_back(frag);
-        }
-        void processStats(VDB::Cursor::RowID const contigID) {
-            auto const group = unsigned(0);
-            auto counts = getCountsWithPosition(contigID);
+        static std::string consensusFrom(CountsWithPosition const &counts) {
             auto consensus = std::string(counts.size(), '_');
-
             for (auto && c : counts) {
                 auto &ch = consensus[c.first];
                 if (!c.second.isAllSame()) {
@@ -685,6 +754,19 @@ static int process(std::string const &inpath, Writer2 const &out) {
                 else if (c.second.isT())
                     ch = 'T';
             }
+            return consensus;
+        }
+    public:
+        void add(Fragment frag) {
+            if (frag.pos[0] + frag.split > frag.pos[1])
+                return;
+            pileup.emplace_back(frag);
+        }
+        void processStats(VDB::Cursor::RowID const contigID) {
+            auto const group = unsigned(0);
+            auto const counts = getCountsWithPosition();
+            auto const consensus = consensusFrom(counts);
+            
             for (auto && frag : pileup) {
                 auto const r1 = frag.rev(1);
                 auto const r2 = frag.rev(2);
@@ -712,7 +794,7 @@ static int process(std::string const &inpath, Writer2 const &out) {
         }
         void process(VDB::Cursor::RowID const contigID) {
             unsigned const group = 0;
-            auto counts = getCountsWithPosition(contigID);
+            auto counts = getCountsWithPosition();
             for (auto && c : counts) {
                 if (!c.second.isAllSame()) {
                     auto const s = c.second.sorted();
@@ -873,7 +955,9 @@ static int process(std::string const &inpath, Writer2 const &out) {
             pileup.clear();
             edits.clear();
         }
-        void finalizeStats() {
+        void finalizeStats(Writer2 const &out) {
+            cycleStats.write(out);
+            hexamerStats.write(out);
         }
     };
     
@@ -882,12 +966,11 @@ static int process(std::string const &inpath, Writer2 const &out) {
     auto const curs = Cursor(db["FRAGMENTS"]);
     auto const range = curs.rowRange();
     
-#if 1
     curs.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &rawData) {
-        auto const last = (row + 1) == range.second;
+        auto const last = (row + 1) == range.end();
         auto &data = static_cast<Cursor::Row const &>(rawData);
         auto const contigID = data.contigID();
-        enum { add, flush } command = (activeContigID == contigID || row == range.first) ? add : flush ;
+        enum { add, flush } command = (activeContigID == contigID || row == range.beg()) ? add : flush ;
 
         do {
             switch (command) {
@@ -903,14 +986,14 @@ static int process(std::string const &inpath, Writer2 const &out) {
             }
         } while (!last);
     });
-#endif
-    pile.finalizeStats();
-#if 1
+    pile.finalizeStats(out);
+
+#if 0
     curs.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &rawData) {
-        auto const last = (row + 1) == range.second;
+        auto const last = (row + 1) == range.end();
         auto &data = static_cast<Cursor::Row const &>(rawData);
         auto const contigID = data.contigID();
-        enum { add, flush } command = (activeContigID == contigID || row == range.first) ? add : flush ;
+        enum { add, flush } command = (activeContigID == contigID || row == range.beg()) ? add : flush ;
         
         do {
             switch (command) {
@@ -938,25 +1021,9 @@ static int process(std::string const &inpath, FILE *const out)
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:aligned");
     writer.info("contig-consensus", "1.0.0");
     
-    writer.addTable("CONTIGS", {
-        { "FWD_FIRST", sizeof(uint32_t) },
-        { "FWD_LAST", sizeof(uint32_t) },
-        { "FWD_GAP_START", sizeof(uint32_t) },
-        { "FWD_GAP_ENDED", sizeof(uint32_t) },
-        { "FWD_A", sizeof(uint32_t) },
-        { "FWD_C", sizeof(uint32_t) },
-        { "FWD_G", sizeof(uint32_t) },
-        { "FWD_T", sizeof(uint32_t) },
-        
-        { "REV_FIRST", sizeof(uint32_t) },
-        { "REV_LAST", sizeof(uint32_t) },
-        { "REV_GAP_START", sizeof(uint32_t) },
-        { "REV_GAP_ENDED", sizeof(uint32_t) },
-        { "REV_A", sizeof(uint32_t) },
-        { "REV_C", sizeof(uint32_t) },
-        { "REV_G", sizeof(uint32_t) },
-        { "REV_T", sizeof(uint32_t) },
-    });
+    Contigs::addTableTo(writer);
+    CycleStats::addTableTo(writer);
+    HexamerStats::addTableTo(writer);
 
     writer.beginWriting();
     auto const rslt = process(inpath, writer);

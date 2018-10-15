@@ -66,7 +66,24 @@ table NCBI:tbl:IR:QUALITY_STATISTICS #1
     extern column I32 READNO;
     extern column U32 READ_CYCLE; // as opposed to machine cycle; starts at 1 for each read
     extern column ascii QUALITY;
-    extern column F64 FREQUENCY;
+    extern column U64 COUNT;
+};
+
+table NCBI:tbl:IR:ALIGNED_STATISTICS #1
+{
+    extern column ascii READ_GROUP;
+    extern column I32 READNO;
+    extern column U32 POSITION; // direction is 5'->3'
+    extern column U64 OCCURENCE;
+    extern column U64 CONSENSUS;
+};
+
+table NCBI:tbl:IR:ALIGNED_KMER_STATISTICS #1
+{
+    extern column ascii READ_GROUP;
+    extern column ascii KMER;
+    extern column U64 OCCURENCE;
+    extern column U64 CONSENSUS;
 };
 
 table NCBI:tbl:IR:CONTIGS #1 ///< these are temporary contiguous regions
@@ -106,7 +123,8 @@ table NCBI:tbl:aligned:CONTIGS #1
     extern column   <I32> izip_encoding START_1;
     extern column   <I32> izip_encoding END_1;
 
-    extern column   <I32> izip_encoding GAP; ///< this value is a suggested adjustment to the fragment length of all fragments that aligned here;
+    extern column   <I32> izip_encoding GAP; ///< this value is a suggested adjustment to the fragment length of all fragments that aligned here
+    extern column   <I32> izip_encoding MIN_GAP; ///< this value must be added to all fragment lengths to ensure there is no overlapping; it is expected to be 0
 
     extern column <ascii>  zip_encoding REFERENCE_2;
     extern column   <I32> izip_encoding START_2;
@@ -159,4 +177,6 @@ database NCBI:db:IR:aligned #1
     table NCBI:tbl:aligned:CONTIGS #1.0 CONTIGS;
     table NCBI:tbl:IR:raw #1.0 REJECTS;
     table NCBI:tbl:IR:QUALITY_STATISTICS #1.0 QUALITY_STATISTICS;
+    table NCBI:tbl:IR:ALIGNED_STATISTICS #1.0 ALIGNED_STATISTICS;
+    table NCBI:tbl:IR:ALIGNED_KMER_STATISTICS #1.0 ALIGNED_KMER_STATISTICS;
 };

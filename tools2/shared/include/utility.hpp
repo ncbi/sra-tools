@@ -1,4 +1,4 @@
-/* ===========================================================================
+ /* ===========================================================================
  *
  *                            PUBLIC DOMAIN NOTICE
  *               National Center for Biotechnology Information
@@ -26,42 +26,76 @@
 #ifndef __UTILITY_HPP_INCLUDED__
 #define __UTILITY_HPP_INCLUDED__ 1
 
+#if _WIN32
+#error TODO
+#elif __linux__
+#define USE_PROCFS 1
+#else
+// assume it's some kind of BSD like system (ala macOS)
+#include <sys/sysctl.h>
+#define USE_SYSCTL 1
+#endif
+
 #include <algorithm>
 #include <vector>
+#include <map>
 #include <cmath>
 #include <cstdlib>
+#include <atomic>
+#include <iostream>
+#include <fstream>
+
 namespace utility {
     template <typename T>
-    struct SizedPointer
+    struct Array
     {
+        using Element = T;
+    private:
+        bool isOwner;
         T *const pointer;
         size_t const count;
-        bool const freeOnDestruct;
-        
-        template <typename U>
-        SizedPointer(SizedPointer<U> const &other, bool owned = false)
-        : pointer(reinterpret_cast<T *>(other.pointer))
-        , count((other.count * sizeof(U)) / sizeof(T))
-        , freeOnDestruct(owned)
-        {}
-        
-        explicit SizedPointer(T *const p = nullptr, size_t const n = 0, bool owned = false) noexcept
+
+    public:
+        explicit Array(T *const p = nullptr, size_t const n = 0, bool owned = true) noexcept
         : pointer(p)
         , count(n)
-        , freeOnDestruct(owned)
+        , isOwner(owned)
         {}
         
-        explicit SizedPointer(size_t const n, bool owned = true) noexcept
+        explicit Array(size_t const n, bool owned = true) noexcept
         : pointer((T *)malloc(n * sizeof(T)))
         , count(n)
-        , freeOnDestruct(owned)
+        , isOwner(owned)
         {}
         
-        ~SizedPointer() noexcept {
-            if (pointer && freeOnDestruct)
+        ~Array() noexcept {
+            if (pointer && isOwner)
                 free(pointer);
         }
         
+        T *base() const { return pointer; }
+        size_t elements() const noexcept { return count; }
+        operator bool() const noexcept { return pointer != nullptr; }
+        bool operator !() const noexcept { return pointer == nullptr; }
+
+        template <typename U>
+        Array<U> cast() const noexcept { ///< NB. ownership is not transfered
+            return Array<U>(reinterpret_cast<U *>(pointer), (count * sizeof(T))/sizeof(U), false);
+        }
+        template <typename U>
+        Array<U> reshape() noexcept { ///< NB. ownership is transfered
+            auto const wasOwner = isOwner;
+            if (wasOwner) isOwner = false;
+            return Array<U>(reinterpret_cast<U *>(pointer), (count * sizeof(T))/sizeof(U), wasOwner);
+        }
+        Array<T> resize(size_t new_count) noexcept { ///< NB. if successful, ownership is transfered to the new object and this object is invalidated
+            void *const tmp = isOwner ? realloc(pointer, new_count * sizeof(T)) : nullptr;
+            if (tmp != nullptr) isOwner = false;
+            return Array<T>((T *)tmp, tmp != nullptr ? new_count : 0, true);
+        }
+        void zero() const {
+            memset(pointer, 0, count * sizeof(T));
+        }
         T *begin() const noexcept { return pointer; }
         T *end() const noexcept { return pointer + count; }
         T &front() noexcept { return *pointer; }
@@ -69,9 +103,9 @@ namespace utility {
         T &operator [](size_t i) noexcept { return pointer[i]; }
         T const &operator [](size_t i) const noexcept { return pointer[i]; }
         
-        template <typename Comp> void sort(Comp const comp) { std::sort(pointer, pointer + count, comp); }
+        template <typename Comp> void sort(Comp &&comp) { std::sort(pointer, pointer + count, comp); }
 
-        template <typename U, typename F> U reduce(U const initial, F const func) const
+        template <typename U, typename F> U reduce(U const initial, F &&func) const
         {
             auto v = initial;
             for (auto && i : *this) {
@@ -134,7 +168,7 @@ namespace utility {
     };
 
     template <typename T, typename F>
-    static T advanceWhile(T const &iter, T const &end, F const &comp) {
+    static T advanceWhile(T const &iter, T const &end, F &&comp) {
         T rslt = iter;
         while (rslt != end && comp(*rslt))
             ++rslt;
@@ -142,7 +176,7 @@ namespace utility {
     }
 
     template <typename T, typename F>
-    static T advanceUntil(T const &iter, T const &end, F const &comp) {
+    static T advanceUntil(T const &iter, T const &end, F &&comp) {
         T rslt = iter;
         while (rslt != end && !comp(*rslt))
             ++rslt;
@@ -171,23 +205,247 @@ namespace utility {
         CommandLine dropFirst() const {
             auto rslt = CommandLine();
             rslt.program = program;
-            rslt.argument = argument;
-            if (rslt.argument.size() > 0) {
-                rslt.program.push_back(rslt.argument.front());
-                rslt.argument.erase(rslt.argument.begin());
+            if (arguments() > 0) {
+                rslt.program.push_back(argument.front());
+                if (arguments() > 1)
+                    rslt.argument = decltype(rslt.argument)(argument.begin() + 1, argument.end());
             }
             return rslt;
+        }
+    };
+    
+    std::string trim_leading_whitespace(std::string const &str) {
+        std::string::size_type first = 0, last = str.length();
+        while (first < last && ::isspace(str[first]))
+            ++first;
+        return str.substr(first, last - first);
+    }
+    std::string trim_trailing_whitespace(std::string const &str) {
+        std::string::size_type first = 0, last = str.length();
+        while (first < last && ::isspace(str[last - 1]))
+            --last;
+        return str.substr(first, last - first);
+    }
+    std::string trim_whitespace(std::string const &str) {
+        return trim_leading_whitespace(trim_trailing_whitespace(str));
+    }
+    
+    struct sys_hardware_info {
+        using name_value_pair_t = std::map<std::string, std::string>;
+
+        enum { RAM, L1_CACHE, L2_CACHE, L3_CACHE, L_MAX = 8 };
+        size_t cache_size[L_MAX];
+        unsigned cache_sharing[L_MAX];
+        unsigned cache_levels;
+        unsigned available_cpus;
+#if USE_PROCFS
+        std::vector<name_value_pair_t> proc_cpuinfo;
+#endif
+
+        auto logical_cpu_count() const -> decltype(cache_sharing[0]) {
+            return cache_sharing[0];
+        }
+        sys_hardware_info() {
+            memset(this, 0, sizeof(*this));
+#if USE_PROCFS
+            proc_cpuinfo = load_proc_cpuinfo();
+#endif
+            available_cpus = get_avail_count();
+            cache_levels = get_cache_sizes(cache_size);
+            (void)get_cache_sharing(cache_sharing);
+        }
+#if 0
+        static void test_parse_cpuinfo() {
+            auto const content = std::string(
+"processor     : 0\n"
+"vendor_id     : GenuineIntel\n"
+"cpu family    : 15\n"
+"model         : 2\n"
+"model name    : Intel(R) Xeon(TM) CPU 2.40GHz\n"
+"stepping      : 7 cpu\n"
+"MHz           : 2392.371\n"
+"cache size    : 512 KB\n"
+"physical id   : 0\n"
+"siblings      : 2\n"
+"runqueue      : 0\n"
+"fdiv_bug      : no\n"
+"hlt_bug       : no\n"
+"f00f_bug      : no\n"
+"coma_bug      : no\n"
+"fpu           : yes\n"
+"fpu_exception : yes\n"
+"cpuid level   : 2\n"
+"wp            : yes\n"
+"flags         : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca  cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm\n"
+"bogomips      : 4771.02\n");
+            auto result = parse_cpuinfo(content.begin(), content.end());
+            assert(result.size() == 1);
+            assert(result[0]["processor"] == "0");
+        }
+#endif
+    private:
+        template <typename Iter, typename = std::enable_if<std::is_same<typename Iter::value_type, char>::value>>
+        static std::vector<name_value_pair_t> parse_nvp(Iter beg, Iter const end) {
+            using result_t = decltype(parse_nvp(beg, end));
+            using char_t = decltype('\n');
+            
+            auto result = result_t();
+            bool ws = true;
+            bool iskey = true;
+            bool eol = false;
+            std::string::size_type lnw = 0;
+            std::string key, value;
+            int line = 0;
+            
+            while (beg != end) {
+                auto const ch = char_t(*beg++);
+                
+                if (ch == '\n') {
+                    ++line;
+                    if (!eol) {
+                        if (iskey) {
+                            if (!key.empty()) break; ///< error
+                            result.emplace_back(name_value_pair_t());
+                        }
+                        else {
+                            if (result.empty())
+                                result.emplace_back(name_value_pair_t());
+                            value.erase(value.begin() + lnw, value.end());
+                            result.back().insert(name_value_pair_t::value_type(key, value));
+                        }
+                    }
+                    key.erase();
+                    value.erase();
+                    iskey = true;
+                    ws = true;
+                    eol = false;
+                    lnw = 0;
+                    continue;
+                }
+                else if (eol || (ws && ::isspace(ch)))
+                    continue;
+                
+                ws = false;
+                if (iskey && ch == ':') {
+                    key.erase(key.begin() + lnw, key.end());
+                    iskey = false;
+                    ws = true;
+                }
+                else {
+                    auto &accum = iskey ? key : value;
+                    accum.append(1, ch);
+                    if (!::isspace(ch))
+                        lnw = accum.size();
+                }
+            }
+            if (iskey && key.empty() && ws && !eol)
+                return result;
+            throw std::range_error("parse_nvp: invalid at line " + std::to_string(line));
+        }
+        static std::vector<name_value_pair_t> load_proc_cpuinfo() {
+            auto cpuinfo = std::ifstream("/proc/cpuinfo");
+            return parse_nvp(std::istream_iterator<char>(cpuinfo), std::istream_iterator<char>());
+        }
+        static bool sysctl(char const *const name, int &result) {
+            size_t len = sizeof(int);
+            return ::sysctlbyname(name, &result, &len, 0, 0) == 0 && len == sizeof(int);
+        }
+        static bool sysctl(char const *const name, size_t &result) {
+            union u { uint64_t s; uint32_t i; } tmp;
+            size_t len = sizeof(tmp);
+            if (::sysctlbyname(name, &tmp, &len, 0, 0) == 0 && (len == sizeof(uint64_t) || len == sizeof(uint32_t))) {
+                result = len == sizeof(uint32_t) ? size_t(tmp.i) : size_t(tmp.s);
+                return true;
+            }
+            return false;
+        }
+        static unsigned get_cpu_count() {
+#if USE_SYSCTL
+            int value = 0;
+            if (sysctl("hw.logicalcpu", value) && value > 0)
+                return value;
+            if (sysctl("hw.ncpu", value) && value > 0)
+                return value;
+#elif __linux__
+#endif
+            return 1; ///< there is always at least one cpu
+        }
+        static unsigned get_avail_count() {
+#if USE_SYSCTL
+            int value = 0;
+            if (sysctl("hw.availcpu", value) && value > 0)
+                return value;
+#elif __linux__
+#endif
+            return get_cpu_count();
+        }
+        /** \brief Size of each cache
+         */
+        static unsigned get_cache_sizes(size_t sizes[]) {
+#if USE_SYSCTL
+            size_t len = sizeof(sizes[0] * L_MAX);
+            if (sysctlbyname("hw.cachesize", sizes, &len, 0, 0) == 0) {
+                return unsigned(len / sizeof(sizes[0]));
+            }
+            
+            if (!sysctl("hw.memsize", sizes[RAM]) && !sysctl("hw.physmem", sizes[RAM]))
+                return 0;
+            if (!sysctl("hw.l1dcachesize", sizes[L1_CACHE]))
+                return L1_CACHE;
+            if (!sysctl("hw.l2cachesize", sizes[L2_CACHE]))
+                return L2_CACHE;
+            if (!sysctl("hw.l3cachesize", sizes[L3_CACHE]))
+                return L3_CACHE;
+            return L3_CACHE+1;
+#elif __linux__
+#endif
+        }
+        /** \brief Number of logical cpus per cache
+         */
+        static unsigned get_cache_sharing(unsigned sharing[]) {
+#if USE_SYSCTL
+            uint64_t value[L_MAX];
+            size_t len = sizeof(value);
+            if (sysctlbyname("hw.cacheconfig", value, &len, 0, 0) == 0) {
+                auto const n = int(len / sizeof(value[0]));
+                for (int i = 0; i < n; ++i) {
+                    sharing[i] = unsigned(value[i]);
+                }
+                return n;
+            }
+            return 0;
+#elif __linux__
+#endif
+        }
+    };
+    
+    template <int DIVISIONS>
+    struct ProgressTracker {
+    private:
+        double const frequency;
+        int next = 0;
+    public:
+        template <typename T>
+        ProgressTracker(T max) : frequency(max / double(DIVISIONS)) {}
+
+        template <typename T, typename FUNC>
+        void current(T const cur, FUNC &&f) {
+            if (next * frequency <= cur) {
+                auto const pct = int(ceil(next * (100.0 / DIVISIONS)));
+                ++next;
+                f(pct);
+            }
         }
     };
 
     class strings_map {
     public:
-        typedef unsigned index_t;
+        using index_t = unsigned;
     private:
-        typedef std::vector<char> char_store_t;
-        typedef std::vector<index_t> reverse_lookup_t;
-        typedef std::pair<index_t, index_t> ordered_list_elem_t;
-        typedef std::vector<ordered_list_elem_t> ordered_list_t;
+        using char_store_t = std::vector<char>;
+        using reverse_lookup_t = std::vector<index_t>;
+        using ordered_list_elem_t = std::pair<index_t, index_t>;
+        using ordered_list_t = std::vector<ordered_list_elem_t>;
         
         char_store_t char_store;
         reverse_lookup_t reverse_lookup;
@@ -222,9 +480,14 @@ namespace utility {
         index_t count() const {
             return (index_t)reverse_lookup.size();
         }
-        bool contains(std::string const &name, index_t &id) const {
+        bool contains(std::string const &name, index_t &id) const { ///< deprecated
             auto const fnd = find(name);
             if (fnd.first) id = (ordered_list.begin() + fnd.second)->second;
+            return fnd.first;
+        }
+        bool contains(std::string const &name, index_t *id) const {
+            auto const fnd = find(name);
+            if (fnd.first) *id = (ordered_list.begin() + fnd.second)->second;
             return fnd.first;
         }
         index_t operator[](std::string const &name) {
@@ -247,6 +510,11 @@ namespace utility {
                 return std::string(rslt);
             }
             throw std::out_of_range("invalid id");
+        }
+        index_t operator[](std::string const &name) const {
+            auto const fnd = find(name);
+            if (fnd.first) return (ordered_list.begin() + fnd.second)->second;
+            throw std::range_error("stringmap const");
         }
     };
     static inline unsigned uniform_random(unsigned const lower_bound, unsigned const upper_bound) {

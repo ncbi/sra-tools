@@ -52,7 +52,12 @@ static const char * FUNCT_USAGE [] = {
 #define CHUNK_ALIAS  "n"
 #define CHUNK_OPTION "chunks"
 static const char * CHUNK_USAGE [] = {
-    "Retrieve using specifies number of chunks", NULL };
+    "Split file to specifies number of chunks", NULL };
+
+#define MX_CH_ALIAS  "x"
+#define MX_CH_OPTION "max-chunk"
+static const char * MX_CH_USAGE [] = {
+    "Retrieve specifies number of chunks", NULL };
 
 #define MINIM_ALIAS  "N"
 #define MINIM_OPTION "min"
@@ -64,12 +69,19 @@ static const char * MINIM_USAGE [] = {
 static const char * MAXIM_USAGE [] = {
     "Retrieve a byte range to specified value. Default: not specified", NULL };
 
+#define WRITE_ALIAS  "w"
+#define WRITE_OPTION "write"
+static const char * WRITE_USAGE [] = {
+    "Write output file (yes/no). Default: no", NULL };
+
 static OptDef Options [] = {
     { FUNCT_OPTION, FUNCT_ALIAS, NULL, FUNCT_USAGE, 1, true, false },
     { BLOCK_OPTION, BLOCK_ALIAS, NULL, BLOCK_USAGE, 1, true, false },
     { MINIM_OPTION, MINIM_ALIAS, NULL, MINIM_USAGE, 1, true, false },
     { MAXIM_OPTION, MAXIM_ALIAS, NULL, MAXIM_USAGE, 1, true, false },
     { CHUNK_OPTION, CHUNK_ALIAS, NULL, CHUNK_USAGE, 1, true, false },
+    { MX_CH_OPTION, MX_CH_ALIAS, NULL, MX_CH_USAGE, 1, true, false },
+    { WRITE_OPTION, WRITE_ALIAS, NULL, WRITE_USAGE, 1, true, false },
 };
 
 const char UsageDefaultName[] = "download";
@@ -106,7 +118,8 @@ rc_t CC Usage ( const Args * args ) {
     for ( i = 0; i < sizeof Options / sizeof Options [ 0 ]; ++ i ) {
         const char * param = "value";
         assert ( Options [ i ] . aliases );
-        if ( Options [ i ] . aliases [ 0 ] == CHUNK_ALIAS [ 0 ] )
+        if ( Options [ i ] . aliases [ 0 ] == CHUNK_ALIAS [ 0 ]
+          || Options [ i ] . aliases [ 0 ] == MX_CH_ALIAS [ 0 ] )
             param = "number";
         HelpOptionLine ( Options [ i ] . aliases, Options [ i ] . name,
                          param,                   Options [ i ] . help );
@@ -129,9 +142,12 @@ typedef struct {
     size_t bufSize;
     size_t fileSize;
     uint64_t chunks;
+    uint64_t chunkCount;
 
     uint64_t min;
     uint64_t max;
+
+    bool write;
 
     KNSManager * mgr;
 
@@ -346,6 +362,63 @@ rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] )
             }
         }
 
+/* MX_CH_OPTION */
+        {
+            const char * val = NULL;
+            rc = ArgsOptionCount ( * args, MX_CH_OPTION, & pcount );
+            if ( rc != 0 ) {
+                LOGERR ( klogInt, rc,
+                         "Failure to get '" MX_CH_OPTION "' argument");
+                break;
+            }
+            if ( pcount > 0 ) {
+                uint64_t n = 0;
+                int i = 0;
+                rc = ArgsOptionValue
+                    ( * args, MX_CH_OPTION, 0, ( const void ** ) & val );
+                if ( rc != 0 ) {
+                    LOGERR ( klogInt, rc, "Failure to get '" MX_CH_OPTION
+                                          "' argument value" );
+                    break;
+                }
+                assert ( val );
+                for ( i = 0; val [ i ] != '\0'; ++ i ) {
+                    if ( val [ i ] < '0' || val [ i ] > '9' ) {
+                        rc = RC ( rcExe, rcArgv, rcParsing,
+                                  rcParam, rcInvalid );
+                        LOGERR ( klogErr, rc,
+                                 "Invalid " MX_CH_OPTION " value" );
+                        break;
+                    }
+                    n = n * 10 + val [ i ] - '0';
+                }
+                self -> chunkCount = n;
+            }
+        }
+        
+/* WRITE_OPTION */
+        {
+            const char * val = NULL;
+            rc = ArgsOptionCount ( * args, WRITE_OPTION, & pcount );
+            if ( rc != 0 ) {
+                LOGERR ( klogInt, rc,
+                         "Failure to get '" WRITE_OPTION "' argument");
+                break;
+            }
+            if ( pcount > 0 ) {
+                rc = ArgsOptionValue
+                    ( * args, WRITE_OPTION, 0, ( const void ** ) & val );
+                if ( rc != 0 ) {
+                    LOGERR ( klogInt, rc, "Failure to get '" WRITE_OPTION
+                                          "' argument value" );
+                    break;
+                }
+                assert ( val );
+                if ( * val == 'y' )
+                    self -> write = true;
+            }
+        }
+        
     } while ( false );
 
     return rc;
@@ -379,12 +452,13 @@ static rc_t DoFile ( Do * self, const char * url ) {
     rc_t rc = 0;
 
     uint64_t pos = 0;
+    uint64_t chunk = 0;
 
     assert ( self );
 
     rc = DoMakeHttpFileAndSize ( self, url );
 
-    for ( pos =  self -> min; rc == 0 ; ) {
+    for ( chunk = 0, pos =  self -> min; rc == 0 ; ++ chunk ) {
         size_t num_read = 0;
 
         size_t toRead = self -> bufSize;
@@ -393,6 +467,9 @@ static rc_t DoFile ( Do * self, const char * url ) {
             to = self -> max;
             toRead = to - pos;
         }
+
+        if ( self -> chunkCount > 0 && chunk >= self -> chunkCount )
+            break;
 
         rc = Quitting ();
         if ( rc != 0 )
@@ -412,7 +489,8 @@ static rc_t DoFile ( Do * self, const char * url ) {
         if ( num_read == 0 )
             break;
 
-        OUTMSG ( ( "%.*s", ( int ) num_read, self -> buffer ) );
+        if ( self -> write )
+            OUTMSG ( ( "%.*s", ( int ) num_read, self -> buffer ) );
 
         pos += num_read;
 
@@ -476,7 +554,8 @@ static rc_t DoStream ( const Do * self, const char * url ) {
                 from = self -> min - pos;
                 size -= from;
             }
-            OUTMSG ( ( "%.*s", ( int ) size, self -> buffer + from ) );
+            if ( self -> write )
+                OUTMSG ( ( "%.*s", ( int ) size, self -> buffer + from ) );
         }
 
         pos += num_read;

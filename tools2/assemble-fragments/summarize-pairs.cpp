@@ -299,10 +299,10 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
     {
         auto const format = "%s\t%i\t%i\t%s\t%i\t%i\t%s\n";
         if (one.isBefore(two)) {
-            return fprintf(fp, format, one.reference.c_str(), one.qstart(), one.qended(), two.reference.c_str(), two.qstart(), two.qended(), group.c_str());
+            return fprintf(fp, format, one.reference.c_str(), one.qstart(), one.maxended(), two.reference.c_str(), two.qstart(), two.maxended(), group.c_str());
         }
         else {
-            return fprintf(fp, format, two.reference.c_str(), two.qstart(), two.qended(), one.reference.c_str(), one.qstart(), one.qended(), group.c_str());
+            return fprintf(fp, format, two.reference.c_str(), two.qstart(), two.maxended(), one.reference.c_str(), one.qstart(), one.maxended(), group.c_str());
         }
     }
     void write(VDB::Writer const &out) const {
@@ -542,26 +542,26 @@ static int map(FILE *out, std::string const &run)
     auto const mgr = VDB::Manager();
     auto const inDb = mgr[run];
     auto const in = Fragment::Cursor(inDb["RAW"]);
-    auto const range = in.rowRange();
     
-    for (auto row = range.first; row < range.second; ) {
-        auto const fragment = in.readShort(row, range.second);
+    in.forEach([&](VDB::Cursor::RowRange const &spotRange, std::string const &group, std::string const &name) {
+        auto const fragment = in.readShort(spotRange);
+        if (fragment.detail.size() < 2) return;
         auto const end = fragment.detail.cend();
         auto one = fragment.detail.cbegin();
         while (one != end && one->readNo < 1)
             ++one;
-
+        
         auto twoBeg = one;
         while (twoBeg != end && twoBeg->readNo < 2)
             ++twoBeg;
-
+        
         for ( ; one != twoBeg && one->readNo == 1; ++one) {
             for (auto two = twoBeg; two != end && two->readNo == 2; ++two) {
                 if (one->isGoodAlignedPair(*two))
                     ContigPair::write(out, *one, *two, fragment.group);
             }
         }
-    }
+    });
     return 0;
 }
 

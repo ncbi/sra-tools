@@ -137,12 +137,12 @@ struct CIGAR_OP {
  * \brief A value type for a sequence of alignment operations
  */
 struct CIGAR : public std::vector<CIGAR_OP> {
-    int rlength; ///< aligned length on reference
+    int rlength; ///< aligned length on reference; sum of matches, deletes, and introns
     int qfirst;  ///< first aligned base of the query
-    int qlength; ///< total length of query
+    int qlength; ///< total length of query; sum of matches, inserts, and soft-clips
     int qclip;   ///< number of clipped bases of query
 
-    ///: number of bases [first ... last] aligned bases
+    /// number of bases [first ... last] aligned bases
     int alignedLength() const {
         return qlength - (qfirst + qclip);
     }

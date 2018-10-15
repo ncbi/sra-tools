@@ -1810,8 +1810,9 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
 {
     KFile *dst;
     char *buffer;
-    uint64_t num_writ;
-
+    size_t num_writ = 0, num_read = 0, total = 0;
+    size_t bsize = 256 * 1024 *1024;
+    
     rc_t rc = KDirectoryCreateFile ( eb -> cdir, &dst, false, 0200, 
                                      kcmCreate, "%s", src -> dad . name ); 
     if ( rc != 0 )
@@ -1820,34 +1821,44 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
         exit ( 4 );
     }
 
-    buffer = malloc ( src -> byte_size );
+
+    buffer = malloc ( bsize );
     if ( buffer == NULL )
     {
         rc = RC ( rcExe, rcFile, rcAllocating, rcMemory, rcExhausted );
-        pLogErr (klogErr, rc, "failed to allocate '$(mem)'", "mem=%lu", src -> byte_size );
+        pLogErr (klogErr, rc, "failed to allocate '$(mem)'", "mem=%zu", bsize );
         exit ( 4 );
     }
 
-    rc = KFileReadExactly ( eb -> archive, src -> byte_offset + eb -> extract_pos, buffer, src -> byte_size );
-    if ( rc != 0 )
+    for ( total = 0; total < src -> byte_size; total += num_read )
     {
-        pLogErr (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
+        size_t to_read =  src -> byte_size - total;
+        if ( to_read > bsize )
+            to_read = bsize;
+        
+        rc = KFileReadAll ( eb -> archive, src -> byte_offset + eb -> extract_pos + total,
+                            buffer, to_read, &num_read );
+        if ( rc != 0 )
+        {
+            pLogErr (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
+            exit ( 4 );
+        }
+        
+        rc = KFileWriteAll ( dst, total, buffer, num_read, &num_writ );
+        if ( rc != 0 )
+        {
+            pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
+            exit ( 4 );
+        }
+        
+        if ( num_writ < num_read )
+        {
+            rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
+            pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
+            exit ( 4 );
+        }
     }
 
-    rc = KFileWriteAll ( dst, 0, buffer, src -> byte_size, &num_writ );
-    if ( rc != 0 )
-    {
-        pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
-    }
-    if ( num_writ < src -> byte_size )
-    {
-        rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
-        pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
-    }
-    
     KFileRelease ( dst );
 
     free ( buffer );

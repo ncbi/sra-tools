@@ -1,30 +1,56 @@
 <project name="SRA Toolkit tarballs test (Windows)" default="tarballs" basedir=".">
 
-    <property name="sourcename" value="sratoolkit.current-win64.zip" />
-    <property name="url" value="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/" />
+    <property name="tk_sourcename" value="sratoolkit.current-win64.zip" />
+    <property name="ngs_sourcename" value="ngs-sdk.current-win.zip" />
+    <property name="jar" value="GenomeAnalysisTK.jar" />
+    <property name="sdk_url"
+              value="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current" />
+    <property name="ngs_url"
+              value="https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/current" />
     <property name="version.url" value="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current.version" />
     <property name="workdir" value=".\temp" />
-    <property name="targetname" value="current-win64" />
+    <property name="tk_targetname" value="current-win64" />
+    <property name="ngs_targetname" value="current-win" />
     <dirname property="antfile.dir" file="${ant.file}"/>
-  
+
+<!--=========================================================================-->
+    
     <target name="tarballs">
         <delete dir="${workdir}" failonerror="false"/>
         <mkdir dir="${workdir}"/>
-        <get src="${url}/${sourcename}" dest="${workdir}\${sourcename}" />
-        <unzip src="${workdir}\${sourcename}" dest="${workdir}" />
-        <delete dir="${workdir}\${sourcename}" />
-        <dirset id="tgt" dir="${workdir}" includes="*-win64"/>
-        <property name="target" refid="tgt"/>
-        <move file="${workdir}\${target}" tofile="${workdir}\${targetname}"/>
+
+        <get src="${ngs_url}/${ngs_sourcename}"
+             dest="${workdir}\${ngs_sourcename}" />
+        <unzip src="${workdir}\${ngs_sourcename}" dest="${workdir}" />
+        <delete dir="${workdir}\${ngs_sourcename}" />
+        <dirset id="ngs_tgt" dir="${workdir}" includes="*-win"/>
+        <property name="ngs_target" refid="ngs_tgt"/>
+        <move file="${workdir}\${ngs_target}"
+              tofile="${workdir}\${ngs_targetname}"/>
+
+        <get src="${sdk_url}/${tk_sourcename}"
+             dest="${workdir}\${tk_sourcename}" />
+        <unzip src="${workdir}\${tk_sourcename}" dest="${workdir}" />
+        <delete dir="${workdir}\${tk_sourcename}" />
+        <dirset id="tk_tgt" dir="${workdir}" includes="*-win64"/>
+        <property name="tk_target" refid="tk_tgt"/>
+        <move file="${workdir}\${tk_target}"
+              tofile="${workdir}\${tk_targetname}"/>
+
         <get src="${version.url}" dest="${workdir}\version" />
         <loadfile property="version" srcFile="${workdir}\version"/>
+
+        <get src="${sdk_url}/${jar}" dest="${workdir}\${tk_targetname}" />
+
         <echo message="version=${version}"/>
-        <echo message="smoke-test.bat ${workdir}\${targetname}\bin ${antfile.dir}\grep.pl ${version}"/>
+        <echo
+message="smoke-test.bat ${workdir}\${tk_targetname}\bin ${antfile.dir}\grep.pl ${workdir}\${ngs_targetname} ${version}"/>
         <exec executable="cmd" failonerror="true" >
             <arg value="/c"/>
             <arg value="smoke-test.bat"/>
-            <arg value="${workdir}\${targetname}\bin"/>
+            <arg value="${workdir}\${tk_targetname}\bin"/>
             <arg value="${antfile.dir}\grep.pl"/>
+            <arg value="${workdir}\${ngs_targetname}"/>
             <arg value="${version}"/>
         </exec>
 

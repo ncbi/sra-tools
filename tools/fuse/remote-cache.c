@@ -933,7 +933,7 @@ RemoteCacheCreate ()
 
     if ( RemoteCacheIsDisklessMode () ) {
         LOGMSG( klogInfo, "[RemoteCache] entering diskless mode\n" );
-        return 0;
+        return _InitKNSManager();
     }
 
     LOGMSG( klogInfo, "[RemoteCache] creating\n" );
@@ -1596,7 +1596,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
         else {
             RCt = KDirectoryNativeDir ( & Directory );
             if ( RCt == 0 ) {
-                RCt = KDirectoryMakeCacheTee (
+                RCt = KDirectoryMakeCacheTeePromote (
                                     Directory,
                                     & TeeFile,
                                     HttpFile,

@@ -34,11 +34,15 @@ echo $0 $*
 #
 # return codes:
 # 0 - tests passed
-# 1 - wget failed
-# 2 - gunzip failed
-# 3 - tar failed
-# 4 - one of the tools failed
-# 5 - example failed
+# 1 - wget sratoolkit failed
+# 2 - gunzip sratoolkit failed
+# 3 - tar sratoolkit failed
+# 4 - wget GenomeAnalysisTK.jar failed
+# 5 - wget ngs-sdk failed
+# 6 - gunzip ngs-sdk failed
+# 7 - tar ngs-sdk failed
+# 8 - one of smoke tests failed
+# 9 - example failed
 
 WORKDIR=$1
 if [ "${WORKDIR}" == "" ]
@@ -56,51 +60,78 @@ Linux)
     realpath() {
         readlink -f $1
     }
+    uname=linux
     ;;
 Darwin)
     OS=mac64
     realpath() {
         [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
     }
+    uname=mac
     ;;
 esac
 HOMEDIR=$(dirname $(realpath $0))
 
-TARBALLS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
-TARGET=sratoolkit.current-${OS}
+################################## sratoolkit ##################################
 
+SDK_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
+TK_TARGET=sratoolkit.current-${OS}
+
+rm -rv ${WORKDIR}
 mkdir -p ${WORKDIR}
 OLDDIR=$(pwd)
 cd ${WORKDIR}
 
-wget -q --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
-gunzip -f ${TARGET}.tar.gz || exit 2
-PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)
-rm -rf ${PACKAGE}
-tar xf ${TARGET}.tar || exit 3
+df -h .
+wget -q --no-check-certificate ${SDK_URL}${TK_TARGET}.tar.gz || exit 1
+gunzip -f ${TK_TARGET}.tar.gz || exit 2
+TK_PACKAGE=$(tar tf ${TK_TARGET}.tar | head -n 1)
+rm -rf ${TK_PACKAGE}
+tar xf ${TK_TARGET}.tar || exit 3
 
 # extract version number from the package's name
-[[ ${PACKAGE} =~ \.[0-9]+\.[0-9]+\.[0-9]+ ]] && VERSION=${BASH_REMATCH[0]:1} # clip leading '.'
+[[ ${TK_PACKAGE} =~ \.[0-9]+\.[0-9]+\.[0-9]+ ]] && VERSION=${BASH_REMATCH[0]:1} # clip leading '.'
 echo Current version: ${VERSION}
 
-echo $HOMEDIR/smoke-test.sh ./${PACKAGE} ${VERSION}
-$HOMEDIR/smoke-test.sh ./${PACKAGE} ${VERSION}
+############################### GenomeAnalysisTK ###############################
+
+GATK_TARGET=GenomeAnalysisTK.jar
+wget -q --no-check-certificate ${SDK_URL}${GATK_TARGET} || exit 4
+
+################################### ngs-sdk ####################################
+
+NGS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/current/
+NGS_TARGET=ngs-sdk.current-${uname}
+echo wget -q --no-check-certificate ${NGS_URL}${NGS_TARGET}.tar.gz
+wget -q --no-check-certificate ${NGS_URL}${NGS_TARGET}.tar.gz || exit 5
+gunzip -f ${NGS_TARGET}.tar.gz || exit 6
+NGS_PACKAGE=$(tar tf ${NGS_TARGET}.tar | head -n 1)
+rm -rf ${NGS_PACKAGE}
+tar xf ${NGS_TARGET}.tar || exit 7
+
+################################## smoke-test ##################################
+
+echo $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
+     $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
 RC=$?
 
 if [ "${RC}" != "0" ]
 then
     echo "Smoke test returned ${RC}"
-    exit 4
+    exit 8
 fi
 
 # run an example
-EXAMPLE="./${PACKAGE}/bin/vdb-dump SRR000001 -R 1 "
+EXAMPLE="./${TK_PACKAGE}/bin/vdb-dump SRR000001 -R 1 "
 $EXAMPLE | grep -q EM7LVYS02FOYNU
 if [ "$?" != "0" ]
 then
     echo "The example failed: $EXAMPLE"
-    exit 5
+    exit 9
 fi
 
-rm -rf ${PACKAGE} ${TARGET}.tar
-cd ${OLDDIR}
+echo rm ${TK_PACKAGE} ${TK_TARGET}.tar ${GATK_TARGET} \
+            ${NGS_PACKAGE} ${NGS_TARGET}.tar
+rm -rf  ${TK_PACKAGE} ${TK_TARGET}.tar ${GATK_TARGET} \
+            ${NGS_PACKAGE} ${NGS_TARGET}.tar *vcf*
+cd ${OLDDIR} && ( rmdir ${WORKDIR} || ls ${WORKDIR} )

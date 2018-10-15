@@ -1,24 +1,6 @@
 echo "----- copy flat SRA-table to sqlite-db -----"
 
-TOOL="../../../OUTDIR/sra-tools/linux/gcc/x86_64/dbg/bin/vdb-sql"
-
-if [ ! -f $TOOL ]; then
-TOOL="../../../OUTDIR/sra-tools/linux/gcc/x86_64/rel/bin/vdb-sql"
-fi
-
-if [ ! -f $TOOL ]; then
-TOOL="../../../OUTDIR/sra-tools/mac/clang/x86_64/dbg/bin/vdb-sql"
-fi
-
-if [ ! -f $TOOL ]; then
-TOOL="../../../OUTDIR/sra-tools/mac/clang/x86_64/rel/bin/vdb-sql"
-fi
-
-if [ ! -f $TOOL ]; then
-    echo "tool not found"
-    exit 1
-fi
-
+TOOL="/vdb-sql"
 SRC="SRR000001"
 DST="SRR000001.db"
 

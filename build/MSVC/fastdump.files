@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\fastdump\helper.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\progress_thread.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\cleanup_task.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\index.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\lookup_writer.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\lookup_reader.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\file_printer.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\merge_sorter.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\sorter.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\cmn_iter.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\raw_read_iter.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\special_iter.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\fastq_iter.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\join.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\tbl_join.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\join_results.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\temp_registry.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\concatenator.c" />
+    <ClCompile Include="..\..\..\tools\fastdump\fastdump.c" />
+  </ItemGroup>
+</Project>

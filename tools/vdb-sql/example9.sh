@@ -3,25 +3,7 @@ echo "----- which alignments are the same between 2 accessions -----"
 # this example does the same as example6/example7
 # the only difference is that it creates a temporary script and pipes it into the tool
 
-TOOL="../../../OUTDIR/sra-tools/linux/gcc/x86_64/dbg/bin/vdb-sql"
-
-if [ ! -f $TOOL ]; then
-TOOL="../../../OUTDIR/sra-tools/linux/gcc/x86_64/rel/bin/vdb-sql"
-fi
-
-if [ ! -f $TOOL ]; then
-TOOL="../../../OUTDIR/sra-tools/mac/clang/x86_64/dbg/bin/vdb-sql"
-fi
-
-if [ ! -f $TOOL ]; then
-TOOL="../../../OUTDIR/sra-tools/mac/clang/x86_64/rel/bin/vdb-sql"
-fi
-
-if [ ! -f $TOOL ]; then
-    echo "tool not found"
-    exit 1
-fi
-
+TOOL="vdb-sql"
 ACC1="SRR341578"
 ACC2="SRR341580"
 

@@ -58,6 +58,7 @@ SUBDIRS =             \
 	cache-mgr         \
 	vcf-loader        \
 	copycat           \
+	fasterq-dump      \
 	sra-load          \
 	ccextract         \
 	pacbio-load       \
@@ -65,10 +66,8 @@ SUBDIRS =             \
 	vdb-diff          \
 	kget              \
 	ngs-pileup        \
-	fastdump          \
 	vdb-sql           \
 	cg-load           \
-
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets

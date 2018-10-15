@@ -53,13 +53,18 @@ struct Mapulet {
     unsigned ref1;
     int start1, end1;
 
-    int gap;
-
     unsigned ref2;
     int start2, end2;
     
+    int gap, mingap;
     int count;
 };
+
+using ContigArray = utility::Array<unsigned>;
+static constexpr auto unassignedContig = ContigArray::Element(0);
+static constexpr auto assignedToNone = ~unassignedContig;
+
+using SpotArray = utility::Array<VDB::Cursor::RowID>;
 
 static std::vector<Mapulet> mapulets = {{ "invalid" }};
 
@@ -67,85 +72,112 @@ static unsigned createMapulet(unsigned ref1, int start1, int end1, unsigned ref2
 {
     std::string name = references[ref1] + ":" + std::to_string(start1 + 1) + "-" + std::to_string(end1)
                + "+" + references[ref2] + ":" + std::to_string(start2 + 1) + "-" + std::to_string(end2);
-    Mapulet o = { name, unsigned(mapulets.size()), ref1, start1, end1, 0, ref2, start2, end2 };
-    mapulets.push_back(o);
+    Mapulet o = { name, unsigned(mapulets.size()), ref1, start1, end1, ref2, start2, end2 };
+    mapulets.emplace_back(o);
     return o.id;
 }
 
-struct ContigStats {
-    struct stat {
-        int64_t sourceRow;
-        unsigned window;
-        unsigned count;
-
-        float average;
-        float std_dev;
-        
-        unsigned group;
-        unsigned ref1, ref2;
-        int start1, start2;
-        int end1, end2;
-
-        unsigned mapulet;
-
-        mutable StatisticsAccumulator length, rlength1, rlength2, qlength1, qlength2;
-        
-        bool isGapless() const {
-            return end1 == 0 && start2 == 0;
+struct Contig {
+    ContigArray::Element sourceRow;
+    unsigned window;
+    unsigned count;
+    
+    float average;
+    float std_dev;
+    
+    unsigned group;
+    unsigned ref1, ref2;
+    int start1, start2;
+    int end1, end2;
+    
+    unsigned mapulet;
+    
+    mutable StatisticsAccumulator length, rlength1, rlength2, qlength1, qlength2;
+    
+    bool isUngapped() const {
+        return mapulet == 0;
+    }
+    
+    ///* computes fragment length while accounting for any gap or structural rearrangement
+    int adjustedFragmentLength(AlignmentShort const &one, AlignmentShort const &two) const {
+        auto const endOf2 = two.qstart() + two.cigar.qlength;
+        return (endOf2 - start2) + (end1 - one.qstart()); // if ungapped; start2 == end1 == 0
+    }
+    
+    bool contains(AlignmentShort const &one, AlignmentShort const &two) const {
+        if (isUngapped())
+            return one.reference == references[ref1]
+                && start1 <= one.qstart() && one.qended() <= end2
+                && start1 <= two.qstart() && two.qended() <= end2;
+        if (ref1 == ref2)
+            return one.reference == references[ref1]
+                && start1 <= one.qstart() && one.qended() <= end1
+                && start2 <= two.qstart() && two.qended() <= end2;
+        return one.reference == references[ref1]
+            && two.reference == references[ref2]
+            && start1 <= one.qstart() && one.qended() <= end1
+            && start2 <= two.qstart() && two.qended() <= end2;
+    }
+    
+    int betterFit(AlignmentShort const &a1, AlignmentShort const &a2, AlignmentShort const &b1, AlignmentShort const &b2) const
+    {
+        if (isUngapped()) {
+            auto const fla = a2.qended() - a1.qstart();
+            auto const flb = b2.qended() - b1.qstart();
+            auto const Ta = std::abs(fla - average) / (std_dev == 0.0 ? 1.0 : std_dev);
+            auto const Tb = std::abs(flb - average) / (std_dev == 0.0 ? 1.0 : std_dev);
+            if (Ta < Tb) return 1;
+            if (Tb < Ta) return 2;
         }
-        
-        ///* these functions below are ONLY valid after statistics have been gathered
-        double pileUpDepth(int readNo) const {
-            auto const n = length.count();
-            auto const start = readNo == 1 ? start1 : start2;
-            auto const end = readNo == 1 ? end1 : end2;
-            auto const avglen = readNo == 1 ? qlength1.average() : qlength2.average();
-            auto const slope = n / (end - start - avglen);
-            return slope * avglen;
-        }
-        double coverage() const {
-            if (isGapless()) {
-                auto const n = length.count();
-                auto const start = start1;
-                auto const end = end2;
-                auto const avglen = length.average();
-                auto const slope = n / (end - start - avglen);
-                auto const fcov = slope * avglen;
-                auto const conv = (qlength1.average() + qlength2.average()) / avglen;
-                return fcov * conv;
-            }
-            return (pileUpDepth(1) + pileUpDepth(2)) / 2.0;
-        }
-    };
-    std::vector<stat> stats;
-    std::vector<decltype(stats.size())> refIndex;
+        return 0;
+    }
+    
+    ///* these functions below are ONLY valid after statistics have been gathered
+    double averageCoverage() const {
+        assert(qlength1.count() == qlength2.count() && qlength2.count() == length.count());
+        auto const width = (end1 - start1) + (end2 - start2);
+        auto const bases = (qlength1.average() + qlength2.average()) * length.count();
+        return bases / width;
+    }
+};
 
-    std::vector<stat>::const_iterator end() const { return stats.end(); }
-    std::vector<stat>::const_iterator find_start_of(unsigned ref, int start) const {
-        auto const beg = stats.begin() + refIndex[ref];
+struct Contigs {
+    std::vector<Contig> stats;
+    std::vector<unsigned> refIndex;
+
+    std::vector<Contig>::const_iterator end() const { return stats.end(); }
+    template <typename F>
+    void forEachIntersecting(unsigned ref, int start, F func) const {
+        auto const first = stats.begin() + refIndex[ref];
+        if (first == stats.end()) return;
+        assert(first->ref1 == ref);
         auto const end = stats.begin() + refIndex[ref + 1];
-        auto const upper = std::upper_bound(beg, end, start, [](int v, stat const &a) { return v < a.start1; });
-        if (upper != end)
-            return upper - upper->window;
-        return (upper - 1) - (upper - 1)->window;
+        auto const upper = std::upper_bound(first, end, start, [](int v, Contig const &a) { return v < a.start1; });
+        auto const beg = (upper != end) ? (upper - upper->window) : ((upper - 1) - (upper - 1)->window);
+        for (auto i = beg; i != upper; ++i) {
+            func(*i);
+        }
     }
     void generateRefIndex() {
-        int lastRef = -1;
-        refIndex.clear();
-        for (auto i = 0; i < stats.size(); ++i) {
-            if (stats[i].ref1 != lastRef) {
-                lastRef = stats[i].ref1;
-                refIndex.push_back(i);
-            }
+        std::map<unsigned, unsigned> first;
+        unsigned index = 0;
+        for (auto && i : stats) {
+            first.insert({i.ref1, index});
+            ++index;
         }
-        refIndex.push_back(stats.size());
+        auto const refMax = first.rbegin()->first;
+        refIndex.clear();
+        refIndex.resize(refMax + 2, index);
+        for (auto && i : first) {
+            refIndex[i.first] = i.second;
+        }
     }
     void generateWindow() {
         for (auto i = stats.begin(); i != stats.end(); ++i) {
             i->window = 0;
         }
         for (auto i = stats.begin(); i != stats.end(); ++i) {
-            auto const end = i->isGapless() ? i->end2 : i->end1;
+            auto const end = i->isUngapped() ? i->end2 : i->end1;
             unsigned window = 0;
             for (auto j = i; j != stats.end() && j->ref1 == i->ref1; ++j, ++window) {
                 j->window = std::max(j->window, window);
@@ -198,346 +230,443 @@ struct ContigStats {
         return rslt;
     }
 
-    bool cleanup() {
-        auto changed = false;
+    bool cleanup(ContigArray &spots) {
         auto clean = decltype(stats)();
+        auto change = std::map<ContigArray::Element, ContigArray::Element>();
         clean.reserve(stats.size());
         for (auto && i : stats) {
-            if (i.length.count() < 5.0 || i.coverage() < 5.0) continue;
-            
-            stat o = i;
-            o.sourceRow = clean.size() + 1;
-            
-            // copy over new stats
-            changed |= o.count != i.length.count();
-            o.count = i.length.count();
-            o.average = i.length.average();
-            o.std_dev = sqrt(i.length.variance());
+            Contig o = i;
+            bool const lostAlignments = i.count > i.length.count();
 
-            // reset stats
-            o.length = StatisticsAccumulator();
-            o.rlength1 = StatisticsAccumulator();
-            o.rlength2 = StatisticsAccumulator();
-            o.qlength1 = StatisticsAccumulator();
-            o.qlength2 = StatisticsAccumulator();
+            o.sourceRow = 0;
+            if (i.length.count() >= 5.0 && i.averageCoverage() >= 5.0) {
+                o.sourceRow = (unsigned)(clean.size() + 1);
+                
+                // copy over new stats
+                o.count = i.length.count();
+                o.average = i.length.average();
+                o.std_dev = sqrt(i.length.variance());
 
-            clean.emplace_back(o);
+                if (lostAlignments) {
+                    // reset stats
+                    o.length = StatisticsAccumulator();
+                    o.rlength1 = StatisticsAccumulator();
+                    o.rlength2 = StatisticsAccumulator();
+                    o.qlength1 = StatisticsAccumulator();
+                    o.qlength2 = StatisticsAccumulator();
+                }
+                clean.emplace_back(o);
+            }
+            if (o.sourceRow == 0 || lostAlignments) {
+                change[i.sourceRow] = unassignedContig; ///< any spots which had aligned to this contig will need to be re-evaluated
+            }
+            else if (o.sourceRow != i.sourceRow) {
+                change[i.sourceRow] = o.sourceRow; ///< any spots which had aligned to this contig will need to be updated with the new contig id
+            }
         }
-        changed |= stats.size() != clean.size();
+        if (change.size() > 0) {
+            for (auto && i : spots) {
+                auto const ch = change.find(i);
+                if (ch != change.end())
+                    i = ch->second;
+            }
+        }
         stats.swap(clean);
         generateWindow();
         generateRefIndex();
-        return changed;
+        return change.size() != 0;
     }
 
-    void adjustMapulets() {
+    void computeGaps() {
         auto median = groupMedians();
         for (auto && i : stats) {
             if (i.mapulet) {
-                mapulets[i.mapulet].count = i.length.count();
-                if (mapulets[i.mapulet].count == 0) continue;
+                auto const m = i.mapulet;
+                mapulets[m].count = i.length.count();
+                if (mapulets[m].count == 0) continue;
                 
                 auto const length = i.length.average();
                 auto const median_length = median[i.group].average();
+                // minimum length + gap length >= sum(maximum read lengths)
+                auto const mingap = (i.qlength1.maximum() + i.qlength2.maximum()) - i.length.minimum();
                 // average length + gap length = median length (roughly)
                 auto const gap = median_length < length ? -ceil(length - median_length) : ceil(median_length - length);
-                mapulets[i.mapulet].gap = gap;
+                mapulets[m].gap = gap;
+                mapulets[m].mingap = mingap < 0 ? 0 : ceil(mingap);
             }
         }
     }
     
-    static ContigStats load(VDB::Database const &db) {
-        ContigStats result;
+    static Contigs load(VDB::Database const &db) {
         auto const tbl = db["CONTIGS"];
         auto const curs = tbl.read({ "REFERENCE_1", "START_1", "END_1", "REFERENCE_2", "START_2", "END_2", "READ_GROUP", "COUNT" });
         auto const range = curs.rowRange();
-        
-        result.stats.reserve(range.second - range.first);
-        for (auto row = range.first; row < range.second; ++row) {
-            auto count = curs.read(row, 8).value<uint32_t>();
+        auto result = Contigs();
+
+        result.stats.reserve(range.count());
+        curs.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &data) {
+            Contig o = { (unsigned)row, 0, 0 };
             
-            stat o = { row, 0, count };
+            o.ref1 = references[data[0].string()];
+            o.start1 = data[1].value<int32_t>();
+            o.end1 = data[2].value<int32_t>();
             
-            o.ref1 = references[curs.read(row, 1).string()];
-            o.start1 = curs.read(row, 2).value<int32_t>();
-            o.end1 = curs.read(row, 3).value<int32_t>();
-            
-            o.ref2 = references[curs.read(row, 4).string()];
-            o.start2 = curs.read(row, 5).value<int32_t>();
-            o.end2 = curs.read(row, 6).value<int32_t>();
-            
+            o.ref2 = references[data[3].string()];
+            o.start2 = data[4].value<int32_t>();
+            o.end2 = data[5].value<int32_t>();
+
             if (o.ref2 == o.ref1 && o.start2 < o.end1)
                 o.start2 = o.end1 = 0;
             else if (o.end1 != 0 && o.start2 != 0)
                 o.mapulet = createMapulet(o.ref1, o.start1, o.end1, o.ref2, o.start2, o.end2);
 
-            o.group = groups[curs.read(row, 7).string()];
+            o.group = groups[data[6].string()];
             
             result.stats.emplace_back(o);
-        }
+        });
+        std::sort(result.stats.begin(), result.stats.end(), [](Contig const &a, Contig const &b) {
+            if (a.ref1 < b.ref1) return true;
+            if (b.ref1 < a.ref1) return false;
+            if (a.start1 < b.start1) return true;
+            return false;
+        });
         result.generateRefIndex();
         result.generateWindow();
         return result;
     }
-};
-
-struct BestAlignment {
-    decltype(ContigStats::stats)::const_iterator contig;
-    decltype(Fragment::detail)::const_iterator a, b;
-    int pos1, pos2;
-    int fragmentLength;
     
-    bool isBetterThan(BestAlignment const &other) const
+    static void addTableTo(Writer2 &writer) {
+        writer.addTable("CONTIGS", {
+                            { "REFERENCE", sizeof(char) },
+                            { "START", sizeof(int32_t) },
+                            { "END", sizeof(int32_t) },
+                            
+                            { "SEQ_LENGTH_AVERAGE", sizeof(float) },
+                            { "SEQ_LENGTH_STD_DEV", sizeof(float) },
+                            { "REF_LENGTH_AVERAGE", sizeof(float) },
+                            { "REF_LENGTH_STD_DEV", sizeof(float) },
+                            
+                            { "FRAGMENT_COUNT", sizeof(uint32_t) },
+                            { "FRAGMENT_LENGTH_AVERAGE", sizeof(float) },
+                            { "FRAGMENT_LENGTH_STD_DEV", sizeof(float) },
+                            { "READ_GROUP", sizeof(char) },
+                            
+                            { "REFERENCE_1", sizeof(char) },
+                            { "START_1", sizeof(int32_t) },
+                            { "END_1", sizeof(int32_t) },
+                            { "GAP", sizeof(int32_t) },
+                            { "MIN_GAP", sizeof(int32_t) },
+                            { "REFERENCE_2", sizeof(char) },
+                            { "START_2", sizeof(int32_t) },
+                            { "END_2", sizeof(int32_t) },
+                        });
+    }
+
+    void write(Writer2 const &out) const
     {
-        auto const &a = *this;
-        auto const &b = other;
-        auto const aIsSameRef = a.contig->ref1 == a.contig->ref2;
-        auto const bIsSameRef = b.contig->ref1 == b.contig->ref2;
+        auto const table = out.table("CONTIGS");
+        auto const REF = table.column("REFERENCE");
+        auto const STR = table.column("START");
+        auto const END = table.column("END");
+        auto const SEQ_LENGTH_AVERAGE = table.column("SEQ_LENGTH_AVERAGE");
+        auto const SEQ_LENGTH_STD_DEV = table.column("SEQ_LENGTH_STD_DEV");
+        auto const REF_LENGTH_AVERAGE = table.column("REF_LENGTH_AVERAGE");
+        auto const REF_LENGTH_STD_DEV = table.column("REF_LENGTH_STD_DEV");
+        auto const COUNT = table.column("FRAGMENT_COUNT");
+        auto const AVERAGE = table.column("FRAGMENT_LENGTH_AVERAGE");
+        auto const STD_DEV = table.column("FRAGMENT_LENGTH_STD_DEV");
+        auto const GROUP = table.column("READ_GROUP");
         
-        auto aScore = 0;
-        auto bScore = 0;
+        auto const REF_1 = table.column("REFERENCE_1");
+        auto const STR_1 = table.column("START_1");
+        auto const END_1 = table.column("END_1");
+        auto const GAP = table.column("GAP");
+        auto const MIN_GAP = table.column("MIN_GAP");
+        auto const REF_2 = table.column("REFERENCE_2");
+        auto const STR_2 = table.column("START_2");
+        auto const END_2 = table.column("END_2");
         
-        auto const a_qlength = a.a->cigar.qlength + a.b->cigar.qlength
-                             - (a.a->cigar.qclip + a.a->cigar.qfirst + a.b->cigar.qclip + a.b->cigar.qfirst);
-        auto const b_qlength = b.a->cigar.qlength + b.b->cigar.qlength
-                             - (b.a->cigar.qclip + b.a->cigar.qfirst + b.b->cigar.qclip + b.b->cigar.qfirst);
-
-        if (a.contig->isGapless())              aScore += 8;
-        if (aIsSameRef)                         aScore += 4;
-        if (a.contig->count > b.contig->count)  aScore += 2;
-        if (a_qlength > b_qlength)              aScore += 1;
-
-        if (b.contig->isGapless())              bScore += 8;
-        if (bIsSameRef)                         bScore += 4;
-        if (b.contig->count > a.contig->count)  bScore += 2;
-        if (b_qlength > a_qlength)              bScore += 1;
-
-        if (aIsSameRef && bIsSameRef && a.contig->std_dev > 0 && b.contig->std_dev > 0) {
-            auto const aStDev = a.contig->std_dev;
-            auto const bStDev = b.contig->std_dev;
-            auto const aAvg = a.contig->average;
-            auto const bAvg = b.contig->average;
-            auto const aT = std::abs(a.fragmentLength - aAvg) / aStDev;
-            auto const bT = std::abs(b.fragmentLength - bAvg) / bStDev;
+        float qlength_average[2];
+        float qlength_std_dev[2];
+        float rlength_average[2];
+        float rlength_std_dev[2];
+        
+        for (auto && i : stats) {
+            if (i.length.count() == 0) continue;
             
-            if (aT < bT) aScore += 16;
-            if (bT < aT) bScore += 16;
+            qlength_average[0] = i.qlength1.average();
+            qlength_std_dev[0] = sqrt(i.qlength1.variance());
+            qlength_average[1] = i.qlength2.average();
+            qlength_std_dev[1] = sqrt(i.qlength2.variance());
+            
+            rlength_average[0] = i.rlength1.average();
+            rlength_std_dev[0] = sqrt(i.rlength1.variance());
+            rlength_average[1] = i.rlength2.average();
+            rlength_std_dev[1] = sqrt(i.rlength2.variance());
+            
+            SEQ_LENGTH_AVERAGE.setValue(2, qlength_average);
+            SEQ_LENGTH_STD_DEV.setValue(2, qlength_std_dev);
+            
+            REF_LENGTH_AVERAGE.setValue(2, rlength_average);
+            REF_LENGTH_STD_DEV.setValue(2, rlength_std_dev);
+            
+            COUNT.setValue(uint32_t(i.length.count()));
+            STD_DEV.setValue(float(sqrt(i.length.variance())));
+            GROUP.setValue(groups[i.group]);
+            
+            if (i.mapulet == 0) {
+                REF.setValue(references[i.ref1]);
+                STR.setValue(int32_t(i.start1));
+                END.setValue(int32_t(i.end2));
+                AVERAGE.setValue(float(i.length.average()));
+                
+                REF_1.setValueEmpty();
+                STR_1.setValueEmpty();
+                END_1.setValueEmpty();
+                GAP.setValueEmpty();
+                MIN_GAP.setValueEmpty();
+                REF_2.setValueEmpty();
+                STR_2.setValueEmpty();
+                END_2.setValueEmpty();
+            }
+            else {
+                auto const &mapulet = mapulets[i.mapulet];
+                REF.setValueEmpty();
+                STR.setValue(int32_t(0));
+                END.setValue(int32_t((i.end1 - i.start1) + mapulet.gap + (i.end2 - i.start2)));
+                AVERAGE.setValue(float(i.length.average() + mapulet.gap));
+                
+                REF_1.setValue(references[i.ref1]);
+                STR_1.setValue(int32_t(i.start1));
+                END_1.setValue(int32_t(i.end1));
+                GAP.setValue(int32_t(mapulet.gap));
+                MIN_GAP.setValue(int32_t(mapulet.mingap));
+                REF_2.setValue(references[i.ref2]);
+                STR_2.setValue(int32_t(i.start2));
+                END_2.setValue(int32_t(i.end2));
+            }
+            table.closeRow();
         }
-        return aScore > bScore;
     }
 };
 
-std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment, ContigStats const &contigs, unsigned const group, bool simple)
-{
-    struct alignment {
-        decltype(fragment.detail.cbegin()) mom;
-        int pos, end;
-        decltype(references[fragment.detail[0].reference]) ref;
-        
-        alignment(decltype(fragment.detail.cbegin()) mom, decltype(ref) ref) : mom(mom), ref(ref) {
-            pos = mom->qstart();
-            end = mom->qended();
-        }
-    };
-    std::vector<BestAlignment> rslt;
-    auto const add = [&](alignment const &a, alignment const &b) -> void {
-        auto const fragmentLength = a.ref == b.ref ? (b.end - a.pos) : 0;
-        auto const beg = contigs.find_start_of(a.ref, a.pos);
-        auto const end = advanceUntil(beg, [&](decltype(beg) i) {
-            return i == contigs.end()
-                || i->ref1 != a.ref
-                || i->start1 > a.pos;
-        });
-        for (auto i = beg; i != end; ++i) {
-            if (i->group == group
-                && i->ref2 == b.ref
-                && b.end <= i->end2
-                && (i->isGapless() || i->start2 <= b.pos))
-            {
-                rslt.emplace_back(BestAlignment { i, a.mom, b.mom, a.pos, b.pos, fragmentLength });
-            }
-        }
-    };
+struct AlignedPair {
+    Contig const *contig;
+    Alignment const *a;
+    Alignment const *b;
+    int fragmentLength;
     
-    rslt.reserve(1);
-    if (simple) {
-        auto one = fragment.detail.begin();
-        auto two = one + 1;
-        decltype(references[one->reference]) ref1, ref2;
+    bool isSameRef() const {
+        return contig->ref1 == contig->ref2;
+    }
+    int alignedLength() const {
+        return a->cigar.alignedLength() + b->cigar.alignedLength();
+    }
+    double Tscore() const {
+        return (isSameRef() && contig->std_dev > 0.0) ? std::abs(fragmentLength - contig->average) / contig->std_dev : -1.0;
+    }
 
-        assert(one->readNo == 1 && one->aligned);
-        assert(two->readNo == 2 && two->aligned);
-        if (references.contains(one->reference, ref1)
-            && references.contains(two->reference, ref2))
-        {
-            auto const a1 = alignment(one, ref1);
-            auto const a2 = alignment(two, ref2);
-            if ((a1.pos <= a2.pos && ref1 == ref2) || one->reference < two->reference)
+    static std::vector<AlignedPair> candidates(Fragment const &fragment, Contigs const &contigs, unsigned const group, bool simple)
+    {
+        struct alignment {
+            Alignment const *mom;
+            int pos, end;
+            unsigned ref;
+            
+            alignment(Alignment const *mom) : mom(mom) {
+                if (!references.contains(mom->reference, ref))
+                    throw std::logic_error("");
+                pos = mom->qstart();
+                end = mom->qended();
+            }
+            bool operator <(alignment const &other) const {
+                return (ref == other.ref) ? (pos < other.pos) : (ref < other.ref);
+            }
+            bool isContainedByFirst(Contig const &contig) const {
+                auto const cend = contig.isUngapped() ? contig.end2 : contig.end1;
+                return ref == contig.ref1 && contig.start1 <= pos && end <= cend;
+            }
+            bool isContainedBySecond(Contig const &contig) const {
+                auto const start = contig.isUngapped() ? contig.start1 : contig.start2;
+                return ref == contig.ref2 && start <= pos && end <= contig.end2;
+            }
+        };
+        std::vector<AlignedPair> rslt;
+        auto const add = [&](alignment const &a, alignment const &b) -> void {
+            auto const fragmentLength = (b.ref == a.ref) ? (b.end - a.pos) : 0;
+
+            contigs.forEachIntersecting(a.ref, a.pos, [&](Contig const &i) ->void {
+                if (i.group == group && a.isContainedByFirst(i) && b.isContainedBySecond(i))
+                    rslt.emplace_back(AlignedPair { &i, a.mom, b.mom, fragmentLength });
+            });
+        };
+        
+        rslt.reserve(2);
+        if (simple) {
+            auto one = fragment.detail.begin();
+            auto two = one + 1;
+            
+            assert(one->readNo == 1 && one->aligned);
+            assert(two->readNo == 2 && two->aligned);
+
+            auto const a1 = alignment(&(*one));
+            auto const a2 = alignment(&(*two));
+            if (a1 < a2)
                 add(a1, a2);
             else
                 add(a2, a1);
         }
-    }
-    else {
-        auto const &alignments = fragment.detail;
-        
-        for (auto one = alignments.begin(); one < alignments.end(); ++one) {
-            decltype(references[one->reference]) ref1;
+        else {
+            auto const &alignments = fragment.detail;
             
-            if (one->readNo != 1 || one->aligned == false) continue;
-            if (!references.contains(one->reference, ref1)) continue;
-            
-            auto const a1 = alignment(one, ref1);
-            
-            for (auto two = alignments.begin(); two < alignments.end(); ++two) {
-                decltype(references[one->reference]) ref2;
+            for (auto one = alignments.begin(); one < alignments.end(); ++one) {
+                if (one->readNo != 1 || one->aligned == false) continue;
                 
-                if (two->readNo != 2 || two->aligned == false) continue;
-                if (!references.contains(two->reference, ref2)) continue;
+                auto const a1 = alignment(&(*one));
                 
-                auto const a2 = alignment(two, ref2);
-                if ((a1.pos <= a2.pos && ref1 == ref2) || one->reference < two->reference)
-                    add(a1, a2);
-                else
-                    add(a2, a1);
+                for (auto two = alignments.begin(); two < alignments.end(); ++two) {
+                    if (two->readNo != 2 || !one->isGoodAlignedPair(*two)) continue;
+                    
+                    auto const a2 = alignment(&(*two));
+                    if (a1 < a2)
+                        add(a1, a2);
+                    else
+                        add(a2, a1);
+                }
             }
         }
+        return rslt;
     }
-    std::sort(rslt.begin(), rslt.end(), [](BestAlignment const &a, BestAlignment const &b) { return a.isBetterThan(b); });
-    return rslt;
-}
 
-static BestAlignment bestPair(Fragment const &fragment, ContigStats const &contigs, int const loopNumber, unsigned const group)
+    static AlignedPair bestSpotAlignment(Fragment const &fragment, Contigs const &contigs, int const loopNumber, unsigned const group)
+    {
+        AlignedPair result = { nullptr, nullptr, nullptr, 0 };
+        
+        if (fragment.numberOfReads() == 2) {
+            auto const n1 = fragment.countOfAlignments(1);
+            auto const n2 = fragment.countOfAlignments(2);
+            
+            if (n1 == 0 || n2 == 0)
+                ;
+            else {
+                auto v = candidates(fragment, contigs, group, n1 == 1 && n2 == 1);
+                if (v.size() == 0 && loopNumber == 1) {
+                    std::cerr << fragment << std::endl;
+                    throw std::logic_error("no fully-aligned spots should be dropped on the first pass!");
+                }
+                if (v.size() > 1) {
+                    std::sort(v.begin(), v.end(), [](AlignedPair const &a, AlignedPair const &b) {
+                        auto const aT = a.Tscore();
+                        auto const bT = b.Tscore();
+                        auto const a_qlength = a.alignedLength();
+                        auto const b_qlength = b.alignedLength();
+                        
+                        auto aScore = (aT >= 0.0 && bT >= 0.0 && aT < bT ? 16 : 0)
+                                    | (a.contig->isUngapped()             ?  8 : 0)
+                                    | (a.isSameRef()                     ?  4 : 0)
+                                    | (a.contig->count > b.contig->count ?  2 : 0)
+                                    | (a_qlength > b_qlength             ?  1 : 0);
+                        
+                        auto bScore = (aT >= 0.0 && bT >= 0.0 && bT < aT ? 16 : 0)
+                                    | (b.contig->isUngapped()             ?  8 : 0)
+                                    | (b.isSameRef()                     ?  4 : 0)
+                                    | (b.contig->count > a.contig->count ?  2 : 0)
+                                    | (b_qlength > a_qlength             ?  1 : 0);
+                        
+                        return aScore < bScore;
+                    });
+                }
+                if (v.size() > 0)
+                    result = v.back();
+            }
+        }
+        return result;
+    }
+};
+
+static std::pair<int, int> bestPair(Fragment const &fragment, Contig const &contig)
 {
-    BestAlignment result = { contigs.end(), fragment.detail.end(), fragment.detail.end(), 0 };
-
+    using Result = std::pair<int, int>;
     if (fragment.numberOfReads() == 2) {
         auto const n1 = fragment.countOfAlignments(1);
         auto const n2 = fragment.countOfAlignments(2);
         
         if (n1 == 0 || n2 == 0)
             ;
+        else if (n1 == 1 && n2 == 1) {
+            // since each read has only 1 alignment, there is only one alignment for the fragment
+            auto const &one = fragment.detail[0];
+            auto const &two = fragment.detail[1];
+            
+            if ((one.reference == two.reference && one.position > two.position) || one.reference > two.reference)
+                return Result(1, 0);
+            else
+                return Result(0, 1);
+        }
         else {
-            std::vector<BestAlignment> all = candidateFragmentAlignments(fragment, contigs, group, n1 == 1 && n2 == 1);
-            if (!all.empty())
-                result = all.front();
-            else if (loopNumber == 1) {
-                std::cerr << fragment << std::endl;
-                throw std::logic_error("no fully-aligned spots should be dropped on the first pass!");
+            std::vector<Result> v;
+            auto j2 = 0;
+            for (j2 = 0; j2 < fragment.detail.size(); ++j2) {
+                if (fragment.detail[j2].readNo == 2) break;
             }
+            for (auto i = 0; i < fragment.detail.size(); ++i) {
+                if (fragment.detail[i].readNo != 1) break;
+                if (!fragment.detail[i].aligned) continue;
+                for (auto j = j2; j < fragment.detail.size(); ++j) {
+                    if (!fragment.detail[i].isGoodAlignedPair(fragment.detail[j])) continue;
+                    
+                    auto const rev = (fragment.detail[j].reference == fragment.detail[i].reference && fragment.detail[j].position < fragment.detail[i].position) || fragment.detail[j].reference < fragment.detail[i].reference;
+                    auto const &one = fragment.detail[rev ? j : i];
+                    auto const &two = fragment.detail[rev ? i : j];
+                    if (contig.contains(one, two))
+                        v.emplace_back(Result(rev ? j : i, rev ? i : j));
+                }
+            }
+            assert(v.size() > 0);
+            if (v.size() > 1) {
+                if (contig.isUngapped()) {
+                    std::sort(v.begin(), v.end(), [&](decltype(v)::const_reference a, decltype(a) b) {
+                        auto const &a1 = fragment.detail[a.first];
+                        auto const &a2 = fragment.detail[a.second];
+                        auto const &b1 = fragment.detail[b.first];
+                        auto const &b2 = fragment.detail[b.second];
+                        auto const cmp = contig.betterFit(a1, a2, b1, b2);
+                        if (cmp == 1) return true;
+                        return false;
+                    });
+                }
+                else {
+                    std::cerr << "warn: randomly choosing an alignment for fragment" << fragment.name << " to contig " << contig.sourceRow << std::endl;
+                    std::random_shuffle(v.begin(), v.end());
+                }
+            }
+            return v.front();
         }
     }
-    return result;
-}
-
-static void writeContigs(Writer2 const &out, std::vector<ContigStats::stat> const &contigs)
-{
-    auto const table = out.table("CONTIGS");
-    auto const REF = table.column("REFERENCE");
-    auto const STR = table.column("START");
-    auto const END = table.column("END");
-    auto const SEQ_LENGTH_AVERAGE = table.column("SEQ_LENGTH_AVERAGE");
-    auto const SEQ_LENGTH_STD_DEV = table.column("SEQ_LENGTH_STD_DEV");
-    auto const REF_LENGTH_AVERAGE = table.column("REF_LENGTH_AVERAGE");
-    auto const REF_LENGTH_STD_DEV = table.column("REF_LENGTH_STD_DEV");
-    auto const COUNT = table.column("FRAGMENT_COUNT");
-    auto const AVERAGE = table.column("FRAGMENT_LENGTH_AVERAGE");
-    auto const STD_DEV = table.column("FRAGMENT_LENGTH_STD_DEV");
-    auto const GROUP = table.column("READ_GROUP");
-    
-    auto const REF_1 = table.column("REFERENCE_1");
-    auto const STR_1 = table.column("START_1");
-    auto const END_1 = table.column("END_1");
-    auto const GAP = table.column("GAP");
-    auto const REF_2 = table.column("REFERENCE_2");
-    auto const STR_2 = table.column("START_2");
-    auto const END_2 = table.column("END_2");
-
-    float qlength_average[2];
-    float qlength_std_dev[2];
-    float rlength_average[2];
-    float rlength_std_dev[2];
-    
-    for (auto && i : contigs) {
-        if (i.length.count() == 0) continue;
-        
-        qlength_average[0] = i.qlength1.average();
-        qlength_std_dev[0] = sqrt(i.qlength1.variance());
-        qlength_average[1] = i.qlength2.average();
-        qlength_std_dev[1] = sqrt(i.qlength2.variance());
-
-        rlength_average[0] = i.rlength1.average();
-        rlength_std_dev[0] = sqrt(i.rlength1.variance());
-        rlength_average[1] = i.rlength2.average();
-        rlength_std_dev[1] = sqrt(i.rlength2.variance());
-
-        SEQ_LENGTH_AVERAGE.setValue(2, qlength_average);
-        SEQ_LENGTH_STD_DEV.setValue(2, qlength_std_dev);
-
-        REF_LENGTH_AVERAGE.setValue(2, rlength_average);
-        REF_LENGTH_STD_DEV.setValue(2, rlength_std_dev);
-        
-        COUNT.setValue(uint32_t(i.length.count()));
-        STD_DEV.setValue(float(sqrt(i.length.variance())));
-        GROUP.setValue(groups[i.group]);
-
-        if (i.mapulet == 0) {
-            REF.setValue(references[i.ref1]);
-            STR.setValue(int32_t(i.start1));
-            END.setValue(int32_t(i.end2));
-            AVERAGE.setValue(float(i.length.average()));
-
-            REF_1.setValueEmpty();
-            STR_1.setValueEmpty();
-            END_1.setValueEmpty();
-            GAP.setValueEmpty();
-            REF_2.setValueEmpty();
-            STR_2.setValueEmpty();
-            END_2.setValueEmpty();
-        }
-        else {
-            auto const &mapulet = mapulets[i.mapulet];
-            REF.setValueEmpty();
-            STR.setValue(int32_t(0));
-            END.setValue(int32_t((i.end1 - i.start1) + mapulet.gap + (i.end2 - i.start2)));
-            AVERAGE.setValue(float(i.length.average() + mapulet.gap));
-
-            REF_1.setValue(references[i.ref1]);
-            STR_1.setValue(int32_t(i.start1));
-            END_1.setValue(int32_t(i.end1));
-            GAP.setValue(int32_t(mapulet.gap));
-            REF_2.setValue(references[i.ref2]);
-            STR_2.setValue(int32_t(i.start2));
-            END_2.setValue(int32_t(i.end2));
-        }
-        table.closeRow();
-    }
+    return Result(-1, -1);
 }
 
 struct QualityStats {
-    struct Key {
-        unsigned group, read, cycle;
-        int quality;
-        bool operator <(Key const &rhs) const {
-            if (group < rhs.group) return true;
-            if (group > rhs.group) return false;
-            if (read < rhs.read) return true;
-            if (read > rhs.read) return false;
-            if (cycle < rhs.cycle) return true;
-            if (cycle > rhs.cycle) return false;
-            return quality < rhs.quality;
-        }
-    };
-    std::map<Key, uint64_t> stats;
-    
+private:
+    using InnerStats = std::map<uint32_t, uint64_t>;
+    std::map<uint32_t, InnerStats> stats;
+
+    InnerStats &getInner(unsigned group, unsigned read) {
+        auto const key = (uint32_t(group) << 8) | uint8_t(read);
+        auto i = stats.find(key);
+        if (i != stats.end()) return i->second;
+        return stats.insert(std::make_pair(key, InnerStats())).first->second;
+    }
+public:
     void add(unsigned group, unsigned read, bool reversed, std::string const &quality) {
+        auto &m = getInner(group, read);
         auto const last = quality.length() - 1;
         auto I = 0;
         for (auto && phred : quality) {
             auto i = I++;
             auto const cycle = reversed ? (last - i) : i;
-            auto const key = Key({ group, read, unsigned(cycle), int(phred) });
-            auto const j = stats.insert(std::make_pair(key, 0));
+            auto const key = (uint32_t(cycle) << 8) | uint8_t(phred);
+            auto const j = m.insert(std::make_pair(key, 0));
             j.first->second += 1;
         }
     }
@@ -548,46 +677,130 @@ struct QualityStats {
         auto const READNO = table.column("READNO");
         auto const CYCLE = table.column("READ_CYCLE");
         auto const QUALITY = table.column("QUALITY");
-        auto const FREQUENCY = table.column("FREQUENCY");
-        auto count = decltype(stats)();
-        
+        auto const COUNT = table.column("COUNT");
+
         for (auto && i : stats) {
-            auto const key = decltype(i.first)({ i.first.group, i.first.read, i.first.cycle, 0 });
-            auto const j = count.insert(std::make_pair(key, 0));
-            j.first->second += i.second;
-        }
-        for (auto && i : stats) {
-            auto const key = decltype(i.first)({ i.first.group, i.first.read, i.first.cycle, 0 });
-            auto const freq = double(i.second) / count[key];
-            auto const &readGroup = groups[i.first.group];
+            auto const &readGroup = groups[i.first >> 8];
+            auto const readNo = int32_t(i.first & 0xFF);
             
-            READ_GROUP.setValue(readGroup);
-            READNO.setValue(int32_t(i.first.read));
-            CYCLE.setValue(uint32_t(i.first.cycle));
-            QUALITY.setValue(char(i.first.quality));
-            FREQUENCY.setValue(freq);
-            
+            for (auto && j : i.second) {
+                READ_GROUP.setValue<std::string>(readGroup);
+                READNO.setValue<int32_t>(readNo);
+                CYCLE.setValue<uint32_t>(j.first >> 8);
+                QUALITY.setValue<char>(j.first);
+                COUNT.setValue<uint64_t>(j.second);
+            }
             table.closeRow();
         }
     }
+    
+    static void addTableTo(Writer2 &writer) {
+        writer.addTable("QUALITY_STATISTICS", {
+            { "READ_GROUP", sizeof(char) },
+            { "READNO", sizeof(int32_t) },
+            { "READ_CYCLE", sizeof(uint32_t) },
+            { "QUALITY", sizeof(char) },
+            { "COUNT", sizeof(uint64_t) },
+        });
+    }
 };
 
-static int assemble(FILE *out, std::string const &data_run, std::string const &stats_run)
+static void assignContigs(ContigArray &contigIdArray, Fragment::Cursor const &fragments, Contigs &trialContigs, SpotArray const &spotArray)
 {
-    auto const mgr = VDB::Manager();
-    auto stats = ContigStats::load(mgr[stats_run]);
-    auto const inDb = mgr[data_run];
-    auto const in = Fragment::Cursor(inDb["RAW"]);
-    auto const quality = in.hasQuality();
+    auto const spots = spotArray.elements();
+    auto const range = fragments.rowRange();
+    auto loops = 0;
+    auto changed = false;
+    
+    std::cerr << "info: assigning alignments to trial contigs" << std::endl;
+    do {
+        size_t aligned = 0;
+        auto progress = ProgressTracker<10>(spots);
+
+        ++loops;
+        for (auto i = decltype(spots)(0); i < spots; ++i) {
+            if (loops > 1 && contigIdArray[i] == assignedToNone) {
+                goto REPORT_1;
+            }
+            if (loops == 1 || contigIdArray[i] == unassignedContig) {
+                auto row = spotArray[i];
+                auto const fragment = fragments.readShort(row, range.end());
+                auto const best = AlignedPair::bestSpotAlignment(fragment, trialContigs, loops, groups[fragment.group]);
+                if (best.contig != nullptr) {
+                    ++aligned;
+                    contigIdArray[i] = best.contig->sourceRow;
+                    best.contig->length.add(best.fragmentLength);
+                    best.contig->qlength1.add(best.a->cigar.qlength);
+                    best.contig->qlength2.add(best.b->cigar.qlength);
+                }
+                else {
+                    contigIdArray[i] = assignedToNone;
+                }
+            }
+            else {
+                ++aligned;
+            }
+        REPORT_1:
+            progress.current(i, [&](int cur) {
+                std::cerr << "prog: pass " << loops << ", analyzing, processed " << cur << "%" << std::endl;
+            });
+        }
+        std::cerr << "prog: pass " << loops << " done" << std::endl;
+        
+        auto const before = trialContigs.stats.size();
+        changed = trialContigs.cleanup(contigIdArray); ///< remove low coverage contigs
+        auto const after = trialContigs.stats.size();
+        std::cerr << "info: " << floor(100.0 * double(aligned)/spots) << "% aligned" << std::endl;
+        if (changed) {
+            auto const eliminated = int(floor((before - after) * 100.0 / before));
+            if (eliminated > 0)
+                std::cerr << "info: eliminated " << floor((before - after) * 100.0 / before) << "% candidate contiguous regions; reanalysing to get convergence" << std::endl;
+            else
+                std::cerr << "info: eliminated " << (before - after) << " candidate contiguous regions; reanalysing to get convergence" << std::endl;
+            if (loops >= 3)
+                std::cerr << "warn: convergence not achieved on pass " << loops << std::endl;
+        }
+    } while (changed);
+    std::cerr << "info: convergence achieved" << std::endl;
+}
+
+static int write(FILE *out, Fragment::Cursor const &fragments, Contigs &contigs, SpotArray const &spotArray, ContigArray &contigIdArray)
+{
+    auto const spots = spotArray.elements();
+    auto const range = fragments.rowRange();
+    auto const quality = fragments.hasQuality();
     auto qstats = QualityStats();
+    auto const &rejectColumns = quality
+    ? std::initializer_list<Writer2::ColumnDefinition> {
+            { "READ_GROUP", sizeof(char) },
+            { "NAME", sizeof(char) },
+            { "READNO", sizeof(int32_t) },
+            { "SEQUENCE", sizeof(char) },
+            { "QUALITY", sizeof(char) },
+            { "REFERENCE", sizeof(char) },
+            { "STRAND", sizeof(char) },
+            { "POSITION", sizeof(int32_t) },
+            { "CIGAR", sizeof(char) },
+            { "REJECT_REASON", sizeof(char) },
+        }
+    : std::initializer_list<Writer2::ColumnDefinition> {
+            { "READ_GROUP", sizeof(char) },
+            { "NAME", sizeof(char) },
+            { "READNO", sizeof(int32_t) },
+            { "SEQUENCE", sizeof(char) },
+            { "REFERENCE", sizeof(char) },
+            { "STRAND", sizeof(char) },
+            { "POSITION", sizeof(int32_t) },
+            { "CIGAR", sizeof(char) },
+            { "REJECT_REASON", sizeof(char) },
+        };
 
     auto writer = Writer2(out);
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:aligned");
     writer.info("assemble-fragments", "1.0.0");
 
-    writer.addTable(
-                    "FRAGMENTS", {
+    writer.addTable("FRAGMENTS", {
                         { "NAME", sizeof(char) },
                         { "LAYOUT", sizeof(char) },
                         { "POSITION", sizeof(int32_t) },
@@ -596,51 +809,14 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                         { "SEQUENCE", sizeof(char) },
                         { "CONTIG", sizeof(int64_t) },
                     });
-    writer.addTable(
-                    "REJECTS", {
-                        { "READ_GROUP", sizeof(char) },
-                        { "NAME", sizeof(char) },
-                        { "READNO", sizeof(int32_t) },
-                        { "SEQUENCE", sizeof(char) },
-                        { "REFERENCE", sizeof(char) },
-                        { "STRAND", sizeof(char) },
-                        { "POSITION", sizeof(int32_t) },
-                        { "CIGAR", sizeof(char) },
-                    });
-    writer.addTable(
-                    "CONTIGS", {
-                        { "REFERENCE", sizeof(char) },
-                        { "START", sizeof(int32_t) },
-                        { "END", sizeof(int32_t) },
-                        
-                        { "SEQ_LENGTH_AVERAGE", sizeof(float) },
-                        { "SEQ_LENGTH_STD_DEV", sizeof(float) },
-                        { "REF_LENGTH_AVERAGE", sizeof(float) },
-                        { "REF_LENGTH_STD_DEV", sizeof(float) },
-                        
-                        { "FRAGMENT_COUNT", sizeof(uint32_t) },
-                        { "FRAGMENT_LENGTH_AVERAGE", sizeof(float) },
-                        { "FRAGMENT_LENGTH_STD_DEV", sizeof(float) },
-                        { "READ_GROUP", sizeof(char) },
 
-                        { "REFERENCE_1", sizeof(char) },
-                        { "START_1", sizeof(int32_t) },
-                        { "END_1", sizeof(int32_t) },
-                        { "GAP", sizeof(int32_t) },
-                        { "REFERENCE_2", sizeof(char) },
-                        { "START_2", sizeof(int32_t) },
-                        { "END_2", sizeof(int32_t) },
-                    });
-    if (quality) {
-        writer.addTable(
-                        "QUALITY_STATISTICS", {
-                            { "READ_GROUP", sizeof(char) },
-                            { "READNO", sizeof(int32_t) },
-                            { "READ_CYCLE", sizeof(uint32_t) },
-                            { "QUALITY", sizeof(char) },
-                            { "FREQUENCY", sizeof(double) },
-                        });
-    }
+    writer.addTable("REJECTS", rejectColumns);
+
+    Contigs::addTableTo(writer);
+
+    if (quality)
+        QualityStats::addTableTo(writer);
+
     writer.beginWriting();
     writer.flush();
     
@@ -662,94 +838,61 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     auto const badPosition = badTable.column("POSITION");
     auto const badCIGAR = badTable.column("CIGAR");
     auto const badSequence = badTable.column("SEQUENCE");
-    
-    auto const range = in.rowRange();
-    auto const freq = (range.second - range.first) / 10.0;
-
-    int nextReport;
-    int loops;
-    
-    for (loops = 1; ; ++loops) {
-        decltype(range.first) aligned = 0, spots = 0;
-        nextReport = 1;
-
-        for (auto row = range.first; row < range.second; ) {
-            auto const fragment = in.readShort(row, range.second);
-            unsigned group;
-            if (!groups.contains(fragment.group, group)) continue;
-
-            auto const best = bestPair(fragment, stats, loops, group);
-            ++spots;
-            if (best.contig != stats.end()) {
-                ++aligned;
-                best.contig->length.add(best.fragmentLength);
-                best.contig->qlength1.add(best.a->cigar.qlength);
-                best.contig->qlength2.add(best.b->cigar.qlength);
-            }
-            if (nextReport * freq <= (row - range.first)) {
-                std::cerr << "prog: pass " << loops << ", analyzing, processed " << nextReport << "0%" << std::endl;
-                ++nextReport;
-            }
-        }
-        auto const before = stats.stats.size();
-        auto const changed = stats.cleanup(); ///< remove low coverage contigs
-        auto const after = stats.stats.size();
-        std::cerr << "info: " << floor(100.0 * double(aligned)/spots) << "% aligned" << std::endl;
-        if (changed) {
-            auto const eliminated = int(floor((before - after) * 100.0 / before));
-            if (eliminated > 0)
-                std::cerr << "info: eliminated " << floor((before - after) * 100.0 / before) << "% candidate contiguous regions; reanalysing to get convergence" << std::endl;
-            else
-                std::cerr << "info: eliminated " << (before - after) << " candidate contiguous regions; reanalysing to get convergence" << std::endl;
-            if (loops >= 3)
-                std::cerr << "warn: convergence not achieved on pass " << loops << std::endl;
-        }
-        else {
-            std::cerr << "info: convergence achieved" << std::endl;
-            break;
-        }
-    }
+    auto const reason = badTable.column("REJECT_REASON");
+    auto const &badQuality = quality ? badTable.column("QUALITY") : reason;
     
     auto good = int64_t(0);
     auto reject = int64_t(0);
+    auto progress = ProgressTracker<10>(spots);
 
-    nextReport = 1;
-    for (auto row = range.first; row < range.second; ) {
-        auto const fragment = in.read(row, range.second);
+    reason.setDefault<std::string>("too few corroborating alignments");
+
+    for (auto i = decltype(spots)(0); i < spots; ++i) {
+        auto row = spotArray[i];
+        auto const fragment = fragments.read(row, range.end());
+        auto const contigId = contigIdArray[i];
         unsigned group;
         if (!groups.contains(fragment.group, group)) continue;
-        
-        auto const best = bestPair(fragment, stats, 0, group);
-        if (best.a != fragment.detail.end() && best.b != fragment.detail.end()) {
-            auto &contig = *best.contig;
-            auto const &first = *best.a;
-            auto const &second = *best.b;
+
+        if (contigId != assignedToNone) {
+            assert(contigId != unassignedContig);
+            auto &contig = contigs.stats[contigId - 1];
+            auto const best = bestPair(fragment, contig);
+            auto const &first = fragment.detail[best.first];
+            auto const &second = fragment.detail[best.second];
             auto const layout = std::to_string(first.readNo) + first.strand + std::to_string(second.readNo) + second.strand; ///< encodes order and strand, e.g. "1+2-" or "2+1-" for normal Illumina
             auto const cigar = first.cigarString + "0P" + second.cigarString; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
             auto const best1 = fragment.bestIndex(first.readNo);
             auto const best2 = fragment.bestIndex(second.readNo);
             auto const sequence = fragment.detail[best1].sequence + fragment.detail[best2].sequence; ///< just concatenate them
-            auto const cut = contig.mapulet == 0 ? 0 : contig.ref1 == contig.ref2 ? (contig.start2 - contig.end1) : -((contig.end1 - first.position) + (second.position - contig.start2));
-            auto const pos = first.qstart() - contig.start1;
-            auto const len = best.fragmentLength - cut;
-
-            keepName.setValue(fragment.name);
-            keepLayout.setValue(layout);
-            keepCIGAR.setValue(cigar);
-            keepSequence.setValue(static_cast<std::string>(sequence));
-            keepContig.setValue(contig.sourceRow);
-            keepPosition.setValue(pos);
-            keepLength.setValue(len);
-
+            int32_t const pos = first.qstart() - contig.start1;
+            int32_t const len = contig.adjustedFragmentLength(first, second);
+            
+            if (!(sequence.length() <= len) && contig.isUngapped()) {
+                std::cerr << "fragment length: " << len << " is less than sequence length: " << sequence.length() << std::endl;
+                std::cerr << fragment;
+                if (fragment.detail.size() > 2) {
+                    std::cerr << "chosen fragment alignment is:\n" << first << '\n' << second << std::endl;
+                }
+                abort();
+            }
+            keepName.setValue<std::string>(fragment.name);
+            keepLayout.setValue<std::string>(layout);
+            keepCIGAR.setValue<std::string>(cigar);
+            keepSequence.setValue<std::string>(sequence);
+            keepContig.setValue<int64_t>(contig.sourceRow);
+            keepPosition.setValue<int32_t>(pos);
+            keepLength.setValue<int32_t>(len);
+            
             keepTable.closeRow();
             
-            ///* update statistics about contig
+            //* update statistics about contig
             contig.length.add(len);
             contig.qlength1.add(first.cigar.qlength);
             contig.qlength2.add(second.cigar.qlength);
             contig.rlength1.add(first.cigar.rlength);
             contig.rlength2.add(second.cigar.rlength);
-
+            
             if (quality) {
                 qstats.add(group, first.readNo, first.strand == '-', fragment.detail[best1].quality);
                 qstats.add(group, second.readNo, second.strand == '-', fragment.detail[best2].quality);
@@ -757,31 +900,31 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             ++good;
         }
         else {
-            ///* there's no good contig for this fragment; probably the coverage was too low
             for (auto && i : fragment.detail) {
-                badGroup.setValue(fragment.group);
-                badName.setValue(fragment.name);
-                badReadNo.setValue(i.readNo);
-                badRef.setValue(i.reference);
-                badStrand.setValue(i.strand);
-                badPosition.setValue(i.position);
-                badCIGAR.setValue(i.cigarString);
-                badSequence.setValue(static_cast<std::string>(i.sequence));
+                badGroup.setValue<std::string>(fragment.group);
+                badName.setValue<std::string>(fragment.name);
+                badReadNo.setValue<int32_t>(i.readNo);
+                badRef.setValue<std::string>(i.reference);
+                badStrand.setValue<char>(i.strand);
+                badPosition.setValue<int32_t>(i.position);
+                badCIGAR.setValue<std::string>(i.cigarString);
+                badSequence.setValue<std::string>(i.sequence);
+                if (quality)
+                    badQuality.setValue<std::string>(i.quality);
                 badTable.closeRow();
             }
             ++reject;
         }
-        while (nextReport * freq <= (row - range.first)) {
-            std::cerr << "prog: generating fragment alignments, processed " << nextReport << "0%" << std::endl;
-            ++nextReport;
-        }
+        progress.current(i, [](int pct) {
+            std::cerr << "prog: generating fragment alignments, processed " << pct << "%" << std::endl;
+        });
     }
     std::cerr << "info: generated " << good << " fragment alignments, rejected all alignments for " << reject << " fragments" << std::endl;
     std::cerr << "prog: adjusting virtual references" << std::endl;
-    stats.adjustMapulets(); ///< adjust for previously unknown gap, now that it's been computed
+    contigs.computeGaps(); ///< adjust for previously unknown gap, now that it's been computed
 
     std::cerr << "prog: writing reference and contiguous region info" << std::endl;
-    writeContigs(writer, stats.stats);
+    contigs.write(writer);
 
     if (quality) {
         std::cerr << "prog: writing quality statistics" << std::endl;
@@ -791,6 +934,44 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     writer.endWriting();
     std::cerr << "prog: DONE" << std::endl;
     return 0;
+}
+
+static int assemble(FILE *out, std::string const &data_run, std::string const &stats_run)
+{
+    auto const mgr = VDB::Manager();
+    auto contigs = Contigs::load(mgr[stats_run]); ///< this populates the list of spot groups too
+    auto const inDb = mgr[data_run];
+    auto const fragments = Fragment::Cursor(inDb["RAW"]);
+    auto const range = fragments.rowRange();
+    auto tmp = SpotArray(range.count()); ///< this is ~2x over-allocation, it will be resized
+    if (!tmp)
+        throw std::bad_alloc();
+    
+    std::cerr << "info: generating spot list" << std::endl;
+    size_t i = 0;
+    int nextReport = 1;
+    auto const freq = range.count() / 10.0;
+    
+    fragments.forEach([&](VDB::Cursor::RowRange const &spotRange, std::string const &group, std::string const &name) {
+        unsigned gid = 0;
+        if (groups.contains(group, &gid)) {
+            tmp[i] = spotRange.beg();
+            ++i;
+        }
+        if (nextReport * freq <= spotRange.end()) {
+            std::cerr << "prog: " << nextReport << "0%" << std::endl;
+            ++nextReport;
+        }
+    });
+    assert(i <= tmp.elements());
+
+    auto spotArray = tmp.resize(i); ///< free excess; this is likely to free 1/2 the space of the array
+    auto contigIdArray = ContigArray(i); ///< this will likely fit entirely into the just-free'd space
+    if (!spotArray || !contigIdArray)
+        throw std::bad_alloc();
+
+    assignContigs(contigIdArray, fragments, contigs, spotArray);
+    return write(out, fragments, contigs, spotArray, contigIdArray);
 }
 
 namespace assembleFragments {
@@ -806,8 +987,8 @@ namespace assembleFragments {
             }
         }
         auto outPath = std::string();
-        auto source = std::string();
         auto source2 = std::string();
+        auto source = std::string();
         for (auto && arg : commandLine.argument) {
             if (arg.substr(0, 5) == "-out=") {
                 outPath = arg.substr(5);
@@ -841,6 +1022,7 @@ namespace assembleFragments {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     return assembleFragments::main(CommandLine(argc, argv));
 }

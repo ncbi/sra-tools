@@ -310,10 +310,21 @@ namespace VDB {
 }
 
 #include <map>
+#include <set>
 class Writer2 : private VDB::Writer {
 public:
     typedef int ColumnID, TableID;
-    typedef std::map<std::string, ColumnID> Columns;
+    struct ColumnInfo {
+        std::string name;
+        ColumnID id;
+        int elemSize;
+        
+        bool operator <(ColumnInfo const &other) const {
+            return name < other.name;
+        }
+    };
+//    typedef std::map<std::string, ColumnID> Columns;
+    using Columns = std::set<ColumnInfo>;
     typedef std::pair<TableID, Columns> TableEntry;
     typedef std::map<std::string, TableEntry> Tables;
 private:
@@ -334,7 +345,7 @@ public:
         char const *name;
         int elemSize;
     };
-    
+
     class Column;
     class Table {
         friend Writer2;
@@ -348,10 +359,11 @@ public:
         Column column(std::string const &column) const
         {
             auto const &columns = t->second.second;
-            auto const c = columns.find(column);
+            auto k = ColumnInfo(); k.name = column;
+            auto const c = columns.find(k);
             if (c == columns.end())
-                throw std::logic_error(column + " is not a column of table " + t->first);
-            return Column(parent, c->second);
+                throw std::logic_error(column + " is not a column of this cursor opened on " + t->first);
+            return Column(parent, *c);
         }
         bool closeRow() const {
             return parent.closeRow(table);
@@ -360,43 +372,63 @@ public:
 
     class Column {
         friend Writer2::Table;
-        Writer2::ColumnID columnNumber;
+        Writer2::ColumnInfo const &info;
         Writer2 const &parent;
-        Column(Writer2 const &p, Writer2::ColumnID n) : parent(p), columnNumber(n) {}
+        Column(Writer2 const &p, Writer2::ColumnInfo const &n) : parent(p), info(n) {}
+
     public:
         bool setValue(VDB::Cursor::Data const *data) const {
-            return setValue(data->elements, data->elem_bits >> 3, data->data());
+            if (data->elem_bits == info.elemSize * 8)
+                return setValue(data->elements, data->elem_bits >> 3, data->data());
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(data->elem_bits >> 3));
         }
         bool setValue(VDB::Cursor::DataList const *data) const {
             return setValue(static_cast<VDB::Cursor::Data const *>(data));
         }
+        bool setValue(std::string const &data) const {
+            if (info.elemSize == sizeof(std::string::value_type))
+                return parent.value(info.id, data);
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(sizeof(std::string::value_type)));
+        }
         template <typename T>
         bool setValue(T const &data) const {
-            return parent.value(columnNumber, data);
+            if (info.elemSize == sizeof(T))
+                return parent.value(info.id, data);
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(sizeof(T)));
         }
         template <typename T>
         bool setValue(unsigned count, T const *data) const {
-            return parent.value(columnNumber, uint32_t(count), data);
+            if (info.elemSize == sizeof(T))
+                return parent.value(info.id, uint32_t(count), data);
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(sizeof(T)));
         }
         bool setValue(unsigned count, unsigned elsize, void const *data) const {
-            return parent.value(columnNumber, count, elsize, data);
+            if (info.elemSize == elsize)
+                return parent.value(info.id, count, elsize, data);
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(elsize));
         }
         bool setValueEmpty() const {
-            return parent.value(columnNumber, 0, "");
+            return parent.value(info.id, 0, "");
         }
         template <typename T>
         bool setDefault(T const &data) const {
-            return parent.defaultValue(columnNumber, data);
+            if (info.elemSize == sizeof(T))
+                return parent.defaultValue(info.id, data);
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(sizeof(T)));
         }
         template <typename T>
         bool setDefault(unsigned count, T const *data) const {
-            return parent.defaultValue(columnNumber, uint32_t(count), data);
+            if (info.elemSize == sizeof(T))
+                return parent.defaultValue(info.id, uint32_t(count), data);
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(sizeof(T)));
         }
         bool setDefault(std::string const &data) const {
-            return parent.defaultValue(columnNumber, data);
+            if (info.elemSize == sizeof(std::string::value_type))
+                return parent.defaultValue(info.id, data);
+            throw std::logic_error(std::string("Column ") + info.name + " " + std::to_string(info.elemSize) + " != " + std::to_string(sizeof(std::string::value_type)));
         }
         bool setDefaultEmpty() const {
-            return parent.defaultValue(columnNumber, 0, "");
+            return parent.defaultValue(info.id, 0, "");
         }
     };
 
@@ -421,7 +453,11 @@ public:
         for (auto && i : list) {
             auto cno = ++nextColumn;
             this->openColumn(cno, tno, i.elemSize * 8, i.name);
-            columns[i.name] = cno;
+            auto k = decltype(columns)::value_type();
+            k.name = i.name;
+            k.elemSize = i.elemSize;
+            k.id = cno;
+            columns.insert(k);
         }
         tables[name] = std::make_pair(tno, columns);
     }

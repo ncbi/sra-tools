@@ -168,7 +168,7 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
     auto const tblName = primary ? "PRIMARY_ALIGNMENT" : "SECONDARY_ALIGNMENT";
     auto const in = inDb[tblName].read(N, FLDS);
     auto const range = in.rowRange();
-    auto const freq = (range.second - range.first) / 10.0;
+    auto const freq = (range.count()) / 10.0;
     int64_t written = 0;
     auto nextReport = 1;
     char buffer[32];
@@ -183,7 +183,7 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
         return true;
     };
 
-    std::cerr << "info: processing " << (range.second - range.first) << " records from " << tblName << std::endl;
+    std::cerr << "info: processing " << (range.count()) << " records from " << tblName << std::endl;
     in.foreach(filter.empty() ? keepAll : applyFilter,
                [&](int64_t row, bool keep, std::vector<VDB::Cursor::RawData> const &data)
                {
@@ -207,12 +207,12 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
                        out.closeRow(1);
                        ++written;
                    }
-                   while (nextReport * freq <= row - range.first) {
+                   while (nextReport * freq <= row - range.beg()) {
                        std::cerr << "prog: processed " << nextReport << "0%" << std::endl;
                        ++nextReport;
                    }
                });
-    while (nextReport * freq <= range.second - range.first) {
+    while (nextReport * freq <= range.count()) {
         std::cerr << "prog: processed " << nextReport << "0%" << std::endl;
         ++nextReport;
     }
@@ -227,7 +227,7 @@ static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb, 
     auto const N = unsigned(quality ? N0 : (N0 - 1));
     auto const in = inDb["SEQUENCE"].read(N, FLDS);
     auto const range = in.rowRange();
-    auto const freq = (range.second - range.first) / 10.0;
+    auto const freq = (range.count()) / 10.0;
     auto nextReport = 1;
     char buffer[32];
     int64_t written = 0;
@@ -247,7 +247,7 @@ static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb, 
         return false;
     };
     
-    std::cerr << "info: processing " << (range.second - range.first) << " records from SEQUENCE" << std::endl;
+    std::cerr << "info: processing " << (range.count()) << " records from SEQUENCE" << std::endl;
     in.foreach(filter, [&](VDB::Cursor::RowID const row, bool const keep, std::vector<VDB::Cursor::RawData> const &data) {
         auto const &pid = data[PRIMARY_ALIGNMENT_ID];
         auto const nreads = pid.elements;
@@ -275,12 +275,12 @@ static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb, 
                 }
             }
         }
-        if (nextReport * freq <= row - range.first) {
+        if (nextReport * freq <= row - range.beg()) {
             std::cerr << "prog: processed " << nextReport << "0%" << std::endl;;
             ++nextReport;
         }
     });
-    while (nextReport * freq <= range.second - range.first) {
+    while (nextReport * freq <= range.count()) {
         std::cerr << "prog: processed " << nextReport << "0%" << std::endl;
         ++nextReport;
     }

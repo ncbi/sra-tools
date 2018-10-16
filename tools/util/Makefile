@@ -30,7 +30,7 @@ MODULE = tools/util
 
 INT_TOOLS = \
     crc32sum \
-    download \
+    test-download \
     kdb-index \
     pacbio-correct \
     schema-replace \
@@ -268,15 +268,15 @@ $(BINDIR)/crc32sum: $(CRC32SUM_OBJ)
 
 
 #-------------------------------------------------------------------------------
-# download
+# test-download
 #
 D_SRC = \
-	download
+	test-download
 
 D_OBJ = \
 	$(addsuffix .$(OBJX),$(D_SRC))
 
-$(BINDIR)/download: $(D_OBJ)
+$(BINDIR)/test-download: $(D_OBJ)
 	$(LD) --exe -o $@ $^ $(CRC32SUM_LIB)
 
 

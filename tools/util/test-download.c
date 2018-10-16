@@ -72,16 +72,17 @@ static const char * MAXIM_USAGE [] = {
 #define PRINT_ALIAS  "p"
 #define PRINT_OPTION "print"
 static const char * PRINT_USAGE [] = {
-    "Print output (yes/no). Default: no", NULL };
+    "Print output. Don't print if not specified", NULL };
 
 static OptDef Options [] = {
-    { FUNCT_OPTION, FUNCT_ALIAS, NULL, FUNCT_USAGE, 1, true, false },
-    { BLOCK_OPTION, BLOCK_ALIAS, NULL, BLOCK_USAGE, 1, true, false },
-    { MINIM_OPTION, MINIM_ALIAS, NULL, MINIM_USAGE, 1, true, false },
-    { MAXIM_OPTION, MAXIM_ALIAS, NULL, MAXIM_USAGE, 1, true, false },
-    { CHUNK_OPTION, CHUNK_ALIAS, NULL, CHUNK_USAGE, 1, true, false },
-    { MX_CH_OPTION, MX_CH_ALIAS, NULL, MX_CH_USAGE, 1, true, false },
-    { PRINT_OPTION, PRINT_ALIAS, NULL, PRINT_USAGE, 1, true, false },
+/*        name         alias     fkt    usage-txt cnt needs value required */
+    { FUNCT_OPTION, FUNCT_ALIAS, NULL, FUNCT_USAGE, 1, true     , false },
+    { BLOCK_OPTION, BLOCK_ALIAS, NULL, BLOCK_USAGE, 1, true     , false },
+    { MINIM_OPTION, MINIM_ALIAS, NULL, MINIM_USAGE, 1, true     , false },
+    { MAXIM_OPTION, MAXIM_ALIAS, NULL, MAXIM_USAGE, 1, true     , false },
+    { CHUNK_OPTION, CHUNK_ALIAS, NULL, CHUNK_USAGE, 1, true     , false },
+    { MX_CH_OPTION, MX_CH_ALIAS, NULL, MX_CH_USAGE, 1, true     , false },
+    { PRINT_OPTION, PRINT_ALIAS, NULL, PRINT_USAGE, 1, false    , false },
 };
 
 const char UsageDefaultName[] = "download";
@@ -121,6 +122,8 @@ rc_t CC Usage ( const Args * args ) {
         if ( Options [ i ] . aliases [ 0 ] == CHUNK_ALIAS [ 0 ]
           || Options [ i ] . aliases [ 0 ] == MX_CH_ALIAS [ 0 ] )
             param = "number";
+        else if ( Options [ i ] . aliases [ 0 ] == PRINT_ALIAS [ 0 ] )
+            param = NULL;
         HelpOptionLine ( Options [ i ] . aliases, Options [ i ] . name,
                          param,                   Options [ i ] . help );
     }
@@ -398,25 +401,14 @@ rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] )
         
 /* PRINT_OPTION */
         {
-            const char * val = NULL;
             rc = ArgsOptionCount ( * args, PRINT_OPTION, & pcount );
             if ( rc != 0 ) {
                 LOGERR ( klogInt, rc,
                          "Failure to get '" PRINT_OPTION "' argument");
                 break;
             }
-            if ( pcount > 0 ) {
-                rc = ArgsOptionValue
-                    ( * args, PRINT_OPTION, 0, ( const void ** ) & val );
-                if ( rc != 0 ) {
-                    LOGERR ( klogInt, rc, "Failure to get '" PRINT_OPTION
-                                          "' argument value" );
-                    break;
-                }
-                assert ( val );
-                if ( * val == 'y' )
-                    self -> print = true;
-            }
+            if ( pcount > 0 )
+                self -> print = true;
         }
         
     } while ( false );

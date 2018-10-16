@@ -469,12 +469,13 @@ static rc_t DoFile ( Do * self, const char * url ) {
 
         rc = KFileRead ( self -> file, pos, self -> buffer,
                          toRead, & num_read );
-        STSMSG ( STAT_PWR, ( "KFileRead(%lu, %zu) = %zu (%R)",
-                                      pos, toRead, num_read, rc ) );
+        STSMSG ( STAT_PWR, ( "KFileRead(%lu/%zu, %zu) = %zu (%R)",
+                                pos, self -> fileSize, toRead, num_read, rc ) );
         if ( rc != 0 ) {
             PLOGERR ( klogErr, (klogErr, rc,
-                "Cannot KFileRead('$(url)',$(pos),$(size))",
-                "url=%s,pos=%lu,size=%zu", url, pos, toRead ) );
+                "Cannot KFileRead('$(url)',$(pos)/$fsize,$(size))",
+                "url=%s,fsize=%zu,pos=%lu,size=%zu",
+                url, self -> fileSize, pos  , toRead ) );
             break;
         }
 

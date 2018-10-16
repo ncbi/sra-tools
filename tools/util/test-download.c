@@ -69,10 +69,10 @@ static const char * MINIM_USAGE [] = {
 static const char * MAXIM_USAGE [] = {
     "Retrieve a byte range to specified value. Default: not specified", NULL };
 
-#define WRITE_ALIAS  "w"
-#define WRITE_OPTION "write"
-static const char * WRITE_USAGE [] = {
-    "Write output file (yes/no). Default: no", NULL };
+#define PRINT_ALIAS  "p"
+#define PRINT_OPTION "print"
+static const char * PRINT_USAGE [] = {
+    "Print output (yes/no). Default: no", NULL };
 
 static OptDef Options [] = {
     { FUNCT_OPTION, FUNCT_ALIAS, NULL, FUNCT_USAGE, 1, true, false },
@@ -81,7 +81,7 @@ static OptDef Options [] = {
     { MAXIM_OPTION, MAXIM_ALIAS, NULL, MAXIM_USAGE, 1, true, false },
     { CHUNK_OPTION, CHUNK_ALIAS, NULL, CHUNK_USAGE, 1, true, false },
     { MX_CH_OPTION, MX_CH_ALIAS, NULL, MX_CH_USAGE, 1, true, false },
-    { WRITE_OPTION, WRITE_ALIAS, NULL, WRITE_USAGE, 1, true, false },
+    { PRINT_OPTION, PRINT_ALIAS, NULL, PRINT_USAGE, 1, true, false },
 };
 
 const char UsageDefaultName[] = "download";
@@ -147,7 +147,7 @@ typedef struct {
     uint64_t min;
     uint64_t max;
 
-    bool write;
+    bool print;
 
     KNSManager * mgr;
 
@@ -396,26 +396,26 @@ rc_t DoArgs ( Do * self, Args ** args, int argc, char * argv [] )
             }
         }
         
-/* WRITE_OPTION */
+/* PRINT_OPTION */
         {
             const char * val = NULL;
-            rc = ArgsOptionCount ( * args, WRITE_OPTION, & pcount );
+            rc = ArgsOptionCount ( * args, PRINT_OPTION, & pcount );
             if ( rc != 0 ) {
                 LOGERR ( klogInt, rc,
-                         "Failure to get '" WRITE_OPTION "' argument");
+                         "Failure to get '" PRINT_OPTION "' argument");
                 break;
             }
             if ( pcount > 0 ) {
                 rc = ArgsOptionValue
-                    ( * args, WRITE_OPTION, 0, ( const void ** ) & val );
+                    ( * args, PRINT_OPTION, 0, ( const void ** ) & val );
                 if ( rc != 0 ) {
-                    LOGERR ( klogInt, rc, "Failure to get '" WRITE_OPTION
+                    LOGERR ( klogInt, rc, "Failure to get '" PRINT_OPTION
                                           "' argument value" );
                     break;
                 }
                 assert ( val );
                 if ( * val == 'y' )
-                    self -> write = true;
+                    self -> print = true;
             }
         }
         
@@ -489,7 +489,7 @@ static rc_t DoFile ( Do * self, const char * url ) {
         if ( num_read == 0 )
             break;
 
-        if ( self -> write )
+        if ( self -> print )
             OUTMSG ( ( "%.*s", ( int ) num_read, self -> buffer ) );
 
         pos += num_read;
@@ -554,7 +554,7 @@ static rc_t DoStream ( const Do * self, const char * url ) {
                 from = self -> min - pos;
                 size -= from;
             }
-            if ( self -> write )
+            if ( self -> print )
                 OUTMSG ( ( "%.*s", ( int ) size, self -> buffer + from ) );
         }
 

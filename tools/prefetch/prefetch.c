@@ -1882,64 +1882,65 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         rc2 = 0;
         resolved->remoteSz = 0;
         {
-                rc2 = _VResolverRemote(resolved->resolver, resolved, protocols,
-                    item);
-                if ( rc2 == 0 ) {
-                    if ( resolved -> remoteHttp . path != NULL )
-                        remote = & resolved -> remoteHttp;
-                    else if ( resolved -> remoteHttps . path != NULL )
-                        remote = & resolved -> remoteHttps;
-                    else if ( resolved -> remoteFasp . path != NULL )
-                        remote = & resolved -> remoteFasp;
-                    if ( resolved->local.path != NULL ) {
-                        rc = VPathMakeString(resolved->local.path,
-                                             &resolved->local.str);
-                        DISP_RC2(rc, "VPathMakeString(VResolverLocal)",
-                                     resolved->name);
-                    }
-                }
-                else  if (rc == 0)
-                    rc = rc2;
-            }
-            if (rc == 0) {
-                rc_t rc3 = 0;
-                if (resolved->file == NULL) {
-                    bool reliable = ! resolved->isUri;
-                    assert ( remote );
-                    rc3 = _KFileOpenRemote(&resolved->file, kns,
-                        remote -> str, reliable);
-                    if ( !resolved->isUri )
-                        DISP_RC2(rc3, "cannot open remote file",
-                                 remote -> str->addr);
-                }
-
-                if (rc3 == 0 && resolved->file != NULL) {
-                    rc3 = KFileSize(resolved->file, &resolved->remoteSz);
-                    if (rc3 != 0)
-                        DISP_RC2(rc3, "cannot get remote file size",
-                            remote -> str->addr);
-                    else if (resolved->remoteSz >= maxSize)
-                        return rc;
-                    else if (resolved->remoteSz < minSize)
-                        return rc;
+            rc2 = _VResolverRemote(resolved->resolver, resolved, protocols,
+                item);
+            if ( rc2 == 0 ) {
+                if ( resolved -> remoteHttp . path != NULL )
+                    remote = & resolved -> remoteHttp;
+                else if ( resolved -> remoteHttps . path != NULL )
+                    remote = & resolved -> remoteHttps;
+                else if ( resolved -> remoteFasp . path != NULL )
+                    remote = & resolved -> remoteFasp;
+                if ( resolved->local.path != NULL ) {
+                    rc = VPathMakeString(resolved->local.path,
+                                            &resolved->local.str);
+                    DISP_RC2(rc, "VPathMakeString(VResolverLocal)",
+                                    resolved->name);
                 }
             }
+            else  if (rc == 0)
+                rc = rc2;
         }
-
         if (rc == 0) {
-            rc2 = 0;
+            rc_t rc3 = 0;
             if (resolved->file == NULL) {
-                assert ( remote -> str );
-                if (!_StringIsFasp(remote -> str, NULL)) {
-                    rc2 = _KFileOpenRemote(&resolved->file, kns,
-                        remote -> str, !resolved->isUri);
-                }
+                bool reliable = ! resolved->isUri;
+                assert ( remote );
+                rc3 = _KFileOpenRemote(&resolved->file, kns,
+                    remote -> str, reliable);
+                if ( !resolved->isUri )
+                    DISP_RC2(rc3, "cannot open remote file",
+                                remote -> str->addr);
             }
-            if (rc2 == 0 && resolved->file != NULL && resolved->remoteSz == 0) {
-                rc2 = KFileSize(resolved->file, &resolved->remoteSz);
-                DISP_RC2(rc2, "KFileSize(remote)", resolved->name);
+
+            if (rc3 == 0 && resolved->file != NULL) {
+                rc3 = KFileSize(resolved->file, &resolved->remoteSz);
+                if (rc3 != 0)
+                    DISP_RC2(rc3, "cannot get remote file size",
+                        remote -> str->addr);
+                else if (resolved->remoteSz >= maxSize)
+                    return rc;
+                else if (resolved->remoteSz < minSize)
+                    return rc;
             }
         }
+    }
+
+    if (rc == 0) {
+        rc2 = 0;
+        if (resolved->file == NULL) {
+            assert ( remote -> str );
+            if (!_StringIsFasp(remote -> str, NULL)) {
+                rc2 = _KFileOpenRemote(&resolved->file, kns,
+                    remote -> str, !resolved->isUri);
+            }
+        }
+        if (rc2 == 0 && resolved->file != NULL && resolved->remoteSz == 0) {
+            rc2 = KFileSize(resolved->file, &resolved->remoteSz);
+            DISP_RC2(rc2, "KFileSize(remote)", resolved->name);
+        }
+    }
+
     return rc;
 }
 

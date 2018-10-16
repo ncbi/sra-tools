@@ -612,13 +612,19 @@ rc_t CC KMain ( int argc, char * argv [] ) {
             multiple = "M";
         }
         if ( data . chunks > 0 )
-            STSMSG ( STAT_USR, ( "Downloading '%s' via %s using %lu %zu%s bytes"
-                " chunks", url, data . useFile ? "KFileRead" : "KStreamRead",
-                           data . chunks, chunk, multiple ) );
-        else
+            STSMSG ( STAT_USR, ( "Downloading '%s' (%zu) via %s "
+                "using %lu %zu%s byte chunks", url,
+                data . fileSize, data . useFile ? "KFileRead" : "KStreamRead",
+                data . chunks, chunk, multiple ) );
+        else if ( data . fileSize == 0 )
             STSMSG ( STAT_USR, ( "Downloading '%s' via %s using %zu%s bytes"
                 " chunks", url, data . useFile ? "KFileRead" : "KStreamRead",
                                           chunk, multiple ) );
+        else
+            STSMSG ( STAT_USR, ( "Downloading '%s' (%zu) via %s "
+                "using %zu%s byte chunks", url,
+                data . fileSize, data . useFile ? "KFileRead" : "KStreamRead",
+                chunk, multiple ) );
         r2 = data . useFile ? DoFile ( & data, url ) : DoStream ( & data, url );
         r = KFileRelease ( data . file );
         if ( r != 0 && r2 == 0 )

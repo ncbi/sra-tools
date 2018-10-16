@@ -570,15 +570,20 @@ rc_t CC KMain ( int argc, char * argv [] ) {
     uint32_t argCount = 0, i = 0;
     const char * url = NULL;
     Do data;
+
     memset ( & data, 0, sizeof data );
+
     KStsHandlerSetStdErr    ();
     KStsLibHandlerSetStdErr ();
+
     rc = DoArgs ( & data, & args, argc, argv );
     if ( rc == 0 )
         rc = ArgsParamCount ( args, & argCount );
+
     if ( argCount > 0 ) {
         if ( rc == 0 )
             rc = KNSManagerMake ( & data . mgr );
+
         if ( rc == 0 && data . chunks > 0 ) {
             rc_t r2 = ArgsParamValue ( args, i, ( const void ** ) & url );
             if ( r2 == 0 ) {
@@ -589,20 +594,25 @@ rc_t CC KMain ( int argc, char * argv [] ) {
                     data . bufSize = data . fileSize;
             }
         }
+
         data . allocated = data . bufSize;
         data . buffer = calloc ( 1, data . allocated );
         if ( data . buffer == NULL )
             return RC ( rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted );
+
         if ( rc != 0 )
             return rc;
     }
+
     for ( i = 0; i < argCount; ++ i ) {
         rc_t r = 0;
         const char * multiple = "";
         size_t chunk = data . bufSize;
+
         rc_t r2 = ArgsParamValue ( args, i, ( const void ** ) & url );
         if ( r2 != 0 )
             continue;
+
         if ( chunk >= 1024 ) {
             chunk /= 1024;
             multiple = "K";
@@ -611,6 +621,7 @@ rc_t CC KMain ( int argc, char * argv [] ) {
             chunk /= 1024;
             multiple = "M";
         }
+
         if ( data . chunks > 0 )
             STSMSG ( STAT_USR, ( "Downloading '%s' (%zu) via %s "
                 "using %lu %zu%s byte chunks", url,
@@ -625,15 +636,20 @@ rc_t CC KMain ( int argc, char * argv [] ) {
                 "using %zu%s byte chunks", url,
                 data . fileSize, data . useFile ? "KFileRead" : "KStreamRead",
                 chunk, multiple ) );
+
         r2 = data . useFile ? DoFile ( & data, url ) : DoStream ( & data, url );
+
         r = KFileRelease ( data . file );
         if ( r != 0 && r2 == 0 )
             r2 = r;
+
         if ( r2 != 0 && rc == 0 )
             rc = r2;
     }
+
     RELEASE ( KNSManager, data . mgr );
     RELEASE ( Args, args );
     free ( data . buffer );
+
     return rc;
 }

@@ -2,10 +2,10 @@
 
 
 ## SRA Toolkit 2.9.3
-**October 11, 2018**
+**October 17, 2018**
   **kns**: added possibility to skip server's certificate validation
   **kns**: expect to receive HTTP status 200 when sending range-request that includes the whole file
-  **vdb**: fixed a bug in accessing pagemap process request for cursors which do not have pagemap thread running
+  **vdb, vdb-copy**: fixed a bug in accessing pagemap process request for cursors which do not have pagemap thread running
 
 
 ## SRA Toolkit 2.9.2-2

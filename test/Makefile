@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	read-filter-redact \
 	prefetch        \
 	dump-test       \
 	vdb-config      \

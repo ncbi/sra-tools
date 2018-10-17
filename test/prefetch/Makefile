@@ -259,7 +259,7 @@ urls_and_accs:
 	@echo
 
 	@rm -f `pwd`/tmp/sra/SRR053325.sra
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	#@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(BINDIR)/prefetch SRR053325 2> /dev/null ; \
         then echo "prefetch SRR053325 when there is no kfg should fail" ; \
              exit 1; \

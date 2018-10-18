@@ -584,14 +584,15 @@ rc_t CC KMain ( int argc, char * argv [] ) {
         if ( rc == 0 )
             rc = KNSManagerMake ( & data . mgr );
 
-        if ( rc == 0 && data . chunks > 0 ) {
+        if ( rc == 0 && ( data . chunks > 0 || data . useFile ) ) {
             rc_t r2 = ArgsParamValue ( args, i, ( const void ** ) & url );
             if ( r2 == 0 ) {
                 rc = DoMakeHttpFileAndSize ( & data, url );
-                if ( rc == 0 )
+                if ( rc == 0 && data . chunks > 0 ) {
                     data . bufSize = data . fileSize / data . chunks + 1;
-                if ( data . bufSize > data . fileSize )
-                    data . bufSize = data . fileSize;
+                    if ( data . bufSize > data . fileSize )
+                        data . bufSize = data . fileSize;
+                }
             }
         }
 
@@ -631,11 +632,18 @@ rc_t CC KMain ( int argc, char * argv [] ) {
             STSMSG ( STAT_USR, ( "Downloading '%s' via %s using %zu%s bytes"
                 " chunks", url, data . useFile ? "KFileRead" : "KStreamRead",
                                           chunk, multiple ) );
-        else
+        else {
+            uint64_t n = 0;
+            uint64_t s = data . bufSize;
+            assert ( s );
+            if ( s > data . fileSize )
+                s = data . fileSize;
+            n = data . fileSize / s + ( data . fileSize % s > 0 ? 1 : 0 );
             STSMSG ( STAT_USR, ( "Downloading '%s' (%zu) via %s "
-                "using %zu%s byte chunks", url,
+                "using (%lu) %zu%s byte chunks", url,
                 data . fileSize, data . useFile ? "KFileRead" : "KStreamRead",
-                chunk, multiple ) );
+                n, chunk, multiple ) );
+        }
 
         r2 = data . useFile ? DoFile ( & data, url ) : DoStream ( & data, url );
 
@@ -650,6 +658,8 @@ rc_t CC KMain ( int argc, char * argv [] ) {
     RELEASE ( KNSManager, data . mgr );
     RELEASE ( Args, args );
     free ( data . buffer );
+
+    STSMSG ( STAT_USR, ( "Done with %R", rc ) );
 
     return rc;
 }

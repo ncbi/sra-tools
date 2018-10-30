@@ -2954,7 +2954,7 @@ static const char* CHECK_ALL_USAGE[] = { "double-check all refseqs", NULL };
 #define FORCE_OPTION "force"
 #define FORCE_ALIAS  "f"
 static const char* FORCE_USAGE[] = {
-    "force object download - one of: no, yes, all.",
+    "Force object download - one of: no, yes, all.",
     "no [default]: skip download if the object if found and complete;",
     "yes: download it even if it is found and is complete;", "all: ignore lock "
     "files (stale locks or it is being downloaded by another process: "
@@ -3017,6 +3017,11 @@ static const char* TRANS_USAGE[] = { "transport: one of: fasp; http; both.",
     "use http if cannot download using fasp).",
     "Default: both", NULL };
 
+#define TYPE_OPTION "type"
+#define TYPE_ALIAS  "T"
+static const char* TYPE_USAGE[] = { "specify file type to download.",
+    "Default: sra", NULL };
+
 #define DEFAULT_MAX_FILE_SIZE "20G"
 #define SIZE_OPTION "max-size"
 #define SIZE_ALIAS  "X"
@@ -3032,7 +3037,6 @@ static const char* STRIP_QUALS_USAGE[] =
 #endif
 
 #define ELIM_QUALS_OPTION "eliminate-quals"
-#define ELIM_QUALS_ALIAS NULL
 static const char* ELIM_QUALS_USAGE[] =
 { "don't download QUALITY column", NULL };
 
@@ -3044,27 +3048,28 @@ static const char* TEXTKART_USAGE[] =
 
 static OptDef OPTIONS[] = {
     /*                                          max_count needs_value required*/
- { FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+ { TYPE_OPTION        , TYPE_ALIAS        , NULL, TYPE_USAGE  , 1, true, false }
 ,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
+,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
+,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
+,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
+,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
+,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
 ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
 ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
 ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
-,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
-,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+#if _DEBUGGING
+,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
+#endif
 ,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
 ,{ ASCP_PAR_OPTION    , ASCP_PAR_ALIAS    , NULL, ASCP_PAR_USAGE,1,true, false}
-,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ FAIL_ASCP_OPTION   , FAIL_ASCP_ALIAS  ,NULL,FAIL_ASCP_USAGE, 1, false,false }
 #if ALLOW_STRIP_QUALS
 ,{ STRIP_QUALS_OPTION ,STRIP_QUALS_ALIAS,NULL,STRIP_QUALS_USAGE,1, false,false }
 #endif
-,{ ELIM_QUALS_OPTION  , ELIM_QUALS_ALIAS ,NULL,ELIM_QUALS_USAGE,1, false,false }
-#if _DEBUGGING
-,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
-#endif
-,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
 ,{ OUT_FILE_OPTION    , NULL              ,NULL,OUT_FILE_USAGE ,1, true, false }
 ,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE,1, true, false }
 };
@@ -3583,14 +3588,16 @@ rc_t CC Usage(const Args *args) {
             param = "value";
 #endif
 
-        if (alias != NULL &&
-            (  strcmp(alias    , TRASN_ALIAS    ) == 0
-             ||strcmp(alias    , CHECK_ALL_ALIAS) == 0
-             ||strcmp(opt->name, OUT_FILE_OPTION) == 0
-           ))
-        {
-            OUTMSG(("\n"));
+        if (alias != NULL) {
+            if (strcmp(alias, ASCP_ALIAS) == 0 ||
+                strcmp(alias, LIST_ALIAS) == 0 ||
+                strcmp(alias, MINSZ_ALIAS) == 0 ||
+                strcmp(opt->name, OUT_FILE_OPTION) == 0
+            )
+                OUTMSG(("\n"));
         }
+        else if (strcmp(opt ->name, ELIM_QUALS_OPTION) == 0)
+            OUTMSG(("\n"));
 
         HelpOptionLine(alias, opt->name, param, opt->help);
     }

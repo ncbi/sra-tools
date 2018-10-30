@@ -580,8 +580,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
     }
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols,
-            "http://iwebdev2.ncbi.nlm.nih.gov/staff/klymenka/J/", "4.",
-            odir, ofile, & response );
+            "https://sponomar.ncbi.nlm.nih.gov/Traces/sdl_test/4.0/retrieve",
+            "4.", odir, ofile, & response );
     if ( rc == 0 )
         l = KSrvResponseLength  ( response );
     if ( rc == 0 && l > 0 )
@@ -3042,31 +3042,31 @@ static const char* TEXTKART_USAGE[] =
 { "To read a textual format kart file (DEBUG ONLY)", NULL };
 #endif
 
-static OptDef Options[] = {
+static OptDef OPTIONS[] = {
     /*                                          max_count needs_value required*/
-    { FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
-   ,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
-   ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
-   ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
-   ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
-   ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
-   ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
-   ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
-   ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
-   ,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
-   ,{ ASCP_PAR_OPTION    , ASCP_PAR_ALIAS    , NULL, ASCP_PAR_USAGE, 1, true ,false }
-   ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
-   ,{ FAIL_ASCP_OPTION   , FAIL_ASCP_ALIAS   , NULL, FAIL_ASCP_USAGE, 1, false, false}
+ { FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
+,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
+,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
+,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
+,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
+,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
+,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
+,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
+,{ ASCP_PAR_OPTION    , ASCP_PAR_ALIAS    , NULL, ASCP_PAR_USAGE,1,true, false}
+,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
+,{ FAIL_ASCP_OPTION   , FAIL_ASCP_ALIAS  ,NULL,FAIL_ASCP_USAGE, 1, false,false }
 #if ALLOW_STRIP_QUALS
-   ,{ STRIP_QUALS_OPTION , STRIP_QUALS_ALIAS , NULL, STRIP_QUALS_USAGE , 1, false, false }
+,{ STRIP_QUALS_OPTION ,STRIP_QUALS_ALIAS,NULL,STRIP_QUALS_USAGE,1, false,false }
 #endif
-   ,{ ELIM_QUALS_OPTION  , ELIM_QUALS_ALIAS  , NULL, ELIM_QUALS_USAGE , 1, false, false }
+,{ ELIM_QUALS_OPTION  , ELIM_QUALS_ALIAS ,NULL,ELIM_QUALS_USAGE,1, false,false }
 #if _DEBUGGING
-   ,{ TEXTKART_OPTION    , NULL              , NULL, TEXTKART_USAGE , 1, true , false}
+,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
 #endif
-   ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
-   ,{ OUT_FILE_OPTION    , NULL              , NULL, OUT_FILE_USAGE , 1, true, false}
-   ,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE  , 1, true, false}
+,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
+,{ OUT_FILE_OPTION    , NULL              ,NULL,OUT_FILE_USAGE ,1, true, false }
+,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE,1, true, false }
 };
 
 static ParamDef Parameters[] = { { ArgsConvFilepath } };
@@ -3080,7 +3080,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
     rc = ArgsMakeAndHandle2(&self->args, argc, argv,
         Parameters, sizeof Parameters / sizeof Parameters[0],
-        1, Options, sizeof Options / sizeof Options[0]);
+        1, OPTIONS, sizeof OPTIONS / sizeof OPTIONS[0]);
     if (rc != 0) {
         DISP_RC(rc, "ArgsMakeAndHandle");
         return rc;
@@ -3542,13 +3542,13 @@ rc_t CC Usage(const Args *args) {
     OUTMSG(("\n"));
 
     OUTMSG(("Options:\n"));
-    for (i = 0; i < sizeof(Options) / sizeof(Options[0]); i++ ) {
-        const OptDef * opt = & Options[i];
+    for (i = 0; i < sizeof(OPTIONS) / sizeof(OPTIONS[0]); i++ ) {
+        const OptDef * opt = & OPTIONS[i];
         const char * alias = opt->aliases;
 
         const char *param = NULL;
 
-        if (Options[i].aliases != NULL) {
+        if (OPTIONS[i].aliases != NULL) {
             if (strcmp(alias, FAIL_ASCP_ALIAS) == 0)
                 continue; /* debug option */
 

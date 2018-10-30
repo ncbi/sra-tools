@@ -3334,24 +3334,26 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         }
 
 /* TRANS_OPTION */
-        rc = ArgsOptionCount(self->args, TRANS_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" TRANS_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            bool ok = false;
-            const char *val = NULL;
-            rc = ArgsOptionValue
-                (self->args, TRANS_OPTION, 0, (const void **)&val);
+        {
+            rc = ArgsOptionCount(self->args, TRANS_OPTION, &pcount);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
-                    "Failure to get '" TRANS_OPTION "' argument value");
+                    "Failure to get '" TRANS_OPTION "' argument");
                 break;
             }
-            assert(val);
-            switch (val[0]) {
+
+            if (pcount > 0) {
+                bool ok = false;
+                const char *val = NULL;
+                rc = ArgsOptionValue(
+                    self->args, TRANS_OPTION, 0, (const void **)&val);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" TRANS_OPTION "' argument value");
+                    break;
+                }
+                assert(val);
+                switch (val[0]) {
                 case 'a':
                 case 'f': {
                     const char ascp[] = "ascp";
@@ -3380,11 +3382,13 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
                     }
                     break;
                 }
-            }
-            if (!ok) {
-                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                LOGERR(klogErr, rc, "Bad '" TRANS_OPTION "' argument value");
-                break;
+                }
+                if (!ok) {
+                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                    LOGERR(klogErr, rc,
+                           "Bad '" TRANS_OPTION "' argument value");
+                    break;
+                }
             }
         }
 

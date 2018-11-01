@@ -218,6 +218,7 @@ typedef struct {
     const char * outDir;  /* do not free! */
     const char * outFile; /* do not free! */
     const char * orderOrOutFile; /* do not free! */
+    const char * fileType;  /* do not free! */
 
 #if _DEBUGGING
     const char *textkart;
@@ -539,7 +540,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
 {
     const VPath **local = NULL;
 
-    assert ( resolved && item );
+    assert ( resolved && item && item ->mane );
 
     local = & resolved -> local.path;
 
@@ -578,6 +579,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 rc = KServiceAddId ( service, id );
         }
     }
+    if (rc == 0 && item->mane ->fileType != NULL)
+        rc = KServiceSetFormat(service, item->mane->fileType);
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols,
             "https://sponomar.ncbi.nlm.nih.gov/Traces/sdl_test/4.0/retrieve",
@@ -1687,6 +1690,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;
+    const KRepository *p_protected = NULL;
 
     assert(item && resolver && cfg && repoMgr && vfs);
 
@@ -1704,77 +1708,94 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             /* resolved->isUri is set to true just when
                 resolved->accession is a full URI to download */
         }
-        if (rc == 0 && resolved->isUri) {
-            VPathStr * remote = NULL;
-            String fasp;
-            String http;
-            String https;
-            String scheme;
-            CONST_STRING ( & fasp , "fasp"  );
-            CONST_STRING ( & http , "http"  );
-            CONST_STRING ( & https, "https" );
-            memset ( & scheme, 0, sizeof scheme );
-            rc = VPathGetScheme ( resolved -> accession, & scheme );
-            if ( StringEqual ( & scheme, & http ) )
-                remote = & resolved -> remoteHttp;
-            else if ( StringEqual ( & scheme, & https ) )
-                remote = & resolved -> remoteHttps ;
-            else if ( StringEqual ( & scheme, & fasp ) )
-                remote = & resolved -> remoteFasp ;
-            if ( remote != NULL ) {
-                char path[PATH_MAX] = "";
-                size_t len = 0;
-                remote -> path = resolved -> accession;
-                rc = VPathReadUri(resolved->accession, path, sizeof path, &len);
-                DISP_RC2(rc, "VPathReadUri(VResolverRemote)", resolved->name);
-                if (rc == 0) {
-                    String local_str;
-                    char *query = string_chr(path, len, '?');
-                    if (query != NULL) {
-                        *query = '\0';
-                        len = query - path;
+        if (rc == 0) {
+            if (resolved->isUri) {
+                VPathStr * remote = NULL;
+                String fasp;
+                String http;
+                String https;
+                String scheme;
+                CONST_STRING ( & fasp , "fasp"  );
+                CONST_STRING ( & http , "http"  );
+                CONST_STRING ( & https, "https" );
+                memset ( & scheme, 0, sizeof scheme );
+                rc = VPathGetScheme ( resolved -> accession, & scheme );
+                if ( StringEqual ( & scheme, & http ) )
+                    remote = & resolved -> remoteHttp;
+                else if ( StringEqual ( & scheme, & https ) )
+                    remote = & resolved -> remoteHttps ;
+                else if ( StringEqual ( & scheme, & fasp ) )
+                    remote = & resolved -> remoteFasp ;
+                if ( remote != NULL ) {
+                    char path[PATH_MAX] = "";
+                    size_t len = 0;
+                    remote -> path = resolved -> accession;
+                    rc = VPathReadUri(resolved->accession,
+                                      path, sizeof path, &len);
+                    DISP_RC2(rc, "VPathReadUri(VResolverRemote)",
+                                 resolved->name);
+                    if (rc == 0) {
+                        String local_str;
+                        char *query = string_chr(path, len, '?');
+                        if (query != NULL) {
+                            *query = '\0';
+                            len = query - path;
+                        }
+                        StringInit(&local_str, path, len, (uint32_t)len);
+                        rc = StringCopy(& remote -> str, &local_str);
+                        DISP_RC2(rc, "StringCopy(VResolverRemote)",
+                                     resolved->name);
                     }
-                    StringInit(&local_str, path, len, (uint32_t)len);
-                    rc = StringCopy(& remote -> str, &local_str);
-                    DISP_RC2(rc, "StringCopy(VResolverRemote)", resolved->name);
+                }
+                resolved->accession = NULL;
+                if ( rc == 0 ) {
+                    if ( remote != NULL && remote -> str->size > 0 &&
+                         remote -> str->addr[remote -> str->size-1]
+                            == '/' )
+                    {
+                        rc = VFSManagerMakePath ( vfs, &resolved->accession,
+                                                       "ncbi-file:index.html" );
+                        DISP_RC2(rc, "VFSManagerMakePath", "index.html");
+                    }
+                    else {
+                        rc = VFSManagerExtractAccessionOrOID
+                            (vfs, &resolved->accession, remote -> path);
+                        if ( rc != 0 ) {
+                            const char * start = remote -> str->addr;
+                            size_t size = remote -> str->size;
+                            const char * end = start + size;
+                            const char * slash
+                                = string_rchr ( start, size, '/' );
+                            const char * scol = NULL;
+                            String scheme;
+                            String fasp;
+                            CONST_STRING ( & fasp, "fasp" );
+                            rc = VPathGetScheme ( remote -> path, & scheme );
+                            if ( rc == 0 ) {
+                                if ( StringEqual ( & scheme, & fasp ) )
+                                    scol = string_rchr ( start, size, ':' );
+                                if ( slash != NULL )
+                                    start = slash + 1;
+                                if ( scol != NULL && scol > start )
+                                    start = scol + 1;
+                                rc = VFSManagerMakePath ( vfs,
+                                    &resolved->accession, "%.*s",
+                                    ( uint32_t ) ( end - start ), start );
+                            }
+                        }
+                        DISP_RC2(rc, "ExtractAccession", remote -> str->addr);
+                    }
                 }
             }
-            resolved->accession = NULL;
-            if ( rc == 0 ) {
-                if ( remote != NULL && remote -> str->size > 0 &&
-                     remote -> str->addr[remote -> str->size-1]
-                        == '/' )
-                {
-                    rc = VFSManagerMakePath
-                        ( vfs, &resolved->accession, "ncbi-file:index.html" );
-                    DISP_RC2(rc, "VFSManagerMakePath", "index.html");
-                }
-                else {
-                    rc = VFSManagerExtractAccessionOrOID
-                        (vfs, &resolved->accession, remote -> path);
-                    if ( rc != 0 ) {
-                        const char * start = remote -> str->addr;
-                        size_t size = remote -> str->size;
-                        const char * end = start + size;
-                        const char * slash = string_rchr ( start, size, '/' );
-                        const char * scol = NULL;
-                        String scheme;
-                        String fasp;
-                        CONST_STRING ( & fasp, "fasp" );
-                        rc = VPathGetScheme ( remote -> path, & scheme );
-                        if ( rc == 0 ) {
-                            if ( StringEqual ( & scheme, & fasp ) )
-                                scol = string_rchr ( start, size, ':' );
-                            if ( slash != NULL )
-                                start = slash + 1;
-                            if ( scol != NULL && scol > start )
-                                start = scol + 1;
-                            rc = VFSManagerMakePath ( vfs, &resolved->accession,
-                                "%.*s", ( uint32_t ) ( end - start ), start );
-                        }
-                    }
-                    DISP_RC2(rc, "ExtractAccession", remote -> str->addr);
-                }
+            else {
+                uint32_t projectId = 0;
+                rc = KRepositoryMgrCurrentProtectedRepository(repoMgr,
+                                                              &p_protected);
+                if (rc == 0)
+                    rc = KRepositoryProjectId(p_protected, &projectId);
+                if (rc == 0)
+                    resolved->project = projectId;
+                RELEASE (KRepository, p_protected);
             }
         }
     }
@@ -1796,7 +1817,6 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                     resolved->resolver = resolver;
             }
             else {
-                const KRepository *p_protected = NULL;
                 rc = KRepositoryMgrGetProtectedRepository(repoMgr, 
                     (uint32_t)resolved->project, &p_protected);
                 if (rc == 0) {
@@ -3079,8 +3099,6 @@ static ParamDef Parameters[] = { { ArgsConvFilepath } };
 static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
     rc_t rc = 0;
 
-    uint32_t pcount = 0;
-
     assert(self);
 
     rc = ArgsMakeAndHandle2(&self->args, argc, argv,
@@ -3092,6 +3110,9 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
     }
 
     do {
+        const char * option_name = NULL;
+        uint32_t pcount = 0;
+
 /* FORCE_OPTION goes first */
         rc = ArgsOptionCount (self->args, FORCE_OPTION, &pcount);
         if (rc != 0) {
@@ -3387,6 +3408,25 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
                     rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
                     LOGERR(klogErr, rc,
                            "Bad '" TRANS_OPTION "' argument value");
+                    break;
+                }
+            }
+        }
+
+option_name = TYPE_OPTION;
+        {
+            rc = ArgsOptionCount(self->args, option_name, &pcount);
+            if (rc != 0) {
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Failure to get '$(opt)' argument", "opt=%s", option_name));
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(self->args,
+                    option_name, 0, (const void **)&self->fileType);
+                if (rc != 0) {
+                    PLOGERR(klogInt, (klogInt, rc, "Failure to get "
+                        "'$(opt)' argument value", "opt=%s", option_name));
                     break;
                 }
             }

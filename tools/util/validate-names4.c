@@ -25,7 +25,16 @@
 #include <kapp/main.h> /* Args */
 #include <kfs/directory.h> /* KDirectoryNativeDir */
 #include <kfs/file.h> /* KFileRead */
-#include "../../../ncbi-vdb/libs/vfs/remote-services.c" /* KSrvResponseSetR4  */
+#include <klib/log.h> /* PLOGERR */
+#include <klib/out.h> /* OUTMSG */
+#include <klib/rc.h> /* RC */
+#include <vfs/path.h> /* VPath */
+
+#include "../../../ncbi-vdb/libs/vfs/json-response.h" /* Response4Make */
+#include "../../../ncbi-vdb/libs/vfs/services-priv.h"/*KServiceGetKSrvResponse*/
+
+#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
+    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
 const char UsageDefaultName[] = "validate-names4";
 rc_t CC UsageSummary ( const char * progname ) { return 0; }
@@ -44,14 +53,16 @@ static rc_t _Response4Print(const Response4 * self) {
     rc_t rc = 0;
     KService * service = NULL;
     uint32_t l = 0, i = 0;
+    KSrvResponse * r = NULL;
 
     rc = KServiceMake(&service);
 
     if (rc == 0)
-        rc = KSrvResponseSetR4(service->resp.list, self);
+        rc = KServiceGetKSrvResponse(service, &r);
 
     if (rc == 0) {
-        l = KSrvResponseLength(service->resp.list);
+        assert(r);
+        l = KSrvResponseLength(r);
         OUTMSG(("Response length: %u\n", l));
     }
 
@@ -65,7 +76,7 @@ static rc_t _Response4Print(const Response4 * self) {
         uint32_t id = 0;
         const char * itemClass = NULL;
 
-        rc = KSrvResponseGetObjByIdx(service->resp.list, i, &obj);
+        rc = KSrvResponseGetObjByIdx(r, i, &obj);
         if (rc == 0)
             rc = KSrvRespObjGetAccOrId(obj, &acc, &id);
         if (rc == 0)

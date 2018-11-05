@@ -210,7 +210,10 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const 
                         rc = KSrvRespFileGetLocal ( file, & path );
                         if ( rc != 0 ) {
                             KSrvRespFileIterator * fi = NULL;
-                            rc = KSrvRespFileIteratorNextPath ( fi, & path );
+                            rc = KSrvRespFileMakeIterator(file, &fi);
+                            if (rc == 0)
+                                rc = KSrvRespFileIteratorNextPath ( fi,
+                                                                    & path );
                             RELEASE ( KSrvRespFileIterator, fi );
                         }
                         if ( path != NULL ) {

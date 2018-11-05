@@ -594,75 +594,69 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if ( rc == 0 && l > 0 )
         rc = KSrvRespObjIteratorNextFile ( it, & file );
     if ( rc == 0 && l > 0 ) {
-        uint32_t i = 0;
-        VRemoteProtocols myProtocols []
-            = { eProtocolHttps, eProtocolFasp, eProtocolHttp };
-        bool has_proto [ eProtocolMask + 1 ];
-        memset ( has_proto, 0, sizeof has_proto );
-        for ( i = 0; i < eProtocolMaxPref; ++ i )
-            has_proto [ ( protocols >> ( i * 3 ) ) & eProtocolMask ] = true;
-        for ( i = 0;
-                i < sizeof myProtocols / sizeof myProtocols [ 0 ]; ++ i )
-        {
-            KSrvRespFileIterator * fi = NULL;
-            if ( ! has_proto [ myProtocols [ i ] ] )
-                continue;
-            rc = KSrvRespFileMakeIterator ( file, myProtocols [ i ], & fi );
+        KSrvRespFileIterator * fi = NULL;
+        String fasp;
+        String http;
+        String https;
+        String scheme;
+        CONST_STRING(&fasp, "fasp");
+        CONST_STRING(&http, "http");
+        CONST_STRING(&https, "https");
+        rc = KSrvRespFileMakeIterator ( file, & fi );
+        while ( rc == 0 ) {
+            const VPath * path = NULL;
+            rc = KSrvRespFileIteratorNextPath ( fi, & path );
             if ( rc == 0 ) {
-                const VPath * path = NULL;
-                rc = KSrvRespFileIteratorNextPath ( fi, & path );
-                if ( rc == 0 ) {
-                    VPathStr * v = NULL;
-                    switch ( myProtocols [ i ] ) {
-                        case eProtocolFasp : v = & resolved -> remoteFasp;
-                                                break;
-                        case eProtocolHttp :  v = & resolved -> remoteHttp;
-                                                break;
-                        case eProtocolHttps:  v = & resolved -> remoteHttps;
-                                                break;
-                        default: assert ( 0 );
-                    }
-                    assert ( v );
-                    assert ( path );
-                    RELEASE ( VPath, v -> path );
-                    v -> path = path;
+                VPathStr * v = NULL;
+                if (path == NULL)
+                    break;
+                memset(&scheme, 0, sizeof scheme);
+                rc = VPathGetScheme(path, &scheme);
+                if (StringEqual(&scheme, &https))
+                    v = &resolved->remoteHttp;
+                else if (StringEqual(&scheme, &fasp))
+                    v = &resolved->remoteFasp;
+                else if (StringEqual(&scheme, &http))
+                    v = &resolved->remoteHttp;
+                assert ( v );
+                assert ( path );
+                if (v->path != NULL)
+                    continue;
+                RELEASE ( VPath, v -> path );
+                v -> path = path;
 
+                if ( rc == 0 ) {
+                    char path [ PATH_MAX ] = "";
+                    size_t len = 0;
+                    rc = VPathReadUri ( v -> path,
+                                        path, sizeof path, & len );
+                    DISP_RC2 ( rc, "VPathReadUri(VResolverRemote)",
+                                    resolved -> name );
                     if ( rc == 0 ) {
-                        char path [ PATH_MAX ] = "";
-                        size_t len = 0;
-                        rc = VPathReadUri ( v -> path,
-                                            path, sizeof path, & len );
-                        DISP_RC2 ( rc, "VPathReadUri(VResolverRemote)",
-                                        resolved -> name );
-                        if ( rc == 0 ) {
-                            String local_str;
-                            char * query = string_chr ( path, len, '?' );
-                            if ( query != NULL ) {
-                                * query = '\0';
-                                len = query - path;
-                            }
-                            StringInit ( & local_str,
-                                            path, len, ( uint32_t ) len );
-                            RELEASE ( String, v -> str );
-                            rc = StringCopy ( & v -> str, & local_str );
-                            DISP_RC2 ( rc, "StringCopy(VResolverRemote)",
-                                            resolved -> name );
+                        String local_str;
+                        char * query = string_chr ( path, len, '?' );
+                        if ( query != NULL ) {
+                            * query = '\0';
+                            len = query - path;
                         }
+                        StringInit ( & local_str,
+                                        path, len, ( uint32_t ) len );
+                        RELEASE ( String, v -> str );
+                        rc = StringCopy ( & v -> str, & local_str );
+                        DISP_RC2 ( rc, "StringCopy(VResolverRemote)",
+                                        resolved -> name );
                     }
                 }
-                else if ( NotFoundByResolver ( rc ) )
-                    PLOGERR ( klogErr, (klogErr, rc,
-                                "'$(acc)' cannot be found.", "acc=%s",
-                                resolved -> name ) );
-                else
-                    DISP_RC2 ( rc, "Cannot resolve remote",
-                                resolved -> name );
             }
-            else if ( rc == SILENT_RC ( rcVFS, rcQuery, rcExecuting,
-                                                rcItem, rcNotFound ) )
-            {   rc = 0; }
-            RELEASE ( KSrvRespFileIterator, fi );
+            else if ( NotFoundByResolver ( rc ) )
+                PLOGERR ( klogErr, (klogErr, rc,
+                            "'$(acc)' cannot be found.", "acc=%s",
+                            resolved -> name ) );
+            else
+                DISP_RC2 ( rc, "Cannot resolve remote",
+                            resolved -> name );
         }
+        RELEASE ( KSrvRespFileIterator, fi );
     }
     if ( rc == 0 && l > 0 ) {
         if ( rc == 0 ) {
@@ -1789,11 +1783,11 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             }
             else {
                 uint32_t projectId = 0;
-                rc = KRepositoryMgrCurrentProtectedRepository(repoMgr,
-                                                              &p_protected);
-                if (rc == 0)
-                    rc = KRepositoryProjectId(p_protected, &projectId);
-                if (rc == 0)
+                rc_t r = KRepositoryMgrCurrentProtectedRepository(repoMgr,
+                                                                  &p_protected);
+                if (r == 0)
+                    r = KRepositoryProjectId(p_protected, &projectId);
+                if (r == 0)
                     resolved->project = projectId;
                 RELEASE (KRepository, p_protected);
             }

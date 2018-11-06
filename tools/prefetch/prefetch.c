@@ -215,6 +215,8 @@ typedef struct {
     bool eliminateQuals; /* this will download cache file with eliminated
                             quality columns which could filled later */
 
+    bool dryRun; /* Dry run the app: don't download, only check resolving */
+
     const char * outDir;  /* do not free! */
     const char * outFile; /* do not free! */
     const char * orderOrOutFile; /* do not free! */
@@ -1145,12 +1147,17 @@ static rc_t MainDownloadHttpFile(Resolved *self,
     uint64_t prevPos = 0;
 #endif
 
+    KStsLevel lvl = STS_INFO;
+
     assert(self && mane);
     assert(!mane->eliminateQuals);
 
+    if (mane->dryRun)
+        lvl = STAT_USR;
+
     remote = self -> remoteHttp . path != NULL ? & self -> remoteHttp
                                                : & self -> remoteHttps;
-    if (rc == 0) {
+    if (rc == 0 && !mane->dryRun) {
         STSMSG(STS_DBG, ("creating %s", to));
         rc = KDirectoryCreateFile(mane->dir, &out,
                                   false, 0664, kcmInit | kcmParents, "%s", to);
@@ -1159,32 +1166,34 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
     assert ( remote -> str );
 
-    if (self->file == NULL) {
-        rc = _KFileOpenRemote(&self->file, mane->kns, remote -> str,
-                              !self->isUri);
-        if (rc != 0 && !self->isUri) {
-            PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
-                "path=%S", remote -> str));
+    if (!mane->dryRun) {
+        if (self->file == NULL) {
+            rc = _KFileOpenRemote(&self->file, mane->kns, remote -> str,
+                                  !self->isUri);
+            if (rc != 0 && !self->isUri)
+                PLOGERR(klogInt, (klogInt, rc, "failed to open file "
+                    "'$(path)'", "path=%S", remote -> str));
         }
-    }
 
-    if (mane->stripQuals)
-    {
-        const KFile * kfile;
-        
-        rc = KSraFileNoQuals(self->file, &kfile);
-        if (rc == 0)
-        {
-            KFileRelease(self->file);
-            self->file = kfile;
+        if (mane->stripQuals) {
+            const KFile * kfile = NULL;
+
+            rc = KSraFileNoQuals(self->file, &kfile);
+            if (rc == 0) {
+                KFileRelease(self->file);
+                self->file = kfile;
+            }
         }
     }
     
-    STSMSG(STS_INFO, ("%S -> %s", remote -> str, to));
+    STSMSG(lvl, ("%S -> %s", remote -> str, to));
 #if USE_KFILE_FOR_HTTP_DOWNLOADS
     do {
         bool print = pos - prevPos > 200000000;
         rc = Quitting();
+
+        if (mane->dryRun)
+            break;
 
         if (rc == 0) {
             if (print) {
@@ -1247,6 +1256,9 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                         break;
                     }
 
+                    if (mane->dryRun)
+                        break;
+
                     rc = KFileWriteAll
                         ( out, opos, mane -> buffer, num_read, & num_writ);
                     DISP_RC2 ( rc, "Cannot KFileWrite", to );
@@ -1269,9 +1281,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
     RELEASE(KFile, out);
 
-    if (rc == 0) {
+    if (rc == 0 && !mane->dryRun)
         STSMSG(STS_INFO, ("%s (%ld)", to, opos));
-    }
 
     return rc;
 }
@@ -1378,6 +1389,7 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
     opt.src_size = self->remoteSz;
     opt.heartbeat = mane->heartbeat;
     opt.quitting = Quitting;
+    opt.dryRun = mane->dryRun;
 
     return aspera_get(mane->ascp, mane->asperaKey, src, to, &opt);
 }
@@ -1507,11 +1519,15 @@ static rc_t MainDownload(Resolved *self, const Item * item, bool isDependency) {
     RELEASE(KFile, flock);
     
     if (rc == 0 && !mane->eliminateQuals) {
-        STSMSG(STS_DBG, ("renaming %s -> %S", tmp, self->cache));
-        rc = KDirectoryRename(mane->dir, true, tmp, self->cache->addr);
-        if (rc != 0) {
-            PLOGERR(klogInt, (klogInt, rc, "cannot rename $(from) to $(to)",
-                "from=%s,to=%S", tmp, self->cache));
+        KStsLevel lvl = STS_DBG;
+        if (mane->dryRun)
+            lvl = STAT_USR;
+        STSMSG(lvl, ("renaming %s -> %S", tmp, self->cache));
+        if (!mane->dryRun) {
+            rc = KDirectoryRename(mane->dir, true, tmp, self->cache->addr);
+            if (rc != 0)
+                PLOGERR(klogInt, (klogInt, rc, "cannot rename $(from) to $(to)",
+                    "from=%s,to=%S", tmp, self->cache));
         }
     }
 
@@ -1970,7 +1986,12 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     const VPathStr * remote = NULL;
 
+    KStsLevel lvl = STS_DBG;
+
     assert(self && self->mane);
+
+    if (self->mane->dryRun)
+        lvl = STAT_USR;
 
     resolved = &self->resolved;
     resolved->name = ItemName(self);
@@ -2016,12 +2037,12 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
     else if ( resolved -> remoteFasp . path != NULL )
         remote = & resolved -> remoteFasp;
 
-    STSMSG(STS_DBG, ("Resolve(%s) = %R:", resolved->name, rc));
-    STSMSG(STS_DBG, ("local(%s)",
+    STSMSG(lvl, ("Resolve(%s) = %R:", resolved->name, rc));
+    STSMSG(lvl, ("local(%s)",
         resolved->local.str ? resolved->local.str->addr : "NULL"));
-    STSMSG(STS_DBG, ("cache(%s)",
+    STSMSG(lvl, ("cache(%s)",
         resolved->cache ? resolved->cache->addr : "NULL"));
-    STSMSG(STS_DBG, ("remote(%s:%,ld)",
+    STSMSG(lvl, ("remote(%s:%,ld)",
         remote && remote -> str ? remote -> str->addr : "NULL",
         resolved->remoteSz));
 
@@ -2793,7 +2814,7 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
 static rc_t ItemProcess(Item *item, int32_t row) {
     rc_t rc = 0;
 
-    assert(item);
+    assert(item && item -> mane);
 
     /* resolve: locate; download if not found */
     rc = ItemResolveResolvedAndDownloadOrProcess(item, row);
@@ -2802,7 +2823,7 @@ static rc_t ItemProcess(Item *item, int32_t row) {
         return rc;
     }
 
-    if (rc == 0) {
+    if (rc == 0 && !item->mane->dryRun) {
         rc = ItemPostDownload(item, row);
     }
 
@@ -2954,16 +2975,20 @@ static size_t _sizeFromString(const char *val) {
 #define ASCP_OPTION "ascp-path"
 #define ASCP_ALIAS  "a"
 static const char* ASCP_USAGE[] =
-{ "path to ascp program and private key file (asperaweb_id_dsa.putty)", NULL };
+{ "Path to ascp program and private key file (asperaweb_id_dsa.putty)", NULL };
 
 #define ASCP_PAR_OPTION "ascp-options"
 #define ASCP_PAR_ALIAS  NULL
 static const char* ASCP_PAR_USAGE[] =
-{ "arbitrary options to pass to ascp command line", NULL };
+{ "Arbitrary options to pass to ascp command line", NULL };
 
 #define CHECK_ALL_OPTION "check-all"
 #define CHECK_ALL_ALIAS  "c"
-static const char* CHECK_ALL_USAGE[] = { "double-check all refseqs", NULL };
+static const char* CHECK_ALL_USAGE[] = { "Double-check all refseqs", NULL };
+
+#define DRY_RUN_OPTION "dryrun"
+static const char* DRY_RUN_USAGE[] = {
+    "Dry run the application: don't download, only check resolving" };
 
 #define FORCE_OPTION "force"
 #define FORCE_ALIAS  "f"
@@ -2977,82 +3002,82 @@ static const char* FORCE_USAGE[] = {
 #define FAIL_ASCP_OPTION "FAIL-ASCP"
 #define FAIL_ASCP_ALIAS  "F"
 static const char* FAIL_ASCP_USAGE[] = {
-    "force ascp download fail to test ascp->http download combination" };
+    "Force ascp download fail to test ascp->http download combination" };
 
 #define LIST_OPTION "list"
 #define LIST_ALIAS  "l"
-static const char* LIST_USAGE[] = { "list the content of a kart file", NULL };
+static const char* LIST_USAGE[] = { "List the content of a kart file", NULL };
 
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
 static const char* NM_L_USAGE[] =
-{ "list the content of a kart file with kart row numbers", NULL };
+{ "List the content of a kart file with kart row numbers", NULL };
 
 #define MINSZ_OPTION "min-size"
 #define MINSZ_ALIAS  "N"
 static const char* MINSZ_USAGE[] =
-{ "minimum file size to download in KB (inclusive).", NULL };
+{ "Minimum file size to download in KB (inclusive).", NULL };
 
 #define ORDR_OPTION "order"
 #define ORDR_ALIAS  "o"
 static const char* ORDR_USAGE[] = {
-    "kart prefetch order when downloading a kart: one of: kart, size.",
+    "Kart prefetch order when downloading a kart: one of: kart, size.",
     "(in kart order, by file size: smallest first), default: size", NULL };
 
 #define OUT_DIR_OPTION "output-directory"
 #define OUT_DIR_ALIAS  "O"
-static const char* OUT_DIR_USAGE[] = { "save files to DIRECTORY/", NULL };
+static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/", NULL };
 
 #define OUT_FILE_OPTION "output-file"
 #define OUT_FILE_ALIAS  "o"
 static const char* OUT_FILE_USAGE[] = {
-    "write file to FILE when downloading a single file", NULL };
+    "Write file to FILE when downloading a single file", NULL };
 
 #define HBEAT_OPTION "progress"
 #define HBEAT_ALIAS  "p"
 static const char* HBEAT_USAGE[] = {
-    "time period in minutes to display download progress",
+    "Time period in minutes to display download progress",
     "(0: no progress), default: 1", NULL };
 
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
 static const char* ROWS_USAGE[] =
-{ "kart rows to download (default all).", "row list should be ordered", NULL };
+{ "Kart rows to download (default all).", "row list should be ordered", NULL };
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
 static const char* SZ_L_USAGE[] =
-{ "list the content of a kart file with target file sizes", NULL };
+{ "List the content of a kart file with target file sizes", NULL };
 
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
-static const char* TRANS_USAGE[] = { "transport: one of: fasp; http; both.",
+static const char* TRANS_USAGE[] = { "Transport: one of: fasp; http; both.",
     "(fasp only; http only; first try fasp (ascp), "
     "use http if cannot download using fasp).",
     "Default: both", NULL };
 
 #define TYPE_OPTION "type"
 #define TYPE_ALIAS  "T"
-static const char* TYPE_USAGE[] = { "specify file type to download.",
+static const char* TYPE_USAGE[] = { "Specify file type to download.",
     "Default: sra", NULL };
 
 #define DEFAULT_MAX_FILE_SIZE "20G"
 #define SIZE_OPTION "max-size"
 #define SIZE_ALIAS  "X"
 static const char* SIZE_USAGE[] = {
-    "maximum file size to download in KB (exclusive).",
+    "Maximum file size to download in KB (exclusive).",
     "Default: " DEFAULT_MAX_FILE_SIZE, NULL };
 
 #if ALLOW_STRIP_QUALS
 #define STRIP_QUALS_OPTION "strip-quals"
 #define STRIP_QUALS_ALIAS NULL
 static const char* STRIP_QUALS_USAGE[] =
-{ "remove QUALITY column from all tables", NULL };
+{ "Remove QUALITY column from all tables", NULL };
 #endif
 
 #define ELIM_QUALS_OPTION "eliminate-quals"
 static const char* ELIM_QUALS_USAGE[] =
-{ "don't download QUALITY column", NULL };
+{ "Don't download QUALITY column", NULL };
 
 #if _DEBUGGING
 #define TEXTKART_OPTION "text-kart"
@@ -3086,6 +3111,7 @@ static OptDef OPTIONS[] = {
 #endif
 ,{ OUT_FILE_OPTION    , NULL              ,NULL,OUT_FILE_USAGE ,1, true, false }
 ,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE,1, true, false }
+,{ DRY_RUN_OPTION     , NULL              , NULL, DRY_RUN_USAGE,1, false,false }
 };
 
 static ParamDef Parameters[] = { { ArgsConvFilepath } };
@@ -3260,6 +3286,18 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         if (pcount > 0) {
             self->forceAscpFail = true;
         }
+
+option_name = DRY_RUN_OPTION;
+    {
+        rc = ArgsOptionCount(self->args, option_name, &pcount);
+        if (rc != 0) {
+            PLOGERR(klogInt, (klogInt, rc,
+                "Failure to get '$(opt)' argument", "opt=%s", option_name));
+            break;
+        }
+        if (pcount > 0)
+            self->dryRun = true;
+    }
 
 /* HBEAT_OPTION */
         rc = ArgsOptionCount(self->args, HBEAT_OPTION, &pcount);
@@ -3621,6 +3659,8 @@ rc_t CC Usage(const Args *args) {
         }
         else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
             param = "value";
+        else if (strcmp(opt->name, DRY_RUN_OPTION) == 0)
+            continue; /* debug option */
 #if _DEBUGGING
         else if (strcmp(opt->name, TEXTKART_OPTION) == 0)
             param = "value";

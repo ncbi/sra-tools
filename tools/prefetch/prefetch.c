@@ -165,6 +165,8 @@ typedef struct {
     const KartItem *kartItem;
 
     VResolver *resolver;
+
+    KSrvRespFile * respFile;
 } Resolved;
 typedef struct {
     Args *args;
@@ -298,6 +300,12 @@ bool _StringIsFasp(const String *self, const char **withoutScheme)
     return _StringIsXYZ ( self, withoutScheme, fasp, sizeof fasp - 1 );
 }
 
+static
+bool _SchemeIsFasp(const String *self) {
+    const char fasp[] = "fasp";
+    return _StringIsXYZ(self, NULL, fasp, sizeof fasp - 1);
+}
+
 /********** KFile extension **********/
 static
 rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
@@ -318,9 +326,9 @@ rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
 
     if ( reliable )
         rc = KNSManagerMakeReliableHttpFile(kns,
-                                         self, NULL, 0x01010000, path->addr);
+                                         self, NULL, 0x01010000, "%S", path);
     else
-        rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, path->addr);
+        rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
 
     return rc;
 }
@@ -605,20 +613,24 @@ static rc_t V_ResolverRemote(const VResolver *self,
         CONST_STRING(&fasp, "fasp");
         CONST_STRING(&http, "http");
         CONST_STRING(&https, "https");
+        resolved->respFile = file;
         rc = KSrvRespFileMakeIterator ( file, & fi );
         while ( rc == 0 ) {
             const VPath * path = NULL;
             rc = KSrvRespFileIteratorNextPath ( fi, & path );
             if ( rc == 0 ) {
+                bool ascp = false;
                 VPathStr * v = NULL;
                 if (path == NULL)
                     break;
                 memset(&scheme, 0, sizeof scheme);
                 rc = VPathGetScheme(path, &scheme);
                 if (StringEqual(&scheme, &https))
-                    v = &resolved->remoteHttp;
-                else if (StringEqual(&scheme, &fasp))
+                    v = &resolved->remoteHttps;
+                else if (StringEqual(&scheme, &fasp)) {
                     v = &resolved->remoteFasp;
+                    ascp = true;
+                }
                 else if (StringEqual(&scheme, &http))
                     v = &resolved->remoteHttp;
                 assert ( v );
@@ -638,7 +650,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
                     if ( rc == 0 ) {
                         String local_str;
                         char * query = string_chr ( path, len, '?' );
-                        if ( query != NULL ) {
+                        if ( ascp && query != NULL ) {
                             * query = '\0';
                             len = query - path;
                         }
@@ -673,7 +685,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 rc = 0;
         }
     }
-    RELEASE ( KSrvRespFile, file );
     RELEASE ( KSrvRespObjIterator, it );
     RELEASE ( KSrvRespObj, obj );
     RELEASE ( KSrvResponse, response );
@@ -962,6 +973,8 @@ static rc_t ResolvedFini(Resolved *self) {
 
     RELEASE(String, self->cache);
 
+    RELEASE(KSrvRespFile, self->respFile);
+
     free(self->name);
 
     memset(self, 0, sizeof *self);
@@ -1133,22 +1146,24 @@ static rc_t MainDownloaded(Main *self, const char *path) {
 }
 
 static rc_t MainDownloadHttpFile(Resolved *self,
-    Main *mane, const char *to)
+    Main *mane, const char *to, const VPath * path)
 {
     rc_t rc = 0;
+    const KFile *in = NULL;
     KFile *out = NULL;
     size_t num_read = 0;
     uint64_t opos = 0;
     size_t num_writ = 0;
 
     const VPathStr * remote = NULL;
-
-#if USE_KFILE_FOR_HTTP_DOWNLOADS
-    uint64_t pos = 0;
-    uint64_t prevPos = 0;
-#endif
+    String src;
 
     KStsLevel lvl = STS_INFO;
+
+    char spath[PATH_MAX] = "";
+    size_t len = 0;
+
+    memset(& src, 0, sizeof src);
 
     assert(self && mane);
     assert(!mane->eliminateQuals);
@@ -1156,8 +1171,18 @@ static rc_t MainDownloadHttpFile(Resolved *self,
     if (mane->dryRun)
         lvl = STAT_USR;
 
+    rc = VPathReadUri(path, spath, sizeof spath, &len);
+    if (rc != 0) {
+        DISP_RC(rc, "VPathReadUri(MainDownloadHttpFile)");
+        return rc;
+    }
+    else
+        StringInit(&src, spath, len, (uint32_t)len);
+
     remote = self -> remoteHttp . path != NULL ? & self -> remoteHttp
                                                : & self -> remoteHttps;
+    assert(remote);
+
     if (rc == 0 && !mane->dryRun) {
         STSMSG(STS_DBG, ("creating %s", to));
         rc = KDirectoryCreateFile(mane->dir, &out,
@@ -1165,95 +1190,59 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         DISP_RC2(rc, "Cannot OpenFileWrite", to);
     }
 
-    assert ( remote -> str );
+    assert ( src . addr );
 
     if (!mane->dryRun) {
-        if (self->file == NULL) {
-            rc = _KFileOpenRemote(&self->file, mane->kns, remote -> str,
-                                  !self->isUri);
+        if (in == NULL) {
+            rc = _KFileOpenRemote(&in, mane->kns, & src, !self->isUri);
             if (rc != 0 && !self->isUri)
                 PLOGERR(klogInt, (klogInt, rc, "failed to open file "
-                    "'$(path)'", "path=%S", remote -> str));
+                    "'$(path)'", "path=%S", & src));
         }
 
         if (mane->stripQuals) {
             const KFile * kfile = NULL;
 
-            rc = KSraFileNoQuals(self->file, &kfile);
+            rc = KSraFileNoQuals(in, &kfile);
             if (rc == 0) {
-                KFileRelease(self->file);
-                self->file = kfile;
+                KFileRelease(in);
+                in = kfile;
             }
         }
     }
     
-    STSMSG(lvl, ("%S -> %s", remote -> str, to));
-#if USE_KFILE_FOR_HTTP_DOWNLOADS
-    do {
-        bool print = pos - prevPos > 200000000;
-        rc = Quitting();
-
-        if (mane->dryRun)
-            break;
-
-        if (rc == 0) {
-            if (print) {
-                STSMSG(STS_FIN,
-                    ("Reading %lu bytes from pos. %lu", mane->bsize, pos));
-            }
-            rc = KFileRead(self->file,
-                pos, mane->buffer, mane->bsize, &num_read);
-            if (rc != 0) {
-                DISP_RC2(rc, "Cannot KFileRead", self->remote.str->addr);
-            }
-            else {
-                pos += num_read;
-            }
-
-            if (print) {
-                prevPos = pos;
-            }
-        }
-
-        if (rc == 0 && num_read > 0) {
-            rc = KFileWrite(out, opos, mane->buffer, num_read, &num_writ);
-            DISP_RC2(rc, "Cannot KFileWrite", to);
-            opos += num_writ;
-        }
-    } while (rc == 0 && num_read > 0);
-
-#else
+    STSMSG(lvl, ("%S -> %s", & src, to));
     {
         bool reliable = ! self -> isUri;
         ver_t http_vers = 0x01010000;
         KClientHttpRequest * kns_req = NULL;
         if ( reliable )
             rc = KNSManagerMakeReliableClientRequest ( mane -> kns,
-                & kns_req, http_vers, NULL, "%S", remote -> str );
+                & kns_req, http_vers, NULL, "%S", & src );
         else
             rc = KNSManagerMakeClientRequest ( mane -> kns,
-                & kns_req, http_vers, NULL, "%S", remote -> str );
+                & kns_req, http_vers, NULL, "%S", & src );
         DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest",
-                   remote -> str -> addr );
+                   & src . addr );
 
         if ( rc == 0 ) {
             KClientHttpResult * rslt = NULL;
             rc = KClientHttpRequestGET ( kns_req, & rslt );
             DISP_RC2 ( rc, "Cannot KClientHttpRequestGET",
-                       remote -> str -> addr );
+                       & src . addr );
 
             if ( rc == 0 ) {
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
                 DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
-                           remote -> str -> addr );
+                           & src . addr );
 
                 while ( rc == 0 ) {
                     rc = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
                     if ( rc != 0 || num_read == 0) {
                         DISP_RC2 ( rc, "Cannot KStreamRead",
-                                   remote -> str -> addr );
+                                   & src . addr );
                         break;
                     }
 
@@ -1278,7 +1267,6 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
         RELEASE ( KClientHttpRequest, kns_req );
     }
-#endif
 
     RELEASE(KFile, out);
 
@@ -1346,12 +1334,16 @@ static rc_t MainDownloadCacheFile(Resolved *self,
 anonftp@ftp-private.ncbi.nlm.nih.gov:/sra/sra-instant/reads/ByR.../SRR125365.sra
 */
 static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
-    const char *to)
+    const char *to, const VPath * path)
 {
+    rc_t rc = 0;
+
     const char *src = NULL;
     AscpOptions opt;
 
     const VPathStr * remote = NULL;
+    char spath[PATH_MAX] = "";
+    size_t len = 0;
 
     assert ( self && mane );
 
@@ -1371,8 +1363,21 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
 
     memset(&opt, 0, sizeof opt);
 
-    if (!_StringIsFasp(remote -> str, &src)) {
-        return RC(rcExe, rcFile, rcCopying, rcSchema, rcInvalid);
+    rc = VPathReadUri(path, spath, sizeof spath, &len);
+    if (rc != 0) {
+        DISP_RC(rc, "VPathReadUri(MainDownloadAscp)");
+        return rc;
+    }
+    else {
+        String str;
+        char *query = string_chr(spath, len, '?');
+        if (query != NULL) {
+            *query = '\0';
+            len = query - spath;
+        }
+        StringInit(&str, spath, len, (uint32_t)len);
+        if (!_StringIsFasp(&str, &src))
+            return RC(rcExe, rcFile, rcCopying, rcSchema, rcInvalid);
     }
 
     if (mane->ascpParams != NULL) {
@@ -1468,53 +1473,69 @@ static rc_t MainDownload(Resolved *self, const Item * item, bool isDependency) {
 
     assert(!mane->noAscp || !mane->noHttp);
 
-    if (rc == 0) {
-        bool ascp = self -> remoteFasp . path != NULL;
-        if (ascp) {
-            STSMSG(STS_TOP, (" Downloading via fasp..."));
-            if (mane->forceAscpFail) {
-                rc = 1;
-            }
-            else if (mane->eliminateQuals) {
-                LOGMSG(klogErr,
-                    "Cannot eliminate qualities during fasp download");
-                rc = 1;
-            }
-            else if (mane->eliminateQuals) {
-                LOGMSG(klogErr,
-                    "Cannot remove QUALITY columns during fasp download");
-                rc = 1;
-            }
-            else {
-                rc = MainDownloadAscp(self, mane, tmp);
-            }
+    if (self->respFile != NULL) {
+        rc_t rd = 0;
+        KSrvRespFileIterator * fi = NULL;
+        rc = KSrvRespFileMakeIterator(self->respFile, &fi);
+        while (rc == 0) {
+            const VPath * path = NULL;
+            rc = KSrvRespFileIteratorNextPath(fi, &path);
             if (rc == 0) {
-                STSMSG(STS_TOP, (" fasp download succeed"));
+                bool ascp = false;
+                String scheme;
+                if (path == NULL) {
+                    rc = rd;
+                    break;
+                }
+                memset(&scheme, 0, sizeof scheme);
+                rc = VPathGetScheme(path, &scheme);
+                ascp = _SchemeIsFasp(&scheme);
+                if (!mane->noAscp) {
+                    if (ascp) {
+                        STSMSG(STS_TOP, (" Downloading via fasp..."));
+                        if (mane->forceAscpFail)
+                            rc = 1;
+                        else if (mane->eliminateQuals) {
+                            LOGMSG(klogErr, "Cannot eliminate qualities "
+                                "during fasp download");
+                            rc = 1;
+                        }
+                        else if (mane->eliminateQuals) {
+                            LOGMSG(klogErr, "Cannot remove QUALITY columns "
+                                "during fasp download");
+                            rc = 1;
+                        }
+                        else
+                            rd = MainDownloadAscp(self, mane, tmp, path);
+                        if (rd == 0)
+                            STSMSG(STS_TOP, (" fasp download succeed"));
+                        else {
+                            rc_t rc = Quitting();
+                            if (rc != 0)
+                                canceled = true;
+                            else
+                                STSMSG(STS_TOP, (" fasp download failed"));
+                        }
+                    }
+                }
+                if (!ascp || (/*rc != 0 && GetRCObject(rc) != rcMemory&&*/
+                    !canceled && !mane->noHttp && !self->isUri))
+                {
+                    bool https = true;
+                    STSMSG(STS_TOP,
+                        (" Downloading via %s...", https ? "https" : "http"));
+                    if (mane->eliminateQuals)
+                        rd = MainDownloadCacheFile(self, mane,
+                            self->cache->addr,
+                            mane->eliminateQuals && !isDependency);
+                    else
+                        rd = MainDownloadHttpFile(self, mane, tmp, path);
+                }
             }
-            else {
-                rc_t rc = Quitting();
-                if (rc != 0) {
-                    canceled = true;
-                }
-                else {
-                    STSMSG(STS_TOP, (" fasp download failed"));
-                }
-            }
+            if (rd == 0)
+                break;
         }
-        if (!ascp || (rc != 0 && GetRCObject(rc) != rcMemory
-                              && !canceled && !mane->noHttp && !self->isUri))
-        {
-            bool https = self -> remoteHttp . path == NULL;
-            STSMSG(STS_TOP,
-                (" Downloading via %s...", https ? "https" : "http"));
-                if (mane->eliminateQuals) {
-                    rc = MainDownloadCacheFile(self, mane, self->cache->addr,
-                        mane->eliminateQuals && !isDependency);
-                }
-                else {
-                    rc = MainDownloadHttpFile(self, mane, tmp);
-                }
-        }
+        RELEASE(KSrvRespFileIterator, fi);
     }
 
     RELEASE(KFile, flock);

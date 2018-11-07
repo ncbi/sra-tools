@@ -585,7 +585,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
         rc = KServiceSetFormat(service, item->mane->fileType);
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols,
-            "https://sponomar.ncbi.nlm.nih.gov/Traces/sdl_test/4.0/retrieve",
+            "https://www.ncbi.nlm.nih.gov/Traces/sdl_test/4.0/retrieve",
+//          "https://sponomar.ncbi.nlm.nih.gov/Traces/sdl_test/4.0/retrieve",
             "4.", odir, ofile, & response );
     if ( rc == 0 )
         l = KSrvResponseLength  ( response );

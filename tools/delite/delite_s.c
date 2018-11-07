@@ -870,6 +870,8 @@ karChiveScmTransform (
                 free ( SchemaName );
                 free ( SchemaPath );
             }
+
+            KMDataNodeRelease ( DataNode );
         }
         karCBufWhack ( & Buf );
     } 

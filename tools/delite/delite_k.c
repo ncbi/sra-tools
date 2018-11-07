@@ -55,6 +55,7 @@
 #include <byteswap.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>      /* isspace () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Kinda rated K content ...
@@ -69,12 +70,17 @@ const char * MD_454_SIG_PATH [] = {
 
 #define MD_CUR_NODE_PATH   "md/cur"
 #define MD_CUR_NODE_NAME   "cur"
+#define MD_CUR_NODE_MD5    "md5"
 
 #define MD_SOFT_DELITE     "delite"
 #define MD_SOFT_SOFTWARE   "SOFTWARE"
 #define MD_SOFT_DATE       "date"
 #define MD_SOFT_NAME       "name"
 #define MD_SOFT_VERS       "vers"
+#define MD_STATS_NAME      "STATS"
+#define MD_STATS_QUAL      "QUALITY"
+
+#define MD_DIGEST_SIZE      16
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Kar will NOT return directory
@@ -307,6 +313,459 @@ _karChiveEntryFind (
 
     return RCt;
 }   /* _karChiveEntryFind () */
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  MD5 file puziaker
+ *
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karMD5 {
+    const char * _f;      /* file name */
+    const char * _s;      /* md5 sum */
+};
+
+struct karMD5Vec {
+    struct karMD5 ** _v;
+
+    size_t _c;
+    size_t _q;
+};
+
+static
+rc_t CC
+_karMD5Dispose ( struct karMD5 * self )
+{
+    if ( self != NULL ) {
+        if ( self -> _f != NULL ) {
+            free ( ( char * ) self -> _f );
+            self -> _f = NULL;
+        }
+
+        if ( self -> _s != NULL ) {
+            free ( ( char * ) self -> _s );
+            self -> _s = NULL;
+        }
+    }
+    return 0;
+}   /* _karMD5Dispose () */
+
+static
+rc_t CC
+_karMD5Make (
+            struct karMD5 ** MD5,
+            char * File,
+            size_t FileLen,
+            char * Sum,
+            size_t SumLen
+)
+{
+    rc_t RCt;
+    struct karMD5 * Ret;
+
+    RCt = 0;
+    Ret = NULL;
+
+    if ( MD5 != NULL ) {
+        * MD5 = NULL;
+    }
+
+    if ( MD5 == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcParam, rcNull );
+    }
+
+    if ( File == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcParam, rcNull );
+    }
+
+    if ( Sum == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcParam, rcNull );
+    }
+
+    if ( FileLen == 0 ) {
+        FileLen = strlen ( File );
+        if ( FileLen == 0 ) {
+            return RC ( rcApp, rcVector, rcAllocating, rcParam, rcInvalid );
+        }
+    }
+
+    if ( SumLen == 0 ) {
+        SumLen = strlen ( Sum );
+        if ( SumLen == 0 ) {
+            return RC ( rcApp, rcVector, rcAllocating, rcParam, rcInvalid );
+        }
+    }
+
+        /*  Don't know why I am doing that
+         */
+    if ( SumLen != MD_DIGEST_SIZE << 1 ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcParam, rcInvalid );
+    }
+
+    Ret = calloc ( 1, sizeof ( struct karMD5 ) );
+    if ( Ret == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcMemory, rcExhausted );
+    }
+
+    RCt = copyLStringSayNothing ( & ( Ret -> _f ), File, FileLen );
+    if ( RCt == 0 ) {
+        RCt = copyLStringSayNothing ( & ( Ret -> _s ), Sum, SumLen );
+        if ( RCt == 0 ) {
+            * MD5 = Ret;
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * MD5 = NULL;
+
+        _karMD5Dispose ( Ret );
+    }
+
+    return RCt;
+}   /* _karMD5Make () */
+
+static
+rc_t CC
+_karMD5VecClear ( struct karMD5Vec * self )
+{
+    size_t llp = 0;
+
+    if ( self != NULL ) {
+        if ( self -> _v != NULL ) {
+            for ( llp = 0; llp < self -> _q; llp ++ ) {
+                if ( self -> _v [ llp ] != NULL ) {
+                    _karMD5Dispose ( self -> _v [ llp ] );
+                    self -> _v [ llp ] = NULL;
+                }
+            }
+        }
+
+        self -> _q = 0;
+    }
+
+    return 0;
+}   /* _karMD5VecClear () */
+
+static
+rc_t CC
+_karMD5VecDispose ( struct karMD5Vec * self )
+{
+    if ( self != NULL ) {
+        _karMD5VecClear ( self );
+        if ( self -> _v != NULL ) {
+            free ( self -> _v );
+        }
+
+        self -> _c = 0;
+
+        free ( self );
+    }
+
+    return 0;
+}   /* _karMD5VecDispose () */
+
+static
+rc_t CC
+_karMD5VecMake ( struct karMD5Vec ** md5 )
+{
+    struct karMD5Vec * Ret = NULL;
+
+    if ( md5 != NULL ) {
+        * md5 = NULL;
+    }
+
+    if ( md5 == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcParam, rcNull );
+    }
+
+    Ret = calloc ( 1, sizeof ( struct karMD5Vec ) );
+    if ( Ret == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcMemory, rcExhausted );
+    }
+
+    * md5 = Ret;
+
+    return 0;
+}   /* _karMD5VecMake () */
+
+static
+rc_t CC
+_karMD5VecRealloc ( struct karMD5Vec * self, size_t Qty )
+{
+    rc_t RCt;
+    size_t NewCap;
+    struct karMD5 ** NewVec;
+
+    RCt = 0;
+    NewCap = 0;
+    NewVec = NULL;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcSelf, rcNull );
+    }
+
+#define _CAP_INC_MD5_ 32
+    NewCap = ( ( Qty / _CAP_INC_MD5_ ) + 1 ) * _CAP_INC_MD5_;
+    if ( self -> _c < NewCap ) {
+        NewVec = calloc ( NewCap, sizeof ( struct karMD5 * ) );
+        if ( NewVec == NULL ) {
+            RCt = RC ( rcApp, rcVector, rcAllocating, rcMemory, rcExhausted );
+        }
+        else {
+            if ( self -> _v != NULL ) {
+                if ( self -> _q != 0 ) {
+                    memmove (
+                            NewVec,
+                            self ->
+                            _v,
+                            sizeof ( struct karMD5 * ) * self -> _q
+                            );
+                }
+                free ( self -> _v );
+
+                self -> _v = NULL;
+            }
+            self -> _v = NewVec;
+            self -> _c = NewCap;
+        }
+    }
+#undef _CAP_INC_MD5_
+
+    return RCt;
+}   /* _karMD5VecRealloc () */
+
+static
+int CC
+_karMD5VecFind ( struct karMD5Vec * self, const char * File )
+{
+    int Ret;
+    size_t llp;
+
+    Ret = -1;
+    llp = 0;
+
+    if ( self != NULL ) {
+        if ( self -> _q != 0 ) {
+            for ( llp = 0; llp < self -> _q; llp ++ ) {
+                if ( self -> _v [ llp ] != NULL ) {
+                    if ( strcmp ( self -> _v [ llp ] -> _f, File ) == 0 ) {
+                        return llp;
+                    }
+                }
+            }
+        }
+    }
+
+    return Ret;
+}   /* _karMD5VecFind () */
+
+/*  Allocates strings and adds them
+ */
+static
+rc_t CC
+_karMD5VecAdd (
+            struct karMD5Vec * self,
+            char * File,
+            size_t FileLen,
+            char * Sum,
+            size_t SumLen
+)
+{
+    rc_t RCt;
+    struct karMD5 * MD5;
+    int Idx;
+
+    RCt = 0;
+    MD5 = NULL;
+    Idx = - 1;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcVector, rcAllocating, rcSelf, rcNull );
+    }
+
+    RCt = _karMD5Make ( & MD5, File, FileLen, Sum, SumLen );
+    if ( RCt == 0 ) {
+        Idx = _karMD5VecFind ( self, MD5 -> _f );
+        if ( 0 <= Idx ) {
+            _karMD5Dispose ( self -> _v [ Idx ] );
+            self -> _v [ Idx ] = MD5;
+        }
+        else {
+            RCt = _karMD5VecRealloc ( self, self -> _q + 1 );
+            if ( RCt == 0 ) {
+                self -> _v [ self -> _q ] = MD5;
+                self -> _q ++;
+            }
+        }
+    }
+
+    return RCt;
+}   /* _karMD5VecAdd () */
+
+static
+rc_t CC
+_karMD5VecParseLine ( struct karMD5Vec * self, char * Bg, char * En )
+{
+    char * Cr;
+    char * Sum;
+    size_t SumLen;
+    char * File;
+    size_t FileLen;
+
+    Cr = NULL;
+    Sum = File = NULL;
+    SumLen = FileLen = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcVector, rcParsing, rcSelf, rcNull );
+    }
+
+    if ( Bg == NULL || En == NULL ) {
+        return RC ( rcApp, rcVector, rcParsing, rcParam, rcNull );
+    }
+
+    if ( Bg - En == 0 ) {
+        return RC ( rcApp, rcVector, rcParsing, rcParam, rcInvalid );
+    }
+
+    Cr = Bg;
+        /*  Skipping spaces */
+    while ( Cr < En && isspace ( * Cr ) ) { Cr ++; }
+    Sum = Cr;
+
+        /*  Accumulating Sum */
+    while ( Cr < En && ! isspace ( * Cr ) ) { Cr ++; }
+    SumLen = Cr - Sum;
+    if ( SumLen != MD_DIGEST_SIZE << 1 ) {
+        return RC ( rcApp, rcVector, rcParsing, rcFormat, rcInvalid );
+    }
+
+        /*  Skipping spaces */
+    while ( Cr < En && isspace ( * Cr ) ) { Cr ++; }
+    if ( * Cr != '*' ) {
+        return RC ( rcApp, rcVector, rcParsing, rcFormat, rcInvalid );
+    }
+
+    Cr ++;
+    File = Cr;
+    while ( Cr < En && ! isspace ( * Cr ) ) { Cr ++; }
+    FileLen = Cr - File;
+    if ( FileLen == 0 ) {
+        return RC ( rcApp, rcVector, rcParsing, rcFormat, rcInvalid );
+    }
+
+    return _karMD5VecAdd ( self, File, FileLen, Sum, SumLen );
+}   /* _karMD5VecParseLine () */
+
+static
+rc_t CC
+_karMD5VecImport ( struct karMD5Vec * self, char * Buf, size_t BSize )
+{
+    rc_t RCt;
+    char * Bg, * Cr, * En;
+
+    RCt = 0;
+    Bg = Cr = En = NULL;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcVector, rcUnpacking, rcSelf, rcNull );
+    }
+
+    if ( Buf == NULL ) {
+        return RC ( rcApp, rcVector, rcUnpacking, rcParam, rcNull );
+    }
+
+    if ( BSize == 0 ) {
+        return RC ( rcApp, rcVector, rcUnpacking, rcParam, rcInvalid );
+    }
+
+    _karMD5VecClear ( self );
+
+    Bg = Cr = Buf;
+    En = Bg + BSize;
+
+    while ( Cr < En ) {
+        if ( * Cr == '\n' ) {
+            RCt = _karMD5VecParseLine ( self, Bg, Cr );
+            if ( RCt != 0 ) {
+                break;
+            }
+
+            Cr ++;
+            Bg = Cr;
+        }
+
+        Cr ++;
+    }
+
+    if ( RCt == 0 ) {
+        if ( Cr != Bg && 1 < Cr - Bg ) {
+            RCt = _karMD5VecParseLine ( self, Bg, Cr );
+        }
+    }
+
+    if ( RCt != 0 ) {
+        _karMD5VecClear ( self );
+    }
+
+    return RCt;
+}   /* _karMD5VecImport () */
+
+static
+rc_t CC
+_karMD5VecExport ( char ** ExpData, struct karMD5Vec * self )
+{
+    char * Data;
+    size_t DataLen;
+    int llp;
+
+    Data = NULL;
+    DataLen = 0;
+    llp = 0;
+
+    if ( ExpData != NULL ) {
+        * ExpData = NULL;
+    }
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcVector, rcPacking, rcSelf, rcNull );
+    }
+
+    if ( ExpData == NULL ) {
+        return RC ( rcApp, rcVector, rcPacking, rcParam, rcNull );
+    }
+
+        /*  First we are going to calculate size of that trouble
+         */
+    DataLen = 0;
+    for ( llp = 0; llp < self -> _q; llp ++ ) {
+        if ( self -> _v [ llp ] != NULL ) {
+            DataLen += strlen ( self -> _v [ llp ] -> _s )  /* sum  */
+                    +  2                                    /* " *" */
+                    +  strlen ( self -> _v [ llp ] -> _f )  /* file */
+                    +  1                                    /* '\n' */
+                    ;
+        }
+    }
+
+    Data = calloc ( DataLen + 1, sizeof ( char ) );
+    if ( Data == NULL ) {
+        return RC ( rcApp, rcVector, rcPacking, rcMemory, rcExhausted );
+    }
+    else {
+        * Data = 0;
+        for ( llp = 0; llp < self -> _q; llp ++ ) {
+            if ( self -> _v [ llp ] != NULL ) {
+                strcat ( Data, self -> _v [ llp ] -> _s );
+                strcat ( Data, " *" );
+                strcat ( Data, self -> _v [ llp ] -> _f );
+                strcat ( Data, "\n" );
+            }
+        }
+
+        * ExpData = Data;
+    }
+
+    return 0;
+}   /* _karMD5VecExport () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Struct karChive Resolving node by path
@@ -3074,6 +3533,41 @@ LIB_EXPORT rc_t CC KMetadataFlushToMemory (
                                             size_t bsize,
                                             size_t * num_writ
                                             );
+static
+bool
+_karChiveCheckMetaDataNodeExists (
+                                struct KMetadata * self,
+                                const char * ParName,
+                                const char * NodeName
+)
+{
+    rc_t RCt;
+    const struct KMDataNode * NodePar;
+    const struct KMDataNode * NodeNode;
+
+    RCt = 0;
+    NodePar = NULL;
+    NodeNode = NULL;
+
+    if ( self == NULL || ParName == NULL || NodeName == NULL ) {
+        return false;
+    }
+
+    RCt = KMetadataOpenNodeRead (
+                                ( const struct KMetadata * ) self,
+                                & NodePar,
+                                ParName
+                                );
+    if ( RCt == 0 ) {
+        RCt = KMDataNodeOpenNodeRead ( NodePar, & NodeNode, NodeName );
+        if ( RCt == 0 ) {
+            KMDataNodeRelease ( NodeNode );
+        }
+        KMDataNodeRelease ( NodePar );
+    }
+
+    return RCt == 0;
+}   /* _karChiveCheckMetaDataNodeExists () */
 
 void
 _karChiveCheckMetaDeliteCallback (
@@ -3087,9 +3581,8 @@ _karChiveCheckMetaDeliteCallback (
     void * Buf;
     size_t BufSize;
     struct KMetadata * Meta;
-    const struct KMDataNode * NodeSoft;
-    const struct KMDataNode * NodeDeli;
     char BBB [ 1024 ];
+    bool NodeExists;
 
     RCt = 0;
     File = NULL;
@@ -3097,9 +3590,8 @@ _karChiveCheckMetaDeliteCallback (
     Buf = NULL;
     BufSize = 0;
     Meta = NULL;
-    NodeSoft = NULL;
-    NodeDeli = NULL;
     * BBB = 0;
+    NodeExists = false;
 
     if ( Entry == NULL || Data == NULL ) {
         /*  Should we complain here ?
@@ -3137,34 +3629,23 @@ _karChiveCheckMetaDeliteCallback (
                                             false
                                             );
             if ( RCt == 0 ) {
-                RCt = KMetadataOpenNodeRead (
-                                    ( const struct KMetadata * ) Meta,
-                                    & NodeSoft,
-                                    MD_SOFT_SOFTWARE
-                                    );
-                if ( RCt == 0 ) {
-                    RCt = KMDataNodeOpenNodeRead (
-                                                NodeSoft,
-                                                & NodeDeli,
-                                                MD_SOFT_DELITE
-                                                );
-                    if ( RCt == 0 ) {
-                        WasDelited = true;
+                NodeExists = _karChiveCheckMetaDataNodeExists (
+                                                    Meta,
+                                                    MD_SOFT_SOFTWARE,
+                                                    MD_SOFT_DELITE
+                                                    );
+                if ( NodeExists ) {
+                    WasDelited = true;
 
-                        KOutMsg ( "ERROR: object already was delited [%s]\n", BBB );
-                        pLogMsg (
-                                klogErr,
-                                "ERROR: object already was delited [$(path)]",
-                                "path=%s",
-                                BBB
-                                );
+                    KOutMsg ( "ERROR: object already was delited [%s]\n", BBB );
+                    pLogMsg (
+                            klogErr,
+                            "ERROR: object already was delited [$(path)]",
+                            "path=%s",
+                            BBB
+                            );
 
-                        * ( ( bool * ) Data ) = true;
-
-                        KMDataNodeRelease ( NodeDeli );
-                    }
-
-                    KMDataNodeRelease ( NodeSoft );
+                    * ( ( bool * ) Data ) = true;
                 }
 
 /*  That part is prihibited and leaved leaking
@@ -3287,23 +3768,149 @@ _karChiveEditForPath (
 }   /* _karChiveEditForPath () */
 
 static
-rc_t CC 
-_karChiveMakeMD5Line (
+rc_t CC
+_karChiveResolveMD5File (
+                    struct karChiveEntry * self,
+                    struct karChiveFile ** MD5File
+)
+{
+    rc_t RCt;
+    struct karChiveDir * Parent;
+    const struct karChiveEntry * Entry;
+
+    RCt = 0;
+    Parent = NULL;
+    Entry = NULL;
+
+    if ( MD5File != NULL ) {
+        * MD5File = NULL;
+    }
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcSelf, rcNull );
+    }
+
+    if ( MD5File == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcParam, rcNull );
+    }
+
+        /*  Theoretically MD5 file is "../../md5" file, which
+         *  we suppose to find
+         */
+    Parent = self -> _parent;
+    if ( Parent == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcParam, rcInvalid );
+    }
+
+    Parent = Parent -> _da_da_dad . _parent;
+    if ( Parent == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcParam, rcInvalid );
+    }
+
+    RCt = _karChiveResolvePath ( & Entry, Parent, MD_CUR_NODE_MD5 );
+    if ( RCt == 0 ) {
+        if ( Entry -> _type != kptFile ) {
+            RCt = RC ( rcApp, rcArc, rcReading, rcItem, rcCorrupt );
+        }
+        else {
+            * MD5File = ( struct karChiveFile * ) Entry;
+        }
+    }
+
+    return RCt;
+}   /* _karChiveResolveMD5File () */
+
+/*  That one will return null terminated sum from MD5 file
+ */
+static
+rc_t CC
+_karChiveReadMD5Sum (
+                    struct karChiveEntry * Entry,
+                    char * Sum,
+                    size_t SumSize
+)
+{
+    rc_t RCt;
+    struct karChiveFile * File;
+    void * Data;
+    size_t DSize;
+    struct karMD5Vec * MD5Vec;
+    int Idx;
+
+    RCt = 0;
+    File = NULL;
+    Data = NULL;
+    DSize = 0;
+    MD5Vec = NULL;
+    Idx = - 1;
+
+    if ( Entry == NULL ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcParam, rcNull );
+    }
+
+    if ( Sum == NULL ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcParam, rcNull );
+    }
+
+    if ( Entry -> _type != kptFile ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcParam, rcInvalid );
+    }
+
+    File = ( struct karChiveFile * ) Entry;
+
+    RCt = karChiveDSReadAll ( File -> _data_source, & Data, & DSize );
+    if ( RCt == 0 ) {
+        RCt = _karMD5VecMake ( & MD5Vec );
+        if ( RCt == 0 ) {
+            RCt = _karMD5VecImport ( MD5Vec, ( char * ) Data, DSize );
+            if ( RCt == 0 ) {
+                Idx = _karMD5VecFind ( MD5Vec, MD_CUR_NODE_PATH );
+                if ( 0 <= Idx ) {
+                        /*  No check for NULL, if it is found it is found */
+                    if ( SumSize < strlen ( MD5Vec -> _v [ Idx ] -> _s ) + 1 ) {
+                        RCt = RC ( rcApp, rcArc, rcUpdating, rcParam, rcInsufficient );
+                    }
+                    else {
+                        strcpy ( Sum, MD5Vec -> _v [ Idx ] -> _s );
+                    }
+                }
+                else {
+                    RCt = RC ( rcApp, rcArc, rcUpdating, rcParam, rcNotFound );
+                }
+
+            }
+
+            _karMD5VecDispose ( MD5Vec );
+        }
+
+        free ( Data );
+    }
+
+    return RCt;
+}   /* _karChiveReadMD5Sum () */
+
+/*  That one null terminates MD5 sum string
+ */
+static
+rc_t CC
+_karChiveMakeMD5Sum (
                     const char * Data,
                     size_t DataSize,
                     char * Buf,
                     size_t BufSize
 )
 {
-    rc_t RCt;
     struct MD5State State;
-    uint8_t Digest [ 16 ];
+    uint8_t Digest [ MD_DIGEST_SIZE ];
     size_t llp, Len, Total;
 
-    RCt = 0;
     memset ( & State, 0, sizeof ( struct MD5State ) );
     memset ( Digest, 0, sizeof ( Digest ) );
     llp = Len = Total = 0;
+
+    if ( BufSize <= ( MD_DIGEST_SIZE << 1 ) ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcSize, rcInsufficient );
+    }
 
     memset ( Buf, 0, BufSize );
 
@@ -3311,7 +3918,7 @@ _karChiveMakeMD5Line (
     MD5StateAppend ( & State, Data, DataSize );
     MD5StateFinish ( & State, Digest );
 
-    for ( llp = 0; llp < 16; llp ++ ) {
+    for ( llp = 0; llp < MD_DIGEST_SIZE; llp ++ ) {
         Len = snprintf (
                     Buf + Total,
                     BufSize - Total,
@@ -3322,11 +3929,10 @@ _karChiveMakeMD5Line (
         Total += Len;
     }
 
-    Len = snprintf ( Buf + Total, BufSize - Total, " *%s\n", MD_CUR_NODE_PATH );
-    Total += Len;
+    Buf [ Total ] = 0;
 
-    return RCt;
-}   /* _karChiveMakeMD5Line () */
+    return 0;
+}   /* _karChiveMakeMD5Sum () */
 
 static
 rc_t CC
@@ -3337,16 +3943,19 @@ _karChiveUpdateMD5File (
 )
 {
     rc_t RCt;
-    struct karChiveDir * ParPar;
-    const struct karChiveEntry * Found;
     struct karChiveFile * File;
     char Buf [ 128 ];
+    struct karMD5Vec * MD5Vec;
+    void * MD5Data;
+    size_t MD5Size;
+    char * NewMD5Data;
 
     RCt = 0;
-    ParPar = NULL;
-    Found = NULL;
     File = NULL;
     * Buf = 0;
+    MD5Data = NULL;
+    MD5Size = 0;
+    NewMD5Data = NULL;
 
     if ( self == NULL ) {
         return RC ( rcApp, rcArc, rcUpdating, rcSelf, rcNull );
@@ -3363,46 +3972,65 @@ _karChiveUpdateMD5File (
         /*  First we should find appropriate carChiveFile with MD5 sum
          *  of course it should be "../../md5"
          */
-    ParPar = self -> _parent;
-    if ( ParPar == NULL ) {
-        return RC ( rcApp, rcArc, rcUpdating, rcItem, rcInvalid );
-    }
-    else {
-        ParPar = ParPar -> _da_da_dad . _parent;
-        if ( ParPar == NULL ) {
-            return RC ( rcApp, rcArc, rcUpdating, rcItem, rcInvalid );
-        }
-    }
-
-    RCt = _karChiveResolvePath (
-                                & Found,
-                                ParPar,
-                                "md5"
+    RCt = _karChiveResolveMD5File (
+                                ( struct karChiveEntry * ) self,
+                                & File
                                 );
     if ( RCt == 0 ) {
-        if ( Found -> _type != kptFile ) {
-            RCt = RC ( rcApp, rcArc, rcUpdating, rcItem, rcCorrupt );
-        }
-        else {
-            File = ( struct karChiveFile * ) Found;
-
-                /*  Here we are getting new MD5 sum
-                 */
-            RCt = _karChiveMakeMD5Line (
-                                        Data,
-                                        DataSize,
-                                        Buf,
-                                        sizeof ( Buf )
-                                        );
+        RCt = karChiveDSReadAll (
+                                File -> _data_source,
+                                & MD5Data,
+                                & MD5Size
+                                );
+        if ( RCt == 0 ) {
+            RCt = _karMD5VecMake ( & MD5Vec );
             if ( RCt == 0 ) {
-                karChiveDSRelease ( File -> _data_source );
+                RCt = _karMD5VecImport (
+                                        MD5Vec,
+                                        ( char * ) MD5Data,
+                                        MD5Size
+                                        );
+                if ( RCt == 0 ) {
+                        /*  Here we are getting new MD5 sum
+                         */
+                    RCt = _karChiveMakeMD5Sum (
+                                                Data,
+                                                DataSize,
+                                                Buf,
+                                                sizeof ( Buf )
+                                                );
+                    if ( RCt == 0 ) {
+                        RCt = _karMD5VecAdd (
+                                            MD5Vec,
+                                            MD_CUR_NODE_PATH,
+                                            0,
+                                            Buf,
+                                            0
+                                            );
+                        if ( RCt == 0 ) {
+                            RCt = _karMD5VecExport (
+                                                    & NewMD5Data,
+                                                    MD5Vec
+                                                    );
+                            if ( RCt == 0 ) {
+                                karChiveDSRelease (
+                                                File -> _data_source
+                                                );
+                                RCt = karChiveMemDSMake ( 
+                                            & ( File -> _data_source ),
+                                            NewMD5Data,
+                                            strlen ( NewMD5Data )
+                                            );
 
-                RCt = karChiveMemDSMake ( 
-                                    & ( File -> _data_source ),
-                                    Buf,
-                                    strlen ( Buf )
-                                    );
+                                free ( NewMD5Data );
+                            }
+                        }
+                    }
+                }
+                _karMD5VecDispose ( MD5Vec );
             }
+
+            free ( MD5Data );
         }
     }
 
@@ -3479,21 +4107,38 @@ _karChiveUpdateMetaSoft ( struct KMetadata * Meta )
 
 static
 rc_t CC
-_karChiveUpdateMetaStats ( struct KMetadata * Meta )
+_karChiveUpdateMetaStats ( struct KMetadata * Meta, const char * Path )
 {
     rc_t RCt;
-    struct KMDataNode * NodeStatQual;
+    struct KMDataNode * NodeStat;
+    const struct KMDataNode * NodeQual;
 
     RCt = 0;
-    NodeStatQual = NULL;
+    NodeStat = NULL;
+    NodeQual = NULL;
 
     if ( Meta == NULL ) {
         return RC ( rcApp, rcMetadata, rcUpdating, rcSelf, rcNull );
     }
 
-    RCt = KMetadataOpenNodeUpdate ( Meta, & NodeStatQual, "/STATS/QUALITY" );
+    RCt = KMetadataOpenNodeUpdate ( Meta, & NodeStat, MD_STATS_NAME );
     if ( RCt == 0 ) {
-        RCt = KMDataNodeDropAll ( NodeStatQual );
+        RCt = KMDataNodeOpenNodeRead ( NodeStat, & NodeQual, MD_STATS_QUAL);
+        if ( RCt != 0 ) {
+                /*  Not an error
+                 */
+            RCt = 0;
+        }
+        else {
+            KMDataNodeRelease ( NodeQual );
+
+            KOutMsg ( "DEL [%s] node for [%s]\n", MD_STATS_QUAL, Path );
+            pLogMsg ( klogInfo, "DEL [$(qual)] node for [$(file)]", "qual=%s,file=%s", MD_STATS_QUAL, Path ); 
+
+
+            RCt = KMDataNodeDropChild ( NodeStat, MD_STATS_QUAL );
+        }
+        KMDataNodeRelease ( NodeStat );
     }
     else {
             /*  Not an error
@@ -3578,7 +4223,7 @@ _karChiveEditMetaFile (
             if ( RCt == 0 ) {
                 RCt = _karChiveUpdateMetaSoft ( Meta );
                 if ( RCt == 0 ) {
-                    RCt = _karChiveUpdateMetaStats ( Meta );
+                    RCt = _karChiveUpdateMetaStats ( Meta, Path );
                     if ( RCt == 0 ) {
                             /*  Checking needed size and creating buffer
                              */
@@ -3640,7 +4285,9 @@ _karChiveEditMetaFile (
  * 
  *          KMetadataRelease ( Meta );
  */
-            KMetadataRelease ( Meta );
+/*
+ *            KMetadataRelease ( Meta );
+ */
         }
     }
 
@@ -4501,26 +5148,331 @@ _karChiveCheckFileOrder ( const struct karChive * self )
 }   /* _karChiveCheckFileOrder () */
 
 static
-rc_t CC
-_karChiveCheckMetaData ( const struct karChive * self )
+void CC
+_karChiveCheckQualityRemovedCallback (
+                    const struct karChiveEntry * Entry,
+                    void * Data
+)
 {
-    rc_t RCt;
+    const char * Path;
+    struct Buhiripohl * Pohl;
 
-    RCt = 0;
+    Path = NULL;
+    Pohl = ( struct Buhiripohl * ) Data;
 
-    return RCt;
-}   /* _karChiveCheckMetaData () */
+    if ( Pohl -> _rc != 0 ) {
+        return;
+    }
+
+    if ( Entry != NULL ) {
+        if ( IsQualityName ( Entry -> _name ) ) {
+            Pohl -> _rc = RC ( rcApp, rcNode, rcValidating, rcItem, rcInvalid );
+
+            if ( _karChiveEntryMakePath ( Entry, & Path ) == 0 ) {
+                KOutMsg ( ".... ERROR : Found quality column [%s]\n", Path );
+                pLogMsg ( klogInfo, ".... ERROR : Found quality column [$(path)]\n", "path=%s", Path );
+                free ( ( char * ) Path );
+            }
+            else {
+                KOutMsg ( ".... ERROR : Found quality column [%s]\n", Entry -> _name );
+                pLogMsg ( klogInfo, ".... ERROR : Found quality column [$(path)]\n", "path=%s", Entry -> _name );
+            }
+
+        }
+    }
+}   /*  _karChiveCheckQualityRemovedCallback () */
 
 static
 rc_t CC
 _karChiveCheckQualityRemoved ( const struct karChive * self )
 {
     rc_t RCt;
+    struct karFVec * Files;
+    struct Buhiripohl Pohl;
 
     RCt = 0;
+    Files = NULL;
+    memset ( & Pohl, 0, sizeof ( struct Buhiripohl ) );
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcValidating, rcSelf, rcNull );
+    }
+
+    if ( self -> _is_454_style ) {
+        KOutMsg ( "454 style archive : quality removed check skipped ...\n" );
+        pLogMsg ( klogInfo, "454 style archive : quality removed check skipped ...\n", "" );
+
+        return 0;
+    }
+
+    KOutMsg ( "Checking quality removed\n" );
+
+    RCt = _karFVecMake ( & Files );
+    if ( RCt == 0 ) {
+        Pohl . _files = Files;
+
+        _karChiveEntryForEach (
+                    ( const struct karChiveEntry * ) self -> _root,
+                    _karChiveCheckQualityRemovedCallback,
+                    & Pohl
+                    );
+        RCt = Pohl . _rc;
+
+        _karFVecDispose ( Files );
+    }
+
+    if ( RCt == 0 ) {
+        KOutMsg ( ".... DONE\n" );
+    }
+    else {
+        KOutMsg ( ".... FAILED\n" );
+    }
 
     return RCt;
 }   /* _karChiveCheckQualityRemoved () */
+
+static
+void CC
+_karChiveCheckMetaDataCallback (
+                    const struct karChiveEntry * Entry,
+                    void * Data
+)
+{
+    struct Buhiripohl * Pohl = ( struct Buhiripohl * ) Data;
+
+    if ( Entry != NULL ) {
+        if ( Entry -> _name != NULL ) {
+            if ( strcmp ( MD_CUR_NODE_NAME, Entry -> _name ) == 0 ) {
+                Pohl -> _rc = _karFVecAdd (
+                                        Pohl -> _files,
+                                        ( struct karChiveFile * ) Entry
+                                        );
+            }
+        }
+    }
+}   /*  _karChiveCheckMetaDataCallback () */
+
+static
+rc_t CC
+_karChiveCheckMetaFileIsGood (
+                            struct karChiveFile * File,
+                            bool * WasDelited,
+                            bool Is454Architecture
+)
+{
+    rc_t RCt;
+    void * Buf;
+    size_t BufSize;
+    struct KMetadata * Meta;
+    char BBB [ 1024 ];
+    bool NodeExists;
+
+    RCt = 0;
+    Buf = NULL;
+    BufSize = 0;
+    Meta = NULL;
+    * BBB = 0;
+    NodeExists = false;
+
+    if ( File == NULL ) {
+        return RC ( rcApp, rcArc, rcValidating, rcSelf, rcNull );
+    }
+
+    if ( WasDelited == NULL ) {
+        return RC ( rcApp, rcArc, rcValidating, rcParam, rcNull );
+    }
+
+        /*  First we are checking if here are QUALITY column or
+         *  DELITED flag setted
+         */
+    RCt = _karChiveEntryPath ( & ( File -> _da_da_dad ), BBB, sizeof ( BBB ) );
+    if ( RCt == 0 ) {
+        RCt = karChiveDSReadAll ( File -> _data_source, & Buf, & BufSize );
+        if ( RCt == 0 ) {
+            RCt = KMetadataMakeFromMemory (
+                                        & Meta,
+                                        BBB,
+                                        Buf,
+                                        BufSize,
+                                        false
+                                        );
+            if ( RCt == 0 ) {
+                    /*  We need only one check if that flag present
+                     */
+                if ( ! * WasDelited ) {
+                    NodeExists = _karChiveCheckMetaDataNodeExists (
+                                                    Meta,
+                                                    MD_SOFT_SOFTWARE,
+                                                    MD_SOFT_DELITE
+                                                    );
+                    if ( NodeExists ) {
+                        * WasDelited = true;
+                    }
+                }
+
+                    /*  If that is not 454 there should not be any
+                     *  QUALITY nodes in STATS
+                     */
+                if ( ! Is454Architecture ) {
+                    if ( RCt == 0 ) {
+                        NodeExists = _karChiveCheckMetaDataNodeExists (
+                                                        Meta,
+                                                        MD_STATS_NAME,
+                                                        MD_STATS_QUAL
+                                                        );
+                        if ( NodeExists ) {
+                            pLogErr ( klogErr, RCt, "Meta data file [$(file)] contains node [$(node)]", "file=%s,node=%s", BBB, MD_STATS_QUAL );
+                            RCt = RC ( rcApp, rcNode, rcValidating, rcItem, rcInvalid );
+                        }
+                    }
+                }
+            }
+
+            free ( Buf );
+        }
+
+    }
+
+    return RCt;
+}   /* _karChiveCheckMetaFileIsGood () */
+
+static
+rc_t CC
+_karChiveCheckMetaFileMD5 ( struct karChiveFile * File )
+{
+    rc_t RCt;
+    void * Buf;
+    size_t BufSize;
+    struct karChiveFile * MD5File;
+    char CurMD5 [ 64 ];
+    char OldMD5 [ 64 ];
+    char FilePath [ 1024 ];
+
+    RCt = 0;
+    Buf = NULL;
+    BufSize = 0;
+    MD5File = NULL;
+    * CurMD5 = 0;
+    * OldMD5 = 0;
+    * FilePath = 0;
+
+    if ( File == NULL ) {
+        return RC ( rcApp, rcArc, rcValidating, rcSelf, rcNull );
+    }
+
+    RCt = _karChiveEntryPath (
+                            ( struct karChiveEntry * ) File,
+                            FilePath,
+                            sizeof ( FilePath )
+                            );
+    if ( RCt == 0 ) {
+        RCt = _karChiveResolveMD5File (
+                                    ( struct karChiveEntry * ) File,
+                                    & MD5File
+                                    );
+        if ( RCt == 0 ) {
+            RCt = karChiveDSReadAll (
+                                    File -> _data_source,
+                                    & Buf,
+                                    & BufSize
+                                    );
+            if ( RCt == 0 ) {
+                RCt = _karChiveMakeMD5Sum (
+                                        Buf,
+                                        BufSize,
+                                        CurMD5,
+                                        sizeof ( CurMD5 )
+                                        );
+                if ( RCt == 0 ) {
+                    RCt = _karChiveReadMD5Sum (
+                                    ( struct karChiveEntry * ) MD5File,
+                                    OldMD5,
+                                    sizeof ( OldMD5 )
+                                    );
+                    if ( RCt == 0 ) {
+                        if ( strcmp ( OldMD5, CurMD5 ) != 0 ) {
+                            pLogErr ( klogErr, RCt, "Invalid MD5 sum for $(file)", "file=%s", FilePath );
+                            RCt = RC ( rcApp, rcArc, rcValidating, rcChecksum, rcInvalid );
+                        }   
+
+                    }
+                }
+            }
+
+            free ( Buf );
+        }
+    }
+
+    return RCt;
+}   /* _karChiveCheckMetaFileMD5 () */
+
+static
+rc_t CC
+_karChiveCheckMetadata ( const struct karChive * self )
+{
+    rc_t RCt;
+    struct karFVec * Files;
+    struct Buhiripohl Pohl;
+    uint32_t llp;
+    bool WasDelited;
+
+    RCt = 0;
+    Files = NULL;
+    memset ( & Pohl, 0, sizeof ( struct Buhiripohl ) );
+    llp = 0;
+    WasDelited = false;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcValidating, rcSelf, rcNull );
+    }
+
+    KOutMsg ( "Checking metadata\n" );
+
+    RCt = _karFVecMake ( & Files );
+    if ( RCt == 0 ) {
+        Pohl . _files = Files;
+
+        _karChiveEntryForEach (
+                        ( const struct karChiveEntry * ) self -> _root,
+                        _karChiveCheckMetaDataCallback,
+                        & Pohl
+                        );
+        KOutMsg ( ".... found [%d] meta files\n", Files -> _q );
+
+        WasDelited = false;
+        for ( llp = 0; llp < Files -> _q; llp ++ ) {
+            RCt = _karChiveCheckMetaFileIsGood (
+                                                Files -> _f [ llp ],
+                                                & WasDelited,
+                                                self -> _is_454_style
+                                                ) ;
+            if ( RCt != 0 ) {
+                break;
+            }
+
+            RCt = _karChiveCheckMetaFileMD5 ( Files -> _f [ llp ] );
+            if ( RCt != 0 ) {
+                break;
+            }
+        }
+
+        if ( RCt == 0 && ! WasDelited ) {
+            pLogErr ( klogErr, RCt, "Archive was not delited", "" );
+            RCt = RC ( rcApp, rcNode, rcValidating, rcItem, rcInvalid );
+        }
+
+        _karFVecDispose ( Files );
+    }
+
+    if ( RCt == 0 ) {
+        KOutMsg ( ".... DONE\n" );
+    }
+    else {
+        KOutMsg ( ".... FAILED\n" );
+    }
+
+    return RCt;
+}   /* _karChiveCheckMetadata () */
 
 LIB_EXPORT
 rc_t CC
@@ -4541,20 +5493,26 @@ Checkite ( const char * PathToArchive )
          */
     RCt = karChiveOpen ( & Chive, PathToArchive );
     if ( RCt == 0 ) {
-            /*  Phase #2: Check if all files are sorted by size
-             */
-        RCt = _karChiveCheckFileOrder ( Chive );
+        RCt = _karChiveCheckIf454Style ( ( struct karChive * ) Chive );
         if ( RCt == 0 ) {
-                /*  Phase #4: metadata contain delite and does not
-                 *            have quality, if it is not 454 architect
-                 *  Phase #6: metadata has correct MD5 files
+                /*  Phase #2: Check if all files are sorted by size
                  */
-            RCt = _karChiveCheckMetaData ( Chive );
+            RCt = _karChiveCheckFileOrder ( Chive );
             if ( RCt == 0 ) {
                     /*  Phase #5: Check that quality does not present
                      *            if it is not 454 machine
                      */
                 RCt = _karChiveCheckQualityRemoved ( Chive );
+                if ( RCt == 0 ) {
+                        /*  Phase #4: metadata contain delite and does
+                         *            not contain quality, only if it
+                         *            is not 454 architect
+                         *  Phase #6: metadata has correct MD5 files
+                         */
+                    RCt = _karChiveCheckMetadata ( Chive );
+                    if ( RCt == 0 ) {
+                    }
+                }
             }
         }
     }

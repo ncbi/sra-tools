@@ -1723,28 +1723,28 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
                               const VDBManager *my_manager,
                               const db_tab_t tab_fkt )
 {
-    const VTable *my_table;
     VSchema *my_schema = NULL;
-    rc_t rc;
-
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /*ctx->force_sra_schema*/ );
-
-    rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
-    if ( rc != 0 )
-        ErrMsg( "VDBManagerOpenTableRead( '%R' ) -> %R", ctx->path, rc );
-    else
+    rc_t rc = vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /*ctx->force_sra_schema*/ );
+    if ( rc == 0 )
     {
-        rc = check_table_empty( my_table );
-        if ( rc == 0 )
-            rc = tab_fkt( ctx, my_table ); /* fkt-pointer is called */
-        VTableRelease( my_table );
-    }
-
-    if ( my_schema != NULL )
-    {
-        rc = VSchemaRelease( my_schema );
+        const VTable *my_table;
+        rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
         if ( rc != 0 )
-            ErrMsg( "VSchemaRelease() -> %R", rc );
+            ErrMsg( "VDBManagerOpenTableRead( '%R' ) -> %R", ctx->path, rc );
+        else
+        {
+            rc = check_table_empty( my_table );
+            if ( rc == 0 )
+                rc = tab_fkt( ctx, my_table ); /* fkt-pointer is called */
+            VTableRelease( my_table );
+        }
+
+        if ( my_schema != NULL )
+        {
+            rc = VSchemaRelease( my_schema );
+            if ( rc != 0 )
+                ErrMsg( "VSchemaRelease() -> %R", rc );
+        }
     }
     return rc;
 }
@@ -1854,64 +1854,64 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
                              const VDBManager * mgr,
                              const db_fkt_t db_fkt )
 {
-    const VDatabase *db;
     VSchema *schema = NULL;
-    rc_t rc;
-
-    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
-
-    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx->path );
-    if ( rc != 0 )
-        ErrMsg( "VDBManagerOpenDBRead( '%s' ) -> %R", ctx->path, rc );
-    else
+    rc_t rc = vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
+    if ( rc == 0 )
     {
-        KNamelist *tbl_names;
-        rc = VDatabaseListTbl( db, &tbl_names );
+        const VDatabase *db;
+        rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx->path );
         if ( rc != 0 )
-            ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", ctx->path, rc );
+            ErrMsg( "VDBManagerOpenDBRead( '%s' ) -> %R", ctx->path, rc );
         else
         {
-            if ( ctx->table == NULL )
-            {
-                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
-                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
-                /* if there is no SEQUENCE-table, just pick the first table available... */
-                if ( !table_found )
-                    vdh_take_1st_table_from_db( ctx, tbl_names );
-            }
-            else
-            {
-                /* the user DID specify a table: check if the database has a table with this name,
-                   if not try with a sub-string */
-                String value;
-                StringInitCString( &value, ctx->table );
-                if ( !list_contains_value( tbl_names, &value ) )
-                    vdh_take_this_table_from_list( ctx, tbl_names, ctx->table );
-            }
-
-            if ( ctx->table != NULL || ctx->table_enum_requested )
-            {
-                rc = db_fkt( ctx, db ); /* fkt-pointer is called */
-            }
-            else
-            {
-                LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
-                ctx->usage_requested = true;
-            }
-            rc = KNamelistRelease( tbl_names );
+            KNamelist *tbl_names;
+            rc = VDatabaseListTbl( db, &tbl_names );
             if ( rc != 0 )
-                ErrMsg( "KNamelistRelease() -> %R", rc );
-        }
-        rc = VDatabaseRelease( db );
-        if ( rc != 0 )
-            ErrMsg( "VDatabaseRelease() -> %R", rc );
-    }
+                ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", ctx->path, rc );
+            else
+            {
+                if ( ctx->table == NULL )
+                {
+                    /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                    bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                    /* if there is no SEQUENCE-table, just pick the first table available... */
+                    if ( !table_found )
+                        vdh_take_1st_table_from_db( ctx, tbl_names );
+                }
+                else
+                {
+                    /* the user DID specify a table: check if the database has a table with this name,
+                    if not try with a sub-string */
+                    String value;
+                    StringInitCString( &value, ctx->table );
+                    if ( !list_contains_value( tbl_names, &value ) )
+                        vdh_take_this_table_from_list( ctx, tbl_names, ctx->table );
+                }
 
-    if ( schema != NULL )
-    {
-        rc = VSchemaRelease( schema );
-        if ( rc != 0 )
-            ErrMsg( "VSchemaRelease() -> %R", rc );
+                if ( ctx->table != NULL || ctx->table_enum_requested )
+                {
+                    rc = db_fkt( ctx, db ); /* fkt-pointer is called */
+                }
+                else
+                {
+                    LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
+                    ctx->usage_requested = true;
+                }
+                rc = KNamelistRelease( tbl_names );
+                if ( rc != 0 )
+                    ErrMsg( "KNamelistRelease() -> %R", rc );
+            }
+            rc = VDatabaseRelease( db );
+            if ( rc != 0 )
+                ErrMsg( "VDatabaseRelease() -> %R", rc );
+        }
+
+        if ( schema != NULL )
+        {
+            rc = VSchemaRelease( schema );
+            if ( rc != 0 )
+                ErrMsg( "VSchemaRelease() -> %R", rc );
+        }
     }
 
     return rc;
@@ -2010,30 +2010,27 @@ static rc_t vdb_dump_view_make_cursor ( const p_dump_context ctx, const VDBManag
                     {
                         ErrMsg( "view_spec_make_cursor( '%s' ) -> %R", ctx->path, rc );
                     }
+                    else if ( ! vdcd_init( &(r_ctx->col_defs), ctx->max_line_len ) )
+                    {
+                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                        DISP_RC( rc, "col_defs_init() failed" );
+                    }
                     else
                     {
-                        rc = VViewCreateCursor ( r_ctx -> view, & r_ctx->cursor );
+                        uint32_t n = vdm_extract_or_parse_columns_view( ctx, r_ctx->view, r_ctx->col_defs );
+                        if ( n < 1 )
+                        {
+                            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                        }
                         if ( rc == 0 )
                         {
-                            if ( ! vdcd_init( &(r_ctx->col_defs), ctx->max_line_len ) )
+                            rc = VViewCreateCursor ( r_ctx -> view, & r_ctx->cursor );
+                            if ( rc == 0 )
                             {
-                                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                                DISP_RC( rc, "col_defs_init() failed" );
-                            }
-                            else
-                            {
-                                uint32_t n = vdm_extract_or_parse_columns_view( ctx, r_ctx->view, r_ctx->col_defs );
+                                n = vdcd_add_to_cursor( r_ctx->col_defs, r_ctx->cursor );
                                 if ( n < 1 )
                                 {
                                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                                }
-                                else
-                                {
-                                    n = vdcd_add_to_cursor( r_ctx->col_defs, r_ctx->cursor );
-                                    if ( n < 1 )
-                                    {
-                                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                                    }
                                 }
                             }
                         }

@@ -123,7 +123,7 @@ vdb-dump: makedb
 	@ mkdir -p actual
 	@ echo "testing vdb-dump..."
 	# output format
-	@ $(VDB_DUMP) SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
+	 $(VDB_DUMP) SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
 	@ $(VDB_DUMP) SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
 	# nested databases
 	@ $(VDB_DUMP) -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
@@ -157,6 +157,8 @@ vdb-dump: makedb
 	$(VDB_DUMP) SRR1063272 --view "V8<PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT>" -S view.vschema  -R 1-5  >actual/3.11.stdout && diff expected/3.11.stdout actual/3.11.stdout
 	# 4.0 table object - views not supported
 	! $(VDB_DUMP) ERR997444 -S view.vschema --view "V1<SEQUENCE>" 2>/dev/null >actual/4.0.stdout && diff expected/4.0.stdout actual/4.0.stdout
+	# 5.0 a bigger view on SEQUENCE
+	$(VDB_DUMP) SRR1063272 --view "V9<SEQUENCE>" -S view.vschema  -R 1 2>/dev/null >actual/5.0.stdout && diff expected/5.0.stdout actual/5.0.stdout
 
 	@ rm -rf actual
 	@ rm -rf data

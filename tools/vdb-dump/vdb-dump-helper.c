@@ -62,7 +62,7 @@ rc_t ErrMsg( const char * fmt, ... )
         rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
     va_end( list );
     return rc;
-} 
+}
 
 /********************************************************************
 helper function to display the version of the vdb-manager
@@ -111,14 +111,14 @@ rc_t vdh_parse_schema( const VDBManager *my_manager,
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
 
     *new_schema = NULL;
-    
+
     if ( with_sra_schema )
     {
         rc = VDBManagerMakeSRASchema( my_manager, new_schema );
         if ( rc != 0 )
             ErrMsg( "VDBManagerMakeSRASchema() -> %R", rc );
     }
-    
+
     if ( ( rc == 0 )&&( schema_list != NULL ) )
     {
         if ( *new_schema == NULL )
@@ -162,7 +162,7 @@ bool vdh_is_path_table( const VDBManager *my_manager, const char *path,
     const VTable *my_table;
     VSchema *my_schema = NULL;
     rc_t rc;
-    
+
     vdh_parse_schema( my_manager, &my_schema, schema_list, false );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", path );
@@ -709,7 +709,7 @@ static bool matches( const String * cmd, const String * pattern )
     char buffer[ 256 ];
     String match;
     uint32_t matching;
-    
+
     StringInit( &match, buffer, sizeof buffer, 0 );
     matching = StringMatch( &match, cmd, pattern );
     return ( matching == pattern->len && matching == cmd->len );
@@ -723,7 +723,7 @@ int32_t index_of_match( const String * word, uint32_t num, ... )
     {
         uint32_t idx;
         va_list args;
-        
+
         va_start ( args, num );
         for ( idx = 0; idx < num && res < 0; ++idx )
         {
@@ -767,7 +767,7 @@ uint32_t split_buffer( Vector * v, const String * S, const char * delim )
     uint32_t i, res = 0;
     size_t delim_len = string_size( delim );
     String temp;
-    
+
     StringInit( &temp, NULL, 0, 0 );
     VectorInit( v, 0, 10 );
     for( i = 0; i < S->len; ++i )

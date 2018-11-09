@@ -1056,25 +1056,24 @@ static rc_t ResolvedLocal(const Resolved *self,
         return 0;
     }
 
+    if (rc == 0) {
+        rc = KDirectoryOpenFileRead(dir, &local, "%s", path);
+        DISP_RC2(rc, "KDirectoryOpenFileRead", path);
+    }
+    if (rc == 0) {
+        rc = KFileSize(local, &sLocal);
+        DISP_RC2(rc, "KFileSize", path);
+    }
+
     if (self->respFile != NULL)
-        rc = KSrvRespFileGetSize(self->respFile, & sLocal);
-    else {
-        if (rc == 0) {
-            if (self->file != NULL) {
-                rc = KFileSize(self->file, &sRemote);
-                DISP_RC2(rc, "KFileSize(remote)", self->name);
-            }
-            else
-                sRemote = self->remoteSz;
+        rc = KSrvRespFileGetSize(self->respFile, & sRemote);
+    else if (rc == 0) {
+        if (self->file != NULL) {
+            rc = KFileSize(self->file, &sRemote);
+            DISP_RC2(rc, "KFileSize(remote)", self->name);
         }
-        if (rc == 0) {
-            rc = KDirectoryOpenFileRead(dir, &local, "%s", path);
-            DISP_RC2(rc, "KDirectoryOpenFileRead", path);
-        }
-        if (rc == 0) {
-            rc = KFileSize(local, &sLocal);
-            DISP_RC2(rc, "KFileSize", path);
-        }
+        else
+            sRemote = self->remoteSz;
     }
 
     if (rc == 0) {
@@ -1493,8 +1492,8 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
                 }
             }
         }
-        if (!ascp && (/*rc != 0 && GetRCObject(rc) != rcMemory&&*/
-            !canceled && !mane->noHttp && !self->isUri))
+        if (!ascp && /*(rc != 0 && GetRCObject(rc) != rcMemory&&*/
+            !canceled && !mane->noHttp) /*&& !self->isUri))*/
         {
             bool https = true;
             STSMSG(STS_TOP,

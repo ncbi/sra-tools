@@ -41,6 +41,7 @@
 #include <kfs/gzip.h>
 #include <kfs/bzip.h>
 
+/*
 static rc_t print_file( const KFile * src, size_t buf_size )
 {
     rc_t rc = 0;
@@ -97,10 +98,10 @@ static rc_t print_files( KDirectory * dir,
             else
             {
                 const struct KFile * src;
-                rc = make_buffered_for_read( dir, &src, filename, buf_size ); /* helper.c */
+                rc = make_buffered_for_read( dir, &src, filename, buf_size );
                 if ( rc == 0 )
                 {
-                    rc = print_file( src, buf_size ); /* above */
+                    rc = print_file( src, buf_size );
                     KFileRelease( src );
                 }
 
@@ -115,7 +116,7 @@ static rc_t print_files( KDirectory * dir,
     }
     return rc;
 }
-
+*/
 
 static const char * ct_none_fmt  = "%s";
 static const char * ct_gzip_fmt  = "%s.gz";
@@ -301,33 +302,24 @@ rc_t execute_concat( KDirectory * dir,
                     const struct VNamelist * files,
                     size_t buf_size,
                     struct bg_progress * progress,
-                    bool print_to_stdout,
                     bool force,
                     compress_t compress )
 {
-    rc_t rc;
-    if ( print_to_stdout )
+    uint32_t count;
+    rc_t rc = VNameListCount( files, &count );
+    if ( rc != 0 )
+        ErrMsg( "concatenator.c execute_concat().VNameListCount() -> %R", rc );
+    else if ( count > 0 )
     {
-        rc = print_files( dir, files, buf_size ); /* above */
-    }
-    else
-    {
-        uint32_t count;
-        rc = VNameListCount( files, &count );
-        if ( rc != 0 )
-            ErrMsg( "concatenator.c execute_concat().VNameListCount() -> %R", rc );
-        else if ( count > 0 )
+        if ( compress != ct_none )
         {
-            if ( compress != ct_none )
-            {
-                rc = execute_concat_compressed( dir, output_filename, files, buf_size,
-                            progress, force, compress, count ); /* above */
-            }
-            else
-            {
-                rc = execute_concat_un_compressed( dir, output_filename, files, buf_size,
-                            progress, force, count ); /* avove */
-            }
+            rc = execute_concat_compressed( dir, output_filename, files, buf_size,
+                        progress, force, compress, count ); /* above */
+        }
+        else
+        {
+            rc = execute_concat_un_compressed( dir, output_filename, files, buf_size,
+                        progress, force, count ); /* avove */
         }
     }
     return rc;

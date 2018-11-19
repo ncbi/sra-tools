@@ -38,7 +38,9 @@ struct KFastDumpCleanupTask;
 
 rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask **task );
 
-rc_t Add_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * filename );
+rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * filename );
+
+rc_t Add_Directory_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * dirname );
 
 rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask * self );
     

@@ -347,6 +347,38 @@ rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch )
     return rc;
 }
 
+rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
+                                const char * filename, uint32_t idx )
+{
+    rc_t rc;
+    if ( idx > 0 )
+    {
+        /* we have to split md -> cmn -> output_filename into name and extension
+           then append '_%u' to the name, then re-append the extension */
+        String S_in, S_name, S_ext;
+        StringInitCString( &S_in, filename );
+        rc = split_string_r( &S_in, &S_name, &S_ext, '.' ); /* helper.c */
+        if ( rc == 0 )
+        {
+            /* we found a dot to split the filename! */
+            rc = make_and_print_to_SBuffer( dst, dst_size, "%S_%u.%S",
+                        &S_name, idx, &S_ext ); /* helper.c */
+        }
+        else
+        {
+            /* we did not find a dot to split the filename! */
+            rc = make_and_print_to_SBuffer( dst, dst_size, "%s_%u.fastq",
+                        filename, idx ); /* helper.c */
+        }
+    }
+    else
+        rc = make_and_print_to_SBuffer( dst, dst_size, "%s", filename ); /* helper.c */
+    
+    if ( rc != 0 )
+        release_SBuffer( dst );
+    return rc;
+}
+
 compress_t get_compress_t( bool gzip, bool bzip2 )
 {
     if ( gzip && bzip2 )
@@ -559,28 +591,39 @@ rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
     return rc;
 }
 
+bool check_expected( const KDirectory * dir, uint32_t expected, const char * fmt, va_list args )
+{
+    bool res = false;
+    char buffer[ 4096 ];
+    size_t num_writ;
+    
+    rc_t rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, args );
+    if ( rc == 0 )
+    {
+        uint32_t pt = KDirectoryPathType( dir, "%s", buffer );
+        res = ( pt == expected );
+    }
+    return res;
+}
+
 bool file_exists( const KDirectory * dir, const char * fmt, ... )
 {
-    uint32_t pt;
-    va_list list;
-    
-    va_start( list, fmt );
-    pt = KDirectoryVPathType( dir, fmt, list );
-    va_end( list );
-
-    return ( pt == kptFile ) ;
+    bool res = false;
+    va_list args;
+    va_start( args, fmt );
+    res = check_expected( dir, kptFile, fmt, args ); /* because KDirectoryPathType() uses vsnprintf */
+    va_end( args );
+    return res;
 }
 
 bool dir_exists( const KDirectory * dir, const char * fmt, ... )
 {
-    uint32_t pt;
-    va_list list;
-    
-    va_start( list, fmt );
-    pt = KDirectoryVPathType( dir, fmt, list );
-    va_end( list );
-
-    return ( pt == kptDir ) ;
+    bool res = false;
+    va_list args;
+    va_start( args, fmt );
+    res = check_expected( dir, kptDir, fmt, args ); /* because KDirectoryPathType() uses vsnprintf */
+    va_end( args );
+    return res;
 }
 
 rc_t join_and_release_threads( Vector * threads )
@@ -655,6 +698,32 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files )
                     if ( rc != 0 )
                         ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
                 }
+            }
+        }
+    }
+    return rc;
+}
+
+rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs )
+{
+    uint32_t count;
+    rc_t rc = VNameListCount( dirs, &count );
+    if ( rc != 0 )
+        ErrMsg( "VNameListCount() -> %R", rc );
+    else
+    {
+        uint32_t idx;
+        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        {
+            const char * dirname;
+            rc = VNameListGet( dirs, idx, &dirname );
+            if ( rc != 0 )
+                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
+            else if ( dir_exists( dir, "%s", dirname ) )
+            {
+                rc = KDirectoryClearDir ( dir, true, "%s", dirname );
+                if ( rc == 0 )
+                    rc = KDirectoryRemove ( dir, true, "%s", dirname );
             }
         }
     }
@@ -785,25 +854,6 @@ rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force )
     return rc;
 }
 
-rc_t make_joined_filename( char * buffer, size_t bufsize,
-                           const char * accession,
-                           const tmp_id * tmp_id,
-                           uint32_t id )
-{
-    size_t num_writ;
-    rc_t rc = string_printf( buffer, bufsize, &num_writ,
-                             tmp_id -> temp_path_ends_in_slash ? "%s%s.%s.%u.%u" : "%s/%s.%s.%u.%u",
-                             tmp_id -> temp_path,
-                             accession,
-                             tmp_id -> hostname,
-                             tmp_id -> pid,
-                             id );
-    if ( rc != 0 )
-        ErrMsg( "make_joined_filename.string_printf() -> %R", rc );
-    return rc;
-
-}
-
 rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
                              const char * filename, size_t buf_size )
 {
@@ -875,7 +925,7 @@ rc_t locked_file_list_append( const locked_file_list * self, const char * filena
     return rc;
 }
 
-rc_t locked_file_list_delete_all( KDirectory * dir, locked_file_list * self )
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list * self )
 {
     rc_t rc = 0;
     if ( self == NULL || dir == NULL )
@@ -886,6 +936,23 @@ rc_t locked_file_list_delete_all( KDirectory * dir, locked_file_list * self )
         if ( rc == 0 )
         {
             rc = delete_files( dir, self -> files );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list * self )
+{
+    rc_t rc = 0;
+    if ( self == NULL || dir == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = delete_dirs( dir, self -> files );
             KLockUnlock ( self -> lock );
         }
     }

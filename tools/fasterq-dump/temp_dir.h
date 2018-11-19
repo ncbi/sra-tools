@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_temp_dir_
+#define _h_temp_dir_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,29 +35,28 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
 
-#ifndef _h_helper_
-#include "helper.h"
-#endif
+struct temp_dir;
 
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
+void destroy_temp_dir( struct temp_dir * self );
 
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress * progress,
-                    bool force,
-                    compress_t compress );
+rc_t make_temp_dir( struct temp_dir ** obj, const char * requested, KDirectory * dir );
+
+const char * get_temp_dir( struct temp_dir * self );
+
+rc_t generate_lookup_filename( const struct temp_dir * self, char * dst, size_t dst_size );
+
+rc_t generate_bg_sub_filename( const struct temp_dir * self, char * dst, size_t dst_size, uint32_t product_id );
+
+rc_t generate_bg_merge_filename( const struct temp_dir * self, char * dst, size_t dst_size, uint32_t product_id );
+
+rc_t make_joined_filename( const struct temp_dir * self, char * dst, size_t dst_size,
+                           const char * accession, uint32_t id );
+
+rc_t remove_temp_dir( const struct temp_dir * self, KDirectory * dir );
 
 #ifdef __cplusplus
 }

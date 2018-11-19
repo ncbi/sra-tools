@@ -108,7 +108,7 @@ rc_t register_temp_file( temp_registry * self, uint32_t read_id, const char * fi
             {
                 rc = VNamelistAppend ( l, filename );
                 if ( rc == 0 )
-                    rc = Add_to_Cleanup_Task ( self -> cleanup_task, filename );
+                    rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, filename );
             }
             KLockUnlock ( self -> lock );
         }
@@ -187,45 +187,21 @@ typedef struct merge_data
 
 static rc_t CC merge_thread_func( const KThread *self, void *data )
 {
-    rc_t rc;
     merge_data * md = data;
     SBuffer s_filename;
-
-    VNamelistReorder ( md -> files, false );
-    if ( md -> idx > 0 )
-    {
-        /* we have to split md -> cmn -> output_filename into name and extension
-           then append '_%u' to the name, then re-append the extension */
-        String S_in, S_name, S_ext;
-        StringInitCString( &S_in, md -> cmn -> output_filename );
-        rc = split_string_r( &S_in, &S_name, &S_ext, '.' );
-        if ( rc == 0 )
-        {
-            /* we found a dot to split the filename! */
-            rc = make_and_print_to_SBuffer( &s_filename, 4096, "%S_%u.%S",
-                        &S_name, md -> idx, &S_ext );
-        }
-        else
-        {
-            /* we did not find a dot to split the filename! */
-            rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s_%u.fastq",
-                        md -> cmn -> output_filename, md -> idx );
-        }
-    }
-    else
-        rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s",
-                    md -> cmn -> output_filename );
+    rc_t rc = split_filename_insert_idx( &s_filename, 4096,
+                            md -> cmn -> output_filename, md -> idx ); /* helper.c */
     if ( rc == 0 )
     {
+        VNamelistReorder ( md -> files, false );        
         rc = execute_concat( md -> cmn -> dir,
             s_filename . S . addr,
             md -> files,
             md -> cmn -> buf_size,
             md -> cmn -> progress,
-            false,
             md -> cmn -> force,
             md -> cmn -> compress );
-        release_SBuffer( &s_filename );
+        release_SBuffer( &s_filename ); /* helper.c */
     }
     free( ( void * ) md );
     return rc;
@@ -273,7 +249,6 @@ rc_t temp_registry_merge( temp_registry * self,
                           const char * output_filename,
                           size_t buf_size,
                           bool show_progress,
-                          bool print_to_stdout,
                           bool force,
                           compress_t compress )
 {
@@ -310,7 +285,6 @@ rc_t temp_registry_merge( temp_registry * self,
                     l,
                     buf_size,
                     progress,
-                    print_to_stdout,
                     force,
                     compress ); /* concatenator.c */
             }

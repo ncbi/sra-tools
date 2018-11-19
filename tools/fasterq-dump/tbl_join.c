@@ -645,7 +645,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     const char * accession_short,
                     join_stats * stats,
                     const char * tbl_name,
-                    const tmp_id * tmp_id,
+                    const struct temp_dir * temp_dir,
                     struct temp_registry * registry,
                     size_t cur_cache,
                     size_t buf_size,
@@ -722,8 +722,8 @@ rc_t execute_tbl_join( KDirectory * dir,
                         jtd -> fmt              = fmt;
                         jtd -> join_options     = &corrected_join_options;
 
-                        rc = make_joined_filename( jtd -> part_file, sizeof jtd -> part_file,
-                                    accession_short, tmp_id, thread_id ); /* helper.c */
+                        rc = make_joined_filename( temp_dir, jtd -> part_file, sizeof jtd -> part_file,
+                                    accession_short, thread_id ); /* temp_dir.c */
 
                         if ( rc == 0 )
                         {

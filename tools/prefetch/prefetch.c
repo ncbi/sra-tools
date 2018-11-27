@@ -562,14 +562,19 @@ static rc_t V_ResolverRemote(const VResolver *self,
     const KSrvRespObj * obj = NULL;
     KSrvRespObjIterator * it = NULL;
     KSrvRespFile * file = NULL;
+    const char * cgi = NULL;
+
     rc_t rc = KServiceMake ( & service );
     if ( rc == 0 && item -> seq_id != NULL ) {
         assert ( item -> isDependency  );
         id = item -> seq_id;
     }
+
     if ( id == NULL )
         id = resolved -> name;
+
     assert ( id );
+
     if ( rc == 0 ) {
         if ( resolved -> project != 0 ) {
             rc = KServiceAddProject ( service, resolved -> project );
@@ -590,13 +595,19 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 rc = KServiceAddId ( service, id );
         }
     }
+
     if (rc == 0 && item->mane ->fileType != NULL)
         rc = KServiceSetFormat(service, item->mane->fileType);
+
+    cgi = "https://www.ncbi.nlm.nih.gov/Traces/sdl_test/4.0/retrieve";
+
     if ( rc == 0 )
-        rc = KServiceNamesQueryExt ( service, protocols, NULL,
-            "4.", odir, ofile, & response );
+        rc = KServiceNamesQueryExt ( service, protocols, cgi,
+            "4", odir, ofile, & response );
+
     if ( rc == 0 )
         l = KSrvResponseLength  ( response );
+
     if ( rc == 0 && l > 0 )
         rc = KSrvResponseGetObjByIdx ( response, 0, & obj );
     if ( rc == 0 && l > 0 )
@@ -1369,21 +1380,15 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
     const char *src = NULL;
     AscpOptions opt;
 
-    const VPathStr * remote = NULL;
     char spath[PATH_MAX] = "";
     size_t len = 0;
 
     assert ( self && mane );
 
-    remote = & self -> remoteFasp;
-
-    assert ( remote -> str && remote -> str->addr );
-
     if ( self -> isUri && ! ( mane -> ascp && mane -> asperaKey ) ) {
         rc_t rc = RC ( rcExe, rcFile, rcCopying, rcFile, rcNotFound );
-        PLOGERR ( klogErr, ( klogErr, rc,
-            "cannot download \"$(path)\": ascp or key file is not found",
-                          "path=%S", remote -> str ));
+        LOGERR ( klogErr, rc,
+                 "cannot run aspera download: ascp or key file is not found" );
         return rc;
     }
 
@@ -2601,10 +2606,36 @@ static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
         rc_t rd = ItemDownload(self);
         if (rd != 0 && rc == 0)
             rc = rd;
+
+	r1 = VPathStrFini(&self->resolved.local);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
+        RELEASE(String      , self->resolved.cache);
+	r1 = VPathStrFini(&self->resolved.remoteHttp);
+        if (r1 != 0 && rc == 0) {
+            rc = r1;
+            break;
+        }
+	r1 = VPathStrFini(&self->resolved.remoteHttps);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
+	r1 = VPathStrFini(&self->resolved.remoteFasp);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
+        RELEASE(KFile, self->resolved.file);
+	self->resolved.remoteSz = 0;
+	self->resolved.undersized = self->resolved.oversized
+	                          = self->resolved.existing = false;
+	r1 = VPathStrFini(&self->resolved.path);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
         RELEASE(KSrvRespFile, self->resolved.respFile);
+	if (rc != 0) 
+	    break;
+
         r1 = KSrvRespObjIteratorNextFile(self->resolved.respIt,
                                          &self->resolved.respFile);
-        if (r1 != 0) {
+        if (r1 != 0 && rc == 0) {
             rc = r1;
             break;
         }
@@ -4152,6 +4183,10 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
     if (rc == 0) {
         BSTree trKrt;
         BSTreeInit(&trKrt);
+
+        if (self->dryRun)
+            STSMSG(0, ("A dry run was requested - skipping actual download"));
+
         if (self->list_kart) {
             if (it.kart != NULL) {
                 if (self->list_kart_numbered) {

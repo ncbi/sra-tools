@@ -1805,7 +1805,7 @@ static rc_t MainDependenciesList(const Main *self,
 
     STSMSG(STS_DBG, ("Listing '%S's dependencies...", str));
 
-    type = VDBManagerPathType(self->mgr, "%s", resolved->name) & ~kptAlias;
+    type = VDBManagerPathType(self->mgr, "%S", str) & ~kptAlias;
     if (type != kptDatabase) {
         if (type == kptTable) {
             STSMSG(STS_DBG, ("...'%S' is a table", str));
@@ -1817,7 +1817,7 @@ static rc_t MainDependenciesList(const Main *self,
         return 0;
     }
 
-    rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%s", resolved->name);
+    rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%S", str);
     if (rc != 0) {
         if (rc == SILENT_RC(rcDB, rcMgr, rcOpening, rcDatabase, rcIncorrect)) {
             isDb = false;
@@ -2588,6 +2588,8 @@ static rc_t ItemPrintSized(const Item *self, int32_t row, size_t size) {
     return rc;
 }
 
+static rc_t ItemPostDownload(Item *item, int32_t row);
+
 /* resolve: locate; download if not found */
 static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
     rc_t rc = ItemResolve(self, row);
@@ -2604,8 +2606,17 @@ static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
     while (self->resolved.respFile != NULL) {
         rc_t r1 = 0;
         rc_t rd = ItemDownload(self);
-        if (rd != 0 && rc == 0)
-            rc = rd;
+        if (rd != 0) {
+	    if ( rc == 0)
+                rc = rd;
+	}
+	else if (self->resolved.type == eRunTypeDownload && !self->isDependency
+                                                         && !self->mane->dryRun)
+	{
+	    rd = ItemPostDownload(self, row);
+            if (rd != 0 && rc == 0)
+                rc = rd;
+	}
 
 	r1 = VPathStrFini(&self->resolved.local);
         if (r1 != 0 && rc == 0)
@@ -2625,7 +2636,7 @@ static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
         RELEASE(KFile, self->resolved.file);
 	self->resolved.remoteSz = 0;
 	self->resolved.undersized = self->resolved.oversized
-	                          = self->resolved.existing = false;
+	    = self->resolved.existing = /*self->resolved.downloaded =*/ false;
 	r1 = VPathStrFini(&self->resolved.path);
         if (r1 != 0 && rc == 0)
             rc = r1;
@@ -2735,6 +2746,9 @@ static rc_t ItemDownloadDependencies(Item *item) {
     return rc;
 }
 
+#define TODO 1
+
+#if 0
 static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
     Item *self, char *remotePath, size_t remotePathLen, bool *exists)
 {
@@ -2751,7 +2765,6 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
     *exists = false;
     VPathStrFini ( & resolved -> remoteFasp );
     if (remote -> path == NULL) {
-#define TODO 1
         rc_t rc = TODO;
         DISP_RC(rc, "UNKNOWN REMOTE LOCATION WHEN TRYING TO FIND VDBCACHE");
         return rc;
@@ -3048,6 +3061,7 @@ return 0;
     }
     return rc;
 }
+#endif
 
 static rc_t ItemPostDownload(Item *item, int32_t row) {
     rc_t rc = 0;
@@ -3093,9 +3107,6 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
     rc = ItemDownloadDependencies(item);
     if (true) {
         rc_t rc2 = Quitting();
-        if (rc2 == 0) {
-            rc2 = ItemDownloadVdbcache(item);
-        }
         if (rc == 0 && rc2 != 0) {
             rc = rc2;
         }
@@ -3104,14 +3115,10 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
 }
 
 static rc_t ItemProcess(Item *item, int32_t row) {
-    rc_t rc = 0;
-
-    assert(item && item -> mane);
-
     /* resolve: locate; download if not found */
-    rc = ItemResolveResolvedAndDownloadOrProcess(item, row);
+    return ItemResolveResolvedAndDownloadOrProcess(item, row);
 
-    if (item->resolved.type != eRunTypeDownload) {
+/*  if (item->resolved.type != eRunTypeDownload) {
         return rc;
     }
 
@@ -3119,7 +3126,7 @@ static rc_t ItemProcess(Item *item, int32_t row) {
         rc = ItemPostDownload(item, row);
     }
 
-    return rc;
+    return rc;*/
 }
 
 /*********** Iterator **********/

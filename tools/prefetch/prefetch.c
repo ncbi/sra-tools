@@ -2603,53 +2603,60 @@ static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
     else if (self->resolved.type != eRunTypeDownload)
         return rc;
 
-    while (self->resolved.respFile != NULL) {
-        rc_t r1 = 0;
-        rc_t rd = ItemDownload(self);
-        if (rd != 0) {
-	    if ( rc == 0)
-                rc = rd;
-	}
-	else if (self->resolved.type == eRunTypeDownload && !self->isDependency
-                                                         && !self->mane->dryRun)
-	{
-	    rd = ItemPostDownload(self, row);
-            if (rd != 0 && rc == 0)
-                rc = rd;
-	}
+    if (self->resolved.respFile != NULL) {
+        do {
+            rc_t r1 = 0;
+            rc_t rd = ItemDownload(self);
+            if (rd != 0) {
+                if (rc == 0)
+                    rc = rd;
+            }
+            else if (self->resolved.type == eRunTypeDownload && !self->isDependency
+                && !self->mane->dryRun)
+            {
+                rd = ItemPostDownload(self, row);
+                if (rd != 0 && rc == 0)
+                    rc = rd;
+            }
 
-	r1 = VPathStrFini(&self->resolved.local);
-        if (r1 != 0 && rc == 0)
-            rc = r1;
-        RELEASE(String      , self->resolved.cache);
-	r1 = VPathStrFini(&self->resolved.remoteHttp);
-        if (r1 != 0 && rc == 0) {
-            rc = r1;
-            break;
-        }
-	r1 = VPathStrFini(&self->resolved.remoteHttps);
-        if (r1 != 0 && rc == 0)
-            rc = r1;
-	r1 = VPathStrFini(&self->resolved.remoteFasp);
-        if (r1 != 0 && rc == 0)
-            rc = r1;
-        RELEASE(KFile, self->resolved.file);
-	self->resolved.remoteSz = 0;
-	self->resolved.undersized = self->resolved.oversized
-	    = self->resolved.existing = /*self->resolved.downloaded =*/ false;
-	r1 = VPathStrFini(&self->resolved.path);
-        if (r1 != 0 && rc == 0)
-            rc = r1;
-        RELEASE(KSrvRespFile, self->resolved.respFile);
-	if (rc != 0) 
-	    break;
+            r1 = VPathStrFini(&self->resolved.local);
+            if (r1 != 0 && rc == 0)
+                rc = r1;
+            RELEASE(String, self->resolved.cache);
+            r1 = VPathStrFini(&self->resolved.remoteHttp);
+            if (r1 != 0 && rc == 0) {
+                rc = r1;
+                break;
+            }
+            r1 = VPathStrFini(&self->resolved.remoteHttps);
+            if (r1 != 0 && rc == 0)
+                rc = r1;
+            r1 = VPathStrFini(&self->resolved.remoteFasp);
+            if (r1 != 0 && rc == 0)
+                rc = r1;
+            RELEASE(KFile, self->resolved.file);
+            self->resolved.remoteSz = 0;
+            self->resolved.undersized = self->resolved.oversized
+                = self->resolved.existing = /*self->resolved.downloaded =*/ false;
+            r1 = VPathStrFini(&self->resolved.path);
+            if (r1 != 0 && rc == 0)
+                rc = r1;
+            RELEASE(KSrvRespFile, self->resolved.respFile);
+            if (rc != 0)
+                break;
 
-        r1 = KSrvRespObjIteratorNextFile(self->resolved.respIt,
-                                         &self->resolved.respFile);
-        if (r1 != 0 && rc == 0) {
-            rc = r1;
-            break;
-        }
+            r1 = KSrvRespObjIteratorNextFile(self->resolved.respIt,
+                &self->resolved.respFile);
+            if (r1 != 0 && rc == 0) {
+                rc = r1;
+                break;
+            }
+        } while (self->resolved.respFile != NULL);
+    }
+    else { /* resolver was not called: chaeckig a local fiie */
+        rc = ItemDownload(self);
+        if (rc == 0 && self->resolved.type == eRunTypeDownload)
+            rc = ItemPostDownload(self, row);
     }
 
     return rc;

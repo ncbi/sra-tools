@@ -90,6 +90,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BE0DAE2E21AD927700853364 /* load-sra.pl */ = {isa = PBXFileReference; lastKnownFileType = text.script.perl; path = "load-sra.pl"; sourceTree = "<group>"; };
+		BE0DAE2F21AD927800853364 /* load-sra.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "load-sra.sh"; sourceTree = "<group>"; };
 		BE1766511ED4B0B0005ECFFB /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		BE1766561ED4B15F005ECFFB /* filter-ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "filter-ir"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE17665D1ED4B199005ECFFB /* filter-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "filter-ir.cpp"; sourceTree = SOURCE_ROOT; };
@@ -176,6 +178,8 @@
 		BE4F77C51EA51DE900CB45D6 = {
 			isa = PBXGroup;
 			children = (
+				BE0DAE2E21AD927700853364 /* load-sra.pl */,
+				BE0DAE2F21AD927800853364 /* load-sra.sh */,
 				BEECBC8D211B3D6400292330 /* graph_qv.pl */,
 				BEA54EBE20D1F62B00BBA31F /* sam2ir.cpp */,
 				BE3BC8711EE8945A0033AC5F /* fragment.hpp */,

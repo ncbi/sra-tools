@@ -53,7 +53,7 @@ like caching or network load.
 
 To detect how many cpu-cores your machine has:
 
-on Linux:   $nproc --alll
+on Linux:   $nproc --all
 on Mac:     $/usr/sbin/sysctl -n hw.ncpu
 
 The tool can create different formats:

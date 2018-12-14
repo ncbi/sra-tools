@@ -386,6 +386,14 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
         }
     }
     {
+        string name(repoNode + "/apps/sraRealign/volumes/flat");
+        if (!NodeExists(name)) {
+            rc_t r2 = UpdateNode(name, "sra");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
+    }
+    {
         string name ( repoNode + "/apps/nakmer/volumes/nakmerFlat" );
         if ( ! NodeExists ( name ) ) {
             rc_t r2 = UpdateNode ( name, "nannot" );

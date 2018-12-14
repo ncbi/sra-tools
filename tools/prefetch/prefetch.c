@@ -599,8 +599,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if (rc == 0 && item->mane ->fileType != NULL)
         rc = KServiceSetFormat(service, item->mane->fileType);
 
-    cgi = "https://www.ncbi.nlm.nih.gov/Traces/sdl_test/4.0/retrieve";
-
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
             "4", odir, ofile, & response );

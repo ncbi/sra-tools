@@ -35,15 +35,20 @@
 #include <vdb/schema.h> /* VSchemaRelease */
 
 #include <kdb/manager.h> /* KDBPathType */
+#include <kdb/meta.h> /* KMetadataRelease */
+#include <kdb/namelist.h> /* KMDataNodeListChild */
 
 #include <kfs/directory.h> /* KDirectory */
 #include <kfs/file.h> /* KFile */
 
+#include <klib/debug.h> /* DBGMSG */
 #include <klib/log.h> /* LOGERR */
 #include <klib/out.h> /* OUTMSG */
-#include <klib/status.h> /* STSMSG */
-#include <klib/debug.h> /* DBGMSG */
+#include <klib/printf.h> /* string_printf */
 #include <klib/rc.h> /* RC */
+#include <klib/status.h> /* STSMSG */
+#include <klib/time.h> /* KTimeLocal */
+
 #include <os-native.h>
 
 #include <assert.h>
@@ -57,8 +62,8 @@
 static KDirectory* __SpotIteratorDirectory = NULL;
 
 typedef struct CmdLine {
-	const char* table;
-	const char* file;
+    const char* table;
+    const char* file;
 } CmdLine;
 typedef struct SpotIterator {
     spotid_t crnSpotId;
@@ -90,6 +95,8 @@ typedef struct Db {
 
     VCursor *wCursor;
     uint32_t wIdx;
+
+    KMetadata *meta;
 
     bool locked;
 
@@ -505,19 +512,27 @@ static rc_t DbInit(rc_t rc, const CmdLine* args, Db* db)
         db->locked = true; /* has to be locked in production mode */
         rc = VDBManagerOpenTableUpdate (db->mgr, &db->tbl, NULL, args->table);
         if (rc != 0) {
-	    VDatabase *vdb;
-	    rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &vdb, NULL , args->table );
-	    if( rc2 == 0) {
-		rc2 = VDatabaseOpenTableUpdate ( vdb, &db->tbl, "SEQUENCE" );
-		if (rc2 == 0 ) rc = 0;
-		VDatabaseRelease ( vdb );
-	    }
+            VDatabase *vdb;
+            rc_t rc2 = VDBManagerOpenDBUpdate ( db->mgr, &vdb, NULL,
+                                                args->table );
+            if( rc2 == 0) {
+                rc2 = VDatabaseOpenTableUpdate ( vdb, &db->tbl, "SEQUENCE" );
+                if (rc2 == 0 )
+                    rc = 0;
+                VDatabaseRelease ( vdb );
+            }
         }
-	if(rc != 0){
+        if(rc != 0){
             PLOGERR(klogErr, (klogErr, rc,
                 "while opening VTable '$(table)'", "table=%s", args->table));
-	}
+        }
     } 
+
+    if( rc == 0) {
+        rc = VTableOpenMetadataUpdate ( db->tbl, & db->meta );
+        DISP_RC(rc, "while Opening Metadata");
+    }
+
     if( rc == 0) {
         rc = VTableCreateCursorRead(db->tbl, &db->rCursor);
         DISP_RC(rc, "while creating read cursor");
@@ -557,6 +572,13 @@ static rc_t DbDestroy(Db* db)
     rc_t rc = 0;
 
     assert(db);
+
+    {
+        rc_t rc2 = KMetadataRelease(db->meta);
+        db->meta = NULL;
+        if (rc == 0)
+        {   rc = rc2; }
+    }
 
     {
         rc_t rc2 = VCursorRelease(db->rCursor);
@@ -623,7 +645,7 @@ static rc_t Work(Db* db, SpotIterator* it)
             rc = VCursorReadDirect(db->rCursor, row_id, db->rFilterIdx,
                 elem_bits, bufferIn, sizeof bufferIn, &row_len);
             DISP_RC(rc, "while reading READ_FILTER");
-	    nreads = row_len;
+            nreads = row_len;
         }
         if (toRedact) {
             buffer = filter;
@@ -664,6 +686,168 @@ static rc_t Work(Db* db, SpotIterator* it)
     return rc;
 }
 
+static uint32_t get_child_count( KMDataNode *node )
+{
+    uint32_t res = 0;
+    KNamelist *names;
+    rc_t rc = KMDataNodeListChild ( node, &names );
+    DISP_RC( rc, "get_child_count:KMDataNodeListChild() failed" );
+    if ( rc == 0 )
+    {
+        rc = KNamelistCount ( names, &res );
+        DISP_RC( rc, "get_child_count:KNamelistCount() failed" );
+        KNamelistRelease ( names );
+    }
+    return res;
+}
+
+static rc_t fill_timestring( char * s, size_t size )
+{
+    KTime tr;
+    rc_t rc;
+    
+    KTimeLocal ( &tr, KTimeStamp() );
+    rc = string_printf ( s, size, NULL, "%lT", &tr );
+
+    DISP_RC( rc, "fill_timestring:string_printf( date/time ) failed" );
+    return rc;
+}
+
+static rc_t enter_time( KMDataNode *node, const char * key )
+{
+    char timestring[ 160 ];
+    rc_t rc = fill_timestring( timestring, sizeof timestring );
+    if ( rc == 0 )
+    {
+        rc = KMDataNodeWriteAttr ( node, key, timestring );
+        DISP_RC( rc, "enter_time:KMDataNodeWriteAttr( timestring ) failed" );
+    }
+    return rc;
+}
+
+static rc_t enter_version( KMDataNode *node, const char * key )
+{
+    char buff[ 32 ];
+    rc_t rc;
+
+    rc = string_printf ( buff, sizeof( buff ), NULL, "%.3V", KAppVersion() );
+    assert ( rc == 0 );
+    rc = KMDataNodeWriteAttr ( node, key, buff );
+    DISP_RC( rc, "enter_version:KMDataNodeWriteAttr() failed" );
+    return rc;
+}
+
+static rc_t enter_date_name_vers( KMDataNode *node )
+{
+    rc_t rc = enter_time( node, "run" );
+    DISP_RC( rc, "enter_date_name_vers:enter_time() failed" );
+    if ( rc == 0 )
+    {
+        rc = KMDataNodeWriteAttr ( node, "tool", "read-filter-redact" );
+        DISP_RC( rc, "enter_date_name_vers:"
+            "KMDataNodeWriteAttr(tool=read-filter-redact) failed" );
+        if ( rc == 0 )
+        {
+            rc = enter_version ( node, "vers" );
+            DISP_RC( rc, "enter_date_name_vers:enter_version() failed" );
+            if ( rc == 0 )
+            {
+                rc = KMDataNodeWriteAttr ( node, "build", __DATE__ );
+                DISP_RC( rc, "enter_date_name_vers:KMDataNodeWriteAttr"
+                    "(build=_DATE_) failed" );
+            }
+        }
+    }
+    return rc;
+}
+
+static rc_t update_history ( KMetadata *dst_meta ) {
+    rc_t rc = 0;
+    rc_t r2 = 0;
+    char event_name[ 32 ] = "";
+
+    KMDataNode *hist_node = NULL;
+    rc = KMetadataOpenNodeUpdate ( dst_meta, &hist_node, "HISTORY" );
+    DISP_RC(rc, "while Opening HISTORY Metadata");
+    if ( rc == 0 ) {
+        uint32_t index = get_child_count( hist_node );
+
+        if ( index > 0 ) { /* make sure EVENT_[i-1] exists */
+            const KMDataNode *node = NULL;
+            rc_t r = KMDataNodeOpenNodeRead ( hist_node, & node, "EVENT_%u",
+                                                                        index );
+            if ( r != 0 )
+                PLOGERR(klogErr, (klogErr, r,
+                    "while opening metanode HISTORY/EVENT_'$(n)'",
+                    "n=%u", index));
+            else
+                KMDataNodeRelease ( node );
+        }
+
+        ++ index;
+
+        { /* make sure EVENT_[i] does not exist */
+            const KMDataNode *node = NULL;
+            rc_t r = KMDataNodeOpenNodeRead ( hist_node, & node, "EVENT_%u",
+                                                                        index );
+            if ( r == 0 ) {
+                uint32_t mx = index * 2;
+                KMDataNodeRelease ( node );
+                r = RC ( rcExe, rcMetadata, rcReading, rcNode, rcExists );
+                PLOGERR(klogErr, (klogErr, r,
+                    "while opening metanode HISTORY/EVENT_'$(n)'",
+                    "n=%u", index));
+                r = 0;
+                for ( ; index < mx; ++ index ) {
+                    r = KMDataNodeOpenNodeRead ( hist_node, & node, "EVENT_%u",
+                                                                        index);
+                    if ( r == 0 ) {
+                        KMDataNodeRelease ( node );
+                        r = RC ( rcExe, rcMetadata, rcReading,
+                                        rcNode, rcExists );
+                        PLOGERR(klogErr, (klogErr, r,
+                            "while opening metanode HISTORY/EVENT_'$(n)'",
+                            "n=%u", index));
+                        r = 0;
+                    }
+                    else
+                        break;
+                }
+                if ( r == 0 ) {
+                    rc = RC ( rcExe, rcMetadata, rcReading, rcNode, rcExists );
+                    LOGERR( klogErr, rc,
+                        "cannot find next event metanode in HISTORY" );
+                }
+            }
+            else
+                KMDataNodeRelease ( node );
+        }
+
+        rc = string_printf ( event_name, sizeof( event_name ), NULL, "EVENT_%u",
+                                                                     index );
+        DISP_RC( rc, "update_history:string_printf(EVENT_NR) failed" );
+
+        if ( rc == 0 )
+        {
+            KMDataNode *event_node;
+            rc = KMDataNodeOpenNodeUpdate ( hist_node, &event_node,
+                                            event_name );
+            DISP_RC( rc,
+                "update_history:KMDataNodeOpenNodeUpdate('EVENT_NR') failed" );
+            if ( rc == 0 )
+            {
+                rc = enter_date_name_vers( event_node );
+                KMDataNodeRelease ( event_node );
+            }
+        }
+    }
+
+    r2 = KMDataNodeRelease ( hist_node );
+    if ( r2 != 0 && rc == 0 )
+        rc = r2;
+    return rc;
+}
+
 static rc_t Run(const CmdLine* args)
 {
     rc_t rc = 0;
@@ -697,6 +881,9 @@ static rc_t Run(const CmdLine* args)
     if (rc == 0) {
         rc = Work(&db, &it);
     }
+
+    if (rc == 0)
+        rc = update_history(db.meta);
 
     if (rc == 0) {
         PLOGMSG(klogInfo, (klogInfo,
@@ -745,7 +932,7 @@ rc_t CC Usage(const Args* args)
     rc_t rc;
 
     if (args == NULL)
-        rc = RC (rcApp, rcArgv, rcAccessing, rcSelf, rcNull);
+        rc = RC (rcExe, rcArgv, rcAccessing, rcSelf, rcNull);
     else
         rc = ArgsProgram (args, &fullpath, &progname);
     if (rc)
@@ -852,7 +1039,7 @@ rc_t CC KMain(int argc, char* argv[])
 
     ArgsWhack(args);
 
-    if (rc == RC(rcVDB, rcTable, rcOpening, rcSchema, rcNotFound))
+    if (rc == SILENT_RC(rcVDB, rcTable, rcOpening, rcSchema, rcNotFound))
     {   exit(10); }
 
     return rc;

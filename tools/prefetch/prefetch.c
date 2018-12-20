@@ -551,8 +551,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
 {
     const VPath **local = NULL;
 
-    assert ( resolved && item && item ->mane );
-
     uint32_t l = 0;
     const char * id = item -> desc;
     KService * service = NULL;
@@ -561,6 +559,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
     KSrvRespObjIterator * it = NULL;
     KSrvRespFile * file = NULL;
     const char * cgi = NULL;
+
+    assert(resolved && item && item->mane);
 
     local = &resolved->local.path;
 

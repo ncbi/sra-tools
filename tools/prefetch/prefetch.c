@@ -549,6 +549,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
     struct VPath const ** cache,
     const char * odir, const char * ofile, const Item * item )
 {
+    rc_t rc = 0;
+
     const VPath **local = NULL;
 
     uint32_t l = 0;
@@ -564,7 +566,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     local = &resolved->local.path;
 
-    rc_t rc = KServiceMake ( & service );
+    rc = KServiceMake ( & service );
     if ( rc == 0 && item -> seq_id != NULL ) {
         assert ( item -> isDependency  );
         id = item -> seq_id;

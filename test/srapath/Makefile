@@ -45,7 +45,7 @@ check_exit_code:
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/srapath
 
 SRP:
-	$(BINDIR)/srapath SRP000001 # works & does not crash
+	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
 	$(BINDIR)/srapath SRR000001 -fnames
 
 .PHONY: $(TEST_TOOLS)

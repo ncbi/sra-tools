@@ -2370,8 +2370,7 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
         }
     }
     if (rc == 0) {
-        rc = KClientHttpRequestFormatMsg
-            ( req, b, sizeof b, "POST", NULL );
+        rc = KClientHttpRequestFormatPostMsg ( req, b, sizeof b, NULL );
     }
     if (rc == 0) {
         KHttpResult *rslt = NULL;

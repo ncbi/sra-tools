@@ -2433,7 +2433,7 @@ static rc_t perform_cgi_test ( const Main * self,
         KTimeMs_t time = 0;
         const char root[] = "Response";
         rc = call_cgi ( self,
-            "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi",
+            "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi",
             1, 2, "http,https", acc, & databuffer, eol );
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {

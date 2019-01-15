@@ -3249,7 +3249,7 @@ static rc_t MainPrintVersion(Main *self) {
             if (isNew > 0) {
                 OUTMSG((
            "A new version of SRA Toolkit is available for download from\n"
-           "\"https://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
+           "\"https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
                 ));
             }
             else if (isNew == 0) {

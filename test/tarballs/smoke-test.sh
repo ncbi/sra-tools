@@ -110,7 +110,10 @@ done
 RunTool ${BIN_DIR}/test-sra
 RunTool ${BIN_DIR}/vdb-config
 
+cat ${HOME}/.ncbi/user-settings.mkfg
 ${BIN_DIR}/vdb-config -on
+${BIN_DIR}/srapath SRR002749
+${BIN_DIR}/prefetch SRR002749
 
 RunTool ${BIN_DIR}/prefetch SRR002749
 

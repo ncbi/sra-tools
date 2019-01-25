@@ -109,7 +109,11 @@ done
 # run some key tools, check return codes
 RunTool ${BIN_DIR}/test-sra
 RunTool ${BIN_DIR}/vdb-config
+
+${BIN_DIR}/vdb-config -on
+
 RunTool ${BIN_DIR}/prefetch SRR002749
+
 RunTool ${BIN_DIR}/vdb-dump SRR000001 -R 1
 RunTool ${BIN_DIR}/fastq-dump SRR002749 -fasta -Z
 RunTool ${BIN_DIR}/sam-dump SRR002749

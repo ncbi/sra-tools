@@ -32,6 +32,9 @@ MODULE = test/vcf-loader
 TEST_TOOLS = \
     test-vcf-loader 
 
+# make sure the test picks up $(SRCDIR)/tmp.kfg pointing to the caurrent schema
+VDB_CONFIG=$(SRCDIR)
+
 include $(TOP)/build/Makefile.env
 
 

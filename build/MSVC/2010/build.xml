@@ -3,22 +3,22 @@
     <description>
         Ant script for NCBI-VDB
     </description>
-	
+
     <property environment="env"/>
     <property name="Platform"       value="x64" />
     <property name="Configuration"  value="Debug" />
-    <property name="Output"         value="${basedir}\..\..\..\OUTDIR" />
-	
+    <property name="Output"         value="${basedir}\..\..\..\OUTDIR\" />
+
     <target name="help">
   		<echo message="">
 Apache Ant script for automated testing of SRA-TOOLS on Windonws
 
 Usage (in the directory of this file, build.xml):
-  ant [options] target1 target2 ... 
-  
+  ant [options] target1 target2 ...
+
 Example:
   ant -DConfiguration=Debug -Platform=Win32 help std
-  
+
 Supported targets:
 	help - print this text and exit
     clean       - remove all build artefacts
@@ -26,11 +26,11 @@ Supported targets:
     quick       - same as build
     runtests    - build and run small tests
     std         - clean, runtests (default)
-	
+
 Options:
-    -DConfiguration=Debug or -DConfiguration=Release (default)  
-    -DPlatform=Win32 or -DPlatform=x64 (default)  
-    -DOutput=path   folder to create output in (default: ../../../OUTDIR)
+    -DConfiguration=Debug or -DConfiguration=Release (default)
+    -DPlatform=Win32 or -DPlatform=x64 (default)
+    -DOutput=path   folder to create output in (default: ${basedir}\..\..\..\OUTDIR\)
   		</echo>
     </target>
 
@@ -44,7 +44,7 @@ Options:
             <arg value="/p:NGS_OUTDIR=${Output}"/>
         </exec>
     </target>
-    
+
     <target name="build">
         <exec executable="msbuild.exe" failonerror="true">
             <arg value="sra-tools.sln"/>
@@ -54,8 +54,8 @@ Options:
             <arg value="/p:NGS_OUTDIR=${Output}"/>
         </exec>
     </target>
-    
-    
+
+
     <target name="runtests" depends="build">
         <exec executable="msbuild.exe" failonerror="true">
             <arg value="test-sra-tools.sln"/>
@@ -65,9 +65,9 @@ Options:
             <arg value="/p:Autorun=true"/>
         </exec>
     </target>
-    
+
     <target name="std" depends="clean,runtests" />
-        
+
     <target name="quick" depends="build" />
-	
+
 </project>

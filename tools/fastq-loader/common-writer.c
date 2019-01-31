@@ -1108,7 +1108,7 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
     while ((rslt.u.error.rc = Quitting()) == 0) {
         timeout_t tm;
         void *rr = NULL;
-        
+
         TimeoutInit(&tm, 10000);
         rslt.u.error.rc = KQueuePop(self->que, &rr, &tm);
         if (rslt.u.error.rc == 0) {

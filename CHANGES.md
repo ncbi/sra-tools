@@ -1,6 +1,14 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.9.4
+**January 31, 2019**
+  **fasterq-dump**: improved handling of temp files in case of multiple instances
+  **fasterq-dump**: produces same output as fastq-dump on SRR000001 (empty reads)
+  **fastq-dump**: updated typo in error report
+  **sra-tools, vfs**: added support of realign objects
+
+
 ## SRA Toolkit 2.9.3
 **October 11, 2018**
   **kns**: added possibility to skip server's certificate validation

@@ -3,6 +3,7 @@
 
 ## SRA Toolkit 2.9.4
 **January 31, 2019**
+
   **fasterq-dump**: improved handling of temp files in case of multiple instances
   **fasterq-dump**: produces same output as fastq-dump on SRR000001 (empty reads)
   **fastq-dump**: updated typo in error report
@@ -11,6 +12,7 @@
 
 ## SRA Toolkit 2.9.3
 **October 11, 2018**
+
   **kns**: added possibility to skip server's certificate validation
   **kns**: expect to receive HTTP status 200 when sending range-request that includes the whole file
   **vdb**: fixed a bug in accessing pagemap process request for cursors which do not have pagemap thread running
@@ -18,11 +20,13 @@
 
 ## SRA Toolkit 2.9.2-2
 **September 26, 2018**
+
   **read-filter-redact**: Fixed to update HISTORY metadata
 
 
 ## SRA Toolkit 2.9.2
 **July 23, 2018**
+
   **kfg, vfs**: Introduced enhanced handling of download-only NGC files that lack read/decrypt permissions
 
 

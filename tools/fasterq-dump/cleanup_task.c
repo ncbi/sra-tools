@@ -37,14 +37,16 @@ struct KFastDumpCleanupTask;
 typedef struct KFastDumpCleanupTask
 {
     KTask dad;
-    locked_file_list to_clean;
+    locked_file_list files_to_clean;
+    locked_file_list dirs_to_clean;    
     KTaskTicket ticket;
 } KFastDumpCleanupTask;
 
 
 static rc_t KFastDumpCleanupTask_Destroy( KFastDumpCleanupTask * self )
 {
-    locked_file_list_release( & ( self -> to_clean ), NULL );
+    locked_file_list_release( & ( self -> files_to_clean ), NULL ); /* helper.c */
+    locked_file_list_release( & ( self -> dirs_to_clean ), NULL ); /* helper.c */
     free( self );
     return 0;
 }
@@ -57,7 +59,9 @@ static rc_t KFastDumpCleanupTask_Execute( KFastDumpCleanupTask * self )
         ErrMsg( "cleanup_task.c KFastDumpCleanupTask_Execute().KDirectoryNativeDir() -> %R", rc );
     else
     {
-        rc = locked_file_list_delete_all( dir, &self -> to_clean );
+        rc = locked_file_list_delete_files( dir, &self -> files_to_clean ); /* helper.c */
+        if ( rc == 0 )
+            rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean ); /* helper.c */
         KDirectoryRelease( dir );
     }
     return rc;
@@ -98,7 +102,10 @@ rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask **task )
         rc = RC ( rcPS, rcMgr, rcInitializing, rcMemory, rcExhausted );
     else
     {
-        rc = locked_file_list_init( &( t -> to_clean ), 25 );
+        rc = locked_file_list_init( &( t -> files_to_clean ), 25 ); /* helper.c */
+        if ( rc == 0 )
+            rc = locked_file_list_init( &( t -> dirs_to_clean ), 5 ); /* helper.c */
+
         if ( rc == 0 )
         {
             rc = KTaskInit ( &t -> dad,
@@ -107,24 +114,37 @@ rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask **task )
                             "KFastDumpCleanupTask" );
             if ( rc == 0 )
                 *task = ( KFastDumpCleanupTask * ) &t -> dad;
-            else
-                locked_file_list_release( &( t -> to_clean ), NULL );
         }
+        
         if ( rc != 0 )
+        {
+            locked_file_list_release( &( t -> files_to_clean ), NULL ); /* helper.c */
+            locked_file_list_release( &( t -> dirs_to_clean ), NULL ); /* helper.c */            
             free( ( void * ) t );
+        }
         else
-            rc = add_to_proc_mgr_cleanup( *task );
+            rc = add_to_proc_mgr_cleanup( *task ); /* above */
     }
     return rc;
 }
 
-rc_t Add_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * filename )
+rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * filename )
 {
     rc_t rc = 0;
     if ( self == NULL && filename == NULL )
         rc = RC ( rcPS, rcMgr, rcInitializing, rcParam, rcInvalid );
     else
-        rc = locked_file_list_append( &( self -> to_clean ), filename );
+        rc = locked_file_list_append( &( self -> files_to_clean ), filename ); /* helper.c */
+    return rc;
+}
+
+rc_t Add_Directory_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * dirname )
+{
+    rc_t rc = 0;
+    if ( self == NULL && dirname == NULL )
+        rc = RC ( rcPS, rcMgr, rcInitializing, rcParam, rcInvalid );
+    else
+        rc = locked_file_list_append( &( self -> dirs_to_clean ), dirname ); /* helper.c */
     return rc;
 }
 

@@ -137,7 +137,7 @@ static rc_t MaxNReadsValidator_Release( const SRASplitter* cself )
     else if ( !g_legacy_report )
     {
         if ( self->rejected_spots > 0 )
-            rc = KOutMsg( "Rejected %lu SPOTS because of to many READS\n", self->rejected_spots );
+            rc = KOutMsg( "Rejected %lu SPOTS because of too many READS\n", self->rejected_spots );
     }
     return rc;
 }

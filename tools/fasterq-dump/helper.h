@@ -93,7 +93,7 @@ typedef struct join_options
 
 typedef struct tmp_id
 {
-    const char * temp_path;
+    const char * temp_path_base;
     const char * hostname;
     uint32_t pid;
     bool temp_path_ends_in_slash;
@@ -137,6 +137,9 @@ rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ..
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
 rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
 
+rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
+                                const char * filename, uint32_t idx );
+
 format_t get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot );
 
@@ -173,11 +176,6 @@ uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files 
 
 int get_vdb_pathtype( KDirectory * dir, const char * accession );
 
-rc_t make_joined_filename( char * buffer, size_t bufsize,
-                           const char * accession,
-                           const tmp_id * tmp_id,
-                           uint32_t id );
-
 void clear_join_stats( join_stats * stats );
 void add_join_stats( join_stats * stats, const join_stats * to_add );
 
@@ -195,7 +193,8 @@ typedef struct locked_file_list
 rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize );
 rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir );
 rc_t locked_file_list_append( const locked_file_list * self, const char * filename );
-rc_t locked_file_list_delete_all( KDirectory * dir, locked_file_list * self );
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list * self );
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list * self );
 rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count );
 rc_t locked_file_list_pop( locked_file_list * self, const String ** item );
 

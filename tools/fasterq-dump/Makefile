@@ -74,6 +74,7 @@ clean: stdclean
 #
 TOOL_SRC = \
 	helper \
+	temp_dir \
 	progress_thread \
 	cleanup_task \
 	index \

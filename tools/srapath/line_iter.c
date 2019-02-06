@@ -27,6 +27,7 @@
 #include "line_iter.h"
 #include "helper.h"
 
+#include <kapp/main.h> /* Quitting */
 #include <kfs/file.h>
 #include <klib/out.h>
 #include <klib/time.h>
@@ -136,7 +137,10 @@ bool advance_line_iter( struct line_iter * iter )
             {
                 if ( read_line_iter( iter ) == 0 )
                     KSleepMs( 100 );
-                res = advance_line_iter( iter ); /* recursion! */
+                if ( Quitting () )
+                    res = false;
+                else
+                    res = advance_line_iter( iter ); /* recursion! */
             }
             else
                 res = slice_iter_content( iter, newline - iter->content.addr );
@@ -222,6 +226,8 @@ rc_t stream_line_read( const struct KStream * stream, stream_line_handler_t on_l
             String * line = get_line_iter( iter );
             rc = on_line( line, data );
             advance_line_iter( iter );
+            if ( rc == 0 )
+                rc = Quitting ();
         }
         release_line_iter( iter );
     }

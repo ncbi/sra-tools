@@ -218,7 +218,7 @@ static rc_t run_merge_sorter( merge_sorter * self )
 typedef struct background_vector_merger
 {
     KDirectory * dir;               /* needed to perform the merge-sort */
-    const tmp_id * tmp_id;          /* needed to create temp. files */
+    const struct temp_dir * temp_dir; /* needed to create temp. files */
     KQueue * job_q;                 /* the KVector objects arrive here from the lookup-producer */
     KThread * thread;               /* the thread that performs the merge-sort */
     struct background_file_merger * file_merger;    /* below */
@@ -413,26 +413,14 @@ static rc_t background_vector_merger_process_batch( background_vector_merger * s
                                                     bg_vec_merge_src * batch,
                                                     uint32_t count )
 {
-    rc_t rc = 0;
     char buffer[ 4096 ];
-    const tmp_id * tmp_id = self -> tmp_id;
-    size_t num_writ;
-    
-    /* create the output-filename in buffer */
-    if ( tmp_id -> temp_path_ends_in_slash )
-        rc = string_printf( buffer, sizeof buffer, &num_writ, "%sbg_sub_%s_%u_%u.dat",
-                tmp_id -> temp_path, tmp_id -> hostname,
-                tmp_id -> pid, self -> product_id );
-    else
-        rc = string_printf( buffer, sizeof buffer, &num_writ, "%s/bg_sub_%s_%u_%u.dat",
-                tmp_id -> temp_path, tmp_id -> hostname,
-                tmp_id -> pid, self -> product_id );
+    rc_t rc = generate_bg_sub_filename( self -> temp_dir, buffer, sizeof buffer, self -> product_id );
     if ( rc != 0 )
-        ErrMsg( "background_merger_process_batch.string_printf() -> %R", rc );
+        ErrMsg( "merge_sorter.c background_vector_merger_process_batch() -> %R", rc );
     else
     {
         STATUS ( STAT_USR, "batch output filename is : %s", buffer );
-        rc = Add_to_Cleanup_Task ( self -> cleanup_task, buffer );
+        rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, buffer );
 
         if ( rc == 0 )
         {
@@ -525,7 +513,7 @@ static rc_t CC background_vector_merger_thread_func( const KThread * thread, voi
 
 rc_t make_background_vector_merger( struct background_vector_merger ** merger,
                              KDirectory * dir,
-                             const tmp_id * tmp_id,
+                             const struct temp_dir * temp_dir,
                              struct KFastDumpCleanupTask * cleanup_task,                             
                              struct background_file_merger * file_merger,
                              uint32_t batch_size,
@@ -541,7 +529,7 @@ rc_t make_background_vector_merger( struct background_vector_merger ** merger,
     else
     {
         b -> dir = dir;
-        b -> tmp_id = tmp_id;
+        b -> temp_dir = temp_dir;
         b -> batch_size = batch_size;
         b -> q_wait_time = q_wait_time;
         b -> buf_size = buf_size;
@@ -630,7 +618,7 @@ rc_t push_to_background_vector_merger( background_vector_merger * self, KVector 
 typedef struct background_file_merger
 {
     KDirectory * dir;               /* needed to perform the merge-sort */
-    const tmp_id * tmp_id;          /* needed to create temp. files */
+    const struct temp_dir * temp_dir;      /* needed to create temp. files */
     const char * lookup_filename;
     const char * index_filename;
     locked_file_list files;         /* a locked file-list */
@@ -688,29 +676,16 @@ rc_t wait_for_and_release_background_file_merger( background_file_merger * self 
     return rc;
 }
 
-static rc_t make_file_merger_tmp_name( char * buffer, size_t buffer_size,
-                                       const tmp_id * tmp_id, uint32_t id )
-{
-    rc_t rc;
-    size_t num_writ;
-    
-    if ( tmp_id -> temp_path_ends_in_slash )
-        rc = string_printf( buffer, buffer_size, &num_writ, "%sbg_merge_%s_%u_%u.dat",
-                tmp_id -> temp_path, tmp_id -> hostname, tmp_id -> pid, id );
-    else
-        rc = string_printf( buffer, buffer_size, &num_writ, "%s/bg_merge_%s_%u_%u.dat",
-                tmp_id -> temp_path, tmp_id -> hostname, tmp_id -> pid, id );
-    return rc;
-}
-
 /* called from the background-thread */
 static rc_t process_background_file_merger( background_file_merger * self )
 {
     char tmp_filename[ 4096 ];
-    rc_t rc = make_file_merger_tmp_name( tmp_filename, sizeof tmp_filename,
-                                         self -> tmp_id, self -> product_id );
+    
+    rc_t rc = generate_bg_merge_filename( self -> temp_dir, tmp_filename, sizeof tmp_filename,
+                                          self -> product_id );
+    
     if ( rc == 0 )
-        rc = Add_to_Cleanup_Task ( self -> cleanup_task, tmp_filename );
+        rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, tmp_filename );
 
     if ( rc == 0 )
     {
@@ -789,9 +764,9 @@ static rc_t process_final_background_file_merger( background_file_merger * self,
         }
         
         if ( rc == 0 )
-            rc = Add_to_Cleanup_Task ( self -> cleanup_task, self -> lookup_filename );
+            rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, self -> lookup_filename );
         if ( rc == 0 )
-            rc = Add_to_Cleanup_Task ( self -> cleanup_task, self -> index_filename );
+            rc = Add_File_to_Cleanup_Task ( self -> cleanup_task, self -> index_filename );
 
         if ( rc == 0 )
         {
@@ -878,7 +853,7 @@ static rc_t CC background_file_merger_thread_func( const KThread * thread, void 
 
 rc_t make_background_file_merger( background_file_merger ** merger,
                                 KDirectory * dir,
-                                const tmp_id * tmp_id,
+                                const struct temp_dir * temp_dir,
                                 struct KFastDumpCleanupTask * cleanup_task,
                                 const char * lookup_filename,
                                 const char * index_filename,
@@ -895,7 +870,7 @@ rc_t make_background_file_merger( background_file_merger ** merger,
     else
     {
         b -> dir = dir;
-        b -> tmp_id = tmp_id;
+        b -> temp_dir = temp_dir;
         b -> lookup_filename = lookup_filename;
         b -> index_filename = index_filename;
         b -> batch_size = batch_size;

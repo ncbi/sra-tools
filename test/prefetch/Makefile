@@ -32,6 +32,7 @@ CGI=https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi
 LARGE=fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
 SRA=https://sra-download.ncbi.nlm.nih.gov
 SRAF=fasp://dbtest@sra-download.ncbi.nlm.nih.gov
+SRAF=fasp://dbtest@srafiles31-1.st-va.ncbi.nlm.nih.gov
 KMER=$(SRA)/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
@@ -158,7 +159,7 @@ urls_and_accs:
 	    fi
 
 	@echo '$(PUBLIC)/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg
-	@echo REFSEQ download when user repository is configured
+	@echo REFSEQ HTTP download when user repository is configured
 	@if ls `pwd`/tmp/refseq/KC702174.1 2> /dev/null ; \
      then echo KC702174.1 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -194,7 +195,7 @@ urls_and_accs:
 	    fi
 
 	@echo '$(PUBLIC)/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/t.kfg
-	@echo WGS download when user repository is configured
+	@echo WGS HTTP download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
      then echo AFVF01 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -217,7 +218,7 @@ urls_and_accs:
 #	@echo
 
 	@rm `pwd`/tmp/refseq/KC702174.1
-	@echo REFSEQ download when user repository is configured
+	@echo REFSEQ FASP download when user repository is configured
 	@if ascp -h > /dev/null ; then \
 	  if [ `hostname` != 'iebdev21' ] ; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -243,7 +244,7 @@ urls_and_accs:
 #	@echo
 
 	@rm `pwd`/tmp/wgs/AFVF01
-	@echo WGS download when user repository is configured
+	@echo WGS FASP download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
      then echo AFVF01 found ; exit 1; fi
 	@if ascp -h > /dev/null ; then \
@@ -259,7 +260,7 @@ urls_and_accs:
 	@echo
 
 	@rm -f `pwd`/tmp/sra/SRR053325.sra
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+#	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(BINDIR)/prefetch SRR053325 2> /dev/null ; \
         then echo "prefetch SRR053325 when there is no kfg should fail" ; \
              exit 1; \

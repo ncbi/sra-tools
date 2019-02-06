@@ -270,6 +270,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
     uint32_t read_id_0 = 0;
     uint32_t write_id_1 = 1;
     uint32_t valid_reads = 0;
+    uint32_t valid_bio_reads = 0;
     uint32_t offset = 0;
     uint32_t read_len_sum = 0;
     
@@ -285,7 +286,19 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
     {
         read_len_sum += rec -> read_len[ read_id_0 ];
         if ( rec -> read_len[ read_id_0 ] > 0 )
+        {
             valid_reads++;
+            if ( ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL )
+            {
+                if ( jo -> min_read_len > 0 )
+                {
+                    if ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len )
+                        valid_bio_reads++;    
+                }
+                else
+                    valid_bio_reads++;
+            }
+        }
         read_id_0++;
     }
 
@@ -318,6 +331,9 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
                     Q . size = rec -> read_len[ read_id_0 ];
                     Q . len  = ( uint32_t )Q . size;
                 
+                    if ( valid_bio_reads < 2 )
+                        write_id_1 = 0;
+
                     rc = join_results_print_fastq_v1( results,
                                                       rec -> row_id,
                                                       write_id_1,
@@ -645,7 +661,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     const char * accession_short,
                     join_stats * stats,
                     const char * tbl_name,
-                    const tmp_id * tmp_id,
+                    const struct temp_dir * temp_dir,
                     struct temp_registry * registry,
                     size_t cur_cache,
                     size_t buf_size,
@@ -722,8 +738,8 @@ rc_t execute_tbl_join( KDirectory * dir,
                         jtd -> fmt              = fmt;
                         jtd -> join_options     = &corrected_join_options;
 
-                        rc = make_joined_filename( jtd -> part_file, sizeof jtd -> part_file,
-                                    accession_short, tmp_id, thread_id ); /* helper.c */
+                        rc = make_joined_filename( temp_dir, jtd -> part_file, sizeof jtd -> part_file,
+                                    accession_short, thread_id ); /* temp_dir.c */
 
                         if ( rc == 0 )
                         {

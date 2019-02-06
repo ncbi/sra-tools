@@ -933,7 +933,7 @@ RemoteCacheCreate ()
 
     if ( RemoteCacheIsDisklessMode () ) {
         LOGMSG( klogInfo, "[RemoteCache] entering diskless mode\n" );
-        return 0;
+        return _InitKNSManager();
     }
 
     LOGMSG( klogInfo, "[RemoteCache] creating\n" );

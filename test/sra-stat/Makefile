@@ -105,6 +105,7 @@ R=SRR8483030
 test_bases: quick_bases
 	@echo
 	@echo ${R} is a run having first 0-lenght bio reads
+	@$(BINDIR)/srapath ${R}
 	if $(BINDIR)/srapath ${R} > /dev/null 2>&1 ; then \
 		$(BINDIR)/sra-stat -x ${R} > /dev/null ; fi
 

@@ -716,8 +716,12 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
                 return RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
             nxtRdStart += dREAD_LEN [ read ++ ];
             assert ( read > 0 );
-            if ( ( (dREAD_TYPE[read-1] & SRA_READ_TYPE_BIOLOGICAL) == 0 ) )
+            if ( ( (dREAD_TYPE[read-1] & SRA_READ_TYPE_BIOLOGICAL) == 0 )
                     /* skip non-biological reads */
+                 ||
+                 ( dREAD_LEN [ read - 1 ] == 0 )
+                    /* skip empty reads */
+               )
             {
                 if ( dREAD_LEN [ read - 1 ] > 0 )
                     i += dREAD_LEN [ read - 1 ];

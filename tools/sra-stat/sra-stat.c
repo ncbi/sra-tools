@@ -786,16 +786,6 @@ static rc_t BasesPrint(const Bases *self,
 
     name = self->basesType == ebtCSREAD ? "0123." : "ACGTN";
 
-    OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n", indent,
-        tag, self->basesType == ebtCSREAD ? "true" : "false", base_count));
-
-    for (i = 0; i < 5; ++i) {
-        OUTMSG(("%s  <Base value=\"%c\" count=\"%lu\"/>\n",
-            indent, name[i], self->cnt[i]));
-    }
-
-    OUTMSG(("%s</%s>\n", indent, tag));
-
     if (self->cnt[0] + self->cnt[1] + self->cnt[2] +
         self->cnt[3] + self->cnt[4] != base_count)
     {
@@ -803,6 +793,22 @@ static rc_t BasesPrint(const Bases *self,
         LOGERR(klogErr, rc,
                "stored base count did not match observed base count");
     }
+
+    if ( rc == 0 )
+      OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n", indent,
+        tag, self->basesType == ebtCSREAD ? "true" : "false", base_count));
+    else
+      OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\" calculated=\"%lu\">\n",
+        indent, tag, self->basesType == ebtCSREAD ? "true" : "false",
+        base_count, self->cnt[0] + self->cnt[1] + self->cnt[2] +
+                    self->cnt[3] + self->cnt[4]));
+
+    for (i = 0; i < 5; ++i) {
+        OUTMSG(("%s  <Base value=\"%c\" count=\"%lu\"/>\n",
+            indent, name[i], self->cnt[i]));
+    }
+
+    OUTMSG(("%s</%s>\n", indent, tag));
 
     return rc;
 }

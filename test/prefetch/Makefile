@@ -28,7 +28,7 @@ include $(TOP)/build/Makefile.env
 
 CWD = $(shell pwd)
 PUBLIC=/repository/user/main/public
-CGI=https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi
+CGI=https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi
 LARGE=fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
 SRA=https://sra-download.ncbi.nlm.nih.gov
 SRAF=fasp://dbtest@sra-download.ncbi.nlm.nih.gov

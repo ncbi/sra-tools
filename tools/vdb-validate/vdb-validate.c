@@ -2363,6 +2363,9 @@ static rc_t verify_database(const vdb_validate_params *pb, VDatabase const *db,
     else if (strcmp(schemaName, "NCBI:SRA:PacBio:smrt:db") == 0) {
         /* TODO: verify NCBI:SRA:PacBio:smrt:db */
     }
+    else if (strcmp(schemaName, "NCBI:sra:db:trace") == 0) {
+        /* TODO: verify NCBI:sra:db:trace */
+    }
     else {
         (void)PLOGERR(klogWarn, (klogWarn,
             RC(rcExe, rcDatabase, rcValidating, rcType, rcUnrecognized),

@@ -465,11 +465,8 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
                 tmpPfx = slash + 1;
             }
         }
-        else {
-            rc = RC(rcExe, rcDirectory, rcSearching, rcChar, rcNotFound);
-            PLOGERR(klogInt, (klogInt, rc,
-                    "cannot extract directory from $(path)", "path=%s", dir));
-        }
+        else
+            tmpPfx = tmpName;
         tmpPfxLen = strlen(tmpPfx);
     }
 
@@ -498,9 +495,11 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
         KNamelist *list = NULL;
         STSMSG(STS_DBG, ("listing %s for old temporary files", dir));
         rc = KDirectoryList(self, &list, NULL, NULL, "%s", dir);
+        if (rc == SILENT_RC(rcFS, rcDirectory, rcListing, rcPath, rcNotFound))
+            rc = 0;
         DISP_RC2(rc, "KDirectoryList", dir);
 
-        if (rc == 0) {
+        if (rc == 0 && list != NULL) {
             rc = KNamelistCount(list, &count);
             DISP_RC2(rc, "KNamelistCount(KDirectoryList)", dir);
         }

@@ -362,6 +362,13 @@ out_dir_and_file:
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 
 	@ echo PREFETCH ACCESSION TO OUT-FILE
+	@ rm `pwd`/tmp-file*
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch SRR053325 -o tmp-file -v > /dev/null
+	@ ls `pwd`/tmp-file > /dev/null
+	@ rm `pwd`/tmp-file
+
+	@ echo PREFETCH ACCESSION TO OUT-FILE INSIDE OF DIR
 	@ if ls `pwd`/tmp3/dir/file 2> /dev/null ; \
       then echo file found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

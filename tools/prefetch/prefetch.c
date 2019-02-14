@@ -3899,13 +3899,19 @@ rc_t CC UsageSummary(const char *progname) {
         "  %s [options] <SRA accession | kart file> [...]\n"
         "  Download SRA or dbGaP files and their dependencies\n"
         "\n"
+        "  %s [options] <URL> --output-file <FILE>\n"
+        "  Download URL to FILE\n"
+        "\n"
+        "  %s [options] <URL> [...] --output-directory <DIRECTORY>\n"
+        "  Download URL or URL-s to DIRECTORY\n"
+        "\n"
         "  %s [options] <SRA file> [...]\n"
         "  Check SRA file for missed dependencies "
                                            "and download them\n"
         "\n"
         "  %s --list <kart file> [...]\n"
         "  List content of kart file\n\n"
-        , progname, progname, progname));
+        , progname, progname, progname, progname, progname));
 }
 
 rc_t CC Usage(const Args *args) {

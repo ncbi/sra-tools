@@ -3705,11 +3705,12 @@ rc_t SRADumper_Init( SRADumperFmt* fmt )
 
             {NULL, "skip-technical", NULL, {"Dump only biological reads", NULL}},               /* H_skip_tech = 4 */
 
-            {NULL, "split-files", NULL, {"Dump each read into a separate file."                 /* H_split_files = 5 */
-                                         "Files will receive suffix corresponding to read number", NULL}},
+            {NULL, "split-files", NULL, {"Dump each read into a separate file. "                /* H_split_files = 5 */
+                                         "Files will receive suffix corresponding to read number.",
+                                         "--split-3 option is recommended over --split-files",  NULL}},
 
             /* DO NOT ADD IN THE MIDDLE ORDER IS IMPORTANT IN USAGE FUNCTION ABOVE!!! */
-            {NULL, "split-3", NULL, {"Legacy 3-file splitting for mate-pairs:",                 /* H_split_3 = 6 */
+            {NULL, "split-3", NULL, {"3-file splitting for mate-pairs (recommended):",          /* H_split_3 = 6 */
                                      "First 2 biological reads satisfying dumping conditions",
                                      "are placed in files *_1.fastq and *_2.fastq",
                                      "If only one biological read is present - it is placed in *.fastq",

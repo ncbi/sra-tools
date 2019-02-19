@@ -189,7 +189,7 @@ class CConfigurator : CNoncopyable {
             const string name("/tools/ascp/max_rate");
             CString node(m_Cfg.ReadString(name.c_str()));
             if (node.Empty()) {
-                rc = m_Cfg.UpdateNode(name.c_str(), "1000m");
+                rc = m_Cfg.UpdateNode(name.c_str(), "450m");
             }
         }
         if (rc == 0) {
@@ -235,6 +235,11 @@ public:
     virtual rc_t Configure(void) {
         OUTMSG(("Fixed default configuration\n"));
         return 0;
+    }
+
+    vdbconf_model *getModel ()
+    {
+        return m_Config;
     }
 };
 struct SUserRepo {
@@ -827,4 +832,13 @@ rc_t configure(EConfigMode mode) {
     }
     delete c;
     return rc;
+}
+
+vdbconf_model & configure_model ()
+{
+    CConfigurator *c = new CVisualConfigurator;
+    vdbconf_model *m = c -> getModel ();
+    //delete c;
+
+    return *m;
 }

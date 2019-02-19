@@ -21,4 +21,5 @@
 /.cproject
 /.project
 /.pydevproject
+*.stash
 tmp.kfg

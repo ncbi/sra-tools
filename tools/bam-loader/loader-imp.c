@@ -2622,6 +2622,8 @@ WRITE_ALIGNMENT:
             break;
         if (rc == 0)
             *had_sequences = true;
+        else
+            break;
     }
     if (bamread_thread != NULL && bamq != NULL) {
         KQueueSeal(bamq);

@@ -239,7 +239,7 @@ static rc_t perform_cgi_test( KNSManager const * kns_mgr, const char * acc )
 	KTimeMs_t start_time = KTimeMsStamp();
 
 	memset( &databuffer, 0, sizeof databuffer );
-	rc = call_cgi( kns_mgr, "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi", 1, 1, "http,https", acc, &databuffer );
+	rc = call_cgi( kns_mgr, "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi", 1, 1, "http,https", acc, &databuffer );
 	if ( rc == 0 )
 	{
 	    const char *start = ( const void* ) databuffer.base;

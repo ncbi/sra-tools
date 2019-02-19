@@ -51,6 +51,7 @@ vdb-validate: $(BINDIR)/vdb-validate
 	@ echo "Starting vdb-validate tests..."
 	@ rm -rf actual/
 	@ mkdir actual/
+
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra" no_sdc_checks 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_tmp_mismatch.csra --sdc:rows 100%" sdc_tmp_mismatch 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_pa_longer.csra --sdc:rows 100%" sdc_pa_longer_1 3
@@ -61,6 +62,13 @@ vdb-validate: $(BINDIR)/vdb-validate
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_corrupt.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_corrupt 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_fixed.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_fixed 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/blob-row-gap.kar" ROW_GAP 0
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/SRR053325 -Cyes" CONSISTENCY 0
+
+	@ if [ "$(TEST_DATA)" != "" ]; then ./runtestcase.sh \
+	    "$(BINDIR)/vdb-validate \
+	                $(TEST_DATA)/SRR1207586-READ_LEN-vs-READ-mismatch \
+	                -Cyes" READ_LEN 3 ; fi
+
 	@ echo "All vdb-validate tests succeed"
 	@ rm -rf actual/
 

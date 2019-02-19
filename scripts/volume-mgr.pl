@@ -83,6 +83,7 @@ if ( $OPT{volumes} ) {
 }
 
 my $t = `date +%s.%N`;
+$t = `date +%s` if ($^O eq 'darwin');
 my $TIMESTAMP = strftime ( "%Y%m%d-%H%M%S", localtime $t );
 $TIMESTAMP   .= sprintf ( ".%01d", ( $t - int ( $t ) ) * 10 );
 my $NCBI_SETTINGS = ncbi_settings();

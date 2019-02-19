@@ -136,7 +136,7 @@ smalltests: $(TEST_TOOLS)
 #           2.1 reads only, basespace
 	$(SMALLRUN) 2.1 0 $(SRCDIR)/input/2.1.fastq --quality PHRED_33
 #           2.1.1 reads only, colorspace
-	$(SMALLRUN) 2.1.1 0 $(SRCDIR)/input/2.1.1.fastq --quality PHRED_33
+#CS	$(SMALLRUN) 2.1.1 0 $(SRCDIR)/input/2.1.1.fastq --quality PHRED_33
 #           2.2 qualities only
 	@#-$(SMALLRUN) 2.2 0 $(SRCDIR)/input/2.2.fastq --quality PHRED_33
 #           2.3 reads+qualities, qualities before reads
@@ -187,11 +187,11 @@ smalltests: $(TEST_TOOLS)
 #           4.3.1 --cache-size      rejected if invalid
 	$(SMALLRUN) 4.3.1 3 $(SRCDIR)/input/4.fastq --cache-size BIG --quality PHRED_33
 #           4.4 --max-rec-count     stops at the specified record #
-	$(SMALLRUN) 4.4 0 $(SRCDIR)/input/4.4.fastq --max-rec-count 3 --quality PHRED_33
+#CS	$(SMALLRUN) 4.4 0 $(SRCDIR)/input/4.4.fastq --max-rec-count 3 --quality PHRED_33
 #           4.5 --max-err-count     stops after the specified # of errors
 	$(SMALLRUN) 4.5 3 $(SRCDIR)/input/4.5.fastq --max-err-count 2 --quality PHRED_33
 #           4.5.1 --max-err-pct     fails if % of error records is too high
-	$(SMALLRUN) 4.5.1 3 $(SRCDIR)/input/4.5.1.fastq --quality PHRED_33  --max-err-count 10 --max-err-pct 20
+#CS	$(SMALLRUN) 4.5.1 3 $(SRCDIR)/input/4.5.1.fastq --quality PHRED_33  --max-err-count 10 --max-err-pct 20
 #           4.6 --platform          saves correct value in the PLATFORM column
 	$(SMALLRUN) 4.6 0 $(SRCDIR)/input/4.fastq -p LS454 --quality PHRED_33
 #           4.6.1 --platform        rejects invalid values

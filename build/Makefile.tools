@@ -6,7 +6,7 @@ TOOLS_TO_INSTALL = \
 	cache-mgr       \
 	cg-load         \
 	copycat         \
-	fastdump        \
+	fasterq-dump    \
 	fastq-dump      \
 	fastq-load      \
 	helicos-load    \
@@ -37,4 +37,5 @@ TOOLS_TO_INSTALL = \
 	vdb-passwd      \
 	vdb-unlock      \
 	vdb-validate    \
+	sra-toolkit     \
 

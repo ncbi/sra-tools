@@ -1,0 +1,160 @@
+<Run accession="SRR586259" read_length="fixed" spot_count="3050949" base_count="616291698" base_count_bio="616291698" spot_count_mates="3050949" base_count_bio_mates="616291698" spot_count_bad="438798" base_count_bio_bad="88637196" spot_count_filtered="0" base_count_bio_filtered="0" cmp_base_count="42332736">
+  <Member member_name="C0W22.8" spot_count="3050949" base_count="616291698" base_count_bio="616291698" spot_count_mates="3050949" base_count_bio_mates="616291698" spot_count_bad="438798" base_count_bio_bad="88637196" spot_count_filtered="0" base_count_bio_filtered="0" cmp_base_count="42332736" library="Sage-111282" sample="HG02757"/>
+  <Size value="351914666" units="bytes"/>
+  <Bases cs_native="false" count="616291698">
+    <Base value="A" count="184655113"/>
+    <Base value="C" count="122877884"/>
+    <Base value="G" count="125033692"/>
+    <Base value="T" count="183445933"/>
+    <Base value="N" count="279076"/>
+  </Bases>
+  <AlignInfo>
+    <Ref seqId="GL000191.1" name="GL000191.1" circular="false" local="remote" path="/GL000191.1"/>
+    <Ref seqId="GL000192.1" name="GL000192.1" circular="false" local="remote" path="/GL000192.1"/>
+    <Ref seqId="GL000193.1" name="GL000193.1" circular="false" local="remote" path="/GL000193.1"/>
+    <Ref seqId="GL000194.1" name="GL000194.1" circular="false" local="remote" path="/GL000194.1"/>
+    <Ref seqId="GL000195.1" name="GL000195.1" circular="false" local="remote" path="/GL000195.1"/>
+    <Ref seqId="GL000196.1" name="GL000196.1" circular="false" local="remote" path="/GL000196.1"/>
+    <Ref seqId="GL000197.1" name="GL000197.1" circular="false" local="remote" path="/GL000197.1"/>
+    <Ref seqId="GL000198.1" name="GL000198.1" circular="false" local="remote" path="/GL000198.1"/>
+    <Ref seqId="GL000199.1" name="GL000199.1" circular="false" local="remote" path="/GL000199.1"/>
+    <Ref seqId="GL000200.1" name="GL000200.1" circular="false" local="remote" path="/GL000200.1"/>
+    <Ref seqId="GL000201.1" name="GL000201.1" circular="false" local="remote" path="/GL000201.1"/>
+    <Ref seqId="GL000202.1" name="GL000202.1" circular="false" local="remote" path="/GL000202.1"/>
+    <Ref seqId="GL000203.1" name="GL000203.1" circular="false" local="remote" path="/GL000203.1"/>
+    <Ref seqId="GL000204.1" name="GL000204.1" circular="false" local="remote" path="/GL000204.1"/>
+    <Ref seqId="GL000205.1" name="GL000205.1" circular="false" local="remote" path="/GL000205.1"/>
+    <Ref seqId="GL000206.1" name="GL000206.1" circular="false" local="remote" path="/GL000206.1"/>
+    <Ref seqId="GL000207.1" name="GL000207.1" circular="false" local="remote" path="/GL000207.1"/>
+    <Ref seqId="GL000208.1" name="GL000208.1" circular="false" local="remote" path="/GL000208.1"/>
+    <Ref seqId="GL000209.1" name="GL000209.1" circular="false" local="remote" path="/GL000209.1"/>
+    <Ref seqId="GL000210.1" name="GL000210.1" circular="false" local="remote" path="/GL000210.1"/>
+    <Ref seqId="GL000211.1" name="GL000211.1" circular="false" local="remote" path="/GL000211.1"/>
+    <Ref seqId="GL000212.1" name="GL000212.1" circular="false" local="remote" path="/GL000212.1"/>
+    <Ref seqId="GL000213.1" name="GL000213.1" circular="false" local="remote" path="/GL000213.1"/>
+    <Ref seqId="GL000214.1" name="GL000214.1" circular="false" local="remote" path="/GL000214.1"/>
+    <Ref seqId="GL000215.1" name="GL000215.1" circular="false" local="remote" path="/GL000215.1"/>
+    <Ref seqId="GL000216.1" name="GL000216.1" circular="false" local="remote" path="/GL000216.1"/>
+    <Ref seqId="GL000217.1" name="GL000217.1" circular="false" local="remote" path="/GL000217.1"/>
+    <Ref seqId="GL000218.1" name="GL000218.1" circular="false" local="remote" path="/GL000218.1"/>
+    <Ref seqId="GL000219.1" name="GL000219.1" circular="false" local="remote" path="/GL000219.1"/>
+    <Ref seqId="GL000220.1" name="GL000220.1" circular="false" local="remote" path="/GL000220.1"/>
+    <Ref seqId="GL000221.1" name="GL000221.1" circular="false" local="remote" path="/GL000221.1"/>
+    <Ref seqId="GL000222.1" name="GL000222.1" circular="false" local="remote" path="/GL000222.1"/>
+    <Ref seqId="GL000223.1" name="GL000223.1" circular="false" local="remote" path="/GL000223.1"/>
+    <Ref seqId="GL000224.1" name="GL000224.1" circular="false" local="remote" path="/GL000224.1"/>
+    <Ref seqId="GL000225.1" name="GL000225.1" circular="false" local="remote" path="/GL000225.1"/>
+    <Ref seqId="GL000226.1" name="GL000226.1" circular="false" local="remote" path="/GL000226.1"/>
+    <Ref seqId="GL000227.1" name="GL000227.1" circular="false" local="remote" path="/GL000227.1"/>
+    <Ref seqId="GL000228.1" name="GL000228.1" circular="false" local="remote" path="/GL000228.1"/>
+    <Ref seqId="GL000229.1" name="GL000229.1" circular="false" local="remote" path="/GL000229.1"/>
+    <Ref seqId="GL000230.1" name="GL000230.1" circular="false" local="remote" path="/GL000230.1"/>
+    <Ref seqId="GL000231.1" name="GL000231.1" circular="false" local="remote" path="/GL000231.1"/>
+    <Ref seqId="GL000232.1" name="GL000232.1" circular="false" local="remote" path="/GL000232.1"/>
+    <Ref seqId="GL000233.1" name="GL000233.1" circular="false" local="remote" path="/GL000233.1"/>
+    <Ref seqId="GL000234.1" name="GL000234.1" circular="false" local="remote" path="/GL000234.1"/>
+    <Ref seqId="GL000235.1" name="GL000235.1" circular="false" local="remote" path="/GL000235.1"/>
+    <Ref seqId="GL000236.1" name="GL000236.1" circular="false" local="remote" path="/GL000236.1"/>
+    <Ref seqId="GL000237.1" name="GL000237.1" circular="false" local="remote" path="/GL000237.1"/>
+    <Ref seqId="GL000238.1" name="GL000238.1" circular="false" local="remote" path="/GL000238.1"/>
+    <Ref seqId="GL000239.1" name="GL000239.1" circular="false" local="remote" path="/GL000239.1"/>
+    <Ref seqId="GL000240.1" name="GL000240.1" circular="false" local="remote" path="/GL000240.1"/>
+    <Ref seqId="GL000241.1" name="GL000241.1" circular="false" local="remote" path="/GL000241.1"/>
+    <Ref seqId="GL000242.1" name="GL000242.1" circular="false" local="remote" path="/GL000242.1"/>
+    <Ref seqId="GL000243.1" name="GL000243.1" circular="false" local="remote" path="/GL000243.1"/>
+    <Ref seqId="GL000244.1" name="GL000244.1" circular="false" local="remote" path="/GL000244.1"/>
+    <Ref seqId="GL000245.1" name="GL000245.1" circular="false" local="remote" path="/GL000245.1"/>
+    <Ref seqId="GL000246.1" name="GL000246.1" circular="false" local="remote" path="/GL000246.1"/>
+    <Ref seqId="GL000247.1" name="GL000247.1" circular="false" local="remote" path="/GL000247.1"/>
+    <Ref seqId="GL000248.1" name="GL000248.1" circular="false" local="remote" path="/GL000248.1"/>
+    <Ref seqId="GL000249.1" name="GL000249.1" circular="false" local="remote" path="/GL000249.1"/>
+    <Ref seqId="NC_000001.10" name="1" circular="false" local="remote" path="/NC_000001.10"/>
+    <Ref seqId="NC_000002.11" name="2" circular="false" local="remote" path="/NC_000002.11"/>
+    <Ref seqId="NC_000003.11" name="3" circular="false" local="remote" path="/NC_000003.11"/>
+    <Ref seqId="NC_000004.11" name="4" circular="false" local="remote" path="/NC_000004.11"/>
+    <Ref seqId="NC_000005.9" name="5" circular="false" local="remote" path="/NC_000005.9"/>
+    <Ref seqId="NC_000006.11" name="6" circular="false" local="remote" path="/NC_000006.11"/>
+    <Ref seqId="NC_000007.13" name="7" circular="false" local="remote" path="/NC_000007.13"/>
+    <Ref seqId="NC_000008.10" name="8" circular="false" local="remote" path="/NC_000008.10"/>
+    <Ref seqId="NC_000009.11" name="9" circular="false" local="remote" path="/NC_000009.11"/>
+    <Ref seqId="NC_000010.10" name="10" circular="false" local="remote" path="/NC_000010.10"/>
+    <Ref seqId="NC_000011.9" name="11" circular="false" local="remote" path="/NC_000011.9"/>
+    <Ref seqId="NC_000012.11" name="12" circular="false" local="remote" path="/NC_000012.11"/>
+    <Ref seqId="NC_000013.10" name="13" circular="false" local="remote" path="/NC_000013.10"/>
+    <Ref seqId="NC_000014.8" name="14" circular="false" local="remote" path="/NC_000014.8"/>
+    <Ref seqId="NC_000015.9" name="15" circular="false" local="remote" path="/NC_000015.9"/>
+    <Ref seqId="NC_000016.9" name="16" circular="false" local="remote" path="/NC_000016.9"/>
+    <Ref seqId="NC_000017.10" name="17" circular="false" local="remote" path="/NC_000017.10"/>
+    <Ref seqId="NC_000018.9" name="18" circular="false" local="remote" path="/NC_000018.9"/>
+    <Ref seqId="NC_000019.9" name="19" circular="false" local="remote" path="/NC_000019.9"/>
+    <Ref seqId="NC_000020.10" name="20" circular="false" local="remote" path="/NC_000020.10"/>
+    <Ref seqId="NC_000021.8" name="21" circular="false" local="remote" path="/NC_000021.8"/>
+    <Ref seqId="NC_000022.10" name="22" circular="false" local="remote" path="/NC_000022.10"/>
+    <Ref seqId="NC_000023.10" name="X" circular="false" local="remote" path="/NC_000023.10"/>
+    <Ref seqId="NC_000024.9" name="Y" circular="false" local="remote" path="/NC_000024.9"/>
+    <Ref seqId="NC_007605.1" name="NC_007605" circular="false" local="remote" path="/NC_007605.1"/>
+    <Ref seqId="NC_012920.1" name="MT" circular="true" local="remote" path="/NC_012920.1"/>
+  </AlignInfo>
+  <QualityCount>
+    <Quality value="2" count="77015660"/>
+    <Quality value="5" count="113316"/>
+    <Quality value="6" count="352603"/>
+    <Quality value="7" count="2482624"/>
+    <Quality value="8" count="3790960"/>
+    <Quality value="9" count="2675087"/>
+    <Quality value="10" count="3879090"/>
+    <Quality value="11" count="1309180"/>
+    <Quality value="12" count="383971"/>
+    <Quality value="13" count="1407214"/>
+    <Quality value="14" count="541709"/>
+    <Quality value="15" count="1448895"/>
+    <Quality value="16" count="2094975"/>
+    <Quality value="17" count="2377557"/>
+    <Quality value="18" count="4301958"/>
+    <Quality value="19" count="2765024"/>
+    <Quality value="20" count="2286995"/>
+    <Quality value="21" count="1430319"/>
+    <Quality value="22" count="3240228"/>
+    <Quality value="23" count="3571960"/>
+    <Quality value="24" count="5027743"/>
+    <Quality value="25" count="7325069"/>
+    <Quality value="26" count="9792767"/>
+    <Quality value="27" count="8857739"/>
+    <Quality value="28" count="8031764"/>
+    <Quality value="29" count="11884160"/>
+    <Quality value="30" count="17718237"/>
+    <Quality value="31" count="23443334"/>
+    <Quality value="32" count="19709352"/>
+    <Quality value="33" count="21531585"/>
+    <Quality value="34" count="41962070"/>
+    <Quality value="35" count="41813692"/>
+    <Quality value="36" count="28286886"/>
+    <Quality value="37" count="44006122"/>
+    <Quality value="38" count="40069217"/>
+    <Quality value="39" count="48008826"/>
+    <Quality value="40" count="55536416"/>
+    <Quality value="41" count="65817394"/>
+  </QualityCount>
+  <Databases>
+    <Database>
+      <Table name="PRIMARY_ALIGNMENT">
+        <Statistics source="meta">
+          <Rows count="5682762"/>
+          <Elements count="573958962"/>
+        </Statistics>
+      </Table>
+      <Table name="REFERENCE">
+        <Statistics source="meta">
+          <Rows count="620436"/>
+          <Elements count="3101976562"/>
+        </Statistics>
+      </Table>
+      <Table name="SEQUENCE">
+        <Statistics source="meta">
+          <Rows count="3050949"/>
+          <Elements count="616291698"/>
+        </Statistics>
+      </Table>
+    </Database>
+  </Databases>
+</Run>

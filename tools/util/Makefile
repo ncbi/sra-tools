@@ -30,6 +30,7 @@ MODULE = tools/util
 
 INT_TOOLS = \
     crc32sum \
+    test-download \
     kdb-index \
     pacbio-correct \
     schema-replace \
@@ -38,6 +39,7 @@ INT_TOOLS = \
     samview \
     testld \
     txt2kdb \
+    validate-names4 \
 #   pseudo-aligner \
 
 
@@ -208,6 +210,18 @@ TXT2KDB_LIB = \
 $(BINDIR)/txt2kdb: $(TXT2KDB_OBJ)
 	$(LD) --exe -o $@ $^ $(TXT2KDB_LIB)
 
+#-------------------------------------------------------------------------------
+# validate-names4: validate name resolver 4 JSON
+#
+V4_SRC = \
+	validate-names4
+
+V4_OBJ = \
+	$(addsuffix .$(OBJX),$(V4_SRC))
+
+$(BINDIR)/validate-names4: $(V4_OBJ)
+	$(LD) --exe -o $@ $^ $(TXT2KDB_LIB)
+
 #----------------------------------------------------------------
 # md5cp
 #
@@ -263,6 +277,19 @@ CRC32SUM_LIB = \
 
 
 $(BINDIR)/crc32sum: $(CRC32SUM_OBJ)
+	$(LD) --exe -o $@ $^ $(CRC32SUM_LIB)
+
+
+#-------------------------------------------------------------------------------
+# test-download
+#
+D_SRC = \
+	test-download
+
+D_OBJ = \
+	$(addsuffix .$(OBJX),$(D_SRC))
+
+$(BINDIR)/test-download: $(D_OBJ)
 	$(LD) --exe -o $@ $^ $(CRC32SUM_LIB)
 
 

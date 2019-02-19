@@ -35,6 +35,8 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	read-filter-redact \
+	prefetch        \
 	dump-test       \
 	vdb-config      \
 	vcf-loader      \
@@ -48,7 +50,6 @@ SUBDIRS =    \
 	sra-stat        \
 	srapath         \
 	sra-sort        \
-	fastdump        \
 	sra-pileup      \
 	fuse            \
 	fastq-loader    \

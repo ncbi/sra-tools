@@ -44,7 +44,8 @@ if [ "$rc" != "$RC" ] ; then
 fi
 
 # remove first two columns from output: datetime and progname 
-cat "actual/$CASEID.tmp" | awk '{if(substr($2,1,12) == "vdb-validate"){$2=$1="";} print $0}' > "actual/$CASEID"
+cat "actual/$CASEID.tmp" | awk '{if(substr($2,1,12) == "vdb-validate"){$2=$1="";} print $0}' \
+    | perl -e "while(<>) { s|'.*TEST-DATA/|'| ; print }" > "actual/$CASEID"
 rm "actual/$CASEID.tmp"
 
 # remove trailing white spaces

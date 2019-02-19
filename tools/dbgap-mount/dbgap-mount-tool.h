@@ -65,6 +65,11 @@ static const char * UsgUnmount []   = { "Unmount", NULL };
 #define PARAM_RO        "ro"
 #define PARAM_RW        "rw"
 
+#define OPT_ACCCTRL     "accctrl"
+#define ALS_ACCCTRL     "a"
+#define PRM_ACCCTRL     NULL
+static const char * UsgAccCtrl [] = { "Control user access", NULL };
+
 #ifdef __cplusplus 
 }
 #endif /* __cplusplus */

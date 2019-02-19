@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qss/official_style.qss</file>
+        <file>images/ncbi_logo_long.svg</file>
+        <file>images/ncbi_config_button_long.svg</file>
+        <file>images/ncbi_diagnostics_button_long.svg</file>
+        <file>images/ncbi_diagnostics_button.svg</file>
+        <file>images/ncbi_config_button.svg</file>
+        <file>images/ncbi_expand_button_close.svg</file>
+        <file>images/ncbi_expand_button_open.svg</file>
+        <file>images/ncbi_helix_vertical.svg</file>
+    </qresource>
+</RCC>

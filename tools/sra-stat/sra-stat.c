@@ -76,8 +76,6 @@
 #include <string.h>
 #include <time.h>
 
-#define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
-
 #define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
     PLOGERR(klogInt, (klogInt, rc, \
         "$(name): $(msg)", "name=%s,msg=%s", name, msg)))
@@ -610,7 +608,7 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
     int64_t row_id = 0;
 
     uint32_t dREAD_LEN  [MAX_NREADS];
-    uint8_t  dREAD_TYPE [MAX_NREADS] = { 1 };
+    uint8_t  dREAD_TYPE [MAX_NREADS];
     int nreads = 0;
 
     int read = 0;
@@ -1752,13 +1750,13 @@ rc_t CC fileSizeVisitor(const KDirectory* dir,
             DISP_RC2(rc, name, "while calling KDirectoryFileSize");
             if (rc == 0) {
                 sizes->size += size;
-                DBGMSG(DBG_APP, DBG_COND_2,
+                DBGMSG(DBG_APP, DBG_COND_1,
                     ("File '%s', size %lu\n", name, size));
             }
             break;
         }
         case kptDir: 
-            DBGMSG(DBG_APP, DBG_COND_2, ("Dir '%s'\n", name));
+            DBGMSG(DBG_APP, DBG_COND_1, ("Dir '%s'\n", name));
             rc = KDirectoryVisit(dir, false, fileSizeVisitor, sizes, "%s", name);
             DISP_RC2(rc, name, "while calling KDirectoryVisit");
             break;
@@ -3103,7 +3101,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                 rc = VCursorIdRange(curs, 0, &first, &count);
                 DISP_RC(rc, "VCursorIdRange() failed");
                 if (rc == 0) {
-                    rc = BasesInit(&total->bases_count, vtbl);
+                    rc = BasesInit(&total->bases_count, ctx, vtbl, pb);
                 }
                 if (rc == 0) {
                     const KLoadProgressbar *pr = NULL;
@@ -3157,19 +3155,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     else {
                         stop = first + count;
                     }
-                }
-                if (rc == 0) {
-                    rc = BasesInit(&total->bases_count, ctx, vtbl, pb);
-                }
-                if (rc == 0) {
-                    const KLoadProgressbar *pr = NULL;
-                    bool bad_read_filter = false;
-                    bool fixedNReads = true;
-                    bool fixedReadLength = true;
-
-                    uint32_t g_dREAD_LEN[MAX_NREADS];
-
-                    memset(g_dREAD_LEN, 0, sizeof g_dREAD_LEN);
 
                     for (spotid = start; spotid < stop && rc == 0; ++spotid) {
                         SraStats* ss;
@@ -3216,7 +3201,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                 rc = RC(rcExe, rcColumn, rcReading,
                                     rcSize, rcInvalid);
                             }
-                            if ( ( row_bits >> 3 )
+                            else if ( ( row_bits >> 3 )
                                  > MAX_NREADS * sizeof * dREAD_LEN )
                             {
                                 size_t oldMAX_NREADS = MAX_NREADS;
@@ -3350,10 +3335,13 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcSize, rcInvalid);
                                     }
-                                    if ( ( row_bits >> 3 ) > MAX_NREADS * sizeof * dREAD_TYPE )
-                                        rc = RC( rcExe, rcColumn, rcReading,
-                                                 rcBuffer, rcInsufficient );
-                                    if ((row_bits >> 3) !=  nreads) {
+                                    else if ((row_bits >> 3) >
+                                        MAX_NREADS * sizeof * dREAD_TYPE)
+                                    {
+                                        rc = RC(rcExe, rcColumn, rcReading,
+                                            rcBuffer, rcInsufficient);
+                                    }
+                                    else if ((row_bits >> 3) !=  nreads) {
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcData, rcIncorrect);
                                     }
@@ -3382,7 +3370,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                                 rc = RC(rcExe, rcColumn,
                                                     rcReading,
                                                     rcSize, rcInvalid); }
-                                            if ( n  > MAX_SPOT_GROUP ) {
+                                            else if ( n  > MAX_SPOT_GROUP ) {
                                                 char * tmp = NULL;
                                                 MAX_SPOT_GROUP = n + 1000;
                                                 tmp = realloc ( dSPOT_GROUP,
@@ -3444,9 +3432,12 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                             rc = RC(rcExe, rcColumn, rcReading,
                                                 rcSize, rcInvalid);
                                         }
-                                        if ( size > MAX_NREADS * sizeof * dRD_FILTER )
-                                            rc = RC ( rcExe, rcColumn, rcReading,
-                                                      rcBuffer, rcInsufficient );
+                                        else if (size >
+                                            MAX_NREADS * sizeof * dRD_FILTER)
+                                        {
+                                            rc = RC(rcExe, rcColumn, rcReading,
+                                                rcBuffer, rcInsufficient);
+                                        }
                                         DISP_RC_Read(rc, RD_FILTER, spotid,
                                             "after calling VCursorColumnRead");
                                         if (rc == 0) {
@@ -3921,9 +3912,9 @@ rc_t run(srastat_parms* pb)
             CtxRelease(&ctx);
             RELEASE(KMetadata, meta);
         }
+        RELEASE(VTable, vtbl);
         RELEASE(VDatabase, db);
         RELEASE(VSchema, schema);
-        RELEASE(VTable, vtbl);
     }
 
     RELEASE(VDBManager, vmgr);

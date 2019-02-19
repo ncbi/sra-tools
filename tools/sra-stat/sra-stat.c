@@ -596,7 +596,9 @@ static rc_t BasesRelease(Bases *self) {
     return rc;
 }
 
-static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
+static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment,
+    uint32_t * dREAD_LEN, uint8_t * dREAD_TYPE)
+{
     rc_t rc = 0;
     const void *base = NULL;
     bitsz_t row_bits = ~0;
@@ -607,8 +609,6 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
     const VCursor * c = NULL;
     int64_t row_id = 0;
 
-    uint32_t dREAD_LEN  [MAX_NREADS];
-    uint8_t  dREAD_TYPE [MAX_NREADS];
     int nreads = 0;
 
     int read = 0;
@@ -638,7 +638,7 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
                 rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid);
             else if (row_bits & 7)
                 rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid);
-            else if ((row_bits >> 3) > sizeof(dREAD_LEN))
+            else if ((row_bits >> 3) > MAX_NREADS * sizeof *dREAD_LEN)
                 rc = RC(rcExe, rcColumn, rcReading, rcBuffer, rcInsufficient);
             DISP_RC_Read(rc, "READ_LEN", spotid,
                          "after calling VCursorColumnRead");
@@ -661,7 +661,7 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
                 rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid);
             else if (row_bits & 7)
                 rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid);
-            else if ((row_bits >> 3) > sizeof(dREAD_TYPE))
+            else if ((row_bits >> 3) > MAX_NREADS * sizeof * dREAD_TYPE)
                 rc = RC(rcExe, rcColumn, rcReading,
                     rcBuffer, rcInsufficient);
             else if (((row_bits >> 3) / sizeof(*dREAD_TYPE)) != nreads)
@@ -3636,7 +3636,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                            spotid < total->bases_count.stopALIGNMENT && rc == 0;
                          ++spotid)
                     {
-                        rc = BasesAdd(&total->bases_count, spotid, true);
+                        rc = BasesAdd(&total->bases_count, spotid, true,
+                            dREAD_LEN, dREAD_TYPE);
                         if ( rc == 0 && pb->progress )
                             KLoadProgressbar_Process ( pr, 1, false );
                         rc = Quitting();
@@ -3649,7 +3650,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                            spotid < total->bases_count.stopSEQUENCE && rc == 0;
                          ++spotid)
                     {
-                        rc = BasesAdd(&total->bases_count, spotid, false);
+                        rc = BasesAdd(&total->bases_count, spotid, false,
+                            dREAD_LEN, dREAD_TYPE);
                         if ( rc == 0 && pb->progress )
                             KLoadProgressbar_Process ( pr, 1, false );
                         rc = Quitting();

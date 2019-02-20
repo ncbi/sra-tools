@@ -1,13 +1,13 @@
        BASE_COUNT: 6
    BIO_BASE_COUNT: 6
    CMP_BASE_COUNT: 6
-CMP_LINKAGE_GROUP: 
+CMP_LINKAGE_GROUP:
      COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
            CSREAD: ..3
            CS_KEY: T
         CS_NATIVE: false
    FIXED_SPOT_LEN: 3
-    LINKAGE_GROUP: 
+    LINKAGE_GROUP:
       MAX_SPOT_ID: 2
       MIN_SPOT_ID: 1
              NAME: 1
@@ -23,7 +23,7 @@ CMP_LINKAGE_GROUP:
        SIGNAL_LEN: 0
        SPOT_COUNT: 2
       SPOT_FILTER: 1
-       SPOT_GROUP: 
+       SPOT_GROUP:
           SPOT_ID: 1
          SPOT_LEN: 3
          TRIM_LEN: 3
@@ -32,13 +32,13 @@ CMP_LINKAGE_GROUP:
        BASE_COUNT: 6
    BIO_BASE_COUNT: 6
    CMP_BASE_COUNT: 6
-CMP_LINKAGE_GROUP: 
+CMP_LINKAGE_GROUP:
      COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
            CSREAD: ...
            CS_KEY: T
         CS_NATIVE: false
    FIXED_SPOT_LEN: 3
-    LINKAGE_GROUP: 
+    LINKAGE_GROUP:
       MAX_SPOT_ID: 2
       MIN_SPOT_ID: 1
              NAME: 2
@@ -54,7 +54,7 @@ CMP_LINKAGE_GROUP:
        SIGNAL_LEN: 0
        SPOT_COUNT: 2
       SPOT_FILTER: 1
-       SPOT_GROUP: 
+       SPOT_GROUP:
           SPOT_ID: 2
          SPOT_LEN: 3
          TRIM_LEN: 3

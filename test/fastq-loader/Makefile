@@ -35,6 +35,8 @@ TEST_TOOLS = \
 	wb-test-fastq-parse \
 	test-fastq-loader
 
+VDB_CONFIG = $(SRCDIR)
+
 include $(TOP)/build/Makefile.env
 
 $(TEST_TOOLS): makedirs
@@ -111,13 +113,12 @@ tfl:
 # scripted tests
 #
 runtests: wb parse set_schema smalltests
-	rm -v tmp.kfg
 
 set_schema:
 	echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
 
-SMALLRUN = @ export NCBI_SETTINGS=/ ; export VDB_CONFIG=`pwd` ; \
-	$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
+SMALLRUN = @ NCBI_SETTINGS= VDB_CONFIG=$(SRCDIR) $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
+
 smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
 #   Small tests
@@ -135,8 +136,13 @@ smalltests: $(TEST_TOOLS)
 #       Single input file
 #           2.1 reads only, basespace
 	$(SMALLRUN) 2.1 0 $(SRCDIR)/input/2.1.fastq --quality PHRED_33
+<<<<<<< HEAD
 #           2.1.1 reads only, colorspace
 #CS	$(SMALLRUN) 2.1.1 0 $(SRCDIR)/input/2.1.1.fastq --quality PHRED_33
+=======
+#           2.1.1 reads only, colorspace - COLORSPACE is on the way out
+	#$(SMALLRUN) 2.1.1 0 $(SRCDIR)/input/2.1.1.fastq --quality PHRED_33
+>>>>>>> 1fe7d47bda4b5f649a4a259c4f96d249e0ca1691
 #           2.2 qualities only
 	@#-$(SMALLRUN) 2.2 0 $(SRCDIR)/input/2.2.fastq --quality PHRED_33
 #           2.3 reads+qualities, qualities before reads
@@ -239,5 +245,5 @@ smalltests: $(TEST_TOOLS)
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
+	$(SMALLRUN) 4.4 0 $(SRCDIR)/input/4.4.fastq --max-rec-count 3 --quality PHRED_33
 

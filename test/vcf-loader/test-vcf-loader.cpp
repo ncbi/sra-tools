@@ -716,7 +716,7 @@ const char VcfDatabaseFixture::schema_text[] =
 " };"
 
 "database vcf #1 { "
-"    table NCBI:align:tbl:reference #2  REFERENCE;"
+"    table NCBI:align:tbl:reference #3  REFERENCE;"
 "    table variant #1                   VARIANT;"
 "    table variant_phase #1             VARIANT_PHASE;"
 "    table alignment #1                 ALIGNMENT;"

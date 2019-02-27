@@ -31,6 +31,7 @@ TOP ?= $(abspath ../..)
 MODULE = test/fastq-loader
 
 TEST_TOOLS = \
+	test-id2name \
 	wb-test-fastq \
 	wb-test-fastq-parse \
 	test-fastq-loader
@@ -68,6 +69,26 @@ $(TEST_BINDIR)/wb-test-fastq-parse: $(FASTQ_PARSE_OBJ)
 parse: wb-test-fastq-parse
 	$(TEST_BINDIR)/wb-test-fastq-parse  2>&1
 
+#-------------------------------------------------------------------------------
+# id2name
+#
+ID2NAME_TEST_SRC = \
+	test-id2name
+
+ID2NAME_TEST_OBJ = \
+	$(addsuffix .$(OBJX),$(ID2NAME_TEST_SRC))
+
+ID2NAME_TEST_LIB = \
+	-skapp \
+	-sktst \
+	-sfastqloader \
+	-sncbi-vdb
+
+$(TEST_BINDIR)/test-id2name: $(ID2NAME_TEST_OBJ)
+	$(LP) --exe -o $@ $^ $(ID2NAME_TEST_LIB)
+
+id: test-id2name
+	$(TEST_BINDIR)/test-id2name  2>&1
 
 #-------------------------------------------------------------------------------
 # white-box test
@@ -136,13 +157,8 @@ smalltests: $(TEST_TOOLS)
 #       Single input file
 #           2.1 reads only, basespace
 	$(SMALLRUN) 2.1 0 $(SRCDIR)/input/2.1.fastq --quality PHRED_33
-<<<<<<< HEAD
 #           2.1.1 reads only, colorspace
 #CS	$(SMALLRUN) 2.1.1 0 $(SRCDIR)/input/2.1.1.fastq --quality PHRED_33
-=======
-#           2.1.1 reads only, colorspace - COLORSPACE is on the way out
-	#$(SMALLRUN) 2.1.1 0 $(SRCDIR)/input/2.1.1.fastq --quality PHRED_33
->>>>>>> 1fe7d47bda4b5f649a4a259c4f96d249e0ca1691
 #           2.2 qualities only
 	@#-$(SMALLRUN) 2.2 0 $(SRCDIR)/input/2.2.fastq --quality PHRED_33
 #           2.3 reads+qualities, qualities before reads
@@ -236,14 +252,15 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
 	$(SMALLRUN) 14.0 0 $(SRCDIR)/input/14.0.fasta $(SRCDIR)/input/14.0.fasta --quality PHRED_33
-	rm -rf $(SRCDIR)/actual
     # VDB-3154: buffer insufficient
 	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33
     # VDB-3413: multi-line reads and qualities
 	$(SMALLRUN) 16.0 0 $(SRCDIR)/input/16.0.fasta --quality PHRED_33 --platform=PACBIO
 	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
+	#
+	#rm -rf $(SRCDIR)/actual
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 4.4 0 $(SRCDIR)/input/4.4.fastq --max-rec-count 3 --quality PHRED_33
+	$(SMALLRUN) 1.4 0 $(SRCDIR)/input/1.4.fastq --quality LOGODDS
 

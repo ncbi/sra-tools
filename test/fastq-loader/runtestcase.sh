@@ -28,12 +28,12 @@
 # $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
 # $3 - test case ID
 # $3 - expected result code from fastq-load.3
-# $4, $5, ... - command line options for fastq-load.3 
+# $4, $5, ... - command line options for fastq-load.3
 #
 # return codes:
 # 0 - passed
 # 1 - coud not create temp dir
-# 2 - unexpected return code from fastq-load.3 
+# 2 - unexpected return code from fastq-load.3
 # 3 - vdb-dump failed on the output of fastq-load.3
 # 4 - outputs differ
 
@@ -55,11 +55,11 @@ rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then
     exit 1
 fi
-export LD_LIBRARY_PATH=$BINDIR/../lib; 
+export LD_LIBRARY_PATH=$BINDIR/../lib;
 
 #CMD="$LOAD $CMDLINE -o $TEMPDIR/obj --no-user-settings 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 CMD="$LOAD $CMDLINE -o $TEMPDIR/obj 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-#    echo $CMD
+    echo $CMD
 eval $CMD
 rc="$?"
 if [ "$rc" != "$RC" ] ; then
@@ -80,7 +80,7 @@ if [ "$rc" == "0" ] ; then
         cat $TEMPDIR/dump.stderr
         exit 3
     fi
-    diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
+    diff -Z $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
 else # load failed as expected
     # remove timestamps
@@ -91,7 +91,7 @@ else # load failed as expected
     sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
     # remove version number
     sed -i -e 's=latf-load\(\.[0-9]*\)*=latf-load=g' $TEMPDIR/load.stderr
-    diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
+    diff -Z $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
     rc="$?"
 fi
 if [ "$rc" != "0" ] ; then
@@ -99,7 +99,7 @@ if [ "$rc" != "0" ] ; then
     echo "command executed:"
     echo $CMD
     exit 4
-fi    
+fi
 
 #rm -rf $TEMPDIR
 

@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.9.4-1
+**March 1, 2019**
+
+  **vfs**: fixed regression introduced in 2.9.4 release causing delay when starting sra tools  
+
+
 ## SRA Toolkit 2.9.4
 **January 31, 2019**
 

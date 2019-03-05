@@ -1519,9 +1519,9 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
                     STSMSG(STS_TOP, (" %s download failed",
                         https ? "https" : "http"));
             }
-            if ( rc == 0 && rd != 0 )
-                rc = rd;
         }
+        if ( rc == 0 && rd != 0 )
+            rc = rd;
     }
     return rc;
 }

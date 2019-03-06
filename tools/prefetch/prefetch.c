@@ -1520,6 +1520,8 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
                         https ? "https" : "http"));
             }
         }
+        if ( rc == 0 && rd != 0 )
+            rc = rd;
     }
     return rc;
 }

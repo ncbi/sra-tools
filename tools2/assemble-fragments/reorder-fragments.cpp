@@ -367,7 +367,7 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
 
     std::cerr << "info: processing " << range.count() << " records" << std::endl;
     
-    auto const indexedCursor = VDB::IndexedCursor<RawRecord>(in, beg, end);
+    auto const indexedCursor = VDB::UniqueKeyIndexedCursor<RawRecord>(in, beg, end);
     auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
         a.write(columns);
         otbl.closeRow();

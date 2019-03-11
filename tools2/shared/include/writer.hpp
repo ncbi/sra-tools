@@ -23,8 +23,7 @@
  * ===========================================================================
  */
 
-#ifndef __WRITER_HPP_INCLUDED__
-#define __WRITER_HPP_INCLUDED__ 1
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -365,6 +364,19 @@ public:
                 throw std::logic_error(column + " is not a column of this cursor opened on " + t->first);
             return Column(parent, *c);
         }
+        std::vector<Column> columns() const
+        {
+            auto const &cols = t->second.second;
+            auto byId = std::vector<ColumnInfo>(cols.begin(), cols.end());
+            sort(byId.begin(), byId.end(), [](ColumnInfo const &a, ColumnInfo const &b) { return a.id < b.id; });
+            std::vector<Column> result;
+            result.reserve(byId.size());
+            for (auto && i : byId) {
+                auto const j = cols.find(i);
+                result.emplace_back(Column(parent, *j));
+            }
+            return result;
+        }
         bool closeRow() const {
             return parent.closeRow(table);
         }
@@ -468,6 +480,3 @@ public:
         return setValue(columnNumber, data->elements, data->elem_bits >> 3, data->data());
     }
 };
-
-
-#endif // __WRITER_HPP_INCLUDED__

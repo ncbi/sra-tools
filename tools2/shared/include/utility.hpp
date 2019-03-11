@@ -23,8 +23,7 @@
  * ===========================================================================
  */
 
-#ifndef __UTILITY_HPP_INCLUDED__
-#define __UTILITY_HPP_INCLUDED__ 1
+#pragma once
 
 #if _WIN32
 #error TODO
@@ -73,6 +72,8 @@ namespace utility {
                 free(pointer);
         }
         
+        bool contains(T const *const p) const { return p >= pointer && p < pointer + count; }
+        bool contains(T *const p) const { return contains(const_cast<T const *>(p)); }
         T *base() const { return pointer; }
         size_t elements() const noexcept { return count; }
         operator bool() const noexcept { return pointer != nullptr; }
@@ -183,6 +184,20 @@ namespace utility {
         return rslt;
     }
 
+    static std::string stringWithContentsOfFile(std::string const &path)
+    {
+        std::string s;
+        auto ifs = std::ifstream(path, std::ios::in);
+        if (!ifs) { throw std::runtime_error("can't open file " + path); }
+        
+        ifs.seekg(0, std::ios::end);
+        s.reserve(ifs.tellg());
+        ifs.seekg(0, std::ios::beg);
+        
+        s.assign(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+        return s;
+    }
+    
     static char const *programNameFromArgv0(char const *const argv0)
     {
         auto last = -1;
@@ -546,5 +561,3 @@ namespace utility {
         return r + lower_bound;
     }
 }
-
-#endif //__UTILITY_HPP_INCLUDED__

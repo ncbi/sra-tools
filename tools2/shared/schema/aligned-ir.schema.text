@@ -100,24 +100,15 @@ table NCBI:tbl:IR:CONTIGS #1 ///< these are temporary contiguous regions
     extern column <ascii>  zip_encoding READ_GROUP;
 };
 
-table NCBI:tbl:aligned:CONTIGS #1
+table NCBI:tbl:aligned:CONTIGS_no_gap #1
 {
-    extern column <ascii>  zip_encoding PLATFORM;
-    extern column <ascii>  zip_encoding READ_GROUP;
-    extern column <ascii>  zip_encoding REFERENCE;  ///< this may be empty, see below
+    extern column <ascii>  zip_encoding REFERENCE;
     extern column   <I32> izip_encoding START;
     extern column   <I32> izip_encoding END;
+};
 
-/* these statistics were gathered from the fragments that the contig was built from */
-    extern column   <F32>  zip_encoding SEQ_LENGTH_AVERAGE;
-    extern column   <F32>  zip_encoding SEQ_LENGTH_STD_DEV;
-    extern column   <F32>  zip_encoding REF_LENGTH_AVERAGE;
-    extern column   <F32>  zip_encoding REF_LENGTH_STD_DEV;
-
-    extern column   <U32> izip_encoding FRAGMENT_COUNT;
-    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_AVERAGE;
-    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_STD_DEV;
-
+table NCBI:tbl:aligned:CONTIGS_gapped #1
+{
 /* if REFERENCE is empty, these columns will be filled in; otherwise, they will be empty */
     extern column <ascii>  zip_encoding REFERENCE_1;
     extern column   <I32> izip_encoding START_1;
@@ -129,6 +120,25 @@ table NCBI:tbl:aligned:CONTIGS #1
     extern column <ascii>  zip_encoding REFERENCE_2;
     extern column   <I32> izip_encoding START_2;
     extern column   <I32> izip_encoding END_2;
+};
+
+table NCBI:tbl:aligned:CONTIGS #1
+    = NCBI:tbl:aligned:CONTIGS_no_gap
+    , NCBI:tbl:aligned:CONTIGS_gapped
+{
+    extern column <ascii>  zip_encoding PLATFORM;
+    extern column <ascii>  zip_encoding READ_GROUP;
+    extern column <ascii>  zip_encoding SEQUENCE;   ///< '_' is no-coverage, '.' is no-consensus
+
+/* these statistics were gathered from the fragments that the contig was built from */
+    extern column   <F32>  zip_encoding SEQ_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding SEQ_LENGTH_STD_DEV;
+    extern column   <F32>  zip_encoding REF_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding REF_LENGTH_STD_DEV;
+
+    extern column   <U32> izip_encoding FRAGMENT_COUNT;
+    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_STD_DEV;
 
 /* this group of coverage columns is for when read 1 is on the 5' strand */
     extern column   <U32> izip_encoding FWD_FIRST;      ///< first base of a fragment alignment
@@ -149,6 +159,12 @@ table NCBI:tbl:aligned:CONTIGS #1
     extern column   <U32> izip_encoding REV_C;          ///< count of C's
     extern column   <U32> izip_encoding REV_G;          ///< count of G's
     extern column   <U32> izip_encoding REV_T;          ///< count of T's
+};
+
+table NCBI:tbl:aligned:COMPRESSED #1
+{
+    extern column <I64>  izip_encoding CONTIG;
+    extern column <ascii> zip_encoding NONSENSUS; ///< i.e. the NO-coNSENSUS bases
 };
 
 table NCBI:tbl:aligned:FRAGMENT #1
@@ -175,6 +191,7 @@ database NCBI:db:IR:aligned #1
 {
     table NCBI:tbl:aligned:FRAGMENT #1.0 FRAGMENTS;
     table NCBI:tbl:aligned:CONTIGS #1.0 CONTIGS;
+    table NCBI:tbl:aligned:COMPRESSED #1 COMPRESSED;
     table NCBI:tbl:IR:raw #1.0 REJECTS;
     table NCBI:tbl:IR:QUALITY_STATISTICS #1.0 QUALITY_STATISTICS;
     table NCBI:tbl:IR:ALIGNED_STATISTICS #1.0 ALIGNED_STATISTICS;

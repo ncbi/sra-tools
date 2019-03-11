@@ -23,8 +23,7 @@
  * ===========================================================================
  */
 
-#ifndef __VDB_HPP_INCLUDED__
-#define __VDB_HPP_INCLUDED__ 1
+#pragma once
 
 #include <stdexcept>
 #include <string>
@@ -32,6 +31,8 @@
 #include <fstream>
 #include <utility>
 #include <map>
+
+#include "utility.hpp"
 
 static_assert(sizeof(unsigned) >= sizeof(uint32_t), "unsigned int is too small!");
 
@@ -225,7 +226,8 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return RowRange(first, first + count);
         }
-        RawData read(RowID row, unsigned cid) const {
+        RawData read(RowID row, unsigned cid) const
+        {
             RawData out;
             void const *base = 0;
             uint32_t count = 0;
@@ -248,7 +250,8 @@ namespace VDB {
             }
         }
         template <typename F>
-        uint64_t foreach(F &&f) const {
+        uint64_t foreach(F &&f) const
+        {
             auto data = std::vector<RawData>();
             auto const range = rowRange();
             uint64_t rows = 0;
@@ -265,7 +268,8 @@ namespace VDB {
             return rows;
         }
         template <typename FILT, typename FUNC>
-        uint64_t foreach(FILT &&filt, FUNC &&func) const {
+        uint64_t foreach(FILT &&filt, FUNC &&func) const
+        {
             auto data = std::vector<RawData>();
             auto const range = rowRange();
             uint64_t rows = 0;
@@ -374,7 +378,7 @@ namespace VDB {
      *  Cursor::RowID T::IndexIteratorT::const_reference::row()
      */
     template <typename T>
-    class IndexedCursor : public IndexedCursorBase {
+    class UniqueKeyIndexedCursor : public IndexedCursorBase {
         using IndexIteratorT = typename T::IndexIteratorT;
         IndexIteratorT beg;
         IndexIteratorT const end;
@@ -396,7 +400,7 @@ namespace VDB {
             return loadBuffer(v, count, used);
         }
     public:
-        IndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
+        UniqueKeyIndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
         : IndexedCursorBase(p, bufSize)
         , beg(index)
         , end(indexEnd)
@@ -439,7 +443,7 @@ namespace VDB {
      *  T::IndexIteratorT::const_reference::operator ==
      */
     template <typename T>
-    class CollidableIndexedCursor : public IndexedCursorBase {
+    class IndexedCursor : public IndexedCursorBase {
         using IndexIteratorT = typename T::IndexIteratorT;
         IndexIteratorT beg;
         IndexIteratorT const end;
@@ -473,7 +477,7 @@ namespace VDB {
             return result;
         }
     public:
-        CollidableIndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
+        IndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
         : IndexedCursorBase(p, bufSize)
         , beg(index)
         , end(indexEnd)
@@ -521,26 +525,50 @@ namespace VDB {
         C::VTable *const o;
         
         Table(C::VTable *const o_) :o(o_) {}
+        
+        C::rc_t openColumns(C::VCursor const **result, unsigned const N, char const *const fields[]) const
+        {
+            auto rc = C::VTableCreateCursorRead(o, result);
+            if (rc)
+                return rc;
+            
+            for (unsigned i = 0; i < N; ++i) {
+                uint32_t cid = 0;
+                auto const name = fields[i];
+                
+                rc = C::VCursorAddColumn(*result, &cid, "%s", name);
+                if (rc) goto ERROR;
+            }
+            rc = C::VCursorOpen(*result);
+            if (rc) {
+            ERROR: C::VCursorRelease(*result);
+            }
+            return rc;
+        }
     public:
         Table(Table const &other) :o(other.o) { C::VTableAddRef(o); }
         ~Table() { C::VTableRelease(o); }
         
         Cursor read(unsigned const N, char const *const fields[]) const
         {
+            C::VCursor const *curs = 0;
+            auto rc = openColumns(&curs, N, fields);
+            if (rc)
+                throw Error(rc, __FILE__, __LINE__);
+            
+            return Cursor(const_cast<C::VCursor *>(curs), N);
+        }
+        
+        Cursor read(unsigned &which, unsigned const N, char const *const fields[], unsigned const altN, char const *const altfields[]) const
+        {
             unsigned n = 0;
             C::VCursor const *curs = 0;
-            auto rc = C::VTableCreateCursorRead(o, &curs);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            
-            for (unsigned i = 0; i < N; ++i) {
-                uint32_t cid = 0;
-                auto const name = fields[i];
-                
-                rc = C::VCursorAddColumn(curs, &cid, "%s", name);
-                if (rc) throw Error(rc, __FILE__, __LINE__);
-                ++n;
+            which = 1;
+            auto rc = openColumns(&curs, n = N, fields);
+            if (rc) {
+                which = 2;
+                rc = openColumns(&curs, n = altN, altfields);
             }
-            rc = C::VCursorOpen(curs);
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Cursor(const_cast<C::VCursor *>(curs), n);
         }
@@ -607,20 +635,13 @@ namespace VDB {
             rslt.parseText(size, text);
             return rslt;
         }
-        
+        Schema schema(std::string const &str, std::string const &includePath = "") const
+        {
+            return schema(str.size(), str.data(), includePath.size() != 0 ? includePath.c_str() : 0);
+        }
         Schema schemaFromFile(std::string const &path, std::string const &includePath = "") const
         {
-            std::ifstream ifs(path, std::ios::ate | std::ios::in);
-            if (!ifs) { throw std::runtime_error("can't open file " + path); }
-            size_t size = ifs.tellg();
-            char *p = new char[size];
-            
-            ifs.seekg(0, std::ios::beg);
-            ifs.read(p, size);
-            
-            Schema result = schema(size, p, includePath.size() != 0 ? includePath.c_str() : 0);
-            delete [] p;
-            return result;
+            return schema(utility::stringWithContentsOfFile(path), includePath);
         }
         Database operator [](std::string const &path) const
         {
@@ -631,5 +652,3 @@ namespace VDB {
         }
     };
 }
-
-#endif //__VDB_HPP_INCLUDED__

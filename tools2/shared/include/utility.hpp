@@ -62,7 +62,7 @@ namespace utility {
         {}
         
         explicit Array(size_t const n, bool owned = true) noexcept
-        : pointer((T *)malloc(n * sizeof(T)))
+        : pointer(n ? (T *)malloc(n * sizeof(T)) : nullptr)
         , count(n)
         , isOwner(owned)
         {}
@@ -537,14 +537,24 @@ namespace utility {
         if (lower_bound == upper_bound) return lower_bound;
         unsigned const n = upper_bound - lower_bound;
         unsigned r;
-#if __APPLE__
+#if __APPLE__ && 0
         r = arc4random_uniform(n);
 #else
         struct Seed {
-            enum { smallest = 8, small = 32, normal = 64, big = 128, biggest = 256 };
-            char state[normal];
+            char state[256];
             Seed() {
-                initstate(unsigned(time(0)), state, sizeof(state));
+                unsigned n = time(0);
+                unsigned seed = n;
+                {
+                    auto ifs = std::ifstream("/dev/random", std::ios::in | std::ios::binary | std::ios::ate);
+                    if (ifs) {
+                        ifs.read(reinterpret_cast<char *>(&n), sizeof(n));
+                        ifs.read(reinterpret_cast<char *>(&seed), sizeof(seed));
+                    }
+                }
+                (void)initstate(seed, state, sizeof(state));
+                for (auto i = 0; i < (n & 0xFF); ++i)
+                    (void)::random();
             }
             unsigned random(unsigned const max) const {
                 for ( ; ; ) {
@@ -553,11 +563,71 @@ namespace utility {
                         return unsigned(r);
                 }
             }
-            static unsigned max() { return unsigned(RAND_MAX); }
+            static unsigned constexpr max() { return unsigned(RAND_MAX); }
         };
         static auto seed = Seed();
         r = seed.random(unsigned(Seed::max() / n) * n) % n;
 #endif
         return r + lower_bound;
     }
+}
+
+namespace HashFunction {
+    class FNV_1a {
+        class SBox {
+            uint8_t tr[256];
+        public:
+            SBox(bool randomize = true) {
+                for (auto i = 0; i < 256; ++i)
+                    tr[i] = i;
+                if (randomize) {
+                    for (auto i = 1; i < 256; ++i) {
+                        auto const j = utility::uniform_random(0, i + 1);
+                        tr[i] = tr[j];
+                        tr[j] = i;
+                    }
+                }
+            }
+            uint8_t operator [](uint8_t byte) const { return tr[byte]; }
+        };
+        SBox const sbox;
+    public:
+        class Hasher {
+            union {
+                uint8_t u8[8];
+                uint64_t u64;
+            } h;
+            friend class FNV_1a;
+            FNV_1a::SBox const &sbox;
+            Hasher(FNV_1a::SBox const &sbox) : sbox(sbox) {
+                h.u64 = 0xcbf29ce484222325ull;
+            }
+        public:
+            void add(uint8_t const byte) {
+                h.u64 = (h.u64 ^ sbox[byte]) * 0x100000001b3ull;
+            }
+            void add(size_t const count, uint8_t const *const value) {
+                for (size_t i = 0; i < count; ++i)
+                    add(value[i]);
+            }
+            void add(uint8_t const *const beg, uint8_t const *const end) {
+                for (auto i = beg; i < end; ++i)
+                    add(*i);
+            }
+            uint64_t value() const { return h.u64; }
+            void copy(uint8_t dst[8]) const { std::copy(h.u8, h.u8+8, dst); }
+            
+            friend void operator >>(Hasher const &self, uint8_t result[8]) {
+                self.copy(result);
+            }
+            friend Hasher &operator <<(Hasher &self, uint8_t const byte) {
+                self.add(byte);
+                return self;
+            }
+        };
+        Hasher hasher() const {
+            return Hasher(sbox);
+        }
+        FNV_1a(bool randomize = true) : sbox(SBox(randomize)) {};
+    };
 }

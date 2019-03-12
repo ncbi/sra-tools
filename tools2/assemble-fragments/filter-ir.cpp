@@ -45,8 +45,8 @@
 
 struct RejectedReason {
     enum Value { None, InvalidCIGAR, PartiallyAligned, NonEquivSeq, NoGoodAlignment } value;
-    bool operator !() const { return value != None; }
-    operator bool () const { return !(!(*this)); }
+    bool operator !() const { return value == None; }
+    operator bool () const { return value != None; }
     operator std::string () const {
         switch (value) {
             case InvalidCIGAR: return "invalid CIGAR string";
@@ -113,8 +113,8 @@ static auto report = Report();
 
 static void write(VDB::Writer const &out, Fragment const &self, RejectedReason const &reason, bool const quality)
 {
-    auto const table = reason ? 2 : 1;
     auto const filter = bool(reason);
+    auto const table = filter ? 2 : 1;
     auto const groupCID     = 1 + (table - 1) * 8;
     auto const nameCID      = groupCID + 1;
     auto const readNoCID    = nameCID + 1;
@@ -123,8 +123,8 @@ static void write(VDB::Writer const &out, Fragment const &self, RejectedReason c
     auto const strandCID    = referenceCID + 1;
     auto const positionCID  = strandCID + 1;
     auto const cigarCID     = positionCID + 1;
-    auto const reasonCID    = (reason && table == 2) ? 17 : 0;
-    auto const qualityCID   = (quality && table == 1) ? 18 : (quality && table == 2) ? 19 : 0;
+    auto const reasonCID    = (table == 2) ? 17 : 0;
+    auto const qualityCID   = quality ? (table == 1) ? 18 : 19 : 0;
 
     unsigned written = 0;
     
@@ -208,7 +208,7 @@ static RejectedReason shouldKeep(Fragment const &fragment)
             if (one.readNo != 1 || !one.aligned) continue;
             for (auto && two : fragment.detail) {
                 if (two.readNo != 2 || !two.aligned) continue;
-                if (one.isGoodAlignedPair(two))
+                if (one.isAlignedPair(two))
                     ++goodPairs;
             }
         }

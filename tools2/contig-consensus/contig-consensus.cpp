@@ -112,8 +112,11 @@ struct Contigs {
         auto const &m = mapulet(c);
         return (m.end1 - m.start1) + (m.end2 - m.start2);
     }
+#define WRITING_STATS 0
     static void addTableTo(Writer2 &writer) {
         writer.addTable("CONTIGS", {
+            { "SEQUENCE", sizeof(char) },
+#if WRITING_STATS
             { "FWD_FIRST", sizeof(uint32_t) },
             { "FWD_LAST", sizeof(uint32_t) },
             { "FWD_GAP_START", sizeof(uint32_t) },
@@ -131,28 +134,47 @@ struct Contigs {
             { "REV_C", sizeof(uint32_t) },
             { "REV_G", sizeof(uint32_t) },
             { "REV_T", sizeof(uint32_t) },
+#endif
+        });
+        writer.addTable("COMPRESSED", {
+            { "CONTIG", sizeof(VDB::Cursor::RowID) },
+            { "NONSENSUS", sizeof(char) },
         });
     }
-    static std::array<Writer2::Column, 16> openColumns(Writer2 const &out) {
-        auto const &tbl = out.table("CONTIGS");
+#if WRITING_STATS
+    using OpenContigColumns = std::array<Writer2::Column, 19>;
+#else
+    using OpenContigColumns = std::array<Writer2::Column, 3>;
+#endif
+    static OpenContigColumns openColumns(Writer2 const &out) {
+        auto const &tbl1 = out.table("CONTIGS");
+        auto const &tbl2 = out.table("COMPRESSED");
         return {
-            tbl.column("FWD_FIRST"),
-            tbl.column("FWD_LAST"),
-            tbl.column("FWD_GAP_START"),
-            tbl.column("FWD_GAP_ENDED"),
-            tbl.column("FWD_A"),
-            tbl.column("FWD_C"),
-            tbl.column("FWD_G"),
-            tbl.column("FWD_T"),
-            tbl.column("REV_FIRST"),
-            tbl.column("REV_LAST"),
-            tbl.column("REV_GAP_START"),
-            tbl.column("REV_GAP_ENDED"),
-            tbl.column("REV_A"),
-            tbl.column("REV_C"),
-            tbl.column("REV_G"),
-            tbl.column("REV_T"),
+            tbl2.column("CONTIG"),
+            tbl2.column("NONSENSUS"),
+            tbl1.column("SEQUENCE"),
+#if WRITING_STATS
+            tbl1.column("FWD_FIRST"),
+            tbl1.column("FWD_LAST"),
+            tbl1.column("FWD_GAP_START"),
+            tbl1.column("FWD_GAP_ENDED"),
+            tbl1.column("FWD_A"),
+            tbl1.column("FWD_C"),
+            tbl1.column("FWD_G"),
+            tbl1.column("FWD_T"),
+            tbl1.column("REV_FIRST"),
+            tbl1.column("REV_LAST"),
+            tbl1.column("REV_GAP_START"),
+            tbl1.column("REV_GAP_ENDED"),
+            tbl1.column("REV_A"),
+            tbl1.column("REV_C"),
+            tbl1.column("REV_G"),
+            tbl1.column("REV_T"),
+#endif
         };
+    }
+    static std::array<Writer2::Table, 2> openTables(Writer2 const &out) {
+        return { out.table("CONTIGS"), out.table("COMPRESSED") };
     }
 };
 
@@ -242,7 +264,7 @@ struct Count {
         }
     }
     void remove(int base) {
-        assert(N + n > 0);
+        assert(N + n > 0 || base == 'N');
         switch (base) {
             case 'A': A -= 1; N -= 1; break;
             case 'C': C -= 1; N -= 1; break;
@@ -284,19 +306,18 @@ struct Count {
 
 struct CycleStats {
     struct Key {
-        unsigned group;
-        unsigned readNo;
-        int position;
+        uint32_t group_readNo;
+        int32_t position;
         
         bool operator <(Key const &rhs) const {
-            if (group < rhs.group) return true;
-            if (rhs.group < group) return false;
-            if (readNo < rhs.readNo) return true;
-            if (rhs.readNo < readNo) return false;
+            if (group_readNo < rhs.group_readNo) return true;
+            if (rhs.group_readNo < group_readNo) return false;
             return position < rhs.position;
         }
         
-        Key(unsigned group, unsigned readNo, int position) : group(group), readNo(readNo), position(position) {}
+        Key(unsigned group, unsigned readNo, int position) : group_readNo((group << 8) | readNo), position(position) {}
+        unsigned group() const { return group_readNo >> 8; }
+        unsigned readNo() const { return group_readNo & 0xFF; }
     };
     struct Value {
         uint64_t occurence, consensus;
@@ -317,27 +338,37 @@ struct CycleStats {
         auto const table = out.table("ALIGNED_STATISTICS");
         auto const READ_GROUP = table.column("READ_GROUP");
         auto const READNO = table.column("READNO");
-        auto const CYCLE = table.column("READ_CYCLE");
+        auto const CYCLE = table.column("POSITION");
         auto const OCCURENCE = table.column("OCCURENCE");
         auto const CONSENSUS = table.column("CONSENSUS");
+        auto open = false;
+        auto group_readNo = decltype(Key::group_readNo)(0);
         
         for (auto && i : stats) {
-            auto const &readGroup = groups[i.first.group];
-            
-            READ_GROUP.setValue(readGroup);
-            READNO.setValue(int32_t(i.first.readNo));
+            if (open && group_readNo != i.first.group_readNo) {
+                table.closeRow();
+                open = false;
+            }
+            if (!open) {
+                auto const &readGroup = groups[i.first.group()];
+                
+                READ_GROUP.setValue(readGroup);
+                READNO.setValue(int32_t(i.first.readNo()));
+                group_readNo = i.first.group_readNo;
+                open = true;
+            }
             CYCLE.setValue(uint32_t(i.first.position));
             OCCURENCE.setValue(i.second.occurence);
             CONSENSUS.setValue(i.second.consensus);
-            
-            table.closeRow();
         }
+        if (open)
+            table.closeRow();
     }
     static void addTableTo(Writer2 &writer) {
         writer.addTable("ALIGNED_STATISTICS", {
             { "READ_GROUP", sizeof(char) },
             { "READNO", sizeof(int32_t) },
-            { "READ_CYCLE", sizeof(uint32_t) },
+            { "POSITION", sizeof(uint32_t) },
             { "OCCURENCE", sizeof(uint64_t) },
             { "CONSENSUS", sizeof(uint64_t) },
         });
@@ -698,269 +729,293 @@ struct Fragment {
     }
 };
 
+class Pileup {
+    struct Edit {
+        unsigned position;
+        char from, to;
+    };
+    std::vector<Fragment> pileup;
+    std::vector<Edit> edits;
+    HexamerStats hexamerStats;
+    CycleStats cycleStats;
+    
+    using CountsWithPosition = std::vector<std::pair<unsigned, Count>>;
+    CountsWithPosition getCountsWithPosition() const {
+        using Result = CountsWithPosition;
+        using Pair = Result::value_type;
+        using Index = Pair::first_type;
+        
+        auto maxpos = Index(0);
+        for (auto && frag : pileup) {
+            auto const endpos = Index(frag.pos[1] + frag.sequence.length() - frag.split);
+            maxpos = std::max(maxpos, endpos);
+        }
+        auto result = Result(maxpos, Pair({ Index(0), Count(0) }));
+        for (auto i = Index(0); i < maxpos; ++i) {
+            result[i].first = i;
+        }
+        for (auto && frag : pileup) {
+            for (auto posBase : frag) {
+                assert(posBase.first >= 0 && posBase.first < maxpos);
+                auto & accum = result[posBase.first].second;
+                accum.add(posBase.second);
+            }
+        }
+        return result;
+    }
+    static std::string consensusFrom(CountsWithPosition const &counts) {
+        auto const expectedSize = counts.size() > 0 ? counts.back().first + 1 : 0;
+        auto consensus = std::string(expectedSize, '_');
+        for (auto && c : counts) {
+            auto const i = c.first;
+            if (consensus.size() < i + 1)
+                consensus.resize(i + 1, '_');
+            if (c.second.N == 0 && c.second.n == 0) {
+                consensus[i] = 'N';
+                continue;
+            }
+            if (c.second.A == c.second.N && c.second.a == c.second.n) {
+                consensus[i] = 'A';
+                continue;
+            }
+            if (c.second.C == c.second.N && c.second.c == c.second.n) {
+                consensus[i] = 'C';
+                continue;
+            }
+            if (c.second.G == c.second.N && c.second.g == c.second.n) {
+                consensus[i] = 'G';
+                continue;
+            }
+            if (c.second.T == c.second.N && c.second.t == c.second.n) {
+                consensus[i] = 'T';
+                continue;
+            }
+            consensus[i] = '.';
+        }
+        return consensus;
+    }
+    void editOneOf(CountsWithPosition &counts);
+    void editStrands(CountsWithPosition &counts);
+    void editMinority(CountsWithPosition &counts);
+    
+public:
+    void add(Fragment frag) {
+        if (frag.pos[0] + frag.split > frag.pos[1])
+            return;
+        pileup.emplace_back(frag);
+    }
+    void processStats(VDB::Cursor::RowID const contigID) {
+        auto const group = unsigned(0);
+        auto const counts = getCountsWithPosition();
+        auto const consensus = consensusFrom(counts);
+        
+        for (auto && frag : pileup) {
+            auto const r1 = frag.rev(1);
+            auto const r2 = frag.rev(2);
+            auto const split = frag.split;
+            
+            frag.update6merStats(group, hexamerStats, consensus);
+            for (auto && base : frag.sequence) {
+                auto const local = unsigned(&base - &frag.sequence[0]);
+                auto const global = frag.localToGlobal(local);
+                auto const consensus = counts[global].second.isAllSame();
+                if (local < split) {
+                    auto const first = 0;
+                    auto const last = split - 1;
+                    auto const cycle = r1 ? (last - local) : (local - first);
+                    cycleStats.add(group, 1, cycle, consensus);
+                }
+                else {
+                    auto const first = split;
+                    auto const last = unsigned(frag.sequence.length()) - 1;
+                    auto const cycle = r2 ? (last - local) : (local - first);
+                    cycleStats.add(group, 2, cycle, consensus);
+                }
+            }
+        }
+    }
+    void clear() {
+        pileup.clear();
+        edits.clear();
+    }
+    void finalizeStats(Writer2 const &out) {
+        cycleStats.write(out);
+        hexamerStats.write(out);
+    }
+    
+    void process(VDB::Cursor::RowID, std::array<Writer2::Table, 2> const &, Contigs::OpenContigColumns const &);
+};
+
+void Pileup::editOneOf(CountsWithPosition &counts) {
+    for (auto && c : counts) {
+        if (!c.second.isAllSame()) {
+            auto const s = c.second.sorted();
+            if (s.n1 == s.n0 || s.n1 != 3) {
+                continue;
+            }
+            // this position has some one-of bases and
+            // it has only one base that occurs more than once
+            auto edit = Edit({c.first, 0, char(s.count[3].base())});
+            for (auto && frag : pileup) {
+                if (frag.intersectsRead(edit.position)) {
+                    for (auto && base : frag.sequence) {
+                        if (frag.localToGlobal(int(&base - &frag.sequence[0])) != edit.position) continue;
+                        
+                        edit.from = std::toupper(base);
+                        if (edit.from != edit.to) {
+                            c.second.remove(base);
+                            base = std::islower(base) ? std::tolower(edit.to) : edit.to;
+                            c.second.add(base);
+                            frag.edits += 1;
+                            edits.push_back(edit);
+                        }
+                    }
+                }
+            }
+            assert(c.second.isAllSame());
+        }
+    }
+}
+
+void Pileup::editStrands(CountsWithPosition &counts) {
+    auto const group = unsigned(0);
+    auto q = std::vector<std::vector<int>>(pileup.size(), std::vector<int>());
+    for (auto && c : counts) {
+        if (c.second.isAllSame()) continue;
+        for (auto j = 0; j < pileup.size(); ++j) {
+            if (q[j].size() != 0) continue;
+            auto const &frag = pileup[j];
+            if (frag.intersectsRead(c.first)) {
+                q[j] = frag.getStats(group, hexamerStats, cycleStats);
+                assert(frag.sequence.length() == q[j].size());
+            }
+        }
+    }
+    for (auto && c : counts) {
+        if (c.second.isAllSame() || c.second.N == 0 || c.second.n == 0) continue;
+        
+        auto const plus = Count::Sorted(c.second.A, c.second.C, c.second.G, c.second.T);
+        if (plus.count[3].count() < plus.count[2].count()) continue;
+        
+        auto const minus = Count::Sorted(c.second.a, c.second.c, c.second.g, c.second.t);
+        if (minus.count[3].count() < minus.count[2].count()) continue;
+        
+        if (plus.count[3].base() == minus.count[3].base()) continue;
+        
+        auto const bplus = char(plus.count[3].base());
+        auto const bminus = char(std::tolower(minus.count[3].base()));
+        double qplus = 0, qminus = 0;
+        for (auto j = 0; j < pileup.size(); ++j) {
+            auto const &frag = pileup[j];
+            if (!frag.intersectsRead(c.first)) continue;
+            auto const &Q = q[j];
+            assert(Q.size() == frag.sequence.length());
+            for (auto k = 0; k < Q.size(); ++k) {
+                if (frag.localToGlobal(k) != c.first) continue;
+                auto const qscore = Q[k];
+                auto const base = frag.sequence[k];
+                if (base == bplus)
+                    qplus += qscore;
+                else if (base == bminus)
+                    qminus += qscore;
+            }
+        }
+        qplus /= plus.count[3].count();
+        qminus /= minus.count[3].count();
+        
+        auto edit = Edit({c.first, 0, char(qplus > qminus ? plus.count[3].base() : qminus > qplus ? minus.count[3].base() : 'N')});
+        for (auto && frag : pileup) {
+            if (frag.intersectsRead(edit.position)) {
+                for (auto && base : frag.sequence) {
+                    if (frag.localToGlobal(int(&base - &frag.sequence[0])) != edit.position) continue;
+                    
+                    edit.from = std::toupper(base);
+                    if (edit.from != edit.to) {
+                        c.second.remove(base);
+                        base = edit.to != 'N' ? std::islower(base) ? std::tolower(edit.to) : edit.to : 'N';
+                        c.second.add(base);
+                        frag.edits += 1;
+                        edits.push_back(edit);
+                    }
+                }
+            }
+        }
+        assert((c.second.N == 0 && c.second.n == 0) || c.second.isAllSame());
+    }
+}
+
+void Pileup::editMinority(CountsWithPosition &counts) {
+    for (auto && c : counts) {
+        if (c.second.isAllSame()) continue;
+        
+        auto const s = c.second.sorted();
+        auto const major = s.count[3].count();
+        auto const next = s.count[2].count();
+        auto const minors = s.count[0].count() + s.count[1].count() + next;
+        if (major > minors && major >= next * 2) {
+            auto edit = Edit({c.first, 0, char(s.count[3].base())});
+            for (auto && frag : pileup) {
+                if (frag.intersectsRead(edit.position)) {
+                    for (auto && base : frag.sequence) {
+                        if (frag.localToGlobal(int(&base - &frag.sequence[0])) != edit.position) continue;
+                        
+                        edit.from = std::toupper(base);
+                        if (edit.from != edit.to) {
+                            c.second.remove(base);
+                            base = edit.to != 'N' ? std::islower(base) ? std::tolower(edit.to) : edit.to : 'N';
+                            c.second.add(base);
+                            frag.edits += 1;
+                            edits.push_back(edit);
+                        }
+                    }
+                }
+            }
+            assert(c.second.isAllSame());
+        }
+    }
+}
+
+void Pileup::process(VDB::Cursor::RowID const contigID, std::array<Writer2::Table, 2> const &tables, Contigs::OpenContigColumns const &output) {
+    auto counts = getCountsWithPosition();
+    
+    /* TODO: record counts before edits */
+    
+    editOneOf(counts);
+    editStrands(counts);
+    editMinority(counts);
+    
+    auto const consensus = consensusFrom(counts);
+    auto nonsensusMap = std::map<unsigned, unsigned>();
+    {
+        for (auto i = 0, j = 0; i < consensus.size(); ++i) {
+            if (consensus[i] == '.')
+                nonsensusMap.emplace_hint(nonsensusMap.end(), i, j++);
+        }
+    }
+    output[2].setValue(consensus);
+    tables[0].closeRow();
+    if (nonsensusMap.size() == 0)
+        return;
+    for (auto && frag : pileup) {
+        auto nonsensus = std::string(nonsensusMap.size(), '_');
+        auto n = 0;
+        for (auto p : frag) {
+            if (consensus[p.first] != '.') continue;
+            nonsensus[nonsensusMap[p.first]] = p.second;
+            n += 1;
+        }
+        if (n > 0) {
+            output[0].setValue(contigID);
+            output[1].setValue(nonsensus);
+            tables[1].closeRow();
+        }
+    }
+}
+
 static int process(std::string const &inpath, Writer2 const &out) {
     auto const mgr = VDB::Manager();
     auto const db = mgr[inpath];
     auto const contigs = Contigs::load(db);
-    
-    class Pileup {
-        struct Edit {
-            unsigned position;
-            char from, to;
-        };
-        std::vector<Fragment> pileup;
-        std::vector<Edit> edits;
-        HexamerStats hexamerStats;
-        CycleStats cycleStats;
-        
-        using CountsWithPosition = std::vector<std::pair<unsigned, Count>>;
-        CountsWithPosition getCountsWithPosition() const {
-            using Result = CountsWithPosition;
-            using Pair = Result::value_type;
-            using Index = Pair::first_type;
-
-            auto maxpos = Index(0);
-            for (auto && frag : pileup) {
-                auto const endpos = Index(frag.pos[1] + frag.sequence.length() - frag.split);
-                maxpos = std::max(maxpos, endpos);
-            }
-            auto result = Result(maxpos, Pair({ Index(0), Count(0) }));
-            for (auto i = Index(0); i < maxpos; ++i) {
-                result[i].first = i;
-            }
-            for (auto && frag : pileup) {
-                for (auto posBase : frag) {
-                    assert(posBase.first >= 0 && posBase.first < maxpos);
-                    auto & accum = result[posBase.first].second;
-                    accum.add(posBase.second);
-                }
-            }
-            return result;
-        }
-        static std::string consensusFrom(CountsWithPosition const &counts) {
-            auto consensus = std::string(counts.size(), '_');
-            for (auto && c : counts) {
-                auto &ch = consensus[c.first];
-                if (!c.second.isAllSame()) {
-                    ch = '.';
-                    continue;
-                }
-                if (c.second.isA())
-                    ch = 'A';
-                else if (c.second.isC())
-                    ch = 'C';
-                else if (c.second.isG())
-                    ch = 'G';
-                else if (c.second.isT())
-                    ch = 'T';
-            }
-            return consensus;
-        }
-    public:
-        void add(Fragment frag) {
-            if (frag.pos[0] + frag.split > frag.pos[1])
-                return;
-            pileup.emplace_back(frag);
-        }
-        void processStats(VDB::Cursor::RowID const contigID) {
-            auto const group = unsigned(0);
-            auto const counts = getCountsWithPosition();
-            auto const consensus = consensusFrom(counts);
-            
-            for (auto && frag : pileup) {
-                auto const r1 = frag.rev(1);
-                auto const r2 = frag.rev(2);
-                auto const split = frag.split;
-                
-                frag.update6merStats(group, hexamerStats, consensus);
-                for (auto && base : frag.sequence) {
-                    auto const local = unsigned(&base - &frag.sequence[0]);
-                    auto const global = frag.localToGlobal(local);
-                    auto const consensus = counts[global].second.isAllSame();
-                    if (local < split) {
-                        auto const first = 0;
-                        auto const last = split - 1;
-                        auto const cycle = r1 ? (last - local) : (local - first);
-                        cycleStats.add(group, 1, cycle, consensus);
-                    }
-                    else {
-                        auto const first = split;
-                        auto const last = unsigned(frag.sequence.length()) - 1;
-                        auto const cycle = r2 ? (last - local) : (local - first);
-                        cycleStats.add(group, 2, cycle, consensus);
-                    }
-                }
-            }
-        }
-        void process(VDB::Cursor::RowID const contigID) {
-            unsigned const group = 0;
-            auto counts = getCountsWithPosition();
-            for (auto && c : counts) {
-                if (!c.second.isAllSame()) {
-                    auto const s = c.second.sorted();
-                    if (s.n1 == s.n0 || s.n1 != 3) {
-                        continue;
-                    }
-                    // this position has some one-of bases and
-                    // it has only one base that occurs more than once
-                    auto edit = Edit({c.first, 0, char(s.count[3].base())});
-                    for (auto && frag : pileup) {
-                        if (frag.intersectsRead(edit.position)) {
-                            for (auto && base : frag.sequence) {
-                                if (frag.localToGlobal(int(&base - &frag.sequence[0])) != edit.position) continue;
-
-                                edit.from = std::toupper(base);
-                                if (edit.from != edit.to) {
-                                    c.second.remove(base);
-                                    base = std::islower(base) ? std::tolower(edit.to) : edit.to;
-                                    c.second.add(base);
-                                    frag.edits += 1;
-                                    edits.push_back(edit);
-                                }
-                            }
-                        }
-                    }
-                    assert(c.second.isAllSame());
-                }
-            }
-            {
-                auto q = std::vector<std::vector<int>>(pileup.size(), std::vector<int>());
-                for (auto && c : counts) {
-                    if (c.second.isAllSame()) continue;
-                    for (auto j = 0; j < pileup.size(); ++j) {
-                        if (q[j].size() != 0) continue;
-                        auto const &frag = pileup[j];
-                        if (frag.intersectsRead(c.first)) {
-                            q[j] = frag.getStats(group, hexamerStats, cycleStats);
-                            assert(frag.sequence.length() == q[j].size());
-                        }
-                    }
-                }
-                for (auto && c : counts) {
-                    if (c.second.isAllSame() || c.second.N == 0 || c.second.n == 0) continue;
-                    
-                    auto const plus = Count::Sorted(c.second.A, c.second.C, c.second.G, c.second.T);
-                    if (plus.count[3].count() < plus.count[2].count()) continue;
-                    
-                    auto const minus = Count::Sorted(c.second.a, c.second.c, c.second.g, c.second.t);
-                    if (minus.count[3].count() < minus.count[2].count()) continue;
-                    
-                    if (plus.count[3].base() == minus.count[3].base()) continue;
-                    
-                    auto const bplus = char(plus.count[3].base());
-                    auto const bminus = char(std::tolower(minus.count[3].base()));
-                    double qplus = 0, qminus = 0;
-                    for (auto j = 0; j < pileup.size(); ++j) {
-                        auto const &frag = pileup[j];
-                        if (!frag.intersectsRead(c.first)) continue;
-                        auto const &Q = q[j];
-                        assert(Q.size() == frag.sequence.length());
-                        for (auto k = 0; k < Q.size(); ++k) {
-                            if (frag.localToGlobal(k) != c.first) continue;
-                            auto const qscore = Q[k];
-                            auto const base = frag.sequence[k];
-                            if (base == bplus)
-                                qplus += qscore;
-                            else if (base == bminus)
-                                qminus += qscore;
-                        }
-                    }
-                    qplus /= plus.count[3].count();
-                    qminus /= minus.count[3].count();
-                    
-                    auto edit = Edit({c.first, 0, char(qplus > qminus ? plus.count[3].base() : qminus > qplus ? minus.count[3].base() : 'N')});
-                    for (auto && frag : pileup) {
-                        if (frag.intersectsRead(edit.position)) {
-                            for (auto && base : frag.sequence) {
-                                if (frag.localToGlobal(int(&base - &frag.sequence[0])) != edit.position) continue;
-                                
-                                edit.from = std::toupper(base);
-                                if (edit.from != edit.to) {
-                                    c.second.remove(base);
-                                    base = edit.to != 'N' ? std::islower(base) ? std::tolower(edit.to) : edit.to : 'N';
-                                    c.second.add(base);
-                                    frag.edits += 1;
-                                    edits.push_back(edit);
-                                }
-                            }
-                        }
-                    }
-                    assert((c.second.N == 0 && c.second.n == 0) || c.second.isAllSame());
-                }
-            }
-            {
-                for (auto && c : counts) {
-                    if (c.second.isAllSame()) continue;
-                    
-                    auto const s = c.second.sorted();
-                    auto const N = s.count[0].count() + s.count[1].count() + s.count[2].count() + s.count[3].count();
-                    if (s.n1 == 3 || 3 * s.count[3].count() >= 2 * N || s.count[3].count() >= 2 * s.count[2].count()) {
-                        auto edit = Edit({c.first, 0, char(s.count[3].base())});
-                        for (auto && frag : pileup) {
-                            if (frag.intersectsRead(edit.position)) {
-                                for (auto && base : frag.sequence) {
-                                    if (frag.localToGlobal(int(&base - &frag.sequence[0])) != edit.position) continue;
-                                    
-                                    edit.from = std::toupper(base);
-                                    if (edit.from != edit.to) {
-                                        c.second.remove(base);
-                                        base = edit.to != 'N' ? std::islower(base) ? std::tolower(edit.to) : edit.to : 'N';
-                                        c.second.add(base);
-                                        frag.edits += 1;
-                                        edits.push_back(edit);
-                                    }
-                                }
-                            }
-                        }
-                        assert(c.second.isAllSame());
-                    }
-                }
-            }
-            {
-                auto consensus = std::string(counts.size() > 0 ? counts.back().first + 1 : 0, '_');
-                for (auto && c : counts) {
-                    auto const i = c.first;
-                    if (consensus.size() < i + 1)
-                        consensus.resize(i + 1, '_');
-                    if (c.second.N == 0 && c.second.n == 0) {
-                        consensus[i] = 'N';
-                        continue;
-                    }
-                    if (c.second.A == c.second.N && c.second.a == c.second.n) {
-                        consensus[i] = 'A';
-                        continue;
-                    }
-                    if (c.second.C == c.second.N && c.second.c == c.second.n) {
-                        consensus[i] = 'C';
-                        continue;
-                    }
-                    if (c.second.G == c.second.N && c.second.g == c.second.n) {
-                        consensus[i] = 'G';
-                        continue;
-                    }
-                    if (c.second.T == c.second.N && c.second.t == c.second.n) {
-                        consensus[i] = 'T';
-                        continue;
-                    }
-                    consensus[i] = '.';
-                }
-                printf("%.*s\n", int(consensus.size()), consensus.data());
-                for (auto && c : counts) {
-                    if (c.second.isAllSame()) continue;
-                    printf("%uA %ua %uC %uc %uG %ug %uT %ut\n", c.second.A, c.second.a, c.second.C, c.second.c, c.second.G, c.second.g, c.second.T, c.second.t);
-                }
-            }
-        }
-        void clear() {
-            pileup.clear();
-            edits.clear();
-        }
-        void finalizeStats(Writer2 const &out) {
-            cycleStats.write(out);
-            hexamerStats.write(out);
-        }
-    };
-    
     auto pile = Pileup();
     auto activeContigID = VDB::Cursor::RowID(0);
     auto const curs = Cursor(db["FRAGMENTS"]);
@@ -988,7 +1043,10 @@ static int process(std::string const &inpath, Writer2 const &out) {
     });
     pile.finalizeStats(out);
 
-#if 0
+#if 1
+    auto const output = Contigs::openColumns(out);
+    auto const tables = Contigs::openTables(out);
+    
     curs.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &rawData) {
         auto const last = (row + 1) == range.end();
         auto &data = static_cast<Cursor::Row const &>(rawData);
@@ -1003,7 +1061,7 @@ static int process(std::string const &inpath, Writer2 const &out) {
                     if (!last)
                         return;
                 case flush:
-                    pile.process(activeContigID);
+                    pile.process(activeContigID, tables, output);
                     pile.clear();
                     command = add;
             }

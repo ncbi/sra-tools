@@ -94,14 +94,12 @@ struct Contig {
     
     mutable StatisticsAccumulator length, rlength1, rlength2, qlength1, qlength2;
     
-    bool isUngapped() const {
-        return mapulet == 0;
-    }
+    bool isUngapped() const { return mapulet == 0; }
+    bool isGapped() const { return !isUngapped(); }
     
     ///* computes fragment length while accounting for any gap or structural rearrangement
     int adjustedFragmentLength(AlignmentShort const &one, AlignmentShort const &two) const {
-        auto const endOf2 = two.qstart() + two.cigar.qlength;
-        return (endOf2 - start2) + (end1 - one.qstart()); // if ungapped; start2 == end1 == 0
+        return (two.qended() - start2) + (end1 - one.qstart()); // if ungapped; start2 == end1 == 0
     }
     
     bool contains(AlignmentShort const &one, AlignmentShort const &two) const {
@@ -299,28 +297,38 @@ struct Contigs {
     
     static Contigs load(VDB::Database const &db) {
         auto const tbl = db["CONTIGS"];
-        auto const curs = tbl.read({ "REFERENCE_1", "START_1", "END_1", "REFERENCE_2", "START_2", "END_2", "READ_GROUP", "COUNT" });
+        auto const curs = tbl.read({ "REFERENCE_1", "START_1", "END_1", "REFERENCE_2", "START_2", "END_2", "READ_GROUP" /*, "COUNT" */ });
         auto const range = curs.rowRange();
         auto result = Contigs();
 
         result.stats.reserve(range.count());
         curs.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &data) {
+            auto const ref1 = data[0].string();
+            auto const refId1 = references[ref1];
+            auto const start1 = data[1].value<int32_t>();
+            auto const end1 = data[2].value<int32_t>();
+            auto const ref2 = data[3].string();
+            auto const refId2 = references[ref2];
+            auto const start2 = data[4].value<int32_t>();
+            auto const end2 = data[5].value<int32_t>();
+            auto const rg = data[6].string();
+
             Contig o = { (unsigned)row, 0, 0 };
             
-            o.ref1 = references[data[0].string()];
-            o.start1 = data[1].value<int32_t>();
-            o.end1 = data[2].value<int32_t>();
+            o.ref1 = refId1;
+            o.start1 = start1;
+            o.end1 = end1;
             
-            o.ref2 = references[data[3].string()];
-            o.start2 = data[4].value<int32_t>();
-            o.end2 = data[5].value<int32_t>();
+            o.ref2 = refId2;
+            o.start2 = start2;
+            o.end2 = end2;
 
-            if (o.ref2 == o.ref1 && o.start2 < o.end1)
+            if (refId2 == refId1 && start2 < end1)
                 o.start2 = o.end1 = 0;
-            else if (o.end1 != 0 && o.start2 != 0)
-                o.mapulet = createMapulet(o.ref1, o.start1, o.end1, o.ref2, o.start2, o.end2);
+            else if (end1 != 0 && start2 != 0)
+                o.mapulet = createMapulet(refId1, start1, end1, refId2, start2, end2);
 
-            o.group = groups[data[6].string()];
+            o.group = groups[rg];
             
             result.stats.emplace_back(o);
         });
@@ -337,29 +345,29 @@ struct Contigs {
     
     static void addTableTo(Writer2 &writer) {
         writer.addTable("CONTIGS", {
-                            { "REFERENCE", sizeof(char) },
-                            { "START", sizeof(int32_t) },
-                            { "END", sizeof(int32_t) },
-                            
-                            { "SEQ_LENGTH_AVERAGE", sizeof(float) },
-                            { "SEQ_LENGTH_STD_DEV", sizeof(float) },
-                            { "REF_LENGTH_AVERAGE", sizeof(float) },
-                            { "REF_LENGTH_STD_DEV", sizeof(float) },
-                            
-                            { "FRAGMENT_COUNT", sizeof(uint32_t) },
-                            { "FRAGMENT_LENGTH_AVERAGE", sizeof(float) },
-                            { "FRAGMENT_LENGTH_STD_DEV", sizeof(float) },
-                            { "READ_GROUP", sizeof(char) },
-                            
-                            { "REFERENCE_1", sizeof(char) },
-                            { "START_1", sizeof(int32_t) },
-                            { "END_1", sizeof(int32_t) },
-                            { "GAP", sizeof(int32_t) },
-                            { "MIN_GAP", sizeof(int32_t) },
-                            { "REFERENCE_2", sizeof(char) },
-                            { "START_2", sizeof(int32_t) },
-                            { "END_2", sizeof(int32_t) },
-                        });
+            { "REFERENCE", sizeof(char) },
+            { "START", sizeof(int32_t) },
+            { "END", sizeof(int32_t) },
+            
+            { "SEQ_LENGTH_AVERAGE", sizeof(float) },
+            { "SEQ_LENGTH_STD_DEV", sizeof(float) },
+            { "REF_LENGTH_AVERAGE", sizeof(float) },
+            { "REF_LENGTH_STD_DEV", sizeof(float) },
+            
+            { "FRAGMENT_COUNT", sizeof(uint32_t) },
+            { "FRAGMENT_LENGTH_AVERAGE", sizeof(float) },
+            { "FRAGMENT_LENGTH_STD_DEV", sizeof(float) },
+            { "READ_GROUP", sizeof(char) },
+            
+            { "REFERENCE_1", sizeof(char) },
+            { "START_1", sizeof(int32_t) },
+            { "END_1", sizeof(int32_t) },
+            { "GAP", sizeof(int32_t) },
+            { "MIN_GAP", sizeof(int32_t) },
+            { "REFERENCE_2", sizeof(char) },
+            { "START_2", sizeof(int32_t) },
+            { "END_2", sizeof(int32_t) },
+        });
     }
 
     void write(Writer2 const &out) const
@@ -496,8 +504,11 @@ struct AlignedPair {
             auto const fragmentLength = (b.ref == a.ref) ? (b.end - a.pos) : 0;
 
             contigs.forEachIntersecting(a.ref, a.pos, [&](Contig const &i) ->void {
-                if (i.group == group && a.isContainedByFirst(i) && b.isContainedBySecond(i))
-                    rslt.emplace_back(AlignedPair { &i, a.mom, b.mom, fragmentLength });
+                if (i.group == group && a.isContainedByFirst(i) && b.isContainedBySecond(i)) {
+                    auto const isGoodAlignedPair = i.isGapped() || a.mom->isGoodAlignedPair(*b.mom);
+                    if (isGoodAlignedPair)
+                        rslt.emplace_back(AlignedPair { &i, a.mom, b.mom, fragmentLength });
+                }
             });
         };
         
@@ -525,7 +536,7 @@ struct AlignedPair {
                 auto const a1 = alignment(&(*one));
                 
                 for (auto two = alignments.begin(); two < alignments.end(); ++two) {
-                    if (two->readNo != 2 || !one->isGoodAlignedPair(*two)) continue;
+                    if (two->readNo != 2 || !one->isAlignedPair(*two)) continue;
                     
                     auto const a2 = alignment(&(*two));
                     if (a1 < a2)
@@ -550,10 +561,12 @@ struct AlignedPair {
                 ;
             else {
                 auto v = candidates(fragment, contigs, group, n1 == 1 && n2 == 1);
+#if 0 /* this is no longer true; overlapping reads have not been removed */
                 if (v.size() == 0 && loopNumber == 1) {
                     std::cerr << fragment << std::endl;
                     throw std::logic_error("no fully-aligned spots should be dropped on the first pass!");
                 }
+#endif
                 if (v.size() > 1) {
                     std::sort(v.begin(), v.end(), [](AlignedPair const &a, AlignedPair const &b) {
                         auto const aT = a.Tscore();
@@ -613,7 +626,7 @@ static std::pair<int, int> bestPair(Fragment const &fragment, Contig const &cont
                 if (fragment.detail[i].readNo != 1) break;
                 if (!fragment.detail[i].aligned) continue;
                 for (auto j = j2; j < fragment.detail.size(); ++j) {
-                    if (!fragment.detail[i].isGoodAlignedPair(fragment.detail[j])) continue;
+                    if (contig.isUngapped() && !fragment.detail[i].isGoodAlignedPair(fragment.detail[j])) continue;
                     
                     auto const rev = (fragment.detail[j].reference == fragment.detail[i].reference && fragment.detail[j].position < fragment.detail[i].position) || fragment.detail[j].reference < fragment.detail[i].reference;
                     auto const &one = fragment.detail[rev ? j : i];
@@ -651,11 +664,17 @@ private:
     using InnerStats = std::map<uint32_t, uint64_t>;
     std::map<uint32_t, InnerStats> stats;
 
+    static uint32_t makeKey(unsigned const upper, unsigned const lower) {
+        return uint32_t(upper << 8) | uint32_t(lower & 0xFF);
+    }
+    static std::pair<unsigned, unsigned> splitKey(uint32_t const key) {
+        return { unsigned(key >> 8) , unsigned(key & 0xFF) };
+    }
     InnerStats &getInner(unsigned group, unsigned read) {
-        auto const key = (uint32_t(group) << 8) | uint8_t(read);
+        auto const key = makeKey(group, read);
         auto i = stats.find(key);
         if (i != stats.end()) return i->second;
-        return stats.insert(std::make_pair(key, InnerStats())).first->second;
+        return stats.insert({ key, InnerStats() }).first->second;
     }
 public:
     void add(unsigned group, unsigned read, bool reversed, std::string const &quality) {
@@ -664,9 +683,9 @@ public:
         auto I = 0;
         for (auto && phred : quality) {
             auto i = I++;
-            auto const cycle = reversed ? (last - i) : i;
-            auto const key = (uint32_t(cycle) << 8) | uint8_t(phred);
-            auto const j = m.insert(std::make_pair(key, 0));
+            auto const cycle = unsigned(reversed ? (last - i) : i);
+            auto const key = makeKey(cycle, phred);
+            auto const j = m.insert({ key, 0 });
             j.first->second += 1;
         }
     }
@@ -680,15 +699,21 @@ public:
         auto const COUNT = table.column("COUNT");
 
         for (auto && i : stats) {
-            auto const &readGroup = groups[i.first >> 8];
-            auto const readNo = int32_t(i.first & 0xFF);
+            auto const &inner = i.second;
+            auto const rgrn = splitKey(i.first);
+            auto const &readGroup = groups[rgrn.first];
+            auto const readNo = int32_t(rgrn.second);
             
-            for (auto && j : i.second) {
-                READ_GROUP.setValue<std::string>(readGroup);
-                READNO.setValue<int32_t>(readNo);
-                CYCLE.setValue<uint32_t>(j.first >> 8);
-                QUALITY.setValue<char>(j.first);
-                COUNT.setValue<uint64_t>(j.second);
+            READ_GROUP.setValue(readGroup);
+            READNO.setValue<int32_t>(readNo);
+            for (auto && j : inner) {
+                auto const &count = j.second;
+                auto const cyqv = splitKey(j.first);
+                auto const cycle = uint32_t(cyqv.first);
+                auto const qual = cyqv.second;
+                CYCLE.setValue<uint32_t>(cycle);
+                QUALITY.setValue<char>(qual);
+                COUNT.setValue<uint64_t>(count);
             }
             table.closeRow();
         }
@@ -845,7 +870,7 @@ static int write(FILE *out, Fragment::Cursor const &fragments, Contigs &contigs,
     auto reject = int64_t(0);
     auto progress = ProgressTracker<10>(spots);
 
-    reason.setDefault<std::string>("too few corroborating alignments");
+    reason.setDefault(std::string("too few corroborating alignments"));
 
     for (auto i = decltype(spots)(0); i < spots; ++i) {
         auto row = spotArray[i];
@@ -876,10 +901,10 @@ static int write(FILE *out, Fragment::Cursor const &fragments, Contigs &contigs,
                 }
                 abort();
             }
-            keepName.setValue<std::string>(fragment.name);
-            keepLayout.setValue<std::string>(layout);
-            keepCIGAR.setValue<std::string>(cigar);
-            keepSequence.setValue<std::string>(sequence);
+            keepName.setValue(fragment.name);
+            keepLayout.setValue(layout);
+            keepCIGAR.setValue(cigar);
+            keepSequence.setValue(sequence);
             keepContig.setValue<int64_t>(contig.sourceRow);
             keepPosition.setValue<int32_t>(pos);
             keepLength.setValue<int32_t>(len);
@@ -901,16 +926,16 @@ static int write(FILE *out, Fragment::Cursor const &fragments, Contigs &contigs,
         }
         else {
             for (auto && i : fragment.detail) {
-                badGroup.setValue<std::string>(fragment.group);
-                badName.setValue<std::string>(fragment.name);
+                badGroup.setValue(fragment.group);
+                badName.setValue(fragment.name);
                 badReadNo.setValue<int32_t>(i.readNo);
-                badRef.setValue<std::string>(i.reference);
+                badRef.setValue(i.reference);
                 badStrand.setValue<char>(i.strand);
                 badPosition.setValue<int32_t>(i.position);
-                badCIGAR.setValue<std::string>(i.cigarString);
-                badSequence.setValue<std::string>(i.sequence);
+                badCIGAR.setValue(i.cigarString);
+                badSequence.setValue(static_cast<std::string const &>(i.sequence));
                 if (quality)
-                    badQuality.setValue<std::string>(i.quality);
+                    badQuality.setValue(i.quality);
                 badTable.closeRow();
             }
             ++reject;

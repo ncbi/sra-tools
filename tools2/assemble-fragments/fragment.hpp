@@ -182,9 +182,13 @@ struct AlignmentShort {
         throw std::logic_error("isBefore requires both arguments to be aligned");
     }
     
+    /// both aligned
+    bool isAlignedPair(AlignmentShort const &other) const {
+        return aligned && other.aligned;
+    }
     /// both aligned and not overlapping
     bool isGoodAlignedPair(AlignmentShort const &other) const {
-        if (!aligned || !other.aligned) return false;
+        if (!isAlignedPair(other)) return false;
         auto const fl = fragmentLength(other);
         auto const ql = queryLength(other);
         return ql <= fl;
@@ -476,11 +480,8 @@ struct Fragment {
         
         static VDB::Cursor cursor(VDB::Table const &tbl) {
             static char const *const FLDS[] = { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR", "QUALITY" };
-            try {
-                return tbl.read(9, FLDS);
-            }
-            catch (...) {}
-            return tbl.read(8, FLDS);
+            unsigned which = 0;
+            return tbl.read(which, 9, FLDS, 8, FLDS);
         }
         
     public:
@@ -511,7 +512,8 @@ struct Fragment {
                 auto const posColData = in.read(row, POSITION);
                 auto const readNo = in.read(row, READNO).value<int32_t>();
                 auto const sequence = in.read(row, SEQUENCE).string();
-                auto const quality = hasQuality() ? in.read(row, QUALITY).string() : Alignment::SyntheticQuality();
+                auto const phys_qual = hasQuality() ? in.read(row, QUALITY).string() : std::string();
+                auto const quality = hasQuality() ? &phys_qual : &Alignment::SyntheticQuality();
                 if (posColData.elements > 0) {
                     auto const reference = in.read(row, REFERENCE).string();
                     auto const strand = in.read(row, STRAND).value<char>();
@@ -519,7 +521,7 @@ struct Fragment {
                     auto const cigar = in.read(row, CIGAR).string();
                     rslt.emplace_back(Alignment(  readNo
                                                 , sequence
-                                                , quality
+                                                , *quality
                                                 , row
                                                 , reference
                                                 , strand
@@ -530,7 +532,7 @@ struct Fragment {
                 else {
                     rslt.emplace_back(Alignment(  readNo
                                                 , sequence
-                                                , quality
+                                                , *quality
                                                 , row
                                                 ));
                 }
@@ -599,7 +601,8 @@ struct Fragment {
                 auto const posColData = in.read(row, POSITION);
                 auto const readNo = in.read(row, READNO).value<int32_t>();
                 auto const sequence = in.read(row, SEQUENCE).string();
-                auto const quality = hasQuality() ? in.read(row, QUALITY).string() : Alignment::SyntheticQuality();
+                auto const phys_qual = hasQuality() ? in.read(row, QUALITY).string() : std::string();
+                auto const quality = hasQuality() ? &phys_qual : &Alignment::SyntheticQuality();
                 if (posColData.elements > 0) {
                     auto const reference = in.read(row, REFERENCE).string();
                     auto const strand = in.read(row, STRAND).value<char>();
@@ -607,7 +610,7 @@ struct Fragment {
                     auto const cigar = in.read(row, CIGAR).string();
                     rslt.emplace_back(Alignment(  readNo
                                                 , sequence
-                                                , quality
+                                                , *quality
                                                 , row
                                                 , reference
                                                 , strand
@@ -618,7 +621,7 @@ struct Fragment {
                 else {
                     rslt.emplace_back(Alignment(  readNo
                                                 , sequence
-                                                , quality
+                                                , *quality
                                                 , row
                                                 ));
                 }

@@ -4,7 +4,7 @@
 ## SRA Toolkit 2.9.6
 **March 18, 2019**
 
-  **prefetch, **vfs**: fixed regression that prevented re-download of incomplete files  
+  **prefetch**, **vfs**: fixed regression that prevented re-download of incomplete files  
 
 
 ## SRA Toolkit 2.9.5

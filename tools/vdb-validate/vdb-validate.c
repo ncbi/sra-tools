@@ -1375,6 +1375,7 @@ static rc_t ric_align_generic(int64_t const startId,
     int64_t chunk;
     int64_t const endId = startId + count;
     size_t scratch_size = 0;
+    bool show_complete = false;
 
     for (chunk = startId; chunk < endId; ) {
         rc_t rc = 0;
@@ -1396,6 +1397,7 @@ static rc_t ric_align_generic(int64_t const startId,
                                      "aname=%s,bname=%s,pct=%5.1f",
                                      aci->name, bci->name,
                                      (100.0 * (chunk - startId)) / count));
+            show_complete = true;
         }
         chunk = last;
         for (i = 0; i < n; ++i) {
@@ -1455,6 +1457,14 @@ static rc_t ric_align_generic(int64_t const startId,
 			}
             ++current;
         }
+    }
+    if (show_complete) {
+        (void)PLOGMSG(klogInfo, (klogInfo, "Referential Integrity: "
+                                 "$(aname) <-> $(bname)"
+                                 " $(pct)% complete",
+                                 "aname=%s,bname=%s,pct=%5.1f",
+                                 aci->name, bci->name,
+                                 100.0));
     }
     return 0;
 }

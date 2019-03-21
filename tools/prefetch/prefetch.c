@@ -1031,15 +1031,17 @@ static void ResolvedReset(Resolved *self, ERunType type) {
 /** isLocal is set to true when the object is found locally.
     i.e. does not need need not be [re]downloaded */
 static rc_t ResolvedLocal(const Resolved *self,
-    const KDirectory *dir, bool *isLocal, EForce force)
+    const Main *mane, bool *isLocal, EForce force)
 {
     rc_t rc = 0;
+    const KDirectory *dir = NULL;
     uint64_t sRemote = 0;
     uint64_t sLocal = 0;
     const KFile *local = NULL;
     char path[PATH_MAX] = "";
 
-    assert(isLocal && self);
+    assert(isLocal && self && mane);
+    dir = mane -> dir;
 
     *isLocal = false;
 
@@ -1116,9 +1118,35 @@ static rc_t ResolvedLocal(const Resolved *self,
                     path, sLocal));
             }
         }
-        else {
-            STSMSG(STS_TOP, ("%s (%,lu) is incomplete. Expected size is %,lu. "
-                "It will be re-downloaded", path, sLocal, sRemote));
+        else { /* double check the size
+    ( in case returned by resolver for decrypted != the real size ) */
+            const VPath * http = NULL;
+            rc = KSrvRespFileGetHttp(self->respFile, &http);
+            if (rc == 0 && http != NULL) {
+                char path[PATH_MAX] = "";
+                size_t len = 0;
+                rc = VPathReadUri(http, path, sizeof path, &len);
+                if (rc == 0) {
+                    const KFile * file = NULL;
+                    rc = KNSManagerMakeHttpFile(mane->kns, &file, NULL,
+                        0x01010000, "%s", path);
+                    if (rc == 0)
+                        rc = KFileSize(file, &sRemote);
+                    RELEASE(KFile, file);
+                }
+            }
+            RELEASE(VPath, http);
+            if (rc == 0 && sRemote == sLocal) {
+                if (force == eForceNo) {
+                    *isLocal = true;
+                    STSMSG(STS_INFO, ("%s (%,lu) is found and is complete",
+                        path, sLocal));
+                }
+            }
+            else
+                STSMSG(STS_TOP, (
+                    "%s (%,lu) is incomplete. Expected size is %,lu. "
+                    "It will be re-downloaded", path, sLocal, sRemote));
         }
     }
 
@@ -1519,6 +1547,8 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
                         https ? "https" : "http"));
             }
         }
+        if ( rc == 0 && rd != 0 )
+            rc = rd;
     }
     return rc;
 }
@@ -2464,7 +2494,7 @@ static rc_t ItemDownload(Item *item) {
             skip = true;
         }
 
-        rc = ResolvedLocal(self, item->mane->dir, &isLocal,
+        rc = ResolvedLocal(self, item->mane, &isLocal,
             skip ? eForceNo : item->mane->force);
 
         if (rc == 0) {

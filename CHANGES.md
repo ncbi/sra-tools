@@ -1,6 +1,24 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.9.6
+**March 18, 2019**
+
+  **prefetch**, **vfs**: fixed regression that prevented re-download of incomplete files  
+
+
+## SRA Toolkit 2.9.5
+**March 6, 2019**
+
+  **prefetch**: fixed regression that caused download of incomplete files  
+
+
+## SRA Toolkit 2.9.4-1
+**March 4, 2019**
+
+  **sra-tools, vfs**: fixed regression introduced in 2.9.4 release thas caused delay when starting sra tools  
+
+
 ## SRA Toolkit 2.9.4
 **January 31, 2019**
 

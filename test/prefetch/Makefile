@@ -28,7 +28,7 @@ include $(TOP)/build/Makefile.env
 
 CWD = $(shell pwd)
 PUBLIC=/repository/user/main/public
-CGI=https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi
+CGI=https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi
 LARGE=fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
 SRA=https://sra-download.ncbi.nlm.nih.gov
 SRAF=fasp://dbtest@sra-download.ncbi.nlm.nih.gov
@@ -42,7 +42,7 @@ SRRF=$(SRAF):data/sracloud/traces/sra59/SRR/000052/SRR053325
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
-runtests: urls_and_accs out_dir_and_file s-option
+runtests: urls_and_accs out_dir_and_file s-option truncated
 
 ################################################################################
 urls_and_accs:
@@ -662,3 +662,40 @@ s-option:
 	      fi
 
 	@ rm -r tmp*
+
+truncated:
+	@ echo prefetch correctly re-downloads incomplete files
+
+#setup
+	@ mkdir -p tmp/sra
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
+	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'        >> tmp/t.kfg
+	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                     >> tmp/t.kfg
+#	@ ls -l tmp	@ cat tmp/t.kfg
+#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/vdb-config -on
+#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/srapath SRR053325
+#	echo 669	perl check-size.pl 4	echo 671
+
+# create truncated run
+	@ echo '123' > tmp/sra/SRR053325.sra
+	@ if perl check-size.pl 4 > /dev/null; \
+	  then echo "run should be truncated for this test"; exit 1; \
+	  fi
+
+# create should detect truncated run and redownload it
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch SRR053325 > tmp/out
+	@ if grep ": 1) 'SRR053325' is found locally" tmp/out ; \
+	  then echo "prefetch incorrectly stopped on truncated run"; exit 1; \
+	  fi
+#	@ wc tmp/sra/SRR053325.sra	@ wc -c tmp/sra/SRR053325.sra
+
+# run should be complete
+	@ perl check-size.pl 4
+
+# the second run of prefetch should find local file
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch SRR053325 > tmp/out
+	@ grep -q ": 1) 'SRR053325' is found locally" tmp/out
+	@ perl check-size.pl 4
+
+#cleanup
+	@ rm -r tmp

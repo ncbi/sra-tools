@@ -3705,15 +3705,22 @@ rc_t SRADumper_Init( SRADumperFmt* fmt )
 
             {NULL, "skip-technical", NULL, {"Dump only biological reads", NULL}},               /* H_skip_tech = 4 */
 
-            {NULL, "split-files", NULL, {"Dump each read into a separate file."                 /* H_split_files = 5 */
-                                         "Files will receive suffix corresponding to read number", NULL}},
+            {NULL, "split-files", NULL, {"Write reads into separate files. "                /* H_split_files = 5 */
+                                         "Read number will be suffixed to the file name. ",
+                                         "NOTE! The `--split-3` option is recommended.",
+                                         "In cases where not all spots have the same number of reads,",
+                                         "this option will produce files",
+                                         "that WILL CAUSE ERRORS in most programs",
+                                         "which process split pair fastq files.", NULL}},
 
             /* DO NOT ADD IN THE MIDDLE ORDER IS IMPORTANT IN USAGE FUNCTION ABOVE!!! */
-            {NULL, "split-3", NULL, {"Legacy 3-file splitting for mate-pairs:",                 /* H_split_3 = 6 */
-                                     "First 2 biological reads satisfying dumping conditions",
-                                     "are placed in files *_1.fastq and *_2.fastq",
-                                     "If only one biological read is present - it is placed in *.fastq",
-                                     "Biological reads 3 and above are ignored.", NULL}},
+            {NULL, "split-3", NULL, {"3-way splitting for mate-pairs.",          /* H_split_3 = 6 */
+                                     "For each spot, if there are two biological reads satisfying filter conditions,",
+                                     "the first is placed in the `*_1.fastq` file,",
+                                     "and the second is placed in the `*_2.fastq` file.",
+                                     "If there is only one biological read satisfying the filter conditions,",
+                                     "it is placed in the `*.fastq` file.All other reads in the spot are ignored.",
+                                     NULL}},
             
             {"C", "dumpcs", "[cskey]", {"Formats sequence using color space (default for SOLiD),"   /* H_dumpcs = 7 */
                                         "\"cskey\" may be specified for translation", NULL}},

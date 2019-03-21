@@ -35,7 +35,7 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: check_exit_code
+runtests: check_exit_code fastq_dump_vs_sam_dump
 
 slowtests: fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
 

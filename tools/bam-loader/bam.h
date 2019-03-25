@@ -35,7 +35,29 @@ typedef struct BAM_Alignment BAM_Alignment;
 rc_t BAM_AlignmentAddRef ( const BAM_Alignment *self );
 rc_t BAM_AlignmentRelease ( const BAM_Alignment *self );
 
-rc_t BAM_AlignmentCopy(const BAM_Alignment *self, BAM_Alignment **rslt);
+/*
+ * This function will ALWAYS make a copy, even if the record
+ * is already independent of its file. You probably want Detach.
+ */
+BAM_Alignment *BAM_AlignmentCopy(const BAM_Alignment *self);
+
+/*
+ * Create a copy, if needed, to ensure the record's storage is
+ * independent of the file it was read from.
+ *
+ * Often BAM_Alignment records depend directly on the
+ * files decompression buffer. Such a record becomes
+ * invalid if the files decompression buffer is changed,
+ * for example, by reading ahead on another thread.
+ *
+ * This detaches the record's data from the files buffer
+ * by making a copy into a seperate allocation that is
+ * owned by the record.
+ *
+ * NB. the returned object is a REPLACEMENT for the input object.
+ * The input will be released if a copy was made.
+ */
+BAM_Alignment *BAM_AlignmentDetach(const BAM_Alignment *self);
 
 /* GetReadLength
  *  get the sequence length
@@ -353,12 +375,12 @@ enum BAMOptDataValueTypes
 #define OPT_TAG_Z "Z?" /* end user data */
 
 #define OPT_TAG_ReadGroup   "RG" /* Read Group; same as BAM_AlignmentGetReadGroupName */
-#define OPT_TAG_Library     "LB" /* LIbrary; also BAMReadGroup */
+#define OPT_TAG_Library     "LB" /* LiBrary; also BAMReadGroup */
 #define OPT_TAG_Unit        "PU" /* Platform specific Unit; also BAMReadGroup */
-#define OPT_TAG_Program     "PG" /* Alignment software name */
-#define OPT_TAG_AlignScore  "AS" /* Alignment Score (MapQuality?) */
+#define OPT_TAG_Program     "PG" /* aligner ProGram name */
+#define OPT_TAG_AlignScore  "AS" /* Alignment Score */
 #define OPT_TAG_SecQual     "SQ" /* second called base:2 and quality:6; length == ReadLength? warning */
-#define OPT_TAG_MateMapQual "MQ" /* map Quality of mate */
+#define OPT_TAG_MateMapQual "MQ" /* Mate's map Quality */
 #define OPT_TAG_NumMismatch "NM" /* Number of Mismatches */
 #define OPT_TAG_Hits0       "H0" /* Number of perfect hits */
 #define OPT_TAG_Hits1       "H1" /* Number of off-by-one */
@@ -540,7 +562,7 @@ float BAM_FileGetProportionalPosition ( const BAM_File *self );
  *  tries to use static buffers and will log messages about parsing errors
  */
 rc_t BAM_FileRead2 ( const BAM_File *self, const BAM_Alignment **result );
-
+rc_t BAM_FileRead3 ( const BAM_File *self, const BAM_Alignment **result );
 
 /* GetRefSeqCount
  *  get the number of Reference Sequences refered to in the header

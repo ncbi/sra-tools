@@ -2433,14 +2433,18 @@ rc_t get_platform(const VDBManager *mgr,
     else
         rc = VDBManagerOpenTableRead(mgr, &tbl, NULL, "%s", name);
 
-    if (rc == 0) {
+    if (rc == 0)
         rc = VTable_get_platform(tbl, platform);
+    else if (db != NULL) {
+        *platform = SRA_PLATFORM_UNDEFINED;
+        rc = 0;
     }
 
     if (aTbl == NULL)
         VTableRelease(tbl);
 
-    VDatabaseRelease(db);
+    if (db != NULL)
+        VDatabaseRelease(db);
 
     return rc;
 }

@@ -2422,27 +2422,25 @@ rc_t get_platform(const VDBManager *mgr,
     INSDC_SRA_platform_id *platform)
 {
     rc_t rc = 0;
+    const VDatabase * db = NULL;
     const VTable *tbl = aTbl;
+
     assert(name && platform);
-    if (tbl == NULL) {
-        VSchema *sra_schema = NULL;
-        for ( ; rc == 0; ) {
-            rc = VDBManagerOpenTableRead(mgr, &tbl, sra_schema, "%s", name);
-            VSchemaRelease(sra_schema);
-            if (rc == 0) {
-                rc = VTable_get_platform(tbl, platform);
-                break;
-            }
-            else if (GetRCState(rc) == rcNotFound && GetRCObject(rc) == (enum RCObject)rcSchema
-                && sra_schema == NULL)
-            {
-                break;
-            }
-        }
+
+    rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name);
+    if (rc == 0)
+        rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
+    else
+        rc = VDBManagerOpenTableRead(mgr, &tbl, NULL, "%s", name);
+
+    if (rc == 0) {
+        rc = VTable_get_platform(tbl, platform);
     }
 
     if (aTbl == NULL)
         VTableRelease(tbl);
+
+    VDatabaseRelease(db);
 
     return rc;
 }

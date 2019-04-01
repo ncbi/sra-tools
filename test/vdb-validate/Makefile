@@ -62,7 +62,7 @@ vdb-validate: $(BINDIR)/vdb-validate
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_corrupt.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_corrupt 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_fixed.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_fixed 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/blob-row-gap.kar" ROW_GAP 0
-	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/SRR053325 -Cyes" CONSISTENCY 0
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/SRR053990 -Cyes" CONSISTENCY 0
 
 	@ if [ "$(TEST_DATA)" != "" ]; then ./runtestcase.sh \
 	    "$(BINDIR)/vdb-validate \

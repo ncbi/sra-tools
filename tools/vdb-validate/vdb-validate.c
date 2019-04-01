@@ -2436,7 +2436,7 @@ rc_t get_platform(const VDBManager *mgr,
             else if (GetRCState(rc) == rcNotFound && GetRCObject(rc) == (enum RCObject)rcSchema
                 && sra_schema == NULL)
             {
-                rc = VDBManagerMakeSRASchema(mgr, &sra_schema);
+                break;
             }
         }
     }
@@ -2465,10 +2465,11 @@ rc_t dbcc ( const vdb_validate_params *pb, const char *path, bool is_file )
                       ;
 
         INSDC_SRA_platform_id platform = SRA_PLATFORM_UNDEFINED;
-        get_platform ( pb -> vmgr, NULL, path, & platform );
+        rc = get_platform ( pb -> vmgr, NULL, path, & platform );
 
         /* check as kdb object */
-        rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names, platform );
+        if ( rc == 0 )
+            rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names, platform );
         if ( rc == 0 )
             rc = vdbcc ( pb -> vmgr, path, mode, & pathType, is_file );
         if ( rc == 0 )

@@ -2422,29 +2422,28 @@ rc_t get_platform(const VDBManager *mgr,
     INSDC_SRA_platform_id *platform)
 {
     rc_t rc = 0;
-    const VDatabase * db = NULL;
     const VTable *tbl = aTbl;
 
     assert(name && platform);
 
-    rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name);
-    if (rc == 0)
-        rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
-    else
-        rc = VDBManagerOpenTableRead(mgr, &tbl, NULL, "%s", name);
+    /* PLATFORM is UNDEFINED by default */
+    *platform = SRA_PLATFORM_UNDEFINED;
+
+    rc = VDBManagerOpenTableRead(mgr, &tbl, NULL, "%s", name);
 
     if (rc == 0)
         rc = VTable_get_platform(tbl, platform);
-    else if (db != NULL) {
-        *platform = SRA_PLATFORM_UNDEFINED;
-        rc = 0;
-    }
 
     if (aTbl == NULL)
         VTableRelease(tbl);
 
-    if (db != NULL)
-        VDatabaseRelease(db);
+    /* ignore all errors except Schema NotFound */
+    if (rc != 0 &&
+        (GetRCState(rc) != rcNotFound ||
+            GetRCObject(rc) != (enum RCObject)rcSchema))
+    {
+        rc = 0;
+    }
 
     return rc;
 }

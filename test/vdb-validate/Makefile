@@ -69,6 +69,11 @@ vdb-validate: $(BINDIR)/vdb-validate
 	                $(TEST_DATA)/SRR1207586-READ_LEN-vs-READ-mismatch \
 	                -Cyes" READ_LEN 3 ; fi
 
+	@# verify failure verifying ancient no-schema run
+	@if $(BINDIR)/vdb-validate db/SRR053325-no-schema 2> actual/noschema; \
+	 then echo vdb-validate no-schema-run should fail; exit 1; fi
+	@grep -q ' Run File is obsolete. Please download the latest' actual/noschema
+
 	@ echo "All vdb-validate tests succeed"
 	@ rm -rf actual/
 

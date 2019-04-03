@@ -28,6 +28,8 @@
 
 #include <klib/rc.h>
 
+#include <kproc/lock.h>
+
 const uint64_t ChunkSize = 1024 * 1024;
 
 rc_t Id2Name_Init ( Id2name * self )
@@ -43,11 +45,22 @@ rc_t Id2Name_Init ( Id2name * self )
         if ( rc == 0 )
         {
             rc = KDataBufferMakeBytes ( & self -> names, ChunkSize );
-            if ( rc != 0 )
+            if ( rc == 0 )
+            {
+                rc = KLockMake ( & self -> lock );
+                if ( rc == 0 )
+                {
+                    self->first_free = 0;
+                }
+                else
+                {
+                    KDataBufferWhack ( & self -> names );
+                }
+            }
+            else
             {
                 KVectorRelease ( self -> ids );
             }
-            self->first_free = 0;
         }
     }
     return rc;
@@ -55,15 +68,27 @@ rc_t Id2Name_Init ( Id2name * self )
 
 rc_t Id2Name_Whack ( Id2name * self )
 {
+    rc_t rc;
     if ( self == NULL )
     {
-        return RC ( rcCont, rcIndex, rcDestroying, rcSelf, rcNull );
+        rc = RC ( rcCont, rcIndex, rcDestroying, rcSelf, rcNull );
     }
+    else
+    {
+        rc_t rc2;
+        rc = KDataBufferWhack ( & self -> names );
+        rc2 = KLockRelease ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = rc2;
+        }
 
-    KVectorRelease ( self -> ids );
-
-    return KDataBufferWhack ( & self -> names );
+        KVectorRelease ( self -> ids );
+    }
+    return rc;
 }
+
+#include <stdio.h>
 
 rc_t Id2Name_Add ( Id2name * self, uint64_t id, const char * name )
 {   /* expects 0-terminated name */
@@ -78,18 +103,32 @@ rc_t Id2Name_Add ( Id2name * self, uint64_t id, const char * name )
     }
     else
     {
-        size_t size = strlen(name) + 1;
-        while ( self -> first_free + size >= KDataBufferBytes ( & self -> names ) )
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
         {
-            rc =  KDataBufferResize( & self -> names, KDataBufferBytes ( & self -> names ) + ChunkSize );
-            if ( rc != 0 )
+            rc_t rc2;
+            size_t size = strlen(name) + 1;
+            while ( self -> first_free + size >= KDataBufferBytes ( & self -> names ) )
             {
-                return rc;
+/*printf("Id2Name_Add: resizing to %lu\n", KDataBufferBytes ( & self -> names ) + ChunkSize);*/
+                rc =  KDataBufferResize( & self -> names, KDataBufferBytes ( & self -> names ) + ChunkSize );
+                if ( rc != 0 )
+                {
+                    KLockUnlock ( self -> lock );
+                    return rc;
+                }
+            }
+/*printf("Id2Name_Add: writing %s\n", name );*/
+            strncpy( ( char * ) ( self -> names . base ) + self -> first_free, name, size ); /* size includes 0-terminator */
+            rc = KVectorSetU64 ( self -> ids, id, self -> first_free );
+            self -> first_free += size;
+
+            rc2 = KLockUnlock ( self -> lock );
+            if ( rc == 0 )
+            {
+                rc = rc2;
             }
         }
-        strncpy( ( char * ) ( self -> names . base ) + self -> first_free, name, size ); /* size includes 0-terminator */
-        rc = KVectorSetU64 ( self -> ids, id, self -> first_free );
-        self -> first_free += size;
     }
     return rc;
 }
@@ -116,4 +155,5 @@ rc_t Id2Name_Get ( Id2name * self, uint64_t id, const char ** res )
     }
     return rc;
 }
+
 

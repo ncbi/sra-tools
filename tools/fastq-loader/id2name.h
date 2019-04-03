@@ -27,18 +27,21 @@
 #ifndef _h_id2name_
 #define _h_id2name_
 
-#include <klib/vector.h>
-#include <klib/data-buffer.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <klib/vector.h>
+#include <klib/data-buffer.h>
+
+struct KLock;
+
 struct Id2name
 {   /* mapping between id keys and read names */
-    KVector     * ids;      /* uint64_t (key) -> uint64_t (offset into names) */
-    KDataBuffer names;      /* 0-terminated names */
-    uint64_t    first_free; /* offset to the first free byte in names */
+    KVector         * ids;      /* uint64_t (key) -> uint64_t (offset into names) */
+    KDataBuffer     names;      /* 0-terminated names */
+    uint64_t        first_free; /* offset to the first free byte in names */
+    struct KLock    * lock;
 };
 typedef struct Id2name Id2name;
 
@@ -53,3 +56,4 @@ extern rc_t Id2Name_Get ( Id2name * self, uint64_t id, const char ** res ); /* t
 #endif
 
 #endif
+

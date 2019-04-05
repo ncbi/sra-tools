@@ -38,12 +38,12 @@ TEST_SUITE(Id2NameSuite);
 
 TEST_CASE(Init_NullSelf)
 {
-    REQUIRE_RC_FAIL ( Id2Name_Init ( nullptr ) );
+    REQUIRE_RC_FAIL ( Id2Name_Init ( NULL ) );
 }
 
 TEST_CASE(Whack_NullSelf)
 {
-    REQUIRE_RC_FAIL ( Id2Name_Whack ( nullptr ) );
+    REQUIRE_RC_FAIL ( Id2Name_Whack ( NULL ) );
 }
 
 TEST_CASE(Init_Whack)
@@ -71,22 +71,22 @@ public:
 
 FIXTURE_TEST_CASE ( Add_NullSelf, Id2name_Fixture )
 {
-    REQUIRE_RC_FAIL ( Id2Name_Add( nullptr, 1, "name" ) );
+    REQUIRE_RC_FAIL ( Id2Name_Add( NULL, 1, "name" ) );
 }
 
 FIXTURE_TEST_CASE ( Add_NullName, Id2name_Fixture )
 {
-    REQUIRE_RC_FAIL ( Id2Name_Add( & m_self, 1, nullptr ) );
+    REQUIRE_RC_FAIL ( Id2Name_Add( & m_self, 1, NULL ) );
 }
 
 FIXTURE_TEST_CASE ( Get_NullSelf, Id2name_Fixture )
 {
-    REQUIRE_RC_FAIL ( Id2Name_Get ( nullptr, 1, & m_res ) );
+    REQUIRE_RC_FAIL ( Id2Name_Get ( NULL, 1, & m_res ) );
 }
 
 FIXTURE_TEST_CASE ( Get_NullRes, Id2name_Fixture )
 {
-    REQUIRE_RC_FAIL ( Id2Name_Get ( & m_self, 1, nullptr ) );
+    REQUIRE_RC_FAIL ( Id2Name_Get ( & m_self, 1, NULL ) );
 }
 
 FIXTURE_TEST_CASE ( Get_Empty, Id2name_Fixture )

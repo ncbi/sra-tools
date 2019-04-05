@@ -262,5 +262,5 @@ smalltests: $(TEST_TOOLS)
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 1.4 0 $(SRCDIR)/input/1.4.fastq --quality LOGODDS
+	$(SMALLRUN) 8.1 3 $(SRCDIR)/input/8.1.fastq --quality PHRED_33
 

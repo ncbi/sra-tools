@@ -147,10 +147,20 @@ rc_t Id2Name_Get ( Id2name * self, uint64_t id, const char ** res )
     else
     {
         uint64_t name_offset;
-        rc = KVectorGetU64 ( self -> ids, id, & name_offset );
+        rc = KLockAcquire ( self -> lock );
         if ( rc == 0 )
         {
-            *res = (const char*) ( self -> names . base ) + name_offset;
+            rc_t rc2;
+            rc = KVectorGetU64 ( self -> ids, id, & name_offset );
+            if ( rc == 0 )
+            {
+                *res = (const char*) ( self -> names . base ) + name_offset;
+            }
+            rc2 = KLockUnlock ( self -> lock );
+            if ( rc == 0 )
+            {
+                rc = rc2;
+            }
         }
     }
     return rc;

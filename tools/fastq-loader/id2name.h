@@ -32,14 +32,21 @@ extern "C" {
 #endif
 
 #include <klib/vector.h>
-#include <klib/data-buffer.h>
 
 struct KLock;
 
 struct Id2name
-{   /* mapping between id keys and read names */
-    KVector         * ids;      /* uint64_t (key) -> uint64_t (offset into names) */
-    KDataBuffer     names;      /* 0-terminated names */
+{
+    /* an array of KDataBuffer*, each one containing 0-terminated names.
+    *  names do not cross the buffer boundary
+    *  offset / MaxBuffer is the number of the buffer in the array
+    *  offset % MaxBuffer is the offset from the start of the buffer
+    **/
+    Vector names;
+
+    /* mapping between id keys and read names */
+    KVector * ids;      /* uint64_t (key) -> uint64_t (offset into names) */
+
     uint64_t        first_free; /* offset to the first free byte in names */
     struct KLock    * lock;
 };

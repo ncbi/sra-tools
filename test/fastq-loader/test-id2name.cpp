@@ -136,6 +136,24 @@ FIXTURE_TEST_CASE ( AddRealloc, Id2name_Fixture )
     REQUIRE_EQ ( str, string ( m_res ) );
 }
 
+FIXTURE_TEST_CASE ( MiltipleBuffers, Id2name_Fixture )
+{   // exceed a single KDataBuffer's size limit of 2**32-1 bytes
+    string str1 ( 0x7fffffff, '1');
+    REQUIRE_RC ( Id2Name_Add( & m_self, 1, str1.c_str() ) );
+    string str2 ( 0x7fffffff, '2');
+    REQUIRE_RC ( Id2Name_Add( & m_self, 2, str2.c_str() ) );
+    REQUIRE_RC ( Id2Name_Get ( & m_self, 1, & m_res ) );
+    REQUIRE_EQ ( str1, string ( m_res ) );
+    REQUIRE_RC ( Id2Name_Get ( & m_self, 2, & m_res ) );
+    REQUIRE_EQ ( str2, string ( m_res ) );
+}
+
+FIXTURE_TEST_CASE ( NameTooLong, Id2name_Fixture )
+{   // reject names exceeding KDataBuffer's size limit of 2**32-1 bytes
+    string str1 ( 0x800000000, '1');
+    REQUIRE_RC_FAIL ( Id2Name_Add( & m_self, 1, str1.c_str() ) );
+}
+
 //////////////////////////////////////////// Main
 extern "C"
 {

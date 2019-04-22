@@ -1,0 +1,59 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+sub help(@);
+sub info(@);
+sub get(@);
+sub extrace(@);
+sub usege();
+
+usage() unless @ARGV;
+
+my $cmd = shift;
+help(@ARGV) if $cmd eq 'help';
+info(@ARGV) if $cmd eq 'info';
+get(@ARGV) if $cmd eq 'get';
+extract('-format=fastq', @ARGV) if $cmd eq 'fastq';
+extract('-format=sam', @ARGV) if $cmd eq 'sam';
+usage();
+
+sub help(@)
+{
+    goto INFO if $_[0] && $_[0] eq 'info';
+    goto GET if $_[0] && $_[0] eq 'get';
+    goto FASTQ if $_[0] && $_[0] eq 'fastq';
+    goto SAM if $_[0] && $_[0] eq 'sam';
+    
+    print "Usage: $0 <command> [<args> ...]\n";
+    print <<"EOF";
+Commands are:
+    info  - get info for an SRA object
+    get   - download an SRA object
+    fastq - extract FASTQ from an SRA object
+    sam   - extract SAM from an SRA object
+    
+    help <command> - detailed help for <command> or this message
+EOF
+    exit 0;
+
+  INFO:
+    print "Usage: $0 info <object>\nPrints detailed information about an SRA object\n";
+    exit 0;
+
+  GET:
+    exit 0;
+    
+  FASTQ:
+    exit 0;
+
+  SAM:
+    exit 0;
+}
+
+sub usage
+{
+    print "Usage: $0 <command> [<args> ...]\nTry\n   $0 help\n";
+    exit 64; # EX_USAGE from <sysexits.h>
+}

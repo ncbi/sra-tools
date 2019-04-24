@@ -31,8 +31,8 @@
 
 #include <kproc/lock.h>
 
-const uint64_t ChunkSize = 1024 * 1024;
-const uint64_t MaxBuffer = 0x100000000ul;
+const uint64_t ChunkSize = 0x10000000ul;
+const uint64_t MaxBuffer = 0xFFFFFFFFul;
 
 static
 rc_t
@@ -117,7 +117,7 @@ rc_t Id2Name_Whack ( Id2name * self )
     }
     return rc;
 }
-
+#include <stdio.h>
 rc_t Id2Name_Add ( Id2name * self, uint64_t id, const char * name )
 {   /* expects 0-terminated name */
     rc_t rc;
@@ -147,17 +147,14 @@ rc_t Id2Name_Add ( Id2name * self, uint64_t id, const char * name )
                 return RC ( rcCont, rcIndex, rcInserting, rcParam, rcTooBig );
             }
             if ( offsetInBuf + size >= MaxBuffer )
-            {   /* add a new buffer */
+            {   /* azdding this name would lead to an overflow, add a new buffer */
                 rc = AddBuffer ( & self->names );
                 if ( rc != 0 )
                 {
                     KLockUnlock ( self -> lock );
                     return rc;
                 }
-                if ( offsetInBuf + size >= MaxBuffer )
-                {
-                    bufNum ++;
-                }
+                bufNum ++;
                 offsetInBuf = 0;
                 self -> first_free = bufNum * MaxBuffer;
             }
@@ -165,9 +162,26 @@ rc_t Id2Name_Add ( Id2name * self, uint64_t id, const char * name )
             buf = VectorGet ( & self -> names, bufNum );
             assert ( buf != NULL );
 
+            /* add one or more chunks to accomodate the new size */
             while ( offsetInBuf + size >= KDataBufferBytes ( buf ) )
             {
-/*printf("Id2Name_Add: resizing to %lu\n", KDataBufferBytes ( buf ) + ChunkSize);*/
+                if ( KDataBufferBytes ( buf ) + ChunkSize >= MaxBuffer )
+                {   /* adding this chunk would lead to an overflow, add a new buffer */
+                    rc = AddBuffer ( & self->names );
+                    if ( rc != 0 )
+                    {
+                        KLockUnlock ( self -> lock );
+                        return rc;
+                    }
+                    bufNum ++;
+                    offsetInBuf = 0;
+                    self -> first_free = bufNum * MaxBuffer;
+
+                    buf = VectorGet ( & self -> names, bufNum );
+                    assert ( buf != NULL );
+                }
+
+                /* add a new chunk */
                 rc =  KDataBufferResize( buf, KDataBufferBytes ( buf ) + ChunkSize );
                 if ( rc != 0 )
                 {
@@ -175,7 +189,7 @@ rc_t Id2Name_Add ( Id2name * self, uint64_t id, const char * name )
                     return rc;
                 }
             }
-/*printf("Id2Name_Add: writing %s\n", name );*/
+
             strncpy( ( char * ) ( buf -> base ) + offsetInBuf, name, size ); /* size includes 0-terminator */
             rc = KVectorSetU64 ( self -> ids, id, self -> first_free );
             self -> first_free += size;

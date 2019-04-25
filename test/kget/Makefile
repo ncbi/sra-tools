@@ -50,7 +50,9 @@ download:
 slowtests: diff-vs-wget
 
 ACCESSION = SRR072810
-URL = http://sra-download.ncbi.nlm.nih.gov/srapub/$(ACCESSION)
+NAME = $(ACCESSION).4
+HOST = sra-download-internal.ncbi.nlm.nih.gov
+URL = https://$(HOST)/sos/sra-pub-run-1/$(ACCESSION)/$(NAME)
 
 clean:
 	rm -f $(ACCESSION)*
@@ -58,7 +60,7 @@ clean:
 diff-vs-wget: clean
 	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat --progress
 	wget --no-check-certificate $(URL)
-	diff ./$(ACCESSION) ./$(ACCESSION).dat
+	diff ./$(NAME) ./$(ACCESSION).dat
 	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
 	rm -f $(ACCESSION)*
 

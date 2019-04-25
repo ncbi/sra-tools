@@ -2,58 +2,356 @@
 
 use strict;
 use warnings;
+use File::Spec;
 
+use Data::Dumper;
+
+use constant { TRUE => !0, FALSE => !!0 };
+use constant {
+    REAL_SAM_DUMP => 'sam-dump-orig',
+    REAL_FASTQ_DUMP => 'fastq-dump-orig',
+    REAL_FASTERQ_DUMP => 'fasterq-dump-orig',
+};
+
+sub expandAccession($);
+sub resolveAccessionURLs($);
+sub which($);
 sub help(@);
 sub info(@);
-sub get(@);
-sub extrace(@);
-sub usege();
+sub extract(@);
+sub usage();
+
+my ($selfvol, $selfdir, $base) = File::Spec->splitpath($0);
+my $basepath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
+# print Dumper($basepath);
+
+goto RUNNING_AS_FASTQ_DUMP      if $base eq 'fastq-dump';
+goto RUNNING_AS_FASTERQ_DUMP    if $base eq 'fasterq-dump';
+goto RUNNING_AS_SAM_DUMP        if $base eq 'sam-dump';
 
 usage() unless @ARGV;
 
 my $cmd = shift;
 help(@ARGV) if $cmd eq 'help';
 info(@ARGV) if $cmd eq 'info';
-get(@ARGV) if $cmd eq 'get';
 extract('-format=fastq', @ARGV) if $cmd eq 'fastq';
 extract('-format=sam', @ARGV) if $cmd eq 'sam';
 usage();
 
+if (0)
+{
+RUNNING_AS_FASTQ_DUMP:
+    my $toolpath = which(ORIG_FASTQ_DUMP) or help_path(ORIG_FASTQ_DUMP, TRUE);
+    my %long_arg = (
+        '-A' => '--accession',
+        '-N' => '--minSpotId',
+        '-X' => '--maxSpotId',
+        '-W' => '--clip',
+        '-M' => '--minReadLen',
+        '-R' => '--read-filter',
+        '-E' => '--qual-filter',
+        '-O' => '--outdir',
+        '-Z' => '--stdout',
+        '-G' => '--spot-group',
+        '-T' => '--group-in-dirs',
+        '-K' => '--keep-empty-files',
+        '-C' => '--dumpcs',
+        '-B' => '--dumpbase',
+        '-Q' => '--offset',
+        '-F' => '--origfmt',
+        '-I' => '--readids',
+        '-V' => '--version',
+        '-L' => '--log-level',
+        '-v' => '--verbose',
+        '-+' => '--debug',
+        '-h' => '--help',
+        '-?' => '--help',
+    );
+    my %param_has_arg = (
+        '--accession' => TRUE,
+        '--table' => TRUE,
+        '--minSpotId' => TRUE,
+        '--maxSpotId' => TRUE,
+        '--spot-groups' => TRUE,
+        '--minReadLen' => TRUE,
+        '--read-filter' => TRUE,
+        '--aligned-region' => TRUE,
+        '--matepair-distance' => TRUE,
+        '--outdir' => TRUE,
+        '--offset' => TRUE,
+        '--defline-seq' => TRUE,
+        '--defline-qual' => TRUE,
+        '--log-level' => TRUE,
+        '--debug' => TRUE,
+    );
+    my %param_opt_arg = (
+        '--dumpcs' => TRUE,
+        '--fasta' => TRUE,
+    );
+    my @params = (); # short params get expanded to long form
+    my @args = (); # everything that isn't a parameter or parameter argument
+
+    # check for help
+    for (@ARGV) {
+        next unless /^-/;
+        if ($_ eq '--help' || $long_arg{$_} eq '--help') {
+FASTQ_DUMP_HELP:
+            exec {$toolpath} 'fastq-dump', '--help';
+            die "can't exec original fastq-dump: $!";
+        }
+    }
+    {
+        my @copy = @ARGV; # leave ARGV intact (just in case)
+        while (@copy) {
+            local $_ = shift @copy;
+            if (/^-/) { # it's a parameter
+                my $param = $long_arg{$_} || $_;
+                if ($param_has_arg{$param}) {
+                    my $arg = shift @copy or goto FASTQ_DUMP_HELP;
+                    push @params, $param, $arg;
+                    next;
+                }
+                if ($param eq '--dumpcs') {
+                    my $arg = shift @copy or goto FASTQ_DUMP_HELP;
+                    if ($arg =~ /^[ACGT]$/i) {
+                        push @params, $param, $arg;
+                    }
+                    else {
+                        unshift @copy, $arg;
+                        push @params, $param;
+                    }
+                    next;
+                }
+                elsif ($param eq '--fasta') {
+                    my $arg = shift @copy or goto FASTQ_DUMP_HELP;
+                    if ($arg =~ /^\d+$/) {
+                        push @params, $param, $arg;
+                    }
+                    else {
+                        unshift @copy, $arg;
+                        push @params, $param;
+                    }
+                    next;
+                }
+                # param doesn't have an argument
+                push @params, $param;
+                next;
+            }
+            # it's an ordinary argument
+            push @args, $_;
+        }
+    }
+    for (@args) {
+        my @runs = expandAccession($_);
+        for (@runs) {
+            my ($runURL, $cacheURL) = resolveAccessionURLs($_);
+            my $kid = runtool('fastq-dump', $toolpath, $_, $runURL, $cacheURL, @params);
+            waitpid($kid, -1);
+        }
+    }
+    exit 0;
+}
+
+if (0)
+{
+RUNNING_AS_FASTERQ_DUMP:
+    exit 0;
+}
+
+if (0)
+{
+RUNNING_AS_SAM_DUMP:
+    exit 0;
+}
+
+sub expandAccession($)
+{
+    return $_[0] if $_[0] =~ /^(SRR|ERR|DRR)\d+$/;
+    # TODO 
+}
+
+sub resolveAccessionURLs($)
+{
+    # TODO call name-resolver
+    return ($_[0], '');
+}
+
+### @brief: the info sub-command
+###
+### @param: command line ARGS
+###
+### @return: does not return; calls exit
+sub info(@)
+{
+    exit 0;
+}
+
+### @brief: the extract sub-command
+###
+### @param: command line ARGS
+###
+### @return: does not return; calls exit
+sub extract(@)
+{
+    exit 0;
+}
+
+### @brief: the help sub-command
+###
+### @param: command line ARGS
+###
+### @return: does not return; calls exit
 sub help(@)
 {
+    local $0 = $base;
+    
     goto INFO if $_[0] && $_[0] eq 'info';
-    goto GET if $_[0] && $_[0] eq 'get';
     goto FASTQ if $_[0] && $_[0] eq 'fastq';
     goto SAM if $_[0] && $_[0] eq 'sam';
     
     print "Usage: $0 <command> [<args> ...]\n";
     print <<"EOF";
 Commands are:
-    info  - get info for an SRA object
-    get   - download an SRA object
-    fastq - extract FASTQ from an SRA object
-    sam   - extract SAM from an SRA object
+    info  - get info for an SRA accession
+    fastq - extract FASTQ from an SRA accession
+    sam   - extract SAM from an SRA accession
     
     help <command> - detailed help for <command> or this message
+    
+About SRA accessions:
+    SRA accessions come in several types. Most types are containers of other
+    types, except for SRA run accessions which contain sequence data. Only SRA
+    run accessions may be extracted as FASTQ or SAM. This tool will expand
+    container accessions to their constituent run accessions and perform the
+    requested function on each.
+    
+    SRA run accessions can be extracted as SAM; if the run contains alignments,
+    the alignment information will be in the SAM records for the aligned reads.
+    
+    SRA does not guarantee that the original read names were preserved. SRA does
+    guarantee that the identity of the reads were preserved.
+    
+    SRA does not guarantee that the original quality scores were preserved.
+    
+See also:
+    The SRA homepage at NCBI:
+    https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi
+
+    The SRA Toolkit homepage, where you may obtain the latest versions of this
+    software and related tools:
+    https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software
 EOF
     exit 0;
 
   INFO:
-    print "Usage: $0 info <object>\nPrints detailed information about an SRA object\n";
+    print <<"EOM";
+Usage: $0 info <object>
+Prints detailed information about an SRA object
+EOM
     exit 0;
 
-  GET:
-    exit 0;
-    
   FASTQ:
+    print <<"EOM";
+Usage: $0 fastq <object>
+Extract FASTQ from (possibly many) SRA run accessions
+EOM
     exit 0;
 
   SAM:
+    print <<"EOM";
+Usage: $0 info <object>
+Extract SAM from (possibly many) SRA run accessions
+EOM
     exit 0;
 }
 
-sub usage
+sub help_path($$)
 {
-    print "Usage: $0 <command> [<args> ...]\nTry\n   $0 help\n";
+    print "could not find $_[0]";
+    print $_[1] ? ", which is part of this software distrobution\n" : "\n";
+    print <<"EOM";
+This can be fixed in one of the following ways:
+* adding $_[0] to the directory that contains this tool, i.e. $basepath
+* adding the directory that contains $_[0] to the PATH environment variable
+* adding $_[0] to the current directory
+EOM
+    exit 78; # EX_CONFIG from <sysexits.h>
+}
+
+### @brief: prints basic usage message
+###
+### @return: does not return; calls exit
+sub usage()
+{
+    print "Usage: $base <command> [<args> ...]\nTry\n   $base help\n";
     exit 64; # EX_USAGE from <sysexits.h>
+}
+
+### @brief: check if path+file is an executable
+###
+### @param: executable name
+### @param: directory to examine
+###
+### @return: path+file if it exists and is executable
+sub isExecutable($$)
+{
+    my ($vol, $dirs, undef) = File::Spec->splitpath($_[1], !0);
+    my $fullpath = File::Spec->catpath($vol, $dirs, $_[0]);
+    return $fullpath if -e $fullpath && -x $fullpath;
+    return undef;
+}
+
+### @brief: like shell `which` with PATH set to $basepath : $PATH : .
+###
+### @param: executable name
+###
+### @return: the full path to executable or undef
+sub which_i($)
+{
+    my $exe = $_[0];
+    my $fullpath;
+
+    ## first try same directory as this tool
+    $fullpath = isExecutable($exe, $basepath);
+    return $fullpath if $fullpath;
+
+    local $_;
+    for (File::Spec->path()) {
+        $fullpath = isExecutable($exe, $_);
+        return if $fullpath;
+    }
+
+    ## try current directory
+    return isExecutable($exe, File::Spec->curdir());
+}
+
+### @brief: memo-ized which
+###
+### @param: executable name
+###
+### @return: the full path to executable or undef
+my %which_mem = ();
+sub which($)
+{
+    $which_mem{$_[0]} = which_i($_[0]) unless exists $which_mem{$_[0]};
+    return $which_mem{$_[0]};
+}
+
+sub runtool($$$$$@)
+{
+    my $tool = shift;
+    my $toolpath = shift;
+    my $accession = shift;
+    my $runURL = shift;
+    my $cacheURL = shift;
+    my $kid = fork(); die "can't fork: $!" unless defined $kid;
+    
+    return $kid if $kid;
+    
+    # child process
+    $ENV{VDB_REMOTE_URL} = $runURL;
+    $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL;
+    
+    exec {$toolpath} $tool, @_, $accession;
+    die "can't exec $tool: $!";
 }

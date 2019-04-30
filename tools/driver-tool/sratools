@@ -2,19 +2,24 @@
 
 use strict;
 use warnings;
+use IO::Handle;
 use File::Spec;
 
 use Data::Dumper;
 
 use constant { TRUE => !0, FALSE => !!0 };
+use constant EXIT_CODE_TRY_NEXT_SOURCE => 9; ### TODO: UPDATE TO CORRECT CODE AFTER TOOLS ARE UPDATED
 use constant {
     REAL_SAM_DUMP => 'sam-dump-orig',
     REAL_FASTQ_DUMP => 'fastq-dump-orig',
     REAL_FASTERQ_DUMP => 'fasterq-dump-orig',
 };
 
-sub expandAccession($);
+sub expandAllAccessions(@);
 sub resolveAccessionURLs($);
+sub processArgv($\@\@\%\%@);
+sub help_path($$);
+sub runtool($$$$$@);
 sub which($);
 sub help(@);
 sub info(@);
@@ -38,10 +43,9 @@ extract('-format=fastq', @ARGV) if $cmd eq 'fastq';
 extract('-format=sam', @ARGV) if $cmd eq 'sam';
 usage();
 
-if (0)
-{
 RUNNING_AS_FASTQ_DUMP:
-    my $toolpath = which(ORIG_FASTQ_DUMP) or help_path(ORIG_FASTQ_DUMP, TRUE);
+{
+    my $toolpath = which(REAL_FASTQ_DUMP) or help_path(REAL_FASTQ_DUMP, TRUE);
     my %long_arg = (
         '-A' => '--accession',
         '-N' => '--minSpotId',
@@ -83,97 +87,195 @@ RUNNING_AS_FASTQ_DUMP:
         '--defline-qual' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
-    );
-    my %param_opt_arg = (
-        '--dumpcs' => TRUE,
-        '--fasta' => TRUE,
+        '--dumpcs' => 0, # argument not required
+        '--fasta' => 0, # argument not required
     );
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't a parameter or parameter argument
 
-    # check for help
-    for (@ARGV) {
-        next unless /^-/;
-        if ($_ eq '--help' || $long_arg{$_} eq '--help') {
-FASTQ_DUMP_HELP:
-            exec {$toolpath} 'fastq-dump', '--help';
-            die "can't exec original fastq-dump: $!";
-        }
-    }
+    if (!processArgv('old', @params, @args, %long_arg, %param_has_arg, @ARGV))
     {
-        my @copy = @ARGV; # leave ARGV intact (just in case)
-        while (@copy) {
-            local $_ = shift @copy;
-            if (/^-/) { # it's a parameter
-                my $param = $long_arg{$_} || $_;
-                if ($param_has_arg{$param}) {
-                    my $arg = shift @copy or goto FASTQ_DUMP_HELP;
-                    push @params, $param, $arg;
-                    next;
-                }
-                if ($param eq '--dumpcs') {
-                    my $arg = shift @copy or goto FASTQ_DUMP_HELP;
-                    if ($arg =~ /^[ACGT]$/i) {
-                        push @params, $param, $arg;
-                    }
-                    else {
-                        unshift @copy, $arg;
-                        push @params, $param;
-                    }
-                    next;
-                }
-                elsif ($param eq '--fasta') {
-                    my $arg = shift @copy or goto FASTQ_DUMP_HELP;
-                    if ($arg =~ /^\d+$/) {
-                        push @params, $param, $arg;
-                    }
-                    else {
-                        unshift @copy, $arg;
-                        push @params, $param;
-                    }
-                    next;
-                }
-                # param doesn't have an argument
-                push @params, $param;
-                next;
-            }
-            # it's an ordinary argument
-            push @args, $_;
-        }
+        # usage error or user asked for help
+        exec {$toolpath} 'fastq-dump', '--help';
+        die "can't exec original fastq-dump: $!";
     }
-    for (@args) {
-        my @runs = expandAccession($_);
-        for (@runs) {
-            my ($runURL, $cacheURL) = resolveAccessionURLs($_);
-            my $kid = runtool('fastq-dump', $toolpath, $_, $runURL, $cacheURL, @params);
-            waitpid($kid, -1);
+    my @runs = expandAllAccessions(@args);
+    foreach (@runs) {
+        my $run = $_;
+        my @sources = resolveAccessionURLs($run);
+        foreach (@sources) {
+            my ($runURL, $cacheURL) = @$_->{'url', 'cache'};
+            my $kid = runtool('fastq-dump', $toolpath, $run, $runURL, $cacheURL, @params);
+            waitpid($kid, 0);
+
+            last if $? == 0; # SUCCESS! process the next run
+            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
+            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
         }
     }
     exit 0;
 }
 
-if (0)
-{
 RUNNING_AS_FASTERQ_DUMP:
+{
+    my $toolpath = which(REAL_FASTERQ_DUMP) or help_path(REAL_FASTERQ_DUMP, TRUE);
+    my %long_arg = (
+        '-o' => '--outfile',
+        '-O' => '--outdir',
+        '-b' => '--bufsize',
+        '-c' => '--curcache',
+        '-m' => '--mem',
+        '-t' => '--temp',
+        '-e' => '--threads',
+        '-p' => '--progress',
+        '-x' => '--details',
+        '-s' => '--split-spot',
+        '-S' => '--split-files',
+        '-3' => '--split-3',
+        '-f' => '--force',
+        '-N' => '--rowid-as-name',
+        '-P' => '--print-read-nr',
+        '-M' => '--min-read-len',
+        '-B' => '--bases',
+        '-V' => '--version',
+        '-L' => '--log-level',
+        '-v' => '--verbose',
+        '-+' => '--debug',
+        '-h' => '--help',
+        '-?' => '--help',
+    );
+    my %param_has_arg = (
+        '--outfile' => TRUE,
+        '--outdir' => TRUE,
+        '--bufsize' => TRUE,
+        '--curcache' => TRUE,
+        '--mem' => TRUE,
+        '--temp' => TRUE,
+        '--threads' => TRUE,
+        '--min-read-len'=> TRUE,
+        '--log-level' => TRUE,
+        '--debug' => TRUE,
+    );
+    my @params = (); # short params get expanded to long form
+    my @args = (); # everything that isn't a parameter or parameter argument
+
+    if (!processArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    {
+        # usage error or user asked for help
+        exec {$toolpath} 'fasterq-dump', '--help';
+        die "can't exec original fasterq-dump: $!";
+    }
+    my @runs = expandAllAccessions(@args);
+    foreach (@runs) {
+        my $run = $_;
+        my @sources = resolveAccessionURLs($run);
+        foreach (@sources) {
+            my ($runURL, $cacheURL) = @$_->{'url', 'cache'};
+            my $kid = runtool('fasterq-dump', $toolpath, $run, $runURL, $cacheURL, @params);
+            waitpid($kid, 0);
+
+            last if $? == 0; # SUCCESS! process the next run
+            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
+            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
+        }
+    }
     exit 0;
 }
 
-if (0)
-{
 RUNNING_AS_SAM_DUMP:
+{
+    my $toolpath = which(REAL_SAM_DUMP) or help_path(REAL_SAM_DUMP, TRUE);
+    my %long_arg = (
+        '-u' => '--unaligned',
+        '-1' => '--primary',
+        '-c' => '--cigar-long',
+        '-r' => '--header',
+        '-n' => '--no-header',
+        '-s' => '--seqid',
+        '-=' => '--hide-identical',
+        '-g' => '--spot-group',
+        '-p' => '--prefix',
+        '-Q' => '--qual-quant',
+        '-V' => '--version',
+        '-L' => '--log-level',
+        '-v' => '--verbose',
+        '-+' => '--debug',
+        '-h' => '--help',
+        '-?' => '--help',
+    );
+    my %param_has_arg = (
+        '--header-file' => TRUE,
+        '--header-comment' => TRUE,
+        '--aligned-region' => TRUE,
+        '--matepair-distance' => TRUE,
+        '--prefix' => TRUE,
+        '--qual-quant' => TRUE,
+        '--log-level' => TRUE,
+        '--debug' => TRUE,
+    );
+    my @params = (); # short params get expanded to long form
+    my @args = (); # everything that isn't a parameter or parameter argument
+
+    if (!processArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    {
+        # usage error or user asked for help
+        exec {$toolpath} 'sam-dump', '--help';
+        die "can't exec original sam-dump: $!";
+    }
+    my @runs = expandAllAccessions(@args);
+    foreach (@runs) {
+        my $run = $_;
+        my @sources = resolveAccessionURLs($run);
+        foreach (@sources) {
+            my ($runURL, $cacheURL) = ( $_->{'url'}, $_->{'cache'} );
+            my $kid = runtool('sam-dump', $toolpath, $run, $runURL, $cacheURL, @params);
+            waitpid($kid, 0) unless $kid eq 'DUMMY';
+
+            last if $? == 0; # SUCCESS! process the next run
+            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
+            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
+        }
+    }
     exit 0;
 }
 
 sub expandAccession($)
 {
-    return $_[0] if $_[0] =~ /^(SRR|ERR|DRR)\d+$/;
+    my @rslt = ();
     # TODO 
+    return @rslt;
+}
+
+sub expandAllAccessions(@)
+{
+    my %rslt = ();
+    foreach (@_) {
+        if (/^[EDS]RR\d+$/) {
+            $rslt{$_} = scalar(keys %rslt) + 1 unless exists $rslt{$_};
+            next;
+        }
+        my @runs = expandAccession($_);
+        foreach (@runs) {
+            $rslt{$_} = scalar(keys %rslt) + 1 unless exists $rslt{$_};
+        }
+    }
+    return sort { $rslt{$a} <=> $rslt{$b} } keys %rslt;
 }
 
 sub resolveAccessionURLs($)
 {
-    # TODO call name-resolver
-    return ($_[0], '');
+    my $toolpath = which('srapath') or help_path('srapath', TRUE);
+    my @result;
+    my $kid = open(my $pipe, '-|', $toolpath, $_[0]) or die "can't fork or can't exec srapath: $!";
+
+    while (defined(local $_ = <$pipe>)) {
+        chomp;
+        push @result, {
+            url => $_, cache => undef
+        };
+    }
+    close($pipe);
+    return @result;
 }
 
 ### @brief: the info sub-command
@@ -221,17 +323,19 @@ Commands are:
 About SRA accessions:
     SRA accessions come in several types. Most types are containers of other
     types, except for SRA run accessions which contain sequence data. Only SRA
-    run accessions may be extracted as FASTQ or SAM. This tool will expand
-    container accessions to their constituent run accessions and perform the
-    requested function on each.
+    run accessions may be extracted. This tool will expand container accessions
+    to their constituent run accessions and perform the requested function on
+    each.
+    
+    SRA run accessions can be extracted as FASTQ.
     
     SRA run accessions can be extracted as SAM; if the run contains alignments,
     the alignment information will be in the SAM records for the aligned reads.
     
-    SRA does not guarantee that the original read names were preserved. SRA does
-    guarantee that the identity of the reads were preserved.
+    SRA does not guarantee that the original read names are preserved. SRA does
+    guarantee that the identity of the reads and mate-pairs are preserved.
     
-    SRA does not guarantee that the original quality scores were preserved.
+    SRA does not guarantee that the original quality scores are preserved.
     
 See also:
     The SRA homepage at NCBI:
@@ -316,7 +420,7 @@ sub which_i($)
     return $fullpath if $fullpath;
 
     local $_;
-    for (File::Spec->path()) {
+    foreach (File::Spec->path()) {
         $fullpath = isExecutable($exe, $_);
         return if $fullpath;
     }
@@ -344,14 +448,156 @@ sub runtool($$$$$@)
     my $accession = shift;
     my $runURL = shift;
     my $cacheURL = shift;
+    
+    print STDERR "# running $toolpath with runURL='$runURL' and ".($cacheURL ? "cacheURL='$cacheURL'" : "no cacheURL").".\n";
+    # print STDERR "# $tool ".join(", ", @_)." $accession\n";
+    # return 'DUMMY';
+    
     my $kid = fork(); die "can't fork: $!" unless defined $kid;
     
     return $kid if $kid;
     
     # child process
     $ENV{VDB_REMOTE_URL} = $runURL;
-    $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL;
+    $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL // '';
     
     exec {$toolpath} $tool, @_, $accession;
     die "can't exec $tool: $!";
+}
+
+### @brief: process ARGV using fastq-dump style parsing rules
+###
+### #param: params   - out, by ref; array of parameters
+### #param: args     - out, by ref; array of arguments
+### #param: longName - by ref; hash mapping short to long parameter names
+### #param: hasArg   - by ref; hash specifying which parameters may take arguments
+### @param: argv
+sub processArgvOldStyle(\@\@\%\%@)
+{
+# parameter may be long or short form
+# each parameter must be a separate element (always `-X -C`; never `-XC`)
+# parameter arguments must follow parameter as a separate element (never `--param=value` or `-Xvalue`)
+
+    my $params = shift;
+    my $args = shift;
+    my $longArg = shift;
+    my $hasArg = shift;
+
+    while (@_) {
+        my $param;
+        
+        if ($_[0] !~ /^-/) { # ordinary argument
+            local $_ = shift;
+            push @$args, $_;
+            next;
+        }
+        if ($_[0] =~ /^--/) { # long param
+            $param = shift;
+        }
+        else { # short param
+            local $_ = shift;
+            $param = $longArg->{$_};
+        }
+        return FALSE if $param eq '--help';
+        if (exists $hasArg->{$param}) {
+            if ($hasArg->{$param}) { # param requires an argument
+                return FALSE unless @_;
+                local $_ = shift;
+                push @$params, $param, $_;
+                next;
+            }
+            elsif (@_ && $_[0] !~ /^-/) {
+                local $_ = shift;
+                push @$params, $param, $_;
+                next;
+            }
+        }
+        # this parameter never has an argument or
+        # optional argument wasn't given
+        push @$params, $param;
+    }
+    return TRUE;
+}
+
+### @brief: process ARGV
+###
+### @param: style    - style of args parsing: 'old' = like fastq-dump
+### #param: params   - out, by ref; array of parameters
+### #param: args     - out, by ref; array of arguments
+### #param: longName - by ref; hash mapping short to long parameter names
+### #param: hasArg   - by ref; hash specifying which parameters may take arguments
+### @param: argv
+sub processArgv($\@\@\%\%@)
+{
+    {
+        my $style = shift;
+        goto &processArgvOldStyle if $style eq 'old';
+    }
+# parameter may be long or short form
+# parameter arguments may follow as a separate element
+# parameter arguments may be attached to parameter name with an equals
+# short form parameter arguments may be attached directly to parameter
+# converts short form to long form
+# converts `--param=arg` to `--param arg`
+
+    my $params = shift;
+    my $args = shift;
+    my $longArg = shift;
+    my $hasArg = shift;
+
+    while (@_) {        
+        unless ($_[0] =~ /^-/) {
+            # ordinary argument
+            local $_ = shift;
+            push @$args, $_;
+            next;
+        }
+
+        my $param = shift;
+        if ($param =~ /^--/ ) {
+            if ($param =~ /^(--[^=]+)=(.+)$/) {
+                # convert `--param=arg` to `--param arg`
+                push @$params, $1, $2;
+                next;
+            }
+        }
+        else {
+            # short form
+            if ($param =~ /^(-.)(.+)$/) {
+                $param = $longArg->{$1};
+                if (exists $hasArg->{$param}) {
+                    # convert short form with concatenated arg to long form with separate arg
+                    push @$params, $param, $2;
+                    next;
+                }
+                else {
+                    # concatenated short form; put back the remainder
+                    unshift @_, "-$2";
+                    push @$params, $param;
+                    next;
+                }
+            }
+            else {
+                $param = $longArg->{$param};
+            }
+        }
+        return FALSE if $param eq '--help';
+        if (exists $hasArg->{$param}) {
+            if ($hasArg->{$param}) { # argument is required
+                return FALSE unless @_;
+                local $_ = shift;
+                push @$params, $param, $_;
+                next;
+            }
+            elsif (@_ && $_[0] !~ /^-/) { # argument is optional
+                local $_ = shift;
+                push @$params, $param, $_;
+                next;
+            }
+        }
+        # this parameter never has an argument or
+        # optional argument wasn't given
+        push @$params, $param;
+    }
+    return TRUE;
 }

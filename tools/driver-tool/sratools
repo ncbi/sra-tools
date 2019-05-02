@@ -43,6 +43,14 @@ extract('-format=sam', @ARGV) if $cmd eq 'sam';
 usage();
 ## unreachable
 
+### \brief: runs tool on list of accessions
+###
+### \param: tool name
+### \param: full path to tool
+### \param: tool parameters
+### \param: the list of accessions to process
+###
+### \return: DOES NOT RETURN; calls exit
 sub processAccessions($$\@@)
 {
     my $toolname = shift;

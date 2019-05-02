@@ -5,7 +5,7 @@ use warnings;
 use IO::Handle;
 use File::Spec;
 
-use Data::Dumper;
+#use Data::Dumper;
 
 use constant { TRUE => !0, FALSE => !!0 };
 use constant EXIT_CODE_TRY_NEXT_SOURCE => 9; ### TODO: UPDATE TO CORRECT CODE AFTER TOOLS ARE UPDATED
@@ -27,8 +27,7 @@ sub extract(@);
 sub usage();
 
 my ($selfvol, $selfdir, $base) = File::Spec->splitpath($0);
-my $basepath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
-# print Dumper($basepath);
+my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 
 goto RUNNING_AS_FASTQ_DUMP      if $base eq 'fastq-dump';
 goto RUNNING_AS_FASTERQ_DUMP    if $base eq 'fasterq-dump';
@@ -42,6 +41,41 @@ info(@ARGV) if $cmd eq 'info';
 extract('-format=fastq', @ARGV) if $cmd eq 'fastq';
 extract('-format=sam', @ARGV) if $cmd eq 'sam';
 usage();
+## unreachable
+
+sub processAccessions($$\@@)
+{
+    my $toolname = shift;
+    my $toolpath = shift;
+    my $params = shift;
+    my @runs = expandAllAccessions(@_);
+    
+    foreach (@runs) {
+        my $run = $_;
+        my @sources = resolveAccessionURLs($run);
+        foreach (@sources) {
+            my ($runURL, $cacheURL) = ( $_->{'url'}, $_->{'cache'} );
+            
+            # print STDERR "# running $toolpath with runURL='$runURL' and ".($cacheURL ? "cacheURL='$cacheURL'" : "no cacheURL").".\n";
+            # print STDERR "# $tool ".join(", ", @_)." $accession\n";
+
+            my $kid = fork(); die "can't fork: $!" unless defined $kid;            
+            if ($kid == 0) {
+                $ENV{VDB_REMOTE_URL} = $runURL;
+                $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL // '';
+    
+                exec {$toolpath} $toolname, @$params, $accession;
+                die "can't exec $tool: $!";
+            }
+            waitpid($kid, 0);
+
+            last if $? == 0; # SUCCESS! process the next run
+            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
+            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
+        }
+    }
+    exit 0;
+}
 
 RUNNING_AS_FASTQ_DUMP:
 {
@@ -91,7 +125,7 @@ RUNNING_AS_FASTQ_DUMP:
         '--fasta' => 0, # argument not required
     );
     my @params = (); # short params get expanded to long form
-    my @args = (); # everything that isn't a parameter or parameter argument
+    my @args = (); # everything that isn't part of a parameter
 
     if (!processArgv('old', @params, @args, %long_arg, %param_has_arg, @ARGV))
     {
@@ -99,21 +133,8 @@ RUNNING_AS_FASTQ_DUMP:
         exec {$toolpath} 'fastq-dump', '--help';
         die "can't exec original fastq-dump: $!";
     }
-    my @runs = expandAllAccessions(@args);
-    foreach (@runs) {
-        my $run = $_;
-        my @sources = resolveAccessionURLs($run);
-        foreach (@sources) {
-            my ($runURL, $cacheURL) = @$_->{'url', 'cache'};
-            my $kid = runtool('fastq-dump', $toolpath, $run, $runURL, $cacheURL, @params);
-            waitpid($kid, 0);
-
-            last if $? == 0; # SUCCESS! process the next run
-            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
-            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
-        }
-    }
-    exit 0;
+    processAccessions('fastq-dump', $toolpath, @params, @args);
+    # unreachable
 }
 
 RUNNING_AS_FASTERQ_DUMP:
@@ -157,7 +178,7 @@ RUNNING_AS_FASTERQ_DUMP:
         '--debug' => TRUE,
     );
     my @params = (); # short params get expanded to long form
-    my @args = (); # everything that isn't a parameter or parameter argument
+    my @args = (); # everything that isn't part of a parameter
 
     if (!processArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
     {
@@ -165,21 +186,8 @@ RUNNING_AS_FASTERQ_DUMP:
         exec {$toolpath} 'fasterq-dump', '--help';
         die "can't exec original fasterq-dump: $!";
     }
-    my @runs = expandAllAccessions(@args);
-    foreach (@runs) {
-        my $run = $_;
-        my @sources = resolveAccessionURLs($run);
-        foreach (@sources) {
-            my ($runURL, $cacheURL) = @$_->{'url', 'cache'};
-            my $kid = runtool('fasterq-dump', $toolpath, $run, $runURL, $cacheURL, @params);
-            waitpid($kid, 0);
-
-            last if $? == 0; # SUCCESS! process the next run
-            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
-            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
-        }
-    }
-    exit 0;
+    processAccessions('fasterq-dump', $toolpath, @params, @args);
+    # unreachable
 }
 
 RUNNING_AS_SAM_DUMP:
@@ -214,7 +222,7 @@ RUNNING_AS_SAM_DUMP:
         '--debug' => TRUE,
     );
     my @params = (); # short params get expanded to long form
-    my @args = (); # everything that isn't a parameter or parameter argument
+    my @args = (); # everything that isn't part of a parameter
 
     if (!processArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
     {
@@ -222,23 +230,17 @@ RUNNING_AS_SAM_DUMP:
         exec {$toolpath} 'sam-dump', '--help';
         die "can't exec original sam-dump: $!";
     }
-    my @runs = expandAllAccessions(@args);
-    foreach (@runs) {
-        my $run = $_;
-        my @sources = resolveAccessionURLs($run);
-        foreach (@sources) {
-            my ($runURL, $cacheURL) = ( $_->{'url'}, $_->{'cache'} );
-            my $kid = runtool('sam-dump', $toolpath, $run, $runURL, $cacheURL, @params);
-            waitpid($kid, 0) unless $kid eq 'DUMMY';
-
-            last if $? == 0; # SUCCESS! process the next run
-            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
-            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
-        }
-    }
-    exit 0;
+    processAccessions('sam-dump', $toolpath, @params, @args);
+    # unreachable
 }
 
+### \brief: turns an accession into its constituent run accessions
+###
+### \param: the query accession
+###
+### \return: array of run accessions
+###
+### currently, this is a stub that returns an empty array
 sub expandAccession($)
 {
     my @rslt = ();
@@ -246,22 +248,40 @@ sub expandAccession($)
     return @rslt;
 }
 
+### \brief: turns a list of accessions into constituent run accessions
+###
+### \param: array of query accessions
+###
+### \return: array of run accessions, array is uniqued, in order of first encounter
+###
+### currently, this is a stub that only works for run accessions
 sub expandAllAccessions(@)
 {
-    my %rslt = ();
+    my @rslt;
+    my %seen = ();
     foreach (@_) {
         if (/^[EDS]RR\d+$/) {
-            $rslt{$_} = scalar(keys %rslt) + 1 unless exists $rslt{$_};
-            next;
+            next if $seen{$_};
+            push @rslt, $_;
+            $seen{$_} = TRUE;
         }
         my @runs = expandAccession($_);
         foreach (@runs) {
-            $rslt{$_} = scalar(keys %rslt) + 1 unless exists $rslt{$_};
+            next if $seen{$_};
+            push @rslt, $_;
+            $seen{$_} = TRUE;
         }
     }
-    return sort { $rslt{$a} <=> $rslt{$b} } keys %rslt;
+    return @rslt;
 }
 
+### \brief: turns an accession into URLs
+###
+### \param: the accession
+###
+### \return: array of possible pairs of URLs to data and maybe to vdbcache files
+###
+### currently, this is a stub that just uses srapath
 sub resolveAccessionURLs($)
 {
     my $toolpath = which('srapath') or help_path('srapath', TRUE);
@@ -271,38 +291,38 @@ sub resolveAccessionURLs($)
     while (defined(local $_ = <$pipe>)) {
         chomp;
         push @result, {
-            url => $_, cache => undef
+            source => undef, url => $_, cache => undef
         };
     }
     close($pipe);
     return @result;
 }
 
-### @brief: the info sub-command
+### \brief: the info sub-command
 ###
-### @param: command line ARGS
+### \param: command line ARGS
 ###
-### @return: does not return; calls exit
+### \return: does not return; calls exit
 sub info(@)
 {
     exit 0;
 }
 
-### @brief: the extract sub-command
+### \brief: the extract sub-command
 ###
-### @param: command line ARGS
+### \param: command line ARGS
 ###
-### @return: does not return; calls exit
+### \return: does not return; calls exit
 sub extract(@)
 {
     exit 0;
 }
 
-### @brief: the help sub-command
+### \brief: the help sub-command
 ###
-### @param: command line ARGS
+### \param: command line ARGS
 ###
-### @return: does not return; calls exit
+### \return: does not return; calls exit
 sub help(@)
 {
     local $0 = $base;
@@ -375,69 +395,69 @@ sub help_path($$)
     print $_[1] ? ", which is part of this software distrobution\n" : "\n";
     print <<"EOM";
 This can be fixed in one of the following ways:
-* adding $_[0] to the directory that contains this tool, i.e. $basepath
+* adding $_[0] to the directory that contains this tool, i.e. $selfpath
 * adding the directory that contains $_[0] to the PATH environment variable
 * adding $_[0] to the current directory
 EOM
     exit 78; # EX_CONFIG from <sysexits.h>
 }
 
-### @brief: prints basic usage message
+### \brief: prints basic usage message
 ###
-### @return: does not return; calls exit
+### \return: does not return; calls exit
 sub usage()
 {
     print "Usage: $base <command> [<args> ...]\nTry\n   $base help\n";
     exit 64; # EX_USAGE from <sysexits.h>
 }
 
-### @brief: check if path+file is an executable
+### \brief: check if path+file is an executable
 ###
-### @param: executable name
-### @param: directory to examine
+### \param: executable name
+### \param: directory to examine
 ###
-### @return: path+file if it exists and is executable
+### \return: path+file if it exists and is executable
 sub isExecutable($$)
 {
     my ($vol, $dirs, undef) = File::Spec->splitpath($_[1], !0);
-    my $fullpath = File::Spec->catpath($vol, $dirs, $_[0]);
-    return $fullpath if -e $fullpath && -x $fullpath;
-    return undef;
+    local $_ = File::Spec->catpath($vol, $dirs, $_[0]);
+    return (-e && -x) ? $_ : undef;
 }
 
-### @brief: like shell `which` with PATH set to $basepath : $PATH : .
+### \brief: like shell `which` but checks more than just PATH
 ###
-### @param: executable name
+### \param: executable name
 ###
-### @return: the full path to executable or undef
-sub which_i($)
+### \return: the full path to executable or undef
+sub witch($)
 {
     my $exe = $_[0];
     my $fullpath;
 
-    ## first try same directory as this tool
-    $fullpath = isExecutable($exe, $basepath);
+    ## first check self directory
+    $fullpath = isExecutable($exe, $selfpath);
     return $fullpath if $fullpath;
 
+    ## check PATH
     local $_;
     foreach (File::Spec->path()) {
         $fullpath = isExecutable($exe, $_);
-        return if $fullpath;
+        return $fullpath if $fullpath;
     }
 
-    ## try current directory
+    ## lastly check current directory
     return isExecutable($exe, File::Spec->curdir());
 }
 
-### @brief: memo-ized which
+### \brief: memo-ized which
 ###
-### @param: executable name
+### \param: executable name
 ###
-### @return: the full path to executable or undef
+### \return: the full path to executable or undef
 my %which_mem = ();
 sub which($)
 {
-    $which_mem{$_[0]} = which_i($_[0]) unless exists $which_mem{$_[0]};
+    $which_mem{$_[0]} = witch($_[0]) unless exists $which_mem{$_[0]};
     return $which_mem{$_[0]};
 }
 
@@ -465,13 +485,13 @@ sub runtool($$$$$@)
     die "can't exec $tool: $!";
 }
 
-### @brief: process ARGV using fastq-dump style parsing rules
+### \brief: process ARGV using fastq-dump style parsing rules
 ###
-### #param: params   - out, by ref; array of parameters
-### #param: args     - out, by ref; array of arguments
-### #param: longName - by ref; hash mapping short to long parameter names
-### #param: hasArg   - by ref; hash specifying which parameters may take arguments
-### @param: argv
+### \param: params   - out, by ref; array of parameters
+### \param: args     - out, by ref; array of arguments
+### \param: longName - by ref; hash mapping short to long parameter names
+### \param: hasArg   - by ref; hash specifying which parameters may take arguments
+### \param: argv
 sub processArgvOldStyle(\@\@\%\%@)
 {
 # parameter may be long or short form
@@ -519,14 +539,14 @@ sub processArgvOldStyle(\@\@\%\%@)
     return TRUE;
 }
 
-### @brief: process ARGV
+### \brief: process ARGV
 ###
-### @param: style    - style of args parsing: 'old' = like fastq-dump
-### #param: params   - out, by ref; array of parameters
-### #param: args     - out, by ref; array of arguments
-### #param: longName - by ref; hash mapping short to long parameter names
-### #param: hasArg   - by ref; hash specifying which parameters may take arguments
-### @param: argv
+### \param: style    - style of args parsing: 'old' = like fastq-dump
+### \param: params   - out, by ref; array of parameters
+### \param: args     - out, by ref; array of arguments
+### \param: longName - by ref; hash mapping short to long parameter names
+### \param: hasArg   - by ref; hash specifying which parameters may take arguments
+### \param: argv
 sub processArgv($\@\@\%\%@)
 {
     {

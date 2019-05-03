@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use v5.16;
 use strict;
 use warnings;
 use IO::Handle;
@@ -15,23 +16,17 @@ use constant {
     REAL_FASTERQ_DUMP => 'fasterq-dump-orig',
 };
 
-sub expandAllAccessions(@);
-sub resolveAccessionURLs($);
-sub processArgv($\@\@\%\%@);
-sub help_path($$);
-sub runtool($$$$$@);
-sub which($);
+my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
+my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
+
+goto RUNNING_AS_FASTQ_DUMP      if $basename eq 'fastq-dump';
+goto RUNNING_AS_FASTERQ_DUMP    if $basename eq 'fasterq-dump';
+goto RUNNING_AS_SAM_DUMP        if $basename eq 'sam-dump';
+
+sub usage();
 sub help(@);
 sub info(@);
 sub extract(@);
-sub usage();
-
-my ($selfvol, $selfdir, $base) = File::Spec->splitpath($0);
-my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
-
-goto RUNNING_AS_FASTQ_DUMP      if $base eq 'fastq-dump';
-goto RUNNING_AS_FASTERQ_DUMP    if $base eq 'fasterq-dump';
-goto RUNNING_AS_SAM_DUMP        if $base eq 'sam-dump';
 
 usage() unless @ARGV;
 
@@ -41,13 +36,22 @@ info(@ARGV) if $cmd eq 'info';
 extract('-format=fastq', @ARGV) if $cmd eq 'fastq';
 extract('-format=sam', @ARGV) if $cmd eq 'sam';
 usage();
-## unreachable
+die "unreachable";
+
+sub expandAllAccessions(@);
+sub resolveAccessionURLs($);
+sub parseArgv($\@\@\%\%@);
+sub help_path($$);
+sub which($);
 
 ### \brief: runs tool on list of accessions
 ###
-### \param: tool name
-### \param: full path to tool
-### \param: tool parameters
+### After args parsing, this is called to do the meat of the work.
+### Accession can be any kind of SRA accession.
+###
+### \param: tool name, e.g. fastq-dump
+### \param: full path to tool, e.g. /path/to/fastq-dump-orig
+### \param: tool parameters; arrayref
 ### \param: the list of accessions to process
 ###
 ### \return: DOES NOT RETURN; calls exit
@@ -58,11 +62,10 @@ sub processAccessions($$\@@)
     my $params = shift;
     my @runs = expandAllAccessions(@_);
     
-    foreach (@runs) {
-        my $run = $_;
+    foreach my $run (@runs) {
         my @sources = resolveAccessionURLs($run);
         foreach (@sources) {
-            my ($runURL, $cacheURL) = ( $_->{'url'}, $_->{'cache'} );
+            my ($runURL, $cacheURL) = @$_{'url', 'cache'};
             
             # print STDERR "# running $toolpath with runURL='$runURL' and ".($cacheURL ? "cacheURL='$cacheURL'" : "no cacheURL").".\n";
             # print STDERR "# $tool ".join(", ", @_)." $accession\n";
@@ -72,8 +75,8 @@ sub processAccessions($$\@@)
                 $ENV{VDB_REMOTE_URL} = $runURL;
                 $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL // '';
     
-                exec {$toolpath} $toolname, @$params, $accession;
-                die "can't exec $tool: $!";
+                exec {$toolpath} $toolname, @$params, $run;
+                die "can't exec $toolname: $!";
             }
             waitpid($kid, 0);
 
@@ -83,6 +86,81 @@ sub processAccessions($$\@@)
         }
     }
     exit 0;
+}
+
+sub expandAccession($);
+
+### \brief: turns a list of accessions into constituent run accessions
+###
+### \param: array of query accessions
+###
+### \return: array of run accessions, array is uniqued, in order of first encounter
+###
+### currently, this is a stub that only works for run accessions
+sub expandAllAccessions(@)
+{
+    my @rslt;
+    my %seen = ();
+
+    while (@_) {
+        local $_ = shift;
+        next if $seen{$_};
+        $seen{$_} = TRUE;
+        
+        # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
+        if (/^[EDS]RR\d+$/) {
+            push @rslt, $_;
+            next;
+        }
+        # check if it is a file
+        if (-f) {
+            push @rslt, $_;
+            next;
+        }
+        # see if it can be expanded into run accessions
+        push @_, expandAccession($_);
+    }
+    return @rslt;
+}
+
+### \brief: turns an accession into URLs
+###
+### \param: the accession
+###
+### \return: array of possible pairs of URLs to data and maybe to vdbcache files
+###
+### currently, this is a stub that just uses srapath
+sub resolveAccessionURLs($)
+{
+    my $toolpath = which('srapath') or help_path('srapath', TRUE);
+    my @result;
+    my $kid = open(my $pipe, '-|', $toolpath, $_[0]) or die "can't fork or can't exec srapath: $!";
+
+    while (defined(local $_ = <$pipe>)) {
+        ## TODO: proper parsing of new? srapath response
+        chomp;
+        push @result, {
+              source => undef
+            , url => $_
+            , cache => undef
+        };
+    }
+    close($pipe);
+    return @result;
+}
+
+### \brief: turns an accession into its constituent run accessions
+###
+### \param: the query accession
+###
+### \return: array of run accessions
+###
+### currently, this is a stub that returns an empty array
+sub expandAccession($)
+{
+    my @rslt = ();
+    # TODO 
+    return @rslt;
 }
 
 RUNNING_AS_FASTQ_DUMP:
@@ -135,14 +213,14 @@ RUNNING_AS_FASTQ_DUMP:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!processArgv('old', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    if (!parseArgv('old', @params, @args, %long_arg, %param_has_arg, @ARGV))
     {
         # usage error or user asked for help
         exec {$toolpath} 'fastq-dump', '--help';
         die "can't exec original fastq-dump: $!";
     }
     processAccessions('fastq-dump', $toolpath, @params, @args);
-    # unreachable
+    die "unreachable";
 }
 
 RUNNING_AS_FASTERQ_DUMP:
@@ -188,14 +266,14 @@ RUNNING_AS_FASTERQ_DUMP:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!processArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
     {
         # usage error or user asked for help
         exec {$toolpath} 'fasterq-dump', '--help';
         die "can't exec original fasterq-dump: $!";
     }
     processAccessions('fasterq-dump', $toolpath, @params, @args);
-    # unreachable
+    die "unreachable";
 }
 
 RUNNING_AS_SAM_DUMP:
@@ -232,265 +310,14 @@ RUNNING_AS_SAM_DUMP:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!processArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
     {
         # usage error or user asked for help
         exec {$toolpath} 'sam-dump', '--help';
         die "can't exec original sam-dump: $!";
     }
     processAccessions('sam-dump', $toolpath, @params, @args);
-    # unreachable
-}
-
-### \brief: turns an accession into its constituent run accessions
-###
-### \param: the query accession
-###
-### \return: array of run accessions
-###
-### currently, this is a stub that returns an empty array
-sub expandAccession($)
-{
-    my @rslt = ();
-    # TODO 
-    return @rslt;
-}
-
-### \brief: turns a list of accessions into constituent run accessions
-###
-### \param: array of query accessions
-###
-### \return: array of run accessions, array is uniqued, in order of first encounter
-###
-### currently, this is a stub that only works for run accessions
-sub expandAllAccessions(@)
-{
-    my @rslt;
-    my %seen = ();
-    foreach (@_) {
-        if (/^[EDS]RR\d+$/) {
-            next if $seen{$_};
-            push @rslt, $_;
-            $seen{$_} = TRUE;
-        }
-        my @runs = expandAccession($_);
-        foreach (@runs) {
-            next if $seen{$_};
-            push @rslt, $_;
-            $seen{$_} = TRUE;
-        }
-    }
-    return @rslt;
-}
-
-### \brief: turns an accession into URLs
-###
-### \param: the accession
-###
-### \return: array of possible pairs of URLs to data and maybe to vdbcache files
-###
-### currently, this is a stub that just uses srapath
-sub resolveAccessionURLs($)
-{
-    my $toolpath = which('srapath') or help_path('srapath', TRUE);
-    my @result;
-    my $kid = open(my $pipe, '-|', $toolpath, $_[0]) or die "can't fork or can't exec srapath: $!";
-
-    while (defined(local $_ = <$pipe>)) {
-        chomp;
-        push @result, {
-            source => undef, url => $_, cache => undef
-        };
-    }
-    close($pipe);
-    return @result;
-}
-
-### \brief: the info sub-command
-###
-### \param: command line ARGS
-###
-### \return: does not return; calls exit
-sub info(@)
-{
-    exit 0;
-}
-
-### \brief: the extract sub-command
-###
-### \param: command line ARGS
-###
-### \return: does not return; calls exit
-sub extract(@)
-{
-    exit 0;
-}
-
-### \brief: the help sub-command
-###
-### \param: command line ARGS
-###
-### \return: does not return; calls exit
-sub help(@)
-{
-    local $0 = $base;
-    
-    goto INFO if $_[0] && $_[0] eq 'info';
-    goto FASTQ if $_[0] && $_[0] eq 'fastq';
-    goto SAM if $_[0] && $_[0] eq 'sam';
-    
-    print "Usage: $0 <command> [<args> ...]\n";
-    print <<"EOF";
-Commands are:
-    info  - get info for an SRA accession
-    fastq - extract FASTQ from an SRA accession
-    sam   - extract SAM from an SRA accession
-    
-    help <command> - detailed help for <command> or this message
-    
-About SRA accessions:
-    SRA accessions come in several types. Most types are containers of other
-    types, except for SRA run accessions which contain sequence data. Only SRA
-    run accessions may be extracted. This tool will expand container accessions
-    to their constituent run accessions and perform the requested function on
-    each.
-    
-    SRA run accessions can be extracted as FASTQ.
-    
-    SRA run accessions can be extracted as SAM; if the run contains alignments,
-    the alignment information will be in the SAM records for the aligned reads.
-    
-    SRA does not guarantee that the original read names are preserved. SRA does
-    guarantee that the identity of the reads and mate-pairs are preserved.
-    
-    SRA does not guarantee that the original quality scores are preserved.
-    
-See also:
-    The SRA homepage at NCBI:
-    https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi
-
-    The SRA Toolkit homepage, where you may obtain the latest versions of this
-    software and related tools:
-    https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software
-EOF
-    exit 0;
-
-  INFO:
-    print <<"EOM";
-Usage: $0 info <object>
-Prints detailed information about an SRA object
-EOM
-    exit 0;
-
-  FASTQ:
-    print <<"EOM";
-Usage: $0 fastq <object>
-Extract FASTQ from (possibly many) SRA run accessions
-EOM
-    exit 0;
-
-  SAM:
-    print <<"EOM";
-Usage: $0 info <object>
-Extract SAM from (possibly many) SRA run accessions
-EOM
-    exit 0;
-}
-
-sub help_path($$)
-{
-    print "could not find $_[0]";
-    print $_[1] ? ", which is part of this software distrobution\n" : "\n";
-    print <<"EOM";
-This can be fixed in one of the following ways:
-* adding $_[0] to the directory that contains this tool, i.e. $selfpath
-* adding the directory that contains $_[0] to the PATH environment variable
-* adding $_[0] to the current directory
-EOM
-    exit 78; # EX_CONFIG from <sysexits.h>
-}
-
-### \brief: prints basic usage message
-###
-### \return: does not return; calls exit
-sub usage()
-{
-    print "Usage: $base <command> [<args> ...]\nTry\n   $base help\n";
-    exit 64; # EX_USAGE from <sysexits.h>
-}
-
-### \brief: check if path+file is an executable
-###
-### \param: executable name
-### \param: directory to examine
-###
-### \return: path+file if it exists and is executable
-sub isExecutable($$)
-{
-    my ($vol, $dirs, undef) = File::Spec->splitpath($_[1], !0);
-    local $_ = File::Spec->catpath($vol, $dirs, $_[0]);
-    return (-e && -x) ? $_ : undef;
-}
-
-### \brief: like shell `which` but checks more than just PATH
-###
-### \param: executable name
-###
-### \return: the full path to executable or undef
-sub witch($)
-{
-    my $exe = $_[0];
-    my $fullpath;
-
-    ## first check self directory
-    $fullpath = isExecutable($exe, $selfpath);
-    return $fullpath if $fullpath;
-
-    ## check PATH
-    local $_;
-    foreach (File::Spec->path()) {
-        $fullpath = isExecutable($exe, $_);
-        return $fullpath if $fullpath;
-    }
-
-    ## lastly check current directory
-    return isExecutable($exe, File::Spec->curdir());
-}
-
-### \brief: memo-ized which
-###
-### \param: executable name
-###
-### \return: the full path to executable or undef
-my %which_mem = ();
-sub which($)
-{
-    $which_mem{$_[0]} = witch($_[0]) unless exists $which_mem{$_[0]};
-    return $which_mem{$_[0]};
-}
-
-sub runtool($$$$$@)
-{
-    my $tool = shift;
-    my $toolpath = shift;
-    my $accession = shift;
-    my $runURL = shift;
-    my $cacheURL = shift;
-    
-    print STDERR "# running $toolpath with runURL='$runURL' and ".($cacheURL ? "cacheURL='$cacheURL'" : "no cacheURL").".\n";
-    # print STDERR "# $tool ".join(", ", @_)." $accession\n";
-    # return 'DUMMY';
-    
-    my $kid = fork(); die "can't fork: $!" unless defined $kid;
-    
-    return $kid if $kid;
-    
-    # child process
-    $ENV{VDB_REMOTE_URL} = $runURL;
-    $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL // '';
-    
-    exec {$toolpath} $tool, @_, $accession;
-    die "can't exec $tool: $!";
+    die "unreachable";
 }
 
 ### \brief: process ARGV using fastq-dump style parsing rules
@@ -500,7 +327,7 @@ sub runtool($$$$$@)
 ### \param: longName - by ref; hash mapping short to long parameter names
 ### \param: hasArg   - by ref; hash specifying which parameters may take arguments
 ### \param: argv
-sub processArgvOldStyle(\@\@\%\%@)
+sub parseArgvOldStyle(\@\@\%\%@)
 {
 # parameter may be long or short form
 # each parameter must be a separate element (always `-X -C`; never `-XC`)
@@ -555,11 +382,11 @@ sub processArgvOldStyle(\@\@\%\%@)
 ### \param: longName - by ref; hash mapping short to long parameter names
 ### \param: hasArg   - by ref; hash specifying which parameters may take arguments
 ### \param: argv
-sub processArgv($\@\@\%\%@)
+sub parseArgv($\@\@\%\%@)
 {
     {
         my $style = shift;
-        goto &processArgvOldStyle if $style eq 'old';
+        goto &parseArgvOldStyle if $style eq 'old';
     }
 # parameter may be long or short form
 # parameter arguments may follow as a separate element
@@ -628,4 +455,167 @@ sub processArgv($\@\@\%\%@)
         push @$params, $param;
     }
     return TRUE;
+}
+
+sub help_path($$)
+{
+    print "could not find $_[0]";
+    print $_[1] ? ", which is part of this software distrobution\n" : "\n";
+    print <<"EOM";
+This can be fixed in one of the following ways:
+* adding $_[0] to the directory that contains this tool, i.e. $selfpath
+* adding the directory that contains $_[0] to the PATH environment variable
+* adding $_[0] to the current directory
+EOM
+    exit 78; # EX_CONFIG from <sysexits.h>
+}
+
+### \brief: check if path+file is an executable
+###
+### \param: executable name
+### \param: directory to examine
+###
+### \return: path+file if it exists and is executable
+sub isExecutable($$)
+{
+    my ($vol, $dirs, undef) = File::Spec->splitpath($_[1], !0);
+    local $_ = File::Spec->catpath($vol, $dirs, $_[0]);
+    return (-e && -x) ? $_ : undef;
+}
+
+### \brief: like shell `which` but checks more than just PATH
+###
+### \param: executable name
+###
+### \return: the full path to executable or undef
+sub witch($)
+{
+    my $exe = $_[0];
+    my $fullpath;
+
+    ## first check self directory
+    $fullpath = isExecutable($exe, $selfpath);
+    return $fullpath if $fullpath;
+
+    ## check PATH
+    local $_;
+    foreach (File::Spec->path()) {
+        $fullpath = isExecutable($exe, $_);
+        return $fullpath if $fullpath;
+    }
+
+    ## lastly check current directory
+    return isExecutable($exe, File::Spec->curdir());
+}
+
+### \brief: memo-ized which
+###
+### \param: executable name
+###
+### \return: the full path to executable or undef
+my %which_mem = ();
+sub which($)
+{
+    $which_mem{$_[0]} = witch($_[0]) unless exists $which_mem{$_[0]};
+    return $which_mem{$_[0]};
+}
+
+### \brief: the info sub-command
+###
+### \param: command line ARGS
+###
+### \return: does not return; calls exit
+sub info(@)
+{
+    exit 0;
+}
+
+### \brief: the extract sub-command
+###
+### \param: command line ARGS
+###
+### \return: does not return; calls exit
+sub extract(@)
+{
+    exit 0;
+}
+
+### \brief: the help sub-command
+###
+### \param: command line ARGS
+###
+### \return: does not return; calls exit
+sub help(@)
+{
+    local $0 = $basename;
+    
+    goto INFO if $_[0] && $_[0] eq 'info';
+    goto FASTQ if $_[0] && $_[0] eq 'fastq';
+    goto SAM if $_[0] && $_[0] eq 'sam';
+    
+    print "Usage: $0 <command> [<args> ...]\n";
+    print <<"EOF";
+Commands are:
+    info  - get info for an SRA accession
+    fastq - extract FASTQ from an SRA accession
+    sam   - extract SAM from an SRA accession
+    
+    help <command> - detailed help for <command> or this message
+    
+About SRA accessions:
+    SRA accessions come in several types. Most types are containers of other
+    types, except for SRA run accessions which contain sequence data. Only SRA
+    run accessions may be extracted. This tool will expand container accessions
+    to their constituent run accessions and perform the requested function on
+    each.
+    
+    SRA run accessions can be extracted as FASTQ.
+    
+    SRA run accessions can be extracted as SAM; if the run contains alignments,
+    the alignment information will be in the SAM records for the aligned reads.
+    
+    SRA does not guarantee that the original read names are preserved. SRA does
+    guarantee that the identity of the reads and mate-pairs are preserved.
+    
+    SRA does not guarantee that the original quality scores are preserved.
+    
+See also:
+    The SRA homepage at NCBI:
+    https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi
+
+    The SRA Toolkit homepage, where you may obtain the latest versions of this
+    software and related tools:
+    https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software
+EOF
+    exit 0;
+
+  INFO:
+    print <<"EOM";
+Usage: $0 info <object>
+Prints detailed information about an SRA object
+EOM
+    exit 0;
+
+  FASTQ:
+    print <<"EOM";
+Usage: $0 fastq <object>
+Extract FASTQ from (possibly many) SRA run accessions
+EOM
+    exit 0;
+
+  SAM:
+    print <<"EOM";
+Usage: $0 info <object>
+Extract SAM from (possibly many) SRA run accessions
+EOM
+    exit 0;
+}
+
+### \brief: prints basic usage message
+###
+### \return: does not return; calls exit
+sub usage()
+{
+    print "Usage: $basename <command> [<args> ...]\nTry\n   $basename help\n";
+    exit 64; # EX_USAGE from <sysexits.h>
 }

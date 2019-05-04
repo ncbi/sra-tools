@@ -153,7 +153,7 @@ sub resolveAccessionURLs($)
     return @result;
 }
 
-use Scalar::Util;
+use constant EUTILS_URL => URI->new('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/');
 
 ### \brief: turns an accession into its constituent run accessions
 ###
@@ -169,48 +169,38 @@ sub expandAccession($)
                                 , parse_head => 0
                                 , ssl_opts => { verify_hostname => 0 } );
     { # first get id list for query
-        my $uri = URI->new("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi");
-        $uri->query_form(  retmode => 'json'
-                         , db => 'sra'
-                         , term => $_[0]
-                         );
-        my $res = $ua->get($uri);
+        my $uri = URI->new_abs('esearch.fcgi', EUTILS_URL);
+        $uri->query_form(retmode => 'json', db => 'sra', term => $_[0]);
 
-        if ($res->is_error) {
-            die $res->status_line;
-        }
+        my $res = $ua->get($uri); die $res->status_line unless $res->is_success;
+
         my $obj = decode_json $res->content;
         my $result = $obj ? $obj->{esearchresult} : undef;
         my $idlist = $result ? $result->{idlist} : undef;
         @ids = @$idlist if $idlist;
     }
     if (@ids) {
-        my $uri = URI->new("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi");
-        $uri->query_form(  retmode => 'json'
-                         , db => 'sra'
-                         , id => join(',', @ids)
-                         );
-        my $res = $ua->get($uri);
+        my $uri = URI->new_abs('esummary.fcgi', EUTILS_URL);
+        $uri->query_form(retmode => 'json', db => 'sra', id => join(',', @ids));
+        
+        my $res = $ua->get($uri); die $res->status_line unless $res->is_success;
 
-        if ($res->is_error) {
-            die $res->status_line;
-        }
-        my $obj = decode_json $res->content;
-        my $result = $obj ? $obj->{result} : undef;
+        my $obj = decode_json $res->content or die "unexpected response from eutils";
+        my $result = $obj->{result} or die "unexpected response from eutils";
         for (@ids) {
-            my $obj = $result->{$_} or next;
-            my $runs = $obj->{runs} or next;
-            $runs =~ s/&lt;/</g;
-            $runs =~ s/&gt;/>/g;
-            $runs =~ s/&amp;/&/g;
+            my $obj = $result->{$_} or die "unexpected response from eutils";
+            my $xml = $obj->{runs} or die "unexpected response from eutils";
+            $xml =~ s/&lt;/</g;
+            $xml =~ s/&gt;/>/g;
+            $xml =~ s/&amp;/&/g;
             
-            my $frag = $parser->parse_balanced_chunk($runs);
+            my $frag = $parser->parse_balanced_chunk($xml) or die "unexpected response from eutils";
             for my $run ($frag->findnodes('Run')) {
-                my $acc = $run->findvalue('@acc') or next;
-                my $loaded = $run->findvalue('@load_done') or next;
-                next unless $loaded eq 'true';
-                my $public = $run->findvalue('@is_public') or next;
-                next unless $public eq 'true'; ### TODO REMOVE WHEN READY
+                my $loaded = $run->findvalue('@load_done') or die "unexpected response from eutils";
+                my $public = $run->findvalue('@is_public') or die "unexpected response from eutils";
+                next unless $loaded eq 'true' && $public eq 'true';
+
+                my $acc = $run->findvalue('@acc') or die "unexpected response from eutils";
                 push @rslt, $acc;
             }
         }

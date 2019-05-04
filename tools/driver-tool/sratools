@@ -5,8 +5,12 @@ use strict;
 use warnings;
 use IO::Handle;
 use File::Spec;
+use JSON::PP;
+use LWP;
+use URI;
+use XML::LibXML;
 
-#use Data::Dumper;
+use Data::Dumper;
 
 use constant { TRUE => !0, FALSE => !!0 };
 use constant EXIT_CODE_TRY_NEXT_SOURCE => 9; ### TODO: UPDATE TO CORRECT CODE AFTER TOOLS ARE UPDATED
@@ -149,17 +153,68 @@ sub resolveAccessionURLs($)
     return @result;
 }
 
+use Scalar::Util;
+
 ### \brief: turns an accession into its constituent run accessions
 ###
 ### \param: the query accession
 ###
 ### \return: array of run accessions
-###
-### currently, this is a stub that returns an empty array
 sub expandAccession($)
 {
     my @rslt = ();
-    # TODO 
+    my @ids = ();
+    my $parser = XML::LibXML->new( no_network => 1, no_blanks => 1 );
+    my $ua = LWP::UserAgent->new( agent => 'sratoolkit'
+                                , parse_head => 0
+                                , ssl_opts => { verify_hostname => 0 } );
+    { # first get id list for query
+        my $uri = URI->new("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi");
+        $uri->query_form(  retmode => 'json'
+                         , db => 'sra'
+                         , term => $_[0]
+                         );
+        my $res = $ua->get($uri);
+
+        if ($res->is_error) {
+            die $res->status_line;
+        }
+        my $obj = decode_json $res->content;
+        my $result = $obj ? $obj->{esearchresult} : undef;
+        my $idlist = $result ? $result->{idlist} : undef;
+        @ids = @$idlist if $idlist;
+    }
+    if (@ids) {
+        my $uri = URI->new("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi");
+        $uri->query_form(  retmode => 'json'
+                         , db => 'sra'
+                         , id => join(',', @ids)
+                         );
+        my $res = $ua->get($uri);
+
+        if ($res->is_error) {
+            die $res->status_line;
+        }
+        my $obj = decode_json $res->content;
+        my $result = $obj ? $obj->{result} : undef;
+        for (@ids) {
+            my $obj = $result->{$_} or next;
+            my $runs = $obj->{runs} or next;
+            $runs =~ s/&lt;/</g;
+            $runs =~ s/&gt;/>/g;
+            $runs =~ s/&amp;/&/g;
+            
+            my $frag = $parser->parse_balanced_chunk($runs);
+            for my $run ($frag->findnodes('Run')) {
+                my $acc = $run->findvalue('@acc') or next;
+                my $loaded = $run->findvalue('@load_done') or next;
+                next unless $loaded eq 'true';
+                my $public = $run->findvalue('@is_public') or next;
+                next unless $public eq 'true'; ### TODO REMOVE WHEN READY
+                push @rslt, $acc;
+            }
+        }
+    }
     return @rslt;
 }
 
@@ -527,6 +582,15 @@ sub which($)
 ### \return: does not return; calls exit
 sub info(@)
 {
+    foreach my $query (@_) {
+        my @runs = expandAccession $query;
+        if (@runs) {
+            say "$query consists of these $#runs runs:\n".join("\n", @runs);
+        }
+        else {
+            say "nothing found for $query";
+        }
+    }
     exit 0;
 }
 

@@ -164,26 +164,26 @@ sub expandAccession($)
 {
     my @rslt = ();
     my @ids = ();
-    my $parser = XML::LibXML->new( no_network => 1, no_blanks => 1 );
     my $ua = LWP::UserAgent->new( agent => 'sratoolkit'
                                 , parse_head => 0
                                 , ssl_opts => { verify_hostname => 0 } );
     { # first get id list for query
-        my $uri = URI->new_abs('esearch.fcgi', EUTILS_URL);
-        $uri->query_form(retmode => 'json', db => 'sra', term => $_[0]);
+        my $url = URI->new_abs('esearch.fcgi', EUTILS_URL);
+        $url->query_form(retmode => 'json', db => 'sra', term => $_[0]);
 
-        my $res = $ua->get($uri); die $res->status_line unless $res->is_success;
+        my $res = $ua->get($url); die $res->status_line unless $res->is_success;
 
         my $obj = decode_json $res->content;
-        my $result = $obj ? $obj->{esearchresult} : undef;
-        my $idlist = $result ? $result->{idlist} : undef;
-        @ids = @$idlist if $idlist;
+        my $result = $obj->{esearchresult} or die "unexpected response from eutils";
+        my $idlist = $result->{idlist} or die "unexpected response from eutils";
+        @ids = @$idlist;
     }
     if (@ids) {
-        my $uri = URI->new_abs('esummary.fcgi', EUTILS_URL);
-        $uri->query_form(retmode => 'json', db => 'sra', id => join(',', @ids));
+        my $parser = XML::LibXML->new( no_network => 1, no_blanks => 1 );
+        my $url = URI->new_abs('esummary.fcgi', EUTILS_URL);
+        $url->query_form(retmode => 'json', db => 'sra', id => join(',', @ids));
         
-        my $res = $ua->get($uri); die $res->status_line unless $res->is_success;
+        my $res = $ua->get($url); die $res->status_line unless $res->is_success;
 
         my $obj = decode_json $res->content or die "unexpected response from eutils";
         my $result = $obj->{result} or die "unexpected response from eutils";
@@ -505,7 +505,7 @@ sub parseArgv($\@\@\%\%@)
 sub help_path($$)
 {
     print "could not find $_[0]";
-    print $_[1] ? ", which is part of this software distrobution\n" : "\n";
+    print $_[1] ? ", which is part of this software distribution\n" : "\n";
     print <<"EOM";
 This can be fixed in one of the following ways:
 * adding $_[0] to the directory that contains this tool, i.e. $selfpath

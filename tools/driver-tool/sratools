@@ -36,11 +36,12 @@ sub extract(@);
 
 usage() unless @ARGV;
 
-my $cmd = shift;
-help(@ARGV) if $cmd eq 'help';
-info(@ARGV) if $cmd eq 'info';
-extract('-format=fastq', @ARGV) if $cmd eq 'fastq';
-extract('-format=sam', @ARGV) if $cmd eq 'sam';
+$_ = shift;
+help(@ARGV) if /^help$/;
+info(@ARGV) if /^info$/;
+extract('-format=fastq', @ARGV) if /^fastq$/;
+extract('-format=sam', @ARGV) if /^sam$/;
+unshift @ARGV, $_;
 usage();
 die "unreachable";
 
@@ -114,7 +115,7 @@ sub expandAllAccessions(@)
         $seen{$_} = TRUE;
         
         # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
-        if (/^[EDS]RR\d+$/) {
+        if (/^[DES]RR\d+$/) {
             push @rslt, $_;
             next;
         }
@@ -580,13 +581,19 @@ sub which($)
 ### \return: does not return; calls exit
 sub info(@)
 {
+    help('info') unless @_;
     foreach my $query (@_) {
-        my @runs = expandAccession $query;
-        if (@runs) {
-            say "$query consists of these ".(0+@runs)." runs:\n".join("\n", @runs);
+        if ($query =~ /^[DES]RR\d+$/) {
+            say "$query is a run";
         }
         else {
-            say "nothing found for $query";
+            my @runs = expandAccession $query;
+            if (@runs) {
+                say "$query consists of these ".(0+@runs)." runs:\n".join("\n", @runs);
+            }
+            else {
+                say "nothing found for $query";
+            }
         }
     }
     exit 0;
@@ -682,75 +689,79 @@ sub usage()
     exit 64; # EX_USAGE from <sysexits.h>
 }
 
-use Test::Simple tests => 25;
 RUN_TESTS:
-{
-    my %long_args = (
-        '-h' => '--help',
-        '-?' => '--help',
-        '-L' => '--log-level',
-    );
-    my %param_args = (
-        '--log-level' => TRUE,
-    );
-    my @params;
-    my @args;
+eval <<'TESTS';
+
+use Test::Simple tests => 25;
+my %long_args = (
+    '-h' => '--help',
+    '-?' => '--help',
+    '-L' => '--log-level',
+);
+my %param_args = (
+    '--log-level' => TRUE,
+);
+my @params;
+my @args;
+
+# which test
+ok( witch($basename), 'found self');
+
+# old style args parsing
+ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -h }), 'oldstyle: -h returns false' );
+ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -? }), 'oldstyle: -? returns false' );
+ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ --help }), 'oldstyle: --help returns false' );
+ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -L }), 'oldstyle: -L without parameter returns false' );
+ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ --log-level }), 'oldstyle: --log-level without parameter returns false' );
+
+ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ -L 5 })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    , 'oldstyle: -L 5' );
+ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ --log-level 5 })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    , 'oldstyle: --log-level 5' );
+ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ foobar })
+    && 0+@params == 0 && 0+@args == 1 && $args[0] eq 'foobar'
+    , 'oldstyle: foobar' );
+ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ -L 5 foo bar })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    && 0+@args == 2 && $args[0] eq 'foo' && $args[1] eq 'bar'
+    , 'oldstyle: -L 5 foo bar' );
+
+# new style args parsing
+ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ -h }), 'newstyle: -h returns false' );
+ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ -? }), 'newstyle: -? returns false' );
+ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ --help }), 'newstyle: --help returns false' );
+ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level 5 --help }), 'newstyle: --help with other stuff still returns false' );
+ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L }), 'newstyle: -L without parameter returns false' );
+ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level }), 'newstyle: --log-level without parameter returns false' );
+
+ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L5 })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    , 'newstyle: -L5' );
+ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L 5 })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    , 'newstyle: -L 5' );
+ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level=5 })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    , 'newstyle: --log-level=5' );
+ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level 5 })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    , 'newstyle: --log-level 5' );
+ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ foobar })
+    && 0+@params == 0 && 0+@args == 1 && $args[0] eq 'foobar'
+    , 'newstyle: foobar' );
+ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L 5 foo bar })
+    && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
+    && 0+@args == 2 && $args[0] eq 'foo' && $args[1] eq 'bar'
+    , 'newstyle: -L 5 foo bar' );
     
-    # witch tests
-    ok( witch($basename), 'found self');
+# accession lookup tests
+my @runs;
+ok( !(@runs = expandAccession('foobar')), 'lookup: nothing found for foobar' );
+ok( scalar(@runs = expandAccession('SRS107532')) == 1 && $runs[0] eq 'SRR064437', 'lookup: SRS107532 contains SRR064437' );
+sleep(2);
+ok( scalar(@runs = expandAccession('SRA000001')) == 3, 'lookup: SRA000001 contains 3 runs' );
 
-    # old style args parsing
-    ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -h }), 'oldstyle: -h returns false' );
-    ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -? }), 'oldstyle: -? returns false' );
-    ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ --help }), 'oldstyle: --help returns false' );
-    ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -L }), 'oldstyle: -L without parameter returns false' );
-    ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ --log-level }), 'oldstyle: --log-level without parameter returns false' );
-
-    ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ -L 5 })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        , 'oldstyle: -L 5' );
-    ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ --log-level 5 })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        , 'oldstyle: --log-level 5' );
-    ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ foobar })
-        && 0+@params == 0 && 0+@args == 1 && $args[0] eq 'foobar'
-        , 'oldstyle: foobar' );
-    ok( parseArgv('old', @params, @args, %long_args, %param_args, qw{ -L 5 foo bar })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        && 0+@args == 2 && $args[0] eq 'foo' && $args[1] eq 'bar'
-        , 'oldstyle: -L 5 foo bar' );
-
-    # new style args parsing
-    ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ -h }), 'newstyle: -h returns false' );
-    ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ -? }), 'newstyle: -? returns false' );
-    ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ --help }), 'newstyle: --help returns false' );
-    ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level 5 --help }), 'newstyle: --help with other stuff still returns false' );
-    ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L }), 'newstyle: -L without parameter returns false' );
-    ok( !parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level }), 'newstyle: --log-level without parameter returns false' );
-
-    ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L5 })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        , 'newstyle: -L5' );
-    ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L 5 })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        , 'newstyle: -L 5' );
-    ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level=5 })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        , 'newstyle: --log-level=5' );
-    ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ --log-level 5 })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        , 'newstyle: --log-level 5' );
-    ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ foobar })
-        && 0+@params == 0 && 0+@args == 1 && $args[0] eq 'foobar'
-        , 'newstyle: foobar' );
-    ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L 5 foo bar })
-        && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
-        && 0+@args == 2 && $args[0] eq 'foo' && $args[1] eq 'bar'
-        , 'newstyle: -L 5 foo bar' );
-        
-    # accession lookup tests
-    ok( !expandAccession('foobar'), 'lookup: nothing found for foobar' );
-    ok( (expandAccession('SRS107532'))[0] eq 'SRR064437', 'lookup: SRS107532 contains SRR064437' );
-    ok( scalar(expandAccession('SRA000001')) == 3, 'lookup: SRA000001 contains 3 runs' );
-    exit 0;
-}
+TESTS
+exit 0;

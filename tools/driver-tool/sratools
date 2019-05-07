@@ -156,6 +156,66 @@ sub resolveAccessionURLs($)
 
 use constant EUTILS_URL => URI->new('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/');
 
+### \brief: run a query with eutils
+###
+### \param: the LWP::UserAgent
+### \param: the search term
+###
+### \return: array of matching IDs
+sub queryEUtils($$)
+{
+    my $ua = shift;
+    my $url = URI->new_abs('esearch.fcgi', EUTILS_URL);
+    $url->query_form(retmode => 'json', db => 'sra', term => shift);
+
+    my $res = $ua->get($url); die $res->status_line unless $res->is_success;
+
+    my $obj = decode_json $res->content;
+    my $result = $obj->{esearchresult} or die "unexpected response from eutils";
+    my $idlist = $result->{idlist} or die "unexpected response from eutils";
+    
+    return @$idlist;
+}
+
+### \brief: get Run Info for list of IDs
+###
+### \param: the LWP::UserAgent
+### \param: the IDs
+###
+### \return: array of Run Info
+sub getRunInfo($@)
+{
+    my $ua = shift;
+    return () unless @_;
+    
+    my $parser = XML::LibXML->new( no_network => 1, no_blanks => 1 );
+    my $url = URI->new_abs('esummary.fcgi', EUTILS_URL);
+    $url->query_form(retmode => 'json', db => 'sra', id => join(',', @_));
+
+    my $res = $ua->get($url); die $res->status_line unless $res->is_success;
+    
+    my $obj = decode_json $res->content or die "unexpected response from eutils";
+    my $result = $obj->{result} or die "unexpected response from eutils";
+
+    my @rslt = ();
+    for (@_) {
+        my $obj = $result->{$_} or die "unexpected response from eutils";
+        my $xml = $obj->{runs} or die "unexpected response from eutils";
+        $xml =~ s/&lt;/</g;
+        $xml =~ s/&gt;/>/g;
+        $xml =~ s/&amp;/&/g;
+        
+        my $frag = $parser->parse_balanced_chunk($xml) or die "unexpected response from eutils";
+        for my $run ($frag->findnodes('Run')) {
+            my $loaded = $run->findvalue('@load_done') or die "unexpected response from eutils";
+            my $public = $run->findvalue('@is_public') or die "unexpected response from eutils";
+            my $acc = $run->findvalue('@acc') or die "unexpected response from eutils";
+            push @rslt, { acc => $acc, public => $public eq 'true', loaded => $loaded eq 'true' };
+        }
+    }
+    return @rslt;
+}
+
 ### \brief: turns an accession into its constituent run accessions
 ###
 ### \param: the query accession
@@ -163,50 +223,10 @@ use constant EUTILS_URL => URI->new('https://eutils.ncbi.nlm.nih.gov/entrez/euti
 ### \return: array of run accessions
 sub expandAccession($)
 {
-    my @rslt = ();
-    my @ids = ();
     my $ua = LWP::UserAgent->new( agent => 'sratoolkit'
                                 , parse_head => 0
                                 , ssl_opts => { verify_hostname => 0 } );
-    { # first get id list for query
-        my $url = URI->new_abs('esearch.fcgi', EUTILS_URL);
-        $url->query_form(retmode => 'json', db => 'sra', term => $_[0]);
-
-        my $res = $ua->get($url); die $res->status_line unless $res->is_success;
-
-        my $obj = decode_json $res->content;
-        my $result = $obj->{esearchresult} or die "unexpected response from eutils";
-        my $idlist = $result->{idlist} or die "unexpected response from eutils";
-        @ids = @$idlist;
-    }
-    if (@ids) {
-        my $parser = XML::LibXML->new( no_network => 1, no_blanks => 1 );
-        my $url = URI->new_abs('esummary.fcgi', EUTILS_URL);
-        $url->query_form(retmode => 'json', db => 'sra', id => join(',', @ids));
-        
-        my $res = $ua->get($url); die $res->status_line unless $res->is_success;
-
-        my $obj = decode_json $res->content or die "unexpected response from eutils";
-        my $result = $obj->{result} or die "unexpected response from eutils";
-        for (@ids) {
-            my $obj = $result->{$_} or die "unexpected response from eutils";
-            my $xml = $obj->{runs} or die "unexpected response from eutils";
-            $xml =~ s/&lt;/</g;
-            $xml =~ s/&gt;/>/g;
-            $xml =~ s/&amp;/&/g;
-            
-            my $frag = $parser->parse_balanced_chunk($xml) or die "unexpected response from eutils";
-            for my $run ($frag->findnodes('Run')) {
-                my $loaded = $run->findvalue('@load_done') or die "unexpected response from eutils";
-                my $public = $run->findvalue('@is_public') or die "unexpected response from eutils";
-                next unless $loaded eq 'true' && $public eq 'true';
-
-                my $acc = $run->findvalue('@acc') or die "unexpected response from eutils";
-                push @rslt, $acc;
-            }
-        }
-    }
-    return @rslt;
+    return map { $_->{acc} } grep { $_->{loaded} && $_->{public} } getRunInfo($ua, queryEUtils($ua, $_[0]));
 }
 
 RUNNING_AS_FASTQ_DUMP:

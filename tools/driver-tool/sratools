@@ -166,7 +166,7 @@ sub queryEUtils($$)
 {
     my $ua = shift;
     my $url = URI->new_abs('esearch.fcgi', EUTILS_URL);
-    $url->query_form(retmode => 'json', db => 'sra', term => shift);
+    $url->query_form(retmode => 'json', db => 'sra', term => shift); # TODO: Disable result limit of 20
 
     my $res = $ua->get($url); die $res->status_line unless $res->is_success;
 

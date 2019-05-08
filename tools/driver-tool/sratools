@@ -165,8 +165,10 @@ use constant EUTILS_URL => URI->new('https://eutils.ncbi.nlm.nih.gov/entrez/euti
 sub queryEUtils($$)
 {
     my $ua = shift;
+    my $query = shift;
+    my $isAccession = $query =~ m/^[DES]R[APRSX]\d+/;
     my $url = URI->new_abs('esearch.fcgi', EUTILS_URL);
-    $url->query_form(retmode => 'json', db => 'sra', term => shift); # TODO: Disable result limit of 20
+    $url->query_form(retmax => $isAccession ? 100 : 20, retmode => 'json', db => 'sra', term => $query);
 
     my $res = $ua->get($url); die $res->status_line unless $res->is_success;
 
@@ -175,6 +177,21 @@ sub queryEUtils($$)
     my $idlist = $result->{idlist} or die "unexpected response from eutils";
     
     return @$idlist;
+}
+
+use Data::Dumper;
+
+sub unescapeXML($)
+{
+    $_[0] =~ s/&lt;/</g;
+    $_[0] =~ s/&gt;/>/g;
+    $_[0] =~ s/&amp;/&/g;
+    $_[0]
+}
+
+sub isTrue($)
+{
+    defined($_[0]) ? ($_[0] eq 'true') : undef
 }
 
 ### \brief: get Run Info for list of IDs
@@ -197,23 +214,96 @@ sub getRunInfo($@)
     my $obj = decode_json $res->content or die "unexpected response from eutils";
     my $result = $obj->{result} or die "unexpected response from eutils";
 
-    my @rslt = ();
+    my %response = (
+        'submitter' => {},
+        'study' => {},
+        'organism' => {},
+        'sample' => {},
+        'experiment' => {},
+        'runs' => []
+    );
+    
     for (@_) {
         my $obj = $result->{$_} or die "unexpected response from eutils";
-        my $xml = $obj->{runs} or die "unexpected response from eutils";
-        $xml =~ s/&lt;/</g;
-        $xml =~ s/&gt;/>/g;
-        $xml =~ s/&amp;/&/g;
+        my $runs = unescapeXML($obj->{runs}) or die "unexpected response from eutils";
+        my $exp = unescapeXML($obj->{expxml});
         
-        my $frag = $parser->parse_balanced_chunk($xml) or die "unexpected response from eutils";
+        my ($submitter, $experiment, $study, $organism, $sample, $bioProject, $bioSample);
+        {
+            my $frag = $parser->parse_balanced_chunk($exp) or die "invalid response; unparsable XML";
+            for ($frag->findnodes('Submitter')) {
+                my $acc = $_->findvalue('@acc');
+                $submitter = $acc;
+                next if $response{'submitter'}->{$acc};
+                $response{'submitter'}->{$acc} = {
+                    'accession' => $acc,
+                    'center' => $_->findvalue('@center_name') // '',
+                    'contact' => $_->findvalue('@contact_name') // '',
+                    'lab' => $_->findvalue('@lab_name') // '',
+                };
+            }
+            for ($frag->findnodes('Experiment')) {
+                my $acc = $_->findvalue('@acc');
+                $experiment = $acc;
+                next if $response{'experiment'}->{$acc};
+                $response{'experiment'}->{$acc} = {
+                    'accession' => $acc,
+                    'ver' => $_->findvalue('@ver') // '',
+                    'status' => $_->findvalue('@status') // '',
+                    'name' => $_->findvalue('@name') // '',
+                };
+            }
+            for ($frag->findnodes('Study')) {
+                my $acc = $_->findvalue('@acc');
+                $study = $acc;
+                next if $response{'study'}->{$acc};
+                $response{'study'}->{$acc} = {
+                    'accession' => $acc,
+                    'name' => $_->findvalue('@name') // '',
+                };
+            }
+            for ($frag->findnodes('Organism')) {
+                my $acc = $_->findvalue('@taxid');
+                $organism = $acc;
+                next if $response{'organism'}->{$acc};
+                $response{'organism'}->{$acc} = {
+                    'taxid' => $acc,
+                    'name' => $_->findvalue('@ScientificName') // '',
+                };
+            }
+            for ($frag->findnodes('Sample')) {
+                my $acc = $_->findvalue('@acc');
+                $sample = $acc;
+                next if $response{'sample'}->{$acc};
+                $response{'sample'}->{$acc} = {
+                    'accession' => $acc,
+                    'name' => $_->findvalue('@name') // '',
+                };
+            }
+            $bioProject = $frag->findvalue('Bioproject/text()') // '';
+            $bioSample = $frag->findvalue('Biosample/text()') // '';
+        }
+
+        my $frag = $parser->parse_balanced_chunk($runs) or die "invalid response; unparsable XML";
         for my $run ($frag->findnodes('Run')) {
-            my $loaded = $run->findvalue('@load_done') or die "unexpected response from eutils";
-            my $public = $run->findvalue('@is_public') or die "unexpected response from eutils";
-            my $acc = $run->findvalue('@acc') or die "unexpected response from eutils";
-            push @rslt, { acc => $acc, public => $public eq 'true', loaded => $loaded eq 'true' };
+            my $acc = $run->findvalue('@acc') or next;
+            my $loaded = $run->findvalue('@load_done');
+            my $public = $run->findvalue('@is_public');
+            push @{$response{'runs'}}, {
+                'accession' => $acc,
+                'public' => isTrue($public),
+                'loaded' => isTrue($loaded),
+                'submitter' => $submitter,
+                'experiment' => $experiment,
+                'study' => $study,
+                'organism' => $organism,
+                'sample' => $sample,
+                'bioproject' => $bioProject,
+                'biosample' => $bioSample,
+            };
         }
     }
-    return @rslt;
+    return \%response;
 }
 
 ### \brief: turns an accession into its constituent run accessions
@@ -226,7 +316,7 @@ sub expandAccession($)
     my $ua = LWP::UserAgent->new( agent => 'sratoolkit'
                                 , parse_head => 0
                                 , ssl_opts => { verify_hostname => 0 } );
-    return map { $_->{acc} } grep { $_->{loaded} && $_->{public} } getRunInfo($ua, queryEUtils($ua, $_[0]));
+    return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo($ua, queryEUtils($ua, $_[0]))->{'runs'}};
 }
 
 RUNNING_AS_FASTQ_DUMP:
@@ -600,19 +690,69 @@ sub which($)
 sub info(@)
 {
     help('info') unless @_;
+    
+    my $before = '';
+    my $ua = LWP::UserAgent->new( agent => 'sratoolkit'
+                                , parse_head => 0
+                                , ssl_opts => { verify_hostname => 0 } );
     foreach my $query (@_) {
-        if ($query =~ /^[DES]RR\d+$/) {
-            say "$query is a run";
-        }
-        else {
-            my @runs = expandAccession $query;
-            if (@runs) {
-                say "$query consists of these ".(0+@runs)." runs:\n".join("\n", @runs);
+        my $info = getRunInfo($ua, queryEUtils($ua, $query)) or goto NOTHING;
+        my @runs = sort { 
+               $a->{'sample'} cmp $b->{'sample'}
+            || ($a->{'organism'} // '') cmp ($b->{'organism'} // '')
+            || $a->{'study'} cmp $b->{'study'}
+            || $a->{'submitter'} cmp $b->{'submitter'}
+            || $a->{'experiment'} cmp $b->{'experiment'}
+            || $a->{'accession'} cmp $b->{'accession'}
+        } @{$info->{runs}};
+        my $nruns = @runs;
+        say $before."Runs matching $query: $nruns\n";
+        
+        my $public = 0; for my $run (@runs) { $public += 1 if $run->{'public'} }
+        
+        my $last = undef;
+        for my $run (@runs) {
+            my $before = "\n";
+            if ($last) {
+                goto SAMPLE     if $last->{'sample'    } && $last->{'sample'    } ne $run->{'sample'    };
+                goto ORGANISM   if $last->{'organism'  } && $last->{'organism'  } ne $run->{'organism'  };
+                goto STUDY      if $last->{'study'     } && $last->{'study'     } ne $run->{'study'     };
+                goto SUBMITTER  if $last->{'submitter' } && $last->{'submitter' } ne $run->{'submitter' };
+                goto EXPERIMENT if $last->{'experiment'} && $last->{'experiment'} ne $run->{'experiment'};
             }
             else {
-                say "nothing found for $query";
+                $before = '';
+            SAMPLE:
+                say $before."Sample    : $run->{'sample'} - ".($info->{'sample'}->{$run->{'sample'}}->{'name'});
+                $before = '';
+            ORGANISM:
+                say $before."Organism  : taxid=$run->{'organism'} - ".$info->{'organism'}->{$run->{'organism'}}->{'name'} if $run->{'organism'};
+                $before = '';
+            STUDY:
+                say $before."Study     : $run->{'study'} - ".$info->{'study'}->{$run->{'study'}}->{'name'};
+                $before = '';
+            SUBMITTER:
+                say $before."Submitter : $run->{'submitter'} - ".($info->{'submitter'}->{$run->{'submitter'}}->{'center'} || $info->{'submitter'}->{$run->{'submitter'}}->{'lab'} || $info->{'submitter'}->{$run->{'submitter'}}->{'contact'});
+                $before = '';
+            EXPERIMENT:
+                say $before."Experiment: $run->{'experiment'} - ".($info->{'experiment'}->{$run->{'experiment'}}->{'name'});
+                $before = '';
+
+                $last = {
+                    'organism' => $run->{'organism'},
+                    'study' => $run->{'study'},
+                    'submitter' => $run->{'submitter'},
+                    'sample' => $run->{'sample'},
+                    'experiment' => $run->{'experiment'},
+                }
             }
+            say "Run       : ".$run->{accession}.($run->{public} ? "" : " - not public data")
         }
+        sleep(1);
+        $before = "\n=== *** ===\n";
+        next;
+    NOTHING:
+        say "nothing found for '$query'";
     }
     exit 0;
 }
@@ -678,8 +818,82 @@ EOF
 
   INFO:
     print <<"EOM";
-Usage: $0 info <object>
-Prints detailed information about an SRA object
+Usage: $0 info <query> [<query> ...]
+Searches the SRA data hierarchy.
+
+The main purpose is to give THE list of runs that will be processed if you try
+to extract SRA data using your query. Think of it as sort of a "pre-flight".
+
+This search resolves the hierachy only to the level of experiment. Thus, if you
+ask for a run, you will get the info for its containing experiment, along with
+the list of runs in that experiment. However, if you extract data using a run
+accession, you will only get data from that run. If you want to extract data
+for all the runs in an experiment, you would use the experiment accession.
+
+Please see the following webpage for a more complete explanation of the query
+syntax and the results. Using the search on this page allows for building more
+complicated queries and can return larger result sets than this tool can handle.
+
+https://www.ncbi.nlm.nih.gov/sra/docs/srasearch/
+
+
+Except for the Organism record, the format of the response from this tool is:
+Label     : Accession - optional Name or Description
+
+For Organism, instead of an accession, NCBI's taxonomy ID is given.
+
+An example:
+\$ $basename info SRR011211
+Runs matching SRR011211: 9
+
+Sample    : SRS000605; 
+Organism  : taxid=9606; Homo sapiens
+Study     : SRP000001; Paired-end mapping reveals extensive structural variation in the human genome
+Submitter : SRA000197; 454MSC
+Experiment: SRX002438; 454 sequencing of Human HapMap individual NA15510 genomic fragment library
+Run       : SRR011203
+Run       : SRR011204
+Run       : SRR011205
+Run       : SRR011206
+Run       : SRR011207
+Run       : SRR011208
+Run       : SRR011209
+Run       : SRR011210
+Run       : SRR011211
+
+\$
+
+
+You are not limited to searching for accessions, but searching for accessions
+will be more precise and can produce more results.
+
+For example, searching by organism name:
+\$ $basename info 'D. rerio'
+Runs matching D. rerio: 32
+
+Sample    : ERS1869565; 
+Organism  : taxid=7955; Danio rerio
+Study     : ERP024473; ChIP-seq for Prep on whole zebrafish embryos at 3.5 and 12hpf
+Submitter : ERA987158; European Nucleotide Archive
+Experiment: ERX2151745; Illumina HiSeq 2500 paired end sequencing; ChIP-seq for Prep on whole zebrafish embryos at 3.5 and 12hpf
+Run       : ERR2094311
+
+...
+snip
+...
+
+Sample    : SRS4054046; 
+Organism  : taxid=7955; Danio rerio
+Study     : SRP169118; Glucocorticoids inhibit macrophage differentiation towards a pro-inflammatory phenotype upon wounding without affecting their migration
+Submitter : SRA811328; GEO
+Experiment: SRX5021281; GSM3477138: control_amputated_rep3; Danio rerio; RNA-Seq
+Run       : SRR8485426
+Run       : SRR8485427
+
+\$
+
+*Note* this response is truncated. The actual number is too many for this tool
+to handle. See: https://www.ncbi.nlm.nih.gov/sra/?term=D.+rerio
 EOM
     exit 0;
 

@@ -202,8 +202,16 @@ sub isTrue($)
 ### \return: array of Run Info
 sub getRunInfo($@)
 {
+    my %response = (
+        'submitter' => {},
+        'study' => {},
+        'organism' => {},
+        'sample' => {},
+        'experiment' => {},
+        'runs' => []
+    );
     my $ua = shift;
-    return () unless @_;
+    return \%response unless @_;
     
     my $parser = XML::LibXML->new( no_network => 1, no_blanks => 1 );
     my $url = URI->new_abs('esummary.fcgi', EUTILS_URL);
@@ -214,15 +222,6 @@ sub getRunInfo($@)
     my $obj = decode_json $res->content or die "unexpected response from eutils";
     my $result = $obj->{result} or die "unexpected response from eutils";
 
-    my %response = (
-        'submitter' => {},
-        'study' => {},
-        'organism' => {},
-        'sample' => {},
-        'experiment' => {},
-        'runs' => []
-    );
-    
     for (@_) {
         my $obj = $result->{$_} or die "unexpected response from eutils";
         my $runs = unescapeXML($obj->{runs}) or die "unexpected response from eutils";
@@ -723,19 +722,19 @@ sub info(@)
             else {
                 $before = '';
             SAMPLE:
-                say $before."Sample    : $run->{'sample'} - ".($info->{'sample'}->{$run->{'sample'}}->{'name'});
+                say $before."Sample    : $run->{'sample'} ".($info->{'sample'}->{$run->{'sample'}}->{'name'});
                 $before = '';
             ORGANISM:
-                say $before."Organism  : taxid=$run->{'organism'} - ".$info->{'organism'}->{$run->{'organism'}}->{'name'} if $run->{'organism'};
+                say $before."Organism  : taxid=$run->{'organism'} ".$info->{'organism'}->{$run->{'organism'}}->{'name'} if $run->{'organism'};
                 $before = '';
             STUDY:
-                say $before."Study     : $run->{'study'} - ".$info->{'study'}->{$run->{'study'}}->{'name'};
+                say $before."Study     : $run->{'study'} ".$info->{'study'}->{$run->{'study'}}->{'name'};
                 $before = '';
             SUBMITTER:
-                say $before."Submitter : $run->{'submitter'} - ".($info->{'submitter'}->{$run->{'submitter'}}->{'center'} || $info->{'submitter'}->{$run->{'submitter'}}->{'lab'} || $info->{'submitter'}->{$run->{'submitter'}}->{'contact'});
+                say $before."Submitter : $run->{'submitter'} ".($info->{'submitter'}->{$run->{'submitter'}}->{'center'} || $info->{'submitter'}->{$run->{'submitter'}}->{'lab'} || $info->{'submitter'}->{$run->{'submitter'}}->{'contact'});
                 $before = '';
             EXPERIMENT:
-                say $before."Experiment: $run->{'experiment'} - ".($info->{'experiment'}->{$run->{'experiment'}}->{'name'});
+                say $before."Experiment: $run->{'experiment'} ".($info->{'experiment'}->{$run->{'experiment'}}->{'name'});
                 $before = '';
 
                 $last = {
@@ -828,7 +827,7 @@ This search resolves the hierachy only to the level of experiment. Thus, if you
 ask for a run, you will get the info for its containing experiment, along with
 the list of runs in that experiment. However, if you extract data using a run
 accession, you will only get data from that run. If you want to extract data
-for all the runs in an experiment, you would use the experiment accession.
+for all the runs in an experiment, you can use the experiment accession.
 
 Please see the following webpage for a more complete explanation of the query
 syntax and the results. Using the search on this page allows for building more
@@ -837,8 +836,8 @@ complicated queries and can return larger result sets than this tool can handle.
 https://www.ncbi.nlm.nih.gov/sra/docs/srasearch/
 
 
-Except for the Organism record, the format of the response from this tool is:
-Label     : Accession - optional Name or Description
+Except for the Organism record, the format of the response from this command is:
+<Label>   : <Accession> <optional Name or Description>
 
 For Organism, instead of an accession, NCBI's taxonomy ID is given.
 
@@ -846,11 +845,11 @@ An example:
 \$ $basename info SRR011211
 Runs matching SRR011211: 9
 
-Sample    : SRS000605; 
-Organism  : taxid=9606; Homo sapiens
-Study     : SRP000001; Paired-end mapping reveals extensive structural variation in the human genome
-Submitter : SRA000197; 454MSC
-Experiment: SRX002438; 454 sequencing of Human HapMap individual NA15510 genomic fragment library
+Sample    : SRS000605 
+Organism  : taxid=9606 Homo sapiens
+Study     : SRP000001 Paired-end mapping reveals extensive structural variation in the human genome
+Submitter : SRA000197 454MSC
+Experiment: SRX002438 454 sequencing of Human HapMap individual NA15510 genomic fragment library
 Run       : SRR011203
 Run       : SRR011204
 Run       : SRR011205
@@ -871,29 +870,30 @@ For example, searching by organism name:
 \$ $basename info 'D. rerio'
 Runs matching D. rerio: 32
 
-Sample    : ERS1869565; 
-Organism  : taxid=7955; Danio rerio
-Study     : ERP024473; ChIP-seq for Prep on whole zebrafish embryos at 3.5 and 12hpf
-Submitter : ERA987158; European Nucleotide Archive
-Experiment: ERX2151745; Illumina HiSeq 2500 paired end sequencing; ChIP-seq for Prep on whole zebrafish embryos at 3.5 and 12hpf
+Sample    : ERS1869565 
+Organism  : taxid=7955 Danio rerio
+Study     : ERP024473 ChIP-seq for Prep on whole zebrafish embryos at 3.5 and 12hpf
+Submitter : ERA987158 European Nucleotide Archive
+Experiment: ERX2151745 Illumina HiSeq 2500 paired end sequencing; ChIP-seq for Prep on whole zebrafish embryos at 3.5 and 12hpf
 Run       : ERR2094311
 
 ...
 snip
 ...
 
-Sample    : SRS4054046; 
-Organism  : taxid=7955; Danio rerio
-Study     : SRP169118; Glucocorticoids inhibit macrophage differentiation towards a pro-inflammatory phenotype upon wounding without affecting their migration
-Submitter : SRA811328; GEO
-Experiment: SRX5021281; GSM3477138: control_amputated_rep3; Danio rerio; RNA-Seq
+Sample    : SRS4054046 
+Organism  : taxid=7955 Danio rerio
+Study     : SRP169118 Glucocorticoids inhibit macrophage differentiation towards a pro-inflammatory phenotype upon wounding without affecting their migration
+Submitter : SRA811328 GEO
+Experiment: SRX5021281 GSM3477138: control_amputated_rep3; Danio rerio; RNA-Seq
 Run       : SRR8485426
 Run       : SRR8485427
 
 \$
 
 *Note* this response is truncated. The actual number is too many for this tool
-to handle. See: https://www.ncbi.nlm.nih.gov/sra/?term=D.+rerio
+to handle. For the full proper response, see:
+https://www.ncbi.nlm.nih.gov/sra/?term=D.+rerio
 EOM
     exit 0;
 
@@ -901,6 +901,8 @@ EOM
     print <<"EOM";
 Usage: $0 fastq <object>
 Extract FASTQ from (possibly many) SRA run accessions
+
+THIS IS NOT YET IMPLEMENTED
 EOM
     exit 0;
 
@@ -908,6 +910,8 @@ EOM
     print <<"EOM";
 Usage: $0 info <object>
 Extract SAM from (possibly many) SRA run accessions
+
+THIS IS NOT YET IMPLEMENTED
 EOM
     exit 0;
 }
@@ -991,8 +995,9 @@ ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L 5 foo bar }
 # accession lookup tests
 my @runs;
 ok( !(@runs = expandAccession('foobar')), 'lookup: nothing found for foobar' );
+sleep(1);
 ok( scalar(@runs = expandAccession('SRS107532')) == 1 && $runs[0] eq 'SRR064437', 'lookup: SRS107532 contains SRR064437' );
-sleep(2);
+sleep(1);
 ok( scalar(@runs = expandAccession('SRA000001')) == 3, 'lookup: SRA000001 contains 3 runs' );
 
 TESTS

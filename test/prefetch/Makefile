@@ -69,7 +69,7 @@ urls_and_accs:
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	     if $(BINDIR)/prefetch http://intranet/irb/support.shtml  2>/dev/null ; \
+	     if $(BINDIR)/prefetch http://intranet/irb/support.shtml  2>/dev/null; \
 	     then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
 	     fi ; \
 	    fi
@@ -328,7 +328,16 @@ urls_and_accs:
              exit 1 ; \
 	    fi
 
-#	export VDB_CONFIG=`pwd`/tmp;export NCBI_SETTINGS=/; $(BINDIR)/vdb-config -on
+	@echo vdbcache download
+	@rm tmp/sra/*
+	@if ls `pwd`/tmp/sra/SRR998743.sra 2> /dev/null ; \
+		then echo SRR998743.sra found ; exit 1; fi
+	@if ls `pwd`/tmp/sra/SRR998743.sra.vdbcache 2> /dev/null ; \
+		then echo SRR998743.sra.vdbcache found ; exit 1; fi
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+		$(BINDIR)/prefetch SRR998743 > /dev/null
+	@ls `pwd`/tmp/sra/SRR998743.sra          > /dev/null 
+	@ls `pwd`/tmp/sra/SRR998743.sra.vdbcache > /dev/null
 
 	@rm -r tmp*
 
@@ -649,7 +658,7 @@ truncated:
 	  then echo "run should be truncated for this test"; exit 1; \
 	  fi
 
-# create should detect truncated run and redownload it
+# prefetch should detect truncated run and redownload it
 	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch SRR053325 > tmp/out
 	@ if grep ": 1) 'SRR053325' is found locally" tmp/out ; \
 	  then echo "prefetch incorrectly stopped on truncated run"; exit 1; \

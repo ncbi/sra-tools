@@ -2538,7 +2538,14 @@ static rc_t ItemDownload(Item *item) {
                 "name=%s", self->name));
         }
         else {
-            STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, self->name));
+            const char * name = self->name;
+            if (self->respFile != NULL) {
+                const char * acc = NULL;
+                rc_t r2 = KSrvRespFileGetName(self->respFile, &acc);
+                if (r2 == 0 && acc != NULL)
+                    name = acc;
+            }
+            STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, name));
             rc = MainDownload(self, item, item->isDependency);
             if (rc == 0) {
                 if (self->inOutDir) {
@@ -2551,17 +2558,17 @@ static rc_t ItemDownload(Item *item) {
                     if ( item->mane->outDir != NULL )
                         STSMSG(STS_TOP,
                             ("%d) '%s' was downloaded successfully (%s/%.*s)",
-                            n, self->name, item->mane->outDir,
+                            n, name, item->mane->outDir,
                             ( uint32_t ) ( end - start ), start));
                     else
                         STSMSG(STS_TOP,
                             ("%d) '%s' was downloaded successfully (%.*s)",
-                            n, self->name,
+                            n, name,
                             ( uint32_t ) ( end - start ), start));
                 }
                 else
                     STSMSG(STS_TOP, ("%d) '%s' was downloaded successfully",
-                                       n, self->name));
+                                       n, name));
                 if (self->cache != NULL) {
                     VPathStrFini(&self->path);
                     rc = StringCopy(&self->path.str, self->cache);
@@ -2570,7 +2577,7 @@ static rc_t ItemDownload(Item *item) {
             else if (rc != SILENT_RC(rcExe,
                 rcProcess, rcExecuting, rcProcess, rcCanceled))
             {
-                STSMSG(STS_TOP, ("%d) failed to download %s", n, self->name));
+                STSMSG(STS_TOP, ("%d) failed to download %s", n, name));
             }
         }
     }

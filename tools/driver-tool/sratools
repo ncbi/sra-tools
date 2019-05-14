@@ -4,6 +4,7 @@ use v5.16;
 use strict;
 use warnings;
 use IO::Handle;
+use IO::File;
 use File::Spec;
 use JSON::PP;
 use LWP;
@@ -20,6 +21,9 @@ use constant {
 
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
+
+sub loadConfig;
+my %config = %{loadConfig()};
 
 goto RUNNING_AS_FASTQ_DUMP      if $basename eq 'fastq-dump';
 goto RUNNING_AS_FASTERQ_DUMP    if $basename eq 'fasterq-dump';
@@ -168,7 +172,7 @@ sub queryEUtils($$)
     my $query = shift;
     my $isAccession = $query =~ m/^[DES]R[APRSX]\d+/;
     my $url = URI->new_abs('esearch.fcgi', EUTILS_URL);
-    $url->query_form(retmax => $isAccession ? 100 : 20, retmode => 'json', db => 'sra', term => $query);
+    $url->query_form(retmax => $isAccession ? 200 : 20, retmode => 'json', db => 'sra', term => $query);
 
     my $res = $ua->get($url); die $res->status_line unless $res->is_success;
 
@@ -824,22 +828,23 @@ The main purpose is to give THE list of runs that will be processed if you try
 to extract SRA data using your query. Think of it as sort of a "pre-flight".
 
 This search resolves the hierachy only to the level of experiment. Thus, if you
-ask for a run, you will get the info for its containing experiment, along with
-the list of runs in that experiment. However, if you extract data using a run
-accession, you will only get data from that run. If you want to extract data
-for all the runs in an experiment, you can use the experiment accession.
+ask for a run, you will get the info for its experiment, along with the list of
+runs in that experiment. However, if you extract data using a run accession, you
+will ONLY get data from that run. If you want to extract data for all the runs
+in an experiment, you can use the experiment accession.
 
-Please see the following webpage for a more complete explanation of the query
-syntax and the results. Using the search on this page allows for building more
-complicated queries and can return larger result sets than this tool can handle.
-
+Please see:
 https://www.ncbi.nlm.nih.gov/sra/docs/srasearch/
 
+That webpage contains a more complete explanation of the query syntax and the
+results. Using the search on that page allows for building more complicated
+queries and can create larger result sets than this tool is capable of
+generating.
 
 Except for the Organism record, the format of the response from this command is:
 <Label>   : <Accession> <optional Name or Description>
 
-For Organism, instead of an accession, NCBI's taxonomy ID is given.
+For the Organism record, NCBI's taxonomy ID is used in place of accession.
 
 An example:
 \$ $basename info SRR011211
@@ -894,6 +899,7 @@ Run       : SRR8485427
 *Note* this response is truncated. The actual number is too many for this tool
 to handle. For the full proper response, see:
 https://www.ncbi.nlm.nih.gov/sra/?term=D.+rerio
+
 EOM
     exit 0;
 
@@ -925,10 +931,58 @@ sub usage()
     exit 64; # EX_USAGE from <sysexits.h>
 }
 
+sub loadConfig
+{
+    my %ignore = map { $_ => 1 } qw { /APPNAME /APPPATH /BUILD /HOME /NCBI_HOME /NCBI_SETTINGS /OS /PWD /USER };
+    my $toolpath = which('vdb-config') or help_path('vdb-config', TRUE);
+    my $kid = open(my $pipe, '-|', $toolpath, '--output=n') or die "can't fork or can't exec vdb-config";
+    my %config;
+    my @files;
+    my $st = 0;
+    while (defined(local $_ = <$pipe>)) {
+        # print;
+        chomp;
+        next if /^$/;
+        if ($st == 0) {
+            $st = 1 if /^<!-- Current configuration -->$/;
+            next;
+        }
+        if ($st == 1) {
+            if (/<!-- Configuration files -->/) {
+                $st = 2;
+                next;
+            }
+            my ($keypath, $value);
+            ($keypath, $value) = ($1, substr($2, 1, -1)) if /^((?:\/[A-Za-z_0-9][-.A-Za-z_0-9]*)+)\s*=\s*(.+)$/; # nodepath regex from config-lex.l
+            unless ($keypath) {
+                warn "unexpected output from vdb-config: '$_'";
+                next
+            }
+            next if $keypath =~ /^\/VDBCOPY\// or $ignore{$keypath};
+            $config{$keypath} = $value;
+            next;
+        }
+        if ($st == 2) {
+            if (/<!-- Environment -->/) {
+                $st = 3;
+                next;
+            }
+            push @files, $_;
+            next;
+        }
+        if ($st == 3) {
+            next;
+        }
+    }
+    # printf("%s = %s\n", $_, $config{$_}) for sort keys %config;
+    return \%config;
+}
+
 RUN_TESTS:
 eval <<'TESTS';
 
-use Test::Simple tests => 25;
+use Config;
+use Test::Simple tests => 27;
 my %long_args = (
     '-h' => '--help',
     '-?' => '--help',
@@ -942,6 +996,10 @@ my @args;
 
 # which test
 ok( witch($basename), 'found self');
+
+# loadConfig test
+ok( %config, 'loaded config' );
+ok( $config{'/kfg/arch/bits'} == $Config{ptrsize} << 3, 'arch/bits matches ptrsize' );
 
 # old style args parsing
 ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -h }), 'oldstyle: -h returns false' );

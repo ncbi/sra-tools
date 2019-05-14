@@ -2751,7 +2751,6 @@ rc_t print_results(const Ctx* ctx)
     }
 
     if (ctx->meta_stats->found && ! ctx->pb->quick) {
-/*      bool mismatch = false; */
         SraStats* ss = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
         const SraStatsMeta* m = &ctx->meta_stats->table;
         if (ctx->total->BASE_COUNT != m->BASE_COUNT)
@@ -2761,8 +2760,12 @@ rc_t print_results(const Ctx* ctx)
         if (ctx->total->spot_count != m->spot_count)
         { mismatch = true; }
         if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT) {
-            if (ctx->total->total_cmp_len == 0 && ctx->db != NULL)
+            if (ctx->total->total_cmp_len == 0 &&
+                ctx->total->BASE_COUNT == m->CMP_BASE_COUNT &&
+                ctx->db != NULL)
+            {
                 mismatchCMP_BASE_COUNT = true;
+            }
             else
                 mismatch = true;
         }
@@ -2782,8 +2785,12 @@ rc_t print_results(const Ctx* ctx)
                 }
                 if (ss->total_cmp_len != m->CMP_BASE_COUNT)
                 {
-                    if (ctx->total->total_cmp_len == 0 && ctx->db != NULL)
+                    if (ctx->total->total_cmp_len == 0 &&
+                        ss->total_len == m->CMP_BASE_COUNT &&
+                        ctx->db != NULL)
+                    {
                         mismatchCMP_BASE_COUNT = true;
+                    }
                     else {
                         mismatch = true;
                         break;
@@ -2876,8 +2883,12 @@ rc_t print_results(const Ctx* ctx)
                 mismatch = true;
             }
             if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT) {
-                if (ctx->pb->total.total_cmp_len == 0 && ctx->db != NULL)
+                if (ctx->pb->total.total_cmp_len == 0 &&
+                    ctx->pb->total.BASE_COUNT == m->CMP_BASE_COUNT &&
+                    ctx->db != NULL)
+                {
                     mismatchCMP_BASE_COUNT = true;
+                }
                 else
                     mismatch = true;
             }

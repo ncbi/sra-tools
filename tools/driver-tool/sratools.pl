@@ -17,6 +17,9 @@ use constant {
     REAL_SAM_DUMP => 'sam-dump-orig',
     REAL_FASTQ_DUMP => 'fastq-dump-orig',
     REAL_FASTERQ_DUMP => 'fasterq-dump-orig',
+    REAL_SRA_PILEUP => 'sra-pileup-orig',
+    REAL_PREFETCH => 'prefetch-orig',
+    REAL_SRAPATH => 'srapath-orig'
 };
 
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
@@ -28,6 +31,9 @@ my %config = %{loadConfig()};
 goto RUNNING_AS_FASTQ_DUMP      if $basename eq 'fastq-dump';
 goto RUNNING_AS_FASTERQ_DUMP    if $basename eq 'fasterq-dump';
 goto RUNNING_AS_SAM_DUMP        if $basename eq 'sam-dump';
+goto RUNNING_AS_PREFETCH        if $basename eq 'prefetch';
+goto RUNNING_AS_SRAPATH         if $basename eq 'srapath';
+goto RUNNING_AS_SRA_PILEUP      if $basename eq 'sra-pileup';
 
 goto RUN_TESTS if $ENV{DRIVER_TOOL_RUN_TESTS};
 
@@ -141,9 +147,14 @@ sub expandAllAccessions(@)
 ### currently, this is a stub that just uses srapath
 sub resolveAccessionURLs($)
 {
-    my $toolpath = which('srapath') or help_path('srapath', TRUE);
+    my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
     my @result;
-    my $kid = open(my $pipe, '-|', $toolpath, $_[0]) or die "can't fork or can't exec srapath: $!";
+    my $kid = open(my $pipe, '-|') or die "can't fork: $!";
+    
+    if ($kid == 0) {
+        exec {$toolpath} 'srapath', @_;
+        die "can't exec srapath: $!";
+    }
 
     while (defined(local $_ = <$pipe>)) {
         ## TODO: proper parsing of new? srapath response
@@ -476,6 +487,148 @@ RUNNING_AS_SAM_DUMP:
         die "can't exec original sam-dump: $!";
     }
     processAccessions('sam-dump', $toolpath, @params, @args);
+    die "unreachable";
+}
+
+RUNNING_AS_PREFETCH:
+{
+    my $toolpath = which(REAL_PREFETCH) or help_path(REAL_PREFETCH, TRUE);
+    my %long_arg = (
+        '-T' => '--type',
+        '-t' => '--transport',
+        '-N' => '--min-size',
+        '-X' => '--max-size',
+        '-f' => '--force',
+        '-p' => '--progress',
+        '-c' => '--check-all',
+        '-l' => '--list',
+        '-n' => '--numbered-list',
+        '-s' => '--list-sizes',
+        '-R' => '--rows',
+        '-o' => '--order',
+        '-a' => '--ascp-path',
+        '-o' => '--output-file',
+        '-O' => '--output-directory',
+        '-V' => '--version',
+        '-L' => '--log-level',
+        '-v' => '--verbose',
+        '-+' => '--debug',
+        '-h' => '--help',
+        '-?' => '--help',
+    );
+    my %param_has_arg = (
+        '--transport' => TRUE,
+        '--min-size' => TRUE,
+        '--max-size' => TRUE,
+        '--force' => TRUE,
+        '--progress' => TRUE,
+        '--rows' => TRUE,
+        '--order' => TRUE,
+        '--ascp-path' => TRUE,
+        '--ascp-options' => TRUE,
+        '--output-file' => TRUE,
+        '--output-directory' => TRUE,
+        '--log-level' => TRUE,
+        '--debug' => TRUE,
+    );
+    my @params = (); # short params get expanded to long form
+    my @args = (); # everything that isn't part of a parameter
+
+    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    {
+        # usage error or user asked for help
+        exec {$toolpath} 'prefetch', '--help';
+        die "can't exec original prefetch: $!";
+    }
+    processAccessions('prefetch', $toolpath, @params, @args);
+    die "unreachable";
+}
+
+RUNNING_AS_SRAPATH:
+{
+    my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
+    my %long_arg = (
+        '-u' => '--unaligned',
+        '-1' => '--primary',
+        '-c' => '--cigar-long',
+        '-r' => '--header',
+        '-n' => '--no-header',
+        '-s' => '--seqid',
+        '-=' => '--hide-identical',
+        '-g' => '--spot-group',
+        '-p' => '--prefix',
+        '-Q' => '--qual-quant',
+        '-V' => '--version',
+        '-L' => '--log-level',
+        '-v' => '--verbose',
+        '-+' => '--debug',
+        '-h' => '--help',
+        '-?' => '--help',
+    );
+    my %param_has_arg = (
+        '--header-file' => TRUE,
+        '--header-comment' => TRUE,
+        '--aligned-region' => TRUE,
+        '--matepair-distance' => TRUE,
+        '--prefix' => TRUE,
+        '--qual-quant' => TRUE,
+        '--log-level' => TRUE,
+        '--debug' => TRUE,
+    );
+    my @params = (); # short params get expanded to long form
+    my @args = (); # everything that isn't part of a parameter
+
+    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    {
+        # usage error or user asked for help
+        exec {$toolpath} 'srapath', '--help';
+        die "can't exec original srapath: $!";
+    }
+    processAccessions('srapath', $toolpath, @params, @args);
+    die "unreachable";
+}
+
+RUNNING_AS_SRA_PILEUP:
+{
+    my $toolpath = which(REAL_SRA_PILEUP) or help_path(REAL_SRA_PILEUP, TRUE);
+    my %long_arg = (
+        '-u' => '--unaligned',
+        '-1' => '--primary',
+        '-c' => '--cigar-long',
+        '-r' => '--header',
+        '-n' => '--no-header',
+        '-s' => '--seqid',
+        '-=' => '--hide-identical',
+        '-g' => '--spot-group',
+        '-p' => '--prefix',
+        '-Q' => '--qual-quant',
+        '-V' => '--version',
+        '-L' => '--log-level',
+        '-v' => '--verbose',
+        '-+' => '--debug',
+        '-h' => '--help',
+        '-?' => '--help',
+    );
+    my %param_has_arg = (
+        '--header-file' => TRUE,
+        '--header-comment' => TRUE,
+        '--aligned-region' => TRUE,
+        '--matepair-distance' => TRUE,
+        '--prefix' => TRUE,
+        '--qual-quant' => TRUE,
+        '--log-level' => TRUE,
+        '--debug' => TRUE,
+    );
+    my @params = (); # short params get expanded to long form
+    my @args = (); # everything that isn't part of a parameter
+
+    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
+    {
+        # usage error or user asked for help
+        exec {$toolpath} 'sra-pileup', '--help';
+        die "can't exec original sra-pileup: $!";
+    }
+    processAccessions('sra-pileup', $toolpath, @params, @args);
     die "unreachable";
 }
 

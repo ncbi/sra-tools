@@ -25,6 +25,7 @@
 */
 
 #include <tui/tui.hpp>
+#include <iostream>
 
 using namespace tui;
 
@@ -32,16 +33,28 @@ void example_0( void );
 void example_1( void );
 void example_2( void );
 void example_3( void );
+void example_4( void );
+void example_5( void );
+void example_6( void );
+void example_7( void );
+void example_8( void );
 
 int main( int argc, const char* argv[] )
 {
     int selection = argc > 1 ? atoi( argv[ 1 ] ) : 0;
     switch( selection )
     {
-        case 0 : example_0(); break;
-        case 1 : example_1(); break;
-        case 2 : example_2(); break;
-        case 3 : example_3(); break;        
+        case 0 : example_0(); break;    // most minimal example: just an empty screen
+        case 1 : example_1(); break;    // empty screen with caption
+        case 2 : example_2(); break;    // empty screen with caption and status-line
+        case 3 : example_3(); break;    // empty screen showing screen - resolution in status line
+        case 4 : example_4(); break;    // show one label
+        case 5 : example_5(); break;    // show one label and one input-field
+        case 6 : example_6(); break;    // with controller now
+        case 7 : example_7(); break;    // with button added
+        case 8 : example_8(); break;    // with check-box
+        
+        default : std::cout << "unknown test: " << selection << std::endl;
     }
     return 0;
 };

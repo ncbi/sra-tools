@@ -38,6 +38,8 @@ void example_5( void );
 void example_6( void );
 void example_7( void );
 void example_8( void );
+void example_9( void );
+void example_10( void );
 
 int main( int argc, const char* argv[] )
 {
@@ -53,6 +55,8 @@ int main( int argc, const char* argv[] )
         case 6 : example_6(); break;    // with controller now
         case 7 : example_7(); break;    // with button added
         case 8 : example_8(); break;    // with check-box
+        case 9 : example_9(); break;    // visual design for SRA-STRIDES
+        case 10 : example_10(); break;  // try to use multi-tabbed one screen
         
         default : std::cout << "unknown test: " << selection << std::endl;
     }

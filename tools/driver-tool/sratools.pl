@@ -6,6 +6,7 @@ use warnings;
 use IO::Handle;
 use IO::File;
 use File::Spec;
+use File::Temp qw{ tempfile };
 use JSON::PP;
 use LWP;
 use URI;
@@ -59,7 +60,12 @@ sub parseArgv($\@\@\%\%@);
 sub help_path($$);
 sub which($);
 
-### \brief: runs tool on list of accessions
+my $paramsFile;
+END {
+    unlink $paramsFile if $paramsFile;
+}
+
+#** \brief: runs tool on list of accessions
 ###
 ### After args parsing, this is called to do the meat of the work.
 ### Accession can be any kind of SRA accession.
@@ -68,8 +74,6 @@ sub which($);
 ### \param: full path to tool, e.g. /path/to/fastq-dump-orig
 ### \param: tool parameters; arrayref
 ### \param: the list of accessions to process
-###
-### \return: DOES NOT RETURN; calls exit
 sub processAccessions($$\@@)
 {
     my $toolname = shift;
@@ -558,7 +562,6 @@ RUNNING_AS_SRAPATH:
         '-d' => '--project',
         '-c' => '--cache',
         '-P' => '--path',
-        
         '-V' => '--version',
         '-L' => '--log-level',
         '-v' => '--verbose',
@@ -688,6 +691,62 @@ sub parseArgvOldStyle(\@\@\%\%@)
     return TRUE;
 }
 
+### \brief: parse the options file
+###
+### \param: filename
+###
+### \return: array of parsed arguments
+sub parseOptionsFile($)
+{
+    my @rslt = ();
+    my $string = '';
+    {
+        my $fh = IO::File->new($_[0]) or die "can't open option file $_[0]: $!";
+        binmode $fh, ':utf8';
+        $string = join '', $fh->getlines();
+        close $fh;
+    }
+    my $token = '';
+    my $i = 0;
+    my $n = length $string;
+    my $ws = TRUE;
+    my $esc = FALSE;
+    my $quote = '';
+    
+    while ($i < $n) {
+        local $_ = substr($string, $i, 1);
+        $i += 1;
+
+        goto APPEND if $esc;
+
+        if (/\\/) {
+            $esc = TRUE;
+            next;
+        }
+
+        if ($quote) {
+            $quote = '' if $_ eq $quote;
+            goto APPEND;
+        }
+
+        if (/\s/) {
+            next if $ws;
+            push @rslt, $token;
+            $ws = TRUE;
+            $token = '';
+            next;
+        }
+        $ws = FALSE;
+        
+        $quote = $_ if /['"]/;
+
+    APPEND:
+        $token .= $_;
+        $esc = 0;
+    }
+    return @rslt;
+}
+
 ### \brief: process ARGV
 ###
 ### \param: style    - style of args parsing: 'old' = like fastq-dump
@@ -713,11 +772,12 @@ sub parseArgv($\@\@\%\%@)
     my $args = shift;
     my $longArg = shift;
     my $hasArg = shift;
+    my @fparams = ();
 
     @$params = ();
     @$args = ();
     
-    while (@_) {        
+    while (@_) {
         unless ($_[0] =~ /^-/) {
             # ordinary argument
             local $_ = shift;
@@ -726,10 +786,16 @@ sub parseArgv($\@\@\%\%@)
         }
 
         my $param = shift;
+        if ($param =~ /^--option-file(=.+)*/) {
+            my $filename = substr($1, 1) // shift or die "file name is required for --option-file";
+            push @_, parseOptionFile($filename);
+            next;
+        }
         if ($param =~ /^--/ ) {
             if ($param =~ /^(--[^=]+)=(.+)$/) {
                 # convert `--param=arg` to `--param arg`
                 push @$params, $1, $2;
+                push @fparams, { param => $1, arg => $2 };
                 next;
             }
         }
@@ -740,12 +806,14 @@ sub parseArgv($\@\@\%\%@)
                 if (exists $hasArg->{$param}) {
                     # convert short form with concatenated arg to long form with separate arg
                     push @$params, $param, $2;
+                    push @fparams, { param => $param, arg => $2 };
                     next;
                 }
                 else {
                     # concatenated short form; put back the remainder
                     unshift @_, "-$2";
                     push @$params, $param;
+                    push @fparams, { param => $param, arg => undef };
                     next;
                 }
             }
@@ -759,17 +827,41 @@ sub parseArgv($\@\@\%\%@)
                 return FALSE unless @_;
                 local $_ = shift;
                 push @$params, $param, $_;
+                push @fparams, { param => $param, arg => $_ };
                 next;
             }
             elsif (@_ && $_[0] !~ /^-/) { # argument is optional
                 local $_ = shift;
                 push @$params, $param, $_;
+                push @fparams, { param => $param, arg => $_ };
                 next;
             }
         }
         # this parameter never has an argument or
         # optional argument wasn't given
         push @$params, $param;
+        push @fparams, { param => $param, arg => undef };
+    }
+    if (@fparams > 10) {
+        my $fh;
+        ($fh, $paramsFile) = tempfile();
+        binmode $fh, ':utf8';
+        for (@fparams) {
+            my $line = "$_->{param}";
+            if (defined $_->{arg}) {
+                #if ($_->{arg} =~ /[ \r\n\f\t\v\\"]/) {
+                if ($_->{arg} =~ /[ \r\n\f\t\v\\]/) {
+                    # $_->{arg} =~ s/\\/\\\\/g;
+                    # $_->{arg} =~ s/"/\\"/g;
+                    $_->{arg} = '"'.$_->{arg}.'"';
+                }
+                $line .= " $_->{arg}" if defined $_->{arg};
+            }
+            $line .= "\n";
+            print $fh $line;
+        }
+        close $fh;
+        @$params = ( '--option-file', $paramsFile );
     }
     return TRUE;
 }
@@ -840,8 +932,6 @@ sub which($)
 ### \brief: the info sub-command
 ###
 ### \param: command line ARGS
-###
-### \return: does not return; calls exit
 sub info(@)
 {
     help('info') unless @_;
@@ -915,8 +1005,6 @@ sub info(@)
 ### \brief: the extract sub-command
 ###
 ### \param: command line ARGS
-###
-### \return: does not return; calls exit
 sub extract(@)
 {
     exit 0;
@@ -925,8 +1013,6 @@ sub extract(@)
 ### \brief: the help sub-command
 ###
 ### \param: command line ARGS
-###
-### \return: does not return; calls exit
 sub help(@)
 {
     local $0 = $basename;
@@ -1130,11 +1216,20 @@ sub loadConfig
     return \%config;
 }
 
+sub aeq(\@\@)
+{
+    my $n = scalar(@{$_[0]}); return FALSE unless $n == scalar(@{$_[1]});
+    for my $i (1 .. $n) {
+        return 0 if $_[0]->[$i - 1] ne $_[1]->[$i - 1];
+    }
+    return 1;
+}
+
 RUN_TESTS:
 eval <<'TESTS';
 
 use Config;
-use Test::Simple tests => 27;
+use Test::Simple tests => 29;
 my %long_args = (
     '-h' => '--help',
     '-?' => '--help',
@@ -1142,6 +1237,7 @@ my %long_args = (
 );
 my %param_args = (
     '--log-level' => TRUE,
+    '--option-file' => TRUE
 );
 my @params;
 my @args;
@@ -1201,7 +1297,18 @@ ok( parseArgv('new', @params, @args, %long_args, %param_args, qw{ -L 5 foo bar }
     && 0+@params == 2 && $params[0] eq '--log-level' && $params[1] eq '5'
     && 0+@args == 2 && $args[0] eq 'foo' && $args[1] eq 'bar'
     , 'newstyle: -L 5 foo bar' );
-    
+
+# option-file test
+my @testargs = qw{ --one --two --three --four --five --six --seven --eight --nine --ten --eleven --twelve };
+ok( parseArgv('new', @params, @args, %long_args, %param_args, @testargs)
+    && 0+@params == 2 && $params[0] eq '--option-file' && $params[1] eq $paramsFile
+    , 'newstyle: many params to option file' );
+my @readargs;
+for (IO::File->new($paramsFile)->getlines()) {
+    chomp; push @readargs, $_;
+}
+ok( aeq(@readargs, @testargs), 'newstyle: option file matches' );
+
 # accession lookup tests
 my @runs;
 ok( !(@runs = expandAccession('foobar')), 'lookup: nothing found for foobar' );

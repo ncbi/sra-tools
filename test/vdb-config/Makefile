@@ -25,7 +25,23 @@
 default: runtests
 
 TOP ?= $(abspath ../..)
+MODULE = test/vdb-config
+
+TEST_TOOLS = \
+	test-strides-model
+
 include $(TOP)/build/Makefile.env # BINDIR
+
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
+
+#-------------------------------------------------------------------------------
+# test-vdb-config
+#
 
 runtests: test-vdb-config
 
@@ -33,3 +49,26 @@ test-vdb-config:
 	@ printf "Testing exit code vdb-config of vdb-config... "
 	@ PATH=$(BINDIR):$(PATH) ; ./test-vdb-config.pl
 	@ echo OK
+
+#-------------------------------------------------------------------------------
+# test-strides-model
+#
+
+STRIDES_SRC = \
+	test-strides-model
+
+STRIDES_OBJ = \
+	$(addsuffix .$(OBJX),$(STRIDES_SRC))
+
+STRIDES_LIB = \
+	-skapp \
+	-sktst \
+	-sncbi-vdb \
+
+$(TEST_BINDIR)/test-strides-model: $(STRIDES_OBJ)
+	$(LP) --exe -o $@ $^ $(STRIDES_LIB)
+
+strides: test-strides-model
+	$(TEST_BINDIR)/test-strides-model  2>&1
+
+

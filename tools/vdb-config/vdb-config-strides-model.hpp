@@ -25,25 +25,31 @@
 *
 * =========================================================================== */
 
-struct vdbconf_strides_modelImpl;
+#include <string>
 
-class vdbconf_strides_model {
+struct vdbconf_strides_modelImpl;
+struct KConfig;
+
+class vdbconf_strides_model
+{
 public:
-    vdbconf_model(KConfig * config);
-    ~vdbconf_model(void);
+    vdbconf_strides_model(struct KConfig * config);
+    ~vdbconf_strides_model(void);
 
     /* does prefetch download ETL to output directory or cache? */
     bool does_prefetch_download_to_cache(void) const;
     void set_prefetch_download_to_cache(bool download_to_cache);
 
     /* does user agree to accept charges? */
-    bool does_user_accept_charges(void) const;
-    void set_user_accept_charges(bool accepts_charges);
+    bool does_user_accept_aws_charges(void) const;
+    bool does_user_accept_gcp_charges(void) const;
+    void set_user_accept_aws_charges(bool accepts_charges);
+    void set_user_accept_gcp_charges(bool accepts_charges);
 
     /* preferred temporary cache location */
     std::string get_temp_cache_location(void) const;
     void set_temp_cache_location(const std::string & path);
-    
+
     /* user-pay for GCP */
     std::string get_gcp_credential_file_location(void) const;
     void set_gcp_credential_file_location(const std::string & path);

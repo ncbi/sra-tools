@@ -70,6 +70,7 @@
 #include <sysalloc.h>
 
 #include <assert.h>
+#include <ctype.h> /* isdigit */
 #include <stdlib.h> /* free */
 #include <string.h> /* memset */
 #include <time.h> /* time */
@@ -599,6 +600,20 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     if (rc == 0 && item->mane ->fileType != NULL)
         rc = KServiceSetFormat(service, item->mane->fileType);
+
+    if (odir == NULL && !item->isDependency && id[0] != '\0' && !isdigit(id[0]))
+    {
+        bool toCache = false;
+        VPath * query = NULL;
+        rc_t r = VFSManagerMakePath(item->mane->vfsMgr, &query, "%s", id);
+        if (r == 0 && VPathIsAccessionOrOID(query)) {
+            r = KConfigReadBool(item->mane->cfg,
+                "/tools/prefetch/download_to_cache", &toCache);
+            if (!toCache)
+                odir = id;
+        }
+        RELEASE(VPath, query);
+    }
 
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
@@ -2258,14 +2273,14 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
     {
         if ( self -> mane -> outFile == NULL ) {
             KPathType type
-                = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
+                = KDirectoryPathType(dir, "./%s", self->desc) & ~kptAlias;
             if (type == kptFile || type == kptDir) {
                 rc = VPathStrInitStr(&resolved->path, self->desc, 0);
-                resolved->existing = true;
                 if (resolved->type != eRunTypeDownload) {
                     uint64_t s = -1;
                     const KFile *f = NULL;
-                    rc = KDirectoryOpenFileRead(dir, &f, "%s", self->desc);
+                    resolved->existing = true;
+                    rc = KDirectoryOpenFileRead(dir, &f, "./%s", self->desc);
                     if (rc == 0)
                         rc = KFileSize(f, &s);
                     if (s != -1)
@@ -2273,11 +2288,19 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                     else
                         OUTMSG(("%s\tunknown\n", self->desc));
                     RELEASE(KFile, f);
+                    return 0;
                 }
-                else
-                    STSMSG(STS_TOP,
-                        ("'%s' is a local non-kart file", self->desc));
-                return 0;
+                else {
+                    if (type == kptDir)
+                        type = VDBManagerPathType(self->mane->mgr,
+                            "./%s", self->desc) & ~kptAlias;
+                    if (type == kptFile) {
+                        resolved->existing = true;
+                        STSMSG(STS_TOP,
+                            ("'%s' is a local non-kart file", self->desc));
+                        return 0;
+                    }
+                }
             }
         }
     }

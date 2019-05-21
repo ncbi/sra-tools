@@ -11,6 +11,7 @@ use JSON::PP;
 use LWP;
 use URI;
 use XML::LibXML;
+use Data::Dumper;
 
 use constant { TRUE => !0, FALSE => !!0 };
 use constant EXIT_CODE_TRY_NEXT_SOURCE => 9; ### TODO: UPDATE TO CORRECT CODE AFTER TOOLS ARE UPDATED
@@ -197,8 +198,6 @@ sub queryEUtils($$)
     
     return @$idlist;
 }
-
-use Data::Dumper;
 
 sub unescapeXML($)
 {

@@ -24,24 +24,112 @@
 *
 */
 
+#include "vdb-config-model.hpp" // vdbconf_model
+
+
 #include <klib/text.h> /* string_cmp */
 #include <klib/vector.h> /* Vector */
+#include <klib/rc.h>
+
+#include <kfg/kfg-priv.h>
 
 #include <cstring> // memset
 
 #include <climits> /* PATH_MAX */
-
-#include "vdb-config-model.hpp" // vdbconf_model
+#include <stdexcept>
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
 
-using std::string;
+using namespace std;
 
 const int32_t vdbconf_model::kPublicRepoId = -1;
 const int32_t vdbconf_model::kInvalidRepoId = -2;
 
+// error reporting for KConfig_Get/KConfigSet calls: ignore NotFound, throw otherwise
+static
+void
+HandleRC( rc_t rc, const char * call )
+{
+    if ( rc != 0 && GetRCState ( rc ) != rcNotFound )
+    {
+        throw logic_error ( string ( "vdbconf_model: " ) + call + " failed" );
+    }
+}
+
+#define MODEL_THROW_ON_RC( call ) HandleRC ( call, #call )
+
+vdbconf_model::vdbconf_model( KConfig * config )
+    : _config( config )
+    , _config_valid( _config != NULL )
+    , _config_changed( false )
+    , _dir( NULL )
+    , _mgr( NULL )
+    , _vfs_mgr( NULL )
+{
+    if ( KConfigAddRef( config ) != 0 )
+    {
+        _config = NULL;
+        _config_valid = false;
+    }
+
+    assert(_config && _config_valid);
+
+    rc_t rc = KDirectoryNativeDir(&_dir);
+    if ( rc != 0 ) throw rc;
+
+    rc = KConfigMakeRepositoryMgrRead( _config, &_mgr );
+    if ( rc != 0 ) throw rc;
+
+    rc = VFSManagerMake ( &_vfs_mgr );
+}
+
+vdbconf_model::~vdbconf_model( void )
+{
+    if ( _config_valid ) {
+        KConfigRelease ( _config );
+        _config = NULL;
+    }
+
+    KRepositoryMgrRelease(_mgr);
+    _mgr = NULL;
+
+    KDirectoryRelease(_dir);
+    _dir = NULL;
+
+    VFSManagerRelease ( _vfs_mgr );
+    _vfs_mgr = NULL;
+}
+
+bool vdbconf_model::commit( void )
+{
+    bool res = false;
+    if ( _config_valid )
+    {
+        res = ( KConfigCommit ( _config ) == 0 );
+        if ( res ) _config_changed = false;
+    }
+    return res;
+}
+
+bool vdbconf_model::reload( void )
+{
+    if ( _config_valid )
+    {
+        KRepositoryMgrRelease ( _mgr );
+        _mgr = NULL;
+
+        KConfigRelease ( _config );
+        _config_valid = ( KConfigMakeLocal ( &_config, NULL ) == 0 );
+
+        if ( _config_valid )
+            KConfigMakeRepositoryMgrRead( _config, &_mgr );
+
+        _config_changed = false;
+    }
+    return _config_valid;
+}
 
 std::string vdbconf_model::native_to_internal( const std::string &s ) const
 {
@@ -92,8 +180,26 @@ std::string vdbconf_model::internal_to_native( const std::string &s ) const
     return res;
 }
 
+bool vdbconf_model::is_http_proxy_enabled( void ) const
+{
+    bool enabled = true;
+    KConfig_Get_Http_Proxy_Enabled(_config, &enabled, true);
+    if ( enabled )
+    {
+        std::string path = get_http_proxy_path();
+        if ( path.empty() ) enabled = false;
+    }
+    return enabled;
+}
 
-std::string vdbconf_model::get_http_proxy_path( void ) const {
+void vdbconf_model::set_http_proxy_enabled( bool enabled )
+{
+    KConfig_Set_Http_Proxy_Enabled(_config, enabled);
+    _config_changed = true;
+}
+
+std::string vdbconf_model::get_http_proxy_path( void ) const
+{
     char buffer[ PATH_MAX ] = "";
     rc_t rc = KConfig_Get_Http_Proxy_Path(_config, buffer, sizeof buffer, NULL);
     if (rc == 0) {
@@ -104,6 +210,51 @@ std::string vdbconf_model::get_http_proxy_path( void ) const {
     }
 }
 
+void vdbconf_model::set_http_proxy_path(const std::string &path)
+{
+    KConfig_Set_Http_Proxy_Path(_config, path.c_str());
+    _config_changed = true;
+}
+
+bool vdbconf_model::has_http_proxy_env_higher_priority( void ) const
+{
+    bool enabled = false;
+    KConfig_Has_Http_Proxy_Env_Higher_Priority(_config, &enabled);
+    return enabled;
+}
+void vdbconf_model::set_http_proxy_env_higher_priority( bool value )
+{
+    KConfig_Set_Http_Proxy_Env_Higher_Priority(_config, value);
+    _config_changed = true;
+}
+
+bool vdbconf_model::is_remote_enabled( void ) const
+{
+    bool res = false;
+
+    rc_t rc = KConfig_Get_Remote_Access_Enabled( _config, &res );
+    if (rc == 0) {
+        return res;
+    }
+
+    KConfig_Get_Remote_Main_Cgi_Access_Enabled( _config, &res );
+    if (!res) {
+        return res;
+    }
+
+    KConfig_Get_Remote_Aux_Ncbi_Access_Enabled( _config, &res );
+
+    return res;
+}
+
+void vdbconf_model::set_remote_enabled( bool enabled )
+{
+    if ( _config_valid )
+    {
+        KConfig_Set_Remote_Access_Enabled( _config, enabled );
+        _config_changed = true;
+    }
+}
 
 bool vdbconf_model::does_site_repo_exist( void ) const
 {
@@ -115,6 +266,77 @@ bool vdbconf_model::does_site_repo_exist( void ) const
     return res;
 }
 
+bool vdbconf_model::is_site_enabled( void ) const
+{
+    bool res = false;
+    if ( _config_valid ) KConfig_Get_Site_Access_Enabled( _config, &res );
+    return res;
+}
+void vdbconf_model::set_site_enabled( bool enabled )
+{
+    if ( does_site_repo_exist() && _config_valid )
+    {
+        KConfig_Set_Site_Access_Enabled( _config, enabled );
+        _config_changed = true;
+    }
+}
+
+bool vdbconf_model::allow_all_certs( void ) const
+{
+    bool res = false;
+    if ( _config_valid ) KConfig_Get_Allow_All_Certs( _config, &res );
+    return res;
+}
+void vdbconf_model::set_allow_all_certs( bool enabled )
+{
+    KConfig_Set_Allow_All_Certs( _config, enabled );
+    _config_changed = true;
+}
+
+/* THIS IS NEW AND NOT YET IMPLEMENTED IN CONFIG: global cache on/off !!! */
+bool vdbconf_model::is_global_cache_enabled( void ) const
+{
+    bool res = true;
+    if ( _config_valid )
+    {
+        bool is_disabled;
+        rc_t rc = KConfigReadBool ( _config, "/repository/user/cache-disabled", &is_disabled );
+        if ( rc == 0 )
+            res = !is_disabled;
+    }
+    return res;
+}
+
+void vdbconf_model::set_global_cache_enabled( bool enabled )
+{
+    if ( _config_valid )
+    {
+        KConfigWriteBool( _config, "/repository/user/cache-disabled", !enabled );
+        _config_changed = true;
+    }
+}
+
+bool vdbconf_model::is_user_cache_enabled( void ) const
+{
+    bool res = false;
+    if ( _config_valid ) KConfig_Get_User_Public_Cached( _config, &res );
+    return res;
+}
+void vdbconf_model::set_user_cache_enabled( bool enabled )
+{
+    if ( _config_valid )
+    {
+        KConfig_Set_User_Public_Cached( _config, enabled );
+        _config_changed = true;
+    }
+}
+
+uint32_t vdbconf_model::get_repo_count( void ) const
+{
+    uint32_t res = 0;
+    if ( _config_valid ) KConfigGetProtectedRepositoryCount( _config, &res );
+    return res;
+}
 
 int32_t vdbconf_model::get_repo_id( const string & repo_name ) const
 {
@@ -155,6 +377,30 @@ std::string vdbconf_model::get_repo_description(const string &repo_name) const
         return string( buffer, written );
     else
         return "";
+}
+
+bool vdbconf_model::is_protected_repo_cached( uint32_t id ) const
+{
+    bool res = true;
+    if ( _config_valid )
+        KConfigGetProtectedRepositoryCachedById( _config, id, &res );
+    return res;
+}
+
+void vdbconf_model::set_protected_repo_cached( uint32_t id, bool enabled )
+{
+    if ( _config_valid )
+    {
+        KConfigSetProtectedRepositoryCachedById( _config, id, enabled );
+        _config_changed = true;
+    }
+}
+
+bool vdbconf_model::does_repo_exist( const char * repo_name )
+{
+    bool res = false;
+    if ( _config_valid ) KConfigDoesProtectedRepositoryExist( _config, repo_name, &res );
+    return res;
 }
 
 std::string vdbconf_model::get_repo_location( uint32_t id ) const
@@ -242,6 +488,16 @@ std::string vdbconf_model::get_user_default_dir( void ) const
     return res;
 }
 
+void vdbconf_model::set_user_default_dir( const char * new_default_dir )
+{
+    if ( _config_valid )
+    {
+        std::string tmp( new_default_dir );
+        tmp = native_to_internal( tmp );
+        KConfig_Set_Default_User_Path( _config, tmp.c_str() );
+        _config_changed = true;
+    }
+}
 
 std::string vdbconf_model::get_ngc_root( std::string &base, const KNgcObj * ngc ) const
 {
@@ -256,7 +512,6 @@ std::string vdbconf_model::get_ngc_root( std::string &base, const KNgcObj * ngc 
     }
     return res;
 }
-
 
 static rc_t CC s_IsEmpty( const KDirectory * dir, uint32_t type, const char * name, void * data )
 {
@@ -407,6 +662,37 @@ ESetRootState vdbconf_model::prepare_repo_directory
     return res;
 }
 
+bool vdbconf_model::is_user_public_enabled( void ) const
+{
+    bool res = true;
+    if ( _config_valid ) KConfig_Get_User_Public_Enabled( _config, &res );
+    return res;
+}
+void vdbconf_model::set_user_public_enabled( bool enabled )
+{
+    if ( _config_valid )
+    {
+        KConfig_Set_User_Public_Enabled( _config, enabled );
+        _config_changed = true;
+    }
+}
+
+bool vdbconf_model::is_user_public_cached( void ) const
+{
+    bool res = true;
+    if ( _config_valid ) KConfig_Get_User_Public_Cached( _config, &res );
+    return res;
+}
+
+void vdbconf_model::set_user_public_cached( bool enabled )
+{
+    if ( _config_valid )
+    {
+        KConfig_Set_User_Public_Cached( _config, enabled );
+        _config_changed = true;
+    }
+}
+
 #if TDB
 bool check_locations_unique(KRepositoryVector *nonUniqueRepos,
     const string &newRootPath)
@@ -478,3 +764,149 @@ bool vdbconf_model::import_ngc( const std::string &native_location,
 
     return res;
 }
+
+bool vdbconf_model::get_id_of_ngc_obj( const KNgcObj *ngc, uint32_t * id )
+{
+    bool res = false;
+    if ( _config_valid )
+    {
+        size_t written;
+        char proj_id[ 512 ];
+        rc_t rc = KNgcObjGetProjectName( ngc, proj_id, sizeof proj_id, &written );
+        if ( rc == 0 )
+        {
+            rc = KConfigGetProtectedRepositoryIdByName( _config, proj_id, id );
+            res = ( rc == 0 );
+        }
+    }
+    return res;
+}
+
+bool vdbconf_model::mkdir(const KNgcObj *ngc)
+{
+    uint32_t id = 0;
+    if (!get_id_of_ngc_obj(ngc, &id)) {
+        return false;
+    }
+
+    const std::string root(get_repo_location(id));
+    if (root.size() == 0) {
+        return false;
+    }
+
+    if (KDirectoryPathType(_dir, root.c_str()) != kptNotFound) {
+        return false;
+    }
+
+    return KDirectoryCreateDir(_dir, 0775,
+        kcmCreate | kcmParents, root.c_str()) == 0;
+}
+
+bool vdbconf_model::does_path_exist( std::string &path )
+{
+    bool res = false;
+    if ( _dir != NULL )
+    {
+        KPathType type = KDirectoryPathType( _dir, path.c_str() );
+        res = ( ( type & ~kptAlias ) == kptDir );
+    }
+    return res;
+}
+
+
+
+bool
+vdbconf_model::does_prefetch_download_to_cache(void) const
+{
+    bool ret;
+    MODEL_THROW_ON_RC ( KConfig_Get_Prefetch_Download_To_Cache( _config, & ret) );
+    return ret;
+}
+void
+vdbconf_model::set_prefetch_download_to_cache(bool download_to_cache)
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Prefetch_Download_To_Cache( _config, download_to_cache ) );
+}
+
+bool
+vdbconf_model::does_user_accept_aws_charges(void) const
+{
+    bool ret;
+    MODEL_THROW_ON_RC ( KConfig_Get_User_Accept_Aws_Charges( _config, & ret) );
+    return ret;
+}
+void
+vdbconf_model::set_user_accept_aws_charges(bool accepts_charges)
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_User_Accept_Aws_Charges( _config, accepts_charges ) );
+}
+
+bool
+vdbconf_model::does_user_accept_gcp_charges(void) const
+{
+    bool ret;
+    MODEL_THROW_ON_RC ( KConfig_Get_User_Accept_Gcp_Charges( _config, & ret) );
+    return ret;
+}
+void
+vdbconf_model::set_user_accept_gcp_charges(bool accepts_charges)
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_User_Accept_Gcp_Charges( _config, accepts_charges ) );
+}
+
+string
+vdbconf_model::get_temp_cache_location(void) const
+{
+    char buf [ PATH_MAX ];
+    size_t written;
+    MODEL_THROW_ON_RC ( KConfig_Get_Temp_Cache ( _config, buf, sizeof buf, & written ) );
+    return string ( buf, written );
+}
+void
+vdbconf_model::set_temp_cache_location(const std::string & path)
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Temp_Cache ( _config, path . c_str() ) );
+}
+
+string
+vdbconf_model::get_gcp_credential_file_location(void) const
+{
+    char buf [ PATH_MAX ];
+    size_t written;
+    MODEL_THROW_ON_RC ( KConfig_Get_Gcp_Credential_File ( _config, buf, sizeof buf, & written ) );
+    return string ( buf, written );
+}
+void
+vdbconf_model::set_gcp_credential_file_location(const std::string & path)
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Gcp_Credential_File ( _config, path . c_str() ) );
+}
+
+string
+vdbconf_model::get_aws_credential_file_location(void) const
+{
+    char buf [ PATH_MAX ];
+    size_t written;
+    MODEL_THROW_ON_RC ( KConfig_Get_Aws_Credential_File ( _config, buf, sizeof buf, & written ) );
+    return string ( buf, written );
+}
+void
+vdbconf_model::set_aws_credential_file_location(const std::string & path)
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Aws_Credential_File ( _config, path . c_str() ) );
+}
+
+string
+vdbconf_model::get_aws_profile(void) const
+{
+    char buf [ PATH_MAX ];
+    size_t written;
+    MODEL_THROW_ON_RC ( KConfig_Get_Aws_Profile ( _config, buf, sizeof buf, & written ) );
+    return string ( buf, written );
+}
+void
+vdbconf_model::set_aws_profile(const std::string & path)
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Aws_Profile ( _config, path . c_str() ) );
+}
+

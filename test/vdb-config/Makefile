@@ -28,7 +28,7 @@ TOP ?= $(abspath ../..)
 MODULE = test/vdb-config
 
 TEST_TOOLS = \
-	test-strides-model
+	test-vdb-config-model
 
 include $(TOP)/build/Makefile.env # BINDIR
 
@@ -51,11 +51,11 @@ test-vdb-config:
 	@ echo OK
 
 #-------------------------------------------------------------------------------
-# test-strides-model
+# test-vdb-config-model
 #
 
 STRIDES_SRC = \
-	test-strides-model
+	test-vdb-config-model
 
 STRIDES_OBJ = \
 	$(addsuffix .$(OBJX),$(STRIDES_SRC))
@@ -65,10 +65,10 @@ STRIDES_LIB = \
 	-sktst \
 	-sncbi-vdb \
 
-$(TEST_BINDIR)/test-strides-model: $(STRIDES_OBJ)
+$(TEST_BINDIR)/test-vdb-config-model: $(STRIDES_OBJ)
 	$(LP) --exe -o $@ $^ $(STRIDES_LIB)
 
-strides: test-strides-model
-	$(TEST_BINDIR)/test-strides-model  2>&1
+model: test-vdb-config-model
+	$(TEST_BINDIR)/test-vdb-config-model  2>&1
 
 

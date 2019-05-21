@@ -284,6 +284,26 @@ rc_t CKDirectory::CreateNonExistingDir(const CString &path,
     return rc;
 }
 
+CKConfig::CKConfig(bool verbose)
+    : m_Self(NULL), m_Updated(false)
+    , m_RepositoryRemoteAuxDisabled ("repository/remote/aux/NCBI/disabled")
+    , m_RepositoryRemoteMainDisabled("repository/remote/main/CGI/disabled")
+    , m_RepositoryUserRoot          ("repository/user/main/public/root")
+{
+    if (verbose)
+        OUTMSG(("loading configuration... "));
+    rc_t rc = KConfigMakeLocal(&m_Self, NULL);
+    if (rc == 0) {
+        if (verbose)
+            OUTMSG(("ok\n"));
+    }
+    else {
+        if (verbose)
+            OUTMSG(("failed\n"));
+        throw rc;
+    }
+}
+
 rc_t CKConfig::Commit(void) const {
     if (!m_Updated) {
         return 0;
@@ -511,7 +531,7 @@ void CKConfig::Reload(bool verbose) {
     m_Self = NULL;
 
     if (rc == 0) {
-        rc = KConfigMake(&m_Self, NULL);
+        rc = KConfigMakeLocal(&m_Self, NULL);
     }
 
     if (rc == 0) {

@@ -31,29 +31,26 @@
 
 #include <kfs/directory.h>
 
-#include "../../tools/vdb-config/vdb-config-strides-model.cpp"
+#include <kfg/kfg-priv.h>
+
+#include "../../tools/vdb-config/vdb-config-model.cpp"
 
 TEST_SUITE(VdbConfStridesModelTestSuite);
 
-TEST_CASE( NullKfg )
-{
-    REQUIRE_THROW( vdbconf_strides_model m ( nullptr ) );
-}
-
-class StridesModelFixture
+class VdbModelFixture
 {
 public:
-    StridesModelFixture()
+    VdbModelFixture()
     : kfg ( nullptr )
     {
         KDirectory* wd;
         THROW_ON_RC ( KDirectoryNativeDir ( & wd ) );
 
-        THROW_ON_RC ( KConfigMake ( & kfg, nullptr ) );
+        THROW_ON_RC ( KConfigMakeLocal ( & kfg, nullptr ) );
 
         THROW_ON_RC ( KDirectoryRelease ( wd ) );
     }
-    ~StridesModelFixture()
+    ~VdbModelFixture()
     {
         KConfigRelease ( kfg );
     }
@@ -61,76 +58,66 @@ public:
     struct KConfig * kfg;
 };
 
-FIXTURE_TEST_CASE( Ctor_Dtor, StridesModelFixture )
+FIXTURE_TEST_CASE( Ctor_Dtor, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
+    vdbconf_model m ( kfg );
 }
 
-FIXTURE_TEST_CASE( prefetch_download_to_cache, StridesModelFixture )
+FIXTURE_TEST_CASE( prefetch_download_to_cache, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
+    vdbconf_model m ( kfg );
     REQUIRE ( m . does_prefetch_download_to_cache() ); // true by default
     m . set_prefetch_download_to_cache( false );
     REQUIRE ( ! m . does_prefetch_download_to_cache() );
 }
 
-FIXTURE_TEST_CASE( user_accept_aws_charges, StridesModelFixture )
+FIXTURE_TEST_CASE( user_accept_aws_charges, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
+    vdbconf_model m ( kfg );
     REQUIRE ( ! m . does_user_accept_aws_charges() ); // false by default
     m . set_user_accept_aws_charges( true );
     REQUIRE ( m . does_user_accept_aws_charges() );
 }
 
-FIXTURE_TEST_CASE( user_accept_gcp_charges, StridesModelFixture )
+FIXTURE_TEST_CASE( user_accept_gcp_charges, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
+    vdbconf_model m ( kfg );
     REQUIRE ( ! m . does_user_accept_gcp_charges() ); // false by default
     m . set_user_accept_gcp_charges( true );
     REQUIRE ( m . does_user_accept_gcp_charges() );
 }
 
-FIXTURE_TEST_CASE( temp_cache_location, StridesModelFixture )
+FIXTURE_TEST_CASE( temp_cache_location, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
-    REQUIRE_THROW ( m . get_temp_cache_location() );
+    vdbconf_model m ( kfg );
+    REQUIRE_EQ ( string(), m . get_temp_cache_location() );
     m . set_temp_cache_location( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_temp_cache_location() );
 }
 
-FIXTURE_TEST_CASE( gcp_credential_file_location, StridesModelFixture )
+FIXTURE_TEST_CASE( gcp_credential_file_location, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
-    REQUIRE_THROW ( m . get_gcp_credential_file_location() );
+    vdbconf_model m ( kfg );
+    REQUIRE_EQ ( string(), m . get_gcp_credential_file_location() );
     m . set_gcp_credential_file_location( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_gcp_credential_file_location() );
 }
 
-FIXTURE_TEST_CASE( aws_credential_file_location, StridesModelFixture )
+FIXTURE_TEST_CASE( aws_credential_file_location, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
-    REQUIRE_THROW ( m . get_aws_credential_file_location() );
+    vdbconf_model m ( kfg );
+    REQUIRE_EQ ( string(), m . get_aws_credential_file_location() );
     m . set_aws_credential_file_location( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_aws_credential_file_location() );
 }
 
-FIXTURE_TEST_CASE( aws_profile, StridesModelFixture )
+FIXTURE_TEST_CASE( aws_profile, VdbModelFixture )
 {
-    vdbconf_strides_model m ( kfg );
-    REQUIRE_THROW ( m . get_aws_profile() );
+    vdbconf_model m ( kfg );
+    REQUIRE_EQ ( string(), m . get_aws_profile() );
     m . set_aws_profile( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_aws_profile() );
 }
-
-FIXTURE_TEST_CASE( aws_credentials_from_env, StridesModelFixture )
-{
-    vdbconf_strides_model m ( kfg );
-    REQUIRE ( ! m . get_aws_credentials_from_env() ); // false by default
-    m . set_aws_credentials_from_env( true );
-    REQUIRE ( m . get_aws_credentials_from_env() );
-}
-
-//TODO: commit()
 
 //////////////////////////////////////////// Main
 extern "C"

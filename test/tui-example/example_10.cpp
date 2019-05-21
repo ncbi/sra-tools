@@ -55,56 +55,81 @@ const tui_id EXIT_BTN_ID = 201;
 const tui_id VERIFY_BTN_ID = 202;
 const tui_id RELOAD_BTN_ID = 203;
 const tui_id DEFAULT_BTN_ID = 204;
+const tui_id BOX_ID = 205;
 
 const tui_id AWS_HDR_ID = 300;
-const tui_id AWS_BOX_ID = 301;
 const tui_id AWS_CB_ID = 302;
 const tui_id AWS_KEY_ID = 303;
-const tui_id AWS_PICK_ID = 304;
+const tui_id AWS_CHOOSE_ID = 304;
 const tui_id AWS_FILE_ID = 305;
 const tui_id AWS_PROF_LBL_ID = 306;
 const tui_id AWS_PROF_ID = 307;
-const tui_id AWS_ENV_ID = 308;
 
 const tui_id GCP_HDR_ID = 400;
-const tui_id GCP_BOX_ID = 401;
 const tui_id GCP_CB_ID = 402;
 const tui_id GCP_KEY_ID = 403;
-const tui_id GCP_PICK_ID = 404;
+const tui_id GCP_CHOOSE_ID = 404;
 const tui_id GCP_FILE_ID = 405;
 
 const tui_id CACHE_HDR_ID = 500;
-const tui_id CACHE_BOX_ID = 501;
+const tui_id CACHE_SEL_ID = 501;
+
+const tui_id NETW_HDR_ID = 600;
+const tui_id NETW_USE_PROXY_ID = 602;
+const tui_id NETW_PROXY_LBL_ID = 603;
+const tui_id NETW_PROXY_ID = 604;
+
+const tui_id DBGAP_HDR_ID = 700;
 
 class ex10_model
 {
     public:
         ex10_model( const std::string cap ) : caption( cap ), aws_accept( false ),
-            aws_env( false ), gcp_accept( false ), changed( false ) {}
+            gcp_accept( false ), use_proxy( false ), changed( false ), cache_select( 0 ) {}
 
         const char * get_caption() { return caption.c_str(); }
         
+        /* AWS */
         void set_aws_accept( bool value ) { set_bool_value( &aws_accept, value ); }
-        void set_gcp_accept( bool value ) { set_bool_value( &gcp_accept, value ); }
-        void set_aws_env( bool value ) { set_bool_value( &aws_env, value ); }
-        
         bool get_aws_accept( void ) { return aws_accept; }
-        bool get_gcp_accept( void ) { return gcp_accept; }
-        bool get_aws_env( void ) { return aws_env; }
-
         void set_aws_keyfile( const std::string &value ) { set_string_value( &aws_keyfile, value ); }
-        void set_gcp_keyfile( const std::string &value ) { set_string_value( &gcp_keyfile, value ); }
-        void set_aws_profile( const std::string &value ) { set_string_value( &aws_profile, value ); }
-        
         const char * get_aws_keyfile( void ) { return aws_keyfile.c_str(); }
-        const char * get_gcp_keyfile( void ) { return gcp_keyfile.c_str(); }
+        void set_aws_profile( const std::string &value ) { set_string_value( &aws_profile, value ); }
         const char * get_aws_profile( void ) { return aws_profile.c_str(); }
+
+        /* GCP */
+        void set_gcp_accept( bool value ) { set_bool_value( &gcp_accept, value ); }
+        bool get_gcp_accept( void ) { return gcp_accept; }
+        void set_gcp_keyfile( const std::string &value ) { set_string_value( &gcp_keyfile, value ); }
+        const char * get_gcp_keyfile( void ) { return gcp_keyfile.c_str(); }
+
+        /* PROXY */
+        void set_use_proxy( bool value ) { set_bool_value( &use_proxy, value ); }        
+        bool get_use_proxy( void ) { return use_proxy; }
+        void set_proxy( const std::string &value ) { set_string_value( &proxy, value ); }
+        const char * get_proxy( void ) { return proxy.c_str(); }
         
+        /* CACHE */
+        void set_cache_select( int value ) { set_int_value( &cache_select, value ); }
+        int get_cache_select( void ) { return cache_select; }
+
+        /* DBGAP */
+
     private:
-        std::string caption, aws_keyfile, aws_profile, gcp_keyfile;    
-        bool aws_accept, aws_env, gcp_accept, changed;
+        std::string caption, aws_keyfile, aws_profile, gcp_keyfile, proxy;
+        bool aws_accept, aws_env, gcp_accept, use_proxy, changed;
+        int cache_select;
         
         void set_bool_value( bool *current, bool new_value )
+        {
+            if ( *current != new_value )
+            {
+                changed = true;
+                *current = new_value;
+            }
+        }
+
+        void set_int_value( int *current, int new_value )
         {
             if ( *current != new_value )
             {
@@ -123,18 +148,20 @@ class ex10_model
         }
 };
 
-const uint32_t PAGE_AWS = 0;
-const uint32_t PAGE_GCP = 1;
-const uint32_t PAGE_CACHE = 2;
+const uint32_t PAGE_FIXED = 0;
+const uint32_t PAGE_AWS = 1;
+const uint32_t PAGE_GCP = 2;
+const uint32_t PAGE_CACHE = 3;
+const uint32_t PAGE_NETW = 4;
+const uint32_t PAGE_DBGAP = 5;
 
 class ex10_view : public Dlg
 {
-   
     public :
-        
-        ex10_view( ex10_model &mod ) : Dlg(), model( mod ), active_page( PAGE_AWS )
+        ex10_view( ex10_model &mod ) : Dlg(), model( mod )
         {
             populate( GetRect(), false );
+            SetActivePage( PAGE_AWS );
         }
 
         virtual bool Resize( Tui_Rect const &r )
@@ -143,13 +170,17 @@ class ex10_view : public Dlg
             return Dlg::Resize( r );
         }
 
+        virtual void onPageChanged( uint32_t old_page, uint32_t new_page )
+        {
+            page_changed( old_page, false );
+            page_changed( new_page, true );            
+        }
+        
         bool set_active_page( uint32_t page )
         {
-            if ( active_page == page ) return false;
+            if ( GetActivePage() == page ) return false;
             SetFocus( SAVE_BTN_ID );
-            set_page( active_page, false );
-            set_page( page, true );            
-            active_page = page;
+            SetActivePage( page );
             return true;
         }
 
@@ -158,22 +189,20 @@ class ex10_view : public Dlg
         
     private :
         ex10_model &model;
-        uint32_t active_page;
 
-        void change_items( bool on, tui_id from, tui_id to )
+        void page_changed( uint32_t page_id, bool status )
         {
-            ShowWidgets( on, from, to );
-            SetWidgetBackground( from - 1 , on ? BOX_COLOR : STATUS_COLOR );
-        }
-
-        void set_page( uint32_t page, bool on )
-        {
-            switch( page )
+            tui_id hdr_id = 0;
+            switch( page_id )
             {
-                case PAGE_AWS   : change_items( on, AWS_BOX_ID, 308 ); break; // aws on/off
-                case PAGE_GCP   : change_items( on, GCP_BOX_ID, 405 ); break; // gcp on/off
-                case PAGE_CACHE : change_items( on, CACHE_BOX_ID, CACHE_BOX_ID ); break; // cache on/off
+                case PAGE_AWS   : hdr_id = AWS_HDR_ID; break;
+                case PAGE_GCP   : hdr_id = GCP_HDR_ID; break;
+                case PAGE_CACHE : hdr_id = CACHE_HDR_ID; break;
+                case PAGE_NETW  : hdr_id = NETW_HDR_ID; break;
+                case PAGE_DBGAP : hdr_id = DBGAP_HDR_ID; break;                
             }
+            if ( hdr_id > 0 )
+                SetWidgetBackground( hdr_id, status ? BOX_COLOR : STATUS_COLOR );
         }
         
         Tui_Rect save_and_exit_rect( Tui_Rect const &r ) { return Tui_Rect( 1, 2, r.get_w() - 2, 1 ); }
@@ -181,11 +210,13 @@ class ex10_view : public Dlg
         Tui_Rect BODY_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +1 , r.get_w(), r.get_h() - 1 ); }
         Tui_Rect CB_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +2 , 30, 1 ); }
         Tui_Rect cred_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +4 , 14, 1 ); }
-        Tui_Rect pick_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +5 , 10, 1 ); }
-        Tui_Rect file_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +12, r.get_y() +5 , r.get_w() -13, 1 ); }
+        Tui_Rect choose_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +5 , 12, 1 ); }
+        Tui_Rect file_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +14, r.get_y() +5 , r.get_w() -15, 1 ); }
         Tui_Rect prof_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +7 , 10, 1 ); }
-        Tui_Rect prof_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +12, r.get_y() +7 , 32, 1 ); }
-        Tui_Rect env_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +10 , 30, 1 ); }
+        Tui_Rect CACHE_RADIO_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() + 1, r.get_y() +2 , 24, 3 ); }
+        Tui_Rect prof_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +14, r.get_y() +7 , 32, 1 ); }
+        Tui_Rect proxy_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +4 , 7, 1 ); }
+        Tui_Rect proxy_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +8, r.get_y() +4 , 32, 1 ); }
 
         Tui_Rect HDR_rect( Tui_Rect const &r, uint32_t ident )
         {
@@ -211,53 +242,89 @@ class ex10_view : public Dlg
         void populate_save_and_exit( Tui_Rect const &r, bool resize )
         {
             Tui_Rect rr = Tui_Rect( r.get_x(), r.get_y(), 14, 1 );
-            PopulateButton( rr, resize, SAVE_BTN_ID,  "save", BTN_COLOR_BG, BTN_COLOR_FG );
+            PopulateButton( rr, resize, SAVE_BTN_ID,  "&save", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, EXIT_BTN_ID,  "exit", BTN_COLOR_BG, BTN_COLOR_FG );
+            PopulateButton( rr, resize, EXIT_BTN_ID,  "e&xit", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, VERIFY_BTN_ID, "verify", BTN_COLOR_BG, BTN_COLOR_FG );
+            PopulateButton( rr, resize, VERIFY_BTN_ID, "ver&ify", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, RELOAD_BTN_ID, "reload", BTN_COLOR_BG, BTN_COLOR_FG );
+            PopulateButton( rr, resize, RELOAD_BTN_ID, "&reload", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, DEFAULT_BTN_ID, "default", BTN_COLOR_BG, BTN_COLOR_FG );
+            PopulateButton( rr, resize, DEFAULT_BTN_ID, "de&fault", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
         }
 
-        void populate_AWS( Tui_Rect const &r, bool resize, bool active )
+        void populate_AWS( Tui_Rect const &r, bool resize )
         {
-            PopulateLabel( HDR_rect( r, 0 ), resize, AWS_HDR_ID, "&AWS",
-                active ? BOX_COLOR : STATUS_COLOR, LABEL_FG );
-            PopulateLabel( BODY_rect( r ), resize, AWS_BOX_ID, NULL, BOX_COLOR, LABEL_FG );
-            PopulateCheckbox( CB_rect( r ), resize, AWS_CB_ID, "accept charges for AWS",
-                                model.get_aws_accept(), CB_COLOR_BG, CB_COLOR_FG );
-            PopulateLabel( cred_rect( r ), resize, AWS_KEY_ID, "credentials:", BOX_COLOR, LABEL_FG );
-            PopulateButton( pick_rect( r ), resize, AWS_PICK_ID, "pick", BTN_COLOR_BG, BTN_COLOR_FG );
-            PopulateLabel( file_rect( r ), resize, AWS_FILE_ID, model.get_aws_keyfile(), LABEL_BG, LABEL_FG );
-            PopulateLabel( prof_lbl_rect( r ), resize, AWS_PROF_LBL_ID, "profile:", BOX_COLOR, LABEL_FG );
-            PopulateInput( prof_rect( r ), resize, AWS_PROF_ID, model.get_aws_profile(), 64, INP_COLOR_BG, INP_COLOR_FG );
-            PopulateCheckbox( env_rect( r ), resize, AWS_ENV_ID, "pick from environment",
-                                model.get_aws_env(), CB_COLOR_BG, CB_COLOR_FG );
-            ShowWidgets( active, AWS_BOX_ID, AWS_ENV_ID );
+            PopulateLabel( HDR_rect( r, 0 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateCheckbox( CB_rect( r ), resize, AWS_CB_ID, "acc&ept charges for AWS",
+                                model.get_aws_accept(), CB_COLOR_BG, CB_COLOR_FG, PAGE_AWS );
+            PopulateLabel( cred_rect( r ), resize, AWS_KEY_ID, "credentials:",
+                                BOX_COLOR, LABEL_FG, PAGE_AWS );
+            PopulateButton( choose_rect( r ), resize, AWS_CHOOSE_ID, "ch&oose",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_AWS );
+            PopulateLabel( file_rect( r ), resize, AWS_FILE_ID, model.get_aws_keyfile(),
+                                LABEL_BG,INP_COLOR_FG, PAGE_AWS );
+            PopulateLabel( prof_lbl_rect( r ), resize, AWS_PROF_LBL_ID, "&profile:",
+                                BOX_COLOR, LABEL_FG, PAGE_AWS );
+            PopulateInput( prof_rect( r ), resize, AWS_PROF_ID, model.get_aws_profile(),
+                                64, INP_COLOR_BG, INP_COLOR_FG, PAGE_AWS );
         }
 
-        void populate_GCP( Tui_Rect const &r, bool resize, bool active )
+        void populate_GCP( Tui_Rect const &r, bool resize )
         {
-            PopulateLabel( HDR_rect( r, 1 ), resize, GCP_HDR_ID, "&GCP",
-                active ? BOX_COLOR : STATUS_COLOR, LABEL_FG );
-            PopulateLabel( BODY_rect( r ), resize, GCP_BOX_ID, NULL, BOX_COLOR, LABEL_FG );
-            PopulateCheckbox( CB_rect( r ), resize, GCP_CB_ID, "accept charges for GCP",
-                                model.get_gcp_accept(), CB_COLOR_BG, CB_COLOR_FG );
-            PopulateLabel( cred_rect( r ), resize, GCP_KEY_ID, "credentials:", BOX_COLOR, LABEL_FG );
-            PopulateButton( pick_rect( r ), resize, GCP_PICK_ID, "pick", BTN_COLOR_BG, BTN_COLOR_FG );
-            PopulateLabel( file_rect( r ), resize, GCP_FILE_ID, model.get_gcp_keyfile(), LABEL_BG, LABEL_FG );
-            ShowWidgets( active, GCP_BOX_ID, GCP_FILE_ID );
+            PopulateLabel( HDR_rect( r, 1 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateCheckbox( CB_rect( r ), resize, GCP_CB_ID, "acc&ept charges for GCP",
+                                model.get_gcp_accept(), CB_COLOR_BG, CB_COLOR_FG, PAGE_GCP );
+            PopulateLabel( cred_rect( r ), resize, GCP_KEY_ID, "credentials:",
+                                BOX_COLOR, LABEL_FG, PAGE_GCP );
+            PopulateButton( choose_rect( r ), resize, GCP_CHOOSE_ID, "ch&oose",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_GCP );
+            PopulateLabel( file_rect( r ), resize, GCP_FILE_ID, model.get_gcp_keyfile(),
+                                LABEL_BG, INP_COLOR_FG, PAGE_GCP );
         }
 
-        void populate_CACHE( Tui_Rect const &r, bool resize, bool active )
+        void PopulateCacheRadiobox( Tui_Rect const &r, bool resize, uint32_t id, int selection,
+                    KTUI_color bg, KTUI_color fg, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 2 ), resize, CACHE_HDR_ID, "&CACHE",
-                active ? BOX_COLOR : STATUS_COLOR, LABEL_FG );
-            PopulateLabel( BODY_rect( r ), resize, CACHE_BOX_ID, NULL, BOX_COLOR, LABEL_FG );
-            ShowWidgets( active, CACHE_BOX_ID, CACHE_BOX_ID );            
+            if ( resize )
+                SetWidgetRect( id, r, false );
+            else
+            {
+                if ( HasWidget( id ) )
+                {   /* set selection */
+                }
+                else
+                {
+                    AddRadioBox( id, r );
+                    Populate_common( id, bg, fg, page_id );                    
+                    AddWidgetString( id, "none ( in RAM )" );
+                    AddWidgetString( id, "in repository" );
+                    AddWidgetString( id, "process local" );
+                }
+            }
+        }
+
+        void populate_CACHE( Tui_Rect const &r, bool resize )
+        {
+            PopulateLabel( HDR_rect( r, 2 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateCacheRadiobox( CACHE_RADIO_rect( r ), resize, CACHE_SEL_ID, model.get_cache_select(),
+                CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE ); 
+        }
+
+        void populate_NETW( Tui_Rect const &r, bool resize )
+        {
+            PopulateLabel( HDR_rect( r, 3 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateCheckbox( CB_rect( r ), resize, NETW_USE_PROXY_ID, "&use proxy",
+                                model.get_use_proxy(), CB_COLOR_BG, CB_COLOR_FG, PAGE_NETW );
+            PopulateLabel( proxy_lbl_rect( r ), resize, NETW_PROXY_LBL_ID, "&proxy:",
+                                BOX_COLOR, LABEL_FG, PAGE_NETW );
+            PopulateInput( proxy_rect( r ), resize, NETW_PROXY_ID, model.get_proxy(),
+                                64, INP_COLOR_BG, INP_COLOR_FG, PAGE_NETW );
+        }
+
+        void populate_DBGAP( Tui_Rect const &r, bool resize )
+        {
+            PopulateLabel( HDR_rect( r, 4 ), resize, DBGAP_HDR_ID, "&DBGAP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
         }
         
         void populate( Tui_Rect const &r, bool resize )
@@ -265,9 +332,14 @@ class ex10_view : public Dlg
             SetCaption( model . get_caption() );
             set_status_line( r );
             populate_save_and_exit( save_and_exit_rect( r ), resize );
-            populate_AWS( TAB_rect( r ), resize, active_page == PAGE_AWS );
-            populate_GCP( TAB_rect( r ), resize, active_page == PAGE_GCP );
-            populate_CACHE( TAB_rect( r ), resize, active_page == PAGE_CACHE );
+            Tui_Rect tab_rect = TAB_rect( r );            
+
+            PopulateLabel( BODY_rect( tab_rect ), resize, BOX_ID, NULL, BOX_COLOR, LABEL_FG, PAGE_FIXED );
+            populate_AWS( tab_rect, resize );
+            populate_GCP( tab_rect, resize );
+            populate_CACHE( tab_rect, resize );
+            populate_NETW( tab_rect, resize );
+            populate_DBGAP( tab_rect, resize );
         }
 };
 
@@ -284,9 +356,11 @@ class ex10_ctrl : public Dlg_Runner
         virtual bool on_changed( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
         {
             ex10_model * model = ( ex10_model * ) data;
-            switch( dev.get_widget_id() )
+            tui_id id = dev.get_widget_id();
+            switch( id )
             {
-                case AWS_PROF_ID : model -> set_aws_profile( dlg.GetWidgetText( AWS_PROF_ID ) ); break;
+                case AWS_PROF_ID   : model -> set_aws_profile( dlg.GetWidgetText( id ) ); break;
+                case NETW_PROXY_ID : model -> set_proxy( dlg.GetWidgetText( id ) ); break;
             }
             return true;
         }
@@ -299,14 +373,14 @@ class ex10_ctrl : public Dlg_Runner
             switch( dev.get_widget_id() )
             {
                 case AWS_CB_ID  : model -> set_aws_accept( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); break;
-                case AWS_ENV_ID : model -> set_aws_env( dlg.GetWidgetBoolValue( AWS_ENV_ID ) ); break;
                 case GCP_CB_ID  : model -> set_gcp_accept( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); break;
+                case NETW_USE_PROXY_ID : model -> set_use_proxy( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); break;
                 
                 case SAVE_BTN_ID : on_save( dlg, model ); break;                
                 case EXIT_BTN_ID : res = on_exit( dlg, model ); break;
                 case VERIFY_BTN_ID : on_verify( dlg, model ); break;
-                case AWS_PICK_ID : on_aws_pick( dlg, model ); break;
-                case GCP_PICK_ID : on_gcp_pick( dlg, model ); break;                
+                case AWS_CHOOSE_ID : on_aws_choose( dlg, model ); break;
+                case GCP_CHOOSE_ID : on_gcp_choose( dlg, model ); break;  
             }
             return res;
         }
@@ -319,15 +393,34 @@ class ex10_ctrl : public Dlg_Runner
 
             switch( code )
             {
+                case 'x' :
                 case 'Q' :
                 case 'q' : res = on_exit( dlg, model ); break;
 
+                case 's' : res = on_save( dlg, model ); break;
+                case 'i' : res = on_verify( dlg, model ); break;
+                case 'r' : res = on_reload( dlg, model ); break;
+                case 'f' : res = on_default( dlg, model ); break;
+                case 'p' : if ( dlg . GetActivePage() == PAGE_AWS ) dlg.SetFocus( AWS_PROF_ID ); break;
+                case 'e' : res = toggle_accept_charges( view, model ); break;
+                case 'u' : res = toggle_use_proxy( view, model ); break;
+                
+                case 'o' : if ( dlg . GetActivePage() == PAGE_AWS )
+                                res = on_aws_choose( dlg,  model );
+                           else if ( dlg . GetActivePage() == PAGE_GCP )
+                                res = on_gcp_choose( dlg,  model );
+                           break;
+                
                 case 'a' :
                 case 'A' : res = view.set_active_page( PAGE_AWS ); break;
                 case 'g' :
                 case 'G' : res = view.set_active_page( PAGE_GCP ); break;
                 case 'c' :
                 case 'C' : res = view.set_active_page( PAGE_CACHE ); break;
+                case 'n' :
+                case 'N' : res = view.set_active_page( PAGE_NETW ); break;
+                case 'd' :
+                case 'D' : res = view.set_active_page( PAGE_DBGAP ); break;
                 
                 default  : res = false;
             }
@@ -336,7 +429,7 @@ class ex10_ctrl : public Dlg_Runner
         
     private :
 
-        void show_msg( Dlg &dlg, Tui_Rect r, const char * msg )
+        bool show_msg( Dlg &dlg, Tui_Rect r, const char * msg )
         {
             Std_Dlg_Info_Line sub;
             sub.set_parent( &dlg );
@@ -344,6 +437,34 @@ class ex10_ctrl : public Dlg_Runner
             sub.set_location( r );
             sub.set_text( msg );
             sub.execute();
+            return true;
+        }
+
+        bool toggle_accept_charges( ex10_view &view, ex10_model *model )
+        {
+            bool res = false;
+            if ( view.GetActivePage() == PAGE_AWS )
+            {
+                res = view.ToggleWidgetBoolValue( AWS_CB_ID );
+                model -> set_aws_accept( view.GetWidgetBoolValue( AWS_CB_ID ) );
+            }
+            else if ( view.GetActivePage() == PAGE_GCP )
+            {
+                res = view.ToggleWidgetBoolValue( GCP_CB_ID );
+                model -> set_gcp_accept( view.GetWidgetBoolValue( GCP_CB_ID ) );
+            }
+            return res;
+        }
+
+        bool toggle_use_proxy( ex10_view &view, ex10_model *model )
+        {
+            bool res = false;
+            if ( view.GetActivePage() == PAGE_NETW )
+            {
+                res = view.ToggleWidgetBoolValue( NETW_USE_PROXY_ID );
+                model -> set_use_proxy( view.GetWidgetBoolValue( NETW_USE_PROXY_ID ) );
+            }
+            return res;
         }
 
         bool pick_dir( Dlg &dlg, Tui_Rect r, std::string &path )
@@ -379,9 +500,9 @@ class ex10_ctrl : public Dlg_Runner
             return res;
         }
 
-        void on_save( Dlg &dlg, ex10_model * model )
+        bool on_save( Dlg &dlg, ex10_model * model )
         {
-            show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "changes successfully saved" );
+            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "changes successfully saved" );
         }
     
         bool on_exit( Dlg &dlg, ex10_model * model )
@@ -390,12 +511,22 @@ class ex10_ctrl : public Dlg_Runner
             return true;
         }
 
-        void on_verify( Dlg &dlg, ex10_model * model )
+        bool on_verify( Dlg &dlg, ex10_model * model )
         {
-            show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "verification successful" );
+            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "verification successful" );
         }
 
-        void on_aws_pick( Dlg &dlg, ex10_model * model )
+        bool on_reload( Dlg &dlg, ex10_model * model )
+        {
+            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "reload successful" );
+        }
+
+        bool on_default( Dlg &dlg, ex10_model * model )
+        {
+            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "setting defaults successful" );
+        }
+
+        bool on_aws_choose( Dlg &dlg, ex10_model * model )
         {
             std::string file = pick_file( dlg, Tui_Rect( 0, 0, 80, 40 ), "/home" );
             if ( !file.empty() )
@@ -404,9 +535,10 @@ class ex10_ctrl : public Dlg_Runner
                 ex10_view &view = dynamic_cast<ex10_view&>( dlg );
                 view.update_aws_credentials( file );
             }
+            return true;
         }
 
-        void on_gcp_pick( Dlg &dlg, ex10_model * model )
+        bool on_gcp_choose( Dlg &dlg, ex10_model * model )
         {
             std::string file = pick_file( dlg, Tui_Rect( 0, 0, 80, 40 ), "/home" );
             if ( !file.empty() )
@@ -415,6 +547,7 @@ class ex10_ctrl : public Dlg_Runner
                 ex10_view &view = dynamic_cast<ex10_view&>( dlg );
                 view.update_gcp_credentials( file );
             }
+            return true;
         }
 };
 
@@ -423,7 +556,7 @@ void example_10( void )
     try
     {
         /* (1) ... create a model */        
-        ex10_model model( "SRA cloud settings" );
+        ex10_model model( "SRA settings" );
         
         /* (2) ... create a view */
         ex10_view view( model );

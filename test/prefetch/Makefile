@@ -76,6 +76,7 @@ urls_and_accs:
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
 	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
+	 echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg
 
 	@if ls `pwd`/tmp2/support.shtml 2> /dev/null ; \
      then echo support.shtml found ; exit 1 ; fi

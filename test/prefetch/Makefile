@@ -76,7 +76,7 @@ urls_and_accs:
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
 	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
-	 echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg
+	@echo '/tools/prefetch/download_to_cache = "true"' >> tmp/t.kfg
 
 	@if ls `pwd`/tmp2/support.shtml 2> /dev/null ; \
      then echo support.shtml found ; exit 1 ; fi
@@ -86,14 +86,12 @@ urls_and_accs:
 	    $(BINDIR)/prefetch http://intranet/irb/support.shtml > /dev/null ; fi
 	@if ping -c1 intranet > /dev/null ; \
 	 then ls `pwd`/tmp2/support.shtml > /dev/null ; fi
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
 	     $(BINDIR)/prefetch http://intranet/irb/support.shtml \
 	        | grep "found local" > /dev/null ; fi
-#	@echo
 
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.shtml found ; exit 1; fi
@@ -102,27 +100,23 @@ urls_and_accs:
 	 if ping -c1 intranet > /dev/null ; then \
 	    $(BINDIR)/prefetch http://intranet/ > /dev/null ; fi
 	@if ping -c1 intranet>/dev/null; then ls `pwd`/tmp2/index.html > /dev/null;fi
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
 	    $(BINDIR)/prefetch http://intranet/ | grep "found local" > /dev/null ; fi
 	@rm -f tmp2/index.html
-#	@echo
 
 	@echo URL download when user repository is configured
 	@if ls `pwd`/tmp2/wiki 2> /dev/null ; then echo wiki found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 	@ls `pwd`/tmp2/wiki > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki \
 	                              | grep "found local" > /dev/null
-#	@echo
 
 	@echo URL/ download when user repository is configured
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
@@ -130,7 +124,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ > /dev/null
 	@ls `pwd`/tmp2/index.html > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
@@ -148,7 +141,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
 	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -166,7 +158,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(REFSEQ) > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -184,7 +175,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(KMER) > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -213,7 +203,6 @@ urls_and_accs:
 	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
 	 else echo download of $(SRRF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm `pwd`/tmp/refseq/KC702174.1
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
@@ -223,7 +212,6 @@ urls_and_accs:
 	    ls `pwd`/tmp/refseq/KC702174.1 > /dev/null ; \
 	 else echo download of $(REFSEQF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm `pwd`/tmp/nannot/GCA_000390265.1_R
 	@echo NANNOT FASP download when user repository is configured
@@ -234,7 +222,6 @@ urls_and_accs:
 	      ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null ; \
 	 else echo download of $(KMERF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm `pwd`/tmp/wgs/AFVF01
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
@@ -258,10 +245,10 @@ urls_and_accs:
 
 	@echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
 	@echo SRR accession download
+	@rm -rvf SRR053325
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR053325 > /dev/null
 	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
-#	@echo
 
 	@echo prefetch run with refseqs
 	@if ls `pwd`/tmp/sra/SRR619505.sra 2> /dev/null ; \
@@ -278,21 +265,18 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch KC702174.1 > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
-#	@echo
 
 	@echo NANNOT accession download
 	@rm -f `pwd`/tmp/nannot/GCA_000390265.1_R
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch GCA_000390265.1_R > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
-#	@echo
 
 	@echo WGS accession download
 	@rm -f `pwd`/tmp/wgs/AFVF01
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch AFVF01 > /dev/null
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null
-#	@echo
 
 	@if ls `pwd`/tmp2/100MB 2> /dev/null ; \
      then echo 100MB found ; exit 1; fi
@@ -309,7 +293,6 @@ urls_and_accs:
             exit 1; \
 	     fi ; \
 	 fi
-#	@echo
 
 	@if ls `pwd`/tmp2/1GB 2> /dev/null; \
      then echo 1GB found ; exit 1; fi
@@ -319,7 +302,6 @@ urls_and_accs:
 	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB > /dev/null;\
 	    ls `pwd`/1GB > /dev/null ; \
 	 fi
-#	@echo
 
 	@rm -f `pwd`/tmp2/100MB
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \

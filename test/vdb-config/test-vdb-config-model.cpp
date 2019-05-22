@@ -114,7 +114,7 @@ FIXTURE_TEST_CASE( aws_credential_file_location, VdbModelFixture )
 FIXTURE_TEST_CASE( aws_profile, VdbModelFixture )
 {
     vdbconf_model m ( kfg );
-    REQUIRE_EQ ( string(), m . get_aws_profile() );
+    REQUIRE_EQ ( string( "default" ), m . get_aws_profile() );
     m . set_aws_profile( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_aws_profile() );
     REQUIRE ( m . get_config_changed () );

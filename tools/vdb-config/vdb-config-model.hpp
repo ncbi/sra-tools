@@ -222,14 +222,15 @@ class vdbconf_model
         std::string get_temp_cache_location(void) const;
         void set_temp_cache_location(const std::string & path);
 
-        /* user-pay for GCP */
+        /* user-pay for GCP, a file name */
         std::string get_gcp_credential_file_location(void) const;
         void set_gcp_credential_file_location(const std::string & path);
 
-        /* user-pay for AWS */
+        /* user-pay for AWS, can be a directory or a file */
         std::string get_aws_credential_file_location(void) const;
         void set_aws_credential_file_location(const std::string & path);
 
+        /* "default" if not present or empty */
         std::string get_aws_profile(void) const;
         void set_aws_profile(const std::string & name);
 

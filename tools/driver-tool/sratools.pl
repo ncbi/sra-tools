@@ -154,23 +154,21 @@ sub resolveAccessionURLs($)
 {
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
     my @result;
+    my $json = '';
     my $kid = open(my $pipe, '-|') or die "can't fork: $!";
     
     if ($kid == 0) {
-        exec {$toolpath} 'srapath', @_;
+        exec {$toolpath} 'srapath', qw{ --function names --json }, @_;
         die "can't exec srapath: $!";
     }
 
     while (defined(local $_ = <$pipe>)) {
-        ## TODO: proper parsing of new? srapath response
-        chomp;
-        push @result, {
-              source => undef
-            , url => $_
-            , cache => undef
-        };
+        $json .= $_
     }
     close($pipe);
+    
+    my $obj = decode_json $json;
+    say Dumper($obj); exit 0;
     return @result;
 }
 

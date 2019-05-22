@@ -312,18 +312,25 @@ static unsigned json_print_named_urls(  char const *const name
                                       , unsigned const count
                                       , bool const comma)
 {
-    String const *tmp = NULL;
-    rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
-    if (count == 0) {
-        OUTMSG(("%.*s\"%s\": ["
-                , comma ? 2 : 0, ", "
-                , name));
+    if (url) {
+        String const *tmp = NULL;
+        rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
+        if (count == 0) {
+            OUTMSG(("%.*s\"%s\": ["
+                    , comma ? 2 : 0, ", "
+                    , name));
+        }
+        OUTMSG(("%.*s\"%S\""
+                , count > 1 ? 2 : 0, ", "
+                , tmp));
+        free((void *)tmp);
+        return count + 1;
     }
-    OUTMSG(("%.*s\"%S\""
-            , count > 1 ? 2 : 0, ", "
-            , tmp));
-    free((void *)tmp);
-    return count + 1;
+    else if (count > 0) {
+        /* close json array */
+        OUTMSG(("]"));
+    }
+    return count;
 }
 
 static unsigned json_print_response_file(KSrvRespFile const *const file, unsigned count)
@@ -367,15 +374,14 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, unsigne
         rc = KSrvRespFileMakeIterator(file, &iter);
         if (rc == 0 && iter) {
             unsigned rcount = 0;
-            VPath const *remote = NULL;
             
-            while ((rc = KSrvRespFileIteratorNextPath(iter, &remote)) == 0 && remote != NULL) {
-                rcount = json_print_named_urls("remote", remote, rcount, true);
-                RELEASE(VPath, remote); remote = NULL;
-            }
-            if (rcount) {
-                /* close json array */
-                OUTMSG(("]"));
+            for ( ; ; ) {
+                if ((rc = KSrvRespFileIteratorNextPath(iter, &path)) == 0) {
+                    rcount = json_print_named_urls("remote", path, rcount, true);
+                    if (path == NULL)
+                        break;
+                    RELEASE(VPath, path); path = NULL;
+                }
             }
             RELEASE(KSrvRespFileIterator, iter);
         }

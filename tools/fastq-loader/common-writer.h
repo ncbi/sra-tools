@@ -24,6 +24,8 @@
  *
  */
 
+#include <insdc/sra.h>
+
 /*--------------------------------------------------------------------------
  * forwards
  */
@@ -38,37 +40,33 @@ struct CommonWriter;
 struct SequenceWriter;
 struct AlignmentWriter;
 struct Reference;
+struct SpotAssembler;
 
 /*--------------------------------------------------------------------------
  * CommonWriterSettings
  */
-enum LoaderModes {
-    mode_Archive,
-    mode_Analysis
-};
-
 typedef struct CommonWriterSettings
 {
     uint64_t numfiles;
     char const *inpath;
     char const *outpath;
     char const *tmpfs;
-    
+
     struct KFile *noMatchLog;
-    
+
     char const *schemaPath;
     char const *schemaIncludePath;
-    
+
     char const *refXRefPath;
-    
+
     char const *QualQuantizer;
-    
+
     char const *refFilter;
 
     char const* const* refFiles; /* NULL-terminated array pointing to argv */
-    
+
     char const *headerText;
-    
+
     uint64_t maxAlignCount;
     size_t cache_size;
 
@@ -80,7 +78,6 @@ typedef struct CommonWriterSettings
     uint64_t pid;
     uint64_t minMatchCount; /* minimum number of matches to count as an alignment */
     int minMapQual;
-    enum LoaderModes mode;
     uint32_t maxSeqLen;
     bool omit_aligned_reads;
     bool omit_reference_reads;
@@ -107,53 +104,18 @@ typedef struct CommonWriterSettings
 } CommonWriterSettings;
 
 /*--------------------------------------------------------------------------
- * SpotAssembler
- */
-
-#define FRAGMENT_HOT_COUNT (1024u * 1024u)
-#define NUM_ID_SPACES (256u)
-
-typedef struct SpotAssembler {
-    const struct KLoadProgressbar *progress[4];
-    struct KBTree *key2id[NUM_ID_SPACES];
-    char *key2id_names;
-    struct MMArray *id2value;
-    int64_t spotId;
-    int64_t nextFragment;
-
-    struct {
-        int64_t id;
-        void *data;
-    } *fragment; /* [FRAGMENT_HOT_COUNT] */
-
-    uint32_t idCount[NUM_ID_SPACES];
-    uint32_t key2id_hash[NUM_ID_SPACES];
-    
-    size_t key2id_max;
-    size_t key2id_name_max;
-    size_t key2id_name_alloc;
-    size_t key2id_count;
-    
-    size_t key2id_name[NUM_ID_SPACES];
-    /* this array is kept in name order */
-    /* this maps the names to key2id and idCount */
-    size_t key2id_oid[NUM_ID_SPACES];
-
-    int fragmentFd;
-    unsigned pass;
-    bool isColorSpace;
-} SpotAssembler;
-
-/*--------------------------------------------------------------------------
  * CommonWriter
  */
 typedef struct CommonWriter {
     CommonWriterSettings settings;
-    SpotAssembler ctx;
-    struct SequenceWriter* seq;
+    struct SpotAssembler * ctx;
+    struct SequenceWriter * seq;
+    const struct KLoadProgressbar * progress;
+
     bool had_sequences;
     unsigned err_count;
     bool commit;
+    bool isColorSpace;
 } CommonWriter;
 
 rc_t CommonWriterInit(CommonWriter* self, struct VDBManager *mgr, struct VDatabase *db, const CommonWriterSettings* settings);

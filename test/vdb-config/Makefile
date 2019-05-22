@@ -31,5 +31,5 @@ runtests: test-vdb-config
 
 test-vdb-config:
 	@ printf "Testing exit code vdb-config of vdb-config... "
-	@ PATH=$(BINDIR):$(PATH) ; ./test-vdb-config.pl
+	@ PATH=$(BINDIR):"$(PATH)" ; ./test-vdb-config.pl
 	@ echo OK

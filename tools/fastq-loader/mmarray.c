@@ -24,6 +24,11 @@
  *
  */
 
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <klib/log.h>
+
+
 #define MMA_NUM_CHUNKS_BITS (20u)
 #define MMA_NUM_SUBCHUNKS_BITS ((32u)-(MMA_NUM_CHUNKS_BITS))
 #define MMA_SUBCHUNK_SIZE (1u << MMA_NUM_CHUNKS_BITS)

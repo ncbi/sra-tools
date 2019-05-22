@@ -248,7 +248,8 @@ public:
     KConfig* Get(void) const { return m_Self; }
     void Reload(bool verbose = false);
     void Updated ( void ) { m_Updated = true; }
-    rc_t Commit(void) const;
+    bool IsUpdated ( void ) const { return m_Updated; }
+    rc_t Commit(void);
     const KConfigNode* OpenNodeRead(const char *path, ...) const;
     bool IsRemoteRepositoryDisabled(void) const;
     const String* ReadDefaultConfig(void) const

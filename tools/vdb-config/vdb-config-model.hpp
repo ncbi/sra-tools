@@ -37,7 +37,7 @@
 
 #include <string>
 
-class CKConfig;
+#include "util.hpp"
 
 enum ESetRootState {
     eSetRootState_OK,            // successfully changed repository root
@@ -61,14 +61,14 @@ class vdbconf_model
         static const int32_t kPublicRepoId;
         static const int32_t kInvalidRepoId;
 
-        vdbconf_model( KConfig * config );
+        vdbconf_model( CKConfig & config );
         ~vdbconf_model( void );
 
         // ----------------------------------------------------------------
         std::string native_to_internal( const std::string &s ) const;
         std::string internal_to_native( const std::string &s ) const;
 
-        bool get_config_changed( void ) const { return _config_changed; }
+        bool get_config_changed( void ) const { return _config.IsUpdated(); }
 
         // ----------------------------------------------------------------
 
@@ -235,13 +235,10 @@ class vdbconf_model
 
         // ----------------------------------------------------------------
         bool commit( void );
-
-        bool reload( void );
+        void reload( void ); // throws on error
 
     private :
-        KConfig * _config;
-        bool _config_valid;
-        bool _config_changed;
+        CKConfig & _config;
 
         KDirectory * _dir;
         const KRepositoryMgr *_mgr;

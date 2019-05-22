@@ -34,6 +34,7 @@
 #include <kfg/kfg-priv.h>
 
 #include "../../tools/vdb-config/vdb-config-model.cpp"
+#include "../../tools/vdb-config/util.cpp"
 
 TEST_SUITE(VdbConfStridesModelTestSuite);
 
@@ -41,26 +42,19 @@ class VdbModelFixture
 {
 public:
     VdbModelFixture()
-    : kfg ( nullptr )
     {
-        KDirectory* wd;
-        THROW_ON_RC ( KDirectoryNativeDir ( & wd ) );
-
-        THROW_ON_RC ( KConfigMakeLocal ( & kfg, nullptr ) );
-
-        THROW_ON_RC ( KDirectoryRelease ( wd ) );
     }
     ~VdbModelFixture()
     {
-        KConfigRelease ( kfg );
     }
 
-    struct KConfig * kfg;
+    CKConfig kfg;
 };
 
-FIXTURE_TEST_CASE( Ctor_Dtor, VdbModelFixture )
+FIXTURE_TEST_CASE( get_config_changed, VdbModelFixture )
 {
     vdbconf_model m ( kfg );
+    REQUIRE ( ! m . get_config_changed () );
 }
 
 FIXTURE_TEST_CASE( prefetch_download_to_cache, VdbModelFixture )
@@ -69,6 +63,7 @@ FIXTURE_TEST_CASE( prefetch_download_to_cache, VdbModelFixture )
     REQUIRE ( m . does_prefetch_download_to_cache() ); // true by default
     m . set_prefetch_download_to_cache( false );
     REQUIRE ( ! m . does_prefetch_download_to_cache() );
+    REQUIRE ( m . get_config_changed () );
 }
 
 FIXTURE_TEST_CASE( user_accept_aws_charges, VdbModelFixture )
@@ -77,6 +72,7 @@ FIXTURE_TEST_CASE( user_accept_aws_charges, VdbModelFixture )
     REQUIRE ( ! m . does_user_accept_aws_charges() ); // false by default
     m . set_user_accept_aws_charges( true );
     REQUIRE ( m . does_user_accept_aws_charges() );
+    REQUIRE ( m . get_config_changed () );
 }
 
 FIXTURE_TEST_CASE( user_accept_gcp_charges, VdbModelFixture )
@@ -85,6 +81,7 @@ FIXTURE_TEST_CASE( user_accept_gcp_charges, VdbModelFixture )
     REQUIRE ( ! m . does_user_accept_gcp_charges() ); // false by default
     m . set_user_accept_gcp_charges( true );
     REQUIRE ( m . does_user_accept_gcp_charges() );
+    REQUIRE ( m . get_config_changed () );
 }
 
 FIXTURE_TEST_CASE( temp_cache_location, VdbModelFixture )
@@ -93,6 +90,7 @@ FIXTURE_TEST_CASE( temp_cache_location, VdbModelFixture )
     REQUIRE_EQ ( string(), m . get_temp_cache_location() );
     m . set_temp_cache_location( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_temp_cache_location() );
+    REQUIRE ( m . get_config_changed () );
 }
 
 FIXTURE_TEST_CASE( gcp_credential_file_location, VdbModelFixture )
@@ -101,6 +99,7 @@ FIXTURE_TEST_CASE( gcp_credential_file_location, VdbModelFixture )
     REQUIRE_EQ ( string(), m . get_gcp_credential_file_location() );
     m . set_gcp_credential_file_location( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_gcp_credential_file_location() );
+    REQUIRE ( m . get_config_changed () );
 }
 
 FIXTURE_TEST_CASE( aws_credential_file_location, VdbModelFixture )
@@ -109,6 +108,7 @@ FIXTURE_TEST_CASE( aws_credential_file_location, VdbModelFixture )
     REQUIRE_EQ ( string(), m . get_aws_credential_file_location() );
     m . set_aws_credential_file_location( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_aws_credential_file_location() );
+    REQUIRE ( m . get_config_changed () );
 }
 
 FIXTURE_TEST_CASE( aws_profile, VdbModelFixture )
@@ -117,6 +117,63 @@ FIXTURE_TEST_CASE( aws_profile, VdbModelFixture )
     REQUIRE_EQ ( string(), m . get_aws_profile() );
     m . set_aws_profile( "path" );
     REQUIRE_EQ ( string ( "path" ),  m . get_aws_profile() );
+    REQUIRE ( m . get_config_changed () );
+}
+
+FIXTURE_TEST_CASE( noCommit, VdbModelFixture )
+{
+    bool saved = vdbconf_model( kfg ) . is_http_proxy_enabled ();
+
+    {
+        CKConfig konfig;
+        vdbconf_model model ( konfig );
+        model . set_http_proxy_enabled ( ! saved );
+        // no commit
+    }
+
+    {   // did not change on disk
+        CKConfig konfig;
+        vdbconf_model model ( konfig );
+        REQUIRE_EQ ( saved, model . is_http_proxy_enabled() );
+    }
+}
+
+FIXTURE_TEST_CASE( Commit, VdbModelFixture )
+{
+    vdbconf_model m ( kfg );
+    bool saved = m . has_http_proxy_env_higher_priority ();
+
+    {
+        CKConfig konfig;
+        vdbconf_model model ( konfig );
+        model . set_http_proxy_env_higher_priority ( ! saved );
+        REQUIRE ( model . commit () );
+        REQUIRE ( ! model . get_config_changed () );
+    }
+
+    {   // did change on disk
+        CKConfig konfig;
+        vdbconf_model model ( konfig );
+        REQUIRE_EQ ( ! saved, model . has_http_proxy_env_higher_priority() );
+    }
+
+    // clean up
+    m . set_http_proxy_env_higher_priority ( saved );
+    REQUIRE ( m . commit () );
+}
+
+FIXTURE_TEST_CASE( Reload, VdbModelFixture )
+{
+    vdbconf_model m ( kfg );
+    bool saved = m . has_http_proxy_env_higher_priority ();
+    m . set_http_proxy_env_higher_priority ( ! saved );
+    REQUIRE_EQ ( ! saved, m . has_http_proxy_env_higher_priority() );
+    REQUIRE ( m . get_config_changed () );
+
+    m.reload();
+
+    REQUIRE ( ! m . get_config_changed () );
+    REQUIRE_EQ ( saved, m . has_http_proxy_env_higher_priority() );
 }
 
 //////////////////////////////////////////// Main
@@ -144,7 +201,9 @@ const char UsageDefaultName[] = "wb-test-fastq";
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
-    KConfigDisableUserSettings();
+    // do not disable user settings as we need to update them as part of the testing
+    //KConfigDisableUserSettings();
+
     rc_t rc=VdbConfStridesModelTestSuite(argc, argv);
     return rc;
 }

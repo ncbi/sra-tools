@@ -304,12 +304,18 @@ CKConfig::CKConfig(bool verbose)
     }
 }
 
-rc_t CKConfig::Commit(void) const {
+rc_t CKConfig::Commit(void)
+{
     if (!m_Updated) {
         return 0;
     }
 
-    return KConfigCommit(m_Self);
+    rc_t rc = KConfigCommit(m_Self);
+    if ( rc == 0 )
+    {
+        m_Updated = false;
+    }
+    return rc;
 }
 
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
@@ -538,6 +544,7 @@ void CKConfig::Reload(bool verbose) {
         if (verbose) {
             OUTMSG(("ok\n"));
         }
+        m_Updated = false;
     }
     else {
         if (verbose) {

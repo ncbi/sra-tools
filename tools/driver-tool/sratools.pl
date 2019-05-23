@@ -30,6 +30,9 @@ my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 sub loadConfig;
 my %config = %{loadConfig()};
 
+delete $ENV{VDB_RUN_URL};
+delete $ENV{VDB_CACHE_URL};
+
 goto RUNNING_AS_FASTQ_DUMP      if $basename eq 'fastq-dump';
 goto RUNNING_AS_FASTERQ_DUMP    if $basename eq 'fasterq-dump';
 goto RUNNING_AS_SAM_DUMP        if $basename eq 'sam-dump';
@@ -84,7 +87,7 @@ sub processAccessions($$\@@)
     
     foreach my $run (@runs) {
         my @sources = resolveAccessionURLs($run);
-        say Dumper(@sources); next;
+
         foreach (@sources) {
             my ($runURL, $cacheURL) = @$_{'url', 'cache'};
             
@@ -93,8 +96,8 @@ sub processAccessions($$\@@)
 
             my $kid = fork(); die "can't fork: $!" unless defined $kid;            
             if ($kid == 0) {
-                $ENV{VDB_REMOTE_URL} = $runURL;
-                $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL // '';
+                $ENV{VDB_RUN_URL} = $runURL // '';
+                $ENV{VDB_CACHE_URL} = $cacheURL // '';
     
                 exec {$toolpath} $toolname, @$params, $run;
                 die "can't exec $toolname: $!";
@@ -197,10 +200,10 @@ JSON
     my ($run, $cache);
     for (@obj) {
         my $is_vdbcache;
-        unless ($_->{accession} && $_->{accession} eq $_[0]) {
-            warn "unexpected accession: $_->{accession}";
-            next;
-        }
+#        unless ($_->{accession} && $_->{accession} eq $_[0]) {
+#            warn "unexpected accession: $_->{accession}";
+#            next;
+#        }
         if ($_->{local}) {
             $is_vdbcache = is_vdbcache $_->{local}
         }
@@ -217,38 +220,19 @@ JSON
             $run = $_
         }
     }
-    if ($run) {
-        if ($cache) {
-            if ($run->{'local'}) {
-                if ($cache->{'local'}) {
-                    push @result, { 'url' => $run->{'local'}, 'cache' => $cache->{'local'}, 'source' => 'local' };
-                }
-                elsif (@{$cache->{'remote'}}) {
-                    push @result, { 'url' => $run->{'local'}, 'cache' => $cache->{'remote'}->[0], 'source' => 'local' };
-                }
-                else {
-                    push @result, { 'url' => $run->{'local'}, 'source' => 'local' };
-                }
-            }
-            ### pair up remote url's so that run and cache come from same host
-            for (@{$run->{remote}}) {
-                my $r = $_;
-                my $c;
-                my $uri = URI->new($r);
-                
-                for (@{$cache->{'remote'}}) {
-                    my $cc = $_;
-                    my $curi = URI->new($cc);
-                    next unless $curi->host eq $uri->host;
-                    $c = $cc; last
-                }
-                my $source = 'remote';
-                $source = 'ncbi' if $uri->host =~ /ncbi\.nlm\.nih\.gov$/i;
-                push @result, { 'url' => $r, 'cache' => $c, 'source' => $source };
-            }
+    if (!defined($run)) {
+FALLBACK:
+        push @result, {};
+        return @result;
+    }
+    if (!defined($cache)) {
+        # there is no vdbcache for this run
+        if ($run->{'local'}) {
+            # use the local copy of the run
+            push @result, { 'url' => $run->{'local'}, 'source' => 'local' };
         }
         else {
-            push @result, { 'url' => $run->{'local'}, 'source' => 'local' } if $run->{'local'};
+            # try all remotes in order
             for (@{$run->{remote}}) {
                 my $uri = URI->new($_);
                 my $source = 'remote';
@@ -256,10 +240,43 @@ JSON
                 push @result, { 'url' => $_, 'source' => $source }
             }
         }
+        return @result;
     }
-    else {
-FALLBACK:
-        push @result, {}
+    my $default_remote_cache;
+    # try ncbi
+    for (@{$cache->{'remote'}}) {
+        my $host = URI->new($_)->host;
+        if ($host =~ /ncbi\.nlm\.nih\.gov$/i) {
+            $default_remote_cache = $_;
+            last;
+        }
+    }
+    if (!defined($default_remote_cache)) {
+        # use first
+        $default_remote_cache = $cache->{'remote'}->[0];
+    }
+    if ($run->{'local'}) {
+        # use the local copy of the run and the vdbcache from the default location
+        push @result, { 'url' => $run->{'local'}, 'cache' => $cache->{'local'} // $default_remote_cache, 'source' => 'local' };
+        return @result;
+    }
+    # there is no local copy of run
+    # try all remotes in order
+    # for vdbcache, use same source or use default
+    for (@{$run->{remote}}) {
+        my $r = $_;
+        my $c = $cache->{'local'};
+        my $uri = URI->new($r);
+        my $source = 'remote';
+        $source = 'ncbi' if $uri->host =~ /ncbi\.nlm\.nih\.gov$/i;
+        
+        for (@{$cache->{'remote'}}) {
+            last if $c;
+            my $curi = URI->new($_);
+            next unless $curi->host eq $uri->host;
+            $c = $_;
+        }
+        push @result, { 'url' => $r, 'cache' => ($c // $default_remote_cache), 'source' => $source };
     }
     return @result;
 }

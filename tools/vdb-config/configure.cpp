@@ -788,16 +788,24 @@ class CTextualConfigurator : public CConfigurator {
 public:
     CTextualConfigurator(void) {}
 };
-const string CTextualConfigurator::CSymGen::magic
- ("56789ABCDEFGHIJKLMNOPQRSTUVWXZ");
-class CVisualConfigurator : public CConfigurator {
-    virtual rc_t Configure(void) {
-        if (m_Config == NULL) {
+const string CTextualConfigurator::CSymGen::magic("56789ABCDEFGHIJKLMNOPQRSTUVWXZ");
+
+class CVisualConfigurator : public CConfigurator
+{
+    virtual rc_t Configure( void )
+    {
+        if ( m_Config == NULL )
+        {
             return TODO;
         }
-        return run_interactive(*m_Config);
+        /* here we can switch between:
+             - the old view : run_interactive() just repositories and caching
+             - the new view : run_interactive2() with cloud settings and repositories
+         */
+        return run_interactive2( *m_Config );
     }
 };
+
 rc_t configure(EConfigMode mode) {
     rc_t rc = 0;
     CConfigurator *c = NULL;

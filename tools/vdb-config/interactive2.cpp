@@ -23,10 +23,14 @@
 * ===========================================================================
 *
 */
+#include <klib/rc.h>
 #include <tui/tui.hpp>
+
 #include <sstream>
 #include <iostream>
 #include <cstdarg>
+
+#include "vdb-config-model.hpp"
 
 using namespace tui;
 
@@ -91,80 +95,14 @@ const tui_id DBGAP_IMPORT_PATH_ID = 702;
 const tui_id DBGAP_REPOS_LBL_ID = 703;
 const tui_id DBGAP_REPOS_ID = 704;
 
-class ex10_model
-{
-    public:
-        ex10_model( const std::string cap ) : caption( cap ), aws_accept( false ),
-            gcp_accept( false ), use_proxy( false ), changed( false ), cache_select( 0 ) {}
+const uint32_t PAGE_FIXED = 0;
+const uint32_t PAGE_AWS = 1;
+const uint32_t PAGE_GCP = 2;
+const uint32_t PAGE_CACHE = 3;
+const uint32_t PAGE_NETW = 4;
+const uint32_t PAGE_DBGAP = 5;
 
-        const char * get_caption() { return caption.c_str(); }
-        
-        /* AWS */
-        void set_aws_accept( bool value ) { set_bool_value( &aws_accept, value ); }
-        bool get_aws_accept( void ) { return aws_accept; }
-        void set_aws_keyfile( const std::string &value ) { set_string_value( &aws_keyfile, value ); }
-        const char * get_aws_keyfile( void ) { return aws_keyfile.c_str(); }
-        void set_aws_profile( const std::string &value ) { set_string_value( &aws_profile, value ); }
-        const char * get_aws_profile( void ) { return aws_profile.c_str(); }
-
-        /* GCP */
-        void set_gcp_accept( bool value ) { set_bool_value( &gcp_accept, value ); }
-        bool get_gcp_accept( void ) { return gcp_accept; }
-        void set_gcp_keyfile( const std::string &value ) { set_string_value( &gcp_keyfile, value ); }
-        const char * get_gcp_keyfile( void ) { return gcp_keyfile.c_str(); }
-
-        /* PROXY */
-        void set_use_proxy( bool value ) { set_bool_value( &use_proxy, value ); }        
-        bool get_use_proxy( void ) { return use_proxy; }
-        void set_proxy( const std::string &value ) { set_string_value( &proxy, value ); }
-        const char * get_proxy( void ) { return proxy.c_str(); }
-        
-        /* CACHE */
-        void set_cache_select( int value ) { set_int_value( &cache_select, value ); }
-        int get_cache_select( void ) { return cache_select; }
-        void set_local_repo( const std::string &value ) { set_string_value( &local_repo, value ); }
-        const char * get_local_repo( void ) { return local_repo.c_str(); }
-        void set_process_loc( const std::string &value ) { set_string_value( &process_loc, value ); }
-        const char * get_process_loc( void ) { return process_loc.c_str(); }
-
-        /* DBGAP */
-        int get_project_count( void ) { return 75; }
-        std::string get_project_name( tui_long id ) { std::stringstream ss; ss << "dbGap-" << id + 1; return ss.str(); }
-        std::string get_project_path( tui_long id ) { std::stringstream ss; ss << "/home/user/ncbi/dbGap-" << id + 1; return ss.str(); }
-        
-    private:
-        std::string caption, aws_keyfile, aws_profile, gcp_keyfile, proxy, local_repo, process_loc;
-        bool aws_accept, aws_env, gcp_accept, use_proxy, changed;
-        int cache_select;
-        
-        void set_bool_value( bool *current, bool new_value )
-        {
-            if ( *current != new_value )
-            {
-                changed = true;
-                *current = new_value;
-            }
-        }
-
-        void set_int_value( int *current, int new_value )
-        {
-            if ( *current != new_value )
-            {
-                changed = true;
-                *current = new_value;
-            }
-        }
-        
-        void set_string_value( std::string *current, const std::string &new_value )
-        {
-            if ( *current != new_value )
-            {
-                changed = true;
-                *current = new_value;
-            }
-        }
-};
-
+/* the helper-model for the grid */
 class vdbconf_grid : public Grid
 {
     public:
@@ -179,9 +117,9 @@ class vdbconf_grid : public Grid
         virtual tui_long Get_Col_Count( uint32_t widget_width, void * data ) { return 1; };
         virtual tui_long Get_Row_Count( uint32_t widget_width, void * data )
         {
-            ex10_model * m = ( ex10_model * )data;
-            return m -> get_project_count();
+            return get_model( data ) -> get_repo_count(); /* model connection */
         };
+
         virtual tui_long Get_Col_Width( tui_long col, uint32_t widget_width, void * data ) { return widget_width - 17; };
 
         virtual void Col_Hdr_Request( tui_long col, uint32_t col_width, void * data, char * buffer, size_t buffer_size )
@@ -191,29 +129,24 @@ class vdbconf_grid : public Grid
 
         virtual void Row_Hdr_Request( tui_long row, uint32_t col_width, void * data, char * buffer, size_t buffer_size )
         {
-            ex10_model * m = ( ex10_model * )data;
-            string_printf ( buffer, buffer_size, NULL, "%s", m ->  get_project_name( row ).c_str() );
+            std::string name = get_model( data ) -> get_repo_name( ( uint32_t )row );
+            string_printf ( buffer, buffer_size, NULL, "%s", name.c_str() );
         };
 
         virtual void Cell_Request( tui_long col, tui_long row, uint32_t col_width, void * data, char * buffer, size_t buffer_size )
         {
-            ex10_model * m = ( ex10_model * )data;
-            string_printf ( buffer, buffer_size, NULL, "%s", m -> get_project_path( row ).c_str() ) ;
+            std::string path = get_model( data ) -> get_repo_location( ( uint32_t )row );
+            string_printf ( buffer, buffer_size, NULL, "%s", path.c_str() ) ;
         }
-            
-};
 
-const uint32_t PAGE_FIXED = 0;
-const uint32_t PAGE_AWS = 1;
-const uint32_t PAGE_GCP = 2;
-const uint32_t PAGE_CACHE = 3;
-const uint32_t PAGE_NETW = 4;
-const uint32_t PAGE_DBGAP = 5;
+    private:
+        vdbconf_model * get_model( void * data ) { return static_cast< vdbconf_model * >( data ); }
+};
 
 class vdbconf_view2 : public Dlg
 {
     public :
-        vdbconf_view2( ex10_model &mod ) : Dlg(), model( mod ), grid( &mod )
+        vdbconf_view2( vdbconf_model &mod ) : Dlg(), model( mod ), grid( &mod )
         {
             populate( GetRect(), false );
             SetActivePage( PAGE_AWS );
@@ -244,7 +177,7 @@ class vdbconf_view2 : public Dlg
         void update_gcp_credentials( std::string &txt ) { SetWidgetCaption( GCP_FILE_ID, txt ); }        
         
     private :
-        ex10_model &model;
+        vdbconf_model &model;
         vdbconf_grid grid;
         
         void page_changed( uint32_t page_id, bool status )
@@ -318,16 +251,19 @@ class vdbconf_view2 : public Dlg
         {
             PopulateLabel( HDR_rect( r, 0 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, AWS_CB_ID, "acc&ept charges for AWS",
-                                model.get_aws_accept(), CB_COLOR_BG, CB_COLOR_FG, PAGE_AWS );
+                                model.does_user_accept_aws_charges(),   /* model-connection */
+                                CB_COLOR_BG, CB_COLOR_FG, PAGE_AWS );
             PopulateLabel( lbl1_rect( r, 4 ), resize, AWS_KEY_ID, "credentials:",
                                 BOX_COLOR, LABEL_FG, PAGE_AWS );
             PopulateButton( choose_rect( r, 5 ), resize, AWS_CHOOSE_ID, "ch&oose",
                                 BTN_COLOR_BG, BTN_COLOR_FG, PAGE_AWS );
-            PopulateLabel( file_rect( r, 5 ), resize, AWS_FILE_ID, model.get_aws_keyfile(),
+            PopulateLabel( file_rect( r, 5 ), resize, AWS_FILE_ID,
+                                model.get_aws_credential_file_location().c_str(), /* model-connection */
                                 LABEL_BG, INP_COLOR_FG, PAGE_AWS );
             PopulateLabel( prof_lbl_rect( r ), resize, AWS_PROF_LBL_ID, "&profile:",
                                 BOX_COLOR, LABEL_FG, PAGE_AWS );
-            PopulateInput( prof_rect( r ), resize, AWS_PROF_ID, model.get_aws_profile(),
+            PopulateInput( prof_rect( r ), resize, AWS_PROF_ID,
+                                model.get_aws_profile().c_str(), /* model-connection */
                                 64, INP_COLOR_BG, INP_COLOR_FG, PAGE_AWS );
         }
 
@@ -335,12 +271,14 @@ class vdbconf_view2 : public Dlg
         {
             PopulateLabel( HDR_rect( r, 1 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, GCP_CB_ID, "acc&ept charges for GCP",
-                                model.get_gcp_accept(), CB_COLOR_BG, CB_COLOR_FG, PAGE_GCP );
+                                model.does_user_accept_gcp_charges(), /* model-connection */
+                                CB_COLOR_BG, CB_COLOR_FG, PAGE_GCP );
             PopulateLabel( lbl1_rect( r, 4 ), resize, GCP_KEY_ID, "credentials:",
                                 BOX_COLOR, LABEL_FG, PAGE_GCP );
             PopulateButton( choose_rect( r, 5 ), resize, GCP_CHOOSE_ID, "ch&oose",
                                 BTN_COLOR_BG, BTN_COLOR_FG, PAGE_GCP );
-            PopulateLabel( file_rect( r, 5 ), resize, GCP_FILE_ID, model.get_gcp_keyfile(),
+            PopulateLabel( file_rect( r, 5 ), resize, GCP_FILE_ID,
+                                model.get_gcp_credential_file_location().c_str(), /* model-connection */
                                 LABEL_BG, INP_COLOR_FG, PAGE_GCP );
         }
 
@@ -368,21 +306,24 @@ class vdbconf_view2 : public Dlg
         void populate_CACHE( Tui_Rect const &r, bool resize )
         {
             PopulateLabel( HDR_rect( r, 2 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
-            PopulateCacheRadiobox( CACHE_RADIO_rect( r ), resize, CACHE_SEL_ID, model.get_cache_select(),
+            PopulateCacheRadiobox( CACHE_RADIO_rect( r ), resize, CACHE_SEL_ID,
+                                0,/* model.get_cache_select(), */ /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE ); 
  
             PopulateLabel( lbl1_rect( r, 6 ), resize, CACHE_REPO_LBL_ID, "repository location:",
                                 BOX_COLOR, LABEL_FG, PAGE_CACHE );
             PopulateButton( choose_rect( r, 7 ), resize, CACHE_REPO_CHOOSE_ID, "ch&oose",
                                 BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
-            PopulateLabel( file_rect( r, 7 ), resize, CACHE_REPO_PATH_ID, model.get_local_repo(),
+            PopulateLabel( file_rect( r, 7 ), resize, CACHE_REPO_PATH_ID,
+                                model.get_public_location().c_str(), /* model-connection */
                                 LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
 
             PopulateLabel( lbl1_rect( r, 9 ), resize, CACHE_PROC_LBL_ID, "process local location:",
                                 BOX_COLOR, LABEL_FG, PAGE_CACHE );
             PopulateButton( choose_rect( r, 10 ), resize, CACHE_PROC_CHOOSE_ID, "choos&e",
                                 BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
-            PopulateLabel( file_rect( r, 10 ), resize, CACHE_PROC_PATH_ID, model.get_process_loc(),
+            PopulateLabel( file_rect( r, 10 ), resize, CACHE_PROC_PATH_ID,
+                                "???", /*model.get_process_loc(), */ /* model-connection */
                                 LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
         }
 
@@ -390,10 +331,12 @@ class vdbconf_view2 : public Dlg
         {
             PopulateLabel( HDR_rect( r, 3 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, NETW_USE_PROXY_ID, "&use proxy",
-                                model.get_use_proxy(), CB_COLOR_BG, CB_COLOR_FG, PAGE_NETW );
+                                model.is_http_proxy_enabled(), /* model-connection */
+                                CB_COLOR_BG, CB_COLOR_FG, PAGE_NETW );
             PopulateLabel( proxy_lbl_rect( r ), resize, NETW_PROXY_LBL_ID, "&proxy:",
                                 BOX_COLOR, LABEL_FG, PAGE_NETW );
-            PopulateInput( proxy_rect( r ), resize, NETW_PROXY_ID, model.get_proxy(),
+            PopulateInput( proxy_rect( r ), resize, NETW_PROXY_ID,
+                                model.get_http_proxy_path().c_str(), /* model-connection */
                                 64, INP_COLOR_BG, INP_COLOR_FG, PAGE_NETW );
         }
 
@@ -429,7 +372,7 @@ class vdbconf_view2 : public Dlg
         
         void populate( Tui_Rect const &r, bool resize )
         {
-            SetCaption( model . get_caption() );
+            SetCaption( "SRA configuration" );
             set_status_line( r );
             populate_save_and_exit( save_and_exit_rect( r ), resize );
             Tui_Rect tab_rect = TAB_rect( r );            
@@ -446,19 +389,19 @@ class vdbconf_view2 : public Dlg
 class vdbconf_ctrl2 : public Dlg_Runner
 {
     public :
-        vdbconf_ctrl2( Dlg &dlg, ex10_model &mod ) : Dlg_Runner( dlg, &mod )
+        vdbconf_ctrl2( Dlg &dlg, vdbconf_model &mod ) : Dlg_Runner( dlg, &mod )
         {
             dlg.SetFocus( SAVE_BTN_ID );
         };
         
         virtual bool on_changed( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
         {
-            ex10_model * model = ( ex10_model * ) data;
+            vdbconf_model * model = ( vdbconf_model * ) data;
             tui_id id = dev.get_widget_id();
             switch( id )
             {
-                case AWS_PROF_ID   : model -> set_aws_profile( dlg.GetWidgetText( id ) ); break;
-                case NETW_PROXY_ID : model -> set_proxy( dlg.GetWidgetText( id ) ); break;
+                case AWS_PROF_ID   : model -> set_aws_profile( dlg.GetWidgetText( id ) ); break; /* model-connection */
+                case NETW_PROXY_ID : model -> set_http_proxy_path( dlg.GetWidgetText( id ) ); break; /* model-connection */
             }
             return true;
         }
@@ -466,12 +409,12 @@ class vdbconf_ctrl2 : public Dlg_Runner
         virtual bool on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
         {
             bool res = true;
-            ex10_model * model = ( ex10_model * ) data;
+            vdbconf_model * model = static_cast< vdbconf_model * >( data );
             switch( dev.get_widget_id() )
             {
-                case AWS_CB_ID  : model -> set_aws_accept( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); break;
-                case GCP_CB_ID  : model -> set_gcp_accept( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); break;
-                case NETW_USE_PROXY_ID : model -> set_use_proxy( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); break;
+                case AWS_CB_ID  : model -> set_user_accept_aws_charges( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); break; /* model-connection */
+                case GCP_CB_ID  : model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); break; /* model-connection */
+                case NETW_USE_PROXY_ID : model -> set_http_proxy_enabled( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); break; /* model-connection */
                 
                 case SAVE_BTN_ID : on_save( dlg, model ); break;                
                 case EXIT_BTN_ID : res = on_exit( dlg, model ); break;
@@ -489,7 +432,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
         {
             bool res;
             vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
-            ex10_model *model = ( ex10_model * ) data; 
+            vdbconf_model * model = static_cast< vdbconf_model * >( data );
             int active_page = dlg . GetActivePage();
             switch( code ) {
                 case 'x' :
@@ -545,29 +488,29 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return true;
         }
 
-        bool toggle_accept_charges( vdbconf_view2 &view, ex10_model *model )
+        bool toggle_accept_charges( vdbconf_view2 &view, vdbconf_model *model )
         {
             bool res = false;
             if ( view.GetActivePage() == PAGE_AWS )
             {
                 res = view.ToggleWidgetBoolValue( AWS_CB_ID );
-                model -> set_aws_accept( view.GetWidgetBoolValue( AWS_CB_ID ) );
+                //model -> set_aws_accept( view.GetWidgetBoolValue( AWS_CB_ID ) );
             }
             else if ( view.GetActivePage() == PAGE_GCP )
             {
                 res = view.ToggleWidgetBoolValue( GCP_CB_ID );
-                model -> set_gcp_accept( view.GetWidgetBoolValue( GCP_CB_ID ) );
+                //model -> set_gcp_accept( view.GetWidgetBoolValue( GCP_CB_ID ) );
             }
             return res;
         }
 
-        bool toggle_use_proxy( vdbconf_view2 &view, ex10_model *model )
+        bool toggle_use_proxy( vdbconf_view2 &view, vdbconf_model *model )
         {
             bool res = false;
             if ( view.GetActivePage() == PAGE_NETW )
             {
                 res = view.ToggleWidgetBoolValue( NETW_USE_PROXY_ID );
-                model -> set_use_proxy( view.GetWidgetBoolValue( NETW_USE_PROXY_ID ) );
+                //model -> set_use_proxy( view.GetWidgetBoolValue( NETW_USE_PROXY_ID ) );
             }
             return res;
         }
@@ -605,60 +548,66 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return res;
         }
 
-        bool on_save( Dlg &dlg, ex10_model * model )
+        bool on_save( Dlg &dlg, vdbconf_model * model )
         {
             return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "changes successfully saved" );
         }
     
-        bool on_exit( Dlg &dlg, ex10_model * model )
+        bool on_exit( Dlg &dlg, vdbconf_model * model )
         {
             dlg.SetDone( true );
             return true;
         }
 
-        bool on_verify( Dlg &dlg, ex10_model * model )
+        bool on_verify( Dlg &dlg, vdbconf_model * model )
         {
             return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "verification successful" );
         }
 
-        bool on_reload( Dlg &dlg, ex10_model * model )
+        bool on_reload( Dlg &dlg, vdbconf_model * model )
         {
             return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "reload successful" );
         }
 
-        bool on_default( Dlg &dlg, ex10_model * model )
+        bool on_default( Dlg &dlg, vdbconf_model * model )
         {
             return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "setting defaults successful" );
         }
 
-        bool on_aws_choose( Dlg &dlg, ex10_model * model )
+        bool on_aws_choose( Dlg &dlg, vdbconf_model * model )
         {
-            std::string file = pick_file( dlg, Tui_Rect( 0, 0, 80, 40 ), "/home" );
-            if ( !file.empty() )
+            /* on AWS: a path is choosen */
+            std::string path = model -> get_aws_credential_file_location();
+            if ( path.empty() ) path = model -> get_current_dir();
+            if ( pick_dir( dlg, Tui_Rect( 0, 0, 80, 40 ), path ) )
+            if ( !path.empty() )
             {
-                model -> set_aws_keyfile( file );                
+                model -> set_aws_credential_file_location( path ); /* model-connection */
                 vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
-                view.update_aws_credentials( file );
+                view.update_aws_credentials( path );
             }
             return true;
         }
 
-        bool on_gcp_choose( Dlg &dlg, ex10_model * model )
+        bool on_gcp_choose( Dlg &dlg, vdbconf_model * model )
         {
-            std::string file = pick_file( dlg, Tui_Rect( 0, 0, 80, 40 ), "/home" );
+            /* on GCP: a file is choosen */
+            std::string org = model ->get_gcp_credential_file_location();
+            if ( org.empty() ) org = model -> get_current_dir();
+            std::string file = pick_file( dlg, Tui_Rect( 0, 0, 80, 40 ), org.c_str() );
             if ( !file.empty() )
             {
-                model -> set_aws_keyfile( file );
+                model -> set_gcp_credential_file_location( file ); /* model-connection */
                 vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
                 view.update_gcp_credentials( file );
             }
             return true;
         }
 
-        bool on_repo_choose( Dlg &dlg, ex10_model * model )
+        bool on_repo_choose( Dlg &dlg, vdbconf_model * model )
         {
-            std::string file( "/home" );
-            if ( pick_dir( dlg, Tui_Rect( 0, 0, 80, 40 ), file ) )
+            std::string path( model -> get_current_dir() );
+            if ( pick_dir( dlg, Tui_Rect( 0, 0, 80, 40 ), path ) )
             {
                 /*
                 model -> set_aws_keyfile( file );
@@ -669,17 +618,17 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return true;
         }
         
-        bool on_import_repo_key( Dlg &dlg, ex10_model * model )
+        bool on_import_repo_key( Dlg &dlg, vdbconf_model * model )
         {
             return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "import repo-key" );
         }
         
-        bool on_set_dflt_import_path( Dlg &dlg, ex10_model * model )
+        bool on_set_dflt_import_path( Dlg &dlg, vdbconf_model * model )
         {
             return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "set dflt import path" );
         }
 
-        bool on_edit_dbgap_repo( Dlg &dlg, ex10_model * model )
+        bool on_edit_dbgap_repo( Dlg &dlg, vdbconf_model * model )
         {
             tui_long n = dlg.GetWidgetInt64Value( DBGAP_REPOS_ID );
             std::stringstream ss;
@@ -688,27 +637,29 @@ class vdbconf_ctrl2 : public Dlg_Runner
         }
 };
 
-void vdbconf2_run( void )
+extern "C"
 {
-    try
+    rc_t run_interactive2 ( vdbconf_model & model )
     {
-        /* (1) ... create a model */        
-        ex10_model model( "SRA settings" );
-        
-        /* (2) ... create a view */
-        vdbconf_view2 view( model );
+        rc_t rc = 0;
+        try
+        {
+            /* (1) ... create a view */
+            vdbconf_view2 view( model );
+            
+            /* (2) ... create derived controller, hand it the view and the model*/
+            vdbconf_ctrl2 controller( view, model );
 
-        /* (3) ... create a controller, hand it the view and the model */
-        vdbconf_ctrl2 crtl( view, model );
+            /* (3) ... let the controller handle the events */
+            controller.run();
 
-        /* (4) ... let the controller handle the events */
-        crtl.run();
-
-        /* (5) call this before leaving main() to terminate the low-level driver... */
-        Tui::clean_up();
-    }
-    catch ( ... )
-    {
-        std::cerr << "problem running vdb-config" << std::endl;
+            /* (4) call this before leaving main() to terminate the low-level driver... */
+            Tui::clean_up();
+        }
+        catch ( ... )
+        {
+            rc = RC( rcExe, rcNoTarg, rcExecuting, rcNoObj, rcUnknown );
+        }
+        return rc;
     }
 }

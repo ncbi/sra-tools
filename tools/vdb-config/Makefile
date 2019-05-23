@@ -65,6 +65,7 @@ VDB_CONFIG_SRC = \
 	util \
 	vdb-config \
 	interactive \
+	interactive2 \
 	vdb-config-model \
 
 VDB_CONFIG_OBJ = \

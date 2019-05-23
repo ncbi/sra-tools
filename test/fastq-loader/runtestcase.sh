@@ -48,6 +48,12 @@ DUMP="$BINDIR/vdb-dump"
 LOAD="$BINDIR/latf-load"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
+if [ "$(uname)" == "Darwin" ]; then
+    DIFF="diff"
+else
+    DIFF="diff -Z"
+fi
+
 echo "running $CASEID"
 
 mkdir -p $TEMPDIR
@@ -80,7 +86,7 @@ if [ "$rc" == "0" ] ; then
         cat $TEMPDIR/dump.stderr
         exit 3
     fi
-    diff -Z $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
+    $DIFF $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
 else # load failed as expected
     # remove timestamps
@@ -91,7 +97,7 @@ else # load failed as expected
     sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
     # remove version number
     sed -i -e 's=latf-load\(\.[0-9]*\)*=latf-load=g' $TEMPDIR/load.stderr
-    diff -Z $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
+    $DIFF $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
     rc="$?"
 fi
 if [ "$rc" != "0" ] ; then

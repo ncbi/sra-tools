@@ -92,6 +92,7 @@ static void CC WhackBuffer ( void *item, void *data )
 {
     KDataBuffer * b = ( KDataBuffer * ) item;
     KDataBufferWhack ( b );
+    free ( b );
 }
 
 rc_t Id2Name_Whack ( Id2name * self )

@@ -350,7 +350,10 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, unsigne
         OUTMSG(("%.*s{", count == 0 ? 0 : 2, ",\n"));
         json_print_nvp("accession", str, false);
         count += 1;
-        
+
+        str = NULL; rc = KSrvRespFileGetType(file, &str);
+        /* Ken, here str is sra, vdbcache, etc. */
+
         str = NULL; rc = KSrvRespFileGetClass(file, &str);
         if (rc == 0 && str && str[0])
             json_print_nvp("itemClass", str, true);
@@ -377,6 +380,13 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, unsigne
             
             for ( ; ; ) {
                 if ((rc = KSrvRespFileIteratorNextPath(iter, &path)) == 0) {
+                    String service;
+                    memset(&service, 0, sizeof service);
+                    if (path != NULL) {
+                        rc_t r = VPathGetService(path, &service);
+                    }
+                    /* Ken, here service might keep service (s3, gs, etc.)
+                    returned by names service */
                     rcount = json_print_named_urls("remote", path, rcount, true);
                     if (path == NULL)
                         break;
@@ -402,8 +412,8 @@ static rc_t names_remote_json ( KService * const service
     rc_t rc = 0;
     KSrvResponse const * response = NULL;
     
-    rc = KServiceNamesExecuteExt ( service, protocols,
-                                  request -> names_url, request -> names_ver, & response );
+    rc = KServiceNamesQueryExt( service, protocols, request -> names_url,
+        request -> names_ver, NULL, NULL, & response );
     if ( rc != 0 )
         OUTMSG ( ( "Error: %R\n", rc ) );
     else {

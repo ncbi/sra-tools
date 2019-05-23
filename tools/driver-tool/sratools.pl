@@ -84,6 +84,7 @@ sub processAccessions($$\@@)
     
     foreach my $run (@runs) {
         my @sources = resolveAccessionURLs($run);
+        say Dumper(@sources); next;
         foreach (@sources) {
             my ($runURL, $cacheURL) = @$_{'url', 'cache'};
             
@@ -138,9 +139,22 @@ sub expandAllAccessions(@)
             next;
         }
         # see if it can be expanded into run accessions
-        push @_, expandAccession($_);
+        my @expanded = expandAccession($_);
+        if (@expanded) {
+            push @_, @expanded;
+        }
+        else {
+            print STDERR "nothing found for $_\n";
+        }
     }
     return @rslt;
+}
+
+sub is_vdbcache($)
+{
+    my $path = URI->new($_[0])->path;
+    return !0 if $path =~ /\.vdbcache$/ || $path =~ /\.vdbcache\./;
+    return !!0
 }
 
 ### \brief: turns an accession into URLs
@@ -152,23 +166,101 @@ sub expandAllAccessions(@)
 ### currently, this is a stub that just uses srapath
 sub resolveAccessionURLs($)
 {
-    my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
+    my @obj;
     my @result;
-    my $json = '';
-    my $kid = open(my $pipe, '-|') or die "can't fork: $!";
+if (!0) {
+    my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
+    my $kid = open(my $pipe, '-|') // die "can't fork: $!";
     
     if ($kid == 0) {
         exec {$toolpath} 'srapath', qw{ --function names --json }, @_;
         die "can't exec srapath: $!";
     }
 
-    while (defined(local $_ = <$pipe>)) {
-        $json .= $_
-    }
+    @obj = @{decode_json join '', $pipe->getlines} or goto FALLBACK;
     close($pipe);
-    
-    my $obj = decode_json $json;
-    say Dumper($obj); exit 0;
+}
+else {
+    @obj = @{decode_json <<'JSON'};
+[
+{"accession":"SRR954885", "local":"file:///Users/ken/ncbi/public/sra/SRR954885.sra","remote":
+[
+"https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000932/SRR954885"
+]},
+{"accession":"SRR954885", "local":"file:///Users/ken/ncbi/public/sra/SRR954885.sra.vdbcache","remote":
+[
+"https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000932/SRR954885.vdbcache"
+]}
+]
+JSON
+}    
+    my ($run, $cache);
+    for (@obj) {
+        my $is_vdbcache;
+        unless ($_->{accession} && $_->{accession} eq $_[0]) {
+            warn "unexpected accession: $_->{accession}";
+            next;
+        }
+        if ($_->{local}) {
+            $is_vdbcache = is_vdbcache $_->{local}
+        }
+        for (@{$_->{remote}}) {
+            last if $is_vdbcache;
+            $is_vdbcache = is_vdbcache $_
+        }
+        if ($is_vdbcache) {
+            warn "vdbcache location was already set" if $cache;
+            $cache = $_
+        }
+        else {
+            warn "run location was already set" if $run;
+            $run = $_
+        }
+    }
+    if ($run) {
+        if ($cache) {
+            if ($run->{'local'}) {
+                if ($cache->{'local'}) {
+                    push @result, { 'url' => $run->{'local'}, 'cache' => $cache->{'local'}, 'source' => 'local' };
+                }
+                elsif (@{$cache->{'remote'}}) {
+                    push @result, { 'url' => $run->{'local'}, 'cache' => $cache->{'remote'}->[0], 'source' => 'local' };
+                }
+                else {
+                    push @result, { 'url' => $run->{'local'}, 'source' => 'local' };
+                }
+            }
+            ### pair up remote url's so that run and cache come from same host
+            for (@{$run->{remote}}) {
+                my $r = $_;
+                my $c;
+                my $uri = URI->new($r);
+                
+                for (@{$cache->{'remote'}}) {
+                    my $cc = $_;
+                    my $curi = URI->new($cc);
+                    next unless $curi->host eq $uri->host;
+                    $c = $cc; last
+                }
+                my $source = 'remote';
+                $source = 'ncbi' if $uri->host =~ /ncbi\.nlm\.nih\.gov$/i;
+                push @result, { 'url' => $r, 'cache' => $c, 'source' => $source };
+            }
+        }
+        else {
+            push @result, { 'url' => $run->{'local'}, 'source' => 'local' } if $run->{'local'};
+            for (@{$run->{remote}}) {
+                my $uri = URI->new($_);
+                my $source = 'remote';
+                $source = 'ncbi' if $uri->host =~ /ncbi\.nlm\.nih\.gov$/i;
+                push @result, { 'url' => $_, 'source' => $source }
+            }
+        }
+    }
+    else {
+FALLBACK:
+        push @result, {}
+    }
     return @result;
 }
 

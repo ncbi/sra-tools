@@ -150,8 +150,17 @@ FIXTURE_TEST_CASE ( MiltipleBuffers, Id2name_Fixture )
 
 FIXTURE_TEST_CASE ( NameTooLong, Id2name_Fixture )
 {   // reject names exceeding KDataBuffer's size limit of 2**32-1 bytes
-    string str1 ( 0x800000000, '1');
-    REQUIRE_RC_FAIL ( Id2Name_Add( & m_self, 1, str1.c_str() ) );
+    string str;
+    try
+    {
+        str = string ( 0x800000000, '1');
+    }
+    catch(const std::bad_alloc& e)
+    {   // this machine does not have enough memory
+        return;
+    }
+    
+    REQUIRE_RC_FAIL ( Id2Name_Add( & m_self, 1, str.c_str() ) );
 }
 
 //////////////////////////////////////////// Main

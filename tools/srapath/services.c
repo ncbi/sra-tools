@@ -284,6 +284,16 @@ static void json_print_nvp(  char const *const name
             , value));
 }
 
+static void json_print_nVp(  char const *const name
+                           , String const *const value
+                           , bool const comma)
+{
+    OUTMSG(("%.*s\"%s\": \"%S\""
+            , comma ? 2 : 0, ", "
+            , name
+            , value));
+}
+
 static void json_print_nzp(  char const *const name
                            , size_t const value
                            , bool const comma)
@@ -307,22 +317,29 @@ static void json_print_named_url(  char const *const name
     free((void *)tmp);
 }
 
-static unsigned json_print_named_urls(  char const *const name
-                                      , VPath const *const url
-                                      , unsigned const count
-                                      , bool const comma)
+static unsigned json_print_named_urls_and_service(  char const *const name
+                                                  , VPath const *const url
+                                                  , unsigned const count
+                                                  , bool const comma)
 {
     if (url) {
+        String service;
         String const *tmp = NULL;
         rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
+
+        memset(&service, 0, sizeof service);
+        VPathGetService(url, &service);
+
         if (count == 0) {
             OUTMSG(("%.*s\"%s\": ["
                     , comma ? 2 : 0, ", "
                     , name));
         }
-        OUTMSG(("%.*s\"%S\""
-                , count > 1 ? 2 : 0, ", "
-                , tmp));
+        OUTMSG(("%.*s{ ", count > 0 ? 2 : 0, ",\n"));
+        json_print_nVp("path", tmp, false);
+        json_print_nVp("service", &service, true);
+        OUTMSG((" }"));
+
         free((void *)tmp);
         return count + 1;
     }
@@ -352,7 +369,8 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, unsigne
         count += 1;
 
         str = NULL; rc = KSrvRespFileGetType(file, &str);
-        /* Ken, here str is sra, vdbcache, etc. */
+        if (str && str[0])
+            json_print_nvp("itemType", str, true);
 
         str = NULL; rc = KSrvRespFileGetClass(file, &str);
         if (rc == 0 && str && str[0])
@@ -380,14 +398,7 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, unsigne
             
             for ( ; ; ) {
                 if ((rc = KSrvRespFileIteratorNextPath(iter, &path)) == 0) {
-                    String service;
-                    memset(&service, 0, sizeof service);
-                    if (path != NULL) {
-                        rc_t r = VPathGetService(path, &service);
-                    }
-                    /* Ken, here service might keep service (s3, gs, etc.)
-                    returned by names service */
-                    rcount = json_print_named_urls("remote", path, rcount, true);
+                    rcount = json_print_named_urls_and_service("remote", path, rcount, true);
                     if (path == NULL)
                         break;
                     RELEASE(VPath, path); path = NULL;

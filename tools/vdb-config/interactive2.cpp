@@ -65,15 +65,17 @@ const tui_id AWS_HDR_ID = 300;
 const tui_id AWS_CB_ID = 302;
 const tui_id AWS_KEY_ID = 303;
 const tui_id AWS_CHOOSE_ID = 304;
-const tui_id AWS_FILE_ID = 305;
-const tui_id AWS_PROF_LBL_ID = 306;
-const tui_id AWS_PROF_ID = 307;
+const tui_id AWS_CLEAR_ID = 305;
+const tui_id AWS_FILE_ID = 306;
+const tui_id AWS_PROF_LBL_ID = 307;
+const tui_id AWS_PROF_ID = 308;
 
 const tui_id GCP_HDR_ID = 400;
 const tui_id GCP_CB_ID = 402;
 const tui_id GCP_KEY_ID = 403;
 const tui_id GCP_CHOOSE_ID = 404;
-const tui_id GCP_FILE_ID = 405;
+const tui_id GCP_CLEAR_ID = 405;
+const tui_id GCP_FILE_ID = 406;
 
 const tui_id CACHE_HDR_ID = 500;
 const tui_id CACHE_SEL_ID = 501;
@@ -102,7 +104,99 @@ const uint32_t PAGE_CACHE = 3;
 const uint32_t PAGE_NETW = 4;
 const uint32_t PAGE_DBGAP = 5;
 
-/* the helper-model for the grid */
+/* ==== message sub-dialog =================================================================== */
+class msg_view : public Dlg
+{
+    public :
+        msg_view( Dlg &parent, Tui_Rect r, const std::string &msg ) : Dlg( parent, r )
+        {
+            Tui_Rect r1( 1, 1, r.get_w() -2, 1 );
+            PopulateLabel( r1, false, 100, msg.c_str(), STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            Tui_Rect r2( 1, 3, 12, 1 );
+            PopulateButton( r2, false, 101, "&OK", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+        }
+};
+
+class msg_ctrl : public Dlg_Runner
+{
+    public :
+        msg_ctrl( Dlg &dlg ) : Dlg_Runner( dlg, NULL ) { dlg.SetFocus( 101 ); }
+
+        virtual bool on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
+        { dlg.SetDone( dev.get_widget_id() == 101 ); return true; }
+
+        virtual bool on_kb_alpha( Dlg &dlg, void * data, int code )
+        { dlg.SetDone( code == 'O' || code == 'o' ); return true; }
+};
+
+static bool show_msg( Dlg &parent, const std::string &msg )
+{
+    Tui_Rect r( 0, 0, 80, 5 );
+    parent.center( r );
+    msg_view view( parent, r, msg );
+    msg_ctrl ctrl( view );
+    ctrl.run();
+    parent.Draw();
+    return true;
+}
+
+/* ==== question sub-dialog =================================================================== */
+class question_view : public Dlg
+{
+    public :
+        question_view( Dlg &parent, Tui_Rect r, const std::string &msg ) : Dlg( parent, r )
+        {
+            Tui_Rect r1( 1, 1, r.get_w() -2, 1 );
+            PopulateLabel( r1, false, 100, msg.c_str(), STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            Tui_Rect r2( 1, 3, 10, 1 );
+            PopulateButton( r2, false, 101, "&YES", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            Tui_Rect r3( 12, 3, 10, 1 );
+            PopulateButton( r3, false, 102, "&NO", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+        }
+};
+
+class question_ctrl : public Dlg_Runner
+{
+    public :
+        bool answer;
+        
+        question_ctrl( Dlg &dlg ) : Dlg_Runner( dlg, NULL ), answer( false ) { dlg.SetFocus( 101 ); }
+
+        virtual bool on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
+        {
+            switch ( dev.get_widget_id() )
+            {
+                case 101 : answer = true; dlg.SetDone( true ); break;
+                case 102 : answer = false; dlg.SetDone( true ); break;
+            }
+            return true;
+        }
+
+        virtual bool on_kb_alpha( Dlg &dlg, void * data, int code )
+        {
+            switch( code )
+            {
+                case 'Y' :
+                case 'y' : answer = true; dlg.SetDone( true ); break;
+                case 'N' :
+                case 'n' : answer = false; dlg.SetDone( true ); break;
+            }
+            return true;
+        }
+};
+
+static bool question( Dlg &parent, const std::string &msg )
+{
+    Tui_Rect r( 0, 0, 80, 5 );
+    parent.center( r );
+    question_view view( parent, r, msg );
+    question_ctrl ctrl( view );
+    ctrl.run();
+    parent.Draw();
+    return ctrl . answer;
+}
+
+/* ==== helper-model for the dbGap - grid ======================================================= */
 class vdbconf_grid : public Grid
 {
     public:
@@ -176,6 +270,8 @@ class vdbconf_view2 : public Dlg
         void update_aws_credentials( std::string &txt ) { SetWidgetCaption( AWS_FILE_ID, txt ); }
         void update_gcp_credentials( std::string &txt ) { SetWidgetCaption( GCP_FILE_ID, txt ); }        
         
+        void update( void ) { populate( GetRect(), false ); Draw( false ); }
+
     private :
         vdbconf_model &model;
         vdbconf_grid grid;
@@ -202,9 +298,9 @@ class vdbconf_view2 : public Dlg
         Tui_Rect lbl1_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , 32, 1 ); }
         Tui_Rect choose_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 12, 1 ); }
         Tui_Rect file_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , r.get_w() -15, 1 ); }
-        Tui_Rect prof_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +7 , 10, 1 ); }
+        Tui_Rect prof_lbl_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , 10, 1 ); }
         Tui_Rect CACHE_RADIO_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() + 1, r.get_y() +2 , 24, 3 ); }
-        Tui_Rect prof_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +14, r.get_y() +7 , 32, 1 ); }
+        Tui_Rect prof_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , 32, 1 ); }
         Tui_Rect proxy_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +4 , 7, 1 ); }
         Tui_Rect proxy_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +8, r.get_y() +4 , 32, 1 ); }
         Tui_Rect imp_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +2 , 30, 1 ); }
@@ -260,9 +356,11 @@ class vdbconf_view2 : public Dlg
             PopulateLabel( file_rect( r, 5 ), resize, AWS_FILE_ID,
                                 model.get_aws_credential_file_location().c_str(), /* model-connection */
                                 LABEL_BG, INP_COLOR_FG, PAGE_AWS );
-            PopulateLabel( prof_lbl_rect( r ), resize, AWS_PROF_LBL_ID, "&profile:",
+            PopulateButton( choose_rect( r, 7 ), resize, AWS_CLEAR_ID, "c&lear",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_AWS );
+            PopulateLabel( prof_lbl_rect( r, 9 ), resize, AWS_PROF_LBL_ID, "&profile:",
                                 BOX_COLOR, LABEL_FG, PAGE_AWS );
-            PopulateInput( prof_rect( r ), resize, AWS_PROF_ID,
+            PopulateInput( prof_rect( r, 9 ), resize, AWS_PROF_ID,
                                 model.get_aws_profile().c_str(), /* model-connection */
                                 64, INP_COLOR_BG, INP_COLOR_FG, PAGE_AWS );
         }
@@ -280,6 +378,9 @@ class vdbconf_view2 : public Dlg
             PopulateLabel( file_rect( r, 5 ), resize, GCP_FILE_ID,
                                 model.get_gcp_credential_file_location().c_str(), /* model-connection */
                                 LABEL_BG, INP_COLOR_FG, PAGE_GCP );
+            PopulateButton( choose_rect( r, 7 ), resize, GCP_CLEAR_ID, "c&lear",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_GCP );
+                                
         }
 
         void PopulateCacheRadiobox( Tui_Rect const &r, bool resize, uint32_t id, int selection,
@@ -416,6 +517,9 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case GCP_CB_ID  : model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); break; /* model-connection */
                 case NETW_USE_PROXY_ID : model -> set_http_proxy_enabled( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); break; /* model-connection */
                 
+                case AWS_CLEAR_ID : res = on_aws_clear( dlg, model ); break;
+                case GCP_CLEAR_ID : res = on_gcp_clear( dlg, model ); break;
+                
                 case SAVE_BTN_ID : on_save( dlg, model ); break;                
                 case EXIT_BTN_ID : res = on_exit( dlg, model ); break;
                 case VERIFY_BTN_ID : on_verify( dlg, model ); break;
@@ -456,9 +560,16 @@ class vdbconf_ctrl2 : public Dlg_Runner
                                 case PAGE_GCP : res = on_gcp_choose( dlg,  model ); break;
                                 case PAGE_CACHE : res = on_repo_choose( dlg, model ); break;
                             } break;
-                case 'm' :  res = on_import_repo_key( dlg, model ); break;
-                case 'l' :  res = on_set_dflt_import_path( dlg, model ); break;
+                            
+                case 'm' :  switch( active_page ) {
+                                case PAGE_CACHE : res = on_import_repo_key( dlg, model ); break;
+                            } break;
 
+                case 'l' :  switch( active_page ) {
+                                case PAGE_AWS : res = on_aws_clear( dlg, model ); break;
+                                case PAGE_GCP : res = on_gcp_clear( dlg, model ); break;
+                                case PAGE_DBGAP : res = on_set_dflt_import_path( dlg, model ); break;
+                            } break;
                 case 'a' :
                 case 'A' :  res = view.set_active_page( PAGE_AWS ); break;
                 case 'g' :
@@ -477,15 +588,10 @@ class vdbconf_ctrl2 : public Dlg_Runner
         
     private :
 
-        bool show_msg( Dlg &dlg, Tui_Rect r, const char * msg )
+        void update_view( Dlg &dlg )
         {
-            Std_Dlg_Info_Line sub;
-            sub.set_parent( &dlg );
-            dlg.center( r );
-            sub.set_location( r );
-            sub.set_text( msg );
-            sub.execute();
-            return true;
+            vdbconf_view2 &view = dynamic_cast<vdbconf_view2 &>( dlg );
+            view.update();
         }
 
         bool toggle_accept_charges( vdbconf_view2 &view, vdbconf_model *model )
@@ -494,12 +600,12 @@ class vdbconf_ctrl2 : public Dlg_Runner
             if ( view.GetActivePage() == PAGE_AWS )
             {
                 res = view.ToggleWidgetBoolValue( AWS_CB_ID );
-                //model -> set_aws_accept( view.GetWidgetBoolValue( AWS_CB_ID ) );
+                model -> set_user_accept_aws_charges( view.GetWidgetBoolValue( AWS_CB_ID ) ); /* model-connection */
             }
             else if ( view.GetActivePage() == PAGE_GCP )
             {
                 res = view.ToggleWidgetBoolValue( GCP_CB_ID );
-                //model -> set_gcp_accept( view.GetWidgetBoolValue( GCP_CB_ID ) );
+                model -> set_user_accept_gcp_charges( view.GetWidgetBoolValue( GCP_CB_ID ) ); /* model-connection */
             }
             return res;
         }
@@ -510,7 +616,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
             if ( view.GetActivePage() == PAGE_NETW )
             {
                 res = view.ToggleWidgetBoolValue( NETW_USE_PROXY_ID );
-                //model -> set_use_proxy( view.GetWidgetBoolValue( NETW_USE_PROXY_ID ) );
+                model -> set_http_proxy_enabled( view.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); /* model-connection */
             }
             return res;
         }
@@ -533,6 +639,24 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return res;
         }
 
+        static bool input( Dlg &dlg, Tui_Rect r, const char * caption, std::string & txt )
+        {
+            bool res;
+            std::string prev_txt = txt;
+            Std_Dlg_Input q;
+            q.set_parent( &dlg );
+            dlg.center( r );
+            q.set_location( r );
+            q.set_caption( caption );
+            q.set_text2( txt );
+            res = q.execute();
+            if ( res )
+                res = ( prev_txt != q.get_text2() );
+            if ( res )
+                txt = q.get_text2();
+            return res;
+        }
+
         std::string pick_file( Dlg &dlg, Tui_Rect r, const char * path /*, const char *ext*/ )
         {
             std::string res = "";
@@ -550,42 +674,92 @@ class vdbconf_ctrl2 : public Dlg_Runner
 
         bool on_save( Dlg &dlg, vdbconf_model * model )
         {
-            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "changes successfully saved" );
+            if ( model -> get_config_changed() )
+            {
+                if ( model -> commit() )
+                    show_msg( dlg, "changes successfully saved" );
+                else
+                    show_msg( dlg, "error saving changes" );
+            }
+            else
+                show_msg( dlg, "no changes to be saved" );
+            return true;
         }
     
         bool on_exit( Dlg &dlg, vdbconf_model * model )
         {
+            if ( model -> get_config_changed() )
+            {
+                if ( question( dlg, "save changes ?" ) )
+                {
+                    if ( model -> commit() )
+                        show_msg( dlg, "changes successfully saved" );
+                    else
+                        show_msg( dlg, "error saving changes" );
+                }
+            }
             dlg.SetDone( true );
             return true;
         }
 
         bool on_verify( Dlg &dlg, vdbconf_model * model )
         {
-            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "verification successful" );
+            return show_msg( dlg, "not yet implemented" );
         }
 
         bool on_reload( Dlg &dlg, vdbconf_model * model )
         {
-            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "reload successful" );
+            if ( question( dlg, "discard changes ?" ) )
+            {
+                model -> reload();
+                update_view( dlg );
+                show_msg( dlg, "reloaded" );
+            }
+            return true;
         }
 
         bool on_default( Dlg &dlg, vdbconf_model * model )
         {
-            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "setting defaults successful" );
+            if ( question( dlg, "revert to default-values ?" ) )
+            {
+                model -> set_defaults();
+                update_view( dlg );
+                show_msg( dlg, "default values set" );
+            }
+            return true;
         }
 
+        // common for on_aws_choose() and on_aws_clear()        
+        bool upate_aws_credentials( Dlg &dlg, vdbconf_model * model, std::string &path )
+        {
+            model -> set_aws_credential_file_location( path ); /* model-connection */
+            vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
+            view.update_aws_credentials( path );
+            return true;
+        }
+        
         bool on_aws_choose( Dlg &dlg, vdbconf_model * model )
         {
             /* on AWS: a path is choosen */
             std::string path = model -> get_aws_credential_file_location();
             if ( path.empty() ) path = model -> get_current_dir();
             if ( pick_dir( dlg, Tui_Rect( 0, 0, 80, 40 ), path ) )
-            if ( !path.empty() )
-            {
-                model -> set_aws_credential_file_location( path ); /* model-connection */
-                vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
-                view.update_aws_credentials( path );
-            }
+            if ( !path.empty() ) upate_aws_credentials( dlg, model, path );
+            return true;
+        }
+
+        bool on_aws_clear( Dlg &dlg, vdbconf_model * model )
+        {
+            std::string path( "" );
+            return upate_aws_credentials( dlg, model, path );
+        }
+
+        // common for on_gcp_choose() and on_gcp_clear()
+        bool upate_gcp_credentials( Dlg &dlg, vdbconf_model * model, std::string &file )
+        {
+            model -> set_gcp_credential_file_location( file ); /* model-connection */
+            vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
+            view.update_gcp_credentials( file );
             return true;
         }
 
@@ -596,12 +770,14 @@ class vdbconf_ctrl2 : public Dlg_Runner
             if ( org.empty() ) org = model -> get_current_dir();
             std::string file = pick_file( dlg, Tui_Rect( 0, 0, 80, 40 ), org.c_str() );
             if ( !file.empty() )
-            {
-                model -> set_gcp_credential_file_location( file ); /* model-connection */
-                vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
-                view.update_gcp_credentials( file );
-            }
+                upate_gcp_credentials( dlg, model, file );
             return true;
+        }
+
+        bool on_gcp_clear( Dlg &dlg, vdbconf_model * model )
+        {
+            std::string file( "" );
+            return upate_gcp_credentials( dlg, model, file );
         }
 
         bool on_repo_choose( Dlg &dlg, vdbconf_model * model )
@@ -620,12 +796,25 @@ class vdbconf_ctrl2 : public Dlg_Runner
         
         bool on_import_repo_key( Dlg &dlg, vdbconf_model * model )
         {
-            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "import repo-key" );
+            return show_msg( dlg, "import repo-key" );
         }
         
         bool on_set_dflt_import_path( Dlg &dlg, vdbconf_model * model )
         {
-            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), "set dflt import path" );
+            bool res = false;
+            std::string path = model -> get_dflt_import_path_start_dir();
+
+            if ( model -> does_path_exist( path ) )
+                res = pick_dir( dlg, dlg.center( 5, 5 ), path );
+            else
+                res = input( dlg, Tui_Rect( 5, 5, 100, 6 ), "change default import path", path );
+
+            if ( res )
+            {
+                model -> set_user_default_dir( path.c_str() );
+                show_msg( dlg, "default import path changed" );
+            }
+            return res;
         }
 
         bool on_edit_dbgap_repo( Dlg &dlg, vdbconf_model * model )
@@ -633,7 +822,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
             tui_long n = dlg.GetWidgetInt64Value( DBGAP_REPOS_ID );
             std::stringstream ss;
             ss << "edit dbgap-repo #" << n + 1;
-            return show_msg( dlg, Tui_Rect( 0, 0, 80, 6 ), ss.str().c_str() );
+            return show_msg( dlg, ss.str().c_str() );
         }
 };
 

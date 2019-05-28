@@ -237,7 +237,9 @@ class vdbconf_model
         // ----------------------------------------------------------------
         bool commit( void );
         void reload( void ); // throws on error
-
+        void set_defaults( void );
+        std::string get_dflt_import_path_start_dir( void );
+        
     private :
         CKConfig & _config;
 

@@ -50,28 +50,25 @@ urls_and_accs:
 	@rm -fr tmp/* tmp2/*
 	@echo 'foo = "bar"' > tmp/t.kfg
 
+	@echo prefetch URL-1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki 2>/dev/null ; \
-        then echo "prefetch URL-1 when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 
+	@echo prefetch URL-2/2 when there is no kfg
+	@rm -f index.html
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch https://github.com/ncbi/ 2>/dev/null ; \
-        then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch https://github.com/ncbi/ >/dev/null
 
+	@echo prefetch URL-2/1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	       if $(BINDIR)/prefetch http://intranet/ 2>/dev/null ; \
-	       then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	       fi ; \
+	       $(BINDIR)/prefetch http://intranet/ >/dev/null ; \
 	    fi
 
+	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	     if $(BINDIR)/prefetch http://intranet/irb/support.shtml  2>/dev/null; \
-	     then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	     fi ; \
+	     $(BINDIR)/prefetch http://intranet/irb/support.shtml  >/dev/null; \
 	    fi
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
@@ -135,10 +132,10 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
 
+	@echo prefetch $(SRR) when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(SRR) 2> /dev/null ; \
-        then echo "prefetch $(SRR) when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch $(SRR) > /dev/null
+	@rm -r SRR053325
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@if ls `pwd`/tmp/sra/SRR053325.sra 2> /dev/null ; \
@@ -503,14 +500,16 @@ out_dir_and_file:
 #	@ echo
 
 	@ echo PREFETCH HTTP DIRECTORY URL TO OUT-DIR
+	@ rm -fv index.html
 	@ if ls `pwd`/tmp3/dir/index.html 2> /dev/null ; \
       then echo index.html found ; exit 1 ; fi
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/index.html > /dev/null
 #	@ echo
 
 	@ echo PREFETCH HTTP FILE URL TO OUT-DIR
+	@ rm -f wiki
 	@ if ls `pwd`/tmp3/dir/wiki 2> /dev/null ; \
       then echo wiki found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

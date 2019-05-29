@@ -4132,6 +4132,8 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
     if (rc == 0) {
         rc = VFSManagerMake(&self->vfsMgr);
         DISP_RC(rc, "VFSManagerMake");
+        if (rc == 0)
+            VFSManagerSetAdCaching(self->vfsMgr, true);
     }
 
     if ( rc == 0 )

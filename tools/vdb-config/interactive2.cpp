@@ -87,6 +87,7 @@ const tui_id CACHE_PROC_CHOOSE_ID = 506;
 const tui_id CACHE_PROC_PATH_ID = 507;
 const tui_id CACHE_USE_LOCAL_ID = 508;
 const tui_id CACHE_USE_REMOTE_ID = 509;
+const tui_id PREFETCH_DNLD_ID = 510;
 
 const tui_id NETW_HDR_ID = 600;
 const tui_id NETW_USE_PROXY_ID = 602;
@@ -115,7 +116,7 @@ class msg_view : public Dlg
             Tui_Rect r1( 1, 1, r.get_w() -2, 1 );
             PopulateLabel( r1, false, 100, msg.c_str(), STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             Tui_Rect r2( 1, 3, 12, 1 );
-            PopulateButton( r2, false, 101, "&OK", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( r2, false, 101, "&ok", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
         }
 };
 
@@ -126,9 +127,6 @@ class msg_ctrl : public Dlg_Runner
 
         virtual bool on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
         { dlg.SetDone( dev.get_widget_id() == 101 ); return true; }
-
-        virtual bool on_kb_alpha( Dlg &dlg, void * data, int code )
-        { dlg.SetDone( code == 'O' || code == 'o' ); return true; }
 };
 
 static bool show_msg( Dlg &parent, const std::string &msg )
@@ -151,9 +149,9 @@ class question_view : public Dlg
             Tui_Rect r1( 1, 1, r.get_w() -2, 1 );
             PopulateLabel( r1, false, 100, msg.c_str(), STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             Tui_Rect r2( 1, 3, 10, 1 );
-            PopulateButton( r2, false, 101, "&YES", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( r2, false, 101, "&yes", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             Tui_Rect r3( 12, 3, 10, 1 );
-            PopulateButton( r3, false, 102, "&NO", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( r3, false, 102, "&no", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
         }
 };
 
@@ -170,18 +168,6 @@ class question_ctrl : public Dlg_Runner
             {
                 case 101 : answer = true; dlg.SetDone( true ); break;
                 case 102 : answer = false; dlg.SetDone( true ); break;
-            }
-            return true;
-        }
-
-        virtual bool on_kb_alpha( Dlg &dlg, void * data, int code )
-        {
-            switch( code )
-            {
-                case 'Y' :
-                case 'y' : answer = true; dlg.SetDone( true ); break;
-                case 'N' :
-                case 'n' : answer = false; dlg.SetDone( true ); break;
             }
             return true;
         }
@@ -211,9 +197,9 @@ class input_view : public Dlg
             Tui_Rect r2( 1, 2, r.get_w() - 2, 1 );
             PopulateInput( r2, false, 101, txt.c_str(), txt_len, INP_COLOR_BG, INP_COLOR_FG, PAGE_FIXED );
             Tui_Rect r3( 1, 4, 10, 1 );
-            PopulateButton( r3, false, 102, "&OK", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( r3, false, 102, "&ok", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             Tui_Rect r4( 12, 4, 10, 1 );
-            PopulateButton( r4, false, 103, "&CANCEL", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( r4, false, 103, "&cancel", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
         }
 };
 
@@ -239,18 +225,6 @@ class input_ctrl : public Dlg_Runner
             {
                 case 102 : ok = true; dlg.SetDone( true ); break;
                 case 103 : ok = false; dlg.SetDone( true ); break;
-            }
-            return true;
-        }
-
-        virtual bool on_kb_alpha( Dlg &dlg, void * data, int code )
-        {
-            switch( code )
-            {
-                case 'O' :
-                case 'o' : ok = true; dlg.SetDone( true ); break;
-                case 'C' :
-                case 'c' : ok = false; dlg.SetDone( true ); break;
             }
             return true;
         }
@@ -690,20 +664,12 @@ class vdbconf_view2 : public Dlg
             page_changed( new_page, true );            
         }
         
-        // called by controller to switch active page by hot-key
-        /*
-        bool set_active_page( uint32_t page )
-        {
-            if ( GetActivePage() == page ) return false;
-            SetFocus( SAVE_BTN_ID );
-            SetActivePage( page );
-            return true;
-        }
-        */
-        
         // called by controller after reload/default/set credentials ...
         bool update( void ) { populate( GetRect(), false ); Draw( false ); return true; }
 
+        // called by controller to update the status-line text
+        void status_txt( const char * txt ) { SetWidgetCaption( STATUS_ID, txt ); }
+        
     private :
         vdbconf_model &model;   // store model
         vdbconf_grid grid;      // store the intermediate grid-model
@@ -735,6 +701,7 @@ class vdbconf_view2 : public Dlg
         Tui_Rect file_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , r.get_w() -15, 1 ); }
         Tui_Rect prof_lbl_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , 10, 1 ); }
         Tui_Rect CACHE_RADIO_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() + 1, r.get_y() +2 , 24, 3 ); }
+        Tui_Rect prefetch_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() + 26, r.get_y() +2 , 34, 1 ); }
         Tui_Rect prof_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , 32, 1 ); }
         Tui_Rect proxy_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +4 , 7, 1 ); }
         Tui_Rect proxy_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +8, r.get_y() +4 , 32, 1 ); }
@@ -874,6 +841,10 @@ class vdbconf_view2 : public Dlg
             PopulateCheckbox( use_repo_rect( r, 14 ), resize, CACHE_USE_REMOTE_ID, "use remo&te repository",
                               model.is_remote_enabled(), /* model-connection */
                               CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE );
+                              
+            PopulateCheckbox( prefetch_rect( r ), resize, PREFETCH_DNLD_ID, "&prefetch download to cache",
+                              model.does_prefetch_download_to_cache(), /* model-connection */
+                              CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE );
         }
 
         // populate the NETWORK page
@@ -967,99 +938,80 @@ class vdbconf_ctrl2 : public Dlg_Runner
             vdbconf_model * model = static_cast< vdbconf_model * >( data );
             switch( dev.get_widget_id() )
             {
-                case AWS_CB_ID  : model -> set_user_accept_aws_charges( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); break; /* model-connection */
-                case GCP_CB_ID  : model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); break; /* model-connection */
-                case NETW_USE_PROXY_ID : model -> set_http_proxy_enabled( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); break; /* model-connection */
-                
-                case AWS_CLEAR_ID   : res = on_aws_clear( dlg, model ); break;
-                case GCP_CLEAR_ID   : res = on_gcp_clear( dlg, model ); break;
-                
-                case CACHE_USE_LOCAL_ID  : res = on_site_repo( dlg, model ); break;
-                case CACHE_USE_REMOTE_ID : res = on_remote_repo( dlg, model ); break;
-                
-                case SAVE_BTN_ID    : res = on_save( dlg, model ); break;                
+                case SAVE_BTN_ID    : res = on_save( dlg, model ); break;
                 case EXIT_BTN_ID    : res = on_exit( dlg, model ); break;
                 case VERIFY_BTN_ID  : res = on_verify( dlg, model ); break;
                 case RELOAD_BTN_ID  : res = on_reload( dlg, model ); break;
                 case DEFAULT_BTN_ID : res = on_default( dlg, model ); break;
-                case AWS_CHOOSE_ID  : res = on_aws_choose( dlg, model ); break;
-                case GCP_CHOOSE_ID  : res = on_gcp_choose( dlg, model ); break;
+
+                case AWS_HDR_ID      : res = dlg.SetActivePage( PAGE_AWS ); break;
+                case AWS_CB_ID       : res = on_accept_aws_charges( dlg, model ); break;
+                case AWS_CHOOSE_ID   : res = on_aws_choose( dlg, model ); break;
+                case AWS_CLEAR_ID    : res = on_aws_clear( dlg, model ); break;                
+                case AWS_PROF_LBL_ID : dlg.SetFocus( AWS_PROF_ID ); break;
+                
+                case GCP_HDR_ID    : res = dlg.SetActivePage( PAGE_GCP ); break;                
+                case GCP_CB_ID     : res = on_accept_gcp_charges( dlg, model ); break;
+                case GCP_CHOOSE_ID : res = on_gcp_choose( dlg, model ); break;                
+                case GCP_CLEAR_ID  : res = on_gcp_clear( dlg, model ); break;
+                
+                case CACHE_HDR_ID         : res = dlg.SetActivePage( PAGE_CACHE ); break;
+                case CACHE_REPO_CHOOSE_ID : res = on_repo_choose( dlg, model ); break;                
+                case CACHE_USE_LOCAL_ID   : res = on_site_repo( dlg, model ); break;
+                case CACHE_USE_REMOTE_ID  : res = on_remote_repo( dlg, model ); break;
+                case PREFETCH_DNLD_ID     : res = on_prefetch_dnld( dlg, model ); break;
+                
+                case NETW_HDR_ID       : res = dlg.SetActivePage( PAGE_NETW ); break;                
+                case NETW_USE_PROXY_ID : res = on_use_proxy( dlg, model ); break;
+                case NETW_PROXY_LBL_ID : dlg.SetFocus( NETW_PROXY_ID ); break;
+                
+                case DBGAP_HDR_ID         : res = dlg.SetActivePage( PAGE_DBGAP ); break;
                 case DBGAP_IMPORT_KEY_ID  : res = on_import_repo_key( dlg, model ); break;
                 case DBGAP_IMPORT_PATH_ID : res = on_set_dflt_import_path( dlg, model ); break;
+                case DBGAP_REPOS_LBL_ID   : dlg.SetFocus( DBGAP_REPOS_ID ); break;
                 case DBGAP_REPOS_ID       : res = on_edit_dbgap_repo( dlg, model ); break;
             }
             return res;
         }
 
-        // called by base-class if user has pressed a hot-key
-        virtual bool on_kb_alpha( Dlg &dlg, void * data, int code )
+        // called by base-class if widget gets focus
+        virtual bool on_focus( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
         {
-            bool res;
-            //vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
-            vdbconf_model * model = static_cast< vdbconf_model * >( data );
-            int active_page = dlg . GetActivePage();
-            switch( code ) {
-                case 'x' :
-                case 'Q' :
-                case 'q' :  res = on_exit( dlg, model ); break;
-
-                case 's' :  res = on_save( dlg, model ); break;
-                case 'i' :  res = on_verify( dlg, model ); break;
-                case 'r' :  res = on_reload( dlg, model ); break;
-                case 'f' :  res = on_default( dlg, model ); break;
+            vdbconf_view2 &view = dynamic_cast<vdbconf_view2 &>( dlg );
+            switch( dev.get_widget_id() )
+            {
+                case SAVE_BTN_ID    : view.status_txt( "save configuration" ); break;
+                case EXIT_BTN_ID    : view.status_txt( "exit vdb-config tool" ); break;
+                case VERIFY_BTN_ID  : view.status_txt( "verify configuration settings" ); break;
+                case RELOAD_BTN_ID  : view.status_txt( "discard current changes" ); break;
+                case DEFAULT_BTN_ID : view.status_txt( "load default settings" ); break;
                 
-                case 'p' :  switch( active_page ) {
-                                case PAGE_AWS   : dlg.SetFocus( AWS_PROF_ID ); break;
-                                case PAGE_NETW  : dlg.SetFocus( NETW_PROXY_ID ); break;
-                                case PAGE_DBGAP : dlg.SetFocus( DBGAP_REPOS_ID ); break;
-                            } break;
-                            
-                case 'e' :  switch( active_page ) {
-                                case PAGE_AWS : res = toggle_accept_aws_charges( dlg, model ); break;
-                                case PAGE_GCP : res = toggle_accept_gcp_charges( dlg, model ); break;                                
-                            } break;
-
-                case 'u' :  switch( active_page ) {
-                                case PAGE_CACHE : res = on_site_repo( dlg, model ); break;
-                                case PAGE_NETW  : res = toggle_use_proxy( dlg, model ); break;
-                            } break;
+                case AWS_CB_ID      : view.status_txt( "do accept charges for AWS usage" ); break;
+                case AWS_CHOOSE_ID  : view.status_txt( "choose location of credentials for AWS" ); break;
+                case AWS_CLEAR_ID   : view.status_txt( "clear location of credentials for AWS" ); break;
+                case AWS_PROF_ID    : view.status_txt( "enter name of profile to use for AWS" ); break;
                 
-                case 'o' :  switch( active_page ) {
-                                case PAGE_AWS : res = on_aws_choose( dlg,  model ); break;
-                                case PAGE_GCP : res = on_gcp_choose( dlg,  model ); break;
-                                case PAGE_CACHE : res = on_repo_choose( dlg, model ); break;
-                            } break;
-                            
-                case 'm' :  switch( active_page ) {
-                                case PAGE_DBGAP : res = on_import_repo_key( dlg, model ); break;
-                            } break;
-
-                case 't' :  switch( active_page ) {
-                                case PAGE_CACHE : res = on_remote_repo( dlg, model ); break;
-                            } break;
-
-                            
-                case 'l' :  switch( active_page ) {
-                                case PAGE_AWS : res = on_aws_clear( dlg, model ); break;
-                                case PAGE_GCP : res = on_gcp_clear( dlg, model ); break;
-                                case PAGE_DBGAP : res = on_set_dflt_import_path( dlg, model ); break;
-                            } break;
-                case 'a' :
-                case 'A' :  res = dlg.SetActivePage( PAGE_AWS ); break;
-                case 'g' :
-                case 'G' :  res = dlg.SetActivePage( PAGE_GCP ); break;
-                case 'c' :
-                case 'C' :  res = dlg.SetActivePage( PAGE_CACHE ); break;
-                case 'n' :
-                case 'N' :  res = dlg.SetActivePage( PAGE_NETW ); break;
-                case 'd' :
-                case 'D' :  res = dlg.SetActivePage( PAGE_DBGAP ); break;
+                case GCP_CB_ID      : view.status_txt( "do accept charges for GCP usage" ); break;
+                case GCP_CHOOSE_ID  : view.status_txt( "choose location of credentials for GCP" ); break;
+                case GCP_CLEAR_ID   : view.status_txt( "clear location of credentials for GCP" ); break;
                 
-                default  : res = false;
+                case CACHE_SEL_ID   : view.status_txt( "select caching behaviour" ); break;
+                case CACHE_REPO_CHOOSE_ID : view.status_txt( "choose loacation of local repository" ); break;
+                case CACHE_PROC_CHOOSE_ID : view.status_txt( "choose loacation of process local storage" ); break;
+                case CACHE_USE_LOCAL_ID   : view.status_txt( "use site repository" ); break;
+                case CACHE_USE_REMOTE_ID  : view.status_txt( "use remote repository" ); break;
+                case PREFETCH_DNLD_ID     : view.status_txt( "choose where prefetch downloads files to" ); break;
+                
+                case NETW_USE_PROXY_ID : view.status_txt( "use a network proxy to access remote data" ); break;
+                case NETW_PROXY_ID     : view.status_txt( "specify the proxy to use" ); break;
+                
+                case DBGAP_IMPORT_KEY_ID  : view.status_txt( "import a ngc-file" ); break;
+                case DBGAP_IMPORT_PATH_ID : view.status_txt( "set default import path for ngc-files" ); break;
+                case DBGAP_REPOS_ID       : view.status_txt( "list of available dbGap repositories, press ENTER to edit" ); break;
             }
-            return res;
-        };
-        
+            return false;
+        }
+
     private :
         // helper function to signal the view to update itself
         bool update_view( Dlg &dlg )
@@ -1069,45 +1021,47 @@ class vdbconf_ctrl2 : public Dlg_Runner
         }
 
         // user has pressed the 'accept AWS charges' checkbox
-        bool toggle_accept_aws_charges( Dlg &dlg, vdbconf_model *model )
+        bool on_accept_aws_charges( Dlg &dlg, vdbconf_model *model )
         {
-            bool res = dlg.ToggleWidgetBoolValue( AWS_CB_ID );
             model -> set_user_accept_aws_charges( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); /* model-connection */
-            return res;
+            return true;
         }
 
         // user has pressed the 'accept GCP charges' checkbox        
-        bool toggle_accept_gcp_charges( Dlg &dlg, vdbconf_model *model )
+        bool on_accept_gcp_charges( Dlg &dlg, vdbconf_model *model )
         {
-            bool res = dlg.ToggleWidgetBoolValue( GCP_CB_ID );
             model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); /* model-connection */
-            return res;
+            return true;
         }
 
         // the user has pressed the 'use proxy' checkbox        
-        bool toggle_use_proxy( Dlg &dlg, vdbconf_model *model )
+        bool on_use_proxy( Dlg &dlg, vdbconf_model *model )
         {
-            bool res = dlg.ToggleWidgetBoolValue( NETW_USE_PROXY_ID );
             model -> set_http_proxy_enabled( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); /* model-connection */
-            return res;
+            return true;
         }
 
         // user has pressed the 'use site repo' checkbox
         bool on_site_repo( Dlg &dlg, vdbconf_model *model )
         {
-            bool res = dlg.ToggleWidgetBoolValue( CACHE_USE_LOCAL_ID );
             model -> set_site_enabled( dlg.GetWidgetBoolValue( CACHE_USE_LOCAL_ID ) ); /* model-connection */
-            return res;
+            return true;
         }
 
         // user has pressed the 'use remote repo' checkbox
         bool on_remote_repo( Dlg &dlg, vdbconf_model *model )
         {
-            bool res = dlg.ToggleWidgetBoolValue( CACHE_USE_REMOTE_ID );
             model -> set_remote_enabled( dlg.GetWidgetBoolValue( CACHE_USE_REMOTE_ID ) ); /* model-connection */
-            return res;
+            return true;
         }
 
+        // user has pressed the 'prefetch download to cache' checkbox
+        bool on_prefetch_dnld( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_prefetch_download_to_cache( dlg.GetWidgetBoolValue( PREFETCH_DNLD_ID ) ); /* model-connection */
+            return true;
+        }
+        
         // user has pressed the save-button
         bool on_save( Dlg &dlg, vdbconf_model * model )
         {

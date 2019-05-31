@@ -153,36 +153,37 @@ sub expandAllAccessions(@)
     return @rslt;
 }
 
-### \brief: parse srapath JSON into URLs
+### \brief: extract URLs from srapath response
 ###
-### \param: the JSON string
+### \param: the query run accession
+### \param: the JSON objects from srapath
 ###
 ### \return: array of possible pairs of URLs to data and maybe to vdbcache files
-sub parse_srapath_JSON($$)
+sub extract_from_srapath($@)
 {
     my $accession = shift;
-    my @obj = @{decode_json $_[0]} or goto FALLBACK;
     my @result;
     my %index;
 
-    for (0 .. $#obj) {
-        unless (@{$obj[$_]->{remote}}) {
-            printf STDERR "warn: name resolver found no remote source for '%s'/'%s'\n", $obj[$_]->{accession}, $obj[$_]->{itemType};
+    for my $i (0 .. $#_) {
+        unless (@{$_[$i]->{remote}}) {
+            printf STDERR "warn: name resolver found no remote source for %s.%s\n"
+                , $_[$i]->{accession}, $_[$i]->{itemType};
             next;
         }
-        $index{$obj[$_]->{accession}}->{$obj[$_]->{itemType}} = $_;
+        $index{$_[$i]->{accession}}->{$_[$i]->{itemType}} = $i;
     }
-    if (!defined($index{$accession})) {
+    unless (defined($index{$accession})) {
         printf STDERR "warn: name resolver found nothing for '%s'\n", $accession;
 FALLBACK: # produce an empty response, will cause tool to be run without any URLs
         push @result, {};
         return @result;
     }
-    if (!defined($index{$accession}->{'sra'})) {
+    unless (defined($index{$accession}->{'sra'})) {
         printf STDERR "warn: name resolver found no data for '%s'\n", $accession;
         goto FALLBACK;
     }
-    my $run = $obj[$index{$accession}->{'sra'}];
+    my $run = $_[$index{$accession}->{'sra'}];
     
     if (!defined($index{$accession}->{'vdbcache'})) {
         # there is no vdbcache for this run
@@ -201,51 +202,55 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
     }
 
     # have a vdbcache
-    my $cache = $obj[$index{$accession}->{'vdbcache'}];
+    my $cache = $_[$index{$accession}->{'vdbcache'}];
 
-    my $default_remote_cache;
-    # try ncbi
+    # default to the vdbcache from ncbi or the first if not from ncbi
+    my $default_remote_cache = $cache->{'remote'}->[0]->{path};
     for (@{$cache->{'remote'}}) {
         if ($_->{'service'} eq 'sra-ncbi') {
             $default_remote_cache = $_->{path};
             last;
         }
     }
-    if (!defined($default_remote_cache)) {
-        # use first
-        $default_remote_cache = $cache->{'remote'}->[0]->{path};
-    }
 
     if ($run->{'local'}) {
-        # use the local copy of the run and the vdbcache from the default location
-        push @result, { 'url' => $run->{'local'}, 'cache' => ($cache->{'local'} // $default_remote_cache), 'source' => 'local' };
+        # use the local copy of the run and the vdbcache from local or default
+        push @result, {
+              'url' => $run->{'local'}
+            , 'cache' => ($cache->{'local'} || $default_remote_cache)
+            , 'source' => 'local'
+        };
         return @result;
     }
     # there is no local copy of run
     # try all remotes in order
-    # for vdbcache, use same source or use default
+    # for vdbcache, use local or same source or default
     for (@{$run->{remote}}) {
         my $r = $_;
         my $c = $cache->{'local'};
         
         for (@{$cache->{'remote'}}) {
+            last if $c;
             next unless $r->{service} eq $_->{service};
             $c = $_->{path};
         }
-        push @result, { 'url' => $r->{path}, 'cache' => ($c // $default_remote_cache), 'source' => $r->{service} };
+        push @result, {
+              'url' => $r->{path}
+            , 'cache' => ($c || $default_remote_cache)
+            , 'source' => $r->{service}
+        };
     }
     return @result;
 }
 
 ### \brief: turns an accession into URLs
 ###
-### \param: the accession
+### \param: the query accession
 ###
 ### \return: array of possible pairs of URLs to data and maybe to vdbcache files
 sub resolveAccessionURLs($)
 {
     my $json;
-if (!0) {
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
     my $kid = open(my $pipe, '-|') // die "can't fork: $!";
     
@@ -254,28 +259,10 @@ if (!0) {
         die "can't exec srapath: $!";
     }
 
-    $json = join '', $pipe->getlines;
+    $json = decode_json(join '', $pipe->getlines) or die "unparsable response from srapath";
     close($pipe);
-}
-else {
-    $json = <<"JSON";
-[
-{"accession": "SRR850901", "itemType": "vdbcache", "itemClass": "run", "size": 17615526, "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra.vdbcache", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000830/SRR850901.vdbcache", "service": "sra-ncbi" }]},
-{"accession": "SRR850901", "itemType": "sra", "itemClass": "run", "size": 323741972, "local":"$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra3/SRR/000830/SRR850901", "service": "sra-ncbi" },
-{ "path": "https://sra-download.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2", "service": "sra-sos" }]},
-{"accession": "SRR850902", "itemType": "vdbcache", "itemClass": "run", "size": 17615526, "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra.vdbcache", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000830/SRR850901.vdbcache", "service": "sra-ncbi" }]},
-{"accession": "SRR850902", "itemType": "sra", "itemClass": "run", "size": 323741972, "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra3/SRR/000830/SRR850901", "service": "sra-ncbi" },
-{ "path": "https://sra-download.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2", "service": "sra-sos" }]},
-{"accession": "SRR850903", "itemType": "sra", "itemClass": "run", "size": 323741972, "local":"$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra3/SRR/000830/SRR850901", "service": "sra-ncbi" },
-{ "path": "https://sra-download.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2", "service": "sra-sos" }]},
-{"accession": "SRR850904", "itemType": "sra", "itemClass": "run", "size": 323741972, "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra3/SRR/000830/SRR850901", "service": "sra-ncbi" },
-{ "path": "https://sra-download.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2", "service": "sra-sos" }]}
-]
-JSON
-}    
-    my @result = parse_srapath_JSON($_[0], $json);
-    # say Dumper(\@result); exit 0;
-    return @result;
+
+    extract_from_srapath($_[0], @{$json});
 }
 
 use constant EUTILS_URL => URI->new('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/');
@@ -1001,7 +988,7 @@ sub isExecutable($$)
 ### \param: executable name
 ###
 ### \return: the full path to executable or undef
-sub witch($)
+sub sandwich($)
 {
     my $exe = $_[0];
     my $fullpath;
@@ -1029,7 +1016,7 @@ sub witch($)
 my %which_mem = ();
 sub which($)
 {
-    $which_mem{$_[0]} = witch($_[0]) unless exists $which_mem{$_[0]};
+    $which_mem{$_[0]} = sandwich($_[0]) unless exists $which_mem{$_[0]};
     return $which_mem{$_[0]};
 }
 
@@ -1347,7 +1334,7 @@ my @params;
 my @args;
 
 # which test
-ok( witch($basename), 'found self');
+ok( sandwich($basename), 'found self');
 
 # loadConfig test
 ok( %config, 'loaded config' );
@@ -1414,7 +1401,7 @@ for (IO::File->new($paramsFile)->getlines()) {
 ok( aeq(@readargs, @testargs), 'newstyle: option file matches' );
 
 # JSON srapath parsing tests
-my $json = <<"JSON";
+my $json = decode_json <<"JSON";
 [
 {"accession": "SRR850901", "itemType": "vdbcache", "itemClass": "run", "size": 17615526, "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra.vdbcache", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000830/SRR850901.vdbcache", "service": "sra-ncbi" }]},
 {"accession": "SRR850901", "itemType": "sra", "itemClass": "run", "size": 323741972, "local":"$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "cache": "$ENV{HOME}/ncbi/public/sra/SRR850901.sra", "remote": [{ "path": "https://sra-download.ncbi.nlm.nih.gov/traces/sra3/SRR/000830/SRR850901", "service": "sra-ncbi" },
@@ -1430,16 +1417,16 @@ my $json = <<"JSON";
 JSON
 my @result;
 
-@result = parse_srapath_JSON('SRR850901', $json);
+@result = extract_from_srapath('SRR850901', @{$json});
 ok( scalar(@result) == 1 && defined($result[0]->{url}) && defined($result[0]->{cache}) && $result[0]->{source} eq 'local', 'srapath parse JSON: local run; remote vdbcache' );
 
-@result = parse_srapath_JSON('SRR850902', $json);
+@result = extract_from_srapath('SRR850902', @{$json});
 ok( scalar(@result) == 2 && defined($result[0]->{url}) && defined($result[0]->{cache}) && defined($result[1]->{url}) && $result[0]->{cache} eq $result[1]->{cache} && $result[0]->{source} eq 'sra-ncbi' && $result[1]->{source} eq 'sra-sos', 'srapath parse JSON: remote multi-source run, single vdbcache' );
 
-@result = parse_srapath_JSON('SRR850903', $json);
+@result = extract_from_srapath('SRR850903', @{$json});
 ok( scalar(@result) == 1 && defined($result[0]->{url}) && !defined($result[0]->{cache}) && $result[0]->{source} eq 'local', 'srapath parse JSON: local run, no vdbcache' );
 
-@result = parse_srapath_JSON('SRR850904', $json);
+@result = extract_from_srapath('SRR850904', @{$json});
 ok( scalar(@result) == 2 && defined($result[0]->{url}) && !defined($result[0]->{cache}) && defined($result[1]->{url}) && !defined($result[1]->{cache}) && $result[0]->{source} eq 'sra-ncbi' && $result[1]->{source} eq 'sra-sos', 'srapath parse JSON: remote multi-source run, no vdbcache' );
 
 # accession lookup tests

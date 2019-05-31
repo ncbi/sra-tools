@@ -632,10 +632,11 @@ RUNNING_AS_PREFETCH:
     {
         # usage error or user asked for help
         exec {$toolpath} 'prefetch', '--help';
-        die "can't exec original prefetch: $!";
     }
-    processAccessions('prefetch', $toolpath, @params, @args);
-    die "unreachable";
+    else {
+        exec {$toolpath} 'prefetch', @params, expandAllAccessions(@args);
+    }
+    die "can't exec prefetch: $!";
 }
 
 RUNNING_AS_SRAPATH:
@@ -677,10 +678,11 @@ RUNNING_AS_SRAPATH:
     {
         # usage error or user asked for help
         exec {$toolpath} 'srapath', '--help';
-        die "can't exec original srapath: $!";
     }
-    processAccessions('srapath', $toolpath, @params, @args);
-    die "unreachable";
+    else {
+        exec {$toolpath} 'srapath', @params, expandAllAccessions(@args);
+    }
+    die "can't exec original srapath: $!";
 }
 
 RUNNING_AS_SRA_PILEUP:

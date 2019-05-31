@@ -34,13 +34,6 @@
 
 using namespace tui;
 
-/* ---------------------------------------------------------------------------
-
-    We want it to act on window-resize and show the new size in the status bar :
-    
-    press ESC twice to get out of the controller-loop
-    
---------------------------------------------------------------------------- */
 const KTUI_color BOX_COLOR      = KTUI_c_dark_blue;
 const KTUI_color STATUS_COLOR	= KTUI_c_gray;
 const KTUI_color LABEL_BG		= KTUI_c_light_gray;
@@ -52,60 +45,65 @@ const KTUI_color BTN_COLOR_BG	= KTUI_c_cyan;
 const KTUI_color INP_COLOR_FG	= KTUI_c_black;
 const KTUI_color INP_COLOR_BG	= KTUI_c_white;
 
-const tui_id STATUS_ID   = 100;
+const tui_id STATUS_ID      = 100;
+const tui_id SAVE_BTN_ID    = STATUS_ID + 1;
+const tui_id EXIT_BTN_ID    = STATUS_ID + 2;
+const tui_id VERIFY_BTN_ID  = STATUS_ID + 3;
+const tui_id RELOAD_BTN_ID  = STATUS_ID + 4;
+const tui_id DEFAULT_BTN_ID = STATUS_ID + 5;
+const tui_id BOX_ID         = STATUS_ID + 6;
 
-const tui_id SAVE_BTN_ID = 200;
-const tui_id EXIT_BTN_ID = 201;
-const tui_id VERIFY_BTN_ID = 202;
-const tui_id RELOAD_BTN_ID = 203;
-const tui_id DEFAULT_BTN_ID = 204;
-const tui_id BOX_ID = 205;
+const tui_id MAIN_HDR_ID    = 200;
+const tui_id MAIN_USE_LOCAL_ID  = MAIN_HDR_ID + 1;
+const tui_id MAIN_USE_REMOTE_ID = MAIN_HDR_ID + 2;
+const tui_id MAIN_PREFETCH_ID   = MAIN_HDR_ID + 3;
 
-const tui_id AWS_HDR_ID = 300;
-const tui_id AWS_CB_ID = 302;
-const tui_id AWS_KEY_ID = 303;
-const tui_id AWS_CHOOSE_ID = 304;
-const tui_id AWS_CLEAR_ID = 305;
-const tui_id AWS_FILE_ID = 306;
-const tui_id AWS_PROF_LBL_ID = 307;
-const tui_id AWS_PROF_ID = 308;
+const tui_id CACHE_HDR_ID   = 300;
+const tui_id CACHE_REPO_LBL_ID      = CACHE_HDR_ID + 1;
+const tui_id CACHE_REPO_CHOOSE_ID   = CACHE_HDR_ID + 2;
+const tui_id CACHE_REPO_PATH_ID     = CACHE_HDR_ID + 3;
+const tui_id CACHE_REPO_CLEAR_ID    = CACHE_HDR_ID + 4;
+const tui_id CACHE_PROC_LBL_ID      = CACHE_HDR_ID + 5;
+const tui_id CACHE_PROC_CHOOSE_ID   = CACHE_HDR_ID + 6;
+const tui_id CACHE_PROC_PATH_ID     = CACHE_HDR_ID + 7;
+const tui_id CACHE_PROC_CLEAR_ID    = CACHE_HDR_ID + 8;
+const tui_id CACHE_RAM_LBL_ID       = CACHE_HDR_ID + 9;
+const tui_id CACHE_RAM_ID           = CACHE_HDR_ID + 10;
 
-const tui_id GCP_HDR_ID = 400;
-const tui_id GCP_CB_ID = 402;
-const tui_id GCP_KEY_ID = 403;
-const tui_id GCP_CHOOSE_ID = 404;
-const tui_id GCP_CLEAR_ID = 405;
-const tui_id GCP_FILE_ID = 406;
+const tui_id AWS_HDR_ID     = 400;
+const tui_id AWS_CB_ID      = AWS_HDR_ID + 1;
+const tui_id AWS_KEY_ID     = AWS_HDR_ID + 2;
+const tui_id AWS_CHOOSE_ID  = AWS_HDR_ID + 3;
+const tui_id AWS_CLEAR_ID   = AWS_HDR_ID + 4;
+const tui_id AWS_FILE_ID    = AWS_HDR_ID + 5;
+const tui_id AWS_PROF_LBL_ID= AWS_HDR_ID + 6;
+const tui_id AWS_PROF_ID    = AWS_HDR_ID + 7;
 
-const tui_id CACHE_HDR_ID = 500;
-const tui_id CACHE_SEL_ID = 501;
-const tui_id CACHE_REPO_LBL_ID = 502;
-const tui_id CACHE_REPO_CHOOSE_ID = 503;
-const tui_id CACHE_REPO_PATH_ID = 504;
-const tui_id CACHE_PROC_LBL_ID = 505;
-const tui_id CACHE_PROC_CHOOSE_ID = 506;
-const tui_id CACHE_PROC_PATH_ID = 507;
-const tui_id CACHE_USE_LOCAL_ID = 508;
-const tui_id CACHE_USE_REMOTE_ID = 509;
-const tui_id PREFETCH_DNLD_ID = 510;
+const tui_id GCP_HDR_ID     = 500;
+const tui_id GCP_CB_ID      = GCP_HDR_ID + 1;
+const tui_id GCP_KEY_ID     = GCP_HDR_ID + 2;
+const tui_id GCP_CHOOSE_ID  = GCP_HDR_ID + 3;
+const tui_id GCP_CLEAR_ID   = GCP_HDR_ID + 4;
+const tui_id GCP_FILE_ID    = GCP_HDR_ID + 5;
 
-const tui_id NETW_HDR_ID = 600;
-const tui_id NETW_USE_PROXY_ID = 602;
-const tui_id NETW_PROXY_LBL_ID = 603;
-const tui_id NETW_PROXY_ID = 604;
+const tui_id NETW_HDR_ID    = 600;
+const tui_id NETW_USE_PROXY_ID  = NETW_HDR_ID + 1;
+const tui_id NETW_PROXY_LBL_ID  = NETW_HDR_ID + 2;
+const tui_id NETW_PROXY_ID      = NETW_HDR_ID + 3;
 
-const tui_id DBGAP_HDR_ID = 700;
-const tui_id DBGAP_IMPORT_KEY_ID = 701;
-const tui_id DBGAP_IMPORT_PATH_ID = 702;
-const tui_id DBGAP_REPOS_LBL_ID = 703;
-const tui_id DBGAP_REPOS_ID = 704;
+const tui_id DBGAP_HDR_ID   = 700;
+const tui_id DBGAP_IMPORT_KEY_ID    = DBGAP_HDR_ID + 1;
+const tui_id DBGAP_IMPORT_PATH_ID   = DBGAP_HDR_ID + 2;
+const tui_id DBGAP_REPOS_LBL_ID     = DBGAP_HDR_ID + 3;
+const tui_id DBGAP_REPOS_ID         = DBGAP_HDR_ID + 4;
 
-const uint32_t PAGE_FIXED = 0;
-const uint32_t PAGE_AWS = 1;
-const uint32_t PAGE_GCP = 2;
-const uint32_t PAGE_CACHE = 3;
-const uint32_t PAGE_NETW = 4;
-const uint32_t PAGE_DBGAP = 5;
+const uint32_t PAGE_FIXED   = 0;
+const uint32_t PAGE_MAIN    = PAGE_FIXED + 1;
+const uint32_t PAGE_CACHE   = PAGE_FIXED + 2;
+const uint32_t PAGE_AWS     = PAGE_FIXED + 3;
+const uint32_t PAGE_GCP     = PAGE_FIXED + 4;
+const uint32_t PAGE_NETW    = PAGE_FIXED + 5;
+const uint32_t PAGE_DBGAP   = PAGE_FIXED + 6;
 
 /* ==== message sub-dialog =================================================================== */
 class msg_view : public Dlg
@@ -645,7 +643,7 @@ class vdbconf_view2 : public Dlg
         vdbconf_view2( vdbconf_model &mod ) : Dlg(), model( mod ), grid( &mod )
         {
             populate( GetRect(), false );
-            SetActivePage( PAGE_AWS );
+            SetActivePage( PAGE_MAIN );
             EnableCursorNavigation( false );
         }
 
@@ -680,9 +678,10 @@ class vdbconf_view2 : public Dlg
             tui_id hdr_id = 0;
             switch( page_id )
             {
+                case PAGE_MAIN  : hdr_id = MAIN_HDR_ID; break;
+                case PAGE_CACHE : hdr_id = CACHE_HDR_ID; break;
                 case PAGE_AWS   : hdr_id = AWS_HDR_ID; break;
                 case PAGE_GCP   : hdr_id = GCP_HDR_ID; break;
-                case PAGE_CACHE : hdr_id = CACHE_HDR_ID; break;
                 case PAGE_NETW  : hdr_id = NETW_HDR_ID; break;
                 case PAGE_DBGAP : hdr_id = DBGAP_HDR_ID; break;                
             }
@@ -695,19 +694,19 @@ class vdbconf_view2 : public Dlg
         Tui_Rect TAB_rect( Tui_Rect const &r ) { return Tui_Rect( 1, 4, r.get_w() - 2, r.get_h() - 6 ); }
         Tui_Rect BODY_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +1 , r.get_w(), r.get_h() - 1 ); }
         Tui_Rect CB_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +2 , 30, 1 ); }
-        Tui_Rect lbl1_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , 32, 1 ); }
+        Tui_Rect lbl1_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , r.get_w() - 2, 1 ); }
         Tui_Rect choose_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 12, 1 ); }
-        Tui_Rect use_repo_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 32, 1 ); }        
+        Tui_Rect use_repo_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 34, 1 ); }        
         Tui_Rect file_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , r.get_w() -15, 1 ); }
         Tui_Rect prof_lbl_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , 10, 1 ); }
         Tui_Rect CACHE_RADIO_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() + 1, r.get_y() +2 , 24, 3 ); }
-        Tui_Rect prefetch_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() + 26, r.get_y() +2 , 34, 1 ); }
         Tui_Rect prof_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , 32, 1 ); }
         Tui_Rect proxy_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +4 , 7, 1 ); }
         Tui_Rect proxy_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +8, r.get_y() +4 , 32, 1 ); }
         Tui_Rect imp_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +2 , 30, 1 ); }
         Tui_Rect imp_path_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +32, r.get_y() +2 , 30, 1 ); }
         Tui_Rect repo_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +4 , 21, 1 ); }
+        Tui_Rect ram_pages_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +17, r.get_y() + y , 14, 1 ); }
         Tui_Rect repo_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +5 , r.get_w() -2, r.get_h() -6 ); }
         
         Tui_Rect HDR_rect( Tui_Rect const &r, uint32_t ident )
@@ -740,17 +739,64 @@ class vdbconf_view2 : public Dlg
             rr.change( rr.get_w() + 2, 0, 0, 0 );
             PopulateButton( rr, resize, EXIT_BTN_ID,  "e&xit", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, VERIFY_BTN_ID, "ver&ify", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( rr, resize, VERIFY_BTN_ID, "&verify", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, RELOAD_BTN_ID, "&reload", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( rr, resize, RELOAD_BTN_ID, "reloa&d", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
             PopulateButton( rr, resize, DEFAULT_BTN_ID, "de&fault", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+        }
+
+        // populate the MAIN page
+        void populate_MAIN( Tui_Rect const &r, bool resize )
+        {
+            PopulateLabel( HDR_rect( r, 0 ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            
+            PopulateCheckbox( use_repo_rect( r, 2 ), resize, MAIN_USE_LOCAL_ID, "&use site repository",
+                              model.is_site_enabled(), // model-connection
+                              CB_COLOR_BG, CB_COLOR_FG, PAGE_MAIN );
+            PopulateCheckbox( use_repo_rect( r, 4 ), resize, MAIN_USE_REMOTE_ID, "use remo&te repository",
+                              model.is_remote_enabled(), // model-connection
+                              CB_COLOR_BG, CB_COLOR_FG, PAGE_MAIN );
+            PopulateCheckbox( use_repo_rect( r, 6 ), resize, MAIN_PREFETCH_ID, "&prefetch download to cache",
+                              model.does_prefetch_download_to_cache(), // model-connection
+                              CB_COLOR_BG, CB_COLOR_FG, PAGE_MAIN );
+        }
+
+        // populate the CACHE page
+        void populate_CACHE( Tui_Rect const &r, bool resize )
+        {
+            PopulateLabel( HDR_rect( r, 1 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+ 
+            PopulateLabel( lbl1_rect( r, 2 ), resize, CACHE_REPO_LBL_ID, "public user repository location:",
+                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
+            PopulateButton( choose_rect( r, 3 ), resize, CACHE_REPO_CHOOSE_ID, "ch&oose",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+            PopulateLabel( file_rect( r, 3 ), resize, CACHE_REPO_PATH_ID,
+                                model.get_public_location().c_str(), /* model-connection */
+                                LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
+            PopulateButton( choose_rect( r, 5 ), resize, CACHE_REPO_CLEAR_ID, "c&lear",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+
+            PopulateLabel( lbl1_rect( r, 7 ), resize, CACHE_PROC_LBL_ID, "process local location:",
+                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
+            PopulateButton( choose_rect( r, 8 ), resize, CACHE_PROC_CHOOSE_ID, "choos&e",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+            PopulateLabel( file_rect( r, 8 ), resize, CACHE_PROC_PATH_ID,
+                                model.get_temp_cache_location().c_str(), /* model-connection */
+                                LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
+            PopulateButton( choose_rect( r, 10 ), resize, CACHE_PROC_CLEAR_ID, "clea&r",
+                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+
+            PopulateLabel( lbl1_rect( r, 12 ), resize, CACHE_RAM_LBL_ID, "RAM &pages used:",
+                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
+            PopulateSpinEdit( ram_pages_rect( r, 12 ), resize, CACHE_RAM_ID, 32, 1, 1024,
+                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
         }
 
         // populate the AWS page
         void populate_AWS( Tui_Rect const &r, bool resize )
         {
-            PopulateLabel( HDR_rect( r, 0 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, AWS_CB_ID, "acc&ept charges for AWS",
                                 model.does_user_accept_aws_charges(),   /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, PAGE_AWS );
@@ -773,7 +819,7 @@ class vdbconf_view2 : public Dlg
         // populate the GCP page
         void populate_GCP( Tui_Rect const &r, bool resize )
         {
-            PopulateLabel( HDR_rect( r, 1 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, GCP_CB_ID, "acc&ept charges for GCP",
                                 model.does_user_accept_gcp_charges(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, PAGE_GCP );
@@ -789,68 +835,10 @@ class vdbconf_view2 : public Dlg
                                 
         }
 
-        // helper-function to populate the Cache-RadioBox for the CACHE page        
-        void PopulateCacheRadiobox( Tui_Rect const &r, bool resize, uint32_t id, int selection,
-                    KTUI_color bg, KTUI_color fg, uint32_t page_id )
-        {
-            if ( resize )
-                SetWidgetRect( id, r, false );
-            else
-            {
-                if ( HasWidget( id ) )
-                {   /* set selection */
-                }
-                else
-                {
-                    AddRadioBox( id, r );
-                    Populate_common( id, bg, fg, page_id );                    
-                    AddWidgetString( id, "in RAM" );
-                    AddWidgetString( id, "in repository" );
-                    AddWidgetString( id, "process local" );
-                }
-            }
-        }
-
-        // populate the CACHE page
-        void populate_CACHE( Tui_Rect const &r, bool resize )
-        {
-            PopulateLabel( HDR_rect( r, 2 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
-            PopulateCacheRadiobox( CACHE_RADIO_rect( r ), resize, CACHE_SEL_ID,
-                                0,/* model.get_cache_select(), */ /* model-connection */
-                                CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE ); 
- 
-            PopulateLabel( lbl1_rect( r, 6 ), resize, CACHE_REPO_LBL_ID, "public repository location:",
-                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
-            PopulateButton( choose_rect( r, 7 ), resize, CACHE_REPO_CHOOSE_ID, "ch&oose",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
-            PopulateLabel( file_rect( r, 7 ), resize, CACHE_REPO_PATH_ID,
-                                model.get_public_location().c_str(), /* model-connection */
-                                LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
-
-            PopulateLabel( lbl1_rect( r, 9 ), resize, CACHE_PROC_LBL_ID, "process local location:",
-                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
-            PopulateButton( choose_rect( r, 10 ), resize, CACHE_PROC_CHOOSE_ID, "choos&e",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
-            PopulateLabel( file_rect( r, 10 ), resize, CACHE_PROC_PATH_ID,
-                                "???", /*model.get_process_loc(), */ /* model-connection */
-                                LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
-                                
-            PopulateCheckbox( use_repo_rect( r, 12 ), resize, CACHE_USE_LOCAL_ID, "&use site repository",
-                              model.is_site_enabled(), /* model-connection */
-                              CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE );
-            PopulateCheckbox( use_repo_rect( r, 14 ), resize, CACHE_USE_REMOTE_ID, "use remo&te repository",
-                              model.is_remote_enabled(), /* model-connection */
-                              CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE );
-                              
-            PopulateCheckbox( prefetch_rect( r ), resize, PREFETCH_DNLD_ID, "&prefetch download to cache",
-                              model.does_prefetch_download_to_cache(), /* model-connection */
-                              CB_COLOR_BG, CB_COLOR_FG, PAGE_CACHE );
-        }
-
         // populate the NETWORK page
         void populate_NETW( Tui_Rect const &r, bool resize )
         {
-            PopulateLabel( HDR_rect( r, 3 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, NETW_USE_PROXY_ID, "&use proxy",
                                 model.is_http_proxy_enabled(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, PAGE_NETW );
@@ -861,34 +849,17 @@ class vdbconf_view2 : public Dlg
                                 64, INP_COLOR_BG, INP_COLOR_FG, PAGE_NETW );
         }
 
-        // helper-function to populate the grid on the DBGAP page
-        void PopulateDBGAP_Grid( Tui_Rect const &r, bool resize, uint32_t id,
-                                 KTUI_color bg, KTUI_color fg, uint32_t page_id )
-        {
-            if ( resize )
-                SetWidgetRect( id, r, false );
-            else
-            {
-                if ( HasWidget( id ) ) { }
-                else
-                {
-                    AddGrid( id, r, grid, false );
-                    Populate_common( id, bg, fg, page_id );                    
-                }
-            }
-        }
-
         // populate the DBGAP page
         void populate_DBGAP( Tui_Rect const &r, bool resize )
         {
-            PopulateLabel( HDR_rect( r, 4 ), resize, DBGAP_HDR_ID, "&DBGAP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "D&BGAP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateButton( imp_rect( r ), resize, DBGAP_IMPORT_KEY_ID, "I&mport Repository key",
                                 BTN_COLOR_BG, BTN_COLOR_FG, PAGE_DBGAP );
             PopulateButton( imp_path_rect( r ), resize,  DBGAP_IMPORT_PATH_ID, "Set Defau&lt Import Path",
                                 BTN_COLOR_BG, BTN_COLOR_FG, PAGE_DBGAP );
             PopulateLabel( repo_lbl_rect( r ), resize, DBGAP_REPOS_LBL_ID, "dbGa&p repositories:",
                            STATUS_COLOR, LABEL_FG, PAGE_DBGAP );
-            PopulateDBGAP_Grid( repo_rect( r ), resize, DBGAP_REPOS_ID, BTN_COLOR_BG, BTN_COLOR_FG, PAGE_DBGAP );
+            PopulateGrid( repo_rect( r ), resize, DBGAP_REPOS_ID, grid, BTN_COLOR_BG, BTN_COLOR_FG, PAGE_DBGAP );
         }
 
         // populate all widgets
@@ -900,6 +871,7 @@ class vdbconf_view2 : public Dlg
             Tui_Rect tab_rect = TAB_rect( r );            
 
             PopulateLabel( BODY_rect( tab_rect ), resize, BOX_ID, NULL, BOX_COLOR, LABEL_FG, PAGE_FIXED );
+            populate_MAIN( tab_rect, resize );
             populate_AWS( tab_rect, resize );
             populate_GCP( tab_rect, resize );
             populate_CACHE( tab_rect, resize );
@@ -944,22 +916,27 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case RELOAD_BTN_ID  : res = on_reload( dlg, model ); break;
                 case DEFAULT_BTN_ID : res = on_default( dlg, model ); break;
 
+                case MAIN_HDR_ID        : res = dlg.SetActivePage( PAGE_MAIN ); break;
+                case MAIN_USE_LOCAL_ID  : res = on_site_repo( dlg, model ); break;
+                case MAIN_USE_REMOTE_ID : res = on_remote_repo( dlg, model ); break;
+                case MAIN_PREFETCH_ID   : res = on_prefetch_dnld( dlg, model ); break;
+                
+                case CACHE_HDR_ID         : res = dlg.SetActivePage( PAGE_CACHE ); break;
+                case CACHE_REPO_CHOOSE_ID : res = choose_main_local( dlg, model ); break;
+                case CACHE_REPO_CLEAR_ID  : res = clear_main_local( dlg, model ); break;
+                case CACHE_PROC_CHOOSE_ID : res = choose_main_proc( dlg, model ); break;
+                case CACHE_PROC_CLEAR_ID  : res = clear_main_proc( dlg, model ); break;
+
                 case AWS_HDR_ID      : res = dlg.SetActivePage( PAGE_AWS ); break;
                 case AWS_CB_ID       : res = on_accept_aws_charges( dlg, model ); break;
                 case AWS_CHOOSE_ID   : res = on_aws_choose( dlg, model ); break;
                 case AWS_CLEAR_ID    : res = on_aws_clear( dlg, model ); break;                
                 case AWS_PROF_LBL_ID : dlg.SetFocus( AWS_PROF_ID ); break;
-                
+
                 case GCP_HDR_ID    : res = dlg.SetActivePage( PAGE_GCP ); break;                
                 case GCP_CB_ID     : res = on_accept_gcp_charges( dlg, model ); break;
                 case GCP_CHOOSE_ID : res = on_gcp_choose( dlg, model ); break;                
                 case GCP_CLEAR_ID  : res = on_gcp_clear( dlg, model ); break;
-                
-                case CACHE_HDR_ID         : res = dlg.SetActivePage( PAGE_CACHE ); break;
-                case CACHE_REPO_CHOOSE_ID : res = on_repo_choose( dlg, model ); break;                
-                case CACHE_USE_LOCAL_ID   : res = on_site_repo( dlg, model ); break;
-                case CACHE_USE_REMOTE_ID  : res = on_remote_repo( dlg, model ); break;
-                case PREFETCH_DNLD_ID     : res = on_prefetch_dnld( dlg, model ); break;
                 
                 case NETW_HDR_ID       : res = dlg.SetActivePage( PAGE_NETW ); break;                
                 case NETW_USE_PROXY_ID : res = on_use_proxy( dlg, model ); break;
@@ -985,6 +962,15 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case VERIFY_BTN_ID  : view.status_txt( "verify configuration settings" ); break;
                 case RELOAD_BTN_ID  : view.status_txt( "discard current changes" ); break;
                 case DEFAULT_BTN_ID : view.status_txt( "load default settings" ); break;
+
+                case MAIN_USE_LOCAL_ID  : view.status_txt( "use site repository" ); break;
+                case MAIN_USE_REMOTE_ID : view.status_txt( "use remote repository" ); break;
+                case MAIN_PREFETCH_ID   : view.status_txt( "choose where prefetch downloads files to" ); break;
+
+                case CACHE_REPO_CHOOSE_ID : view.status_txt( "choose loacation of local repository" ); break;
+                case CACHE_REPO_CLEAR_ID  : view.status_txt( "clear loacation of local repository" ); break;                
+                case CACHE_PROC_CHOOSE_ID : view.status_txt( "choose loacation of process local storage" ); break;
+                case CACHE_PROC_CLEAR_ID  : view.status_txt( "clear loacation of process local storage" ); break;
                 
                 case AWS_CB_ID      : view.status_txt( "do accept charges for AWS usage" ); break;
                 case AWS_CHOOSE_ID  : view.status_txt( "choose location of credentials for AWS" ); break;
@@ -994,13 +980,6 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case GCP_CB_ID      : view.status_txt( "do accept charges for GCP usage" ); break;
                 case GCP_CHOOSE_ID  : view.status_txt( "choose location of credentials for GCP" ); break;
                 case GCP_CLEAR_ID   : view.status_txt( "clear location of credentials for GCP" ); break;
-                
-                case CACHE_SEL_ID   : view.status_txt( "select caching behaviour" ); break;
-                case CACHE_REPO_CHOOSE_ID : view.status_txt( "choose loacation of local repository" ); break;
-                case CACHE_PROC_CHOOSE_ID : view.status_txt( "choose loacation of process local storage" ); break;
-                case CACHE_USE_LOCAL_ID   : view.status_txt( "use site repository" ); break;
-                case CACHE_USE_REMOTE_ID  : view.status_txt( "use remote repository" ); break;
-                case PREFETCH_DNLD_ID     : view.status_txt( "choose where prefetch downloads files to" ); break;
                 
                 case NETW_USE_PROXY_ID : view.status_txt( "use a network proxy to access remote data" ); break;
                 case NETW_PROXY_ID     : view.status_txt( "specify the proxy to use" ); break;
@@ -1020,47 +999,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return view.update();
         }
 
-        // user has pressed the 'accept AWS charges' checkbox
-        bool on_accept_aws_charges( Dlg &dlg, vdbconf_model *model )
-        {
-            model -> set_user_accept_aws_charges( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); /* model-connection */
-            return true;
-        }
-
-        // user has pressed the 'accept GCP charges' checkbox        
-        bool on_accept_gcp_charges( Dlg &dlg, vdbconf_model *model )
-        {
-            model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); /* model-connection */
-            return true;
-        }
-
-        // the user has pressed the 'use proxy' checkbox        
-        bool on_use_proxy( Dlg &dlg, vdbconf_model *model )
-        {
-            model -> set_http_proxy_enabled( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); /* model-connection */
-            return true;
-        }
-
-        // user has pressed the 'use site repo' checkbox
-        bool on_site_repo( Dlg &dlg, vdbconf_model *model )
-        {
-            model -> set_site_enabled( dlg.GetWidgetBoolValue( CACHE_USE_LOCAL_ID ) ); /* model-connection */
-            return true;
-        }
-
-        // user has pressed the 'use remote repo' checkbox
-        bool on_remote_repo( Dlg &dlg, vdbconf_model *model )
-        {
-            model -> set_remote_enabled( dlg.GetWidgetBoolValue( CACHE_USE_REMOTE_ID ) ); /* model-connection */
-            return true;
-        }
-
-        // user has pressed the 'prefetch download to cache' checkbox
-        bool on_prefetch_dnld( Dlg &dlg, vdbconf_model *model )
-        {
-            model -> set_prefetch_download_to_cache( dlg.GetWidgetBoolValue( PREFETCH_DNLD_ID ) ); /* model-connection */
-            return true;
-        }
+        // ================ the save, exit, verify, reload and default - buttons :
         
         // user has pressed the save-button
         bool on_save( Dlg &dlg, vdbconf_model * model )
@@ -1124,18 +1063,84 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return true;
         }
 
+        // ================ the MAIN-page: choose/clear for local repo and process local
+
+        // user has pressed the 'use site repo' checkbox
+        bool on_site_repo( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_site_enabled( dlg.GetWidgetBoolValue( MAIN_USE_LOCAL_ID ) ); /* model-connection */
+            return true;
+        }
+
+        // user has pressed the 'use remote repo' checkbox
+        bool on_remote_repo( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_remote_enabled( dlg.GetWidgetBoolValue( MAIN_USE_REMOTE_ID ) ); /* model-connection */
+            return true;
+        }
+
+        // user has pressed the 'prefetch download to cache' checkbox
+        bool on_prefetch_dnld( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_prefetch_download_to_cache( dlg.GetWidgetBoolValue( MAIN_PREFETCH_ID ) ); /* model-connection */
+            return true;
+        }
+
+        // ================ the CACHE-page:
+        
+        // user has pressed the choose-button for the public user repo location
+        bool choose_main_local( Dlg &dlg, vdbconf_model * model )
+        {
+            if ( pick_public_location( dlg, model ) )
+                return update_view( dlg );
+            return false;
+        }
+
+        // user has pressed the clear-button for the public user repo location
+        bool clear_main_local( Dlg &dlg, vdbconf_model * model )
+        {
+            std::string path( "" );
+            model -> set_public_location( false, path, false );
+            return update_view( dlg );
+        }
+
+        // user has pressed the choose-button for the process local cache location
+        bool choose_main_proc( Dlg &dlg, vdbconf_model * model )
+        {
+            std::string path = model -> get_temp_cache_location();
+            if ( path.empty() ) path = model -> get_current_dir();
+            if ( pick_dir( dlg, Tui_Rect( 0, 0, 80, 40 ), path ) && !path.empty() )
+                model -> set_temp_cache_location( path );
+            return update_view( dlg );            
+        }
+
+        // user has pressed the clear-button for the process local cache location
+        bool clear_main_proc( Dlg &dlg, vdbconf_model * model )
+        {
+            std::string path( "" );
+            model -> set_temp_cache_location( path );
+            return update_view( dlg );
+        }
+
+        // ================ the AWS-page:
+        
+        // user has pressed the 'accept AWS charges' checkbox
+        bool on_accept_aws_charges( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_user_accept_aws_charges( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); /* model-connection */
+            return true;
+        }
+
         // common code for on_aws_choose() and on_aws_clear() to set the credential path
         bool upate_aws_credentials( Dlg &dlg, vdbconf_model * model, std::string &path )
         {
             model -> set_aws_credential_file_location( path ); /* model-connection */
-            vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
-            return view.update();
+            return update_view( dlg );
         }
         
         // user has pressed the button to choose a path to AWS credentials
         bool on_aws_choose( Dlg &dlg, vdbconf_model * model )
         {
-            /* on AWS: a path is choosen */
             std::string path = model -> get_aws_credential_file_location();
             if ( path.empty() ) path = model -> get_current_dir();
             if ( pick_dir( dlg, Tui_Rect( 0, 0, 80, 40 ), path ) && !path.empty() )
@@ -1150,12 +1155,21 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return upate_aws_credentials( dlg, model, path );
         }
 
+
+        // ================ the GCP-page:
+        
+        // user has pressed the 'accept GCP charges' checkbox        
+        bool on_accept_gcp_charges( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); /* model-connection */
+            return true;
+        }
+
         // common for on_gcp_choose() and on_gcp_clear() to set credential file
         bool upate_gcp_credentials( Dlg &dlg, vdbconf_model * model, std::string &file )
         {
             model -> set_gcp_credential_file_location( file ); /* model-connection */
-            vdbconf_view2 &view = dynamic_cast<vdbconf_view2&>( dlg );
-            return view.update();
+            return update_view( dlg );            
         }
 
         // user has pressed the button to choose a GCP credentials file
@@ -1177,14 +1191,17 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return upate_gcp_credentials( dlg, model, file );
         }
 
-        // user has pressed the 'choose public repository location'-button
-        bool on_repo_choose( Dlg &dlg, vdbconf_model * model )
-        {
-            if ( pick_public_location( dlg, model ) )
-                return update_view( dlg );
-            return false;
-        }
+        // ================ the NETWORK-page:
         
+        // the user has pressed the 'use proxy' checkbox        
+        bool on_use_proxy( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_http_proxy_enabled( dlg.GetWidgetBoolValue( NETW_USE_PROXY_ID ) ); /* model-connection */
+            return true;
+        }
+
+        // ================ the DBGAP-page:
+
         // user has pressed the 'Import Repository key'-button on the DBGAP-page
         bool on_import_repo_key( Dlg &dlg, vdbconf_model * model )
         {

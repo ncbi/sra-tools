@@ -41,7 +41,9 @@ SRR=$(SRA)/traces/sra59/SRR/000052/SRR053325
 INT=https://sra-download-internal.ncbi.nlm.nih.gov
 SRAC=SRR003325
 SRR=$(INT)/traces/sra4/SRR/000003/$(SRAC)
+SRAI=fasp://dbtest@sra-download-internal.ncbi.nlm.nih.gov
 SRRF=$(SRAF):data/sracloud/traces/sra59/SRR/000052/SRR053325
+SRRF=$(SRAI):data/sracloud/traces/sra4/SRR/000003/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
@@ -206,12 +208,12 @@ urls_and_accs:
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null ;
 	@echo
 
-	@rm -f `pwd`/tmp/sra/SRR053325.sra
+	@rm -f `pwd`/tmp/sra/$(SRAC).sra
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo SRR FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
-	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
+	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	 else echo download of $(SRRF) when ascp is not found is disabled ; \
 	 fi
 #	@echo

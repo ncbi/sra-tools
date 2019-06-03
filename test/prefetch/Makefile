@@ -38,6 +38,9 @@ KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
 SRR=$(SRA)/traces/sra59/SRR/000052/SRR053325
+INT=https://sra-download-internal.ncbi.nlm.nih.gov
+SRAC=SRR003325
+SRR=$(INT)/traces/sra4/SRR/000003/$(SRAC)
 SRRF=$(SRAF):data/sracloud/traces/sra59/SRR/000052/SRR053325
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
@@ -141,12 +144,11 @@ urls_and_accs:
 	    fi
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
-	@if ls `pwd`/tmp/sra/SRR053325.sra 2> /dev/null ; \
-     then echo SRR053325.sra found ; exit 1; fi
+	@rm -f `pwd`/tmp/sra/$(SRAC).sra
 	@echo SRR download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
+	@ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 #	@echo
 
 	@echo Running prefetch second time finds previous download
@@ -204,7 +206,7 @@ urls_and_accs:
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null ;
 	@echo
 
-	@rm `pwd`/tmp/sra/SRR053325.sra
+	@rm -f `pwd`/tmp/sra/SRR053325.sra
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo SRR FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -440,7 +442,7 @@ out_dir_and_file:
 	@ rm `pwd`/tmp/sra/SRR053325.sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@ ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
+	@ ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 #	@ echo
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
@@ -489,15 +491,15 @@ out_dir_and_file:
 	@ rm -f `pwd`/tmp3/dir/SRR053325.sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) -O tmp3/dir > /dev/null
-	@ ls `pwd`/tmp3/dir/SRR053325.sra > /dev/null
+	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
 #	@ echo
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-DIR ; \
-	    rm -f `pwd`/tmp3/dir/SRR053325.sra ; \
+	    rm -f `pwd`/tmp3/dir/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) -O tmp3/dir > /dev/null ; \
-	    ls `pwd`/tmp3/dir/SRR053325.sra > /dev/null ; \
+	    ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo

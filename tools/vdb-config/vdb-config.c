@@ -851,7 +851,7 @@ static rc_t In(const char* prompt, const char* def, char** read) {
     char buf[PATH_MAX + 1];
     assert(prompt && read);
     *read = NULL;
-    while (rc == 0 && (*read == NULL || read[0] == '\0')) {
+    while (rc == 0 && (*read == NULL || (*read)[0] == '\0')) {
         OUTMSG(("%s", prompt));
         if (def)
         {   OUTMSG((" [%s]", def)); }

@@ -54,10 +54,10 @@ const tui_id DEFAULT_BTN_ID = STATUS_ID + 5;
 const tui_id BOX_ID         = STATUS_ID + 6;
 
 const tui_id MAIN_HDR_ID    = 200;
-const tui_id MAIN_USE_LOCAL_ID  = MAIN_HDR_ID + 1;
-const tui_id MAIN_USE_REMOTE_ID = MAIN_HDR_ID + 2;
-const tui_id MAIN_PREFETCH_ID   = MAIN_HDR_ID + 3;
-
+const tui_id MAIN_USE_REMOTE_ID = MAIN_HDR_ID + 1;
+const tui_id MAIN_USE_CACHE_ID  = MAIN_HDR_ID + 2;
+const tui_id MAIN_USE_SITE_ID   = MAIN_HDR_ID + 3;
+ 
 const tui_id CACHE_HDR_ID   = 300;
 const tui_id CACHE_REPO_LBL_ID      = CACHE_HDR_ID + 1;
 const tui_id CACHE_REPO_CHOOSE_ID   = CACHE_HDR_ID + 2;
@@ -97,6 +97,11 @@ const tui_id DBGAP_IMPORT_PATH_ID   = DBGAP_HDR_ID + 2;
 const tui_id DBGAP_REPOS_LBL_ID     = DBGAP_HDR_ID + 3;
 const tui_id DBGAP_REPOS_ID         = DBGAP_HDR_ID + 4;
 
+const tui_id TOOLS_HDR_ID           = 800;
+const tui_id TOOLS_PREFETCH_LBL_ID  = TOOLS_HDR_ID + 1;
+const tui_id TOOLS_PREFETCH_BOX_ID  = TOOLS_HDR_ID + 2;
+const tui_id TOOLS_PREFETCH_ID      = TOOLS_HDR_ID + 3;
+
 const uint32_t PAGE_FIXED   = 0;
 const uint32_t PAGE_MAIN    = PAGE_FIXED + 1;
 const uint32_t PAGE_CACHE   = PAGE_FIXED + 2;
@@ -104,6 +109,7 @@ const uint32_t PAGE_AWS     = PAGE_FIXED + 3;
 const uint32_t PAGE_GCP     = PAGE_FIXED + 4;
 const uint32_t PAGE_NETW    = PAGE_FIXED + 5;
 const uint32_t PAGE_DBGAP   = PAGE_FIXED + 6;
+const uint32_t PAGE_TOOLS   = PAGE_FIXED + 7;
 
 /* ==== message sub-dialog =================================================================== */
 class msg_view : public Dlg
@@ -658,6 +664,7 @@ class vdbconf_view2 : public Dlg
         virtual void onPageChanged( uint32_t old_page, uint32_t new_page )
         {
             SetFocus( SAVE_BTN_ID );
+            update();
             page_changed( old_page, false );
             page_changed( new_page, true );            
         }
@@ -683,7 +690,8 @@ class vdbconf_view2 : public Dlg
                 case PAGE_AWS   : hdr_id = AWS_HDR_ID; break;
                 case PAGE_GCP   : hdr_id = GCP_HDR_ID; break;
                 case PAGE_NETW  : hdr_id = NETW_HDR_ID; break;
-                case PAGE_DBGAP : hdr_id = DBGAP_HDR_ID; break;                
+                case PAGE_DBGAP : hdr_id = DBGAP_HDR_ID; break;
+                case PAGE_TOOLS : hdr_id = TOOLS_HDR_ID; break;                
             }
             if ( hdr_id > 0 )
                 SetWidgetBackground( hdr_id, status ? BOX_COLOR : STATUS_COLOR );
@@ -708,6 +716,9 @@ class vdbconf_view2 : public Dlg
         Tui_Rect repo_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +4 , 21, 1 ); }
         Tui_Rect ram_pages_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +17, r.get_y() + y , 14, 1 ); }
         Tui_Rect repo_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +5 , r.get_w() -2, r.get_h() -6 ); }
+        Tui_Rect pf_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +2 , r.get_w() -2, 1 ); }
+        Tui_Rect pf_box_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +3 , r.get_w() -2, 3 ); }
+        Tui_Rect pf_cb_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +2, r.get_y() +4 , 32, 1 ); }
         
         Tui_Rect HDR_rect( Tui_Rect const &r, uint32_t ident )
         {
@@ -732,151 +743,169 @@ class vdbconf_view2 : public Dlg
         }
 
         // populate the top row of switches
-        void populate_save_and_exit( Tui_Rect const &r, bool resize )
+        void populate_save_and_exit( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             Tui_Rect rr = Tui_Rect( r.get_x(), r.get_y(), 14, 1 );
-            PopulateButton( rr, resize, SAVE_BTN_ID,  "&save", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( rr, resize, SAVE_BTN_ID,  "&save", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, EXIT_BTN_ID,  "e&xit", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( rr, resize, EXIT_BTN_ID,  "e&xit", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, VERIFY_BTN_ID, "&verify", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( rr, resize, VERIFY_BTN_ID, "&verify", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, RELOAD_BTN_ID, "reloa&d", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( rr, resize, RELOAD_BTN_ID, "reloa&d", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, DEFAULT_BTN_ID, "de&fault", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
+            PopulateButton( rr, resize, DEFAULT_BTN_ID, "de&fault", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
         }
 
         // populate the MAIN page
-        void populate_MAIN( Tui_Rect const &r, bool resize )
+        void populate_MAIN( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             PopulateLabel( HDR_rect( r, 0 ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
-            
-            PopulateCheckbox( use_repo_rect( r, 2 ), resize, MAIN_USE_LOCAL_ID, "&use site repository",
-                              model.is_site_enabled(), // model-connection
-                              CB_COLOR_BG, CB_COLOR_FG, PAGE_MAIN );
-            PopulateCheckbox( use_repo_rect( r, 4 ), resize, MAIN_USE_REMOTE_ID, "use remo&te repository",
+
+            PopulateCheckbox( use_repo_rect( r, 2 ), resize, MAIN_USE_REMOTE_ID, "&Enable Remote Access",
                               model.is_remote_enabled(), // model-connection
-                              CB_COLOR_BG, CB_COLOR_FG, PAGE_MAIN );
-            PopulateCheckbox( use_repo_rect( r, 6 ), resize, MAIN_PREFETCH_ID, "&prefetch download to cache",
-                              model.does_prefetch_download_to_cache(), // model-connection
-                              CB_COLOR_BG, CB_COLOR_FG, PAGE_MAIN );
+                              CB_COLOR_BG, CB_COLOR_FG, page_id );
+
+            PopulateCheckbox( use_repo_rect( r, 4 ), resize, MAIN_USE_CACHE_ID, "Enab&le Local File Caching",
+                              model.is_user_cache_enabled(), // model-connection
+                              CB_COLOR_BG, CB_COLOR_FG, page_id );
+                              
+            PopulateCheckbox( use_repo_rect( r, 6 ), resize, MAIN_USE_SITE_ID, "&Use Site Installation",
+                              model.is_site_enabled(), // model-connection
+                              CB_COLOR_BG, CB_COLOR_FG, page_id );
         }
 
         // populate the CACHE page
-        void populate_CACHE( Tui_Rect const &r, bool resize )
+        void populate_CACHE( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             PopulateLabel( HDR_rect( r, 1 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
  
             PopulateLabel( lbl1_rect( r, 2 ), resize, CACHE_REPO_LBL_ID, "public user repository location:",
-                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
+                                BOX_COLOR, LABEL_FG, page_id );
             PopulateButton( choose_rect( r, 3 ), resize, CACHE_REPO_CHOOSE_ID, "ch&oose",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateLabel( file_rect( r, 3 ), resize, CACHE_REPO_PATH_ID,
                                 model.get_public_location().c_str(), /* model-connection */
-                                LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
+                                LABEL_BG, INP_COLOR_FG, page_id );
             PopulateButton( choose_rect( r, 5 ), resize, CACHE_REPO_CLEAR_ID, "c&lear",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
 
             PopulateLabel( lbl1_rect( r, 7 ), resize, CACHE_PROC_LBL_ID, "process local location:",
-                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
+                                BOX_COLOR, LABEL_FG, page_id );
             PopulateButton( choose_rect( r, 8 ), resize, CACHE_PROC_CHOOSE_ID, "choos&e",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateLabel( file_rect( r, 8 ), resize, CACHE_PROC_PATH_ID,
                                 model.get_temp_cache_location().c_str(), /* model-connection */
-                                LABEL_BG, INP_COLOR_FG, PAGE_CACHE );
+                                LABEL_BG, INP_COLOR_FG, page_id );
             PopulateButton( choose_rect( r, 10 ), resize, CACHE_PROC_CLEAR_ID, "clea&r",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_CACHE );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
 
-            PopulateLabel( lbl1_rect( r, 12 ), resize, CACHE_RAM_LBL_ID, "RAM &pages used:",
-                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
-            PopulateSpinEdit( ram_pages_rect( r, 12 ), resize, CACHE_RAM_ID, 32, 1, 1024,
-                                BOX_COLOR, LABEL_FG, PAGE_CACHE );
+            PopulateLabel( lbl1_rect( r, 12 ), resize, CACHE_RAM_LBL_ID, "Memory &used:",
+                                BOX_COLOR, LABEL_FG, page_id );
+            PopulateSpinEdit( ram_pages_rect( r, 12 ), resize, CACHE_RAM_ID,
+                                model.get_cache_amount_in_MB(), /* model-connection */
+                                1 /* min */, 1024 * 16 /* max */, BOX_COLOR, LABEL_FG, page_id );
         }
 
         // populate the AWS page
-        void populate_AWS( Tui_Rect const &r, bool resize )
+        void populate_AWS( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             PopulateLabel( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, AWS_CB_ID, "acc&ept charges for AWS",
                                 model.does_user_accept_aws_charges(),   /* model-connection */
-                                CB_COLOR_BG, CB_COLOR_FG, PAGE_AWS );
+                                CB_COLOR_BG, CB_COLOR_FG, page_id );
             PopulateLabel( lbl1_rect( r, 4 ), resize, AWS_KEY_ID, "credentials:",
-                                BOX_COLOR, LABEL_FG, PAGE_AWS );
+                                BOX_COLOR, LABEL_FG, page_id );
             PopulateButton( choose_rect( r, 5 ), resize, AWS_CHOOSE_ID, "ch&oose",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_AWS );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateLabel( file_rect( r, 5 ), resize, AWS_FILE_ID,
                                 model.get_aws_credential_file_location().c_str(), /* model-connection */
-                                LABEL_BG, INP_COLOR_FG, PAGE_AWS );
+                                LABEL_BG, INP_COLOR_FG, page_id );
             PopulateButton( choose_rect( r, 7 ), resize, AWS_CLEAR_ID, "c&lear",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_AWS );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateLabel( prof_lbl_rect( r, 9 ), resize, AWS_PROF_LBL_ID, "&profile:",
-                                BOX_COLOR, LABEL_FG, PAGE_AWS );
+                                BOX_COLOR, LABEL_FG, page_id );
             PopulateInput( prof_rect( r, 9 ), resize, AWS_PROF_ID,
                                 model.get_aws_profile().c_str(), /* model-connection */
-                                64, INP_COLOR_BG, INP_COLOR_FG, PAGE_AWS );
+                                64, INP_COLOR_BG, INP_COLOR_FG, page_id );
         }
 
         // populate the GCP page
-        void populate_GCP( Tui_Rect const &r, bool resize )
+        void populate_GCP( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             PopulateLabel( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
             PopulateCheckbox( CB_rect( r ), resize, GCP_CB_ID, "acc&ept charges for GCP",
                                 model.does_user_accept_gcp_charges(), /* model-connection */
-                                CB_COLOR_BG, CB_COLOR_FG, PAGE_GCP );
+                                CB_COLOR_BG, CB_COLOR_FG, page_id );
             PopulateLabel( lbl1_rect( r, 4 ), resize, GCP_KEY_ID, "credentials:",
-                                BOX_COLOR, LABEL_FG, PAGE_GCP );
+                                BOX_COLOR, LABEL_FG, page_id );
             PopulateButton( choose_rect( r, 5 ), resize, GCP_CHOOSE_ID, "ch&oose",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_GCP );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateLabel( file_rect( r, 5 ), resize, GCP_FILE_ID,
                                 model.get_gcp_credential_file_location().c_str(), /* model-connection */
-                                LABEL_BG, INP_COLOR_FG, PAGE_GCP );
+                                LABEL_BG, INP_COLOR_FG, page_id );
             PopulateButton( choose_rect( r, 7 ), resize, GCP_CLEAR_ID, "c&lear",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_GCP );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
                                 
         }
 
         // populate the NETWORK page
-        void populate_NETW( Tui_Rect const &r, bool resize )
+        void populate_NETW( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             PopulateLabel( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
-            PopulateCheckbox( CB_rect( r ), resize, NETW_USE_PROXY_ID, "&use proxy",
+            PopulateCheckbox( CB_rect( r ), resize, NETW_USE_PROXY_ID, "&use http-proxy",
                                 model.is_http_proxy_enabled(), /* model-connection */
-                                CB_COLOR_BG, CB_COLOR_FG, PAGE_NETW );
+                                CB_COLOR_BG, CB_COLOR_FG, page_id );
             PopulateLabel( proxy_lbl_rect( r ), resize, NETW_PROXY_LBL_ID, "&proxy:",
-                                BOX_COLOR, LABEL_FG, PAGE_NETW );
+                                BOX_COLOR, LABEL_FG, page_id );
             PopulateInput( proxy_rect( r ), resize, NETW_PROXY_ID,
                                 model.get_http_proxy_path().c_str(), /* model-connection */
-                                64, INP_COLOR_BG, INP_COLOR_FG, PAGE_NETW );
+                                64, INP_COLOR_BG, INP_COLOR_FG, page_id );
         }
 
         // populate the DBGAP page
-        void populate_DBGAP( Tui_Rect const &r, bool resize )
+        void populate_DBGAP( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             PopulateLabel( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "D&BGAP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
-            PopulateButton( imp_rect( r ), resize, DBGAP_IMPORT_KEY_ID, "I&mport Repository key",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_DBGAP );
+            PopulateButton( imp_rect( r ), resize, DBGAP_IMPORT_KEY_ID, "&Import Repository key",
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateButton( imp_path_rect( r ), resize,  DBGAP_IMPORT_PATH_ID, "Set Defau&lt Import Path",
-                                BTN_COLOR_BG, BTN_COLOR_FG, PAGE_DBGAP );
+                                BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateLabel( repo_lbl_rect( r ), resize, DBGAP_REPOS_LBL_ID, "dbGa&p repositories:",
-                           STATUS_COLOR, LABEL_FG, PAGE_DBGAP );
-            PopulateGrid( repo_rect( r ), resize, DBGAP_REPOS_ID, grid, BTN_COLOR_BG, BTN_COLOR_FG, PAGE_DBGAP );
+                           STATUS_COLOR, LABEL_FG, page_id );
+            PopulateGrid( repo_rect( r ), resize, DBGAP_REPOS_ID, grid, BTN_COLOR_BG, BTN_COLOR_FG, page_id );
         }
 
+        // populate the TOOLS page
+        void populate_TOOLS( Tui_Rect const &r, bool resize, uint32_t page_id )
+        {
+            PopulateLabel( HDR_rect( r, 6 ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            
+            PopulateLabel( pf_lbl_rect( r ), resize, TOOLS_PREFETCH_LBL_ID, "prefetch", CB_COLOR_FG, LABEL_FG, page_id );
+            PopulateLabel( pf_box_rect( r ), resize, TOOLS_PREFETCH_BOX_ID, NULL, STATUS_COLOR, LABEL_FG, page_id );
+            
+            PopulateCheckbox( pf_cb_rect( r ), resize, TOOLS_PREFETCH_ID, "&prefetch download to cache",
+                              model.does_prefetch_download_to_cache(), // model-connection
+                              CB_COLOR_BG, CB_COLOR_FG, page_id );
+            
+        }
+        
         // populate all widgets
         void populate( Tui_Rect const &r, bool resize )
         {
             SetCaption( "SRA configuration" );
             set_status_line( r );
-            populate_save_and_exit( save_and_exit_rect( r ), resize );
+            populate_save_and_exit( save_and_exit_rect( r ), resize, PAGE_FIXED );
             Tui_Rect tab_rect = TAB_rect( r );            
 
             PopulateLabel( BODY_rect( tab_rect ), resize, BOX_ID, NULL, BOX_COLOR, LABEL_FG, PAGE_FIXED );
-            populate_MAIN( tab_rect, resize );
-            populate_AWS( tab_rect, resize );
-            populate_GCP( tab_rect, resize );
-            populate_CACHE( tab_rect, resize );
-            populate_NETW( tab_rect, resize );
-            populate_DBGAP( tab_rect, resize );
+            populate_MAIN( tab_rect, resize, PAGE_MAIN );
+            populate_CACHE( tab_rect, resize, PAGE_CACHE );
+            populate_AWS( tab_rect, resize, PAGE_AWS );
+            populate_GCP( tab_rect, resize, PAGE_GCP );
+            populate_NETW( tab_rect, resize, PAGE_NETW );
+            populate_DBGAP( tab_rect, resize, PAGE_DBGAP );
+            populate_TOOLS( tab_rect, resize, PAGE_TOOLS );
         }
 };
 
@@ -899,6 +928,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
             {
                 case AWS_PROF_ID   : model -> set_aws_profile( dlg.GetWidgetText( id ) ); break; /* model-connection */
                 case NETW_PROXY_ID : model -> set_http_proxy_path( dlg.GetWidgetText( id ) ); break; /* model-connection */
+                case CACHE_RAM_ID         : model->set_cache_amount_in_MB( dlg.GetWidgetInt64Value( CACHE_RAM_ID ) ); break;
             }
             return true;
         }
@@ -917,15 +947,16 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case DEFAULT_BTN_ID : res = on_default( dlg, model ); break;
 
                 case MAIN_HDR_ID        : res = dlg.SetActivePage( PAGE_MAIN ); break;
-                case MAIN_USE_LOCAL_ID  : res = on_site_repo( dlg, model ); break;
-                case MAIN_USE_REMOTE_ID : res = on_remote_repo( dlg, model ); break;
-                case MAIN_PREFETCH_ID   : res = on_prefetch_dnld( dlg, model ); break;
+                case MAIN_USE_REMOTE_ID : res = on_remote_repo( dlg, model ); break;                
+                case MAIN_USE_CACHE_ID  : res = on_use_cache( dlg, model ); break;
+                case MAIN_USE_SITE_ID   : res = on_site_repo( dlg, model ); break;
                 
                 case CACHE_HDR_ID         : res = dlg.SetActivePage( PAGE_CACHE ); break;
                 case CACHE_REPO_CHOOSE_ID : res = choose_main_local( dlg, model ); break;
                 case CACHE_REPO_CLEAR_ID  : res = clear_main_local( dlg, model ); break;
                 case CACHE_PROC_CHOOSE_ID : res = choose_main_proc( dlg, model ); break;
                 case CACHE_PROC_CLEAR_ID  : res = clear_main_proc( dlg, model ); break;
+                case CACHE_RAM_LBL_ID     : dlg.SetFocus( CACHE_RAM_ID ); break;
 
                 case AWS_HDR_ID      : res = dlg.SetActivePage( PAGE_AWS ); break;
                 case AWS_CB_ID       : res = on_accept_aws_charges( dlg, model ); break;
@@ -947,6 +978,9 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case DBGAP_IMPORT_PATH_ID : res = on_set_dflt_import_path( dlg, model ); break;
                 case DBGAP_REPOS_LBL_ID   : dlg.SetFocus( DBGAP_REPOS_ID ); break;
                 case DBGAP_REPOS_ID       : res = on_edit_dbgap_repo( dlg, model ); break;
+                
+                case TOOLS_HDR_ID       : res = dlg.SetActivePage( PAGE_TOOLS ); break;
+                case TOOLS_PREFETCH_ID  : res = on_prefetch_dnld( dlg, model ); break;                
             }
             return res;
         }
@@ -963,9 +997,9 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case RELOAD_BTN_ID  : view.status_txt( "discard current changes" ); break;
                 case DEFAULT_BTN_ID : view.status_txt( "load default settings" ); break;
 
-                case MAIN_USE_LOCAL_ID  : view.status_txt( "use site repository" ); break;
-                case MAIN_USE_REMOTE_ID : view.status_txt( "use remote repository" ); break;
-                case MAIN_PREFETCH_ID   : view.status_txt( "choose where prefetch downloads files to" ); break;
+                case MAIN_USE_REMOTE_ID : view.status_txt( "use remote repository" ); break;                
+                case MAIN_USE_CACHE_ID  : view.status_txt( "use local cache" ); break;
+                case MAIN_USE_SITE_ID   : view.status_txt( "use site repository" ); break;
 
                 case CACHE_REPO_CHOOSE_ID : view.status_txt( "choose loacation of local repository" ); break;
                 case CACHE_REPO_CLEAR_ID  : view.status_txt( "clear loacation of local repository" ); break;                
@@ -987,6 +1021,8 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case DBGAP_IMPORT_KEY_ID  : view.status_txt( "import a ngc-file" ); break;
                 case DBGAP_IMPORT_PATH_ID : view.status_txt( "set default import path for ngc-files" ); break;
                 case DBGAP_REPOS_ID       : view.status_txt( "list of available dbGap repositories, press ENTER to edit" ); break;
+                
+                case TOOLS_PREFETCH_ID   : view.status_txt( "choose where prefetch downloads files to" ); break;                
             }
             return false;
         }
@@ -1065,13 +1101,6 @@ class vdbconf_ctrl2 : public Dlg_Runner
 
         // ================ the MAIN-page: choose/clear for local repo and process local
 
-        // user has pressed the 'use site repo' checkbox
-        bool on_site_repo( Dlg &dlg, vdbconf_model *model )
-        {
-            model -> set_site_enabled( dlg.GetWidgetBoolValue( MAIN_USE_LOCAL_ID ) ); /* model-connection */
-            return true;
-        }
-
         // user has pressed the 'use remote repo' checkbox
         bool on_remote_repo( Dlg &dlg, vdbconf_model *model )
         {
@@ -1079,10 +1108,24 @@ class vdbconf_ctrl2 : public Dlg_Runner
             return true;
         }
 
+        // user has pressed the 'use local cache' checkbox
+        bool on_use_cache( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_user_cache_enabled( dlg.GetWidgetBoolValue( MAIN_USE_CACHE_ID ) ); /* model-connection */
+            return true;
+        }
+        
+        // user has pressed the 'use site repo' checkbox
+        bool on_site_repo( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_site_enabled( dlg.GetWidgetBoolValue( MAIN_USE_SITE_ID ) ); /* model-connection */
+            return true;
+        }
+
         // user has pressed the 'prefetch download to cache' checkbox
         bool on_prefetch_dnld( Dlg &dlg, vdbconf_model *model )
         {
-            model -> set_prefetch_download_to_cache( dlg.GetWidgetBoolValue( MAIN_PREFETCH_ID ) ); /* model-connection */
+            model -> set_prefetch_download_to_cache( dlg.GetWidgetBoolValue( TOOLS_PREFETCH_ID ) ); /* model-connection */
             return true;
         }
 

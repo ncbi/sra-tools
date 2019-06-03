@@ -836,6 +836,19 @@ vdbconf_model::set_aws_profile(const std::string & path)
     _config.Updated();
 }
 
+uint32_t vdbconf_model::get_cache_amount_in_MB( void ) const
+{
+    uint32_t value;
+    MODEL_THROW_ON_RC ( KConfig_Get_Cache_Amount ( _config.Get(), &value ) );
+    return value;
+}
+
+void vdbconf_model::set_cache_amount_in_MB( uint32_t value )
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Cache_Amount ( _config.Get(), value ) );
+    _config.Updated();
+}
+
 void vdbconf_model::set_defaults( void )
 {
     set_remote_enabled( true );

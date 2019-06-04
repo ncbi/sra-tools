@@ -27,6 +27,8 @@ use constant {
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 
+goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
+
 sub loadConfig;
 my %config = %{loadConfig()};
 
@@ -66,12 +68,12 @@ END {
     unlink $paramsFile if $paramsFile;
 }
 
-#** \brief: runs tool on list of accessions
+### \brief: runs tool on list of accessions
 ###
 ### After args parsing, this is called to do the meat of the work.
 ### Accession can be any kind of SRA accession.
 ###
-### \param: tool name, e.g. fastq-dump
+### \param: user-centric tool name, e.g. fastq-dump
 ### \param: full path to tool, e.g. /path/to/fastq-dump-orig
 ### \param: tool parameters; arrayref
 ### \param: the list of accessions to process
@@ -95,7 +97,7 @@ sub processAccessions($$\@@)
                 $ENV{VDB_REMOTE_URL} = $runURL;
                 $ENV{VDB_REMOTE_CACHE_URL} = $cacheURL // '';
     
-                exec {$toolpath} $toolname, @$params, $run;
+                exec {$toolpath} $0, @$params, $run; ### tool should run as what user invoked
                 die "can't exec $toolname: $!";
             }
             waitpid($kid, 0);
@@ -106,6 +108,39 @@ sub processAccessions($$\@@)
         }
     }
     exit 0;
+}
+
+### \brief: runs tool on list of accessions, does not use name resolver
+###
+### After args parsing, this is called to do the meat of the work.
+### Accession can be any kind of SRA accession.
+###
+### \param: user-centric tool name, e.g. fastq-dump
+### \param: full path to tool, e.g. /path/to/fastq-dump-orig
+### \param: tool parameters; arrayref
+### \param: the list of accessions to process
+sub processAccessionsNoResolver($$\@@)
+{
+    my $toolname = shift;
+    my $toolpath = shift;
+    my $params = shift;
+    my @runs = expandAllAccessions(@_);
+
+    exec {$toolpath} $0, @$params, @runs;
+    die "can't exec $toolname: $!";
+}
+
+### \brief: runs tool --help
+###
+### \param: user-centric tool name, e.g. fastq-dump
+### \param: full path to tool, e.g. /path/to/fastq-dump-orig
+sub toolHelp($$)
+{
+    my $toolname = shift;
+    my $toolpath = shift;
+    
+    exec {$toolpath} $0, '--help';
+    die "can't exec $toolname: $!";
 }
 
 sub expandAccession($);
@@ -138,7 +173,16 @@ sub expandAllAccessions(@)
             next;
         }
         # see if it can be expanded into run accessions
-        push @_, expandAccession($_);
+        my @expanded = expandAccession($_);
+        if (@expanded) {
+            push @_, @expanded;
+        }
+        else {
+            ### Note: could add it back into the list,
+            ### but the tool has no better means to make
+            ### sense of the request.
+            print STDERR "warn: nothing found for $_\n";
+        }
     }
     return @rslt;
 }
@@ -386,13 +430,12 @@ RUNNING_AS_FASTQ_DUMP:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!parseArgv('old', @params, @args, %long_arg, %param_has_arg, @ARGV))
-    {
-        # usage error or user asked for help
-        exec {$toolpath} 'fastq-dump', '--help';
-        die "can't exec original fastq-dump: $!";
+    if (parseArgv('old', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
+        processAccessions('fastq-dump', $toolpath, @params, @args);
     }
-    processAccessions('fastq-dump', $toolpath, @params, @args);
+    else {
+        toolHelp('fastq-dump', $toolpath);
+    } 
     die "unreachable";
 }
 
@@ -439,13 +482,12 @@ RUNNING_AS_FASTERQ_DUMP:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
-    {
-        # usage error or user asked for help
-        exec {$toolpath} 'fasterq-dump', '--help';
-        die "can't exec original fasterq-dump: $!";
+    if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
+        processAccessions('fasterq-dump', $toolpath, @params, @args);
     }
-    processAccessions('fasterq-dump', $toolpath, @params, @args);
+    else {
+        toolHelp('fasterq-dump', $toolpath);
+    }
     die "unreachable";
 }
 
@@ -483,13 +525,12 @@ RUNNING_AS_SAM_DUMP:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
-    {
-        # usage error or user asked for help
-        exec {$toolpath} 'sam-dump', '--help';
-        die "can't exec original sam-dump: $!";
+    if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
+        processAccessions('sam-dump', $toolpath, @params, @args);
     }
-    processAccessions('sam-dump', $toolpath, @params, @args);
+    else {
+        toolHelp('sam-dump', $toolpath);
+    }
     die "unreachable";
 }
 
@@ -537,13 +578,12 @@ RUNNING_AS_PREFETCH:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
-    {
-        # usage error or user asked for help
-        exec {$toolpath} 'prefetch', '--help';
-        die "can't exec original prefetch: $!";
+    if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
+        processAccessionsNoResolver('prefetch', $toolpath, @params, @args);
     }
-    processAccessions('prefetch', $toolpath, @params, @args);
+    else {
+        toolHelp('prefetch', $toolpath);
+    }
     die "unreachable";
 }
 
@@ -581,13 +621,12 @@ RUNNING_AS_SRAPATH:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
-    {
-        # usage error or user asked for help
-        exec {$toolpath} 'srapath', '--help';
-        die "can't exec original srapath: $!";
+    if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
+        processAccessionsNoResolver('srapath', $toolpath, @params, @args);
     }
-    processAccessions('srapath', $toolpath, @params, @args);
+    else {
+        toolHelp('srapath', $toolpath);
+    }
     die "unreachable";
 }
 
@@ -623,14 +662,30 @@ RUNNING_AS_SRA_PILEUP:
     my @params = (); # short params get expanded to long form
     my @args = (); # everything that isn't part of a parameter
 
-    if (!parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV))
-    {
-        # usage error or user asked for help
-        exec {$toolpath} 'sra-pileup', '--help';
-        die "can't exec original sra-pileup: $!";
+    if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
+        processAccessions('sra-pileup', $toolpath, @params, @args);
     }
-    processAccessions('sra-pileup', $toolpath, @params, @args);
+    else {
+        toolHelp('sra-pileup', $toolpath);
+    }
     die "unreachable";
+}
+
+MAKE_LINKS:
+{
+    my %path;
+    for (qw{ fastq-dump fasterq-dump prefetch srapath sra-pileup sam-dump }) {
+        my $toolpath = which($_) or die "no $_ in PATH";
+        $path{$_} = $toolpath;
+    }
+    for (keys %path) {
+        unlink "$_-orig" if -f "$_-orig";
+        unlink $_ if -f $_;
+        symlink $path{$_}, "$_-orig";
+        symlink "sratools", $_
+    }
+    symlink "sratools.pl", "sratools";
+    exit 0
 }
 
 ### \brief: process ARGV using fastq-dump style parsing rules

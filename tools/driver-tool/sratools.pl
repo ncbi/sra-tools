@@ -32,12 +32,12 @@ goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks'
 sub loadConfig;
 my %config = %{loadConfig()};
 
-goto RUNNING_AS_FASTQ_DUMP      if $basename eq 'fastq-dump';
-goto RUNNING_AS_FASTERQ_DUMP    if $basename eq 'fasterq-dump';
-goto RUNNING_AS_SAM_DUMP        if $basename eq 'sam-dump';
-goto RUNNING_AS_PREFETCH        if $basename eq 'prefetch';
-goto RUNNING_AS_SRAPATH         if $basename eq 'srapath';
-goto RUNNING_AS_SRA_PILEUP      if $basename eq 'sra-pileup';
+goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
+goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
+goto RUNNING_AS_SAM_DUMP        if $basename =~ /^sam-dump/;
+goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
+goto RUNNING_AS_SRA_PILEUP      if $basename =~ /^sra-pileup/;
 
 goto RUN_TESTS if $ENV{DRIVER_TOOL_RUN_TESTS};
 

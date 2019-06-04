@@ -111,140 +111,6 @@ const uint32_t PAGE_NETW    = PAGE_FIXED + 5;
 const uint32_t PAGE_DBGAP   = PAGE_FIXED + 6;
 const uint32_t PAGE_TOOLS   = PAGE_FIXED + 7;
 
-/* ==== message sub-dialog =================================================================== */
-class msg_view : public Dlg
-{
-    public :
-        msg_view( Dlg &parent, Tui_Rect r, const std::string &msg ) : Dlg( parent, r )
-        {
-            Tui_Rect r1( 1, 1, r.get_w() -2, 1 );
-            PopulateLabel( r1, false, 100, msg.c_str(), STATUS_COLOR, LABEL_FG, PAGE_FIXED );
-            Tui_Rect r2( 1, 3, 12, 1 );
-            PopulateButton( r2, false, 101, "&ok", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
-        }
-};
-
-class msg_ctrl : public Dlg_Runner
-{
-    public :
-        msg_ctrl( Dlg &dlg ) : Dlg_Runner( dlg, NULL ) { dlg.SetFocus( 101 ); }
-
-        virtual bool on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
-        { dlg.SetDone( dev.get_widget_id() == 101 ); return true; }
-};
-
-static bool show_msg( Dlg &parent, const std::string &msg )
-{
-    Tui_Rect r( 0, 0, 80, 5 );
-    parent.center( r );
-    msg_view view( parent, r, msg );
-    msg_ctrl ctrl( view );
-    ctrl.run();
-    parent.Draw();
-    return true;
-}
-
-/* ==== question sub-dialog =================================================================== */
-class question_view : public Dlg
-{
-    public :
-        question_view( Dlg &parent, Tui_Rect r, const std::string &msg ) : Dlg( parent, r )
-        {
-            Tui_Rect r1( 1, 1, r.get_w() -2, 1 );
-            PopulateLabel( r1, false, 100, msg.c_str(), STATUS_COLOR, LABEL_FG, PAGE_FIXED );
-            Tui_Rect r2( 1, 3, 10, 1 );
-            PopulateButton( r2, false, 101, "&yes", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
-            Tui_Rect r3( 12, 3, 10, 1 );
-            PopulateButton( r3, false, 102, "&no", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
-        }
-};
-
-class question_ctrl : public Dlg_Runner
-{
-    public :
-        bool answer;
-        
-        question_ctrl( Dlg &dlg ) : Dlg_Runner( dlg, NULL ), answer( false ) { dlg.SetFocus( 101 ); }
-
-        virtual bool on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
-        {
-            switch ( dev.get_widget_id() )
-            {
-                case 101 : answer = true; dlg.SetDone( true ); break;
-                case 102 : answer = false; dlg.SetDone( true ); break;
-            }
-            return true;
-        }
-};
-
-static bool question( Dlg &parent, const std::string &msg )
-{
-    Tui_Rect r( 0, 0, 80, 5 );
-    parent.center( r );
-    question_view view( parent, r, msg );
-    question_ctrl ctrl( view );
-    ctrl.run();
-    parent.Draw();
-    return ctrl . answer;
-}
-
-/* ==== input sub-dialog =================================================================== */
-class input_view : public Dlg
-{
-    public :
-        input_view( Dlg &parent, Tui_Rect r,
-                    const std::string &caption, const std::string &txt,
-                    uint32_t txt_len ) : Dlg( parent, r )
-        {
-            Tui_Rect r1( 1, 1, r.get_w() - 2, 1 );
-            PopulateLabel( r1, false, 100, caption.c_str(), LABEL_BG, INP_COLOR_FG, PAGE_FIXED );
-            Tui_Rect r2( 1, 2, r.get_w() - 2, 1 );
-            PopulateInput( r2, false, 101, txt.c_str(), txt_len, INP_COLOR_BG, INP_COLOR_FG, PAGE_FIXED );
-            Tui_Rect r3( 1, 4, 10, 1 );
-            PopulateButton( r3, false, 102, "&ok", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
-            Tui_Rect r4( 12, 4, 10, 1 );
-            PopulateButton( r4, false, 103, "&cancel", BTN_COLOR_BG, BTN_COLOR_FG, PAGE_FIXED );
-        }
-};
-
-class input_ctrl : public Dlg_Runner
-{
-    public :
-        std::string &txt;
-        bool ok;
-        
-        input_ctrl( Dlg &dlg, std::string &a_txt ) : Dlg_Runner( dlg, NULL ), txt( a_txt ), ok( false )
-        { dlg.SetFocus( 101 ); }
-
-        virtual bool on_changed( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
-        {
-            tui_id id = dev.get_widget_id();
-            if ( id == 101 ) txt = dlg.GetWidgetText( id );
-            return true;
-        }
-
-        virtual bool on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
-        {
-            switch ( dev.get_widget_id() )
-            {
-                case 102 : ok = true; dlg.SetDone( true ); break;
-                case 103 : ok = false; dlg.SetDone( true ); break;
-            }
-            return true;
-        }
-};
-
-static bool input( Dlg &parent, const std::string &caption, std::string &txt, uint32_t txt_len )
-{
-    Tui_Rect r( 0, 0, 80, 6 );
-    parent.center( r );
-    input_view view( parent, r, caption, txt, txt_len );
-    input_ctrl ctrl( view, txt );
-    ctrl.run();
-    parent.Draw();
-    return ctrl . ok;
-}
-
 /* ==== pick a directory ========================================================================== */
 static bool pick_dir( Dlg &dlg, Tui_Rect r, std::string &path )
 {
@@ -290,13 +156,13 @@ static bool on_set_location_error( Dlg &dlg, ESetRootState s )
     switch ( s )
     {
         case eSetRootState_NotChanged       : res = true; break;
-        case eSetRootState_NotUnique        : show_msg( dlg, "location not unique, select a different one" ); break;
-        case eSetRootState_MkdirFail        : show_msg( dlg, "could not created directory, maybe permisson problem" ); break;
-        case eSetRootState_NewPathEmpty     : show_msg( dlg, "you gave me an empty path" ); break;
-        case eSetRootState_NewDirNotEmpty   : show_msg( dlg, "the given location is not empty" ); break;
-        case eSetRootState_NewNotDir        : show_msg( dlg, "new location is not a directory" ); break;
-        case eSetRootState_Error            : show_msg( dlg, "error changing location" ); break;
-        default                             : show_msg( dlg, "unknown enum" ); break;
+        case eSetRootState_NotUnique        : msg_ctrl::show_msg( dlg, "location not unique, select a different one" ); break;
+        case eSetRootState_MkdirFail        : msg_ctrl::show_msg( dlg, "could not created directory, maybe permisson problem" ); break;
+        case eSetRootState_NewPathEmpty     : msg_ctrl::show_msg( dlg, "you gave me an empty path" ); break;
+        case eSetRootState_NewDirNotEmpty   : msg_ctrl::show_msg( dlg, "the given location is not empty" ); break;
+        case eSetRootState_NewNotDir        : msg_ctrl::show_msg( dlg, "new location is not a directory" ); break;
+        case eSetRootState_Error            : msg_ctrl::show_msg( dlg, "error changing location" ); break;
+        default                             : msg_ctrl::show_msg( dlg, "unknown enum" ); break;
     }
     return res;
 }
@@ -329,13 +195,13 @@ static bool pick_public_location( Dlg &dlg, vdbconf_model * model )
 	if ( model -> does_path_exist( path ) )
 		res = pick_dir( dlg, dlg.center( 5, 5 ), path );
 	else
-		res = input( dlg, "location of public cache", path, 256 );
+		res = input_ctrl::input( dlg, "location of public cache", path, 256 );
 	
     if ( res && path.length() > 0 )
     {
         std::ostringstream q;
         q << "do you want to change the location to '" << path << "' ?";
-        if ( question( dlg, q.str().c_str() ) )
+        if ( question_ctrl::question( dlg, q.str().c_str() ) )
         {
             bool flushOld = false;
             bool reuseNew = false;
@@ -344,7 +210,7 @@ static bool pick_public_location( Dlg &dlg, vdbconf_model * model )
             {
                 case eSetRootState_OK               : res = true; break;
 
-                case eSetRootState_OldNotEmpty      : if ( question( dlg, "prev. location is not empty, flush it?" ) )
+                case eSetRootState_OldNotEmpty      : if ( question_ctrl::question( dlg, "prev. location is not empty, flush it?" ) )
                                                       {
                                                             flushOld = true;
                                                             s = model -> set_public_location( flushOld, path, reuseNew );
@@ -389,13 +255,13 @@ static bool pick_protected_location( Dlg &dlg, vdbconf_model * model, uint32_t i
 	if ( model -> does_path_exist( path ) )
 		res = pick_dir( dlg, dlg.center( 5, 5 ), path );
 	else
-		res = input( dlg, "location of dbGaP project", path, 256 );
+		res = input_ctrl::input( dlg, "location of dbGaP project", path, 256 );
 
     if ( res && path.length() > 0 )
     {
         std::ostringstream q;
         q << "do you want to change the loction of '" << model -> get_repo_name( id ) << "' to '" << path << "' ?";
-        if ( question( dlg, q.str().c_str() ) )
+        if ( question_ctrl::question( dlg, q.str().c_str() ) )
         {
             bool flushOld = false;
             bool reuseNew = false;
@@ -404,7 +270,7 @@ static bool pick_protected_location( Dlg &dlg, vdbconf_model * model, uint32_t i
             {
             case eSetRootState_OK               :  res = true; break;
 
-            case eSetRootState_OldNotEmpty      :  if ( question( dlg, "prev. location is not empty, flush it?" ) )
+            case eSetRootState_OldNotEmpty      :  if ( question_ctrl::question( dlg, "prev. location is not empty, flush it?" ) )
                                                    {
                                                         flushOld = true;
                                                         s = model -> set_repo_location( id, flushOld, path, reuseNew );
@@ -430,12 +296,12 @@ static bool set_dflt_import_path( Dlg &dlg, vdbconf_model * model )
     if ( model -> does_path_exist( path ) )
         res = pick_dir( dlg, dlg.center( 5, 5 ), path );
     else
-        res = input( dlg, "change default import path", path, 128 );
+        res = input_ctrl::input( dlg, "change default import path", path, 128 );
 
     if ( res )
     {
         model -> set_user_default_dir( path.c_str() );
-        show_msg( dlg, "default import path changed" );
+        msg_ctrl::show_msg( dlg, "default import path changed" );
     }
     return res;
 }
@@ -471,22 +337,22 @@ static bool import_this_ngc_into_this_location( Dlg &dlg, vdbconf_model * model,
         if ( result_flags & INP_CREATE_REPOSITORY )
         {
             /* success is the most common outcome, the repository was created */
-            show_msg( dlg, "project successfully imported" );
+            msg_ctrl::show_msg( dlg, "project successfully imported" );
             modified = true;
         }
         else
         {
             /* repository did exist and is completely identical to the given ngc-obj */
-            show_msg( dlg, "this project exists already, no changes made" );
+            msg_ctrl::show_msg( dlg, "this project exists already, no changes made" );
         }
 
-        if ( question( dlg, "do you want to change the location?" ) )
+        if ( question_ctrl::question( dlg, "do you want to change the location?" ) )
         {
             uint32_t id;
             if ( model -> get_id_of_ngc_obj( ngc, &id ) )
                 modified |= pick_protected_location( dlg, model, id );
             else
-                show_msg( dlg, "cannot find the imported repostiory" );
+                msg_ctrl::show_msg( dlg, "cannot find the imported repostiory" );
         }
 
         if ( modified )
@@ -498,21 +364,21 @@ static bool import_this_ngc_into_this_location( Dlg &dlg, vdbconf_model * model,
     else if ( result_flags == 0 )
     {
         /* we are here if there was an error executing one of the internal functions */
-        show_msg( dlg, "there was an internal error importing the ngc-object" );
+        msg_ctrl::show_msg( dlg, "there was an internal error importing the ngc-object" );
     }
     else
     {
         bool permitted = true;
 
-        show_msg( dlg, "the repository does already exist!" );
+        msg_ctrl::show_msg( dlg, "the repository does already exist!" );
         if ( result_flags & INP_UPDATE_ENC_KEY )
-            permitted = question( dlg, "encryption-key would change, continue ?" );
+            permitted = question_ctrl::question( dlg, "encryption-key would change, continue ?" );
 
         if ( permitted && ( result_flags & INP_UPDATE_DNLD_TICKET ) )
-            permitted = question( dlg, "download-ticket would change, continue ?" );
+            permitted = question_ctrl::question( dlg, "download-ticket would change, continue ?" );
 
         if ( permitted && ( result_flags & INP_UPDATE_DESC ) )
-            permitted = question( dlg, "description would change, continue ?" );
+            permitted = question_ctrl::question( dlg, "description would change, continue ?" );
 
         if ( permitted )
         {
@@ -520,22 +386,22 @@ static bool import_this_ngc_into_this_location( Dlg &dlg, vdbconf_model * model,
             res = model -> import_ngc( location, ngc, result_flags, &result_flags2 );
             if ( res )
             {
-                show_msg( dlg, "project successfully updated" );
-                if ( question( dlg, "do you want to change the location?" ) )
+                msg_ctrl::show_msg( dlg, "project successfully updated" );
+                if ( question_ctrl::question( dlg, "do you want to change the location?" ) )
                 {
                     uint32_t id; /* we have to find out the id of the imported/existing repository */
                     if ( model -> get_id_of_ngc_obj( ngc, &id ) )            
                         pick_protected_location( dlg, model, id );
                     else
-                        show_msg( dlg, "cannot find the imported repostiory" );
+                        msg_ctrl::show_msg( dlg, "cannot find the imported repostiory" );
                 }
                 model ->commit();
             }
             else
-                show_msg( dlg, "there was an internal error importing the ngc-object" );
+                msg_ctrl::show_msg( dlg, "there was an internal error importing the ngc-object" );
         }
         else
-            show_msg( dlg, "the import was canceled" );
+            msg_ctrl::show_msg( dlg, "the import was canceled" );
     }
     return res;
 }
@@ -552,7 +418,7 @@ static bool import_this_ngc( Dlg &dlg, vdbconf_model * model, const KNgcObj * ng
         case eSetRootState_OK           :  res = import_this_ngc_into_this_location( dlg, model, location, ngc );
                                            break;
 
-        case eSetRootState_OldNotEmpty  :  if ( question( dlg, "repository location is not empty, use it?" ) )
+        case eSetRootState_OldNotEmpty  :  if ( question_ctrl::question( dlg, "repository location is not empty, use it?" ) )
                                            {
                                                 es = model -> prepare_repo_directory( location, true );
                                                 if ( es == eSetRootState_OK )
@@ -587,7 +453,7 @@ static bool import_ngc( Dlg &dlg, vdbconf_model * model )
         std::ostringstream q;
         q << "do you want to import '" << picked << "' ?";
         /* ( 2 ) confirm the choice */
-        if ( question( dlg, q.str().c_str() ) )
+        if ( question_ctrl::question( dlg, q.str().c_str() ) )
         {
             const KNgcObj * ngc;
             if ( make_ngc_obj( &ngc, picked ) )
@@ -743,24 +609,24 @@ class vdbconf_view2 : public Dlg
         }
 
         // populate the top row of switches
-        void populate_save_and_exit( Tui_Rect const &r, bool resize, uint32_t page_id )
+        void populate_save_and_exit( Tui_Rect const &r, bool resize )
         {
             Tui_Rect rr = Tui_Rect( r.get_x(), r.get_y(), 14, 1 );
-            PopulateButton( rr, resize, SAVE_BTN_ID,  "&save", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
+            PopulateButton( rr, resize, SAVE_BTN_ID,  "&save", BTN_COLOR_BG, BTN_COLOR_FG );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, EXIT_BTN_ID,  "e&xit", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
+            PopulateButton( rr, resize, EXIT_BTN_ID,  "e&xit", BTN_COLOR_BG, BTN_COLOR_FG );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, VERIFY_BTN_ID, "&verify", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
+            PopulateButton( rr, resize, VERIFY_BTN_ID, "&verify", BTN_COLOR_BG, BTN_COLOR_FG );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, RELOAD_BTN_ID, "reloa&d", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
+            PopulateButton( rr, resize, RELOAD_BTN_ID, "reloa&d", BTN_COLOR_BG, BTN_COLOR_FG );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, DEFAULT_BTN_ID, "de&fault", BTN_COLOR_BG, BTN_COLOR_FG, page_id );
+            PopulateButton( rr, resize, DEFAULT_BTN_ID, "de&fault", BTN_COLOR_BG, BTN_COLOR_FG );
         }
 
         // populate the MAIN page
         void populate_MAIN( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 0 ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 0 ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG );
 
             PopulateCheckbox( use_repo_rect( r, 2 ), resize, MAIN_USE_REMOTE_ID, "&Enable Remote Access",
                               model.is_remote_enabled(), // model-connection
@@ -778,7 +644,7 @@ class vdbconf_view2 : public Dlg
         // populate the CACHE page
         void populate_CACHE( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 1 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 1 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG );
  
             PopulateLabel( lbl1_rect( r, 2 ), resize, CACHE_REPO_LBL_ID, "public user repository location:",
                                 BOX_COLOR, LABEL_FG, page_id );
@@ -810,7 +676,7 @@ class vdbconf_view2 : public Dlg
         // populate the AWS page
         void populate_AWS( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG );
             PopulateCheckbox( CB_rect( r ), resize, AWS_CB_ID, "acc&ept charges for AWS",
                                 model.does_user_accept_aws_charges(),   /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
@@ -833,7 +699,7 @@ class vdbconf_view2 : public Dlg
         // populate the GCP page
         void populate_GCP( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG );
             PopulateCheckbox( CB_rect( r ), resize, GCP_CB_ID, "acc&ept charges for GCP",
                                 model.does_user_accept_gcp_charges(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
@@ -852,7 +718,7 @@ class vdbconf_view2 : public Dlg
         // populate the NETWORK page
         void populate_NETW( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG );
             PopulateCheckbox( CB_rect( r ), resize, NETW_USE_PROXY_ID, "&use http-proxy",
                                 model.is_http_proxy_enabled(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
@@ -866,7 +732,7 @@ class vdbconf_view2 : public Dlg
         // populate the DBGAP page
         void populate_DBGAP( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "D&BGAP", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "D&BGAP", STATUS_COLOR, LABEL_FG );
             PopulateButton( imp_rect( r ), resize, DBGAP_IMPORT_KEY_ID, "&Import Repository key",
                                 BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateButton( imp_path_rect( r ), resize,  DBGAP_IMPORT_PATH_ID, "Set Defau&lt Import Path",
@@ -879,7 +745,7 @@ class vdbconf_view2 : public Dlg
         // populate the TOOLS page
         void populate_TOOLS( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 6 ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( HDR_rect( r, 6 ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG );
             
             PopulateLabel( pf_lbl_rect( r ), resize, TOOLS_PREFETCH_LBL_ID, "prefetch", CB_COLOR_FG, LABEL_FG, page_id );
             PopulateLabel( pf_box_rect( r ), resize, TOOLS_PREFETCH_BOX_ID, NULL, STATUS_COLOR, LABEL_FG, page_id );
@@ -895,10 +761,10 @@ class vdbconf_view2 : public Dlg
         {
             SetCaption( "SRA configuration" );
             set_status_line( r );
-            populate_save_and_exit( save_and_exit_rect( r ), resize, PAGE_FIXED );
+            populate_save_and_exit( save_and_exit_rect( r ), resize );
             Tui_Rect tab_rect = TAB_rect( r );            
 
-            PopulateLabel( BODY_rect( tab_rect ), resize, BOX_ID, NULL, BOX_COLOR, LABEL_FG, PAGE_FIXED );
+            PopulateLabel( BODY_rect( tab_rect ), resize, BOX_ID, NULL, BOX_COLOR, LABEL_FG );
             populate_MAIN( tab_rect, resize, PAGE_MAIN );
             populate_CACHE( tab_rect, resize, PAGE_CACHE );
             populate_AWS( tab_rect, resize, PAGE_AWS );
@@ -1043,12 +909,12 @@ class vdbconf_ctrl2 : public Dlg_Runner
             if ( model -> get_config_changed() )
             {
                 if ( model -> commit() )
-                    show_msg( dlg, "changes successfully saved" );
+                    msg_ctrl::show_msg( dlg, "changes successfully saved" );
                 else
-                    show_msg( dlg, "error saving changes" );
+                    msg_ctrl::show_msg( dlg, "error saving changes" );
             }
             else
-                show_msg( dlg, "no changes to be saved" );
+                msg_ctrl::show_msg( dlg, "no changes to be saved" );
             return true;
         }
     
@@ -1057,12 +923,12 @@ class vdbconf_ctrl2 : public Dlg_Runner
         {
             if ( model -> get_config_changed() )
             {
-                if ( question( dlg, "save changes ?" ) )
+                if ( question_ctrl::question( dlg, "save changes ?" ) )
                 {
                     if ( model -> commit() )
-                        show_msg( dlg, "changes successfully saved" );
+                        msg_ctrl::show_msg( dlg, "changes successfully saved" );
                     else
-                        show_msg( dlg, "error saving changes" );
+                        msg_ctrl::show_msg( dlg, "error saving changes" );
                 }
             }
             dlg.SetDone( true );
@@ -1072,17 +938,17 @@ class vdbconf_ctrl2 : public Dlg_Runner
         // user has pressed the verify-button
         bool on_verify( Dlg &dlg, vdbconf_model * model )
         {
-            return show_msg( dlg, "not yet implemented" );
+            return msg_ctrl::show_msg( dlg, "not yet implemented" );
         }
 
         // user has pressed the reload-button
         bool on_reload( Dlg &dlg, vdbconf_model * model )
         {
-            if ( question( dlg, "discard changes ?" ) )
+            if ( question_ctrl::question( dlg, "discard changes ?" ) )
             {
                 model -> reload();
                 update_view( dlg );
-                show_msg( dlg, "reloaded" );
+                msg_ctrl::show_msg( dlg, "reloaded" );
             }
             return true;
         }
@@ -1090,11 +956,11 @@ class vdbconf_ctrl2 : public Dlg_Runner
         // user has pressed the default-button        
         bool on_default( Dlg &dlg, vdbconf_model * model )
         {
-            if ( question( dlg, "revert to default-values ?" ) )
+            if ( question_ctrl::question( dlg, "revert to default-values ?" ) )
             {
                 model -> set_defaults();
                 update_view( dlg );
-                show_msg( dlg, "default values set" );
+                msg_ctrl::show_msg( dlg, "default values set" );
             }
             return true;
         }

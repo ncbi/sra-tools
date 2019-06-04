@@ -938,7 +938,10 @@ class vdbconf_ctrl2 : public Dlg_Runner
         // user has pressed the verify-button
         bool on_verify( Dlg &dlg, vdbconf_model * model )
         {
-            return msg_ctrl::show_msg( dlg, "not yet implemented" );
+            //return msg_ctrl::show_msg( dlg, "not yet implemented" );
+            std::string p = model -> get_current_dir();
+            bool picked = pick_path_ctrl::pick( dlg, "pick a path", p );
+            return msg_ctrl::show_msg( dlg, picked ? "true" : "false" );
         }
 
         // user has pressed the reload-button

@@ -140,7 +140,7 @@ urls_and_accs:
 	@echo prefetch $(SRR) when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@rm -r SRR053325
+	@rm -r $(SRAC)
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra

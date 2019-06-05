@@ -1288,27 +1288,24 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         else
             rc = KNSManagerMakeClientRequest ( mane -> kns,
                 & kns_req, http_vers, NULL, "%S", & src );
-        DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest",
-                   & src . addr );
+        DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest", src . addr );
 
         if ( rc == 0 ) {
             KClientHttpResult * rslt = NULL;
             rc = KClientHttpRequestGET ( kns_req, & rslt );
-            DISP_RC2 ( rc, "Cannot KClientHttpRequestGET",
-                       & src . addr );
+            DISP_RC2 ( rc, "Cannot KClientHttpRequestGET", src . addr );
 
             if ( rc == 0 ) {
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
                 DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
-                           & src . addr );
+                           src . addr );
 
                 while ( rc == 0 ) {
                     rc = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
                     if ( rc != 0 || num_read == 0) {
-                        DISP_RC2 ( rc, "Cannot KStreamRead",
-                                   & src . addr );
+                        DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
                         break;
                     }
 
@@ -4132,6 +4129,8 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
     if (rc == 0) {
         rc = VFSManagerMake(&self->vfsMgr);
         DISP_RC(rc, "VFSManagerMake");
+        if (rc == 0)
+            VFSManagerSetAdCaching(self->vfsMgr, true);
     }
 
     if ( rc == 0 )

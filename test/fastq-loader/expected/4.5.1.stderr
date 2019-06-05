@@ -3,6 +3,6 @@ latf-load warn:syntax error, unexpected fqASCQUAL, expecting fqBASESEQ or fqCOLO
 latf-load warn: file="4.5.1.fastq"
 latf-load warn:syntax error, unexpected fqASCQUAL, expecting fqBASESEQ or fqCOLORSEQ
 latf-load err: data invalid while closing table - Too many bad records: records: 5, bad records: 2, bad records percentage: 0.40, allowed percentage: 0.20
-latf-load warn: path not found while removing directory within database module - table CS_SEQUENCE failed to drop temporary column 'TMP_KEY_ID'
+latf-load warn: path not found while removing directory within database module - table SEQUENCE failed to drop temporary column 'TMP_KEY_ID'
 latf-load err: data invalid while closing table - accession="obj" errors="2" status="failure"
 latf-load err: data invalid while closing table - load failed

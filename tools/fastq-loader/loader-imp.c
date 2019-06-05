@@ -27,7 +27,7 @@
 #include <sysalloc.h>
 #include <stdlib.h>
 #include <string.h>
- 
+
 #include <klib/rc.h>
 #include <klib/log.h>
 
@@ -54,10 +54,10 @@
 #include "fastq-reader.h"
 
 rc_t ArchiveFASTQ(CommonWriterSettings* G,
-                VDBManager *mgr, 
+                VDBManager *mgr,
                 VDatabase *db,
-                unsigned seqFiles, 
-                char const *seqFile[], 
+                unsigned seqFiles,
+                char const *seqFile[],
                 enum FASTQQualityFormat qualityFormat,
                 const int8_t defaultReadNumbers[],
                 bool ignoreSpotGroups)
@@ -67,7 +67,7 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
     CommonWriter cw;
 
     KDirectory *dir;
-    rc = KDirectoryNativeDir(&dir);    
+    rc = KDirectoryNativeDir(&dir);
     if (rc != 0)
         return rc;
 
@@ -77,18 +77,18 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
         KDirectoryRelease(dir);
         return rc;
     }
-    
+
     for (i = 0; i < seqFiles; ++i) {
         const ReaderFile *reader;
-        if (G->platform == SRA_PLATFORM_PACBIO_SMRT)  
-            rc = FastqReaderFileMake(&reader, dir, seqFile[i], FASTQphred33, -1, ignoreSpotGroups); 
+        if (G->platform == SRA_PLATFORM_PACBIO_SMRT)
+            rc = FastqReaderFileMake(&reader, dir, seqFile[i], FASTQphred33, -1, ignoreSpotGroups);
         else
             rc = FastqReaderFileMake(&reader, dir, seqFile[i], qualityFormat, defaultReadNumbers[i], ignoreSpotGroups);
-        
-        if (rc == 0) 
+
+        if (rc == 0)
         {
             rc = CommonWriterArchive( &cw, reader );
-            if (rc != 0) 
+            if (rc != 0)
                 ReaderFileRelease(reader);
             else
                 rc = ReaderFileRelease(reader);
@@ -102,30 +102,30 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
     }
     else
         CommonWriterComplete( &cw, true, 0 );
-        
+
     G->errCount = cw.err_count;
-        
+
     if (rc == 0)
         rc = CommonWriterWhack( &cw );
     else
         CommonWriterWhack( &cw );
-    
+
     if (rc == 0)
         rc = KDirectoryRelease(dir);
     else
         KDirectoryRelease(dir);
-        
+
     if (rc == 0) {
         (void)LOGMSG(klogInfo, "Successfully loaded all files");
     }
     return rc;
 }
- 
+
 rc_t WriteLoaderSignature(KMetadata *meta, char const progName[])
 {
     KMDataNode *node;
     rc_t rc = KMetadataOpenNodeUpdate(meta, &node, "/");
-    
+
     if (rc == 0) {
         rc = KLoaderMeta_Write(node, progName, __DATE__, "FASTQ", KAppVersion());
         KMDataNodeRelease(node);
@@ -140,7 +140,7 @@ rc_t OpenPath(char const path[], KDirectory **dir)
 {
     KDirectory *p;
     rc_t rc = KDirectoryNativeDir(&p);
-    
+
     if (rc == 0) {
         rc = KDirectoryOpenDirUpdate(p, dir, false, "%s", path);
         KDirectoryRelease(p);
@@ -152,7 +152,7 @@ rc_t ConvertDatabaseToUnmapped(VDatabase* db)
 {
     VTable* tbl;
     rc_t rc = VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
-    if (rc == 0) 
+    if (rc == 0)
     {
         rc = VTableRenameColumn(tbl, false, "CMP_ALTREAD", "ALTREAD");
         if (rc == 0 || GetRCState(rc) == rcNotFound)
@@ -168,20 +168,20 @@ rc_t ConvertDatabaseToUnmapped(VDatabase* db)
     return rc;
 }
 
-rc_t run ( char const progName[], 
-           CommonWriterSettings* G, 
-           unsigned seqFiles, 
-           const char *seqFile[], 
-           uint8_t qualityOffset, 
+rc_t run ( char const progName[],
+           CommonWriterSettings* G,
+           unsigned seqFiles,
+           const char *seqFile[],
+           uint8_t qualityOffset,
            const int8_t defaultReadNumbers[],
            bool ignoreSpotGroups )
 {
     VDBManager *mgr;
     rc_t rc;
     rc_t rc2;
-    char const *db_type = "NCBI:align:db:alignment_sorted"; 
+    char const *db_type = "NCBI:align:db:alignment_sorted";
 /*    char const *db_type = "NCBI:align:db:unaligned"; */
-    
+
     rc = VDBManagerMakeUpdate(&mgr, NULL);
     if (rc) {
         (void)LOGERR (klogErr, rc, "failed to create VDB Manager!");
@@ -201,7 +201,7 @@ rc_t run ( char const progName[],
             }
             else {
                 VDatabase *db;
-                
+
                 rc = VDBManagerCreateDB(mgr, &db, schema, db_type, kcmInit + kcmMD5, "%s", G->outpath);
                 rc2 = VSchemaRelease(schema);
                 if (rc2)
@@ -223,15 +223,15 @@ rc_t run ( char const progName[],
                         (void)LOGERR(klogWarn, rc2, "Failed to close database");
                     rc = rc2;
                 }
-                
+
                 if (rc == 0) {
                     KMetadata *meta;
                     KDBManager *kmgr;
-                    
+
                     rc = VDBManagerOpenKDBManagerUpdate(mgr, &kmgr);
                     if (rc == 0) {
                         KDatabase *kdb;
-                        
+
                         rc = KDBManagerOpenDBUpdate(kmgr, &kdb, "%s", G->outpath);
                         if (rc == 0) {
                             rc = KDatabaseOpenMetadataUpdate(kdb, &meta);

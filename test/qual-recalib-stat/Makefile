@@ -28,7 +28,7 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/qual-recalib-stat
 
-TEST_TOOLS = 
+TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 

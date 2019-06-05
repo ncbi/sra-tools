@@ -69,6 +69,7 @@ const tui_id CACHE_PROC_PATH_ID     = CACHE_HDR_ID + 7;
 const tui_id CACHE_PROC_CLEAR_ID    = CACHE_HDR_ID + 8;
 const tui_id CACHE_RAM_LBL_ID       = CACHE_HDR_ID + 9;
 const tui_id CACHE_RAM_ID           = CACHE_HDR_ID + 10;
+const tui_id CACHE_RAM_UNIT_ID      = CACHE_HDR_ID + 11;
 
 const tui_id AWS_HDR_ID     = 400;
 const tui_id AWS_CB_ID      = AWS_HDR_ID + 1;
@@ -529,10 +530,16 @@ class vdbconf_view2 : public Dlg
         // called by controller if user has switched the active page
         virtual void onPageChanged( uint32_t old_page, uint32_t new_page )
         {
-            SetFocus( SAVE_BTN_ID );
+            tui_id hdr_id = page_id_2_hdr_id( old_page );
+            if ( hdr_id > 0 )
+                SetWidgetBackground( hdr_id, STATUS_COLOR );
+            hdr_id = page_id_2_hdr_id( new_page );
+            if ( hdr_id > 0 )
+            {
+                SetWidgetBackground( hdr_id, BOX_COLOR );
+                SetFocus( hdr_id );    
+            }
             update();
-            page_changed( old_page, false );
-            page_changed( new_page, true );            
         }
         
         // called by controller after reload/default/set credentials ...
@@ -545,8 +552,7 @@ class vdbconf_view2 : public Dlg
         vdbconf_model &model;   // store model
         vdbconf_grid grid;      // store the intermediate grid-model
         
-        // change the background of the tab-header if page has been switched
-        void page_changed( uint32_t page_id, bool status )
+        tui_id page_id_2_hdr_id( uint32_t page_id )
         {
             tui_id hdr_id = 0;
             switch( page_id )
@@ -559,8 +565,7 @@ class vdbconf_view2 : public Dlg
                 case PAGE_DBGAP : hdr_id = DBGAP_HDR_ID; break;
                 case PAGE_TOOLS : hdr_id = TOOLS_HDR_ID; break;                
             }
-            if ( hdr_id > 0 )
-                SetWidgetBackground( hdr_id, status ? BOX_COLOR : STATUS_COLOR );
+            return hdr_id;
         }
         
         // block of rectangles for populating widgets below
@@ -580,7 +585,8 @@ class vdbconf_view2 : public Dlg
         Tui_Rect imp_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +2 , 30, 1 ); }
         Tui_Rect imp_path_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +32, r.get_y() +2 , 30, 1 ); }
         Tui_Rect repo_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +4 , 21, 1 ); }
-        Tui_Rect ram_pages_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +17, r.get_y() + y , 14, 1 ); }
+        Tui_Rect ram_pages_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , 15, 1 ); }
+        Tui_Rect ram_unit_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +30, r.get_y() + y , 8, 1 ); }
         Tui_Rect repo_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +5 , r.get_w() -2, r.get_h() -6 ); }
         Tui_Rect pf_lbl_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +2 , r.get_w() -2, 1 ); }
         Tui_Rect pf_box_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() +3 , r.get_w() -2, 3 ); }
@@ -623,11 +629,20 @@ class vdbconf_view2 : public Dlg
             PopulateButton( rr, resize, DEFAULT_BTN_ID, "de&fault", BTN_COLOR_BG, BTN_COLOR_FG );
         }
 
+        void populate_tab_headers( Tui_Rect const &r, bool resize )
+        {
+            PopulateTabHdr( HDR_rect( r, 0 ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG );            
+            PopulateTabHdr( HDR_rect( r, 1 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NETW", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "D&BGAP", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, 6 ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG );
+        }
+        
         // populate the MAIN page
         void populate_MAIN( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 0 ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG );
-
             PopulateCheckbox( use_repo_rect( r, 2 ), resize, MAIN_USE_REMOTE_ID, "&Enable Remote Access",
                               model.is_remote_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
@@ -644,8 +659,6 @@ class vdbconf_view2 : public Dlg
         // populate the CACHE page
         void populate_CACHE( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 1 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG );
- 
             PopulateLabel( lbl1_rect( r, 2 ), resize, CACHE_REPO_LBL_ID, "public user repository location:",
                                 BOX_COLOR, LABEL_FG, page_id );
             PopulateButton( choose_rect( r, 3 ), resize, CACHE_REPO_CHOOSE_ID, "ch&oose",
@@ -670,13 +683,14 @@ class vdbconf_view2 : public Dlg
                                 BOX_COLOR, LABEL_FG, page_id );
             PopulateSpinEdit( ram_pages_rect( r, 12 ), resize, CACHE_RAM_ID,
                                 model.get_cache_amount_in_MB(), /* model-connection */
-                                1 /* min */, 1024 * 16 /* max */, BOX_COLOR, LABEL_FG, page_id );
+                                1 /* min */, 1024 * 16 /* max */, STATUS_COLOR, LABEL_FG, page_id );
+            PopulateLabel( ram_unit_rect( r, 12 ), resize, CACHE_RAM_UNIT_ID, "MB",
+                                BOX_COLOR, LABEL_FG, page_id );
         }
 
         // populate the AWS page
         void populate_AWS( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG );
             PopulateCheckbox( CB_rect( r ), resize, AWS_CB_ID, "acc&ept charges for AWS",
                                 model.does_user_accept_aws_charges(),   /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
@@ -699,7 +713,6 @@ class vdbconf_view2 : public Dlg
         // populate the GCP page
         void populate_GCP( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG );
             PopulateCheckbox( CB_rect( r ), resize, GCP_CB_ID, "acc&ept charges for GCP",
                                 model.does_user_accept_gcp_charges(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
@@ -712,13 +725,11 @@ class vdbconf_view2 : public Dlg
                                 LABEL_BG, INP_COLOR_FG, page_id );
             PopulateButton( choose_rect( r, 7 ), resize, GCP_CLEAR_ID, "c&lear",
                                 BTN_COLOR_BG, BTN_COLOR_FG, page_id );
-                                
         }
 
         // populate the NETWORK page
         void populate_NETW( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NETWORK", STATUS_COLOR, LABEL_FG );
             PopulateCheckbox( CB_rect( r ), resize, NETW_USE_PROXY_ID, "&use http-proxy",
                                 model.is_http_proxy_enabled(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
@@ -732,7 +743,6 @@ class vdbconf_view2 : public Dlg
         // populate the DBGAP page
         void populate_DBGAP( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "D&BGAP", STATUS_COLOR, LABEL_FG );
             PopulateButton( imp_rect( r ), resize, DBGAP_IMPORT_KEY_ID, "&Import Repository key",
                                 BTN_COLOR_BG, BTN_COLOR_FG, page_id );
             PopulateButton( imp_path_rect( r ), resize,  DBGAP_IMPORT_PATH_ID, "Set Defau&lt Import Path",
@@ -745,8 +755,6 @@ class vdbconf_view2 : public Dlg
         // populate the TOOLS page
         void populate_TOOLS( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
-            PopulateLabel( HDR_rect( r, 6 ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG );
-            
             PopulateLabel( pf_lbl_rect( r ), resize, TOOLS_PREFETCH_LBL_ID, "prefetch", CB_COLOR_FG, LABEL_FG, page_id );
             PopulateLabel( pf_box_rect( r ), resize, TOOLS_PREFETCH_BOX_ID, NULL, STATUS_COLOR, LABEL_FG, page_id );
             
@@ -765,6 +773,7 @@ class vdbconf_view2 : public Dlg
             Tui_Rect tab_rect = TAB_rect( r );            
 
             PopulateLabel( BODY_rect( tab_rect ), resize, BOX_ID, NULL, BOX_COLOR, LABEL_FG );
+            populate_tab_headers( tab_rect, resize );
             populate_MAIN( tab_rect, resize, PAGE_MAIN );
             populate_CACHE( tab_rect, resize, PAGE_CACHE );
             populate_AWS( tab_rect, resize, PAGE_AWS );
@@ -938,10 +947,12 @@ class vdbconf_ctrl2 : public Dlg_Runner
         // user has pressed the verify-button
         bool on_verify( Dlg &dlg, vdbconf_model * model )
         {
-            //return msg_ctrl::show_msg( dlg, "not yet implemented" );
+            return msg_ctrl::show_msg( dlg, "not yet implemented" );
+            /*
             std::string p = model -> get_current_dir();
             bool picked = pick_path_ctrl::pick( dlg, "pick a path", p );
             return msg_ctrl::show_msg( dlg, picked ? "true" : "false" );
+            */
         }
 
         // user has pressed the reload-button

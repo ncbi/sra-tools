@@ -152,6 +152,10 @@ static const char * table_usage[] = { "which seq-table to use in case of pacbio"
 static const char * strict_usage[] = { "terminate on invalid read", NULL };
 #define OPTION_STRICT   "strict"
 
+static const char * append_usage[] = { "append to output-file", NULL };
+#define OPTION_APPEND   "append"
+#define ALIAS_APPEND    "A"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -180,7 +184,8 @@ OptDef ToolOptions[] =
     { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false },
     { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
-    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false }
+    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
+    { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false }    
 };
 
 const char UsageDefaultName[] = "fasterq-dump";
@@ -251,7 +256,7 @@ typedef struct tool_ctx_t
 
     compress_t compress; /* helper.h */ 
 
-    bool force, show_progress, show_details;
+    bool force, show_progress, show_details, append;
     
     join_options join_options; /* helper.h */
 } tool_ctx_t;
@@ -303,6 +308,10 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
         rc = KOutMsg( "output-file  : '%s'\n", tool_ctx -> output_filename );
         rc = KOutMsg( "output-dir   : '%s'\n", tool_ctx -> output_dirname );
     }
+    if ( rc == 0 )
+    {
+        rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
+    }
     return rc;
 }
 
@@ -351,6 +360,7 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
         tool_ctx -> join_options . skip_tech = true;
 
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
+    tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
 }
 
 #define DFLT_MAX_FD 32
@@ -705,7 +715,8 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
                           tool_ctx -> buf_size,
                           tool_ctx -> show_progress,
                           tool_ctx -> force,
-                          tool_ctx -> compress ); /* temp_registry.c */
+                          tool_ctx -> compress,
+                          tool_ctx -> append ); /* temp_registry.c */
 
     /* in case some of the partial results have not been deleted be the concatenator */
     if ( registry != NULL )
@@ -833,7 +844,8 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
                           tool_ctx -> buf_size,
                           tool_ctx -> show_progress,
                           tool_ctx -> force,
-                          tool_ctx -> compress ); /* temp_registry.c */
+                          tool_ctx -> compress,
+                          tool_ctx -> append ); /* temp_registry.c */
 
     if ( registry != NULL )
         destroy_temp_registry( registry ); /* temp_registry.c */
@@ -885,6 +897,20 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
     return rc;
 }
 
+static rc_t check_for_already_existing_output_file( const tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    if ( !tool_ctx -> append && !tool_ctx -> force )
+    {
+        if ( file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) ) /* helper.c */
+        {
+            rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
+            ErrMsg( "creating ouput-file '%s' -> %R", tool_ctx -> output_filename, rc );
+        }
+    }
+    return rc;
+}
+
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -911,16 +937,10 @@ rc_t CC KMain ( int argc, char *argv [] )
                 rc = populate_tool_ctx( &tool_ctx, args ); /* above */
                 if ( rc == 0 )
                 {
-                    if ( !( tool_ctx . force ) &&
-                         file_exists( tool_ctx . dir, "%s", tool_ctx . output_filename ) ) /* helper.c */
-                    {
-                        rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
-                        ErrMsg( "creating ouput-file '%s' -> %R", tool_ctx . output_filename, rc );
-                    }
-                    else
-                    {
+                    rc = check_for_already_existing_output_file( &tool_ctx );
+                    if ( rc == 0 )
                         rc = perform_tool( &tool_ctx );     /* above */
-                    }
+
                     KDirectoryRelease( tool_ctx . dir );
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */
                 }

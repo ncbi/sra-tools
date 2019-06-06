@@ -175,6 +175,7 @@ typedef struct cmn_merge
     size_t buf_size;
     struct bg_progress * progress;
     bool force;
+    bool append;
     compress_t compress;
 } cmn_merge;
 
@@ -200,7 +201,8 @@ static rc_t CC merge_thread_func( const KThread *self, void *data )
             md -> cmn -> buf_size,
             md -> cmn -> progress,
             md -> cmn -> force,
-            md -> cmn -> compress );
+            md -> cmn -> append,
+            md -> cmn -> compress ); /* concatenator.c */
         release_SBuffer( &s_filename ); /* helper.c */
     }
     free( ( void * ) md );
@@ -250,7 +252,8 @@ rc_t temp_registry_merge( temp_registry * self,
                           size_t buf_size,
                           bool show_progress,
                           bool force,
-                          compress_t compress )
+                          compress_t compress,
+                          bool append )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -285,13 +288,13 @@ rc_t temp_registry_merge( temp_registry * self,
                     l,
                     buf_size,
                     progress,
-                    force,
+                    force, append,
                     compress ); /* concatenator.c */
             }
             else if ( count > 1 )
             {
                 /* we have MULTIPLE sets of files... */
-                cmn_merge cmn = { dir, output_filename, buf_size, progress, force, compress };
+                cmn_merge cmn = { dir, output_filename, buf_size, progress, force, append, compress };
                 on_merge_ctx omc = { &cmn, 0 };
                 VectorInit( &omc . threads, 0, count );
                 VectorForEach ( &self -> lists, false, on_merge, &omc );

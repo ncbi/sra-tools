@@ -1551,7 +1551,7 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
 }
 
 static rc_t MainDownload(Resolved *self, const Item * item,
-                         bool isDependency)
+                         bool isDependency, const VPath *vdbcache)
 {
 /*  bool canceled = false;*/
     rc_t rc = 0;
@@ -1574,10 +1574,22 @@ static rc_t MainDownload(Resolved *self, const Item * item,
     if (self->respFile != NULL) {
         rc = KSrvRespFileGetCache(self->respFile, &vcache);
         if (rc == 0) {
-            rc = VPathGetPath(vcache, &cache);
-            if (rc != 0) {
-                DISP_RC(rc, "VPathGetPath(MainDownload)");
-                return rc;
+            if (vdbcache != NULL) {
+                VPath * clocal = NULL;
+                rc = VFSManagerMakePathWithExtension(
+                    mane->vfsMgr, &clocal, vcache, ".vdbcache");
+                if (rc == 0) {
+                    RELEASE(VPath, vcache);
+                    vcache = clocal;
+                }
+
+            }
+            if (rc == 0) {
+                rc = VPathGetPath(vcache, &cache);
+                if (rc != 0) {
+                    DISP_RC(rc, "VPathGetPath(MainDownload)");
+                    return rc;
+                }
             }
         }
     }
@@ -1656,90 +1668,33 @@ static rc_t MainDownload(Resolved *self, const Item * item,
         rc = KSrvRespFileMakeIterator(self->respFile, &fi);
         while (rc == 0) {
             const VPath * path = NULL;
-            rc = KSrvRespFileIteratorNextPath(fi, &path);
-            if (rc == 0) {
-                if (path == NULL) {
-                    rc = rd;
-                    break;
+            if (vdbcache == NULL) {
+                rc = KSrvRespFileIteratorNextPath(fi, &path);
+                if (rc == 0) {
+                    if (path == NULL) {
+                        rc = rd;
+                        break;
+                    }
                 }
                 rd = MainDoDownload(self, item, isDependency, path, tmp);
-#if 0
-                bool ascp = false;
-                String scheme;
-                {
-                    char spath[PATH_MAX] = "";
-                    KStsLevel lvl = STS_DBG;
-                    rc_t r = VPathReadUri(path, spath, sizeof spath, NULL);
-                    if (mane->dryRun)
-                        lvl = STAT_USR;
-                    if (r != 0)
-                        STSMSG(lvl, ("########## VPathReadUri(remote)=%R)", r));
-                    else {
-                        uint64_t s = VPathGetSize(path);
-                        char * query = strstr(spath, "tic=");
-                        if (query != NULL) {
-                            if (*(query-1) == '?')
-                                --query;
-                            *query = '\0';
-                        }
-                        STSMSG(lvl, ("########## remote(%s:%,ld)", spath, s));
-                    }
-                }
-                memset(&scheme, 0, sizeof scheme);
-                rc = VPathGetScheme(path, &scheme);
-                ascp = _SchemeIsFasp(&scheme);
-                if (!mane->noAscp) {
-                    if (ascp) {
-                        STSMSG(STS_TOP, (" Downloading via fasp..."));
-                        if (mane->forceAscpFail)
-                            rc = 1;
-                        else if (mane->eliminateQuals) {
-                            LOGMSG(klogErr, "Cannot eliminate qualities "
-                                "during fasp download");
-                            rc = 1;
-                        }
-                        else if (mane->eliminateQuals) {
-                            LOGMSG(klogErr, "Cannot remove QUALITY columns "
-                                "during fasp download");
-                            rc = 1;
-                        }
-                        else
-                            rd = MainDownloadAscp(self, mane, tmp, path);
-                        if (rd == 0)
-                            STSMSG(STS_TOP, (" fasp download succeed"));
-                        else {
-                            rc_t rc = Quitting();
-                            if (rc != 0)
-                                canceled = true;
-                            else
-                                STSMSG(STS_TOP, (" fasp download failed"));
-                        }
-                    }
-                }
-                if (!ascp && (/*rc != 0 && GetRCObject(rc) != rcMemory&&*/
-                    !canceled && !mane->noHttp && !self->isUri))
-                {
-                    bool https = true;
-                    STSMSG(STS_TOP,
-                        (" Downloading via %s...", https ? "https" : "http"));
-                    if (mane->eliminateQuals)
-                        rd = MainDownloadCacheFile(self, mane,
-                            cache.addr, mane->eliminateQuals && !isDependency);
+            }
+            else
+                MainDoDownload(self, item, isDependency, vdbcache, tmp);
+            if (rd == 0 && vdbcache == NULL) {
+                const VPath * vdbcache = NULL;
+                rc_t rc = VPathGetVdbcache(path, & vdbcache, NULL);
+                if (rc == 0 && vdbcache != NULL) {
+                    STSMSG(STS_TOP, ("%d) Downloading '%s.vdbcache'...",
+                        item->number, self->name));
+                    if (MainDownload(self, item, isDependency, vdbcache) == 0)
+                        STSMSG(STS_TOP, (
+                            "%d) '%s.vdbcache' was downloaded successfully",
+                            item->number, self->name));
                     else
-                        rd = MainDownloadHttpFile(self, mane, tmp, path);
-                    if (rd == 0)
-                        STSMSG(STS_TOP, (" %s download succeed",
-                            https ? "https" : "http"));
-                    else {
-                        rc_t rc = Quitting();
-                        if (rc != 0)
-                            canceled = true;
-                        else
-                            STSMSG(STS_TOP, (" %s download failed",
-                                https ? "https" : "http"));
-                    }
+                        STSMSG(STS_TOP, ("%d) failed to download %s.vdbcache",
+                            item->number, self->name));
+                    RELEASE(VPath, vdbcache);
                 }
-#endif
             }
             RELEASE ( VPath, path );
             if (rd == 0)
@@ -2543,7 +2498,7 @@ static rc_t ItemDownload(Item *item) {
                     name = acc;
             }
             STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, name));
-            rc = MainDownload(self, item, item->isDependency);
+            rc = MainDownload(self, item, item->isDependency, NULL);
             if (rc == 0) {
                 if (self->inOutDir) {
                     const char * start = self->cache->addr;

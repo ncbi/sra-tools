@@ -761,7 +761,7 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     /* check if the output-file(s) do already exist, in case we are not overwriting */    
-    if ( !( tool_ctx -> force ) )
+    if ( !( tool_ctx -> force ) && !( tool_ctx -> append ) )
     {
         bool exists = false;
         switch( tool_ctx -> fmt )
@@ -897,20 +897,6 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
     return rc;
 }
 
-static rc_t check_for_already_existing_output_file( const tool_ctx_t * tool_ctx )
-{
-    rc_t rc = 0;
-    if ( !tool_ctx -> append && !tool_ctx -> force )
-    {
-        if ( file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) ) /* helper.c */
-        {
-            rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
-            ErrMsg( "creating ouput-file '%s' -> %R", tool_ctx -> output_filename, rc );
-        }
-    }
-    return rc;
-}
-
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -937,9 +923,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 rc = populate_tool_ctx( &tool_ctx, args ); /* above */
                 if ( rc == 0 )
                 {
-                    rc = check_for_already_existing_output_file( &tool_ctx );
-                    if ( rc == 0 )
-                        rc = perform_tool( &tool_ctx );     /* above */
+                    rc = perform_tool( &tool_ctx );     /* above */
 
                     KDirectoryRelease( tool_ctx . dir );
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */

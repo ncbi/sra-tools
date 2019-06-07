@@ -1288,27 +1288,24 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         else
             rc = KNSManagerMakeClientRequest ( mane -> kns,
                 & kns_req, http_vers, NULL, "%S", & src );
-        DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest",
-                   & src . addr );
+        DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest", src . addr );
 
         if ( rc == 0 ) {
             KClientHttpResult * rslt = NULL;
             rc = KClientHttpRequestGET ( kns_req, & rslt );
-            DISP_RC2 ( rc, "Cannot KClientHttpRequestGET",
-                       & src . addr );
+            DISP_RC2 ( rc, "Cannot KClientHttpRequestGET", src . addr );
 
             if ( rc == 0 ) {
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
                 DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
-                           & src . addr );
+                           src . addr );
 
                 while ( rc == 0 ) {
                     rc = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
                     if ( rc != 0 || num_read == 0) {
-                        DISP_RC2 ( rc, "Cannot KStreamRead",
-                                   & src . addr );
+                        DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
                         break;
                     }
 
@@ -2538,7 +2535,14 @@ static rc_t ItemDownload(Item *item) {
                 "name=%s", self->name));
         }
         else {
-            STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, self->name));
+            const char * name = self->name;
+            if (self->respFile != NULL) {
+                const char * acc = NULL;
+                rc_t r2 = KSrvRespFileGetName(self->respFile, &acc);
+                if (r2 == 0 && acc != NULL)
+                    name = acc;
+            }
+            STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, name));
             rc = MainDownload(self, item, item->isDependency);
             if (rc == 0) {
                 if (self->inOutDir) {
@@ -2551,17 +2555,17 @@ static rc_t ItemDownload(Item *item) {
                     if ( item->mane->outDir != NULL )
                         STSMSG(STS_TOP,
                             ("%d) '%s' was downloaded successfully (%s/%.*s)",
-                            n, self->name, item->mane->outDir,
+                            n, name, item->mane->outDir,
                             ( uint32_t ) ( end - start ), start));
                     else
                         STSMSG(STS_TOP,
                             ("%d) '%s' was downloaded successfully (%.*s)",
-                            n, self->name,
+                            n, name,
                             ( uint32_t ) ( end - start ), start));
                 }
                 else
                     STSMSG(STS_TOP, ("%d) '%s' was downloaded successfully",
-                                       n, self->name));
+                                       n, name));
                 if (self->cache != NULL) {
                     VPathStrFini(&self->path);
                     rc = StringCopy(&self->path.str, self->cache);
@@ -2570,7 +2574,7 @@ static rc_t ItemDownload(Item *item) {
             else if (rc != SILENT_RC(rcExe,
                 rcProcess, rcExecuting, rcProcess, rcCanceled))
             {
-                STSMSG(STS_TOP, ("%d) failed to download %s", n, self->name));
+                STSMSG(STS_TOP, ("%d) failed to download %s", n, name));
             }
         }
     }
@@ -4125,6 +4129,8 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
     if (rc == 0) {
         rc = VFSManagerMake(&self->vfsMgr);
         DISP_RC(rc, "VFSManagerMake");
+        if (rc == 0)
+            VFSManagerSetAdCaching(self->vfsMgr, true);
     }
 
     if ( rc == 0 )

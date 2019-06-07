@@ -1684,11 +1684,11 @@ static rc_t MainDownload(Resolved *self, const Item * item,
                 const VPath * vdbcache = NULL;
                 rc_t rc = VPathGetVdbcache(path, & vdbcache, NULL);
                 if (rc == 0 && vdbcache != NULL) {
-                    STSMSG(STS_TOP, ("%d) Downloading '%s.vdbcache'...",
+                    STSMSG(STS_TOP, ("%d,2) Downloading '%s.vdbcache'...",
                         item->number, self->name));
                     if (MainDownload(self, item, isDependency, vdbcache) == 0)
                         STSMSG(STS_TOP, (
-                            "%d) '%s.vdbcache' was downloaded successfully",
+                            "%di.2) '%s.vdbcache' was downloaded successfully",
                             item->number, self->name));
                     else
                         STSMSG(STS_TOP, ("%d) failed to download %s.vdbcache",

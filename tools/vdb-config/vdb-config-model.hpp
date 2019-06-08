@@ -234,10 +234,16 @@ class vdbconf_model
         std::string get_aws_profile(void) const;
         void set_aws_profile(const std::string & name);
 
+        /* how much memory to use for caching */
+        uint32_t get_cache_amount_in_MB( void ) const;
+        void set_cache_amount_in_MB( uint32_t value );
+        
         // ----------------------------------------------------------------
         bool commit( void );
         void reload( void ); // throws on error
-
+        void set_defaults( void );
+        std::string get_dflt_import_path_start_dir( void );
+        
     private :
         CKConfig & _config;
 

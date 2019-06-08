@@ -41,7 +41,11 @@
 extern "C" {
 #endif
 
-    rc_t run_interactive ( vdbconf_model & model );
+/* implemented in interactive.cpp */
+rc_t run_interactive ( vdbconf_model & model );
+
+/* implemented in interactive2.cpp */
+rc_t run_interactive2 ( vdbconf_model & model );
 
 #ifdef __cplusplus
 }

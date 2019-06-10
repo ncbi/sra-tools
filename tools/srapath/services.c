@@ -323,12 +323,17 @@ static unsigned json_print_named_urls_and_service(  char const *const name
                                                   , bool const comma)
 {
     if (url) {
+        bool ce = false;
+        bool pay = false;
         String service;
         String const *tmp = NULL;
         rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
 
         memset(&service, 0, sizeof service);
         VPathGetService(url, &service);
+
+        VPathGetCeRequired(url, &ce);
+        VPathGetPayRequired(url, &pay);
 
         if (count == 0) {
             OUTMSG(("%.*s\"%s\": ["
@@ -338,6 +343,8 @@ static unsigned json_print_named_urls_and_service(  char const *const name
         OUTMSG(("%.*s{ ", count > 0 ? 2 : 0, ",\n"));
         json_print_nVp("path", tmp, false);
         json_print_nVp("service", &service, true);
+        json_print_nvp("CE-Required", ce ? "true" : "false", true);
+        json_print_nvp("Payment-Required", pay ? "true" : "false", true);
         OUTMSG((" }"));
 
         free((void *)tmp);

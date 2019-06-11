@@ -799,10 +799,14 @@ MAKE_LINKS:
         my $toolpath = which($_) or die "no $_ in PATH";
         $path{$_} = $toolpath;
     }
+    die "$_-orig exists" if -f "$_-orig" for (keys %path);
     for (keys %path) {
-        unlink "$_-orig" if -f "$_-orig";
-        unlink $_ if -f $_;
-        symlink $path{$_}, "$_-orig";
+        if (-e $_) {
+            rename $_, "$_-orig"
+        }
+        else {
+            symlink $path{$_}, "$_-orig";
+        }
         symlink "sratools", $_
     }
     symlink "sratools.pl", "sratools";

@@ -28,10 +28,6 @@ use constant {
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 
-goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
-
-delete $ENV{$_} for qw{ VDB_RUN_URL VDB_RUN_CACHE VDB_RUN_SIZE VDB_CACHE_URL VDB_CACHE_CACHE VDB_CACHE_SIZE };
-
 sub loadConfig;
 my %config = %{loadConfig()};
 # print Dumper(\%config); exit 0;
@@ -41,14 +37,17 @@ sub getRAMLimit($);
 ### We can consider the value from the environment
 $ENV{VDB_MEM_LIMIT} = getRAMLimit($ENV{VDB_MEM_LIMIT});
 
+goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
+goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
+
+delete $ENV{$_} for qw{ VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
+
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
 goto RUNNING_AS_SAM_DUMP        if $basename =~ /^sam-dump/;
 goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
 goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
 goto RUNNING_AS_SRA_PILEUP      if $basename =~ /^sra-pileup/;
-
-goto RUN_TESTS if $ENV{DRIVER_TOOL_RUN_TESTS};
 
 sub usage();
 sub help(@);
@@ -105,14 +104,16 @@ sub processAccessions($$\@@)
             my $kid = fork(); die "can't fork: $!" unless defined $kid;            
             if ($kid == 0) {
                 if ($run) {
-                    $ENV{VDB_RUN_URL} = $run->{'url'};
-                    $ENV{VDB_RUN_CACHE} = $run->{'cache'};
-                    $ENV{VDB_RUN_SIZE} = $run->{'size'} > 0 ? (''.$run->{'size'}) : '';
+                    $ENV{VDB_REMOTE_URL} = $run->{'url'};
+                    $ENV{VDB_CACHE_URL} = $run->{'cache'};
+                    $ENV{VDB_LOCAL_URL} = $run->{'local'};
+                    $ENV{VDB_SIZE_URL} = $run->{'size'} > 0 ? (''.$run->{'size'}) : '';
                 }
                 if ($vdbcache) {
-                    $ENV{VDB_CACHE_URL} = $vdbcache->{'url'};
-                    $ENV{VDB_CACHE_CACHE} = $vdbcache->{'cache'};
-                    $ENV{VDB_CACHE_SIZE} = $vdbcache->{'size'} > 0 ? (''.$vdbcache->{'size'}) : '';
+                    $ENV{VDB_REMOTE_VDBCACHE} = $vdbcache->{'url'};
+                    $ENV{VDB_CACHE_VDBCACHE} = $vdbcache->{'cache'};
+                    $ENV{VDB_LOCAL_VDBCACHE} = $vdbcache->{'local'};
+                    $ENV{VDB_SIZE_VDBCACHE} = $vdbcache->{'size'} > 0 ? (''.$vdbcache->{'size'}) : '';
                 }
     
                 exec {$toolpath} $0, @$params, $run; ### tool should run as what user invoked
@@ -236,94 +237,81 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
         goto FALLBACK;
     }
     my $run = $_[$index{$accession}->{'sra'}];
-
-    if (!defined($index{$accession}->{'vdbcache'})) {
-        # there is no vdbcache for this run
-
-        if ($run->{'local'}) {
-            # use the local copy of the run
-            push @result, { 'run' => {
-                      'url' => $run->{'local'}
-                    , 'source' => 'local'
-                    , 'size' => $run->{'size'} // -1
-                    , 'cache' => $run->{'cache'} // ''
-                }
-            };
-        }
-        else {
-            # try all remotes in order
-            for (@{$run->{remote}}) {
-                push @result, { 'run' => {
-                          'url' => $_->{'path'}
-                        , 'source' => $_->{'service'}
-                        , 'size' => $run->{'size'} // -1
-                        , 'cache' => $run->{'cache'} // ''
-                    }
-                };
-            }
-        }
-        return @result;
-    }
-
-    # have a vdbcache
-    my $vdbcache = $_[$index{$accession}->{'vdbcache'}];
-    my $default_vdbcache = $vdbcache->{'local'} ? { 'path' => $vdbcache->{'local'}, 'service' => 'local' } : undef;
+    my $default_vdbcache;
     
-    if (!defined($default_vdbcache)) {
-        # default to the vdbcache from ncbi or the first if not from ncbi
-        $default_vdbcache = $vdbcache->{'remote'}->[0];
+    # find the default vdbcache
+    if (defined($index{$accession}->{'vdbcache'})) {
+        my $vdbcache = $_[$index{$accession}->{'vdbcache'}];
+        my ($local, $cache, $size) = @$vdbcache{'local', 'cache', 'size'};
+
+        # find the vdbcache from ncbi        
         for (@{$vdbcache->{'remote'}}) {
-            if ($_->{'service'} eq 'sra-ncbi') {
-                $default_vdbcache = $_;
-                last;
+            next unless $_->{'service'} eq 'sra-ncbi';
+            $default_vdbcache = {
+                  'local' => $local // ''
+                , 'url' => $_->{'path'}
+                , 'source' => $_->{'service'}
+                , 'cache' => $cache // ''
+                , 'size' => $size // -1
+            };
+            last
+        }
+        if (!defined($default_vdbcache)) {
+            # use the first vdbcache
+            $default_vdbcache = {
+                  'local' => $local // ''
+                , 'url' => $vdbcache->{'remote'}->[0]->{'path'}
+                , 'source' => $vdbcache->{'remote'}->[0]->{'service'}
+                , 'cache' => $cache // ''
+                , 'size' => $size // -1
             }
         }
     }
+    my ($local, $cache, $size) = @$run{'local', 'cache', 'size'};
 
-    if ($run->{'local'}) {
-        # use the local copy of the run and the vdbcache from local or default
-        push @result, {
-            'run' => {
-                  'url' => $run->{'local'}
+    for (@{$run->{'remote'}}) {
+        push @result, { 'run' => {
+                  'url' => $_->{'path'}
+                , 'source' => $_->{'service'}
+                , 'size' => $size // -1
+                , 'local' => $local // ''
+                , 'cache' => $cache // ''
+            }
+        }
+    }
+    if (defined($index{$accession}->{'vdbcache'})) {
+        my $vdbcache = $_[$index{$accession}->{'vdbcache'}];
+        my ($local, $cache, $size) = @$vdbcache{'local', 'cache', 'size'};
+
+        # add vdbcache info to each run result
+        for (@result) {
+            my $source = $_->{run}->{'source'};
+            for my $vc (@{$vdbcache->{'remote'}}) {
+                next unless $vc->{'service'} eq $source;
+                $_->{'vdbcache'} = {
+                      'local' => $local // ''
+                    , 'url' => $vc->{'path'}
+                    , 'source' => $source
+                    , 'cache' => $cache // ''
+                    , 'size' => $size // -1
+                };
+                last
+            }
+            next if $_->{'vdbcache'};
+            $_->{'vdbcache'} = $default_vdbcache;
+        }
+    }
+    if (!@result && $run->{'local'}) {
+        # use the local copy of the run and the default vdbcache (which might be nothing)
+        push @result, { 'run' => {
+                  'local' => $run->{'local'}
+                , 'url' => undef
                 , 'source' => 'local'
                 , 'size' => $run->{'size'} // -1
                 , 'cache' => $run->{'cache'} // ''
             },
-            'vdbcache' => {
-                  'url' => $default_vdbcache->{'path'}
-                , 'source' => $default_vdbcache->{'service'}
-                , 'size' => $vdbcache->{'size'} // -1
-                , 'cache' => $vdbcache->{'cache'} // ''
-            }
-        };
-        return @result;
-    }
-    # there is no local copy of run
-    # try all remotes in order
-    # for vdbcache, use local or same source or default
-    for (@{$run->{remote}}) {
-        my $r = $_;
-        my $c = $vdbcache->{'local'} ? { 'path' => $vdbcache->{'local'}, 'service' => 'local' } : undef;
-        
-        for (@{$vdbcache->{'remote'}}) {
-            last if $c;
-            next unless $r->{service} eq $_->{service};
-            $c = $_;
+            'vdbcache' => $default_vdbcache
         }
-        push @result, {
-            'run' => {
-                  'url' => $r->{'path'}
-                , 'source' => $r->{'service'}
-                , 'size' => $run->{'size'} // -1
-                , 'cache' => $run->{'cache'} // ''
-            },
-            'vdbcache' => {
-                  'url' => ($c || $default_vdbcache)->{'path'}
-                , 'source' => ($c || $default_vdbcache)->{'service'}
-                , 'size' => $vdbcache->{'size'} // -1
-                , 'cache' => $vdbcache->{'cache'} // ''
-            }
-        };
     }
     return @result;
 }
@@ -1577,13 +1565,31 @@ JSON
 my @result;
 
 @result = extract_from_srapath('SRR850901', @{$json});
-ok( scalar(@result) == 1 && defined($result[0]->{run}) && defined($result[0]->{vdbcache}) && $result[0]->{run}->{source} eq 'local', 'srapath parse JSON: local run; remote vdbcache' );
+ok( scalar(@result) == 2 && defined($result[0]->{run}) && defined($result[0]->{vdbcache}) && $result[0]->{run}->{local}
+, 'srapath parse JSON: local run; remote vdbcache' );
 
 @result = extract_from_srapath('SRR850902', @{$json});
-ok( scalar(@result) == 2 && defined($result[0]->{run}) && defined($result[0]->{run}->{cache}) && defined($result[1]->{run}->{url}) && $result[0]->{vdbcache}->{url} eq $result[1]->{vdbcache}->{url} && $result[0]->{run}->{source} eq 'sra-ncbi' && $result[1]->{run}->{source} eq 'sra-sos', 'srapath parse JSON: remote multi-source run, single vdbcache' );
+ok( scalar(@result) == 2
+ && defined($result[0]->{run})
+ && defined($result[1]->{run})
+ && $result[0]->{run}->{url} 
+ && $result[1]->{run}->{url} 
+ && $result[0]->{run}->{local} eq ''
+ && $result[1]->{run}->{local} eq ''
+ && $result[0]->{run}->{source} eq 'sra-ncbi' 
+ && $result[1]->{run}->{source} eq 'sra-sos'
+ && $result[0]->{run}->{cache} eq $result[1]->{run}->{cache} 
+ && defined($result[0]->{vdbcache}) 
+ && defined($result[1]->{vdbcache}) 
+ && $result[0]->{vdbcache}->{url} eq $result[1]->{vdbcache}->{url} 
+, 'srapath parse JSON: remote multi-source run, single vdbcache' );
 
 @result = extract_from_srapath('SRR850903', @{$json});
-ok( scalar(@result) == 1 && defined($result[0]->{run}) && !defined($result[0]->{vdbcache}) && $result[0]->{run}->{source} eq 'local', 'srapath parse JSON: local run, no vdbcache' );
+ok( scalar(@result) == 2
+ && defined($result[0]->{run})
+ && !defined($result[0]->{vdbcache}) 
+ && $result[0]->{run}->{local}
+, 'srapath parse JSON: local run, no vdbcache' );
 
 @result = extract_from_srapath('SRR850904', @{$json});
 ok( scalar(@result) == 2 && defined($result[0]->{run}) && !defined($result[0]->{vdbcache}) && defined($result[1]->{run}) && !defined($result[1]->{vdbcache}) && $result[0]->{run}->{source} eq 'sra-ncbi' && $result[1]->{run}->{source} eq 'sra-sos', 'srapath parse JSON: remote multi-source run, no vdbcache' );

@@ -21,7 +21,7 @@
  *  Please cite the author in any work or product based on this material.
  *
  * ===========================================================================
- * 
+ *
  */
 
 #include <sysalloc.h>
@@ -46,12 +46,12 @@
 
 #include "fastq-parse.h"
 
-extern rc_t run(char const argv0[], 
+extern rc_t run(char const argv0[],
                 struct CommonWriterSettings* G,
-                unsigned countReads, 
+                unsigned countReads,
                 const char* reads[],
                 enum FASTQQualityFormat qualityFormat,
-                const int8_t defaultReadNumbers[], 
+                const int8_t defaultReadNumbers[],
                 bool ignoreSpotGroups);
 
 /* MARK: Arguments and Usage */
@@ -92,83 +92,83 @@ static char const option_ignore_illumina_tags[] = "ignore-illumina-tags";
 #define ALIAS_QUALITY "q"
 
 static
-char const * output_usage[] = 
+char const * output_usage[] =
 {
     "Path and Name of the output database.",
     NULL
 };
 
 static
-char const * tmpfs_usage[] = 
+char const * tmpfs_usage[] =
 {
     "Path to be used for scratch files.",
     NULL
 };
 
 static
-char const * qcomp_usage[] = 
+char const * qcomp_usage[] =
 {
     "Quality scores quantization level, can be a number (0: none - default, 1: 2bit, 2: 1bit), or a string like '1:10,10:20,20:30,30:-' (which is equivalent to 1).",
     NULL
 };
 
 static
-char const * cache_size_usage[] = 
+char const * cache_size_usage[] =
 {
     "Set the cache size in MB for the temporary indices",
     NULL
 };
 
 static
-char const * mrc_usage[] = 
+char const * mrc_usage[] =
 {
     "Set the maximum number of records to process from the FASTQ file",
     NULL
 };
 
 static
-char const * mec_usage[] = 
+char const * mec_usage[] =
 {
     "Set the maximum number of errors to ignore from the FASTQ file",
     NULL
 };
 
 static
-char const * use_platform[] = 
+char const * use_platform[] =
 {
     "Platform (ILLUMINA, LS454, SOLID, COMPLETE_GENOMICS, HELICOS, PACBIO, IONTORRENT, CAPILLARY)",
     NULL
 };
 
 static
-char const * use_quality[] = 
+char const * use_quality[] =
 {
     "Quality encoding (PHRED_33, PHRED_64, LOGODDS)",
     NULL
 };
 
 /*static
-char const * use_read[] = 
+char const * use_read[] =
 {
     "Default read number (1 or 2)",
     NULL
 };*/
 
 static
-char const * use_max_err_pct[] = 
+char const * use_max_err_pct[] =
 {
     "acceptable percentage of spots creation errors, default is 5",
     NULL
 };
 
 static
-char const * use_ignore_illumina_tags[] = 
+char const * use_ignore_illumina_tags[] =
 {
     "ignore barcodes contained in Illumina-formatted names",
     NULL
 };
 
-OptDef Options[] = 
+OptDef Options[] =
 {
     /* order here is same as in param array below!!! */                                 /* max#,  needs param, required */
     { OPTION_OUTPUT,                ALIAS_OUTPUT,           NULL, output_usage,             1,  true,        true },
@@ -274,7 +274,7 @@ static bool platform_cmp(char const platform[], char const test[])
     for (i = 0; ; ++i) {
         int ch1 = test[i];
         int ch2 = toupper(platform[i]);
-        
+
         if (ch1 != ch2)
             break;
         if (ch1 == 0)
@@ -338,7 +338,7 @@ static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char con
     size_t const plen = strlen(path);
     bool const hasBase = base && base[0];
     bool const isBareName = strchr(path, '/') == NULL;
-    
+
     if (isBareName && hasBase) {
         if (string_printf(rslt, sz, NULL, "%s/%s", base, path) == 0)
             return 0;
@@ -367,10 +367,9 @@ rc_t CC KMain (int argc, char * argv[])
     const XMLLogger* xml_logger = NULL;
     enum FASTQQualityFormat qualityFormat;
     bool ignoreSpotGroups;
-    
+
     memset(&G, 0, sizeof(G));
-    
-    G.mode = mode_Archive;
+
     G.maxSeqLen = TableWriterRefSeq_MAX_SEQ_LEN;
     G.schemaPath = SCHEMAFILE;
     G.omit_aligned_reads = true;
@@ -384,10 +383,10 @@ rc_t CC KMain (int argc, char * argv[])
 #endif
     G.maxErrCount = 1000;
     G.maxErrPct = 5;
-    G.acceptNoMatch = true; 
-    G.minMatchCount = 0; 
+    G.acceptNoMatch = true;
+    G.minMatchCount = 0;
     G.QualQuantizer="0";
-    
+
     set_pid();
 
     rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
@@ -399,7 +398,7 @@ rc_t CC KMain (int argc, char * argv[])
         if( (rc = XMLLogger_Make(&xml_logger, NULL, args)) != 0 ) {
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_TMPFS, &pcount);
         if (rc)
             break;
@@ -416,7 +415,7 @@ rc_t CC KMain (int argc, char * argv[])
             MiniUsage (args);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_OUTPUT, &pcount);
         if (rc)
             break;
@@ -439,7 +438,7 @@ rc_t CC KMain (int argc, char * argv[])
             MiniUsage (args);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_QCOMP, &pcount);
         if (rc)
             break;
@@ -449,7 +448,7 @@ rc_t CC KMain (int argc, char * argv[])
             if (rc)
                 break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_CACHE_SIZE, &pcount);
         if (rc)
             break;
@@ -466,9 +465,9 @@ rc_t CC KMain (int argc, char * argv[])
                 break;
             }
         }
-        
+
         G.expectUnsorted = true;
-        
+
         rc = ArgsOptionCount (args, OPTION_MAX_REC_COUNT, &pcount);
         if (rc)
             break;
@@ -479,7 +478,7 @@ rc_t CC KMain (int argc, char * argv[])
                 break;
             G.maxAlignCount = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_MAX_ERR_COUNT, &pcount);
         if (rc)
             break;
@@ -490,7 +489,7 @@ rc_t CC KMain (int argc, char * argv[])
                 break;
             G.maxErrCount = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_MAX_ERR_PCT, &pcount);
         if (rc)
             break;
@@ -501,7 +500,7 @@ rc_t CC KMain (int argc, char * argv[])
                 break;
             G.maxErrPct = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_PLATFORM, &pcount);
         if (rc)
             break;
@@ -546,12 +545,12 @@ rc_t CC KMain (int argc, char * argv[])
         }
         else
             qualityFormat = 0;
-            
+
         rc = ArgsOptionCount (args, OPTION_IGNORE_ILLUMINA_TAGS, &pcount);
         if (rc)
             break;
         ignoreSpotGroups = pcount > 0;
-        
+
         rc = ArgsParamCount (args, &pcount);
         if (rc) break;
         if (pcount == 0)
@@ -569,7 +568,7 @@ rc_t CC KMain (int argc, char * argv[])
         else {
             size_t need = G.inpath ? (strlen(G.inpath) + 1) * pcount : 0;
             unsigned i;
-            
+
             for (i = 0; i < pcount; ++i) {
                 rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
@@ -577,17 +576,17 @@ rc_t CC KMain (int argc, char * argv[])
             }
             nbsz = need;
         }
-        
+
         name_buffer = malloc(nbsz);
         if (name_buffer == NULL) {
             rc = RC(rcApp, rcArgv, rcAccessing, rcMemory, rcExhausted);
             break;
         }
-        
+
         rc = ArgsParamCount (args, &pcount);
         if (rc == 0) {
             unsigned i;
-            
+
             for (i = 0; i < pcount; ++i) {
                 rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
@@ -601,7 +600,7 @@ rc_t CC KMain (int argc, char * argv[])
         }
         else
             break;
-        
+
         rc = run(argv[0], &G, pcount, (char const **)files, qualityFormat, defaultReadNumbers, ignoreSpotGroups);
         break;
     }

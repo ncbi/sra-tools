@@ -24,494 +24,28 @@
  *
  */
 
-#include <sysalloc.h>
-#include <string.h>
-#include <assert.h>
-#include <stdlib.h>
+#include "common-writer.h"
+
 #include <stdio.h>
-#include <ctype.h>
 
 #include <klib/log.h>
 #include <klib/rc.h>
 #include <klib/printf.h>
-#include <klib/status.h>
 
-#include <kdb/btree.h>
+#include <kfs/file.h>
 
-#include <kapp/progressbar.h>
 #include <kapp/main.h>
+#include <kapp/progressbar.h>
 
 #include <kproc/queue.h>
 #include <kproc/thread.h>
 #include <kproc/timeout.h>
-#include <os-native.h>
 
-#include <kfs/file.h>
-#include <kfs/pagefile.h>
-
-#include <vdb/manager.h>
-#include <vdb/database.h>
-
-#include "sequence-writer.h"
-#include "common-writer.h"
 #include "common-reader-priv.h"
-
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
+#include "spot-assembler.h"
+#include "sequence-writer.h"
 
 #define USE_READER_THREAD (1)
-
-/*--------------------------------------------------------------------------
- * ctx_value_t, FragmentInfo
- */
-typedef struct {
-/*    uint64_t spotId; */
-    int64_t fragmentOffset;
-    uint16_t fragmentSize;
-    uint16_t seqHash[2];
-    uint8_t  unmated: 1,
-             has_a_read: 1,
-             written: 1;
-} ctx_value_t;
-
-#define CTX_VALUE_SET_S_ID(A, B) ((void)(B))
-
-typedef struct FragmentInfo {
-    uint32_t readlen;
-    uint8_t  is_bad;
-    uint8_t  orientation;
-    uint8_t  otherReadNo;
-    uint8_t  sglen;
-    uint8_t  cskey;
-} FragmentInfo;
-
-#define MMA_ELEM_T ctx_value_t
-#include "mmarray.c"
-#undef MMA_ELEM_T
-
-rc_t OpenKBTree(const CommonWriterSettings* settings, struct KBTree **const rslt, size_t const n, size_t const max)
-{
-    size_t const cacheSize = (((settings->cache_size - (settings->cache_size / 2) - (settings->cache_size / 8)) / max)
-                            + 0xFFFFF) & ~((size_t)0xFFFFF);
-    KFile *file = NULL;
-    KDirectory *dir;
-    char fname[4096];
-    rc_t rc;
-
-    rc = KDirectoryNativeDir(&dir);
-    if (rc)
-        return rc;
-
-    rc = string_printf(fname, sizeof(fname), NULL, "%s/key2id.%u.%u", settings->tmpfs, settings->pid, n); if (rc) return rc;
-    STSMSG(1, ("Path for scratch files: %s\n", fname));
-    rc = KDirectoryCreateFile(dir, &file, true, 0600, kcmInit, "%s", fname);
-    KDirectoryRemove(dir, 0, "%s", fname);
-    KDirectoryRelease(dir);
-    if (rc == 0) {
-        rc = KBTreeMakeUpdate(rslt, file, cacheSize,
-                              false, kbtOpaqueKey,
-                              1, 255, sizeof ( uint32_t ),
-                              NULL
-                              );
-        KFileRelease(file);
-    }
-    return rc;
-}
-
-rc_t GetKeyIDOld(const CommonWriterSettings* settings, SpotAssembler* const ctx, uint64_t *const rslt, bool *const wasInserted, char const key[], char const name[], size_t const namelen)
-{
-    size_t const keylen = strlen(key);
-    rc_t rc;
-    uint64_t tmpKey;
-
-    if (ctx->key2id_count == 0) {
-        rc = OpenKBTree(settings, &ctx->key2id[0], 1, 1);
-        if (rc) return rc;
-        ctx->key2id_count = 1;
-    }
-    if (keylen == 0 || memcmp(key, name, keylen) == 0) {
-        /* qname starts with read group; no append */
-        tmpKey = ctx->idCount[0];
-        rc = KBTreeEntry(ctx->key2id[0], &tmpKey, wasInserted, name, namelen);
-    }
-    else {
-        char sbuf[4096];
-        char *buf = sbuf;
-        char *hbuf = NULL;
-        size_t bsize = sizeof(sbuf);
-        size_t actsize;
-
-        if (keylen + namelen + 2 > bsize) {
-            hbuf = malloc(bsize = keylen + namelen + 2);
-            if (hbuf == NULL)
-                return RC(rcExe, rcName, rcAllocating, rcMemory, rcExhausted);
-            buf = hbuf;
-        }
-        rc = string_printf(buf, bsize, &actsize, "%s\t%.*s", key, (int)namelen, name);
-
-        tmpKey = ctx->idCount[0];
-        rc = KBTreeEntry(ctx->key2id[0], &tmpKey, wasInserted, buf, actsize);
-        if (hbuf)
-            free(hbuf);
-    }
-    if (rc == 0) {
-        *rslt = tmpKey;
-        if (*wasInserted)
-            ++ctx->idCount[0];
-    }
-    return rc;
-}
-
-static unsigned HashValue(unsigned const len, unsigned char const value[])
-{
-    /* FNV-1a hash with folding */
-    unsigned long long h = 0xcbf29ce484222325ull;
-    unsigned i;
-
-    for (i = 0; i < len; ++i) {
-        int const octet = value[i];
-        h = (h ^ octet) * 0x100000001b3ull;
-    }
-    return (unsigned)(h ^ (h >> 32));
-}
-
-static unsigned HashKey(void const *const key, size_t const keylen)
-{
-    return HashValue(keylen, key) % NUM_ID_SPACES;
-}
-
-static unsigned SeqHashKey(void const *const key, size_t const keylen)
-{
-    return HashValue(keylen, key) % 0x10000;
-}
-
-#define USE_ILLUMINA_NAMING_POUND_NUMBER_SLASH_HACK 1
-
-static size_t GetFixedNameLength(char const name[], size_t const namelen)
-{
-#if USE_ILLUMINA_NAMING_POUND_NUMBER_SLASH_HACK
-    char const *const pound = string_chr(name, namelen, '#');
-
-    if (pound && pound + 2u < name + namelen && pound[1] >= '0' && pound[1] <= '9' && pound[2] == '/') {
-        return (size_t)(pound - name) + 2u;
-    }
-#endif
-    return namelen;
-}
-
-rc_t GetKeyID(CommonWriterSettings *const settings,
-              SpotAssembler *const ctx,
-              uint64_t *const rslt,
-              bool *const wasInserted,
-              char const key[],
-              char const name[],
-              size_t const o_namelen)
-{
-    size_t const namelen = GetFixedNameLength(name, o_namelen);
-
-    if (ctx->key2id_max == 1)
-        return GetKeyIDOld(settings, ctx, rslt, wasInserted, key, name, namelen);
-    else {
-        size_t const keylen = strlen(key);
-        unsigned const h = HashKey(key, keylen);
-        size_t f;
-        size_t e = ctx->key2id_count;
-        uint64_t tmpKey;
-
-        *rslt = 0;
-        {{
-            uint32_t const bucket_value = ctx->key2id_hash[h];
-            unsigned const n  = (uint8_t) bucket_value;
-            unsigned const i1 = (uint8_t)(bucket_value >>  8);
-            unsigned const i2 = (uint8_t)(bucket_value >> 16);
-            unsigned const i3 = (uint8_t)(bucket_value >> 24);
-
-            if (n > 0 && strcmp(key, ctx->key2id_names + ctx->key2id_name[i1]) == 0) {
-                f = i1;
-                /*
-                ctx->key2id_hash[h] = (i3 << 24) | (i2 << 16) | (i1 << 8) | n;
-                 */
-                goto GET_ID;
-            }
-            if (n > 1 && strcmp(key, ctx->key2id_names + ctx->key2id_name[i2]) == 0) {
-                f = i2;
-                ctx->key2id_hash[h] = (i3 << 24) | (i1 << 16) | (i2 << 8) | n;
-                goto GET_ID;
-            }
-            if (n > 2 && strcmp(key, ctx->key2id_names + ctx->key2id_name[i3]) == 0) {
-                f = i3;
-                ctx->key2id_hash[h] = (i2 << 24) | (i1 << 16) | (i3 << 8) | n;
-                goto GET_ID;
-            }
-        }}
-        f = 0;
-        while (f < e) {
-            size_t const m = (f + e) / 2;
-            size_t const oid = ctx->key2id_oid[m];
-            int const diff = strcmp(key, ctx->key2id_names + ctx->key2id_name[oid]);
-
-            if (diff < 0)
-                e = m;
-            else if (diff > 0)
-                f = m + 1;
-            else {
-                f = oid;
-                goto GET_ID;
-            }
-        }
-        if (ctx->key2id_count < ctx->key2id_max) {
-            size_t const name_max = ctx->key2id_name_max + keylen + 1;
-            KBTree *tree;
-            rc_t rc = OpenKBTree(settings, &tree, ctx->key2id_count + 1, 1); /* ctx->key2id_max); */
-
-            if (rc) return rc;
-
-            if (ctx->key2id_name_alloc < name_max) {
-                size_t alloc = ctx->key2id_name_alloc;
-                void *tmp;
-
-                if (alloc == 0)
-                    alloc = 4096;
-                while (alloc < name_max)
-                    alloc <<= 1;
-                tmp = realloc(ctx->key2id_names, alloc);
-                if (tmp == NULL)
-                    return RC(rcExe, rcName, rcAllocating, rcMemory, rcExhausted);
-                ctx->key2id_names = tmp;
-                ctx->key2id_name_alloc = alloc;
-            }
-            if (f < ctx->key2id_count) {
-                memmove(&ctx->key2id_oid[f + 1], &ctx->key2id_oid[f], (ctx->key2id_count - f) * sizeof(ctx->key2id_oid[f]));
-            }
-            ctx->key2id_oid[f] = ctx->key2id_count;
-            ++ctx->key2id_count;
-            f = ctx->key2id_oid[f];
-            ctx->key2id_name[f] = ctx->key2id_name_max;
-            ctx->key2id_name_max = name_max;
-
-            memmove(&ctx->key2id_names[ctx->key2id_name[f]], key, keylen + 1);
-            ctx->key2id[f] = tree;
-            ctx->idCount[f] = 0;
-            if ((uint8_t)ctx->key2id_hash[h] < 3) {
-                unsigned const n = (uint8_t)ctx->key2id_hash[h] + 1;
-
-                ctx->key2id_hash[h] = (uint32_t)((((ctx->key2id_hash[h] & ~(0xFFu)) | f) << 8) | n);
-            }
-            else {
-                /* the hash function isn't working too well
-                 * keep the 3 mru
-                 */
-                ctx->key2id_hash[h] = (uint32_t)((((ctx->key2id_hash[h] & ~(0xFFu)) | f) << 8) | 3);
-            }
-        GET_ID:
-            tmpKey = ctx->idCount[f];
-            rc = KBTreeEntry(ctx->key2id[f], &tmpKey, wasInserted, name, namelen);
-            if (rc == 0) {
-                *rslt = (((uint64_t)f) << 32) | tmpKey;
-                if (*wasInserted)
-                    ++ctx->idCount[f];
-                assert(tmpKey < ctx->idCount[f]);
-            }
-            return rc;
-        }
-        return RC(rcExe, rcTree, rcAllocating, rcConstraint, rcViolated);
-    }
-}
-
-static int openTempFile(char const path[])
-{
-    int const fd = open(path, O_RDWR|O_TRUNC|O_CREAT, S_IRUSR|S_IWUSR);
-    unlink(path);
-    return fd;
-}
-
-static rc_t OpenMMapFile(const CommonWriterSettings* settings, SpotAssembler *const ctx, KDirectory *const dir)
-{
-    char fname[4096];
-    rc_t rc = string_printf(fname, sizeof(fname), NULL, "%s/id2value.%u", settings->tmpfs, settings->pid);
-
-    if (rc == 0) {
-        int const fd = openTempFile(fname);
-        if (fd >= 0)
-            ctx->id2value = MMArrayMake(&rc, fd);
-        else
-            rc = RC(rcExe, rcFile, rcCreating, rcFile, rcNotFound);
-    }
-    return rc;
-}
-
-static rc_t OpenMBankFile(const CommonWriterSettings* settings, SpotAssembler *const ctx, KDirectory *const dir)
-{
-    char fname[4096];
-    rc_t rc = string_printf(fname, sizeof(fname), NULL, "%s/fragments.%u", settings->tmpfs, settings->pid);
-
-    if (rc == 0) {
-        int const fd = openTempFile(fname);
-        if (fd < 0)
-            rc = RC(rcExe, rcFile, rcCreating, rcFile, rcNotFound);
-        else
-            ctx->fragmentFd = fd;
-    }
-    return rc;
-}
-
-rc_t SetupContext(const CommonWriterSettings* settings, SpotAssembler *ctx)
-{
-    rc_t rc = 0;
-
-    memset(ctx, 0, sizeof(*ctx));
-
-    ctx->fragment = calloc(FRAGMENT_HOT_COUNT, sizeof(ctx->fragment[0]));
-    assert(ctx->fragment != NULL);
-    if (ctx->fragment == NULL)
-        abort();
-
-    ctx->pass = 1;
-
-    if (settings->mode == mode_Archive) {
-        KDirectory *dir;
-
-        STSMSG(1, ("Cache size: %uM\n", settings->cache_size / 1024 / 1024));
-
-        rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[3], 0); if (rc) return rc;
-
-        KLoadProgressbar_Append(ctx->progress[0], 100 * settings->numfiles);
-
-        rc = KDirectoryNativeDir(&dir);
-        if (rc == 0)
-            rc = OpenMMapFile(settings, ctx, dir);
-        if (rc == 0)
-            rc = OpenMBankFile(settings, ctx, dir);
-        KDirectoryRelease(dir);
-    }
-    return rc;
-}
-
-void ContextReleaseMemBank(SpotAssembler *ctx)
-{
-    int i;
-
-    for (i = 0; i < FRAGMENT_HOT_COUNT; ++i)
-        free(ctx->fragment[i].data);
-
-    close(ctx->fragmentFd);
-}
-
-void ContextRelease(SpotAssembler *ctx)
-{
-    KLoadProgressbar_Release(ctx->progress[0], true);
-    KLoadProgressbar_Release(ctx->progress[1], true);
-    KLoadProgressbar_Release(ctx->progress[2], true);
-    KLoadProgressbar_Release(ctx->progress[3], true);
-    MMArrayWhack(ctx->id2value);
-    free(ctx->fragment);
-}
-
-static
-rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx, SequenceWriter *seq)
-{
-    uint32_t i;
-    unsigned j;
-    uint64_t idCount = 0;
-    rc_t rc;
-    KDataBuffer fragBuf;
-    SequenceRecord srec;
-    int const pass = ctx->pass;
-
-    ++ctx->pass;
-    memset(&srec, 0, sizeof(srec));
-
-    rc = KDataBufferMake(&fragBuf, 8, 0);
-    if (rc) {
-        (void)LOGERR(klogErr, rc, "KDataBufferMake failed");
-        return rc;
-    }
-    for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
-        idCount += ctx->idCount[j];
-    }
-    KLoadProgressbar_Append(ctx->progress[pass], idCount);
-
-    for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
-        for (i = 0; i != ctx->idCount[j]; ++i, ++idCount) {
-            uint64_t const keyId = ((uint64_t)j << 32) | i;
-            ctx_value_t *value;
-            unsigned readLen[2];
-            unsigned read = 0;
-            FragmentInfo const *fip;
-            uint8_t const *src;
-
-            value = MMArrayGet(ctx->id2value, &rc, keyId);
-            if (value == NULL)
-                break;
-            KLoadProgressbar_Process(ctx->progress[pass], 1, false);
-
-            if (value->written)
-                continue;
-
-            assert(!value->unmated);
-            if (ctx->fragment[keyId % FRAGMENT_HOT_COUNT].id == keyId) {
-                fip = (FragmentInfo const *)ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data;
-            }
-            else {
-                rc = KDataBufferResize(&fragBuf, (size_t)value->fragmentSize);
-                if (rc == 0) {
-                    int64_t const nread = pread(ctx->fragmentFd, fragBuf.base, value->fragmentSize, value->fragmentOffset);
-                    if (nread == value->fragmentSize)
-                        fip = (FragmentInfo const *)fragBuf.base;
-                    else {
-                        (void)LOGERR(klogErr, rc = RC(rcExe, rcFile, rcReading, rcData, rcNotFound), "KMemBankRead failed");
-                        break;
-                    }
-                }
-                else {
-                    (void)LOGERR(klogErr, rc, "KDataBufferResize failed");
-                    break;
-                }
-            }
-            src = (uint8_t const *)&fip[1];
-
-            readLen[0] = readLen[1] = 0;
-            read = fip->otherReadNo - 1;
-
-            readLen[read] = fip->readlen;
-            rc = SequenceRecordInit(&srec, 2, readLen);
-            if (rc) {
-                (void)LOGERR(klogErr, rc, "SequenceRecordInit failed");
-                break;
-            }
-
-            srec.is_bad[read] = fip->is_bad;
-            srec.orientation[read] = fip->orientation;
-            srec.cskey[read] = fip->cskey;
-            memmove(srec.seq + srec.readStart[read], src, srec.readLen[read]);
-            src += fip->readlen;
-
-            memmove(srec.qual + srec.readStart[read], src, srec.readLen[read]);
-            src += fip->readlen;
-            srec.spotGroup = (char *)src;
-            srec.spotGroupLen = fip->sglen;
-            srec.keyId = keyId;
-
-            rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, false, settings->platform,
-                                    settings->keepMismatchQual, settings->no_real_output, settings->hasTI, settings->QualQuantizer);
-            if (rc) {
-                (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
-                break;
-            }
-            /*rc = KMemBankFree(frags, id);*/
-            CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
-            value->written = 1;
-        }
-    }
-    /*printf("DONE_SOLO:\tcnt2=%d\tcnt1=%d\n",fcountBoth,fcountOne);*/
-    KDataBufferWhack(&fragBuf);
-    KDataBufferWhack(&srec.storage);
-    return rc;
-}
 
 void EditAlignedQualities(const CommonWriterSettings* settings, uint8_t qual[], bool const hasMismatch[], unsigned readlen) /* generic */
 {
@@ -887,7 +421,12 @@ static void readSequence(CommonWriterSettings *const G, SpotAssembler *const ctx
     if (!mated)
         readNo = 1;
 
-    rc = GetKeyID(G, ctx, &keyId, &wasInserted, spotGroup, name, strlen(name));
+    rc = SpotAssemblerGetKeyID(ctx,
+                               &keyId,
+                               &wasInserted,
+                               spotGroup,
+                               name,
+                               strlen(name));
     if (rc != 0) {
         rslt->type = rr_error;
         rslt->u.error.rc = rc;
@@ -927,7 +466,7 @@ static void freeReadResultSequence(struct ReadResult const *const rslt)
     free(rslt->u.sequence.quality);
 }
 
-static void readRejected(CommonWriterSettings *const G, SpotAssembler *const ctx, Rejected const *const reject, struct ReadResult *const rslt)
+static void readRejected(Rejected const *const reject, struct ReadResult *const rslt)
 {
     char const *message;
     uint64_t line = 0;
@@ -981,7 +520,7 @@ static void readRecord(CommonWriterSettings *const G, SpotAssembler *const ctx, 
         return;
     }
     assert(rej != NULL);
-    readRejected(G, ctx, rej, rslt);
+    readRejected(rej, rslt);
     RejectedRelease(rej);
 }
 
@@ -1108,7 +647,7 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
     while ((rslt.u.error.rc = Quitting()) == 0) {
         timeout_t tm;
         void *rr = NULL;
-        
+
         TimeoutInit(&tm, 10000);
         rslt.u.error.rc = KQueuePop(self->que, &rr, &tm);
         if (rslt.u.error.rc == 0) {
@@ -1156,9 +695,10 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                  CommonWriterSettings *const G,
                  struct SpotAssembler *const ctx,
                  struct SequenceWriter *const seq,
-                 bool *const had_sequences)
+                 bool *const had_sequences,
+                 bool *const isColorSpace,
+                 const struct KLoadProgressbar *progress_bar)
 {
-    KDataBuffer buf;
     KDataBuffer fragBuf;
     rc_t rc;
     SequenceRecord srec;
@@ -1167,7 +707,6 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     uint64_t filterFlagConflictRecords=0; /*** counts number of conflicts between flags 'duplicate' and 'lowQuality' ***/
 #define MAX_WARNINGS_FLAG_CONFLICT 10000 /*** maximum errors to report ***/
 
-    bool isColorSpace = false;
     bool isNotColorSpace = G->noColorSpace;
     char const *const fileName = ReaderFileGetPathname(reader);
     struct ReadThreadContext threadCtx;
@@ -1175,9 +714,8 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     uint64_t spotsCompleted = 0;
     uint64_t fragmentsEvicted = 0;
 
-    if (ctx->key2id_max == 0) {
-        ctx->key2id_max = 1;
-    }
+    assert ( isColorSpace );
+    *isColorSpace = false;
 
     memset(&srec, 0, sizeof(srec));
     memset(&threadCtx, 0, sizeof(threadCtx));
@@ -1186,10 +724,6 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     threadCtx.reader = reader;
 
     rc = KDataBufferMake(&fragBuf, 8, 4096);
-    if (rc)
-        return rc;
-
-    rc = KDataBufferMake(&buf, 16, 0);
     if (rc)
         return rc;
 
@@ -1205,7 +739,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
 
         if ((unsigned)(rr.progress * 100.0) > progress) {
             unsigned new_value = rr.progress * 100.0;
-            KLoadProgressbar_Process(ctx->progress[0], new_value - progress, false);
+            KLoadProgressbar_Process(progress_bar, new_value - progress, false);
             progress = new_value;
         }
         if (rr.type == rr_done)
@@ -1253,7 +787,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
             uint8_t const *const qual = rr.u.sequence.quality;
             unsigned const readlen = rr.u.sequence.readLen;
             int const readOrientation = !!rr.u.sequence.orientation;
-            bool const reverse = isColorSpace ? false : (readOrientation == ReadOrientationReverse);
+            bool const reverse = * isColorSpace ? false : (readOrientation == ReadOrientationReverse);
             char const cskey = rr.u.sequence.cskey;
             bool const bad = !!rr.u.sequence.bad;
             char const *const spotGroup = rr.u.sequence.spotGroup;
@@ -1268,15 +802,15 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains base space and color space", "file=%s", fileName));
                         goto LOOP_END;
                     }
-                    ctx->isColorSpace = isColorSpace = true;
+                    * isColorSpace = true;
                 }
-                else if (isColorSpace)
+                else if ( * isColorSpace )
                     goto MIXED_BASE_AND_COLOR;
                 else
                     isNotColorSpace = true;
             }
 
-            value = MMArrayGet(ctx->id2value, &rc, keyId);
+            value = SpotAssemblerGetCtxValue(ctx, &rc, keyId);
             if (value == NULL) {
                 (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
                 goto LOOP_END;
@@ -1305,9 +839,10 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                     /* new mated fragment - do spot assembly */
                     unsigned sz;
                     FragmentInfo fi;
-                    int64_t const victimId = ctx->fragment[keyId % FRAGMENT_HOT_COUNT].id;
-                    void *const victimData = ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data;
                     void *myData = NULL;
+                    FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
+                    int64_t const victimId = frag -> id;
+                    void *const victimData = frag -> data;
 
                     ++fragmentsAdded;
                     value->seqHash[readNo - 1] = SeqHashKey(seqDNA, readlen);
@@ -1337,25 +872,27 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         dst += fi.readlen;
                         memmove(dst,spotGroup,fi.sglen);
                     }}
-                    ctx->fragment[keyId % FRAGMENT_HOT_COUNT].id = keyId;
-                    ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data = myData;
+
+                    frag->id = keyId;
+                    frag->data = myData;
+
                     value->has_a_read = 1;
                     value->fragmentSize = sz;
                     *had_sequences = true;
 
                     if (victimData != NULL) {
-                        ctx_value_t *const victim = MMArrayGet(ctx->id2value, &rc, victimId);
+                        ctx_value_t *const victim = SpotAssemblerGetCtxValue(ctx, &rc, victimId);
                         if (victim == NULL) {
                             (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", victimId));
                             abort();
                             goto LOOP_END;
                         }
                         if (victim->fragmentOffset < 0) {
-                            int64_t const pos = ctx->nextFragment;
-                            int64_t const nwrit = pwrite(ctx->fragmentFd, victimData, victim->fragmentSize, pos);
+                            int64_t const pos = ctx->nextFragment; //AB
+                            int64_t const nwrit = pwrite(ctx->fragmentFd, victimData, victim->fragmentSize, pos); //AB
 
                             if (nwrit == victim->fragmentSize) {
-                                ctx->nextFragment += victim->fragmentSize;
+                                ctx->nextFragment += victim->fragmentSize; //AB
                                 victim->fragmentOffset = pos;
                                 free(victimData);
                                 ++fragmentsEvicted;
@@ -1372,15 +909,20 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                             goto LOOP_END;
                         }
                     }
+
+                    /* save the read, to be used whan mate shows up, or in SpotAssemblerWriteSoloFragments() */
+                    rc = Id2Name_Add ( & ctx->id2name, keyId, name );
                 }
                 else {
                     /* might be second fragment */
                     uint64_t const sz = value->fragmentSize;
                     bool freeFip = false;
                     FragmentInfo *fip = NULL;
+                    FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
 
-                    if (ctx->fragment[keyId % FRAGMENT_HOT_COUNT].id == keyId) {
-                        fip = ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data;
+                    if (frag->id == keyId)
+                    {
+                        fip = frag->data;
                         freeFip = true;
                     }
                     else {
@@ -1391,7 +933,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                             abort();
                             goto LOOP_END;
                         }
-                        nread = pread(ctx->fragmentFd, fragBuf.base, sz, value->fragmentOffset);
+                        nread = pread(ctx->fragmentFd, fragBuf.base, sz, value->fragmentOffset); //AB
                         if (nread == sz) {
                             fip = (FragmentInfo *) fragBuf.base;
                         }
@@ -1446,19 +988,27 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         srec.is_bad[read2] = bad;
                         srec.cskey[read2] = cskey;
 
+                        rc = Id2Name_Get ( & ctx->id2name, keyId, (const char**) & srec.spotName );
+                        if (rc)
+                        {
+                            (void)LOGERR(klogErr, rc, "Is2Name_Get failed");
+                            goto LOOP_END;
+                        }
+                        srec.spotNameLen = strlen(srec.spotName);
+
                         srec.spotGroup = (char *)spotGroup;
                         srec.spotGroupLen = strlen(spotGroup);
-                        rc = SequenceWriteRecord(seq, &srec, isColorSpace, false, G->platform,
+                        rc = SequenceWriteRecord(seq, &srec, *isColorSpace, false, G->platform,
                                                  G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer);
                         if (freeFip) {
                             free(fip);
-                            ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data = NULL;
+                            frag->data = NULL;
                         }
                         if (rc) {
                             (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
                             goto LOOP_END;
                         }
-                        CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
+                        CTX_VALUE_SET_S_ID(*value, ++ctx->spotId); //AB
                         value->written = 1;
                     }
                 }
@@ -1466,10 +1016,13 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
             else if (value->written) {
                 (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id", "name=%s", name));
             }
-            else if (value->has_a_read) {
-                if (ctx->fragment[keyId % FRAGMENT_HOT_COUNT].id == keyId) {
-                    free(ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data);
-                    ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data = NULL;
+            else if (value->has_a_read)
+            {
+                FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
+                if (frag -> id == keyId)
+                {
+                    free ( frag -> data );
+                    frag -> data = NULL;
                 }
                 (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen with mate info, now has no mate info",
@@ -1502,13 +1055,13 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                 srec.spotName = (char *)name;
                 srec.spotNameLen = namelen;
 
-                rc = SequenceWriteRecord(seq, &srec, isColorSpace, false, G->platform,
+                rc = SequenceWriteRecord(seq, &srec, *isColorSpace, false, G->platform,
                                          G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer);
                 if (rc) {
                     (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
                     goto LOOP_END;
                 }
-                CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
+                CTX_VALUE_SET_S_ID(*value, ++ctx->spotId); //AB
                 value->written = 1;
                 *had_sequences = true;
             }
@@ -1576,7 +1129,6 @@ LOOP_END:
     (void)PLOGMSG(klogDebug, (klogDebug, "Fragments added to spot assembler: $(added). Fragments evicted to disk: $(evicted). Spots completed: $(completed)",
         "added=%lu,evicted=%lu,completed=%lu", fragmentsAdded, fragmentsEvicted, spotsCompleted));
 
-    KDataBufferWhack(&buf);
     KDataBufferWhack(&fragBuf);
     KDataBufferWhack(&srec.storage);
     return rc;
@@ -1597,18 +1149,22 @@ rc_t CommonWriterInit(CommonWriter* self, struct VDBManager *mgr, struct VDataba
     if (G)
         self->settings = *G;
 
+    self->seq = malloc(sizeof(*self->seq));
+    if (self->seq == 0)
     {
-        self->seq = malloc(sizeof(*self->seq));
-        if (self->seq == 0)
-        {
-            return RC(rcAlign, rcArc, rcAllocating, rcMemory, rcExhausted);
-        }
-        SequenceWriterInit(self->seq, db);
-
-        rc = SetupContext(&self->settings, &self->ctx);
+        return RC(rcAlign, rcArc, rcAllocating, rcMemory, rcExhausted);
     }
+    SequenceWriterInit(self->seq, db);
+
     if (self->settings.tmpfs == NULL)
         self->settings.tmpfs = "/tmp";
+
+    rc = KLoadProgressbar_Make(&self->progress, 0);
+    if (rc) return rc;
+
+    KLoadProgressbar_Append(self->progress, 100 * self->settings.numfiles);
+
+    rc = SpotAssemblerMake ( & self->ctx, self->settings.cache_size, self->settings.tmpfs, self->settings.pid);
 
     self->commit = true;
 
@@ -1624,9 +1180,11 @@ rc_t CommonWriterArchive(CommonWriter *const self,
     assert(self);
     rc = ArchiveFile(reader,
                      &self->settings,
-                     &self->ctx,
+                     self->ctx,
                      self->seq,
-                     &has_sequences);
+                     &has_sequences,
+                     &self->isColorSpace,
+                     self->progress);
     if (rc)
         self->commit = false;
     else
@@ -1639,28 +1197,30 @@ rc_t CommonWriterArchive(CommonWriter *const self,
 rc_t CommonWriterComplete(CommonWriter* self, bool quitting, uint64_t maxDistance)
 {
     rc_t rc=0;
-    /*** No longer need memory for key2id ***/
-    size_t i;
-    for (i = 0; i != self->ctx.key2id_count; ++i) {
-        KBTreeDropBacking(self->ctx.key2id[i]);
-        KBTreeRelease(self->ctx.key2id[i]);
-        self->ctx.key2id[i] = NULL;
-    }
-    free(self->ctx.key2id_names);
-    self->ctx.key2id_names = NULL;
-    /*******************/
-
-    if (self->had_sequences) {
-        if (!quitting) {
+    if (self->had_sequences)
+    {
+        if (!quitting)
+        {
             (void)LOGMSG(klogInfo, "Writing unpaired sequences");
-            rc = WriteSoloFragments(&self->settings, &self->ctx, self->seq);
-            ContextReleaseMemBank(&self->ctx);
-            if (rc == 0) {
+            rc = SpotAssemblerWriteSoloFragments(self->ctx,
+                                                 self->isColorSpace,
+                                                 self->settings.platform,
+                                                 self->settings.keepMismatchQual,
+                                                 self->settings.no_real_output,
+                                                 self->settings.hasTI,
+                                                 self->settings.QualQuantizer,
+                                                 self->seq,
+                                                 self->progress);
+            SpotAssemblerReleaseMemBank(self->ctx);
+            if (rc == 0)
+            {
                 rc = SequenceDoneWriting(self->seq);
             }
         }
         else
-            ContextReleaseMemBank(&self->ctx);
+        {
+            SpotAssemblerReleaseMemBank(self->ctx);
+        }
     }
 
     return rc;
@@ -1671,7 +1231,9 @@ rc_t CommonWriterWhack(CommonWriter* self)
     rc_t rc = 0;
     assert(self);
 
-    ContextRelease(&self->ctx);
+    SpotAssemblerRelease(self->ctx);
+
+    KLoadProgressbar_Release(self->progress, true);
 
     if (self->seq)
     {

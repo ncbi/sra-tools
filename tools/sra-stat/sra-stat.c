@@ -2722,7 +2722,19 @@ rc_t print_results(const Ctx* ctx)
 {
     rc_t rc = 0;
     rc_t rc2 = 0;
+
     bool mismatch = false;
+
+    /*
+    mismatchCMP_BASE_COUNT is ignored.
+    It is detected in runs
+    that are DBs with a single SEQUENCE but no no references, e.g. SRR6336685.
+    The currect schema used during load
+    is recording CMP_BASE_COUNT == BIO_BASE_COUNT
+    even though the run does not have any referecne
+    and CMP_BASE_COUNT doesn't make any sense and should be equal to 0
+    */
+    bool mismatchCMP_BASE_COUNT = false;
 
     assert(ctx && ctx->pb
         && ctx->tr && ctx->sizes && ctx->info && ctx->meta_stats && ctx->total);
@@ -2739,7 +2751,6 @@ rc_t print_results(const Ctx* ctx)
     }
 
     if (ctx->meta_stats->found && ! ctx->pb->quick) {
-/*      bool mismatch = false; */
         SraStats* ss = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
         const SraStatsMeta* m = &ctx->meta_stats->table;
         if (ctx->total->BASE_COUNT != m->BASE_COUNT)
@@ -2748,8 +2759,16 @@ rc_t print_results(const Ctx* ctx)
         { mismatch = true; }
         if (ctx->total->spot_count != m->spot_count)
         { mismatch = true; }
-        if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
-        { mismatch = true; }
+        if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT) {
+            if (ctx->total->total_cmp_len == 0 &&
+                ctx->total->BASE_COUNT == m->CMP_BASE_COUNT &&
+                ctx->db != NULL)
+            {
+                mismatchCMP_BASE_COUNT = true;
+            }
+            else
+                mismatch = true;
+        }
         if (ss != NULL) {
             const SraStatsMeta* m = &ctx->meta_stats->table;
             uint32_t i = 0;
@@ -2764,10 +2783,22 @@ rc_t print_results(const Ctx* ctx)
                     mismatch = true;
                     break;
                 }
+                if (ss->total_cmp_len != m->CMP_BASE_COUNT)
+                {
+                    if (ctx->total->total_cmp_len == 0 &&
+                        ss->total_len == m->CMP_BASE_COUNT &&
+                        ctx->db != NULL)
+                    {
+                        mismatchCMP_BASE_COUNT = true;
+                    }
+                    else {
+                        mismatch = true;
+                        break;
+                    }
+                }
                 if (ss->total_len != m->BASE_COUNT
                     || ss->bio_len != m->BIO_BASE_COUNT
-                    || ss->spot_count != m->spot_count
-                    || ss->total_cmp_len != m->CMP_BASE_COUNT)
+                    || ss->spot_count != m->spot_count)
                 {
                     mismatch = true;
                     break;
@@ -2851,8 +2882,16 @@ rc_t print_results(const Ctx* ctx)
             {
                 mismatch = true;
             }
-            if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
-            {   mismatch = true; }
+            if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT) {
+                if (ctx->pb->total.total_cmp_len == 0 &&
+                    ctx->pb->total.BASE_COUNT == m->CMP_BASE_COUNT &&
+                    ctx->db != NULL)
+                {
+                    mismatchCMP_BASE_COUNT = true;
+                }
+                else
+                    mismatch = true;
+            }
         }
         if (ctx->pb->total.spot_count != ctx->total->spot_count ||
             ctx->pb->total.spot_count_mates != ctx->total->spot_count_mates ||
@@ -2961,6 +3000,8 @@ rc_t print_results(const Ctx* ctx)
                 ctx -> n, ctx -> l ) );
         OUTMSG(("</Run>\n"));
     }
+
+    if (mismatchCMP_BASE_COUNT != 0) /* ignore it */;
     if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
         /* check mismatch just when no --start, --stop specified */
         LOGMSG(klogWarn,

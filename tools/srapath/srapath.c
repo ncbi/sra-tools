@@ -359,6 +359,7 @@ static rc_t resolve_arguments( Args * args )
                 LOGERR ( klogErr, rc, "failed to get VResolver object" );
             else
             {
+                rc_t r2 = 0;
                 uint32_t idx;
 
                 rc = ArgsOptionCount ( args, OPTION_PROTO, & idx );
@@ -384,9 +385,14 @@ static rc_t resolve_arguments( Args * args )
                     rc = ArgsParamValue( args, idx, ( const void ** )&pc );
                     if ( rc != 0 )
                         LOGERR( klogInt, rc, "failed to retrieve parameter value" );
-                    else
-                        rc = resolve_one_argument( mgr, resolver, pc );
+                    else {
+                        rc_t rx = resolve_one_argument( mgr, resolver, pc );
+                        if ( rx != 0 && r2 == 0)
+                            r2 = rx;
+                    }
                 }
+                if (r2 != 0 && rc == 0)
+                    rc = r2;
                 VResolverRelease( resolver );
             }
             VFSManagerRelease( mgr );

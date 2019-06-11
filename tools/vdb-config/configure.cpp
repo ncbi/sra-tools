@@ -222,7 +222,7 @@ public:
             }
         }
         if (rc == 0) {
-            m_Config = new vdbconf_model(m_Cfg.Get());
+            m_Config = new vdbconf_model( m_Cfg );
             if (m_Config == NULL) {
                 rc = TODO;
             }
@@ -235,11 +235,6 @@ public:
     virtual rc_t Configure(void) {
         OUTMSG(("Fixed default configuration\n"));
         return 0;
-    }
-
-    vdbconf_model *getModel ()
-    {
-        return m_Config;
     }
 };
 struct SUserRepo {
@@ -377,7 +372,7 @@ class CTextualConfigurator : public CConfigurator {
             return "";
         }
     }
-    
+
     void ProcessCancel(SData &d) {
         if (!d.updated) {
             d.done = true;
@@ -834,11 +829,3 @@ rc_t configure(EConfigMode mode) {
     return rc;
 }
 
-vdbconf_model & configure_model ()
-{
-    CConfigurator *c = new CVisualConfigurator;
-    vdbconf_model *m = c -> getModel ();
-    //delete c;
-
-    return *m;
-}

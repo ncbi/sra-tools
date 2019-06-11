@@ -31,9 +31,12 @@ TOP ?= $(abspath ../..)
 MODULE = test/fastq-loader
 
 TEST_TOOLS = \
+	test-id2name \
 	wb-test-fastq \
 	wb-test-fastq-parse \
 	test-fastq-loader
+
+VDB_CONFIG = $(SRCDIR)
 
 include $(TOP)/build/Makefile.env
 
@@ -66,6 +69,26 @@ $(TEST_BINDIR)/wb-test-fastq-parse: $(FASTQ_PARSE_OBJ)
 parse: wb-test-fastq-parse
 	$(TEST_BINDIR)/wb-test-fastq-parse  2>&1
 
+#-------------------------------------------------------------------------------
+# id2name
+#
+ID2NAME_TEST_SRC = \
+	test-id2name
+
+ID2NAME_TEST_OBJ = \
+	$(addsuffix .$(OBJX),$(ID2NAME_TEST_SRC))
+
+ID2NAME_TEST_LIB = \
+	-skapp \
+	-sktst \
+	-sfastqloader \
+	-sncbi-vdb
+
+$(TEST_BINDIR)/test-id2name: $(ID2NAME_TEST_OBJ)
+	$(LP) --exe -o $@ $^ $(ID2NAME_TEST_LIB)
+
+id: test-id2name
+	$(TEST_BINDIR)/test-id2name  2>&1
 
 #-------------------------------------------------------------------------------
 # white-box test
@@ -111,13 +134,12 @@ tfl:
 # scripted tests
 #
 runtests: wb parse set_schema smalltests
-	rm -v tmp.kfg
 
 set_schema:
 	echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
 
-SMALLRUN = @ export NCBI_SETTINGS=/ ; export VDB_CONFIG=`pwd` ; \
-	$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
+SMALLRUN = @ NCBI_SETTINGS= VDB_CONFIG=$(SRCDIR) $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
+
 smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
 #   Small tests
@@ -230,14 +252,15 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
 	$(SMALLRUN) 14.0 0 $(SRCDIR)/input/14.0.fasta $(SRCDIR)/input/14.0.fasta --quality PHRED_33
-	rm -rf $(SRCDIR)/actual
     # VDB-3154: buffer insufficient
 	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33
     # VDB-3413: multi-line reads and qualities
 	$(SMALLRUN) 16.0 0 $(SRCDIR)/input/16.0.fasta --quality PHRED_33 --platform=PACBIO
 	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
+	#
+	#rm -rf $(SRCDIR)/actual
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
+	$(SMALLRUN) 8.1 3 $(SRCDIR)/input/8.1.fastq --quality PHRED_33
 

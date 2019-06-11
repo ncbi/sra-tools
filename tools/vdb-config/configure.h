@@ -46,10 +46,4 @@ rc_t configure(EConfigMode mode);
 }
 #endif
 
-#ifdef __cplusplus
-class vdbconf_model;
-
-vdbconf_model &configure_model();
-#endif 
-
 #endif /* _h_tools_vdb_config_configure_ */

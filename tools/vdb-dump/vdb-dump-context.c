@@ -139,7 +139,8 @@ static void vdco_init_values( p_dump_context ctx )
     ctx->show_spotgroups = false;
     ctx->show_spread = false;
     ctx->len_spread = false;
-    ctx->interactive = false;    
+    ctx->interactive = false; 
+    ctx->append = false;
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -610,6 +611,7 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->len_spread = vdco_get_bool_option( my_args, OPTION_LEN_SPREAD, false );
     ctx->interactive = vdco_get_bool_option( my_args, OPTION_INTERACTIVE, false );
     ctx->slice_depth = vdco_get_uint16_option( my_args, OPTION_SLICE, 0 );
+    ctx->append = vdco_get_bool_option( my_args, OPTION_APPEND, false );
     
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );

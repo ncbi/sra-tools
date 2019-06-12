@@ -85,6 +85,8 @@ extern "C" {
 /*#define OPTION_SRASCHEMA         "sraschema"*/
 #define OPTION_MERGE_RANGES      "merge-ranges"
 #define OPTION_SPREAD            "spread"
+#define OPTION_APPEND            "append"
+
 #define OPTION_SLICE             "slice"
 #define OPTION_INTERACTIVE       "interactive"
 #define OPTION_LEN_SPREAD        "len-spread"
@@ -114,6 +116,7 @@ extern "C" {
 #define ALIAS_OBJTYPE           "y"
 #define ALIAS_NUMELEM           "u"
 #define ALIAS_NUMELEMSUM        "U"
+#define ALIAS_APPEND            "a"
 
 #define USE_PATHTYPE_TO_DETECT_DB_OR_TAB 1
 #define CURSOR_CACHE_SIZE 256*1024*1024
@@ -200,6 +203,7 @@ typedef struct dump_context
     bool show_spread;
     bool interactive;
     bool len_spread;
+    bool append;
 } dump_context;
 typedef dump_context* p_dump_context;
 

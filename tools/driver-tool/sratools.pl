@@ -28,6 +28,9 @@ use constant {
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 
+goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
+goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
+
 sub loadConfig;
 my %config = %{loadConfig()};
 # print Dumper(\%config); exit 0;
@@ -36,9 +39,6 @@ sub getRAMLimit($);
 ### We should document this
 ### We can consider the value from the environment
 $ENV{VDB_MEM_LIMIT} = getRAMLimit($ENV{VDB_MEM_LIMIT});
-
-goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
-goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
 
 delete $ENV{$_} for qw{ VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
@@ -1350,52 +1350,126 @@ sub usage()
     exit 64; # EX_USAGE from <sysexits.h>
 }
 
-sub loadConfig
+sub parseConfig($)
 {
-    my %ignore = map { $_ => 1 } qw { /APPNAME /APPPATH /BUILD /HOME /NCBI_HOME /NCBI_SETTINGS /PWD /USER };
-    my $toolpath = which('vdb-config') or help_path('vdb-config', TRUE);
-    my $kid = open(my $pipe, '-|', $toolpath, '--output=n') or die "can't fork or can't exec vdb-config";
+    my $content = \$_[0];
+    my %ignore = map { $_ => 1 } qw { APPNAME APPPATH BUILD HOME NCBI_HOME NCBI_SETTINGS PWD USER };
     my %config;
-    my @files;
-    my $st = 0;
-    while (defined(local $_ = <$pipe>)) {
-        # print;
-        chomp;
-        next if /^$/;
-        if ($st == 0) {
-            $st = 1 if /^<!-- Current configuration -->$/;
-            next;
-        }
-        if ($st == 1) {
-            if (/<!-- Configuration files -->/) {
-                $st = 2;
-                next;
+    my ($key, $value);
+    my ($ws, $st) = (TRUE, 0);
+    my $N = length($_[0]) - 1;
+    
+    for my $i (0 .. $N) {
+        local $_ = substr $$content, $i, 1;
+        next if $ws && /\s/;
+        $ws = FALSE;
+
+        if ($st == 5) {
+            goto PARSED if /"/;
+            if ($_ eq '\\') {
+                $st += 1;
             }
-            my ($keypath, $value);
-            ($keypath, $value) = ($1, substr($2, 1, -1)) if /^((?:\/[A-Za-z_0-9][-.A-Za-z_0-9]*)+)\s*=\s*(.+)$/; # nodepath regex from config-lex.l
-            unless ($keypath) {
-                warn "unexpected output from vdb-config: '$_'";
-                next
+            else {
+                $value .= $_;
             }
-            next if $keypath =~ /^\/VDBCOPY\// or $ignore{$keypath};
-            $keypath =~ s/^\///;
-            $config{$keypath} = $value;
             next;
         }
         if ($st == 2) {
-            if (/<!-- Environment -->/) {
-                $st = 3;
+            if (/\s/) {
+                $ws = 1;
+                $st += 1;
                 next;
             }
-            push @files, $_;
-            next;
+            if ($_ ne '=') {
+                die "invalid character in key path '$_' while parsing config" unless /[-.A-Za-z_0-9\/]/;
+                $key .= $_;
+                next;
+            }
+            $st += 1;
+            # fallthrough
         }
         if ($st == 3) {
+            die "invalid key path while parsing config" unless /=/;
+            $ws = 1;
+            $st += 1;
             next;
         }
+        if ($st == 0) {
+            if (/\#/) {
+                $st = 99;
+                next;
+            }
+            die "can't parse config" unless /\//;
+            $st += 1;
+            next;
+        }
+        if ($st == 1) {
+            die "invalid key path while parsing config" unless /[A-Za-z_0-9]/;
+            $key = $_;
+            $st += 1;
+            next;
+        }
+        if ($st == 4) {
+            die "invalid value while parsing config" unless /"/;
+            $value = '';
+            $st += 1;
+            next;
+        }
+        if ($st == 6) {
+            $value .= $_;
+            $st -= 1;
+            next;
+        }
+        if ($st == 99) {
+            $st = 0 if $_ eq "\n";
+            next;
+        }
+
+    PARSED:
+        $ws = TRUE;
+        $st = 0;
+        next if $key =~ /^VDBCOPY\// or $ignore{$key};
+        $config{$key} = $value;
     }
-    # printf("%s = %s\n", $_, $config{$_}) for sort keys %config;
     return \%config;
+}
+
+sub loadConfig
+{
+    my $content = '';
+    {
+        my $toolpath = which('vdb-config') or help_path('vdb-config', TRUE);
+        my $kid = open(my $pipe, '-|', $toolpath, '--output=n') or die "can't fork or can't exec vdb-config";
+        my @files;
+        my $st = 0;
+        while (defined(local $_ = <$pipe>)) {
+            if ($st == 0) {
+                $st = 1 if /^<!-- Current configuration -->$/;
+                next;
+            }
+            if ($st == 1) {
+                if (/<!-- Configuration files -->/) {
+                    $st = 2;
+                    next;
+                }
+                $content .= $_;
+                next;
+            }
+            if ($st == 2) {
+                if (/<!-- Environment -->/) {
+                    $st = 3;
+                    next;
+                }
+                push @files, $_;
+                next;
+            }
+            if ($st == 3) {
+                next;
+            }
+        }
+        close $pipe;
+    }
+    return parseConfig($content);
 }
 
 sub sysctl_MemTotal()
@@ -1470,7 +1544,7 @@ RUN_TESTS:
 eval <<'TESTS';
 
 use Config;
-use Test::Simple tests => 34;
+use Test::Simple tests => 35;
 my %long_args = (
     '-h' => '--help',
     '-?' => '--help',
@@ -1486,9 +1560,14 @@ my @args;
 # which test
 ok( sandwich($basename), 'found self');
 
+my $multiline = "-----BEGIN-----\n-----END-----\n";
+my %testConfig = %{parseConfig('/test/key = "'.$multiline.'"')};
+ok( $testConfig{'test/key'} eq $multiline, 'multiline config parsing');
+
 # loadConfig test
-ok( %config, 'loaded config' );
-ok( $config{'kfg/arch/bits'} == $Config{ptrsize} << 3, 'arch/bits matches ptrsize' );
+%testConfig = %{loadConfig()};
+ok( %testConfig, 'loaded config' );
+ok( $testConfig{'kfg/arch/bits'} == $Config{ptrsize} << 3, 'arch/bits matches ptrsize' );
 
 # Mem Limit test
 ok( $ENV{VDB_MEM_LIMIT}, 'VDB_MEM_LIMIT: '.$ENV{VDB_MEM_LIMIT} );

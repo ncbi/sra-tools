@@ -28,9 +28,6 @@ use constant {
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 
-goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
-goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
-
 sub loadConfig;
 my %config = %{loadConfig()};
 # print Dumper(\%config); exit 0;
@@ -39,6 +36,9 @@ sub getRAMLimit($);
 ### We should document this
 ### We can consider the value from the environment
 $ENV{VDB_MEM_LIMIT} = getRAMLimit($ENV{VDB_MEM_LIMIT});
+
+goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
+goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
 
 delete $ENV{$_} for qw{ VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
@@ -1565,9 +1565,8 @@ my %testConfig = %{parseConfig('/test/key = "'.$multiline.'"')};
 ok( $testConfig{'test/key'} eq $multiline, 'multiline config parsing');
 
 # loadConfig test
-%testConfig = %{loadConfig()};
-ok( %testConfig, 'loaded config' );
-ok( $testConfig{'kfg/arch/bits'} == $Config{ptrsize} << 3, 'arch/bits matches ptrsize' );
+ok( %config, 'loaded config' );
+ok( $config{'kfg/arch/bits'} == $Config{ptrsize} << 3, 'arch/bits matches ptrsize' );
 
 # Mem Limit test
 ok( $ENV{VDB_MEM_LIMIT}, 'VDB_MEM_LIMIT: '.$ENV{VDB_MEM_LIMIT} );

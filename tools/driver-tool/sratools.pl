@@ -799,7 +799,9 @@ MAKE_LINKS:
         my $toolpath = which($_) or die "no $_ in PATH";
         $path{$_} = $toolpath;
     }
-    die "$_-orig exists" if -f "$_-orig" for (keys %path);
+    for (keys %path) {
+        die "$_-orig exists" if -f "$_-orig" 
+    }
     for (keys %path) {
         if (-e $_) {
             rename $_, "$_-orig"

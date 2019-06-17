@@ -7,7 +7,6 @@ use integer;
 use IO::Handle;
 use IO::File;
 use File::Spec;
-use Cwd qw{ realpath };
 use File::Temp qw{ tempfile };
 use JSON::PP;
 use LWP;
@@ -39,7 +38,7 @@ sub getRAMLimit($);
 $ENV{VDB_MEM_LIMIT} = getRAMLimit($ENV{VDB_MEM_LIMIT});
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
-goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
+# goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
 
 delete $ENV{$_} for qw{ VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
@@ -93,8 +92,8 @@ sub processAccessions($$\@@)
     my $params = shift;
     my @runs = expandAllAccessions(@_);
     
-    foreach my $run (@runs) {
-        my @sources = resolveAccessionURLs($run);
+    foreach my $acc (@runs) {
+        my @sources = resolveAccessionURLs($acc);
 
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
@@ -117,7 +116,7 @@ sub processAccessions($$\@@)
                     $ENV{VDB_SIZE_VDBCACHE} = $vdbcache->{'size'} > 0 ? (''.$vdbcache->{'size'}) : '';
                 }
     
-                exec {$toolpath} $0, @$params, $run; ### tool should run as what user invoked
+                exec {$toolpath} $0, @$params, $acc; ### tool should run as what user invoked
                 die "can't exec $toolname: $!";
             }
             waitpid($kid, 0);
@@ -1061,17 +1060,6 @@ EOM
     exit 78; # EX_CONFIG from <sysexits.h>
 }
 
-sub really_realpath($)
-{
-    local $_ = shift;
-    for ( ; ; ) {
-        my $unlinked = realpath($_);
-        last if $unlinked eq $_;
-        $_ = $unlinked;
-    }
-    return $_;
-}
-
 ### \brief: check if path+file is an executable
 ###
 ### \param: executable name
@@ -1082,7 +1070,7 @@ sub isExecutable($$)
 {
     my ($vol, $dirs, undef) = File::Spec->splitpath($_[1], !0);
     local $_ = File::Spec->catpath($vol, $dirs, $_[0]);
-    return (-e && -x) ? really_realpath($_) : undef;
+    return (-e && -x) ? $_ : undef;
 }
 
 ### \brief: like shell `which` but checks more than just PATH

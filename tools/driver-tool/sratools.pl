@@ -850,6 +850,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
         else { # short param
             local $_ = shift;
             $param = $longArg->{$_};
+            return FALSE unless $param;
         }
         return FALSE if $param eq '--help';
         if (exists $hasArg->{$param}) {
@@ -984,6 +985,7 @@ sub parseArgv($\@\@\%\%@)
             # short form
             if ($param =~ /^(-.)(.+)$/) {
                 $param = $longArg->{$1};
+                return FALSE unless $param;
                 if (exists $hasArg->{$param}) {
                     # convert short form with concatenated arg to long form with separate arg
                     push @$params, $param, $2;
@@ -1000,6 +1002,7 @@ sub parseArgv($\@\@\%\%@)
             }
             else {
                 $param = $longArg->{$param};
+                return FALSE unless $param;
             }
         }
         return FALSE if $param eq '--help';

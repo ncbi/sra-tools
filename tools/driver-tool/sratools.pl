@@ -1061,6 +1061,15 @@ EOM
     exit 78; # EX_CONFIG from <sysexits.h>
 }
 
+sub really_realpath($)
+{
+    local $_ = shift;
+    while (-l) {
+        $_ = realpath($_)
+    }
+    return $_;
+}
+
 ### \brief: check if path+file is an executable
 ###
 ### \param: executable name
@@ -1071,7 +1080,7 @@ sub isExecutable($$)
 {
     my ($vol, $dirs, undef) = File::Spec->splitpath($_[1], !0);
     local $_ = File::Spec->catpath($vol, $dirs, $_[0]);
-    return (-e && -x) ? realpath($_) : undef;
+    return (-e && -x) ? really_realpath($_) : undef;
 }
 
 ### \brief: like shell `which` but checks more than just PATH

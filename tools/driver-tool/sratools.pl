@@ -7,6 +7,7 @@ use integer;
 use IO::Handle;
 use IO::File;
 use File::Spec;
+use Cwd qw{ realpath };
 use File::Temp qw{ tempfile };
 use JSON::PP;
 use LWP;
@@ -1070,7 +1071,7 @@ sub isExecutable($$)
 {
     my ($vol, $dirs, undef) = File::Spec->splitpath($_[1], !0);
     local $_ = File::Spec->catpath($vol, $dirs, $_[0]);
-    return (-e && -x) ? $_ : undef;
+    return (-e && -x) ? realpath($_) : undef;
 }
 
 ### \brief: like shell `which` but checks more than just PATH

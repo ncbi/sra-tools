@@ -1064,8 +1064,10 @@ EOM
 sub really_realpath($)
 {
     local $_ = shift;
-    while (-l) {
-        $_ = realpath($_)
+    for ( ; ; ) {
+        my $unlinked = realpath($_);
+        last if $unlinked eq $_;
+        $_ = $unlinked;
     }
     return $_;
 }

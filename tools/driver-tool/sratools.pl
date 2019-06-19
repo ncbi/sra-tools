@@ -76,6 +76,58 @@ END {
     unlink $paramsFile if $paramsFile;
 }
 
+### \brief: search parameter array for a parameter and return its value
+###
+### \param: query, e.g. '--output-file'
+### \param: params, by ref parameter array
+###
+### \returns: the parameter value or undef
+sub parameterValue($$)
+{
+    my $query = shift;
+    my $params = shift;
+    my $N = scalar(@$params);
+    for my $i (0 .. ($N - 1)) {
+        local $_ = $params->[$i];
+        return $params->[$i + 1] if $_ eq $query;
+    }
+    undef
+}
+
+### \brief: search parameter array for a parameter and remove it and its value
+###
+### \param: query, e.g. '--output-file'
+### \param: params, by ref parameter array
+sub deleteParameterAndValue($$)
+{
+    my $query = shift;
+    my $params = shift;
+    my $N = scalar(@$params);
+    for my $i (0 .. ($N - 1)) {
+        local $_ = $params->[$i];
+        if ($_ eq $query) {
+            splice @$params, $i, 2;
+            return;
+        }
+    }
+}
+
+### \brief: search parameter array for a parameter
+###
+### \param: query, e.g. '--output-file'
+### \param: params, by ref parameter array
+sub hasParameter($$)
+{
+    my $query = shift;
+    my $params = shift;
+    my $N = scalar(@$params);
+    for my $i (0 .. ($N - 1)) {
+        local $_ = $params->[$i];
+        return TRUE if $_ eq $query;
+    }
+    FALSE
+}
+
 ### \brief: runs tool on list of accessions
 ###
 ### After args parsing, this is called to do the meat of the work.
@@ -83,15 +135,29 @@ END {
 ###
 ### \param: user-centric tool name, e.g. fastq-dump
 ### \param: full path to tool, e.g. /path/to/fastq-dump-orig
+### \param: output-file parameter name if unsafe for multi-run output, e.g. '--output-file'
+### \param: output-file extension, e.g. '.sam'
 ### \param: tool parameters; arrayref
 ### \param: the list of accessions to process
-sub processAccessions($$\@@)
+sub processAccessions($$$$\@@)
 {
     my $toolname = shift;
     my $toolpath = shift;
+    my $unsafeOutputFile = shift;
+    my $extension = shift;
     my $params = shift;
+    my $overrideOutputFile = FALSE;
     my @runs = expandAllAccessions(@_);
     
+    if (@runs > 1 && $unsafeOutputFile && parameterValue($unsafeOutputFile, $params)) {
+        printf "You are trying to process %u runs with %s\n".
+               "to a single output file, but %s is not capable of producing\n".
+               "valid output from more than one run into a single file.\n".
+               "The output files will be created:\n", scalar(@runs), $toolname, $toolname;
+        printf "%s%s\n", $_, $extension for @runs;
+        $overrideOutputFile = TRUE;
+        deleteParameterAndValue($unsafeOutputFile, $params);
+    }
     foreach my $acc (@runs) {
         my @sources = resolveAccessionURLs($acc);
 
@@ -115,7 +181,9 @@ sub processAccessions($$\@@)
                     $ENV{VDB_LOCAL_VDBCACHE} = $vdbcache->{'local'};
                     $ENV{VDB_SIZE_VDBCACHE} = $vdbcache->{'size'} > 0 ? (''.$vdbcache->{'size'}) : '';
                 }
-    
+                if ($overrideOutputFile) {
+                    push @$params, $unsafeOutputFile, $acc.$extension
+                }
                 exec {$toolpath} $0, @$params, $acc; ### tool should run as what user invoked
                 die "can't exec $toolname: $!";
             }
@@ -564,7 +632,7 @@ RUNNING_AS_FASTQ_DUMP:
     my @args = (); # everything that isn't part of a parameter
 
     if (parseArgv('old', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
-        processAccessions('fastq-dump', $toolpath, @params, @args);
+        processAccessions('fastq-dump', $toolpath, undef, '.fastq', @params, @args);
     }
     else {
         toolHelp('fastq-dump', $toolpath);
@@ -616,7 +684,7 @@ RUNNING_AS_FASTERQ_DUMP:
     my @args = (); # everything that isn't part of a parameter
 
     if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
-        processAccessions('fasterq-dump', $toolpath, @params, @args);
+        processAccessions('fasterq-dump', $toolpath, undef, '.fastq', @params, @args);
     }
     else {
         toolHelp('fasterq-dump', $toolpath);
@@ -652,6 +720,12 @@ RUNNING_AS_SAM_DUMP:
         '--matepair-distance' => TRUE,
         '--prefix' => TRUE,
         '--qual-quant' => TRUE,
+        '--output-file' => TRUE,
+        '--output-buffer-size' => TRUE,
+        '--cursor-cache' => TRUE,
+        '--min-mapq' => TRUE,
+        '--rna-splice-level' => TRUE,
+        '--rna-splice-log' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -659,7 +733,8 @@ RUNNING_AS_SAM_DUMP:
     my @args = (); # everything that isn't part of a parameter
 
     if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
-        processAccessions('sam-dump', $toolpath, @params, @args);
+        my $extension = hasParameter('--fastq', \@params) ? '.fastq' : hasParameter('--fasta', \@params) ? '.fasta' : '.sam';
+        processAccessions('sam-dump', $toolpath, $extension eq '.sam' ? '--output-file' : undef, $extension, @params, @args);
     }
     else {
         toolHelp('sam-dump', $toolpath);
@@ -789,6 +864,8 @@ RUNNING_AS_SRA_PILEUP:
         '--table' => TRUE,
         '--minmapq' => TRUE,
         '--duplicates' => TRUE,
+        '--minmismatch' => TRUE,
+        '--merge-dist' => TRUE,
         '--function' => TRUE,        
         '--log-level' => TRUE,
         '--debug' => TRUE,
@@ -797,7 +874,7 @@ RUNNING_AS_SRA_PILEUP:
     my @args = (); # everything that isn't part of a parameter
 
     if (parseArgv('new', @params, @args, %long_arg, %param_has_arg, @ARGV)) {
-        processAccessions('sra-pileup', $toolpath, @params, @args);
+        processAccessions('sra-pileup', $toolpath, '--outfile', '.pileup', @params, @args);
     }
     else {
         toolHelp('sra-pileup', $toolpath);
@@ -1560,7 +1637,7 @@ RUN_TESTS:
 eval <<'TESTS';
 
 use Config;
-use Test::Simple tests => 35;
+use Test::Simple tests => 41;
 my %long_args = (
     '-h' => '--help',
     '-?' => '--help',
@@ -1586,6 +1663,16 @@ ok( $config{'kfg/arch/bits'} == $Config{ptrsize} << 3, 'arch/bits matches ptrsiz
 
 # Mem Limit test
 ok( $ENV{VDB_MEM_LIMIT}, 'VDB_MEM_LIMIT: '.$ENV{VDB_MEM_LIMIT} );
+
+@params = qw{ --foo bar };
+ok( !hasParameter('--bar', \@params), 'hasParameter: no --bar');
+ok( hasParameter('--foo', \@params), 'hasParameter: has --foo');
+ok( !defined parameterValue('--bar', \@params), 'parameterValue: not found');
+ok( parameterValue('--foo', \@params) eq 'bar', 'parameterValue: found');
+deleteParameterAndValue('--bar', \@params);
+ok( @params == 2, 'deleteParameterAndValue: not found');
+deleteParameterAndValue('--foo', \@params);
+ok( @params == 0, 'deleteParameterAndValue: found and removed');
 
 # old style args parsing
 ok( !parseArgv('old', @params, @args, %long_args, %param_args, qw{ -h }), 'oldstyle: -h returns false' );

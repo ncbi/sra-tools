@@ -331,9 +331,11 @@ sub resolveAccessionURLs($)
         exec {$toolpath} 'srapath', qw{ --function names --json }, @_;
         die "can't exec srapath: $!";
     }
-
-    $json = decode_json(join '', $pipe->getlines) or die "unparsable response from srapath";
+    my $srapath = join '', $pipe->getlines;
     close($pipe);
+    die "error: $srapath" if $?;
+
+    $json = decode_json($srapath) or die "unparsable response from srapath";
 
     extract_from_srapath($_[0], @{$json});
 }
@@ -399,7 +401,18 @@ sub getRunInfo($@)
     my $url = URI->new_abs('esummary.fcgi', EUTILS_URL);
     $url->query_form(retmode => 'json', db => 'sra', id => join(',', @_));
 
-    my $res = $ua->get($url); die $res->status_line unless $res->is_success;
+    my $tries = 3;
+GET_RESPONSE:
+    my $res = $ua->get($url);
+    unless ($res->is_success) {
+        if ($res->code eq '429') {
+            if (--$tries > 0) {
+                sleep 1;
+                goto GET_RESPONSE;
+            }
+        }
+        die $res->status_line;
+    }
     
     my $obj = decode_json $res->content or die "unexpected response from eutils";
     my $result = $obj->{result} or die "unexpected response from eutils";
@@ -494,7 +507,7 @@ sub getRunInfo($@)
 ### \return: array of run accessions
 sub expandAccession($)
 {
-    my $ua = LWP::UserAgent->new( agent => 'sratoolkit'
+    my $ua = LWP::UserAgent->new( agent => 'sratoolkit ($$)'
                                 , parse_head => 0
                                 , ssl_opts => { verify_hostname => 0 } );
     return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo($ua, queryEUtils($ua, $_[0]))->{'runs'}};
@@ -1121,7 +1134,7 @@ sub info(@)
     help('info') unless @_;
     
     my $before = '';
-    my $ua = LWP::UserAgent->new( agent => 'sratoolkit'
+    my $ua = LWP::UserAgent->new( agent => 'sratoolkit ($$)'
                                 , parse_head => 0
                                 , ssl_opts => { verify_hostname => 0 } );
     foreach my $query (@_) {

@@ -76,7 +76,27 @@ END {
     unlink $paramsFile if $paramsFile;
 }
 
+### \brief: search parameter array for a parameter and return its index
+###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
+###
+### \param: query, e.g. '--output-file'
+### \param: params, parameter array
+###
+### \returns: the parameter index or undef
+sub findParameter($@)
+{
+    for my $i (1 .. $#_) {
+        return $i - 1 if $_[$i] eq $_[0];
+    }
+    undef
+}
+
 ### \brief: search parameter array for a parameter and return its value
+###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
 ###
 ### \param: query, e.g. '--output-file'
 ### \param: params, by ref parameter array
@@ -84,48 +104,36 @@ END {
 ### \returns: the parameter value or undef
 sub parameterValue($$)
 {
-    my $query = shift;
-    my $params = shift;
-    my $N = scalar(@$params);
-    for my $i (0 .. ($N - 1)) {
-        local $_ = $params->[$i];
-        return $params->[$i + 1] if $_ eq $query;
+    if (defined(my $i = findParameter($_[0], @{$_[1]}))) {
+        return $_[1]->[$i + 1]
     }
     undef
 }
 
 ### \brief: search parameter array for a parameter and remove it and its value
 ###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
+###
 ### \param: query, e.g. '--output-file'
 ### \param: params, by ref parameter array
 sub deleteParameterAndValue($$)
 {
-    my $query = shift;
-    my $params = shift;
-    my $N = scalar(@$params);
-    for my $i (0 .. ($N - 1)) {
-        local $_ = $params->[$i];
-        if ($_ eq $query) {
-            splice @$params, $i, 2;
-            return;
-        }
+    if (defined(my $i = findParameter($_[0], @{$_[1]}))) {
+        splice @{$_[1]}, $i, 2;
     }
 }
 
 ### \brief: search parameter array for a parameter
 ###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
+###
 ### \param: query, e.g. '--output-file'
 ### \param: params, by ref parameter array
 sub hasParameter($$)
 {
-    my $query = shift;
-    my $params = shift;
-    my $N = scalar(@$params);
-    for my $i (0 .. ($N - 1)) {
-        local $_ = $params->[$i];
-        return TRUE if $_ eq $query;
-    }
-    FALSE
+    defined findParameter($_[0], @{$_[1]})
 }
 
 ### \brief: runs tool on list of accessions
@@ -153,7 +161,7 @@ sub processAccessions($$$$\@@)
         printf "You are trying to process %u runs with %s\n".
                "to a single output file, but %s is not capable of producing\n".
                "valid output from more than one run into a single file.\n".
-               "The output files will be created:\n", scalar(@runs), $toolname, $toolname;
+               "The following output files will be created:\n", scalar(@runs), $toolname, $toolname;
         printf "%s%s\n", $_, $extension for @runs;
         $overrideOutputFile = TRUE;
         deleteParameterAndValue($unsafeOutputFile, $params);

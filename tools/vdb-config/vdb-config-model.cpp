@@ -836,3 +836,45 @@ vdbconf_model::set_aws_profile(const std::string & path)
     _config.Updated();
 }
 
+uint32_t vdbconf_model::get_cache_amount_in_MB( void ) const
+{
+    uint32_t value;
+    MODEL_THROW_ON_RC ( KConfig_Get_Cache_Amount ( _config.Get(), &value ) );
+    return value;
+}
+
+void vdbconf_model::set_cache_amount_in_MB( uint32_t value )
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Cache_Amount ( _config.Get(), value ) );
+    _config.Updated();
+}
+
+void vdbconf_model::set_defaults( void )
+{
+    set_remote_enabled( true );
+    set_global_cache_enabled( true );
+    set_site_enabled( true );
+
+    set_http_proxy_enabled( false );
+    
+    set_user_accept_aws_charges( false );
+    set_user_accept_gcp_charges( false );
+
+    std::string dflt_path( "" );
+    set_gcp_credential_file_location( dflt_path );
+    set_aws_credential_file_location( dflt_path );
+
+    std::string dflt_profile( "default" );
+    set_aws_profile( dflt_profile );
+}
+
+std::string vdbconf_model::get_dflt_import_path_start_dir( void )
+{
+    std::string res = get_user_default_dir();
+    if ( !does_path_exist( res ) )
+        res = get_home_dir();
+    if ( !does_path_exist( res ) )
+        res = get_current_dir();
+    return res;
+}
+

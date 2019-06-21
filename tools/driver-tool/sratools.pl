@@ -25,17 +25,56 @@ use constant {
     REAL_SRAPATH => 'srapath-orig'
 };
 
+# if SRATOOLS_DEBUG is truthy, then DEBUG ... will print
+my $debug = $ENV{SRATOOLS_DEBUG} ? sub { print STDERR Dumper(@_) } : sub {};
+sub DEBUG
+{
+    goto &$debug
+}
+
+# if SRATOOLS_TRACE is truthy, then TRACE ... will print
+my $trace = $ENV{SRATOOLS_TRACE} ? sub { print STDERR Dumper(@_) } : sub {};
+sub TRACE
+{
+    goto &$trace
+}
+
+# if SRATOOLS_VERBOSE = 1, then LOG(0, ...) will print, but not LOG(1, ...)
+# i.e. only log levels less than SRATOOLS_VERBOSE will print
+my @loggers;
+my $level = eval {
+    local $SIG{__WARN__} = sub { };
+    0+$ENV{SRATOOLS_VERBOSE}
+} // 0;
+$level = 5 if $level > 5;
+$loggers[0] = sub { print STDERR join("\n", @_)."\n" if @_ };
+$loggers[$_] = $loggers[0] for 1 .. 4;
+if ($level < 5) {
+    for ($level .. 5) {
+        $loggers[$_] = sub {};
+    }
+}
+DEBUG \@loggers;
+sub LOG($@)
+{
+    return unless $_[0] < 5;
+    my $level = shift;
+    goto &{$loggers[$level]};
+}
+
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
+TRACE {'selfvol' => $selfvol, 'selfdir' => $selfdir, 'basename' => $basename, 'selfpath' => $selfpath };
 
 sub loadConfig;
 my %config = %{loadConfig()};
-# print Dumper(\%config); exit 0;
+TRACE \%config;
 
 sub getRAMLimit($);
 ### We should document this
 ### We can consider the value from the environment
 $ENV{VDB_MEM_LIMIT} = getRAMLimit($ENV{VDB_MEM_LIMIT});
+LOG 1, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 # goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
@@ -55,6 +94,7 @@ sub info(@);
 sub extract(@);
 
 usage() unless @ARGV;
+DEBUG \@ARGV;
 
 $_ = shift;
 help(@ARGV) if /^help$/;
@@ -73,6 +113,7 @@ sub which($);
 
 my $paramsFile;
 END {
+    LOG(0, "unlinking params file") if $paramsFile;
     unlink $paramsFile if $paramsFile;
 }
 
@@ -157,6 +198,8 @@ sub processAccessions($$$$\@@)
     my $overrideOutputFile = FALSE;
     my @runs = expandAllAccessions(@_);
     
+    LOG 1, "running $toolname on ".join(' ', @runs);
+    
     if (@runs > 1 && $unsafeOutputFile && parameterValue($unsafeOutputFile, $params)) {
         printf "You are trying to process %u runs with %s\n".
                "to a single output file, but %s is not capable of producing\n".
@@ -166,23 +209,37 @@ sub processAccessions($$$$\@@)
         $overrideOutputFile = TRUE;
         deleteParameterAndValue($unsafeOutputFile, $params);
     }
-    foreach my $acc (@runs) {
+    LOG 1, 'with parameters: '.join(' ', @$params);
+    
+    $ENV{VDB_DRIVER_RUN_COUNT} = ''.scalar(@runs);
+    foreach (0 .. $#runs) {
+        my $acc = $runs[$_];
         my @sources = resolveAccessionURLs($acc);
+        
+        $ENV{VDB_DRIVER_RUN_CURRENT} = ''.($_ + 1);
 
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
             
-            # print STDERR "# running $toolpath with runURL='$runURL' and ".($cacheURL ? "cacheURL='$cacheURL'" : "no cacheURL").".\n";
-            # print STDERR "# $tool ".join(", ", @_)." $accession\n";
-
-            my $kid = fork(); die "can't fork: $!" unless defined $kid;            
+            LOG 0, sprintf("accession: %s, data: {local: '%s', remote: '%s', cache: '%s'}, vdbcache: {%s}"
+                            , $acc
+                            , $run->{'local'}
+                            , $run->{'url'}
+                            , $run->{'cache'}
+                            , $vdbcache ? sprintf("local: '%s', remote: '%s', cache: '%s'"
+                                                    , $vdbcache->{'local'}
+                                                    , $vdbcache->{'url'}
+                                                    , $vdbcache->{'cache'}
+                                                  )
+                                        : ''
+                          );
+                                                    
+            my $kid = fork(); die "can't fork: $!" unless defined $kid;
             if ($kid == 0) {
-                if ($run) {
-                    $ENV{VDB_REMOTE_URL} = $run->{'url'};
-                    $ENV{VDB_CACHE_URL} = $run->{'cache'};
-                    $ENV{VDB_LOCAL_URL} = $run->{'local'};
-                    $ENV{VDB_SIZE_URL} = $run->{'size'} > 0 ? (''.$run->{'size'}) : '';
-                }
+                $ENV{VDB_REMOTE_URL} = $run->{'url'};
+                $ENV{VDB_CACHE_URL} = $run->{'cache'};
+                $ENV{VDB_LOCAL_URL} = $run->{'local'};
+                $ENV{VDB_SIZE_URL} = $run->{'size'} > 0 ? (''.$run->{'size'}) : '';
                 if ($vdbcache) {
                     $ENV{VDB_REMOTE_VDBCACHE} = $vdbcache->{'url'};
                     $ENV{VDB_CACHE_VDBCACHE} = $vdbcache->{'cache'};
@@ -1529,7 +1586,9 @@ sub parseConfig($)
     PARSED:
         $ws = TRUE;
         $st = 0;
+        TRACE {'key' => $key, 'value' => $value};
         next if $key =~ /^VDBCOPY\// or $ignore{$key};
+        LOG 4, "parsed key: '$key' and value: '$value'";
         $config{$key} = $value;
     }
     return \%config;
@@ -1575,10 +1634,12 @@ sub loadConfig
 
 sub sysctl_MemTotal()
 {
+    LOG 4, 'trying sysctl hw.memsize hw.physmem';
     my $result;
     open(SYSCTL, '-|', 'sysctl', qw{ hw.memsize hw.physmem }) or return undef;
     while (defined(local $_ = <SYSCTL>)) {
         chomp;
+        LOG 4, 'sysctl '.$_;
         if (/^hw.memsize:\s*(.+)/) {
             local $_ = $1;
             s/\s+$//;
@@ -1598,7 +1659,9 @@ sub sysctl_MemTotal()
 sub proc_meminfo_MemTotal()
 {
     if (-r '/proc/meminfo') {
+        LOG 4, 'reading /proc/meminfo';
         for (IO::File->new('/proc/meminfo')->getlines()) {
+            LOG 4, $_;
             if (/^MemTotal:\s*(.+)$/) {
                 local $_ = ''.$1;
                 s/\s+$//;
@@ -1621,11 +1684,12 @@ sub getRAMLimit($)
     my $memTotal;
     
     if ($config{'OS'} eq 'linux') {
+        LOG 4, 'trying /proc/meminfo then sysctl';
         # try proc/meminfo then try sysctl
         $memTotal = proc_meminfo_MemTotal() // sysctl_MemTotal();
     }
     else {
-        # Not a linux, may be mac or bsd, try sysctl first.
+        LOG 4, 'trying sysctl then /proc/meminfo';
         $memTotal = sysctl_MemTotal() // proc_meminfo_MemTotal();
     }
     return ((0+$memTotal) >> 2) if $memTotal; #default to 1/4 total RAM

@@ -77,7 +77,6 @@ $ENV{VDB_MEM_LIMIT} = getRAMLimit($ENV{VDB_MEM_LIMIT});
 LOG 1, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
-# goto MAKE_LINKS if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'makelinks';
 
 delete $ENV{$_} for qw{ VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
@@ -947,29 +946,6 @@ RUNNING_AS_SRA_PILEUP:
     die "unreachable";
 }
 
-MAKE_LINKS:
-{
-    my %path;
-    for (qw{ fastq-dump fasterq-dump prefetch srapath sra-pileup sam-dump }) {
-        my $toolpath = which($_) or die "no $_ in PATH";
-        $path{$_} = $toolpath;
-    }
-    for (keys %path) {
-        die "$_-orig exists" if -f "$_-orig" 
-    }
-    for (keys %path) {
-        if (-e $_) {
-            rename $_, "$_-orig"
-        }
-        else {
-            symlink $path{$_}, "$_-orig";
-        }
-        symlink "sratools", $_
-    }
-    symlink "sratools.pl", "sratools";
-    exit 0
-}
-
 ### \brief: process ARGV using fastq-dump style parsing rules
 ###
 ### \param: params   - out, by ref; array of parameters
@@ -991,31 +967,41 @@ sub parseArgvOldStyle(\@\@\%\%@)
     @$params = ();
     @$args = ();
     
+    LOG 1, 'old form args parsing';
     while (@_) {
         my $param;
         
-        if ($_[0] !~ /^-/) { # ordinary argument
+        LOG 4, "arg: $_[0]";
+        if ($_[0] !~ /^-/) {
+            LOG 4, "ordinary argument";
             local $_ = shift;
             push @$args, $_;
             next;
         }
-        if ($_[0] =~ /^--/) { # long param
+        if ($_[0] =~ /^--/) {
+            LOG 4, "long form";
             $param = shift;
         }
-        else { # short param
+        else {
+            LOG 4, "short form";
             local $_ = shift;
             $param = $longArg->{$_};
+            LOG(0, 'invalid arg $_ or missing conversion to long form') unless $param;
             return FALSE unless $param;
         }
+        LOG(1, 'request for help') if $param eq '--help';
         return FALSE if $param eq '--help';
         if (exists $hasArg->{$param}) {
-            if ($hasArg->{$param}) { # param requires an argument
+            if ($hasArg->{$param}) {
+                LOG 4, 'argument is required';
+                LOG(0, 'argument is missing!') unless @_;
                 return FALSE unless @_;
                 local $_ = shift;
                 push @$params, $param, $_;
                 next;
             }
             elsif (@_ && $_[0] !~ /^-/) {
+                LOG 4, 'has optional argument';
                 local $_ = shift;
                 push @$params, $param, $_;
                 next;
@@ -1025,6 +1011,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
         # optional argument wasn't given
         push @$params, $param;
     }
+    LOG 4, 'parameters:', @$params;
     return TRUE;
 }
 
@@ -1081,6 +1068,7 @@ sub parseOptionsFile($)
         $token .= $_;
         $esc = 0;
     }
+    LOG 4, 'parsed from options file '.$_[0].':', @rslt;
     return @rslt;
 }
 
@@ -1114,9 +1102,11 @@ sub parseArgv($\@\@\%\%@)
     @$params = ();
     @$args = ();
     
+    LOG 1, 'normal form args parsing';
     while (@_) {
+        LOG 4, "arg: $_[0]";
         unless ($_[0] =~ /^-/) {
-            # ordinary argument
+            LOG 4, "ordinary argument";
             local $_ = shift;
             push @$args, $_;
             next;
@@ -1125,30 +1115,33 @@ sub parseArgv($\@\@\%\%@)
         my $param = shift;
         if ($param =~ /^--option-file(=.+)*/) {
             my $filename = substr($1, 1) // shift or die "file name is required for --option-file";
+            LOG 4, "options file: $filename";
             push @_, parseOptionFile($filename);
             next;
         }
         if ($param =~ /^--/ ) {
+            LOG 4, "long form";
             if ($param =~ /^(--[^=]+)=(.+)$/) {
-                # convert `--param=arg` to `--param arg`
+                LOG 4, 'convert --param=X to --param X';
                 push @$params, $1, $2;
                 push @fparams, { param => $1, arg => $2 };
                 next;
             }
         }
         else {
-            # short form
+            LOG 4, "short form";
             if ($param =~ /^(-.)(.+)$/) {
                 $param = $longArg->{$1};
+                LOG(0, 'invalid arg $1 or missing conversion to long form') unless $param;
                 return FALSE unless $param;
                 if (exists $hasArg->{$param}) {
-                    # convert short form with concatenated arg to long form with separate arg
+                    LOG 4, 'convert -pX to --param X';
                     push @$params, $param, $2;
                     push @fparams, { param => $param, arg => $2 };
                     next;
                 }
                 else {
-                    # concatenated short form; put back the remainder
+                    LOG 4, 'convert -pqr to --param -qr';
                     unshift @_, "-$2";
                     push @$params, $param;
                     push @fparams, { param => $param, arg => undef };
@@ -1156,20 +1149,27 @@ sub parseArgv($\@\@\%\%@)
                 }
             }
             else {
+                LOG 4, 'convert -p to --param';
                 $param = $longArg->{$param};
+                LOG(0, 'invalid arg or missing conversion to long form') unless $param;
                 return FALSE unless $param;
             }
         }
+        LOG(1, 'request for help') if $param eq '--help';
         return FALSE if $param eq '--help';
         if (exists $hasArg->{$param}) {
-            if ($hasArg->{$param}) { # argument is required
+            if ($hasArg->{$param}) {
+                LOG 4, 'argument is required';
+                LOG(0, 'argument is missing!') unless @_;
                 return FALSE unless @_;
+
                 local $_ = shift;
                 push @$params, $param, $_;
                 push @fparams, { param => $param, arg => $_ };
                 next;
             }
-            elsif (@_ && $_[0] !~ /^-/) { # argument is optional
+            elsif (@_ && $_[0] !~ /^-/) {
+                LOG 4, 'has optional argument';
                 local $_ = shift;
                 push @$params, $param, $_;
                 push @fparams, { param => $param, arg => $_ };
@@ -1182,6 +1182,7 @@ sub parseArgv($\@\@\%\%@)
         push @fparams, { param => $param, arg => undef };
     }
     if (@fparams > 10) {
+        LOG 1, "more than 10 parameters(+arguments); using options file";
         my $fh;
         ($fh, $paramsFile) = tempfile();
         binmode $fh, ':utf8';
@@ -1202,6 +1203,7 @@ sub parseArgv($\@\@\%\%@)
         close $fh;
         @$params = ( '--option-file', $paramsFile );
     }
+    LOG 4, 'parameters:', @$params;
     return TRUE;
 }
 
@@ -1241,18 +1243,18 @@ sub sandwich($)
     my $exe = $_[0];
     my $fullpath;
 
-    ## first check self directory
+    LOG(4, 'looking for $exe in self directory');
     $fullpath = isExecutable($exe, $selfpath);
     return $fullpath if $fullpath;
 
-    ## check PATH
-    local $_;
-    foreach (File::Spec->path()) {
-        $fullpath = isExecutable($exe, $_);
+    LOG(4, 'looking for $exe in PATH');
+    for my $dir (File::Spec->path()) {
+        TRACE { 'directory' => $dir, 'executable' => $exe };
+        $fullpath = isExecutable($exe, $dir);
         return $fullpath if $fullpath;
     }
 
-    ## lastly check current directory
+    LOG(4, 'looking for $exe in current directory');
     return isExecutable($exe, File::Spec->curdir());
 }
 
@@ -1264,7 +1266,9 @@ sub sandwich($)
 my %which_mem = ();
 sub which($)
 {
-    $which_mem{$_[0]} = sandwich($_[0]) unless exists $which_mem{$_[0]};
+    my $cached = exists $which_mem{$_[0]};
+    $which_mem{$_[0]} = sandwich($_[0]) unless $cached;
+    LOG 3, sprintf('found %s for %s (%s)', $which_mem{$_[0]}, $_[0], $cached ? 'cached' : 'first time');
     return $which_mem{$_[0]};
 }
 
@@ -1684,12 +1688,12 @@ sub getRAMLimit($)
     my $memTotal;
     
     if ($config{'OS'} eq 'linux') {
-        LOG 4, 'trying /proc/meminfo then sysctl';
+        LOG 3, 'trying /proc/meminfo then sysctl';
         # try proc/meminfo then try sysctl
         $memTotal = proc_meminfo_MemTotal() // sysctl_MemTotal();
     }
     else {
-        LOG 4, 'trying sysctl then /proc/meminfo';
+        LOG 3, 'trying sysctl then /proc/meminfo';
         $memTotal = sysctl_MemTotal() // proc_meminfo_MemTotal();
     }
     return ((0+$memTotal) >> 2) if $memTotal; #default to 1/4 total RAM

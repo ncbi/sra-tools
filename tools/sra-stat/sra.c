@@ -47,6 +47,10 @@
 
 #include <string.h> /* memcmp */
 
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wpedantic"
+#endif
+
 #define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \

@@ -108,6 +108,7 @@ static bool number_parser_get_exact_u16(number_parser const *const self, uint16_
     return false;
 }
 
+#if 0
 static bool number_parser_get_exact_i16(number_parser const *const self, int16_t *rslt)
 {
     if (number_parser_is_integer(self)) {
@@ -122,6 +123,7 @@ static bool number_parser_get_exact_i16(number_parser const *const self, int16_t
     }
     return false;
 }
+#endif
 
 static bool number_parser_get_exact_u32(number_parser const *const self, uint32_t *rslt)
 {

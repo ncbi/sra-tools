@@ -851,7 +851,10 @@ bool CC SRADumper_GetArg( const SRADumperFmt* fmt, char const* const abbr, char 
     }
     else if ( value != NULL )
     {
-        if ( arg == NULL && *value == '\0' )
+        /* this code is very old and very obtuse.
+           was the intention to try to access value[0][0]?
+           original expression had " *value == '\0' " */
+        if ( arg == NULL && *value == NULL )
         {
             rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcNotFound );
         }

@@ -274,7 +274,7 @@ static void get_ALIG_READ( sqlite3 * db, sqlite3_stmt * ALIG, int parameter_inde
 
 }
 
-static rc_t iterate_SRC_SEQ( sqlite3 * db, char * acc, writer * wrt )
+static rc_t iterate_SRC_SEQ( sqlite3 * db, const char * acc, writer * wrt )
 {
     sqlite3_stmt * SEQ;
     sqlite3_stmt * ALIG;

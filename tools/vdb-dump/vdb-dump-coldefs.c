@@ -896,6 +896,7 @@ static bool vdcd_is_static_column1( const VTable *my_table, col_def * col, uint3
     return res;
 }
 
+#if 0
 static bool vdcd_is_static_column2( const VTable *my_table, col_def * col )
 {
     bool res = false;
@@ -915,7 +916,7 @@ static bool vdcd_is_static_column2( const VTable *my_table, col_def * col )
     }
     return res;
 }
-
+#endif
 
 #define TEST_ROWS 20
 

@@ -460,7 +460,7 @@ sub resolveAccessionURLs($)
     my $kid = open(my $pipe, '-|') // die "can't fork: $!";
     
     if ($kid == 0) {
-        exec {$toolpath} 'srapath', qw{ --function names --json }, @_;
+        exec {$toolpath} 'srapath', qw{ --function names --json }, '--vers', $config{'repository/remote/version'}, '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'}, @_;
         die "can't exec srapath: $!";
     }
     my $srapath = join '', $pipe->getlines;

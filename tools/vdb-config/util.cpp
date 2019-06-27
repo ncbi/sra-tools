@@ -363,6 +363,16 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         }
     }
 
+    {
+        const string name("/repository/remote/main/SDL.2/resolver-cgi");
+        if (!NodeExists(name)) {
+            rc_t r2 = UpdateNode(name,
+                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
+    }
+
     return rc;
 }
 

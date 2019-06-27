@@ -97,7 +97,7 @@ LOG 1, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 
-delete $ENV{$_} for qw{ VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
+delete $ENV{$_} for qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
@@ -235,15 +235,17 @@ FMT
     $ENV{VDB_DRIVER_RUN_COUNT} = ''.scalar(@runs);
     foreach (0 .. $#runs) {
         my $acc = $runs[$_];
-        my @sources = resolveAccessionURLs($acc);
+        my ($ce_token, @sources) = resolveAccessionURLs($acc);
         
         $ENV{VDB_DRIVER_RUN_CURRENT} = ''.($_ + 1);
+        $ENV{VDB_CE_TOKEN} = $ce_token if $ce_token;
 
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
             
-            LOG 1, sprintf("accession: %s, data: {local: '%s', remote: '%s', cache: '%s'}, vdbcache: {%s}"
+            LOG 1, sprintf("accession: %s, ce_token: %s, data: {local: '%s', remote: '%s', cache: '%s'}, vdbcache: {%s}"
                             , $acc
+                            , $ce_token // 'null'
                             , $run->{'local'}
                             , $run->{'url'}
                             , $run->{'cache'}
@@ -510,7 +512,7 @@ sub resolveAccessionURLs($)
         decode_json($output) or die "unparsable response from srapath:\n$output";
     };
     DEBUG $json;
-    extract_from_srapath($_[0], @{$json});
+    ($json->{'CE-Token'}, extract_from_srapath($_[0], @{$json->{'responses'}}));
 }
 
 use constant EUTILS_URL => URI->new('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/');

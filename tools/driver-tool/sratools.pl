@@ -4,6 +4,7 @@ use v5.16;
 use strict;
 use warnings;
 use integer;
+use Config;
 use IO::Handle;
 use IO::File;
 use File::Spec;
@@ -64,6 +65,20 @@ sub LOG($@)
     return unless $_[0] <= 5;
     my $level = shift;
     goto &{$loggers[$level]};
+}
+
+my (@SignalName_name, %SignalName_no);
+sub SignalName($)
+{
+    unless (@SignalName_name) {
+        my $i = 0;
+        for (split ' ', $Config{sig_name}) {
+            s/^(?:SIG)+//;
+            $SignalName_no{$SignalName_name[$i] = $_} = $i;
+            $i += 1;
+        }
+    }
+    return 'SIG'.$SignalName_name[$_[0]];
 }
 
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
@@ -201,18 +216,21 @@ sub processAccessions($$$$\@@)
     my $overrideOutputFile = FALSE;
     my @runs = expandAllAccessions(@_);
     
-    LOG 1, "running $toolname on ".join(' ', @runs);
+    LOG 0, "running $toolname on ".join(' ', @runs);
     
     if (@runs > 1 && $unsafeOutputFile && parameterValue($unsafeOutputFile, $params)) {
-        printf "You are trying to process %u runs with %s\n".
-               "to a single output file, but %s is not capable of producing\n".
-               "valid output from more than one run into a single file.\n".
-               "The following output files will be created:\n", scalar(@runs), $toolname, $toolname;
-        printf "%s%s\n", $_, $extension for @runs;
+        # since we know the user asked that normal tool output go to a file,
+        # we can safely use STDOUT to talk to the user here.
+        printf <<'FMT', scalar(@runs), $toolname;
+You are trying to process %u runs to a single output file, but %s
+is not capable of producing valid output from more than one run into a single
+file. The following output files will be created instead:
+FMT
+        printf "\t%s%s\n", $_, $extension for @runs;
         $overrideOutputFile = TRUE;
         deleteParameterAndValue($unsafeOutputFile, $params);
     }
-    LOG 1, 'with parameters: '.join(' ', @$params);
+    LOG 0, 'with parameters: '.join(' ', @$params) if @$params;
     
     $ENV{VDB_DRIVER_RUN_COUNT} = ''.scalar(@runs);
     foreach (0 .. $#runs) {
@@ -224,7 +242,7 @@ sub processAccessions($$$$\@@)
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
             
-            LOG 0, sprintf("accession: %s, data: {local: '%s', remote: '%s', cache: '%s'}, vdbcache: {%s}"
+            LOG 1, sprintf("accession: %s, data: {local: '%s', remote: '%s', cache: '%s'}, vdbcache: {%s}"
                             , $acc
                             , $run->{'local'}
                             , $run->{'url'}
@@ -255,11 +273,20 @@ sub processAccessions($$$$\@@)
                 exec {$toolpath} $0, @$params, $acc; ### tool should run as what user invoked
                 die "can't exec $toolname: $!";
             }
-            waitpid($kid, 0);
-
-            last if $? == 0; # SUCCESS! process the next run
-            exit ($? >> 8) if ($? & 0xFF) != 0; # abnormal end
-            exit ($? >> 8) unless ($? >> 8) == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
+            my ($exitcode, $signal, $cored) = do {
+                local ($!, $?);
+                local $SIG{INT} = sub { kill shift, $kid }; #forward SIGINT to child
+                waitpid($kid, 0);
+                (($? >> 8), ($? & 0x7F), ($? & 0x80) != 0)
+            };
+            if ($exitcode == 0 && $signal == 0) { # SUCCESS! process the next run
+                LOG 0, sprintf("Processed %s", $acc);
+                last
+            }
+            last if $exitcode == 0 && $signal == 0; # SUCCESS! process the next run
+            die sprintf('%s (PID %u) was killed [%s (%u)] (%s core dump was generated)', $toolname, $kid, SignalName($signal), $signal, $cored ? 'a' : 'no') if $signal;
+            LOG 0, sprintf("%s (PID %u) quit with exit code %u", $toolname, $kid, $exitcode);
+            exit $exitcode unless $exitcode == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
         }
     }
     exit 0;
@@ -1726,7 +1753,6 @@ sub aeq(\@\@)
 RUN_TESTS:
 eval <<'TESTS';
 
-use Config;
 use Test::Simple tests => 41;
 my %long_args = (
     '-h' => '--help',

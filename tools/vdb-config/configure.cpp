@@ -119,17 +119,13 @@ class CConfigurator : CNoncopyable {
 
             m_Cfg . FixResolverCgiNodes ( );
 
-            bool noUser = false;
             rc = KRepositoryMgrUserRepositories(mgr, &repositories);
             if (rc == 0) {
                 uint32_t len = 0;
                 if (rc == 0)
                     len = VectorLength(&repositories);
-                if (len == 0)
-                    noUser = true;
-                else {
+                if (len != 0) {
                     uint32_t i = 0;
-                    noUser = true;
                     for (i = 0; i < len; ++i) {
                         KRepository *repo = static_cast<KRepository*>
                             (VectorGet(&repositories, i));
@@ -143,7 +139,6 @@ class CConfigurator : CNoncopyable {
                                 if (strcase_cmp(p, sizeof p - 1, name,
                                     size, sizeof name) == 0)
                                 {
-                                    noUser = false;
                                 }
                                 if (fix) {
                                     rc = m_Cfg.CreateUserRepository (name, fix);
@@ -169,14 +164,6 @@ class CConfigurator : CNoncopyable {
                     rc = 0;
                 }
                 KRepositoryVectorWhack(&repositories);
-            }
-            else if
-                (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
-            {
-                noUser = true;
-            }
-            if (noUser) {
-                rc = m_Cfg.CreateUserRepository();
             }
         }
         RELEASE(KRepositoryMgr, mgr);
@@ -788,16 +775,24 @@ class CTextualConfigurator : public CConfigurator {
 public:
     CTextualConfigurator(void) {}
 };
-const string CTextualConfigurator::CSymGen::magic
- ("56789ABCDEFGHIJKLMNOPQRSTUVWXZ");
-class CVisualConfigurator : public CConfigurator {
-    virtual rc_t Configure(void) {
-        if (m_Config == NULL) {
+const string CTextualConfigurator::CSymGen::magic("56789ABCDEFGHIJKLMNOPQRSTUVWXZ");
+
+class CVisualConfigurator : public CConfigurator
+{
+    virtual rc_t Configure( void )
+    {
+        if ( m_Config == NULL )
+        {
             return TODO;
         }
-        return run_interactive(*m_Config);
+        /* here we can switch between:
+             - the old view : run_interactive() just repositories and caching
+             - the new view : run_interactive2() with cloud settings and repositories
+         */
+        return run_interactive2( *m_Config );
     }
 };
+
 rc_t configure(EConfigMode mode) {
     rc_t rc = 0;
     CConfigurator *c = NULL;

@@ -154,7 +154,7 @@ static void parse_meta(nvp_t *meta, int count, const char *metadata, const char 
 }
 
 bool ILL_ZTR_BufferIsEmpty(const ZTR_Context *ctx) {
-	return (ctx->buf[0] == NULL || ctx->buflen[0] == 0) ? true : false;
+    return (ctx->buf[0] == NULL || ctx->buflen[0] == 0) ? true : false;
 }
 
 static int isZTRchunk(const uint8_t type[4]) {
@@ -233,10 +233,10 @@ rc_t ILL_ZTR_ParseBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw)
     assert(ztr_raw);
     
     memset(ztr_raw, 0, sizeof(*ztr_raw));
-	
-	if (ctx->buf[0] == NULL || ctx->buflen[0] == 0 || ctx->current == ctx->buflen[0] + ctx->buflen[1])
-		return RC ( rcSRA, rcFormatter, rcParsing, rcData, rcEmpty );
-	
+    
+    if (ctx->buf[0] == NULL || ctx->buflen[0] == 0 || ctx->current == ctx->buflen[0] + ctx->buflen[1])
+        return RC ( rcSRA, rcFormatter, rcParsing, rcData, rcEmpty );
+    
     /* save input buffer state for restoration upon error exit */
     current = ctx->current;
     len[0] = ctx->buflen[0];
@@ -262,19 +262,19 @@ rc_t ILL_ZTR_ParseBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw)
 }
 
 static rc_t undo_mode_4(uint8_t **Data, size_t *datasize) {
-	const uint8_t *src = *Data, *end;
-	size_t srclen = *datasize, dstlen = 0;
-	size_t dalloc;
-	uint8_t *dst, *Dst;
-	uint8_t dup = 0;
-	uint8_t esize;
-	rc_t rc = 0;
-	int st = 0;
-	int i;
-	
-	esize = src[1];
-	if (esize < 1 || srclen % esize != 0) {
-		rc = RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
+    const uint8_t *src = *Data, *end;
+    size_t srclen = *datasize, dstlen = 0;
+    size_t dalloc;
+    uint8_t *dst, *Dst;
+    uint8_t dup = 0;
+    uint8_t esize;
+    rc_t rc = 0;
+    int st = 0;
+    int i;
+    
+    esize = src[1];
+    if (esize < 1 || srclen % esize != 0) {
+        rc = RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
         return rc;
     }
     if (esize > 2) {
@@ -336,22 +336,22 @@ static rc_t undo_mode_4(uint8_t **Data, size_t *datasize) {
         src += esize;
     }
 
-	free((void *)*Data);
-	*Data = Dst;
-	*datasize = dstlen;
-	return rc;
+    free((void *)*Data);
+    *Data = Dst;
+    *datasize = dstlen;
+    return rc;
 }
 
 static rc_t undo_mode_79(uint8_t **Data, size_t *datasize) {
     uint8_t scratch[4 * 1024];
-	const uint8_t *src = *Data;
-	size_t srclen = *datasize;
-	uint8_t *dst0, *dst1, *Dst;
-	rc_t rc = 0;
-	int i, j, k, n;
+    const uint8_t *src = *Data;
+    size_t srclen = *datasize;
+    uint8_t *dst0, *dst1, *Dst;
+    rc_t rc = 0;
+    int i, j, k, n;
 
-	if (srclen == 0) {
-		rc = RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
+    if (srclen == 0) {
+        rc = RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
         return rc;
     }
     assert(srclen % 4 == 0);
@@ -371,232 +371,232 @@ static rc_t undo_mode_79(uint8_t **Data, size_t *datasize) {
     }
 
     memmove(Dst + 1, scratch, n << 2);
-	*Data = Dst;
-	*datasize = (n << 2) + 1;
-	return rc;
+    *Data = Dst;
+    *datasize = (n << 2) + 1;
+    return rc;
 }
 
 #if 0
 static rc_t undo_mode_80(uint8_t **Data, size_t *datasize, const uint8_t *sequence, size_t basecount) {
-	uint16_t temp[4 * 1024];
-	uint16_t *A = temp;
-	uint16_t *C = A + basecount;
-	uint16_t *G = C + basecount;
-	uint16_t *T = G + basecount;
-	uint8_t *dst;
-	int i, n;
-	const uint16_t *u;
+    uint16_t temp[4 * 1024];
+    uint16_t *A = temp;
+    uint16_t *C = A + basecount;
+    uint16_t *G = C + basecount;
+    uint16_t *T = G + basecount;
+    uint8_t *dst;
+    int i, n;
+    const uint16_t *u;
 
-	assert(basecount < 1024);
-	dst = *Data;
-	*dst = 0;
-	u = (const uint16_t *)(dst + 8);
-	for (n = basecount, i = 0; i != n; ++i, u += 4) {
-		switch (sequence[i]) {
-			default:
-			case 'A':
-			case 'a':
-				A[i] = btoh16(u[0]);
-				C[i] = btoh16(u[1]);
-				G[i] = btoh16(u[2]);
-				T[i] = btoh16(u[3]);
-				break;					
-			case 'C':
-			case 'c':
-				C[i] = btoh16(u[0]);
-				A[i] = btoh16(u[1]);
-				G[i] = btoh16(u[2]);
-				T[i] = btoh16(u[3]);
-				break;					
-			case 'G':
-			case 'g':
-				G[i] = btoh16(u[0]);
-				A[i] = btoh16(u[1]);
-				C[i] = btoh16(u[2]);
-				T[i] = btoh16(u[3]);
-				break;					
-			case 'T':
-			case 't':
-				T[i] = btoh16(u[0]);
-				A[i] = btoh16(u[1]);
-				C[i] = btoh16(u[2]);
-				G[i] = btoh16(u[3]);
-				break;
-		}
-	}
-	memmove(dst + 2, temp, 8 * basecount);
-	*datasize = 2 + 8 * basecount;
-	return 0;
+    assert(basecount < 1024);
+    dst = *Data;
+    *dst = 0;
+    u = (const uint16_t *)(dst + 8);
+    for (n = basecount, i = 0; i != n; ++i, u += 4) {
+        switch (sequence[i]) {
+            default:
+            case 'A':
+            case 'a':
+                A[i] = btoh16(u[0]);
+                C[i] = btoh16(u[1]);
+                G[i] = btoh16(u[2]);
+                T[i] = btoh16(u[3]);
+                break;                  
+            case 'C':
+            case 'c':
+                C[i] = btoh16(u[0]);
+                A[i] = btoh16(u[1]);
+                G[i] = btoh16(u[2]);
+                T[i] = btoh16(u[3]);
+                break;                  
+            case 'G':
+            case 'g':
+                G[i] = btoh16(u[0]);
+                A[i] = btoh16(u[1]);
+                C[i] = btoh16(u[2]);
+                T[i] = btoh16(u[3]);
+                break;                  
+            case 'T':
+            case 't':
+                T[i] = btoh16(u[0]);
+                A[i] = btoh16(u[1]);
+                C[i] = btoh16(u[2]);
+                G[i] = btoh16(u[3]);
+                break;
+        }
+    }
+    memmove(dst + 2, temp, 8 * basecount);
+    *datasize = 2 + 8 * basecount;
+    return 0;
 }
 #else
 static rc_t undo_mode_80(uint8_t **Data, size_t *datasize, const uint8_t *sequence, size_t basecount, long offset) {
-	const uint16_t *u = (const uint16_t *)(*Data + 8);
-	int i;
+    const uint16_t *u = (const uint16_t *)(*Data + 8);
+    int i;
     float *Dst = malloc(sizeof(Dst[0]) * 4 * basecount);
     float *dst = Dst;
 
     if (dst == NULL)
         return RC(rcSRA, rcFormatter, rcParsing, rcMemory, rcExhausted);
     
-	for (i = 0; i != basecount; ++i, u += 4, dst += 4) {
-		switch (sequence[i]) {
-			default:
-			case 'A':
-			case 'a':
-				dst[0] = (long)btoh16(u[0]) - offset;
-				dst[1] = (long)btoh16(u[1]) - offset;
-				dst[2] = (long)btoh16(u[2]) - offset;
-				dst[3] = (long)btoh16(u[3]) - offset;
-				break;					
-			case 'C':
-			case 'c':
-				dst[1] = (long)btoh16(u[0]) - offset;
-				dst[0] = (long)btoh16(u[1]) - offset;
-				dst[2] = (long)btoh16(u[2]) - offset;
-				dst[3] = (long)btoh16(u[3]) - offset;
-				break;					
-			case 'G':
-			case 'g':
-				dst[2] = (long)btoh16(u[0]) - offset;
-				dst[0] = (long)btoh16(u[1]) - offset;
-				dst[1] = (long)btoh16(u[2]) - offset;
-				dst[3] = (long)btoh16(u[3]) - offset;
-				break;					
-			case 'T':
-			case 't':
-				dst[3] = (long)btoh16(u[0]) - offset;
-				dst[0] = (long)btoh16(u[1]) - offset;
-				dst[1] = (long)btoh16(u[2]) - offset;
-				dst[2] = (long)btoh16(u[3]) - offset;
-				break;
-		}
-	}
+    for (i = 0; i != basecount; ++i, u += 4, dst += 4) {
+        switch (sequence[i]) {
+            default:
+            case 'A':
+            case 'a':
+                dst[0] = (long)btoh16(u[0]) - offset;
+                dst[1] = (long)btoh16(u[1]) - offset;
+                dst[2] = (long)btoh16(u[2]) - offset;
+                dst[3] = (long)btoh16(u[3]) - offset;
+                break;                  
+            case 'C':
+            case 'c':
+                dst[1] = (long)btoh16(u[0]) - offset;
+                dst[0] = (long)btoh16(u[1]) - offset;
+                dst[2] = (long)btoh16(u[2]) - offset;
+                dst[3] = (long)btoh16(u[3]) - offset;
+                break;                  
+            case 'G':
+            case 'g':
+                dst[2] = (long)btoh16(u[0]) - offset;
+                dst[0] = (long)btoh16(u[1]) - offset;
+                dst[1] = (long)btoh16(u[2]) - offset;
+                dst[3] = (long)btoh16(u[3]) - offset;
+                break;                  
+            case 'T':
+            case 't':
+                dst[3] = (long)btoh16(u[0]) - offset;
+                dst[0] = (long)btoh16(u[1]) - offset;
+                dst[1] = (long)btoh16(u[2]) - offset;
+                dst[2] = (long)btoh16(u[3]) - offset;
+                break;
+        }
+    }
     free(*Data);
     *Data = (void *)Dst;
-	*datasize =  sizeof(dst[0]) * 4 * basecount;
-	return 0;
+    *datasize =  sizeof(dst[0]) * 4 * basecount;
+    return 0;
 }
 #endif
 
 static void swab16(const void *Src, void *Dst, size_t len) {
-	const uint16_t *src = Src;
-	uint16_t *dst = Dst;
-	size_t n = len >> 1;
-	size_t i;
-	
-	assert((len & 1) == 0);
-	for (i = 0; i != n; ++i)
-		dst[i] = bswap_16(src[i]);
+    const uint16_t *src = Src;
+    uint16_t *dst = Dst;
+    size_t n = len >> 1;
+    size_t i;
+    
+    assert((len & 1) == 0);
+    for (i = 0; i != n; ++i)
+        dst[i] = bswap_16(src[i]);
 }
 
 static void swab32(const void *Src, void *Dst, size_t len) {
-	const uint32_t *src = Src;
-	uint32_t *dst = Dst;
-	size_t n = len >> 2;
-	size_t i;
-	
-	assert((len & 3) == 0);
-	for (i = 0; i != n; ++i)
-		dst[i] = bswap_32(src[i]);
+    const uint32_t *src = Src;
+    uint32_t *dst = Dst;
+    size_t n = len >> 2;
+    size_t i;
+    
+    assert((len & 3) == 0);
+    for (i = 0; i != n; ++i)
+        dst[i] = bswap_32(src[i]);
 }
 
 static void swab64(const void *Src, void *Dst, size_t len) {
-	const uint64_t *src = Src;
-	uint64_t *dst = Dst;
-	size_t n = len >> 3;
-	size_t i;
-	
-	assert((len & 7) == 0);
-	for (i = 0; i != n; ++i)
-		dst[i] = bswap_64(src[i]);
+    const uint64_t *src = Src;
+    uint64_t *dst = Dst;
+    size_t n = len >> 3;
+    size_t i;
+    
+    assert((len & 7) == 0);
+    for (i = 0; i != n; ++i)
+        dst[i] = bswap_64(src[i]);
 }
 
 static rc_t fixup_read(uint8_t *read, size_t bases) {
-	int i;
-	
-	for (i = 0; i != bases; ++i)
-		switch (read[i]) {
-			case 'A':
-			case 'C':
-			case 'G':
-			case 'T':
-			case 'a':
-			case 'c':
-			case 'g':
-			case 't':
-				break;
-			default:
-				read[i] = 'N';
-				break;
-		}
-	return 0;
+    int i;
+    
+    for (i = 0; i != bases; ++i)
+        switch (read[i]) {
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'T':
+            case 'a':
+            case 'c':
+            case 'g':
+            case 't':
+                break;
+            default:
+                read[i] = 'N';
+                break;
+        }
+    return 0;
 }
 
 static rc_t fixup_quality4(uint8_t *qual, const uint8_t *read, size_t bases) {
-	uint8_t src[4 * 1024];
-	const uint8_t *src0 = src; /* called */
-	const uint8_t *src1 = src0 + bases; /* not called */
-	int i, j, k;
-	
-	assert(bases < 1024);
-	memmove(src, qual, bases * 4);
-	
-	for (k = j = i = 0; i != bases; ++i, j += 3, k += 4) {
-		switch (read[i]) {
-			default:
-			case 'A':
-			case 'a':
-				qual[k + 0] = src0[i];
-				qual[k + 1] = src1[j + 0];
-				qual[k + 2] = src1[j + 1];
-				qual[k + 3] = src1[j + 2];
-				break;
-			case 'C':
-			case 'c':
-				qual[k + 0] = src1[j + 0];
-				qual[k + 1] = src0[i];
-				qual[k + 2] = src1[j + 1];
-				qual[k + 3] = src1[j + 2];
-				break;
-			case 'G':
-			case 'g':
-				qual[k + 0] = src1[j + 0];
-				qual[k + 1] = src1[j + 1];
-				qual[k + 2] = src0[i];
-				qual[k + 3] = src1[j + 2];
-				break;
-			case 'T':
-			case 't':
-				qual[k + 0] = src1[j + 0];
-				qual[k + 1] = src1[j + 1];
-				qual[k + 2] = src1[j + 2];
-				qual[k + 3] = src0[i];
-				break;
-		}
-	}
-	return 0;
+    uint8_t src[4 * 1024];
+    const uint8_t *src0 = src; /* called */
+    const uint8_t *src1 = src0 + bases; /* not called */
+    int i, j, k;
+    
+    assert(bases < 1024);
+    memmove(src, qual, bases * 4);
+    
+    for (k = j = i = 0; i != bases; ++i, j += 3, k += 4) {
+        switch (read[i]) {
+            default:
+            case 'A':
+            case 'a':
+                qual[k + 0] = src0[i];
+                qual[k + 1] = src1[j + 0];
+                qual[k + 2] = src1[j + 1];
+                qual[k + 3] = src1[j + 2];
+                break;
+            case 'C':
+            case 'c':
+                qual[k + 0] = src1[j + 0];
+                qual[k + 1] = src0[i];
+                qual[k + 2] = src1[j + 1];
+                qual[k + 3] = src1[j + 2];
+                break;
+            case 'G':
+            case 'g':
+                qual[k + 0] = src1[j + 0];
+                qual[k + 1] = src1[j + 1];
+                qual[k + 2] = src0[i];
+                qual[k + 3] = src1[j + 2];
+                break;
+            case 'T':
+            case 't':
+                qual[k + 0] = src1[j + 0];
+                qual[k + 1] = src1[j + 1];
+                qual[k + 2] = src1[j + 2];
+                qual[k + 3] = src0[i];
+                break;
+        }
+    }
+    return 0;
 }
 
 static rc_t fixup_trace_reorder(float *dst, const uint16_t *src, long offset, size_t bases) {
-	size_t i, j;
-	const uint16_t *A = src;
-	const uint16_t *C = A + bases;
-	const uint16_t *G = C + bases;
-	const uint16_t *T = G + bases;
-	
-	for (j = i = 0; i < bases; ++i, j += 4) {
-		dst[j + 0] = ((long)A[i] - offset);
-		dst[j + 1] = ((long)C[i] - offset);
-		dst[j + 2] = ((long)G[i] - offset);
-		dst[j + 3] = ((long)T[i] - offset);
-	}
-	
-	return 0;
+    size_t i, j;
+    const uint16_t *A = src;
+    const uint16_t *C = A + bases;
+    const uint16_t *G = C + bases;
+    const uint16_t *T = G + bases;
+    
+    for (j = i = 0; i < bases; ++i, j += 4) {
+        dst[j + 0] = ((long)A[i] - offset);
+        dst[j + 1] = ((long)C[i] - offset);
+        dst[j + 2] = ((long)G[i] - offset);
+        dst[j + 3] = ((long)T[i] - offset);
+    }
+    
+    return 0;
 }
 
 static rc_t fixup_trace(float *dst, const uint16_t *src, long offset, size_t bases) {
-	size_t i;
-	
+    size_t i;
+    
     /*
      float x;
      float y;
@@ -612,57 +612,57 @@ static rc_t fixup_trace(float *dst, const uint16_t *src, long offset, size_t bas
             dst[i] = src[i];
         return 0;
     }
-	for (i = 0; i != bases * 4; ++i)
-		dst[i] = ((long)src[i] - offset);
-	return 0;
+    for (i = 0; i != bases * 4; ++i)
+        dst[i] = ((long)src[i] - offset);
+    return 0;
 }
 
 rc_t ILL_ZTR_Decompress(ZTR_Context *ctx, enum ztr_chunk_type type, ztr_t ztr, const ztr_t base) {
-	int padded = 1;
-	size_t *datasize;
-	uint8_t **data;
-	enum ztr_data_type datatype;
-	static char zero[8];
-	rc_t rc = 0;
-	
-	if (ztr.sequence == NULL)
-		return 0;
+    int padded = 1;
+    size_t *datasize;
+    uint8_t **data;
+    enum ztr_data_type datatype;
+    static char zero[8];
+    rc_t rc = 0;
+    
+    if (ztr.sequence == NULL)
+        return 0;
     switch (type) {
         case BASE:
-			data = &ztr.sequence->data;
-			datasize = &ztr.sequence->datasize;
-			datatype = ztr.sequence->datatype;
+            data = &ztr.sequence->data;
+            datasize = &ztr.sequence->datasize;
+            datatype = ztr.sequence->datatype;
             break;
         case BPOS:
-			data = &ztr.position->data;
-			datasize = &ztr.position->datasize;
-			datatype = ztr.position->datatype;
+            data = &ztr.position->data;
+            datasize = &ztr.position->datasize;
+            datatype = ztr.position->datatype;
             break;
         case CNF1:
-			data = &ztr.quality1->data;
-			datasize = &ztr.quality1->datasize;
-			datatype = ztr.quality1->datatype;
+            data = &ztr.quality1->data;
+            datasize = &ztr.quality1->datasize;
+            datatype = ztr.quality1->datatype;
             break;
         case CNF4:
-			data = &ztr.quality4->data;
-			datasize = &ztr.quality4->datasize;
-			datatype = ztr.quality4->datatype;
+            data = &ztr.quality4->data;
+            datasize = &ztr.quality4->datasize;
+            datatype = ztr.quality4->datatype;
             break;
         case SAMP:
-			data = &ztr.signal->data;
-			datasize = &ztr.signal->datasize;
-			datatype = ztr.signal->datatype;
+            data = &ztr.signal->data;
+            datasize = &ztr.signal->datasize;
+            datatype = ztr.signal->datatype;
             break;
         case SMP4:
-			data = &ztr.signal4->data;
-			datasize = &ztr.signal4->datasize;
-			datatype = ztr.signal4->datatype;
+            data = &ztr.signal4->data;
+            datasize = &ztr.signal4->datasize;
+            datatype = ztr.signal4->datatype;
             break;
         default:
-			return 0;
+            return 0;
     }
-	assert(*datasize);
-	assert(*data);
+    assert(*datasize);
+    assert(*data);
 
     if ((*data)[0] == 0x4D) {
         switch ((*data)[1]) {
@@ -694,55 +694,55 @@ rc_t ILL_ZTR_Decompress(ZTR_Context *ctx, enum ztr_chunk_type type, ztr_t ztr, c
                 rc = decompress_huffman(&ctx->huffman_table[(*data)[1] - 128], data, datasize);
         }
     }
-	while (rc == 0) {
-		switch (**data) {
-		case 0:
-			switch (datatype) {
-				case i16:
-				case i16v4:
-					if (memcmp(*data, zero, 2) == 0)
-						padded = 2;
-					*datasize -= padded;
+    while (rc == 0) {
+        switch (**data) {
+        case 0:
+            switch (datatype) {
+                case i16:
+                case i16v4:
+                    if (memcmp(*data, zero, 2) == 0)
+                        padded = 2;
+                    *datasize -= padded;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-					swab16((*data) + padded, *data, *datasize);
+                    swab16((*data) + padded, *data, *datasize);
 #else
-					memmove(*data, (*data) + padded, *datasize);
+                    memmove(*data, (*data) + padded, *datasize);
 #endif
-					break;
-				case i32:
-				case f32:
-					if (memcmp(*data, zero, 4) == 0)
-						padded = 4;
-					*datasize -= padded;
+                    break;
+                case i32:
+                case f32:
+                    if (memcmp(*data, zero, 4) == 0)
+                        padded = 4;
+                    *datasize -= padded;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-					swab32((*data) + padded, *data, *datasize);
+                    swab32((*data) + padded, *data, *datasize);
 #else
-					memmove(*data, (*data) + padded, *datasize);
+                    memmove(*data, (*data) + padded, *datasize);
 #endif
-					break;
-				case f64:
-					if (memcmp(*data, zero, 8) == 0)
-						padded = 8;
-					*datasize -= padded;
+                    break;
+                case f64:
+                    if (memcmp(*data, zero, 8) == 0)
+                        padded = 8;
+                    *datasize -= padded;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-					swab64((*data) + padded, *data, *datasize);
+                    swab64((*data) + padded, *data, *datasize);
 #else
-					memmove(*data, (*data) + padded, *datasize);
+                    memmove(*data, (*data) + padded, *datasize);
 #endif
-					break;
-				default:
-					*datasize -= padded;
-					memmove(*data, (*data) + padded, *datasize);
-					break;
-			}
-			switch (type) {
-			case BASE:
-				rc = fixup_read(*data, *datasize);
-				break;
-			case CNF4:
-				rc = fixup_quality4(*data, base.sequence->data, base.sequence->datasize);
-				break;
-			case SMP4:
+                    break;
+                default:
+                    *datasize -= padded;
+                    memmove(*data, (*data) + padded, *datasize);
+                    break;
+            }
+            switch (type) {
+            case BASE:
+                rc = fixup_read(*data, *datasize);
+                break;
+            case CNF4:
+                rc = fixup_quality4(*data, base.sequence->data, base.sequence->datasize);
+                break;
+            case SMP4:
                 {
                     float *dst = malloc(sizeof(*dst) * 4 * base.sequence->datasize);
                     if (dst == NULL)
@@ -756,41 +756,41 @@ rc_t ILL_ZTR_Decompress(ZTR_Context *ctx, enum ztr_chunk_type type, ztr_t ztr, c
                     *data = ( uint8_t* ) dst;
                     *datasize = sizeof(*dst) * 4 * base.sequence->datasize;
                 }
-				break;
-			default:
-				break;
-			}
-			return rc;
-		case 4:
-			rc = undo_mode_4(data, datasize);
-			if (rc)
-				return rc;
-			break;
-		case 79:
-			rc = undo_mode_79(data, datasize);
-			if (rc)
-				return rc;
-			break;
-		case 80:
-			if (base.sequence->data == NULL || base.sequence->datasize == 0) {
-				**(uint16_t **)data = 0;
-				memmove(*data + 2, *data + 8, *datasize - 8);
-				*datasize -= 6;
-			}
-			else {
-				rc = undo_mode_80(data, datasize, base.sequence->data, base.sequence->datasize, ztr.signal4->offset);
+                break;
+            default:
+                break;
+            }
+            return rc;
+        case 4:
+            rc = undo_mode_4(data, datasize);
+            if (rc)
+                return rc;
+            break;
+        case 79:
+            rc = undo_mode_79(data, datasize);
+            if (rc)
+                return rc;
+            break;
+        case 80:
+            if (base.sequence->data == NULL || base.sequence->datasize == 0) {
+                **(uint16_t **)data = 0;
+                memmove(*data + 2, *data + 8, *datasize - 8);
+                *datasize -= 6;
+            }
+            else {
+                rc = undo_mode_80(data, datasize, base.sequence->data, base.sequence->datasize, ztr.signal4->offset);
                 if (rc == 0)
                     ztr.signal4->datatype = f32;
                 return rc;
-			}
-			break;
-		default:
-			rc = RC ( rcSRA, rcFormatter, rcParsing, rcData, rcUnexpected );
-			PLOGERR ( klogInt, ( klogInt, rc, "$(func) - don't know how to handle format '$(format)'",
+            }
+            break;
+        default:
+            rc = RC ( rcSRA, rcFormatter, rcParsing, rcData, rcUnexpected );
+            PLOGERR ( klogInt, ( klogInt, rc, "$(func) - don't know how to handle format '$(format)'",
                                              "func=ZTR_Decompress,format=%02X", *data ));
-		}
-	}
-	return rc;
+        }
+    }
+    return rc;
 }
 
 #if ZTR_USE_EXTRA_META
@@ -818,7 +818,7 @@ rc_t ILL_ZTR_ProcessBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw, ztr_t *dst, enum
     *chunkType = none;
     *(void **)dst = NULL;
     *(void **)&ztr = NULL;
-	
+    
     ptype = ztr_raw->type;
     count = 0;
     metasize = ztr_raw->metalength;
@@ -833,18 +833,18 @@ rc_t ILL_ZTR_ProcessBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw, ztr_t *dst, enum
             return rc;
         }
 
-		if (count == 0)
-			meta = NULL;
+        if (count == 0)
+            meta = NULL;
         else {
-			meta = calloc(count, sizeof(*meta));
-			if (meta == NULL) {
-				rc = RC ( rcSRA, rcFormatter, rcParsing, rcMemory, rcExhausted );
-				PLOGERR ( klogSys, ( klogSys, rc, "$(func) - '$(type)' chunk metadata pair",
-						  "func=ZTR_ProcessBlock,type=%.*s", 4, & ztr_raw->type ));
-				return rc;
-			}
-			parse_meta(meta, count, metadata, metadata + metasize);
-		}
+            meta = calloc(count, sizeof(*meta));
+            if (meta == NULL) {
+                rc = RC ( rcSRA, rcFormatter, rcParsing, rcMemory, rcExhausted );
+                PLOGERR ( klogSys, ( klogSys, rc, "$(func) - '$(type)' chunk metadata pair",
+                          "func=ZTR_ProcessBlock,type=%.*s", 4, & ztr_raw->type ));
+                return rc;
+            }
+            parse_meta(meta, count, metadata, metadata + metasize);
+        }
     }
     
     if (memcmp(ptype, "BASE", 4) == 0) {
@@ -908,15 +908,15 @@ rc_t ILL_ZTR_ProcessBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw, ztr_t *dst, enum
     datasize = ztr_raw->datalength;
     data = ztr_raw->data;
 #if 0
-	if (datasize > 0 && *data == 0x4D) {
-		if (data[1] < 128)
-			return RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
-		rc = decompress_huffman(&ctx->huffman_table[data[1] - 128], (const uint8_t **)&data, &datasize);
-		if (rc)
-			return rc;
-		ztr_raw->datalength = datasize;
-		ztr_raw->data = (uint8_t *)data;
-	}
+    if (datasize > 0 && *data == 0x4D) {
+        if (data[1] < 128)
+            return RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
+        rc = decompress_huffman(&ctx->huffman_table[data[1] - 128], (const uint8_t **)&data, &datasize);
+        if (rc)
+            return rc;
+        ztr_raw->datalength = datasize;
+        ztr_raw->data = (uint8_t *)data;
+    }
 #endif
 
     switch (type) {
@@ -1025,11 +1025,11 @@ rc_t ILL_ZTR_ProcessBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw, ztr_t *dst, enum
             break;
         case HUFF:
             *chunkType = ignore;
-			if (data[1] < 128)
-				return RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
-			rc = handle_huffman_codes(&ctx->huffman_table[data[1] - 128], data + 2, datasize - 2);
-			if (rc)
-				return rc;
+            if (data[1] < 128)
+                return RC(rcSRA, rcFormatter, rcParsing, rcData, rcInvalid);
+            rc = handle_huffman_codes(&ctx->huffman_table[data[1] - 128], data + 2, datasize - 2);
+            if (rc)
+                return rc;
             break;
         case REGN:
         {
@@ -1160,8 +1160,8 @@ rc_t ILL_ZTR_ProcessBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw, ztr_t *dst, enum
             *chunkType = type;
             ztr.signal->datatype = datatype;
             ztr.signal->datasize = datasize;
-			metadata = (char *)meta_getValueForNameAndRemove(meta, count, "OFFS");
-			ztr.signal->offset = metadata == NULL ? 0 : strtol(metadata, 0, 0);
+            metadata = (char *)meta_getValueForNameAndRemove(meta, count, "OFFS");
+            ztr.signal->offset = metadata == NULL ? 0 : strtol(metadata, 0, 0);
             ztr.signal->channel = (char *)meta_getValueForNameAndRemove(meta, count, "TYPE");
             ztr.signal->data = (uint8_t *)data;
             break;
@@ -1177,8 +1177,8 @@ rc_t ILL_ZTR_ProcessBlock(ZTR_Context *ctx, ztr_raw_t *ztr_raw, ztr_t *dst, enum
             *chunkType = type;
             ztr.signal4->datatype = datatype;
             ztr.signal4->datasize = datasize;
-			metadata = (char *)meta_getValueForNameAndRemove(meta, count, "OFFS");
-			ztr.signal->offset = metadata == NULL ? 0 : strtol(metadata, 0, 0);
+            metadata = (char *)meta_getValueForNameAndRemove(meta, count, "OFFS");
+            ztr.signal->offset = metadata == NULL ? 0 : strtol(metadata, 0, 0);
             ztr.signal4->Type   = (char *)meta_getValueForNameAndRemove(meta, count, "TYPE");
             ztr.signal4->data = (uint8_t *)data;
             break;

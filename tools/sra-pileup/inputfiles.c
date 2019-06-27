@@ -246,24 +246,10 @@ static rc_t open_table( input_files *self, const VDBManager *mgr, const char * p
     rc_t rc = VDBManagerOpenTableRead( mgr, &tab, NULL, "%s", path );
     if ( rc != 0 )
     {
-        struct VSchema* schema = NULL;
-        rc = VDBManagerMakeSRASchema( mgr, &schema );
-        if ( rc != 0 )
-        {
-            (void)LOGERR( klogErr, rc, "cannot MakeSRASchema" );
-        }
-        else
-        {
-            rc = VDBManagerOpenTableRead( mgr, &tab, schema, "%s", path );
-            if ( rc != 0 )
-            {
                 if ( show_error )
                 {
                     (void)PLOGERR( klogErr, ( klogErr, rc, "cannot open tab '$(t)'", "t=%s", path ) );
                 }
-            }
-            VSchemaRelease( schema );
-        }
     }
 
     if ( rc == 0 )

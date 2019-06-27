@@ -52,6 +52,9 @@
 #define PATH_MAX 4096
 #endif
 
+#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
+    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
+
 #define DEF_PROTO "https"
 
 static const char * proto_usage[]
@@ -192,30 +195,49 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const 
                 uint32_t l = KSrvResponseLength  ( response );
                 found = true;
                 for ( i = 0; i < l && rc == 0; ++ i ) {
+                    const KSrvRespObj * obj = NULL;
+                    KSrvRespObjIterator * it = NULL;
+                    KSrvRespFile * file = NULL;
                     const VPath * path = NULL;
                     const VPath * vdbcache = NULL;
-                    rc = KSrvResponseGetLocal ( response, i, & path );
-                    if ( rc != 0 )
-                        rc = KSrvResponseGetPath ( response, i, protocol,
-                            & path, & vdbcache, NULL );
-                    if ( path != NULL ) {
-                        const String * tmp = NULL;
-                        rc = VPathMakeString ( path, & tmp );
-                        if ( rc == 0 ) {
-                            OUTMSG ( ( "%S\n", tmp ) );
-                            free ( ( void * ) tmp );
+                    rc = KSrvResponseGetObjByIdx ( response, i, & obj );
+                    if ( rc == 0 )
+                        rc = KSrvRespObjMakeIterator ( obj, & it );
+                    while ( rc == 0 ) {
+                        rc = KSrvRespObjIteratorNextFile ( it, & file );
+                        if ( rc != 0 || file == NULL )
+                            break;
+                        rc = KSrvRespFileGetLocal ( file, & path );
+                        if ( rc != 0 ) {
+                            KSrvRespFileIterator * fi = NULL;
+                            rc = KSrvRespFileMakeIterator(file, &fi);
+                            if (rc == 0)
+                                rc = KSrvRespFileIteratorNextPath ( fi,
+                                                                    & path );
+                            RELEASE ( KSrvRespFileIterator, fi );
                         }
-                        VPathRelease ( path );
-                    }
-                    if ( vdbcache != NULL ) {
-                        const String * tmp = NULL;
-                        rc = VPathMakeString ( vdbcache, & tmp );
-                        if ( rc == 0 ) {
-                            OUTMSG ( ( "%S\n", tmp ) );
-                            free ( ( void * ) tmp );
+                        if ( path != NULL ) {
+                            const String * tmp = NULL;
+                            rc = VPathMakeString ( path, & tmp );
+                            if ( rc == 0 ) {
+                                OUTMSG ( ( "%S\n", tmp ) );
+                                free ( ( void * ) tmp );
+                            }
+                            VPathRelease ( path );
                         }
-                        VPathRelease ( vdbcache );
+                        if ( vdbcache != NULL ) {
+                            const String * tmp = NULL;
+                            rc = VPathMakeString ( vdbcache, & tmp );
+                            if ( rc == 0 ) {
+                                OUTMSG ( ( "%S\n", tmp ) );
+                                free ( ( void * ) tmp );
+                            }
+                            VPathRelease ( vdbcache );
+                        }
+                        RELEASE ( KSrvRespFile, file );
                     }
+                    RELEASE ( KSrvRespObjIterator, it );
+                    RELEASE ( KSrvRespObj, obj );
                 }
                 KSrvResponseRelease ( response );
             }
@@ -337,6 +359,7 @@ static rc_t resolve_arguments( Args * args )
                 LOGERR ( klogErr, rc, "failed to get VResolver object" );
             else
             {
+                rc_t r2 = 0;
                 uint32_t idx;
 
                 rc = ArgsOptionCount ( args, OPTION_PROTO, & idx );
@@ -362,9 +385,14 @@ static rc_t resolve_arguments( Args * args )
                     rc = ArgsParamValue( args, idx, ( const void ** )&pc );
                     if ( rc != 0 )
                         LOGERR( klogInt, rc, "failed to retrieve parameter value" );
-                    else
-                        rc = resolve_one_argument( mgr, resolver, pc );
+                    else {
+                        rc_t rx = resolve_one_argument( mgr, resolver, pc );
+                        if ( rx != 0 && r2 == 0)
+                            r2 = rx;
+                    }
                 }
+                if (r2 != 0 && rc == 0)
+                    rc = r2;
                 VResolverRelease( resolver );
             }
             VFSManagerRelease( mgr );

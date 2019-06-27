@@ -284,17 +284,54 @@ rc_t CKDirectory::CreateNonExistingDir(const CString &path,
     return rc;
 }
 
-rc_t CKConfig::Commit(void) const {
+CKConfig::CKConfig(bool verbose)
+    : m_Self(NULL), m_Updated(false)
+    , m_RepositoryRemoteAuxDisabled ("repository/remote/aux/NCBI/disabled")
+    , m_RepositoryRemoteMainDisabled("repository/remote/main/CGI/disabled")
+    , m_RepositoryUserRoot          ("repository/user/main/public/root")
+{
+    if (verbose)
+        OUTMSG(("loading configuration... "));
+    rc_t rc = KConfigMakeLocal(&m_Self, NULL);
+    if (rc == 0) {
+        if (verbose)
+            OUTMSG(("ok\n"));
+    }
+    else {
+        if (verbose)
+            OUTMSG(("failed\n"));
+        throw rc;
+    }
+}
+
+rc_t CKConfig::Commit(void)
+{
     if (!m_Updated) {
         return 0;
     }
 
-    return KConfigCommit(m_Self);
+    rc_t rc = KConfigCommit(m_Self);
+    if ( rc == 0 )
+    {
+        m_Updated = false;
+    }
+    return rc;
 }
 
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
-    rc_t rc = UpdateNode("/repository/remote/main/CGI/resolver-cgi",
-        "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
+    bool updated = NodeExists("/repository_remote/CGI/resolver-cgi/trace");
+
+    rc_t rc = 0;
+
+    {
+        const string name("/repository/remote/main/CGI/resolver-cgi");
+        if (!updated || !NodeExists(name)) {
+            rc_t r2 = UpdateNode(name,
+                "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
+    }
 
     if (fix) {
         const string name("/repository/remote/main/CGI/disabled");
@@ -306,10 +343,14 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         }
     }
 
-    rc_t r2 = UpdateNode("/repository/remote/protected/CGI/resolver-cgi",
-        "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
+    {
+        const string name("/repository/remote/protected/CGI/resolver-cgi");
+        if (!updated || !NodeExists(name)) {
+            rc_t r2 = UpdateNode(name,
+                "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
     }
 
     if (fix) {
@@ -319,6 +360,16 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
             if (r2 != 0 && rc == 0) {
                 rc = r2;
             }
+        }
+    }
+
+    {
+        const string name("/repository/remote/main/SDL.2/resolver-cgi");
+        if (!NodeExists(name)) {
+            rc_t r2 = UpdateNode(name,
+                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
         }
     }
 
@@ -377,6 +428,22 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
     if ( repoName != "public" )
         return rc;
 
+    {
+        string name(repoNode + "/apps/sraPileup/volumes/flat");
+        if (!NodeExists(name)) {
+            rc_t r2 = UpdateNode(name, "sra");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
+    }
+    {
+        string name(repoNode + "/apps/sraRealign/volumes/flat");
+        if (!NodeExists(name)) {
+            rc_t r2 = UpdateNode(name, "sra");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
+    }
     {
         string name ( repoNode + "/apps/nakmer/volumes/nakmerFlat" );
         if ( ! NodeExists ( name ) ) {
@@ -480,13 +547,14 @@ void CKConfig::Reload(bool verbose) {
     m_Self = NULL;
 
     if (rc == 0) {
-        rc = KConfigMake(&m_Self, NULL);
+        rc = KConfigMakeLocal(&m_Self, NULL);
     }
 
     if (rc == 0) {
         if (verbose) {
             OUTMSG(("ok\n"));
         }
+        m_Updated = false;
     }
     else {
         if (verbose) {
@@ -867,7 +935,7 @@ rc_t CRemoteRepository::Fix(CKConfig &kfg, bool disable, bool verbose) {
 
     if (Is("main")) {
         m_ResolverCgi
-            = "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi";
+            = "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi";
         ClearApps();
     }
     else {
@@ -1100,7 +1168,7 @@ void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
     }
 
     const string cgi
-        ("https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
+        ("https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
     if (main == NULL) {
         main = new CRemoteRepository("main", "CGI", cgi);
         main->Fix(kfg, disable);

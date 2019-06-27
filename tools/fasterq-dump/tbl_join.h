@@ -43,6 +43,10 @@ extern "C" {
 #include "helper.h"
 #endif
 
+#ifndef _h_temp_dir_
+#include "temp_dir.h"
+#endif
+
 #ifndef _h_temp_registry_
 #include "temp_registry.h"
 #endif
@@ -52,7 +56,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     const char * accession_short,
                     join_stats * stats,
                     const char * tbl_name,
-                    const tmp_id * tmp_id,
+                    const struct temp_dir * temp_dir,
                     struct temp_registry * registry,
                     size_t cur_cache,
                     size_t buf_size,

@@ -72,10 +72,10 @@ rc_t SequenceWriteRecord(SequenceWriter *self,
     unsigned i;
     unsigned seqLen;
     int64_t dummyRowId;
-    
+
     uint8_t readInfo[4096];
     void *h_readInfo = NULL;
-    
+
     INSDC_coord_zero *readStart = (void *)readInfo;
     INSDC_coord_len *readLen;
     uint8_t *alcnt;
@@ -85,13 +85,13 @@ rc_t SequenceWriteRecord(SequenceWriter *self,
     size_t const elemSize = sizeof(alcnt[0]) + sizeof(readType[0])
                           + sizeof(readStart[0]) + sizeof(readLen[0])
                           + sizeof(readFilter[0]);
-    
+
     TableWriterSeqData data;
 
     for (i = seqLen = 0; i != nreads; ++i) {
         seqLen += rec->readLen[i];
     }
-    
+
     if (nreads * elemSize + keepMismatchQual * seqLen * sizeof(mask[0]) > sizeof(readInfo))
     {
         h_readInfo = malloc(nreads * elemSize + keepMismatchQual * seqLen * sizeof(mask[0]));
@@ -103,15 +103,15 @@ rc_t SequenceWriteRecord(SequenceWriter *self,
     alcnt = (uint8_t *)&readLen[nreads];
     readType = (INSDC_SRA_xread_type *)&alcnt[nreads];
     readFilter = (INSDC_SRA_read_filter *)&readType[nreads];
-    
+
     if (keepMismatchQual) {
         mask = (bool *)&readFilter[nreads];
-        
+
         for (i = 0; i != seqLen; ++i) {
             mask[i] = (rec->qual[i] & 0x80) != 0;
         }
     }
-    
+
     for (i = 0; i != nreads; ++i) {
         alcnt[i] = rec->aligned[i] ? 1 : 0;
         readLen[i] = rec->readLen[i];
@@ -134,69 +134,69 @@ rc_t SequenceWriteRecord(SequenceWriter *self,
     }
 
     memset(&data, 0, sizeof(data));
-    
+
     data.sequence.buffer = rec->seq;
     data.sequence.elements = seqLen;
-    
+
     data.quality.buffer = rec->qual;
     data.quality.elements = seqLen;
-    
+
     if (keepMismatchQual) {
         data.no_quantize_mask.buffer = mask;
         data.no_quantize_mask.elements = seqLen;
     }
-    
+
     data.alignment_count.buffer = alcnt;
     data.alignment_count.elements = nreads;
-    
+
     data.nreads = nreads;
-    
+
     data.read_type.buffer = readType;
     data.read_type.elements = nreads;
-    
+
     data.read_start.buffer = readStart;
     data.read_start.elements = nreads;
-    
+
     data.read_len.buffer = readLen;
     data.read_len.elements = nreads;
-    
+
     data.tmp_key_id = rec->keyId;
-    
+
     data.spot_group.buffer = rec->spotGroup;
     data.spot_group.elements = rec->spotGroupLen;
-    
+
     data.cskey.buffer = rec->cskey;
     data.cskey.elements = nreads;
-    
+
     data.read_filter.buffer = readFilter;
     data.read_filter.elements = nreads;
-    
+
     data.platform.buffer = &platform;
     data.platform.elements = 1;
-    
+
     data.ti.buffer = rec->ti;
     data.ti.elements = nreads;
-    
+
     data.spot_name.buffer = rec->spotName;
     data.spot_name.elements = rec->spotNameLen;
-    
+
     if (!no_real_output) {
         if (self->tbl == NULL) {
             int csoption = (color ? ewseq_co_ColorSpace : 0);
 
             if(hasTI) csoption |= ewseq_co_TI;
-            
+
             rc = TableWriterSeq_Make(&self->tbl, self->db,
-                                     csoption | ewseq_co_NoLabelData | ewseq_co_SpotGroup /*| ewseq_co_SpotName*/, QualQuantizer);
+                                     csoption | ewseq_co_NoLabelData | ewseq_co_SpotGroup | ewseq_co_SpotName, QualQuantizer);
         }
         if (rc == 0) {
             rc = TableWriterSeq_Write(self->tbl, &data, &dummyRowId);
         }
     }
-    
+
     if (h_readInfo)
         free(h_readInfo);
-    
+
     return rc;
 }
 
@@ -215,22 +215,22 @@ rc_t SequenceUpdateAlignData(SequenceWriter *self, int64_t rowId, unsigned nread
                              uint8_t const algnCnt[/* nreads */])
 {
     TableWriterData data[2];
-    
+
     data[0].buffer = primeId; data[0].elements = nreads;
     data[1].buffer = algnCnt; data[1].elements = nreads;
-    
+
     return TableWriterSeq_WriteAlignmentData(self->tbl, rowId, &data[0], &data[1]);
 }
 
 void SequenceWhack(SequenceWriter *self, bool commit) {
     uint64_t dummyRows;
     /* rc_t rc; */
-    
+
     VDatabaseRelease(self->db);
-    
+
     if (self->tbl == NULL)
         return;
-    
+
     /* rc = */ TableWriterSeq_Whack(self->tbl, commit, &dummyRows);
 }
 
@@ -243,12 +243,12 @@ rc_t SequenceRecordResize(SequenceRecord *self,
 {
     size_t sz;
     rc_t rc;
-    
+
     sz = seqLen * (sizeof(self->seq[0]) + sizeof(self->qual[0])) +
          numreads * (sizeof(self->ti) +
                      sizeof(self->readStart[0]) +
                      sizeof(self->readLen[0]) +
-                     sizeof(self->aligned[0]) + 
+                     sizeof(self->aligned[0]) +
                      sizeof(self->orientation[0]) +
                      sizeof(self->alignmentCount[0]) +
                      sizeof(self->cskey[0])
@@ -258,7 +258,7 @@ rc_t SequenceRecordResize(SequenceRecord *self,
     if (rc)
         return rc;
     self->numreads = numreads;
-    
+
     self->ti = (uint64_t *)storage->base;
     self->readStart = (uint32_t *)&self->ti[numreads];
     self->readLen = (uint32_t *)&self->readStart[numreads];
@@ -274,7 +274,7 @@ rc_t SequenceRecordResize(SequenceRecord *self,
     self->spotGroupLen = 0;
     self->spotName = NULL;
     self->spotNameLen = 0;
-    
+
     return 0;
 }
 
@@ -283,7 +283,7 @@ rc_t SequenceRecordInit(SequenceRecord *self, unsigned numreads, unsigned readLe
     unsigned i;
     unsigned seqlen = 0;
     rc_t rc;
-    
+
     for (i = 0; i != numreads; ++i) {
         seqlen += readLen[i];
     }
@@ -291,7 +291,7 @@ rc_t SequenceRecordInit(SequenceRecord *self, unsigned numreads, unsigned readLe
     if (rc)
         return rc;
     memset(self->storage.base, 0, KDataBufferBytes(&self->storage));
-    
+
     for (seqlen = 0, i = 0; i != numreads; ++i) {
         self->readLen[i] = readLen[i];
         self->readStart[i] = seqlen;
@@ -323,7 +323,7 @@ rc_t SequenceRecordAppend(SequenceRecord *self,
     unsigned otherSeqlen;
     unsigned i;
     unsigned numreads = self->numreads;
-    
+
     for (seqlen = 0, i = 0; i != numreads; ++i) {
         seqlen += self->readLen[i];
     }
@@ -346,7 +346,7 @@ rc_t SequenceRecordAppend(SequenceRecord *self,
     memmove(self->aligned,          &((uint8_t const *)self->storage.base)[aligned],           numreads * sizeof(self->aligned[0]));
     memmove(self->readLen,          &((uint8_t const *)self->storage.base)[readLen],           numreads * sizeof(self->readLen[0]));
     memmove(self->ti,               &((uint8_t const *)self->storage.base)[ti],                numreads * sizeof(self->ti[0]));
-    
+
     memmove(&self->ti[numreads],             other->ti,              other->numreads * sizeof(self->ti[0]));
     memmove(&self->readLen[numreads],        other->readLen,         other->numreads * sizeof(self->readLen[0]));
     memmove(&self->aligned[numreads],        other->aligned,         other->numreads * sizeof(self->aligned[0]));
@@ -356,11 +356,11 @@ rc_t SequenceRecordAppend(SequenceRecord *self,
     memmove(&self->cskey[numreads],          other->cskey,           other->numreads * sizeof(self->cskey[0]));
     memmove(&self->seq[seqlen],              other->seq,             otherSeqlen);
     memmove(&self->qual[seqlen],             other->qual,            otherSeqlen);
-    
+
     for (i = 0, seqlen = 0; i != self->numreads; ++i) {
         self->readStart[i] = seqlen;
         seqlen += self->readLen[i];
     }
-    
+
     return 0;
 }

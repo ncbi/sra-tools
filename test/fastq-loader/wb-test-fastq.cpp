@@ -1116,6 +1116,26 @@ FIXTURE_TEST_CASE ( FastqDumpOutput, LoaderFixture )
     REQUIRE_EQ(string("SRR000123.1"), string(name, length));
 }
 
+FIXTURE_TEST_CASE ( Barcodes_Plus, LoaderFixture )
+{
+    REQUIRE(CreateFileGetSequence(GetName(),
+        "@M05096:131:000000000-C9DF2:1:1101:16623:1990 2:N:0:TAAGGCGA+CCTGCATA\n"
+        "TCAG\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("M05096:131:000000000-C9DF2:1:1101:16623:1990"), string(name, length));
+}
+
+FIXTURE_TEST_CASE ( Barcodes_Underscore, LoaderFixture )
+{
+    REQUIRE(CreateFileGetSequence(GetName(),
+        "@M05096:131:000000000-C9DF2:1:1101:16623:1990 2:N:0:TAAGGCGA_CCTGCATA\n"
+        "TCAG\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("M05096:131:000000000-C9DF2:1:1101:16623:1990"), string(name, length));
+}
+
 FIXTURE_TEST_CASE ( FastqMultiLineSequenceFasta, LoaderFixture )
 { // VDB-3413
 #define LINE1 "AAAGAGAGAGGATGCTTGCAAAGGCTAGCATCGGTCTACTTTCAAACTTCTCAAGAATGTCCTTGAGATA"

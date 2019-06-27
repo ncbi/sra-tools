@@ -59,7 +59,6 @@ rc_t temp_registry_merge( struct temp_registry * self,
                           const char * output_filename,
                           size_t buf_size,
                           bool show_progress,
-                          bool print_to_stdout,
                           bool force,
                           compress_t compress );
 

@@ -1302,6 +1302,7 @@ static rc_t vdb_print_get_src_and_ranges( const String * S,
 }
 
 
+#if 0
 static rc_t vdp_print_show_src_and_ranges( struct num_gen * ranges, uint32_t src_id )
 {
     rc_t rc;
@@ -1312,6 +1313,7 @@ static rc_t vdp_print_show_src_and_ranges( struct num_gen * ranges, uint32_t src
         rc = KOutMsg( "src-id = %d, ranges = %s\n", src_id, buffer );
     return rc;
 }
+#endif
 
 
 /* called from vdb-dump-interact.c, v is a vector of String-objects */
@@ -1336,9 +1338,10 @@ rc_t vdp_print_interactive( const Vector * v, vdp_src_context * vctx )
                 
                 if ( rc == 0 )
                     rc = KOutMsg( "tbl: %S\n", tbl->name );
-                /* if ( rc == 0 )
-                    rc = vdp_print_show_src_and_ranges( ranges, src_id ); */
-                    
+#if 0
+                if ( rc == 0 )
+                    rc = vdp_print_show_src_and_ranges( ranges, src_id );
+#endif
                 if ( rc == 0 )
                     rc = vdp_print_table( tbl, ranges );
             }

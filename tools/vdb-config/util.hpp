@@ -242,31 +242,14 @@ class CKConfig : CNoncopyable {
     const char *m_RepositoryRemoteMainDisabled;
     const char *m_RepositoryUserRoot;
 public:
-    CKConfig(bool verbose = false)
-        : m_Self(NULL), m_Updated(false)
-        , m_RepositoryRemoteAuxDisabled ("repository/remote/aux/NCBI/disabled")
-        , m_RepositoryRemoteMainDisabled("repository/remote/main/CGI/disabled")
-        , m_RepositoryUserRoot          ("repository/user/main/public/root")
-    {
-        if (verbose)
-            OUTMSG(("loading configuration... "));
-        rc_t rc = KConfigMake(&m_Self, NULL);
-        if (rc == 0) {
-            if (verbose)
-                OUTMSG(("ok\n"));
-        }
-        else {
-            if (verbose)
-                OUTMSG(("failed\n"));
-            throw rc;
-        }
-    }
+    CKConfig(bool verbose = false);
     ~CKConfig(void)
     { KConfigRelease(m_Self); }
     KConfig* Get(void) const { return m_Self; }
     void Reload(bool verbose = false);
     void Updated ( void ) { m_Updated = true; }
-    rc_t Commit(void) const;
+    bool IsUpdated ( void ) const { return m_Updated; }
+    rc_t Commit(void);
     const KConfigNode* OpenNodeRead(const char *path, ...) const;
     bool IsRemoteRepositoryDisabled(void) const;
     const String* ReadDefaultConfig(void) const

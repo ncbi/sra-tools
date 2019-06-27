@@ -2370,8 +2370,7 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
         }
     }
     if (rc == 0) {
-        rc = KClientHttpRequestFormatMsg
-            ( req, b, sizeof b, "POST", NULL );
+        rc = KClientHttpRequestFormatPostMsg ( req, b, sizeof b, NULL );
     }
     if (rc == 0) {
         KHttpResult *rslt = NULL;
@@ -2434,7 +2433,7 @@ static rc_t perform_cgi_test ( const Main * self,
         KTimeMs_t time = 0;
         const char root[] = "Response";
         rc = call_cgi ( self,
-            "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi",
+            "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi",
             1, 2, "http,https", acc, & databuffer, eol );
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
@@ -3250,7 +3249,7 @@ static rc_t MainPrintVersion(Main *self) {
             if (isNew > 0) {
                 OUTMSG((
            "A new version of SRA Toolkit is available for download from\n"
-           "\"https://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
+           "\"https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
                 ));
             }
             else if (isNew == 0) {

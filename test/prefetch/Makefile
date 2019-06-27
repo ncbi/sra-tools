@@ -28,20 +28,26 @@ include $(TOP)/build/Makefile.env
 
 CWD = $(shell pwd)
 PUBLIC=/repository/user/main/public
-CGI=https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi
+CGI=https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi
 LARGE=fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
 SRA=https://sra-download.ncbi.nlm.nih.gov
 SRAF=fasp://dbtest@sra-download.ncbi.nlm.nih.gov
+SRAF=fasp://dbtest@srafiles31-1.st-va.ncbi.nlm.nih.gov
 KMER=$(SRA)/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
 SRR=$(SRA)/traces/sra59/SRR/000052/SRR053325
+INT=https://sra-download-internal.ncbi.nlm.nih.gov
+SRAC=SRR003325
+SRR=$(INT)/traces/sra4/SRR/000003/$(SRAC)
+SRAI=fasp://dbtest@sra-download-internal.ncbi.nlm.nih.gov
 SRRF=$(SRAF):data/sracloud/traces/sra59/SRR/000052/SRR053325
+SRRF=$(SRAI):data/sracloud/traces/sra4/SRR/000003/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
-runtests: urls_and_accs out_dir_and_file s-option
+runtests: urls_and_accs out_dir_and_file s-option truncated
 
 ################################################################################
 urls_and_accs:
@@ -49,28 +55,25 @@ urls_and_accs:
 	@rm -fr tmp/* tmp2/*
 	@echo 'foo = "bar"' > tmp/t.kfg
 
+	@echo prefetch URL-1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki 2>/dev/null ; \
-        then echo "prefetch URL-1 when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 
+	@echo prefetch URL-2/2 when there is no kfg
+	@rm -f index.html
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch https://github.com/ncbi/ 2>/dev/null ; \
-        then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch https://github.com/ncbi/ >/dev/null
 
+	@echo prefetch URL-2/1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	       if $(BINDIR)/prefetch http://intranet/ 2>/dev/null ; \
-	       then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	       fi ; \
+	       $(BINDIR)/prefetch http://intranet/ >/dev/null ; \
 	    fi
 
+	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	     if $(BINDIR)/prefetch http://intranet/irb/support.shtml  2>/dev/null ; \
-	     then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	     fi ; \
+	     $(BINDIR)/prefetch http://intranet/irb/support.shtml  >/dev/null; \
 	    fi
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
@@ -134,18 +137,17 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
 
+	@echo prefetch $(SRR) when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(SRR) 2> /dev/null ; \
-        then echo "prefetch $(SRR) when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch $(SRR) > /dev/null
+	@rm -r $(SRAC)
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
-	@if ls `pwd`/tmp/sra/SRR053325.sra 2> /dev/null ; \
-     then echo SRR053325.sra found ; exit 1; fi
+	@rm -f `pwd`/tmp/sra/$(SRAC).sra
 	@echo SRR download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
+	@ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 #	@echo
 
 	@echo Running prefetch second time finds previous download
@@ -158,7 +160,7 @@ urls_and_accs:
 	    fi
 
 	@echo '$(PUBLIC)/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg
-	@echo REFSEQ download when user repository is configured
+	@echo REFSEQ HTTP download when user repository is configured
 	@if ls `pwd`/tmp/refseq/KC702174.1 2> /dev/null ; \
      then echo KC702174.1 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -194,7 +196,7 @@ urls_and_accs:
 	    fi
 
 	@echo '$(PUBLIC)/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/t.kfg
-	@echo WGS download when user repository is configured
+	@echo WGS HTTP download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
      then echo AFVF01 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -203,63 +205,51 @@ urls_and_accs:
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null ;
 	@echo
 
-	@rm `pwd`/tmp/sra/SRR053325.sra
-	@echo SRR FASP download when user repository is configured
-	if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@rm -f `pwd`/tmp/sra/$(SRAC).sra
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	    echo SRR FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
-	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
+	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	 else echo download of $(SRRF) when ascp is not found is disabled ; \
 	 fi
 #	@echo
 
 	@rm `pwd`/tmp/refseq/KC702174.1
-	@echo REFSEQ download when user repository is configured
-	@if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	    echo REFSEQ FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(BINDIR)/prefetch $(REFSEQF) > /dev/null ; \
 	    ls `pwd`/tmp/refseq/KC702174.1 > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	 else echo download of $(REFSEQF) when ascp is not found is disabled ; \
 	 fi
 #	@echo
 
 	@rm `pwd`/tmp/nannot/GCA_000390265.1_R
 	@echo NANNOT FASP download when user repository is configured
-	@if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	    echo NANNOT FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(BINDIR)/prefetch $(KMERF) > /dev/null ; \
 	      ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	 else echo download of $(KMERF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm `pwd`/tmp/wgs/AFVF01
-	@echo WGS download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
      then echo AFVF01 found ; exit 1; fi
-	@if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	    echo WGS FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(BINDIR)/prefetch $(WGSF) > /dev/null ; \
 	    echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537 ; \
 	    ls `pwd`/tmp/wgs/AFVF01 > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	 else echo download of $(WGSF) when ascp is not found is disabled ; \
 	 fi
 	@echo
 
 	@rm -f `pwd`/tmp/sra/SRR053325.sra
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+#	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(BINDIR)/prefetch SRR053325 2> /dev/null ; \
         then echo "prefetch SRR053325 when there is no kfg should fail" ; \
              exit 1; \
@@ -270,13 +260,10 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR053325 > /dev/null
 	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
-#	@echo
 
 	@echo prefetch run with refseqs
-	@if ls `pwd`/tmp/sra/SRR619505.sra 2> /dev/null ; \
-     then echo SRR619505 found ; exit 1; fi
-	@if ls `pwd`/tmp/refseq/NC_000005.8 2> /dev/null ; \
-     then echo NC_000005.8 found ; exit 1; fi
+	@rm -fv `pwd`/tmp/sra/SRR619505.sra
+	@rm -fv `pwd`/tmp/refseq/NC_000005.8
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR619505 > /dev/null
 	@ls `pwd`/tmp/sra/SRR619505.sra > /dev/null
@@ -287,14 +274,12 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch KC702174.1 > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
-#	@echo
 
 	@echo NANNOT accession download
 	@rm -f `pwd`/tmp/nannot/GCA_000390265.1_R
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch GCA_000390265.1_R > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
-#	@echo
 
 	@echo WGS accession download
 	@rm -f `pwd`/tmp/wgs/AFVF01
@@ -303,34 +288,30 @@ urls_and_accs:
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null
 #	@echo
 
-	@echo FASP download: asperasoft/100MB
 	@if ls `pwd`/tmp2/100MB 2> /dev/null ; \
      then echo 100MB found ; exit 1; fi
-	@if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ echo FASP download: asperasoft/100MB
+	@if ascp -h > /dev/null ; \
+     then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch $(LARGE) > /dev/null ; \
 	    ls `pwd`/100MB > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	 else \
-	  if $(BINDIR)/prefetch $(LARGE) 2> /dev/null ; \
-      then echo "prefetch <FASP URL> when ascp is not found should fail" ; \
-           exit 1; \
-	  fi ; \
+	    if $(BINDIR)/prefetch $(LARGE) 2> /dev/null ; \
+        then \
+            echo "prefetch <FASP URL> when ascp is not found should fail" ; \
+            exit 1; \
+	     fi ; \
 	 fi
 #	@echo
 
-	@echo FASP download: ncbi/1GB
 	@if ls `pwd`/tmp2/1GB 2> /dev/null; \
      then echo 1GB found ; exit 1; fi
-	@if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	  echo FASP download: ncbi/1GB ; \
 	  export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB > /dev/null;\
 	    ls `pwd`/1GB > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	 fi
 #	@echo
 
@@ -342,7 +323,16 @@ urls_and_accs:
              exit 1 ; \
 	    fi
 
-#	export VDB_CONFIG=`pwd`/tmp;export NCBI_SETTINGS=/; $(BINDIR)/vdb-config -on
+	@echo vdbcache download
+	@rm tmp/sra/*
+	@if ls `pwd`/tmp/sra/SRR998743.sra 2> /dev/null ; \
+		then echo SRR998743.sra found ; exit 1; fi
+	@if ls `pwd`/tmp/sra/SRR998743.sra.vdbcache 2> /dev/null ; \
+		then echo SRR998743.sra.vdbcache found ; exit 1; fi
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+		$(BINDIR)/prefetch SRR998743 > /dev/null
+	@ls `pwd`/tmp/sra/SRR998743.sra          > /dev/null 
+	@ls `pwd`/tmp/sra/SRR998743.sra.vdbcache > /dev/null
 
 	@rm -r tmp*
 
@@ -361,6 +351,13 @@ out_dir_and_file:
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 
 	@ echo PREFETCH ACCESSION TO OUT-FILE
+	@ rm -f `pwd`/tmp-file*
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch SRR053325 -o tmp-file -v > /dev/null
+	@ ls `pwd`/tmp-file > /dev/null
+	@ rm `pwd`/tmp-file
+
+	@ echo PREFETCH ACCESSION TO OUT-FILE INSIDE OF DIR
 	@ if ls `pwd`/tmp3/dir/file 2> /dev/null ; \
       then echo file found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -375,15 +372,12 @@ out_dir_and_file:
 	@ ls `pwd`/tmp3/dir/file > /dev/null
 #	@ echo
 
-	@ if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-FILE ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) -O / -o tmp3/dir/file > /dev/null ; \
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -404,15 +398,12 @@ out_dir_and_file:
 	@ ls `pwd`/tmp3/dir/file > /dev/null
 #	@ echo
 
-	@ if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL TO OUT-FILE ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
 	    $(BINDIR)/prefetch $(LARGE) -O / -o tmp3/dir/file > /dev/null ; \
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -444,18 +435,15 @@ out_dir_and_file:
 	@ rm `pwd`/tmp/sra/SRR053325.sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@ ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
+	@ ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 #	@ echo
 
-	@ if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL ; \
-	    rm `pwd`/tmp/sra/SRR053325.sra ; \
+	    rm `pwd`/tmp/sra/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
-	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
+	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -475,15 +463,12 @@ out_dir_and_file:
 	@ ls `pwd`/tmp2/wiki > /dev/null
 #	@ echo
 
-	@ if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    if ls `pwd`/100MB 2> /dev/null ; then exit 1; fi ; \
 	    $(BINDIR)/prefetch $(LARGE) > /dev/null ; \
 	    ls `pwd`/100MB > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -499,31 +484,30 @@ out_dir_and_file:
 	@ rm -f `pwd`/tmp3/dir/SRR053325.sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) -O tmp3/dir > /dev/null
-	@ ls `pwd`/tmp3/dir/SRR053325.sra > /dev/null
+	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
 #	@ echo
 
-	@ if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-DIR ; \
-	    rm -f `pwd`/tmp3/dir/SRR053325.sra ; \
+	    rm -f `pwd`/tmp3/dir/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) -O tmp3/dir > /dev/null ; \
-	    ls `pwd`/tmp3/dir/SRR053325.sra > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
+	    ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
 
 	@ echo PREFETCH HTTP DIRECTORY URL TO OUT-DIR
+	@ rm -fv index.html
 	@ if ls `pwd`/tmp3/dir/index.html 2> /dev/null ; \
       then echo index.html found ; exit 1 ; fi
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/index.html > /dev/null
 #	@ echo
 
 	@ echo PREFETCH HTTP FILE URL TO OUT-DIR
+	@ rm -f wiki
 	@ if ls `pwd`/tmp3/dir/wiki 2> /dev/null ; \
       then echo wiki found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -532,16 +516,13 @@ out_dir_and_file:
 	@ ls `pwd`/tmp3/dir/wiki > /dev/null
 #	@ echo
 
-	@ if ascp -h > /dev/null ; then \
-	  if [ `hostname` != 'iebdev21' ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL TO OUT-DIR ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ls `pwd`/tmp3/dir/100MB 2> /dev/null ; then \
         echo 100MB found ; exit 1 ; fi ; \
 	    $(BINDIR)/prefetch $(LARGE) -O tmp3/dir > /dev/null ; \
 	    ls `pwd`/tmp3/dir/100MB > /dev/null ; \
-	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
-	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -654,3 +635,40 @@ s-option:
 	      fi
 
 	@ rm -r tmp*
+
+truncated:
+	@ echo prefetch correctly re-downloads incomplete files
+
+#setup
+	@ mkdir -p tmp/sra
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
+	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'        >> tmp/t.kfg
+	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                     >> tmp/t.kfg
+#	@ ls -l tmp	@ cat tmp/t.kfg
+#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/vdb-config -on
+#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/srapath SRR053325
+#	echo 669	perl check-size.pl 4	echo 671
+
+# create truncated run
+	@ echo '123' > tmp/sra/SRR053325.sra
+	@ if perl check-size.pl 4 > /dev/null; \
+	  then echo "run should be truncated for this test"; exit 1; \
+	  fi
+
+# prefetch should detect truncated run and redownload it
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch SRR053325 > tmp/out
+	@ if grep ": 1) 'SRR053325' is found locally" tmp/out ; \
+	  then echo "prefetch incorrectly stopped on truncated run"; exit 1; \
+	  fi
+#	@ wc tmp/sra/SRR053325.sra	@ wc -c tmp/sra/SRR053325.sra
+
+# run should be complete
+	@ perl check-size.pl 4
+
+# the second run of prefetch should find local file
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch SRR053325 > tmp/out
+	@ grep -q ": 1) 'SRR053325' is found locally" tmp/out
+	@ perl check-size.pl 4
+
+#cleanup
+	@ rm -r tmp

@@ -46,16 +46,34 @@ static void writeHeader(BAM_File const *const bam)
     fwrite(header, 1, hsize, stdout);
 }
 
+static char *buffer;
+static size_t buffer_size;
+
 static rc_t writeSAM(BAM_Alignment const *const rec)
 {
-    static char buffer[64*1024];
-    size_t actsize = 0;
-    rc_t const rc = BAM_AlignmentFormatSAM(rec, &actsize, sizeof(buffer), buffer);
-
-    if (rc == 0)
-        fwrite(buffer, 1, actsize, stdout);
-
-    return rc;
+    if (buffer_size == 0) {
+        buffer_size = 64 * 1024;
+        buffer = malloc(buffer_size);
+        if (buffer == NULL)
+            return RC(rcAlign, rcRow, rcWriting, rcMemory, rcExhausted);
+    }
+    for ( ; ; ) {
+        size_t actsize = 0;
+        rc_t const rc = BAM_AlignmentFormatSAM(rec, &actsize, buffer_size, buffer);
+        if (rc == 0) {
+            fwrite(buffer, 1, actsize, stdout);
+            return 0;
+        }
+        if (GetRCObject(rc) == (int)rcData && GetRCState(rc) == (int)rcExcessive) {
+            void *tmp = realloc(buffer, buffer_size * 2);
+            if (tmp == NULL)
+                return RC(rcAlign, rcRow, rcWriting, rcMemory, rcExhausted);
+            buffer_size *= 2;
+            buffer = tmp;
+        }
+        else
+            return rc;
+    }
 }
 
 static
@@ -68,7 +86,7 @@ void samview(char const path[])
         BAM_Alignment const *rec = NULL;
 
         writeHeader(bam);
-        while ((rc = BAM_FileRead2(bam, &rec)) == 0) {
+        while ((rc = BAM_FileRead3(bam, &rec)) == 0) {
             rc_t const rc2 = writeSAM(rec);
             BAM_AlignmentRelease(rec);
             if (rc2)

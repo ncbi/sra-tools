@@ -9,9 +9,9 @@
     <property name="Configuration"  value="Release" />
     <property name="Toolset"        value="v120" />
 
-    <property name="Output"         value="${basedir}\..\..\..\..\OUTDIR" />
-    <property name="TargetDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}"/>
-    <property name="QmakeDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\sra-toolkit"/>
+    <property name="Output"         value="${basedir}\..\..\..\..\OUTDIR\" />
+    <property name="TargetDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}\"/>
+    <property name="QmakeDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\sra-toolkit\"/>
 
   <condition property="QtConfiguration" value="debug">
         <equals arg1="${Configuration}" arg2="Debug"/>
@@ -51,7 +51,7 @@ Supported targets:
 Options:
     -DConfiguration=Debug or -DConfiguration=Release (default)
     -DPlatform=Win32 or -DPlatform=x64 (default)
-    -DOutput=path   folder to create output in (default: ../../../../OUTDIR)
+    -DOutput=path   folder to create output in (default: ${basedir}\..\..\..\..\OUTDIR\)
 
 Note: To build Qt-dependent tools, need to have Qt (version 5.10.0 or newer) platform-specific binaries and tools in PATH, e.g.: C:\Qt\5.10.1\msvc2013_64\bin;C:\Qt\Tools\QtCreator\bin.
 Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x64 (which is the default)

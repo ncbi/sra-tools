@@ -58,13 +58,13 @@ $(TEST_BINDIR)/testAssemblyStatistics: $(OBJ)
 
 #-------------------------------------------------------------------------------
 
-runtests: test_bases
+runtests: test_bases Mismatch
 
 slowtests: slow_bases
 
 quick_bases:
-	@rm   -vrf actual
-	@mkdir -vp actual
+	@rm   -rf actual
+	@mkdir -p actual
 
 	@echo
 	@echo SRR053325 is a small table
@@ -99,9 +99,15 @@ quick_bases:
 	diff actual/SRR1985136 expected/SRR1985136-with-Changes
 
 	@echo
-	@rm -v actual/*
+	@rm actual/*
 
+R=SRR8483030
 test_bases: quick_bases
+	@echo
+	@echo ${R} is a run having first 0-lenght bio reads
+	if perl check-run-perm.pl $(BINDIR)/srapath ${R} > /dev/null 2>&1 ; \
+	then                      $(BINDIR)/sra-stat -x ${R} > /dev/null ; fi
+
 	@echo
 	@echo SRR495844 is a cSRA with local references
 	NCBI_SETTINGS=/ $(BINDIR)/sra-stat -x SRR495844 | perl -w strip-path.pl \
@@ -119,8 +125,8 @@ test_bases: quick_bases
 	diff actual/SRR360929 expected/SRR360929-biological
 
 	@echo
-	@rm -v  actual/*
-	@rm -vr actual
+	@rm    actual/*
+	@rm -r actual
 
 slow_bases:
 	@rm   -vrf actual
@@ -137,6 +143,15 @@ slow_bases:
 	@rm -vr actual
 
 all_bases: test_bases slow_bases
+
+Mismatch:
+	@mkdir -p actual
+	@$(BINDIR)/sra-stat db/SRR6336806.Mismatch >/dev/null 2> actual/Mismatch
+	@if grep -q 'Mismatch between calculated and recorded statis' actual/Mismatch;\
+	 then echo "Mismatch between calculated and recorded statists was found"; \
+		exit 1; fi
+	echo Mismatch OK
+	@rm -r actual
 
 slowest_bases:
 	NCBI_SETTINGS=/ time $(BINDIR)/sra-stat -xp SRR5362833

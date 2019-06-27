@@ -24,6 +24,10 @@ use constant {
     REAL_PREFETCH => 'prefetch-orig',
     REAL_SRAPATH => 'srapath-orig'
 };
+use constant {
+    DEFAULT_RESOLVER_VERSION => '130',
+    DEFAULT_RESOLVER_URL => 'https://trace.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve'
+};
 
 # if SRATOOLS_DEBUG is truthy, then DEBUG ... will print
 my $debug = $ENV{SRATOOLS_DEBUG} ? sub { print STDERR Dumper(@_) } : sub {};
@@ -57,7 +61,7 @@ if ($level < 5) {
 DEBUG \@loggers;
 sub LOG($@)
 {
-    return unless $_[0] < 5;
+    return unless $_[0] <= 5;
     my $level = shift;
     goto &{$loggers[$level]};
 }
@@ -455,20 +459,30 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
 ### \return: array of possible pairs of URLs to data and maybe to vdbcache files
 sub resolveAccessionURLs($)
 {
-    my $json;
+    my @tool_args = ('srapath', qw{ --function names --json }
+        , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
+        , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL, $_[0]);
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
-    my $kid = open(my $pipe, '-|') // die "can't fork: $!";
+    LOG 1, join(' ', $toolpath, @tool_args);
+    my $json = do {
+        my ($output, $exitcode) = do {
+            use open qw{ :encoding(UTF-8) };
+            my $kid = open(my $pipe, '-|') // die "can't fork: $!";
     
-    if ($kid == 0) {
-        exec {$toolpath} 'srapath', qw{ --function names --json }, '--vers', $config{'repository/remote/version'}, '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'}, @_;
-        die "can't exec srapath: $!";
-    }
-    my $srapath = join '', $pipe->getlines;
-    close($pipe);
-    die "error: $srapath" if $?;
+            if ($kid == 0) {
+                exec {$toolpath} @tool_args;
+                die "can't exec srapath: $!";
+            }
+            my $output = do { local $/; <$pipe> }; # slurp
+            close($pipe);
+            ($output, $?)
+        };
+        die "error from srapath:\n$output" if $exitcode;
 
-    $json = decode_json($srapath) or die "unparsable response from srapath";
-
+        LOG 2, $output;
+        decode_json($output) or die "unparsable response from srapath:\n$output";
+    };
+    DEBUG $json;
     extract_from_srapath($_[0], @{$json});
 }
 
@@ -1268,7 +1282,7 @@ sub which($)
 {
     my $cached = exists $which_mem{$_[0]};
     $which_mem{$_[0]} = sandwich($_[0]) unless $cached;
-    LOG 3, sprintf('found %s for %s (%s)', $which_mem{$_[0]}, $_[0], $cached ? 'cached' : 'first time');
+    LOG 3, sprintf('found %s for %s (%s)', $which_mem{$_[0]} // '???', $_[0], $cached ? 'cached' : 'first time');
     return $which_mem{$_[0]};
 }
 

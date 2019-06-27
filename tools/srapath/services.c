@@ -33,6 +33,8 @@
 #include <klib/time.h> /* KTimeIso8601 */
 #include <vfs/path.h> /* VPath */
 #include <vfs/services-priv.h> /* KServiceNamesExecuteExt */
+#include <cloud/manager.h> /* CloudMgrMake */
+#include <cloud/cloud.h> /* CloudMakeComputeEnvironmentToken */
 
 
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogErr, rc, err))
@@ -278,20 +280,34 @@ static void json_print_nvp(  char const *const name
                            , char const *const value
                            , bool const comma)
 {
-    OUTMSG(("%.*s\"%s\": \"%s\""
-            , comma ? 2 : 0, ", "
-            , name
-            , value));
+    if (value) {
+        OUTMSG(("%.*s\"%s\": \"%s\""
+                , comma ? 2 : 0, ", "
+                , name
+                , value));
+    }
+    else {
+        OUTMSG(("%.*s\"%s\": null"
+                , comma ? 2 : 0, ", "
+                , name));
+    }
 }
 
 static void json_print_nVp(  char const *const name
                            , String const *const value
                            , bool const comma)
 {
-    OUTMSG(("%.*s\"%s\": \"%S\""
-            , comma ? 2 : 0, ", "
-            , name
-            , value));
+    if (value) {
+        OUTMSG(("%.*s\"%s\": \"%S\""
+                , comma ? 2 : 0, ", "
+                , name
+                , value));
+    }
+    else {
+        OUTMSG(("%.*s\"%s\": null"
+                , comma ? 2 : 0, ", "
+                , name));
+    }
 }
 
 static void json_print_nzp(  char const *const name
@@ -359,9 +375,6 @@ static unsigned json_print_named_urls_and_service(  char const *const name
 
 static unsigned json_print_response_file(KSrvRespFile const *const file, unsigned count)
 {
-    if (count == 0) {
-        OUTMSG(("[\n"));
-    }
     if (file) {
         rc_t rc = 0;
         VPath const *path = NULL;
@@ -415,12 +428,10 @@ static unsigned json_print_response_file(KSrvRespFile const *const file, unsigne
         }
         OUTMSG(("}"));
     }
-    else {
-        /* last; close json array */
-        OUTMSG(("\n]\n"));
-    }
     return count;
 }
+
+static void get_compute_environment(void);
 
 static rc_t names_remote_json ( KService * const service
                                , VRemoteProtocols const protocols
@@ -429,7 +440,8 @@ static rc_t names_remote_json ( KService * const service
 {
     rc_t rc = 0;
     KSrvResponse const * response = NULL;
-    
+
+
     rc = KServiceNamesQueryExt( service, protocols, request -> names_url,
         request -> names_ver, NULL, NULL, & response );
     if ( rc != 0 )
@@ -439,6 +451,9 @@ static rc_t names_remote_json ( KService * const service
         unsigned i;
         unsigned output_count = 0;
         
+        OUTMSG(("{\n"));
+        get_compute_environment();
+        OUTMSG(("\"responses\": [\n"));
         for (i = 0; i < count; ++i) {
             KSrvRespObj const *obj = NULL;
             KSrvRespObjIterator *iter = NULL;
@@ -463,12 +478,32 @@ static rc_t names_remote_json ( KService * const service
             RELEASE(KSrvRespObj, obj);
         }
         output_count = json_print_response_file(NULL, output_count);
+        OUTMSG(("]}\n"));
     }
     RELEASE ( KSrvResponse, response );
     
     return rc;
 }
 
+static void get_compute_environment(void)
+{
+    String const *token = NULL;
+
+    CloudMgr *mgr = NULL;
+    rc_t rc = CloudMgrMake(&mgr, NULL, NULL);
+    if (rc == 0 && mgr != NULL) {
+        Cloud *cloud = NULL;
+        rc = CloudMgrGetCurrentCloud(mgr, &cloud);
+        if (rc == 0 && cloud != NULL) {
+            rc = CloudMakeComputeEnvironmentToken(cloud, &token);
+            RELEASE(Cloud, cloud);
+        }
+        RELEASE(CloudMgr, mgr);
+    }
+    json_print_nVp("CE-Token", token, false);
+    OUTMSG((",\n"));
+    free((void *)token);
+}
 
 static rc_t KService_Make ( KService ** self, const request_params * request ) {
     rc_t rc = 0;

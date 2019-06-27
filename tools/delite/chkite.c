@@ -139,10 +139,7 @@ DeLiteParamsSetProgram (
 
     RCt = ArgsProgram ( TheArgs, NULL, & Value );
     if ( RCt == 0 ) {
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                ProgName,
-                                                Value
-                                                );
+        RCt = copyStringSayNothingRelax ( ProgName, Value );
     }
 
     return RCt;
@@ -180,10 +177,7 @@ DeLiteParamsSetPathToArchive (
                                 ( const void ** ) & Value
                                 );
             if ( RCt == 0 ) {
-                RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                PathToArchive,
-                                                Value
-                                                );
+                RCt = copyStringSayNothingRelax ( PathToArchive, Value );
             }
         }
         else {

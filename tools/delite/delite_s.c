@@ -28,6 +28,7 @@
 #include <klib/refcount.h>
 #include <klib/log.h>
 #include <klib/out.h>
+#include <klib/container.h>
 #include <kfs/directory.h>
 #include <kfs/file.h>
 #include <kfg/config.h>
@@ -55,572 +56,554 @@
 #define KFG_DELITE_SCHEMA   "schema"
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
- *  Resolving part of the deal
+ *  That is tranformation file ... ugly, but works
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct scmDepotTrn {
+    struct BSTNode _node;
+
+    const char * _name;
+    const char * _ver_old;
+    const char * _ver_new;
+};
+
 static
 rc_t CC
-_karChiveResolverDispose ( struct karChiveResolver * self )
+_scmDepotTrnDispose ( struct scmDepotTrn * self )
 {
     if ( self != NULL ) {
-        if ( self -> _dispose != NULL ) {
-            self -> _dispose ( self );
+        if ( self -> _name != NULL ) {
+            free ( ( char * ) self -> _name );
+            self -> _name = NULL;
         }
-        else {
-            free ( self );
+        if ( self -> _ver_old != NULL ) {
+            free ( ( char * ) self -> _ver_old );
+            self -> _ver_old = NULL;
         }
-    }
-
-    return 0;
-}   /* _karChiveResolverDispose () */
-
-static
-rc_t CC
-_karChiveResolverResolve (
-                            struct karChiveResolver * self,
-                            const char * Name,
-                            char ** SchemaPath,
-                            char ** SchemaName
-)
-{
-    if ( * SchemaPath != NULL ) {
-        * SchemaPath = NULL;
-    }
-
-    if ( * SchemaName != NULL ) {
-        * SchemaName = NULL;
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcSelf, rcNull );
-    }
-
-    if ( Name == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( SchemaName == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( SchemaPath == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( self -> _resolve == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcSelf, rcInvalid );
-    }
-
-    return self -> _resolve ( self, Name, SchemaPath, SchemaName );
-}   /* _karChiveResolverResolve () */
-
-/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
- *  Standard resolver through Konfig
- *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-static
-rc_t CC
-_karCRStandardDispose ( struct karChiveResolver * self )
-{
-    struct KConfig * Konfig = NULL;
-
-    if ( self != NULL ) {
-        Konfig = ( struct KConfig * ) self -> _data;
-        if ( Konfig != NULL ) {
-            KConfigRelease ( Konfig );
+        if ( self -> _ver_new != NULL ) {
+            free ( ( char * ) self -> _ver_new );
+            self -> _ver_new = NULL;
         }
-        self -> _data = NULL;
 
         free ( self );
     }
 
     return 0;
-}   /* _karCRStandardDispose () */
+}   /* _scmDepotTrnDispose () */
 
+/*  NOTE : VERY DANGEROUS METHOD
+ */
 static
-rc_t CC
-_karCRStandardNormalizeKey ( char ** Key, const char * Name )
+const char * CC
+_getSome ( const char * Line, const char ** Got )
 {
-    char B [ 64 ];
-    char * Beg, * End;
+    /*  NOTE : VERY DANGEROUS METHOD
+     */
+    const char * lB;
+    const char * lC;
 
-    * B = 0;
-    Beg = End = NULL;
+    lB = lC = Line;
+    * Got = NULL;
 
-    if ( Key != NULL ) {
-        * Key = NULL;
-    }
-
-    if ( Key == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( Name == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-        /*  ho-ho-ho ... dangerous
+        /*  Note, we suppose, line will come with stripped character
+         *  return, or other bad stuff
          */
-    strcpy ( B, Name );
-    Beg = B;
-    End = B + strlen ( B );
+    while ( * lC != 0 && * lC != '\t') lC ++;
 
-    while ( Beg < End ) {
-        if ( * Beg == ':' ) {
-            * Beg = '_';
-        }
+    if ( lC - lB < 1 ) { return NULL; }
 
-        if ( * Beg == '#' ) {
-            * Beg = 0;
-            break;
-        }
-
-        Beg ++;
+    if ( copySStringSayNothing ( Got, lB, lC ) != 0 ) {
+        return NULL;
     }
 
-    return copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                ( const char ** ) Key,
-                                                B
-                                                );
-}   /* _karCRStandardNormalizeKey () */
+    return ( * lC == 0 ) ? NULL : ( lC ++ );
+}   /* _getSome () */
 
-static 
-rc_t CC
-_karCRStandardResolveValue (
-                        struct karChiveResolver * Resolver,
-                        const char * NormalizedKey,
-                        const char * ValueName,
-                        char ** Value
-)
-{
-    rc_t RCt;
-    const struct KConfigNode * Node;
-    char Buf [ 1024 ];
-    size_t NumRead, Remain, ToRead;
-    char * RetVal;
-
-    RCt = 0;
-    Node = NULL;
-    * Buf = 0;
-    NumRead = Remain = ToRead = 0;
-    RetVal = NULL;
-
-        /*  We do suppose that there are all arguments are good, so 
-         *  no regular checks
-         */
-    sprintf (
-            Buf,
-            "%s%s/%s",
-            KFG_DELITE_SECTION,
-            NormalizedKey,
-            ValueName
-            );
-
-    RCt = KConfigOpenNodeRead (
-                            ( struct KConfig * ) ( Resolver -> _data ),
-                            & Node,
-                            "%s",
-                            Buf
-                            );
-    if ( RCt == 0 ) {
-            /*  Size of buffer to Read
-             */
-        RCt = KConfigNodeRead ( Node, 0, NULL, 0, & NumRead, & Remain );
-        if ( RCt == 0 ) {
-            RetVal = calloc ( Remain + 1, sizeof ( char ) );
-            if ( RetVal == NULL ) {
-                RCt = RC ( rcApp, rcSchema, rcResolving, rcMemory, rcExhausted );
-            }
-            else {
-                ToRead = Remain;
-                RCt = KConfigNodeRead (
-                                        Node,
-                                        0,
-                                        RetVal,
-                                        ToRead,
-                                        & NumRead,
-                                        & Remain
-                                        );
-                if ( RCt == 0 ) {
-                    RetVal [ NumRead ] = 0; /* no need to do that */
-                    * Value = RetVal;
-                }
-            }
-        }
-
-        KConfigNodeRelease ( Node );
-    }
-
-    return RCt;
-}   /* _karCRStandardResolveValue () */
-
-/*  Resolving process:
- *
- *  1) Stripping revision number from 'Name', for example
- *     NCBI:SRA:_454_:tbl:v2#1.0.8 -> NCBI:SRA:_454_:tbl:v2
- *
- *  2) Substituting all ':' with '_' in 'Name', for example
- *     NCBI:SRA:_454_:tbl:v2 -> NCBI_SRA__454__tbl_v2
- *
- *  3) Creating config node path PATH = '/DELITE/Name', for example
- *       /DELITE/NCBI_SRA__454__tbl_v2
- *
- *  4) New schema name will be stored in PATH/name, and new schema
- *     path will be stored in PATH/schema
- *
+/* Splitting line to Name, OldVer, and NewVer
+ * The format of string could be one of three :
+ *   Name
+ *   Name<tab>NewVer
+ *   Name<tab>OldVer<tab>NewVer
  */
 static
 rc_t CC
-_karCRStandardResolve (
-                        struct karChiveResolver * Resolver,
-                        const char * Name,
-                        char ** SchemaPath,
-                        char ** SchemaName
+_scmDepotTrnSplit3 (
+                    const char * Line,
+                    const char ** Name,
+                    const char ** OldVer,
+                    const char ** NewVer
 )
 {
-    rc_t RCt;
-    char * Key;
-    char Buf [ 1024 ];
+    const char * lB;
+    const char * tVar;
 
-    RCt = 0;
-    Key = NULL;
-    * Buf = 0;
+    lB = NULL;
+    tVar = NULL;
 
-    if ( SchemaPath != NULL ) {
-        * SchemaPath = NULL;
+        /* no any NULL checks */
+    * Name = NULL;
+    * OldVer = NULL;
+    * NewVer = NULL;
+
+    lB = _getSome ( Line, Name );
+    if ( * Name == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
     }
 
-    if ( SchemaName != NULL ) {
-        * SchemaName = NULL;
+    if ( lB == NULL ) {
+            /*  Just notification that we should use latest version for
+             *  declaration
+             */
     }
+    else {
+        lB = _getSome ( lB, & tVar );
+        if ( tVar == NULL ) {
+            return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
+        }
 
-    if ( Resolver == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( Name == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( SchemaName == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( SchemaPath == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    RCt = _karCRStandardNormalizeKey ( & Key, Name );
-    if ( RCt == 0 ) {
-        RCt = _karCRStandardResolveValue (
-                                        Resolver,
-                                        Key,
-                                        KFG_DELITE_NAME,
-                                        SchemaName
-                                        );
-        if ( RCt == 0 ) {
-            RCt = _karCRStandardResolveValue (
-                                            Resolver,
-                                            Key,
-                                            KFG_DELITE_SCHEMA,
-                                            SchemaPath
-                                            );
-            if ( RCt == 0 ) {
-                KOutMsg ( "MAP [%s] -> [%s][%s]\n",
-                        Name,
-                        * SchemaName,
-                        * SchemaPath
-                        );
-
-                pLogMsg (
-                        klogInfo,
-                        "MAP [$(name)] -> [$(sname)][$(spath)]",
-                        "name=%s,sname=%s,spath=%s",
-                        Name,
-                        * SchemaName,
-                        * SchemaPath
-                        );
-            }
-            else {
-                pLogErr (
-                        klogErr,
-                        RCt,
-                        "Can not map schema and path for [$(name)]",
-                        "name=%s",
-                        Name
-                        );
-            }
+        if ( lB == NULL ) {
+                /*  Then Var contains NewVersion
+                 */
+            * OldVer = NULL;
+            * NewVer = tVar;
         }
         else {
-            pLogErr (
-                    klogErr,
-                    RCt,
-                    "Can not map schema and path for [$(name)]",
-                    "name=%s",
-                    Name
-                    );
-        }
-
-        free ( Key );
-    }
-
-    if ( RCt != 0 ) {
-        if ( * SchemaPath != NULL ) {
-            free ( * SchemaPath );
-            * SchemaPath = NULL;
-        }
-        if ( * SchemaName != NULL ) {
-            free ( * SchemaName );
-            * SchemaPath = NULL;
-        }
-    }
-
-    return RCt;
-}   /* _karCRStandardResolve () */
-
-static
-rc_t
-_karCRStandardMakeKonfig ( struct KConfig ** Ret, const char * Path )
-{
-    rc_t RCt;
-    struct KConfig * Konfig;
-    const struct KFile * File;
-    struct KDirectory * NatDir;
-
-    RCt = 0;
-    Konfig = NULL;
-    File = NULL;
-    NatDir = NULL;
-
-    if ( Ret != NULL ) {
-        * Ret = NULL;
-    }
-
-    if ( Ret == NULL ) {
-        return RC ( rcApp, rcSchema, rcAllocating, rcParam, rcNull );
-    }
-
-    RCt = KConfigMake ( & Konfig, NULL );
-    if ( RCt == 0 ) {
-            /*  Here we are loading  config
-             */
-        if ( Path != NULL ) {
-            RCt = KDirectoryNativeDir ( & NatDir );
-            if ( RCt == 0 ) {
-                RCt = KDirectoryOpenFileRead ( NatDir, & File, Path );
-                if ( RCt == 0 ) {
-                    RCt = KConfigLoadFile ( Konfig, NULL, File );
-
-                    KFileRelease ( File );
-                }
-
-                KDirectoryRelease ( NatDir );
+                /*  Then tVar contains OldVersion and should read
+                 *  New Version
+                 */
+            * OldVer = tVar;
+            lB = _getSome ( lB, NewVer );
+            if ( * NewVer == NULL || lB != NULL ) {
+                return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
             }
         }
     }
 
-    return RCt;
-}   /* _karCRStandardMakeKonfig () */
+    return 0;
+}   /* _scmDepotTrnSplit3 () */
 
 static
 rc_t CC
-_karCRStandardMake (
-                    struct karChiveResolver ** Ret,
-                    const char * KonfigPath
+_scmDepotTrnMake (
+                    struct scmDepotTrn ** Node,
+                    const char * Line
 )
 {
     rc_t RCt;
-    struct karChiveResolver * Rsl;
-    struct KConfig * Konfig;
+    struct scmDepotTrn * Ret;
 
     RCt = 0;
-    Rsl = NULL;
-    Konfig = NULL;
+    Node = NULL;
 
-    if ( Ret != NULL ) {
-        * Ret = NULL;
+    if ( Node != NULL ) {
+        * Node = NULL;
     }
 
+    if ( Node == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcNull );
+    }
+
+    if ( Line == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcNull );
+    }
+
+    Ret = calloc ( 1, sizeof ( struct scmDepotTrn ) );
     if ( Ret == NULL ) {
-        return RC ( rcApp, rcSchema, rcAllocating, rcParam, rcNull );
-    }
-
-    Rsl = calloc ( 1, sizeof ( struct karChiveResolver ) );
-    if ( Rsl == NULL ) {
-        RCt = RC ( rcApp, rcSchema, rcAllocating, rcMemory, rcExhausted );
+        RCt = RC ( rcApp, rcSchema, rcConstructing, rcMemory, rcExhausted );
     }
     else {
-        RCt = _karCRStandardMakeKonfig ( & Konfig, KonfigPath );
-        RCt = KConfigMake ( & Konfig, NULL );
-        if ( RCt == 0 ) {
-            Rsl -> _data = ( void * ) Konfig;
-            Rsl -> _dispose = _karCRStandardDispose;
-            Rsl -> _resolve = _karCRStandardResolve;
+        RCt = _scmDepotTrnSplit3 (
+                                Line, 
+                                & ( Ret -> _name ),
+                                & ( Ret -> _ver_old ),
+                                & ( Ret -> _ver_new )
+                                );
 
-            * Ret = Rsl;
+        if ( RCt == 0 ) {
+            * Node = Ret;
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * Node = NULL;
+
+        if ( Ret != NULL ) {
+            _scmDepotTrnDispose ( Ret );
         }
     }
 
     return RCt;
-}   /* _karCRStandardMake () */
+}   /*  _scmDepotTrnMake () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
- *  Schema level structure
- *  No refcounts ... don't know why yet :LOL:
+ *  Schema Depot - the place where schemas do live :LOOL:
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-struct karChiveScm {
-    const char * _konfig_path;
-    struct karChiveResolver * _resolver;
+struct scmDepot {
+    struct BSTree _trans;
+
+    struct VSchema * _scm;
+
+    const char * _scm_path;
+    const char * _trn_path;
 
     struct VDBManager * _mgr;
 };
 
+static
+void CC
+_scmDepotTranslationsWhackCallback ( BSTNode * Node, void * Data )
+{
+    if ( Node != NULL ) {
+        _scmDepotTrnDispose ( ( struct scmDepotTrn * ) Node );
+    }
+}   /* _scmDepotTranslationsWhackCallback () */
+
 rc_t CC
-karChiveScmDispose ( struct karChiveScm * self )
+scmDepotDispose ( struct scmDepot * self )
 {
     if ( self != NULL ) {
+        if ( self -> _scm_path != NULL ) {
+            free ( ( char * ) self -> _scm_path );
+            self -> _scm_path = NULL;
+        }
+
+        if ( self -> _trn_path != NULL ) {
+            free ( ( char * ) self -> _trn_path );
+            self -> _trn_path = NULL;
+        }
+
         if ( self -> _mgr != NULL ) {
             VDBManagerRelease ( self -> _mgr );
         }
-        self -> _mgr = NULL;
 
-        if ( self -> _resolver != NULL ) {
-            _karChiveResolverDispose ( self -> _resolver );
+        if ( self -> _scm != NULL ) {
+            VSchemaRelease ( self -> _scm );
+            self -> _mgr = NULL;
         }
-        self -> _resolver = NULL;
 
-        if ( self -> _konfig_path != NULL ) {
-            free ( ( char * ) self -> _konfig_path );
-        }
-        self -> _konfig_path = NULL;
+        BSTreeWhack (
+                    & ( self -> _trans ),
+                    _scmDepotTranslationsWhackCallback,
+                    NULL
+                    );
 
         free ( self );
     }
-
     return 0;
-}   /* karChiveScmDispose () */
+}   /* scmDepotDispose () */
 
+static
 rc_t CC
-karChiveScmMake ( struct karChiveScm ** Scm )
+_karDepotSchemaPath ( const char ** Resolved, const char * SchemaPath )
 {
     rc_t RCt;
-    struct karChiveScm * Ret;
+    struct KConfig * Kfg;
+    const struct KConfigNode * Node;
+    char Buf [ 1024 ];
+    size_t NumRead;
+    size_t Remaining;
+
+    RCt = 0;
+    Kfg = NULL;
+    Node = NULL;
+    * Buf = 0;
+    NumRead = 0;
+    Remaining = 0;
+
+    if ( SchemaPath == NULL ) {
+        RCt = KConfigMake ( & Kfg, NULL );
+        if ( RCt == 0 ) {
+            RCt = KConfigOpenNodeRead (
+                                        Kfg,
+                                        & Node,
+                                        "%s%s",
+                                        KFG_DELITE_SECTION,
+                                        KFG_DELITE_SCHEMA
+                                        );
+            if ( RCt == 0 ) {
+                RCt = KConfigNodeRead (
+                                        Node,
+                                        0,
+                                        Buf,
+                                        sizeof ( Buf ),
+                                        & NumRead,
+                                        & Remaining
+                                        );
+                if ( RCt == 0 ) {
+                    if ( Remaining != 0 ) {
+                        return RC ( rcApp, rcSchema, rcConstructing, rcPath, rcExcessive );
+                    }
+                    else {
+                        RCt = copyLStringSayNothing (
+                                                    Resolved,
+                                                    Buf,
+                                                    NumRead
+                                                    );
+                    }
+                }
+                KConfigNodeRelease ( Node );
+            }
+            KConfigRelease ( Kfg );
+        }
+    }
+    else {
+        RCt = copyStringSayNothingRelax ( Resolved, SchemaPath );
+    }
+
+    return RCt;
+}   /* _karDepotSchemaPath () */
+
+struct StructOne {
+    struct scmDepot * depot;
+    rc_t rc;
+};
+
+static
+rc_t CC
+_scmDepotLoadSchemasCallback (
+                                const struct KDirectory_v1 * Dir,
+                                uint32_t Type,
+                                const char * Name,
+                                void * Data
+)
+{
+    rc_t RCt;
+    static const char * Pat = ".vschema";
+    size_t l1, l2;
+    struct StructOne * One;
+    char Buf [ 4096 ];
+
+    RCt = 0;
+    l1 = l2 = 0;
+    One = ( struct StructOne * ) Data;
+    * Buf = 0;
+
+    if ( Type == kptFile ) {
+            /*  First we should be sure if that file is schema file
+             *  or, in in other words it's name ends with ".vschema"
+             */
+        l1 = strlen ( Name );
+        l2 = strlen ( Pat );
+        if ( l2 < l1 ) {
+            if ( strcmp ( Name + l1 - l2, Pat ) == 0 ) {
+                RCt = KDirectoryResolvePath (
+                                            Dir,
+                                            true, /* can not do false
+                                                   * why? JOJOBA!!!
+                                                   */
+                                            Buf,
+                                            sizeof ( Buf ),
+                                            "%s",
+                                            Name
+                                            );
+                if ( RCt == 0 ) {
+                    One -> rc = VSchemaParseFile ( 
+                                                One -> depot -> _scm,
+                                                "%s",
+                                                Buf
+                                                );
+                }
+            }
+        }
+    }
+
+    return RCt;
+}   /* _scmDepotLoadSchemasCallback () */
+
+static
+rc_t CC
+_scmDepotLoadSchemas ( struct scmDepot * self, const char * SchemaPath )
+{
+    rc_t RCt;
+    struct KDirectory * Dir;
+    struct StructOne One;
+
+    RCt = 0;
+    Dir = NULL;
+    One . depot = self;
+    One . rc = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcSelf, rcNull );
+    }
+
+
+    RCt = _karDepotSchemaPath ( & ( self -> _scm_path ), SchemaPath );
+    if ( RCt == 0 ) {
+        RCt = VDBManagerMakeSchema ( self -> _mgr, & ( self -> _scm ) );
+        if ( RCt == 0 ) {
+VSchemaAddIncludePath ( self -> _scm, SchemaPath );
+
+            RCt = KDirectoryNativeDir ( & Dir );
+            if ( RCt == 0 ) {
+
+                RCt = KDirectoryVisit (
+                                Dir,
+                                true,
+                                _scmDepotLoadSchemasCallback,
+                                & One,
+                                self -> _scm_path
+                                );
+
+                KDirectoryRelease ( Dir );
+            }
+
+            if ( One . rc != 0 ) {
+                RCt = One . rc;
+            }
+
+        }
+    }
+
+    return RCt;
+}   /* _scmDepotLoadSchemas () */
+
+static
+int64_t CC
+_scmDepotLoadTransformsProcessCallback (
+                                    const struct BSTNode * L,
+                                    const struct BSTNode * R
+)
+{
+    /*  JOJOBA !!!! implement different comparision
+     */
+    return strcmp (
+                    ( ( struct scmDepotTrn * ) L ) -> _name,
+                    ( ( struct scmDepotTrn * ) R ) -> _name
+                    );
+}   /* _scmDepotLoadTransformsProcessCallback () */
+
+static
+rc_t CC
+_scmDepotLoadTransforms (
+                        struct scmDepot * self,
+                        const char * TransFile
+)
+{
+    rc_t RCt;
+    const struct karLnRd * LnRd;
+    const char * Line;
+    struct scmDepotTrn * Trn;
+
+    RCt = 0;
+    LnRd = NULL;
+    LnRd = NULL;
+    Line = NULL;
+    Trn = NULL;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcSelf, rcNull );
+    }
+
+    if ( TransFile == NULL ) {
+            /*  Does not error, just transform everything
+             */
+        return 0;
+    }
+
+    RCt = copyStringSayNothingRelax ( & self -> _trn_path, TransFile );
+    if ( RCt == 0 ) {
+            /*  Open File and read line by line
+             */
+        RCt = karLnRdOpen ( & LnRd, TransFile );
+        if ( RCt == 0 ) {
+            while ( karLnRdNext ( LnRd ) ) {
+                RCt = karLnRdGet ( LnRd, & Line );
+                if ( RCt == 0 ) {
+                    RCt = _scmDepotTrnMake ( & Trn, Line );
+                    if ( RCt == 0 ) {
+                        RCt = BSTreeInsert (
+                                & ( self -> _trans ),
+                                & ( Trn -> _node ),
+                                _scmDepotLoadTransformsProcessCallback
+                                );
+                    }
+
+                    free ( ( char * ) Line );
+                }
+
+                if ( RCt != 0 ) {
+                    break;
+                }
+            }
+            karLnRdDispose ( LnRd );
+        }
+    }
+
+    return RCt;
+}   /* _scmDepotLoadTransforms () */
+
+rc_t CC
+scmDepotMake (
+            struct scmDepot ** Depot, 
+            const char * SchemaPath,
+            const char * TransformFile
+)
+{
+    rc_t RCt;
+    struct scmDepot * Ret;
 
     RCt = 0;
     Ret = NULL;
 
-    if ( Scm != NULL ) {
-        * Scm = 0;
+    if ( Depot != NULL ) {
+        * Depot = NULL;
     }
 
-    if ( Scm == NULL ) {
-        return RC ( rcApp, rcSchema, rcAllocating, rcParam, rcNull );
+    if ( Depot == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcNull );
     }
 
-    Ret = calloc ( 1, sizeof ( struct karChiveScm  ) );
+        /*  There are two cases :
+         *   1) Schema Path == NULL in that case we loading from config
+         *   2) Transform File == NULL - doing nothing
+         */
+    Ret = calloc ( 1, sizeof ( struct scmDepot ) );
     if ( Ret == NULL ) {
-        RCt = RC ( rcApp, rcSchema, rcAllocating, rcMemory, rcExhausted );
+        return RC ( rcApp, rcSchema, rcConstructing, rcMemory, rcExhausted );
     }
     else {
-        RCt = VDBManagerMakeUpdate ( & ( Ret -> _mgr ), NULL );
-        if ( RCt == 0 ) {
-            Ret -> _konfig_path = NULL;
-            Ret -> _resolver = NULL;
+        BSTreeInit ( & ( Ret -> _trans ) );
 
-            * Scm = Ret;
+        RCt = VDBManagerMakeUpdate ( & ( Ret -> _mgr ), NULL );
+            /*  Reading FilePath
+             */
+        if ( RCt == 0 ) {
+            RCt = _scmDepotLoadSchemas ( Ret, SchemaPath );
+            if ( RCt == 0 ) {
+                    /*  Here we are loading transformations
+                     */
+                RCt = _scmDepotLoadTransforms ( Ret, TransformFile );
+                if ( RCt == 0 ) {
+                    * Depot = Ret;
+                }
+            }
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * Depot = NULL;
+
+        if ( Ret != NULL ) {
+            scmDepotDispose ( Ret );
         }
     }
 
     return RCt;
-}   /* karChiveScmMake () */
+}   /* scmDepotMake () */
+
+static
+int64_t CC
+_scmDepotTrnCompare ( const void * Item, const BSTNode * Node )
+{
+    return strcmp (
+                ( const char * ) Item,
+                ( ( struct scmDepotTrn * ) Node ) -> _name
+                );
+}   /* _scmDepotTrnComapre () */
 
 static
 rc_t CC
-_karChiveScmGetResolver (
-                        struct karChiveScm * self,
-                        struct karChiveResolver ** Resolver
-)
-{
-    rc_t RCt;
-
-    RCt = 0;
-
-    if ( Resolver != NULL ) {
-        * Resolver = NULL;
-    }
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcSelf, rcNull );
-    }
-
-    if ( Resolver == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( self -> _resolver == NULL ) {
-        RCt = _karCRStandardMake (
-                                & ( self -> _resolver ),
-                                self -> _konfig_path
-                                );
-    }
-
-    if ( RCt == 0 ) {
-        * Resolver = self -> _resolver;
-    }
-
-    return RCt;
-}   /* _karChiveScmGetResolver () */
-
-rc_t CC
-karChiveScmSetStandardResolver (
-                                struct karChiveScm * self,
-                                const char * KfgPath
-)
-{
-    if ( self == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcSelf, rcNull );
-    }
-
-    if ( KfgPath == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( self -> _resolver != NULL || self -> _konfig_path != NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcItem, rcExists );
-    }
-
-    if ( KfgPath != NULL ) {
-        return copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                & ( self -> _konfig_path ),
-                                                KfgPath
-                                                );
-    }
-    return 0;
-}   /* karChiveScmSetStandardResolver () */
-
-rc_t CC
-ksrChiveScmSetResolver (
-                        struct karChiveScm * self,
-                        struct karChiveResolver * Rsl
-)
-{
-    if ( self == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcSelf, rcNull );
-    }
-
-    if ( Rsl == NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcParam, rcNull );
-    }
-
-    if ( self -> _resolver != NULL || self -> _konfig_path != NULL ) {
-        return RC ( rcApp, rcSchema, rcResolving, rcItem, rcExists );
-    }
-
-    self -> _resolver = Rsl;
-
-    return 0;
-}   /* ksrChiveScmSetResolver () */
-
-rc_t CC
-DummpSchemaCallback ( void * Dst, const void * Data, size_t DSize )
+_scmDepotDumpCallback ( void * Dst, const void * Data, size_t DSize )
 {
     if ( Dst == 0 ) {
         return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
@@ -639,133 +622,163 @@ DummpSchemaCallback ( void * Dst, const void * Data, size_t DSize )
                             ( void * ) Data,
                             DSize
                             );
-}   /* DummpSchemaCallback () */
+}   /* _scmDepotDumpCallback () */
 
-/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
- *  First we do find a node with name "schema" and rock-n-rooooooo
- *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+void
+_tempExtractName ( const char * Name, const char * Dump, char * Buf, size_t BS )
+{
+    char * Buu = strstr ( Dump, Name );
+    if ( Buu != 0 ) {
+        char * Poo = Buu;
+        while ( * Poo != '=' ) {
+            Poo ++;
+        }
+
+        strncpy ( Buf, Buu, Poo - Buu );
+        Buf [ Poo - Buu ] = 0;
+    }
+}   /* _tempExtractName () */
+
 static
 rc_t CC
-_karChiveScmTransformGetName (
-                            struct karChiveScm * self,
-                            char ** SchemaPath,
-                            char ** SchemaName,
-                            struct KMDataNode * DataNode
-
+_scmDepotResolveAndDump (
+                    struct scmDepot * self,
+                    struct KMDataNode * DataNode,
+                    struct karCBuf * CBuf,
+                    char * Name,
+                    size_t NameSize
 )
 {
     rc_t RCt;
-    char Buf [ 1024 ];
     size_t BSize;
-    struct karChiveResolver * Rsl;
+    char * Ver;
+    struct scmDepotTrn * Trn;
+    char Buf [ 256 ];
+    bool NeedTransform;
 
     RCt = 0;
-    * Buf = 0;
     BSize = 0;
-    Rsl = NULL;
-
-    if ( SchemaName != NULL ) {
-        * SchemaName = NULL;
-    }
+    Ver = NULL;
+    Trn = NULL;
+    NeedTransform = false;
 
     if ( self == NULL ) {
         return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcNull );
-    }
-
-    if ( SchemaName == NULL ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
     }
 
     if ( DataNode == NULL ) {
         return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
     }
 
-    RCt = _karChiveScmGetResolver ( self, & Rsl );
-    if ( RCt == 0 ) {
-        RCt = KMDataNodeReadAttr (
-                                DataNode,
-                                NAME_ATTR_NAME,
-                                Buf,
-                                sizeof ( Buf ),
-                                & BSize
-                             );
-        if ( RCt == 0 ) {
-            RCt = _karChiveResolverResolve (
-                                            Rsl,
-                                            Buf,
-                                            SchemaPath,
-                                            SchemaName
-                                            );
-        }
-    }
-
-    if ( RCt != 0 ) {
-        if ( * SchemaName != NULL ) {
-            free ( ( char * ) * SchemaName );
-            * SchemaName = NULL;
-        }
-        if ( * SchemaPath != NULL ) {
-            free ( ( char * ) * SchemaPath );
-            * SchemaPath = NULL;
-        }
-    }
-
-    return RCt;
-}   /* _karChiveScmTransformGetName () */
-
-static
-rc_t CC
-_karChiveScmTransformDumpSchema (
-                                struct karChiveScm * self,
-                                const char * SchemaPath,
-                                struct karCBuf * RetData
-)
-{
-    rc_t RCt;
-    struct VSchema * Schema;
-
-    RCt = 0;
-    Schema = NULL;
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcNull );
-    }
-
-    if ( SchemaPath == NULL ) {
+    if ( CBuf == NULL ) {
         return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
     }
 
-    if ( RetData == NULL ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
-    }
-
-    if ( self -> _mgr == NULL ) {
+    if ( Name == NULL || NameSize == 0 ) {
         return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcInvalid );
     }
 
-    RCt = VDBManagerMakeSchema ( self -> _mgr, & Schema );
+    * Name = 0;
+
+    RCt = KMDataNodeReadAttr (
+                            DataNode,
+                            NAME_ATTR_NAME,
+                            Buf,
+                            sizeof ( Buf ),
+                            & BSize
+                         );
+printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, RCt, Buf );
     if ( RCt == 0 ) {
+        Buf [ BSize ] = 0;
 
-        RCt = VSchemaParseFile ( Schema, "%s", SchemaPath );
-        if ( RCt == 0 ) {
-
-            RCt = VSchemaDump (
-                            Schema,
-                            sdmCompact,
-                            NULL,
-                            DummpSchemaCallback,
-                            ( void * ) RetData
-                            );
+        Ver = strchr ( Buf, '#' );
+        if ( Ver != NULL ) {
+            * Ver = 0;
+            Ver ++;
         }
 
-        VSchemaRelease ( Schema );
+            /* The logic: if Transformation File was provided
+             * we try to resolve new version from file, if version
+             * exists, we will use it.
+             * If Transformation file was not provided, we will try
+             * to upgrade version to newest one
+             */
+        if ( self -> _trn_path != NULL ) {
+            Trn = ( struct scmDepotTrn * ) BSTreeFind (
+                                                & ( self -> _trans ),
+                                                Buf,
+                                                _scmDepotTrnCompare
+                                                );
+            if ( Trn == NULL ) {
+                    /* Nothing to transform */
+                * Buf = 0;
+                NeedTransform = false;
+            }
+            else {
+                if ( Trn -> _ver_old == NULL ) {
+                    NeedTransform = true;
+                }
+                else {
+                    if ( Ver != NULL ) {
+                        if ( strcmp ( Ver, Trn -> _ver_old ) == 0 ) {
+                            NeedTransform = true;
+                        }
+                        else {
+                            * Buf = 0;
+                            NeedTransform = false;
+                        }
+                    }
+                }
+            }
+            if ( NeedTransform ) {
+                if ( Trn -> _ver_new != NULL ) {
+                    strcat ( Buf, "#" );
+                    strcat ( Buf, Trn -> _ver_new );
+                }
+            }
+        }
+        else {
+            NeedTransform = true;
+        }
+    }
+
+    if ( NeedTransform ) {
+        if ( * Buf == 0 ) {
+            return RC ( rcApp, rcSchema, rcUpdating, rcName, rcInvalid );
+        }
+        else {
+            RCt = VSchemaDump (
+                            self -> _scm,
+                            sdmCompact,
+                            Buf,
+                            _scmDepotDumpCallback,
+                            ( void * ) CBuf
+                            );
+printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, RCt, Buf );
+printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, CBuf -> _s, Buf );
+{
+if ( CBuf -> _s != 0 ) {
+char B [ 128 ];
+strncpy ( B, CBuf -> _b, 64 );
+printf ( "[JI] [%d] [%s]\n", __LINE__, B );
+}
+else {
+printf ( "[JI] [%d] [%s]\n", __LINE__, "JOPA" );
+}
+}
+            if ( RCt == 0 ) {
+                    /* JOJOBA here we are harvesting for a name */
+                _tempExtractName ( Buf, CBuf -> _b, Name, NameSize );
+printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, RCt, Name );
+            }
+        }
     }
 
     return RCt;
-}   /* _karChiveScmTransformDumpSchema () */
+}   /* _scmDepotResolveAndDump () */
 
 rc_t CC
-_karChiveScmTransformModifyNode (
+_scmDepotModifyNode (
                                 struct KMDataNode * DataNode,
                                 const char * SchemaName,
                                 struct karCBuf * Buf
@@ -808,24 +821,18 @@ _karChiveScmTransformModifyNode (
         }
     }
     return RCt;
-}   /* _karChiveScmTransformModiryNode () */
+}   /* _scmDepotModifyNode () */
 
 rc_t CC
-karChiveScmTransform (
-                        struct karChiveScm * self,
-                        struct KMetadata * Meta
-)
+scmDepotTransform ( struct scmDepot * self, struct KMetadata * Meta )
 {
     rc_t RCt;
     struct KMDataNode * DataNode;
     struct karCBuf Buf;
-    char * SchemaName;
-    char * SchemaPath;
+    char Name [ 256 ];
 
     RCt = 0;
     DataNode = NULL;
-    SchemaName = NULL;
-    SchemaPath = NULL;
 
     if ( self == NULL ) {
         return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcNull );
@@ -839,6 +846,7 @@ karChiveScmTransform (
         return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcInvalid );
     }
 
+
     RCt = karCBufInit ( & Buf, 0 );
     if ( RCt == 0 ) {
         RCt = KMetadataOpenNodeUpdate (
@@ -847,28 +855,17 @@ karChiveScmTransform (
                                         SCHEMA_ATTR_NAME
                                         );
         if ( RCt == 0 ) {
-            RCt = _karChiveScmTransformGetName (
-                                                self,
-                                                & SchemaPath,
-                                                & SchemaName,
-                                                DataNode
-                                                );
+            RCt = _scmDepotResolveAndDump (
+                                        self,
+                                        DataNode,
+                                        & Buf,
+                                        Name,
+                                        sizeof ( Name )
+                                        );
             if ( RCt == 0 ) {
-                RCt = _karChiveScmTransformDumpSchema (
-                                                    self,
-                                                    SchemaPath,
-                                                    & Buf
-                                                    );
                 if ( RCt == 0 ) {
-                    RCt = _karChiveScmTransformModifyNode (
-                                                            DataNode,
-                                                            SchemaName,
-                                                            & Buf
-                                                            );
+                    RCt = _scmDepotModifyNode ( DataNode, Name, & Buf );
                 }
-
-                free ( SchemaName );
-                free ( SchemaPath );
             }
 
             KMDataNodeRelease ( DataNode );
@@ -876,4 +873,5 @@ karChiveScmTransform (
         karCBufWhack ( & Buf );
     } 
     return RCt;
-}   /* karChiveScmTransform () */
+}   /* scmDepotTransform () */
+

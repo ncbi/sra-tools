@@ -188,7 +188,7 @@ struct LesClaypool {
 struct karChive {
     KRefcount _refcount;
 
-    struct karChiveScm * _scm;
+    struct scmDepot * _scm_depot;
 
     const struct KMMap * _map;
     const void * _map_addr;
@@ -1819,10 +1819,7 @@ _karChiveEntryMakePath (
 
     RCt = _karChiveEntryPath ( self, BBB, sizeof ( BBB ) );
     if ( RCt == 0 ) {
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                                Path,
-                                                                BBB
-                                                                );
+        RCt = copyStringSayNothingRelax ( Path, BBB );
     }
 
     return RCt;
@@ -2988,8 +2985,9 @@ _karChiveDispose ( const struct karChive * self )
         }
 
             /* Schema */
-        if ( Chive -> _scm != NULL ) {
-            karChiveScmDispose ( Chive -> _scm );
+        if ( Chive -> _scm_depot != NULL ) {
+            scmDepotDispose ( Chive -> _scm_depot );
+            Chive -> _scm_depot = NULL;
         }
 
         Chive -> _is_454_style = false;
@@ -3200,9 +3198,9 @@ _karChiveMake (
                         "_karChiveMake",
                         "Make"
                         );
-            /*  Zerost, we are tuning Schema engine
+            /*  We should pass NULLS here
              */
-        RCt = karChiveScmMake ( & ( RetChive -> _scm ) );
+        RCt = scmDepotMake ( & ( RetChive -> _scm_depot ), NULL, NULL );
         if ( RCt == 0 ) {
                 /*  First we are mapping file into memory
                  */
@@ -4212,7 +4210,7 @@ _karChiveEditMetaFile (
                 /*  Transforming metadata
                  */
             if ( ! self -> _is_454_style ) {
-                RCt = karChiveScmTransform ( self -> _scm, Meta );
+                RCt = scmDepotTransform ( self -> _scm_depot, Meta );
             }
             else {
                     /*  That is bad, but we should do it, or it will
@@ -4990,14 +4988,20 @@ Delite ( struct DeLiteParams * Params )
         return RC ( rcApp, rcArc, rcProcessing, rcParam, rcInvalid );
     }
 
+#ifdef JOJOBA
+{
+struct scmDepot * Depot;
+scmDepotMake ( & Depot, Params -> _schema, Params -> _transf );
+
+scmDepotTransform ( Depot, NULL );
+
+scmDepotDispose ( Depot );
+exit ( 0 );
+}
+#endif /* JOJOBA */
+
     RCt = karChiveOpen ( & Chive, Params -> _accession_path );
     if ( RCt == 0 ) {
-        if ( Params -> _config != NULL ) {
-            RCt = karChiveScmSetStandardResolver (
-                                                Chive -> _scm,
-                                                Params -> _config
-                                                );
-        }
 
         karChiveDump ( Chive, true );
 

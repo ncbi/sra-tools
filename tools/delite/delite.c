@@ -121,6 +121,14 @@ KMain ( int ArgC, char * ArgV [] )
 #define ALS_NOEDIT      "n"
 #define PRM_NOEDIT      NULL
 
+#define OPT_SCHEMA      "schema"
+#define ALS_SCHEMA      "S"
+#define PRM_SCHEMA      NULL
+
+#define OPT_TRANSF      "transf"
+#define ALS_TRANSF      "T"
+#define PRM_TRANSF      NULL
+
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Params
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
@@ -156,6 +164,14 @@ DeLiteParamsWhack ( struct DeLiteParams * Params )
             free ( ( char * ) Params -> _output );
             Params -> _output = NULL;
         }
+        if ( Params -> _schema != NULL ) {
+            free ( ( char * ) Params -> _schema );
+            Params -> _schema = NULL;
+        }
+        if ( Params -> _transf != NULL ) {
+            free ( ( char * ) Params -> _transf );
+            Params -> _transf = NULL;
+        }
         Params -> _output_stdout = false;
 
         Params -> _noedit = false;
@@ -184,10 +200,7 @@ DeLiteParamsSetProgram (
 
     RCt = ArgsProgram ( TheArgs, NULL, & Value );
     if ( RCt == 0 ) {
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                & Params -> _program,
-                                                Value
-                                                );
+        RCt = copyStringSayNothingRelax ( & Params -> _program, Value );
     }
 
     return RCt;
@@ -221,7 +234,7 @@ DeLiteParamsSetAccession (
                                 ( const void ** ) & Value
                                 );
             if ( RCt == 0 ) {
-                RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                RCt = copyStringSayNothingRelax (
                                                 & Params -> _accession,
                                                 Value
                                                 );
@@ -234,46 +247,6 @@ DeLiteParamsSetAccession (
 
     return RCt;
 }   /* DeLiteParamsSetAccession () */
-
-static
-rc_t
-DeLiteParamsSetConfig (
-                        struct DeLiteParams * Params,
-                        const struct Args * TheArgs
-)
-{
-    rc_t RCt;
-    const char * Value;
-    uint32_t OptCount;
-
-    RCt = 0;
-    Value = NULL;
-    OptCount = 0;
-
-    if ( Params == NULL ) {
-        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
-    }
-
-    RCt = ArgsOptionCount ( TheArgs, OPT_APPCONFIG, & OptCount );
-    if ( RCt == 0 ) {
-        if ( OptCount != 0 ) {
-            RCt = ArgsOptionValue (
-                                    TheArgs,
-                                    OPT_APPCONFIG,
-                                    0,
-                                    ( const void ** ) & Value
-                                    ); 
-            if ( RCt == 0 ) {
-                RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                & Params -> _config,
-                                                Value
-                                                );
-            }
-        }
-    }
-
-    return RCt;
-}   /* DeLiteParamsSetConfig () */
 
 static
 rc_t
@@ -304,7 +277,7 @@ DeLiteParamsSetOutput (
                                     ( const void ** ) & Value
                                     ); 
             if ( RCt == 0 ) {
-                RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+                RCt = copyStringSayNothingRelax (
                                                 & Params -> _output,
                                                 Value
                                                 );
@@ -323,6 +296,48 @@ DeLiteParamsSetOutput (
 
     return RCt;
 }   /* DeLiteParamsSetOutput () */
+
+static
+rc_t
+DeLiteParamsSetSingleArgParam (
+                        const char ** Param,
+                        const char * ArgName,
+                        const struct Args * TheArgs
+)
+{
+    rc_t RCt;
+    const char * Value;
+    uint32_t OptCount;
+
+    RCt = 0;
+    Value = NULL;
+    OptCount = 0;
+
+    if ( Param != NULL ) {
+        * Param = NULL;
+    }
+
+    if ( Param == NULL || ArgName == NULL || TheArgs == NULL ) {
+        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
+    }
+
+    RCt = ArgsOptionCount ( TheArgs, ArgName, & OptCount );
+    if ( RCt == 0 ) {
+        if ( OptCount != 0 ) {
+            RCt = ArgsOptionValue (
+                                    TheArgs,
+                                    ArgName,
+                                    0,
+                                    ( const void ** ) & Value
+                                    ); 
+            if ( RCt == 0 ) {
+                RCt = copyStringSayNothingRelax ( Param, Value );
+            }
+        }
+    }
+
+    return RCt;
+}   /* DeLiteParamsSetSingleArgParam () */
 
 static
 rc_t
@@ -357,6 +372,8 @@ DeLiteParamsSetNoedit (
 static const char * UsgAppConfig [] = { "Application config file delite. Usually contains mapping from old schema to new", NULL };
 static const char * UsgAppOutput [] = { "Name of output file, mondatory. If name is \"--\" output will be written to STDOUT", NULL };
 static const char * UsgAppNoedit [] = { "Do not delete qualities, just repack archive", NULL };
+static const char * UsgAppSchema [] = { "Path to schema directory to use. Can specify multiple paths separated by ':'.", NULL };
+static const char * UsgAppTransf [] = { "Path to the list of schema transformation file. File in format <name><tab><old_ver><tab><new_ver>", NULL };
 
 struct OptDef DeeeOpts [] = {
     {       /* Where we will read config data to resolve entries */
@@ -384,6 +401,24 @@ struct OptDef DeeeOpts [] = {
         UsgAppNoedit,       /* help as text is here */
         1,                  /* max amount */
         false,              /* need value */
+        false               /* is required */
+    },
+    {       /* Option do not edit archive, but repack it */
+        OPT_SCHEMA,         /* option name */
+        ALS_SCHEMA,         /* option alias */
+        NULL,               /* help generator */
+        UsgAppSchema,       /* help as text is here */
+        1,                  /* max amount */
+        true,               /* need value */
+        false               /* is required */
+    },
+    {       /* Option do not edit archive, but repack it */
+        OPT_TRANSF,         /* option name */
+        ALS_TRANSF,         /* option alias */
+        NULL,               /* help generator */
+        UsgAppTransf,       /* help as text is here */
+        1,                  /* max amount */
+        true,               /* need value */
         false               /* is required */
     }
 };  /* OptDef */
@@ -445,12 +480,34 @@ __porseAndHandle (
                 break;
             }
 
-            RCt = DeLiteParamsSetConfig ( Params, TheArgs );
+            RCt = DeLiteParamsSetSingleArgParam (
+                                                & Params -> _config,
+                                                OPT_APPCONFIG,
+                                                TheArgs
+                                                );
             if ( RCt != 0 ) {
                 break;
             }
 
             RCt = DeLiteParamsSetOutput ( Params, TheArgs );
+            if ( RCt != 0 ) {
+                break;
+            }
+
+            RCt = DeLiteParamsSetSingleArgParam (
+                                                & Params -> _schema,
+                                                OPT_SCHEMA,
+                                                TheArgs
+                                                );
+            if ( RCt != 0 ) {
+                break;
+            }
+
+            RCt = DeLiteParamsSetSingleArgParam (
+                                                & Params -> _transf,
+                                                OPT_TRANSF,
+                                                TheArgs
+                                                );
             if ( RCt != 0 ) {
                 break;
             }
@@ -537,6 +594,20 @@ Usage ( const struct Args * TheArgs )
                 OPT_NOEDIT,
                 PRM_NOEDIT,
                 UsgAppNoedit
+                );
+
+    HelpOptionLine (
+                ALS_SCHEMA,
+                OPT_SCHEMA,
+                PRM_SCHEMA,
+                UsgAppSchema
+                );
+
+    HelpOptionLine (
+                ALS_TRANSF,
+                OPT_TRANSF,
+                PRM_TRANSF,
+                UsgAppTransf
                 );
 
     KOutMsg ( "\n" );

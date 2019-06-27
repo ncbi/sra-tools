@@ -39,6 +39,8 @@ struct DeLiteParams {
     const char * _accession_path;   /* Resolved accession path */
     const char * _config;           /* Config path */
     const char * _output;           /* Output file path */
+    const char * _schema;           /* Shema dirs path separated by : */
+    const char * _transf;           /* File with list of transforms */
     bool _output_stdout;            /* Output is stdout */
     bool _noedit;                   /* Just perform repackint */
 };
@@ -50,7 +52,7 @@ LIB_EXPORT rc_t Checkite ( const char * PathToArchive );
      */
 #define KAR_MAX_ACCEPTED_STRING 16384
 
-LIB_EXPORT rc_t CC copyStringSayNothingHopeKurtWillNeverSeeThatCode (
+LIB_EXPORT rc_t CC copyStringSayNothingRelax (
                                             const char ** Dst,
                                             const char * Src
                                             );
@@ -142,6 +144,35 @@ rc_t CC karCBufDetatch (
                     const void ** Bufer,
                     size_t * BSize
                     );
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Another weird stuff. Line reader
+ *  May be later I will attach AddRef/Release, now it is not needed 
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karLnRd;
+
+rc_t CC karLnRdOpen (
+                    const struct karLnRd ** LineReader,
+                    const char * Path
+                    );
+    /*  Dat is kinda dangerous, cuz it just keep addr and size, not copy
+     *  so, there is no control if somebody else will free these :LOL:
+     */
+rc_t CC karLnRdMake (
+                    const struct karLnRd ** LineReader,
+                    const void * Buf,
+                    size_t BufSz
+                    );
+rc_t CC karLnRdDispose ( const struct karLnRd * self );
+
+bool CC karLnRdIsGood ( const struct karLnRd * self );
+bool CC karLnRdNext ( const struct karLnRd * self );
+    /*  That method allocate new string each time, so
+     *  feel free to delete it
+     */
+rc_t CC karLnRdGet ( const struct karLnRd * self, const char ** Line );
+rc_t CC karLnRdGetNo ( const struct karLnRd * self, size_t * LineNo );
+rc_t CC rarLnRdRewind ( const struct karLnRd * self );
 
 #ifdef __cplusplus
 }

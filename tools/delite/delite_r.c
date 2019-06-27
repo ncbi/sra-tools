@@ -35,6 +35,10 @@
 #include <vfs/path.h>
 #include <vfs/resolver.h>
 
+#include <kfs/directory.h>
+#include <kfs/file.h>
+#include <kfs/mmap.h>
+
 #include <sysalloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -52,10 +56,7 @@
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 LIB_EXPORT
 rc_t CC
-copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                const char ** Dst,
-                                                const char * Src
-)
+copyStringSayNothingRelax ( const char ** Dst, const char * Src )
 {
     size_t Len;
     rc_t RCt;
@@ -112,7 +113,7 @@ copyStringSayNothingHopeKurtWillNeverSeeThatCode (
     }
 
     return RCt;
-}   /* copyStringSayNothingHopeKurtWillNeverSeeThatCode () */
+}   /* copyStringSayNothingRelax () */
 
 LIB_EXPORT
 rc_t CC
@@ -147,7 +148,9 @@ copyLStringSayNothing (
         RCt = RC ( rcApp, rcString, rcCopying, rcMemory, rcExhausted );
     }
     else {
-        memmove ( Ret, Str, Len * sizeof ( char ) );
+        if ( Len != 0 ) {
+            memmove ( Ret, Str, Len * sizeof ( char ) );
+        }
         Ret [ Len ] = 0;
 
         * Dst = Ret;
@@ -220,10 +223,7 @@ DeLiteVPathToChar ( char ** CharPath, const struct VPath * Path )
         string_copy ( BB, sizeof ( BB ), Str -> addr, Str -> size );
         BB [ Str -> size ] = 0;
 
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                            ( const char ** ) & RetVal,
-                                            BB
-                                            );
+        RCt = copyStringSayNothingRelax ( ( const char ** ) & RetVal, BB );
         if ( RCt == 0 ) {
             * CharPath = RetVal;
         }
@@ -359,10 +359,7 @@ NowAsString ( char ** Str )
 
     RCt = NowToString ( Buf, sizeof ( Buf ) );
     if ( RCt == 0 ) {
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                ( const char ** ) Str,
-                                                Buf
-                                                );
+        RCt = copyStringSayNothingRelax ( ( const char ** ) Str, Buf );
     }
 
     return RCt;
@@ -409,10 +406,7 @@ VersAsString ( char ** Str )
 
     RCt = VersToString ( Buf, sizeof ( Buf ) );
     if ( RCt == 0 ) {
-        RCt = copyStringSayNothingHopeKurtWillNeverSeeThatCode (
-                                                ( const char ** ) Str,
-                                                Buf
-                                                );
+        RCt = copyStringSayNothingRelax ( ( const char ** ) Str, Buf );
     }
 
     return RCt;
@@ -677,4 +671,282 @@ karCBufDetatch (
     return RCt;
 }   /* karCBufDetach () */
 
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  LineReader for line
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karLnRd {
+    const struct KMMap * _map;
+
+    const void * _map_addr;
+    size_t _map_size;
+
+    bool _is_good;
+
+    size_t _start;
+    size_t _stop;
+    size_t _line_no;
+};
+
+rc_t CC
+karLnRdDispose ( const struct karLnRd * self )
+{
+    struct karLnRd * Rd = ( struct karLnRd * ) self;
+
+    if ( Rd != NULL ) {
+        if ( Rd -> _map != NULL ) {
+            KMMapRelease ( Rd -> _map );
+            Rd -> _map = NULL;
+        }
+
+        if ( Rd -> _map_addr != NULL ) {
+            Rd -> _map_addr = NULL;
+        }
+        Rd -> _map_size = 0;
+
+        Rd -> _is_good = 0;
+        Rd -> _start = 0;
+        Rd -> _stop = 0;
+        Rd -> _line_no = 0;
+
+        free ( Rd );
+    }
+
+    return 0;
+}   /* karLnRdDispose () */
+
+rc_t CC
+karLnRdOpen ( const struct karLnRd ** LineReader, const char * Path )
+{
+    rc_t RCt;
+    struct KDirectory * Nat;
+    const struct KFile * File;
+    const struct KMMap * Map;
+    const void * Addr;
+    size_t Size;
+
+    RCt = 0;
+    Nat = NULL;
+    File = NULL;
+    Map = NULL;
+    Addr = NULL;
+    Size = 0;
+
+    if ( LineReader != NULL ) {
+        * LineReader = NULL;
+    }
+
+    if ( LineReader == NULL || Path == NULL ) {
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
+    }
+
+    RCt = KDirectoryNativeDir ( & Nat );
+    if ( RCt == 0 ) {
+        RCt = KDirectoryOpenFileRead ( Nat, & File, "%s", Path );
+        if ( RCt == 0 ) {
+            RCt = KMMapMakeRead ( & Map, File );
+            if ( RCt == 0 ) {
+                RCt = KMMapAddrRead ( Map, & Addr );
+                if ( RCt == 0 ) {
+                    RCt = KMMapSize ( Map, & Size );
+                    if ( RCt == 0 ) {
+                        RCt = karLnRdMake ( LineReader, Addr, Size );
+                        if ( RCt == 0 ) {
+                            RCt = KMMapAddRef ( Map );
+                            if ( RCt == 0 ) {
+                                ( ( struct karLnRd * ) * LineReader )
+                                                        -> _map = Map;
+                            }
+                        }
+                    }
+                }
+            }
+
+            KFileRelease ( File );
+        }
+
+        KDirectoryRelease ( Nat );
+    }
+
+    return RCt;
+}   /* karLnRdOpen () */
+
+rc_t CC
+karLnRdMake (
+            const struct karLnRd ** LineReader,
+            const void * Buf,
+            size_t BufSz
+)
+{
+    rc_t RCt;
+    struct karLnRd * Ret;
+
+    RCt = 0;
+    Ret = NULL;
+
+    if ( LineReader != NULL ) {
+        * LineReader = NULL;
+    }
+
+    if ( LineReader == NULL || Buf == NULL ) {
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcNull );
+    }
+
+    if ( BufSz == 0 ) {
+        return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
+    }
+
+    Ret = calloc ( 1, sizeof ( struct karLnRd * ) );
+    if ( Ret == NULL ) {
+        RCt = RC ( rcApp, rcData, rcAllocating, rcMemory, rcExhausted );
+    }
+    else {
+        Ret -> _map_addr = Buf;
+        Ret -> _map_size = BufSz;
+        Ret -> _start = 0;
+        Ret -> _stop = 0;
+        Ret -> _line_no = 0;
+        Ret -> _is_good = true;
+
+        * LineReader = Ret;
+    }
+
+    return RCt;
+}   /* karLnRdMake () */
+
+bool CC
+karLnRdIsGood ( const struct karLnRd * self )
+{
+    return self != NULL ? self -> _is_good : false;
+}   /* karLnRdIsGood () */
+
+bool CC
+karLnRdNext ( const struct karLnRd * self )
+{
+    struct karLnRd * LnRd;
+    const char * iBg;
+    const char * iCr;
+    const char * iEn;
+    bool Ret;
+
+    LnRd = ( struct karLnRd * ) self;
+    iBg = iEn = iCr = NULL;
+    Ret = false;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcNull );
+    }
+
+    if ( ! self -> _is_good ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcInvalid );
+    }
+
+    if ( LnRd != NULL ) {
+        iBg = ( const char * ) LnRd -> _map_addr;
+        iEn = iBg + LnRd -> _map_size;
+        if ( LnRd -> _start != 0 ) {
+            iBg += LnRd -> _stop + 1;
+        }
+        iCr = iBg;
+        if ( iEn <= iBg ) {
+            LnRd -> _start = LnRd -> _map_size;
+            LnRd -> _stop = LnRd -> _map_size;
+            Ret = false;
+        }
+        else {
+            while ( iCr < iEn ) {
+                if ( * iCr == '\n' ) {
+                    break;
+                }
+
+                iCr ++;
+            }
+
+            LnRd -> _start = iBg - ( ( const char * ) LnRd -> _map_addr );
+            LnRd -> _stop = iCr - ( ( const char * ) LnRd -> _map_addr );
+            LnRd -> _line_no ++;
+
+            Ret = true;
+        }
+    }
+
+    return Ret;
+}   /* karLnRdNext () */
+
+/*  That method allocate new string each time, so
+ *  feel free to delete it
+ */
+rc_t CC
+karLnRdGet ( const struct karLnRd * self, const char ** Line )
+{
+    rc_t RCt = 0;
+
+    if ( Line != NULL ) {
+        * Line = NULL;
+    }
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcNull );
+    }
+
+    if ( ! self -> _is_good ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcInvalid );
+    }
+
+    if ( Line == NULL ) {
+        return RC ( rcApp, rcString, rcCopying, rcParam, rcNull );
+    }
+
+    if ( self -> _start < self -> _map_size ) {
+        RCt = copyLStringSayNothing (
+                                Line,
+                                ( ( const char * ) self -> _map_addr ) + self -> _start,
+                                self -> _stop - self -> _start
+                                );
+    }
+
+    return RCt;
+}   /* karLnRdGet () */
+
+rc_t CC
+karLnRdGetNo ( const struct karLnRd * self, size_t * LineNo )
+{
+    if ( LineNo != NULL ) {
+        * LineNo = 0;
+    }
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcNull );
+    }
+
+    if ( ! self -> _is_good ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcInvalid );
+    }
+
+    if ( LineNo == NULL ) {
+        return RC ( rcApp, rcString, rcCopying, rcParam, rcNull );
+    }
+
+    * LineNo = self -> _line_no;
+
+    return 0;
+}   /* karLnRdGetNo () */
+
+rc_t CC
+rarLnRdRewind ( const struct karLnRd * self )
+{
+    if ( self == NULL ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcNull );
+    }
+
+    if ( ! self -> _is_good ) {
+        return RC ( rcApp, rcString, rcCopying, rcSelf, rcInvalid );
+    }
+
+    ( ( struct karLnRd * ) self ) -> _start = 0;
+    ( ( struct karLnRd * ) self ) -> _stop = 0;
+    ( ( struct karLnRd * ) self ) -> _line_no = 0;
+
+    return 0;
+}   /* rarLnRdRewind () */
 

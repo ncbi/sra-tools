@@ -40,71 +40,41 @@ extern "C" {
 struct karChiveScm;
 struct KMetadata;
 
-
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
- *  UnOficial schema resolvin unit
+ * Because Ken produces new schemas, and they should work.
+ * 
+ * This interface will contain all schemas, which user can-could
+ * transform. There are three types of schema tranformation :
  *
- *  By default schema will be resolved with using 'DELITE' section
- *  from Konfig.
+ *   1) transform everything
+ *   2) transform only quality nodes
+ *   3) transform #1 and #2 with dictionary
  *
- *  User may define his own Konfig, in that case he could load it 
- *  with karChiveScmSetStandardResolver () method.
+ * Dictionary is a file in a format :
  *
- *  If user want to use his own resolving mechanism, he could set an 
- *  instance of resolver with ksrChiveScmSetResolver method
+ *   ...
+ *   entry_name<tab>old_version<tab>new_version
+ *   entry_name<tab>old_version<tab>new_version
+ *   ...
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-struct karChiveResolver {
-    void * _data;
+struct scmDepot;
 
-        /*  Note, returned SchemaPath and SchemaName will be
-         *  freed by caller ... so, please do not return any
-         *  valuables
-         */
-    rc_t ( CC * _resolve ) ( 
-                            struct karChiveResolver * Resolver,
-                            const char * Name,
-                            char ** SchemaPath,
-                            char ** SchemaName
-                            );
-
-        /*  if dat will be NULL, resolver will be 'free()'
-         */
-    rc_t ( CC * _dispose ) ( struct karChiveResolver * Resolver );
-};
-
-    /*  Once resolver is set, any attempt to set another will be
-     *  rejected, lol
+    /*  Note, both SchemaPath and TransformFile could be NULL
+     *  SchemaPath - directory, which will be scaned for "*.vschema"
+     *  TransformFile - file in format "entry<tab>old_v<tab>new_v"
      */
-rc_t CC karChiveScmSetStandardResolver (
-                            struct karChiveScm * self,
-                            const char * KfgPath
-                            );
+rc_t CC scmDepotMake (
+                    struct scmDepot ** Dpt,
+                    const char * SchemaPath,
+                    const char * TransformFile
+                    );
+rc_t CC scmDepotDispose ( struct scmDepot * self );
 
-    /*  Once resolver is set, any attempt to set another will be
-     *  rejected, lol
-     */
-rc_t CC ksrChiveScmSetResolver ( 
-                            struct karChiveScm * self,
-                            struct karChiveResolver * Rsl
-                            );
-
-/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
- *  Oficial schema processing unit
- *
- *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-rc_t CC karChiveScmMake ( struct karChiveScm ** Scm );
-rc_t CC karChiveScmDispose ( struct karChiveScm * self );
-
-    /*  NOTE: 'schema_name' parameter could be null, in that
-     *      case original name will be used
-     *      NewSchemaName will not be disposed, so it is caller prblem
-     */
-rc_t CC karChiveScmTransform (
-                            struct karChiveScm * self,
+rc_t CC scmDepotTransform (
+                            struct scmDepot * self,
                             struct KMetadata * Meta
                             );
-
 
 #ifdef __cplusplus
 }

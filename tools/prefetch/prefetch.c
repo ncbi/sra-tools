@@ -2209,9 +2209,24 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         self->desc != NULL) /* object name is specified (not kart item) */
     {
         if ( self -> mane -> outFile == NULL ) {
+            bool local = false;
             KPathType type
                 = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
-            if (type == kptFile || type == kptDir) {
+            if (type == kptFile)
+                local = true;
+            else if (type == kptDir) {
+                KNamelist * list = NULL;
+                rc = KDirectoryList(dir, &list, NULL, NULL, "%s", self->desc);
+                if (rc == 0) {
+                    uint32_t count = 0;
+                    rc = KNamelistCount(list, &count);
+                    if (rc == 0 && count > 0) /* empty directory is ignored */
+                        local = true;
+                }
+                RELEASE(KNamelist, list);
+            }
+
+            if (local) {
                 rc = VPathStrInitStr(&resolved->path, self->desc, 0);
                 resolved->existing = true;
                 if (resolved->type != eRunTypeDownload) {
@@ -2229,6 +2244,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                 else
                     STSMSG(STS_TOP,
                         ("'%s' is a local non-kart file", self->desc));
+
                 return 0;
             }
         }

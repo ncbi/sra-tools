@@ -602,7 +602,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
-            "4", odir, ofile, & response );
+            NULL, odir, ofile, & response );
 
     if ( rc == 0 )
         l = KSrvResponseLength  ( response );
@@ -2641,7 +2641,7 @@ static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
             }
         } while (self->resolved.respFile != NULL);
     }
-    else { /* resolver was not called: chaeckig a local fiie */
+    else { /* resolver was not called: checking a local fiie */
         rc = ItemDownload(self);
         if (rc == 0 && self->resolved.type == eRunTypeDownload)
             rc = ItemPostDownload(self, row);

@@ -2499,13 +2499,14 @@ static rc_t ItemDownload(Item *item) {
                 rc = StringCopy(&self->path.str, self->local.str);
             }
         }
-        else if ( self -> remoteFasp . str == NULL && item->mane->noHttp) {
+        else if (self->remoteFasp.str == NULL && item->mane->noHttp) {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);
             PLOGERR(klogErr, (klogErr, rc,
                 "cannot download '$(name)' using requested transport",
                 "name=%s", self->name));
         }
         else {
+            bool notFound = false;
             const char * name = self->name;
             if (self->respFile != NULL) {
                 const char * acc = NULL;
@@ -2514,7 +2515,23 @@ static rc_t ItemDownload(Item *item) {
                     name = acc;
             }
             STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, name));
+            notFound =
+                KDirectoryPathType(item->mane->dir, "%s", name) == kptNotFound;
             rc = MainDownload(self, item, item->isDependency, NULL);
+            if (item->mane->dryRun && notFound
+                && KDirectoryPathType(item->mane->dir, "%s", name) == kptDir)
+            {
+                KNamelist * list = NULL;
+                rc = KDirectoryList(item->mane->dir,
+                    &list, NULL, NULL, "%s", name);
+                if (rc == 0) {
+                    uint32_t count = 0;
+                    rc = KNamelistCount(list, &count);
+                    if (rc == 0 && count == 0)
+                        KDirectoryRemove(item->mane->dir, false, "%s", name);
+                }
+                RELEASE(KNamelist, list);
+            }
             if (rc == 0) {
                 if (self->inOutDir) {
                     const char * start = self->cache->addr;
@@ -2595,7 +2612,9 @@ static rc_t ItemPrintSized(const Item *self, int32_t row, size_t size) {
 static rc_t ItemPostDownload(Item *item, int32_t row);
 
 /* resolve: locate; download if not found */
-static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
+static
+rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
+{
     rc_t rc = ItemResolve(self, row);
     if (rc != 0)
         return rc;

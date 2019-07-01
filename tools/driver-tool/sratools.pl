@@ -27,7 +27,7 @@ use constant {
 };
 use constant {
     DEFAULT_RESOLVER_VERSION => '130',
-    DEFAULT_RESOLVER_URL => 'https://trace.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve'
+    DEFAULT_RESOLVER_URL => 'https://www.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve'
 };
 
 # if SRATOOLS_DEBUG is truthy, then DEBUG ... will print
@@ -310,6 +310,9 @@ sub processAccessionsNoResolver($$\@@)
     my $params = shift;
     my @runs = expandAllAccessions(@_);
 
+    LOG 0, "running $toolname on ".join(' ', @runs);
+    LOG 0, 'with parameters: '.join(' ', @$params) if @$params;
+
     exec {$toolpath} $0, @$params, @runs;
     die "can't exec $toolname: $!";
 }
@@ -553,6 +556,73 @@ sub isTrue($)
     defined($_[0]) ? ($_[0] eq 'true') : undef
 }
 
+sub parseExperimentXML($$\%)
+{
+    my ($submitter, $experiment, $study, $organism, $sample, $bioProject, $bioSample);
+    my $exp = unescapeXML($_[1]);
+    LOG 2, $exp;
+
+    my $frag = $_[0]->parse_balanced_chunk($exp) or die "invalid response; unparsable XML: $exp";
+    for ($frag->findnodes('Submitter')) {
+        my $acc = $_->findvalue('@acc');
+        $submitter = $acc;
+        next if $_[2]->{'submitter'}->{$acc};
+        LOG 1, "Found Submitter: $acc";
+        $_[2]->{'submitter'}->{$acc} = {
+            'accession' => $acc,
+            'center' => $_->findvalue('@center_name') // '',
+            'contact' => $_->findvalue('@contact_name') // '',
+            'lab' => $_->findvalue('@lab_name') // '',
+        };
+    }
+    for ($frag->findnodes('Experiment')) {
+        my $acc = $_->findvalue('@acc');
+        $experiment = $acc;
+        next if $_[2]->{'experiment'}->{$acc};
+        LOG 1, "Found Experiment: $acc";
+        $_[2]->{'experiment'}->{$acc} = {
+            'accession' => $acc,
+            'ver' => $_->findvalue('@ver') // '',
+            'status' => $_->findvalue('@status') // '',
+            'name' => $_->findvalue('@name') // '',
+        };
+    }
+    for ($frag->findnodes('Study')) {
+        my $acc = $_->findvalue('@acc');
+        $study = $acc;
+        next if $_[2]->{'study'}->{$acc};
+        LOG 1, "Found Study: $acc";
+        $_[2]->{'study'}->{$acc} = {
+            'accession' => $acc,
+            'name' => $_->findvalue('@name') // '',
+        };
+    }
+    for ($frag->findnodes('Organism')) {
+        my $acc = $_->findvalue('@taxid');
+        $organism = $acc;
+        next if $_[2]->{'organism'}->{$acc};
+        LOG 1, "Found Organism: $acc";
+        $_[2]->{'organism'}->{$acc} = {
+            'taxid' => $acc,
+            'name' => $_->findvalue('@ScientificName') // '',
+        };
+    }
+    for ($frag->findnodes('Sample')) {
+        my $acc = $_->findvalue('@acc');
+        $sample = $acc;
+        next if $_[2]->{'sample'}->{$acc};
+        LOG 1, "Found Sample: $acc";
+        $_[2]->{'sample'}->{$acc} = {
+            'accession' => $acc,
+            'name' => $_->findvalue('@name') // '',
+        };
+    }
+    $bioProject = $frag->findvalue('Bioproject/text()') // '';
+    $bioSample = $frag->findvalue('Biosample/text()') // '';
+    
+    ($submitter, $experiment, $study, $organism, $sample, $bioProject, $bioSample);
+}
+
 ### \brief: get Run Info for list of IDs
 ###
 ### \param: the LWP::UserAgent
@@ -580,82 +650,34 @@ sub getRunInfo($@)
 GET_RESPONSE:
     my $res = $ua->get($url);
     unless ($res->is_success) {
+        LOG 0, 'Got '.$res->code.' from eutils';
         if ($res->code eq '429') {
-            if (--$tries > 0) {
-                sleep 1;
+            if ($tries > 0) {
+                LOG 1, 'retrying after a short wait';
+                sleep 1 * (4 - $tries);
+                $tries -= 1;
                 goto GET_RESPONSE;
             }
+            LOG 1, 'no retries left';
         }
         die $res->status_line;
     }
-    
+
+    LOG 3, $res->content;
     my $obj = decode_json $res->content or die "unexpected response from eutils";
     my $result = $obj->{result} or die "unexpected response from eutils";
+    DEBUG $result;
 
     for (@_) {
-        my $obj = $result->{$_} or die "unexpected response from eutils";
-        my $runs = unescapeXML($obj->{runs}) or die "unexpected response from eutils";
-        my $exp = unescapeXML($obj->{expxml});
-        
-        my ($submitter, $experiment, $study, $organism, $sample, $bioProject, $bioSample);
-        {
-            my $frag = $parser->parse_balanced_chunk($exp) or die "invalid response; unparsable XML";
-            for ($frag->findnodes('Submitter')) {
-                my $acc = $_->findvalue('@acc');
-                $submitter = $acc;
-                next if $response{'submitter'}->{$acc};
-                $response{'submitter'}->{$acc} = {
-                    'accession' => $acc,
-                    'center' => $_->findvalue('@center_name') // '',
-                    'contact' => $_->findvalue('@contact_name') // '',
-                    'lab' => $_->findvalue('@lab_name') // '',
-                };
-            }
-            for ($frag->findnodes('Experiment')) {
-                my $acc = $_->findvalue('@acc');
-                $experiment = $acc;
-                next if $response{'experiment'}->{$acc};
-                $response{'experiment'}->{$acc} = {
-                    'accession' => $acc,
-                    'ver' => $_->findvalue('@ver') // '',
-                    'status' => $_->findvalue('@status') // '',
-                    'name' => $_->findvalue('@name') // '',
-                };
-            }
-            for ($frag->findnodes('Study')) {
-                my $acc = $_->findvalue('@acc');
-                $study = $acc;
-                next if $response{'study'}->{$acc};
-                $response{'study'}->{$acc} = {
-                    'accession' => $acc,
-                    'name' => $_->findvalue('@name') // '',
-                };
-            }
-            for ($frag->findnodes('Organism')) {
-                my $acc = $_->findvalue('@taxid');
-                $organism = $acc;
-                next if $response{'organism'}->{$acc};
-                $response{'organism'}->{$acc} = {
-                    'taxid' => $acc,
-                    'name' => $_->findvalue('@ScientificName') // '',
-                };
-            }
-            for ($frag->findnodes('Sample')) {
-                my $acc = $_->findvalue('@acc');
-                $sample = $acc;
-                next if $response{'sample'}->{$acc};
-                $response{'sample'}->{$acc} = {
-                    'accession' => $acc,
-                    'name' => $_->findvalue('@name') // '',
-                };
-            }
-            $bioProject = $frag->findvalue('Bioproject/text()') // '';
-            $bioSample = $frag->findvalue('Biosample/text()') // '';
-        }
+        my $obj = $result->{$_} or die "unexpected response from eutils: no result ID $_";
+        my $runs = unescapeXML($obj->{runs}) or die "unexpected response from eutils: no run XML for ID $_";
+        my ($submitter, $experiment, $study, $organism, $sample, $bioProject, $bioSample)
+           = parseExperimentXML($parser, $obj->{expxml}, %response);
 
-        my $frag = $parser->parse_balanced_chunk($runs) or die "invalid response; unparsable XML";
+        my $frag = $parser->parse_balanced_chunk($runs) or die "invalid response; unparsable run XML";
         for my $run ($frag->findnodes('Run')) {
             my $acc = $run->findvalue('@acc') or next;
+            LOG 1, "Found Run: $acc";
             my $loaded = $run->findvalue('@load_done');
             my $public = $run->findvalue('@is_public');
             push @{$response{'runs'}}, {

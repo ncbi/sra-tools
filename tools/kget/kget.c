@@ -432,7 +432,8 @@ static rc_t make_remote_file( struct KNSManager * kns_mgr, const KFile ** src, f
     
     KNSManagerSetVerbose( kns_mgr, ctx->verbose );
     if ( ctx->reliable )
-        rc = KNSManagerMakeReliableHttpFile( kns_mgr, src, NULL, 0x01010000, ctx->url );
+        /*TODO: supply ceRequired and payRequired */
+        rc = KNSManagerMakeReliableHttpFile( kns_mgr, src, NULL, 0x01010000, true, false, false, ctx->url );
     else
         rc = KNSManagerMakeHttpFile( kns_mgr, src, NULL, 0x01010000, ctx->url );
     

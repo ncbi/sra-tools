@@ -326,8 +326,8 @@ rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
             SILENT_RC ( rcExe, rcFile, rcConstructing, rcParam, rcWrongType );
 
     if ( reliable )
-        rc = KNSManagerMakeReliableHttpFile(kns,
-                                         self, NULL, 0x01010000, "%S", path);
+        /*TODO: supply ceRequired and payRequired */
+        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, true, false, false, "%S", path);
     else
         rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
 

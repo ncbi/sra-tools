@@ -30,7 +30,7 @@
 #include <klib/rc.h> /* RC */
 #include <vfs/path.h> /* VPath */
 
-#include "../../../ncbi-vdb/libs/vfs/json-response.h" /* Response4Make */
+#include "../../../ncbi-vdb/libs/vfs/json-response.h" /* Response4Make4 */
 #include "../../../ncbi-vdb/libs/vfs/services-priv.h"/*KServiceGetKSrvResponse*/
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
@@ -139,7 +139,7 @@ rc_t CC KMain ( int argc, char * argv [] ) {
                         ( rcExe, rcFile, rcReading, rcBuffer, rcInsufficient );
             }
             if ( rc == 0 )
-                rc = Response4Make ( & response, buffer );
+                rc = Response4Make4 ( & response, buffer );
             if (rc == 0)
                 OUTMSG(("File '%s' conforms "
                     "to \"Name Resolver Protocol 4.0\"\n", value));

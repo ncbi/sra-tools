@@ -1167,8 +1167,12 @@ rc_t execute_db_join( KDirectory * dir,
     rc_t rc = 0;
     
     if ( show_progress )
+    {
+        KOutHandlerSetStdErr();
         rc = KOutMsg( "join   :" );
-
+        KOutHandlerSetStdOut();
+    }
+    
     if ( rc == 0 )
     {
         uint64_t row_count = 0;

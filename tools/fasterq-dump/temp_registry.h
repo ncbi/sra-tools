@@ -63,6 +63,10 @@ rc_t temp_registry_merge( struct temp_registry * self,
                           compress_t compress,
                           bool append );
 
+rc_t temp_registry_to_stdout( struct temp_registry * self,
+                              KDirectory * dir,
+                              size_t buf_size );
+
 #ifdef __cplusplus
 }
 #endif

@@ -341,8 +341,12 @@ rc_t execute_lookup_production( KDirectory * dir,
 {
     rc_t rc = 0;
     if ( show_progress )
+    {
+        KOutHandlerSetStdErr();
         rc = KOutMsg( "lookup :" );
-
+        KOutHandlerSetStdOut();
+    }
+    
     if ( rc == 0 )
     {
         cmn_params cmn = { dir, accession, 0, 0, cursor_cache };

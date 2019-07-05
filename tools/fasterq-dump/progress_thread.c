@@ -105,7 +105,7 @@ static rc_t CC bg_progress_thread_func( const KThread *self, void *data )
     bg_progress * bgp = data;
     if ( bgp != NULL )
     {
-        rc = make_progressbar( & bgp -> progressbar, bgp -> digits );
+        rc = make_progressbar_stderr( & bgp -> progressbar, bgp -> digits );
         if ( rc == 0 )
         {
             bgp -> cur = 0;
@@ -223,7 +223,9 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data )
                                     value );
                 if ( rc == 0 )
                 {
+                    KOutHandlerSetStdErr();
                     rc = KOutMsg( buffer );
+                    KOutHandlerSetStdOut();
                     bga -> digits_printed = num_writ;
                 }
                 bga -> prev_value = value;
@@ -231,7 +233,11 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data )
             KSleepMs( bga -> sleep_time );
         }
         if ( rc == 0 )
+        {
+            KOutHandlerSetStdErr();
             rc = KOutMsg( "\n" );
+            KOutHandlerSetStdOut();
+        }
     }
     return rc;
 }
@@ -260,7 +266,11 @@ void bg_update_start( bg_update * self, const char * caption )
     {
         rc_t rc = 0;
         if ( caption != NULL )
+        {
+            KOutHandlerSetStdErr();
             rc = KOutMsg( caption );
+            KOutHandlerSetStdOut();
+        }
         if ( rc == 0 )
             atomic_set( &self -> active, 1 );
     }

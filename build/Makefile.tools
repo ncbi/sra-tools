@@ -24,6 +24,8 @@ TOOLS_TO_COPY = \
 	vdb-unlock      \
 	vdb-validate    \
 
+# these tools will be copied to <instdir>/<toolname>-orig; 
+# <toolname> will be created as a symlink to sratools
 TOOLS_TO_SYMLINK = \
 	fasterq-dump    \
 	fastq-dump      \
@@ -32,6 +34,7 @@ TOOLS_TO_SYMLINK = \
 	srapath         \
 	sra-pileup      \
 
+# these tools may be missing from $(BINDIR), not an error
 TOOLS_TO_COPY_OPTIONAL = \
 	abi-load        \
 	copycat         \
@@ -43,4 +46,4 @@ TOOLS_TO_COPY_OPTIONAL = \
 	srf-load        \
 	sra-toolkit     \
 
-TOOLS_TO_INSTALL = $(TOOLS_TO_COPY) $(TOOLS_TO_SYMLINK)
+TOOLS_TO_INSTALL = $(TOOLS_TO_COPY) $(TOOLS_TO_SYMLINK) $(TOOLS_TO_COPY_OPTIONAL)

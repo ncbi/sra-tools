@@ -78,6 +78,13 @@ installexes:
 
 $(TOOLS_TO_COPY):
 	@ printf "Installing $@..."
+	@ # report missing tools
+	@ ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
+      $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
+      echo "done"
+
+$(TOOLS_TO_COPY_OPTIONAL):
+	@ printf "Installing $@..."
 	@ # ignore missing tools
 	@ - ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
       $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
@@ -85,8 +92,8 @@ $(TOOLS_TO_COPY):
 
 $(TOOLS_TO_SYMLINK):
 	@ printf "Installing symlink for $@..."
-	@ # ignore missing tools
-	@ - ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
+	@ # report missing tools
+	@ ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
       $(COPY) $(BINDIR)/$@$(EXEX) $(INST_BINDIR)/$@-orig$(EXEX) && \
 	  ln -f -s sratools $(INST_BINDIR)/$@$(EXEX) && \
       $(COPY) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \

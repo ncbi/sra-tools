@@ -46,9 +46,9 @@ struct KMetadata;
  * This interface will contain all schemas, which user can-could
  * transform. There are three types of schema tranformation :
  *
- *   1) transform everything
- *   2) transform only quality nodes
- *   3) transform #1 and #2 with dictionary
+ *   1) transform every meta node
+ *   2) transform only quality meta nodes
+ *   2) transform #1 or #2 with dictionary and without
  *
  * Dictionary is a file in a format :
  *
@@ -73,7 +73,8 @@ rc_t CC scmDepotDispose ( struct scmDepot * self );
 
 rc_t CC scmDepotTransform (
                             struct scmDepot * self,
-                            struct KMetadata * Meta
+                            struct KMetadata * Meta,
+                            bool ForDelite
                             );
 
 #ifdef __cplusplus

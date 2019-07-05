@@ -31,18 +31,24 @@
 extern "C" {
 #endif  /* __cplusplus */
 
+struct KConfig;
+
     /*  Very important structure, and most importatn method
      */
 struct DeLiteParams {
     const char * _program;          /* Program name */
     const char * _accession;        /* Accession */
     const char * _accession_path;   /* Resolved accession path */
-    const char * _config;           /* Config path */
     const char * _output;           /* Output file path */
     const char * _schema;           /* Shema dirs path separated by : */
     const char * _transf;           /* File with list of transforms */
+    bool _noedit;                   /* Just produce output, no edit */
+    bool _update;                   /* Update schemas for tables */
+    bool _delite;                   /* Delete quality scores */
     bool _output_stdout;            /* Output is stdout */
-    bool _noedit;                   /* Just perform repackint */
+    bool _force_write;              /* If we need to force write */
+
+    struct KConfig * _config;       /* Good config */
 };
 
 LIB_EXPORT rc_t Delite ( struct DeLiteParams * Params );

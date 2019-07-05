@@ -61,9 +61,8 @@
 struct scmDepotTrn {
     struct BSTNode _node;
 
-    const char * _name;
-    const char * _ver_old;
-    const char * _ver_new;
+    const char * _name_old;
+    const char * _name_new;
 };
 
 static
@@ -71,17 +70,14 @@ rc_t CC
 _scmDepotTrnDispose ( struct scmDepotTrn * self )
 {
     if ( self != NULL ) {
-        if ( self -> _name != NULL ) {
-            free ( ( char * ) self -> _name );
-            self -> _name = NULL;
+        if ( self -> _name_old != NULL ) {
+            free ( ( char * ) self -> _name_old );
+            self -> _name_old = NULL;
         }
-        if ( self -> _ver_old != NULL ) {
-            free ( ( char * ) self -> _ver_old );
-            self -> _ver_old = NULL;
-        }
-        if ( self -> _ver_new != NULL ) {
-            free ( ( char * ) self -> _ver_new );
-            self -> _ver_new = NULL;
+
+        if ( self -> _name_new != NULL ) {
+            free ( ( char * ) self -> _name_new );
+            self -> _name_new = NULL;
         }
 
         free ( self );
@@ -107,7 +103,7 @@ _getSome ( const char * Line, const char ** Got )
         /*  Note, we suppose, line will come with stripped character
          *  return, or other bad stuff
          */
-    while ( * lC != 0 && * lC != '\t') lC ++;
+    while ( * lC != 0 && * lC != '\t' ) lC ++;
 
     if ( lC - lB < 1 ) { return NULL; }
 
@@ -115,13 +111,13 @@ _getSome ( const char * Line, const char ** Got )
         return NULL;
     }
 
-    return ( * lC == 0 ) ? NULL : ( lC ++ );
+    while ( * lC != 0 && * lC == '\t' ) lC ++;
+
+    return ( * lC == 0 ) ? NULL : lC;
 }   /* _getSome () */
 
 /* Splitting line to Name, OldVer, and NewVer
- * The format of string could be one of three :
- *   Name
- *   Name<tab>NewVer
+ * The format of string :
  *   Name<tab>OldVer<tab>NewVer
  */
 static
@@ -133,11 +129,7 @@ _scmDepotTrnSplit3 (
                     const char ** NewVer
 )
 {
-    const char * lB;
-    const char * tVar;
-
-    lB = NULL;
-    tVar = NULL;
+    const char * lB = NULL;
 
         /* no any NULL checks */
     * Name = NULL;
@@ -145,37 +137,18 @@ _scmDepotTrnSplit3 (
     * NewVer = NULL;
 
     lB = _getSome ( Line, Name );
-    if ( * Name == NULL ) {
+    if ( * Name == NULL || lB == NULL ) {
         return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
     }
 
-    if ( lB == NULL ) {
-            /*  Just notification that we should use latest version for
-             *  declaration
-             */
+    lB = _getSome ( lB, OldVer );
+    if ( * OldVer == NULL || lB == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
     }
-    else {
-        lB = _getSome ( lB, & tVar );
-        if ( tVar == NULL ) {
-            return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
-        }
 
-        if ( lB == NULL ) {
-                /*  Then Var contains NewVersion
-                 */
-            * OldVer = NULL;
-            * NewVer = tVar;
-        }
-        else {
-                /*  Then tVar contains OldVersion and should read
-                 *  New Version
-                 */
-            * OldVer = tVar;
-            lB = _getSome ( lB, NewVer );
-            if ( * NewVer == NULL || lB != NULL ) {
-                return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
-            }
-        }
+    lB = _getSome ( lB, NewVer );
+    if ( * NewVer == NULL && lB != NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
     }
 
     return 0;
@@ -190,9 +163,17 @@ _scmDepotTrnMake (
 {
     rc_t RCt;
     struct scmDepotTrn * Ret;
+    const char * Name;
+    const char * OldVer;
+    const char * NewVer;
+    char Buf [ 256 ];
 
     RCt = 0;
-    Node = NULL;
+    Ret = NULL;
+    Name = NULL;
+    OldVer = NULL;
+    NewVer = NULL;
+    * Buf = 0;
 
     if ( Node != NULL ) {
         * Node = NULL;
@@ -211,15 +192,24 @@ _scmDepotTrnMake (
         RCt = RC ( rcApp, rcSchema, rcConstructing, rcMemory, rcExhausted );
     }
     else {
-        RCt = _scmDepotTrnSplit3 (
-                                Line, 
-                                & ( Ret -> _name ),
-                                & ( Ret -> _ver_old ),
-                                & ( Ret -> _ver_new )
-                                );
-
+        RCt = _scmDepotTrnSplit3 ( Line, & Name, & OldVer, & NewVer );
         if ( RCt == 0 ) {
-            * Node = Ret;
+            sprintf ( Buf, "%s#%s", Name, OldVer );
+            RCt = copyStringSayNothingRelax (
+                                            & ( Ret -> _name_old ),
+                                            Buf
+                                            );
+
+            if ( RCt == 0 ) {
+                sprintf ( Buf, "%s#%s", Name, NewVer );
+                RCt = copyStringSayNothingRelax (
+                                                & ( Ret -> _name_new ),
+                                                Buf
+                                                );
+                if ( RCt == 0 ) {
+                    * Node = Ret;
+                }
+            }
         }
     }
 
@@ -387,9 +377,7 @@ _scmDepotLoadSchemasCallback (
             if ( strcmp ( Name + l1 - l2, Pat ) == 0 ) {
                 RCt = KDirectoryResolvePath (
                                             Dir,
-                                            true, /* can not do false
-                                                   * why? JOJOBA!!!
-                                                   */
+                                            true,
                                             Buf,
                                             sizeof ( Buf ),
                                             "%s",
@@ -401,6 +389,9 @@ _scmDepotLoadSchemasCallback (
                                                 "%s",
                                                 Buf
                                                 );
+/*
+printf ( "RC[%d] SCHEMA[%s]\n", One -> rc, Buf );
+*/
                 }
             }
         }
@@ -467,8 +458,8 @@ _scmDepotLoadTransformsProcessCallback (
     /*  JOJOBA !!!! implement different comparision
      */
     return strcmp (
-                    ( ( struct scmDepotTrn * ) L ) -> _name,
-                    ( ( struct scmDepotTrn * ) R ) -> _name
+                    ( ( struct scmDepotTrn * ) L ) -> _name_old,
+                    ( ( struct scmDepotTrn * ) R ) -> _name_old
                     );
 }   /* _scmDepotLoadTransformsProcessCallback () */
 
@@ -485,7 +476,6 @@ _scmDepotLoadTransforms (
     struct scmDepotTrn * Trn;
 
     RCt = 0;
-    LnRd = NULL;
     LnRd = NULL;
     Line = NULL;
     Trn = NULL;
@@ -525,6 +515,7 @@ _scmDepotLoadTransforms (
                     break;
                 }
             }
+
             karLnRdDispose ( LnRd );
         }
     }
@@ -597,185 +588,9 @@ _scmDepotTrnCompare ( const void * Item, const BSTNode * Node )
 {
     return strcmp (
                 ( const char * ) Item,
-                ( ( struct scmDepotTrn * ) Node ) -> _name
+                ( ( struct scmDepotTrn * ) Node ) -> _name_old
                 );
 }   /* _scmDepotTrnComapre () */
-
-static
-rc_t CC
-_scmDepotDumpCallback ( void * Dst, const void * Data, size_t DSize )
-{
-    if ( Dst == 0 ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
-    }
-
-    if ( Data == NULL ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
-    }
-
-    if ( DSize == 0 ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
-    }
-
-    return karCBufAppend (
-                            ( struct karCBuf * ) Dst,
-                            ( void * ) Data,
-                            DSize
-                            );
-}   /* _scmDepotDumpCallback () */
-
-void
-_tempExtractName ( const char * Name, const char * Dump, char * Buf, size_t BS )
-{
-    char * Buu = strstr ( Dump, Name );
-    if ( Buu != 0 ) {
-        char * Poo = Buu;
-        while ( * Poo != '=' ) {
-            Poo ++;
-        }
-
-        strncpy ( Buf, Buu, Poo - Buu );
-        Buf [ Poo - Buu ] = 0;
-    }
-}   /* _tempExtractName () */
-
-static
-rc_t CC
-_scmDepotResolveAndDump (
-                    struct scmDepot * self,
-                    struct KMDataNode * DataNode,
-                    struct karCBuf * CBuf,
-                    char * Name,
-                    size_t NameSize
-)
-{
-    rc_t RCt;
-    size_t BSize;
-    char * Ver;
-    struct scmDepotTrn * Trn;
-    char Buf [ 256 ];
-    bool NeedTransform;
-
-    RCt = 0;
-    BSize = 0;
-    Ver = NULL;
-    Trn = NULL;
-    NeedTransform = false;
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcNull );
-    }
-
-    if ( DataNode == NULL ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
-    }
-
-    if ( CBuf == NULL ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcParam, rcNull );
-    }
-
-    if ( Name == NULL || NameSize == 0 ) {
-        return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcInvalid );
-    }
-
-    * Name = 0;
-
-    RCt = KMDataNodeReadAttr (
-                            DataNode,
-                            NAME_ATTR_NAME,
-                            Buf,
-                            sizeof ( Buf ),
-                            & BSize
-                         );
-printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, RCt, Buf );
-    if ( RCt == 0 ) {
-        Buf [ BSize ] = 0;
-
-        Ver = strchr ( Buf, '#' );
-        if ( Ver != NULL ) {
-            * Ver = 0;
-            Ver ++;
-        }
-
-            /* The logic: if Transformation File was provided
-             * we try to resolve new version from file, if version
-             * exists, we will use it.
-             * If Transformation file was not provided, we will try
-             * to upgrade version to newest one
-             */
-        if ( self -> _trn_path != NULL ) {
-            Trn = ( struct scmDepotTrn * ) BSTreeFind (
-                                                & ( self -> _trans ),
-                                                Buf,
-                                                _scmDepotTrnCompare
-                                                );
-            if ( Trn == NULL ) {
-                    /* Nothing to transform */
-                * Buf = 0;
-                NeedTransform = false;
-            }
-            else {
-                if ( Trn -> _ver_old == NULL ) {
-                    NeedTransform = true;
-                }
-                else {
-                    if ( Ver != NULL ) {
-                        if ( strcmp ( Ver, Trn -> _ver_old ) == 0 ) {
-                            NeedTransform = true;
-                        }
-                        else {
-                            * Buf = 0;
-                            NeedTransform = false;
-                        }
-                    }
-                }
-            }
-            if ( NeedTransform ) {
-                if ( Trn -> _ver_new != NULL ) {
-                    strcat ( Buf, "#" );
-                    strcat ( Buf, Trn -> _ver_new );
-                }
-            }
-        }
-        else {
-            NeedTransform = true;
-        }
-    }
-
-    if ( NeedTransform ) {
-        if ( * Buf == 0 ) {
-            return RC ( rcApp, rcSchema, rcUpdating, rcName, rcInvalid );
-        }
-        else {
-            RCt = VSchemaDump (
-                            self -> _scm,
-                            sdmCompact,
-                            Buf,
-                            _scmDepotDumpCallback,
-                            ( void * ) CBuf
-                            );
-printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, RCt, Buf );
-printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, CBuf -> _s, Buf );
-{
-if ( CBuf -> _s != 0 ) {
-char B [ 128 ];
-strncpy ( B, CBuf -> _b, 64 );
-printf ( "[JI] [%d] [%s]\n", __LINE__, B );
-}
-else {
-printf ( "[JI] [%d] [%s]\n", __LINE__, "JOPA" );
-}
-}
-            if ( RCt == 0 ) {
-                    /* JOJOBA here we are harvesting for a name */
-                _tempExtractName ( Buf, CBuf -> _b, Name, NameSize );
-printf ( "[JI] [%d] [%d] [%s]\n", __LINE__, RCt, Name );
-            }
-        }
-    }
-
-    return RCt;
-}   /* _scmDepotResolveAndDump () */
 
 rc_t CC
 _scmDepotModifyNode (
@@ -823,16 +638,29 @@ _scmDepotModifyNode (
     return RCt;
 }   /* _scmDepotModifyNode () */
 
+/*  That is general method which transform schema for node
+ *  In general, if translation for current schema wasn't found,
+ *  it is OK. However, in the 'delite' case, schema replacement 
+ *  is mandatory.
+ */
 rc_t CC
-scmDepotTransform ( struct scmDepot * self, struct KMetadata * Meta )
+scmDepotTransform (
+                    struct scmDepot * self,
+                    struct KMetadata * Meta,
+                    bool ForDelite
+)
 {
     rc_t RCt;
     struct KMDataNode * DataNode;
-    struct karCBuf Buf;
-    char Name [ 256 ];
+    struct scmDepotTrn * Trans;
+    char Buf [ 256 ];
+    size_t BSize;
 
     RCt = 0;
     DataNode = NULL;
+    Trans = NULL;
+    * Buf = 0;
+    BSize = 0;
 
     if ( self == NULL ) {
         return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcNull );
@@ -846,32 +674,48 @@ scmDepotTransform ( struct scmDepot * self, struct KMetadata * Meta )
         return RC ( rcApp, rcSchema, rcUpdating, rcSelf, rcInvalid );
     }
 
-
-    RCt = karCBufInit ( & Buf, 0 );
+    RCt = KMetadataOpenNodeUpdate (
+                                    Meta,
+                                    & DataNode,
+                                    SCHEMA_ATTR_NAME
+                                    );
     if ( RCt == 0 ) {
-        RCt = KMetadataOpenNodeUpdate (
-                                        Meta,
-                                        & DataNode,
-                                        SCHEMA_ATTR_NAME
-                                        );
+        RCt = KMDataNodeReadAttr (
+                                DataNode,
+                                NAME_ATTR_NAME,
+                                Buf,
+                                sizeof ( Buf ),
+                                & BSize
+                                );
         if ( RCt == 0 ) {
-            RCt = _scmDepotResolveAndDump (
-                                        self,
-                                        DataNode,
-                                        & Buf,
-                                        Name,
-                                        sizeof ( Name )
-                                        );
-            if ( RCt == 0 ) {
-                if ( RCt == 0 ) {
-                    RCt = _scmDepotModifyNode ( DataNode, Name, & Buf );
+            Buf [ BSize ] = 0;
+
+            Trans = ( struct scmDepotTrn * ) BSTreeFind (
+                                                & ( self -> _trans ),
+                                                Buf,
+                                                _scmDepotTrnCompare
+                                                );
+            if ( Trans == NULL ) {
+                if ( ForDelite ) {
+                    RCt = RC ( rcApp, rcSchema, rcUpdating, rcItem, rcNotFound );
+                    pLogErr ( klogErr, RCt, "Can not find schema for DELITE [$(name)]", "name=%s", Buf );
                 }
             }
+            else {
+                KOutMsg ( "    [%s] [%s] -> [%s]\n", SCHEMA_ATTR_NAME, Trans -> _name_old, Trans -> _name_new );
+                pLogMsg ( klogInfo, "    [$(qual)] [$(old)] -> [$(scm)]", "qual=%s,old=%s,scm=%s", SCHEMA_ATTR_NAME, Trans -> _name_old, Trans -> _name_new );
 
-            KMDataNodeRelease ( DataNode );
+                RCt = VSchemaDumpToKMDataNode (
+                                                self -> _scm,
+                                                DataNode,
+                                                Trans -> _name_new
+                                                );
+            }
         }
-        karCBufWhack ( & Buf );
+
+        KMDataNodeRelease ( DataNode );
     } 
+
     return RCt;
 }   /* scmDepotTransform () */
 

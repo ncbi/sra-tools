@@ -56,30 +56,26 @@ extern "C" {
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
 struct karChive;
+struct DeLiteParams;
 
-LIB_EXPORT rc_t karChiveMake ( 
-                            const struct karChive ** Chive,
-                            const struct KFile * File
-                            );
 LIB_EXPORT rc_t karChiveOpen ( 
                             const struct karChive ** Chive,
-                            const char * Path
+                            struct DeLiteParams * Params
                             );
 
 LIB_EXPORT rc_t karChiveEdit (
                             const struct karChive * self,
-                            bool IdleRun
+                            struct DeLiteParams * Params
                             );
 
 LIB_EXPORT rc_t karChiveWriteFile ( 
                             const struct karChive * self,
                             struct KFile * File
                             );
+
 LIB_EXPORT rc_t karChiveWrite ( 
                             const struct karChive * self,
-                            const char * Path,
-                            bool Force,
-                            bool IdleRun
+                            struct DeLiteParams * Params
                             );
 
 LIB_EXPORT rc_t karChiveAddRef ( const struct karChive * self );

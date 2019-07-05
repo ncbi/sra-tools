@@ -39,6 +39,8 @@
 #include <kfs/directory.h>
 #include <kfs/file.h>
 
+#include <kfg/config.h>
+
 #include "delite.h"
 #include "delite_k.h"
 
@@ -108,26 +110,30 @@ KMain ( int ArgC, char * ArgV [] )
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Arguments
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-#define OPT_APPCONFIG   "appconfig"
-#define ALS_APPCONFIG   "a"
-#define PRM_APPCONFIG   NULL
-
 #define OPT_OUTPUT      "output"
-#define ALS_OUTPUT      "o"
+#define ALS_OUTPUT      NULL
 #define PRM_OUTPUT      NULL
 #define STDOUT_OUTPUT   "--"
-
-#define OPT_NOEDIT      "noedit"
-#define ALS_NOEDIT      "n"
-#define PRM_NOEDIT      NULL
 
 #define OPT_SCHEMA      "schema"
 #define ALS_SCHEMA      "S"
 #define PRM_SCHEMA      NULL
 
 #define OPT_TRANSF      "transf"
-#define ALS_TRANSF      "T"
+#define ALS_TRANSF      NULL
 #define PRM_TRANSF      NULL
+
+#define OPT_NOEDIT      "noedit"
+#define ALS_NOEDIT      NULL
+#define PRM_NOEDIT      NULL
+
+#define OPT_UPDATE      "update"
+#define ALS_UPDATE      NULL
+#define PRM_UPDATE      NULL
+
+#define OPT_DELITE      "delite"
+#define ALS_DELITE      NULL
+#define PRM_DELITE      NULL
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Params
@@ -137,6 +143,8 @@ DeLiteParamsInit ( struct DeLiteParams * Params )
 {
     memset ( Params, 0, sizeof ( struct DeLiteParams ) );
 
+    Params -> _force_write = true;
+
     return 0;
 }   /* DeLiteParamsInit () */
 
@@ -144,6 +152,11 @@ rc_t
 DeLiteParamsWhack ( struct DeLiteParams * Params )
 {
     if ( Params != NULL ) {
+        if ( Params -> _config != NULL ) {
+            KConfigRelease ( Params -> _config );
+            Params -> _config = NULL;
+        }
+
         if ( Params -> _program != NULL ) {
             free ( ( char * ) Params -> _program );
             Params -> _program = NULL;
@@ -155,10 +168,6 @@ DeLiteParamsWhack ( struct DeLiteParams * Params )
         if ( Params -> _accession_path != NULL ) {
             free ( ( char * ) Params -> _accession_path );
             Params -> _accession_path = NULL;
-        }
-        if ( Params -> _config != NULL ) {
-            free ( ( char * ) Params -> _config );
-            Params -> _config = NULL;
         }
         if ( Params -> _output != NULL ) {
             free ( ( char * ) Params -> _output );
@@ -173,8 +182,11 @@ DeLiteParamsWhack ( struct DeLiteParams * Params )
             Params -> _transf = NULL;
         }
         Params -> _output_stdout = false;
+        Params -> _force_write = true;
 
         Params -> _noedit = false;
+        Params -> _update = false;
+        Params -> _delite = false;
 
         /* NO_NO_NO free ( Params ); */
     }
@@ -341,50 +353,104 @@ DeLiteParamsSetSingleArgParam (
 
 static
 rc_t
+DeleteParamsSetBooleanParam (
+                            bool * Param,
+                            const char * ParamName,
+                            const struct Args * TheArgs,
+                            bool DefaultValue
+)
+{
+    uint32_t OptCount = 0;
+
+    if ( Param != NULL ) {
+        * Param = DefaultValue;
+    }
+
+    if ( Param == NULL ) {
+        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
+    }
+
+    if ( ParamName == NULL ) {
+        return RC ( rcApp, rcArgv, rcParsing, rcName, rcNull );
+    }
+
+    if ( ArgsOptionCount ( TheArgs, ParamName, & OptCount ) == 0 ) {
+        if ( OptCount != 0 ) {
+            * Param = true;
+        }
+    }
+
+    return 0;
+}   /* DeleteParamsSetBooleanParam () */
+
+static
+rc_t
 DeLiteParamsSetNoedit (
                         struct DeLiteParams * Params,
                         const struct Args * TheArgs
 )
 {
-    rc_t RCt;
-    uint32_t OptCount;
-
-    RCt = 0;
-    OptCount = 0;
-
     if ( Params == NULL ) {
         return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
     }
 
-    RCt = ArgsOptionCount ( TheArgs, OPT_NOEDIT, & OptCount );
-    if ( RCt == 0 ) {
-        if ( OptCount != 0 ) {
-            Params -> _noedit = true;
-        }
+    return DeleteParamsSetBooleanParam (
+                                        & ( Params -> _noedit ),
+                                        OPT_NOEDIT,
+                                        TheArgs,
+                                        false
+                                        );
+}   /* DeLiteParamsSetNoedit () */
+
+static
+rc_t
+DeLiteParamsSetUpdate (
+                        struct DeLiteParams * Params,
+                        const struct Args * TheArgs
+)
+{
+    if ( Params == NULL ) {
+        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
     }
 
-    return RCt;
-}   /* DeLiteParamsSetNoedit () */
+    return DeleteParamsSetBooleanParam (
+                                        & ( Params -> _update ),
+                                        OPT_UPDATE,
+                                        TheArgs,
+                                        false
+                                        );
+}   /* DeLiteParamsSetUpdate () */
+
+static
+rc_t
+DeLiteParamsSetDelite (
+                        struct DeLiteParams * Params,
+                        const struct Args * TheArgs
+)
+{
+    if ( Params == NULL ) {
+        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
+    }
+
+    return DeleteParamsSetBooleanParam (
+                                        & ( Params -> _delite ),
+                                        OPT_DELITE,
+                                        TheArgs,
+                                        false
+                                        );
+}   /* DeLiteParamsSetDelite () */
 
 /*)))
   \\\   KApp and Options ...
   (((*/
-static const char * UsgAppConfig [] = { "Application config file delite. Usually contains mapping from old schema to new", NULL };
-static const char * UsgAppOutput [] = { "Name of output file, mondatory. If name is \"--\" output will be written to STDOUT", NULL };
-static const char * UsgAppNoedit [] = { "Do not delete qualities, just repack archive", NULL };
-static const char * UsgAppSchema [] = { "Path to schema directory to use. Can specify multiple paths separated by ':'.", NULL };
-static const char * UsgAppTransf [] = { "Path to the list of schema transformation file. File in format <name><tab><old_ver><tab><new_ver>", NULL };
+static const char * UsgAppOutput [] = { "Name of output file. Mandatory, string. If name is \"--\" output will be written to STDOUT", NULL };
+static const char * UsgAppSchema [] = { "Path to schema directory to use. Mandatory, string", NULL };
+static const char * UsgAppTransf [] = { "Path to the list of schema transformation file. Mandatory, string. File in format <name><tab><old_ver><tab><new_ver>", NULL };
+static const char * UsgAppNoedit [] = { "Do not process, just print expected actions. Optional.", NULL };
+static const char * UsgAppUpdate [] = { "Update schemas for tables in archive. Optional.", NULL };
+static const char * UsgAppDelite [] = { "Delete quality scores in archive. Optional.", NULL };
 
 struct OptDef DeeeOpts [] = {
-    {       /* Where we will read config data to resolve entries */
-        OPT_APPCONFIG,      /* option name */
-        ALS_APPCONFIG,      /* option alias */
-        NULL,               /* help generator */
-        UsgAppConfig,       /* help as text is here */
-        1,                  /* max amount */
-        true,               /* need value */
-        false               /* is required */
-    },
     {       /* Where we will dump new KAR fiel */
         OPT_OUTPUT,         /* option name */
         ALS_OUTPUT,         /* option alias */
@@ -393,15 +459,6 @@ struct OptDef DeeeOpts [] = {
         1,                  /* max amount */
         true,               /* need value */
         true                /* is required, yes, it requires */
-    },
-    {       /* Option do not edit archive, but repack it */
-        OPT_NOEDIT,         /* option name */
-        ALS_NOEDIT,         /* option alias */
-        NULL,               /* help generator */
-        UsgAppNoedit,       /* help as text is here */
-        1,                  /* max amount */
-        false,              /* need value */
-        false               /* is required */
     },
     {       /* Option do not edit archive, but repack it */
         OPT_SCHEMA,         /* option name */
@@ -419,6 +476,33 @@ struct OptDef DeeeOpts [] = {
         UsgAppTransf,       /* help as text is here */
         1,                  /* max amount */
         true,               /* need value */
+        false               /* is required */
+    },
+    {       /* Option do not edit archive, but repack it */
+        OPT_NOEDIT,         /* option name */
+        ALS_NOEDIT,         /* option alias */
+        NULL,               /* help generator */
+        UsgAppNoedit,       /* help as text is here */
+        1,                  /* max amount */
+        false,              /* need value */
+        false               /* is required */
+    },
+    {       /* Option to update schemas in archive */
+        OPT_UPDATE,         /* option name */
+        ALS_UPDATE,         /* option alias */
+        NULL,               /* help generator */
+        UsgAppUpdate,       /* help as text is here */
+        1,                  /* max amount */
+        false,              /* need value */
+        false               /* is required */
+    },
+    {       /* Option to delete quality scores in archive */
+        OPT_DELITE,         /* option name */
+        ALS_DELITE,         /* option alias */
+        NULL,               /* help generator */
+        UsgAppDelite,       /* help as text is here */
+        1,                  /* max amount */
+        false,              /* need value */
         false               /* is required */
     }
 };  /* OptDef */
@@ -480,15 +564,6 @@ __porseAndHandle (
                 break;
             }
 
-            RCt = DeLiteParamsSetSingleArgParam (
-                                                & Params -> _config,
-                                                OPT_APPCONFIG,
-                                                TheArgs
-                                                );
-            if ( RCt != 0 ) {
-                break;
-            }
-
             RCt = DeLiteParamsSetOutput ( Params, TheArgs );
             if ( RCt != 0 ) {
                 break;
@@ -517,10 +592,36 @@ __porseAndHandle (
                 break;
             }
 
+            RCt = DeLiteParamsSetUpdate ( Params, TheArgs );
+            if ( RCt != 0 ) {
+                break;
+            }
+
+            RCt = DeLiteParamsSetDelite ( Params, TheArgs );
+            if ( RCt != 0 ) {
+                break;
+            }
+
             break;
         }
 
         ArgsWhack ( TheArgs );
+    }
+
+    if ( RCt == 0 ) {
+        if ( ! Params -> _update && ! Params -> _delite ) {
+            KOutMsg ( "One or both parameters should be defined \"%s\" and/or \"%s\"\n", OPT_UPDATE, OPT_DELITE );
+            pLogErr (
+                    klogErr,
+                    RCt,
+                    "One or both parameters should be defined $(upd)] and/or [$(dlt)]",
+                    "upd=%s,dlt=%s",
+                    OPT_UPDATE,
+                    OPT_DELITE
+                    );
+
+            RCt = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
+        }
     }
 
     return RCt;
@@ -576,24 +677,10 @@ Usage ( const struct Args * TheArgs )
     KOutMsg ( "Options:\n" );
 
     HelpOptionLine (
-                ALS_APPCONFIG,
-                OPT_APPCONFIG,
-                PRM_APPCONFIG,
-                UsgAppConfig
-                );
-
-    HelpOptionLine (
                 ALS_OUTPUT,
                 OPT_OUTPUT,
                 PRM_OUTPUT,
                 UsgAppOutput
-                );
-
-    HelpOptionLine (
-                ALS_NOEDIT,
-                OPT_NOEDIT,
-                PRM_NOEDIT,
-                UsgAppNoedit
                 );
 
     HelpOptionLine (
@@ -608,6 +695,27 @@ Usage ( const struct Args * TheArgs )
                 OPT_TRANSF,
                 PRM_TRANSF,
                 UsgAppTransf
+                );
+
+    HelpOptionLine (
+                ALS_NOEDIT,
+                OPT_NOEDIT,
+                PRM_NOEDIT,
+                UsgAppNoedit
+                );
+
+    HelpOptionLine (
+                ALS_UPDATE,
+                OPT_UPDATE,
+                PRM_UPDATE,
+                UsgAppUpdate
+                );
+
+    HelpOptionLine (
+                ALS_DELITE,
+                OPT_DELITE,
+                PRM_DELITE,
+                UsgAppDelite
                 );
 
     KOutMsg ( "\n" );
@@ -629,13 +737,28 @@ static rc_t __readKar ( struct DeLiteParams * Params );
 rc_t
 __runKar ( struct DeLiteParams * Params )
 {
-    const char * KfgMsg = Params -> _config == NULL ? "default" : Params -> _config;
+    char BB [ 32 ];
+    * BB = 0;
 
     KOutMsg ( "KAR [%s]\n", Params -> _accession );
     pLogMsg ( klogInfo, "KAR [$(acc)]", "acc=%s", Params -> _accession );
 
-    KOutMsg ( "KFG [%s]\n", KfgMsg );
-    pLogMsg ( klogInfo, "KFG [$(cfg)]", "cfg=%s", KfgMsg );
+    KOutMsg ( "SCM [%s]\n", Params -> _schema );
+    pLogMsg ( klogInfo, "SCM [$(path)]", "path=%s", Params -> _schema );
+
+    if ( Params -> _update ) {
+        strcat ( BB, "update" );
+    }
+
+    if ( Params -> _delite ) {
+        if ( * BB != 0 ) {
+            strcat ( BB, " & " );
+        }
+        strcat ( BB, "delite" );
+    }
+
+    KOutMsg ( "ACT [%s]\n", BB );
+    pLogMsg ( klogInfo, "ACT [$(act)]", "act=%s", BB );
 
     if ( Params -> _noedit ) {
         KOutMsg ( "RUN [idle]\n" );
@@ -646,6 +769,32 @@ __runKar ( struct DeLiteParams * Params )
 }   /* __runKar () */
 
 rc_t
+__modifyConfig ( struct DeLiteParams * Params )
+{
+    rc_t RCt = 0;
+
+    if ( Params == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcParam, rcNull );
+    }
+
+    if ( Params -> _schema == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcParam, rcInvalid );
+    }
+
+    RCt = KConfigMake ( & ( Params -> _config ), NULL );
+    if ( RCt == 0 ) {
+        RCt = KConfigWriteString (
+                                Params -> _config,
+                                "/vdb/schema/paths",
+                                Params -> _schema
+                                );
+
+    }
+
+    return RCt;
+}   /* __modifyConfig () */
+
+rc_t
 __readKar ( struct DeLiteParams * Params )
 {
     rc_t RCt = 0;
@@ -653,6 +802,19 @@ __readKar ( struct DeLiteParams * Params )
     if ( Params == NULL ) {
         return RC ( rcApp, rcArc, rcReading, rcParam, rcNull );
     }
+
+    RCt = __modifyConfig ( Params );
+    if ( RCt != 0 ) {
+        KOutMsg ( "ERR [can not modify config]\n" );
+        pLogErr (
+                klogErr,
+                RCt,
+                "ERR [can not modify config]",
+                ""
+                );
+        return RCt;
+    }
+
 
     RCt = DeLiteResolvePath (
                             ( char ** ) & ( Params -> _accession_path ),

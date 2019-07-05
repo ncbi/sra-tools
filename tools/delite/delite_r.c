@@ -796,7 +796,7 @@ karLnRdMake (
         return RC ( rcApp, rcData, rcAllocating, rcParam, rcInvalid );
     }
 
-    Ret = calloc ( 1, sizeof ( struct karLnRd * ) );
+    Ret = calloc ( 1, sizeof ( struct karLnRd ) );
     if ( Ret == NULL ) {
         RCt = RC ( rcApp, rcData, rcAllocating, rcMemory, rcExhausted );
     }
@@ -844,7 +844,7 @@ karLnRdNext ( const struct karLnRd * self )
     if ( LnRd != NULL ) {
         iBg = ( const char * ) LnRd -> _map_addr;
         iEn = iBg + LnRd -> _map_size;
-        if ( LnRd -> _start != 0 ) {
+        if ( LnRd -> _stop != 0 ) {
             iBg += LnRd -> _stop + 1;
         }
         iCr = iBg;

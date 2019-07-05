@@ -33,6 +33,7 @@
 #include <klib/pbstree.h>
 #include <klib/sort.h>
 #include <klib/checksum.h>
+#include <klib/vector.h>
 
 #include <kfs/file.h>
 #include <kfs/directory.h>
@@ -71,6 +72,8 @@ const char * MD_454_SIG_PATH [] = {
 #define MD_CUR_NODE_PATH   "md/cur"
 #define MD_CUR_NODE_NAME   "cur"
 #define MD_CUR_NODE_MD5    "md5"
+
+#define MD_TBL_NODE_NAME   "tbl"
 
 #define MD_SOFT_DELITE     "delite"
 #define MD_SOFT_SOFTWARE   "SOFTWARE"
@@ -122,8 +125,6 @@ struct karChiveDir {
 
 struct karChiveFile {
     struct karChiveEntry _da_da_dad;
-
-    /* JOJOBA - put memory file here */
 
     const struct karChiveDS * _data_source;
 
@@ -884,10 +885,6 @@ _karFVecRealloc ( struct karFVec * self, uint32_t Qty )
         }
         else {
             if ( self -> _q != 0 ) {
-                    /* JOJOBA: that is stupid situation, there should
-                     * be check that _f is not null, that is possilbe
-                     * lol
-                     */
                 memmove (
                         NewF,
                         self -> _f,
@@ -1071,10 +1068,6 @@ _karCVecRealloc ( struct karCVec * self, uint32_t Qty )
         }
         else {
             if ( self -> _q != 0 ) {
-                    /* JOJOBA: that is stupid situation, there should
-                     * be check that _t is not null, that is possilbe
-                     * lol
-                     */
                 memmove (
                         NewT,
                         self -> _t,
@@ -1644,7 +1637,7 @@ _karChiveEntryForEach (
                     void * Data
                     );
 
-struct _Ambush_ {
+struct _entCbck_ {
     void ( CC * Callback ) (
                             const struct karChiveEntry * Entry,
                             void * Data
@@ -1656,12 +1649,12 @@ static
 void
 _karChiveEntryForEachCallback ( struct BSTNode * Node, void * Data )
 {
-    struct _Ambush_ * Ambush = ( struct _Ambush_ * ) Data;
+    struct _entCbck_ * entCbck = ( struct _entCbck_ * ) Data;
 
     _karChiveEntryForEach (
                         ( const struct karChiveEntry * ) Node,
-                        Ambush -> Callback,
-                        Ambush -> Data
+                        entCbck -> Callback,
+                        entCbck -> Data
                         );
 }   /* _karChiveEntryForEachCallback () */
 
@@ -1675,8 +1668,8 @@ _karChiveEntryForEach (
                     void * Data
 )
 {
-    struct _Ambush_ Ambush;
-    memset ( & Ambush, 0, sizeof ( struct _Ambush_ ) );
+    struct _entCbck_ entCbck;
+    memset ( & entCbck, 0, sizeof ( struct _entCbck_ ) );
 
     if ( self == NULL ) {
         return;
@@ -1689,14 +1682,14 @@ _karChiveEntryForEach (
     Callback ( self, Data );
 
     if ( self -> _type == kptDir ) {
-        Ambush . Callback = Callback;
-        Ambush . Data = Data;
+        entCbck . Callback = Callback;
+        entCbck . Data = Data;
 
         BSTreeForEach (
                     & ( ( ( struct karChiveDir * ) self ) -> _entries ),
                     false,
                     _karChiveEntryForEachCallback,
-                    & Ambush
+                    & entCbck
                     );
     }
 }   /* _karChiveEntryForEach () */
@@ -2624,8 +2617,6 @@ _karChiveTOCReadFile (
             Entry -> _new_byte_offset = 0;
             Entry -> _new_byte_size = 0;
 
-                /* JOJOBA ... max offset / max size */
-
             RCt = BSTreeInsert (
                                 & ( Brigade -> _parent -> _entries ),
                                 & ( Entry -> _da_da_dad . _da_da_dad ),
@@ -3173,7 +3164,9 @@ static
 rc_t
 _karChiveMake ( 
             const struct karChive ** Chive,
-            const struct KFile * File
+            const struct KFile * File,
+            const char * SchemaPath,
+            const char * TransformFile
 )
 {
     /*  Do not check arguments here, cuz they should be checked already
@@ -3200,7 +3193,11 @@ _karChiveMake (
                         );
             /*  We should pass NULLS here
              */
-        RCt = scmDepotMake ( & ( RetChive -> _scm_depot ), NULL, NULL );
+        RCt = scmDepotMake (
+                            & ( RetChive -> _scm_depot ),
+                            SchemaPath,
+                            TransformFile
+                            );
         if ( RCt == 0 ) {
                 /*  First we are mapping file into memory
                  */
@@ -3239,28 +3236,10 @@ _karChiveMake (
 
 LIB_EXPORT
 rc_t
-karChiveMake (
+karChiveOpen (
             const struct karChive ** Chive,
-            const struct KFile * File
+            struct DeLiteParams * Params
 )
-{
-    if ( Chive != NULL ) {
-        * Chive = NULL;
-    }
-    else {
-        return RC ( rcApp, rcArc, rcLoading, rcParam, rcNull );
-    }
-
-    if ( File == NULL ) {
-        return RC ( rcApp, rcArc, rcLoading, rcParam, rcNull );
-    }
-
-    return _karChiveMake ( Chive, File );
-}   /* karChiveMake () */
-
-LIB_EXPORT
-rc_t
-karChiveOpen ( const struct karChive ** Chive, const char * Path )
 {
     rc_t RCt;
     struct KDirectory * NatDir;
@@ -3272,14 +3251,24 @@ karChiveOpen ( const struct karChive ** Chive, const char * Path )
 
     RCt = KDirectoryNativeDir ( & NatDir );
     if ( RCt == 0 ) {
-        RCt = KDirectoryOpenFileRead ( NatDir, & File, "%s", Path );
+        RCt = KDirectoryOpenFileRead (
+                                    NatDir,
+                                    & File,
+                                    "%s",
+                                    Params -> _accession_path
+                                    );
         if ( RCt == 0 ) {
-            RCt = _karChiveMake ( Chive, File );
+            RCt = _karChiveMake (
+                                Chive,
+                                File,
+                                Params -> _schema,
+                                Params -> _transf
+                                );
 
             KFileRelease ( File );
         }
         else {
-            pLogErr ( klogErr, RCt, "Can not open file for read [$(name)]", "name=%s", Path );
+            pLogErr ( klogErr, RCt, "Can not open file for read [$(name)]", "name=%s", Params -> _accession_path );
         }
 
         KDirectoryRelease ( NatDir );
@@ -3359,159 +3348,449 @@ karChiveRelease ( const struct karChive * self )
  *  There we do edit karChive
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Command and commands
+ *
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct edtStep {
+    const char * _delite;         /* path to column to delete */
+    const char * _update;         /* path to metadata to edit */
+    bool _is_delite;
+};
+
 static
-void CC
-_karChiveEditCallback (
-                    const struct karChiveEntry * Entry,
-                    void * Data
+rc_t CC
+edtStepDispose ( const struct edtStep * self )
+{
+    struct edtStep * Step = ( struct edtStep * ) self;
+    if ( Step != NULL ) {
+        if ( Step -> _delite != NULL ) {
+            free ( ( char * ) Step -> _delite );
+            Step -> _delite = NULL;
+        }
+
+        if ( Step -> _update != NULL ) {
+            free ( ( char * ) Step -> _update );
+            Step -> _update = NULL;
+        }
+
+        Step -> _is_delite = false;
+
+        free ( Step );
+    }
+
+    return 0;
+}   /* edtStepDispose () */
+
+
+static
+rc_t CC
+edtStepMake (
+            const struct edtStep ** Step,
+            const struct karChive * Chive,
+            const char * Path,
+            bool IsDelite
 )
 {
-    const char * Path = NULL;
+    rc_t RCt;
+    struct edtStep * Ret;
+    char BB [ 1024 ];
+    char BBB [ 1024 ];
+    const struct karChiveEntry * Found;
 
-    if ( Entry != NULL ) {
-        if ( IsQualityName ( Entry -> _name ) ) {
-            if ( _karChiveEntryMakePath ( Entry, & Path ) == 0 ) {
-                VNamelistAppend ( ( struct VNamelist * ) Data, Path );
-                    /*  VNamelist did make copy of our patth
-                     */ 
-                free ( ( char * ) Path );
+    RCt = 0;
+    Ret = NULL;
+    * BB = 0;
+    * BBB = 0;
+    Found = NULL;
+
+    if ( * Step != NULL ) {
+        * Step = NULL;
+    }
+
+    if ( Step == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcNull );
+    }
+
+    if ( Chive == NULL || Path == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
+    }
+
+        /*  First we are trying to resolve Path object
+         */
+    RCt = _karChiveResolvePath ( & Found, Chive -> _root, Path );
+    if ( RCt == 0 ) {
+        RCt = _karChiveEntryPath ( Found, BB, sizeof ( BB ) );
+    }
+    if ( RCt != 0 ) {
+        return RCt;
+    }
+
+        /*  Second we are trying to resolve metafile related to Path
+         *  and if it exists, we may procidd with other allocations
+         */
+    sprintf ( BBB, "%s/../../%s", BB, MD_CUR_NODE_PATH );
+    RCt = _karChiveResolvePath ( & Found, Chive -> _root, BBB );
+    if ( RCt == 0 ) {
+        RCt = _karChiveEntryPath ( Found, BBB, sizeof ( BBB ) );
+    }
+    if ( RCt != 0 ) {
+        return RCt;
+    }
+
+        /*  Now, when we exactly know that metadata file exists,
+         *  we may process with allocations
+         */
+    Ret = calloc ( 1, sizeof ( struct edtStep ) );
+    if ( Ret == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcMemory, rcExhausted );
+    }
+
+    RCt = copyStringSayNothingRelax ( & ( Ret -> _delite ), BB );
+    if ( RCt == 0 ) {
+        RCt = copyStringSayNothingRelax ( & ( Ret -> _update ), BBB );
+        if ( RCt == 0 ) {
+            Ret -> _is_delite = IsDelite;
+            * Step = ( const struct edtStep * ) Ret;
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * Step = NULL;
+
+        edtStepDispose ( Ret );
+    }
+
+    return RCt;
+}   /* edtStepMake () */
+
+struct edtPlot {
+    Vector _steps;
+
+    const struct karChive * _chive;
+};
+
+static
+void CC
+edtPlotWhackCallback ( void * Item, void * Data )
+{
+    edtStepDispose ( ( const struct edtStep * ) Item );
+}   /* edtPlotWhackCallback () */
+
+static
+rc_t CC
+edtPlotWhack ( struct edtPlot * self )
+{
+    if ( self != NULL ) {
+        VectorWhack ( & ( self -> _steps ), edtPlotWhackCallback, NULL );
+        self -> _chive = NULL;
+    }
+
+    return 0;
+}   /* edtPlotWhack () */
+
+static
+rc_t CC
+edtPlotInit ( struct edtPlot * self, const struct karChive * Chive )
+{
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcNull );
+    }
+
+    VectorInit ( & ( self -> _steps ), 0, 16 );
+    self -> _chive = Chive;
+
+    return 0;
+}   /* edtPlotInit () */
+
+static
+rc_t CC
+edtPlotAdd ( struct edtPlot * self, const char * Path, bool IsDelite )
+{
+    rc_t RCt;
+    const struct edtStep * Step;
+    const struct edtStep * Step2;
+    bool Found;
+    uint32_t llp;
+
+    RCt = 0;
+    Step = NULL;
+    Step2 = NULL;
+    Found = false;
+    llp = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcNull );
+    }
+
+    RCt = edtStepMake ( & Step, self -> _chive, Path, IsDelite );
+    if ( RCt == 0 ) {
+            /*  Checking if we already have similar step
+             */
+        for (
+            llp = 0;
+            llp < VectorLength ( & ( self -> _steps ) );
+            llp ++
+        ) {
+            Step2 = VectorGet ( & ( self -> _steps ), llp );
+            if ( strcmp ( Step2 -> _update, Step -> _update ) == 0 ) {
+                Found = true;
+                break;
+            }
+        }
+        if ( Found ) {
+                /*  We already have suct step, skipping
+                 */
+            edtStepDispose ( Step );
+        }
+        else {
+                /*  We adding new step to our plot
+                 */
+            RCt = VectorAppend ( & ( self -> _steps ), NULL, Step );
+            if ( RCt != 0 ) {
+                edtStepDispose ( Step );
             }
         }
     }
-}   /*  _karChiveEditCallback () */
 
-static rc_t CC _karChiveAddMetaPath (
-                                    const struct karChive * self,
-                                    const char * Path,
-                                    struct VNamelist * Filter
-                                    );
+    return RCt;
+}   /* edtPlotAdd () */
+
+static
+uint32_t CC
+edtPlotLen ( struct edtPlot * self )
+{
+    return self == NULL ? 0 : VectorLength ( & ( self -> _steps ) );
+}   /* edtPlotLen () */
+
+static
+const struct edtStep * CC
+edtPlotGet ( struct edtPlot * self, uint32_t Idx )
+{
+    return self == NULL
+                    ? NULL
+                    : ( const struct edtStep * )
+                            VectorGet ( & ( self -> _steps ), Idx )
+                    ;
+}   /* edtPlotGet () */
+
 static rc_t CC _karChiveEditForPath (
                                     const struct karChive * self,
                                     const char * Path,
-                                    struct VNamelist * Filter,
-                                    bool IdleRun
+                                    struct DeLiteParams * Params
                                     );
-static rc_t CC _karChiveEditMetaFiles (
+static rc_t CC _karChiveEditMetaFile (
                                     const struct karChive * self,
-                                    struct VNamelist * Filter
+                                    const char * Path,
+                                    struct DeLiteParams * Params,
+                                    bool ForDelite
                                     );
 static void _karChiveCheckMetaDeliteCallback (
                                     const struct karChiveEntry * Entry,
                                     void * Data
                                     );
 
+static
+void CC
+_karChiveColumnsToDeliteCallback (
+                                const struct karChiveEntry * Entry,
+                                void * Data
+)
+{
+    char BBB [ 1024 ];
+
+    if ( Entry != NULL ) {
+        if ( IsQualityName ( Entry -> _name ) ) {
+            if ( _karChiveEntryPath ( Entry, BBB, sizeof BBB ) == 0 ) {
+                edtPlotAdd ( ( struct edtPlot * ) Data, BBB, true );
+            }
+        }
+    }
+}   /*  _karChiveColumnsToDeliteCallback () */
+
+void CC
+_karChiveMetaNodesToEditCallbackCallback ( BSTNode * Node, void * Data )
+{
+    const struct karChiveEntry * Entry =
+                                ( const struct karChiveEntry * ) Node;
+
+    if ( Entry != NULL && Data != NULL ) {
+        if ( Entry -> _type == kptDir ) {
+            char Buf [ 1024 ];
+                /*  Generating metadata file name
+                 */
+            _karChiveEntryPath ( Entry, Buf, sizeof ( Buf ) );
+            strcat ( Buf, "/" );
+            strcat ( Buf, MD_CUR_NODE_PATH );
+
+                /*  I suspect if that can not be resolved, it could
+                 *  be an error. I should think about it
+                 *  JOJOBA - ask if here could be table without
+                 *  metadata
+                 */
+            edtPlotAdd ( ( struct edtPlot * ) Data, Buf, false );
+        }
+    }
+}   /* _karChiveMetaNodesToEditCallbackCallback () */
+
+static
+void CC
+_karChiveMetaNodesToEditCallback (
+                                const struct karChiveEntry * Entry,
+                                void * Data
+)
+{
+    if ( Entry != NULL && Data != NULL ) {
+        if ( Entry -> _name != NULL ) {
+            if ( Entry -> _type == kptDir
+                 &&  strcmp ( MD_TBL_NODE_NAME, Entry -> _name ) == 0
+            ) {
+                struct karChiveDir * Dir = ( struct karChiveDir * ) Entry;
+                    BSTreeForEach (
+                            & ( Dir -> _entries ),
+                            false,
+                            _karChiveMetaNodesToEditCallbackCallback,
+                            Data
+                            );
+            }
+        }
+    }
+}   /* _karChiveMetaNodesToEditCallback () */
+
+/*  1) if delite operation is requested, we should chek if it is not
+ *     454 architecture. Exit if it is.
+ *  2) we should check if delite operation is requested, that that
+ *     operation was not performed yet. Exit if it was.
+ *  3) if delite operation is requested, we should go through all
+ *     QUALITY directories and select them for removal, select
+ *     metadata for editing
+ *  4) if update operation was requested, we should go through all
+ *     metadata files and find all nodes to edit
+ *  5) Remove qualities and edit metadata nodes.
+ */
 LIB_EXPORT
 rc_t CC
-karChiveEdit ( const struct karChive * self, bool IdleRun )
+karChiveEdit (
+            const struct karChive * self,
+            struct DeLiteParams * Params
+)
 {
     rc_t RCt;
-    struct VNamelist * NL;
-    struct VNamelist * SNL;
+    struct edtPlot Plot;
     const struct karChiveEntry * Found;
-    uint32_t Count, llp;
-    const char * Path;
+    uint32_t llp;
     bool WasDelited;
+    const struct edtStep * Step;
 
     RCt = 0;
-    NL = NULL;
-    SNL = NULL;
+    memset ( & Plot, 0, sizeof ( Plot ) );
     Found = NULL;
-    Count = llp = 0;
-    Path = NULL;
+    llp = 0;
     WasDelited = false;
+    Step = NULL;
 
-        /*  Checking if here already was performed 'delite' procedure
+        /*  If 'delite' operation was requested, we need to do checks
          */
-    _karChiveEntryForEach (
+    if ( Params -> _delite ) {
+            /* #1 - is 454
+             */
+        if ( self -> _is_454_style ) {
+            KOutMsg ( "ERR [Delite operation was requested for 454 style archive]\n" );
+            pLogMsg ( klogErr, "Delite operation was requested for 454 style archive", "" );
+
+            return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcIncorrect );
+        }
+
+            /* #2 - was delited
+             */
+        _karChiveEntryForEach (
                         ( const struct karChiveEntry * ) self -> _root,
                         _karChiveCheckMetaDeliteCallback,
                         ( void * ) & WasDelited
                         );
-    if ( WasDelited ) {
-        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcExcessive );
+        if ( WasDelited ) {
+            KOutMsg ( "ERR [Delite operation was requested for already delited archive]\n" );
+            pLogMsg ( klogErr, "Delite operation was requested for already delited archive", "" );
+
+            return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcExcessive );
+        }
     }
 
-    RCt = VNamelistMake ( & NL, 4 );
-    if ( RCt == 0 ) {
+    RCt = edtPlotInit ( & Plot, self );
+
+        /* #3 - selecting columns ( directories ) to delite and
+         *      meta nodes
+         */
+    if ( RCt == 0 && Params -> _delite ) {
             /*  First we are travercing TOC looking for all tables
              *  which contains QUALITY
              */
         _karChiveEntryForEach (
                         ( const struct karChiveEntry * ) self -> _root,
-                        _karChiveEditCallback,
-                        NL
+                        _karChiveColumnsToDeliteCallback,
+                        & Plot
                         );
-        RCt = VNameListCount ( NL, & Count );
+    }
+
+        /* #4 - if update operation was requested collecting meta nodes
+         */
+    if ( RCt == 0 && Params -> _update ) {
+        _karChiveEntryForEach (
+                        ( const struct karChiveEntry * ) self -> _root,
+                        _karChiveMetaNodesToEditCallback,
+                        & Plot
+                        );
+
+            /*  /md/cur can present.
+             */
+        RCt = _karChiveResolvePath (
+                                    & Found,
+                                    self -> _root,
+                                    MD_CUR_NODE_PATH
+                                    );
         if ( RCt == 0 ) {
-            if ( 0 < Count ) {
-                    /*  That list is for optimisation only. 
-                     *  Don't want to process the same metadata twice
+            RCt = edtPlotAdd ( & Plot, MD_CUR_NODE_PATH, false );
+        }
+
+            /* if RCt != 0, this is not an error */
+        RCt = 0;
+    }
+
+        /*  #5 - processing with plot
+         */
+    if ( RCt == 0 ) {
+        for ( llp = 0; llp < edtPlotLen ( & Plot ); llp ++ ) {
+            Step = edtPlotGet ( & Plot, llp );
+
+                /*  First we are editing schema 
+                 */
+            RCt = _karChiveEditMetaFile (
+                                        self,
+                                        Step -> _update,
+                                        Params,
+                                        Step -> _is_delite
+                                        );
+            if ( RCt == 0 ) {
+                    /*  Second we are removing qualit columns
                      */
-                RCt = VNamelistMake ( & SNL, 4 );
-                if ( RCt == 0 ) {
-                        /*  We are leaving scores for all 454 machines
-                         */
-                    if ( ! self -> _is_454_style ) {
-                        for ( llp = 0; llp < Count; llp ++ ) {
-                            RCt = VNameListGet ( NL, llp, & Path );
-                            if ( RCt == 0 ) {
-                                RCt = _karChiveEditForPath (
-                                                            self,
-                                                            Path,
-                                                            SNL,
-                                                            IdleRun
-                                                            );
-                            }
-
-                            if ( RCt != 0 ) {
-                                break;
-                            }
-                        }
-                    }
-                    else {
-                        KOutMsg ( "REM [NOTHING : 454 style archive]\n" );
-                        pLogMsg ( klogInfo, "Removing nothing for 454 style archive", "" );
-                    }
-
-                    if ( RCt == 0 ) {
-                            /*  JOJOBA: does "md/cur" path should
-                             *          present for any SRA? 
-                             */
-
-                            /*  And one last metadata if we missed it
-                             */
-                        RCt = _karChiveResolvePath (
-                                                    & Found,
-                                                    self -> _root,
-                                                    MD_CUR_NODE_PATH
-                                                    );
-                        if ( RCt == 0 ) {
-                            RCt = _karChiveAddMetaPath (
-                                                    self,
-                                                    MD_CUR_NODE_PATH,
-                                                    SNL
-                                                    );
-                        }
-                        else {
-                            /* I think this is not an error */
-                            RCt = 0;
-                        }
-
-                        if ( RCt == 0 ) {
-                            RCt = _karChiveEditMetaFiles ( self, SNL );
-                        }
-                    }
-                    VNamelistRelease ( SNL );
+                if ( Step -> _is_delite ) {
+                    RCt = _karChiveEditForPath (
+                                                self,
+                                                Step -> _delite,
+                                                Params
+                                                );
                 }
             }
-            else {
-                KOutMsg ( "There is nothing to remove\n" );
-                LogMsg ( klogInfo, "There is no entries to remove" );
+
+            if ( RCt != 0 ) {
+                break;
             }
         }
 
-        VNamelistRelease ( NL );
     }
+
+    edtPlotWhack ( & Plot );
 
     return RCt;
 }   /* karChiveEdit () */
@@ -3658,58 +3937,10 @@ _karChiveCheckMetaDeliteCallback (
 }   /* _karChiveCheckMetaDeliteCallback () */
 
 rc_t CC
-_karChiveAddMetaPath (
-                        const struct karChive * self,
-                        const char * Path,
-                        struct VNamelist * Filter
-
-)
-{
-    rc_t RCt;
-    char BBB [ 1024 ];
-    uint32_t FoundIdx;
-    const struct karChiveEntry * Found;
-
-    RCt = 0;
-    * BBB = 0;
-    FoundIdx = 0;
-    Found = NULL;
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcNull );
-    }
-
-    if ( Path == NULL ) {
-        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
-    }
-
-    if ( Filter == NULL ) {
-        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
-    }
-
-    sprintf ( BBB, "%s/../../%s", Path, MD_CUR_NODE_PATH );
-    RCt = _karChiveResolvePath ( & Found, self -> _root, BBB );
-    if ( RCt == 0 ) {
-        RCt = _karChiveEntryPath ( Found, BBB, sizeof ( BBB ) );
-        if ( RCt == 0 ) {
-            RCt = VNamelistIndexOf ( Filter, BBB, & FoundIdx );
-            if ( RCt != 0 ) {
-                RCt = 0;    /* Resetting, because it is not an error */
-
-                RCt = VNamelistAppend ( Filter, BBB );
-            }
-        }
-    }
-
-    return RCt;
-}   /* _karChiveAddMetaPath () */
-
-rc_t CC
 _karChiveEditForPath (
                         const struct karChive * self,
                         const char * Path,
-                        struct VNamelist * Filter,
-                        bool IdleRun
+                        struct DeLiteParams * Params
 )
 {
     rc_t RCt;
@@ -3728,32 +3959,31 @@ _karChiveEditForPath (
         return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
     }
 
-    if ( Filter == NULL ) {
+    if ( Params == NULL ) {
         return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
     }
 
     KOutMsg ( "REM [%s]\n", Path );
     pLogMsg ( klogInfo, "Removing entry for [$(path)]", "path=%s", Path );
 
+    if ( Params -> _noedit ) {
+        return 0;
+    }
+
     RCt = _karChiveResolvePath ( & Found, self -> _root, Path );
     if ( RCt == 0 ) {
-        RCt = _karChiveAddMetaPath ( self, Path, Filter );
-        if ( RCt == 0 ) {
-            Parent = _karChiveEntryParent ( Found );
-            if ( Parent == NULL ) {
-                    /*  The node is root itself and could not be deleted
-                     */
-                RCt = RC ( rcApp, rcNode, rcRemoving, rcItem, rcUnsupported );
+        Parent = _karChiveEntryParent ( Found );
+        if ( Parent == NULL ) {
+                /*  The node is root itself and could not be deleted
+                 */
+            RCt = RC ( rcApp, rcNode, rcRemoving, rcItem, rcUnsupported );
+        }
+        else {
+            if ( BSTreeUnlink ( ( struct BSTree * ) & ( Parent -> _entries ), ( struct BSTNode * ) & ( Found -> _da_da_dad ) ) ) {
+                _karChiveEntryRelease ( Found );
             }
             else {
-                if ( ! IdleRun ) {
-                    if ( BSTreeUnlink ( ( struct BSTree * ) & ( Parent -> _entries ), ( struct BSTNode * ) & ( Found -> _da_da_dad ) ) ) {
-                        _karChiveEntryRelease ( Found );
-                    }
-                    else {
-                        RCt = RC ( rcApp, rcNode, rcRemoving, rcItem, rcFailed );
-                    }
-                }
+                RCt = RC ( rcApp, rcNode, rcRemoving, rcItem, rcFailed );
             }
         }
     }
@@ -4037,7 +4267,7 @@ _karChiveUpdateMD5File (
 
 static
 rc_t CC
-_karChiveUpdateMetaSoft ( struct KMetadata * Meta )
+_karChiveUpdateMetaSoft ( struct KMetadata * Meta, const char * Path )
 {
     rc_t RCt;
     struct KMDataNode * NodeSoft;
@@ -4065,6 +4295,9 @@ _karChiveUpdateMetaSoft ( struct KMetadata * Meta )
                                         MD_SOFT_DELITE
                                         );
         if ( RCt == 0 ) {
+            KOutMsg ( "    [%s] [update]\n", MD_SOFT_SOFTWARE, Path );
+            pLogMsg ( klogInfo, "    [$(soft)] [update]", "soft=%s", MD_SOFT_SOFTWARE ); 
+
             RCt = NowAsString ( & Now );
             if ( RCt == 0 ) {
 
@@ -4130,8 +4363,8 @@ _karChiveUpdateMetaStats ( struct KMetadata * Meta, const char * Path )
         else {
             KMDataNodeRelease ( NodeQual );
 
-            KOutMsg ( "DEL [%s] node for [%s]\n", MD_STATS_QUAL, Path );
-            pLogMsg ( klogInfo, "DEL [$(qual)] node for [$(file)]", "qual=%s,file=%s", MD_STATS_QUAL, Path ); 
+            KOutMsg ( "    [%s] [drop]\n", MD_STATS_QUAL );
+            pLogMsg ( klogInfo, "    [$(qual)] [drop]", "qual=%s", MD_STATS_QUAL ); 
 
 
             RCt = KMDataNodeDropChild ( NodeStat, MD_STATS_QUAL );
@@ -4152,11 +4385,13 @@ rc_t CC
 _karChiveEditMetaFile (
                         const struct karChive * self,
                         const char * Path,
-                        const struct karChiveEntry * Entry
+                        struct DeLiteParams * Params,
+                        bool ForDelite
 
 )
 {
     rc_t RCt;
+    const struct karChiveEntry * Entry;
     struct karChiveFile * cFile;
     struct KMetadata * Meta;
     char * Data;
@@ -4167,6 +4402,7 @@ _karChiveEditMetaFile (
     size_t MetaSize;
 
     RCt = 0;
+    Entry = NULL;
     cFile = NULL;
     Meta = NULL;
     Data = NULL;
@@ -4180,8 +4416,24 @@ _karChiveEditMetaFile (
         return RC ( rcApp, rcArc, rcUpdating, rcSelf, rcNull );
     }
 
-    if ( Entry == NULL ) {
+    if ( Path == NULL ) {
         return RC ( rcApp, rcArc, rcUpdating, rcParam, rcNull );
+    }
+
+    if ( Params == NULL ) {
+        return RC ( rcApp, rcArc, rcUpdating, rcParam, rcNull );
+    }
+
+    KOutMsg ( "EDT [%s]\n", Path );
+    pLogMsg ( klogInfo, "Editing metadata for [$(path)]", "path=%s", Path );
+
+    if ( Params -> _noedit ) {
+        return 0;
+    }
+
+    RCt = _karChiveResolvePath ( & Entry, self -> _root, Path );
+    if ( RCt != 0 ) {
+        return RCt;
     }
 
     if ( Entry -> _type != kptFile ) {
@@ -4209,68 +4461,63 @@ _karChiveEditMetaFile (
         if ( RCt == 0 ) {
                 /*  Transforming metadata
                  */
-            if ( ! self -> _is_454_style ) {
-                RCt = scmDepotTransform ( self -> _scm_depot, Meta );
-            }
-            else {
-                    /*  That is bad, but we should do it, or it will
-                     *  crush :O
-                     */
-                KMetadataAddRef ( Meta );
-            }
+            RCt = scmDepotTransform (
+                                    self -> _scm_depot,
+                                    Meta,
+                                    ForDelite
+                                    );
             if ( RCt == 0 ) {
-                RCt = _karChiveUpdateMetaSoft ( Meta );
-                if ( RCt == 0 ) {
-                    RCt = _karChiveUpdateMetaStats ( Meta, Path );
+                if ( ForDelite ) {
+                    RCt = _karChiveUpdateMetaSoft ( Meta, Path );
                     if ( RCt == 0 ) {
-                            /*  Checking needed size and creating buffer
-                             */
-                        RCt = KMetadataFlushToMemory (
+                        RCt = _karChiveUpdateMetaStats ( Meta, Path );
+                    }
+                }
+                if ( RCt == 0 ) {
+                     RCt = KMetadataFlushToMemory (
                                             Meta,
                                             NULL,
                                             0,
                                             & MetaBufSize
                                             );
-                        if ( RCt == 0 ) {
-                            if ( 0 < MetaBufSize ) {
-                                MetaBufSizeEff = ( ( MetaBufSize / 1024 ) + 2 ) * 1024;
-                                MetaBuf = calloc ( MetaBufSizeEff, sizeof ( char ) );
-                                if ( MetaBuf == NULL ) {
-                                    RCt = RC ( rcApp, rcArc, rcUpdating, rcMemory, rcExhausted );
-                                }
-                            }
-                            else {
-                                RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcInvalid );
-                            }
-                        }
+                     if ( RCt == 0 ) {
+                         if ( 0 < MetaBufSize ) {
+                             MetaBufSizeEff = ( ( MetaBufSize / 1024 ) + 2 ) * 1024;
+                             MetaBuf = calloc ( MetaBufSizeEff, sizeof ( char ) );
+                             if ( MetaBuf == NULL ) {
+                                 RCt = RC ( rcApp, rcArc, rcUpdating, rcMemory, rcExhausted );
+                             }
+                         }
+                         else {
+                             RCt = RC ( rcApp, rcArc, rcUpdating, rcMetadata, rcInvalid );
+                         }
+                     }
 
-                        if ( RCt == 0 ) {
-
-                            RCt = KMetadataFlushToMemory (
+                    if ( RCt == 0 ) {
+                        RCt = KMetadataFlushToMemory (
                                                 Meta,
                                                 MetaBuf,
                                                 MetaBufSizeEff,
                                                 & MetaSize
                                                 );
-                            if ( RCt == 0 ) {
-                                if ( MetaBufSize != MetaSize ) {
-                                    RCt = RC ( rcApp, rcArc, rcUpdating, rcTransfer, rcInvalid );
-                                }
-                                else {
-                                    karChiveDSRelease ( cFile -> _data_source );
+                        if ( RCt == 0 ) {
+                            if ( MetaBufSize != MetaSize ) {
+                                RCt = RC ( rcApp, rcArc, rcUpdating, rcTransfer, rcInvalid );
+                            }
+                            else {
+                                karChiveDSRelease ( cFile -> _data_source );
 
-                                    RCt = karChiveMemDSMake ( 
+                                RCt = karChiveMemDSMake ( 
                                             & ( cFile -> _data_source ),
                                             MetaBuf,
                                             MetaSize
                                             );
-                                    if ( RCt == 0 ) {
-                                        RCt = _karChiveUpdateMD5File (
+                                if ( RCt == 0 ) {
+                                    RCt = _karChiveUpdateMD5File (
                                             & ( cFile -> _da_da_dad ),
                                             MetaBuf,
                                             MetaSize
                                             );
-                                    }
                                 }
                             }
                         }
@@ -4298,71 +4545,7 @@ _karChiveEditMetaFile (
     }
 
     return RCt;
-} /* karChiveEditMetaFile () */
-
-/*  Very simple plan :
- *
- *   Looking for Path/../../md/cur, and treat it as a MetaData file
- *
- */
-rc_t CC
-_karChiveEditMetaFiles (
-                        const struct karChive * self,
-                        struct VNamelist * Filter
-)
-{
-    rc_t RCt;
-    const struct karChiveEntry * Found;
-    uint32_t Count, llp;
-    const char * Path;
-
-
-    RCt = 0;
-    Found = NULL;
-    Count = llp = 0;
-    Path = NULL;
-
-    if ( self == NULL ) {
-        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcNull );
-    }
-
-    if ( Filter == NULL ) {
-        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
-    }
-
-    RCt = VNameListCount ( Filter, & Count );
-    if ( RCt == 0 ) {
-        if ( 0 < Count ) {
-            for ( llp = 0; llp < Count; llp ++ ) {
-                RCt = VNameListGet ( Filter, llp, &Path );
-                if ( RCt != 0 ) {
-                    break;
-                }
-
-                RCt = _karChiveResolvePath (
-                                            & Found,
-                                            self -> _root,
-                                            Path
-                                            );
-                if ( RCt != 0 ) {
-                        /*  that path should be resolved!
-                         */
-                    break;
-                }
-
-                RCt = _karChiveEditMetaFile ( self, Path, Found );
-                if ( RCt != 0 ) {
-                    break;
-                }
-            }
-        }
-        else {
-            RCt = RC ( rcApp, rcArc, rcUpdating, rcItem, rcCorrupt );
-        }
-    }
-
-    return RCt;
-}   /* _karChiveEditMetaFiles () */
+} /* _karChiveEditMetaFile () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  There we do write KAR file
@@ -4579,8 +4762,6 @@ _karChiveWriterPrepareChiveTOC ( struct karChiveWriter * self )
         return self -> _rc;
     }
 
-        /*  JOJOBA: do we need to check if _files != NULL ???
-         */
     RCt = _karFVecClear ( self -> _files );
     if ( RCt == 0 ) {
         _karChiveEntryForEach (
@@ -4894,9 +5075,7 @@ LIB_EXPORT
 rc_t
 karChiveWrite (
                 const struct karChive * Chive,
-                const char * Path,
-                bool Force,
-                bool OutputStdout
+                struct DeLiteParams * Params
 )
 {
     rc_t RCt;
@@ -4913,21 +5092,29 @@ karChiveWrite (
         return RC ( rcApp, rcNode, rcWriting, rcSelf, rcNull );
     }
 
-    if ( Path == NULL ) {
-        return RC ( rcApp, rcNode, rcWriting, rcParam, rcNull );
+    if ( Params -> _output == NULL ) {
+        return RC ( rcApp, rcNode, rcWriting, rcParam, rcInvalid );
     }
 
-    if ( OutputStdout ) {
+    if ( Params -> _noedit ) {
+        return 0;
+    }
+
+    KOutMsg ( "WRT [%s]\n", Params -> _output );
+    pLogMsg ( klogInfo, "WRT [$(path)]", "path=%s", Params -> _output );
+
+    if ( Params -> _output_stdout ) {
         RCt = KFileMakeStdOut ( & File );
     }
     else {
         RCt = KDirectoryNativeDir ( & NatDir );
         if ( RCt == 0 ) {
-            Mode = ( Force ? kcmInit : kcmCreate ) | kcmParents;
+            Mode = ( Params -> _force_write ? kcmInit : kcmCreate )
+                                                        | kcmParents;
 
-            RCt = KDirectoryCreateFile ( NatDir, & File, false, 0666, Mode, "%s", Path );
+            RCt = KDirectoryCreateFile ( NatDir, & File, false, 0666, Mode, "%s", Params -> _output );
             if ( RCt != 0 ) {
-                pLogErr ( klogErr, RCt, "Can not open file for write [$(name)]", "name=%s", Path );
+                pLogErr ( klogErr, RCt, "Can not open file for write [$(name)]", "name=%s", Params -> _output );
             }
 
             KDirectoryRelease ( NatDir );
@@ -4940,7 +5127,7 @@ karChiveWrite (
         KFileRelease ( File );
     }
     else {
-        pLogErr ( klogErr, RCt, "Can not write file [$(name)]", "name=%s", Path );
+        pLogErr ( klogErr, RCt, "Can not write file [$(name)]", "name=%s", Params -> _output );
     }
 
     return RCt;
@@ -4988,26 +5175,14 @@ Delite ( struct DeLiteParams * Params )
         return RC ( rcApp, rcArc, rcProcessing, rcParam, rcInvalid );
     }
 
-#ifdef JOJOBA
-{
-struct scmDepot * Depot;
-scmDepotMake ( & Depot, Params -> _schema, Params -> _transf );
-
-scmDepotTransform ( Depot, NULL );
-
-scmDepotDispose ( Depot );
-exit ( 0 );
-}
-#endif /* JOJOBA */
-
-    RCt = karChiveOpen ( & Chive, Params -> _accession_path );
+    RCt = karChiveOpen ( & Chive, Params );
     if ( RCt == 0 ) {
 
         karChiveDump ( Chive, true );
 
-        RCt = karChiveEdit ( Chive, Params -> _noedit );
+        RCt = karChiveEdit ( Chive, Params );
         if ( RCt == 0 ) {
-            RCt = karChiveWrite ( Chive, Params -> _output, true, Params -> _output_stdout );
+            RCt = karChiveWrite ( Chive, Params );
         }
 
         karChiveRelease ( Chive );
@@ -5066,7 +5241,6 @@ _karChiveCheckFileOrderSortCallback (
         /*  JOJOBA: we do not check if left or right for NULL.
          *      Not our problem
          */
-
     return ( Left -> _byte_offset - Right -> _byte_offset == 0 )
                 ? ( Left -> _byte_size - Right -> _byte_size )
                 : ( Left -> _byte_offset - Right -> _byte_offset )
@@ -5202,6 +5376,8 @@ _karChiveCheckQualityRemoved ( const struct karChive * self )
         return RC ( rcApp, rcArc, rcValidating, rcSelf, rcNull );
     }
 
+/*  JOJOBA - check if we really need that check here
+ */
     if ( self -> _is_454_style ) {
         KOutMsg ( "454 style archive : quality removed check skipped ...\n" );
         pLogMsg ( klogInfo, "454 style archive : quality removed check skipped ...\n", "" );
@@ -5495,7 +5671,9 @@ Checkite ( const char * PathToArchive )
         /*  Phase #1: Open archive
          *  Phase #3: Check if all links are resolved
          */
+/* JOJOBA 
     RCt = karChiveOpen ( & Chive, PathToArchive );
+*/
     if ( RCt == 0 ) {
         RCt = _karChiveCheckIf454Style ( ( struct karChive * ) Chive );
         if ( RCt == 0 ) {

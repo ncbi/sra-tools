@@ -62,7 +62,12 @@ INSTALLED_FILES = \
 	$(KONFIG_DIR)/certs.kfg                     \
 	$(KONFIG_DIR)/default.kfg                   \
 	$(KONFIG_DIR)/vdb-copy.kfg                  \
-	$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_COPY) $(TOOLS_TO_SYMLINK) sratools sratools.pl)
+	$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_COPY) \
+								$(TOOLS_TO_SYMLINK) \
+								sratools$(EXEX) \
+								sratools$(VERSION_EXEX) \
+								sratools$(MAJVERS_EXEX) \
+								)
 
 runtests: test-install
 

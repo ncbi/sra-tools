@@ -1,4 +1,4 @@
-TOOLS_TO_INSTALL = \
+TOOLS_TO_COPY = \
 	abi-dump        \
 	abi-load        \
 	align-info      \
@@ -6,8 +6,6 @@ TOOLS_TO_INSTALL = \
 	cache-mgr       \
 	cg-load         \
 	copycat         \
-	fasterq-dump    \
-	fastq-dump      \
 	fastq-load      \
 	helicos-load    \
 	illumina-dump   \
@@ -16,14 +14,10 @@ TOOLS_TO_INSTALL = \
 	kdbmeta         \
 	kget            \
 	latf-load       \
-	prefetch        \
 	rcexplain       \
 	remote-fuser    \
-	sam-dump        \
 	sff-dump        \
 	sff-load        \
-	srapath         \
-	sra-pileup      \
 	sra-sort        \
 	sra-stat        \
 	srf-load        \
@@ -39,3 +33,12 @@ TOOLS_TO_INSTALL = \
 	vdb-validate    \
 	sra-toolkit     \
 
+TOOLS_TO_SYMLINK = \
+	fasterq-dump    \
+	fastq-dump      \
+	sam-dump        \
+	prefetch        \
+	srapath         \
+	sra-pileup      \
+
+TOOLS_TO_INSTALL = $(TOOLS_TO_COPY) $(TOOLS_TO_SYMLINK)

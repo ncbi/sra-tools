@@ -70,8 +70,9 @@ installexes:
 	@ mkdir -p $(INST_BINDIR)
 	@ $(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.install $(TOOLS_TO_INSTALL)
 	@ # copy the driver 
-	@ $(COPY) $(TOP)/tools/driver-tool/sratools.pl $(INST_BINDIR)
-	@ ln -f -s sratools.pl $(INST_BINDIR)/sratools$(EXEX)
+	 $(COPY) $(TOP)/tools/driver-tool/sratools.pl $(INST_BINDIR)/sratools$(VERSION_EXEX)
+	 ln -f -s sratools$(VERSION_EXEX) $(INST_BINDIR)/sratools$(MAJVERS_EXEX)
+	 ln -f -s sratools$(MAJVERS_EXEX) $(INST_BINDIR)/sratools$(EXEX)
 	@ #
 	@ printf "Installing magic file..."
 	@ $(COPY) $(TOP)/tools/copycat/magic $(INST_BINDIR) && echo "done"
@@ -94,9 +95,10 @@ $(TOOLS_TO_SYMLINK):
 	@ printf "Installing symlink for $@..."
 	@ # report missing tools
 	@ ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
-      $(COPY) $(BINDIR)/$@$(EXEX) $(INST_BINDIR)/$@-orig$(EXEX) && \
-	  ln -f -s sratools $(INST_BINDIR)/$@$(EXEX) && \
-      $(COPY) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
+      $(COPY) $(BINDIR)/$@$(VERSION_EXEX) $(INST_BINDIR)/$@-orig$(VERSION_EXEX) && \
+	  ln -f -s sratools$(VERSION_EXEX) $(INST_BINDIR)/$@$(VERSION_EXEX) && \
+	  ln -f -s $@$(VERSION_EXEX) $(INST_BINDIR)/$@$(MAJVERS_EXEX) && \
+	  ln -f -s $@$(MAJVERS_EXEX) $(INST_BINDIR)/$@$(EXEX) && \
       echo "done"
 
 copykfg:

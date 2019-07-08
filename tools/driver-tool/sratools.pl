@@ -16,6 +16,7 @@ use XML::LibXML;
 use Data::Dumper;
 
 use constant { TRUE => !0, FALSE => !!0 };
+use constant VERS_STRING => '2.10.0';
 use constant EXIT_CODE_TRY_NEXT_SOURCE => 9; ### TODO: UPDATE TO CORRECT CODE AFTER TOOLS ARE UPDATED
 use constant {
     REAL_SAM_DUMP => 'sam-dump-orig',
@@ -27,7 +28,7 @@ use constant {
 };
 use constant {
     DEFAULT_RESOLVER_VERSION => '130',
-    DEFAULT_RESOLVER_URL => 'https://www.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve'
+    DEFAULT_RESOLVER_URL => 'https://trace.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve'
 };
 
 # if SRATOOLS_DEBUG is truthy, then DEBUG ... will print
@@ -67,23 +68,15 @@ sub LOG($@)
     goto &{$loggers[$level]};
 }
 
-my (@SignalName_name, %SignalName_no);
-sub SignalName($)
-{
-    unless (@SignalName_name) {
-        my $i = 0;
-        for (split ' ', $Config{sig_name}) {
-            s/^(?:SIG)+//;
-            $SignalName_no{$SignalName_name[$i] = $_} = $i;
-            $i += 1;
-        }
-    }
-    return 'SIG'.$SignalName_name[$_[0]];
-}
+sub SignalName($);
+sub remove_version_string($);
 
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
-TRACE {'selfvol' => $selfvol, 'selfdir' => $selfdir, 'basename' => $basename, 'selfpath' => $selfpath };
+my $vers_string = '';
+($basename, $vers_string) = remove_version_string $basename;
+$vers_string = VERS_STRING unless $vers_string;
+TRACE {'selfvol' => $selfvol, 'selfdir' => $selfdir, 'basename' => $basename, 'selfpath' => $selfpath, 'vers_string' => $vers_string };
 
 sub loadConfig;
 my %config = %{loadConfig()};
@@ -1308,19 +1301,31 @@ sub sandwich($)
     my $exe = $_[0];
     my $fullpath;
 
-    LOG(4, 'looking for $exe in self directory');
+    LOG(4, "looking for $exe in self directory");
     $fullpath = isExecutable($exe, $selfpath);
     return $fullpath if $fullpath;
 
-    LOG(4, 'looking for $exe in PATH');
+    LOG(4, "looking for $exe in PATH");
     for my $dir (File::Spec->path()) {
         TRACE { 'directory' => $dir, 'executable' => $exe };
         $fullpath = isExecutable($exe, $dir);
         return $fullpath if $fullpath;
     }
 
-    LOG(4, 'looking for $exe in current directory');
+    LOG(4, "looking for $exe in current directory");
     return isExecutable($exe, File::Spec->curdir());
+}
+
+sub sandwich_versioned($)
+{
+    my @vers = split /\./, $vers_string;
+    my @try = ($_[0]);
+    for (@vers) { push @try, $try[-1].'.'.$_ }
+    for (reverse @try) {
+        my $fullpath = sandwich($_);
+        return $fullpath if $fullpath;
+    }
+    undef
 }
 
 ### \brief: memo-ized which
@@ -1332,9 +1337,10 @@ my %which_mem = ();
 sub which($)
 {
     my $cached = exists $which_mem{$_[0]};
-    $which_mem{$_[0]} = sandwich($_[0]) unless $cached;
-    LOG 3, sprintf('found %s for %s (%s)', $which_mem{$_[0]} // '???', $_[0], $cached ? 'cached' : 'first time');
-    return $which_mem{$_[0]};
+    my $result = $cached ? $which_mem{$_[0]} : sandwich_versioned($_[0]);
+    $which_mem{$_[0]} = $result unless $cached;
+    LOG 3, sprintf('found %s for %s (%s)', $result // '???', $_[0], $cached ? 'cached' : 'first time');
+    return $result;
 }
 
 ### \brief: the info sub-command
@@ -1667,7 +1673,7 @@ sub loadConfig
 {
     my $content = '';
     {
-        my $toolpath = which('vdb-config') or help_path('vdb-config', TRUE);
+        my $toolpath = which('vdb-config') or goto NO_VDB_CONFIG;
         my $kid = open(my $pipe, '-|', $toolpath, '--output=n') or die "can't fork or can't exec vdb-config";
         my @files;
         my $st = 0;
@@ -1699,6 +1705,10 @@ sub loadConfig
         close $pipe;
     }
     return parseConfig($content);
+    
+NO_VDB_CONFIG:
+    warn "configuration not loaded: no vdb-config found";
+    return {};
 }
 
 sub sysctl_MemTotal()
@@ -1774,10 +1784,40 @@ sub aeq(\@\@)
     return 1;
 }
 
+my (@SignalName_name, %SignalName_no);
+sub SignalName($)
+{
+    unless (@SignalName_name) {
+        my $i = 0;
+        for (split ' ', $Config{sig_name}) {
+            s/^(?:SIG)+//;
+            $SignalName_no{$SignalName_name[$i] = $_} = $i;
+            $i += 1;
+        }
+    }
+    return 'SIG'.$SignalName_name[$_[0]];
+}
+
+sub remove_version_string($)
+{
+    my $vers = '';
+    my ($base, @part) = split(/\./, $_[0]);
+    local $_;
+    for (@part) {
+        $vers .= ($vers ? '.' : '') . $_;
+        unless (/^\d+$/) {
+            $base .= '.'.$vers;
+            $vers = '';
+        }
+    }
+    return ($base, $vers);
+}
+
+
 RUN_TESTS:
 eval <<'TESTS';
 
-use Test::Simple tests => 41;
+use Test::Simple tests => 47;
 my %long_args = (
     '-h' => '--help',
     '-?' => '--help',
@@ -1792,6 +1832,31 @@ my @args;
 
 # which test
 ok( sandwich($basename), 'found self');
+
+{
+    my ($base, $vers) = remove_version_string 'foo';
+    ok($base eq 'foo' && $vers eq '', 'remove_version_string: no version string')
+}
+{
+    my ($base, $vers) = remove_version_string 'foo.2';
+    ok($base eq 'foo' && $vers eq '2', 'remove_version_string: .d')
+}
+{
+    my ($base, $vers) = remove_version_string 'foo.2.0';
+    ok($base eq 'foo' && $vers eq '2.0', 'remove_version_string: .d.d')
+}
+{
+    my ($base, $vers) = remove_version_string 'foo.2.10.0';
+    ok($base eq 'foo' && $vers eq '2.10.0', 'remove_version_string: .d.d.d')
+}
+{
+    my ($base, $vers) = remove_version_string 'foo.2.bar';
+    ok($base eq 'foo.2.bar' && $vers eq '', 'remove_version_string: .d.D')
+}
+{
+    my ($base, $vers) = remove_version_string 'foo.2.bar.10.0';
+    ok($base eq 'foo.2.bar' && $vers eq '10.0', 'remove_version_string: .d.D.d.d')
+}
 
 my $multiline = "-----BEGIN-----\n-----END-----\n";
 my %testConfig = %{parseConfig('/test/key = "'.$multiline.'"')};

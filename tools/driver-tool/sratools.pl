@@ -49,7 +49,7 @@ sub TRACE
 # i.e. only log levels less than SRATOOLS_VERBOSE will print
 my @loggers;
 my $level = eval {
-    local $SIG{__WARN__} = sub { };
+    local $SIG{__WARN__} = sub { }; #disable warning: expecting that it's not defined or not numeric
     0+$ENV{SRATOOLS_VERBOSE}
 } // 0;
 $level = 5 if $level > 5;

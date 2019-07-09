@@ -300,7 +300,7 @@ DeLiteResolvePath (
                         VPathRelease ( LocalPath );
                     }
                     else {
-                        /* JOJOBA : What to do? */
+                        RCt = RC ( rcApp, rcPath, rcResolving, rcPath, rcNotFound );
                     }
                 }
                 VPathRelease ( QueryPath );

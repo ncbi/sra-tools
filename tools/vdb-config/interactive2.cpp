@@ -525,8 +525,8 @@ class vdbconf_view2 : public Dlg
         {
             std::string res = "";
             std::string delim = ":";
-            auto start = 0U;
-            auto end = proxy_port.find( delim );
+            size_t start = 0;
+            size_t end = proxy_port.find( delim );
             if ( end != std::string::npos )
                 res = proxy_port.substr( start, end - start );
             return res;
@@ -536,8 +536,8 @@ class vdbconf_view2 : public Dlg
         {
             std::string res;
             std::string delim = ":";
-            auto start = 0U;
-            auto end = proxy_port.find( delim );
+            size_t start = 0U;
+            size_t end = proxy_port.find( delim );
             while ( end != std::string::npos )
             {
                 start = end + delim.length();

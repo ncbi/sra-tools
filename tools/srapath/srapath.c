@@ -93,6 +93,9 @@ static const char * param_usage[]
 static const char * raw_usage[] = { "print the raw reply (instead of parsing it)", NULL };
 #define ALIAS_RAW     "r"
 
+static const char * json_usage[] = { "print the reply in JSON", NULL };
+#define ALIAS_JSON    "j"
+
 static const char * timeout_usage[] = { "timeout-value for request", NULL };
 #define OPTION_TIMEOUT "timeout"
 #define ALIAS_TIMEOUT "t"
@@ -110,6 +113,7 @@ OptDef ToolOptions[] =
     { OPTION_URL    , ALIAS_URL    , NULL, url_usage    ,   1,  true,   false },
     { OPTION_PARAM  , ALIAS_PARAM  , NULL, param_usage  ,  10,  true,   false },
     { OPTION_RAW    , ALIAS_RAW    , NULL, raw_usage    ,   1,  false,  false },
+    { OPTION_JSON   , ALIAS_JSON   , NULL, json_usage   ,   1,  false,  false },
     { OPTION_PRJ    , ALIAS_PRJ    , NULL, prj_usage    ,  10,  true  , false },
     { OPTION_CACHE  , ALIAS_CACHE  , NULL, cache_usage  ,   1,  false,  false },
     { OPTION_PATH   , ALIAS_PATH   , NULL, path_usage   ,   1,  false,  false },
@@ -411,7 +415,7 @@ static rc_t on_reply_line( const String * line, void * data )
 
 typedef struct out_fmt
 {
-    bool raw, cache, path;
+    bool raw, cache, path, json;
 } out_fmt;
 
 
@@ -471,6 +475,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
     }
 
     fmt->raw = get_bool_option( args, OPTION_RAW );
+    fmt->json = get_bool_option( args, OPTION_JSON );
 
     return rc;
 }
@@ -500,6 +505,9 @@ static rc_t names_cgi( const Args * args )
                 LOGMSG ( klogWarn, "'--" OPTION_CACHE
                    "' is ignored with '--" OPTION_RAW "'" );
             rc = raw_names_request( &r, on_reply_line, &rslt_code, NULL );
+        }
+        else if (fmt.json) {
+            rc = names_request_json ( & r, fmt . cache, fmt . path );
         }
         else
             rc = names_request ( & r, fmt . cache, fmt . path );

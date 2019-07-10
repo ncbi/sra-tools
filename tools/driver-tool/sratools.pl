@@ -236,16 +236,20 @@ FMT
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
             
-            LOG 1, sprintf("accession: %s, ce_token: %s, data: {local: '%s', remote: '%s', cache: '%s'}, vdbcache: {%s}"
+            LOG 1, sprintf("accession: %s, ce_token: %s, data: {local: '%s', remote: '%s', cache: '%s', need ce: %s, need pmt: %s}, vdbcache: {%s}"
                             , $acc
                             , $ce_token // 'null'
                             , $run->{'local'}
                             , $run->{'url'}
                             , $run->{'cache'}
-                            , $vdbcache ? sprintf("local: '%s', remote: '%s', cache: '%s'"
+                            , $run->{'needCE'} ? 'yes' : 'no'
+                            , $run->{'needPmt'} ? 'yes' : 'no'
+                            , $vdbcache ? sprintf("local: '%s', remote: '%s', cache: '%s', need ce: %s, need pmt: %s"
                                                     , $vdbcache->{'local'}
                                                     , $vdbcache->{'url'}
                                                     , $vdbcache->{'cache'}
+                                                    , $vdbcache->{'needCE'} ? 'yes' : 'no'
+                                                    , $vdbcache->{'needPmt'} ? 'yes' : 'no'
                                                   )
                                         : ''
                           );

@@ -69,7 +69,7 @@ quick_bases:
 	@echo
 	@echo SRR053325 is a small table
 	NCBI_SETTINGS=/ $(BINDIR)/sra-stat -x SRR053325 > actual/SRR053325
-	diff actual/SRR053325 expected/SRR053325-biological
+	diff actual/SRR053325 expected/SRR053325-biological-reloaded
 
 	@echo
 	@echo SRR600096 is a small non-cSRA DB

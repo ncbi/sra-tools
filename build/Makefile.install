@@ -35,10 +35,11 @@ include $(TOP)/build/Makefile.$(OS)
 # install
 #
 
-# $TOOLS_TO_INSTALL
+# TOOLS_TO_COPY, TOOLS_TO_SYMLINK 
+# $TOOLS_TO_INSTALL = TOOLS_TO_COPY + TOOLS_TO_SYMLINK
 include $(TOP)/build/Makefile.tools
 ifeq (1,$(HAVE_HDF5))
-        TOOLS_TO_INSTALL += pacbio-load
+        TOOLS_TO_COPY += pacbio-load
 endif
 
 # unset outside defined variables
@@ -68,14 +69,36 @@ installexes:
 	@ echo "Installing executables to $(INST_BINDIR)/..."
 	@ mkdir -p $(INST_BINDIR)
 	@ $(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.install $(TOOLS_TO_INSTALL)
+	@ # copy the driver 
+	 $(COPY) $(TOP)/tools/driver-tool/sratools.pl $(INST_BINDIR)/sratools$(VERSION_EXEX)
+	 ln -f -s sratools$(VERSION_EXEX) $(INST_BINDIR)/sratools$(MAJVERS_EXEX)
+	 ln -f -s sratools$(MAJVERS_EXEX) $(INST_BINDIR)/sratools$(EXEX)
+	@ #
 	@ printf "Installing magic file..."
 	@ $(COPY) $(TOP)/tools/copycat/magic $(INST_BINDIR) && echo "done"
 
-$(TOOLS_TO_INSTALL):
+$(TOOLS_TO_COPY):
+	@ printf "Installing $@..."
+	@ # report missing tools
+	@ ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
+      $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
+      echo "done"
+
+$(TOOLS_TO_COPY_OPTIONAL):
 	@ printf "Installing $@..."
 	@ # ignore missing tools
 	@ - ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
       $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
+      echo "done"
+
+$(TOOLS_TO_SYMLINK):
+	@ printf "Installing symlink for $@..."
+	@ # report missing tools
+	@ ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
+      $(COPY) $(BINDIR)/$@$(VERSION_EXEX) $(INST_BINDIR)/$@-orig$(VERSION_EXEX) && \
+	  ln -f -s sratools$(VERSION_EXEX) $(INST_BINDIR)/$@$(VERSION_EXEX) && \
+	  ln -f -s $@$(VERSION_EXEX) $(INST_BINDIR)/$@$(MAJVERS_EXEX) && \
+	  ln -f -s $@$(MAJVERS_EXEX) $(INST_BINDIR)/$@$(EXEX) && \
       echo "done"
 
 copykfg:
@@ -108,7 +131,8 @@ endif
 # uninstall
 #
 
-TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL) magic))
+TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL) \
+				magic sratools sratools.pl))
 ifneq (true, $(LINUX_ROOT))
     TO_UNINSTALL += $(INST_BINDIR)/ncbi/certs.kfg $(INST_BINDIR)/ncbi/ncbi-vdb.kfg $(INST_BINDIR)/ncbi/default.kfg $(INST_BINDIR)/ncbi/vdb-copy.kfg
 endif

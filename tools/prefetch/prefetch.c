@@ -1045,6 +1045,9 @@ static rc_t ResolvedLocal(const Resolved *self,
     const KFile *local = NULL;
     char path[PATH_MAX] = "";
 
+    bool emptyDir = false;
+    KPathType type = kptNotFound;
+
     assert(isLocal && self && mane);
     dir = mane -> dir;
 
@@ -1057,9 +1060,22 @@ static rc_t ResolvedLocal(const Resolved *self,
     rc = VPathReadPath(self->local.path, path, sizeof path, NULL);
     DISP_RC(rc, "VPathReadPath");
 
-    if (rc == 0 && (KDirectoryPathType(dir, "%s", path) & ~kptAlias) != kptFile)
-    {
-        if (force == eForceNo) {
+    type = KDirectoryPathType(dir, "%s", path) & ~kptAlias;
+    if (type == kptDir) {
+        KNamelist * list = NULL;
+        rc = KDirectoryList(dir, &list, NULL, NULL, "%s", path);
+        if (rc == 0) {
+            uint32_t count = 0;
+            rc = KNamelistCount(list, &count);
+            if (rc == 0 && count == 0) /* empty directory is ignored */
+                emptyDir = true;
+        }
+        RELEASE(KNamelist, list);
+    }
+
+    if (rc == 0 && type != kptFile) {
+        if (emptyDir); /* ignore it */
+        else if (force == eForceNo) {
             STSMSG(STS_TOP,
                 ("%s (not a file) is found locally: consider it complete",
                  path));
@@ -4087,13 +4103,13 @@ static rc_t MainFini(Main *self) {
 
     assert(self);
 
-    RELEASE(KConfig, self->cfg);
     RELEASE(VResolver, self->resolver);
     RELEASE(VDBManager, self->mgr);
     RELEASE(KDirectory, self->dir);
     RELEASE(KRepositoryMgr, self->repoMgr);
-    RELEASE(KNSManager, self->kns);
     RELEASE(VFSManager, self->vfsMgr);
+    RELEASE(KConfig, self->cfg);
+    RELEASE(KNSManager, self->kns);
     RELEASE(Args, self->args);
 
     BSTreeWhack(&self->downloaded, bstWhack, NULL);

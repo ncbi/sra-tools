@@ -214,11 +214,15 @@ class vdbconf_model
         void set_prefetch_download_to_cache(bool download_to_cache);
 
         /* does user agree to accept charges? */
-        bool does_user_accept_aws_charges(void) const;
-        bool does_user_accept_gcp_charges(void) const;
-        void set_user_accept_aws_charges(bool accepts_charges);
-        void set_user_accept_gcp_charges(bool accepts_charges);
+        bool does_user_accept_aws_charges( void ) const;
+        bool does_user_accept_gcp_charges( void ) const;
+        void set_user_accept_aws_charges( bool accepts_charges );
+        void set_user_accept_gcp_charges( bool accepts_charges );
 
+        /* does user agree to report cloud instance identity? */
+        bool report_cloud_instance_identity( void ) const;
+        void set_report_cloud_instance_identity( bool report_identity );
+        
         /* preferred temporary cache location */
         std::string get_temp_cache_location(void) const;
         void set_temp_cache_location(const std::string & path);

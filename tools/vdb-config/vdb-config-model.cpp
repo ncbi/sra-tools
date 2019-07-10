@@ -782,6 +782,18 @@ vdbconf_model::set_user_accept_gcp_charges(bool accepts_charges)
     _config.Updated();
 }
 
+bool vdbconf_model::report_cloud_instance_identity( void ) const
+{
+    bool ret;
+    MODEL_THROW_ON_RC ( KConfig_Get_Report_Cloud_Instance_Identity( _config.Get(), & ret) );
+    return ret;
+}
+void vdbconf_model::set_report_cloud_instance_identity( bool report_identity )
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_Report_Cloud_Instance_Identity( _config.Get(), report_identity ) );
+    _config.Updated();
+}
+
 string
 vdbconf_model::get_temp_cache_location(void) const
 {

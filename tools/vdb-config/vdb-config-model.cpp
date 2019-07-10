@@ -569,6 +569,12 @@ ESetRootState vdbconf_model::set_repo_location(uint32_t id,
     return res;
 }
 
+void vdbconf_model::unset_public_repo_location( void )
+{
+    KConfig_Set_User_Public_Cache_Location( _config.Get(), "" );
+    _config.Updated();
+}
+
 ESetRootState vdbconf_model::set_public_location(
     bool flushOld, string &path, bool reuseNew)
 {

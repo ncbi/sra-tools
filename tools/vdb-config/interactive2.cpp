@@ -1064,8 +1064,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
         // user has pressed the clear-button for the public user repo location
         bool clear_main_local( Dlg &dlg, vdbconf_model * model )
         {
-            std::string path( "" );
-            model -> set_public_location( false, path, false );
+            model -> unset_public_repo_location();
             return update_view( dlg );
         }
 

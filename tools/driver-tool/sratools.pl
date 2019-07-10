@@ -502,6 +502,21 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
 ### \return: array of possible pairs of URLs to data and maybe to vdbcache files
 sub resolveAccessionURLs($)
 {
+    if (-f $_[0]) {
+        my @result = ({ 'run' => {
+                              'local' => $_[0]
+                            , 'url' => undef
+                            , 'source' => 'local'
+                            , 'needCE' => FALSE
+                            , 'needPmt' => FALSE
+                            , 'size' => -s $_[0]
+                            , 'cache' => ''
+                        },
+                        'vdbcache' => undef
+                    });
+        return (undef, @result);
+    }
+    
     my @tool_args = ('srapath', qw{ --function names --json }
         , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
         , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL, $_[0]);

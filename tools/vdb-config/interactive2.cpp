@@ -60,10 +60,11 @@ enum e_id
     CACHE_RAM_LBL_ID, CACHE_RAM_ID, CACHE_RAM_UNIT_ID,
     
     AWS_HDR_ID = 400,
-    AWS_CB_ID, AWS_KEY_ID, AWS_CHOOSE_ID, AWS_CLEAR_ID, AWS_FILE_ID, AWS_PROF_LBL_ID, AWS_PROF_ID,
+    AWS_CHARGES_ID, AWS_REPORT_ID, AWS_KEY_ID, AWS_CHOOSE_ID, AWS_CLEAR_ID,
+    AWS_FILE_ID, AWS_PROF_LBL_ID, AWS_PROF_ID,
     
     GCP_HDR_ID = 500,
-    GCP_CB_ID, GCP_KEY_ID, GCP_CHOOSE_ID, GCP_CLEAR_ID, GCP_FILE_ID,
+    GCP_CHARGES_ID, GCP_REPORT_ID, GCP_KEY_ID, GCP_CHOOSE_ID, GCP_CLEAR_ID, GCP_FILE_ID,
 
     NETW_HDR_ID = 600,
     NETW_USE_PROXY_ID, NETW_PROXY_LBL_ID, NETW_PROXY_ID,
@@ -568,7 +569,7 @@ class vdbconf_view2 : public Dlg
         Tui_Rect save_and_exit_rect( Tui_Rect const &r ) { return Tui_Rect( 1, 2, r.get_w() - 2, 1 ); }
         Tui_Rect TAB_rect( Tui_Rect const &r ) { return Tui_Rect( 1, 4, r.get_w() - 2, r.get_h() - 6 ); }
         Tui_Rect BODY_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x(), r.get_y() +1 , r.get_w(), r.get_h() - 1 ); }
-        Tui_Rect CB_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 30, 1 ); }
+        Tui_Rect CB_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 36, 1 ); }
         Tui_Rect lbl1_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , r.get_w() - 2, 1 ); }
         Tui_Rect choose_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 12, 1 ); }
         Tui_Rect use_repo_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 34, 1 ); }        
@@ -695,9 +696,15 @@ class vdbconf_view2 : public Dlg
         void populate_AWS( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             tui_coord y = 2;
-            PopulateCheckbox( CB_rect( r, y ), resize, AWS_CB_ID, "acc&ept charges for AWS",
+            PopulateCheckbox( CB_rect( r, y ), resize, AWS_CHARGES_ID, "acc&ept charges for AWS",
                                 model.does_user_accept_aws_charges(),   /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
+                                
+            y += 2;
+            PopulateCheckbox( CB_rect( r, y ), resize, AWS_REPORT_ID, "&report cloud instance identity",
+                                model.report_cloud_instance_identity(),   /* model-connection */
+                                CB_COLOR_BG, CB_COLOR_FG, page_id );
+            
             y += 2;
             PopulateLabel( lbl1_rect( r, y ), resize, AWS_KEY_ID, "credentials:",
                                 BOX_COLOR, LABEL_FG, page_id );
@@ -722,9 +729,15 @@ class vdbconf_view2 : public Dlg
         void populate_GCP( Tui_Rect const &r, bool resize, uint32_t page_id )
         {
             tui_coord y = 2;
-            PopulateCheckbox( CB_rect( r, y ), resize, GCP_CB_ID, "acc&ept charges for GCP",
+            PopulateCheckbox( CB_rect( r, y ), resize, GCP_CHARGES_ID, "acc&ept charges for GCP",
                                 model.does_user_accept_gcp_charges(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
+                                
+            y += 2;
+            PopulateCheckbox( CB_rect( r, y ), resize, GCP_REPORT_ID, "&report cloud instance identity",
+                                model.report_cloud_instance_identity(),   /* model-connection */
+                                CB_COLOR_BG, CB_COLOR_FG, page_id );
+
             y += 2;
             PopulateLabel( lbl1_rect( r, y ), resize, GCP_KEY_ID, "credentials:",
                                 BOX_COLOR, LABEL_FG, page_id );
@@ -868,15 +881,17 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case CACHE_RAM_LBL_ID     : dlg.SetFocus( CACHE_RAM_ID ); break;
 
                 case AWS_HDR_ID      : res = dlg.SetActivePage( PAGE_AWS ); break;
-                case AWS_CB_ID       : res = on_accept_aws_charges( dlg, model ); break;
+                case AWS_CHARGES_ID  : res = on_accept_aws_charges( dlg, model ); break;
+                case AWS_REPORT_ID   : res = on_report_aws_identity( dlg, model ); break;
                 case AWS_CHOOSE_ID   : res = on_aws_choose( dlg, model ); break;
                 case AWS_CLEAR_ID    : res = on_aws_clear( dlg, model ); break;                
                 case AWS_PROF_LBL_ID : dlg.SetFocus( AWS_PROF_ID ); break;
 
-                case GCP_HDR_ID    : res = dlg.SetActivePage( PAGE_GCP ); break;                
-                case GCP_CB_ID     : res = on_accept_gcp_charges( dlg, model ); break;
-                case GCP_CHOOSE_ID : res = on_gcp_choose( dlg, model ); break;                
-                case GCP_CLEAR_ID  : res = on_gcp_clear( dlg, model ); break;
+                case GCP_HDR_ID     : res = dlg.SetActivePage( PAGE_GCP ); break;                
+                case GCP_CHARGES_ID : res = on_accept_gcp_charges( dlg, model ); break;
+                case GCP_REPORT_ID  : res = on_report_gcp_identity( dlg, model ); break;                
+                case GCP_CHOOSE_ID  : res = on_gcp_choose( dlg, model ); break;                
+                case GCP_CLEAR_ID   : res = on_gcp_clear( dlg, model ); break;
                 
                 case NETW_HDR_ID            : res = dlg.SetActivePage( PAGE_NETW ); break;                
                 case NETW_USE_PROXY_ID      : res = on_use_proxy( dlg, model ); break;
@@ -916,12 +931,14 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 case CACHE_PROC_CHOOSE_ID : view.status_txt( "choose loacation of process local storage" ); break;
                 case CACHE_PROC_CLEAR_ID  : view.status_txt( "clear loacation of process local storage" ); break;
                 
-                case AWS_CB_ID      : view.status_txt( "do accept charges for AWS usage" ); break;
+                case AWS_CHARGES_ID : view.status_txt( "do accept charges for AWS usage" ); break;
+                case AWS_REPORT_ID  : view.status_txt( "report cloud instance identity to ..." ); break;
                 case AWS_CHOOSE_ID  : view.status_txt( "choose location of credentials for AWS" ); break;
                 case AWS_CLEAR_ID   : view.status_txt( "clear location of credentials for AWS" ); break;
                 case AWS_PROF_ID    : view.status_txt( "enter name of profile to use for AWS" ); break;
                 
-                case GCP_CB_ID      : view.status_txt( "do accept charges for GCP usage" ); break;
+                case GCP_CHARGES_ID : view.status_txt( "do accept charges for GCP usage" ); break;
+                case GCP_REPORT_ID  : view.status_txt( "report cloud instance identity to ..." ); break;
                 case GCP_CHOOSE_ID  : view.status_txt( "choose location of credentials for GCP" ); break;
                 case GCP_CLEAR_ID   : view.status_txt( "clear location of credentials for GCP" ); break;
                 
@@ -1088,13 +1105,20 @@ class vdbconf_ctrl2 : public Dlg_Runner
 
         // ================ the AWS-page:
         
-        // user has pressed the 'accept AWS charges' checkbox
+        // user has changed the 'accept AWS charges' checkbox
         bool on_accept_aws_charges( Dlg &dlg, vdbconf_model *model )
         {
-            model -> set_user_accept_aws_charges( dlg.GetWidgetBoolValue( AWS_CB_ID ) ); /* model-connection */
+            model -> set_user_accept_aws_charges( dlg.GetWidgetBoolValue( AWS_CHARGES_ID ) ); /* model-connection */
             return true;
         }
 
+        // user has changed the 'report cloud identity' checkbox
+        bool on_report_aws_identity( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_report_cloud_instance_identity( dlg.GetWidgetBoolValue( AWS_REPORT_ID ) ); /* model-connection */
+            return true;
+        }
+        
         // common code for on_aws_choose() and on_aws_clear() to set the credential path
         bool upate_aws_credentials( Dlg &dlg, vdbconf_model * model, std::string &path )
         {
@@ -1122,10 +1146,17 @@ class vdbconf_ctrl2 : public Dlg_Runner
 
         // ================ the GCP-page:
         
-        // user has pressed the 'accept GCP charges' checkbox        
+        // user has changed the 'accept GCP charges' checkbox        
         bool on_accept_gcp_charges( Dlg &dlg, vdbconf_model *model )
         {
-            model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CB_ID ) ); /* model-connection */
+            model -> set_user_accept_gcp_charges( dlg.GetWidgetBoolValue( GCP_CHARGES_ID ) ); /* model-connection */
+            return true;
+        }
+
+        // user has changed the 'report cloud identity' checkbox
+        bool on_report_gcp_identity( Dlg &dlg, vdbconf_model *model )
+        {
+            model -> set_report_cloud_instance_identity( dlg.GetWidgetBoolValue( GCP_REPORT_ID ) ); /* model-connection */
             return true;
         }
 

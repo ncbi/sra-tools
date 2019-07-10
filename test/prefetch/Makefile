@@ -234,7 +234,6 @@ urls_and_accs:
 	      ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null ; \
 	 else echo download of $(KMERF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm `pwd`/tmp/wgs/AFVF01
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
@@ -261,13 +260,10 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR053325 > /dev/null
 	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
-#	@echo
 
 	@echo prefetch run with refseqs
-	@if ls `pwd`/tmp/sra/SRR619505.sra 2> /dev/null ; \
-     then echo SRR619505 found ; exit 1; fi
-	@if ls `pwd`/tmp/refseq/NC_000005.8 2> /dev/null ; \
-     then echo NC_000005.8 found ; exit 1; fi
+	@rm -fv `pwd`/tmp/sra/SRR619505.sra
+	@rm -fv `pwd`/tmp/refseq/NC_000005.8
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR619505 > /dev/null
 	@ls `pwd`/tmp/sra/SRR619505.sra > /dev/null
@@ -278,14 +274,12 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch KC702174.1 > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
-#	@echo
 
 	@echo NANNOT accession download
 	@rm -f `pwd`/tmp/nannot/GCA_000390265.1_R
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch GCA_000390265.1_R > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
-#	@echo
 
 	@echo WGS accession download
 	@rm -f `pwd`/tmp/wgs/AFVF01

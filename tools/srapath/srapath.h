@@ -35,5 +35,6 @@
 #define OPTION_PARAM  "param"
 #define OPTION_PRJ   "project"
 #define OPTION_RAW    "raw"
+#define OPTION_JSON    "json"
 
 #endif /* _h_srapath_ */

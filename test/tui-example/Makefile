@@ -72,7 +72,7 @@ $(TARGDIR)/all: \
 $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
-.PHONY: $(TEST_TOOLS)
+.PHONY: $(TEST_TOOLS) run9
 
 #-------------------------------------------------------------------------------
 # the tool
@@ -87,6 +87,8 @@ TOOL_SRC = \
 	example_6 \
 	example_7 \
 	example_8 \
+	example_9 \
+	example_10 \
 	tui_examples
 
 TOOL_OBJ = \
@@ -100,12 +102,19 @@ TOOL_LIB = \
 	-sncbi-vdb   \
 	-sm
 
+   
 $(BINDIR)/tui-example: $(TOOL_OBJ)
 	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB) \
 	-ltui_cpp \
 	-ltui \
-	-lncbi-vdb-static \
-	-lm \
 	-ldl \
-	-lpthread \
 	-lstdc++
+
+clean:
+	rm -f *.o *.d
+    
+run9:
+	$(BINDIR)/tui-example 9
+
+run10:
+	$(BINDIR)/tui-example 10

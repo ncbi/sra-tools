@@ -1287,6 +1287,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         bool reliable = ! self -> isUri;
         ver_t http_vers = 0x01010000;
         KClientHttpRequest * kns_req = NULL;
+
         if ( reliable )
             rc = KNSManagerMakeReliableClientRequest ( mane -> kns,
                 & kns_req, http_vers, NULL, "%S", & src );
@@ -1297,6 +1298,14 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
         if ( rc == 0 ) {
             KClientHttpResult * rslt = NULL;
+            bool ceRequired = false;
+            bool payRequired = false;
+
+            VPathGetCeRequired(path, &ceRequired);
+            VPathGetPayRequired(path, &payRequired);
+
+            KHttpRequestSetCloudParams(kns_req, ceRequired, payRequired);
+
             rc = KClientHttpRequestGET ( kns_req, & rslt );
             DISP_RC2 ( rc, "Cannot KClientHttpRequestGET", src . addr );
 

@@ -90,7 +90,7 @@ LOG 1, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 
-delete $ENV{$_} for qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_CACHE_URL VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
+delete $ENV{$_} for qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_REMOTE_NEED_CE VDB_REMOTE_NEED_PMT VDB_CACHE_URL VDB_CACHE_NEED_CE VDB_CACHE_NEED_PMT VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
@@ -256,11 +256,15 @@ FMT
                 $ENV{VDB_CACHE_URL} = $run->{'cache'};
                 $ENV{VDB_LOCAL_URL} = $run->{'local'};
                 $ENV{VDB_SIZE_URL} = $run->{'size'} > 0 ? (''.$run->{'size'}) : '';
+                $ENV{VDB_REMOTE_NEED_CE} = '1' if $run->{'needCE'};
+                $ENV{VDB_REMOTE_NEED_PMT} = '1' if $run->{'needPmt'};
                 if ($vdbcache) {
                     $ENV{VDB_REMOTE_VDBCACHE} = $vdbcache->{'url'};
                     $ENV{VDB_CACHE_VDBCACHE} = $vdbcache->{'cache'};
                     $ENV{VDB_LOCAL_VDBCACHE} = $vdbcache->{'local'};
                     $ENV{VDB_SIZE_VDBCACHE} = $vdbcache->{'size'} > 0 ? (''.$vdbcache->{'size'}) : '';
+                    $ENV{VDB_CACHE_NEED_CE} = '1' if $vdbcache->{'needCE'};
+                    $ENV{VDB_CACHE_NEED_PMT} = '1' if $vdbcache->{'needPmt'};
                 }
                 if ($overrideOutputFile) {
                     push @$params, $unsafeOutputFile, $acc.$extension
@@ -412,6 +416,8 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
                   'local' => $local // ''
                 , 'url' => $_->{'path'}
                 , 'source' => $_->{'service'}
+                , 'needCE' => ($_->{'CE-Required'} // '') eq 'true'
+                , 'needPmt' => ($_->{'Payment-Required'} // '') eq 'true'
                 , 'cache' => $cache // ''
                 , 'size' => $size // -1
             };
@@ -423,6 +429,8 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
                   'local' => $local // ''
                 , 'url' => $vdbcache->{'remote'}->[0]->{'path'}
                 , 'source' => $vdbcache->{'remote'}->[0]->{'service'}
+                , 'needCE' => ($vdbcache->{'remote'}->[0]->{'CE-Required'} // '') eq 'true'
+                , 'needPmt' => ($vdbcache->{'remote'}->[0]->{'Payment-Required'} // '') eq 'true'
                 , 'cache' => $cache // ''
                 , 'size' => $size // -1
             }
@@ -434,6 +442,8 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
         push @result, { 'run' => {
                   'url' => $_->{'path'}
                 , 'source' => $_->{'service'}
+                , 'needCE' => ($_->{'CE-Required'} // '') eq 'true'
+                , 'needPmt' => ($_->{'Payment-Required'} // '') eq 'true'
                 , 'size' => $size // -1
                 , 'local' => $local // ''
                 , 'cache' => $cache // ''
@@ -453,6 +463,8 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
                       'local' => $local // ''
                     , 'url' => $vc->{'path'}
                     , 'source' => $source
+                    , 'needCE' => ($vc->{'CE-Required'} // $_->{'CE-Required'} // '') eq 'true'
+                    , 'needPmt' => ($vc->{'Payment-Required'} // $_->{'Payment-Required'} // '') eq 'true'
                     , 'cache' => $cache // ''
                     , 'size' => $size // -1
                 };
@@ -468,6 +480,8 @@ FALLBACK: # produce an empty response, will cause tool to be run without any URL
                   'local' => $run->{'local'}
                 , 'url' => undef
                 , 'source' => 'local'
+                , 'needCE' => FALSE
+                , 'needPmt' => FALSE
                 , 'size' => $run->{'size'} // -1
                 , 'cache' => $run->{'cache'} // ''
             },

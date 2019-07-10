@@ -42,6 +42,7 @@ struct DeLiteParams {
     const char * _output;           /* Output file path */
     const char * _schema;           /* Shema dirs path separated by : */
     const char * _transf;           /* File with list of transforms */
+    bool _check;                    /* Set only during check mode */
     bool _noedit;                   /* Just produce output, no edit */
     bool _update;                   /* Update schemas for tables */
     bool _delite;                   /* Delete quality scores */
@@ -51,8 +52,11 @@ struct DeLiteParams {
     struct KConfig * _config;       /* Good config */
 };
 
-LIB_EXPORT rc_t Delite ( struct DeLiteParams * Params );
-LIB_EXPORT rc_t Checkite ( const char * PathToArchive );
+LIB_EXPORT rc_t CC DeLiteParamsInit ( struct DeLiteParams * Params );
+LIB_EXPORT rc_t CC DeLiteParamsWhack ( struct DeLiteParams * Params );
+
+LIB_EXPORT rc_t CC Delite ( struct DeLiteParams * Params );
+LIB_EXPORT rc_t CC Checkite ( struct DeLiteParams * Params );
 
     /*  length limit for strings I am working with
      */

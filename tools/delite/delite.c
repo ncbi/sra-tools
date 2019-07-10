@@ -61,9 +61,6 @@
 
 const char * ProgNm = "sra-delite";  /* Application program name */
 
-static rc_t DeLiteParamsInit ( struct DeLiteParams * Params );
-static rc_t DeLiteParamsWhack ( struct DeLiteParams * Params );
-
 static rc_t __porseAndHandle ( int Arc, char * ArgV [], struct DeLiteParams * Params );
 static rc_t __runKar ( struct DeLiteParams * Params );
 
@@ -77,21 +74,16 @@ KMain ( int ArgC, char * ArgV [] )
 
     RCt = __porseAndHandle ( ArgC, ArgV, & DLP );
     if ( RCt == 0 ) {
-        if ( ArgC == 1 ) {
-            UsageSummary ( ProgNm );
+            /*  Something very special
+             */
+        if ( DLP . _output_stdout ) {
+            KOutHandlerSetStdErr();
+            KStsHandlerSetStdErr();
+            KLogHandlerSetStdErr();
+            KDbgHandlerSetStdErr();
         }
-        else {
-                /*  Something very special
-                 */
-            if ( DLP . _output_stdout ) {
-                KOutHandlerSetStdErr();
-                KStsHandlerSetStdErr();
-                KLogHandlerSetStdErr();
-                KDbgHandlerSetStdErr();
-            }
 
-            RCt = __runKar ( & DLP );
-        }
+        RCt = __runKar ( & DLP );
     }
 
     DeLiteParamsWhack ( & DLP );
@@ -138,61 +130,6 @@ KMain ( int ArgC, char * ArgV [] )
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Params
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-rc_t
-DeLiteParamsInit ( struct DeLiteParams * Params )
-{
-    memset ( Params, 0, sizeof ( struct DeLiteParams ) );
-
-    Params -> _force_write = true;
-
-    return 0;
-}   /* DeLiteParamsInit () */
-
-rc_t
-DeLiteParamsWhack ( struct DeLiteParams * Params )
-{
-    if ( Params != NULL ) {
-        if ( Params -> _config != NULL ) {
-            KConfigRelease ( Params -> _config );
-            Params -> _config = NULL;
-        }
-
-        if ( Params -> _program != NULL ) {
-            free ( ( char * ) Params -> _program );
-            Params -> _program = NULL;
-        }
-        if ( Params -> _accession != NULL ) {
-            free ( ( char * ) Params -> _accession );
-            Params -> _accession = NULL;
-        }
-        if ( Params -> _accession_path != NULL ) {
-            free ( ( char * ) Params -> _accession_path );
-            Params -> _accession_path = NULL;
-        }
-        if ( Params -> _output != NULL ) {
-            free ( ( char * ) Params -> _output );
-            Params -> _output = NULL;
-        }
-        if ( Params -> _schema != NULL ) {
-            free ( ( char * ) Params -> _schema );
-            Params -> _schema = NULL;
-        }
-        if ( Params -> _transf != NULL ) {
-            free ( ( char * ) Params -> _transf );
-            Params -> _transf = NULL;
-        }
-        Params -> _output_stdout = false;
-        Params -> _force_write = true;
-
-        Params -> _noedit = false;
-        Params -> _update = false;
-        Params -> _delite = false;
-
-        /* NO_NO_NO free ( Params ); */
-    }
-    return 0;
-}   /* DeLiteParamsWhack () */
-
 static
 rc_t
 DeLiteParamsSetProgram (
@@ -542,6 +479,12 @@ __porseAndHandle (
 
             RCt = ArgsParse ( TheArgs, ArgC, ArgV );
             if ( RCt != 0 ) {
+                break;
+            }
+
+            if ( ArgC == 1 ) {
+                MiniUsage ( TheArgs );
+                RCt = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInsufficient );
                 break;
             }
 

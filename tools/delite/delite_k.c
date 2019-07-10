@@ -345,6 +345,8 @@ _karMD5Dispose ( struct karMD5 * self )
             free ( ( char * ) self -> _s );
             self -> _s = NULL;
         }
+
+        free ( self );
     }
     return 0;
 }   /* _karMD5Dispose () */
@@ -3165,8 +3167,7 @@ rc_t
 _karChiveMake ( 
             const struct karChive ** Chive,
             const struct KFile * File,
-            const char * SchemaPath,
-            const char * TransformFile
+            struct DeLiteParams * Params
 )
 {
     /*  Do not check arguments here, cuz they should be checked already
@@ -3191,13 +3192,13 @@ _karChiveMake (
                         "_karChiveMake",
                         "Make"
                         );
-            /*  We should pass NULLS here
-             */
-        RCt = scmDepotMake (
-                            & ( RetChive -> _scm_depot ),
-                            SchemaPath,
-                            TransformFile
-                            );
+        if ( ! Params -> _check ) {
+            RCt = scmDepotMake (
+                                & ( RetChive -> _scm_depot ),
+                                Params -> _schema,
+                                Params -> _transf
+                                );
+        }
         if ( RCt == 0 ) {
                 /*  First we are mapping file into memory
                  */
@@ -3261,8 +3262,7 @@ karChiveOpen (
             RCt = _karChiveMake (
                                 Chive,
                                 File,
-                                Params -> _schema,
-                                Params -> _transf
+                                Params
                                 );
 
             KFileRelease ( File );
@@ -5656,7 +5656,7 @@ _karChiveCheckMetadata ( const struct karChive * self )
 
 LIB_EXPORT
 rc_t CC
-Checkite ( const char * PathToArchive )
+Checkite ( struct DeLiteParams * Params )
 {
     rc_t RCt;
     const struct karChive * Chive;
@@ -5664,16 +5664,18 @@ Checkite ( const char * PathToArchive )
     RCt = 0;
     Chive = NULL;
 
-    if ( PathToArchive == NULL ) {
+    if ( Params == NULL ) {
         return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
+    }
+
+    if ( Params -> _accession_path == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcInvalid );
     }
 
         /*  Phase #1: Open archive
          *  Phase #3: Check if all links are resolved
          */
-/* JOJOBA 
-    RCt = karChiveOpen ( & Chive, PathToArchive );
-*/
+    RCt = karChiveOpen ( & Chive, Params );
     if ( RCt == 0 ) {
         RCt = _karChiveCheckIf454Style ( ( struct karChive * ) Chive );
         if ( RCt == 0 ) {

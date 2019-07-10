@@ -62,41 +62,24 @@ const char * ProgNm = "chkite";  /* Application program name */
 static rc_t __porseAndHandle (
                             int Arc,
                             char * ArgV [],
-                            const char ** ProgName,
-                            const char ** PathToArchive
+                            struct DeLiteParams * Params
                             );
-static rc_t __runKar ( const char * PathToArchive );
+static rc_t __runKar ( struct DeLiteParams * Params );
 
 rc_t CC
 KMain ( int ArgC, char * ArgV [] )
 {
     rc_t RCt;
-    const char * P2A;
-    const char * PRG;
+    struct DeLiteParams DLP;
 
     RCt = 0;
-    P2A = NULL;
-    PRG = NULL;
 
-    RCt = __porseAndHandle ( ArgC, ArgV, & PRG, & P2A );
+    RCt = __porseAndHandle ( ArgC, ArgV, & DLP );
     if ( RCt == 0 ) {
-        if ( ArgC == 1 ) {
-            UsageSummary ( ProgNm );
-        }
-        else {
-            RCt = __runKar ( P2A );
-        }
+        RCt = __runKar ( & DLP );
     }
 
-    if ( P2A != NULL ) {
-        free ( ( char * ) P2A );
-        P2A = NULL;
-    }
-
-    if ( PRG != NULL ) {
-        free ( ( char * ) PRG );
-        PRG = NULL;
-    }
+    DeLiteParamsWhack ( & DLP );
 
     return RCt;
 }
@@ -118,37 +101,8 @@ KMain ( int ArgC, char * ArgV [] )
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 static
 rc_t
-DeLiteParamsSetProgram (
-                        const char ** ProgName,
-                        const struct Args * TheArgs
-)
-{
-    const char * Value;
-    rc_t RCt;
-
-    Value = NULL;
-    RCt = 0;
-
-    if ( ProgName != NULL ) {
-        * ProgName = NULL;
-    }
-
-    if ( ProgName == NULL ) {
-        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
-    }
-
-    RCt = ArgsProgram ( TheArgs, NULL, & Value );
-    if ( RCt == 0 ) {
-        RCt = copyStringSayNothingRelax ( ProgName, Value );
-    }
-
-    return RCt;
-}   /* DeLiteParamsSetProgram () */
-
-static
-rc_t
 DeLiteParamsSetPathToArchive (
-                        const char ** PathToArchive,
+                        struct DeLiteParams * Params,
                         const struct Args * TheArgs
 )
 {
@@ -160,11 +114,7 @@ DeLiteParamsSetPathToArchive (
     Value = NULL;
     RCt = 0;
 
-    if ( PathToArchive != NULL ) {
-        * PathToArchive = NULL;
-    }
-
-    if ( PathToArchive == NULL ) {
+    if ( Params == NULL ) {
         return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
     }
 
@@ -177,7 +127,7 @@ DeLiteParamsSetPathToArchive (
                                 ( const void ** ) & Value
                                 );
             if ( RCt == 0 ) {
-                RCt = copyStringSayNothingRelax ( PathToArchive, Value );
+                RCt = copyStringSayNothingRelax ( & ( Params -> _accession_path ), Value );
             }
         }
         else {
@@ -198,8 +148,7 @@ rc_t
 __porseAndHandle (
                 int ArgC,
                 char * ArgV [],
-                const char ** ProgName,
-                const char ** PathToArchive
+                struct DeLiteParams * Params
 )
 {
     rc_t RCt;
@@ -208,21 +157,12 @@ __porseAndHandle (
     RCt = 0;
     TheArgs = NULL;
 
-    if ( ProgName != NULL ) {
-        * ProgName = NULL;
-    }
-
-    if ( PathToArchive != NULL ) {
-        * PathToArchive = NULL;
-    }
-
-    if ( ProgName == NULL ) {
+    if ( Params == NULL ) {
         return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
     }
 
-    if ( PathToArchive == NULL ) {
-        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
-    }
+    DeLiteParamsInit ( Params );
+    Params -> _check = true;
 
     RCt = ArgsMakeStandardOptions ( & TheArgs );
     if ( RCt == 0 ) {
@@ -232,21 +172,18 @@ __porseAndHandle (
                 break;
             }
 
+            if ( ArgC == 1 ) {
+                MiniUsage ( TheArgs );
+                RCt = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInsufficient );
+                break;
+            }
+
             RCt = ArgsHandleStandardOptions ( TheArgs );
             if ( RCt != 0 ) {
                 break;
             }
 
-            RCt = DeLiteParamsSetProgram ( ProgName, TheArgs );
-            if ( RCt != 0 ) {
-                break;
-            }
-
-            if ( ArgC == 1 ) {
-                break;
-            }
-
-            RCt = DeLiteParamsSetPathToArchive ( PathToArchive, TheArgs );
+            RCt = DeLiteParamsSetPathToArchive ( Params, TheArgs );
             if ( RCt != 0 ) {
                 break;
             }
@@ -305,7 +242,7 @@ Usage ( const struct Args * TheArgs )
             "    check that Metadata file contains \"delited\" record\n"
             "    check that MD5 file is current\n"
             "\n"
-            "NOTE: it does not check schema ... how could it do that, huh?\n"
+            "NOTE: it does not check schema ... right now we can not do that\n"
             "NOTE: it requires path to archive, not accession"
             "\n"
             );
@@ -324,22 +261,26 @@ Usage ( const struct Args * TheArgs )
  * Sanctuary
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
-static rc_t __checkKar ( const char * PathToArchive );
+static rc_t __checkKar ( struct DeLiteParams * Params );
 
 rc_t
-__runKar ( const char * PathToArchive )
+__runKar ( struct DeLiteParams * Params )
 {
-    if ( PathToArchive == NULL ) {
+    if ( Params == NULL ) {
         return RC ( rcApp, rcArc, rcReading, rcParam, rcNull );
     }
 
-    KOutMsg ( "PTH [%s]\n", PathToArchive );
-    pLogMsg ( klogInfo, "KAR [$(path)]", "path=%s", PathToArchive );
-    return __checkKar ( PathToArchive );
+    if ( Params -> _accession_path == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcParam, rcInvalid );
+    }
+
+    KOutMsg ( "PTH [%s]\n", Params -> _accession_path );
+    pLogMsg ( klogInfo, "KAR [$(path)]", "path=%s", Params -> _accession_path );
+    return __checkKar ( Params );
 }   /* __runKar () */
 
 rc_t
-__checkPathToArchive ( const char * PathToArchive )
+__checkPathToArchive ( struct DeLiteParams * Params )
 {
     rc_t RCt;
     struct KDirectory * NatDir;
@@ -351,7 +292,7 @@ __checkPathToArchive ( const char * PathToArchive )
 
     RCt = KDirectoryNativeDir ( & NatDir );
     if ( RCt == 0 ) {
-        PathType = KDirectoryPathType ( NatDir, "%s", PathToArchive );
+        PathType = KDirectoryPathType ( NatDir, "%s", Params -> _accession_path );
 
         switch ( PathType ) {
             case kptFile :
@@ -371,26 +312,30 @@ __checkPathToArchive ( const char * PathToArchive )
 }   /* __checkPathToArchive () */
 
 rc_t
-__checkKar ( const char * PathToArchive )
+__checkKar ( struct DeLiteParams * Params )
 {
     rc_t RCt = 0;
 
-    if ( PathToArchive == NULL ) {
+    if ( Params == NULL ) {
         return RC ( rcApp, rcArc, rcReading, rcParam, rcNull );
     }
 
-    RCt = __checkPathToArchive ( PathToArchive );
+    if ( Params -> _accession_path == NULL ) {
+        return RC ( rcApp, rcArc, rcReading, rcParam, rcInvalid );
+    }
+
+    RCt = __checkPathToArchive ( Params );
     if ( RCt == 0 ) {
-        RCt = Checkite ( PathToArchive );
+        RCt = Checkite ( Params );
     }
     else {
-        KOutMsg ( "NOT FND [%s] RC [%d]\n", PathToArchive, RCt );
+        KOutMsg ( "NOT FND [%s] RC [%d]\n", Params -> _accession_path, RCt );
         pLogErr (
                 klogErr,
                 RCt,
                 "NOT FOUND [$(path)] RC [$(rc)]",
                 "path=%s,rc=%u",
-                PathToArchive,
+                Params -> _accession_path,
                 RCt
                 );
     }

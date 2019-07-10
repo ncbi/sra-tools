@@ -39,6 +39,8 @@
 #include <kfs/file.h>
 #include <kfs/mmap.h>
 
+#include <kfg/config.h>
+
 #include <sysalloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,6 +51,66 @@
  *  Kinda rated R content ...
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ * Params
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+LIB_EXPORT
+rc_t CC
+DeLiteParamsInit ( struct DeLiteParams * Params )
+{
+    memset ( Params, 0, sizeof ( struct DeLiteParams ) );
+
+    Params -> _force_write = true;
+
+    return 0;
+}   /* DeLiteParamsInit () */
+
+LIB_EXPORT
+rc_t CC
+DeLiteParamsWhack ( struct DeLiteParams * Params )
+{
+    if ( Params != NULL ) {
+        if ( Params -> _config != NULL ) {
+            KConfigRelease ( Params -> _config );
+            Params -> _config = NULL;
+        }
+
+        if ( Params -> _program != NULL ) {
+            free ( ( char * ) Params -> _program );
+            Params -> _program = NULL;
+        }
+        if ( Params -> _accession != NULL ) {
+            free ( ( char * ) Params -> _accession );
+            Params -> _accession = NULL;
+        }
+        if ( Params -> _accession_path != NULL ) {
+            free ( ( char * ) Params -> _accession_path );
+            Params -> _accession_path = NULL;
+        }
+        if ( Params -> _output != NULL ) {
+            free ( ( char * ) Params -> _output );
+            Params -> _output = NULL;
+        }
+        if ( Params -> _schema != NULL ) {
+            free ( ( char * ) Params -> _schema );
+            Params -> _schema = NULL;
+        }
+        if ( Params -> _transf != NULL ) {
+            free ( ( char * ) Params -> _transf );
+            Params -> _transf = NULL;
+        }
+        Params -> _output_stdout = false;
+        Params -> _force_write = true;
+
+        Params -> _check = false;
+        Params -> _noedit = false;
+        Params -> _update = false;
+        Params -> _delite = false;
+    }
+    return 0;
+}   /* DeLiteParamsWhack () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Just copying string - don't forget to free it
@@ -752,11 +814,8 @@ karLnRdOpen ( const struct karLnRd ** LineReader, const char * Path )
                     if ( RCt == 0 ) {
                         RCt = karLnRdMake ( LineReader, Addr, Size );
                         if ( RCt == 0 ) {
-                            RCt = KMMapAddRef ( Map );
-                            if ( RCt == 0 ) {
-                                ( ( struct karLnRd * ) * LineReader )
+                            ( ( struct karLnRd * ) * LineReader )
                                                         -> _map = Map;
-                            }
                         }
                     }
                 }

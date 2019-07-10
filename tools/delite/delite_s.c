@@ -44,6 +44,7 @@
 #include <byteswap.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Unusuals and stolen stuff
@@ -86,11 +87,32 @@ _scmDepotTrnDispose ( struct scmDepotTrn * self )
     return 0;
 }   /* _scmDepotTrnDispose () */
 
-/*  NOTE : VERY DANGEROUS METHOD
- */
+static
+bool CC
+_scmDepotTrnEmptyLine ( const char * Line )
+{
+    if ( Line == NULL ) {
+        return true;
+    }
+
+    while ( * Line != 0 ) {
+        if ( ! isspace ( * Line ) ) {
+            return * Line == '#';
+        }
+
+        Line ++;
+    }
+
+    return true;
+}   /* _scmDepotTrnEmptyLine () */
+
 static
 const char * CC
-_getSome ( const char * Line, const char ** Got )
+_scmDepotTrnReadSome (
+                        const char * Line,
+                        char * Buf,
+                        size_t BufSize  /* we don't check it ... */
+)
 {
     /*  NOTE : VERY DANGEROUS METHOD
      */
@@ -98,7 +120,7 @@ _getSome ( const char * Line, const char ** Got )
     const char * lC;
 
     lB = lC = Line;
-    * Got = NULL;
+    * Buf = 0;
 
         /*  Note, we suppose, line will come with stripped character
          *  return, or other bad stuff
@@ -107,52 +129,81 @@ _getSome ( const char * Line, const char ** Got )
 
     if ( lC - lB < 1 ) { return NULL; }
 
-    if ( copySStringSayNothing ( Got, lB, lC ) != 0 ) {
-        return NULL;
-    }
+    strncpy ( Buf, lB, lC - lB );
+    Buf [ lC - lB ] = 0;
 
     while ( * lC != 0 && * lC == '\t' ) lC ++;
 
     return ( * lC == 0 ) ? NULL : lC;
-}   /* _getSome () */
+}   /* _scmDepotTrnReadSome () */
 
-/* Splitting line to Name, OldVer, and NewVer
- * The format of string :
- *   Name<tab>OldVer<tab>NewVer
- */
 static
 rc_t CC
-_scmDepotTrnSplit3 (
-                    const char * Line,
-                    const char ** Name,
-                    const char ** OldVer,
-                    const char ** NewVer
+_scmDepotTrnReadLine (
+                        const char * Line,
+                        const char ** OldVer,
+                        const char ** NewVer
 )
 {
-    const char * lB = NULL;
+    rc_t RCt;
+    char OV [ 128 ];
+    char NV [ 128 ];
+    const char * pB;
 
-        /* no any NULL checks */
-    * Name = NULL;
+    RCt = 0;
+    pB = NULL;
+
     * OldVer = NULL;
     * NewVer = NULL;
 
-    lB = _getSome ( Line, Name );
-    if ( * Name == NULL || lB == NULL ) {
-        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
+    /*  We don't do parameter checks ... not our business
+     */
+
+    pB = _scmDepotTrnReadSome ( Line, OV, sizeof ( OV ) );
+    if ( pB == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcItem, rcInvalid );
     }
 
-    lB = _getSome ( lB, OldVer );
-    if ( * OldVer == NULL || lB == NULL ) {
-        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
+    strcat ( OV, "#" );
+    strcpy ( NV, OV );
+
+    pB = _scmDepotTrnReadSome (
+                                pB,
+                                OV + strlen ( OV ),
+                                sizeof ( OV ) - strlen ( OV )
+                                );
+    if ( pB == NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcItem, rcInvalid );
     }
 
-    lB = _getSome ( lB, NewVer );
-    if ( * NewVer == NULL && lB != NULL ) {
-        return RC ( rcApp, rcSchema, rcConstructing, rcParam, rcInvalid );
+    pB = _scmDepotTrnReadSome (
+                                pB,
+                                NV + strlen ( NV ),
+                                sizeof ( NV ) - strlen ( NV )
+                                );
+    if ( pB != NULL ) {
+        return RC ( rcApp, rcSchema, rcConstructing, rcItem, rcInvalid );
     }
 
-    return 0;
-}   /* _scmDepotTrnSplit3 () */
+    RCt = copyStringSayNothingRelax ( OldVer, OV );
+    if ( RCt == 0 ) {
+        RCt = copyStringSayNothingRelax ( NewVer, NV );
+    }
+
+    if ( RCt != 0 ) {
+        if ( * OldVer != NULL ) {
+            free ( ( char * ) * OldVer );
+            * OldVer = NULL;
+        }
+        if ( * NewVer != NULL ) {
+            free ( ( char * ) * NewVer );
+            * NewVer = NULL;
+        }
+    }
+
+    return RCt;
+}   /* _scmDepotTrnReadLine () */
+
 
 static
 rc_t CC
@@ -163,17 +214,9 @@ _scmDepotTrnMake (
 {
     rc_t RCt;
     struct scmDepotTrn * Ret;
-    const char * Name;
-    const char * OldVer;
-    const char * NewVer;
-    char Buf [ 256 ];
 
     RCt = 0;
     Ret = NULL;
-    Name = NULL;
-    OldVer = NULL;
-    NewVer = NULL;
-    * Buf = 0;
 
     if ( Node != NULL ) {
         * Node = NULL;
@@ -192,24 +235,13 @@ _scmDepotTrnMake (
         RCt = RC ( rcApp, rcSchema, rcConstructing, rcMemory, rcExhausted );
     }
     else {
-        RCt = _scmDepotTrnSplit3 ( Line, & Name, & OldVer, & NewVer );
+        RCt = _scmDepotTrnReadLine (
+                                    Line,
+                                    & ( Ret -> _name_old ),
+                                    & ( Ret -> _name_new )
+                                    );
         if ( RCt == 0 ) {
-            sprintf ( Buf, "%s#%s", Name, OldVer );
-            RCt = copyStringSayNothingRelax (
-                                            & ( Ret -> _name_old ),
-                                            Buf
-                                            );
-
-            if ( RCt == 0 ) {
-                sprintf ( Buf, "%s#%s", Name, NewVer );
-                RCt = copyStringSayNothingRelax (
-                                                & ( Ret -> _name_new ),
-                                                Buf
-                                                );
-                if ( RCt == 0 ) {
-                    * Node = Ret;
-                }
-            }
+            * Node = Ret;
         }
     }
 
@@ -499,15 +531,16 @@ _scmDepotLoadTransforms (
             while ( karLnRdNext ( LnRd ) ) {
                 RCt = karLnRdGet ( LnRd, & Line );
                 if ( RCt == 0 ) {
-                    RCt = _scmDepotTrnMake ( & Trn, Line );
-                    if ( RCt == 0 ) {
-                        RCt = BSTreeInsert (
-                                & ( self -> _trans ),
-                                & ( Trn -> _node ),
-                                _scmDepotLoadTransformsProcessCallback
-                                );
+                    if ( ! _scmDepotTrnEmptyLine ( Line ) ) {
+                        RCt = _scmDepotTrnMake ( & Trn, Line );
+                        if ( RCt == 0 ) {
+                            RCt = BSTreeInsert (
+                                    & ( self -> _trans ),
+                                    & ( Trn -> _node ),
+                                    _scmDepotLoadTransformsProcessCallback
+                                    );
+                        }
                     }
-
                     free ( ( char * ) Line );
                 }
 

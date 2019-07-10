@@ -272,8 +272,8 @@ static char* StringCheck(const String *self, rc_t rc) {
     return NULL;
 }
 
-static
-bool _StringIsXYZ(const String *self, const char **withoutScheme, const char * scheme, size_t scheme_size)
+static bool _StringIsXYZ(const String *self, const char **withoutScheme,
+    const char * scheme, size_t scheme_size)
 {
     const char *dummy = NULL;
 
@@ -308,11 +308,13 @@ bool _SchemeIsFasp(const String *self) {
 }
 
 /********** KFile extension **********/
-static
-rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
-                      bool reliable)
+static rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns,
+    const VPath *vpath, const String *path, bool reliable)
 {
     rc_t rc = 0;
+
+    bool ceRequired = false;
+    bool payRequired = false;
 
     assert(self);
 
@@ -325,9 +327,12 @@ rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
         return
             SILENT_RC ( rcExe, rcFile, rcConstructing, rcParam, rcWrongType );
 
+    VPathGetCeRequired(vpath, &ceRequired);
+    VPathGetPayRequired(vpath, &payRequired);
+
     if ( reliable )
-        /*TODO: supply ceRequired and payRequired */
-        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, true, false, false, "%S", path);
+        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, true,
+            ceRequired, payRequired, "%S", path);
     else
         rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
 
@@ -1260,7 +1265,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
     if (!mane->dryRun) {
         if (in == NULL) {
-            rc = _KFileOpenRemote(&in, mane->kns, & src, !self->isUri);
+            rc = _KFileOpenRemote(&in, mane->kns, NULL, & src, !self->isUri);
             if (rc != 0 && !self->isUri)
                 PLOGERR(klogInt, (klogInt, rc, "failed to open file "
                     "'$(path)'", "path=%S", & src));
@@ -1340,7 +1345,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 }
 
 static rc_t MainDownloadCacheFile(Resolved *self,
-                                  Main *mane, const char *to, bool elimQuals)
+                        Main *mane, const char *to, bool elimQuals)
 {
     rc_t rc = 0;
     const KFile *out = NULL;
@@ -1356,8 +1361,8 @@ static rc_t MainDownloadCacheFile(Resolved *self,
     assert(remote -> str);
 
     if (self->file == ((void*)0)) {
-        rc = _KFileOpenRemote(&self->file, mane->kns, remote -> str,
-                              !self->isUri);
+        rc = _KFileOpenRemote(&self->file, mane->kns,
+            remote->path, remote -> str, !self->isUri);
         if (rc != 0) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
                               "path=%S", remote -> str));
@@ -1458,7 +1463,7 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
 }
 
 static rc_t MainDoDownload(Resolved *self, const Item * item,
-                        bool isDependency, const VPath * path, const char * to)
+            bool isDependency, const VPath * path, const char * to)
 {
     bool canceled = false;
     rc_t rc = 0;
@@ -1759,7 +1764,8 @@ static rc_t MainDownload(Resolved *self, const Item * item,
     return rc;
 }
 
-static rc_t _VDBManagerSetDbGapCtx(const VDBManager *self, VResolver *resolver)
+static rc_t _VDBManagerSetDbGapCtx(
+    const VDBManager *self, VResolver *resolver)
 {
     if (resolver == NULL) {
         return 0;
@@ -2144,7 +2150,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 bool reliable = ! resolved->isUri;
                 assert ( remote );
                 rc3 = _KFileOpenRemote(&resolved->file, kns,
-                    remote -> str, reliable);
+                    remote->path, remote -> str, reliable);
                 if ( !resolved->isUri )
                     DISP_RC2(rc3, "cannot open remote file",
                                 remote -> str->addr);
@@ -2169,10 +2175,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             assert ( remote -> str );
             if (!_StringIsFasp(remote -> str, NULL)) {
                 rc2 = _KFileOpenRemote(&resolved->file, kns,
-                    remote -> str, !resolved->isUri);
+                    remote->path, remote -> str, !resolved->isUri);
             }
         }
-        if (rc2 == 0 && resolved->file != NULL && resolved->remoteSz == 0) {
+        if (rc2 == 0 && resolved->file != NULL
+            && resolved->remoteSz == 0)
+        {
             rc2 = KFileSize(resolved->file, &resolved->remoteSz);
             DISP_RC2(rc2, "KFileSize(remote)", resolved->name);
         }

@@ -26,6 +26,8 @@
 
 /********** includes **********/
 
+#include <cloud/manager.h> /* CloudMgrMake */
+
 #include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
@@ -1304,23 +1306,48 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         ver_t http_vers = 0x01010000;
         KClientHttpRequest * kns_req = NULL;
 
-        if ( reliable )
-            rc = KNSManagerMakeReliableClientRequest ( mane -> kns,
-                & kns_req, http_vers, NULL, "%S", & src );
+        bool ceRequired = false;
+        bool payRequired = false;
+        const String * ce_token = NULL;
+
+        VPathGetCeRequired(path, &ceRequired);
+        VPathGetPayRequired(path, &payRequired);
+
+        if (ceRequired) {
+            CloudMgr * m = NULL;
+            Cloud * cloud = NULL;
+            rc_t rc = CloudMgrMake(&m, NULL, NULL);
+            if (rc == 0)
+                rc = CloudMgrGetCurrentCloud(m, &cloud);
+            if (rc == 0)
+                CloudMakeComputeEnvironmentToken(cloud, &ce_token);
+            RELEASE(Cloud, cloud);
+            RELEASE(CloudMgr, m);
+        }
+
+        if (reliable)
+            if (ceRequired && ce_token != NULL)
+                rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                    &kns_req, http_vers, NULL, "%S&ident=%S", &src, ce_token);
+            else
+                rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                    &kns_req, http_vers, NULL, "%S", &src);
         else
-            rc = KNSManagerMakeClientRequest ( mane -> kns,
-                & kns_req, http_vers, NULL, "%S", & src );
+            if (ceRequired && ce_token != NULL)
+                rc = KNSManagerMakeClientRequest(mane->kns,
+                    &kns_req, http_vers, NULL, "%S&ident=%S", &src, ce_token);
+            else
+                rc = KNSManagerMakeClientRequest ( mane -> kns,
+                    & kns_req, http_vers, NULL, "%S", & src );
         DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest", src . addr );
+
+        RELEASE(String, ce_token);
 
         if ( rc == 0 ) {
             KClientHttpResult * rslt = NULL;
-            bool ceRequired = false;
-            bool payRequired = false;
 
-            VPathGetCeRequired(path, &ceRequired);
-            VPathGetPayRequired(path, &payRequired);
-
-            KHttpRequestSetCloudParams(kns_req, ceRequired, payRequired);
+            if (payRequired)
+                KHttpRequestSetCloudParams(kns_req, ceRequired, payRequired);
 
             rc = KClientHttpRequestGET ( kns_req, & rslt );
             DISP_RC2 ( rc, "Cannot KClientHttpRequestGET", src . addr );

@@ -487,12 +487,18 @@ _scmDepotLoadTransformsProcessCallback (
                                     const struct BSTNode * R
 )
 {
-    /*  JOJOBA !!!! implement different comparision
-     */
-    return strcmp (
-                    ( ( struct scmDepotTrn * ) L ) -> _name_old,
-                    ( ( struct scmDepotTrn * ) R ) -> _name_old
-                    );
+    struct scmDepotTrn * lT = ( struct scmDepotTrn * ) L;
+    struct scmDepotTrn * rT = ( struct scmDepotTrn * ) R;
+
+    const char * lC = lT == NULL
+                ? ""
+                : ( lT -> _name_old == NULL ? "" : lT -> _name_old )
+                ;
+    const char * rC = rT == NULL
+                ? ""
+                : ( rT -> _name_old == NULL ? "" : rT -> _name_old )
+                ;
+    return strcmp ( lC, rC );
 }   /* _scmDepotLoadTransformsProcessCallback () */
 
 static

@@ -223,12 +223,18 @@ static
 int64_t
 _compareEntries ( const BSTNode * left, const BSTNode * right )
 {
-            /*  JOJOBA : very dangerous ...
-             */
-    return strcmp (
-                ( ( struct karChiveEntry * ) left ) -> _name,
-                ( ( struct karChiveEntry * ) right ) -> _name
-                );
+    struct karChiveEntry * lE = ( struct karChiveEntry * ) left;
+    struct karChiveEntry * rE = ( struct karChiveEntry * ) right;
+
+    const char * lC = lE == NULL
+                        ? ""
+                        : ( lE -> _name == NULL ? "" : lE -> _name )
+                        ;
+    const char * rC = rE == NULL
+                        ? ""
+                        : ( rE -> _name == NULL ? "" : rE -> _name )
+                        ;
+    return strcmp ( lC, rC );
 }   /* _compareEntries () */
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
@@ -1088,8 +1094,8 @@ _karCVecRealloc ( struct karCVec * self, uint32_t Qty )
     return RCt;
 }   /* _karCVecRealloc () */
 
-    /*  JOJOBA: do not free Token ... It becames a property of vector
-     */
+/*  NOTE: do not try to free Token ... it belong to vector now
+ */
 static
 rc_t
 _karCVecAdd ( struct karCVec * self, const char * Token )
@@ -1748,7 +1754,8 @@ _karChiveSetSources ( struct karChive * self )
     return 0;
 }   /* _karChiveSetSources () */
 
-/*  JOJOBA: dangerous method ... debug only
+/*  WARNING: that method does not check size of buffers B1 and B2
+ *           they are pretty big enough
  */
 static
 rc_t
@@ -1820,7 +1827,8 @@ _karChiveEntryMakePath (
     return RCt;
 }   /* _karChiveEntryMakePath () */
 
-/*  JOJOBA: dangerous method ... debug only
+/*  WARNING: that method does not check size of buffer B1
+ *           it is pretty big enough
  */
 static
 rc_t
@@ -3623,12 +3631,6 @@ _karChiveMetaNodesToEditCallbackCallback ( BSTNode * Node, void * Data )
             _karChiveEntryPath ( Entry, Buf, sizeof ( Buf ) );
             strcat ( Buf, "/" );
             strcat ( Buf, MD_CUR_NODE_PATH );
-
-                /*  I suspect if that can not be resolved, it could
-                 *  be an error. I should think about it
-                 *  JOJOBA - ask if here could be table without
-                 *  metadata
-                 */
             edtPlotAdd ( ( struct edtPlot * ) Data, Buf, false );
         }
     }
@@ -4688,10 +4690,6 @@ _karChiveWriterSortFilesCallback (
                                 struct karChiveFile * Right
 )
 {
-        /*  JOJOBA: we do not check if left or right for NULL.
-         *      Not our problem
-         */
-
     return Left -> _new_byte_size - Right -> _new_byte_size;
 }   /* _karChiveWriterSortFilesCallback () */
 
@@ -5238,8 +5236,8 @@ _karChiveCheckFileOrderSortCallback (
                                 struct karChiveFile * Right
 )
 {
-        /*  JOJOBA: we do not check if left or right for NULL.
-         *      Not our problem
+        /*  WARNING: we do not check if left or right for NULL.
+         *           Not our problem
          */
     return ( Left -> _byte_offset - Right -> _byte_offset == 0 )
                 ? ( Left -> _byte_size - Right -> _byte_size )
@@ -5376,8 +5374,6 @@ _karChiveCheckQualityRemoved ( const struct karChive * self )
         return RC ( rcApp, rcArc, rcValidating, rcSelf, rcNull );
     }
 
-/*  JOJOBA - check if we really need that check here
- */
     if ( self -> _is_454_style ) {
         KOutMsg ( "454 style archive : quality removed check skipped ...\n" );
         pLogMsg ( klogInfo, "454 style archive : quality removed check skipped ...\n", "" );

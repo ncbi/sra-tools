@@ -23,5 +23,14 @@ NCBI:SRA:tbl:spotdesc_nophys	1.0.2	1.1
 NCBI:WGS:tbl:nucleotide	1.1	2
 NCBI:align:tbl:reference	2	3
 NCBI:align:tbl:seq	1.1	2
+NCBI:align:tbl:seq	1	2
 NCBI:refseq:tbl:reference	1.0.2	2
 NCBI:tbl:base_space	2.0.3	3
+NCBI:SRA:GenericFastq:sequence	1	2.0
+NCBI:SRA:GenericFastq:sequence_nanopore	1	2.0
+NCBI:SRA:GenericFastq:sequence_no_name	1	2.0
+NCBI:SRA:Illumina:tbl:phred:v2	1.0.3	2
+NCBI:SRA:Nanopore:sequence	1	2.0
+NCBI:SRA:PacBio:smrt:cons	1.0.2	2.0
+NCBI:SRA:PacBio:smrt:sequence	1.0.2	2.0
+NCBI:SRA:_454_:tbl:v2	1.0.6	2

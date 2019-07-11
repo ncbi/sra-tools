@@ -34,8 +34,6 @@ extern "C" {
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  That file represents SCHEMA parsing and editing
  *
- *  Das JOJOBA!
- *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 struct karChiveScm;
 struct KMetadata;

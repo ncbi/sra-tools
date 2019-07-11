@@ -509,7 +509,7 @@ sub resolveAccessionURLs($)
                             , 'source' => 'local'
                             , 'needCE' => FALSE
                             , 'needPmt' => FALSE
-                            , 'size' => -s $_[0]
+                            , 'size' => (-s $_[0])
                             , 'cache' => ''
                         },
                         'vdbcache' => undef

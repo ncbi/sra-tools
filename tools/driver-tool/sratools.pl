@@ -236,6 +236,7 @@ FMT
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
             
+            DEBUG $run, $vdbcache;
             LOG 1, sprintf("accession: %s, ce_token: %s, data: {local: '%s', remote: '%s', cache: '%s', need ce: %s, need pmt: %s}, vdbcache: {%s}"
                             , $acc
                             , $ce_token // 'null'

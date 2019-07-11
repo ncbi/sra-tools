@@ -1279,9 +1279,9 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
     assert ( src . addr );
 
-    if (!mane->dryRun) {
+    if (!mane->dryRun && mane->stripQuals) {
         if (in == NULL) {
-            rc = _KFileOpenRemote(&in, mane->kns, NULL, & src, !self->isUri);
+            rc = _KFileOpenRemote(&in, mane->kns, path, & src, !self->isUri);
             if (rc != 0 && !self->isUri)
                 PLOGERR(klogInt, (klogInt, rc, "failed to open file "
                     "'$(path)'", "path=%S", & src));

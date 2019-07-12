@@ -47,7 +47,8 @@ SRRF=$(SRAI):data/sracloud/traces/sra4/SRR/000003/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
-runtests: urls_and_accs out_dir_and_file s-option truncated
+runtests: urls_and_accs out_dir_and_file s-option
+# TODO truncated IS DISABLED
 
 ################################################################################
 urls_and_accs:
@@ -323,7 +324,7 @@ urls_and_accs:
              exit 1 ; \
 	    fi
 
-	@echo vdbcache download
+	@echo vdbcache download IS TURNED OFF: TODO
 	@rm tmp/sra/*
 	@if ls `pwd`/tmp/sra/SRR998743.sra 2> /dev/null ; \
 		then echo SRR998743.sra found ; exit 1; fi
@@ -332,7 +333,7 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 		$(BINDIR)/prefetch SRR998743 > /dev/null
 	@ls `pwd`/tmp/sra/SRR998743.sra          > /dev/null 
-	@ls `pwd`/tmp/sra/SRR998743.sra.vdbcache > /dev/null
+	@echo TURNED OFF: TODO: ls `pwd`/tmp/sra/SRR998743.sra.vdbcache > /dev/null
 
 	@rm -r tmp*
 

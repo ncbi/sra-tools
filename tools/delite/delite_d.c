@@ -633,7 +633,7 @@ karChiveMMapDSMake (
             RCt = KMMapAddrRead ( Map, & MapAddr );
             if ( RCt == 0 ) {
                 if ( MapSize < Offset + Size ) {
-                    RCt = RC ( rcApp, rcData, rcAllocating, rcSize, rcNull );
+                    RCt = RC ( rcApp, rcData, rcInflating, rcFormat, rcCorrupt );
                 }
                 else {
                     RCt = _karChiveRamFileDSMake (

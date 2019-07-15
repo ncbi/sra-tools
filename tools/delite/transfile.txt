@@ -1,3 +1,4 @@
+#original by Kenneth
 NCBI:SRA:GenericFastq:consensus_nanopore	1.0	2.0
 NCBI:SRA:GenericFastq:sequence	1.0	2.0
 NCBI:SRA:GenericFastq:sequence_log_odds	1.0	2
@@ -26,6 +27,8 @@ NCBI:align:tbl:seq	1.1	2
 NCBI:align:tbl:seq	1	2
 NCBI:refseq:tbl:reference	1.0.2	2
 NCBI:tbl:base_space	2.0.3	3
+
+#added first pass
 NCBI:SRA:GenericFastq:sequence	1	2.0
 NCBI:SRA:GenericFastq:sequence_nanopore	1	2.0
 NCBI:SRA:GenericFastq:sequence_no_name	1	2.0
@@ -34,3 +37,9 @@ NCBI:SRA:Nanopore:sequence	1	2.0
 NCBI:SRA:PacBio:smrt:cons	1.0.2	2.0
 NCBI:SRA:PacBio:smrt:sequence	1.0.2	2.0
 NCBI:SRA:_454_:tbl:v2	1.0.6	2
+
+#added second pass
+NCBI:SRA:GenericFastq:consensus_nanopore	1	2
+NCBI:SRA:GenericFastq:sequence_log_odds	1	2
+NCBI:SRA:Helicos:tbl:v2	1.0.3	2
+NCBI:SRA:Nanopore:consensus	1	2

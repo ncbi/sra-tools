@@ -1702,6 +1702,11 @@ _karChiveEntryForEach (
     }
 }   /* _karChiveEntryForEach () */
 
+struct chivesAndRC {
+    struct karChive * _chive;
+    rc_t _rc;
+};
+
 static
 void CC
 _karChiveSetSourcesCallback (
@@ -1709,31 +1714,50 @@ _karChiveSetSourcesCallback (
                             void * Data
 )
 {
+    struct chivesAndRC * Chives;
     struct karChive * Chive;
     struct karChiveFile * File;
 
-    Chive = Data;
+    Chives = Data;
+    Chive = Chives -> _chive;
     File = NULL;
+
+    if ( Chives -> _rc != 0 ) {
+        return;
+    }
 
     if ( Data == NULL ) {
             /*  there is nothing to do ... don't know what to do here
              */
+        Chives -> _rc =
+                RC ( rcApp, rcData, rcInflating, rcParam, rcNull );
         return;
     }
 
     if ( Entry -> _type == kptFile ) {
         File = ( struct karChiveFile * ) Entry;
 
-            /*  Another situation when I do not know what to do
-             *  Should Produce error
-             */
-        karChiveMMapDSMake (
+        if ( Chive -> _map_size < File -> _byte_offset + File -> _byte_size ) {
+            Chives -> _rc =
+                RC ( rcApp, rcData, rcInflating, rcFormat, rcCorrupt );
+        }
+        else {
+            if ( File -> _byte_size != 0 ) {
+                    /*  Another situation when I do not know what to do
+                     *  Should Produce error
+                     */
+                Chives -> _rc = karChiveMMapDSMake (
                             & ( File -> _data_source ),
                             Chive -> _map,
                             _karChiveDataOffset ( Chive )
                                                 + File -> _byte_offset,
                             File -> _byte_size
                             );
+            }
+            else {
+                File -> _data_source = NULL;
+            }
+        }
     }
 }   /* _karChiveSetSourcesCallback () */
 
@@ -1741,17 +1765,23 @@ static
 rc_t CC
 _karChiveSetSources ( struct karChive * self )
 {
+    struct chivesAndRC Chives;
+    memset ( & Chives, 0, sizeof ( struct chivesAndRC ) );
+
     if ( self == NULL ) {
         return RC ( rcApp, rcPath, rcConverting, rcSelf, rcNull );
     }
 
+    Chives . _chive = self;
+    Chives . _rc = 0;
+
     _karChiveEntryForEach (
                         ( const struct karChiveEntry * ) self -> _root,
                         _karChiveSetSourcesCallback,
-                        self
+                        & Chives
                         );
 
-    return 0;
+    return Chives . _rc;
 }   /* _karChiveSetSources () */
 
 /*  WARNING: that method does not check size of buffers B1 and B2

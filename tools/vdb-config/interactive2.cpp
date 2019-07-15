@@ -700,12 +700,10 @@ class vdbconf_view2 : public Dlg
                                 model.does_user_accept_aws_charges(),   /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
 
-#if 0
             y += 2;
             PopulateCheckbox( CB_rect( r, y ), resize, AWS_REPORT_ID, "&report cloud instance identity",
                                 model.report_cloud_instance_identity(),   /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
-#endif
 
             y += 2;
             PopulateLabel( lbl1_rect( r, y ), resize, AWS_KEY_ID, "credentials:",
@@ -735,12 +733,10 @@ class vdbconf_view2 : public Dlg
                                 model.does_user_accept_gcp_charges(), /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
 
-#if 0                                
             y += 2;
             PopulateCheckbox( CB_rect( r, y ), resize, GCP_REPORT_ID, "&report cloud instance identity",
                                 model.report_cloud_instance_identity(),   /* model-connection */
                                 CB_COLOR_BG, CB_COLOR_FG, page_id );
-#endif
 
             y += 2;
             PopulateLabel( lbl1_rect( r, y ), resize, GCP_KEY_ID, "credentials:",

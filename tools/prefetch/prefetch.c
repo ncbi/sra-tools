@@ -1745,7 +1745,7 @@ static rc_t MainDownload(Resolved *self, const Item * item,
                         item->number, self->name));
                     if (MainDownload(self, item, isDependency, vdbcache) == 0)
                         STSMSG(STS_TOP, (
-                            "%di.2) '%s.vdbcache' was downloaded successfully",
+                            "%d.2) '%s.vdbcache' was downloaded successfully",
                             item->number, self->name));
                     else
                         STSMSG(STS_TOP, ("%d) failed to download %s.vdbcache",

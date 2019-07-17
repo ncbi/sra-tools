@@ -324,16 +324,16 @@ urls_and_accs:
              exit 1 ; \
 	    fi
 
-	@echo vdbcache download IS TURNED OFF: TODO
+	@echo vdbcache download
 	@rm tmp/sra/*
-	@if ls `pwd`/tmp/sra/SRR998743.sra 2> /dev/null ; \
-		then echo SRR998743.sra found ; exit 1; fi
-	@if ls `pwd`/tmp/sra/SRR998743.sra.vdbcache 2> /dev/null ; \
-		then echo SRR998743.sra.vdbcache found ; exit 1; fi
+	@if ls `pwd`/tmp/sra/SRR6667190.sra 2> /dev/null ; \
+		then echo SRR6667190.sra found ; exit 1; fi
+	@if ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache 2> /dev/null ; \
+		then echo SRR6667190.sra.vdbcache found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		$(BINDIR)/prefetch SRR998743 > /dev/null
-	@ls `pwd`/tmp/sra/SRR998743.sra          > /dev/null 
-	@echo TURNED OFF: TODO: ls `pwd`/tmp/sra/SRR998743.sra.vdbcache > /dev/null
+		$(BINDIR)/prefetch SRR6667190 > /dev/null
+	@ls `pwd`/tmp/sra/SRR6667190.sra          > /dev/null 
+	@ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache > /dev/null
 
 	@rm -r tmp*
 
@@ -499,7 +499,7 @@ out_dir_and_file:
 #	@ echo
 
 	@ echo PREFETCH HTTP DIRECTORY URL TO OUT-DIR
-	@ rm -fv index.html
+	@ rm -f index.html
 	@ if ls `pwd`/tmp3/dir/index.html 2> /dev/null ; \
       then echo index.html found ; exit 1 ; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

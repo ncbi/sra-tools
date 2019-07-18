@@ -1661,7 +1661,7 @@ static rc_t MainDownload(Resolved *self, const Item * item,
         KStsLevel lvl = STS_DBG;
         if (mane->dryRun)
             lvl = STAT_USR;
-        STSMSG(lvl, ("#################### cache(%S)", & cache));
+        STSMSG(lvl, ("########## cache(%S)", & cache));
     }
 
     if (mane->force != eForceYES &&
@@ -2253,12 +2253,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     const VPathStr * remote = NULL;
 
-    KStsLevel lvl = STS_DBG;
-
     assert(self && self->mane);
-
-    if (self->mane->dryRun)
-        lvl = STAT_USR;
 
     resolved = &self->resolved;
     resolved->name = ItemName(self);
@@ -2319,15 +2314,6 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         remote = & resolved -> remoteHttps;
     else if ( resolved -> remoteFasp . path != NULL )
         remote = & resolved -> remoteFasp;
-
-    STSMSG(lvl, ("########## Resolve(%s) = %R:", resolved->name, rc));
-    STSMSG(lvl, ("local(%s)",
-        resolved->local.str ? resolved->local.str->addr : "NULL"));
-    STSMSG(lvl, ("cache(%s)",
-        resolved->cache ? resolved->cache->addr : "NULL"));
-    STSMSG(lvl, ("remote(%s:%,ld)",
-        remote && remote -> str ? remote -> str->addr : "NULL",
-        resolved->remoteSz));
 
     if (rc == 0) {
         if (resolved->remoteSz >= self->mane-> maxSize) {
@@ -2536,7 +2522,7 @@ static rc_t ItemDownload(Item *item) {
         KStsLevel lvl = STS_DBG;
         if (item->mane->dryRun)
             lvl = STAT_USR;
-        STSMSG(lvl, ("#################### local(%s)",
+        STSMSG(lvl, ("########## local(%s)",
             self->local.str ? self->local.str->addr : "NULL"));
     }
 

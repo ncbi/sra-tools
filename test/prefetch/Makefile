@@ -47,8 +47,7 @@ SRRF=$(SRAI):data/sracloud/traces/sra4/SRR/000003/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
-runtests: urls_and_accs out_dir_and_file s-option
-# TODO truncated IS DISABLED
+runtests: urls_and_accs out_dir_and_file s-option truncated
 
 ################################################################################
 urls_and_accs:

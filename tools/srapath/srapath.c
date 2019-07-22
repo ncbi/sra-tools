@@ -81,6 +81,10 @@ static const char * func_usage[] = { "function to perform "
 #define OPTION_FUNC   "function"
 #define ALIAS_FUNC    "f"
 
+static const char * locn_usage[] = { "location of data", NULL };
+#define OPTION_LOCN   "location"
+#define ALIAS_LOCN    NULL
+
 static const char * path_usage[]
  = { "print path of object: names function-only", NULL };
 #define OPTION_PATH   "path"
@@ -107,6 +111,7 @@ static const char * url_usage[] = { "url to be used for cgi-calls", NULL };
 OptDef ToolOptions[] =
 {                                                    /* needs_value, required */
     { OPTION_FUNC   , ALIAS_FUNC   , NULL, func_usage   ,   1,  true,   false },
+    { OPTION_LOCN   , ALIAS_LOCN   , NULL, locn_usage   ,   1,  true,   false },
     { OPTION_TIMEOUT, ALIAS_TIMEOUT, NULL, timeout_usage,   1,  true,   false },
     { OPTION_PROTO  , ALIAS_PROTO  , NULL, proto_usage  ,   1,  true,   false },
     { OPTION_VERS   , ALIAS_VERS   , NULL, vers_usage   ,   1,  true,   false },
@@ -178,18 +183,21 @@ rc_t CC Usage( const Args *args )
 }
 
 
-static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const char * pc )
+static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
+    const char * pc, const char * location )
 {
     bool found = true;
     rc_t rc = 0;
 
-    uint32_t s = string_measure ( pc, NULL );
-    if ( s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { /* SRP or SRX */
+/*  uint32_t s = string_measure ( pc, NULL ); */
+    if ( true ) { /* s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { SRP or SRX */
         KService * service = NULL;
         found = false;
         rc = KServiceMake ( & service );
         if ( rc == 0 )
             rc = KServiceAddId ( service, pc );
+        if (rc == 0 && location != NULL)
+            rc = KServiceSetLocation(service, location);
         if ( rc == 0 ) {
             VRemoteProtocols protocol = eProtocolHttps;
             const KSrvResponse * response = NULL;
@@ -366,6 +374,8 @@ static rc_t resolve_arguments( Args * args )
                 rc_t r2 = 0;
                 uint32_t idx;
 
+                const char * location = get_str_option(args, OPTION_LOCN, NULL);
+
                 rc = ArgsOptionCount ( args, OPTION_PROTO, & idx );
                 if ( rc == 0 && idx == 0 )
                     rc = ArgsOptionCount ( args, OPTION_VERS, & idx );
@@ -390,7 +400,7 @@ static rc_t resolve_arguments( Args * args )
                     if ( rc != 0 )
                         LOGERR( klogInt, rc, "failed to retrieve parameter value" );
                     else {
-                        rc_t rx = resolve_one_argument( mgr, resolver, pc );
+                        rc_t rx = resolve_one_argument( mgr, resolver, pc, location );
                         if ( rx != 0 && r2 == 0)
                             r2 = rx;
                     }
@@ -443,6 +453,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
             r->names_url  = get_str_option( args, OPTION_URL, NULL );
             r->names_ver  = get_str_option( args, OPTION_VERS, NULL );
             r->proto      = get_str_option( args, OPTION_PROTO, DEF_PROTO );
+            r->location   = get_str_option( args, OPTION_LOCN, NULL );
             r->search_url = NULL;
             r->search_ver = NULL;
             

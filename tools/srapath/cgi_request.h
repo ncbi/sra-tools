@@ -49,6 +49,7 @@ typedef struct request_params
     const char * names_ver;     /* NULL ... default vers */
     const char * search_ver;    /* NULL ... default vers */
     const char * proto;
+    const char * location;      /* data location */
     uint32_t * projects;
     const char ** params;       /* NULL ... none */
     const char ** terms;        /* mandatory... NULL-terminated list of terms */

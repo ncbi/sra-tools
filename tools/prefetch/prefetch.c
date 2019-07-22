@@ -222,6 +222,7 @@ typedef struct {
 
     bool dryRun; /* Dry run the app: don't download, only check resolving */
 
+    const char * location; /* do not free! */
     const char * outDir;  /* do not free! */
     const char * outFile; /* do not free! */
     const char * orderOrOutFile; /* do not free! */
@@ -606,6 +607,9 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     if (rc == 0 && item->mane ->fileType != NULL)
         rc = KServiceSetFormat(service, item->mane->fileType);
+
+    if (rc == 0 && item->mane->location != NULL)
+        rc = KServiceSetLocation(service, item->mane->location);
 
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
@@ -3383,6 +3387,10 @@ static const char* FAIL_ASCP_USAGE[] = {
 #define LIST_ALIAS  "l"
 static const char* LIST_USAGE[] = { "List the content of a kart file", NULL };
 
+#define LOCN_OPTION "location"
+#define LOCN_ALIAS  NULL
+static const char* LOCN_USAGE[] = { "Location of data", NULL };
+
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
 static const char* NM_L_USAGE[] =
@@ -3464,6 +3472,7 @@ static OptDef OPTIONS[] = {
     /*                                          max_count needs_value required*/
  { TYPE_OPTION        , TYPE_ALIAS        , NULL, TYPE_USAGE  , 1, true, false }
 ,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
+,{ LOCN_OPTION        , LOCN_ALIAS        , NULL, LOCN_USAGE  , 1, true, false }
 ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
 ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
 ,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
@@ -3598,6 +3607,25 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             self->list_kart_sized = true;
         }
 /******* LIST OPTIONS END ********/
+
+option_name = LOCN_OPTION;
+        {
+            rc = ArgsOptionCount(self->args, option_name, &pcount);
+            if (rc != 0) {
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Failure to get '$(opt)' argument", "opt=%s", option_name));
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(self->args,
+                    option_name, 0, (const void **)&self->location);
+                if (rc != 0) {
+                    PLOGERR(klogInt, (klogInt, rc, "Failure to get "
+                        "'$(opt)' argument value", "opt=%s", option_name));
+                    break;
+                }
+            }
+        }
 
 /* ASCP_OPTION */
         rc = ArgsOptionCount(self->args, ASCP_OPTION, &pcount);

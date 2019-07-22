@@ -629,6 +629,13 @@ static rc_t names_request_1 (  const request_params * request
         }
     }
     
+    if (rc == 0 && request->location != NULL) {
+        rc = KServiceSetLocation(service, request->location);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot sel location '$(l)'", "l=%s", request->location));
+    }
+
     if ( rc == 0 && request -> proto != NULL )
         protocols = parseProtocol ( request -> proto, & rc );
     

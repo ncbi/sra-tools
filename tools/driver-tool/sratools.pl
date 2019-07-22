@@ -925,6 +925,7 @@ RUNNING_AS_PREFETCH:
         '-?' => '--help',
     );
     my %param_has_arg = (
+        '--type' => TRUE,
         '--transport' => TRUE,
         '--min-size' => TRUE,
         '--max-size' => TRUE,

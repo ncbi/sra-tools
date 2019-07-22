@@ -86,7 +86,7 @@ sub getRAMLimit($);
 ### We should document this
 ### We can consider the value from the environment
 $ENV{VDB_MEM_LIMIT} = getRAMLimit($ENV{VDB_MEM_LIMIT});
-LOG 1, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
+LOG 2, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 
@@ -209,7 +209,7 @@ sub processAccessions($$$$\@@)
     my $overrideOutputFile = FALSE;
     my @runs = expandAllAccessions(@_);
     
-    LOG 0, "running $toolname on ".join(' ', @runs);
+    LOG 1, "running $toolname on ".join(' ', @runs);
     
     if (@runs > 1 && $unsafeOutputFile && parameterValue($unsafeOutputFile, $params)) {
         # since we know the user asked that normal tool output go to a file,
@@ -223,7 +223,7 @@ FMT
         $overrideOutputFile = TRUE;
         deleteParameterAndValue($unsafeOutputFile, $params);
     }
-    LOG 0, 'with parameters: '.join(' ', @$params) if @$params;
+    LOG 1, 'with parameters: '.join(' ', @$params) if @$params;
     
     $ENV{VDB_DRIVER_RUN_COUNT} = ''.scalar(@runs);
     foreach (0 .. $#runs) {
@@ -236,6 +236,7 @@ FMT
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
             
+            LOG 0, sprintf("trying %s from %s", $acc, $run->{'source'});
             LOG 1, sprintf("accession: %s, ce_token: %s, data: {local: '%s', remote: '%s', cache: '%s', need ce: %s, need pmt: %s}, vdbcache: {%s}"
                             , $acc
                             , $ce_token // 'null'
@@ -283,12 +284,12 @@ FMT
                 (($? >> 8), ($? & 0x7F), ($? & 0x80) != 0)
             };
             if ($exitcode == 0 && $signal == 0) { # SUCCESS! process the next run
-                LOG 0, sprintf("Processed %s", $acc);
+                LOG 1, sprintf("Processed %s", $acc);
                 last
             }
             last if $exitcode == 0 && $signal == 0; # SUCCESS! process the next run
             die sprintf('%s (PID %u) was killed [%s (%u)] (%s core dump was generated)', $toolname, $kid, SignalName($signal), $signal, $cored ? 'a' : 'no') if $signal;
-            LOG 0, sprintf("%s (PID %u) quit with exit code %u", $toolname, $kid, $exitcode);
+            LOG 1, sprintf("%s (PID %u) quit with exit code %u", $toolname, $kid, $exitcode);
             exit $exitcode unless $exitcode == EXIT_CODE_TRY_NEXT_SOURCE; # it's an error we can't handle
         }
     }
@@ -311,8 +312,8 @@ sub processAccessionsNoResolver($$\@@)
     my $params = shift;
     my @runs = expandAllAccessions(@_);
 
-    LOG 0, "running $toolname on ".join(' ', @runs);
-    LOG 0, 'with parameters: '.join(' ', @$params) if @$params;
+    LOG 1, "running $toolname on ".join(' ', @runs);
+    LOG 1, 'with parameters: '.join(' ', @$params) if @$params;
 
     exec {$toolpath} $0, @$params, @runs;
     die "can't exec $toolname: $!";
@@ -521,7 +522,7 @@ sub resolveAccessionURLs($)
         , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
         , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL, $_[0]);
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
-    LOG 1, join(' ', $toolpath, @tool_args);
+    LOG 2, join(' ', $toolpath, @tool_args);
     my $json = do {
         my ($output, $exitcode) = do {
             use open qw{ :encoding(UTF-8) };
@@ -593,7 +594,7 @@ sub parseExperimentXML($$\%)
         my $acc = $_->findvalue('@acc');
         $submitter = $acc;
         next if $_[2]->{'submitter'}->{$acc};
-        LOG 1, "Found Submitter: $acc";
+        LOG 2, "Found Submitter: $acc";
         $_[2]->{'submitter'}->{$acc} = {
             'accession' => $acc,
             'center' => $_->findvalue('@center_name') // '',
@@ -605,7 +606,7 @@ sub parseExperimentXML($$\%)
         my $acc = $_->findvalue('@acc');
         $experiment = $acc;
         next if $_[2]->{'experiment'}->{$acc};
-        LOG 1, "Found Experiment: $acc";
+        LOG 2, "Found Experiment: $acc";
         $_[2]->{'experiment'}->{$acc} = {
             'accession' => $acc,
             'ver' => $_->findvalue('@ver') // '',
@@ -617,7 +618,7 @@ sub parseExperimentXML($$\%)
         my $acc = $_->findvalue('@acc');
         $study = $acc;
         next if $_[2]->{'study'}->{$acc};
-        LOG 1, "Found Study: $acc";
+        LOG 2, "Found Study: $acc";
         $_[2]->{'study'}->{$acc} = {
             'accession' => $acc,
             'name' => $_->findvalue('@name') // '',
@@ -627,7 +628,7 @@ sub parseExperimentXML($$\%)
         my $acc = $_->findvalue('@taxid');
         $organism = $acc;
         next if $_[2]->{'organism'}->{$acc};
-        LOG 1, "Found Organism: $acc";
+        LOG 2, "Found Organism: $acc";
         $_[2]->{'organism'}->{$acc} = {
             'taxid' => $acc,
             'name' => $_->findvalue('@ScientificName') // '',
@@ -637,7 +638,7 @@ sub parseExperimentXML($$\%)
         my $acc = $_->findvalue('@acc');
         $sample = $acc;
         next if $_[2]->{'sample'}->{$acc};
-        LOG 1, "Found Sample: $acc";
+        LOG 2, "Found Sample: $acc";
         $_[2]->{'sample'}->{$acc} = {
             'accession' => $acc,
             'name' => $_->findvalue('@name') // '',
@@ -676,7 +677,7 @@ sub getRunInfo($@)
 GET_RESPONSE:
     my $res = $ua->get($url);
     unless ($res->is_success) {
-        LOG 0, 'Got '.$res->code.' from eutils';
+        LOG 1, 'Got '.$res->code.' from eutils';
         if ($res->code eq '429') {
             if ($tries > 0) {
                 LOG 1, 'retrying after a short wait';
@@ -689,7 +690,7 @@ GET_RESPONSE:
         die $res->status_line;
     }
 
-    LOG 3, $res->content;
+    LOG 4, $res->content;
     my $obj = decode_json $res->content or die "unexpected response from eutils";
     my $result = $obj->{result} or die "unexpected response from eutils";
     DEBUG $result;
@@ -703,7 +704,7 @@ GET_RESPONSE:
         my $frag = $parser->parse_balanced_chunk($runs) or die "invalid response; unparsable run XML";
         for my $run ($frag->findnodes('Run')) {
             my $acc = $run->findvalue('@acc') or next;
-            LOG 1, "Found Run: $acc";
+            LOG 2, "Found Run: $acc";
             my $loaded = $run->findvalue('@load_done');
             my $public = $run->findvalue('@is_public');
             push @{$response{'runs'}}, {
@@ -1058,23 +1059,23 @@ sub parseArgvOldStyle(\@\@\%\%@)
     @$params = ();
     @$args = ();
     
-    LOG 1, 'old form args parsing';
+    LOG 3, 'old form args parsing';
     while (@_) {
         my $param;
         
-        LOG 4, "arg: $_[0]";
+        LOG 5, "arg: $_[0]";
         if ($_[0] !~ /^-/) {
-            LOG 4, "ordinary argument";
+            LOG 5, "ordinary argument";
             local $_ = shift;
             push @$args, $_;
             next;
         }
         if ($_[0] =~ /^--/) {
-            LOG 4, "long form";
+            LOG 5, "long form";
             $param = shift;
         }
         else {
-            LOG 4, "short form";
+            LOG 5, "short form";
             local $_ = shift;
             $param = $longArg->{$_};
             LOG(0, 'invalid arg $_ or missing conversion to long form') unless $param;
@@ -1084,7 +1085,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
         return FALSE if $param eq '--help';
         if (exists $hasArg->{$param}) {
             if ($hasArg->{$param}) {
-                LOG 4, 'argument is required';
+                LOG 5, 'argument is required';
                 LOG(0, 'argument is missing!') unless @_;
                 return FALSE unless @_;
                 local $_ = shift;
@@ -1092,7 +1093,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
                 next;
             }
             elsif (@_ && $_[0] !~ /^-/) {
-                LOG 4, 'has optional argument';
+                LOG 5, 'has optional argument';
                 local $_ = shift;
                 push @$params, $param, $_;
                 next;
@@ -1102,7 +1103,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
         # optional argument wasn't given
         push @$params, $param;
     }
-    LOG 4, 'parameters:', @$params;
+    LOG 5, 'parameters:', @$params;
     return TRUE;
 }
 
@@ -1159,7 +1160,7 @@ sub parseOptionsFile($)
         $token .= $_;
         $esc = 0;
     }
-    LOG 4, 'parsed from options file '.$_[0].':', @rslt;
+    LOG 5, 'parsed from options file '.$_[0].':', @rslt;
     return @rslt;
 }
 
@@ -1193,7 +1194,7 @@ sub parseArgv($\@\@\%\%@)
     @$params = ();
     @$args = ();
     
-    LOG 1, 'normal form args parsing';
+    LOG 3, 'normal form args parsing';
     while (@_) {
         LOG 4, "arg: $_[0]";
         unless ($_[0] =~ /^-/) {
@@ -1273,7 +1274,7 @@ sub parseArgv($\@\@\%\%@)
         push @fparams, { param => $param, arg => undef };
     }
     if (@fparams > 10) {
-        LOG 1, "more than 10 parameters(+arguments); using options file";
+        LOG 4, "more than 10 parameters(+arguments); using options file";
         my $fh;
         ($fh, $paramsFile) = tempfile();
         binmode $fh, ':utf8';
@@ -1372,7 +1373,7 @@ sub which($)
     my $cached = exists $which_mem{$_[0]};
     my $result = $cached ? $which_mem{$_[0]} : sandwich_versioned($_[0]);
     $which_mem{$_[0]} = $result unless $cached;
-    LOG 3, sprintf('found %s for %s (%s)', $result // '???', $_[0], $cached ? 'cached' : 'first time');
+    LOG 4, sprintf('found %s for %s (%s)', $result // '???', $_[0], $cached ? 'cached' : 'first time');
     return $result;
 }
 
@@ -1796,12 +1797,12 @@ sub getRAMLimit($)
     my $memTotal;
     
     if ($config{'OS'} eq 'linux') {
-        LOG 3, 'trying /proc/meminfo then sysctl';
+        LOG 4, 'trying /proc/meminfo then sysctl';
         # try proc/meminfo then try sysctl
         $memTotal = proc_meminfo_MemTotal() // sysctl_MemTotal();
     }
     else {
-        LOG 3, 'trying sysctl then /proc/meminfo';
+        LOG 4, 'trying sysctl then /proc/meminfo';
         $memTotal = sysctl_MemTotal() // proc_meminfo_MemTotal();
     }
     return ((0+$memTotal) >> 2) if $memTotal; #default to 1/4 total RAM

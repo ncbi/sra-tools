@@ -977,6 +977,7 @@ RUNNING_AS_SRAPATH:
     );
     my %param_has_arg = (
         '--function' => TRUE,
+        '--location' => TRUE,
         '--timeout' => TRUE,
         '--protocol' => TRUE,
         '--vers' => TRUE,

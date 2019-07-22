@@ -927,6 +927,7 @@ RUNNING_AS_PREFETCH:
     my %param_has_arg = (
         '--type' => TRUE,
         '--transport' => TRUE,
+        '--location' => TRUE,
         '--min-size' => TRUE,
         '--max-size' => TRUE,
         '--force' => TRUE,

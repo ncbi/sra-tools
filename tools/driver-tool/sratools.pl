@@ -92,11 +92,17 @@ goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 
 delete $ENV{$_} for qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_REMOTE_NEED_CE VDB_REMOTE_NEED_PMT VDB_CACHE_URL VDB_CACHE_NEED_CE VDB_CACHE_NEED_PMT VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
+# prefetch and srapath will handle --location themselves
+goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
+
+sub findLocation();
+my $location = findLocation();
+
+# these functions don't know location or need it
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
 goto RUNNING_AS_SAM_DUMP        if $basename =~ /^sam-dump/;
-goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
-goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
 goto RUNNING_AS_SRA_PILEUP      if $basename =~ /^sra-pileup/;
 
 sub usage();
@@ -124,69 +130,14 @@ sub which($);
 
 my $paramsFile;
 END {
-    LOG(0, "unlinking params file") if $paramsFile;
+    LOG(1, "unlinking params file") if $paramsFile;
     unlink $paramsFile if $paramsFile;
 }
 
-### \brief: search parameter array for a parameter and return its index
-###
-### NB. this function assumes the parameter array has been
-###   validated and canonicalized by the parseArgv function
-###
-### \param: query, e.g. '--output-file'
-### \param: params, parameter array
-###
-### \returns: the parameter index or undef
-sub findParameter($@)
-{
-    for my $i (1 .. $#_) {
-        return $i - 1 if $_[$i] eq $_[0];
-    }
-    undef
-}
-
-### \brief: search parameter array for a parameter and return its value
-###
-### NB. this function assumes the parameter array has been
-###   validated and canonicalized by the parseArgv function
-###
-### \param: query, e.g. '--output-file'
-### \param: params, by ref parameter array
-###
-### \returns: the parameter value or undef
-sub parameterValue($$)
-{
-    if (defined(my $i = findParameter($_[0], @{$_[1]}))) {
-        return $_[1]->[$i + 1]
-    }
-    undef
-}
-
-### \brief: search parameter array for a parameter and remove it and its value
-###
-### NB. this function assumes the parameter array has been
-###   validated and canonicalized by the parseArgv function
-###
-### \param: query, e.g. '--output-file'
-### \param: params, by ref parameter array
-sub deleteParameterAndValue($$)
-{
-    if (defined(my $i = findParameter($_[0], @{$_[1]}))) {
-        splice @{$_[1]}, $i, 2;
-    }
-}
-
-### \brief: search parameter array for a parameter
-###
-### NB. this function assumes the parameter array has been
-###   validated and canonicalized by the parseArgv function
-###
-### \param: query, e.g. '--output-file'
-### \param: params, by ref parameter array
-sub hasParameter($$)
-{
-    defined findParameter($_[0], @{$_[1]})
-}
+sub findParameter($@);
+sub parameterValue($$);
+sub deleteParameterAndValue($$);
+sub hasParameter($$);
 
 ### \brief: runs tool on list of accessions
 ###
@@ -236,7 +187,7 @@ FMT
         foreach (@sources) {
             my ($run, $vdbcache) = @$_{'run', 'vdbcache'};
             
-            LOG 0, sprintf("trying %s from %s", $acc, $run->{'local'} ? $run->{'local'} : $run->{'source'});
+            LOG 0, sprintf("Reading %s from %s", $acc, $run->{'local'} ? 'local file system' : $run->{'source'});
             LOG 1, sprintf("accession: %s, ce_token: %s, data: {local: '%s', remote: '%s', cache: '%s', need ce: %s, need pmt: %s}, vdbcache: {%s}"
                             , $acc
                             , $ce_token // 'null'
@@ -317,6 +268,91 @@ sub processAccessionsNoResolver($$\@@)
 
     exec {$toolpath} $0, @$params, @runs;
     die "can't exec $toolname: $!";
+}
+
+### \brief: find (and remove) location parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub findLocation()
+{
+    my $result = undef;
+    for my $i (0 .. $#ARGV) {
+        local $_ = $ARGV[$i];
+        next unless /^--location/;
+        if ($_ eq '--location') {
+            (undef, $result) = splice @ARGV, $i, 2;
+            die "location parameter requires a value" unless $result;
+            LOG 0, "Requesting data from $result";
+            last;
+        }
+        elsif (/^--location=(.+)/) {
+            $result = $1;
+            LOG 0, "Requesting data from $result";
+            splice @ARGV, $i, 1;
+            last;
+        }
+    }
+    $result
+}
+
+### \brief: search parameter array for a parameter and return its index
+###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
+###
+### \param: query, e.g. '--output-file'
+### \param: params, parameter array
+###
+### \returns: the parameter index or undef
+sub findParameter($@)
+{
+    for my $i (1 .. $#_) {
+        return $i - 1 if $_[$i] eq $_[0];
+    }
+    undef
+}
+
+### \brief: search parameter array for a parameter and return its value
+###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
+###
+### \param: query, e.g. '--output-file'
+### \param: params, by ref parameter array
+###
+### \returns: the parameter value or undef
+sub parameterValue($$)
+{
+    if (defined(my $i = findParameter($_[0], @{$_[1]}))) {
+        return $_[1]->[$i + 1]
+    }
+    undef
+}
+
+### \brief: search parameter array for a parameter and remove it and its value
+###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
+###
+### \param: query, e.g. '--output-file'
+### \param: params, by ref parameter array
+sub deleteParameterAndValue($$)
+{
+    if (defined(my $i = findParameter($_[0], @{$_[1]}))) {
+        splice @{$_[1]}, $i, 2;
+    }
+}
+
+### \brief: search parameter array for a parameter
+###
+### NB. this function assumes the parameter array has been
+###   validated and canonicalized by the parseArgv function
+###
+### \param: query, e.g. '--output-file'
+### \param: params, by ref parameter array
+sub hasParameter($$)
+{
+    defined findParameter($_[0], @{$_[1]})
 }
 
 ### \brief: runs tool --help
@@ -520,7 +556,10 @@ sub resolveAccessionURLs($)
     
     my @tool_args = ('srapath', qw{ --function names --json }
         , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
-        , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL, $_[0]);
+        , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL);
+    push @tool_args, ('--location', $location) if $location;
+    push @tool_args, $_[0];
+
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
     LOG 2, join(' ', $toolpath, @tool_args);
     my $json = do {

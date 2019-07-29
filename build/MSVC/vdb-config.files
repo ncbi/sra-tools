@@ -3,8 +3,9 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\tools\vdb-config\configure.cpp" />  
     <ClCompile Include="..\..\..\tools\vdb-config\util.cpp" />  
-    <ClCompile Include="..\..\..\tools\vdb-config\vdb-config.c" />  
-    <ClCompile Include="..\..\..\tools\vdb-config\interactive.cpp" />  
+    <ClCompile Include="..\..\..\tools\vdb-config\vdb-config.c" />
+    <ClCompile Include="..\..\..\tools\vdb-config\interactive.cpp" />
+    <ClCompile Include="..\..\..\tools\vdb-config\interactive2.cpp" />
     <ClCompile Include="..\..\..\tools\vdb-config\vdb-config-model.cpp" />  
   </ItemGroup>
 </Project>

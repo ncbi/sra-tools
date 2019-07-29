@@ -214,6 +214,7 @@ FMT
                 $ENV{VDB_SIZE_URL} = $run->{'size'} > 0 ? (''.$run->{'size'}) : '';
                 $ENV{VDB_REMOTE_NEED_CE} = '1' if $run->{'needCE'};
                 $ENV{VDB_REMOTE_NEED_PMT} = '1' if $run->{'needPmt'};
+                $ENV{VDB_REMOTE_VDBCACHE} = '';
                 if ($vdbcache) {
                     $ENV{VDB_REMOTE_VDBCACHE} = $vdbcache->{'url'};
                     $ENV{VDB_CACHE_VDBCACHE} = $vdbcache->{'cache'};

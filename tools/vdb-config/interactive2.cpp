@@ -645,10 +645,13 @@ class vdbconf_view2 : public Dlg
             PopulateCheckbox( use_repo_rect( r, y ), resize, MAIN_USE_REMOTE_ID, "&Enable Remote Access",
                               model.is_remote_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
-            y += 2;
-            PopulateCheckbox( use_repo_rect( r, y ), resize, MAIN_USE_SITE_ID, "&Use Site Installation",
+            if ( model.does_site_repo_exist() )
+            {
+                y += 2;
+                PopulateCheckbox( use_repo_rect( r, y ), resize, MAIN_USE_SITE_ID, "&Use Site Installation",
                               model.is_site_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
+            }
         }
 
         // populate the CACHE page

@@ -119,13 +119,17 @@ class CConfigurator : CNoncopyable {
 
             m_Cfg . FixResolverCgiNodes ( );
 
+            bool noUser = false;
             rc = KRepositoryMgrUserRepositories(mgr, &repositories);
             if (rc == 0) {
                 uint32_t len = 0;
                 if (rc == 0)
                     len = VectorLength(&repositories);
-                if (len != 0) {
+                if (len == 0)
+                    noUser = true;
+                else {
                     uint32_t i = 0;
+                    noUser = true;
                     for (i = 0; i < len; ++i) {
                         KRepository *repo = static_cast<KRepository*>
                             (VectorGet(&repositories, i));
@@ -139,6 +143,7 @@ class CConfigurator : CNoncopyable {
                                 if (strcase_cmp(p, sizeof p - 1, name,
                                     size, sizeof name) == 0)
                                 {
+                                    noUser = false;
                                 }
                                 if (fix) {
                                     rc = m_Cfg.CreateUserRepository (name, fix);
@@ -164,6 +169,14 @@ class CConfigurator : CNoncopyable {
                     rc = 0;
                 }
                 KRepositoryVectorWhack(&repositories);
+            }
+            else if
+                (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
+            {
+                noUser = true;
+            }
+            if (noUser) {
+                rc = m_Cfg.CreateUserRepository();
             }
         }
         RELEASE(KRepositoryMgr, mgr);

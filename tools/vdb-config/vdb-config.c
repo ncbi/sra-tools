@@ -26,6 +26,8 @@
 
 #include "configure.h"
 
+#include <cloud/manager.h> /* CloudMgrRelease */
+
 #include <kapp/main.h>
 #include <kapp/args-conv.h>
 
@@ -149,6 +151,49 @@ static const char* USAGE_ROOT[] =
 #define OPTION_SET   "set"
 static const char* USAGE_SET[] = { "set configuration node value", NULL };
 
+#define ALIAS_C_IN  "C"
+#define OPTION_C_IN "cloud-info"
+static const char* USAGE_C_IN[]
+    = { "display cloud-releated information", NULL };
+
+#define ALIAS_C_RI  NULL
+#define OPTION_C_RI "report-cloud-identity"
+static const char* USAGE_C_RI[]
+    = { "give permission to report cloud instance identity", NULL };
+
+#define ALIAS_S3_C  NULL
+#define OPTION_S3_C "accept-aws-charges"
+static const char* USAGE_S3_C[]
+    = { "agree to accept charges for AWS usage", NULL };
+
+#define ALIAS_S3_F  NULL
+#define OPTION_S3_F "set-aws-credentials"
+static const char* USAGE_S3_F[] = { "select file with AWS credentials", NULL };
+
+#define ALIAS_S3_P  NULL
+#define OPTION_S3_P "set-aws-profile"
+static const char* USAGE_S3_P[] = { "set AWS profile", NULL };
+
+#define ALIAS_GS_C  NULL
+#define OPTION_GS_C "accept-gcp-charges"
+static const char* USAGE_GS_C[]
+= { "agree to accept charges for GCP usage", NULL };
+
+#define ALIAS_GS_F  NULL
+#define OPTION_GS_F "set-gcp-credentials"
+static const char* USAGE_GS_F[] = { "select file with GCP credentials", NULL };
+
+#define ALIAS_P_CW  NULL
+#define OPTION_P_CW "prefetch-to-cwd"
+static const char* USAGE_P_CW[] = { "prefetch downloads to "
+    "current directory when public user repository is set - default: false",
+    NULL };
+
+#define ALIAS_P_UR NULL
+#define OPTION_P_UR "prefetch-to-user-repo"
+static const char* USAGE_P_UR[] = { "prefetch downloads to "
+    "public user repository when it is set - default", NULL };
+
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
 {
     rc_t rc;
@@ -177,9 +222,19 @@ OptDef Options[] =
     , { OPTION_ENV, ALIAS_ENV, NULL, USAGE_ENV, 1, false, false, NULL }
     , { OPTION_FIL, ALIAS_FIL, NULL, USAGE_FIL, 1, false, false, NULL }
     , { OPTION_FIX, ALIAS_FIX, NULL, USAGE_FIX, 1, false, false, NULL }
-    , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false, ArgsConvFilepath }
+    , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false,
+                                                              ArgsConvFilepath }
     , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false, NULL }
     , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false, NULL }
+    , { OPTION_C_IN,ALIAS_C_IN,NULL, USAGE_C_IN,1, false, false, NULL }
+    , { OPTION_C_RI,ALIAS_C_RI,NULL, USAGE_C_RI,1, true , false, NULL }
+    , { OPTION_S3_C,ALIAS_S3_C,NULL, USAGE_S3_C,1, true , false, NULL }
+    , { OPTION_S3_F,ALIAS_S3_F,NULL, USAGE_S3_F,1, true , false, NULL }
+    , { OPTION_S3_P,ALIAS_S3_P,NULL, USAGE_S3_P,1, true , false, NULL }
+    , { OPTION_GS_F,ALIAS_GS_F,NULL, USAGE_GS_F,1, true , false, NULL }
+    , { OPTION_GS_C,ALIAS_GS_C,NULL, USAGE_GS_C,1, true , false, NULL }
+    , { OPTION_P_CW,ALIAS_P_CW,NULL, USAGE_P_CW,1, false, false, NULL }
+    , { OPTION_P_UR,ALIAS_P_UR,NULL, USAGE_P_UR,1, false, false, NULL }
     , { OPTION_PCF, ALIAS_PCF, NULL, USAGE_PCF, 1, false, false, NULL }
     , { OPTION_PRD, ALIAS_PRD, NULL, USAGE_PRD, 1, true , false, NULL }
     , { OPTION_PRX, ALIAS_PRX, NULL, USAGE_PRX, 1, true , false, NULL }
@@ -236,6 +291,17 @@ rc_t CC Usage(const Args* args) {
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_OUT, OPTION_OUT, "x | n", USAGE_OUT);
     KOutMsg ("\n");
+    HelpOptionLine(ALIAS_C_IN, OPTION_C_IN, NULL, USAGE_C_IN);
+    HelpOptionLine(ALIAS_C_RI, OPTION_C_RI, "yes | no", USAGE_C_RI);
+    HelpOptionLine(ALIAS_S3_C, OPTION_S3_C, "yes | no", USAGE_S3_C);
+    HelpOptionLine(ALIAS_S3_F, OPTION_S3_F, "path", USAGE_S3_F);
+    HelpOptionLine(ALIAS_S3_P, OPTION_S3_P, "profile", USAGE_S3_P);
+    HelpOptionLine(ALIAS_GS_C, OPTION_GS_C, "yes | no", USAGE_GS_C);
+    HelpOptionLine(ALIAS_GS_F, OPTION_GS_F, "path", USAGE_GS_F);
+    KOutMsg ("\n");
+    HelpOptionLine(ALIAS_P_CW, OPTION_P_CW, NULL, USAGE_P_CW);
+    HelpOptionLine(ALIAS_P_UR, OPTION_P_UR, NULL, USAGE_P_UR);
+    KOutMsg("\n");
     HelpOptionLine (ALIAS_PRX, OPTION_PRX, "uri[:port]", USAGE_PRX);
     HelpOptionLine (ALIAS_PRD, OPTION_PRD, "yes | no", USAGE_PRD);
     KOutMsg ("\n");
@@ -417,6 +483,12 @@ static rc_t KConfigNodePrintChildNames(bool xml, const KConfigNode* self,
     return rc;
 }
 
+typedef enum {
+    eNotSet,
+    eFalse,
+    eTrue
+} EState;
+
 typedef struct Params {
     Args* args;
     uint32_t argsParamIdx;
@@ -449,7 +521,18 @@ typedef struct Params {
         eYes
     } proxyDisabled;
     const char *proxy;
+
+    bool modeCloud; /* cloud-releated mode */
+    bool cloudInfo;
+    EState cloudReportIdentity;
+    EState s3AcceptCharges;
+    const char * s3Credentials;
+    const char * s3Profile;
+    EState gsAcceptCharges;
+    const char * gsCredentials;
+    EState prefetchToCwd;
 } Params;
+
 static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
     rc_t rc = 0;
     Args* args = NULL;
@@ -458,6 +541,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
     memset(prm, 0, sizeof *prm);
     args = prm->args;
     do {
+        const char* dummy = NULL;
         uint32_t pcount = 0;
         rc = ArgsMakeAndHandle2(&args, argc, argv, Parameters, sizeof Parameters / sizeof Parameters[0], 1, Options, sizeof Options / sizeof Options[0]);
         if (rc) {
@@ -484,7 +568,6 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 break;
             }
             if (pcount) {
-                const char* dummy = NULL;
                 rc = ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
                 if (rc) {
                     LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
@@ -752,6 +835,165 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 }
             }
         }
+/********************************* cloud begin ********************************/
+// OPTION_C_IN
+        {
+            rc = ArgsOptionCount(args, OPTION_C_IN, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_C_IN "' argument");
+                break;
+            }
+            if (pcount > 0)
+                prm->cloudInfo = prm->modeCloud = true;
+        }
+// OPTION_C_RI
+        {
+            rc = ArgsOptionCount(args, OPTION_C_RI, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_C_RI "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_C_RI, 0,
+                    (const void **)&dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_C_RI "' argument");
+                    break;
+                }
+                if (strncasecmp(dummy, "y", 1) == 0)
+                    prm->cloudReportIdentity = eTrue;
+                else
+                    prm->cloudReportIdentity = eFalse;
+                prm->modeCloud = true;
+            }
+        }
+// OPTION_GS_C
+        {
+            rc = ArgsOptionCount(args, OPTION_GS_C, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_GS_C "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_GS_C, 0,
+                    (const void **)&dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_GS_C "' argument");
+                    break;
+                }
+                if (strcasecmp(dummy, "yes") == 0)
+                    prm->gsAcceptCharges = eTrue;
+                else
+                    prm->gsAcceptCharges = eFalse;
+                prm->modeCloud = true;
+            }
+        }
+// OPTION_GS_F
+        {
+            rc = ArgsOptionCount(args, OPTION_GS_F, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_GS_F "' argument");
+                break;
+            }
+            if (pcount > 0)
+                rc = ArgsOptionValue(args, OPTION_GS_F, 0, (const void **)
+                    &prm->gsCredentials);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_GS_F "' argument");
+                break;
+            }
+        }
+// OPTION_S3_C
+        {
+            rc = ArgsOptionCount(args, OPTION_S3_C, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_S3_C "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_S3_C, 0,
+                    (const void **)&dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_S3_C "' argument");
+                    break;
+                }
+                if (!strcasecmp(dummy, "yes"))
+                    prm->s3AcceptCharges = eTrue;
+                else
+                    prm->s3AcceptCharges = eFalse;
+                prm->modeCloud = true;
+            }
+        }
+// OPTION_S3_F
+        {
+            rc = ArgsOptionCount(args, OPTION_S3_F, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_S3_F "' argument");
+                break;
+            }
+            if (pcount > 0)
+                rc = ArgsOptionValue(args, OPTION_S3_F, 0, (const void **)
+                    &prm->s3Credentials);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_S3_F "' argument");
+                break;
+            }
+        }
+// OPTION_S3_P
+        {
+            rc = ArgsOptionCount(args, OPTION_S3_P, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_S3_P "' argument");
+                break;
+            }
+            if (pcount > 0)
+                rc = ArgsOptionValue(args, OPTION_S3_P, 0, (const void **)
+                    &prm->s3Profile);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_S3_P "' argument");
+                break;
+            }
+        }
+// OPTION_P_UR
+        {
+            rc = ArgsOptionCount(args, OPTION_P_UR, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_P_UR "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                prm->prefetchToCwd = eFalse;
+                prm->modeCloud = true;
+            }
+        }
+// OPTION_P_CW
+        {
+            rc = ArgsOptionCount(args, OPTION_P_CW, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_P_CW "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                prm->prefetchToCwd = eTrue;
+                prm->modeCloud = true;
+            }
+        }
+/********************************* cloud end **********************************/
         {   // OPTION_ALL
             rc = ArgsOptionCount(args, OPTION_ALL, &pcount);
             if (rc) {
@@ -763,7 +1005,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                   && !prm->modeShowCfg && ! prm->modeShowLoadPath
                   && !prm->modeShowEnv && !prm->modeShowFiles
                   && !prm->modeShowModules && !prm->modeCreate
-                  && !prm->modeSetNode && prm->ngc == NULL
+                  && !prm->modeSetNode && !prm->modeCloud && prm->ngc == NULL
                   && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
                 /* show all by default */
             {
@@ -771,8 +1013,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 count += 2;
             }
         }
-
-        if (count > 1)  {
+        if (count > 1) {
             prm->showMultiple = true;
         }
     } while (false);
@@ -1613,6 +1854,255 @@ static rc_t ImportNgc(KConfig *cfg, Params *prm) {
     return rc;
 }
 
+static
+rc_t CloudSetReportIdentity(KConfig * cfg, EState value, bool * set) {
+    rc_t rc = 0;
+    if (value == eNotSet)
+        return rc;
+    rc = KConfig_Set_Report_Cloud_Instance_Identity(cfg, value == eTrue);
+    if (rc == 0) {
+        assert(set);
+        *set = true;
+    }
+    return rc;
+}
+
+static
+rc_t S3SetAcceptCharges(KConfig * cfg, EState value, bool * set) {
+    rc_t rc = 0;
+    if (value == eNotSet)
+        return rc;
+    rc = KConfig_Set_User_Accept_Aws_Charges(cfg, value == eTrue);
+    if (rc == 0) {
+        assert(set);
+        *set = true;
+    }
+    return rc;
+}
+
+static rc_t S3SetCredentialsFile(KConfig * cfg, const char * aValue,
+    bool * set)
+{
+    rc_t rc = 0;
+    const char * value = aValue;
+    if (value == NULL)
+        return rc;
+    if (value[0] == ' ' && value[1] == '\0')
+        value = "";
+    rc = KConfig_Set_Aws_Credential_File(cfg, value);
+    if (rc == 0) {
+        assert(set);
+        *set = true;
+    }
+    return rc;
+}
+
+static
+rc_t S3SetProfile(KConfig * cfg, const char * aValue, bool * set)
+{
+    rc_t rc = 0;
+    const char * value = aValue;
+    if (value == NULL)
+        return rc;
+    if (value[0] == ' ' && value[1] == '\0')
+        value = "";
+    rc = KConfig_Set_Aws_Profile(cfg, value);
+    if (rc == 0) {
+        assert(set);
+        *set = true;
+    }
+    return rc;
+}
+
+static
+rc_t GsSetAcceptCharges(KConfig * cfg, EState value, bool * set)
+{
+    rc_t rc = 0;
+    if (value == eNotSet)
+        return rc;
+    rc = KConfig_Set_User_Accept_Gcp_Charges(cfg, value == eTrue);
+    if (rc == 0) {
+        assert(set);
+        *set = true;
+    }
+    return rc;
+}
+
+static rc_t GsSetCredentialsFile(KConfig * cfg, const char * aValue,
+    bool * set)
+{
+    rc_t rc = 0;
+    const char * value = aValue;
+    if (value == NULL)
+        return rc;
+    if (value[0] == ' ' && value[1] == '\0')
+        value = "";
+    rc = KConfig_Set_Gcp_Credential_File(cfg, value);
+    if (rc == 0) {
+        assert(set);
+        *set = true;
+    }
+    return rc;
+}
+
+static
+rc_t SetPrefetchDownload(KConfig * cfg, EState value, bool * set)
+{
+    rc_t rc = 0;
+    if (value == eNotSet)
+        return rc;
+    rc = KConfig_Set_Prefetch_Download_To_Cache(cfg, value == eFalse);
+    if (rc == 0) {
+        assert(set);
+        *set = true;
+    }
+    return rc;
+}
+
+static rc_t CloudInfo(const KConfig * cfg, const Params * prm) {
+    bool value = false;
+    char buff[PATH_MAX] = "";
+
+    CloudMgr * mgr = NULL;
+    rc_t rc = CloudMgrMake(&mgr, cfg, NULL);
+
+    CloudProviderId cloud_provider = cloud_provider_none;
+    rc = CloudMgrCurrentProvider(mgr, &cloud_provider);
+
+    if (rc == 0 && cloud_provider != cloud_provider_none) {
+        OUTMSG((
+            "Cloud Environment:\n"
+            "Current Cloud: %s\n", CloudProviderAsString(cloud_provider)));
+    }
+
+    if (rc == 0)
+        OUTMSG(("Cloud Settings:\n\n"));
+
+    if (rc == 0 && cloud_provider != cloud_provider_none) {
+        rc = KConfig_Get_Report_Cloud_Instance_Identity(cfg, &value);
+        if (rc == 0)
+            OUTMSG(("Report Cloud Instance Identity: %s\n",
+                value ? "yes" : "no"));
+    }
+
+    if (rc == 0)
+        OUTMSG(("AWS:\n"));
+
+    if (rc == 0) {
+        rc = KConfig_Get_User_Accept_Aws_Charges(cfg, &value);
+        if (rc == 0)
+            OUTMSG(("  Accept Charges for AWS Usage: %s\n",
+                value ? "yes" : "no"));
+    }
+
+    if (rc == 0) {
+        rc = KConfig_Get_Aws_Credential_File(cfg, buff, sizeof buff, NULL);
+        if (rc == 0 && buff[0] != '\0')
+            OUTMSG(("  AWS Credentials File: '%s'\n", buff));
+        else if (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
+            rc = 0;
+    }
+
+    if (rc == 0) {
+        rc = KConfig_Get_Aws_Profile(cfg, buff, sizeof buff, NULL);
+        if (rc == 0)
+            OUTMSG(("  AWS Profile: '%s'\n", buff));
+    }
+
+    if (rc == 0)
+        OUTMSG(("\nGCP:\n"));
+
+    if (rc == 0) {
+        rc = KConfig_Get_User_Accept_Gcp_Charges(cfg, &value);
+        if (rc == 0)
+            OUTMSG(("  Accept Charges for CGP Usage: %s\n",
+                value ? "yes" : "no"));
+    }
+
+    if (rc == 0) {
+        rc = KConfig_Get_Gcp_Credential_File(cfg, buff, sizeof buff, NULL);
+        if (rc == 0 && buff[0] != '\0')
+            OUTMSG(("  GCP Credentials File: '%s'\n", buff));
+        else if (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
+            rc = 0;
+    }
+
+    if (rc == 0) {
+        OUTMSG(("\n\nTools:\n"));
+        rc = KConfig_Get_Prefetch_Download_To_Cache(cfg, &value);
+        if (rc == 0)
+            OUTMSG(("  Prefetch downloads to %s\n",
+                value
+                ? "Public User Repository when it is set\n"
+                : "Current Directory when Public User Repository is set\n"));
+    }
+
+    if (rc == 0)
+        OUTMSG(("\n"
+            "To change Cloud-related Settings run:\n"
+            "  vdb-config --interactive\n"
+            "\n"
+            "Cloud-related Command-Line Arguments:\n"
+            "  vdb-config --cloud-info\n\n"));
+    if (rc == 0 && cloud_provider != cloud_provider_none)
+        OUTMSG((
+            "  vdb-config --report-cloud-identity <yes|no>\n"));
+    if (rc == 0)
+        OUTMSG((
+          "  vdb-config --accept-aws-charges <yes|no>\n"
+          "  vdb-config --set-aws-credentials <Path to AWS Credentials File>\n"
+          "  vdb-config --set-aws-profile <AWS Profile>\n"
+          "  vdb-config --accept-gcp-charges <yes|no>\n"
+          "  vdb-config --set-gcp-credentials <Path to GCP Credentials File>\n"
+          "\n"
+          "  vdb-config --prefetch-to-cwd\n"
+          "  vdb-config --prefetch-to-user-repo\n"
+          "\n"
+          "  vdb-config --help\n"
+            ));
+
+    RELEASE(CloudMgr, mgr);
+
+    return rc;
+}
+
+static rc_t ProcessCloud(KConfig * cfg, const Params * prm) {
+    rc_t rc = 0;
+
+    bool set = false;
+
+    assert(prm);
+
+    if (rc == 0)
+        rc = CloudSetReportIdentity(cfg, prm->cloudReportIdentity, &set);
+
+    if (rc == 0)
+        rc = S3SetAcceptCharges(cfg, prm->s3AcceptCharges, &set);
+
+    if (rc == 0)
+        rc = S3SetCredentialsFile(cfg, prm->s3Credentials, &set);
+
+    if (rc == 0)
+        rc = S3SetProfile(cfg, prm->s3Profile, &set);
+
+    if (rc == 0)
+        rc = GsSetAcceptCharges(cfg, prm->gsAcceptCharges, &set);
+
+    if (rc == 0)
+        rc = GsSetCredentialsFile(cfg, prm->gsCredentials, &set);
+
+    if (rc == 0)
+        rc = SetPrefetchDownload(cfg, prm->prefetchToCwd, &set);
+
+    if (rc == 0 && set )
+        rc = KConfigCommit(cfg);
+
+    if (rc == 0 && prm->cloudInfo)
+        rc = CloudInfo(cfg, prm);
+
+    return rc;
+}
+
 rc_t CC KMain(int argc, char* argv[]) {
     rc_t rc = 0;
 
@@ -1718,6 +2208,12 @@ rc_t CC KMain(int argc, char* argv[]) {
             else if (rc == 0) {
                 rc = rc3;
             }
+        }
+
+        if (prm.modeCloud) {
+            rc_t r = ProcessCloud(cfg, &prm);
+            if (rc == 0 && r != 0)
+                rc = r;
         }
     }
 

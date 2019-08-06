@@ -186,13 +186,13 @@ static const char* USAGE_GS_F[] = { "select file with GCP credentials", NULL };
 #define ALIAS_P_CW  NULL
 #define OPTION_P_CW "prefetch-to-cwd"
 static const char* USAGE_P_CW[] = { "prefetch downloads to "
-    "current directory when public user repository is set - default: false",
+    "current directory when public user repository is set (default: false)",
     NULL };
 
 #define ALIAS_P_UR NULL
 #define OPTION_P_UR "prefetch-to-user-repo"
 static const char* USAGE_P_UR[] = { "prefetch downloads to "
-    "public user repository when it is set - default", NULL };
+    "public user repository when it is set (default)", NULL };
 
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
 {

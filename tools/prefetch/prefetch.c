@@ -651,20 +651,22 @@ static rc_t V_ResolverRemote(const VResolver *self,
                     break;
                 memset(&scheme, 0, sizeof scheme);
                 rc = VPathGetScheme(path, &scheme);
-                if (StringEqual(&scheme, &https))
-                    v = &resolved->remoteHttps;
-                else if (StringEqual(&scheme, &fasp)) {
-                    v = &resolved->remoteFasp;
-                    ascp = true;
+                if (rc == 0) {
+                    if (StringEqual(&scheme, &https))
+                        v = &resolved->remoteHttps;
+                    else if (StringEqual(&scheme, &fasp)) {
+                        v = &resolved->remoteFasp;
+                        ascp = true;
+                    }
+                    else if (StringEqual(&scheme, &http))
+                        v = &resolved->remoteHttp;
+                    assert(v);
+                    assert(path);
+                    if (v->path != NULL)
+                        continue;
+                    RELEASE(VPath, v->path);
+                    v->path = path;
                 }
-                else if (StringEqual(&scheme, &http))
-                    v = &resolved->remoteHttp;
-                assert ( v );
-                assert ( path );
-                if (v->path != NULL)
-                    continue;
-                RELEASE ( VPath, v -> path );
-                v -> path = path;
 
                 if ( rc == 0 ) {
                     char path [ PATH_MAX ] = "";
@@ -1941,6 +1943,75 @@ static char* ItemName(const Item *self) {
 }
 
 static
+rc_t ItemSetDependency(Item *self, const VDBDependencies *deps, uint32_t idx)
+{
+    Resolved * resolved = NULL;
+    const VPath * cache = NULL;
+    const VPath * remote = NULL;
+    rc_t cacheRc = 0;
+    rc_t remoteRc = 0;
+    rc_t rc = VDBDependenciesRemoteAndCache(deps, idx,
+        &remoteRc, &remote, &cacheRc, &cache);
+    assert(self);
+    resolved = &self->resolved;
+    if (rc == 0) {
+        if (remoteRc != 0)
+            rc = remoteRc;
+        else if (cacheRc != 0)
+            rc = cacheRc;
+        else {
+            VPathStr * v = NULL;
+            String fasp;
+            String http;
+            String https;
+            String scheme;
+            CONST_STRING(&fasp, "fasp");
+            CONST_STRING(&http, "http");
+            CONST_STRING(&https, "https");
+            memset(&scheme, 0, sizeof scheme);
+            rc = VPathGetScheme(remote, &scheme);
+            if (rc == 0) {
+                if (StringEqual(&scheme, &https))
+                    v = &resolved->remoteHttps;
+                else if (StringEqual(&scheme, &fasp)) {
+                    v = &resolved->remoteFasp;
+                }
+                else if (StringEqual(&scheme, &http))
+                    v = &resolved->remoteHttp;
+                assert(v && v->path == NULL);
+                v->path = remote;
+            }
+            if (rc == 0) {
+                char path[PATH_MAX] = "";
+                size_t len = 0;
+                rc = VPathReadUri(v->path,
+                    path, sizeof path, &len);
+                DISP_RC2(rc, "VPathReadUri(VResolverRemote)", resolved->name);
+                if (rc == 0) {
+                    String local_str;
+                    StringInit(&local_str, path, len, (uint32_t)len);
+                    assert(!v->str);
+                    rc = StringCopy(&v->str, &local_str);
+                    DISP_RC2(rc, "StringCopy(VResolverRemote)", resolved->name);
+                }
+            }
+            if (rc == 0) {
+                String path_str;
+                rc = VPathGetPath(cache, &path_str);
+                DISP_RC2(rc, "VPathGetPath(VResolverCache)", resolved->name);
+
+                if (rc == 0) {
+                    assert(!resolved->cache);
+                    rc = StringCopy(&resolved->cache, &path_str);
+                    DISP_RC2(rc, "StringCopy(VResolverCache)", resolved->name);
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+static
 rc_t _KartItemToVPath(const KartItem *self, const VFSManager *vfs, VPath **path)
 {
     uint64_t oid = 0;
@@ -2309,8 +2380,9 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         }
     }
 
-    rc = _ItemResolveResolved(resolver, protocols, self,
-        repoMgr, cfg, vfs, kns, self->mane->minSize, self->mane->maxSize);
+    if (!self->isDependency)
+        rc = _ItemResolveResolved(resolver, protocols, self,
+            repoMgr, cfg, vfs, kns, self->mane->minSize, self->mane->maxSize);
 
     if ( resolved -> remoteHttp . path != NULL )
         remote = & resolved -> remoteHttp;
@@ -2814,7 +2886,10 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
                 ResolvedReset(&ditem->resolved, eRunTypeDownload);
 
-                rc = ItemResolveResolvedAndDownloadOrProcess(ditem, 0);
+                rc = ItemSetDependency(ditem, deps, i);
+
+                if (rc == 0)
+                    rc = ItemResolveResolvedAndDownloadOrProcess(ditem, 0);
 
                 RELEASE(Item, ditem);
             }

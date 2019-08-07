@@ -94,7 +94,8 @@ urls_and_accs:
 	 if ping -c1 intranet > /dev/null ; then \
 	     $(BINDIR)/prefetch http://intranet/irb/support.shtml \
 	        | grep "found local" > /dev/null ; fi
-#	@echo
+
+	@rm support.shtml
 
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.shtml found ; exit 1; fi
@@ -154,10 +155,11 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) | grep "found local" > /dev/null
 
+	@echo prefetch $(REFSEQ) when there is no kfg
+	@rm -f KC702174.1
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(REFSEQ) 2> /dev/null ; \
-        then echo "prefetch $(SRR) when there is no kfg should fail" ; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch $(REFSEQ) > /dev/null
+	@rm KC702174.1
 
 	@echo '$(PUBLIC)/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg
 	@echo REFSEQ HTTP download when user repository is configured

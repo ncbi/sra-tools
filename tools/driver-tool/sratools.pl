@@ -389,19 +389,29 @@ sub expandAllAccessions(@)
         next if $seen{$_};
         $seen{$_} = TRUE;
         
-        # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
-        if (/^[DES]RR\d+$/) {
-            push @rslt, $_;
-            next;
-        }
         # check if it is a file
         if (-f) {
             push @rslt, $_;
             next;
         }
+        # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
+        if (/^[DES]RR\d+$/) {
+            push @rslt, $_;
+            next;
+        }
+        # check for run accessions with known extensions
+        if (/^[DES]RR\d+\.(.+)$/) {
+            my $ext = $1;
+            if ($ext =~ /^realign$/i) {
+                push @rslt, $_;
+                next;
+            }
+        }
         # see if it can be expanded into run accessions
         my @expanded = expandAccession($_);
         if (@expanded) {
+            # expanded accessions are push back on to the original list so that
+            # they can potentially be recursively expanded
             push @_, @expanded;
         }
         else {

@@ -264,7 +264,7 @@ urls_and_accs:
 	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
 
 	@echo prefetch run with refseqs
-	@rm -r `pwd`/SRR619505
+	@rm -fr `pwd`/SRR619505
 	@rm -fv `pwd`/tmp/sra/SRR619505.sra
 	@rm -fv `pwd`/tmp/refseq/NC_000005.8
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

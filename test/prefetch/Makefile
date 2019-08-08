@@ -56,25 +56,25 @@ urls_and_accs:
 	@echo 'foo = "bar"' > tmp/t.kfg
 
 	@echo prefetch URL-1 when there is no kfg
-	@echo TODO # export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    #$(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 
 	@echo prefetch URL-2/2 when there is no kfg
 	@rm -f index.html
-	@echo TODO # export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    ##(BINDIR)/prefetch https://github.com/ncbi/ >/dev/null
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch https://github.com/ncbi/ >/dev/null
 
 	@echo prefetch URL-2/1 when there is no kfg
-	@echo TODO #xport VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    #if ping -c1 intranet > /dev/null ; then \
-#	       $(BINDIR)/prefetch http://intranet/ >/dev/null ; \
-#	    fi
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    if ping -c1 intranet > /dev/null ; then \
+	       $(BINDIR)/prefetch http://intranet/ >/dev/null ; \
+	    fi
 
 	@echo prefetch URL-2/3 when there is no kfg
-	@echo TODO #xport VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-#	    if ping -c1 intranet > /dev/null ; then \
-#	     $(BINDIR)/prefetch http://intranet/irb/support.shtml  >/dev/null; \
-#	    fi
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    if ping -c1 intranet > /dev/null ; then \
+	     $(BINDIR)/prefetch http://intranet/irb/support.shtml  >/dev/null; \
+	    fi
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
 	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
@@ -95,7 +95,7 @@ urls_and_accs:
 	     $(BINDIR)/prefetch http://intranet/irb/support.shtml \
 	        | grep "found local" > /dev/null ; fi
 
-	@rm -f support.shtml
+	@rm support.shtml
 
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.shtml found ; exit 1; fi
@@ -139,9 +139,9 @@ urls_and_accs:
 	    $(BINDIR)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
 
 	@echo prefetch $(SRR) when there is no kfg
-	@echo TODO export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    #$(BINDIR)/prefetch $(SRR) > /dev/null
-	@rm -f $(SRAC)
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch $(SRR) > /dev/null
+	@rm -r $(SRAC)
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
@@ -157,9 +157,9 @@ urls_and_accs:
 
 	@echo prefetch $(REFSEQ) when there is no kfg
 	@rm -f KC702174.1
-	@echo TODO xport VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    #$(BINDIR)/prefetch $(REFSEQ) > /dev/null
-	@rm -f KC702174.1
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch $(REFSEQ) > /dev/null
+	@rm KC702174.1
 
 	@echo '$(PUBLIC)/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg
 	@echo REFSEQ HTTP download when user repository is configured

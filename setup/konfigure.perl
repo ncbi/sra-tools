@@ -377,7 +377,7 @@ if ($TOOLS =~ /gcc$/) {
 } elsif ($TOOLS eq 'clang') {
     $CPP  = 'clang++' unless ($CPP);
     $CC   = 'clang -c';
-    my $versionMin = '-mmacosx-version-min=10.6';
+    my $versionMin = '-mmacosx-version-min=10.10';
     $CP   = "$CPP -c $versionMin";
     if ($BITS ne '32_64') {
         $ARCH_FL = '-arch i386' if ($BITS == 32);
@@ -562,7 +562,7 @@ foreach my $href (@REQ) {
                     ++$has_option{sources};
                 }
                 my ($fi, $fl, $fil, $fs)
-                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
+                    = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);

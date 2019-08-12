@@ -28,7 +28,7 @@ use constant {
 };
 use constant {
     DEFAULT_RESOLVER_VERSION => '130',
-    DEFAULT_RESOLVER_URL => 'https://trace.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve'
+    DEFAULT_RESOLVER_URL => 'https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve'
 };
 
 # if SRATOOLS_DEBUG is truthy, then DEBUG ... will print

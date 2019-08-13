@@ -23,3 +23,11 @@
 /.pydevproject
 *.stash
 tmp.kfg
+/build/MSVC/2017/.vs/sra-tools/v15
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.ipch
+ipch/
+.vs

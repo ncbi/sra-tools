@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project=".\test-project.props" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1FFE966A-6DFA-9E14-2542-7C693F1B9BCC}</ProjectGuid>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SRATOOLS_TARGET)lib\vcf-loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="..\test-vcf-loader.files" />
+  <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
+    <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="..\..\..\test\vcf-loader\" />
+  </Target>
+</Project>

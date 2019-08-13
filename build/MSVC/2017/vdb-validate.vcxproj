@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>  
+  
+  <Import Project="..\vdb-validate.files" />
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{446C2DD3-36B3-4B27-8415-951F98346E99}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

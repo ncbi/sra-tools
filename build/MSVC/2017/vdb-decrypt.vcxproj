@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>    
+  
+  <Import Project="..\vdb-decrypt.files" />
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E4824F7B-4698-4F9B-85B1-AEFD6A81F957}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

@@ -10,8 +10,6 @@ use IO::File;
 use File::Spec;
 use File::Temp qw{ tempfile };
 use JSON::PP;
-use LWP;
-use URI;
 use XML::LibXML;
 use Data::Dumper;
 
@@ -596,25 +594,66 @@ sub resolveAccessionURLs($)
     ($json->{'CE-Token'}, extract_from_srapath($_[0], @{$json->{'responses'}}));
 }
 
-use constant EUTILS_URL => URI->new('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/');
+use URI;
 
 ### \brief: run a query with eutils
 ###
-### \param: the LWP::UserAgent
+### \param: the function to perform
+### \param: query parameters
+###
+### \return: the content of the response
+sub queryEUtilsViaCurl($$)
+{
+    my $tries = 3;
+    my $curl = which('curl') or die "no curl in PATH";
+    my $url = do {
+        my $uri = URI->new("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/$_[0].fcgi");
+        $uri->query_form(%{$_[1]});
+        $uri->as_string
+    };
+
+RETRY:
+    my ($output, $exitcode) = do {
+        use open qw{ :encoding(UTF-8) };
+        my $kid = open(my $pipe, '-|') // die "can't fork: $!";
+
+        if ($kid == 0) {
+            exec {$curl} $curl, qw{ --location --header "Accept-Charset: UTF-8" --silent --fail }, $url;
+            die "can't exec curl: $!";
+        }
+        my $output = do { local $/; <$pipe> }; # slurp
+        close($pipe);
+        my $exitcode = $?;
+        ($output, $exitcode)
+    };
+    return $output if $exitcode == 0;
+    if ($tries > 0) {
+        LOG 1, 'retrying query a short wait';
+        sleep 1 * (4 - $tries);
+        $tries -= 1;
+        goto RETRY;
+    }
+    die "failed to retrieve result\n";
+}
+
+sub queryEUtils($$)
+{
+    goto &queryEUtilsViaCurl;
+}
+
+### \brief: run a query with eutils
+###
 ### \param: the search term
 ###
 ### \return: array of matching IDs
-sub queryEUtils($$)
+sub esearch($)
 {
-    my $ua = shift;
     my $query = shift;
     my $isAccession = $query =~ m/^[DES]R[APRSX]\d+/;
-    my $url = URI->new_abs('esearch.fcgi', EUTILS_URL);
-    $url->query_form(retmax => $isAccession ? 200 : 20, retmode => 'json', db => 'sra', term => $query);
-
-    my $res = $ua->get($url); die $res->status_line unless $res->is_success;
-
-    my $obj = decode_json $res->content;
+    my $content = queryEUtils('esearch', {
+        retmax => $isAccession ? 200 : 20,
+        retmode => 'json', db => 'sra', term => $query });
+    my $obj = decode_json $content;
     my $result = $obj->{esearchresult} or die "unexpected response from eutils";
     my $idlist = $result->{idlist} or die "unexpected response from eutils";
     
@@ -638,7 +677,7 @@ sub parseExperimentXML($$\%)
 {
     my ($submitter, $experiment, $study, $organism, $sample, $bioProject, $bioSample);
     my $exp = unescapeXML($_[1]);
-    LOG 2, $exp;
+    LOG 3, $exp;
 
     my $frag = $_[0]->parse_balanced_chunk($exp) or die "invalid response; unparsable XML: $exp";
     for ($frag->findnodes('Submitter')) {
@@ -703,11 +742,10 @@ sub parseExperimentXML($$\%)
 
 ### \brief: get Run Info for list of IDs
 ###
-### \param: the LWP::UserAgent
 ### \param: the IDs
 ###
 ### \return: array of Run Info
-sub getRunInfo($@)
+sub getRunInfo(@)
 {
     my %response = (
         'submitter' => {},
@@ -717,41 +755,23 @@ sub getRunInfo($@)
         'experiment' => {},
         'runs' => []
     );
-    my $ua = shift;
     return \%response unless @_;
     
     my $parser = XML::LibXML->new( no_network => 1, no_blanks => 1 );
-    my $url = URI->new_abs('esummary.fcgi', EUTILS_URL);
-    $url->query_form(retmode => 'json', db => 'sra', id => join(',', @_));
+    my $content = queryEUtils('esummary', { retmode => 'json', db => 'sra', id => join(',', @_)});
 
-    my $tries = 3;
-GET_RESPONSE:
-    my $res = $ua->get($url);
-    unless ($res->is_success) {
-        LOG 1, 'Got '.$res->code.' from eutils';
-        if ($res->code eq '429') {
-            if ($tries > 0) {
-                LOG 1, 'retrying after a short wait';
-                sleep 1 * (4 - $tries);
-                $tries -= 1;
-                goto GET_RESPONSE;
-            }
-            LOG 1, 'no retries left';
-        }
-        die $res->status_line;
-    }
-
-    LOG 4, $res->content;
-    my $obj = decode_json $res->content or die "unexpected response from eutils";
+    LOG 4, $content;
+    my $obj = decode_json $content or die "unexpected response from eutils";
     my $result = $obj->{result} or die "unexpected response from eutils";
     DEBUG $result;
 
     for (@_) {
         my $obj = $result->{$_} or die "unexpected response from eutils: no result ID $_";
-        my $runs = unescapeXML($obj->{runs}) or die "unexpected response from eutils: no run XML for ID $_";
         my ($submitter, $experiment, $study, $organism, $sample, $bioProject, $bioSample)
            = parseExperimentXML($parser, $obj->{expxml}, %response);
 
+        my $runs = unescapeXML($obj->{runs}) or die "unexpected response from eutils: no run XML for ID $_";
+        LOG 3, $runs;
         my $frag = $parser->parse_balanced_chunk($runs) or die "invalid response; unparsable run XML";
         for my $run ($frag->findnodes('Run')) {
             my $acc = $run->findvalue('@acc') or next;
@@ -782,10 +802,7 @@ GET_RESPONSE:
 ### \return: array of run accessions
 sub expandAccession($)
 {
-    my $ua = LWP::UserAgent->new( agent => 'sratoolkit ($$)'
-                                , parse_head => 0
-                                , ssl_opts => { verify_hostname => 0 } );
-    return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo($ua, queryEUtils($ua, $_[0]))->{'runs'}};
+    return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo(esearch($_[0]))->{'runs'}};
 }
 
 RUNNING_AS_FASTQ_DUMP:
@@ -1439,11 +1456,8 @@ sub info(@)
     help('info') unless @_;
     
     my $before = '';
-    my $ua = LWP::UserAgent->new( agent => 'sratoolkit ($$)'
-                                , parse_head => 0
-                                , ssl_opts => { verify_hostname => 0 } );
     foreach my $query (@_) {
-        my $info = getRunInfo($ua, queryEUtils($ua, $query)) or goto NOTHING;
+        my $info = getRunInfo(esearch($query)) or goto NOTHING;
         my @runs = sort { 
                $a->{'sample'} cmp $b->{'sample'}
             || ($a->{'organism'} // '') cmp ($b->{'organism'} // '')
@@ -1850,7 +1864,7 @@ sub getRAMLimit($)
 
     my $memTotal;
     
-    if ($config{'OS'} eq 'linux') {
+    if ($config{'OS'} and $config{'OS'} eq 'linux') {
         LOG 4, 'trying /proc/meminfo then sysctl';
         # try proc/meminfo then try sysctl
         $memTotal = proc_meminfo_MemTotal() // sysctl_MemTotal();

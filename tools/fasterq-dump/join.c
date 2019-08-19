@@ -237,7 +237,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
         {
             if ( rec -> read . len != rec -> quality . len )
             {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", row_id,
                         rec -> read . len, rec -> quality . len );
                 stats -> reads_invalid++;
                 if ( jo -> terminate_on_invalid )
@@ -269,7 +269,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
             {
                 if ( j -> B1 . S . len != rec -> quality . len )
                 {
-                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", row_id,
                              j -> B1 . S . len, rec -> quality . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
@@ -314,7 +314,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             {
                 if ( rec -> read . len != rec -> quality . len )
                 {
-                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", row_id,
                             rec -> read . len, rec -> quality . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
@@ -341,9 +341,9 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             {
                 if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
-                    if ( j -> B2 . S. len != rec -> quality . len )
+                    if ( j -> B2 . S. len + rec -> read . len != rec -> quality . len )
                     {
-                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", row_id,
                                 j -> B2 . S. len, rec -> quality . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
@@ -378,7 +378,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                     uint32_t rl = j -> B1 . S . len + rec -> read . len;
                     if ( rl != rec -> quality . len )
                     {
-                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (E)\n", row_id,
                                 rl, rec -> quality . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
@@ -413,7 +413,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                     uint32_t rl = j -> B1 . S . len + j -> B2 . S . len;
                     if ( rl != rec -> quality . len )
                     {
-                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (F)\n", row_id,
                                 rl, rec -> quality . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
@@ -1167,8 +1167,12 @@ rc_t execute_db_join( KDirectory * dir,
     rc_t rc = 0;
     
     if ( show_progress )
+    {
+        KOutHandlerSetStdErr();
         rc = KOutMsg( "join   :" );
-
+        KOutHandlerSetStdOut();
+    }
+    
     if ( rc == 0 )
     {
         uint64_t row_count = 0;

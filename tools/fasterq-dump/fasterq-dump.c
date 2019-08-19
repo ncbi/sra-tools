@@ -102,11 +102,11 @@ static const char * split_3_usage[] = { "writes single reads in special file", N
 static const char * whole_spot_usage[] = { "writes whole spots into one file", NULL };
 #define OPTION_WHOLE_SPOT   "concatenate-reads"
 
-/*
 static const char * stdout_usage[] = { "print output to stdout", NULL };
 #define OPTION_STDOUT    "stdout"
 #define ALIAS_STDOUT     "Z"
 
+/*
 static const char * gzip_usage[] = { "compress output using gzip", NULL };
 #define OPTION_GZIP      "gzip"
 #define ALIAS_GZIP       "g"
@@ -152,6 +152,10 @@ static const char * table_usage[] = { "which seq-table to use in case of pacbio"
 static const char * strict_usage[] = { "terminate on invalid read", NULL };
 #define OPTION_STRICT   "strict"
 
+static const char * append_usage[] = { "append to output-file", NULL };
+#define OPTION_APPEND   "append"
+#define ALIAS_APPEND    "A"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -168,7 +172,7 @@ OptDef ToolOptions[] =
     { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },
     { OPTION_SPLIT_3,   ALIAS_SPLIT_3,   NULL, split_3_usage,    1, false,  false },
     { OPTION_WHOLE_SPOT,    NULL,        NULL, whole_spot_usage, 1, false,  false },    
-/*    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false }, */
+    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
 /*    { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false }, */
 /*    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
 /*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
@@ -180,7 +184,8 @@ OptDef ToolOptions[] =
     { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false },
     { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
-    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false }
+    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
+    { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false }    
 };
 
 const char UsageDefaultName[] = "fasterq-dump";
@@ -251,7 +256,7 @@ typedef struct tool_ctx_t
 
     compress_t compress; /* helper.h */ 
 
-    bool force, show_progress, show_details;
+    bool force, show_progress, show_details, append, stdout;
     
     join_options join_options; /* helper.h */
 } tool_ctx_t;
@@ -299,10 +304,13 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
         }
     }
     if ( rc == 0 )
-    {
         rc = KOutMsg( "output-file  : '%s'\n", tool_ctx -> output_filename );
+    if ( rc == 0 )    
         rc = KOutMsg( "output-dir   : '%s'\n", tool_ctx -> output_dirname );
-    }
+    if ( rc == 0 )
+        rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
+    if ( rc == 0 )
+        rc = KOutMsg( "stdout-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
     return rc;
 }
 
@@ -351,6 +359,8 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
         tool_ctx -> join_options . skip_tech = true;
 
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
+    tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
+    tool_ctx -> stdout = get_bool_option( args, OPTION_STDOUT );
 }
 
 #define DFLT_MAX_FD 32
@@ -367,8 +377,28 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
 
     if ( tool_ctx -> buf_size > MAX_BUF_SIZE )
         tool_ctx -> buf_size = MAX_BUF_SIZE;
+    
+    if ( tool_ctx -> stdout )
+    {
+        switch( tool_ctx -> fmt )
+        {
+            case ft_unknown             : break;
+            case ft_special             : break;
+            case ft_whole_spot          : break;
+            case ft_fastq_split_spot    : break;
+            case ft_fastq_split_file    : tool_ctx -> stdout = false; break;
+            case ft_fastq_split_3       : tool_ctx -> stdout = false; break;
+        }
+    }
+    
+    if ( tool_ctx -> stdout )
+    {
+        tool_ctx -> compress = ct_none;
+        //tool_ctx -> show_progress = false;
+        tool_ctx -> force = false;
+        tool_ctx -> append = false;
+    }
 }
-
 
 static rc_t handle_accession( tool_ctx_t * tool_ctx )
 {
@@ -547,6 +577,7 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
 
 static rc_t print_stats( const join_stats * stats )
 {
+    KOutHandlerSetStdErr();
     rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
     if ( rc == 0 )
          rc = KOutMsg( "reads read      : %,lu\n", stats -> reads_read );
@@ -560,6 +591,7 @@ static rc_t print_stats( const join_stats * stats )
          rc = KOutMsg( "reads too short : %,lu\n", stats -> reads_too_short );
     if ( rc == 0 && stats -> reads_invalid > 0 )
          rc = KOutMsg( "reads invalid   : %,lu\n", stats -> reads_invalid );
+    KOutHandlerSetStdOut();
     return rc;
 }
 
@@ -699,20 +731,28 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
 
     /* STEP 4 : concatenate output-chunks */
     if ( rc == 0 )
-        rc = temp_registry_merge( registry,
-                          tool_ctx -> dir,
-                          tool_ctx -> output_filename,
-                          tool_ctx -> buf_size,
-                          tool_ctx -> show_progress,
-                          tool_ctx -> force,
-                          tool_ctx -> compress ); /* temp_registry.c */
+    {
+        if ( tool_ctx -> stdout )
+            rc = temp_registry_to_stdout( registry,
+                                          tool_ctx -> dir,
+                                          tool_ctx -> buf_size ); /* temp_registry.c */
+        else
+            rc = temp_registry_merge( registry,
+                              tool_ctx -> dir,
+                              tool_ctx -> output_filename,
+                              tool_ctx -> buf_size,
+                              tool_ctx -> show_progress,
+                              tool_ctx -> force,
+                              tool_ctx -> compress,
+                              tool_ctx -> append ); /* temp_registry.c */
+    }
 
     /* in case some of the partial results have not been deleted be the concatenator */
     if ( registry != NULL )
         destroy_temp_registry( registry ); /* temp_registry.c */
 
     if ( rc == 0 )
-        print_stats( &stats ); /* helper.c */
+        print_stats( &stats ); /* above */
 
     return rc;
 }
@@ -750,7 +790,7 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     /* check if the output-file(s) do already exist, in case we are not overwriting */    
-    if ( !( tool_ctx -> force ) )
+    if ( !( tool_ctx -> force ) && !( tool_ctx -> append ) )
     {
         bool exists = false;
         switch( tool_ctx -> fmt )
@@ -827,19 +867,27 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
                            & tool_ctx -> join_options ); /* tbl_join.c */
 
     if ( rc == 0 )
-        rc = temp_registry_merge( registry,
-                          tool_ctx -> dir,
-                          tool_ctx -> output_filename,
-                          tool_ctx -> buf_size,
-                          tool_ctx -> show_progress,
-                          tool_ctx -> force,
-                          tool_ctx -> compress ); /* temp_registry.c */
-
+    {
+        if ( tool_ctx -> stdout )
+            rc = temp_registry_to_stdout( registry,
+                                          tool_ctx -> dir,
+                                          tool_ctx -> buf_size ); /* temp_registry.c */
+        else
+            rc = temp_registry_merge( registry,
+                              tool_ctx -> dir,
+                              tool_ctx -> output_filename,
+                              tool_ctx -> buf_size,
+                              tool_ctx -> show_progress,
+                              tool_ctx -> force,
+                              tool_ctx -> compress,
+                              tool_ctx -> append ); /* temp_registry.c */
+    }
+    
     if ( registry != NULL )
         destroy_temp_registry( registry ); /* temp_registry.c */
 
     if ( rc == 0 )
-        print_stats( &stats ); /* helper.c */
+        print_stats( &stats ); /* above */
 
     return rc;
 }
@@ -911,16 +959,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                 rc = populate_tool_ctx( &tool_ctx, args ); /* above */
                 if ( rc == 0 )
                 {
-                    if ( !( tool_ctx . force ) &&
-                         file_exists( tool_ctx . dir, "%s", tool_ctx . output_filename ) ) /* helper.c */
-                    {
-                        rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
-                        ErrMsg( "creating ouput-file '%s' -> %R", tool_ctx . output_filename, rc );
-                    }
-                    else
-                    {
-                        rc = perform_tool( &tool_ctx );     /* above */
-                    }
+                    rc = perform_tool( &tool_ctx );     /* above */
+
                     KDirectoryRelease( tool_ctx . dir );
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */
                 }

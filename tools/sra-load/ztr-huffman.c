@@ -124,7 +124,7 @@ static void huffman_codes257(uint8_t **codes, const uint8_t length[257]) {
 	ksort(idx, 257, sizeof(*idx), idx_cmp, NULL);
 	for (i = 0; i != 257 && idx[i].len == 0; ++i)
 		;
-	memset(code, 0, 32);
+	memset(code, 0, sizeof code);
 	for ( ; i != 257; ++i) {
 		uint16_t j = idx[i].i, n = idx[i].len;
 		codes[j] = cp;
@@ -148,7 +148,7 @@ static void huffman_codes19(uint8_t **codes, const uint8_t length[19]) {
 	ksort(idx, 19, sizeof(*idx), idx_cmp, NULL);
 	for (i = 0; i != 19 && idx[i].len == 0; ++i)
 		;
-	memset(code, 0, 32);
+	memset(code, 0, sizeof code);
 	for ( ; i != 19; ++i) {
 		uint8_t j = idx[i].i, n = idx[i].len;
 		codes[j] = cp;

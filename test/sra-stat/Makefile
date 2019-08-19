@@ -58,7 +58,7 @@ $(TEST_BINDIR)/testAssemblyStatistics: $(OBJ)
 
 #-------------------------------------------------------------------------------
 
-runtests: test_bases
+runtests: test_bases Mismatch
 
 slowtests: slow_bases
 
@@ -69,7 +69,7 @@ quick_bases:
 	@echo
 	@echo SRR053325 is a small table
 	NCBI_SETTINGS=/ $(BINDIR)/sra-stat -x SRR053325 > actual/SRR053325
-	diff actual/SRR053325 expected/SRR053325-biological
+	diff actual/SRR053325 expected/SRR053325-biological-reloaded
 
 	@echo
 	@echo SRR600096 is a small non-cSRA DB
@@ -143,6 +143,15 @@ slow_bases:
 	@rm -vr actual
 
 all_bases: test_bases slow_bases
+
+Mismatch:
+	@mkdir -p actual
+	@$(BINDIR)/sra-stat db/SRR6336806.Mismatch >/dev/null 2> actual/Mismatch
+	@if grep -q 'Mismatch between calculated and recorded statis' actual/Mismatch;\
+	 then echo "Mismatch between calculated and recorded statists was found"; \
+		exit 1; fi
+	echo Mismatch OK
+	@rm -r actual
 
 slowest_bases:
 	NCBI_SETTINGS=/ time $(BINDIR)/sra-stat -xp SRR5362833

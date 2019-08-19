@@ -22,63 +22,19 @@
 #
 # ===========================================================================
 
+default: runtests
 
-# default compiler
-ifeq (,$(COMP))
-	COMP = clang
-endif
+TOP ?= $(abspath ../..)
 
-# architecture
-xARCH = $(shell test -f $(TOP)/build/ARCH.mac && cat $(TOP)/build/ARCH.mac)
-ifneq (,$(xARCH))
+MODULE = test/fasterq-dump
 
-  # the user has selected an architecture
-  ifeq (i386,$(xARCH))
-    ARCH = i386
-    BITS = 32
-  endif
-  ifeq (x86_64,$(xARCH))
-    ARCH = x86_64
-    BITS = 64
-  endif
+TEST_TOOLS = 
 
-endif
+include $(TOP)/build/Makefile.env
 
-# allow the user to override architecture
-i386 x86_64:
-	@ echo $@ > $(TOP)/build/ARCH.mac
+.PHONY: $(TEST_TOOLS)
 
-.PHONY: i386 x86_64
+slowtests: append-test
 
-
-# library prefix
-LPFX = lib
-
-# file extensions
-OBJX = o
-LOBX = pic.o
-LIBX = a
-SHLX = dylib
-
-# compilation defines
-DEFINES	:= -DMAC -DBSD -DUNIX -D_REENTRANT -D_FILE_OFFSET_BITS=64 -DPKGNAME=mac$(BITS) -D_FORTIFY_SOURCE=0
-
-# Darwin is a Unix variant
-OS_DAD = bsd
-OS_GDAD = unix
-
-# minimum deployment os
-MIN_DEPLOY_OS = 10.10
-MIN_DEPLOY_OS_OPT = -mmacosx-version-min=$(MIN_DEPLOY_OS)
-
-LIBXML_LPATH = /usr/lib
-
-# flex+bison: on Mac, use source-controlled generated .c/.h files
-YACC = @ true
-LEX = @ true
-
-# build matrix
-COMPILERS = CLANG GCC
-
-# copy without following symlinks
-COPY = cp -R
+append-test: $(BINDIR)/fasterq-dump
+	@./append-test.sh

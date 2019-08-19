@@ -94,7 +94,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
    
     if ( rec -> read . len != rec -> quality . len )
     {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (A)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
             return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
@@ -133,7 +133,7 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
     
     if ( rec -> read . len != rec -> quality . len )
     {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (B)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
             return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
@@ -144,7 +144,7 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
 
     if ( rec -> read . len != read_len_sum )
     {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u)\n", rec -> row_id, rec -> read . len, read_len_sum );
+        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec -> row_id, rec -> read . len, read_len_sum );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
             return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
@@ -203,7 +203,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
     
     if ( rec -> read . len != rec -> quality . len )
     {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (D)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
             return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
@@ -214,7 +214,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
 
     if ( rec -> read . len != read_len_sum )
     {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u)\n", rec -> row_id, rec -> read . len, read_len_sum );
+        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (E)\n", rec -> row_id, rec -> read . len, read_len_sum );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
             return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
@@ -276,7 +276,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
     
     if ( rec -> read . len != rec -> quality . len )
     {
-        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) (F)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
             return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
@@ -304,7 +304,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
 
     if ( rec -> read . len != read_len_sum )
     {
-        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u)\n", rec -> row_id, rec -> read . len, read_len_sum );
+        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (G)\n", rec -> row_id, rec -> read . len, read_len_sum );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
             return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
@@ -673,8 +673,12 @@ rc_t execute_tbl_join( KDirectory * dir,
     rc_t rc = 0;
     
     if ( show_progress )
+    {
+        KOutHandlerSetStdErr();
         rc = KOutMsg( "join   :" );
-
+        KOutHandlerSetStdOut();
+    }
+    
     if ( rc == 0 )
     {
         uint64_t row_count = 0;

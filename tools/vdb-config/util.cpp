@@ -284,12 +284,38 @@ rc_t CKDirectory::CreateNonExistingDir(const CString &path,
     return rc;
 }
 
-rc_t CKConfig::Commit(void) const {
+CKConfig::CKConfig(bool verbose)
+    : m_Self(NULL), m_Updated(false)
+    , m_RepositoryRemoteAuxDisabled ("repository/remote/aux/NCBI/disabled")
+    , m_RepositoryRemoteMainDisabled("repository/remote/main/CGI/disabled")
+    , m_RepositoryUserRoot          ("repository/user/main/public/root")
+{
+    if (verbose)
+        OUTMSG(("loading configuration... "));
+    rc_t rc = KConfigMakeLocal(&m_Self, NULL);
+    if (rc == 0) {
+        if (verbose)
+            OUTMSG(("ok\n"));
+    }
+    else {
+        if (verbose)
+            OUTMSG(("failed\n"));
+        throw rc;
+    }
+}
+
+rc_t CKConfig::Commit(void)
+{
     if (!m_Updated) {
         return 0;
     }
 
-    return KConfigCommit(m_Self);
+    rc_t rc = KConfigCommit(m_Self);
+    if ( rc == 0 )
+    {
+        m_Updated = false;
+    }
+    return rc;
 }
 
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
@@ -337,6 +363,16 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         }
     }
 
+    {
+        const string name("/repository/remote/main/SDL.2/resolver-cgi");
+        if (!NodeExists(name)) {
+            rc_t r2 = UpdateNode(name,
+                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
+    }
+
     return rc;
 }
 
@@ -358,13 +394,19 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
     string repoNode(s.str());
     string name(repoNode + "/root");
 
+    rc_t rc = 0;
+    /* create all nodes but root;
     bool toFix = true;
     if (fix)
         toFix = !NodeExists(name);
-
-    rc_t rc = 0;
     if (toFix)
         rc = UpdateNode(name, (root + "/public").c_str());
+
+    {
+        rc_t r2 = UpdateNode(repoNode + "/cache-enabled", "true");
+        if (r2 != 0 && rc == 0)
+            rc = r2;
+    } */
 
     {
         string name ( repoNode + "/apps/file/volumes/flat" );
@@ -381,12 +423,6 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
             if ( r2 != 0 && rc == 0 )
                 rc = r2;
         }
-    }
-
-    {
-        rc_t r2 = UpdateNode ( repoNode + "/cache-enabled", "true" );
-        if ( r2 != 0 && rc == 0 )
-            rc = r2;
     }
 
     if ( repoName != "public" )
@@ -511,13 +547,14 @@ void CKConfig::Reload(bool verbose) {
     m_Self = NULL;
 
     if (rc == 0) {
-        rc = KConfigMake(&m_Self, NULL);
+        rc = KConfigMakeLocal(&m_Self, NULL);
     }
 
     if (rc == 0) {
         if (verbose) {
             OUTMSG(("ok\n"));
         }
+        m_Updated = false;
     }
     else {
         if (verbose) {

@@ -32,6 +32,9 @@ ALL_TARGS = \
 
 include $(TOP)/build/Makefile.env
 
+# TOOLS_TO_INSTALL
+include $(TOP)/build/Makefile.tools
+
 ROOTDIR = $(SRCDIR)/root
 
 SUBMAKE = $(MAKE) --no-print-directory
@@ -59,7 +62,12 @@ INSTALLED_FILES = \
 	$(KONFIG_DIR)/certs.kfg                     \
 	$(KONFIG_DIR)/default.kfg                   \
 	$(KONFIG_DIR)/vdb-copy.kfg                  \
-
+	$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_COPY) \
+								$(TOOLS_TO_SYMLINK) \
+								sratools$(EXEX) \
+								sratools$(VERSION_EXEX) \
+								sratools$(MAJVERS_EXEX) \
+								)
 
 runtests: test-install
 
@@ -69,6 +77,7 @@ test-install: cleanup
 	@ echo "1. clean install"
 	@ #
 	@ $(SUBMAKE) install
+	@ # not checking $(TOOLS_TO_COPY_OPTIONAL)
 	@ for i in $(INSTALLED_FILES); do test -f "$$i" || ( echo "$$i is not found" >>$(INSTALL_DIR)/missing ); done
 	@ ! test -f $(INSTALL_DIR)/missing || ! cat $(INSTALL_DIR)/missing
 	@ #

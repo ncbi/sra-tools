@@ -108,6 +108,7 @@ static bool number_parser_get_exact_u16(number_parser const *const self, uint16_
     return false;
 }
 
+#if 0
 static bool number_parser_get_exact_i16(number_parser const *const self, int16_t *rslt)
 {
     if (number_parser_is_integer(self)) {
@@ -122,6 +123,7 @@ static bool number_parser_get_exact_i16(number_parser const *const self, int16_t
     }
     return false;
 }
+#endif
 
 static bool number_parser_get_exact_u32(number_parser const *const self, uint32_t *rslt)
 {
@@ -135,7 +137,7 @@ static bool number_parser_get_exact_u32(number_parser const *const self, uint32_
 static bool number_parser_get_exact_i32(number_parser const *const self, int32_t *rslt)
 {
     if (self->exponent - self->shift == 0) {
-        if (self->sgn < 0 && self->mantissa <= (uint64_t)(-INT32_MIN)) {
+        if (self->sgn < 0 && self->mantissa <= (uint64_t)(-(int64_t)INT32_MIN)) {
             *rslt = -(uint32_t)self->mantissa;
             return true;
         }
@@ -164,6 +166,7 @@ static bool number_parser_set_exact_u16(number_parser const *const self, uint8_t
     return false;
 }
 
+#if 0
 static bool number_parser_set_exact_i16(number_parser const *const self, uint8_t *const dst)
 {
     int16_t value;
@@ -173,7 +176,9 @@ static bool number_parser_set_exact_i16(number_parser const *const self, uint8_t
     }
     return false;
 }
+#endif
 
+#if 0
 static bool number_parser_set_exact_u32(number_parser const *const self, uint8_t *const dst)
 {
     uint32_t value;
@@ -183,6 +188,7 @@ static bool number_parser_set_exact_u32(number_parser const *const self, uint8_t
     }
     return false;
 }
+#endif
 
 static bool number_parser_set_exact_i32(number_parser const *const self, uint8_t *const dst)
 {
@@ -1269,7 +1275,7 @@ static bool SAM2BAM_Parser_grow(SAM2BAM_Parser *const self, rc_t *rc)
     return true;
 }
 
-
+#if 0
 static void DebugPrintSAM(  char const *const data
                           , unsigned const fields
                           , unsigned const *const offsets
@@ -1291,6 +1297,7 @@ static void DebugPrintSAM(  char const *const data
     }
 #endif
 }
+#endif
 
 static void LogSAM(  int level
                    , char const *const data

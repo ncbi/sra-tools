@@ -30,6 +30,7 @@
 #include "cgi_request.h" /* request_params */
 
 rc_t names_request ( const request_params * request, bool cache, bool path );
+rc_t names_request_json ( const request_params * request, bool cache, bool path );
 rc_t search_request ( const request_params * request );
 
 #endif /* _h_services_ */

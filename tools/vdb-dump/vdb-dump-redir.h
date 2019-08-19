@@ -57,7 +57,9 @@ typedef struct out_redir
 } out_redir;
 
 
-rc_t init_out_redir( out_redir * self, out_redir_mode_t mode, const char * filename, size_t bufsize );
+rc_t init_out_redir( out_redir * self, out_redir_mode_t mode,
+                     const char * filename, size_t bufsize,
+                     bool append );
 
 void release_out_redir( out_redir * self );
 

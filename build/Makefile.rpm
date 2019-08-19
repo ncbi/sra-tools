@@ -45,7 +45,6 @@ DST =$(PKGDIR)/sra-toolkit-$(VERSION)
 TGZ=$(DST).tar.gz
 
 clean_rpm:
-	echo 'DEBUGGING RPM: clean_rpm'
 	rm -rf $(DST) $(RPM) $(SPEC) $(SRC) $(TGZ)
 
 rpm: $(RPM)

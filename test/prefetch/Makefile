@@ -32,7 +32,7 @@ CGI=https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi
 LARGE=fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
 SRA=https://sra-download.ncbi.nlm.nih.gov
 SRAF=fasp://dbtest@sra-download.ncbi.nlm.nih.gov
-SRAF=fasp://dbtest@srafiles31-1.st-va.ncbi.nlm.nih.gov
+#SRAF=fasp://dbtest@srafiles31-1.st-va.ncbi.nlm.nih.gov
 KMER=$(SRA)/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
@@ -55,28 +55,25 @@ urls_and_accs:
 	@rm -fr tmp/* tmp2/*
 	@echo 'foo = "bar"' > tmp/t.kfg
 
+	@echo prefetch URL-1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki 2>/dev/null ; \
-        then echo "prefetch URL-1 when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 
+	@echo prefetch URL-2/2 when there is no kfg
+	@rm -f index.html
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch https://github.com/ncbi/ 2>/dev/null ; \
-        then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch https://github.com/ncbi/ >/dev/null
 
+	@echo prefetch URL-2/1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	       if $(BINDIR)/prefetch http://intranet/ 2>/dev/null ; \
-	       then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	       fi ; \
+	       $(BINDIR)/prefetch http://intranet/ >/dev/null ; \
 	    fi
 
+	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	     if $(BINDIR)/prefetch http://intranet/irb/support.shtml  2>/dev/null; \
-	     then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	     fi ; \
+	     $(BINDIR)/prefetch http://intranet/irb/support.shtml  >/dev/null; \
 	    fi
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
@@ -97,7 +94,8 @@ urls_and_accs:
 	 if ping -c1 intranet > /dev/null ; then \
 	     $(BINDIR)/prefetch http://intranet/irb/support.shtml \
 	        | grep "found local" > /dev/null ; fi
-#	@echo
+
+	@rm support.shtml
 
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.shtml found ; exit 1; fi
@@ -140,10 +138,10 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
 
+	@echo prefetch $(SRR) when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(SRR) 2> /dev/null ; \
-        then echo "prefetch $(SRR) when there is no kfg should fail"; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch $(SRR) > /dev/null
+	@rm -r $(SRAC)
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
@@ -157,10 +155,11 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) | grep "found local" > /dev/null
 
+	@echo prefetch $(REFSEQ) when there is no kfg
+	@rm -f KC702174.1
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(REFSEQ) 2> /dev/null ; \
-        then echo "prefetch $(SRR) when there is no kfg should fail" ; exit 1; \
-	    fi
+	    $(BINDIR)/prefetch $(REFSEQ) > /dev/null
+	@rm KC702174.1
 
 	@echo '$(PUBLIC)/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg
 	@echo REFSEQ HTTP download when user repository is configured
@@ -218,7 +217,7 @@ urls_and_accs:
 	 fi
 #	@echo
 
-	@rm `pwd`/tmp/refseq/KC702174.1
+	@rm -f `pwd`/tmp/refseq/KC702174.1
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo REFSEQ FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -237,7 +236,6 @@ urls_and_accs:
 	      ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null ; \
 	 else echo download of $(KMERF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm `pwd`/tmp/wgs/AFVF01
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
@@ -264,13 +262,11 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR053325 > /dev/null
 	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
-#	@echo
 
 	@echo prefetch run with refseqs
-	@if ls `pwd`/tmp/sra/SRR619505.sra 2> /dev/null ; \
-     then echo SRR619505 found ; exit 1; fi
-	@if ls `pwd`/tmp/refseq/NC_000005.8 2> /dev/null ; \
-     then echo NC_000005.8 found ; exit 1; fi
+	@rm -fr `pwd`/SRR619505
+	@rm -fv `pwd`/tmp/sra/SRR619505.sra
+	@rm -fv `pwd`/tmp/refseq/NC_000005.8
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR619505 > /dev/null
 	@ls `pwd`/tmp/sra/SRR619505.sra > /dev/null
@@ -281,14 +277,12 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch KC702174.1 > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
-#	@echo
 
 	@echo NANNOT accession download
 	@rm -f `pwd`/tmp/nannot/GCA_000390265.1_R
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch GCA_000390265.1_R > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
-#	@echo
 
 	@echo WGS accession download
 	@rm -f `pwd`/tmp/wgs/AFVF01
@@ -334,14 +328,14 @@ urls_and_accs:
 
 	@echo vdbcache download
 	@rm tmp/sra/*
-	@if ls `pwd`/tmp/sra/SRR998743.sra 2> /dev/null ; \
-		then echo SRR998743.sra found ; exit 1; fi
-	@if ls `pwd`/tmp/sra/SRR998743.sra.vdbcache 2> /dev/null ; \
-		then echo SRR998743.sra.vdbcache found ; exit 1; fi
+	@if ls `pwd`/tmp/sra/SRR6667190.sra 2> /dev/null ; \
+		then echo SRR6667190.sra found ; exit 1; fi
+	@if ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache 2> /dev/null ; \
+		then echo SRR6667190.sra.vdbcache found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		$(BINDIR)/prefetch SRR998743 > /dev/null
-	@ls `pwd`/tmp/sra/SRR998743.sra          > /dev/null 
-	@ls `pwd`/tmp/sra/SRR998743.sra.vdbcache > /dev/null
+		$(BINDIR)/prefetch SRR6667190 > /dev/null
+	@ls `pwd`/tmp/sra/SRR6667190.sra          > /dev/null 
+	@ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache > /dev/null
 
 	@rm -r tmp*
 
@@ -449,10 +443,10 @@ out_dir_and_file:
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL ; \
-	    rm `pwd`/tmp/sra/SRR053325.sra ; \
+	    rm `pwd`/tmp/sra/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
-	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
+	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -507,14 +501,16 @@ out_dir_and_file:
 #	@ echo
 
 	@ echo PREFETCH HTTP DIRECTORY URL TO OUT-DIR
+	@ rm -f index.html
 	@ if ls `pwd`/tmp3/dir/index.html 2> /dev/null ; \
       then echo index.html found ; exit 1 ; fi
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/index.html > /dev/null
 #	@ echo
 
 	@ echo PREFETCH HTTP FILE URL TO OUT-DIR
+	@ rm -f wiki
 	@ if ls `pwd`/tmp3/dir/wiki 2> /dev/null ; \
       then echo wiki found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

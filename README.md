@@ -1,8 +1,7 @@
 # The NCBI SRA (Sequence Read Archive)
 
 ### Contact:
-email: sra-tools@ncbi.nlm.nih.gov
-or visit the [SRA Tools web site](http://ncbi.github.io/sra-tools)
+email: sra@ncbi.nlm.nih.gov
 
 ### Download
 Visit our [download page](https://github.com/ncbi/sra-tools/wiki/Downloads) for pre-built binaries.
@@ -15,24 +14,13 @@ The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
+With release 2.10.0 of `sra-tools` we have added cloud-native operation for AWS and GCP environments _(Linux only for this release)_, for use with the public SRA. `prefetch` is capable of retrieving original submission files in addition to ETL data.
+
 With release 2.9.1 of `sra-tools` we have finally made available the tool `fasterq-dump`, a replacement for the much older `fastq-dump` tool. As its name implies, it runs faster, and is better suited for large-scale conversion of SRA objects into FASTQ files that are common on sites with enough disk space for temporary files. `fasterq-dump` is multi-threaded and performs bulk joins in a way that improves performance as compared to `fastq-dump`, which performs joins on a per-record basis _(and is single-threaded)_.
 
 `fastq-dump` is still supported as it handles more corner cases than `fasterq-dump`, but it is likely to be deprecated in the future.
 
 You can get more information about `fasterq-dump` in our Wiki at [https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump](https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump).
-
-### IMPORTANT ANNOUNCEMENT
-As was announced in [OMB memorandum M-15-13](https://www.whitehouse.gov/sites/default/files/omb/memoranda/2015/m-15-13.pdf) on June 8, 2015, NCBI and all Federal systems will be transitioning to using HTTPS-only protocols before the end of 2016. This change will affect any software that uses NCBI APIs such as the E-utilities or NCBI software toolkits such as `sra-tools`, `ncbi-vdb` or `ngs`.
-
-The NLM and NCBI may implement the switch to HTTPS-only as early as September 30, 2016.
-
-In particular, software products that depend on `sra-tools`, `ncbi-vdb` or `ngs` may not function as expected after September 30 unless they are properly updated from this site or by the software provider.
-
-If you use software that accesses NCBI SRA data in any way, your software will likely be affected by this change. Please check with your software provider for recent udpates or patches, and be sure to acquire these before September 30.
- 
-If you develop software that relies on `sra-tools`, `ncbi-vdb` or `ngs` in any way, you will likely need to update your code so that it accesses NCBI using HTTPS.
-
-We have released new tools with version 2.8.0 that are HTTPS compatible and `M-15-13` compliant as of October 7, 2016. Please be certain to [update all of your binaries](https://github.com/ncbi/sra-tools/wiki/Downloads) and configuration files.
 
 For additional information on using, configuring, and building the toolkit,
 please visit our [wiki](https://github.com/ncbi/sra-tools/wiki)

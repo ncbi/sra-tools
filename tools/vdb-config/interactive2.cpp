@@ -437,7 +437,7 @@ static bool import_ngc( Dlg &dlg, vdbconf_model * model )
     return res;
 }
 
-/* ==== helper-model for the dbGap - grid ======================================================= */
+/* ==== helper-model for the dbGaP - grid ======================================================= */
 class vdbconf_grid : public Grid
 {
     public:
@@ -634,7 +634,7 @@ class vdbconf_view2 : public Dlg
             PopulateTabHdr( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG );
             PopulateTabHdr( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG );
             PopulateTabHdr( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NET", STATUS_COLOR, LABEL_FG );
-            PopulateTabHdr( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "d&bGap", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "d&bGaP", STATUS_COLOR, LABEL_FG );
             PopulateTabHdr( HDR_rect( r, 6 ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG );
         }
         
@@ -951,7 +951,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 
                 case DBGAP_IMPORT_KEY_ID  : view.status_txt( "import a ngc-file" ); break;
                 case DBGAP_IMPORT_PATH_ID : view.status_txt( "set default import path for ngc-files" ); break;
-                case DBGAP_REPOS_ID       : view.status_txt( "list of available dbGap repositories, press ENTER to edit" ); break;
+                case DBGAP_REPOS_ID       : view.status_txt( "list of available dbGaP repositories, press ENTER to edit" ); break;
                 
                 case TOOLS_PREFETCH_ID   : view.status_txt( "choose where prefetch downloads files to" ); break;                
             }

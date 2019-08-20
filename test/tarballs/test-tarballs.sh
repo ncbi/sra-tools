@@ -111,8 +111,9 @@ tar xf ${NGS_TARGET}.tar || exit 7
 
 ################################## smoke-test ##################################
 
-echo $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
-     $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
+echo VDB_CONFIG=`pwd`/${TK_PACKAGE}/bin/ncbi $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
+#ls `pwd`/${TK_PACKAGE}/bin/ncbi
+     VDB_CONFIG=`pwd`/${TK_PACKAGE}/bin/ncbi $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
 RC=$?
 
 if [ "${RC}" != "0" ]

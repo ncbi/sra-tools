@@ -85,7 +85,7 @@ struct BAM_File {
     char const *header;
     void *headerData1;          /* gets used for refSeq and readGroup */
     void *headerData2;          /* gets used for refSeq */
-    BAM_Alignment *nocopy;       /* used to hold current record for BAM_FileRead2 */
+    BAM_Alignment *nocopy;      /* used to hold current record for BAM_FileRead2 */
 
     uint64_t fpos_cur;
     uint64_t deferPos;

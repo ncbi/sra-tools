@@ -664,8 +664,8 @@ static const SRADumperFmt_Arg KMainArgs[] =
     { "A",   "accession",        "accession",   { "Replaces accession derived from <path> in filename(s) and deflines (only for single table dump)", NULL } },
     { "O",   "outdir",           "path",        { "Output directory, default is working directory ( '.' )", NULL } },
     { "Z",   "stdout",           NULL,          { "Output to stdout, all split data become joined into single stream", NULL } },
-    { NULL, "gzip",              NULL,         { "Compress output using gzip", NULL } },
-    { NULL, "bzip2",             NULL,         { "Compress output using bzip2", NULL } },
+    { NULL, "gzip",              NULL,         { "Compress output using gzip: deprecated, not recommended", NULL } },
+    { NULL, "bzip2",             NULL,         { "Compress output using bzip2: deprecated, not recommended", NULL } },
     { "N",   "minSpotId",        "rowid",       { "Minimum spot id", NULL } },
     { "X",   "maxSpotId",        "rowid",       { "Maximum spot id", NULL } },
     { "G",   "spot-group",       NULL,          { "Split into files by SPOT_GROUP (member name)", NULL } },
@@ -851,7 +851,10 @@ bool CC SRADumper_GetArg( const SRADumperFmt* fmt, char const* const abbr, char 
     }
     else if ( value != NULL )
     {
-        if ( arg == NULL && *value == '\0' )
+        /* this code is very old and very obtuse.
+           was the intention to try to access value[0][0]?
+           original expression had " *value == '\0' " */
+        if ( arg == NULL && *value == NULL )
         {
             rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcNotFound );
         }

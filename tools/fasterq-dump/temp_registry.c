@@ -31,6 +31,7 @@
 #include <klib/out.h>
 #include <klib/namelist.h>
 #include <kproc/lock.h>
+#include <kfs/filetools.h>
 
 typedef struct temp_registry
 {
@@ -175,6 +176,7 @@ typedef struct cmn_merge
     size_t buf_size;
     struct bg_progress * progress;
     bool force;
+    bool append;
     compress_t compress;
 } cmn_merge;
 
@@ -200,7 +202,8 @@ static rc_t CC merge_thread_func( const KThread *self, void *data )
             md -> cmn -> buf_size,
             md -> cmn -> progress,
             md -> cmn -> force,
-            md -> cmn -> compress );
+            md -> cmn -> append,
+            md -> cmn -> compress ); /* concatenator.c */
         release_SBuffer( &s_filename ); /* helper.c */
     }
     free( ( void * ) md );
@@ -250,12 +253,13 @@ rc_t temp_registry_merge( temp_registry * self,
                           size_t buf_size,
                           bool show_progress,
                           bool force,
-                          compress_t compress )
+                          compress_t compress,
+                          bool append )
 {
     rc_t rc = 0;
     if ( self == NULL )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
-    else if ( output_filename == NULL )
+    else if ( output_filename == NULL || dir == NULL )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     else
     {
@@ -285,13 +289,13 @@ rc_t temp_registry_merge( temp_registry * self,
                     l,
                     buf_size,
                     progress,
-                    force,
+                    force, append,
                     compress ); /* concatenator.c */
             }
             else if ( count > 1 )
             {
                 /* we have MULTIPLE sets of files... */
-                cmn_merge cmn = { dir, output_filename, buf_size, progress, force, compress };
+                cmn_merge cmn = { dir, output_filename, buf_size, progress, force, append, compress };
                 on_merge_ctx omc = { &cmn, 0 };
                 VectorInit( &omc . threads, 0, count );
                 VectorForEach ( &self -> lists, false, on_merge, &omc );
@@ -300,6 +304,84 @@ rc_t temp_registry_merge( temp_registry * self,
             
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
+    }
+    return rc;
+}
+
+/* -------------------------------------------------------------------------------- */
+
+static rc_t temp_on_line_to_stdout( const String * line, void * data )
+{
+    return KOutMsg( "%S\n", line );
+}
+
+typedef struct print_to_stdout_ctx
+{
+    KDirectory * dir;
+    size_t buf_size;
+} print_to_stdout_ctx;
+
+static void CC on_print_to_stdout( void * item, void * data )
+{
+    const VNamelist * l = ( const VNamelist * )item;
+    if ( l != NULL )
+    {
+        const print_to_stdout_ctx * c = ( const print_to_stdout_ctx * )data;
+
+        uint32_t count;
+        rc_t rc = VNameListCount ( l, &count );
+        if ( rc != 0 )
+            ErrMsg( "on_print_to_stdout().VNameListCoun() -> %R", rc );
+        else
+        {
+            uint32_t idx;
+            VNamelistReorder ( ( VNamelist * )l, false );
+            for ( idx = 0; rc == 0 && idx < count; ++idx )
+            {
+                const char * filename;
+                rc = VNameListGet( l, idx, &filename );
+                if ( rc != 0 )
+                    ErrMsg( "on_print_to_stdout().VNameListGet( #%d ) -> %R", idx, rc );
+                else
+                {
+                    const struct KFile * src;
+                    rc = make_buffered_for_read( c -> dir, &src, filename, c -> buf_size ); /* helper.c */
+                    if ( rc == 0 )
+                    {
+                        /* libs/kfs/from_to_namelist.c, libs/interfaces/filetools.h */
+                        rc = ProcessFileLineByLine( src, temp_on_line_to_stdout, NULL );
+                        if ( rc != 0 )
+                            ErrMsg( "on_print_to_stdout().ProcessFileLineByLine( '%s' ) -> %R", filename, rc );
+                        KFileRelease( src );
+                    }
+
+                    {
+                        rc_t rc1 = KDirectoryRemove( c -> dir, true, "%s", filename );
+                        if ( rc1 != 0 )
+                            ErrMsg( "on_print_to_stdout.KDirectoryRemove( '%s' ) -> %R", filename, rc1 );
+                    }
+                }
+            }
+        }
+    }
+}
+
+rc_t temp_registry_to_stdout( temp_registry * self,
+                              KDirectory * dir,
+                              size_t buf_size )
+{
+    rc_t rc = 0;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    else if ( dir == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    else
+    {
+        print_to_stdout_ctx c;
+        c . dir = dir;
+        c . buf_size = buf_size;
+        
+        VectorForEach ( &( self -> lists ), false, on_print_to_stdout, &c );
     }
     return rc;
 }

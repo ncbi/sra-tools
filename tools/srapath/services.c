@@ -33,6 +33,8 @@
 #include <klib/time.h> /* KTimeIso8601 */
 #include <vfs/path.h> /* VPath */
 #include <vfs/services-priv.h> /* KServiceNamesExecuteExt */
+#include <cloud/manager.h> /* CloudMgrMake */
+#include <cloud/cloud.h> /* CloudMakeComputeEnvironmentToken */
 
 
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogErr, rc, err))
@@ -274,6 +276,234 @@ static rc_t names_remote_cache ( KService * service,
     return rc;
 }
 
+static void json_print_nvp(  char const *const name
+                           , char const *const value
+                           , bool const comma)
+{
+    if (value) {
+        OUTMSG(("%.*s\"%s\": \"%s\""
+                , comma ? 2 : 0, ", "
+                , name
+                , value));
+    }
+    else {
+        OUTMSG(("%.*s\"%s\": null"
+                , comma ? 2 : 0, ", "
+                , name));
+    }
+}
+
+static void json_print_nVp(  char const *const name
+                           , String const *const value
+                           , bool const comma)
+{
+    if (value) {
+        OUTMSG(("%.*s\"%s\": \"%S\""
+                , comma ? 2 : 0, ", "
+                , name
+                , value));
+    }
+    else {
+        OUTMSG(("%.*s\"%s\": null"
+                , comma ? 2 : 0, ", "
+                , name));
+    }
+}
+
+static void json_print_nzp(  char const *const name
+                           , size_t const value
+                           , bool const comma)
+{
+    OUTMSG(("%.*s\"%s\": %zu"
+            , comma ? 2 : 0, ", "
+            , name
+            , value));
+}
+
+static void json_print_named_url(  char const *const name
+                                 , VPath const *const url
+                                 , bool const comma)
+{
+    String const *tmp = NULL;
+    rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
+    OUTMSG(("%.*s\"%s\": \"%S\""
+            , comma ? 2 : 0, ", "
+            , name
+            , tmp));
+    free((void *)tmp);
+}
+
+static unsigned json_print_named_urls_and_service(  char const *const name
+                                                  , VPath const *const url
+                                                  , unsigned const count
+                                                  , bool const comma)
+{
+    if (url) {
+        bool ce = false;
+        bool pay = false;
+        String service;
+        String const *tmp = NULL;
+        rc_t rc = VPathMakeString(url, &tmp); assert(rc == 0);
+
+        memset(&service, 0, sizeof service);
+        VPathGetService(url, &service);
+
+        VPathGetCeRequired(url, &ce);
+        VPathGetPayRequired(url, &pay);
+
+        if (count == 0) {
+            OUTMSG(("%.*s\"%s\": ["
+                    , comma ? 2 : 0, ", "
+                    , name));
+        }
+        OUTMSG(("%.*s{ ", count > 0 ? 2 : 0, ",\n"));
+        json_print_nVp("path", tmp, false);
+        json_print_nVp("service", &service, true);
+        json_print_nvp("CE-Required", ce ? "true" : "false", true);
+        json_print_nvp("Payment-Required", pay ? "true" : "false", true);
+        OUTMSG((" }"));
+
+        free((void *)tmp);
+        return count + 1;
+    }
+    else if (count > 0) {
+        /* close json array */
+        OUTMSG(("]"));
+    }
+    return count;
+}
+
+static unsigned json_print_response_file(KSrvRespFile const *const file, unsigned count)
+{
+    if (file) {
+        rc_t rc = 0;
+        VPath const *path = NULL;
+        char const *str = NULL;
+        uint32_t id = 0;
+        uint64_t sz = 0;
+        KSrvRespFileIterator *iter = NULL;
+        
+        str = NULL; rc = KSrvRespFileGetAccOrId(file, &str, &id); assert(rc == 0);
+        OUTMSG(("%.*s{", count == 0 ? 0 : 2, ",\n"));
+        json_print_nvp("accession", str, false);
+        count += 1;
+
+        str = NULL; rc = KSrvRespFileGetType(file, &str);
+        if (str && str[0])
+            json_print_nvp("itemType", str, true);
+
+        str = NULL; rc = KSrvRespFileGetClass(file, &str);
+        if (rc == 0 && str && str[0])
+            json_print_nvp("itemClass", str, true);
+        
+        rc = KSrvRespFileGetSize(file, &sz);
+        if (rc == 0 && sz > 0)
+            json_print_nzp("size", (size_t)sz, true);
+
+        path = NULL; KSrvRespFileGetLocal(file, &path);
+        if (path) {
+            json_print_named_url("local", path, true);
+            RELEASE(VPath, path);
+        }
+        
+        path = NULL; KSrvRespFileGetCache(file, &path);
+        if (path) {
+            json_print_named_url("cache", path, true);
+            RELEASE(VPath, path);
+        }
+        
+        rc = KSrvRespFileMakeIterator(file, &iter);
+        if (rc == 0 && iter) {
+            unsigned rcount = 0;
+            
+            for ( ; ; ) {
+                if ((rc = KSrvRespFileIteratorNextPath(iter, &path)) == 0) {
+                    rcount = json_print_named_urls_and_service("remote", path, rcount, true);
+                    if (path == NULL)
+                        break;
+                    RELEASE(VPath, path); path = NULL;
+                }
+            }
+            RELEASE(KSrvRespFileIterator, iter);
+        }
+        OUTMSG(("}"));
+    }
+    return count;
+}
+
+static void get_compute_environment(void);
+
+static rc_t names_remote_json ( KService * const service
+                               , VRemoteProtocols const protocols
+                               , request_params const * const request
+                               , bool const path )
+{
+    rc_t rc = 0;
+    KSrvResponse const * response = NULL;
+
+
+    rc = KServiceNamesQueryExt( service, protocols, request -> names_url,
+        request -> names_ver, NULL, NULL, & response );
+    if ( rc != 0 )
+        OUTMSG ( ( "Error: %R\n", rc ) );
+    else {
+        unsigned const count = KSrvResponseLength(response);
+        unsigned i;
+        unsigned output_count = 0;
+        
+        OUTMSG(("{\n"));
+        get_compute_environment();
+        OUTMSG(("\"responses\": [\n"));
+        for (i = 0; i < count; ++i) {
+            KSrvRespObj const *obj = NULL;
+            KSrvRespObjIterator *iter = NULL;
+            
+            rc = KSrvResponseGetObjByIdx(response, i, &obj);
+            assert(rc == 0); /* if everything was done right, should not be fail-able */
+            rc = KSrvRespObjMakeIterator(obj, &iter);
+            assert(rc == 0); /* if everything was done right, should not be fail-able */
+            
+            for ( ; ; ) { /* iterate files */
+                KSrvRespFile *file = NULL;
+                
+                rc = KSrvRespObjIteratorNextFile(iter, &file);
+                assert(rc == 0); /* if everything was done right, should not be fail-able */
+                
+                if (file == NULL) /* done iterating */
+                    break;
+                output_count = json_print_response_file(file, output_count);
+                RELEASE(KSrvRespFile, file);
+            }
+            RELEASE(KSrvRespObjIterator, iter);
+            RELEASE(KSrvRespObj, obj);
+        }
+        output_count = json_print_response_file(NULL, output_count);
+        OUTMSG(("]}\n"));
+    }
+    RELEASE ( KSrvResponse, response );
+    
+    return rc;
+}
+
+static void get_compute_environment(void)
+{
+    String const *token = NULL;
+
+    CloudMgr *mgr = NULL;
+    rc_t rc = CloudMgrMake(&mgr, NULL, NULL);
+    if (rc == 0 && mgr != NULL) {
+        Cloud *cloud = NULL;
+        rc = CloudMgrGetCurrentCloud(mgr, &cloud);
+        if (rc == 0 && cloud != NULL) {
+            rc = CloudMakeComputeEnvironmentToken(cloud, &token);
+            RELEASE(Cloud, cloud);
+        }
+        RELEASE(CloudMgr, mgr);
+    }
+    json_print_nVp("CE-Token", token, false);
+    OUTMSG((",\n"));
+    free((void *)token);
+}
 
 static rc_t KService_Make ( KService ** self, const request_params * request ) {
     rc_t rc = 0;
@@ -353,61 +583,83 @@ VRemoteProtocols parseProtocol ( const char * protocol, rc_t * prc )
     return protocols;
 }
 
-
-rc_t names_request ( const request_params * request, bool cache, bool path ) {
+static rc_t names_request_1 (  const request_params * request
+                             , bool path
+                             , rc_t (*func)(  KService * service
+                                            , VRemoteProtocols protocols
+                                            , const request_params * request
+                                            , bool path )
+                             )
+{
     rc_t rc = 0;
-
+    
     KService * service = NULL;
-
+    
     VRemoteProtocols protocols = 0;
-
+    
     assert ( request && request -> terms );
-
+    
     if ( sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ] != eProtocolMax ) {
         rc = RC ( rcExe, rcTable, rcValidating, rcTable, rcIncomplete );
         LOGERR ( klogFatal, rc, "Incomplete PROTOCOLS array" );
         assert ( sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ] == eProtocolMax );
         return rc;
     }
-
+    
     if ( request -> params != NULL && * request -> params != NULL )
         LOGMSG ( klogWarn, "'--" OPTION_PARAM "' is ignored: "
-            "it used just with '--" OPTION_RAW "' '" FUNCTION_NAMES "' and '"
-            FUNCTION_SEARCH "' funtions") ;
-
+                "it used just with '--" OPTION_RAW "' '" FUNCTION_NAMES "' and '"
+                FUNCTION_SEARCH "' funtions") ;
+    
     rc = KService_Make ( & service, request );
-
+    
     if ( rc == 0 ) {
         if ( rc == 0 && request -> projects != NULL &&
-             request -> projects [ 0 ] != 0 )
+            request -> projects [ 0 ] != 0 )
         {
             uint32_t * ptr = NULL;
             for ( ptr = request -> projects; * ptr != 0; ++ ptr ) {
                 rc = KServiceAddProject ( service, * ptr );
                 if ( rc != 0 ) {
                     PLOGERR ( klogErr, ( klogErr, rc,
-                        "Cannot add project '$(p)'", "p=%u", * ptr ) );
+                                        "Cannot add project '$(p)'", "p=%u", * ptr ) );
                     break;
                 }
             }
         }
     }
+    
+    if (rc == 0 && request->location != NULL) {
+        rc = KServiceSetLocation(service, request->location);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot sel location '$(l)'", "l=%s", request->location));
+    }
 
     if ( rc == 0 && request -> proto != NULL )
         protocols = parseProtocol ( request -> proto, & rc );
-
+    
     if ( rc == 0 ) {
-        if ( cache )
-            rc = names_remote_cache ( service, protocols, request, path );
-        else
-            rc = names_remote       ( service, protocols, request, path );
+        rc = func( service, protocols, request, path );
     }
-
+    
     RELEASE ( KService, service );
-
+    
     return rc;
 }
 
+rc_t names_request ( const request_params * request, bool cache, bool path )
+{
+    if (cache)
+        return names_request_1(request, path, names_remote_cache);
+    else
+        return names_request_1(request, path, names_remote      );
+}
+
+rc_t names_request_json ( const request_params * request, bool cache, bool path )
+{
+    return names_request_1(request, path, names_remote_json);
+}
 
 static void KartItem_Print ( const KartItem * self ) {
     rc_t r2 = 0;

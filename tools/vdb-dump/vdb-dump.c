@@ -119,10 +119,14 @@ static const char * info_usage[]                = { "print info about run",     
 static const char * spotgroup_usage[]           = { "show spotgroups",                              NULL };
 static const char * merge_ranges_usage[]        = { "merge and sort row-ranges",                    NULL };
 static const char * spread_usage[]              = { "show spread of integer values",                NULL };
+static const char * append_usage[]              = { "append to output-file, if output-file used",   NULL };
+
+/* from here on: not mentioned in help */
 static const char * len_spread_usage[]          = { "show spread of READ/REF_LEN values",           NULL };
 static const char * slice_usage[]               = { "find a slice of given depth",                  NULL };
 static const char * interactive_usage[]         = { "interactive mode",                             NULL };
 
+/* OPTION_XXX and ALIAS_XXX in vdb-dump-contest.h */
 OptDef DumpOptions[] =
 {
     { OPTION_ROW_ID_ON,             ALIAS_ROW_ID_ON,          NULL, row_id_on_usage,         1, false,  false },
@@ -170,6 +174,8 @@ OptDef DumpOptions[] =
     { OPTION_SPOTGROUPS,            NULL,                     NULL, spotgroup_usage,         1, false,  false },
     { OPTION_MERGE_RANGES,          NULL,                     NULL, merge_ranges_usage,      1, false,  false },
     { OPTION_SPREAD,                NULL,                     NULL, spread_usage,            1, false,  false },
+    { OPTION_APPEND,                ALIAS_APPEND,             NULL, append_usage,            1, false,  false },
+    
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_INTERACTIVE,           NULL,                     NULL, interactive_usage,       1, false,  false },    
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false }
@@ -260,6 +266,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_SPOTGROUPS,      NULL,           spotgroup_usage );
     HelpOptionLine ( NULL,                      OPTION_MERGE_RANGES,    NULL,           merge_ranges_usage );
     HelpOptionLine ( NULL,                      OPTION_SPREAD,          NULL,           spread_usage );
+    HelpOptionLine ( ALIAS_APPEND,              OPTION_APPEND,          NULL,           append_usage );
     
     HelpOptionsStandard ();
 
@@ -2258,12 +2265,12 @@ rc_t CC KMain ( int argc, char *argv [] )
             ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
         else
         {
-            dump_context *ctx;
+            dump_context *ctx;  /* vdb-dump-context.h */
 
             rc = vdco_init( &ctx );
             if ( rc == 0 )
             {
-                rc = vdco_capture_arguments_and_options( args, ctx );
+                rc = vdco_capture_arguments_and_options( args, ctx ); /* vdb-dump-context.c */
                 if ( rc == 0 )
                 {
                     out_redir redir; /* vdb-dump-redir.h */
@@ -2272,7 +2279,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                     rc = init_out_redir( &redir,
                                      ctx->compress_mode,
                                      ctx->output_file,
-                                     ctx->interactive ? 0 : ctx->output_buffer_size ); /* vdb-dump-redir.c */
+                                     ctx->interactive ? 0 : ctx->output_buffer_size,
+                                     ctx->append ); /* vdb-dump-redir.c */
                     
                     if ( rc == 0 )
                     {

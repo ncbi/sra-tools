@@ -1,5 +1,63 @@
 # NCBI External Developer Release:
 
+## SRA Toolkit 2.10.0
+**August 19, 2019**
+
+  **bam-load**: SAM/BAM record sizes are limited only by available memory  
+  **fastq-dump**: fixed help text  
+  **kfg, sra-tools**: use trace.ncbi.nlm.nih.gov to call names service  
+  **kfg, vdb-config**: alternative remote repository URL was added to default configuration   
+  **kfs**: introduced readahead strategy for cloud storage  
+  **klib, vdb**: error report is saved to ncbi_error_report.txt  
+  **kns**: We now use system root CA certs on Unix   
+  **kns**: introduced configurable controls over network timeouts  
+  **prefetch**: fixed crash when run with --output-file option  
+  **prefetch**: updated prefetch help text  
+  **prefetch, srapath**: support for original submission files in cloud storage
+  **prefetch, srapath, vfs**: added possibility to specify data location  
+  **prefetch, vdb**: adjustments for latest name resolution service  
+  **prefetch, vfs**: added support of "run accession as directory"  
+  **prefetch, vfs**: added support of download of reference sequences in "run accession as directory"  
+  **prefetch, vfs**: fixed regression when prefetch does not download vdbcache  
+  **sra-stat**: don't print mismatch warning for old runs having a single SEQUENCE table and CMP_BASE_COUNT=BIO_BASE_COUNT while it should be 0  
+  **sra-stat**: fixed a bug when processing runs having spots with first reads with length 0  
+  **srapath, sratools**: Added support of "run accession as directory"  
+  **sratools**: SRA tools are executed by a driver tool called sratools  
+  **sratools**: installation creates symlinks to invoke some tools via a driver tool (sratools)  
+  **test**: created a standard way to detect ascp availability  
+  **tui, vdb-config**: new look and cloud specific options in 'vdb-config -i'  
+  **vdb**: make greater use of data returned by latest name resolver  
+  **vdb-validate**: referential integrity checker prints out completion message, if it printed out any progress  
+  **vfs**: added possibility to set resolver version from configuration  
+  **vfs**: allow to use SDL as remote service  
+
+
+## SRA Toolkit 2.9.6
+**March 18, 2019**
+
+  **prefetch**, **vfs**: fixed regression that prevented re-download of incomplete files  
+
+
+## SRA Toolkit 2.9.5
+**March 6, 2019**
+
+  **prefetch**: fixed regression that caused download of incomplete files  
+
+
+## SRA Toolkit 2.9.4-1
+**March 4, 2019**
+
+  **sra-tools, vfs**: fixed regression introduced in 2.9.4 release thas caused delay when starting sra tools  
+
+
+## SRA Toolkit 2.9.4
+**January 31, 2019**
+
+  **fasterq-dump**: improved handling of temp files in case of multiple instances  
+  **fasterq-dump**: produces same output as fastq-dump on SRR000001 (empty reads)  
+  **fastq-dump**: updated typo in error report  
+  **sra-tools, vfs**: added support of realign objects 
+
 
 ## SRA Toolkit 2.9.6
 **March 18, 2019**

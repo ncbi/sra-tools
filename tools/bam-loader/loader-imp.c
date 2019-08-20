@@ -792,6 +792,7 @@ static KFile *MakeDeferralFile() {
         string_printf(template, sizeof(template), &nwrit, "%s/defer.XXXXXX", G.tmpfs);
         fd = mkstemp(template);
         KDirectoryOpenFileWrite(d, &f, true, template);
+        KDirectoryRelease(d);
         close(fd);
         unlink(template);
         return f;
@@ -802,13 +803,16 @@ static KFile *MakeDeferralFile() {
 static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 {
     rc_t rc = 0;
+    KFile *defer = MakeDeferralFile();
 
     if (strcmp(bamFile, "/dev/stdin") == 0) {
-        rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "/dev/stdin");
+        rc = BAM_FileMake(bam, defer, G.headerText, "/dev/stdin");
     }
     else {
-        rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "%s", bamFile);
+        rc = BAM_FileMake(bam, defer, G.headerText, "%s", bamFile);
     }
+    KFileRelease(defer); /* it was retained by BAM file */
+    
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }
@@ -1400,17 +1404,29 @@ static context_t GlobalContext;
 static KQueue *bamq;
 static KThread *bamread_thread;
 
+static rc_t BAM_FileReadDetached(BAM_File const *self, BAM_Alignment **rec)
+{
+    BAM_Alignment const *crec = NULL;
+    rc_t const rc = BAM_FileRead2(self, &crec);
+    if (rc == 0) {
+        if ((*rec = BAM_AlignmentDetach(crec)) != NULL)
+            return 0;
+        return RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
+    }
+    BAM_AlignmentRelease(crec);
+    return rc;
+}
+
 static rc_t run_bamread_thread(const KThread *self, void *const file)
 {
     rc_t rc = 0;
     size_t NR = 0;
 
     while (rc == 0) {
-        BAM_Alignment const *crec = NULL;
         BAM_Alignment *rec = NULL;
 
         ++NR;
-        rc = BAM_FileRead2(file, &crec);
+        rc = BAM_FileReadDetached(file, &rec);
         if ((int)GetRCObject(rc) == rcRow && (int)GetRCState(rc) == rcEmpty) {
             rc = CheckLimitAndLogError();
             continue;
@@ -1421,9 +1437,6 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
             --NR;
             break;
         }
-        if (rc) break;
-        rc = BAM_AlignmentCopy(crec, &rec);
-        BAM_AlignmentRelease(crec);
         if (rc) break;
 
         {
@@ -2665,6 +2678,8 @@ WRITE_ALIGNMENT:
 
     BAM_FileRelease(bam);
     MMArrayLock(ctx->id2value);
+    KDataBufferWhack(&seqBuffer);
+    KDataBufferWhack(&qualBuffer);
     KDataBufferWhack(&buf);
     KDataBufferWhack(&fragBuf);
     KDataBufferWhack(&cigBuf);

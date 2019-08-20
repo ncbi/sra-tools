@@ -81,6 +81,10 @@ static const char * func_usage[] = { "function to perform "
 #define OPTION_FUNC   "function"
 #define ALIAS_FUNC    "f"
 
+static const char * locn_usage[] = { "location of data", NULL };
+#define OPTION_LOCN   "location"
+#define ALIAS_LOCN    NULL
+
 static const char * path_usage[]
  = { "print path of object: names function-only", NULL };
 #define OPTION_PATH   "path"
@@ -93,6 +97,9 @@ static const char * param_usage[]
 static const char * raw_usage[] = { "print the raw reply (instead of parsing it)", NULL };
 #define ALIAS_RAW     "r"
 
+static const char * json_usage[] = { "print the reply in JSON", NULL };
+#define ALIAS_JSON    "j"
+
 static const char * timeout_usage[] = { "timeout-value for request", NULL };
 #define OPTION_TIMEOUT "timeout"
 #define ALIAS_TIMEOUT "t"
@@ -104,12 +111,14 @@ static const char * url_usage[] = { "url to be used for cgi-calls", NULL };
 OptDef ToolOptions[] =
 {                                                    /* needs_value, required */
     { OPTION_FUNC   , ALIAS_FUNC   , NULL, func_usage   ,   1,  true,   false },
+    { OPTION_LOCN   , ALIAS_LOCN   , NULL, locn_usage   ,   1,  true,   false },
     { OPTION_TIMEOUT, ALIAS_TIMEOUT, NULL, timeout_usage,   1,  true,   false },
     { OPTION_PROTO  , ALIAS_PROTO  , NULL, proto_usage  ,   1,  true,   false },
     { OPTION_VERS   , ALIAS_VERS   , NULL, vers_usage   ,   1,  true,   false },
     { OPTION_URL    , ALIAS_URL    , NULL, url_usage    ,   1,  true,   false },
     { OPTION_PARAM  , ALIAS_PARAM  , NULL, param_usage  ,  10,  true,   false },
     { OPTION_RAW    , ALIAS_RAW    , NULL, raw_usage    ,   1,  false,  false },
+    { OPTION_JSON   , ALIAS_JSON   , NULL, json_usage   ,   1,  false,  false },
     { OPTION_PRJ    , ALIAS_PRJ    , NULL, prj_usage    ,  10,  true  , false },
     { OPTION_CACHE  , ALIAS_CACHE  , NULL, cache_usage  ,   1,  false,  false },
     { OPTION_PATH   , ALIAS_PATH   , NULL, path_usage   ,   1,  false,  false },
@@ -174,18 +183,21 @@ rc_t CC Usage( const Args *args )
 }
 
 
-static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const char * pc )
+static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
+    const char * pc, const char * location )
 {
     bool found = true;
     rc_t rc = 0;
 
-    uint32_t s = string_measure ( pc, NULL );
-    if ( s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { /* SRP or SRX */
+/*  uint32_t s = string_measure ( pc, NULL ); */
+    if ( true ) { /* s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { SRP or SRX */
         KService * service = NULL;
         found = false;
         rc = KServiceMake ( & service );
         if ( rc == 0 )
             rc = KServiceAddId ( service, pc );
+        if (rc == 0 && location != NULL)
+            rc = KServiceSetLocation(service, location);
         if ( rc == 0 ) {
             VRemoteProtocols protocol = eProtocolHttps;
             const KSrvResponse * response = NULL;
@@ -359,7 +371,10 @@ static rc_t resolve_arguments( Args * args )
                 LOGERR ( klogErr, rc, "failed to get VResolver object" );
             else
             {
+                rc_t r2 = 0;
                 uint32_t idx;
+
+                const char * location = get_str_option(args, OPTION_LOCN, NULL);
 
                 rc = ArgsOptionCount ( args, OPTION_PROTO, & idx );
                 if ( rc == 0 && idx == 0 )
@@ -384,9 +399,14 @@ static rc_t resolve_arguments( Args * args )
                     rc = ArgsParamValue( args, idx, ( const void ** )&pc );
                     if ( rc != 0 )
                         LOGERR( klogInt, rc, "failed to retrieve parameter value" );
-                    else
-                        rc = resolve_one_argument( mgr, resolver, pc );
+                    else {
+                        rc_t rx = resolve_one_argument( mgr, resolver, pc, location );
+                        if ( rx != 0 && r2 == 0)
+                            r2 = rx;
+                    }
                 }
+                if (r2 != 0 && rc == 0)
+                    rc = r2;
                 VResolverRelease( resolver );
             }
             VFSManagerRelease( mgr );
@@ -405,7 +425,7 @@ static rc_t on_reply_line( const String * line, void * data )
 
 typedef struct out_fmt
 {
-    bool raw, cache, path;
+    bool raw, cache, path, json;
 } out_fmt;
 
 
@@ -433,6 +453,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
             r->names_url  = get_str_option( args, OPTION_URL, NULL );
             r->names_ver  = get_str_option( args, OPTION_VERS, NULL );
             r->proto      = get_str_option( args, OPTION_PROTO, DEF_PROTO );
+            r->location   = get_str_option( args, OPTION_LOCN, NULL );
             r->search_url = NULL;
             r->search_ver = NULL;
             
@@ -465,6 +486,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
     }
 
     fmt->raw = get_bool_option( args, OPTION_RAW );
+    fmt->json = get_bool_option( args, OPTION_JSON );
 
     return rc;
 }
@@ -494,6 +516,9 @@ static rc_t names_cgi( const Args * args )
                 LOGMSG ( klogWarn, "'--" OPTION_CACHE
                    "' is ignored with '--" OPTION_RAW "'" );
             rc = raw_names_request( &r, on_reply_line, &rslt_code, NULL );
+        }
+        else if (fmt.json) {
+            rc = names_request_json ( & r, fmt . cache, fmt . path );
         }
         else
             rc = names_request ( & r, fmt . cache, fmt . path );

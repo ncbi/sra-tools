@@ -30,6 +30,7 @@
 #include <kfs/buffile.h>
 #include <kfs/bzip.h>
 #include <kfs/gzip.h>
+#include <kfs/appendfile.h>
 #include <sysalloc.h>
 
 static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufsize, size_t * num_writ )
@@ -42,7 +43,9 @@ static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufs
 }
 
 
-rc_t init_out_redir( out_redir * self, out_redir_mode_t mode, const char * filename, size_t bufsize )
+rc_t init_out_redir( out_redir * self, out_redir_mode_t mode,
+                     const char * filename, size_t bufsize,
+                     bool append )
 {
     rc_t rc;
     KFile *output_file;
@@ -55,8 +58,21 @@ rc_t init_out_redir( out_redir * self, out_redir_mode_t mode, const char * filen
             LOGERR( klogInt, rc, "KDirectoryNativeDir() failed" );
         else
         {
-            rc = KDirectoryCreateFile ( dir, &output_file, false, 0664, kcmInit, "%s", filename );
+            rc = KDirectoryCreateFile ( dir, &output_file, false, 0664, kcmOpen, "%s", filename );
             KDirectoryRelease( dir );
+        }
+        
+        if ( append )
+        {
+            KFile *temp_file;
+            if ( mode != orm_uncompressed )
+                mode = orm_uncompressed;
+            rc = KFileMakeAppend ( &temp_file, output_file );
+            if ( rc == 0 )
+            {
+                KFileRelease( output_file );
+                output_file = temp_file;
+            }
         }
     }
     else

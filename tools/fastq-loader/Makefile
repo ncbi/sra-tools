@@ -41,27 +41,27 @@ EXT_TOOLS = \
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
-	$(EXT_TOOLS)    
+	$(EXT_TOOLS)
 
 include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: makedirs 
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
 $(INT_LIBS): makedirs
 	@ $(MAKE_CMD) $(ILIBDIR)/$@
 
 $(EXT_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@    
+	@ $(MAKE_CMD) $(BINDIR)/$@
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
-.PHONY: all std $(ALL_LIBS) 
+.PHONY: all std $(ALL_LIBS)
 
 #-------------------------------------------------------------------------------
 # std
@@ -89,7 +89,7 @@ $(TARGDIR)/all: \
 INTERM_SRC = \
 	$(SRCDIR)/fastq-lex.c \
 	$(SRCDIR)/fastq-grammar.c \
-	$(SRCDIR)/fastq-tokens.h 
+	$(SRCDIR)/fastq-tokens.h
 
 clean: stdclean
 
@@ -103,12 +103,14 @@ clean: stdclean
 $(ILIBDIR)/libfastqloader: $(ILIBDIR)/libfastqloader.$(LIBX)
 
 FASTQ_SRC = \
+    spot-assembler \
     common-writer \
     sequence-writer \
     common-reader \
     fastq-reader \
 	fastq-grammar \
-	fastq-lex
+	fastq-lex \
+	id2name \
 
 # flex/bison should only be invoked manually in an environment that ensures the correct versions:
 # bison 2.5, flex 2.5.35
@@ -117,9 +119,9 @@ bison:
 
 ifeq (dbg,$(BUILD))
     FLEX_DEBUG = -d
-endif    
+endif
 
-flex:    
+flex:
 	flex $(FLEX_DEBUG) -DYY_BUF_SIZE=16777216 -t $(SRCDIR)/fastq-lex.l | grep -v '^#line' > $(SRCDIR)/fastq-lex.c
 
 FASTQ_OBJ = \

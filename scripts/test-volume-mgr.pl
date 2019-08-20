@@ -551,7 +551,7 @@ sub prepare {
     my $kfg = "$tmp/k.kfg";
 
     my $node = '/repository/remote/main/CGI/resolver-cgi='
-             . '\"https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi\"';
+             . '\"https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi\"';
     `echo $node                                       >  $kfg`; die if $?;
 
     my $public = "$tmp/ncbi/public";

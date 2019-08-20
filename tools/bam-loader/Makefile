@@ -69,6 +69,7 @@ clean: stdclean
 BAMLOAD_SRC = \
 	bam-loader \
 	bam \
+	sam \
 	alignment-writer \
 	reference-writer \
 	sequence-writer \
@@ -95,6 +96,7 @@ $(BINDIR)/bam-load: $(BAMLOAD_OBJ)
 #
 SAMVIEW_SRC = \
 	bam \
+	sam \
 	samview
 
 SAMVIEW_OBJ = \

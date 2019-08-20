@@ -26,6 +26,8 @@
 
 /********** includes **********/
 
+#include <cloud/manager.h> /* CloudMgrMake */
+
 #include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
@@ -220,6 +222,7 @@ typedef struct {
 
     bool dryRun; /* Dry run the app: don't download, only check resolving */
 
+    const char * location; /* do not free! */
     const char * outDir;  /* do not free! */
     const char * outFile; /* do not free! */
     const char * orderOrOutFile; /* do not free! */
@@ -272,8 +275,8 @@ static char* StringCheck(const String *self, rc_t rc) {
     return NULL;
 }
 
-static
-bool _StringIsXYZ(const String *self, const char **withoutScheme, const char * scheme, size_t scheme_size)
+static bool _StringIsXYZ(const String *self, const char **withoutScheme,
+    const char * scheme, size_t scheme_size)
 {
     const char *dummy = NULL;
 
@@ -308,11 +311,13 @@ bool _SchemeIsFasp(const String *self) {
 }
 
 /********** KFile extension **********/
-static
-rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
-                      bool reliable)
+static rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns,
+    const VPath *vpath, const String *path, bool reliable)
 {
     rc_t rc = 0;
+
+    bool ceRequired = false;
+    bool payRequired = false;
 
     assert(self);
 
@@ -325,9 +330,12 @@ rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
         return
             SILENT_RC ( rcExe, rcFile, rcConstructing, rcParam, rcWrongType );
 
+    VPathGetCeRequired(vpath, &ceRequired);
+    VPathGetPayRequired(vpath, &payRequired);
+
     if ( reliable )
-        rc = KNSManagerMakeReliableHttpFile(kns,
-                                         self, NULL, 0x01010000, "%S", path);
+        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, true,
+            ceRequired, payRequired, "%S", path);
     else
         rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
 
@@ -465,11 +473,8 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
                 tmpPfx = slash + 1;
             }
         }
-        else {
-            rc = RC(rcExe, rcDirectory, rcSearching, rcChar, rcNotFound);
-            PLOGERR(klogInt, (klogInt, rc,
-                    "cannot extract directory from $(path)", "path=%s", dir));
-        }
+        else
+            tmpPfx = tmpName;
         tmpPfxLen = strlen(tmpPfx);
     }
 
@@ -498,9 +503,11 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
         KNamelist *list = NULL;
         STSMSG(STS_DBG, ("listing %s for old temporary files", dir));
         rc = KDirectoryList(self, &list, NULL, NULL, "%s", dir);
+        if (rc == SILENT_RC(rcFS, rcDirectory, rcListing, rcPath, rcNotFound))
+            rc = 0;
         DISP_RC2(rc, "KDirectoryList", dir);
 
-        if (rc == 0) {
+        if (rc == 0 && list != NULL) {
             rc = KNamelistCount(list, &count);
             DISP_RC2(rc, "KNamelistCount(KDirectoryList)", dir);
         }
@@ -601,9 +608,12 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if (rc == 0 && item->mane ->fileType != NULL)
         rc = KServiceSetFormat(service, item->mane->fileType);
 
+    if (rc == 0 && item->mane->location != NULL)
+        rc = KServiceSetLocation(service, item->mane->location);
+
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
-            "4", odir, ofile, & response );
+            NULL, odir, ofile, & response );
 
     if ( rc == 0 )
         l = KSrvResponseLength  ( response );
@@ -641,20 +651,22 @@ static rc_t V_ResolverRemote(const VResolver *self,
                     break;
                 memset(&scheme, 0, sizeof scheme);
                 rc = VPathGetScheme(path, &scheme);
-                if (StringEqual(&scheme, &https))
-                    v = &resolved->remoteHttps;
-                else if (StringEqual(&scheme, &fasp)) {
-                    v = &resolved->remoteFasp;
-                    ascp = true;
+                if (rc == 0) {
+                    if (StringEqual(&scheme, &https))
+                        v = &resolved->remoteHttps;
+                    else if (StringEqual(&scheme, &fasp)) {
+                        v = &resolved->remoteFasp;
+                        ascp = true;
+                    }
+                    else if (StringEqual(&scheme, &http))
+                        v = &resolved->remoteHttp;
+                    assert(v);
+                    assert(path);
+                    if (v->path != NULL)
+                        continue;
+                    RELEASE(VPath, v->path);
+                    v->path = path;
                 }
-                else if (StringEqual(&scheme, &http))
-                    v = &resolved->remoteHttp;
-                assert ( v );
-                assert ( path );
-                if (v->path != NULL)
-                    continue;
-                RELEASE ( VPath, v -> path );
-                v -> path = path;
 
                 if ( rc == 0 ) {
                     char path [ PATH_MAX ] = "";
@@ -1041,6 +1053,9 @@ static rc_t ResolvedLocal(const Resolved *self,
     const KFile *local = NULL;
     char path[PATH_MAX] = "";
 
+    bool emptyDir = false;
+    KPathType type = kptNotFound;
+
     assert(isLocal && self && mane);
     dir = mane -> dir;
 
@@ -1053,9 +1068,22 @@ static rc_t ResolvedLocal(const Resolved *self,
     rc = VPathReadPath(self->local.path, path, sizeof path, NULL);
     DISP_RC(rc, "VPathReadPath");
 
-    if (rc == 0 && (KDirectoryPathType(dir, "%s", path) & ~kptAlias) != kptFile)
-    {
-        if (force == eForceNo) {
+    type = KDirectoryPathType(dir, "%s", path) & ~kptAlias;
+    if (type == kptDir) {
+        KNamelist * list = NULL;
+        rc = KDirectoryList(dir, &list, NULL, NULL, "%s", path);
+        if (rc == 0) {
+            uint32_t count = 0;
+            rc = KNamelistCount(list, &count);
+            if (rc == 0 && count == 0) /* empty directory is ignored */
+                emptyDir = true;
+        }
+        RELEASE(KNamelist, list);
+    }
+
+    if (rc == 0 && type != kptFile) {
+        if (emptyDir); /* ignore it */
+        else if (force == eForceNo) {
             STSMSG(STS_TOP,
                 ("%s (not a file) is found locally: consider it complete",
                  path));
@@ -1259,9 +1287,9 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
     assert ( src . addr );
 
-    if (!mane->dryRun) {
+    if (!mane->dryRun && mane->stripQuals) {
         if (in == NULL) {
-            rc = _KFileOpenRemote(&in, mane->kns, & src, !self->isUri);
+            rc = _KFileOpenRemote(&in, mane->kns, path, & src, !self->isUri);
             if (rc != 0 && !self->isUri)
                 PLOGERR(klogInt, (klogInt, rc, "failed to open file "
                     "'$(path)'", "path=%S", & src));
@@ -1283,33 +1311,64 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         bool reliable = ! self -> isUri;
         ver_t http_vers = 0x01010000;
         KClientHttpRequest * kns_req = NULL;
-        if ( reliable )
-            rc = KNSManagerMakeReliableClientRequest ( mane -> kns,
-                & kns_req, http_vers, NULL, "%S", & src );
+
+        bool ceRequired = false;
+        bool payRequired = false;
+        const String * ce_token = NULL;
+
+        VPathGetCeRequired(path, &ceRequired);
+        VPathGetPayRequired(path, &payRequired);
+
+        if (ceRequired) {
+            CloudMgr * m = NULL;
+            Cloud * cloud = NULL;
+            rc_t rc = CloudMgrMake(&m, NULL, NULL);
+            if (rc == 0)
+                rc = CloudMgrGetCurrentCloud(m, &cloud);
+            if (rc == 0)
+                CloudMakeComputeEnvironmentToken(cloud, &ce_token);
+            RELEASE(Cloud, cloud);
+            RELEASE(CloudMgr, m);
+        }
+
+        if (reliable)
+            if (ceRequired && ce_token != NULL)
+                rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                    &kns_req, http_vers, NULL, "%S&ident=%S", &src, ce_token);
+            else
+                rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                    &kns_req, http_vers, NULL, "%S", &src);
         else
-            rc = KNSManagerMakeClientRequest ( mane -> kns,
-                & kns_req, http_vers, NULL, "%S", & src );
-        DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest",
-                   & src . addr );
+            if (ceRequired && ce_token != NULL)
+                rc = KNSManagerMakeClientRequest(mane->kns,
+                    &kns_req, http_vers, NULL, "%S&ident=%S", &src, ce_token);
+            else
+                rc = KNSManagerMakeClientRequest ( mane -> kns,
+                    & kns_req, http_vers, NULL, "%S", & src );
+        DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest", src . addr );
+
+        RELEASE(String, ce_token);
 
         if ( rc == 0 ) {
             KClientHttpResult * rslt = NULL;
+
+            if (payRequired)
+                KHttpRequestSetCloudParams(kns_req, ceRequired, payRequired);
+
             rc = KClientHttpRequestGET ( kns_req, & rslt );
-            DISP_RC2 ( rc, "Cannot KClientHttpRequestGET",
-                       & src . addr );
+            DISP_RC2 ( rc, "Cannot KClientHttpRequestGET", src . addr );
 
             if ( rc == 0 ) {
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
                 DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
-                           & src . addr );
+                           src . addr );
 
                 while ( rc == 0 ) {
                     rc = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
                     if ( rc != 0 || num_read == 0) {
-                        DISP_RC2 ( rc, "Cannot KStreamRead",
-                                   & src . addr );
+                        DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
                         break;
                     }
 
@@ -1344,7 +1403,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 }
 
 static rc_t MainDownloadCacheFile(Resolved *self,
-                                  Main *mane, const char *to, bool elimQuals)
+                        Main *mane, const char *to, bool elimQuals)
 {
     rc_t rc = 0;
     const KFile *out = NULL;
@@ -1360,8 +1419,8 @@ static rc_t MainDownloadCacheFile(Resolved *self,
     assert(remote -> str);
 
     if (self->file == ((void*)0)) {
-        rc = _KFileOpenRemote(&self->file, mane->kns, remote -> str,
-                              !self->isUri);
+        rc = _KFileOpenRemote(&self->file, mane->kns,
+            remote->path, remote -> str, !self->isUri);
         if (rc != 0) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
                               "path=%S", remote -> str));
@@ -1462,7 +1521,7 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
 }
 
 static rc_t MainDoDownload(Resolved *self, const Item * item,
-                        bool isDependency, const VPath * path, const char * to)
+            bool isDependency, const VPath * path, const char * to)
 {
     bool canceled = false;
     rc_t rc = 0;
@@ -1555,7 +1614,7 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
 }
 
 static rc_t MainDownload(Resolved *self, const Item * item,
-                         bool isDependency)
+                         bool isDependency, const VPath *vdbcache)
 {
 /*  bool canceled = false;*/
     rc_t rc = 0;
@@ -1578,10 +1637,22 @@ static rc_t MainDownload(Resolved *self, const Item * item,
     if (self->respFile != NULL) {
         rc = KSrvRespFileGetCache(self->respFile, &vcache);
         if (rc == 0) {
-            rc = VPathGetPath(vcache, &cache);
-            if (rc != 0) {
-                DISP_RC(rc, "VPathGetPath(MainDownload)");
-                return rc;
+            if (vdbcache != NULL) {
+                VPath * clocal = NULL;
+                rc = VFSManagerMakePathWithExtension(
+                    mane->vfsMgr, &clocal, vcache, ".vdbcache");
+                if (rc == 0) {
+                    RELEASE(VPath, vcache);
+                    vcache = clocal;
+                }
+
+            }
+            if (rc == 0) {
+                rc = VPathGetPath(vcache, &cache);
+                if (rc != 0) {
+                    DISP_RC(rc, "VPathGetPath(MainDownload)");
+                    return rc;
+                }
             }
         }
     }
@@ -1596,7 +1667,7 @@ static rc_t MainDownload(Resolved *self, const Item * item,
         KStsLevel lvl = STS_DBG;
         if (mane->dryRun)
             lvl = STAT_USR;
-        STSMSG(lvl, ("#################### cache(%S)", & cache));
+        STSMSG(lvl, ("########## cache(%S)", & cache));
     }
 
     if (mane->force != eForceYES &&
@@ -1660,90 +1731,33 @@ static rc_t MainDownload(Resolved *self, const Item * item,
         rc = KSrvRespFileMakeIterator(self->respFile, &fi);
         while (rc == 0) {
             const VPath * path = NULL;
-            rc = KSrvRespFileIteratorNextPath(fi, &path);
-            if (rc == 0) {
-                if (path == NULL) {
-                    rc = rd;
-                    break;
+            if (vdbcache == NULL) {
+                rc = KSrvRespFileIteratorNextPath(fi, &path);
+                if (rc == 0) {
+                    if (path == NULL) {
+                        rc = rd;
+                        break;
+                    }
                 }
                 rd = MainDoDownload(self, item, isDependency, path, tmp);
-#if 0
-                bool ascp = false;
-                String scheme;
-                {
-                    char spath[PATH_MAX] = "";
-                    KStsLevel lvl = STS_DBG;
-                    rc_t r = VPathReadUri(path, spath, sizeof spath, NULL);
-                    if (mane->dryRun)
-                        lvl = STAT_USR;
-                    if (r != 0)
-                        STSMSG(lvl, ("########## VPathReadUri(remote)=%R)", r));
-                    else {
-                        uint64_t s = VPathGetSize(path);
-                        char * query = strstr(spath, "tic=");
-                        if (query != NULL) {
-                            if (*(query-1) == '?')
-                                --query;
-                            *query = '\0';
-                        }
-                        STSMSG(lvl, ("########## remote(%s:%,ld)", spath, s));
-                    }
-                }
-                memset(&scheme, 0, sizeof scheme);
-                rc = VPathGetScheme(path, &scheme);
-                ascp = _SchemeIsFasp(&scheme);
-                if (!mane->noAscp) {
-                    if (ascp) {
-                        STSMSG(STS_TOP, (" Downloading via fasp..."));
-                        if (mane->forceAscpFail)
-                            rc = 1;
-                        else if (mane->eliminateQuals) {
-                            LOGMSG(klogErr, "Cannot eliminate qualities "
-                                "during fasp download");
-                            rc = 1;
-                        }
-                        else if (mane->eliminateQuals) {
-                            LOGMSG(klogErr, "Cannot remove QUALITY columns "
-                                "during fasp download");
-                            rc = 1;
-                        }
-                        else
-                            rd = MainDownloadAscp(self, mane, tmp, path);
-                        if (rd == 0)
-                            STSMSG(STS_TOP, (" fasp download succeed"));
-                        else {
-                            rc_t rc = Quitting();
-                            if (rc != 0)
-                                canceled = true;
-                            else
-                                STSMSG(STS_TOP, (" fasp download failed"));
-                        }
-                    }
-                }
-                if (!ascp && (/*rc != 0 && GetRCObject(rc) != rcMemory&&*/
-                    !canceled && !mane->noHttp && !self->isUri))
-                {
-                    bool https = true;
-                    STSMSG(STS_TOP,
-                        (" Downloading via %s...", https ? "https" : "http"));
-                    if (mane->eliminateQuals)
-                        rd = MainDownloadCacheFile(self, mane,
-                            cache.addr, mane->eliminateQuals && !isDependency);
+            }
+            else
+                MainDoDownload(self, item, isDependency, vdbcache, tmp);
+            if (rd == 0 && vdbcache == NULL) {
+                const VPath * vdbcache = NULL;
+                rc_t rc = VPathGetVdbcache(path, & vdbcache, NULL);
+                if (rc == 0 && vdbcache != NULL) {
+                    STSMSG(STS_TOP, ("%d,2) Downloading '%s.vdbcache'...",
+                        item->number, self->name));
+                    if (MainDownload(self, item, isDependency, vdbcache) == 0)
+                        STSMSG(STS_TOP, (
+                            "%d.2) '%s.vdbcache' was downloaded successfully",
+                            item->number, self->name));
                     else
-                        rd = MainDownloadHttpFile(self, mane, tmp, path);
-                    if (rd == 0)
-                        STSMSG(STS_TOP, (" %s download succeed",
-                            https ? "https" : "http"));
-                    else {
-                        rc_t rc = Quitting();
-                        if (rc != 0)
-                            canceled = true;
-                        else
-                            STSMSG(STS_TOP, (" %s download failed",
-                                https ? "https" : "http"));
-                    }
+                        STSMSG(STS_TOP, ("%d) failed to download %s.vdbcache",
+                            item->number, self->name));
+                    RELEASE(VPath, vdbcache);
                 }
-#endif
             }
             RELEASE ( VPath, path );
             if (rd == 0)
@@ -1808,7 +1822,8 @@ static rc_t MainDownload(Resolved *self, const Item * item,
     return rc;
 }
 
-static rc_t _VDBManagerSetDbGapCtx(const VDBManager *self, VResolver *resolver)
+static rc_t _VDBManagerSetDbGapCtx(
+    const VDBManager *self, VResolver *resolver)
 {
     if (resolver == NULL) {
         return 0;
@@ -1925,6 +1940,75 @@ static char* ItemName(const Item *self) {
         rc = KartItemItemId(self->item, &elem);
         return StringCheck(elem, rc);
     }
+}
+
+static
+rc_t ItemSetDependency(Item *self, const VDBDependencies *deps, uint32_t idx)
+{
+    Resolved * resolved = NULL;
+    const VPath * cache = NULL;
+    const VPath * remote = NULL;
+    rc_t cacheRc = 0;
+    rc_t remoteRc = 0;
+    rc_t rc = VDBDependenciesRemoteAndCache(deps, idx,
+        &remoteRc, &remote, &cacheRc, &cache);
+    assert(self);
+    resolved = &self->resolved;
+    if (rc == 0) {
+        if (remoteRc != 0)
+            rc = remoteRc;
+        else if (cacheRc != 0)
+            rc = cacheRc;
+        else {
+            VPathStr * v = NULL;
+            String fasp;
+            String http;
+            String https;
+            String scheme;
+            CONST_STRING(&fasp, "fasp");
+            CONST_STRING(&http, "http");
+            CONST_STRING(&https, "https");
+            memset(&scheme, 0, sizeof scheme);
+            rc = VPathGetScheme(remote, &scheme);
+            if (rc == 0) {
+                if (StringEqual(&scheme, &https))
+                    v = &resolved->remoteHttps;
+                else if (StringEqual(&scheme, &fasp)) {
+                    v = &resolved->remoteFasp;
+                }
+                else if (StringEqual(&scheme, &http))
+                    v = &resolved->remoteHttp;
+                assert(v && v->path == NULL);
+                v->path = remote;
+            }
+            if (rc == 0) {
+                char path[PATH_MAX] = "";
+                size_t len = 0;
+                rc = VPathReadUri(v->path,
+                    path, sizeof path, &len);
+                DISP_RC2(rc, "VPathReadUri(VResolverRemote)", resolved->name);
+                if (rc == 0) {
+                    String local_str;
+                    StringInit(&local_str, path, len, (uint32_t)len);
+                    assert(!v->str);
+                    rc = StringCopy(&v->str, &local_str);
+                    DISP_RC2(rc, "StringCopy(VResolverRemote)", resolved->name);
+                }
+            }
+            if (rc == 0) {
+                String path_str;
+                rc = VPathGetPath(cache, &path_str);
+                DISP_RC2(rc, "VPathGetPath(VResolverCache)", resolved->name);
+
+                if (rc == 0) {
+                    assert(!resolved->cache);
+                    rc = StringCopy(&resolved->cache, &path_str);
+                    DISP_RC2(rc, "StringCopy(VResolverCache)", resolved->name);
+                }
+            }
+        }
+    }
+    return rc;
 }
 
 static
@@ -2193,7 +2277,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 bool reliable = ! resolved->isUri;
                 assert ( remote );
                 rc3 = _KFileOpenRemote(&resolved->file, kns,
-                    remote -> str, reliable);
+                    remote->path, remote -> str, reliable);
                 if ( !resolved->isUri )
                     DISP_RC2(rc3, "cannot open remote file",
                                 remote -> str->addr);
@@ -2218,10 +2302,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             assert ( remote -> str );
             if (!_StringIsFasp(remote -> str, NULL)) {
                 rc2 = _KFileOpenRemote(&resolved->file, kns,
-                    remote -> str, !resolved->isUri);
+                    remote->path, remote -> str, !resolved->isUri);
             }
         }
-        if (rc2 == 0 && resolved->file != NULL && resolved->remoteSz == 0) {
+        if (rc2 == 0 && resolved->file != NULL
+            && resolved->remoteSz == 0)
+        {
             rc2 = KFileSize(resolved->file, &resolved->remoteSz);
             DISP_RC2(rc2, "KFileSize(remote)", resolved->name);
         }
@@ -2242,12 +2328,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     const VPathStr * remote = NULL;
 
-    KStsLevel lvl = STS_DBG;
-
     assert(self && self->mane);
-
-    if (self->mane->dryRun)
-        lvl = STAT_USR;
 
     resolved = &self->resolved;
     resolved->name = ItemName(self);
@@ -2258,9 +2339,24 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         self->desc != NULL) /* object name is specified (not kart item) */
     {
         if ( self -> mane -> outFile == NULL ) {
+            bool local = false;
             KPathType type
                 = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
-            if (type == kptFile || type == kptDir) {
+            if (type == kptFile)
+                local = true;
+            else if (type == kptDir) {
+                KNamelist * list = NULL;
+                rc = KDirectoryList(dir, &list, NULL, NULL, "%s", self->desc);
+                if (rc == 0) {
+                    uint32_t count = 0;
+                    rc = KNamelistCount(list, &count);
+                    if (rc == 0 && count > 0) /* empty directory is ignored */
+                        local = true;
+                }
+                RELEASE(KNamelist, list);
+            }
+
+            if (local) {
                 rc = VPathStrInitStr(&resolved->path, self->desc, 0);
                 resolved->existing = true;
                 if (resolved->type != eRunTypeDownload) {
@@ -2278,13 +2374,15 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                 else
                     STSMSG(STS_TOP,
                         ("'%s' is a local non-kart file", self->desc));
+
                 return 0;
             }
         }
     }
 
-    rc = _ItemResolveResolved(resolver, protocols, self,
-        repoMgr, cfg, vfs, kns, self->mane->minSize, self->mane->maxSize);
+    if (!self->isDependency)
+        rc = _ItemResolveResolved(resolver, protocols, self,
+            repoMgr, cfg, vfs, kns, self->mane->minSize, self->mane->maxSize);
 
     if ( resolved -> remoteHttp . path != NULL )
         remote = & resolved -> remoteHttp;
@@ -2292,15 +2390,6 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         remote = & resolved -> remoteHttps;
     else if ( resolved -> remoteFasp . path != NULL )
         remote = & resolved -> remoteFasp;
-
-    STSMSG(lvl, ("########## Resolve(%s) = %R:", resolved->name, rc));
-    STSMSG(lvl, ("local(%s)",
-        resolved->local.str ? resolved->local.str->addr : "NULL"));
-    STSMSG(lvl, ("cache(%s)",
-        resolved->cache ? resolved->cache->addr : "NULL"));
-    STSMSG(lvl, ("remote(%s:%,ld)",
-        remote && remote -> str ? remote -> str->addr : "NULL",
-        resolved->remoteSz));
 
     if (rc == 0) {
         if (resolved->remoteSz >= self->mane-> maxSize) {
@@ -2509,7 +2598,7 @@ static rc_t ItemDownload(Item *item) {
         KStsLevel lvl = STS_DBG;
         if (item->mane->dryRun)
             lvl = STAT_USR;
-        STSMSG(lvl, ("#################### local(%s)",
+        STSMSG(lvl, ("########## local(%s)",
             self->local.str ? self->local.str->addr : "NULL"));
     }
 
@@ -2532,15 +2621,39 @@ static rc_t ItemDownload(Item *item) {
                 rc = StringCopy(&self->path.str, self->local.str);
             }
         }
-        else if ( self -> remoteFasp . str == NULL && item->mane->noHttp) {
+        else if (self->remoteFasp.str == NULL && item->mane->noHttp) {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);
             PLOGERR(klogErr, (klogErr, rc,
                 "cannot download '$(name)' using requested transport",
                 "name=%s", self->name));
         }
         else {
-            STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, self->name));
-            rc = MainDownload(self, item, item->isDependency);
+            bool notFound = false;
+            const char * name = self->name;
+            if (self->respFile != NULL) {
+                const char * acc = NULL;
+                rc_t r2 = KSrvRespFileGetName(self->respFile, &acc);
+                if (r2 == 0 && acc != NULL)
+                    name = acc;
+            }
+            STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, name));
+            notFound =
+                KDirectoryPathType(item->mane->dir, "%s", name) == kptNotFound;
+            rc = MainDownload(self, item, item->isDependency, NULL);
+            if (item->mane->dryRun && notFound
+                && KDirectoryPathType(item->mane->dir, "%s", name) == kptDir)
+            {
+                KNamelist * list = NULL;
+                rc = KDirectoryList(item->mane->dir,
+                    &list, NULL, NULL, "%s", name);
+                if (rc == 0) {
+                    uint32_t count = 0;
+                    rc = KNamelistCount(list, &count);
+                    if (rc == 0 && count == 0)
+                        KDirectoryRemove(item->mane->dir, false, "%s", name);
+                }
+                RELEASE(KNamelist, list);
+            }
             if (rc == 0) {
                 if (self->inOutDir) {
                     const char * start = self->cache->addr;
@@ -2552,17 +2665,17 @@ static rc_t ItemDownload(Item *item) {
                     if ( item->mane->outDir != NULL )
                         STSMSG(STS_TOP,
                             ("%d) '%s' was downloaded successfully (%s/%.*s)",
-                            n, self->name, item->mane->outDir,
+                            n, name, item->mane->outDir,
                             ( uint32_t ) ( end - start ), start));
                     else
                         STSMSG(STS_TOP,
                             ("%d) '%s' was downloaded successfully (%.*s)",
-                            n, self->name,
+                            n, name,
                             ( uint32_t ) ( end - start ), start));
                 }
                 else
                     STSMSG(STS_TOP, ("%d) '%s' was downloaded successfully",
-                                       n, self->name));
+                                       n, name));
                 if (self->cache != NULL) {
                     VPathStrFini(&self->path);
                     rc = StringCopy(&self->path.str, self->cache);
@@ -2571,7 +2684,7 @@ static rc_t ItemDownload(Item *item) {
             else if (rc != SILENT_RC(rcExe,
                 rcProcess, rcExecuting, rcProcess, rcCanceled))
             {
-                STSMSG(STS_TOP, ("%d) failed to download %s", n, self->name));
+                STSMSG(STS_TOP, ("%d) failed to download %s", n, name));
             }
         }
     }
@@ -2621,7 +2734,9 @@ static rc_t ItemPrintSized(const Item *self, int32_t row, size_t size) {
 static rc_t ItemPostDownload(Item *item, int32_t row);
 
 /* resolve: locate; download if not found */
-static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
+static
+rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
+{
     rc_t rc = ItemResolve(self, row);
     if (rc != 0)
         return rc;
@@ -2683,7 +2798,7 @@ static rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row) {
             }
         } while (self->resolved.respFile != NULL);
     }
-    else { /* resolver was not called: chaeckig a local fiie */
+    else { /* resolver was not called: checking a local fiie */
         rc = ItemDownload(self);
         if (rc == 0 && self->resolved.type == eRunTypeDownload)
             rc = ItemPostDownload(self, row);
@@ -2771,7 +2886,10 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
                 ResolvedReset(&ditem->resolved, eRunTypeDownload);
 
-                rc = ItemResolveResolvedAndDownloadOrProcess(ditem, 0);
+                rc = ItemSetDependency(ditem, deps, i);
+
+                if (rc == 0)
+                    rc = ItemResolveResolvedAndDownloadOrProcess(ditem, 0);
 
                 RELEASE(Item, ditem);
             }
@@ -3344,6 +3462,10 @@ static const char* FAIL_ASCP_USAGE[] = {
 #define LIST_ALIAS  "l"
 static const char* LIST_USAGE[] = { "List the content of a kart file", NULL };
 
+#define LOCN_OPTION "location"
+#define LOCN_ALIAS  NULL
+static const char* LOCN_USAGE[] = { "Location of data", NULL };
+
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
 static const char* NM_L_USAGE[] =
@@ -3425,6 +3547,7 @@ static OptDef OPTIONS[] = {
     /*                                          max_count needs_value required*/
  { TYPE_OPTION        , TYPE_ALIAS        , NULL, TYPE_USAGE  , 1, true, false }
 ,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
+,{ LOCN_OPTION        , LOCN_ALIAS        , NULL, LOCN_USAGE  , 1, true, false }
 ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
 ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
 ,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
@@ -3559,6 +3682,25 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             self->list_kart_sized = true;
         }
 /******* LIST OPTIONS END ********/
+
+option_name = LOCN_OPTION;
+        {
+            rc = ArgsOptionCount(self->args, option_name, &pcount);
+            if (rc != 0) {
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Failure to get '$(opt)' argument", "opt=%s", option_name));
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(self->args,
+                    option_name, 0, (const void **)&self->location);
+                if (rc != 0) {
+                    PLOGERR(klogInt, (klogInt, rc, "Failure to get "
+                        "'$(opt)' argument value", "opt=%s", option_name));
+                    break;
+                }
+            }
+        }
 
 /* ASCP_OPTION */
         rc = ArgsOptionCount(self->args, ASCP_OPTION, &pcount);
@@ -3929,13 +4071,19 @@ rc_t CC UsageSummary(const char *progname) {
         "  %s [options] <SRA accession | kart file> [...]\n"
         "  Download SRA or dbGaP files and their dependencies\n"
         "\n"
+        "  %s [options] <URL> --output-file <FILE>\n"
+        "  Download URL to FILE\n"
+        "\n"
+        "  %s [options] <URL> [...] --output-directory <DIRECTORY>\n"
+        "  Download URL or URL-s to DIRECTORY\n"
+        "\n"
         "  %s [options] <SRA file> [...]\n"
         "  Check SRA file for missed dependencies "
                                            "and download them\n"
         "\n"
         "  %s --list <kart file> [...]\n"
         "  List content of kart file\n\n"
-        , progname, progname, progname));
+        , progname, progname, progname, progname, progname));
 }
 
 rc_t CC Usage(const Args *args) {
@@ -4071,13 +4219,13 @@ static rc_t MainFini(Main *self) {
 
     assert(self);
 
-    RELEASE(KConfig, self->cfg);
     RELEASE(VResolver, self->resolver);
     RELEASE(VDBManager, self->mgr);
     RELEASE(KDirectory, self->dir);
     RELEASE(KRepositoryMgr, self->repoMgr);
-    RELEASE(KNSManager, self->kns);
     RELEASE(VFSManager, self->vfsMgr);
+    RELEASE(KConfig, self->cfg);
+    RELEASE(KNSManager, self->kns);
     RELEASE(Args, self->args);
 
     BSTreeWhack(&self->downloaded, bstWhack, NULL);
@@ -4120,6 +4268,8 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
     if (rc == 0) {
         rc = VFSManagerMake(&self->vfsMgr);
         DISP_RC(rc, "VFSManagerMake");
+        if (rc == 0)
+            VFSManagerSetAdCaching(self->vfsMgr, true);
     }
 
     if ( rc == 0 )

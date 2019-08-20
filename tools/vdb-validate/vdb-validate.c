@@ -1375,6 +1375,7 @@ static rc_t ric_align_generic(int64_t const startId,
     int64_t chunk;
     int64_t const endId = startId + count;
     size_t scratch_size = 0;
+    bool show_complete = false;
 
     for (chunk = startId; chunk < endId; ) {
         rc_t rc = 0;
@@ -1396,6 +1397,7 @@ static rc_t ric_align_generic(int64_t const startId,
                                      "aname=%s,bname=%s,pct=%5.1f",
                                      aci->name, bci->name,
                                      (100.0 * (chunk - startId)) / count));
+            show_complete = true;
         }
         chunk = last;
         for (i = 0; i < n; ++i) {
@@ -1455,6 +1457,14 @@ static rc_t ric_align_generic(int64_t const startId,
 			}
             ++current;
         }
+    }
+    if (show_complete) {
+        (void)PLOGMSG(klogInfo, (klogInfo, "Referential Integrity: "
+                                 "$(aname) <-> $(bname)"
+                                 " $(pct)% complete",
+                                 "aname=%s,bname=%s,pct=%5.1f",
+                                 aci->name, bci->name,
+                                 100.0));
     }
     return 0;
 }
@@ -2413,26 +2423,27 @@ rc_t get_platform(const VDBManager *mgr,
 {
     rc_t rc = 0;
     const VTable *tbl = aTbl;
+
     assert(name && platform);
-    if (tbl == NULL) {
-        VSchema *sra_schema = NULL;
-        for ( ; rc == 0; ) {
-            rc = VDBManagerOpenTableRead(mgr, &tbl, sra_schema, "%s", name);
-            VSchemaRelease(sra_schema);
-            if (rc == 0) {
-                rc = VTable_get_platform(tbl, platform);
-                break;
-            }
-            else if (GetRCState(rc) == rcNotFound && GetRCObject(rc) == (enum RCObject)rcSchema
-                && sra_schema == NULL)
-            {
-                rc = VDBManagerMakeSRASchema(mgr, &sra_schema);
-            }
-        }
-    }
+
+    /* PLATFORM is UNDEFINED by default */
+    *platform = SRA_PLATFORM_UNDEFINED;
+
+    rc = VDBManagerOpenTableRead(mgr, &tbl, NULL, "%s", name);
+
+    if (rc == 0)
+        rc = VTable_get_platform(tbl, platform);
 
     if (aTbl == NULL)
         VTableRelease(tbl);
+
+    /* ignore all errors except Schema NotFound */
+    if (rc != 0 &&
+        (GetRCState(rc) != rcNotFound ||
+            GetRCObject(rc) != (enum RCObject)rcSchema))
+    {
+        rc = 0;
+    }
 
     return rc;
 }
@@ -2455,10 +2466,11 @@ rc_t dbcc ( const vdb_validate_params *pb, const char *path, bool is_file )
                       ;
 
         INSDC_SRA_platform_id platform = SRA_PLATFORM_UNDEFINED;
-        get_platform ( pb -> vmgr, NULL, path, & platform );
+        rc = get_platform ( pb -> vmgr, NULL, path, & platform );
 
         /* check as kdb object */
-        rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names, platform );
+        if ( rc == 0 )
+            rc = kdbcc ( pb -> kmgr, path, mode, & pathType, is_file, nodes, names, platform );
         if ( rc == 0 )
             rc = vdbcc ( pb -> vmgr, path, mode, & pathType, is_file );
         if ( rc == 0 )

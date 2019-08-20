@@ -45,7 +45,7 @@ check_exit_code:
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/srapath
 
 SRP:
-	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
+# TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
 	$(BINDIR)/srapath SRR000001 -fnames
 
 .PHONY: $(TEST_TOOLS)

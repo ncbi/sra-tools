@@ -62,12 +62,17 @@ vdb-validate: $(BINDIR)/vdb-validate
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_corrupt.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_corrupt 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_fixed.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_fixed 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/blob-row-gap.kar" ROW_GAP 0
-	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/SRR053325 -Cyes" CONSISTENCY 0
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/SRR053990 -Cyes" CONSISTENCY 0
 
 	@ if [ "$(TEST_DATA)" != "" ]; then ./runtestcase.sh \
 	    "$(BINDIR)/vdb-validate \
 	                $(TEST_DATA)/SRR1207586-READ_LEN-vs-READ-mismatch \
 	                -Cyes" READ_LEN 3 ; fi
+
+	@# verify failure verifying ancient no-schema run
+	@if $(BINDIR)/vdb-validate db/SRR053325-no-schema 2> actual/noschema; \
+	 then echo vdb-validate no-schema-run should fail; exit 1; fi
+	@grep -q ' Run File is obsolete. Please download the latest' actual/noschema
 
 	@ echo "All vdb-validate tests succeed"
 	@ rm -rf actual/

@@ -29,10 +29,10 @@
 #include "helper.h"
 #include "line_iter.h"
 
-#include <vfs/resolver.h>
-#include <vfs/services.h> /* KServiceMake */
-#include <vfs/path.h>
 #include <vfs/manager.h>
+#include <vfs/path.h>
+#include <vfs/resolver-priv.h> /* VResolverGetProject */
+#include <vfs/services.h> /* KServiceMake */
 
 #include <kfs/directory.h>
 #include <kapp/main.h>
@@ -191,13 +191,21 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
 
 /*  uint32_t s = string_measure ( pc, NULL ); */
     if ( true ) { /* s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { SRP or SRX */
-        KService * service = NULL;
         found = false;
+
+        KService * service = NULL;
         rc = KServiceMake ( & service );
         if ( rc == 0 )
             rc = KServiceAddId ( service, pc );
         if (rc == 0 && location != NULL)
             rc = KServiceSetLocation(service, location);
+        if (rc == 0) {
+            uint32_t project = 0;
+            rc = VResolverGetProject(resolver, &project);
+            if (rc == 0 && project != 0)
+                rc = KServiceAddProject(service, project);
+        }
+
         if ( rc == 0 ) {
             VRemoteProtocols protocol = eProtocolHttps;
             const KSrvResponse * response = NULL;

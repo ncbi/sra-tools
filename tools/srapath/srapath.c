@@ -177,8 +177,17 @@ rc_t CC Usage( const Args *args )
 
     OUTMSG(( "Options:\n" ));
 
-    for ( idx = 0; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
-        HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name, NULL, ToolOptions[ idx ].help );
+    for ( idx = 0; idx < count; ++idx ) {
+        /* start with 1, do not advertize row-range-option*/
+        const char * param = NULL;
+        if (ToolOptions[idx].aliases != NULL &&
+            ToolOptions[idx].aliases[0] == 'K')
+        {
+            param = "path";
+        }
+        HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name,
+            param, ToolOptions[ idx ].help );
+        }
 
     OUTMSG(( "\n" ));
     HelpOptionsStandard();

@@ -519,6 +519,9 @@ static rc_t KService_Make ( KService ** self, const request_params * request ) {
 
         for ( id = request -> terms; * id != NULL && rc == 0; ++ id)
             rc = KServiceAddId ( * self, * id );
+
+        if (rc == 0 && request->cart != NULL)
+            rc = KServiceSetJwtKartFile(*self, request->cart);
     }
 
     return rc;

@@ -90,14 +90,19 @@ goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 
 delete $ENV{$_} for qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_REMOTE_NEED_CE VDB_REMOTE_NEED_PMT VDB_CACHE_URL VDB_CACHE_NEED_CE VDB_CACHE_NEED_PMT VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
 
-# prefetch and srapath will handle --location themselves
-goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+# srapath will handle --location and --jwtCart
 goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
+
+sub find_jwtCart();
+my $jwtCart = find_jwtCart();
+
+# prefetch will handle --location
+goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
 
 sub findLocation();
 my $location = findLocation();
 
-# these functions don't know location or need it
+# these functions don't know or need --location or --jwtCart
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
 goto RUNNING_AS_SAM_DUMP        if $basename =~ /^sam-dump/;
@@ -288,6 +293,29 @@ sub findLocation()
         elsif (/^--location=(.+)/) {
             $result = $1;
             LOG 0, "Requesting data from $result";
+            splice @ARGV, $i, 1;
+            last;
+        }
+    }
+    $result
+}
+
+### \brief: find (and remove) jwtCart parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub find_jwtCart()
+{
+    my $result = undef;
+    for my $i (0 .. $#ARGV) {
+        local $_ = $ARGV[$i];
+        next unless /^--jwtCart/;
+        if ($_ eq '--jwtCart') {
+            (undef, $result) = splice @ARGV, $i, 2;
+            die "jwtCart parameter requires a value" unless $result;
+            last;
+        }
+        elsif (/^--jwtCart=(.+)/) {
+            $result = $1;
             splice @ARGV, $i, 1;
             last;
         }
@@ -568,6 +596,7 @@ sub resolveAccessionURLs($)
         , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
         , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL);
     push @tool_args, ('--location', $location) if $location;
+    push @tool_args, ('--jwtCart', $jwtCart) if $jwtCart;
     push @tool_args, $_[0];
 
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
@@ -1051,6 +1080,7 @@ RUNNING_AS_SRAPATH:
         '--vers' => TRUE,
         '--url' => TRUE,
         '--param' => TRUE,
+        '--jwtCart' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );

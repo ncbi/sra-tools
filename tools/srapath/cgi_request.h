@@ -51,6 +51,7 @@ typedef struct request_params
     const char * proto;
     const char * location;      /* data location */
     const char * cart;          /* path to jwt cart file */
+    const char * ngc;           /* path to ngc file */
     uint32_t * projects;
     const char ** params;       /* NULL ... none */
     const char ** terms;        /* mandatory... NULL-terminated list of terms */

@@ -89,6 +89,10 @@ static const char * locn_usage[] = { "location of data", NULL };
 #define OPTION_LOCN   "location"
 #define ALIAS_LOCN    NULL
 
+static const char * ngc_usage[] = { "path to ngc file", NULL };
+#define OPTION_NGC   "ngc"
+#define ALIAS_NGC     "N"
+
 static const char * path_usage[]
  = { "print path of object: names function-only", NULL };
 #define OPTION_PATH   "path"
@@ -127,6 +131,7 @@ OptDef ToolOptions[] =
     { OPTION_CACHE  , ALIAS_CACHE  , NULL, cache_usage  ,   1,  false,  false },
     { OPTION_PATH   , ALIAS_PATH   , NULL, path_usage   ,   1,  false,  false },
     { OPTION_CART   , ALIAS_CART   , NULL, cart_usage   ,   1,  true ,  false },
+    { OPTION_NGC    , ALIAS_NGC    , NULL, ngc_usage    ,   1,  true ,  false },
 };
 
 const char UsageDefaultName[] = "srapath";
@@ -181,7 +186,8 @@ rc_t CC Usage( const Args *args )
         /* start with 1, do not advertize row-range-option*/
         const char * param = NULL;
         if (ToolOptions[idx].aliases != NULL &&
-            ToolOptions[idx].aliases[0] == 'K')
+            (ToolOptions[idx].aliases[0] == ALIAS_CART[0]
+                || ToolOptions[idx].aliases[0] == ALIAS_NGC[0]))
         {
             param = "path";
         }
@@ -198,7 +204,8 @@ rc_t CC Usage( const Args *args )
 
 
 static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
-    const char * pc, const char * location, const char * cart )
+    const char * pc, const char * location,
+    const char * cart, const char * ngc )
 {
     bool found = true;
     rc_t rc = 0;
@@ -224,6 +231,8 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
             rc = VResolverGetProject(resolver, &project);
             if (rc == 0 && project != 0)
                 rc = KServiceAddProject(service, project);
+            if (rc == 0 && ngc != NULL)
+                rc = KServiceSetNgcFile(service, ngc);
         }
 
         if ( rc == 0 ) {
@@ -411,6 +420,7 @@ static rc_t resolve_arguments( Args * args )
                 rc_t r2 = 0;
 
                 const char * location = get_str_option(args, OPTION_LOCN, NULL);
+                const char * ngc = get_str_option(args, OPTION_NGC, NULL);
 
                 rc = ArgsOptionCount ( args, OPTION_PROTO, & idx );
                 if ( rc == 0 && idx == 0 )
@@ -437,14 +447,14 @@ static rc_t resolve_arguments( Args * args )
                         LOGERR( klogInt, rc, "failed to retrieve parameter value" );
                     else {
                         rc_t rx = resolve_one_argument(
-                            mgr, resolver, pc, location, NULL );
+                            mgr, resolver, pc, location, NULL, ngc );
                         if ( rx != 0 && r2 == 0)
                             r2 = rx;
                     }
                 }
                 if (cart != NULL) {
                     rc_t rx = resolve_one_argument(
-                        mgr, resolver, NULL, location, cart);
+                        mgr, resolver, NULL, location, cart, ngc);
                     if (rx != 0 && r2 == 0)
                         r2 = rx;
                 }
@@ -532,6 +542,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
     fmt->raw = get_bool_option( args, OPTION_RAW );
     fmt->json = get_bool_option( args, OPTION_JSON );
     r->cart = get_str_option(args, OPTION_CART, NULL);
+    r->ngc = get_str_option(args, OPTION_NGC, NULL);
 
     return rc;
 }

@@ -51,6 +51,7 @@ my $level = eval {
     0+$ENV{SRATOOLS_VERBOSE}
 } // 0;
 $level = 5 if $level > 5;
+$level = 0 if $level < 0;
 $loggers[0] = sub { print STDERR join("\n", @_)."\n" if @_ };
 $loggers[$_] = $loggers[0] for 1 .. 4;
 if ($level < 5) {
@@ -63,12 +64,20 @@ sub LOG($@)
 {
     return unless $_[0] <= 5;
     my $level = shift;
-    goto &{$loggers[$level]};
+    if ($level < 0) {
+        print STDERR join("\n", @_)."\n" if @_;
+        return
+    }
+    goto &{$loggers[$level]}
 }
 
 sub SignalName($);
 sub remove_version_string($);
 
+if ($ENV{SRATOOLS_IMPERSONATE}) {
+    $0 = $ENV{SRATOOLS_IMPERSONATE}
+}
+    
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 my $vers_string = '';
@@ -88,7 +97,12 @@ LOG 2, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 
-delete $ENV{$_} for qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_REMOTE_NEED_CE VDB_REMOTE_NEED_PMT VDB_CACHE_URL VDB_CACHE_NEED_CE VDB_CACHE_NEED_PMT VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
+sub environment_vars
+{
+    qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_REMOTE_NEED_CE VDB_REMOTE_NEED_PMT VDB_CACHE_URL VDB_CACHE_NEED_CE VDB_CACHE_NEED_PMT VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE VDB_SIZE_URL VDB_SIZE_VDBCACHE }
+}
+
+delete $ENV{$_} for environment_vars;
 
 # prefetch and srapath will handle --location themselves
 goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
@@ -225,6 +239,15 @@ FMT
                 if ($overrideOutputFile) {
                     push @$params, $unsafeOutputFile, $acc.$extension
                 }
+                if ($ENV{SRATOOLS_DRY_RUN}) {
+                    LOG -1, sprintf("would exec '%s' as:", $toolpath);
+                    LOG -1, join(' ', '$', $0, @$params, $acc);
+                    LOG 0, 'with environment:';
+                    for (environment_vars) {
+                        LOG 0, " $_ => " . (defined($ENV{$_}) ? '"'.$ENV{$_}.'"' : 'undef')
+                    }
+                    exit 0
+                }
                 exec {$toolpath} $0, @$params, $acc; ### tool should run as what user invoked
                 die "can't exec $toolname: $!";
             }
@@ -238,6 +261,7 @@ FMT
                 LOG 1, sprintf("Processed %s", $acc);
                 last
             }
+            last if $ENV{SRATOOLS_DRY_RUN};
             last if $exitcode == 0 && $signal == 0; # SUCCESS! process the next run
             die sprintf('%s (PID %u) was killed [%s (%u)] (%s core dump was generated)', $toolname, $kid, SignalName($signal), $signal, $cored ? 'a' : 'no') if $signal;
             LOG 1, sprintf("%s (PID %u) quit with exit code %u", $toolname, $kid, $exitcode);
@@ -262,6 +286,16 @@ sub processAccessionsNoResolver($$\@@)
     my $toolpath = shift;
     my $params = shift;
     my @runs = expandAllAccessions(@_);
+
+    if ($ENV{SRATOOLS_DRY_RUN}) {
+        LOG -1, sprintf("would exec '%s' as:", $toolpath);
+        LOG -1, join(' ', '$', $0, @$params, @runs);
+        LOG 0, 'with environment:';
+        for (environment_vars) {
+            LOG 0, " $_ => " . (defined($ENV{$_}) ? '"'.$ENV{$_}.'"' : 'undef')
+        }
+        exit 0
+    }
 
     LOG 1, "running $toolname on ".join(' ', @runs);
     LOG 1, 'with parameters: '.join(' ', @$params) if @$params;
@@ -1396,6 +1430,8 @@ sub isExecutable($$)
     return (-e && -x) ? $_ : undef;
 }
 
+sub sandwich($);
+
 ### \brief: like shell `which` but checks more than just PATH
 ###
 ### \param: executable name
@@ -1409,6 +1445,10 @@ sub sandwich($)
     LOG(4, "looking for $exe in self directory");
     $fullpath = isExecutable($exe, $selfpath);
     return $fullpath if $fullpath;
+
+    if ($ENV{SRATOOLS_IMPERSONATE} && $exe =~ /-orig$/) {
+        return sandwich substr($exe, 0, -5);
+    }
 
     LOG(4, "looking for $exe in PATH");
     for my $dir (File::Spec->path()) {

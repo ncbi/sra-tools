@@ -185,12 +185,16 @@ rc_t CC Usage( const Args *args )
     for ( idx = 0; idx < count; ++idx ) {
         /* start with 1, do not advertize row-range-option*/
         const char * param = NULL;
-        if (ToolOptions[idx].aliases != NULL &&
-            (ToolOptions[idx].aliases[0] == ALIAS_CART[0]
-                || ToolOptions[idx].aliases[0] == ALIAS_NGC[0]))
+        if (ToolOptions[idx].aliases == NULL) {
+            if (strcmp(ToolOptions[idx].name, OPTION_NGC) == 0)
+                param = "path";
+        }
+        else if (ToolOptions[idx].aliases[0] == ALIAS_CART[0]
+            || ToolOptions[idx].aliases[0] == ALIAS_NGC[0])
         {
             param = "path";
         }
+
         HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name,
             param, ToolOptions[ idx ].help );
         }

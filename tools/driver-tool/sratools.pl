@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use integer;
 use Config;
+use Encode qw{ encode decode };
 use IO::Handle;
 use IO::File;
 use File::Spec;
@@ -648,14 +649,13 @@ sub queryEUtilsViaCurl($$)
 
 RETRY:
     my ($output, $exitcode) = do {
-        use open qw{ :encoding(UTF-8) };
         my $kid = open(my $pipe, '-|') // die "can't fork: $!";
 
         if ($kid == 0) {
             exec {$curl} $curl, qw{ --location --header "Accept-Charset: UTF-8" --silent --fail }, $url;
             die "can't exec curl: $!";
         }
-        my $output = do { local $/; <$pipe> }; # slurp
+        my $output = do { local $/; encode('utf-8', <$pipe>) }; # slurp
         close($pipe);
         my $exitcode = $?;
         ($output, $exitcode)

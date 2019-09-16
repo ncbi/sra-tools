@@ -320,6 +320,16 @@ static void json_print_nzp(  char const *const name
             , value));
 }
 
+static void json_print_nbp(  char const *const name
+                           , bool const value
+                           , bool const comma)
+{
+    OUTMSG(("%.*s\"%s\": %s"
+            , comma ? 2 : 0, ", "
+            , name
+            , value ? "true" : "false"));
+}
+
 static void json_print_named_url(  char const *const name
                                  , VPath const *const url
                                  , bool const comma)
@@ -359,8 +369,8 @@ static unsigned json_print_named_urls_and_service(  char const *const name
         OUTMSG(("%.*s{ ", count > 0 ? 2 : 0, ",\n"));
         json_print_nVp("path", tmp, false);
         json_print_nVp("service", &service, true);
-        json_print_nvp("CE-Required", ce ? "true" : "false", true);
-        json_print_nvp("Payment-Required", pay ? "true" : "false", true);
+        json_print_nbp("CE-Required", ce, true);
+        json_print_nbp("Payment-Required", pay, true);
         OUTMSG((" }"));
 
         free((void *)tmp);

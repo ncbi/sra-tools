@@ -422,37 +422,26 @@ sub expandAllAccessions(@)
         next if $seen{$_};
         $seen{$_} = TRUE;
         
-        # check if it is a file
-        if (-f) {
-            push @rslt, $_;
-            next;
-        }
-        # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
-        if (/^[DES]RR\d+$/) {
-            push @rslt, $_;
-            next;
-        }
-        # check for run accessions with known extensions
-        if (/^[DES]RR\d+\.(.+)$/) {
-            my $ext = $1;
-            if ($ext =~ /^realign$/i) {
-                push @rslt, $_;
+        # check if it exists in the file system
+        goto ADD_TO_RESULT if -e;
+
+        if (/^[DES]R[APRSX]\d+/) { # looks like it might be an SRA accession
+            # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
+            goto ADD_TO_RESULT if substr($_, 2, 1) eq 'R';
+
+            # see if it can be expanded into run accessions
+            my @expanded = expandAccession($_);
+            if (@expanded) {
+                # expanded accessions are push back on to the original list so that
+                # they can potentially be recursively expanded
+                push @_, @expanded;
                 next;
             }
         }
-        # see if it can be expanded into run accessions
-        my @expanded = expandAccession($_);
-        if (@expanded) {
-            # expanded accessions are push back on to the original list so that
-            # they can potentially be recursively expanded
-            push @_, @expanded;
-        }
-        else {
-            ### Note: could add it back into the list,
-            ### but the tool has no better means to make
-            ### sense of the request.
-            print STDERR "warn: nothing found for $_\n";
-        }
+        # send it as-is to srapath
+    ADD_TO_RESULT:
+        push @rslt, $_;
+        next;
     }
     return @rslt;
 }
@@ -649,6 +638,7 @@ sub queryEUtilsViaCurl($$)
 
 RETRY:
     my ($output, $exitcode) = do {
+        use Encode qw{ encode decode };
         my $kid = open(my $pipe, '-|') // die "can't fork: $!";
 
         if ($kid == 0) {
@@ -680,10 +670,10 @@ sub queryEUtils($$)
 ### \param: the search term
 ###
 ### \return: array of matching IDs
-sub esearch($)
+sub esearch($$)
 {
     my $query = shift;
-    my $isAccession = $query =~ m/^[DES]R[APRSX]\d+/;
+    my $isAccession = shift;
     my $content = queryEUtils('esearch', {
         retmax => $isAccession ? 200 : 20,
         retmode => 'json', db => 'sra', term => $query });
@@ -836,7 +826,7 @@ sub getRunInfo(@)
 ### \return: array of run accessions
 sub expandAccession($)
 {
-    return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo(esearch($_[0]))->{'runs'}};
+    return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo(esearch($_[0], TRUE))->{'runs'}};
 }
 
 RUNNING_AS_FASTQ_DUMP:
@@ -1497,7 +1487,8 @@ sub info(@)
     
     my $before = '';
     foreach my $query (@_) {
-        my $info = getRunInfo(esearch($query)) or goto NOTHING;
+        my $isAccession = $query =~ m/^[A-Z][A-Z_]+\d{6,}/;
+        my $info = getRunInfo(esearch($query, $isAccession)) or goto NOTHING;
         my @runs = sort { 
                $a->{'sample'} cmp $b->{'sample'}
             || ($a->{'organism'} // '') cmp ($b->{'organism'} // '')

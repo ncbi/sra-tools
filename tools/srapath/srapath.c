@@ -91,7 +91,7 @@ static const char * locn_usage[] = { "location of data", NULL };
 
 static const char * ngc_usage[] = { "path to ngc file", NULL };
 #define OPTION_NGC   "ngc"
-#define ALIAS_NGC     "N"
+#define ALIAS_NGC     NULL
 
 static const char * path_usage[]
  = { "print path of object: names function-only", NULL };
@@ -190,10 +190,7 @@ rc_t CC Usage( const Args *args )
                 param = "path";
         }
         else if (ToolOptions[idx].aliases[0] == ALIAS_CART[0]
-            || ToolOptions[idx].aliases[0] == ALIAS_NGC[0])
-        {
             param = "path";
-        }
 
         HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name,
             param, ToolOptions[ idx ].help );

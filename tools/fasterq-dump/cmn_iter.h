@@ -72,15 +72,16 @@ rc_t cmn_read_String( struct cmn_iter * self, uint32_t col_id, String *value );
 
 typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
 
-rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * acc_type );
+rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
+                       const char * accession, acc_type_t * acc_type );
 
-rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
+rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession,
                            const char * col_name, bool * present );
 
-rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char * tbl_name,
-                          const char * col_name,  bool * present );
+rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession,
+                          const char * tbl_name, const char * col_name,  bool * present );
 
-VNamelist * cmn_get_table_names( KDirectory * dir, const char * accession );
+VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession );
 
 #ifdef __cplusplus
 }

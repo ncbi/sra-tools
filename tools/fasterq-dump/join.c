@@ -781,11 +781,12 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
 
 
 static rc_t extract_csra_row_count( KDirectory * dir,
+                                    const VDBManager * vdb_mgr,
                                     const char * accession_path,
                                     size_t cur_cache,
                                     uint64_t * res )
 {
-    cmn_params cp = { dir, accession_path, 0, 0, cur_cache };
+    cmn_params cp = { dir, vdb_mgr, accession_path, 0, 0, cur_cache };
     struct fastq_csra_iter * iter;
     fastq_iter_opt opt = { false, false, false, false }; /* fastq_iter.h */
     rc_t rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
@@ -1056,6 +1057,8 @@ typedef struct join_thread_data
     join_stats stats; /* helper.h */
     
     KDirectory * dir;
+    const VDBManager * vdb_mgr;
+
     const char * accession_path;
     const char * accession_short;
     const char * lookup_filename;
@@ -1097,7 +1100,8 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
     if ( rc == 0 && results != NULL )
     {
         join j;
-        cmn_params cp = { jtd -> dir, jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+        cmn_params cp = { jtd -> dir, jtd -> vdb_mgr,
+                          jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
 
         rc = init_join( &cp,
                         results,
@@ -1150,6 +1154,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
 }
 
 rc_t execute_db_join( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
                     const char * accession_path,
                     const char * accession_short,
                     join_stats * stats,
@@ -1178,11 +1183,11 @@ rc_t execute_db_join( KDirectory * dir,
         uint64_t row_count = 0;
         bool name_column_present, cmp_read_column_present;
         
-        rc = cmn_check_db_column( dir, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
         if ( rc == 0 )
-            rc = cmn_check_db_column( dir, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
+            rc = cmn_check_db_column( dir, vdb_mgr, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
         
-        rc = extract_csra_row_count( dir, accession_path, cur_cache, &row_count );
+        rc = extract_csra_row_count( dir, vdb_mgr, accession_path, cur_cache, &row_count );
         if ( rc == 0 && row_count > 0 )
         {
             Vector threads;
@@ -1223,6 +1228,7 @@ rc_t execute_db_join( KDirectory * dir,
                 else
                 {
                     jtd -> dir              = dir;
+                    jtd -> vdb_mgr          = vdb_mgr;
                     jtd -> accession_path   = accession_path;
                     jtd -> accession_short  = accession_short;
                     jtd -> lookup_filename  = lookup_filename;

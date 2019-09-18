@@ -189,7 +189,7 @@ rc_t CC Usage( const Args *args )
             if (strcmp(ToolOptions[idx].name, OPTION_NGC) == 0)
                 param = "path";
         }
-        else if (ToolOptions[idx].aliases[0] == ALIAS_CART[0]
+        else if (ToolOptions[idx].aliases[0] == ALIAS_CART[0])
             param = "path";
 
         HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name,

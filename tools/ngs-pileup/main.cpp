@@ -29,6 +29,7 @@
 #include <ngs/ErrorMsg.hpp>
 
 #include <kapp/main.h>
+#include <kfg/config.h> /* KConfigSetNgcFile */
 #include <klib/out.h>
 #include <klib/rc.h>
 
@@ -36,6 +37,10 @@
 #include <string.h>
 
 #include <iostream>
+
+#define OPTION_NGC "ngc"
+#define ALIAS_NGC  NULL
+static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 
 #define OPTION_REF     "aligned-region"
 #define ALIAS_REF      "r"
@@ -48,6 +53,7 @@ const char * ref_usage[] = { "Filter by position on genome.",
 OptDef options[] =
 {   /*name,           alias,         hfkt, usage-help,    maxcount, needs value, required */
     { OPTION_REF,     ALIAS_REF,     NULL, ref_usage,     0,        true,        false },
+    { OPTION_NGC,     ALIAS_NGC,     NULL, ngc_usage,     0,        true,        false },
 };
 
 
@@ -66,7 +72,10 @@ rc_t CC Usage ( const Args * args )
 {
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
-    rc_t rc;
+
+    size_t i = 0;
+
+    rc_t rc = 0;
 
     if ( args == NULL )
         rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
@@ -79,6 +88,23 @@ rc_t CC Usage ( const Args * args )
     UsageSummary ( progname );
     KOutMsg ( "Options:\n" );
    
+    for (i = 0; i < sizeof options / sizeof options[0]; ++i) {
+        const OptDef * opt = &options[i];
+
+        const char * alias = opt->aliases;
+
+        const char *param = NULL;
+        if (alias != NULL) {
+            if (strcmp(alias, ALIAS_REF) == 0)
+                param = "region";
+        }
+        else if (strcmp(opt->name, OPTION_NGC) == 0)
+            param = "PATH";
+
+        HelpOptionLine(alias, opt->name, param, opt->help);
+    }
+
+    KOutMsg("\n");
     HelpOptionsStandard ();
     HelpVersion ( fullpath, KAppVersion() );
     
@@ -97,7 +123,9 @@ rc_t CC KMain( int argc, char *argv [] )
             NGS_Pileup::Settings settings;
             
             uint32_t pcount;
-            
+
+            void const *value = NULL;
+
             rc = ArgsOptionCount ( args, OPTION_REF, &pcount );
             if ( pcount > 1 )
             {
@@ -105,7 +133,6 @@ rc_t CC KMain( int argc, char *argv [] )
             }
             if ( pcount == 1 )
             {
-                const void * value;
                 rc = ArgsOptionValue ( args, OPTION_REF, 0, & value );
                 if ( rc != 0 )
                 {
@@ -114,6 +141,21 @@ rc_t CC KMain( int argc, char *argv [] )
                 settings . AddReference ( static_cast <char const*> (value) );
             }
             
+/* OPTION_NGC */
+            {
+                rc = ArgsOptionCount(args, OPTION_NGC, &pcount);
+                if (pcount > 1)
+                    throw ngs::ErrorMsg("multiple ngc files are not supported");
+                else if (pcount == 1) {
+                    rc = ArgsOptionValue(args, OPTION_NGC, 0, &value);
+                    if (rc != 0)
+                        throw ngs::ErrorMsg(
+                            "ArgsOptionValue (" OPTION_NGC ") failed");
+
+                    KConfigSetNgcFile(static_cast <const char *>(value));
+                }
+            }
+
             rc = ArgsParamCount ( args, &pcount );
             if ( rc == 0 )
             {
@@ -124,7 +166,6 @@ rc_t CC KMain( int argc, char *argv [] )
                 
                 settings . output = & std::cout;
                 
-                void const *value;
                 rc = ArgsParamValue ( args, 0, &value );
                 if ( rc == 0 ) 
                 {

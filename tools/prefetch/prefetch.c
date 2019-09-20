@@ -227,11 +227,13 @@ typedef struct {
     const char * outFile; /* do not free! */
     const char * orderOrOutFile; /* do not free! */
     const char * fileType;  /* do not free! */
+    const char * ngc;  /* do not free! */
 
 #if _DEBUGGING
     const char *textkart;
 #endif
 } Main;
+
 typedef struct {
     /* "plain" command line argument */
     const char *desc;
@@ -610,6 +612,9 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     if (rc == 0 && item->mane->location != NULL)
         rc = KServiceSetLocation(service, item->mane->location);
+
+    if (rc == 0 && item->mane->ngc != NULL)
+        rc = KServiceSetNgcFile(service, item->mane->ngc);
 
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
@@ -3537,6 +3542,11 @@ static const char* STRIP_QUALS_USAGE[] =
 static const char* ELIM_QUALS_USAGE[] =
 { "Don't download QUALITY column", NULL };
 
+#define NGC_OPTION "ngc"
+#define NGC_ALIAS  NULL
+static const char* NGC_USAGE[] = { "PATH to ngc file", NULL };
+
+
 #if _DEBUGGING
 #define TEXTKART_OPTION "text-kart"
 static const char* TEXTKART_USAGE[] =
@@ -3559,6 +3569,7 @@ static OptDef OPTIONS[] = {
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
 ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+,{ NGC_OPTION         , NULL              , NULL, NGC_USAGE   , 1, true ,false }
 #if _DEBUGGING
 ,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
 #endif
@@ -4037,6 +4048,28 @@ option_name = TYPE_OPTION;
                 self -> orderOrOutFile = val;
         }
 
+/* NGC_OPTION */
+        {
+            rc = ArgsOptionCount(self->args, NGC_OPTION, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" NGC_OPTION "' argument");
+                break;
+            }
+
+            if (pcount > 0) {
+                const char *val = NULL;
+                rc = ArgsOptionValue(self->args, NGC_OPTION,
+                    0, (const void **)&val);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" NGC_OPTION "' argument value");
+                    break;
+                }
+                self->ngc = val;
+            }
+        }
+
 #if _DEBUGGING
 /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
@@ -4127,22 +4160,24 @@ rc_t CC Usage(const Args *args) {
             {
                 param = "value";
             }
-            else if (strcmp(alias, ROWS_ALIAS) == 0)
-                param = "rows";
             else if (strcmp(alias, OUT_DIR_ALIAS) == 0)
                 param = "DIRECTORY";
+            else if (strcmp(alias, ROWS_ALIAS) == 0)
+                param = "rows";
             else if (strcmp(alias, SIZE_ALIAS) == 0
                   || strcmp(alias, MINSZ_ALIAS) == 0)
             {
                 param = "size";
             }
         }
+        else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
+            param = "value";
+        else if (strcmp(opt->name, NGC_OPTION) == 0)
+            param = "PATH";
         else if (strcmp(opt->name, OUT_FILE_OPTION) == 0) {
             param = "FILE";
             alias = OUT_FILE_ALIAS;
         }
-        else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
-            param = "value";
         else if (strcmp(opt->name, DRY_RUN_OPTION) == 0)
             continue; /* debug option */
 #if _DEBUGGING

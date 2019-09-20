@@ -120,6 +120,7 @@ static const char * spotgroup_usage[]           = { "show spotgroups",          
 static const char * merge_ranges_usage[]        = { "merge and sort row-ranges",                    NULL };
 static const char * spread_usage[]              = { "show spread of integer values",                NULL };
 static const char * append_usage[]              = { "append to output-file, if output-file used",   NULL };
+static const char * ngc_usage[]                 = { "path to ngc file", NULL };
 
 /* from here on: not mentioned in help */
 static const char * len_spread_usage[]          = { "show spread of READ/REF_LEN values",           NULL };
@@ -178,7 +179,8 @@ OptDef DumpOptions[] =
     
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_INTERACTIVE,           NULL,                     NULL, interactive_usage,       1, false,  false },    
-    { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false }
+    { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
+    { OPTION_NGC,                   NULL,     NULL, ngc_usage, 1, true, false },
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -267,7 +269,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_MERGE_RANGES,    NULL,           merge_ranges_usage );
     HelpOptionLine ( NULL,                      OPTION_SPREAD,          NULL,           spread_usage );
     HelpOptionLine ( ALIAS_APPEND,              OPTION_APPEND,          NULL,           append_usage );
-    
+    HelpOptionLine ( NULL,                      OPTION_NGC, "path", ngc_usage);
+
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );

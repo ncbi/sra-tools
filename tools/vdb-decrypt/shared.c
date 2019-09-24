@@ -55,6 +55,8 @@
 #include <kapp/args.h>
 #include <kapp/main.h>
 
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <assert.h>
 #include <string.h>
 #include <stdint.h>
@@ -86,6 +88,8 @@ KKey Key;
 
 const char * ForceUsage[] = 
 { "Force overwrite of existing files", NULL };
+
+const char * NgcUsage[] = { "PATH to ngc file", NULL };
 
 /*
  * option  control flags
@@ -168,6 +172,8 @@ rc_t CC Usage (const Args * args)
     KOutMsg ("\nOptions:\n");
     HelpOptionLine (ALIAS_FORCE, OPTION_FORCE, NULL, ForceUsage);
     CryptOptionLines ();
+    HelpOptionLine(ALIAS_NGC, OPTION_NGC, "PATH", NgcUsage);
+    KOutMsg("\n");
     HelpOptionsStandard ();
 
     /* forcing editor alignment */
@@ -1258,6 +1264,24 @@ rc_t CommonMain (Args * args)
                     if (rc)
                         LOGERR (klogInt, rc, "Failure to fetch "
                                 "destination parameter");
+                }
+
+/* OPTION_NGC */
+                if (rc == 0) {
+                    const char * dummy = NULL;
+                    rc = ArgsOptionCount(args, OPTION_NGC, &pcount);
+                    if (rc != 0)
+                        LOGERR(klogErr, rc,
+                            "Failure to get '" OPTION_NGC "' argument");
+                    else if (pcount != 0) {
+                        rc = ArgsOptionValue(args, OPTION_NGC, 0,
+                            (const void **)&dummy);
+                        if (rc != 0)
+                            LOGERR(klogErr, rc,
+                                "Failure to get '" OPTION_NGC "' argument");
+                        else
+                            KConfigSetNgcFile(dummy);
+                    }
                 }
 
                 if (rc == 0)

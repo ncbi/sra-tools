@@ -41,6 +41,8 @@
 #include <kdb/consistency-check.h>
 #include <kdb/kdb-priv.h> /* KTableOpenDirectoryRead */
 
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/database.h>
@@ -2882,6 +2884,8 @@ static const char *USAGE_SDC_SEQ_ROWS[] =
 static const char *USAGE_SDC_PLEN_THOLD[] =
 { "Specify a threshold for amount of secondary alignment which are shorter (hard-clipped) than corresponding primaries, default 1%.", NULL };
 
+#define OPTION_NGC "ngc"
+static const char *USAGE_NGC[] = { "path to ngc file", NULL };
 
 static const char *USAGE_DRI[] =
 { "Do not check data referential integrity for databases", NULL };
@@ -2900,6 +2904,7 @@ static OptDef options [] =
                    ALIAS_EXHAUSTIVE, NULL, USAGE_EXHAUSTIVE, 1, false, false }
   , { OPTION_REF_INT , ALIAS_REF_INT , NULL, USAGE_REF_INT , 1, true , false }
   , { OPTION_CNS_CHK , ALIAS_CNS_CHK , NULL, USAGE_CNS_CHK , 1, true , false }
+  , { OPTION_NGC     , NULL          , NULL, USAGE_NGC     , 1, true , false }
 
     /* secondary alignment table data check options */
   , { OPTION_SDC_SEC_ROWS, NULL      , NULL, USAGE_SDC_SEC_ROWS, 1, true , false }
@@ -2961,6 +2966,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine(NULL          , OPTION_SDC_SEC_ROWS, "rows"    , USAGE_SDC_SEC_ROWS);
     HelpOptionLine(NULL          , OPTION_SDC_SEQ_ROWS, "rows"    , USAGE_SDC_SEQ_ROWS);
     HelpOptionLine(NULL          , OPTION_SDC_PLEN_THOLD, "threshold", USAGE_SDC_PLEN_THOLD);
+    HelpOptionLine(NULL          , OPTION_NGC           , "path", USAGE_NGC);
 
 /*
 #define NUM_LISTABLE_OPTIONS \
@@ -2972,6 +2978,9 @@ rc_t CC Usage ( const Args * args )
             option_params [ i ], options [ i ] . help );
     }
 */
+
+    KOutMsg("\n");
+
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion () );
@@ -3258,6 +3267,24 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
                 pb->sdc_pa_len_thold_in_percent = false;
                 pb->sdc_pa_len_thold.number = value;
             }
+        }
+    }
+
+/* OPTION_NGC */
+    {
+        rc = ArgsOptionCount(args, OPTION_NGC, &cnt);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_NGC "' argument");
+            return rc;
+        }
+        if (cnt != 0) {
+            rc = ArgsOptionValue(args, OPTION_NGC, 0, (const void **)&dummy);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OPTION_NGC "' argument");
+                return rc;
+            }
+            KConfigSetNgcFile(dummy);
         }
     }
 

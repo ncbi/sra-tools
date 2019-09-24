@@ -91,6 +91,10 @@ static const char* USAGE_REF[] = { "print refseq information [default]", NULL };
 #define OPTION_HEA  "headers"
 static const char* USAGE_HEA[] = { "print headers for output blocks", NULL };
 
+#define ALIAS_NGC   NULL
+#define OPTION_NGC  "ngc"
+static const char* USAGE_NGC[] = { "path to ngc file", NULL };
+
 OptDef Options[] =
 {
       { OPTION_ALL, ALIAS_ALL, NULL, USAGE_ALL, 1, false, false }
@@ -98,6 +102,7 @@ OptDef Options[] =
     , { OPTION_QUA, ALIAS_QUA, NULL, USAGE_QUA, 1, false, false }
     , { OPTION_REF, ALIAS_REF, NULL, USAGE_REF, 1, false, false }
     , { OPTION_HEA, ALIAS_HEA, NULL, USAGE_HEA, 1, false, false }
+    , { OPTION_NGC, ALIAS_NGC, NULL, USAGE_NGC, 1, true , false }
 };
 
 rc_t CC UsageSummary (const char * progname) {
@@ -136,6 +141,7 @@ rc_t CC Usage(const Args* args) {
     HelpOptionLine (ALIAS_BAM, OPTION_BAM, NULL, USAGE_BAM);
     HelpOptionLine (ALIAS_QUA, OPTION_QUA, NULL, USAGE_QUA);
     HelpOptionLine (ALIAS_HEA, OPTION_HEA, NULL, USAGE_HEA);
+    HelpOptionLine (ALIAS_NGC, OPTION_NGC, "path",USAGE_NGC);
 
     KOutMsg ("\n");
 
@@ -558,6 +564,26 @@ rc_t CC KMain(int argc, char* argv[]) {
         }
         if (pcount) {
             prm.paramHeaders = true;
+        }
+
+/* OPTION_NGC */
+        {
+            const char * dummy = NULL;
+            rc = ArgsOptionCount(args, OPTION_NGC, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_NGC "' argument");
+                break;
+            }
+            if (pcount != 0) {
+                rc = ArgsOptionValue(args, OPTION_NGC, 0,
+                    (const void **)&dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_NGC "' argument");
+                    break;
+                }
+                KConfigSetNgcFile(dummy);
+            }
         }
     } while (false);
 

@@ -1,0 +1,209 @@
+/* ===========================================================================
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * ===========================================================================
+ *
+ * Project:
+ *  sratools command line tool
+ *
+ * Purpose:
+ *  Declare and define compile-time constants (and some functions on them)
+ *
+ */
+
+#pragma once
+#include <cassert>
+#include <algorithm>
+#include <cstring>
+#include <cstdlib>
+
+namespace constants {
+
+struct tool_name {
+    /// @brief: tools names as symbols
+    enum {
+        FASTERQ_DUMP,
+        FASTQ_DUMP,
+        PREFETCH,
+        SAM_DUMP,
+        SRA_PILEUP,
+        SRAPATH,
+        END_ENUM
+    };
+    
+    /// @brief: array of tool names in same order as above enum
+    static char const *const *real() {
+        static char const *const value[] = {
+            "fasterq-dump-orig",
+            "fastq-dump-orig",
+            "prefetch-orig",
+            "sam-dump-orig",
+            "sra-pileup-orig",
+            "srapath-orig"
+        };
+        return value;
+    }
+    
+    /// @brief: array of impersonated tool names in same order as above enum
+    static char const *const *runas() {
+        static char const *const value[] = {
+            "fasterq-dump",
+            "fastq-dump",
+            "prefetch",
+            "sam-dump",
+            "sra-pileup",
+            "srapath"
+        };
+        return value;
+    }
+    
+    /// @brief: convert id to string
+    ///
+    /// @param iid: integer id of tool (range checked)
+    ///
+    /// @returns the real name of the tool in the filesystem
+    static char const *real(int const iid) {
+        assert(0 <= iid && iid < END_ENUM);
+        if (0 <= iid && iid < END_ENUM)
+            return real()[iid];
+        throw std::range_error("unknown tool id");
+    }
+    
+    /// @brief: convert id to string
+    ///
+    /// @param iid: integer id of tool (range checked)
+    ///
+    /// @returns the impersonated name of the tool
+    static char const *runas(int const iid) {
+        assert(0 <= iid && iid < END_ENUM);
+        if (0 <= iid && iid < END_ENUM)
+            return runas()[iid];
+        throw std::range_error("unknown tool id");
+    }
+    
+    /// @brief: convert impersonated name to id
+    ///
+    /// @param qry: the impersonated name
+    ///
+    /// @returns: the id or -1 if not found
+    static int lookup_iid(char const *const qry) {
+        auto const values = runas();
+        int f = 0;
+        int e = END_ENUM;
+        
+        while (f < e) {
+            auto const m = f + ((e - f) >> 1);
+            auto const c = strcmp(values[m], qry);
+            if (c < 0)
+                e = m;
+            else if (c > 0)
+                f = m + 1;
+            else
+                return m;
+        }
+        return -1;
+    }
+};
+
+/// @brief: constants used for calling SRA Data Locator
+struct resolver {
+    static constexpr char const *version() { return "130"; }
+    static constexpr char const *url() { return "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve"; }
+};
+
+/// @brief: environment variables for passing information to the driven tool
+struct env_var {
+    /// @brief: environment variables as symbolic names
+    enum {
+        VDB_CACHE_NEED_CE,
+        VDB_CACHE_NEED_PMT,
+        VDB_CACHE_URL,
+        VDB_CACHE_VDBCACHE,
+        VDB_CE_TOKEN,
+        VDB_LOCAL_URL,
+        VDB_LOCAL_VDBCACHE,
+        VDB_REMOTE_NEED_CE,
+        VDB_REMOTE_NEED_PMT,
+        VDB_REMOTE_URL,
+        VDB_REMOTE_VDBCACHE,
+        VDB_SIZE_URL,
+        VDB_SIZE_VDBCACHE,
+        END_ENUM
+    };
+    
+    /// @brief: array of environment variables in the same order as the enum above.
+    static char const *const *names() {
+        static char const *const value[] = {
+            "VDB_CACHE_NEED_CE",
+            "VDB_CACHE_NEED_PMT",
+            "VDB_CACHE_URL",
+            "VDB_CACHE_VDBCACHE",
+            "VDB_CE_TOKEN",
+            "VDB_LOCAL_URL",
+            "VDB_LOCAL_VDBCACHE",
+            "VDB_REMOTE_NEED_CE",
+            "VDB_REMOTE_NEED_PMT",
+            "VDB_REMOTE_URL",
+            "VDB_REMOTE_VDBCACHE",
+            "VDB_SIZE_URL",
+            "VDB_SIZE_VDBCACHE"
+        };
+        return value;
+    }
+    
+    /// @brief: convert id to string
+    ///
+    /// @param iid: integer id of env-var (range checked)
+    ///
+    /// @returns: the env-var name as a string
+    static char const *name(int const iid) {
+        assert(0 <= iid && iid < END_ENUM);
+        if (0 <= iid && iid < END_ENUM)
+            return names()[iid];
+        throw std::range_error("unknown environment variable id");
+    }
+    
+    /// @brief: convert string to id
+    ///
+    /// @param qry: the env-var name
+    ///
+    /// @returns: the id or -1 if not found
+    static int find(char const *qry) {
+        auto const values = names();
+        int f = 0;
+        int e = END_ENUM;
+        
+        while (f < e) {
+            auto const m = f + ((e - f) >> 1);
+            auto const c = strcmp(values[m], qry);
+            if (c < 0)
+                e = m;
+            else if (c > 0)
+                f = m + 1;
+            else
+                return m;
+        }
+        return -1;
+    }
+};
+
+}

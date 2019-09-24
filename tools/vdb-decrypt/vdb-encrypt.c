@@ -49,7 +49,8 @@ static
 OptDef Options[] = 
 {
     /* name            alias max times oparam required fmtfunc help text loc */
-    { OPTION_FORCE,   ALIAS_FORCE,   NULL, ForceUsage,   0, false, false }
+    { OPTION_FORCE,   ALIAS_FORCE,   NULL, ForceUsage,   0, false, false },
+    { OPTION_NGC,     ALIAS_NGC,     NULL, NgcUsage,     0, true,  false },
 };
 
 /* static bool DecryptSraFlag = false; */

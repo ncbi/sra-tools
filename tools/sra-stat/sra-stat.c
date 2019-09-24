@@ -39,6 +39,8 @@
 #include <kdb/namelist.h> /* KMDataNodeListChild */
 #include <kdb/table.h>
 
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <kfs/directory.h> /* KDirectory */
 #include <kfs/file.h> /* KFile */
 
@@ -4002,6 +4004,9 @@ rc_t run(srastat_parms* pb)
 #define ALIAS_XML      "x"
 #define OPTION_XML     "xml"
 
+#define ALIAS_NGC    NULL
+#define OPTION_NGC     "ngc"
+
 static const char * align_usage[] = { "print alignment info, default is on"
                                                                    , NULL };
 static const char * spt_d_usage[] = { "print table spot descriptor", NULL };
@@ -4021,6 +4026,7 @@ static const char * test_usage[] = {
 static const char * xml_usage[] = { "output as XML, default is text", NULL };
 static const char * arcinfo_usage[] = { "output archive info, default is off"
                                                                     , NULL };
+static const char * ngc_usage[] = { "path to ngc file", NULL };
 
 OptDef Options[] = {
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }
@@ -4035,6 +4041,7 @@ OptDef Options[] = {
     , { OPTION_STOP    , ALIAS_STOP    , NULL, stop_usage    , 1, true,  false }
     , { OPTION_TEST    , ALIAS_TEST    , NULL, test_usage    , 1, false, false }
     , { OPTION_XML     , ALIAS_XML     , NULL, xml_usage     , 1, false, false }
+    , { OPTION_NGC     , ALIAS_NGC     , NULL, ngc_usage     , 1, true, false }
 };
 
 rc_t CC UsageSummary (const char * progname)
@@ -4077,6 +4084,7 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine(ALIAS_STATS   , OPTION_STATS   , NULL      , stats_usage);
     HelpOptionLine(ALIAS_ALIGN   , OPTION_ALIGN   , "on | off", align_usage);
     HelpOptionLine(ALIAS_PROGRESS, OPTION_PROGRESS, NULL      , progress_usage);
+    HelpOptionLine(ALIAS_NGC     , OPTION_NGC     , "path"    , ngc_usage);
     XMLLogger_Usage();
 
     KOutMsg ("\n");
@@ -4232,13 +4240,14 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
 
             {
+                const char* v = NULL;
+
                 rc = ArgsOptionCount (args, OPTION_ALIGN, &pcount);
                 if (rc != 0) {
                     break;
                 }
 
                 if (pcount > 0) {
-                    const char* v = NULL;
                     rc = ArgsOptionValue (args, OPTION_ALIGN, 0, (const void **)&v);
                     if (rc != 0) {
                         break;
@@ -4266,6 +4275,18 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 if (pcount > 0) {
                     pb.test = pb.statistics = true;
+                }
+
+
+                rc = ArgsOptionCount(args, OPTION_NGC, &pcount);
+                if (rc != 0)
+                    break;
+                if (pcount > 0) {
+                    rc = ArgsOptionValue(args, OPTION_NGC, 0,
+                        (const void **)&v);
+                    if (rc != 0)
+                        break;
+                    KConfigSetNgcFile(v);
                 }
             }
 

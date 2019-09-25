@@ -45,7 +45,6 @@ SUBDIRS =    \
 	vdb-validate    \
 	kar             \
 	copycat         \
-	qual-recalib-stat \
 	sra-stat        \
 	srapath         \
 	sra-sort        \
@@ -55,6 +54,7 @@ SUBDIRS =    \
 	kget            \
 	vdb-dump        \
 	vdb-copy        \
+	qual-recalib-stat \
 
 # under construction
 #    ngs-pileup      \

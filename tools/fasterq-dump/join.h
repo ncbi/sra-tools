@@ -39,6 +39,10 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
 #ifndef _h_helper_
 #include "helper.h"
 #endif
@@ -52,6 +56,7 @@ extern "C" {
 #endif
 
 rc_t execute_db_join( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
                     const char * accession_path,
                     const char * accession_short,
                     join_stats * stats,

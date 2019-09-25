@@ -37,13 +37,14 @@ KMER=$(SRA)/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
-SRR=$(SRA)/traces/sra59/SRR/000052/SRR053325
+SRAC=SRR053325
+SRR=$(SRA)/traces/sra57/SRR/000052/$(SRAC)
 INT=https://sra-download-internal.ncbi.nlm.nih.gov
-SRAC=SRR003325
-SRR=$(INT)/traces/sra4/SRR/000003/$(SRAC)
+DDB=https://sra-downloadb.be-md.ncbi.nlm.nih.gov
+#SRR=$(DDB)/sos/sra-pub-run-5/$(SRAC)/$(SRAC).3
 SRAI=fasp://dbtest@sra-download-internal.ncbi.nlm.nih.gov
-SRRF=$(SRAF):data/sracloud/traces/sra59/SRR/000052/SRR053325
-SRRF=$(SRAI):data/sracloud/traces/sra4/SRR/000003/$(SRAC)
+SRRF=$(SRAF):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
+SRRF=$(SRAI):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
@@ -200,7 +201,7 @@ urls_and_accs:
 	@echo '$(PUBLIC)/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/t.kfg
 	@echo WGS HTTP download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
-     then echo AFVF01 found ; exit 1; fi
+		then echo AFVF01 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(WGS) > /dev/null
 	@echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537

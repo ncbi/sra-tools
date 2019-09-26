@@ -45,6 +45,7 @@
 #include <search/grep.h>
 #include <kfs/directory.h>
 #include <kproc/procmgr.h>
+#include <vdb/manager.h>
 
 #include <stdio.h>
 #include <os-native.h>
@@ -249,6 +250,7 @@ rc_t CC Usage ( const Args * args )
 typedef struct tool_ctx_t
 {
     KDirectory * dir;
+    const VDBManager * vdb_mgr;     /* created, but unused to avoid race-condition in threads */
 
     const char * requested_temp_path;
     const char * accession_path;
@@ -596,6 +598,13 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
     if ( rc == 0 )
         rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
                 get_temp_dir( tool_ctx -> temp_dir ) );
+                
+    if ( rc == 0 )
+    {
+        rc = VDBManagerMakeRead( &( tool_ctx -> vdb_mgr ), tool_ctx -> dir );
+        if ( rc != 0 )
+            ErrMsg( "fasterq-dump.c populate_tool_ctx().VDBManagerMakeRead() -> %R\n", rc );
+    }
     return rc;
 }
 
@@ -683,6 +692,7 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
     /* the lookup-producer is the source of the chain */
     if ( rc == 0 )
         rc = execute_lookup_production( tool_ctx -> dir,
+                                        tool_ctx -> vdb_mgr,
                                         tool_ctx -> accession_short,
                                         bg_vec_merger, /* drives the bg_file_merger */
                                         tool_ctx -> cursor_cache,
@@ -732,6 +742,7 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
     
     if ( rc == 0 )
         rc = execute_db_join( tool_ctx -> dir,
+                           tool_ctx -> vdb_mgr,
                            tool_ctx -> accession_path,
                            tool_ctx -> accession_short,
                            &stats,
@@ -877,6 +888,7 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 
     if ( rc == 0 )
         rc = execute_tbl_join( tool_ctx -> dir,
+                           tool_ctx -> vdb_mgr,
                            tool_ctx -> accession_path,
                            tool_ctx -> accession_short,
                            &stats,
@@ -921,7 +933,8 @@ static const char * consensus_table = "CONSENSUS";
 static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx )
 {
     const char * res = tool_ctx -> seq_tbl_name;
-    VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> accession_path ); /* cmn_iter.c */
+    VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> vdb_mgr,
+                                              tool_ctx -> accession_path ); /* cmn_iter.c */
     if ( tables != NULL )
     {
         int32_t idx;
@@ -937,8 +950,9 @@ static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx )
 
 static rc_t perform_tool( tool_ctx_t * tool_ctx )
 {
-    acc_type_t acc_type;
-    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> accession_path, &acc_type ); /* cmn_iter.c */
+    acc_type_t acc_type; /* cmn_iter.h */
+    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> vdb_mgr,
+                                tool_ctx -> accession_path, &acc_type ); /* cmn_iter.c */
     if ( rc == 0 )
     {
         /* =================================================== */
@@ -987,6 +1001,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                     KDirectoryRelease( tool_ctx . dir );
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */
+                    VDBManagerRelease( tool_ctx . vdb_mgr );
                 }
             }
         }

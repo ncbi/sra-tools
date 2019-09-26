@@ -128,11 +128,17 @@ rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, cmn_iter ** ite
     }
     else
     {
-        const VDBManager * mgr = NULL;
-        rc = VDBManagerMakeRead( &mgr, cp -> dir );
-        if ( rc != 0 )
-            ErrMsg( "cmn_iter.c make_cmn_iter().VDBManagerMakeRead() -> %R\n", rc );
-        else
+        bool release_mgr = false;
+        const VDBManager * mgr = cp -> vdb_mgr != NULL ? cp -> vdb_mgr : NULL;
+        if ( mgr == NULL )
+        {
+            rc = VDBManagerMakeRead( &mgr, cp -> dir );
+            if ( rc != 0 )
+                ErrMsg( "cmn_iter.c make_cmn_iter().VDBManagerMakeRead() -> %R\n", rc );
+            else
+                release_mgr = true;
+        }
+        if ( rc == 0 )
         {
             VSchema * schema = NULL;
             rc = VDBManagerMakeSRASchema( mgr, &schema );
@@ -165,7 +171,8 @@ rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, cmn_iter ** ite
                     VCursorRelease( cur );
                 VSchemaRelease( schema );   
             }
-            VDBManagerRelease( mgr );
+            if ( release_mgr )
+                VDBManagerRelease( mgr );
         }
     }
     return rc;
@@ -475,7 +482,8 @@ static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accessio
     return res;
 }
 
-rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * acc_type )
+rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
+                       const char * accession, acc_type_t * acc_type )
 {
     rc_t rc = 0;
     if ( acc_type != NULL )
@@ -487,11 +495,17 @@ rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * ac
     }
     else
     {
-        const VDBManager * mgr = NULL;
-        rc = VDBManagerMakeRead( &mgr, dir );
-        if ( rc != 0 )
-            ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ).VDBManagerMakeRead() -> %R\n", accession, rc );
-        else
+        bool release_mgr = false;
+        const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
+        if ( mgr == NULL )
+        {
+            rc = VDBManagerMakeRead( &mgr, dir );
+            if ( rc != 0 )
+                ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ).VDBManagerMakeRead() -> %R\n", accession, rc );
+            else
+                release_mgr = true;
+        }
+        if ( rc == 0 )
         {
             int pt = VDBManagerPathType ( mgr, "%s", accession );
             switch( pt )
@@ -501,7 +515,8 @@ rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * ac
                 case kptPrereleaseTbl:
                 case kptTable       : *acc_type = acc_sra_flat; break;
             }
-            VDBManagerRelease( mgr );
+            if ( release_mgr )
+                VDBManagerRelease( mgr );
         }
     }
     return rc;
@@ -534,8 +549,8 @@ static rc_t cmn_check_tbl_for_column( const VTable * tbl, const char * col_name,
     return rc;
 }
 
-rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
-                           const char * col_name, bool * present )
+rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
+                           const char * accession, const char * col_name, bool * present )
 {
     rc_t rc = 0;
     if ( present != NULL )
@@ -547,11 +562,17 @@ rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
     }
     else
     {
-        const VDBManager * mgr = NULL;
-        rc = VDBManagerMakeRead( &mgr, dir );
-        if ( rc != 0 )
-            ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s', '%s' ).VDBManagerMakeRead() -> %R\n", accession, col_name, rc );
-        else
+        bool release_mgr = false;
+        const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
+        if ( mgr == NULL )
+        {
+            rc = VDBManagerMakeRead( &mgr, dir );
+            if ( rc != 0 )
+                ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s', '%s' ).VDBManagerMakeRead() -> %R\n", accession, col_name, rc );
+            else
+                release_mgr = true;
+        }
+        if ( rc == 0 )
         {
             const VTable * tbl = NULL;
             rc = VDBManagerOpenTableRead ( mgr, &tbl, NULL, "%s", accession );
@@ -562,14 +583,15 @@ rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
                 rc = cmn_check_tbl_for_column( tbl, col_name, present );
                 VTableRelease( tbl );
             }
-            VDBManagerRelease( mgr );
+            if ( release_mgr )
+                VDBManagerRelease( mgr );
         }
     }
     return rc;
 }
 
-rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char * tbl_name,
-                          const char * col_name,  bool * present )
+rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession,
+                          const char * tbl_name, const char * col_name,  bool * present )
 {
     rc_t rc = 0;
     if ( present != NULL )
@@ -581,11 +603,17 @@ rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char *
     }
     else
     {
-        const VDBManager * mgr = NULL;
-        rc = VDBManagerMakeRead( &mgr, dir );
-        if ( rc != 0 )
-            ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s', '%s', '%s' ).VDBManagerMakeRead() -> %R", accession, tbl_name, col_name, rc );
-        else
+        bool release_mgr = false;
+        const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
+        if ( mgr == NULL )
+        {
+            rc = VDBManagerMakeRead( &mgr, dir );
+            if ( rc != 0 )
+                ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s', '%s', '%s' ).VDBManagerMakeRead() -> %R", accession, tbl_name, col_name, rc );
+            else
+                release_mgr = true;
+        }
+        if ( rc == 0 )
         {
             const VDatabase * db = NULL;
             rc = VDBManagerOpenDBRead ( mgr, &db, NULL, "%s", accession );
@@ -604,24 +632,32 @@ rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char *
                 }
                 VDatabaseRelease( db );
             }
-            VDBManagerRelease( mgr );
+            if ( release_mgr )
+                VDBManagerRelease( mgr );
         }
     }
     return rc;
 }
 
-VNamelist * cmn_get_table_names( KDirectory * dir, const char * accession )
+VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession )
 {
     VNamelist * res = NULL;
     if ( dir == NULL || accession == NULL )
         ErrMsg( "cmn_iter. cmn_get_table_names( '%s' ) -> dir || accession NULL", accession );
     else
     {
-        const VDBManager * mgr = NULL;
-        rc_t rc = VDBManagerMakeRead( &mgr, dir );
-        if ( rc != 0 )
-            ErrMsg( "cmn_iter.c cmn_get_table_names( '%s' ).VDBManagerMakeRead() -> %R", accession, rc );
-        else
+        rc_t rc = 0;
+        bool release_mgr = false;
+        const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
+        if ( mgr == NULL )
+        {
+            rc = VDBManagerMakeRead( &mgr, dir );
+            if ( rc != 0 )
+                ErrMsg( "cmn_iter.c cmn_get_table_names( '%s' ).VDBManagerMakeRead() -> %R", accession, rc );
+            else
+                release_mgr = true;
+        }
+        if ( rc == 0 )
         {
             const VDatabase * db;
             rc = VDBManagerOpenDBRead ( mgr, &db, NULL, "%s", accession );
@@ -637,7 +673,8 @@ VNamelist * cmn_get_table_names( KDirectory * dir, const char * accession )
                     rc = VNamelistFromKNamelist ( &res, tables );
                 VDatabaseRelease ( db );
             }
-            VDBManagerRelease( mgr );
+            if ( release_mgr )
+                VDBManagerRelease( mgr );
         }
     }
     return res;

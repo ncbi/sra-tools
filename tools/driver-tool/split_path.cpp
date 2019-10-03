@@ -34,9 +34,9 @@
 #include <cctype>
 #include <iterator>
 
-/// @brief: split path into dirname and basename
+/// @brief split path into dirname and basename
 ///
-/// @param dirname: [inout] directory name part
+/// @param path [inout] directory name part
 ///
 /// @returns basename part
 std::string split_basename(std::string &path)
@@ -61,10 +61,10 @@ std::string split_basename(std::string &path)
     return result;
 }
 
-/// @brief: split basename into name and version
+/// @brief split basename into name and version
 ///
-/// @param name: [inout] the basename
-/// @param default_version: version to use if there is no version part
+/// @param name [inout] the basename
+/// @param default_version version to use if there is no version part
 ///
 /// @returns version part
 std::string split_version(std::string &name, std::string const &default_version)

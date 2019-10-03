@@ -26,33 +26,62 @@
  *  sratools command line tool
  *
  * Purpose:
- *  locate executable
+ *  opt_string definition
  *
  */
 
 #pragma once
-#include <string>
 
-namespace sratools {
+#if __cplusplus < 201703L
+// std::optional is not available; cook one up
+class opt_string {
+    std::string maybe_value;
+    bool is_set;
+public:
+    opt_string()
+    : is_set(false)
+    {
+        
+    }
+    opt_string(std::string const &other)
+    : is_set(true)
+    , maybe_value(other)
+    {
+        
+    }
+    opt_string(opt_string const &other)
+    : is_set(other.is_set)
+    , maybe_value(other.maybe_value) // safe for std::string
+    {
+        
+    }
+    opt_string &operator =(opt_string const &other)
+    {
+        is_set = other.is_set;
+        maybe_value = other.maybe_value;
+        return *this;
+    }
+    bool has_value() const {
+        return is_set;
+    }
+    operator bool() const {
+        return has_value();
+    }
+    operator std::string() const {
+        assert(is_set);
+        return maybe_value;
+    }
+    std::string const &value() const {
+        assert(is_set);
+        return maybe_value;
+    }
+    std::string const &value_or(std::string const &alt) const {
+        return is_set ? maybe_value : alt;
+    }
+};
 
-/// @brief like shell `which` but checks more than just PATH
-///
-/// @param name executable name
-/// @param allowNotFound return empty string if not found, else print message and exit
-/// @param isaSraTool the executable is part of the SRA toolkit, effects message if not found and whether to append version string to name
-///
-/// @returns full path to executable if found
-extern
-std::string which(std::string const &name, bool allowNotFound = true, bool isaSraTool = false);
+#else // c++17 or higher
+#include <optional>
 
-/// @brief like shell `which` but checks more than just PATH
-///
-/// @param name executable name
-///
-/// @returns full path to executable if found, else print message and exit
-static inline std::string which_sratool(std::string const &name)
-{
-    return which(name, false, true);
-}
-
-} // namespace sratools
+using opt_string = std::optional<std::string>;
+#endif // c++17

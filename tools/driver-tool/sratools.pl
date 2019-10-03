@@ -1213,7 +1213,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
 ### \param: filename
 ###
 ### \return: array of parsed arguments
-sub parseOptionsFile($)
+sub parseOptionFile($)
 {
     my @rslt = ();
     my $string = '';

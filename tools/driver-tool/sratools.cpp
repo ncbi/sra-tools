@@ -55,8 +55,8 @@
 #include "args-decl.hpp"
 #include "parse_args.hpp"
 #include "which.hpp"
-
-extern char **environ; ///< why!!!
+#include "proc.hpp"
+#include "tool-args.hpp"
 
 extern std::string split_basename(std::string &dirname);
 extern std::string split_version(std::string &name, std::string const &default_version);
@@ -75,214 +75,6 @@ std::string const *location = NULL;
 std::string const *ngc = NULL;
 
 using namespace constants;
-
-/// @brief wrapper because execve is declare to take non-const, which isn't c++ friendly
-static int execve(char const *path, char const *const *argv, char const *const *env = environ)
-{
-    return ::execve(path, (char **)((void *)argv), (char **)((void *)env));
-}
-
-/// @brief creates and fills out argv
-///
-/// @param parameters list of parameters (name-value pairs)
-/// @param arguments list of strings
-/// @param arg0  value for argv[0]; default value is from original argv[0]
-///
-/// @return array suitable for passing to execve; can delete [] if execve fails
-static
-char const * const* makeArgv(ParamList const &parameters , ArgsList const &arguments, std::string const &arg0 = *argv0)
-{
-    auto const argc = 1 + parameters.size() * 2 + arguments.size();
-    auto const argv = new char const * [argc + 1];
-    auto i = 0;
-    auto empty = std::string();
-    
-    argv[i++] = arg0.c_str();
-    for (auto & param : parameters) {
-        auto const &name = param.first;
-        auto const &value = param.second;
-        
-        argv[i++] = name.c_str();
-        argv[i++] = value ? value.value().c_str() : "";
-    }
-    for (auto & arg : arguments) {
-        argv[i++] = arg.c_str();
-    }
-    argv[i] = NULL;
-    
-    return argv;
-}
-
-/// @brief prepares argv and calls exec; does not return
-///
-/// @param toolname the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param parameters list of parameters (name-value pairs)
-/// @param arguments list of strings
-///
-/// @throw system_error if exec fails
-static
-void exec [[noreturn]] (  std::string const &toolname
-                        , std::string const &toolpath
-                        , ParamList const &parameters
-                        , ArgsList const &arguments)
-{
-    auto const argv = makeArgv(parameters, arguments);
-    
-    execve(toolpath.c_str(), argv);
-    
-    // NB. we should never get here
-    auto const error = std::error_code(errno, std::system_category());
-
-    delete [] argv;
-
-    throw std::system_error(error, "failed to exec "+toolname);
-}
-
-struct process {
-    bool is_self() const { return pid == 0; }
-    pid_t get_pid() const { return pid; }
-    
-    struct exit_status {
-        bool ifexited() const {
-            return WIFEXITED(value) ? true : false;
-        }
-        int exit_code() const {
-            assert(ifexited());
-            return WEXITSTATUS(value);
-        }
-
-        bool ifsignaled() const {
-            return WIFSIGNALED(value) ? true : false;
-        }
-        int termsig() const {
-            assert(ifsignaled());
-            return WTERMSIG(value);
-        }
-        bool coredump() const {
-            assert(ifsignaled());
-            return WCOREDUMP(value) ? true : false;
-        }
-
-        bool ifstopped() const {
-            return WIFSTOPPED(value) ? true : false;
-        }
-        int stopsig() const {
-            assert(ifstopped());
-            return WSTOPSIG(value);
-        }
-        
-        operator bool() const {
-            return value != 0;
-        }
-
-        exit_status(exit_status const &other) : value(other.value) {}
-        exit_status &operator =(exit_status const &other) {
-            value = other.value;
-            return *this;
-        }
-    private:
-        int value;
-        friend struct process;
-        exit_status(int status) : value(status) {}
-    };
-
-    exit_status wait() const {
-        assert(pid != 0); ///< you can't wait on yourself
-
-        auto status = int(0);
-        auto const rc = waitpid(pid, &status, 0);
-        if (rc > 0) {
-            assert(rc == pid);
-            return exit_status(status);
-        }
-
-        assert(rc != 0); // only happens if WNOHANG is given
-        if (rc == 0)
-            std::unexpected();
-
-        if (errno == EINTR)
-            return wait();
-        
-        assert(errno != ECHILD); // you already waited on this!
-        if (errno == ECHILD)
-            throw std::logic_error("child process was already reaped");
-        
-        throw std::system_error(std::error_code(errno, std::system_category()), "waitpid failed");
-    }
-    
-    static process fork() {
-        auto const pid = ::fork();
-        if (pid < 0)
-            throw std::system_error(std::error_code(errno, std::system_category()), "fork failed");
-        return process(pid);
-    }
-    
-    static process self() {
-        return process(0);
-    }
-    
-    process(process const &other) : pid(other.pid) {}
-    process &operator =(process const &other) {
-        pid = other.pid;
-        return *this;
-    }
-protected:
-    process(pid_t pid) : pid(pid) {}
-    
-    pid_t pid;
-};
-
-struct pipe_and_fork : public process {
-    int fd() const { return pipe; }
-    bool is_child() const { return pid == 0; }
-
-    /// @brief make a pipe and fork
-    ///
-    /// @returns to parent, child pid and readable fd; to child, pid is 0 and fd is writeable
-    static pipe_and_fork make()
-    {
-        int fds[2];
-        
-        if (::pipe(fds) < 0)
-            throw std::system_error(std::error_code(errno, std::system_category()), "pipe failed");
-        
-        auto const new_proc = process::fork();
-        auto const my_pipe = fds[new_proc.is_self() ? 1 : 0];
-        auto const other_pipe = fds[new_proc.is_self() ? 0 : 1];
-        
-        close(other_pipe);
-        return pipe_and_fork(my_pipe, new_proc);
-    }
-    
-    /// @brief make a pipe and fork, redirect child stdout to pipe
-    ///
-    /// @returns to parent, child pid and readable fd; to child, pid is 0 and fd is 1
-    static pipe_and_fork to_stdout()
-    {
-        auto const &paf = make();
-        if (paf.pid != 0)
-            return paf;
-        
-        auto const oldfd = paf.pipe;
-        auto const newfd = dup2(oldfd, 1);
-
-        close(oldfd);
-        if (newfd < 0)
-            throw std::system_error(std::error_code(errno, std::system_category()), "dup2 failed");
-
-        return pipe_and_fork(newfd);
-    }
-    
-    pipe_and_fork(pipe_and_fork const &other) : pipe(other.pipe), process(other) {}
-    pipe_and_fork &operator =(pipe_and_fork const &other) {
-        pipe = other.pipe;
-        return *this;
-    }
-private:
-    pipe_and_fork(int pipe, process proc = process::self()) : pipe(pipe), process(proc) {}
-    int pipe;
-};
 
 /// @brief get type from accession name
 ///
@@ -395,8 +187,8 @@ ArgsList expandAll(ArgsList const &accessions)
 /// @param accessions list of accessions to process
 static void processAccessions(  std::string const &toolname
                               , std::string const &toolpath
-                              , std::string const &unsafeOutputFileParamName
-                              , std::string const &extension
+                              , char const *const unsafeOutputFileParamName
+                              , char const *const extension
                               , ParamList const &parameters
                               , ArgsList const &accessions
                               )
@@ -442,56 +234,19 @@ static void processAccessionsNoSDL(  std::string const &toolname
 static void toolHelp [[noreturn]] (  std::string const &toolname
                                    , std::string const &toolpath)
 {
-    char const *argv[] = {
-        "",
-        "--help",
-        NULL
-    };
-
-    argv[0] = argv0->c_str();
-    execve(toolpath.c_str(), argv);
-    throw std::system_error(std::error_code(errno, std::system_category()), "failed to exec "+toolname);
+    exec(toolname, toolpath, {{"--help", {}}}, {});
 }
 
-
-static void running_as_srapath [[noreturn]] ()
+template <int toolID>
+static void running_as_tool_no_sdl [[noreturn]] ()
 {
-    auto const &toolname = tool_name::runas(tool_name::SRAPATH);
+    auto const &toolname = tool_name::runas(toolID);
     auto const &toolpath = which_sratool(toolname);
-    static Dictionary const long_args = {
-        { "-f", "--function" },
-        { "-t", "--timeout" },
-        { "-a", "--protocol" },
-        { "-e", "--vers" },
-        { "-u", "--url" },
-        { "-p", "--param" },
-        { "-r", "--raw" },
-        { "-j", "--json" },
-        { "-d", "--project" },
-        { "-c", "--cache" },
-        { "-P", "--path" },
-        { "-V", "--version" },
-        { "-L", "--log-level" },
-        { "-v", "--verbose" },
-        { "-+", "--debug" },
-        { "-h", "--help" },
-        { "-?", "--help" },
-    };
-    static Dictionary const has_args = {
-        { "--function", "REQUIRED" },
-        { "--location", "REQUIRED" },
-        { "--timeout", "REQUIRED" },
-        { "--protocol", "REQUIRED" },
-        { "--vers", "REQUIRED" },
-        { "--url", "REQUIRED" },
-        { "--param", "REQUIRED" },
-        { "--log-level", "REQUIRED" },
-        { "--debug", "REQUIRED" },
-    };
+    auto const &info = infoFor(toolID);
     ParamList params;
     ArgsList accessions;
     
-    if (parseArgs(&params, &accessions, long_args, has_args)) {
+    if (parseArgs(&params, &accessions, info.first, info.second)) {
         processAccessionsNoSDL(toolname, toolpath, params, accessions);
     }
     else {
@@ -500,17 +255,28 @@ static void running_as_srapath [[noreturn]] ()
     exit(0);
 }
 
-static void running_as_prefetch [[noreturn]] ()
+template <int toolID>
+static void running_as_tool [[noreturn]] (char const *const unsafeOutputFileParamName
+                                          , char const *const extension)
 {
+    auto const &toolname = tool_name::runas(toolID);
+    auto const &toolpath = which_sratool(toolname);
+    auto const &info = infoFor(toolID);
+    ParamList params;
+    ArgsList accessions;
+    
+    if (parseArgs(&params, &accessions, info.first, info.second)) {
+        processAccessions(toolname, toolpath
+                          , unsafeOutputFileParamName, extension
+                          , params, accessions);
+    }
+    else {
+        toolHelp(toolname, toolpath);
+    }
     exit(0);
 }
 
 static void running_as_fastq_dump [[noreturn]] ()
-{
-    exit(0);
-}
-
-static void running_as_tool [[noreturn]] (int const tool)
 {
     exit(0);
 }
@@ -520,15 +286,45 @@ static void running_as_self [[noreturn]] ()
     exit(0);
 }
 
+static void running_as_sam_dump [[noreturn]] ()
+{
+    auto const &toolname = tool_name::runas(tool_name::SAM_DUMP);
+    auto const &toolpath = which_sratool(toolname);
+    auto const &info = infoFor(tool_name::SAM_DUMP);
+    ParamList params;
+    ArgsList accessions;
+    
+    if (parseArgs(&params, &accessions, info.first, info.second)) {
+        char const *outputFileParam = nullptr;
+        char const *extension = nullptr;
+        auto const param = std::find_if(params.begin(), params.end(), [](ParamList::value_type const &value) {
+            return value.first == "--fastq" || value.first == "--fasta";
+        });
+        extension = param == params.end() ? ".sam" : param->first == "--fasta" ? ".fasta" : ".fastq";
+        outputFileParam = param == params.end() ? "--output-file" : nullptr;
+
+        processAccessions(  toolname
+                          , toolpath
+                          , outputFileParam
+                          , extension
+                          , params
+                          , accessions);
+    }
+    else {
+        toolHelp(toolname, toolpath);
+    }
+    exit(0);
+}
+
 static void runas [[noreturn]] (int const tool)
 {
     switch (tool) {
     case tool_name::SRAPATH:
-        running_as_srapath();
+        running_as_tool_no_sdl<tool_name::SRAPATH>();
         break;
             
     case tool_name::PREFETCH:
-        running_as_prefetch();
+        running_as_tool_no_sdl<tool_name::PREFETCH>();
         break;
 
     case tool_name::FASTQ_DUMP:
@@ -536,9 +332,15 @@ static void runas [[noreturn]] (int const tool)
         break;
 
     case tool_name::FASTERQ_DUMP:
-    case tool_name::SAM_DUMP:
+        running_as_tool<tool_name::FASTERQ_DUMP>("--outfile", ".fastq");
+        break;
+
     case tool_name::SRA_PILEUP:
-        running_as_tool(tool);
+        running_as_tool<tool_name::SRA_PILEUP>("--outfile", ".pileup");
+        break;
+            
+    case tool_name::SAM_DUMP:
+        running_as_sam_dump();
         break;
 
     default:
@@ -553,7 +355,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
     std::string const s_argv0(cargv0);
     std::string s_selfpath(cargv0)
               , s_basename(split_basename(s_selfpath))
-              , s_version(split_version(s_basename, "2.10.0")); ///< this needs to be the version string and not a hardcoded value
+              , s_version(split_version(s_basename, "2.10.0")); // TODO: this needs to be the version string and not a hardcoded value
     std::string s_location;
     auto s_args = loadArgv(argc, argv);
     

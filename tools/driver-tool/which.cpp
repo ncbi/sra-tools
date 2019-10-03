@@ -30,12 +30,6 @@
  *
  */
 
-// main is at the end of the file
-
-#if __cplusplus < 201103L
-#error c++11 or higher is needed
-#else
-
 #include <string>
 #include <map>
 #include <set>
@@ -184,4 +178,3 @@ static void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSr
 }
 
 } // namespace sratools
-#endif // c++11

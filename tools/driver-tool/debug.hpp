@@ -52,6 +52,7 @@ struct logging_state {
         return level <= verbosity();
     }
 private:
+    logging_state() = delete;
     static bool is_falsy(char const *const str) {
         return (str == NULL || str[0] == '\0' || (str[0] == '0' && str[1] == '\0'));
     }

@@ -67,7 +67,7 @@ static void append_if_usable(std::vector<std::string> &PATH, std::string const &
     
     struct stat st;
     if (stat(real.c_str(), &st) == 0 && (st.st_mode & S_IFDIR) != 0 && access(real.c_str(), X_OK) == 0) {
-        DEBUG << "PATH: " << real << std::endl;
+        DEBUG_OUT << "PATH: " << real << std::endl;
         
         PATH.push_back(real);
         unique.insert(real);

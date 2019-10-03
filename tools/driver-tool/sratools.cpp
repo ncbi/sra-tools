@@ -30,29 +30,98 @@
  *
  */
 
+// main is at the end of the file
+
 #if __cplusplus < 201103L
 #error c++11 or higher is needed
 #else
 
+#include <tuple>
 #include <vector>
+#include <map>
+#include <set>
 #include <string>
+#include <algorithm>
+#include <iterator>
 #include <iostream>
-#include <unistd.h>
-#include <sysexits.h>
+#include <fstream>
+#include <system_error>
 
-extern char **environ; ///< why!!!
+#include <unistd.h>
+#include <sys/stat.h>
 
 #include "globals.hpp"
 #include "constants.hpp"
 #include "args-decl.hpp"
+#include "parse_args.hpp"
+#include "which.hpp"
+
+extern char **environ; ///< why!!!
 
 extern std::string split_basename(std::string &dirname);
 extern std::string split_version(std::string &name, std::string const &default_version);
 
 namespace sratools {
 
-// main is at the end of the file
+#if __cplusplus < 201703L
+// std::optional is not available; cook one up
+class opt_string {
+    std::string maybe_value;
+    bool is_set;
+public:
+    opt_string()
+    : is_set(false)
+    {
+        
+    }
+    opt_string(std::string const &other)
+    : is_set(true)
+    , maybe_value(other)
+    {
+        
+    }
+    opt_string(opt_string const &other)
+    : is_set(other.is_set)
+    , maybe_value(other.maybe_value) // safe for std::string
+    {
+        
+    }
+    opt_string &operator =(opt_string const &other)
+    {
+        is_set = other.is_set;
+        maybe_value = other.maybe_value;
+        return *this;
+    }
+    bool has_value() const {
+        return is_set;
+    }
+    operator bool() const {
+        return has_value();
+    }
+    operator std::string() const {
+        assert(is_set);
+        return maybe_value;
+    }
+    std::string const &value() const {
+        assert(is_set);
+        return maybe_value;
+    }
+    std::string const &value_or(std::string const &alt) const {
+        return is_set ? maybe_value : alt;
+    }
+};
 
+#else // c++17 or higher
+#include <optional>
+
+using opt_string = std::optional<std::string>;
+#endif // c++17
+
+using Dictionary = std::map<std::string, std::string>;
+using ParamList = std::vector<std::pair<std::string, opt_string>>;
+using ArgsList = std::vector<std::string>;
+
+std::string const *argv0;
 std::string const *selfpath;
 std::string const *basename;
 std::string const *version_string;
@@ -65,7 +134,296 @@ std::string const *ngc = NULL;
 
 using namespace constants;
 
-using Dictionary = std::map<std::string, std::string>;
+static
+char const * const* makeArgv(ParamList const &parameters , ArgsList const &arguments)
+{
+    auto const argc = 1 + parameters.size() * 2 + arguments.size();
+    auto const argv = new char const * [argc + 1];
+    auto i = 0;
+    auto empty = std::string();
+    
+    argv[i++] = const_cast<char *>(argv0->c_str()); // ugh
+    for (auto & param : parameters) {
+        auto const &name = param.first;
+        auto const &value = param.second;
+        
+        argv[i++] = name.c_str();
+        argv[i++] = value ? value.value().c_str() : "";
+    }
+    for (auto & arg : arguments) {
+        argv[i++] = arg.c_str();
+    }
+    argv[i] = NULL;
+    
+    return argv;
+}
+
+/// @brief: wrapper because execve is declare to take non-const, which isn't c++ friendly
+static int execve(char const *path, char const *const *argv, char const *const *env = environ)
+{
+    return ::execve(path, (char **)((void *)argv), (char **)((void *)env));
+}
+
+static
+void exec [[noreturn]] (  std::string const &toolname
+                        , std::string const &toolpath
+                        , ParamList const &parameters
+                        , ArgsList const &arguments)
+{
+    auto const argv = makeArgv(parameters, arguments);
+    
+    execve(toolpath.c_str(), argv);
+    
+    // NB. we should never get here
+    auto const error = std::error_code(errno, std::system_category());
+
+    delete [] argv;
+
+    throw std::system_error(error, "failed to exec "+toolname);
+}
+
+struct process {
+    bool is_self() const { return pid == 0; }
+    pid_t get_pid() const { return pid; }
+    
+    struct exit_status {
+        bool ifexited() const {
+            return WIFEXITED(value) ? true : false;
+        }
+        int exit_code() const {
+            assert(ifexited());
+            return WEXITSTATUS(value);
+        }
+
+        bool ifsignaled() const {
+            return WIFSIGNALED(value) ? true : false;
+        }
+        int termsig() const {
+            assert(ifsignaled());
+            return WTERMSIG(value);
+        }
+        bool coredump() const {
+            assert(ifsignaled());
+            return WCOREDUMP(value) ? true : false;
+        }
+
+        bool ifstopped() const {
+            return WIFSTOPPED(value) ? true : false;
+        }
+        int stopsig() const {
+            assert(ifstopped());
+            return WSTOPSIG(value);
+        }
+        
+        operator bool() const {
+            return value != 0;
+        }
+
+        exit_status(exit_status const &other) : value(other.value) {}
+        exit_status &operator =(exit_status const &other) {
+            value = other.value;
+            return *this;
+        }
+    private:
+        int value;
+        friend struct process;
+        exit_status(int status) : value(status) {}
+    };
+
+    exit_status wait() const {
+        assert(pid != 0); ///< you can't wait on yourself
+
+        auto status = int(0);
+        auto const rc = waitpid(pid, &status, 0);
+        if (rc > 0) {
+            assert(rc == pid);
+            return exit_status(status);
+        }
+
+        assert(rc != 0); // only happens if WNOHANG is given
+        if (rc == 0)
+            std::unexpected();
+
+        if (errno == EINTR)
+            return wait();
+        
+        assert(errno != ECHILD); // you already waited on this!
+        if (errno == ECHILD)
+            throw std::logic_error("child process was already reaped");
+        
+        throw std::system_error(std::error_code(errno, std::system_category()), "waitpid failed");
+    }
+    
+    static process fork() {
+        auto const pid = ::fork();
+        if (pid < 0)
+            throw std::system_error(std::error_code(errno, std::system_category()), "fork failed");
+        return process(pid);
+    }
+    
+    static process self() {
+        return process(0);
+    }
+    
+    process(process const &other) : pid(other.pid) {}
+    process &operator =(process const &other) {
+        pid = other.pid;
+        return *this;
+    }
+protected:
+    process(pid_t pid) : pid(pid) {}
+    
+    pid_t pid;
+};
+
+struct pipe_and_fork : public process {
+    int fd() const { return pipe; }
+    bool is_child() const { return pid == 0; }
+
+    /// @brief: make a pipe and fork
+    ///
+    /// @returns to parent, child pid and readable fd; to child, pid is 0 and fd is writeable
+    static pipe_and_fork make()
+    {
+        int fds[2];
+        
+        if (::pipe(fds) < 0)
+            throw std::system_error(std::error_code(errno, std::system_category()), "pipe failed");
+        
+        auto const new_proc = process::fork();
+        auto const my_pipe = fds[new_proc.is_self() ? 1 : 0];
+        auto const other_pipe = fds[new_proc.is_self() ? 0 : 1];
+        
+        close(other_pipe);
+        return pipe_and_fork(my_pipe, new_proc);
+    }
+    
+    /// @brief: make a pipe and fork, redirect child pipe to stdout
+    ///
+    /// @returns to parent, child pid and readable fd; to child, pid is 0 and fd is stdout
+    static pipe_and_fork to_stdout()
+    {
+        auto const &paf = make();
+        if (paf.pid != 0)
+            return paf;
+        
+        auto const oldfd = paf.pipe;
+        auto const newfd = dup2(oldfd, 1);
+
+        close(oldfd);
+        if (newfd < 0)
+            throw std::system_error(std::error_code(errno, std::system_category()), "dup2 failed");
+
+        return pipe_and_fork(newfd);
+    }
+    
+    pipe_and_fork(pipe_and_fork const &other) : pipe(other.pipe), process(other) {}
+    pipe_and_fork &operator =(pipe_and_fork const &other) {
+        pipe = other.pipe;
+        return *this;
+    }
+private:
+    pipe_and_fork(int pipe, process proc = process::self()) : pipe(pipe), process(proc) {}
+    int pipe;
+};
+
+/// @brief: get type from accession name
+///
+/// @param query: the accession name
+///
+/// @returns the 3rd character if name matches pattern [DES]R.\d+(\.*)*
+static
+int SRA_AccessionType(std::string const &query)
+{
+    int st = 0;
+    int type = 0;
+    int digits = 0;
+    
+    for (auto &i : query) {
+        switch (st) {
+            case 0:
+                switch (i) {
+                    case 'D':
+                    case 'E':
+                    case 'S':
+                        st += 1;
+                        break;
+                    default:
+                        return 0;
+                }
+                break;
+            case 1:
+                if (i != 'R') return false;
+                st += 1;
+                break;
+            case 2:
+                type = i;
+                switch (i) {
+                    case 'A':   // submitter
+                    case 'P':   // Project
+                    case 'R':   // Run data
+                    case 'S':   // Sample
+                    case 'X':   // eXperiment
+                        st += 1;
+                        break;
+                    default:
+                        return 0;
+                }
+                break;
+            case 3:
+                if (i == '.')
+                    goto DONE;
+                if (!('0' <= i && i <= '9'))
+                    return false;
+                digits += 1;
+                break;
+            default:
+                assert(!"reachable");
+                break;
+        }
+        if (0) {
+DONE:
+            break;
+        }
+    }
+    return (6 <= digits && digits <= 9) ? type : 0;
+}
+
+static
+ArgsList expandAll(ArgsList const &accessions)
+{
+    auto result = ArgsList();
+    auto seen = std::set<std::string>();
+    
+    for (auto & acc : accessions) {
+        if (seen.find(acc) != seen.end())
+            continue;
+
+        seen.insert(acc);
+
+        // if readable then just try using it
+        if (access(acc.c_str(), R_OK) != 0) {
+            auto const type = SRA_AccessionType(acc);
+            switch (type) {
+                case 'R':
+                    // it's a run, just use it
+                    break;
+                    
+                case 'P':
+                case 'S':
+                case 'X':
+                    // TODO: open container types
+                    break;
+
+                default:
+                    // see if resolver has any clue
+                    break;
+            }
+        }
+        result.push_back(acc);
+    }
+    return result;
+}
 
 /// @brief: runs tool on list of accessions
 ///
@@ -82,10 +440,20 @@ static void processAccessions(  std::string const &toolname
                               , std::string const &toolpath
                               , std::string const &unsafeOutputFileParamName
                               , std::string const &extension
-                              , Dictionary const &parameters
-                              , std::vector<std::string> const &accessions
+                              , ParamList const &parameters
+                              , ArgsList const &accessions
                               )
 {
+    auto const runs = expandAll(accessions);
+    
+    for (auto & run : runs) {
+        auto const paf = pipe_and_fork::make();
+    
+        if (paf.is_child()) {
+            exec(toolname, toolpath, parameters, runs);
+        }
+        auto const result = paf.wait();
+    }
     exit(0);
 }
 
@@ -100,62 +468,110 @@ static void processAccessions(  std::string const &toolname
 /// @param accessions: list of accessions to process
 static void processAccessionsNoSDL(  std::string const &toolname
                                    , std::string const &toolpath
-                                   , Dictionary const &parameters
-                                   , std::vector<std::string> const &accessions
+                                   , ParamList const &parameters
+                                   , ArgsList const &accessions
                                    )
 {
-    exit(0);
-}
-
-static void pathHelp [[noreturn]] (std::string const &toolname, bool const isSraTools)
-{
-    std::cerr << "could not find " << toolname;
-    if (isSraTools)
-        std::cerr << "which is part of this software distribution";
-    std::cerr << std::endl;
-    std::cerr << "This can be fixed in one of the following ways:" << std::endl
-              << "* adding " << toolname << " to the directory that contains this tool, i.e. " << *selfpath << std::endl
-              << "* adding the directory that contains " << toolname << " to the PATH environment variable" << std::endl
-              << "* adding " << toolname << " to the current directory" << std::endl
-            ;
-    exit(EX_CONFIG);
-}
-
-static std::string which(std::string const &toolname, bool const allowNotFound = false, bool const isSra = true)
-{
-    return "";
+    auto const runs = expandAll(accessions);
+    exec(toolname, toolpath, parameters, runs);
 }
 
 static void toolHelp [[noreturn]] (  std::string const &toolname
-                                   , std::string const &toolpath
-                                   )
+                                   , std::string const &toolpath)
 {
-    char *argv[] = {
+    char const *argv[] = {
         "",
         "--help",
         NULL
     };
-    argv[0] = const_cast<char *>(toolname.c_str()); ///< argv is an array of char *
-    execve(toolpath.c_str(), argv, environ);
+
+    argv[0] = argv0->c_str();
+    execve(toolpath.c_str(), argv);
+    throw std::system_error(std::error_code(errno, std::system_category()), "failed to exec "+toolname);
 }
 
-static bool parseArgs(  Dictionary *parameters
-                      , std::vector<std::string> *arguments
+static bool parseArgs(  ParamList *parameters
+                      , ArgsList *arguments
                       , Dictionary const &longNames
-                      , Dictionary const &hasArg)
+                      , Dictionary const &hasArg
+                      )
 {
-    std::vector<std::string> argv(*args); ///< this is a mutable copy
+    auto putback = std::string();
+    auto nextIsParamArg = false;
     
-    while (!argv.empty()) {
+    for (auto i = 0; i < args->size() || !putback.empty(); ) {
+        auto arg = putback.empty() ? args->at(i++) : putback;
         
+        putback.erase();
+        
+        if (nextIsParamArg) {
+            nextIsParamArg = false;
+            parameters->back().second = arg;
+            continue;
+        }
+        
+        // if it is not an option then it is a regular argument
+        if (arg.empty() || arg[0] != '-') {
+            arguments->push_back(arg);
+            ++i;
+            continue;
+        }
+        
+        if (arg[1] == '-') {
+            // long form: could be --name | --name=value | or --name value
+            auto const eq = arg.find_first_of('=');
+
+            if (eq == std::string::npos) {
+                // could be --name | --name value
+                parameters->emplace_back(ParamList::value_type(arg, opt_string()));
+                nextIsParamArg = hasArg.find(arg) != hasArg.end();
+            }
+            else {
+                // --name=value
+                parameters->emplace_back(ParamList::value_type(arg.substr(0, eq), arg.substr(eq + 1)));
+            }
+        }
+        else {
+            // short form: -abc can mean -a bc | -a -bc
+            auto const ch = arg.substr(1, 1); //< std::string not char
+            auto const rest = arg.substr(2);
+            auto const iter = longNames.find(ch);
+
+            if (iter == longNames.end()) {
+                // complain
+                std::cerr << "unknown parameter -" << ch << std::endl;
+                return false;
+            }
+            auto const &name = iter->second;
+            
+            if (hasArg.find(name) != hasArg.end()) {
+                // -a bc
+                if (rest.empty()) {
+                    parameters->emplace_back(ParamList::value_type(name, opt_string()));
+                    nextIsParamArg = true;
+                }
+                else
+                    parameters->emplace_back(ParamList::value_type(name, rest));
+            }
+            else {
+                // -a -bc
+                parameters->emplace_back(ParamList::value_type(name, opt_string()));
+                if (!rest.empty())
+                    putback = std::string(1, '-') + rest;
+            }
+        }
     }
-    return false;
+    if (nextIsParamArg) return false; // missing argument
+    for (auto && arg : *parameters) {
+        if (arg.first == "--help") return false;
+    }
+    return true;
 }
 
 static void running_as_srapath [[noreturn]] ()
 {
-    auto const toolname = tool_name::runas(SRAPATH);
-    auto const toolpath = which(tooname);
+    auto const &toolname = tool_name::runas(tool_name::SRAPATH);
+    auto const &toolpath = which_sratool(toolname);
     static Dictionary const long_args = {
         { "-f", "--function" },
         { "-t", "--timeout" },
@@ -186,8 +602,8 @@ static void running_as_srapath [[noreturn]] ()
         { "--log-level", "REQUIRED" },
         { "--debug", "REQUIRED" },
     };
-    Dictionary params;
-    std::vector<std::string> accessions;
+    ParamList params;
+    ArgsList accessions;
     
     if (parseArgs(&params, &accessions, long_args, has_args)) {
         processAccessionsNoSDL(toolname, toolpath, params, accessions);
@@ -208,7 +624,7 @@ static void running_as_fastq_dump [[noreturn]] ()
     exit(0);
 }
 
-static void running_as_other_tool [[noreturn]] (int const tool)
+static void running_as_tool [[noreturn]] (int const tool)
 {
     exit(0);
 }
@@ -236,7 +652,7 @@ static void runas [[noreturn]] (int const tool)
     case tool_name::FASTERQ_DUMP:
     case tool_name::SAM_DUMP:
     case tool_name::SRA_PILEUP:
-        running_as_other_tool(tool);
+        running_as_tool(tool);
         break;
 
     default:
@@ -246,56 +662,39 @@ static void runas [[noreturn]] (int const tool)
     assert(!"reachable");
 }
 
-// TODO: factor out and make tests
-static bool matched(std::string const &param, int argc, char *argv[], int &i, std::string *value)
+static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 {
-    auto const len = param.size();
-    auto const arg = std::string(argv[i]);
-    char const *found = NULL;
-    
-    if (arg.size() >= len && arg.substr(0, len) == param) {
-        if (arg.size() == len) {
-            if (i + 1 < argc) {
-                found = argv[++i];
-            }
-        }
-        else if (arg[len] == '=') {
-            found = argv[i] + len + 1;
-        }
-    }
-    if (!found) return false;
-
-    if (!value->empty())
-        std::cerr << "warn: parameter " << param << " was specified more than once, the previous value was overwritten" << std::endl;
-    value->assign(found);
-    return true;
-}
-
-static void main [[noreturn]] (const char *argv0, int argc, char *argv[])
-{
-    std::string s_selfpath(argv0)
+    std::string const s_argv0(cargv0);
+    std::string s_selfpath(cargv0)
               , s_basename(split_basename(s_selfpath))
-              , s_version(split_version(s_basename, "2.10.0"));
-    std::string s_location, s_ngc;
-    auto s_args = std::vector<std::string>();
+              , s_version(split_version(s_basename, "2.10.0")); ///< this needs to be the version string and not a hardcoded value
+    std::string s_location;
+    auto s_args = loadArgv(argc, argv);
     
-    s_args.reserve(argc);
-    for (int i = 0; i < argc; ++i) {
-        if (matched("--location", argc, argv, i, &s_location)) {
+    // extract and remove --location from args
+    for (auto i = s_args.begin(); i != s_args.end(); ) {
+        bool found;
+        std::string value;
+        decltype(i) next;
+
+        std::tie(found, value, next) = matched("--location", i, s_args.end());
+        if (found) {
+            s_location.assign(value);
             location = &s_location;
+            i = s_args.erase(i, next);
             continue;
         }
-        if (matched("--ngc", argc, argv, i, &s_ngc)) {
-            ngc = &s_ngc;
-            continue;
-        }
-        s_args.push_back(std::string(argv[i]));
+        ++i;
     }
+    
+    // setup const globals
+    argv0 = &s_argv0;
     selfpath = &s_selfpath;
     basename = &s_basename;
     version_string = &s_version;
     args = &s_args;
 
+    // run the tool as specified by basename
     runas(tool_name::lookup_iid(basename->c_str()));
 }
 

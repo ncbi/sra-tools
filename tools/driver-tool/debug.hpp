@@ -48,6 +48,9 @@ struct logging_state {
         static auto const value(get_verbose_value());
         return value;
     }
+    static bool is_verbose(int const level) {
+        return level <= verbosity();
+    }
 private:
     static bool is_falsy(char const *const str) {
         return (str == NULL || str[0] == '\0' || (str[0] == '0' && str[1] == '\0'));
@@ -61,9 +64,15 @@ private:
     static int get_verbose_value() {
         auto const str = getenv("SRATOOLS_VERBOSE");
         if (str && str[0] && str[1] == '\0') {
-            if ('1' <= str[0] && str[0] <= '5')
+            if ('1' <= str[0] && str[0] <= '9')
                 return str[0] - '0';
         }
         return 0;
     }
 };
+
+#define TRACE(X) do { if (logging_state::is_trace()) { std::cerr << "TRACE: " << __FILE__ << ':' << __LINE__ << " - " << __FUNCTION__ << ": " << #X << " = '" << (X) << "'"; } } while(0)
+
+#define DEBUG if (!logging_state::is_debug()) {} else std::cerr
+
+#define LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr

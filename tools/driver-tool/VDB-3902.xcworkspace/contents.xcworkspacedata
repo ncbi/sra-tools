@@ -1,4 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Workspace
    version = "1.0">
+   <FileRef
+      location = "group:globals.hpp">
+   </FileRef>
+   <FileRef
+      location = "group:README.md">
+   </FileRef>
+   <FileRef
+      location = "group:sratools.cpp">
+   </FileRef>
+   <FileRef
+      location = "group:sratools.pl">
+   </FileRef>
+   <FileRef
+      location = "group:args-decl.hpp">
+   </FileRef>
+   <FileRef
+      location = "group:constants.hpp">
+   </FileRef>
+   <FileRef
+      location = "group:env_vars.h">
+   </FileRef>
+   <FileRef
+      location = "group:debug.hpp">
+   </FileRef>
+   <FileRef
+      location = "group:split_path.cpp">
+   </FileRef>
+   <FileRef
+      location = "group:/Users/ken/GitHub/sra-tools/tools/driver-tool/parse_args.cpp">
+   </FileRef>
+   <FileRef
+      location = "group:parse_args.hpp">
+   </FileRef>
+   <FileRef
+      location = "group:which.cpp">
+   </FileRef>
+   <FileRef
+      location = "group:which.hpp">
+   </FileRef>
 </Workspace>

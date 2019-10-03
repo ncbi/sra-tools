@@ -26,28 +26,33 @@
  *  sratools command line tool
  *
  * Purpose:
- *  Declare and define global runtime constants
+ *  locate executable
  *
  */
 
 #pragma once
-#include <map>
 #include <string>
-#include <vector>
 
 namespace sratools {
 
-// MARK: extracted from argv[0] or SRATOOLS_IMPERSONATE
-extern std::string const *argv0; ///< full value from argv[0] or overridden value
-extern std::string const *selfpath; ///< parsed from command line, may be empty
-extern std::string const *basename;
-extern std::string const *version_string; ///< as parsed or same as version of this tool if not parsed
+/// @brief: like shell `which` but checks more than just PATH
+///
+/// @param name: executable name
+/// @param allowNotFound: return empty string if not found, else print message and exit
+/// @param isaSraTool: the executable is part of the SRA toolkit, effects message if not found and whether to append version string to name
+///
+/// @returns full path to executable if found
+extern
+std::string which(std::string const &name, bool allowNotFound = true, bool isaSraTool = false);
 
-extern std::vector<std::string> const *args; ///< original command line arguments, with argv[0] removed
-extern std::map<std::string, std::string> const *parameters;
-
-extern std::string const *location; ///< may be null
-
-// std::map<std::string, std::string> const *config;
-
+/// @brief: like shell `which` but checks more than just PATH
+///
+/// @param name: executable name
+///
+/// @returns full path to executable if found, else print message and exit
+static inline std::string which_sratool(std::string const &name)
+{
+    return which(name, false, true);
 }
+
+} // namespace sratools

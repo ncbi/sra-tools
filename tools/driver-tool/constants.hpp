@@ -36,6 +36,8 @@
 #include <cstring>
 #include <cstdlib>
 
+#include "env_vars.h"
+
 namespace constants {
 
 struct tool_name {
@@ -114,9 +116,9 @@ struct tool_name {
             auto const m = f + ((e - f) >> 1);
             auto const c = strcmp(values[m], qry);
             if (c < 0)
-                e = m;
-            else if (c > 0)
                 f = m + 1;
+            else if (c > 0)
+                e = m;
             else
                 return m;
         }
@@ -134,38 +136,38 @@ struct resolver {
 struct env_var {
     /// @brief: environment variables as symbolic names
     enum {
-        VDB_CACHE_NEED_CE,
-        VDB_CACHE_NEED_PMT,
-        VDB_CACHE_URL,
-        VDB_CACHE_VDBCACHE,
-        VDB_CE_TOKEN,
-        VDB_LOCAL_URL,
-        VDB_LOCAL_VDBCACHE,
-        VDB_REMOTE_NEED_CE,
-        VDB_REMOTE_NEED_PMT,
-        VDB_REMOTE_URL,
-        VDB_REMOTE_VDBCACHE,
-        VDB_SIZE_URL,
-        VDB_SIZE_VDBCACHE,
+        CACHE_NEED_CE,
+        CACHE_NEED_PMT,
+        CACHE_URL,
+        CACHE_VDBCACHE,
+        CE_TOKEN,
+        LOCAL_URL,
+        LOCAL_VDBCACHE,
+        REMOTE_NEED_CE,
+        REMOTE_NEED_PMT,
+        REMOTE_URL,
+        REMOTE_VDBCACHE,
+        SIZE_URL,
+        SIZE_VDBCACHE,
         END_ENUM
     };
     
     /// @brief: array of environment variables in the same order as the enum above.
     static char const *const *names() {
         static char const *const value[] = {
-            "VDB_CACHE_NEED_CE",
-            "VDB_CACHE_NEED_PMT",
-            "VDB_CACHE_URL",
-            "VDB_CACHE_VDBCACHE",
-            "VDB_CE_TOKEN",
-            "VDB_LOCAL_URL",
-            "VDB_LOCAL_VDBCACHE",
-            "VDB_REMOTE_NEED_CE",
-            "VDB_REMOTE_NEED_PMT",
-            "VDB_REMOTE_URL",
-            "VDB_REMOTE_VDBCACHE",
-            "VDB_SIZE_URL",
-            "VDB_SIZE_VDBCACHE"
+            ENV_VAR_CACHE_NEED_CE,
+            ENV_VAR_CACHE_NEED_PMT,
+            ENV_VAR_CACHE_URL,
+            ENV_VAR_CACHE_VDBCACHE,
+            ENV_VAR_CE_TOKEN,
+            ENV_VAR_LOCAL_URL,
+            ENV_VAR_LOCAL_VDBCACHE,
+            ENV_VAR_REMOTE_NEED_CE,
+            ENV_VAR_REMOTE_NEED_PMT,
+            ENV_VAR_REMOTE_URL,
+            ENV_VAR_REMOTE_VDBCACHE,
+            ENV_VAR_SIZE_URL,
+            ENV_VAR_SIZE_VDBCACHE
         };
         return value;
     }
@@ -196,9 +198,9 @@ struct env_var {
             auto const m = f + ((e - f) >> 1);
             auto const c = strcmp(values[m], qry);
             if (c < 0)
-                e = m;
-            else if (c > 0)
                 f = m + 1;
+            else if (c > 0)
+                e = m;
             else
                 return m;
         }

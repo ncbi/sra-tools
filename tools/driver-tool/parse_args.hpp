@@ -26,63 +26,37 @@
  *  sratools command line tool
  *
  * Purpose:
- *  argv[0] manipulations
+ *  argv manipulations
  *
  */
 
+#pragma once
+#include <tuple>
 #include <string>
-#include <cctype>
+#include <vector>
 #include <iterator>
 
-/// @brief: split path into dirname and basename
-///
-/// @param dirname: [inout] directory name part
-///
-/// @returns basename part
-std::string split_basename(std::string &path)
-{
-    auto result = std::string();
-    auto i = path.begin();
-    auto last = path.end();
-    auto const end = last;
-    
-    while (i != end) {
-        if (*i == '/') last = i;
-        ++i;
-    }
-    if (last == end) {
-        path.swap(result);
-    }
-    else {
-        auto const save = last++;
-        result = std::string(last, end);    // NB: might be empty
-        path.erase(save, end);              // NB: might be whole string
-    }
-    return result;
-}
+namespace sratools {
 
-/// @brief: split basename into name and version
+using ArgsList = std::vector<std::string>;
+
+/// @brief: checks if the current item matches and extracts the value if it does
 ///
-/// @param name: [inout] the basename
-/// @param default_version: version to use if there is no version part
+/// @param param: the wanted parameter, e.g. '--option-file'
+/// @param current: the current item
+/// @param end: the end, e.g. args.end()
 ///
-/// @returns version part
-std::string split_version(std::string &name, std::string const &default_version)
-{
-    auto i = name.begin();
-    auto last = name.end();
-    auto const end = last;
-    
-    while (i != end) {
-        if (last == end) {
-            if (*i == '.')
-                last = i;
-        }
-        else if (!isdigit(*i) && *i != '.')
-            last = end;
-        ++i;
-    }
-    auto result = last == end ? default_version : std::string(std::next(last), end);
-    name.erase(last, end);
-    return result;
-}
+/// @returns if found, tuple<true, this is the value, the next item to resume at>. if not found, tuple<false, "", current>
+extern
+std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, ArgsList::iterator current, ArgsList::iterator end);
+
+/// @brief: load argv, handle any option files
+///
+/// @param argc: argc - 1
+/// @param argv: argv + 1
+///
+/// @returns the args. May throw on I/O error or parse error.
+extern
+ArgsList loadArgv(int argc, char *argv[]);
+
+} // namespace sratools

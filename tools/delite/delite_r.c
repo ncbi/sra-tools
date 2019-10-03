@@ -28,6 +28,7 @@
 #include <klib/rc.h>
 #include <klib/time.h>
 #include <klib/printf.h>
+#include <klib/container.h>
 
 #include <kapp/main.h>
 
@@ -100,6 +101,10 @@ DeLiteParamsWhack ( struct DeLiteParams * Params )
         if ( Params -> _transf != NULL ) {
             free ( ( char * ) Params -> _transf );
             Params -> _transf = NULL;
+        }
+        if ( Params -> _exclf != NULL ) {
+            free ( ( char * ) Params -> _exclf );
+            Params -> _exclf = NULL;
         }
         Params -> _output_stdout = false;
         Params -> _force_write = true;
@@ -1009,3 +1014,298 @@ rarLnRdRewind ( const struct karLnRd * self )
     return 0;
 }   /* rarLnRdRewind () */
 
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  LineReader for line
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karLookUpNode {
+    struct BSTNode _node;
+
+    char _name [ 1 ];     /* node content will remain the same */
+};
+
+rc_t CC
+karLookUpNodeDispose ( const struct karLookUpNode * self )
+{
+    if ( self != NULL ) {
+        free ( ( struct karLookUpNode * ) self );
+    }
+
+    return 0;
+}   /* karLookUpNodeDispose () */
+
+rc_t CC
+karLookUpNodeMake (
+                    const struct karLookUpNode ** Node,
+                    const char * Name
+)
+{
+    struct karLookUpNode * Ret = NULL;
+
+    if ( Node != NULL ) {
+        * Node = NULL;
+    }
+
+    if ( Node == NULL || Name == NULL ) {
+        return RC ( rcApp, rcNamelist, rcConstructing, rcParam, rcNull );
+    }
+
+    Ret = calloc (
+                1,
+                sizeof ( struct karLookUpNode ) + strlen ( Name ) + 1
+                );
+    if ( Ret == NULL ) {
+        return RC ( rcApp, rcNamelist, rcConstructing, rcMemory, rcExhausted );
+    }
+
+    strcpy ( Ret -> _name, Name );
+
+    * Node = Ret;
+
+    return 0;
+}   /* karLookUpNodeMake () */
+
+struct karLookUp {
+    struct BSTree _tree;
+
+    bool _good;
+
+    /* Looking cute, may be will add mutex later */
+};
+
+rc_t CC
+karLookUpMake ( const struct karLookUp ** LookUp )
+{
+    rc_t RCt;
+    struct karLookUp * Ret;
+
+    RCt = 0;
+    Ret = NULL;
+
+    if ( LookUp != NULL ) {
+        * LookUp = NULL;
+    }
+
+    if ( LookUp == NULL ) {
+        return RC ( rcApp, rcNamelist, rcConstructing, rcParam, rcNull );
+    }
+
+    Ret = calloc ( 1, sizeof ( struct karLookUp ) );
+    if ( Ret == NULL ) {
+        RCt = RC ( rcApp, rcNamelist, rcConstructing, rcMemory, rcExhausted );
+    }
+    else {
+        BSTreeInit ( & ( Ret -> _tree ) );
+        Ret -> _good = true;
+
+        * LookUp = Ret;
+    }
+
+    if ( RCt != 0 ) {
+        * LookUp = NULL;
+
+        if ( Ret != NULL ) {
+            karLookUpDispose ( Ret );
+        }
+
+        Ret = NULL;
+    }
+
+    return RCt;
+}   /* karLookUpMake () */
+
+rc_t CC
+karLookUpDispose ( const struct karLookUp * self )
+{
+    struct karLookUp * LookUp = ( struct karLookUp * ) self;
+
+    if ( LookUp != NULL ) {
+        karLookUpClear ( LookUp );
+
+        LookUp -> _good = false;
+
+        free ( LookUp );
+    }
+
+    return 0;
+}   /* karLookUpDispose () */
+
+bool CC
+karLookUpGood ( const struct karLookUp * self )
+{
+    return self == NULL ? false : ( self -> _good );
+}   /* karLookUpGood () */
+
+static
+int64_t CC
+karLookUpCompareStrings ( const char * L, const char * R )
+{
+    if ( L != NULL && R != NULL ) {
+        return strcmp ( L, R );
+    }
+
+    return L != NULL ? -1 : ( R != NULL ? 1 : 0 );
+}   /* karLookUpCompareStrings () */
+
+static
+int64_t CC
+karLookUpInsertCallback ( const BSTNode * L, const BSTNode * R )
+{
+    return karLookUpCompareStrings (
+                    ( L == NULL
+                        ? NULL
+                        : ( ( ( struct karLookUpNode * ) L ) -> _name )
+                    ),
+                    ( R == NULL
+                        ? NULL
+                        : ( ( ( struct karLookUpNode * ) R ) -> _name )
+
+                    )
+                    );
+}   /* karLookUpInsertCallback () */
+
+static
+rc_t CC
+karLookUpAdd ( const struct karLookUp * self, const char * Name )
+{
+    rc_t RCt;
+    struct karLookUp * LookUp;
+
+    RCt = 0;
+    LookUp = ( struct karLookUp * ) self;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcNamelist, rcLoading, rcSelf, rcNull );
+    }
+
+    if ( Name == NULL ) {
+        return RC ( rcApp, rcNamelist, rcLoading, rcParam, rcNull );
+    }
+
+    if ( ! karLookUpHas ( self, Name ) ) {
+        const struct karLookUpNode * Node = NULL;
+        RCt = karLookUpNodeMake ( & Node, Name );
+        if ( RCt == 0 ) {
+            RCt = BSTreeInsert (
+                                & ( LookUp -> _tree ),
+                                ( BSTNode * ) & ( Node -> _node ),
+                                karLookUpInsertCallback
+                                );
+            if ( RCt != 0 ) {
+                karLookUpNodeDispose ( Node );
+            }
+        }
+    }
+
+    if ( RCt != 0 ) {
+        LookUp -> _good = false;
+    }
+
+    return RCt;
+}   /* karLookUpAdd () */
+
+rc_t CC
+karLookUpLoad ( const struct karLookUp * self, const char * Path )
+{
+    rc_t RCt;
+    const struct karLnRd * Reader;
+    const char * Line;
+
+    RCt = 0;
+    Reader = NULL;
+    Line = NULL;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcNamelist, rcLoading, rcSelf, rcNull );
+    }
+
+    if ( Path == NULL ) {
+        return RC ( rcApp, rcNamelist, rcLoading, rcParam, rcNull );
+    }
+
+    RCt = karLnRdOpen ( & Reader, Path );
+    if ( RCt == 0 ) {
+        while ( karLnRdNext ( Reader ) ) {
+            RCt = karLnRdGet ( Reader, & Line );
+            if ( RCt != 0 ) {
+                break;
+            }
+
+                /*  Empty string is allowed */
+            if ( strlen ( Line ) == 0 ) { continue; }
+
+                /*  Commentary */
+            if ( Line [ 0 ] == '#' ) { continue; }
+
+            RCt = karLookUpAdd ( self, Line );
+
+                /*  LineReader always allocate new string
+                 */
+            free ( ( char * ) Line );
+
+            if ( RCt != 0 ) {
+                break;
+            }
+        }
+
+        karLnRdDispose ( Reader );
+    }
+
+
+    return RCt;
+}   /* karLookUpLoad () */
+
+static
+void CC
+_kalrLookUpTreeWhack ( BSTNode * Node, void * Data )
+{
+    if ( Node != NULL ) {
+        free ( ( struct karLookUpNode * ) Node );
+    }
+}   /* _kalrLookUpTreeWhack () */
+
+rc_t CC
+karLookUpClear ( const struct karLookUp * self )
+{
+    struct karLookUp * LookUp = ( struct karLookUp * ) self;
+
+    if ( LookUp != NULL ) {
+        BSTreeWhack (
+                    & ( LookUp -> _tree ),
+                    _kalrLookUpTreeWhack,
+                    NULL
+                    );
+    }
+
+    return 0;
+}   /* karLookUpClear () */
+
+static
+int64_t CC
+karLookUpFindCallback ( const void * L, const BSTNode * R )
+{
+    return karLookUpCompareStrings (
+                    ( L == NULL ? NULL : ( ( const char * ) L ) ),
+                    ( R == NULL
+                        ? NULL
+                        : ( ( ( struct karLookUpNode * ) R ) -> _name )
+
+                    )
+                    );
+}   /* karLookUpFindCallback () */
+
+bool CC
+karLookUpHas ( const struct karLookUp * self, const char * Name )
+{
+    struct karLookUpNode * Node = NULL;
+
+    if ( self != NULL && Name != NULL ) {
+        if ( self -> _good ) {
+            Node = ( struct karLookUpNode * ) BSTreeFind (
+                                                & ( self -> _tree ),
+                                                Name,
+                                                karLookUpFindCallback
+                                                );
+        }
+    }
+    return Node != NULL;
+}   /* karLookUpHas () */

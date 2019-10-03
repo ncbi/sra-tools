@@ -3231,12 +3231,9 @@ _karChiveMake (
                         "Make"
                         );
         if ( ! Params -> _check ) {
-            RCt = scmDepotMake (
-                                & ( RetChive -> _scm_depot ),
-                                Params -> _schema,
-                                Params -> _transf
-                                );
+            RCt = scmDepotMake ( & ( RetChive -> _scm_depot ), Params );
         }
+
         if ( RCt == 0 ) {
                 /*  First we are mapping file into memory
                  */

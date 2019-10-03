@@ -1,0 +1,6 @@
+
+# colorspace schemas, according to Kenneth
+NCBI:SRA:ABI:tbl:v2#1.0.3
+NCBI:SRA:ABI:tbl:v2#1.0.4
+NCBI:SRA:GenericFastq:absolid#1
+NCBI:align:view:cs_seq#1.1

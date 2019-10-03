@@ -261,6 +261,7 @@ _scmDepotTrnMake (
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 struct scmDepot {
     struct BSTree _trans;
+    const struct karLookUp * _excludes;
 
     struct VSchema * _scm;
 
@@ -300,6 +301,11 @@ scmDepotDispose ( struct scmDepot * self )
         if ( self -> _scm != NULL ) {
             VSchemaRelease ( self -> _scm );
             self -> _mgr = NULL;
+        }
+
+        if ( self -> _excludes != NULL ) {
+            karLookUpDispose ( self -> _excludes );
+            self -> _excludes = NULL;
         }
 
         BSTreeWhack (
@@ -562,12 +568,31 @@ _scmDepotLoadTransforms (
     return RCt;
 }   /* _scmDepotLoadTransforms () */
 
+static
 rc_t CC
-scmDepotMake (
-            struct scmDepot ** Depot, 
-            const char * SchemaPath,
-            const char * TransformFile
+_scmDepotLoadExcludes (
+                        struct scmDepot * self,
+                        const char * ExcludesFile
 )
+{
+    rc_t RCt = 0;
+
+    if ( self != NULL && ExcludesFile != NULL ) {
+        RCt = karLookUpMake ( & ( self -> _excludes ) );
+        if ( RCt == 0 ) {
+            RCt = karLookUpLoad ( self -> _excludes, ExcludesFile );
+            if ( RCt != 0 ) {
+                karLookUpDispose ( self -> _excludes );
+                self -> _excludes = NULL;
+            }
+        }
+    }
+
+    return RCt;
+}   /* _scmDepotLoadExcludes () */
+
+rc_t CC
+scmDepotMake ( struct scmDepot ** Depot, struct DeLiteParams * Params )
 {
     rc_t RCt;
     struct scmDepot * Ret;
@@ -598,13 +623,22 @@ scmDepotMake (
             /*  Reading FilePath
              */
         if ( RCt == 0 ) {
-            RCt = _scmDepotLoadSchemas ( Ret, SchemaPath );
+            RCt = _scmDepotLoadSchemas ( Ret, Params -> _schema );
             if ( RCt == 0 ) {
                     /*  Here we are loading transformations
                      */
-                RCt = _scmDepotLoadTransforms ( Ret, TransformFile );
+                RCt = _scmDepotLoadTransforms (
+                                            Ret,
+                                            Params -> _transf
+                                            );
                 if ( RCt == 0 ) {
-                    * Depot = Ret;
+                    RCt = _scmDepotLoadExcludes (
+                                                Ret,
+                                                Params -> _exclf
+                                                );
+                    if ( RCt == 0 ) {
+                        * Depot = Ret;
+                    }
                 }
             }
         }
@@ -728,27 +762,36 @@ scmDepotTransform (
                                 );
         if ( RCt == 0 ) {
             Buf [ BSize ] = 0;
-
-            Trans = ( struct scmDepotTrn * ) BSTreeFind (
+                /*  Here we check if schema was excluded from processing
+                 */
+            if ( self -> _excludes != NULL ) {
+                if ( karLookUpHas ( self -> _excludes, Buf ) ) {
+                    RCt = RC ( rcApp, rcSchema, rcUpdating, rcName, rcUnexpected );
+                    pLogErr ( klogErr, RCt, "Schema name was excluded from DELITE [$(name)]", "name=%s", Buf );
+                }
+            } 
+            if ( RCt == 0 ) {
+                Trans = ( struct scmDepotTrn * ) BSTreeFind (
                                                 & ( self -> _trans ),
                                                 Buf,
                                                 _scmDepotTrnCompare
                                                 );
-            if ( Trans == NULL ) {
-                if ( ForDelite ) {
-                    RCt = RC ( rcApp, rcSchema, rcUpdating, rcItem, rcNotFound );
-                    pLogErr ( klogErr, RCt, "Can not find schema for DELITE [$(name)]", "name=%s", Buf );
+                if ( Trans == NULL ) {
+                    if ( ForDelite ) {
+                        RCt = RC ( rcApp, rcSchema, rcUpdating, rcItem, rcNotFound );
+                        pLogErr ( klogErr, RCt, "Can not find schema for DELITE [$(name)]", "name=%s", Buf );
+                    }
                 }
-            }
-            else {
-                KOutMsg ( "    [%s] [%s] -> [%s]\n", SCHEMA_ATTR_NAME, Trans -> _name_old, Trans -> _name_new );
-                pLogMsg ( klogInfo, "    [$(qual)] [$(old)] -> [$(scm)]", "qual=%s,old=%s,scm=%s", SCHEMA_ATTR_NAME, Trans -> _name_old, Trans -> _name_new );
+                else {
+                    KOutMsg ( "    [%s] [%s] -> [%s]\n", SCHEMA_ATTR_NAME, Trans -> _name_old, Trans -> _name_new );
+                    pLogMsg ( klogInfo, "    [$(qual)] [$(old)] -> [$(scm)]", "qual=%s,old=%s,scm=%s", SCHEMA_ATTR_NAME, Trans -> _name_old, Trans -> _name_new );
 
-                RCt = VSchemaDumpToKMDataNode (
-                                                self -> _scm,
-                                                DataNode,
-                                                Trans -> _name_new
-                                                );
+                    RCt = VSchemaDumpToKMDataNode (
+                                                    self -> _scm,
+                                                    DataNode,
+                                                    Trans -> _name_new
+                                                    );
+                }
             }
         }
 

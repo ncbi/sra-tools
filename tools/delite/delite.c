@@ -127,6 +127,10 @@ KMain ( int ArgC, char * ArgV [] )
 #define ALS_DELITE      NULL
 #define PRM_DELITE      NULL
 
+#define OPT_EXCLF       "exclude"
+#define ALS_EXCLF       NULL
+#define PRM_EXCLF       NULL
+
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Params
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
@@ -251,7 +255,8 @@ rc_t
 DeLiteParamsSetSingleArgParam (
                         const char ** Param,
                         const char * ArgName,
-                        const struct Args * TheArgs
+                        const struct Args * TheArgs,
+                        bool Mandatory
 )
 {
     rc_t RCt;
@@ -281,6 +286,11 @@ DeLiteParamsSetSingleArgParam (
                                     ); 
             if ( RCt == 0 ) {
                 RCt = copyStringSayNothingRelax ( Param, Value );
+            }
+        }
+        else {
+            if ( Mandatory ) {
+                return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNotFound );
             }
         }
     }
@@ -386,6 +396,7 @@ static const char * UsgAppTransf [] = { "Path to the list of schema transformati
 static const char * UsgAppNoedit [] = { "Do not process, just print expected actions. Optional.", NULL };
 static const char * UsgAppUpdate [] = { "Update schemas for tables in archive. Optional.", NULL };
 static const char * UsgAppDelite [] = { "Delete quality scores in archive. Optional.", NULL };
+static const char * UsgAppExclf []  = { "Path to the list of schema names to exclude from deliting. Optional, string.", NULL };
 
 struct OptDef DeeeOpts [] = {
     {       /* Where we will dump new KAR fiel */
@@ -406,14 +417,14 @@ struct OptDef DeeeOpts [] = {
         true,               /* need value */
         false               /* is required */
     },
-    {       /* Option do not edit archive, but repack it */
+    {       /* File with list of schema transformations */
         OPT_TRANSF,         /* option name */
         ALS_TRANSF,         /* option alias */
         NULL,               /* help generator */
         UsgAppTransf,       /* help as text is here */
         1,                  /* max amount */
         true,               /* need value */
-        false               /* is required */
+        true                /* is required */
     },
     {       /* Option do not edit archive, but repack it */
         OPT_NOEDIT,         /* option name */
@@ -440,6 +451,15 @@ struct OptDef DeeeOpts [] = {
         UsgAppDelite,       /* help as text is here */
         1,                  /* max amount */
         false,              /* need value */
+        false               /* is required */
+    },
+    {       /* File with list of schemas to exclude from delite */
+        OPT_EXCLF,          /* option name */
+        ALS_EXCLF,          /* option alias */
+        NULL,               /* help generator */
+        UsgAppExclf,        /* help as text is here */
+        1,                  /* max amount */
+        true,               /* need value */
         false               /* is required */
     }
 };  /* OptDef */
@@ -515,7 +535,8 @@ __porseAndHandle (
             RCt = DeLiteParamsSetSingleArgParam (
                                                 & Params -> _schema,
                                                 OPT_SCHEMA,
-                                                TheArgs
+                                                TheArgs,
+                                                true
                                                 );
             if ( RCt != 0 ) {
                 break;
@@ -524,7 +545,18 @@ __porseAndHandle (
             RCt = DeLiteParamsSetSingleArgParam (
                                                 & Params -> _transf,
                                                 OPT_TRANSF,
-                                                TheArgs
+                                                TheArgs,
+                                                true
+                                                );
+            if ( RCt != 0 ) {
+                break;
+            }
+
+            RCt = DeLiteParamsSetSingleArgParam (
+                                                & Params -> _exclf,
+                                                OPT_EXCLF,
+                                                TheArgs,
+                                                false
                                                 );
             if ( RCt != 0 ) {
                 break;
@@ -638,6 +670,13 @@ Usage ( const struct Args * TheArgs )
                 OPT_TRANSF,
                 PRM_TRANSF,
                 UsgAppTransf
+                );
+
+    HelpOptionLine (
+                ALS_EXCLF,
+                OPT_EXCLF,
+                PRM_EXCLF,
+                UsgAppExclf
                 );
 
     HelpOptionLine (

@@ -57,6 +57,7 @@ struct KMetadata;
  *
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 struct scmDepot;
+struct DeLiteParams;
 
     /*  Note, both SchemaPath and TransformFile could be NULL
      *  SchemaPath - directory, which will be scaned for "*.vschema"
@@ -64,8 +65,7 @@ struct scmDepot;
      */
 rc_t CC scmDepotMake (
                     struct scmDepot ** Dpt,
-                    const char * SchemaPath,
-                    const char * TransformFile
+                    struct DeLiteParams * Params
                     );
 rc_t CC scmDepotDispose ( struct scmDepot * self );
 

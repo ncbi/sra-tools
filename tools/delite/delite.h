@@ -42,6 +42,7 @@ struct DeLiteParams {
     const char * _output;           /* Output file path */
     const char * _schema;           /* Shema dirs path separated by : */
     const char * _transf;           /* File with list of transforms */
+    const char * _exclf;            /* File with list of exclusions */
     bool _check;                    /* Set only during check mode */
     bool _noedit;                   /* Just produce output, no edit */
     bool _update;                   /* Update schemas for tables */
@@ -183,6 +184,24 @@ bool CC karLnRdNext ( const struct karLnRd * self );
 rc_t CC karLnRdGet ( const struct karLnRd * self, const char ** Line );
 rc_t CC karLnRdGetNo ( const struct karLnRd * self, size_t * LineNo );
 rc_t CC rarLnRdRewind ( const struct karLnRd * self );
+
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
+ *  Another weird stuff. LookUp file
+ *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+struct karLookUp;
+
+rc_t CC karLookUpMake ( const struct karLookUp ** LookUp );
+rc_t CC karLookUpDispose ( const struct karLookUp * self );
+bool CC karLookUpGood ( const struct karLookUp * self );
+rc_t CC karLookUpLoad (
+                    const struct karLookUp * self,
+                    const char * Path
+                    );
+rc_t CC karLookUpClear ( const struct karLookUp * self );
+bool CC karLookUpHas (
+                    const struct karLookUp * self,
+                    const char * Name
+                    );
 
 #ifdef __cplusplus
 }

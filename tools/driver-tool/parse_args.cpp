@@ -35,6 +35,8 @@
 #include <fstream>
 #include "parse_args.hpp"
 
+#include "globals.hpp"
+
 namespace sratools {
 
 static bool string_hasPrefix(std::string const &prefix, std::string const &target)
@@ -165,9 +167,9 @@ static ArgsList argsListFromFile(std::string const &filename)
 
 auto const optionFileParam = std::string("--option-file");
 
-/// @brief: load an args list from a file
+/// @brief load an args list from a file
 ///
-/// @param: filename to load
+/// @param filename to load
 ///
 /// @returns the args. Throws on I/O error or parse error.
 static ArgsList loadOptionFile(std::string const &filename)
@@ -220,6 +222,84 @@ LOAD_OPTION_FILE:
         result.push_back(arg);
     }
     return result;
+}
+
+bool parseArgs(  ParamList *parameters
+               , ArgsList *arguments
+               , Dictionary const &longNames
+               , Dictionary const &hasArg
+               )
+{
+    auto putback = std::string();
+    auto nextIsParamArg = false;
+    
+    for (auto i = 0; i < args->size() || !putback.empty(); ) {
+        auto arg = putback.empty() ? args->at(i++) : putback;
+        
+        putback.erase();
+        
+        if (nextIsParamArg) {
+            nextIsParamArg = false;
+            parameters->back().second = arg;
+            continue;
+        }
+        
+        // if it is not an option then it is a regular argument
+        if (arg.empty() || arg[0] != '-') {
+            arguments->push_back(arg);
+            ++i;
+            continue;
+        }
+        
+        if (arg[1] == '-') {
+            // long form: could be --name | --name=value | or --name value
+            auto const eq = arg.find_first_of('=');
+
+            if (eq == std::string::npos) {
+                // could be --name | --name value
+                parameters->emplace_back(ParamList::value_type(arg, opt_string()));
+                nextIsParamArg = hasArg.find(arg) != hasArg.end();
+            }
+            else {
+                // --name=value
+                parameters->emplace_back(ParamList::value_type(arg.substr(0, eq), arg.substr(eq + 1)));
+            }
+        }
+        else {
+            // short form: -abc can mean -a bc | -a -bc
+            auto const ch = arg.substr(0, 2); // < std::string not char
+            auto const rest = arg.substr(2);
+            auto const iter = longNames.find(ch);
+
+            if (iter == longNames.end()) {
+                // complain
+                std::cerr << "unknown parameter " << ch << std::endl;
+                return false;
+            }
+            auto const &name = iter->second;
+            
+            if (hasArg.find(name) != hasArg.end()) {
+                // -a bc
+                if (rest.empty()) {
+                    parameters->emplace_back(ParamList::value_type(name, opt_string()));
+                    nextIsParamArg = true;
+                }
+                else
+                    parameters->emplace_back(ParamList::value_type(name, rest));
+            }
+            else {
+                // -a -bc
+                parameters->emplace_back(ParamList::value_type(name, opt_string()));
+                if (!rest.empty())
+                    putback = std::string(1, '-') + rest;
+            }
+        }
+    }
+    if (nextIsParamArg) return false; // missing argument
+    for (auto && arg : *parameters) {
+        if (arg.first == "--help") return false;
+    }
+    return true;
 }
 
 } // namespace sratools

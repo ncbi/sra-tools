@@ -40,8 +40,9 @@
 
 namespace constants {
 
+/// @brief constants used for tool names
 struct tool_name {
-    /// @brief: tools names as symbols
+    /// @brief tools names as symbols
     enum {
         FASTERQ_DUMP,
         FASTQ_DUMP,
@@ -52,7 +53,7 @@ struct tool_name {
         END_ENUM
     };
     
-    /// @brief: array of tool names in same order as above enum
+    /// @brief array of tool names in same order as above enum
     static char const *const *real() {
         static char const *const value[] = {
             "fasterq-dump-orig",
@@ -65,8 +66,8 @@ struct tool_name {
         return value;
     }
     
-    /// @brief: array of impersonated tool names in same order as above enum
-    static char const *const *runas() {
+    /// @brief array of impersonated tool names in same order as above enum
+    static char const *const *runasNames() {
         static char const *const value[] = {
             "fasterq-dump",
             "fastq-dump",
@@ -78,9 +79,9 @@ struct tool_name {
         return value;
     }
     
-    /// @brief: convert id to string
+    /// @brief convert id to string
     ///
-    /// @param iid: integer id of tool (range checked)
+    /// @param iid integer id of tool (range checked)
     ///
     /// @returns the real name of the tool in the filesystem
     static char const *real(int const iid) {
@@ -90,25 +91,25 @@ struct tool_name {
         throw std::range_error("unknown tool id");
     }
     
-    /// @brief: convert id to string
+    /// @brief convert id to string
     ///
-    /// @param iid: integer id of tool (range checked)
+    /// @param iid integer id of tool (range checked)
     ///
     /// @returns the impersonated name of the tool
     static char const *runas(int const iid) {
         assert(0 <= iid && iid < END_ENUM);
         if (0 <= iid && iid < END_ENUM)
-            return runas()[iid];
+            return runasNames()[iid];
         throw std::range_error("unknown tool id");
     }
     
-    /// @brief: convert impersonated name to id
+    /// @brief convert impersonated name to id
     ///
-    /// @param qry: the impersonated name
+    /// @param qry the impersonated name
     ///
-    /// @returns: the id or -1 if not found
+    /// @returns the id or -1 if not found
     static int lookup_iid(char const *const qry) {
-        auto const values = runas();
+        auto const values = runasNames();
         int f = 0;
         int e = END_ENUM;
         
@@ -126,15 +127,15 @@ struct tool_name {
     }
 };
 
-/// @brief: constants used for calling SRA Data Locator
+/// @brief constants used for calling SRA Data Locator
 struct resolver {
     static constexpr char const *version() { return "130"; }
     static constexpr char const *url() { return "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve"; }
 };
 
-/// @brief: environment variables for passing information to the driven tool
+/// @brief environment variables for passing information to the driven tool
 struct env_var {
-    /// @brief: environment variables as symbolic names
+    /// @brief environment variables as symbolic names
     enum {
         CACHE_NEED_CE,
         CACHE_NEED_PMT,
@@ -152,7 +153,7 @@ struct env_var {
         END_ENUM
     };
     
-    /// @brief: array of environment variables in the same order as the enum above.
+    /// @brief array of environment variables in the same order as the enum above.
     static char const *const *names() {
         static char const *const value[] = {
             ENV_VAR_CACHE_NEED_CE,
@@ -172,11 +173,11 @@ struct env_var {
         return value;
     }
     
-    /// @brief: convert id to string
+    /// @brief convert id to string
     ///
-    /// @param iid: integer id of env-var (range checked)
+    /// @param iid integer id of env-var (range checked)
     ///
-    /// @returns: the env-var name as a string
+    /// @returns the env-var name as a string
     static char const *name(int const iid) {
         assert(0 <= iid && iid < END_ENUM);
         if (0 <= iid && iid < END_ENUM)
@@ -184,11 +185,11 @@ struct env_var {
         throw std::range_error("unknown environment variable id");
     }
     
-    /// @brief: convert string to id
+    /// @brief convert string to id
     ///
-    /// @param qry: the env-var name
+    /// @param qry the env-var name
     ///
-    /// @returns: the id or -1 if not found
+    /// @returns the id or -1 if not found
     static int find(char const *qry) {
         auto const values = names();
         int f = 0;

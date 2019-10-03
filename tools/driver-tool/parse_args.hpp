@@ -34,29 +34,41 @@
 #include <tuple>
 #include <string>
 #include <vector>
+#include <map>
 #include <iterator>
+
+#include "opt_string.hpp"
 
 namespace sratools {
 
+using Dictionary = std::map<std::string, std::string>;
+using ParamList = std::vector<std::pair<std::string, opt_string>>;
 using ArgsList = std::vector<std::string>;
 
-/// @brief: checks if the current item matches and extracts the value if it does
+/// @brief checks if the current item matches and extracts the value if it does
 ///
-/// @param param: the wanted parameter, e.g. '--option-file'
-/// @param current: the current item
-/// @param end: the end, e.g. args.end()
+/// @param param the wanted parameter, e.g. '--option-file'
+/// @param current the current item
+/// @param end the end, e.g. args.end()
 ///
 /// @returns if found, tuple<true, this is the value, the next item to resume at>. if not found, tuple<false, "", current>
 extern
 std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, ArgsList::iterator current, ArgsList::iterator end);
 
-/// @brief: load argv, handle any option files
+/// @brief load argv, handle any option files
 ///
-/// @param argc: argc - 1
-/// @param argv: argv + 1
+/// @param argc argc - 1
+/// @param argv argv + 1
 ///
 /// @returns the args. May throw on I/O error or parse error.
 extern
 ArgsList loadArgv(int argc, char *argv[]);
+
+extern
+bool parseArgs(  ParamList *parameters
+               , ArgsList *arguments
+               , Dictionary const &longNames
+               , Dictionary const &hasArg
+               );
 
 } // namespace sratools

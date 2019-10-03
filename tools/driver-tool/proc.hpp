@@ -47,53 +47,53 @@ struct process {
     /// @brief the result of wait if child did terminate in some way
     struct exit_status {
         /// @brief child called exit
-        bool ifexited() const {
+        bool exited() const {
             return WIFEXITED(value) ? true : false;
         }
         /// @brief child exit code
         ///
-        /// Only available ifexited() == true.
+        /// Only available exited() == true.
         ///
         /// @return The low 8-bits of the value passed to exit.
         int exit_code() const {
-            assert(ifexited());
+            assert(exited());
             return WEXITSTATUS(value);
         }
 
         /// @brief child was signaled
-        bool ifsignaled() const {
+        bool signaled() const {
             return WIFSIGNALED(value) ? true : false;
         }
         /// @brief the signal that terminated the child
         ///
-        /// Only available ifsignaled() == true
+        /// Only available signaled() == true
         ///
         /// @return the signal that terminated the child
         int termsig() const {
-            assert(ifsignaled());
+            assert(signaled());
             return WTERMSIG(value);
         }
         /// @brief a coredump was generated
         ///
-        /// Only available ifsignaled() == true
+        /// Only available signaled() == true
         ///
         /// @return true if a coredump was generated
         bool coredump() const {
-            assert(ifsignaled());
+            assert(signaled());
             return WCOREDUMP(value) ? true : false;
         }
 
         /// @brief the child is stopped, like in a debugger
-        bool ifstopped() const {
+        bool stopped() const {
             return WIFSTOPPED(value) ? true : false;
         }
         /// @brief the signal that stopped the child
         ///
-        /// Only available ifstopped() == true
+        /// Only available stopped() == true
         ///
         /// @return the signal that stopped the child
         int stopsig() const {
-            assert(ifstopped());
+            assert(stopped());
             return WSTOPSIG(value);
         }
         
@@ -191,5 +191,22 @@ void exec [[noreturn]] (  std::string const &toolname
                         , ParamList const &parameters
                         , ArgsList const &arguments);
 
+
+/// @brief prepares argv and calls exec; does not return
+///
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param parameters list of parameters (name-value pairs)
+/// @param argument a string
+///
+/// @throw system_error if exec fails
+static inline
+void exec [[noreturn]] (  std::string const &toolname
+                        , std::string const &toolpath
+                        , ParamList const &parameters
+                        , ArgsList::value_type const &argument)
+{
+    exec(toolname, toolpath, parameters, ArgsList({ argument }));
+}
 
 } // namespace sratools

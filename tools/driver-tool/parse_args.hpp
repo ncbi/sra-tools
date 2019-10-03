@@ -45,6 +45,22 @@ using Dictionary = std::map<std::string, std::string>;
 using ParamList = std::vector<std::pair<std::string, opt_string>>;
 using ArgsList = std::vector<std::string>;
 
+static inline
+ParamList::const_iterator getParamValue(ParamList::value_type::first_type const &param, ParamList const &params)
+{
+    return std::find_if(params.begin(), params.end(), [&](ParamList::value_type const &value) {
+        return value.first == param;
+    });
+}
+
+static inline
+bool hasParamValue(ParamList::value_type::first_type const &param, ParamList const &params)
+{
+    return std::find_if(params.begin(), params.end(), [&](ParamList::value_type const &value) {
+        return value.first == param;
+    }) != param.end();
+}
+
 /// @brief checks if the current item matches and extracts the value if it does
 ///
 /// @param param the wanted parameter, e.g. '--option-file'

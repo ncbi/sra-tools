@@ -533,13 +533,13 @@ static bool parseArgs(  ParamList *parameters
         }
         else {
             // short form: -abc can mean -a bc | -a -bc
-            auto const ch = arg.substr(1, 1); //< std::string not char
+            auto const ch = arg.substr(0, 2); //< std::string not char
             auto const rest = arg.substr(2);
             auto const iter = longNames.find(ch);
 
             if (iter == longNames.end()) {
                 // complain
-                std::cerr << "unknown parameter -" << ch << std::endl;
+                std::cerr << "unknown parameter " << ch << std::endl;
                 return false;
             }
             auto const &name = iter->second;

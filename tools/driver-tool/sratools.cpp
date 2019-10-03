@@ -63,64 +63,6 @@ extern std::string split_version(std::string &name, std::string const &default_v
 
 namespace sratools {
 
-#if __cplusplus < 201703L
-// std::optional is not available; cook one up
-class opt_string {
-    std::string maybe_value;
-    bool is_set;
-public:
-    opt_string()
-    : is_set(false)
-    {
-        
-    }
-    opt_string(std::string const &other)
-    : is_set(true)
-    , maybe_value(other)
-    {
-        
-    }
-    opt_string(opt_string const &other)
-    : is_set(other.is_set)
-    , maybe_value(other.maybe_value) // safe for std::string
-    {
-        
-    }
-    opt_string &operator =(opt_string const &other)
-    {
-        is_set = other.is_set;
-        maybe_value = other.maybe_value;
-        return *this;
-    }
-    bool has_value() const {
-        return is_set;
-    }
-    operator bool() const {
-        return has_value();
-    }
-    operator std::string() const {
-        assert(is_set);
-        return maybe_value;
-    }
-    std::string const &value() const {
-        assert(is_set);
-        return maybe_value;
-    }
-    std::string const &value_or(std::string const &alt) const {
-        return is_set ? maybe_value : alt;
-    }
-};
-
-#else // c++17 or higher
-#include <optional>
-
-using opt_string = std::optional<std::string>;
-#endif // c++17
-
-using Dictionary = std::map<std::string, std::string>;
-using ParamList = std::vector<std::pair<std::string, opt_string>>;
-using ArgsList = std::vector<std::string>;
-
 std::string const *argv0;
 std::string const *selfpath;
 std::string const *basename;
@@ -134,15 +76,28 @@ std::string const *ngc = NULL;
 
 using namespace constants;
 
+/// @brief wrapper because execve is declare to take non-const, which isn't c++ friendly
+static int execve(char const *path, char const *const *argv, char const *const *env = environ)
+{
+    return ::execve(path, (char **)((void *)argv), (char **)((void *)env));
+}
+
+/// @brief creates and fills out argv
+///
+/// @param parameters list of parameters (name-value pairs)
+/// @param arguments list of strings
+/// @param arg0  value for argv[0]; default value is from original argv[0]
+///
+/// @return array suitable for passing to execve; can delete [] if execve fails
 static
-char const * const* makeArgv(ParamList const &parameters , ArgsList const &arguments)
+char const * const* makeArgv(ParamList const &parameters , ArgsList const &arguments, std::string const &arg0 = *argv0)
 {
     auto const argc = 1 + parameters.size() * 2 + arguments.size();
     auto const argv = new char const * [argc + 1];
     auto i = 0;
     auto empty = std::string();
     
-    argv[i++] = const_cast<char *>(argv0->c_str()); // ugh
+    argv[i++] = arg0.c_str();
     for (auto & param : parameters) {
         auto const &name = param.first;
         auto const &value = param.second;
@@ -158,12 +113,14 @@ char const * const* makeArgv(ParamList const &parameters , ArgsList const &argum
     return argv;
 }
 
-/// @brief: wrapper because execve is declare to take non-const, which isn't c++ friendly
-static int execve(char const *path, char const *const *argv, char const *const *env = environ)
-{
-    return ::execve(path, (char **)((void *)argv), (char **)((void *)env));
-}
-
+/// @brief prepares argv and calls exec; does not return
+///
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param parameters list of parameters (name-value pairs)
+/// @param arguments list of strings
+///
+/// @throw system_error if exec fails
 static
 void exec [[noreturn]] (  std::string const &toolname
                         , std::string const &toolpath
@@ -280,7 +237,7 @@ struct pipe_and_fork : public process {
     int fd() const { return pipe; }
     bool is_child() const { return pid == 0; }
 
-    /// @brief: make a pipe and fork
+    /// @brief make a pipe and fork
     ///
     /// @returns to parent, child pid and readable fd; to child, pid is 0 and fd is writeable
     static pipe_and_fork make()
@@ -298,9 +255,9 @@ struct pipe_and_fork : public process {
         return pipe_and_fork(my_pipe, new_proc);
     }
     
-    /// @brief: make a pipe and fork, redirect child pipe to stdout
+    /// @brief make a pipe and fork, redirect child stdout to pipe
     ///
-    /// @returns to parent, child pid and readable fd; to child, pid is 0 and fd is stdout
+    /// @returns to parent, child pid and readable fd; to child, pid is 0 and fd is 1
     static pipe_and_fork to_stdout()
     {
         auto const &paf = make();
@@ -327,11 +284,11 @@ private:
     int pipe;
 };
 
-/// @brief: get type from accession name
+/// @brief get type from accession name
 ///
-/// @param query: the accession name
+/// @param query the accession name
 ///
-/// @returns the 3rd character if name matches pattern [DES]R.\d+(\.*)*
+/// @return the 3rd character if name matches SRA accession pattern
 static
 int SRA_AccessionType(std::string const &query)
 {
@@ -425,17 +382,17 @@ ArgsList expandAll(ArgsList const &accessions)
     return result;
 }
 
-/// @brief: runs tool on list of accessions
+/// @brief runs tool on list of accessions
 ///
 /// After args parsing, this is the called to do the meat of the work.
 /// Accession can be any kind of SRA accession that can be resolved to runs.
 ///
-/// @param toolname: the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath: the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param unsafeOutputFileParamName: set if the output format is not appendable
-/// @param extension: file extension to use for output file, e.g. ".sam"
-/// @param parameters: dictionary of parameters
-/// @param accessions: list of accessions to process
+/// @param toolname  the user-centric name of the tool, e.g. fastq-dump
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param unsafeOutputFileParamName set if the output format is not appendable
+/// @param extension file extension to use for output file, e.g. ".sam"
+/// @param parameters list of parameters (name-value pairs)
+/// @param accessions list of accessions to process
 static void processAccessions(  std::string const &toolname
                               , std::string const &toolpath
                               , std::string const &unsafeOutputFileParamName
@@ -457,15 +414,15 @@ static void processAccessions(  std::string const &toolname
     exit(0);
 }
 
-/// @brief: runs tool on list of accessions
+/// @brief runs tool on list of accessions
 ///
 /// After args parsing, this is the called for tools that do their own communication with SDL, e.g. srapath.
 /// Accession can be any kind of SRA accession that can be resolved to runs.
 ///
-/// @param toolname: the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath: the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param parameters: dictionary of parameters
-/// @param accessions: list of accessions to process
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param parameters list of parameters (name-value pairs)
+/// @param accessions list of accessions to process
 static void processAccessionsNoSDL(  std::string const &toolname
                                    , std::string const &toolpath
                                    , ParamList const &parameters
@@ -476,6 +433,12 @@ static void processAccessionsNoSDL(  std::string const &toolname
     exec(toolname, toolpath, parameters, runs);
 }
 
+/// @brief gets tool to print its help message; does not return
+///
+/// @param toolname friendly name of tool
+/// @param toolpath path to tool
+///
+/// @throw system_error if exec fails
 static void toolHelp [[noreturn]] (  std::string const &toolname
                                    , std::string const &toolpath)
 {
@@ -490,83 +453,6 @@ static void toolHelp [[noreturn]] (  std::string const &toolname
     throw std::system_error(std::error_code(errno, std::system_category()), "failed to exec "+toolname);
 }
 
-static bool parseArgs(  ParamList *parameters
-                      , ArgsList *arguments
-                      , Dictionary const &longNames
-                      , Dictionary const &hasArg
-                      )
-{
-    auto putback = std::string();
-    auto nextIsParamArg = false;
-    
-    for (auto i = 0; i < args->size() || !putback.empty(); ) {
-        auto arg = putback.empty() ? args->at(i++) : putback;
-        
-        putback.erase();
-        
-        if (nextIsParamArg) {
-            nextIsParamArg = false;
-            parameters->back().second = arg;
-            continue;
-        }
-        
-        // if it is not an option then it is a regular argument
-        if (arg.empty() || arg[0] != '-') {
-            arguments->push_back(arg);
-            ++i;
-            continue;
-        }
-        
-        if (arg[1] == '-') {
-            // long form: could be --name | --name=value | or --name value
-            auto const eq = arg.find_first_of('=');
-
-            if (eq == std::string::npos) {
-                // could be --name | --name value
-                parameters->emplace_back(ParamList::value_type(arg, opt_string()));
-                nextIsParamArg = hasArg.find(arg) != hasArg.end();
-            }
-            else {
-                // --name=value
-                parameters->emplace_back(ParamList::value_type(arg.substr(0, eq), arg.substr(eq + 1)));
-            }
-        }
-        else {
-            // short form: -abc can mean -a bc | -a -bc
-            auto const ch = arg.substr(0, 2); //< std::string not char
-            auto const rest = arg.substr(2);
-            auto const iter = longNames.find(ch);
-
-            if (iter == longNames.end()) {
-                // complain
-                std::cerr << "unknown parameter " << ch << std::endl;
-                return false;
-            }
-            auto const &name = iter->second;
-            
-            if (hasArg.find(name) != hasArg.end()) {
-                // -a bc
-                if (rest.empty()) {
-                    parameters->emplace_back(ParamList::value_type(name, opt_string()));
-                    nextIsParamArg = true;
-                }
-                else
-                    parameters->emplace_back(ParamList::value_type(name, rest));
-            }
-            else {
-                // -a -bc
-                parameters->emplace_back(ParamList::value_type(name, opt_string()));
-                if (!rest.empty())
-                    putback = std::string(1, '-') + rest;
-            }
-        }
-    }
-    if (nextIsParamArg) return false; // missing argument
-    for (auto && arg : *parameters) {
-        if (arg.first == "--help") return false;
-    }
-    return true;
-}
 
 static void running_as_srapath [[noreturn]] ()
 {

@@ -34,7 +34,7 @@
 #include <cassert>
 #include <cstdlib>
 
-/// @brief: translate environment variables for controlling debugging features
+/// @brief translate environment variables for controlling debugging features
 struct logging_state {
     static bool is_debug() {
         static auto const value(get_debug_value());
@@ -74,6 +74,6 @@ private:
 
 #define TRACE(X) do { if (logging_state::is_trace()) { std::cerr << "TRACE: " << __FILE__ << ':' << __LINE__ << " - " << __FUNCTION__ << ": " << #X << " = '" << (X) << "'"; } } while(0)
 
-#define DEBUG if (!logging_state::is_debug()) {} else std::cerr
+#define DEBUG_OUT if (!logging_state::is_debug()) {} else std::cerr
 
 #define LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr

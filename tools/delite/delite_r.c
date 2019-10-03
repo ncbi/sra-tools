@@ -752,6 +752,7 @@ struct karLnRd {
 
     size_t _start;
     size_t _stop;
+    size_t _next;
     size_t _line_no;
 };
 
@@ -774,6 +775,7 @@ karLnRdDispose ( const struct karLnRd * self )
         Rd -> _is_good = 0;
         Rd -> _start = 0;
         Rd -> _stop = 0;
+        Rd -> _next = 0;
         Rd -> _line_no = 0;
 
         free ( Rd );
@@ -869,6 +871,7 @@ karLnRdMake (
         Ret -> _map_size = BufSz;
         Ret -> _start = 0;
         Ret -> _stop = 0;
+        Ret -> _next = 0;
         Ret -> _line_no = 0;
         Ret -> _is_good = true;
 
@@ -908,18 +911,18 @@ karLnRdNext ( const struct karLnRd * self )
     if ( LnRd != NULL ) {
         iBg = ( const char * ) LnRd -> _map_addr;
         iEn = iBg + LnRd -> _map_size;
-        if ( LnRd -> _stop != 0 ) {
-            iBg += LnRd -> _stop + 1;
-        }
+        iBg += LnRd -> _next;
         iCr = iBg;
         if ( iEn <= iBg ) {
             LnRd -> _start = LnRd -> _map_size;
             LnRd -> _stop = LnRd -> _map_size;
+            LnRd -> _next = LnRd -> _map_size;
             Ret = false;
         }
         else {
             while ( iCr < iEn ) {
                 if ( * iCr == '\n' ) {
+                    LnRd -> _next = iCr - ( ( const char * ) LnRd -> _map_addr ) + 1;
                     break;
                 }
 
@@ -928,6 +931,10 @@ karLnRdNext ( const struct karLnRd * self )
 
             LnRd -> _start = iBg - ( ( const char * ) LnRd -> _map_addr );
             LnRd -> _stop = iCr - ( ( const char * ) LnRd -> _map_addr );
+            if ( LnRd -> _next < LnRd -> _stop ) {
+                LnRd -> _next = LnRd -> _stop + 1;
+            }
+
             LnRd -> _line_no ++;
 
             Ret = true;
@@ -1231,10 +1238,16 @@ karLookUpLoad ( const struct karLookUp * self, const char * Path )
             }
 
                 /*  Empty string is allowed */
-            if ( strlen ( Line ) == 0 ) { continue; }
+            if ( strlen ( Line ) == 0 ) {
+                free ( ( char * ) Line );
+                continue;
+            }
 
                 /*  Commentary */
-            if ( Line [ 0 ] == '#' ) { continue; }
+            if ( Line [ 0 ] == '#' ) {
+                free ( ( char * ) Line );
+                continue;
+            }
 
             RCt = karLookUpAdd ( self, Line );
 

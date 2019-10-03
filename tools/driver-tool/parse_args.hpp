@@ -55,6 +55,7 @@ using ArgsList = std::vector<std::string>;
 extern
 std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, ArgsList::iterator current, ArgsList::iterator end);
 
+
 /// @brief load argv, handle any option files
 ///
 /// @param argc argc - 1
@@ -64,6 +65,15 @@ std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &par
 extern
 ArgsList loadArgv(int argc, char *argv[]);
 
+
+/// @brief splits argv into parameters and arguments
+///
+/// @param parameters [out] recieves the parameters, always translated to long form
+/// @param arguments [out] recieves the arguments
+/// @param longNames maps parameter short form to long form
+/// @param hasArg what parameters (long form) take arguments
+///
+/// @return false if not parsed okay or help, else true
 extern
 bool parseArgs(  ParamList *parameters
                , ArgsList *arguments

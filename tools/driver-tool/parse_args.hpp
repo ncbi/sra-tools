@@ -58,7 +58,7 @@ bool hasParamValue(ParamList::value_type::first_type const &param, ParamList con
 {
     return std::find_if(params.begin(), params.end(), [&](ParamList::value_type const &value) {
         return value.first == param;
-    }) != param.end();
+    }) != params.end();
 }
 
 /// @brief checks if the current item matches and extracts the value if it does

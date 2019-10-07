@@ -54,9 +54,12 @@
 #include "constants.hpp"
 #include "args-decl.hpp"
 #include "parse_args.hpp"
+#include "run-source.hpp"
 #include "which.hpp"
 #include "proc.hpp"
 #include "tool-args.hpp"
+#include "debug.hpp"
+#include "util.hpp"
 
 extern std::string split_basename(std::string &dirname);
 extern std::string split_version(std::string &name, std::string const &default_version);
@@ -174,6 +177,23 @@ ArgsList expandAll(ArgsList const &accessions)
     return result;
 }
 
+
+template <typename Container>
+static void print_unsafe_output_file_message(  Container const &runs
+                                             , std::string const &toolname
+                                             , char const *const extension)
+{
+    // since we know the user asked that tool output go to a file,
+    // we can safely use cout to talk to the user.
+    std::cout <<
+"You are trying to process " << runs.size() << " runs to a single output file, but " << toolname << std::endl <<
+"is not capable of producing valid output from more than one run into a single\n"
+"file. The following output files will be created instead:\n";
+    for (auto const &run : runs) {
+        std::cout << "\t" << run << extension << std::endl;
+    }
+}
+
 /// @brief runs tool on list of accessions
 ///
 /// After args parsing, this is the called to do the meat of the work.
@@ -185,7 +205,8 @@ ArgsList expandAll(ArgsList const &accessions)
 /// @param extension file extension to use for output file, e.g. ".sam"
 /// @param parameters list of parameters (name-value pairs)
 /// @param accessions list of accessions to process
-static void processAccessions(  std::string const &toolname
+static void processAccessions [[noreturn]] (
+                                std::string const &toolname
                               , std::string const &toolpath
                               , char const *const unsafeOutputFileParamName
                               , char const *const extension
@@ -194,14 +215,29 @@ static void processAccessions(  std::string const &toolname
                               )
 {
     auto const runs = expandAll(accessions);
+    auto overrideOutputFile = false;
     
+    if (runs.size() > 1 && unsafeOutputFileParamName && hasParamValue(unsafeOutputFileParamName, parameters))
+    {
+        print_unsafe_output_file_message(runs, toolname, extension);
+        overrideOutputFile = true;
+    }
     for (auto & run : runs) {
-        auto const paf = pipe_and_fork::make();
-    
-        if (paf.is_child()) {
-            exec(toolname, toolpath, parameters, runs);
+        auto const sources = run_sources(run);
+        
+        sources.set_ce_token_env_var();
+        for (auto const &source : sources) {
+            auto const child = process::run_child([&]() {
+                source.set_environment();
+                exec(toolname, toolpath, parameters, run);
+            });
+            auto const result = child.wait();
+            if (result.signaled()) {
+                break;
+            }
+            if (result.exited() && result.exit_code() == 0)
+                break;
         }
-        auto const result = paf.wait();
     }
     exit(0);
 }
@@ -215,7 +251,8 @@ static void processAccessions(  std::string const &toolname
 /// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
 /// @param parameters list of parameters (name-value pairs)
 /// @param accessions list of accessions to process
-static void processAccessionsNoSDL(  std::string const &toolname
+static void processAccessionsNoSDL [[noreturn]] (
+                                     std::string const &toolname
                                    , std::string const &toolpath
                                    , ParamList const &parameters
                                    , ArgsList const &accessions
@@ -234,7 +271,13 @@ static void processAccessionsNoSDL(  std::string const &toolname
 static void toolHelp [[noreturn]] (  std::string const &toolname
                                    , std::string const &toolpath)
 {
-    exec(toolname, toolpath, {{"--help", {}}}, {});
+    char const *argv[] = {
+        toolname.c_str(),
+        "--help",
+        NULL
+    };
+    execve(toolpath.c_str(), argv);
+    throw_system_error("failed to exec " + toolpath);
 }
 
 template <int toolID>
@@ -252,7 +295,6 @@ static void running_as_tool_no_sdl [[noreturn]] ()
     else {
         toolHelp(toolname, toolpath);
     }
-    exit(0);
 }
 
 template <int toolID>
@@ -273,7 +315,6 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
     else {
         toolHelp(toolname, toolpath);
     }
-    exit(0);
 }
 
 static void running_as_fastq_dump [[noreturn]] ()
@@ -313,7 +354,6 @@ static void running_as_sam_dump [[noreturn]] ()
     else {
         toolHelp(toolname, toolpath);
     }
-    exit(0);
 }
 
 static void runas [[noreturn]] (int const tool)
@@ -391,7 +431,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     auto const impersonate = getenv("SRATOOLS_IMPERSONATE");
-    auto const argv0 = impersonate ? impersonate : argv[0];
+    auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
 
     sratools::main(argv0, argc - 1, argv + 1);
 }

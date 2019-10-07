@@ -31,6 +31,7 @@
  */
 
 #pragma once
+#include <iostream>
 #include <cassert>
 #include <cstdlib>
 
@@ -72,7 +73,7 @@ private:
     }
 };
 
-#define TRACE(X) do { if (logging_state::is_trace()) { std::cerr << "TRACE: " << __FILE__ << ':' << __LINE__ << " - " << __FUNCTION__ << ": " << #X << " = '" << (X) << "'"; } } while(0)
+#define TRACE(X) do { if (logging_state::is_trace()) { std::cerr << "TRACE: " << __FILE__ << ':' << __LINE__ << " - " << __FUNCTION__ << ": " << #X << " = \n" << (X) << std::endl; } } while(0)
 
 #define DEBUG_OUT if (!logging_state::is_debug()) {} else std::cerr
 

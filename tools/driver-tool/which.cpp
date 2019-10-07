@@ -167,7 +167,7 @@ static void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSr
 {
     std::cerr << "could not find " << toolname;
     if (isaSraTool)
-        std::cerr << "which is part of this software distribution";
+        std::cerr << " which is part of this software distribution";
     std::cerr << std::endl;
     std::cerr << "This can be fixed in several ways, for example" << std::endl
               << "* adding " << toolname << " to the directory that contains this tool, " << *selfpath << std::endl

@@ -207,6 +207,26 @@ struct env_var {
         }
         return -1;
     }
+    
+    /// @brief unset environment variable by symbolic id
+    ///
+    /// @param iid the variable to unset
+    static void unset(int const iid) {
+        unsetenv(name(iid));
+    }
+
+    /// @brief set (or unset) environment variable by symbolic id
+    ///
+    /// @param iid the variable to set
+    /// @param value the new value, unset if null
+    /// @param overwrite overwrite the value if it is already there, default is to overwrite
+    static void set(int const iid, char const *value, bool overwrite = true) {
+        auto const envar = name(iid);
+        if (value)
+            setenv(envar, value, overwrite ? 1 : 0);
+        else
+            unsetenv(envar);
+    }
 };
 
 }

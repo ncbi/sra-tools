@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "parse_args.hpp"
+#include "util.hpp"
 
 extern char **environ; ///< why!!!
 
@@ -97,9 +98,9 @@ struct process {
             return WSTOPSIG(value);
         }
         
-        // TODO: why is this needed?
+        /// @brief did child exit(0)
         operator bool() const {
-            return value != 0;
+            return exited() && exit_code() == 0;
         }
 
         exit_status(exit_status const &other) : value(other.value) {}
@@ -124,10 +125,88 @@ struct process {
     static process fork() {
         auto const pid = ::fork();
         if (pid < 0)
-            throw std::system_error(std::error_code(errno, std::system_category()), "fork failed");
+            throw_system_error("fork failed");
         return process(pid);
     }
     
+    /// @brief fork and run closure in the child process
+    ///
+    /// @tparam F closure type, void []();
+    /// @param f closure
+    ///
+    /// @return pid of child
+    template <typename F>
+    static process run_child(F && f)
+    {
+        auto const pid = ::fork();
+        if (pid < 0)
+            throw_system_error("fork failed");
+        if (pid == 0) {
+            f();
+            assert(!"reachable");
+            throw std::logic_error("child must not return");
+        }
+        return process(pid);
+    }
+    
+    /// @brief make pipe and fork, and run closure in the child process
+    ///
+    /// @tparam F closure type, void [](int fd);
+    /// @param f closure, recieves the writable end of the pipe
+    /// @param fd is set to readable end of the pipe
+    ///
+    /// @return pid of child
+    template <typename F>
+    static process run_child_with_pipe(F && f, int *fd)
+    {
+        int fds[2];
+        
+        if (::pipe(fds) < 0)
+            throw_system_error("pipe failed");
+        
+        auto const pid = ::fork();
+        if (pid < 0)
+            throw_system_error("fork failed");
+        if (pid == 0) {
+            close(fds[0]);
+            f(fds[1]);
+            assert(!"reachable");
+            throw std::logic_error("child must not return");
+        }
+        *fd = fds[0];
+        close(fds[1]);
+        return process(pid);
+    }
+    
+    template <typename F>
+    static process run_child_with_redirected_stdout(int *fd, F && f)
+    {
+        int fds[2];
+        
+        if (::pipe(fds) < 0)
+            throw_system_error("pipe failed");
+        
+        auto const pid = ::fork();
+        if (pid < 0)
+            throw_system_error("fork failed");
+        if (pid == 0) {
+            close(fds[0]);
+            
+            auto const newfd = dup2(fds[1], 1);
+            close(fds[1]);
+            
+            if (newfd < 0)
+                throw_system_error("dup2 failed");
+
+            f();
+            assert(!"reachable");
+            throw std::logic_error("child must not return");
+        }
+        *fd = fds[0];
+        close(fds[1]);
+        return process(pid);
+    }
+
     process(process const &other) : pid(other.pid) {}
     process &operator =(process const &other) {
         pid = other.pid;
@@ -138,31 +217,6 @@ protected:
     process(pid_t pid) : pid(pid) {}
     
     pid_t pid;
-};
-
-/// @brief a file descriptor and a process id
-///
-/// For the parent process, the file descriptor is readable, and the process id is the child's.
-/// For the child process, the file descriptor is writable, and the process id is 0.
-struct pipe_and_fork : public process {
-    /// @brief the file descriptor for this process
-    int fd() const { return pipe; }
-    bool is_child() const { return pid == 0; }
-
-    /// @brief make a pipe and fork
-    static pipe_and_fork make();
-    
-    /// @brief make a pipe, fork, and redirect child stdout to pipe
-    static pipe_and_fork to_stdout();
-    
-    pipe_and_fork(pipe_and_fork const &other) : pipe(other.pipe), process(other) {}
-    pipe_and_fork &operator =(pipe_and_fork const &other) {
-        pipe = other.pipe;
-        return *this;
-    }
-private:
-    pipe_and_fork(int pipe, process proc = process::self()) : pipe(pipe), process(proc) {}
-    int pipe;
 };
 
 

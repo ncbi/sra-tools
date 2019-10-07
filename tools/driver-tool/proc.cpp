@@ -43,6 +43,7 @@
 #include "debug.hpp"
 #include "proc.hpp"
 #include "globals.hpp"
+#include "util.hpp"
 
 namespace sratools {
 
@@ -91,7 +92,7 @@ void exec [[noreturn]] (  std::string const &toolname
     execve(toolpath.c_str(), argv);
     
     // NB. we should never get here
-    auto const error = std::error_code(errno, std::system_category());
+    auto const error = error_code_from_errno();
 
     delete [] argv; // probably pointless, but be nice anyways
 
@@ -122,38 +123,7 @@ process::exit_status process::wait() const
     if (errno == ECHILD)
         throw std::logic_error("child process was already reaped");
     
-    throw std::system_error(std::error_code(errno, std::system_category()), "waitpid failed");
-}
-
-pipe_and_fork pipe_and_fork::make()
-{
-    int fds[2];
-    
-    if (::pipe(fds) < 0)
-        throw std::system_error(std::error_code(errno, std::system_category()), "pipe failed");
-    
-    auto const new_proc = process::fork();
-    auto const my_pipe = fds[new_proc.is_self() ? 1 : 0];
-    auto const other_pipe = fds[new_proc.is_self() ? 0 : 1];
-    
-    close(other_pipe);
-    return pipe_and_fork(my_pipe, new_proc);
-}
-
-pipe_and_fork pipe_and_fork::to_stdout()
-{
-    auto const &paf = make();
-    if (paf.pid != 0)
-        return paf;
-    
-    auto const oldfd = paf.pipe;
-    auto const newfd = dup2(oldfd, 1);
-
-    close(oldfd);
-    if (newfd < 0)
-        throw std::system_error(std::error_code(errno, std::system_category()), "dup2 failed");
-
-    return pipe_and_fork(newfd);
+    throw_system_error("waitpid failed");
 }
 
 } // namespace sratools

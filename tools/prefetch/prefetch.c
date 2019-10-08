@@ -168,6 +168,8 @@ typedef struct {
 
     VResolver *resolver;
 
+    const KSrvResponse * response;
+    uint32_t respObjIdx;
     KSrvRespObjIterator * respIt;
     KSrvRespFile * respFile;
 } Resolved;
@@ -569,7 +571,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
     uint32_t l = 0;
     const char * id = item -> desc;
     KService * service = NULL;
-    const KSrvResponse * response = NULL;
     const KSrvRespObj * obj = NULL;
     KSrvRespObjIterator * it = NULL;
     KSrvRespFile * file = NULL;
@@ -625,13 +626,13 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
-            NULL, odir, ofile, & response );
+            NULL, odir, ofile, &resolved->response );
 
     if ( rc == 0 )
-        l = KSrvResponseLength  ( response );
+        l = KSrvResponseLength  (resolved->response );
 
     if ( rc == 0 && l > 0 )
-        rc = KSrvResponseGetObjByIdx ( response, 0, & obj );
+        rc = KSrvResponseGetObjByIdx (resolved->response, 0, & obj );
     if ( rc == 0 && l > 0 )
         rc = KSrvRespObjMakeIterator ( obj, & it );
     if (rc == 0 && l > 0) {
@@ -726,7 +727,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
         }
     }
     RELEASE ( KSrvRespObj, obj );
-    RELEASE ( KSrvResponse, response );
     RELEASE ( KService, service );
     return rc;
 }
@@ -1035,6 +1035,7 @@ static rc_t ResolvedFini(Resolved *self) {
 
     RELEASE(String, self->cache);
 
+    RELEASE(KSrvResponse, self->response);
     RELEASE(KSrvRespObjIterator, self->respIt);
     RELEASE(KSrvRespFile, self->respFile);
 
@@ -2578,9 +2579,11 @@ static rc_t ItemDownload(Item *item) {
             rc_t r = KSrvRespFileGetSize(self->respFile, & sz);
             if (r == 0) {
                 oversized = sz >= item->mane->maxSize;
-                self->oversized = oversized;
                 undersized = sz < item->mane->minSize;
-                self->undersized = undersized;
+                if (item->jwtCart == NULL) {
+                    self->oversized = oversized;
+                    self->undersized = undersized;
+                }
             }
 
             r = KSrvRespFileGetName(self->respFile, &name);
@@ -2596,13 +2599,15 @@ static rc_t ItemDownload(Item *item) {
         if (undersized) {
             STSMSG(STS_TOP,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
-                n, name, self->remoteSz / 1024));
+                n, name, sz / 1024));
             skip = true;
+            item->mane->undersized = true;
         }
         else if (oversized) {
             logMaxSize(item->mane->maxSize);
-            logBigFile(n, name, self->remoteSz);
+            logBigFile(n, name, sz);
             skip = true;
+            item->mane->oversized = true;
         }
 
         rc = ResolvedLocal(self, item->mane, &isLocal,
@@ -2816,6 +2821,21 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
             if (r1 != 0 && rc == 0) {
                 rc = r1;
                 break;
+            }
+            if (self->resolved.respFile == NULL) {
+                uint32_t l = KSrvResponseLength(self->resolved.response);
+                if (++self->resolved.respObjIdx < l) {
+                    const KSrvRespObj * obj = NULL;
+                    rc = KSrvResponseGetObjByIdx(self->resolved.response,
+                        self->resolved.respObjIdx, &obj);
+                    if (rc == 0)
+                        rc = KSrvRespObjMakeIterator(
+                            obj, &self->resolved.respIt);
+                    if (rc == 0)
+                        rc = KSrvRespObjIteratorNextFile(
+                            self->resolved.respIt, &self->resolved.respFile);
+                    RELEASE(KSrvRespObj, obj);
+                }
             }
         } while (self->resolved.respFile != NULL);
     }

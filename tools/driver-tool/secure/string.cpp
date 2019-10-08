@@ -29,7 +29,7 @@
 #include <ncbi/secure/string.hpp>
 #include <ncbi/secure/payload.hpp>
 #include "memset-priv.hpp"
-#include "utf8proc.h"
+#include "../utf8proc/utf8proc.h"
 
 #include <cstdint>
 #include <cstring>

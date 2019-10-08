@@ -32,6 +32,8 @@
 
 #include <string>
 #include <vector>
+#include <map>
+#include <utility>
 
 #include "globals.hpp"
 #include "constants.hpp"
@@ -92,6 +94,7 @@ static std::string run_srapath(std::string const &run)
     read_fd(fd, [&](char const *buffer, size_t nread) {
         response.append(buffer, nread);
     });
+    close(fd);
     TRACE(response);
     
     auto const result = child.wait();
@@ -107,6 +110,174 @@ static std::string run_srapath(std::string const &run)
     return response;
 }
 
+struct srapath_unexpected_error : public std::logic_error
+{
+    srapath_unexpected_error() : std::logic_error("unexpected response from srapath") {}
+};
+
+static std::string getString(ncbi::JSONObject const &obj, char const *const MEMBER)
+{
+    auto const &member = ncbi::String(MEMBER);
+    assert(obj.exists(member));
+    if (obj.exists(member)) {
+        auto const &value = obj.getValue(member);
+        assert(value.isString());
+        if (value.isString()) {
+            auto const &string = value.toString();
+            return string.toSTLString();
+        }
+    }
+    throw srapath_unexpected_error();
+}
+
+static bool getOptionalString(std::string *result, ncbi::JSONObject const &obj, char const *const MEMBER)
+{
+    auto const &member = ncbi::String(MEMBER);
+    assert(obj.exists(member));
+    if (obj.exists(member)) {
+        auto const &value = obj.getValue(member);
+        if (value.isNull())
+            return false;
+        assert(value.isString());
+        if (value.isString()) {
+            auto const &string = value.toString();
+            result->assign(string.toSTLString());
+            return true;
+        }
+        throw srapath_unexpected_error();
+    }
+    return false;
+}
+
+static bool getOptionalBoolOrString(bool *result, ncbi::JSONObject const &obj, char const *const MEMBER)
+{
+    auto const &member = ncbi::String(MEMBER);
+    if (obj.exists(member)) {
+        auto const &value = obj.getValue(member);
+        if (value.isBoolean()) {
+            *result = value.toBoolean();
+            return true;
+        }
+        if (value.isString()) {
+            auto const &string = value.toString();
+            *result = string == "true";
+            return true;
+        }
+        throw srapath_unexpected_error();
+    }
+    return false;
+}
+
+static ncbi::JSONArray const &getArray(ncbi::JSONObject const &obj, char const *const MEMBER)
+{
+    auto const &member = ncbi::String(MEMBER);
+    assert(obj.exists(member));
+    if (obj.exists(member)) {
+        auto const &value = obj.getValue(member);
+        assert(value.isArray());
+        if (value.isArray()) {
+            return value.toArray();
+        }
+    }
+    throw srapath_unexpected_error();
+}
+
+template <typename F>
+static void jsonForEach(ncbi::JSONArray const &obj, F && f)
+{
+    auto const n = obj.count();
+    for (auto i = decltype(n)(0); i < n; ++i) {
+        auto const &value = obj.getValue(i);
+        f(value);
+    }
+}
+
+struct raw_response {
+    struct accessionType : public std::pair<std::string, std::string> {
+        accessionType(std::string const &accession, std::string const &type) : std::pair<std::string, std::string>(std::make_pair(accession, type)) {}
+        std::string const &accession() const { return first; }
+        std::string const &type() const { return second; }
+        
+        static accessionType make(ncbi::JSONObject const &obj) {
+            auto const acc = getString(obj, "accession");
+            auto const typ = getString(obj, "itemType");
+            
+            return accessionType(acc, typ);
+        }
+    };
+    struct remote {
+        std::string path;
+        bool ceRequired;
+        bool payRequired;
+        remote(ncbi::JSONObject const &obj)
+        : ceRequired(false)
+        , payRequired(false)
+        {
+            path = getString(obj, "path");
+            getOptionalBoolOrString(&ceRequired, obj, "CE-Required");
+            getOptionalBoolOrString(&payRequired, obj, "Payment-Required");
+        }
+    };
+    using remotes = std::map<std::string, remote>;
+    std::map<accessionType, remotes> responses;
+    std::string ceToken;
+    bool hasCEToken;
+
+    static remotes::value_type make_remote(ncbi::JSONObject const &obj) {
+        auto result = remote(obj);
+        auto service = getString(obj, "service");
+
+        return {service, result};
+    }
+    static decltype(responses)::value_type make_accession(ncbi::JSONObject const &obj)
+    {
+        auto const &accTyp = accessionType::make(obj);
+        auto sources = remotes();
+        
+        jsonForEach(getArray(obj, "remote"), [&](ncbi::JSONValue const &value) {
+            assert(value.isObject());
+            if (value.isObject()) {
+                auto const &obj = value.toObject();
+                sources.insert(make_remote(obj));
+                return;
+            }
+            throw srapath_unexpected_error();
+        });
+        return {accTyp, sources};
+    }
+    static raw_response make(ncbi::JSONObject const &obj) {
+        auto result = raw_response();
+        
+        result.hasCEToken = getOptionalString(&result.ceToken, obj, "CE-Token");
+
+        if (obj.exists("responses")) {
+            auto const &responses = obj.getValue("responses");
+            if (responses.isArray()) {
+                jsonForEach(responses.toArray(), [&](ncbi::JSONValue const &value) {
+                    assert(value.isObject());
+                    if (value.isObject()) {
+                        auto const &obj = value.toObject();
+                        auto const &acc = make_accession(obj);
+                        result.responses.emplace(acc);
+                    }
+                });
+            }
+            else if (responses.isNull()) {
+                // do nothing
+            }
+            else
+                throw srapath_unexpected_error();
+        }
+
+        return result;
+    }
+    static raw_response make(std::string const &response) {
+        auto const jvRef = ncbi::JSON::parse(ncbi::String(response));
+        auto const &obj = jvRef->toObject();
+        return make(obj);
+    }
+};
+
 run_sources::run_sources(std::string const &qry)
 {
     if (access(qry.c_str(), R_OK) == 0) {
@@ -114,7 +285,9 @@ run_sources::run_sources(std::string const &qry)
         sources.push_back(run_source::local_file(qry));
         return;
     }
-    auto response = run_srapath(qry);
+    auto responseJSON = run_srapath(qry);
+    auto raw = raw_response::make(responseJSON);
+    
     exit(0);
 }
     

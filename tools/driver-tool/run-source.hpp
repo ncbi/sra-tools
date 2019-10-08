@@ -30,6 +30,10 @@
 *
 */
 
+#include <string>
+#include <vector>
+#include "ncbi/json.hpp"
+
 namespace sratools {
 
 class run_source {

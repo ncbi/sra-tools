@@ -2302,10 +2302,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 if (rc3 != 0)
                     DISP_RC2(rc3, "cannot get remote file size",
                         remote -> str->addr);
-                else if (resolved->remoteSz >= maxSize)
-                    return rc;
-                else if (resolved->remoteSz < minSize)
-                    return rc;
+                else if (item->jwtCart == NULL) {
+                    if (resolved->remoteSz >= maxSize)
+                        return rc;
+                    else if (resolved->remoteSz < minSize)
+                        return rc;
+                }
             }
         }
     }
@@ -2406,13 +2408,15 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         remote = & resolved -> remoteFasp;
 
     if (rc == 0) {
-        if (resolved->remoteSz >= self->mane-> maxSize) {
-            resolved->oversized = true;
-            return rc;
-        }
-        if (resolved->remoteSz < self->mane-> minSize) {
-            resolved->undersized = true;
-            return rc;
+        if (self->jwtCart == NULL) {
+            if (resolved->remoteSz >= self->mane->maxSize) {
+                resolved->oversized = true;
+                return rc;
+            }
+            if (resolved->remoteSz < self->mane->minSize) {
+                resolved->undersized = true;
+                return rc;
+            }
         }
 
         if (resolved->local.str == NULL
@@ -2567,6 +2571,7 @@ static rc_t ItemDownload(Item *item) {
         bool skip = false;
         bool undersized = self->undersized;
         bool oversized = self->oversized;
+        const char * name = self->name;
         if (self->respFile != NULL) {
             const VPath * local = NULL;
 
@@ -2577,6 +2582,8 @@ static rc_t ItemDownload(Item *item) {
                 undersized = sz < item->mane->minSize;
                 self->undersized = undersized;
             }
+
+            r = KSrvRespFileGetName(self->respFile, &name);
 
             r = KSrvRespFileGetLocal(self->respFile, & local);
             if (r == 0)
@@ -2589,12 +2596,12 @@ static rc_t ItemDownload(Item *item) {
         if (undersized) {
             STSMSG(STS_TOP,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
-                n, self->name, self->remoteSz / 1024));
+                n, name, self->remoteSz / 1024));
             skip = true;
         }
         else if (oversized) {
             logMaxSize(item->mane->maxSize);
-            logBigFile(n, self->name, self->remoteSz);
+            logBigFile(n, name, self->remoteSz);
             skip = true;
         }
 

@@ -27,11 +27,14 @@
  */
 
 #include <ncbi/secure/except.hpp>
-#include "utf8proc.h"
+#include "../utf8proc/utf8proc.h"
 #include "memset-priv.hpp"
 
+#define USE_TLS 0
+#if USE_TLS
 // sensitive to whatever crypto library is in use
 #include <mbedtls/error.h>
+#endif
 
 #include <cstring>
 #include <cstdarg>
@@ -369,10 +372,16 @@ namespace ncbi
 
     void XP :: cryptError ( int status )
     {
+#if USE_TLS
         // using mbedtls
         char buffer [ 512 ];
         mbedtls_strerror ( status, buffer, sizeof buffer );
         * which += buffer;
+#else
+        * which += "<CRYPTO ERROR ";
+        * which += std::to_string(status);
+        * which += ">";
+#endif
     }
 
     void XP :: useProblem ()

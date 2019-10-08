@@ -153,6 +153,9 @@ std::string which(std::string const &toolname, bool const allowNotFound, bool co
     auto const in_cache = iter != cache.end();
     auto const &found = in_cache ? iter->second : witch(toolname, PATH);
     
+    if (found.size() == 0 && getenv("SRATOOLS_IMPERSONATE") && toolname.size() > 5 && toolname.substr(toolname.size() - 5) == "-orig") {
+        return which(toolname.substr(0, toolname.size() - 5), allowNotFound, isaSraTool);
+    }
     if (!in_cache)
         cache.insert({toolname, found}); ///> cache result (even if not found)
 

@@ -32,31 +32,46 @@
 
 #include <string>
 #include <vector>
-#include "ncbi/json.hpp"
 
 namespace sratools {
 
-class run_source {
-    run_source() {}
+struct source {
+    std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
+    bool needCE, needPmt;
+    bool haveLocalPath, haveCachePath, haveSize;
+};
+
+class data_source {
+    data_source() {}
+    source run, vdbcache;
+    bool haveVdbCache;
 public:
-    static run_source local_file(std::string const &file) {
-        // TODO: see sratools.pl:577
-        return run_source();
+    data_source(source const &run) : run(run), haveVdbCache(false) {}
+    data_source(source const &run, source const &vcache)
+    : run(run)
+    , vdbcache(vcache)
+    , haveVdbCache(true)
+    {}
+    
+    static data_source local_file(std::string const &file) {
+        source result = {};
+        result.localPath = file;
+        result.haveLocalPath = true;
+        
+        return data_source(result);
     }
-    void set_environment() const
-    {
-        // TODO: see sratools.pl:224
-    }
+    void set_environment() const;
+    std::string const &service() const { return run.service; }
 };
 
 /// @brief contains the responce from srapath names function
-class run_sources {
+class data_sources {
 public:
-    using container = std::vector<run_source>;
+    using container = std::vector<data_source>;
     using iterator = container::iterator;
     using const_iterator = container::const_iterator;
 private:
-    std::vector<run_source> sources;
+    std::vector<data_source> sources;
     std::string ce_token_;
     bool have_ce_token;
 public:
@@ -65,7 +80,7 @@ public:
     /// NB. This will short-curcuit on a local file
     ///
     /// @param qry the run (or accession) to query
-    run_sources(std::string const &qry);
+    data_sources(std::string const &qry);
     
     /// @brief informative only
     std::string const &ce_token() const {

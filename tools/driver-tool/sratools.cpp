@@ -48,7 +48,7 @@
 #include <system_error>
 
 #include <unistd.h>
-#include <sys/stat.h>
+#include <sysexits.h>
 
 #include "globals.hpp"
 #include "constants.hpp"
@@ -60,6 +60,8 @@
 #include "tool-args.hpp"
 #include "debug.hpp"
 #include "util.hpp"
+
+//#include <klib/sra-release-version.h>
 
 extern std::string split_basename(std::string &dirname);
 extern std::string split_version(std::string &name, std::string const &default_version);
@@ -146,6 +148,7 @@ ArgsList expandAll(ArgsList const &accessions)
 {
     auto result = ArgsList();
     auto seen = std::set<std::string>();
+    auto failed = false;
     
     for (auto & acc : accessions) {
         if (seen.find(acc) != seen.end())
@@ -165,6 +168,8 @@ ArgsList expandAll(ArgsList const &accessions)
                 case 'S':
                 case 'X':
                     // TODO: open container types
+                    std::cerr << acc << " is a container accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+                    failed = true;
                     break;
 
                 default:
@@ -173,6 +178,10 @@ ArgsList expandAll(ArgsList const &accessions)
             }
         }
         result.push_back(acc);
+    }
+    if (failed) {
+        std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the constituent run data accessions. For example, you can download the accession list and then re-run with --option-file=SraAccList.txt " << std::endl;
+        exit(EX_UNAVAILABLE);
     }
     return result;
 }
@@ -194,6 +203,37 @@ static void print_unsafe_output_file_message(  Container const &runs
     }
 }
 
+static void debugPrintDryRun(  std::string const &toolpath
+                             , ParamList const &parameters
+                             , std::string const &run
+                             )
+{
+    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
+    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
+        std::cerr << "would exec '" << toolpath << "' as:\n";
+        std::cerr << *argv0;
+        for (auto && value : parameters) {
+            std::cerr << ' ' << value.first;
+            if (value.second)
+                std::cerr << ' ' << value.second.value();
+        }
+        std::cerr << ' ' << run << std::endl;
+        {
+            auto const names = env_var::names();
+            auto const endp = names + env_var::END_ENUM;
+            std::cerr << "with environment:\n";
+            for (auto iter = names; iter != endp; ++iter) {
+                auto const name = *iter;
+                auto const value = getenv(name);
+                if (value)
+                    std::cerr << ' ' << name << "='" << value << "'\n";
+            }
+            std::cerr << std::endl;
+        }
+        exit(0);
+    }
+}
+
 /// @brief runs tool on list of accessions
 ///
 /// After args parsing, this is the called to do the meat of the work.
@@ -210,35 +250,70 @@ static void processAccessions [[noreturn]] (
                               , std::string const &toolpath
                               , char const *const unsafeOutputFileParamName
                               , char const *const extension
-                              , ParamList const &parameters
+                              , ParamList &parameters
                               , ArgsList const &accessions
                               )
 {
     auto const runs = expandAll(accessions);
-    auto overrideOutputFile = false;
+    ParamList::iterator unsafeOutputFile = parameters.end();
     
-    if (runs.size() > 1 && unsafeOutputFileParamName && hasParamValue(unsafeOutputFileParamName, parameters))
-    {
-        print_unsafe_output_file_message(runs, toolname, extension);
-        overrideOutputFile = true;
+    if (runs.size() > 1 && unsafeOutputFileParamName) {
+        for (auto i = parameters.begin(); i != parameters.end(); ++i) {
+            if (i->first == unsafeOutputFileParamName && i->second.value() != "/dev/null") {
+                unsafeOutputFile = i;
+                print_unsafe_output_file_message(runs, toolname, extension);
+                break;
+            }
+        }
     }
     for (auto & run : runs) {
-        auto const sources = run_sources(run);
+        LOG(3) << "Processing " << run << " ..." << std::endl;
+        auto const sources = data_sources(run);
+        bool success = false;
         
         sources.set_ce_token_env_var();
         for (auto const &source : sources) {
             auto const child = process::run_child([&]() {
+                if (unsafeOutputFile != parameters.end())
+                    unsafeOutputFile->second = run + extension;
+                
                 source.set_environment();
-                exec(toolname, toolpath, parameters, run);
+                debugPrintDryRun(toolpath, parameters, run); // NB does'nt return if dry run
+                exec(toolname, toolpath, *argv0, parameters, run);
             });
             auto const result = child.wait();
-            if (result.signaled()) {
-                break;
+
+            if (result.exited()) {
+                if (result.exit_code() == 0) { // success, process next run
+                    LOG(2) << "Successfully processed " << run << std::endl;
+                    success = true;
+                    break;
+                }
+                if (result.exit_code() == EX_TEMPFAIL)
+                    continue; // try next source
+                std::cerr   << toolname
+                            << " (PID " << child.get_pid()
+                            << ") quit with error code " << result.exit_code()
+                            << std::endl;
+                exit(result.exit_code());
             }
-            if (result.exited() && result.exit_code() == 0)
-                break;
+            if (result.signaled()) {
+                std::cerr << toolname << " (PID " << child.get_pid() << ") was killed (signal " << result.termsig() << ")";
+                std::cerr << std::endl;
+                abort();
+            }
+            assert(!"reachable");
+            abort();
+        }
+        if (!success) {
+            std::cerr << "Could not access any data for " << run << ", tried to get data from:" << std::endl;
+            for (auto i : sources) {
+                std::cerr << '\t' << i.service() << std::endl;
+            }
+            exit(EX_UNAVAILABLE);
         }
     }
+    LOG(1) << "All runs were processed successfully" << std::endl;
     exit(0);
 }
 
@@ -339,10 +414,10 @@ static void running_as_sam_dump [[noreturn]] ()
         char const *outputFileParam = nullptr;
         char const *extension = nullptr;
         auto const param = std::find_if(params.begin(), params.end(), [](ParamList::value_type const &value) {
-            return value.first == "--fastq" || value.first == "--fasta";
+            return (value.first == "--fastq") || (value.first == "--fasta");
         });
-        extension = param == params.end() ? ".sam" : param->first == "--fasta" ? ".fasta" : ".fastq";
-        outputFileParam = param == params.end() ? "--output-file" : nullptr;
+        extension = (param == params.end()) ? ".sam" : param->first == "--fasta" ? ".fasta" : ".fastq";
+        outputFileParam = (param == params.end()) ? "--output-file" : nullptr;
 
         processAccessions(  toolname
                           , toolpath

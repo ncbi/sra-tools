@@ -230,7 +230,7 @@ typedef struct {
     const char * orderOrOutFile; /* do not free! */
     const char * fileType;  /* do not free! */
     const char * ngc;  /* do not free! */
-    const char * cart;  /* do not free! */
+    const char * jwtCart;  /* do not free! */
 
 #if _DEBUGGING
     const char *textkart;
@@ -618,8 +618,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if (rc == 0 && item->mane->location != NULL)
         rc = KServiceSetLocation(service, item->mane->location);
 
-    if (rc == 0 && item->mane->cart != NULL)
-        rc = KServiceSetJwtKartFile(service, item->mane->cart);
+    if (rc == 0 && item->mane->jwtCart != NULL)
+        rc = KServiceSetJwtKartFile(service, item->mane->jwtCart);
 
     if (rc == 0 && item->mane->ngc != NULL)
         rc = KServiceSetNgcFile(service, item->mane->ngc);
@@ -2565,9 +2565,14 @@ static rc_t ItemDownload(Item *item) {
     int n = 0;
     rc_t rc = 0;
     Resolved *self = NULL;
+    const char * name = NULL;
+
     assert(item && item->mane);
+
     n = item->number;
     self = &item->resolved;
+    name = self->name;
+
     assert(self->type);
 
     if (rc == 0) {
@@ -2575,7 +2580,6 @@ static rc_t ItemDownload(Item *item) {
         bool skip = false;
         bool undersized = self->undersized;
         bool oversized = self->oversized;
-        const char * name = self->name;
         if (self->respFile != NULL) {
             const VPath * local = NULL;
 
@@ -2641,10 +2645,10 @@ static rc_t ItemDownload(Item *item) {
                 if ( sep != NULL )
                     start = sep + 1;
                 STSMSG(STS_TOP, ("%d) '%s' is found locally (%.*s)",
-                    n, self->name, ( uint32_t ) ( end - start ), start));
+                    n, name, ( uint32_t ) ( end - start ), start));
             }
             else
-                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, self->name));
+                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, name));
             if (self->local.str != NULL) {
                 VPathStrFini(&self->path);
                 rc = StringCopy(&self->path.str, self->local.str);
@@ -2654,7 +2658,7 @@ static rc_t ItemDownload(Item *item) {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);
             PLOGERR(klogErr, (klogErr, rc,
                 "cannot download '$(name)' using requested transport",
-                "name=%s", self->name));
+                "name=%s", name));
         }
         else {
             bool notFound = false;
@@ -3362,14 +3366,14 @@ rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
     }
 #endif
 
-    if (obj == NULL && mane->cart != NULL) {
-        type = KDirectoryPathType(mane->dir, "%s", mane->cart);
+    if (obj == NULL && mane->jwtCart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->jwtCart);
         if ((type & ~kptAlias) != kptFile) {
             rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
-            DISP_RC(rc, mane->textkart);
+            DISP_RC(rc, mane->jwtCart);
         }
         else
-            self->jwtCart = mane->cart;
+            self->jwtCart = mane->jwtCart;
         return rc;
     }
 
@@ -4145,7 +4149,7 @@ option_name = TYPE_OPTION;
                         "Failure to get '" CART_OPTION "' argument value");
                     break;
                 }
-                self->cart = val;
+                self->jwtCart = val;
             }
         }
 
@@ -4533,8 +4537,8 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
                         OUTMSG(("Checking sizes of kart files...\n"));
                     }
                 }
-                else if (self->cart != NULL)
-                    OUTMSG(("Downloading jwt cart file '%s'\n", realArg));
+                else if (self->jwtCart != NULL)
+                    OUTMSG(("Downloading jwt cart file '%s'\n", self->jwtCart));
                 OUTMSG(("\n"));
             }
 
@@ -4664,7 +4668,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         rc = ArgsParamCount(pars.args, &pcount);
     }
     if (rc == 0 && pcount == 0) {
-        if (pars.cart == NULL
+        if (pars.jwtCart == NULL
 #if _DEBUGGING
             && pars.textkart == NULL
 #endif
@@ -4679,8 +4683,8 @@ rc_t CC KMain(int argc, char *argv[]) {
         bool multiErrorReported = false;
         uint32_t i = ~0;
 
-        if (pars.cart != NULL) {
-            rc = MainRun(&pars, NULL, pars.cart, 1, &multiErrorReported);
+        if (pars.jwtCart != NULL) {
+            rc = MainRun(&pars, NULL, pars.jwtCart, 1, &multiErrorReported);
         }
 
 #if _DEBUGGING

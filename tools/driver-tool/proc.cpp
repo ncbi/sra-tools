@@ -99,6 +99,24 @@ void exec [[noreturn]] (  std::string const &toolname
     throw std::system_error(error, "failed to exec "+toolname);
 }
 
+void exec [[noreturn]] (  std::string const &toolname
+                        , std::string const &toolpath
+                        , std::string const &argv0
+                        , ParamList const &parameters
+                        , ArgsList const &arguments)
+{
+    auto const argv = makeArgv(parameters, arguments);
+    
+    execve(argv0.c_str(), argv);
+    
+    // NB. we should never get here
+    auto const error = error_code_from_errno();
+
+    delete [] argv; // probably pointless, but be nice anyways
+
+    throw std::system_error(error, "failed to exec "+toolname);
+}
+
 process::exit_status process::wait() const
 {
     assert(pid != 0); ///< you can't wait on yourself

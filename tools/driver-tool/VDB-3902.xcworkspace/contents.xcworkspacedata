@@ -8,6 +8,9 @@
       location = "group:sratools.pl">
    </FileRef>
    <FileRef
+      location = "group:../srapath/services.c">
+   </FileRef>
+   <FileRef
       location = "group:sratools.xcodeproj">
    </FileRef>
 </Workspace>

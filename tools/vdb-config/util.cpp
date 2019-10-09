@@ -439,7 +439,7 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
         return rc;
 
     {
-        string name(repoNode + "/apps/sraPileup/volumes/flat");
+        string name(repoNode + "/apps/sraPileup/volumes/withExtFlat");
         if (!NodeExists(name)) {
             rc_t r2 = UpdateNode(name, "sra");
             if (r2 != 0 && rc == 0)
@@ -447,7 +447,7 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
         }
     }
     {
-        string name(repoNode + "/apps/sraRealign/volumes/flat");
+        string name(repoNode + "/apps/sraRealign/volumes/withExtFlat");
         if (!NodeExists(name)) {
             rc_t r2 = UpdateNode(name, "sra");
             if (r2 != 0 && rc == 0)

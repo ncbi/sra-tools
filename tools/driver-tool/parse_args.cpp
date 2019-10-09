@@ -247,7 +247,6 @@ bool parseArgs(  ParamList *parameters
         // if it is not an option then it is a regular argument
         if (arg.empty() || arg[0] != '-') {
             arguments->push_back(arg);
-            ++i;
             continue;
         }
         
@@ -262,7 +261,9 @@ bool parseArgs(  ParamList *parameters
             }
             else {
                 // --name=value
-                parameters->emplace_back(ParamList::value_type(arg.substr(0, eq), arg.substr(eq + 1)));
+                auto const name = arg.substr(0, eq);
+                auto const value = arg.substr(eq + 1);
+                parameters->emplace_back(ParamList::value_type(name, value));
             }
         }
         else {

@@ -2362,6 +2362,8 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
             if (type == kptFile)
                 local = true;
             else if (type == kptDir) {
+                /* directory is ignored */
+#if 0
                 KNamelist * list = NULL;
                 rc = KDirectoryList(dir, &list, NULL, NULL, "%s", self->desc);
                 if (rc == 0) {
@@ -2371,6 +2373,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                         local = true;
                 }
                 RELEASE(KNamelist, list);
+#endif
             }
 
             if (local) {

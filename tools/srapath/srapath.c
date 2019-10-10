@@ -221,8 +221,13 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
         if ( rc == 0 ) {
             if ( pc != NULL )
                 rc = KServiceAddId ( service, pc );
-            else if ( cart != NULL )
-                rc = KServiceSetJwtKartFile( service, cart );
+            else if (cart != NULL) {
+                rc = KServiceSetJwtKartFile(service, cart);
+                if (rc != 0)
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "cannot use '$(perm)' as jwt cart file",
+                        "perm=%s", cart));
+            }
             else
                 rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
         }
@@ -233,8 +238,13 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
             rc = VResolverGetProject(resolver, &project);
             if (rc == 0 && project != 0)
                 rc = KServiceAddProject(service, project);
-            if (rc == 0 && ngc != NULL)
+            if (rc == 0 && ngc != NULL) {
                 rc = KServiceSetNgcFile(service, ngc);
+                if (rc != 0)
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "cannot use '$(ngc)' as ngc file",
+                        "ngc=%s", ngc));
+            }
         }
 
         if ( rc == 0 ) {

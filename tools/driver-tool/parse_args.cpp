@@ -209,9 +209,7 @@ ArgsList loadArgv(int argc, char *argv[])
 
         if (string_hasPrefix(optionFileParam, arg)) {
             auto optionfile = std::string();
-#if __APPLE__
             auto opt_eq_file = false;
-#endif
             
             if (arg.size() == optionFileParam.size()) {
                 if (i < argc) {
@@ -224,10 +222,8 @@ LOAD_OPTION_FILE:
                     }
                     catch (...) {
                         std::cerr << "could not load option file " << optionfile << std::endl;
-#if __APPLE__
-                        if (opt_eq_file)
-                            std::cerr << "--option-file=<file> does not always work, try --option-file " << optionfile << " (note the space instead of the equals)" << std::endl;
-#endif
+                        if (opt_eq_file && optionfile[0] == '~')
+                            std::cerr << "--option-file=<file> does not do tilde expansion, try --option-file=$HOME/.. or --option-file <file>" << std::endl;
                         exit(EX_NOINPUT);
                     }
                 }

@@ -66,9 +66,9 @@ static const char * cache_usage[] = { "resolve cache location along with remote"
                                       " when performing names function", NULL };
 #define ALIAS_CACHE   "c"
 
-static const char * cart_usage[] = { "path to jwt cart file", NULL };
-#define OPTION_CART   "cart"
-#define ALIAS_CART    "K"
+static const char * cart_usage[] = { "PATH to jwt cart file", NULL };
+#define OPTION_CART   "perm"
+#define ALIAS_CART    NULL
 
 static const char * prj_usage[]
  = { "use numeric [dbGaP] project-id in names-cgi-call", NULL };
@@ -89,7 +89,7 @@ static const char * locn_usage[] = { "location of data", NULL };
 #define OPTION_LOCN   "location"
 #define ALIAS_LOCN    NULL
 
-static const char * ngc_usage[] = { "path to ngc file", NULL };
+static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC   "ngc"
 #define ALIAS_NGC     NULL
 
@@ -186,11 +186,12 @@ rc_t CC Usage( const Args *args )
         /* start with 1, do not advertize row-range-option*/
         const char * param = NULL;
         if (ToolOptions[idx].aliases == NULL) {
-            if (strcmp(ToolOptions[idx].name, OPTION_NGC) == 0)
-                param = "path";
+            if (strcmp(ToolOptions[idx].name, OPTION_NGC) == 0 ||
+                strcmp(ToolOptions[idx].name, OPTION_CART) == 0)
+            {
+                param = "PATH";
+            }
         }
-        else if (ToolOptions[idx].aliases[0] == ALIAS_CART[0])
-            param = "path";
 
         HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name,
             param, ToolOptions[ idx ].help );

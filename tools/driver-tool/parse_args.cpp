@@ -33,6 +33,9 @@
 #include <cctype>
 #include <iostream>
 #include <fstream>
+
+#include <sysexits.h>
+
 #include "parse_args.hpp"
 
 #include "globals.hpp"
@@ -206,15 +209,37 @@ ArgsList loadArgv(int argc, char *argv[])
 
         if (string_hasPrefix(optionFileParam, arg)) {
             auto optionfile = std::string();
+#if __APPLE__
+            auto opt_eq_file = false;
+#endif
             
-            if (arg.size() == optionFileParam.size() && i < argc) {
-                optionfile.assign(argv[i++]);
+            if (arg.size() == optionFileParam.size()) {
+                if (i < argc) {
+                    optionfile.assign(argv[i++]);
 LOAD_OPTION_FILE:
-                auto const &option = loadOptionFile(optionfile);
-                std::copy(option.begin(), option.end(), std::back_inserter(result));
-                continue;
+                    try {
+                        auto const &option = loadOptionFile(optionfile);
+                        std::copy(option.begin(), option.end(), std::back_inserter(result));
+                        continue;
+                    }
+                    catch (...) {
+                        std::cerr << "could not load option file " << optionfile << std::endl;
+#if __APPLE__
+                        if (opt_eq_file)
+                            std::cerr << "--option-file=<file> does not always work, try --option-file " << optionfile << " (note the space instead of the equals)" << std::endl;
+#endif
+                        exit(EX_NOINPUT);
+                    }
+                }
+                else {
+                    std::cerr << "--option-file requires a file name" << std::endl;
+                    exit(EX_USAGE);
+                }
             }
             else if (arg[optionFileParam.size()] == '=') {
+#if __APPLE__
+                opt_eq_file = true;
+#endif
                 optionfile.assign(arg.substr(optionFileParam.size() + 1));
                 goto LOAD_OPTION_FILE;
             }

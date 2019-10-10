@@ -223,7 +223,7 @@ LOAD_OPTION_FILE:
                     catch (...) {
                         std::cerr << "could not load option file " << optionfile << std::endl;
                         if (opt_eq_file && optionfile[0] == '~')
-                            std::cerr << "--option-file=<file> does not do tilde expansion, try --option-file=$HOME/.. or --option-file <file>" << std::endl;
+                            std::cerr << "--option-file=<file> does not do tilde expansion, try using the full path, or $HOME inplace of tilde, or split it into two arguments" << std::endl;
                         exit(EX_NOINPUT);
                     }
                 }

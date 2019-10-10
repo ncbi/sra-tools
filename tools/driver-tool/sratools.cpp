@@ -234,6 +234,68 @@ static void debugPrintDryRun(  std::string const &toolpath
     }
 }
 
+static bool processSource(std::string const &run, std::string const &toolname, std::function<void ()> && childCode) {
+    auto const child = process::run_child(childCode);
+    auto const result = child.wait();
+    
+    if (result.exited()) {
+        if (result.exit_code() == 0) { // success, process next run
+            LOG(2) << "Successfully processed " << run << std::endl;
+            return true;
+        }
+        if (result.exit_code() == EX_TEMPFAIL)
+            return false; // try next source
+        std::cerr << toolname << " (PID " << child.get_pid() << ") quit with error code " << result.exit_code() << std::endl;
+        exit(result.exit_code());
+    }
+    if (result.signaled()) {
+        std::cerr << toolname << " (PID " << child.get_pid() << ") was killed (signal " << result.termsig() << ")";
+        std::cerr << std::endl;
+        abort();
+    }
+    assert(!"reachable");
+    abort();
+}
+
+static void processRun(  std::string const &run
+                       , char const *const extension
+                       , std::string const &toolname
+                       , std::string const &toolpath
+                       , ParamList const &parameters
+                       , ParamList::iterator const &outputFile)
+{
+    auto const sources = data_sources(run);
+    if (sources.empty()) {
+        std::cerr << "Could not get any data for " << run << ", there is no accessible source." << std::endl;
+        // TODO: message about how this could be remedied.
+        return;
+    }
+    auto success = false;
+    
+    sources.set_ce_token_env_var();
+    for (auto const &source : sources) {
+        success = processSource(run, toolname, [&]() {
+            if (outputFile != parameters.end())
+                outputFile->second = run + extension;
+            
+            source.set_environment();
+            debugPrintDryRun(toolpath, parameters, run); // NB does'nt return if dry run
+            exec(toolname, toolpath, *argv0, parameters, run);
+        });
+        if (success)
+            break;
+        LOG(1) << "failed to get data for " << run << " from " << source.service() << std::endl;
+    }
+    if (!success) {
+        std::cerr << "Could not get any data for " << run << ", tried to get data from:" << std::endl;
+        for (auto i : sources) {
+            std::cerr << '\t' << i.service() << std::endl;
+        }
+        std::cerr << "This may be temporary, you should retry later." << std::endl;
+        exit(EX_TEMPFAIL);
+    }
+}
+
 /// @brief runs tool on list of accessions
 ///
 /// After args parsing, this is the called to do the meat of the work.
@@ -255,63 +317,20 @@ static void processAccessions [[noreturn]] (
                               )
 {
     auto const runs = expandAll(accessions);
-    ParamList::iterator unsafeOutputFile = parameters.end();
+    ParamList::iterator outputFile = parameters.end();
     
     if (runs.size() > 1 && unsafeOutputFileParamName) {
         for (auto i = parameters.begin(); i != parameters.end(); ++i) {
             if (i->first == unsafeOutputFileParamName && i->second.value() != "/dev/null") {
-                unsafeOutputFile = i;
+                outputFile = i;
                 print_unsafe_output_file_message(runs, toolname, extension);
                 break;
             }
         }
     }
-    for (auto & run : runs) {
+    for (auto const &run : runs) {
         LOG(3) << "Processing " << run << " ..." << std::endl;
-        auto const sources = data_sources(run);
-        bool success = false;
-        
-        sources.set_ce_token_env_var();
-        for (auto const &source : sources) {
-            auto const child = process::run_child([&]() {
-                if (unsafeOutputFile != parameters.end())
-                    unsafeOutputFile->second = run + extension;
-                
-                source.set_environment();
-                debugPrintDryRun(toolpath, parameters, run); // NB does'nt return if dry run
-                exec(toolname, toolpath, *argv0, parameters, run);
-            });
-            auto const result = child.wait();
-
-            if (result.exited()) {
-                if (result.exit_code() == 0) { // success, process next run
-                    LOG(2) << "Successfully processed " << run << std::endl;
-                    success = true;
-                    break;
-                }
-                if (result.exit_code() == EX_TEMPFAIL)
-                    continue; // try next source
-                std::cerr   << toolname
-                            << " (PID " << child.get_pid()
-                            << ") quit with error code " << result.exit_code()
-                            << std::endl;
-                exit(result.exit_code());
-            }
-            if (result.signaled()) {
-                std::cerr << toolname << " (PID " << child.get_pid() << ") was killed (signal " << result.termsig() << ")";
-                std::cerr << std::endl;
-                abort();
-            }
-            assert(!"reachable");
-            abort();
-        }
-        if (!success) {
-            std::cerr << "Could not access any data for " << run << ", tried to get data from:" << std::endl;
-            for (auto i : sources) {
-                std::cerr << '\t' << i.service() << std::endl;
-            }
-            exit(EX_UNAVAILABLE);
-        }
+        processRun(run, extension, toolname, toolpath, parameters, outputFile);
     }
     LOG(1) << "All runs were processed successfully" << std::endl;
     exit(0);

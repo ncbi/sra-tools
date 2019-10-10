@@ -82,6 +82,11 @@ public:
     /// @param qry the run (or accession) to query
     data_sources(std::string const &qry);
     
+    /// @brief true if there are no sources
+    bool empty() const {
+        return sources.empty();
+    }
+    
     /// @brief informative only
     std::string const &ce_token() const {
         return ce_token_;

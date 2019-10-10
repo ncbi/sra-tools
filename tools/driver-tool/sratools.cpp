@@ -60,6 +60,7 @@
 #include "tool-args.hpp"
 #include "debug.hpp"
 #include "util.hpp"
+#include "fastq-dump.hpp"
 
 //#include <klib/sra-release-version.h>
 
@@ -298,46 +299,6 @@ static void processRun(  std::string const &run
 
 /// @brief runs tool on list of accessions
 ///
-/// After args parsing, this is the called to do the meat of the work.
-/// Accession can be any kind of SRA accession that can be resolved to runs.
-///
-/// @param toolname  the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param unsafeOutputFileParamName set if the output format is not appendable
-/// @param extension file extension to use for output file, e.g. ".sam"
-/// @param parameters list of parameters (name-value pairs)
-/// @param accessions list of accessions to process
-static void processAccessions [[noreturn]] (
-                                std::string const &toolname
-                              , std::string const &toolpath
-                              , char const *const unsafeOutputFileParamName
-                              , char const *const extension
-                              , ParamList &parameters
-                              , ArgsList const &accessions
-                              )
-{
-    auto const runs = expandAll(accessions);
-    ParamList::iterator outputFile = parameters.end();
-    
-    if (runs.size() > 1 && unsafeOutputFileParamName) {
-        for (auto i = parameters.begin(); i != parameters.end(); ++i) {
-            if (i->first == unsafeOutputFileParamName && i->second.value() != "/dev/null") {
-                outputFile = i;
-                print_unsafe_output_file_message(runs, toolname, extension);
-                break;
-            }
-        }
-    }
-    for (auto const &run : runs) {
-        LOG(3) << "Processing " << run << " ..." << std::endl;
-        processRun(run, extension, toolname, toolpath, parameters, outputFile);
-    }
-    LOG(1) << "All runs were processed successfully" << std::endl;
-    exit(0);
-}
-
-/// @brief runs tool on list of accessions
-///
 /// After args parsing, this is the called for tools that do their own communication with SDL, e.g. srapath.
 /// Accession can be any kind of SRA accession that can be resolved to runs.
 ///
@@ -358,16 +319,23 @@ static void processAccessionsNoSDL [[noreturn]] (
 
 /// @brief gets tool to print its help message; does not return
 ///
-/// @param toolname friendly name of tool
 /// @param toolpath path to tool
 ///
 /// @throw system_error if exec fails
-static void toolHelp [[noreturn]] (  std::string const &toolname
-                                   , std::string const &toolpath)
+void toolHelp [[noreturn]] (std::string const &toolpath)
 {
     char const *argv[] = {
-        toolname.c_str(),
+        argv0->c_str(),
         "--help",
+        NULL
+    };
+    execve(toolpath.c_str(), argv);
+    throw_system_error("failed to exec " + toolpath);
+}
+
+void emptyInvocation [[noreturn]] (std::string const &toolpath) {
+    char const *argv[] = {
+        argv0->c_str(),
         NULL
     };
     execve(toolpath.c_str(), argv);
@@ -387,7 +355,7 @@ static void running_as_tool_no_sdl [[noreturn]] ()
         processAccessionsNoSDL(toolname, toolpath, params, accessions);
     }
     else {
-        toolHelp(toolname, toolpath);
+        toolHelp(toolpath);
     }
 }
 
@@ -407,13 +375,8 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
                           , params, accessions);
     }
     else {
-        toolHelp(toolname, toolpath);
+        toolHelp(toolpath);
     }
-}
-
-static void running_as_fastq_dump [[noreturn]] ()
-{
-    exit(0);
 }
 
 static void running_as_self [[noreturn]] ()
@@ -446,7 +409,7 @@ static void running_as_sam_dump [[noreturn]] ()
                           , accessions);
     }
     else {
-        toolHelp(toolname, toolpath);
+        toolHelp(toolpath);
     }
 }
 
@@ -481,6 +444,7 @@ static void runas [[noreturn]] (int const tool)
         running_as_self();
         break;
     }
+    // TODO: print a message to the user
     assert(!"reachable");
 }
 
@@ -518,6 +482,49 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 
     // run the tool as specified by basename
     runas(tool_name::lookup_iid(basename->c_str()));
+}
+
+/// @brief runs tool on list of accessions
+///
+/// After args parsing, this is the called to do the meat of the work.
+/// Accession can be any kind of SRA accession that can be resolved to runs.
+///
+/// @param toolname  the user-centric name of the tool, e.g. fastq-dump
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param unsafeOutputFileParamName set if the output format is not appendable
+/// @param extension file extension to use for output file, e.g. ".sam"
+/// @param parameters list of parameters (name-value pairs)
+/// @param accessions list of accessions to process
+void processAccessions [[noreturn]] (
+                                     std::string const &toolname
+                                     , std::string const &toolpath
+                                     , char const *const unsafeOutputFileParamName
+                                     , char const *const extension
+                                     , ParamList &parameters
+                                     , ArgsList const &accessions
+                                     )
+{
+    if (accessions.empty()) {
+        emptyInvocation(toolpath);
+    }
+    auto const runs = expandAll(accessions);
+    ParamList::iterator outputFile = parameters.end();
+    
+    if (runs.size() > 1 && unsafeOutputFileParamName) {
+        for (auto i = parameters.begin(); i != parameters.end(); ++i) {
+            if (i->first == unsafeOutputFileParamName && i->second.value() != "/dev/null") {
+                outputFile = i;
+                print_unsafe_output_file_message(runs, toolname, extension);
+                break;
+            }
+        }
+    }
+    for (auto const &run : runs) {
+        LOG(3) << "Processing " << run << " ..." << std::endl;
+        processRun(run, extension, toolname, toolpath, parameters, outputFile);
+    }
+    LOG(1) << "All runs were processed successfully" << std::endl;
+    exit(0);
 }
 
 } // namespace sratools

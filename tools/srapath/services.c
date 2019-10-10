@@ -530,8 +530,13 @@ static rc_t KService_Make ( KService ** self, const request_params * request ) {
         for ( id = request -> terms; * id != NULL && rc == 0; ++ id)
             rc = KServiceAddId ( * self, * id );
 
-        if (rc == 0 && request->cart != NULL)
+        if (rc == 0 && request->cart != NULL) {
             rc = KServiceSetJwtKartFile(*self, request->cart);
+            if (rc != 0)
+                PLOGERR(klogErr, (klogErr, rc,
+                    "cannot use '$(perm)' as jwt cart file",
+                    "perm=%s", request->cart));
+        }
     }
 
     return rc;

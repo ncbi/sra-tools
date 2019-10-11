@@ -901,13 +901,15 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                     "Failure to get '" OPTION_GS_F "' argument");
                 break;
             }
-            if (pcount > 0)
+            if (pcount > 0) {
                 rc = ArgsOptionValue(args, OPTION_GS_F, 0, (const void **)
                     &prm->gsCredentials);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_GS_F "' argument");
-                break;
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_GS_F "' argument");
+                    break;
+                }
+                prm->modeCloud = true;
             }
         }
 // OPTION_S3_C
@@ -941,13 +943,15 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                     "Failure to get '" OPTION_S3_F "' argument");
                 break;
             }
-            if (pcount > 0)
+            if (pcount > 0) {
                 rc = ArgsOptionValue(args, OPTION_S3_F, 0, (const void **)
                     &prm->s3Credentials);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_S3_F "' argument");
-                break;
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_S3_F "' argument");
+                    break;
+                }
+                prm->modeCloud = true;
             }
         }
 // OPTION_S3_P
@@ -958,13 +962,15 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                     "Failure to get '" OPTION_S3_P "' argument");
                 break;
             }
-            if (pcount > 0)
+            if (pcount > 0) {
                 rc = ArgsOptionValue(args, OPTION_S3_P, 0, (const void **)
                     &prm->s3Profile);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_S3_P "' argument");
-                break;
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_S3_P "' argument");
+                    break;
+                }
+                prm->modeCloud = true;
             }
         }
 // OPTION_P_UR
@@ -1863,6 +1869,8 @@ rc_t CloudSetReportIdentity(KConfig * cfg, EState value, bool * set) {
     if (rc == 0) {
         assert(set);
         *set = true;
+        OUTMSG(("Report Cloud Instance Identity was set to %s\n",
+            value == eTrue ? "true" : "false"));
     }
     return rc;
 }
@@ -1876,6 +1884,8 @@ rc_t S3SetAcceptCharges(KConfig * cfg, EState value, bool * set) {
     if (rc == 0) {
         assert(set);
         *set = true;
+        OUTMSG(("Accept Charges for AWS Usage was set to %s\n",
+            value == eTrue ? "true" : "false"));
     }
     return rc;
 }
@@ -1893,6 +1903,7 @@ static rc_t S3SetCredentialsFile(KConfig * cfg, const char * aValue,
     if (rc == 0) {
         assert(set);
         *set = true;
+        OUTMSG(("Path to AWS Credentials File was set to '%s'\n", value));
     }
     return rc;
 }
@@ -1910,6 +1921,7 @@ rc_t S3SetProfile(KConfig * cfg, const char * aValue, bool * set)
     if (rc == 0) {
         assert(set);
         *set = true;
+        OUTMSG(("AWS Profile was set to '%s'\n", value));
     }
     return rc;
 }
@@ -1924,6 +1936,8 @@ rc_t GsSetAcceptCharges(KConfig * cfg, EState value, bool * set)
     if (rc == 0) {
         assert(set);
         *set = true;
+        OUTMSG(("Accept Charges for GCP Usage was set to %s\n",
+            value == eTrue ? "true" : "false"));
     }
     return rc;
 }
@@ -1941,6 +1955,7 @@ static rc_t GsSetCredentialsFile(KConfig * cfg, const char * aValue,
     if (rc == 0) {
         assert(set);
         *set = true;
+        OUTMSG(("Path to GCP Credentials File was set to '%s'\n", value));
     }
     return rc;
 }
@@ -1955,6 +1970,9 @@ rc_t SetPrefetchDownload(KConfig * cfg, EState value, bool * set)
     if (rc == 0) {
         assert(set);
         *set = true;
+        OUTMSG(("Prefetch will download to %s "
+            "when Public User Repository is set\n",
+            value == eTrue ? "Current Directory" : "User Repository"));
     }
     return rc;
 }

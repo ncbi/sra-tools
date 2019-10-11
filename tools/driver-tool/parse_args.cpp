@@ -233,9 +233,7 @@ LOAD_OPTION_FILE:
                 }
             }
             else if (arg[optionFileParam.size()] == '=') {
-#if __APPLE__
                 opt_eq_file = true;
-#endif
                 optionfile.assign(arg.substr(optionFileParam.size() + 1));
                 goto LOAD_OPTION_FILE;
             }

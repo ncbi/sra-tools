@@ -38,15 +38,15 @@ const bool With_DbGaP = false;
 const bool With_Verfify = false;
 
 const KTUI_color BOX_COLOR      = KTUI_c_dark_blue;
-const KTUI_color STATUS_COLOR	= KTUI_c_gray;
-const KTUI_color LABEL_BG		= KTUI_c_light_gray;
-const KTUI_color LABEL_FG		= KTUI_c_white;
-const KTUI_color CB_COLOR_FG	= KTUI_c_black;
-const KTUI_color CB_COLOR_BG	= KTUI_c_cyan;
-const KTUI_color BTN_COLOR_FG	= KTUI_c_black;
-const KTUI_color BTN_COLOR_BG	= KTUI_c_cyan;
-const KTUI_color INP_COLOR_FG	= KTUI_c_black;
-const KTUI_color INP_COLOR_BG	= KTUI_c_white;
+const KTUI_color STATUS_COLOR   = KTUI_c_gray;
+const KTUI_color LABEL_BG       = KTUI_c_light_gray;
+const KTUI_color LABEL_FG       = KTUI_c_white;
+const KTUI_color CB_COLOR_FG    = KTUI_c_black;
+const KTUI_color CB_COLOR_BG    = KTUI_c_cyan;
+const KTUI_color BTN_COLOR_FG   = KTUI_c_black;
+const KTUI_color BTN_COLOR_BG   = KTUI_c_cyan;
+const KTUI_color INP_COLOR_FG   = KTUI_c_black;
+const KTUI_color INP_COLOR_BG   = KTUI_c_white;
 
 enum e_id
 {
@@ -54,7 +54,7 @@ enum e_id
     SAVE_BTN_ID, EXIT_BTN_ID, VERIFY_BTN_ID, DISCARD_BTN_ID, DEFAULT_BTN_ID, BOX_ID,
     
     MAIN_HDR_ID = 200,
-    MAIN_USE_REMOTE_ID, MAIN_USE_SITE_ID,
+    MAIN_USE_REMOTE_ID, MAIN_USE_SITE_ID, MAIN_GUID_ID,
     
     CACHE_HDR_ID = 300,
     CACHE_USE_CACHE_ID,
@@ -592,6 +592,7 @@ class vdbconf_view2 : public Dlg
         Tui_Rect pf_lbl_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , r.get_w() -2, 1 ); }
         Tui_Rect pf_box_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , r.get_w() -2, 4 ); }
         Tui_Rect pf_cb_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +2, r.get_y() + y , 32, 2 ); }
+        Tui_Rect bottom( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() + r.get_h() -2 , r.get_w() -2, 1 ); }
         
         Tui_Rect HDR_rect( Tui_Rect const &r, uint32_t ident )
         {
@@ -662,6 +663,11 @@ class vdbconf_view2 : public Dlg
                               model.is_site_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
             }
+            
+            /* the GUID-label at the bottom */
+            std::stringstream ss;
+            ss << "GUID: " << model.get_guid();
+            PopulateLabel( bottom( r ), resize, MAIN_GUID_ID, ss.str().c_str(), BOX_COLOR, LABEL_FG, page_id );
         }
 
         // populate the CACHE page
@@ -1252,6 +1258,9 @@ extern "C"
         rc_t rc = 0;
         try
         {
+            /* try to get a GUID from config, create and store if none found */
+            model.check_guid();
+                    
             /* (1) ... create a view */
             vdbconf_view2 view( model );
             

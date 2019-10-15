@@ -39,20 +39,10 @@ namespace sratools {
 ///
 /// @param name executable name
 /// @param allowNotFound return empty string if not found, else print message and exit
-/// @param isaSraTool the executable is part of the SRA toolkit, effects message if not found and whether to append version string to name
+/// @param isaSraTool the executable is part of the SRA toolkit, effects message if not found
 ///
 /// @returns full path to executable if found
 extern
 std::string which(std::string const &name, bool allowNotFound = true, bool isaSraTool = false);
-
-/// @brief like shell `which` but checks more than just PATH
-///
-/// @param name executable name
-///
-/// @returns full path to executable if found, else print message and exit
-static inline std::string which_sratool(std::string const &name)
-{
-    return which(name, false, true);
-}
 
 } // namespace sratools

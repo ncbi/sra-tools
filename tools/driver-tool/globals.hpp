@@ -35,6 +35,8 @@
 #include <string>
 #include <vector>
 
+#include "config.hpp"
+
 namespace sratools {
 
 // MARK: extracted from argv[0] or SRATOOLS_IMPERSONATE
@@ -48,6 +50,8 @@ extern std::map<std::string, std::string> const *parameters;
 
 extern std::string const *location; ///< may be null
 
-// std::map<std::string, std::string> const *config;
+extern Config const *config;
+
+extern std::vector<std::string> const PATH; ///< in which.cpp
 
 }

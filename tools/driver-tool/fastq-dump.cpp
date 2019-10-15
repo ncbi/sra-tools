@@ -156,7 +156,7 @@ static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
 
 void running_as_fastq_dump [[noreturn]] () {
     auto const &toolname = tool_name::runas(tool_name::FASTQ_DUMP);
-    auto const &toolpath = which_sratool(toolname);
+    auto const &toolpath = tool_name::path(tool_name::FASTQ_DUMP);
     ParamList params;
     ArgsList accessions;
     

@@ -78,7 +78,8 @@ std::vector<std::string> const *args;
 std::map<std::string, std::string> const *parameters;
 
 std::string const *location = NULL;
-std::string const *ngc = NULL;
+
+Config const *config = NULL;
 
 using namespace constants;
 
@@ -346,7 +347,7 @@ template <int toolID>
 static void running_as_tool_no_sdl [[noreturn]] ()
 {
     auto const &toolname = tool_name::runas(toolID);
-    auto const &toolpath = which_sratool(toolname);
+    auto const &toolpath = tool_name::path(toolID);
     auto const &info = infoFor(toolID);
     ParamList params;
     ArgsList accessions;
@@ -364,7 +365,7 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
                                           , char const *const extension)
 {
     auto const &toolname = tool_name::runas(toolID);
-    auto const &toolpath = which_sratool(toolname);
+    auto const &toolpath = tool_name::path(toolID);
     auto const &info = infoFor(toolID);
     ParamList params;
     ArgsList accessions;
@@ -387,7 +388,7 @@ static void running_as_self [[noreturn]] ()
 static void running_as_sam_dump [[noreturn]] ()
 {
     auto const &toolname = tool_name::runas(tool_name::SAM_DUMP);
-    auto const &toolpath = which_sratool(toolname);
+    auto const &toolpath = tool_name::path(tool_name::SAM_DUMP);
     auto const &info = infoFor(tool_name::SAM_DUMP);
     ParamList params;
     ArgsList accessions;
@@ -455,6 +456,16 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
               , s_basename(split_basename(s_selfpath))
               , s_version(split_version(s_basename, "2.10.0")); // TODO: this needs to be the version string and not a hardcoded value
     std::string s_location;
+    
+    // setup const globals
+    argv0 = &s_argv0;
+    selfpath = &s_selfpath;
+    basename = &s_basename;
+    version_string = &s_version;
+
+    auto s_config = Config();
+    config = &s_config;
+
     auto s_args = loadArgv(argc, argv);
     
     // extract and remove --location from args
@@ -472,12 +483,6 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
         }
         ++i;
     }
-    
-    // setup const globals
-    argv0 = &s_argv0;
-    selfpath = &s_selfpath;
-    basename = &s_basename;
-    version_string = &s_version;
     args = &s_args;
 
     // run the tool as specified by basename

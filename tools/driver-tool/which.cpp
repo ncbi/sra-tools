@@ -46,7 +46,45 @@
 #include "which.hpp"
 #include "debug.hpp"
 
-namespace sratools {
+static std::string is_exe(std::string const &toolname, std::string const &directory)
+{
+    auto const fullpath = directory + '/' + toolname;
+
+    // TRACE(fullpath);
+    LOG(9) << "looking for " << fullpath << std::endl;
+    
+    return access(fullpath.c_str(), X_OK) == 0 ? fullpath : "";
+}
+
+static std::map<std::string, std::string> cache;
+
+template <typename F>
+static std::string cache_or(std::string const &key, F && f)
+{
+    auto const iter = cache.find(key);
+    auto const found = iter != cache.end();
+    auto const &result = found ? iter->second : f();
+    if (!found)
+        cache[key] = result;
+    return result;
+}
+
+static
+std::string which(  std::string const &toolname
+                  , std::vector<std::string> const &paths
+                  , std::string const &alias
+                  )
+{
+    return cache_or(alias, [&]() {
+        auto result = std::string();
+        for (auto & dir : paths) {
+            result = is_exe(toolname, dir);
+            if (!result.empty())
+                break;
+        }
+        return result;
+    });
+}
 
 static void append_if_usable(std::vector<std::string> &PATH, std::string const &path, std::set<std::string> &unique)
 {
@@ -67,6 +105,11 @@ static void append_if_usable(std::vector<std::string> &PATH, std::string const &
         unique.insert(real);
     }
 }
+
+namespace sratools {
+
+static std::vector<std::string> loadPATH();
+auto const PATH = loadPATH();
 
 static std::vector<std::string> loadPATH()
 {
@@ -94,75 +137,73 @@ static std::vector<std::string> loadPATH()
     return result;
 }
 
-static std::string is_exe(std::string const &toolname, std::string const &directory)
+static void versioned(std::vector<std::string> *candidate, std::string const &basename)
 {
-    auto const fullpath = directory + '/' + toolname;
+    auto fullname = basename + '.' + *version_string;
 
-    // TRACE(fullpath);
-    LOG(9) << "looking for " << fullpath << std::endl;
-    
-    return access(fullpath.c_str(), X_OK) == 0 ? fullpath : "";
-}
-
-static std::string which_noversion(std::string const &toolname, std::vector<std::string> const &PATH)
-{
-    auto fullpath = is_exe(toolname, *selfpath);
-    if (fullpath.size() == 0) {
-        for (auto & dir : PATH) {
-            fullpath = is_exe(toolname, dir);
-            if (fullpath.size() != 0)
-                break;
-        }
-        if (fullpath.size() == 0)
-            fullpath = is_exe(toolname, ".");
-    }
-    return fullpath;
-}
-
-static std::string which_versioned(std::string const &toolname, std::vector<std::string> const &PATH)
-{
-    auto candidate = std::vector<std::string>();
-    auto versioned = toolname + '.' + *version_string;
-    auto fullpath = std::string();
-
-    candidate.reserve(4);
-    
-    for (auto i = versioned.begin(); i != versioned.end(); ++i) {
+    for (auto i = fullname.begin(); i != fullname.end(); ++i) {
         if (*i == '.')
-            candidate.push_back(std::string(versioned.begin(), i));
+            candidate->push_back(std::string(fullname.begin(), i));
     }
-    candidate.push_back(versioned);
-    
-    for (auto i = candidate.rbegin(); i != candidate.rend(); ++i) {
-        fullpath = which_noversion(*i, PATH);
-        if (fullpath.size() != 0)
-            break;
-    }
-    return fullpath;
+    candidate->push_back(fullname);
 }
 
 static void pathHelp [[noreturn]] (std::string const &toolname, bool const isSraTools);
 
 std::string which(std::string const &toolname, bool const allowNotFound, bool const isaSraTool)
 {
-    static std::map<std::string, std::string> cache;
-    static std::vector<std::string> PATH = loadPATH();
+    auto paths = std::vector<std::string>();
+    paths.reserve(PATH.size() + 2);
+    if (selfpath)
+        paths.push_back(*selfpath);
+    paths.insert(paths.end(), PATH.begin(), PATH.end());
+    paths.push_back(".");
 
-    auto const witch = isaSraTool ? which_versioned : which_noversion;
-    auto const iter = cache.find(toolname);
-    auto const in_cache = iter != cache.end();
-    auto const &found = in_cache ? iter->second : witch(toolname, PATH);
-    
-    if (found.size() == 0 && getenv("SRATOOLS_IMPERSONATE") && toolname.size() > 5 && toolname.substr(toolname.size() - 5) == "-orig") {
-        return which(toolname.substr(0, toolname.size() - 5), allowNotFound, isaSraTool);
-    }
-    if (!in_cache)
-        cache.insert({toolname, found}); ///> cache result (even if not found)
-
-    if (found.size() != 0 || allowNotFound)
+    auto const &found = ::which(toolname, paths, toolname);
+    if (!found.empty() || allowNotFound)
         return found;
 
     pathHelp(toolname, isaSraTool);
+}
+
+static inline
+std::vector<std::string> load_tool_paths(int n, char const *const *runas, char const *const *real)
+{
+    auto paths = std::vector<std::string>();
+    paths.reserve(PATH.size() + 2);
+    if (selfpath)
+        paths.insert(paths.end(), *selfpath);
+    paths.insert(paths.end(), PATH.begin(), PATH.end());
+    paths.insert(paths.end(), ".");
+    
+    auto path = paths.end();
+    auto result = std::vector<std::string>();
+    result.reserve(n);
+    
+    for (auto i = 0; i < n; ++i) {
+        std::vector<std::string> candidates;
+        candidates.reserve(8);
+        versioned(&candidates, runas[i]);
+        versioned(&candidates, real[i]);
+        
+        auto fullpath = std::string();
+        
+        for (auto const &name : candidates) {
+            if (path != paths.end()) {
+                fullpath = is_exe(name, *path);
+            }
+            else {
+                for (path = paths.begin(); path != paths.end() && fullpath.empty(); ++path) {
+                    fullpath = is_exe(name, *path);
+                }
+            }
+            if (fullpath.empty())
+                continue;
+            break;
+        }
+        result.insert(result.end(), fullpath);
+    }
+    return result;
 }
 
 /// @brief: prints help message for failing to find an executable
@@ -181,3 +222,17 @@ static void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSr
 }
 
 } // namespace sratools
+
+namespace constants {
+
+std::vector<std::string> load_tool_paths(int n, char const *const *runas, char const *const *real)
+{
+    return sratools::load_tool_paths(n, runas, real);
+}
+    
+void pathHelp [[noreturn]] (std::string const &toolname)
+{
+    sratools::pathHelp(toolname, true);
+}
+
+}

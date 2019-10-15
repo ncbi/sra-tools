@@ -79,6 +79,19 @@ struct tool_name {
         return value;
     }
     
+    /// @brief get full path to tool by id
+    static char const *path(int const iid)
+    {
+        extern std::vector<std::string> load_tool_paths(int n, char const *const *runas, char const *const *real);
+        extern void pathHelp [[noreturn]] (std::string const &toolname);
+
+        static auto const cache = load_tool_paths(END_ENUM, runasNames(), real());
+        auto const &result = cache.at(iid);
+        if (result.empty())
+            pathHelp(runas(iid));
+        return result.c_str();
+    }
+    
     /// @brief convert id to string
     ///
     /// @param iid integer id of tool (range checked)

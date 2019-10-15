@@ -49,17 +49,27 @@ using namespace constants;
 
 namespace sratools {
 
-static std::string run_srapath(std::string const &run)
+static char const *config_or_default(char const *const config_node, char const *const default_value)
+{
+    auto const &from_config = config->get(config_node);
+    auto const result = from_config ? from_config.value().c_str() : default_value;
+    assert(result && result[0]);
+    return result;
+}
+
+static std::string run_srapath(std::string const run)
 {
     auto const toolname = std::string(tool_name::real(tool_name::SRAPATH));
-    auto const toolpath_s = which_sratool(toolname);
-    auto const toolpath = toolpath_s.c_str();
+    auto const toolpath = tool_name::path(tool_name::SRAPATH);
+    auto const toolpath_s = std::string(toolpath);
+    auto const vers = std::string(config_or_default("/repository/remote/version", resolver::version()));
+    auto const url = std::string(config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url()));
     char const *argv[] = {
         toolname.c_str(),
         "--function", "names",
         "--json",
-        "--vers", resolver::version(),
-        "--url", resolver::url(),
+        "--vers", vers.c_str(),
+        "--url", url.c_str(),
         NULL, NULL, ///< copy-paste this line to reserve space for more optional paramaters
         NULL,       // run goes here
         NULL        // argv is terminated
@@ -82,8 +92,10 @@ static std::string run_srapath(std::string const &run)
         
         if (logging_state::is_debug()) {
             std::cerr << toolpath_s << ": ";
-            for (auto i = argv; i != argend && *i; ++i)
-                std::cerr << *i << ' ';
+            for (auto i = argv; i != argend && *i; ++i) {
+                auto const &value = *i;
+                std::cerr << value << ' ';
+            }
             std::cerr << std::endl;
         }
     }

@@ -188,13 +188,16 @@ std::vector<std::string> load_tool_paths(int n, char const *const *runas, char c
         
         auto fullpath = std::string();
         
-        for (auto const &name : candidates) {
+        for (auto j = candidates.crbegin(); j != candidates.crend(); ++j) {
+            auto const &name = *j;
             if (path != paths.end()) {
                 fullpath = is_exe(name, *path);
             }
             else {
-                for (path = paths.begin(); path != paths.end() && fullpath.empty(); ++path) {
+                for (path = paths.begin(); path != paths.end(); ++path) {
                     fullpath = is_exe(name, *path);
+                    if (!fullpath.empty())
+                        break;
                 }
             }
             if (fullpath.empty())

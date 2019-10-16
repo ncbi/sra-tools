@@ -109,7 +109,7 @@ static void append_if_usable(std::vector<std::string> &PATH, std::string const &
 namespace sratools {
 
 static std::vector<std::string> loadPATH();
-auto const PATH = loadPATH();
+std::vector<std::string> const PATH = loadPATH();
 
 static std::vector<std::string> loadPATH()
 {

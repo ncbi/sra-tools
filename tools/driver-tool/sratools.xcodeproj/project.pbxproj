@@ -75,6 +75,7 @@
 		BE64ACC4234F90C00031AE83 /* fastq-dump.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "fastq-dump.hpp"; sourceTree = SOURCE_ROOT; };
 		BE64ACC62350BC810031AE83 /* config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = config.cpp; sourceTree = SOURCE_ROOT; };
 		BE64ACC72350BC810031AE83 /* config.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = config.hpp; sourceTree = SOURCE_ROOT; };
+		BE92D3A7235791C7007117FF /* split_path.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = split_path.hpp; sourceTree = SOURCE_ROOT; };
 		BEC0FED8234B710000D87485 /* util.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = util.hpp; path = ../util.hpp; sourceTree = "<group>"; };
 		BEC0FED9234BA16600D87485 /* run-source.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "run-source.cpp"; sourceTree = SOURCE_ROOT; };
 		BEC0FEDA234BA16600D87485 /* run-source.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "run-source.hpp"; sourceTree = SOURCE_ROOT; };
@@ -170,6 +171,7 @@
 				BE33049F2345929800DE8015 /* env_vars.h */,
 				BE3304952345929800DE8015 /* debug.hpp */,
 				BE33049A2345929800DE8015 /* split_path.cpp */,
+				BE92D3A7235791C7007117FF /* split_path.hpp */,
 				BE3304962345929800DE8015 /* parse_args.cpp */,
 				BE3304972345929800DE8015 /* parse_args.hpp */,
 				BE3304A423459C1500DE8015 /* opt_string.hpp */,

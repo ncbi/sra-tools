@@ -31,19 +31,17 @@
  */
 
 #include <string>
-#include <cctype>
-#include <iterator>
+#include <cassert>
 
-/// @brief split path into dirname and basename
-///
-/// @param path [inout] directory name part
-///
-/// @returns basename part
-std::string split_basename(std::string &path)
+#include "split_path.hpp"
+
+#include "../../shared/toolkit.vers.h"
+
+std::string split_basename(std::string *const path)
 {
     auto result = std::string();
-    auto i = path.begin();
-    auto last = path.end();
+    auto i = path->begin();
+    auto last = path->end();
     auto const end = last;
     
     while (i != end) {
@@ -51,26 +49,21 @@ std::string split_basename(std::string &path)
         ++i;
     }
     if (last == end) {
-        path.swap(result);
+        path->swap(result);
     }
     else {
         auto const save = last++;
         result = std::string(last, end);    // NB: might be empty
-        path.erase(save, end);              // NB: might be whole string
+        path->erase(save, end);             // NB: might be whole string
     }
     return result;
 }
 
-/// @brief split basename into name and version
-///
-/// @param name [inout] the basename
-/// @param default_version version to use if there is no version part
-///
-/// @returns version part
-std::string split_version(std::string &name, std::string const &default_version)
+std::string split_version(std::string *const name)
 {
-    auto i = name.begin();
-    auto last = name.end();
+    auto result = std::string();
+    auto i = name->begin();
+    auto last = name->end();
     auto const end = last;
     
     while (i != end) {
@@ -82,7 +75,18 @@ std::string split_version(std::string &name, std::string const &default_version)
             last = end;
         ++i;
     }
-    auto result = last == end ? default_version : std::string(std::next(last), end);
-    name.erase(last, end);
+    if (last == end) {
+        result.reserve(14);
+        result.assign(std::to_string((TOOLKIT_VERS) >> 24));
+        result.append(1, '.');
+        result.append(std::to_string(((TOOLKIT_VERS) >> 16) & 0xFF));
+        result.append(1, '.');
+        result.append(std::to_string((TOOLKIT_VERS) & 0xFFFF));
+    }
+    else {
+        auto const save = last++;
+        result.assign(last, end);
+        name->erase(save, end);
+    }
     return result;
 }

@@ -61,11 +61,7 @@
 #include "debug.hpp"
 #include "util.hpp"
 #include "fastq-dump.hpp"
-
-//#include <klib/sra-release-version.h>
-
-extern std::string split_basename(std::string &dirname);
-extern std::string split_version(std::string &name, std::string const &default_version);
+#include "split_path.hpp"
 
 namespace sratools {
 
@@ -453,8 +449,8 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 {
     std::string const s_argv0(cargv0);
     std::string s_selfpath(cargv0)
-              , s_basename(split_basename(s_selfpath))
-              , s_version(split_version(s_basename, "2.10.0")); // TODO: this needs to be the version string and not a hardcoded value
+              , s_basename(split_basename(&s_selfpath))
+              , s_version(split_version(&s_basename));
     std::string s_location;
     
     // setup const globals

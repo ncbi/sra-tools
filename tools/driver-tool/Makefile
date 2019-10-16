@@ -40,6 +40,7 @@ ALL_TOOLS = \
 include $(TOP)/build/Makefile.env
 CPFLAGS += -std=c++11
 CPFLAGS += -I$(SRCDIR)/inc
+LDFLAGS += -L$(SRCDIR)/utf8proc
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -69,13 +70,13 @@ clean: stdclean
 #
 
 $(SRCDIR)/utf8proc/libutf8proc.a:
-	@ $(MAKE) -C $(SRCDIR)/utf8proc
+	$(MAKE) -C $(SRCDIR)/utf8proc
 
 $(ILIBDIR)/libsecure.$(LIBX):
-	@ $(MAKE) -C $(SRCDIR)/secure
+	$(MAKE) -C $(SRCDIR)/secure
 
 $(ILIBDIR)/libjson.$(LIBX):
-	@ $(MAKE) -C $(SRCDIR)/json
+	$(MAKE) -C $(SRCDIR)/json
 
 SRATOOLS_SRC = \
 	sratools \
@@ -92,9 +93,9 @@ SRATOOLS_OBJ = \
 	$(addsuffix .$(OBJX),$(SRATOOLS_SRC))
 
 SRATOOLS_LIB = \
-	-s$(SRCDIR)/utf8proc/libutf8proc.a \
-	-s$(ILIBDIR)/libsecure.$(LIBX) \
-	-s$(ILIBDIR)/libjson.$(LIBX) \
+	-sutf8proc \
+	-ssecure \
+	-sjson \
 	-lm
 
 $(BINDIR)/sratools: $(SRATOOLS_OBJ) $(ILIBDIR)/libjson.$(LIBX) $(ILIBDIR)/libsecure.$(LIBX) $(SRCDIR)/utf8proc/libutf8proc.a

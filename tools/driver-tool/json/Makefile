@@ -88,12 +88,6 @@ clean: stdclean
 #
 $(ILIBDIR)/libjson: $(ILIBDIR)/libjson.$(LIBX)
 
-$(SRCDIR)/../utf8proc/libutf8proc.a:
-	@ $(MAKE) -C $(SRCDIR)/../utf8proc
-
-$(ILIBDIR)/../libsecure.$(LIBX):
-	@ $(MAKE) -C $(SRCDIR)/../secure
-
 JSON_SRC = \
 	json \
 	json-array \
@@ -106,8 +100,6 @@ JSON_OBJ = \
 	$(addsuffix .$(LOBX),$(JSON_SRC))
 
 JSON_LIB = \
-	-s$(SRCDIR)/../utf8proc/libutf8proc.a \
-	-s$(ILIBDIR)/libsecure.$(LIBX)
 
-$(ILIBDIR)/libjson.$(LIBX): $(JSON_OBJ) $(SRCDIR)/../utf8proc/libutf8proc.a $(ILIBDIR)/libsecure.$(LIBX)
+$(ILIBDIR)/libjson.$(LIBX): $(JSON_OBJ)
 	$(LP) --slib -o $@ $^ $(JSON_LIB)

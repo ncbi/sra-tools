@@ -36,6 +36,7 @@
 #include <vector>
 #include <map>
 #include <iterator>
+#include <algorithm>
 
 #include "opt_string.hpp"
 

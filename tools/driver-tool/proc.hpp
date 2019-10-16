@@ -34,6 +34,8 @@
 #include <string>
 #include <vector>
 
+#include <sys/wait.h>
+
 #include "parse_args.hpp"
 #include "util.hpp"
 

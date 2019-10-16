@@ -46,6 +46,7 @@
 #include <iostream>
 #include <fstream>
 #include <system_error>
+#include <functional>
 
 #include <unistd.h>
 #include <sysexits.h>

@@ -40,21 +40,18 @@ class opt_string {
 public:
     opt_string()
     : is_set(false)
-    {
-        
-    }
+    {}
+    
     opt_string(std::string const &other)
-    : is_set(true)
-    , maybe_value(other)
-    {
-        
-    }
+    : maybe_value(other)
+    , is_set(true)
+    {}
+    
     opt_string(opt_string const &other)
-    : is_set(other.is_set)
-    , maybe_value(other.maybe_value) // safe for std::string
-    {
-        
-    }
+    : maybe_value(other.maybe_value) // safe for std::string
+    , is_set(other.is_set)
+    {}
+    
     opt_string &operator =(opt_string const &other)
     {
         is_set = other.is_set;

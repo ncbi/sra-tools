@@ -33,6 +33,7 @@
 #pragma once
 
 #if __cplusplus < 201703L
+#include <cassert>
 // std::optional is not available; cook one up
 class opt_string {
     std::string maybe_value;

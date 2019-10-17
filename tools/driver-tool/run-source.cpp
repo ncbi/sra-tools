@@ -109,7 +109,7 @@ static std::string run_srapath(std::string const run)
         response.append(buffer, nread);
     });
     close(fd);
-    TRACE(response);
+    DEBUG_OUT << response << std::endl;
     
     auto const result = child.wait();
     assert(result.signaled() || result.exited());

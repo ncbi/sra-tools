@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =             \
+	driver-tool       \
 	util              \
 	align-cache       \
 	kar               \

@@ -63,7 +63,7 @@ $(ALL_TOOLS): makedirs
 # clean
 #
 clean: stdclean
-	@ $(MAKE) SRCDIR=$(JSON_DIR) -C $(JSON_DIR) clean
+	@ $(MAKE) -C $(JSON_DIR) clean
 
 .PHONY: clean
 
@@ -72,7 +72,7 @@ clean: stdclean
 #
 
 $(ILIBDIR)/libjson.$(LIBX):
-	$(MAKE) SRCDIR=$(JSON_DIR) -C $(JSON_DIR)
+	$(MAKE) -C $(JSON_DIR)
 
 SRATOOLS_SRC = \
 	sratools \

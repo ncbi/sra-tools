@@ -94,10 +94,10 @@ clean: stdclean
 $(ILIBDIR)/libjson: $(ILIBDIR)/libjson.$(LIBX)
 
 $(UTF8PROC_DIR)/utf8proc.o:
-	@ $(MAKE) SRCDIR=$(UTF8PROC_DIR) -C $(UTF8PROC_DIR)
+	@ $(MAKE) -C $(UTF8PROC_DIR)
 
 $(ILIBDIR)/libsecure.$(LIBX):
-	@ $(MAKE) SRCDIR=$(SECURE_DIR) -C $(SECURE_DIR)
+	@ $(MAKE) -C $(SECURE_DIR)
 
 JSON_SRC = \
 	json \

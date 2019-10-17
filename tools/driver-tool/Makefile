@@ -38,9 +38,10 @@ ALL_TOOLS = \
 	$(EXT_TOOLS)
 
 include $(TOP)/build/Makefile.env
+JSON_DIR = $(SRCDIR)/json
+
 CPFLAGS += -std=c++11
 CPFLAGS += -I$(SRCDIR)/inc
-LDFLAGS += -L$(SRCDIR)/utf8proc
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -62,6 +63,7 @@ $(ALL_TOOLS): makedirs
 # clean
 #
 clean: stdclean
+	@ $(MAKE) SRCDIR=$(JSON_DIR) -C $(JSON_DIR) clean
 
 .PHONY: clean
 
@@ -69,14 +71,8 @@ clean: stdclean
 # sratools
 #
 
-$(SRCDIR)/utf8proc/libutf8proc.a:
-	$(MAKE) -C $(SRCDIR)/utf8proc
-
-$(ILIBDIR)/libsecure.$(LIBX):
-	$(MAKE) -C $(SRCDIR)/secure
-
 $(ILIBDIR)/libjson.$(LIBX):
-	$(MAKE) -C $(SRCDIR)/json
+	$(MAKE) SRCDIR=$(JSON_DIR) -C $(JSON_DIR)
 
 SRATOOLS_SRC = \
 	sratools \
@@ -93,10 +89,8 @@ SRATOOLS_OBJ = \
 	$(addsuffix .$(OBJX),$(SRATOOLS_SRC))
 
 SRATOOLS_LIB = \
-	-sutf8proc \
-	-ssecure \
 	-sjson \
 	-lm
 
-$(BINDIR)/sratools: $(SRATOOLS_OBJ) $(ILIBDIR)/libjson.$(LIBX) $(ILIBDIR)/libsecure.$(LIBX) $(SRCDIR)/utf8proc/libutf8proc.a
+$(BINDIR)/sratools: $(SRATOOLS_OBJ) $(ILIBDIR)/libjson.$(LIBX)
 	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRATOOLS_LIB)

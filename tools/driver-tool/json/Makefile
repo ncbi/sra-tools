@@ -36,8 +36,11 @@ ALL_LIBS = \
 	$(EXT_LIBS)
 
 include $(TOP)/build/Makefile.env
+SECURE_DIR = $(abspath $(SRCDIR)/../secure)
+UTF8PROC_DIR = $(abspath $(SRCDIR)/../utf8proc)
+
 CPFLAGS += -std=c++11
-CPFLAGS += -I$(SRCDIR)/../inc
+CPFLAGS += -I$(abspath $(SRCDIR)/../inc)
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -80,6 +83,8 @@ $(TARGDIR)/all: \
 # clean
 #
 clean: stdclean
+	@ $(MAKE) SRCDIR=$(UTF8PROC_DIR) -C $(UTF8PROC_DIR) clean
+	@ $(MAKE) SRCDIR=$(SECURE_DIR) -C $(SECURE_DIR) clean
 
 .PHONY: clean
 
@@ -87,6 +92,12 @@ clean: stdclean
 # json
 #
 $(ILIBDIR)/libjson: $(ILIBDIR)/libjson.$(LIBX)
+
+$(UTF8PROC_DIR)/utf8proc.o:
+	@ $(MAKE) SRCDIR=$(UTF8PROC_DIR) -C $(UTF8PROC_DIR)
+
+$(ILIBDIR)/libsecure.$(LIBX):
+	@ $(MAKE) SRCDIR=$(SECURE_DIR) -C $(SECURE_DIR)
 
 JSON_SRC = \
 	json \
@@ -97,9 +108,12 @@ JSON_SRC = \
 	json-wrapper
 
 JSON_OBJ = \
-	$(addsuffix .$(LOBX),$(JSON_SRC))
+	$(addsuffix .$(LOBX),$(JSON_SRC)) \
+	$(UTF8PROC_DIR)/utf8proc.o
 
 JSON_LIB = \
+	-ssecure \
+	-sutf8proc
 
-$(ILIBDIR)/libjson.$(LIBX): $(JSON_OBJ)
+$(ILIBDIR)/libjson.$(LIBX): $(JSON_OBJ) $(ILIBDIR)/libsecure.$(LIBX) $(UTF8PROC_DIR)/utf8proc.o
 	$(LP) --slib -o $@ $^ $(JSON_LIB)

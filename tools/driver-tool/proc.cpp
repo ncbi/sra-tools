@@ -61,7 +61,7 @@ char const * const* makeArgv(ParamList const &parameters , ArgsList const &argum
                     + parameters.size() * 2 // probably an over-estimate
                     + arguments.size();
     auto const argv = new char const * [argc + 1];
-    auto i = 0;
+    auto i = decltype(argc)(0);
     auto empty = std::string();
     
     argv[i++] = arg0.c_str();

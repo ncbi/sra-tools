@@ -252,7 +252,7 @@ bool parseArgs(  ParamList *parameters
     auto putback = std::string();
     auto nextIsParamArg = false;
     
-    for (auto i = 0; i < args->size() || !putback.empty(); ) {
+    for (auto i = decltype(args->size())(0); i < args->size() || !putback.empty(); ) {
         auto arg = putback.empty() ? args->at(i++) : putback;
         
         putback.erase();

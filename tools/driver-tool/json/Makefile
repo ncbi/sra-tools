@@ -112,8 +112,7 @@ JSON_OBJ = \
 	$(UTF8PROC_DIR)/utf8proc.o
 
 JSON_LIB = \
-	-ssecure \
-	-sutf8proc
+	-ssecure
 
 $(ILIBDIR)/libjson.$(LIBX): $(JSON_OBJ) $(ILIBDIR)/libsecure.$(LIBX) $(UTF8PROC_DIR)/utf8proc.o
 	$(LP) --slib -o $@ $^ $(JSON_LIB)

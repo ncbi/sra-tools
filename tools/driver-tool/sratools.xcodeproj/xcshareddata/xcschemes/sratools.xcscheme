@@ -53,21 +53,25 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "--output-file=/dev/null"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--option-file=${HOME}/Downloads/SraAccList.txt"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "SRR000001"
             isEnabled = "NO">
          </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-V"
+            isEnabled = "YES">
+         </CommandLineArgument>
       </CommandLineArguments>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "SRATOOLS_IMPERSONATE"
-            value = "${HOME}/ncbi-outdir/sra-tools/mac/clang/x86_64/dbg/bin/sam-dump"
+            value = "${HOME}/ncbi-outdir/sra-tools/mac/clang/x86_64/dbg/bin/fastq-dump"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable

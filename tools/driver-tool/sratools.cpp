@@ -331,15 +331,6 @@ void toolHelp [[noreturn]] (std::string const &toolpath)
     throw_system_error("failed to exec " + toolpath);
 }
 
-void emptyInvocation [[noreturn]] (std::string const &toolpath) {
-    char const *argv[] = {
-        argv0->c_str(),
-        NULL
-    };
-    execve(toolpath.c_str(), argv);
-    throw_system_error("failed to exec " + toolpath);
-}
-
 template <int toolID>
 static void running_as_tool_no_sdl [[noreturn]] ()
 {
@@ -507,7 +498,7 @@ void processAccessions [[noreturn]] (
                                      )
 {
     if (accessions.empty()) {
-        emptyInvocation(toolpath);
+        exec(toolname, toolpath, parameters, accessions);
     }
     auto const runs = expandAll(accessions);
     ParamList::iterator outputFile = parameters.end();

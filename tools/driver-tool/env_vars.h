@@ -30,6 +30,9 @@
  *
  */
 
+/* Tool Session ID */
+#define ENV_VAR_SESSION_ID "VDB_SESSION_ID"
+
 /* Compute Environment Token (aka CE Token) */
 #define ENV_VAR_CE_TOKEN "VDB_CE_TOKEN"
 

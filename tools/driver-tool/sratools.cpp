@@ -63,6 +63,8 @@
 #include "util.hpp"
 #include "fastq-dump.hpp"
 #include "split_path.hpp"
+#include "uuid.hpp"
+#include "env_vars.h"
 
 namespace sratools {
 
@@ -202,6 +204,13 @@ static void print_unsafe_output_file_message(  Container const &runs
     }
 }
 
+static void debugPrintEnvVar(char const *const name)
+{
+    auto const value = getenv(name);
+    if (value)
+        std::cerr << ' ' << name << "='" << value << "'\n";
+}
+
 static void debugPrintDryRun(  std::string const &toolpath
                              , ParamList const &parameters
                              , std::string const &run
@@ -218,15 +227,11 @@ static void debugPrintDryRun(  std::string const &toolpath
         }
         std::cerr << ' ' << run << std::endl;
         {
-            auto const names = env_var::names();
-            auto const endp = names + env_var::END_ENUM;
             std::cerr << "with environment:\n";
-            for (auto iter = names; iter != endp; ++iter) {
-                auto const name = *iter;
-                auto const value = getenv(name);
-                if (value)
-                    std::cerr << ' ' << name << "='" << value << "'\n";
+            for (auto name : make_sequence(env_var::names(), env_var::END_ENUM)) {
+                debugPrintEnvVar(name);
             }
+            debugPrintEnvVar(ENV_VAR_SESSION_ID);
             std::cerr << std::endl;
         }
         exit(0);
@@ -472,6 +477,9 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
               , s_basename(split_basename(&s_selfpath))
               , s_version(split_version(&s_basename));
     std::string s_location;
+    
+    auto const sessionID = uuid();
+    setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
     
     // setup const globals
     argv0 = &s_argv0;

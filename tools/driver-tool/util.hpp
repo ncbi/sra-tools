@@ -70,3 +70,31 @@ void read_fd(int fd, F && f)
             throw std::system_error(error, "read failed");
     }
 }
+
+/// @brief helper class for doing range-for on iterate-able things that don't have begin/end, like c arrays
+///
+/// @tparam ITER the type of iterator
+template <typename ITER>
+struct Sequence {
+private:
+    ITER const beg_;
+    ITER const end_;
+
+public:
+    Sequence(ITER const &beg, ITER const &end) : beg_(beg), end_(end) {}
+
+    ITER begin() const { return beg_; }
+    ITER end() const { return end_; }
+};
+
+/// @brief helper function to allow type inference of iterator type
+template <typename ITER>
+static inline Sequence<ITER> make_sequence(ITER const &beg, ITER const &end) {
+    return Sequence<ITER>(beg, end);
+}
+
+/// @brief helper function to allow type inference of iterator type
+template <typename ITER>
+static inline Sequence<ITER> make_sequence(ITER const &beg, size_t const count) {
+    return Sequence<ITER>(beg, beg + count);
+}

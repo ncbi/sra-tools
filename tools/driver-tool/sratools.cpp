@@ -233,7 +233,8 @@ static void debugPrintDryRun(  std::string const &toolpath
     }
 }
 
-static bool processSource(std::string const &run, std::string const &toolname, std::function<void ()> && childCode) {
+template <typename F>
+static bool processSource(std::string const &run, std::string const &toolname, F && childCode) {
     auto const child = process::run_child(childCode);
     auto const result = child.wait();
     

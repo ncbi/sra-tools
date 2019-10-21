@@ -31,9 +31,11 @@
  */
 
 /* Tool Session ID */
+/*   Also defined in ncbi-vdb/libs/kns/manager.c */
 #define ENV_VAR_SESSION_ID "VDB_SESSION_ID"
 
 /* Compute Environment Token (aka CE Token) */
+/*   Also defined in ncbi-vdb/interfaces/klib/strings.h */
 #define ENV_VAR_CE_TOKEN "VDB_CE_TOKEN"
 
 

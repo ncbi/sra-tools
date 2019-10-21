@@ -105,19 +105,17 @@ sub environment_vars
 
 delete $ENV{$_} for environment_vars;
 
-# srapath will handle --location and --jwtCart
+# srapath and prefetch will handle --location and --perm
 goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
-
-sub find_jwtCart();
-my $jwtCart = find_jwtCart();
-
-# prefetch will handle --location
 goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+
+sub find_perm();
+my $perm = find_perm();
 
 sub findLocation();
 my $location = findLocation();
 
-# these functions don't know or need --location or --jwtCart
+# these functions don't know or need --location or --perm
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
 goto RUNNING_AS_SAM_DUMP        if $basename =~ /^sam-dump/;
@@ -310,22 +308,23 @@ sub processAccessionsNoResolver($$\@@)
     die "can't exec $toolname: $!";
 }
 
-### \brief: find (and remove) location parameter from ARGV
+### \brief: find (and remove) a parameter from ARGV
 ###
 ### \returns: the value of the parameter or undef
-sub findLocation()
+sub findAndRemoveParamWithArg($)
 {
     my $result = undef;
+    my $param = $_[0];
     for my $i (0 .. $#ARGV) {
         local $_ = $ARGV[$i];
-        next unless /^--location/;
-        if ($_ eq '--location') {
+        next unless /^--$param/;
+        if ($_ eq '--$param') {
             (undef, $result) = splice @ARGV, $i, 2;
-            die "location parameter requires a value" unless $result;
+            die "$param parameter requires a value" unless $result;
             LOG 0, "Requesting data from $result";
             last;
         }
-        elsif (/^--location=(.+)/) {
+        elsif (/^--$param=(.+)/) {
             $result = $1;
             LOG 0, "Requesting data from $result";
             splice @ARGV, $i, 1;
@@ -335,27 +334,22 @@ sub findLocation()
     $result
 }
 
-### \brief: find (and remove) jwtCart parameter from ARGV
+### \brief: find (and remove) location parameter from ARGV
 ###
 ### \returns: the value of the parameter or undef
-sub find_jwtCart()
+sub findLocation()
 {
-    my $result = undef;
-    for my $i (0 .. $#ARGV) {
-        local $_ = $ARGV[$i];
-        next unless /^--jwtCart/;
-        if ($_ eq '--jwtCart') {
-            (undef, $result) = splice @ARGV, $i, 2;
-            die "jwtCart parameter requires a value" unless $result;
-            last;
-        }
-        elsif (/^--jwtCart=(.+)/) {
-            $result = $1;
-            splice @ARGV, $i, 1;
-            last;
-        }
-    }
-    $result
+    my $result = findAndRemoveParamWithArg("location");
+    LOG 0, "Requesting data from $result" if $result;
+}
+
+### \brief: find (and remove) perm parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub find_perm()
+{
+    my $result = findAndRemoveParamWithArg("perm");
+    LOG 0, "Using permissions from $result" if $result;
 }
 
 ### \brief: search parameter array for a parameter and return its index
@@ -620,7 +614,7 @@ sub resolveAccessionURLs($)
         , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
         , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL);
     push @tool_args, ('--location', $location) if $location;
-    push @tool_args, ('--jwtCart', $jwtCart) if $jwtCart;
+    push @tool_args, ('--perm', $perm) if $perm;
     push @tool_args, $_[0];
 
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);

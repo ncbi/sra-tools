@@ -1098,7 +1098,7 @@ RUNNING_AS_SRAPATH:
         '--vers' => TRUE,
         '--url' => TRUE,
         '--param' => TRUE,
-        '--jwtCart' => TRUE,
+        '--perm' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );

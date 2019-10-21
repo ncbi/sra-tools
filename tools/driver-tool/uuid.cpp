@@ -33,7 +33,8 @@
 #include <string>
 #include <random>
 #include <limits>
-#include <cstring>
+#include <cstdio>
+#include <ctime>
 #include <cassert>
 
 #include "uuid.hpp"
@@ -44,45 +45,27 @@ static
 /// @brief generate a type 4 version 1 uuid
 ///
 /// @param buffer filled in with new uuid
-void uuid_random(char buffer[36])
+void uuid_random(char buffer[37])
 {
-    static constexpr char const tr[] = "0123456789abcdef";
-    // xxxxxxxx-xxxx-4xxx-Nxxx-xxxxxxxxxxxx where x is a random hex digit
-    int cur = 0;
-    auto dist = std::uniform_int_distribution<uint32_t>(0, UINT32_MAX);
-    std::random_device rd;
+    std::random_device s; // seeder
+    auto const s1 = s();
+    auto const s2 = time(nullptr);
+    std::mt19937 gen1(s1 ^ decltype(s1)(s2 >> 32)), gen2(s1 ^ decltype(s1)(s2));
+    std::uniform_int_distribution<uint16_t> d16;
+    std::uniform_int_distribution<uint32_t> d32;
 
-    for (auto i = 0; i < 4 && cur < 36; ++i) {
-        auto r = dist(rd);
-        for (auto j = 0; j < 8 && cur < 36; ) {
-            switch (cur) {
-            default:
-                buffer[cur++] = tr[r & 0x0F];
-                r >>= 4;
-                ++j;
-                break;
-            case 8:
-            case 8+5:
-            case 8+5+5:
-            case 8+5+5+5:
-                buffer[cur++] = '-';
-                break;
-            case 8+5+1:
-                buffer[cur++] = '4';
-                break;
-            case 8+5+5+1:
-                buffer[cur++] = tr[0x8 | (r & 0x3)];
-                r >>= 4;
-                ++j;
-                break;
-            }
-        }
-    }
+    // xxxxxxxx-xxxx-4xxx-Nxxx-xxxxxxxxxxxx
+    //    08x    04x  04x  04x  04x   08x
+    sprintf(buffer, "%08x-%04x-%04x-%04x-%04x%08x"
+            , d32(gen1), d16(gen2)
+            , (d16(gen2) & 0x0FFF) | 0x4000 ///< type 4 (4 in high nibble)
+            , (d16(gen2) & 0x3FFF) | 0x8000 ///< version 1 (highest 2 bits set to 10)
+            , d16(gen2), d32(gen1));
 }
 
 std::string uuid()
 {
-    char buffer[36];
+    char buffer[37];
     uuid_random(buffer);
     return std::string(buffer, buffer + 36);
 }

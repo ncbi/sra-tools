@@ -45,5 +45,5 @@ extern std::string uuid();
 /// Uses c++ 11 random_device
 ///
 /// @param buffer filled in with new uuid
-extern void uuid_random(char buffer[36]);
+extern void uuid_random(char buffer[37]);
 #endif

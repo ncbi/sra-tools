@@ -105,6 +105,9 @@ sub environment_vars
 
 delete $ENV{$_} for environment_vars;
 
+sub find_ngc();
+my $ngc = find_ngc();
+
 # srapath and prefetch will handle --location and --perm
 goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
 goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
@@ -175,6 +178,8 @@ sub processAccessions($$$$\@@)
     my $params = shift;
     my $overrideOutputFile = FALSE;
     my @runs = expandAllAccessions(@_);
+    
+    push @$params, '--ngc', $ngc if $ngc;
     
     LOG 1, "running $toolname on ".join(' ', @runs);
     
@@ -291,6 +296,8 @@ sub processAccessionsNoResolver($$\@@)
     my $params = shift;
     my @runs = expandAllAccessions(@_);
 
+    push @$params, '--ngc', $ngc if $ngc;
+    
     if ($ENV{SRATOOLS_DRY_RUN}) {
         LOG -1, sprintf("would exec '%s' as:", $toolpath);
         LOG -1, join(' ', '$', $0, @$params, @runs);
@@ -350,6 +357,15 @@ sub find_perm()
 {
     my $result = findAndRemoveParamWithArg("perm");
     LOG 0, "Using permissions from $result" if $result;
+}
+
+### \brief: find (and remove) ngc parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub find_ngc()
+{
+    my $result = findAndRemoveParamWithArg("ngc");
+    LOG 0, "Using ngc file $result" if $result;
 }
 
 ### \brief: search parameter array for a parameter and return its index

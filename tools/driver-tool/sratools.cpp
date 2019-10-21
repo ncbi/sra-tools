@@ -75,6 +75,8 @@ std::vector<std::string> const *args;
 std::map<std::string, std::string> const *parameters;
 
 std::string const *location = NULL;
+std::string const *perm = NULL;
+std::string const *ngc = NULL;
 
 Config const *config = NULL;
 
@@ -369,6 +371,15 @@ static void running_as_tool_no_sdl [[noreturn]] ()
     ArgsList accessions;
     
     if (parseArgs(&params, &accessions, info.first, info.second)) {
+        if (location) {
+            params.push_back({"--location", *location});
+        }
+        if (perm) {
+            params.push_back({"--perm", *perm});
+        }
+        if (ngc) {
+            params.push_back({"--ngc", *ngc});
+        }
         processAccessionsNoSDL(toolname, toolpath, params, accessions);
     }
     else {
@@ -387,6 +398,9 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
     ArgsList accessions;
     
     if (parseArgs(&params, &accessions, info.first, info.second)) {
+        if (ngc) {
+            params.push_back({"--ngc", *ngc});
+        }
         processAccessions(toolname, toolpath
                           , unsafeOutputFileParamName, extension
                           , params, accessions);
@@ -418,6 +432,9 @@ static void running_as_sam_dump [[noreturn]] ()
         extension = (param == params.end()) ? ".sam" : param->first == "--fasta" ? ".fasta" : ".fastq";
         outputFileParam = (param == params.end()) ? "--output-file" : nullptr;
 
+        if (ngc) {
+            params.push_back({"--ngc", *ngc});
+        }
         processAccessions(  toolname
                           , toolpath
                           , outputFileParam
@@ -471,7 +488,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
     std::string s_selfpath(cargv0)
               , s_basename(split_basename(&s_selfpath))
               , s_version(split_version(&s_basename));
-    std::string s_location;
+    std::string s_location, s_perm, s_ngc;
     
     // setup const globals
     argv0 = &s_argv0;
@@ -492,8 +509,24 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 
         std::tie(found, value, next) = matched("--location", i, s_args.end());
         if (found) {
-            s_location.assign(value);
+            s_location.swap(value);
             location = &s_location;
+            i = s_args.erase(i, next);
+            continue;
+        }
+
+        std::tie(found, value, next) = matched("--perm", i, s_args.end());
+        if (found) {
+            s_perm.swap(value);
+            perm = &s_perm;
+            i = s_args.erase(i, next);
+            continue;
+        }
+
+        std::tie(found, value, next) = matched("--ngc", i, s_args.end());
+        if (found) {
+            s_ngc.swap(value);
+            ngc = &s_ngc;
             i = s_args.erase(i, next);
             continue;
         }

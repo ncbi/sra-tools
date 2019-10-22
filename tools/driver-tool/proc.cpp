@@ -107,7 +107,7 @@ void exec [[noreturn]] (  std::string const &toolname
 {
     auto const argv = makeArgv(parameters, arguments);
     
-    execve(argv0.c_str(), argv);
+    execve(toolpath.c_str(), argv);
     
     // NB. we should never get here
     auto const error = error_code_from_errno();

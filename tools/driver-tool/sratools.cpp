@@ -323,8 +323,9 @@ static void processAccessionsNoSDL [[noreturn]] (
                 std::cerr << ' ' << value.second.value();
         }
         for (auto & run : accessions) {
-            std::cerr << ' ' << run << std::endl;
+            std::cerr << ' ' << run;
         }
+        std::cerr << std::endl;
         {
             auto const names = env_var::names();
             auto const endp = names + env_var::END_ENUM;

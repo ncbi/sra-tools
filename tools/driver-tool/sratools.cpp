@@ -313,6 +313,32 @@ static void processAccessionsNoSDL [[noreturn]] (
                                    )
 {
     auto const runs = expandAll(accessions);
+    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
+    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
+        std::cerr << "would exec '" << toolpath << "' as:\n";
+        std::cerr << *argv0;
+        for (auto && value : parameters) {
+            std::cerr << ' ' << value.first;
+            if (value.second)
+                std::cerr << ' ' << value.second.value();
+        }
+        for (auto & run : accessions) {
+            std::cerr << ' ' << run << std::endl;
+        }
+        {
+            auto const names = env_var::names();
+            auto const endp = names + env_var::END_ENUM;
+            std::cerr << "with environment:\n";
+            for (auto iter = names; iter != endp; ++iter) {
+                auto const name = *iter;
+                auto const value = getenv(name);
+                if (value)
+                    std::cerr << ' ' << name << "='" << value << "'\n";
+            }
+            std::cerr << std::endl;
+        }
+        exit(0);
+    }
     exec(toolname, toolpath, parameters, runs);
 }
 

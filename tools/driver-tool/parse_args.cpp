@@ -37,50 +37,35 @@
 #include <sysexits.h>
 
 #include "parse_args.hpp"
-
+#include "util.hpp"
 #include "globals.hpp"
 
 namespace sratools {
-
-static bool string_hasPrefix(std::string const &prefix, std::string const &target)
-{
-    if (target.size() < prefix.size()) return false;
-    
-    auto i = prefix.begin();
-    auto j = target.begin();
-    
-    while (i != prefix.end()) {
-        if (*i != *j) return false;
-        ++i;
-        ++j;
-    }
-    return true;
-}
 
 std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, ArgsList::iterator i, ArgsList::iterator end)
 {
     auto const len = param.size();
     auto const &arg = *i;
+    auto found = false;
     auto value = std::string();
     auto next = std::next(i);
     
-    if (!string_hasPrefix(param, *i))
-        goto NOT_FOUND;
+    if (!hasPrefix(param, *i))
+        goto DONE;
 
     if (len == arg.size()) {
         if (next == end)
-            goto NOT_FOUND;
+            goto DONE;
         value = *next++;
     }
     else {
         if (arg[len] != '=')
-            goto NOT_FOUND;
+            goto DONE;
         value = i->substr(len + 1);
     }
-    return std::make_tuple(true, std::move(value), std::move(next));
-
-NOT_FOUND:
-    return std::make_tuple(false, std::move(value), std::move(i));
+    found = true;
+DONE:
+    return std::make_tuple(found, value, next);
 }
 
 static inline int unescape_char(int ch)
@@ -207,7 +192,7 @@ ArgsList loadArgv(int argc, char *argv[])
     for (int i = 0; i < argc; ) {
         auto const arg = std::string(argv[i++]);
 
-        if (string_hasPrefix(optionFileParam, arg)) {
+        if (hasPrefix(optionFileParam, arg)) {
             auto optionfile = std::string();
             auto opt_eq_file = false;
             

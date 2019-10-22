@@ -76,7 +76,7 @@
 		BE64ACC62350BC810031AE83 /* config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = config.cpp; sourceTree = SOURCE_ROOT; };
 		BE64ACC72350BC810031AE83 /* config.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = config.hpp; sourceTree = SOURCE_ROOT; };
 		BE92D3A7235791C7007117FF /* split_path.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = split_path.hpp; sourceTree = SOURCE_ROOT; };
-		BEC0FED8234B710000D87485 /* util.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = util.hpp; path = ../util.hpp; sourceTree = "<group>"; };
+		BEC0FED8234B710000D87485 /* util.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = util.hpp; sourceTree = "<group>"; };
 		BEC0FED9234BA16600D87485 /* run-source.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "run-source.cpp"; sourceTree = SOURCE_ROOT; };
 		BEC0FEDA234BA16600D87485 /* run-source.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "run-source.hpp"; sourceTree = SOURCE_ROOT; };
 		BEC0FF0E234BAF3F00D87485 /* libjson.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libjson.a; sourceTree = BUILT_PRODUCTS_DIR; };

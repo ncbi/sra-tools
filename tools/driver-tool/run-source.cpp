@@ -49,19 +49,18 @@ using namespace constants;
 
 namespace sratools {
 
-static char const *config_or_default(char const *const config_node, char const *const default_value)
+static std::string config_or_default(char const *const config_node, char const *const default_value)
 {
     auto const &from_config = config->get(config_node);
-    auto const result = from_config ? from_config.value().c_str() : default_value;
-    assert(result && result[0]);
-    return result;
+    return from_config ? from_config.value() : default_value;
 }
 
 static std::string run_srapath(std::string const run)
 {
     auto const toolpath = tool_name::path(tool_name::SRAPATH);
     auto const toolpath_s = std::string(toolpath);
-
+    auto const version_string = config_or_default("/repository/remote/version", resolver::version());
+    auto const url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
     enum {
         TOOL_NAME,
         FUNCTION_PARAM, FUNCTION_VALUE,
@@ -74,18 +73,14 @@ static std::string run_srapath(std::string const run)
         tool_name::real(tool_name::SRAPATH),
         "--function", "names",
         "--json",
-        "--vers", config_or_default("/repository/remote/version", resolver::version()),
-        "--url", config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url()),
+        "--vers", version_string.c_str(),
+        "--url", url_string.c_str(),
         NULL, NULL, ///< copy-paste this line to reserve space for more optional paramaters
         NULL,       // run goes here
         NULL        // argv is terminated
     };
     auto constexpr argc = sizeof(argv) / sizeof(argv[0]);
     auto const argend = argv + argc;
-    char *strings = nullptr;
-
-    assert(argv[VERSION_VALUE] != NULL && argv[VERSION_VALUE][0] != '\0');
-    assert(argv[URL_VALUE] != NULL && argv[URL_VALUE][0] != '\0');
     
     {
         auto i = argv + FIRST_NULL;
@@ -100,26 +95,6 @@ static std::string run_srapath(std::string const run)
         assert(i != argend && *i == NULL);
         *i++ = run.c_str();
         assert(i != argend && *i == NULL);
-    }
-    {
-        size_t total = 0;
-        for (auto i = argv; i != argend && *i; ++i) {
-            total += 1 + strlen(*i);
-        }
-        strings = reinterpret_cast<char *>(malloc(total));
-        if (strings == nullptr)
-            throw std::bad_alloc();
-        {
-            auto cur = strings;
-            for (auto i = argv; i != argend && *i; ++i) {
-                auto const str = *i;
-                auto len = strlen(str) + 1;
-                
-                memmove(cur, str, len);
-                *i = cur;
-                cur += len;
-            }
-        }
     }
     auto fd = -1;
     auto const child = process::run_child_with_redirected_stdout(&fd, [&]() {
@@ -142,7 +117,6 @@ static std::string run_srapath(std::string const run)
     DEBUG_OUT << response << std::endl;
     
     auto const result = child.wait();
-    free(strings);
     assert(result.signaled() || result.exited());
     if (result.signaled()) {
         std::cerr << "srapath (pid: " << child.get_pid() << ") was killed by signal " << result.termsig() << std::endl;

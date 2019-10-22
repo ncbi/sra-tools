@@ -23,8 +23,9 @@ TOOLS_TO_COPY = \
 	vdb-passwd      \
 	vdb-unlock      \
 	vdb-validate    \
+	sratools        \
 
-# these tools will be copied to <instdir>/<toolname>-orig; 
+# these tools will be copied to <instdir>/<toolname>-orig;
 # <toolname> will be created as a symlink to sratools
 TOOLS_TO_SYMLINK = \
 	fasterq-dump    \

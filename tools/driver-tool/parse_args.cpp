@@ -101,7 +101,7 @@ static inline int unescape_char(int ch)
 static ArgsList argsListFromFile(std::string const &filename)
 {
     auto result = ArgsList();
-    auto ifs = std::ifstream();
+    std::ifstream ifs;
     auto quote = 0;
     auto ws = true;
     auto esc = false;

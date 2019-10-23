@@ -61,11 +61,11 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "SRR000001"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-V"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
       <EnvironmentVariables>
@@ -77,7 +77,7 @@
          <EnvironmentVariable
             key = "SRATOOLS_DEBUG"
             value = "1"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "SRATOOLS_VERBOSE"
@@ -87,7 +87,7 @@
          <EnvironmentVariable
             key = "SRATOOLS_DRY_RUN"
             value = "1"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "SRATOOLS_TRACE"

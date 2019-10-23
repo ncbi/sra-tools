@@ -49,7 +49,7 @@ std::string split_basename(std::string *const path)
         ++i;
     }
     if (last == end) {
-        path->swap(result);
+        path->swap(result); // result = *path; *path = "";
     }
     else {
         auto const save = last++;

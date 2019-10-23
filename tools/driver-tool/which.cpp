@@ -44,22 +44,48 @@
 
 #include "globals.hpp"
 #include "which.hpp"
+#include "opt_string.hpp"
 #include "debug.hpp"
 
-static std::string is_exe(std::string const &toolname, std::string const &directory)
+static opt_string realpath(std::string const &path)
 {
-    auto const fullpath = directory + '/' + toolname;
+    auto const real = ::realpath(path.c_str(), nullptr);
+    auto result = real != nullptr ? opt_string(std::string(real)) : opt_string();
+    free(real);
+    return result;
+}
+
+static std::string no_trailing_seperator(std::string const &directory)
+{
+    auto size = directory.size();
+    while (size > 1 && directory[size - 1] == '/')
+        size -= 1;
+    return directory.substr(0, size);
+}
+
+static std::string effective_directory(std::string const &directory)
+{
+    auto const dir = no_trailing_seperator(directory);
+    return dir.empty() ? std::string(".") : dir == "/" ? std::string("") : dir;
+}
+
+static opt_string is_exe(std::string const &toolname, std::string const &directory)
+{
+    auto const fullpath = effective_directory(directory) + '/' + toolname;
 
     // TRACE(fullpath);
     LOG(9) << "looking for " << fullpath << std::endl;
     
-    return access(fullpath.c_str(), X_OK) == 0 ? fullpath : "";
+    auto result = realpath(fullpath);
+    if (result && access(result.value().c_str(), X_OK) != 0)
+        result = opt_string();
+    return result;
 }
 
-static std::map<std::string, std::string> cache;
+static std::map<std::string, opt_string> cache;
 
 template <typename F>
-static std::string cache_or(std::string const &key, F && f)
+static opt_string cache_or(std::string const &key, F && f)
 {
     auto const iter = cache.find(key);
     auto const found = iter != cache.end();
@@ -70,16 +96,16 @@ static std::string cache_or(std::string const &key, F && f)
 }
 
 static
-std::string which(  std::string const &toolname
-                  , std::vector<std::string> const &paths
-                  , std::string const &alias
-                  )
+opt_string which(  std::string const &toolname
+                 , std::vector<std::string> const &paths
+                 , std::string const &alias
+                 )
 {
     return cache_or(alias, [&]() {
-        auto result = std::string();
+        auto result = opt_string();
         for (auto & dir : paths) {
             result = is_exe(toolname, dir);
-            if (!result.empty())
+            if (result)
                 break;
         }
         return result;
@@ -89,12 +115,10 @@ std::string which(  std::string const &toolname
 static void append_if_usable(std::vector<std::string> &PATH, std::string const &path, std::set<std::string> &unique)
 {
     if (path.size() == 0) return;
-
-    auto const rp = realpath(path.c_str(), NULL);
-    if (rp == NULL) return;
     
-    auto const real = std::string(rp);
-    free(rp);
+    auto const maybe_real = realpath(path);
+    if (!maybe_real.has_value()) return;
+    auto const &real = maybe_real.value();
     if (unique.find(real) != unique.end()) return;
     
     struct stat st;
@@ -150,7 +174,7 @@ static void versioned(std::vector<std::string> *candidate, std::string const &ba
 
 static void pathHelp [[noreturn]] (std::string const &toolname, bool const isSraTools);
 
-std::string which(std::string const &toolname, bool const allowNotFound, bool const isaSraTool)
+opt_string which(std::string const &toolname, bool const allowNotFound, bool const isaSraTool)
 {
     auto paths = std::vector<std::string>();
     paths.reserve(PATH.size() + 2);
@@ -160,14 +184,14 @@ std::string which(std::string const &toolname, bool const allowNotFound, bool co
     paths.push_back(".");
 
     auto const &found = ::which(toolname, paths, toolname);
-    if (!found.empty() || allowNotFound)
+    if (found || allowNotFound)
         return found;
 
     pathHelp(toolname, isaSraTool);
 }
 
 static inline
-std::vector<std::string> load_tool_paths(int n, char const *const *runas, char const *const *real)
+std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char const *const *real)
 {
     auto paths = std::vector<std::string>();
     paths.reserve(PATH.size() + 2);
@@ -177,7 +201,7 @@ std::vector<std::string> load_tool_paths(int n, char const *const *runas, char c
     paths.insert(paths.end(), ".");
     
     auto path = paths.end();
-    auto result = std::vector<std::string>();
+    auto result = std::vector<opt_string>();
     result.reserve(n);
     
     for (auto i = 0; i < n; ++i) {
@@ -186,7 +210,7 @@ std::vector<std::string> load_tool_paths(int n, char const *const *runas, char c
         versioned(&candidates, runas[i]);
         versioned(&candidates, real[i]);
         
-        auto fullpath = std::string();
+        auto fullpath = opt_string();
         
         for (auto j = candidates.crbegin(); j != candidates.crend(); ++j) {
             auto const &name = *j;
@@ -196,13 +220,12 @@ std::vector<std::string> load_tool_paths(int n, char const *const *runas, char c
             else {
                 for (path = paths.begin(); path != paths.end(); ++path) {
                     fullpath = is_exe(name, *path);
-                    if (!fullpath.empty())
+                    if (fullpath)
                         break;
                 }
             }
-            if (fullpath.empty())
-                continue;
-            break;
+            if (fullpath)
+                break;
         }
         result.insert(result.end(), fullpath);
     }
@@ -228,7 +251,7 @@ static void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSr
 
 namespace constants {
 
-std::vector<std::string> load_tool_paths(int n, char const *const *runas, char const *const *real)
+std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char const *const *real)
 {
     return sratools::load_tool_paths(n, runas, real);
 }

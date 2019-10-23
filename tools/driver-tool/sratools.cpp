@@ -398,7 +398,7 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
 
 static void running_as_self [[noreturn]] ()
 {
-    exit(0);
+    exit(EX_USAGE);
 }
 
 static void running_as_sam_dump [[noreturn]] ()

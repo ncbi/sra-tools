@@ -647,7 +647,14 @@ static rc_t names_request_1 (  const request_params * request
         rc = KServiceSetLocation(service, request->location);
         if (rc != 0)
             PLOGERR(klogErr, (klogErr, rc,
-                "Cannot sel location '$(l)'", "l=%s", request->location));
+                "Cannot set location '$(l)'", "l=%s", request->location));
+    }
+
+    if (rc == 0 && request->ngc != NULL) {
+        rc = KServiceSetNgcFile(service, request->ngc);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot set ngc file '$(l)'", "l=%s", request->ngc));
     }
 
     if ( rc == 0 && request -> proto != NULL )

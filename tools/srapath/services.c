@@ -462,6 +462,7 @@ static rc_t names_remote_json ( KService * const service
         unsigned output_count = 0;
         
         OUTMSG(("{\n"));
+        OUTMSG(("\"count\": %u,\n", count));
         get_compute_environment();
         OUTMSG(("\"responses\": [\n"));
         for (i = 0; i < count; ++i) {

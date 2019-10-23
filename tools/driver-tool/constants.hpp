@@ -82,14 +82,15 @@ struct tool_name {
     /// @brief get full path to tool by id
     static char const *path(int const iid)
     {
-        extern std::vector<std::string> load_tool_paths(int n, char const *const *runas, char const *const *real);
+        extern std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char const *const *real);
         extern void pathHelp [[noreturn]] (std::string const &toolname);
 
         static auto const cache = load_tool_paths(END_ENUM, runasNames(), real());
         auto const &result = cache.at(iid);
-        if (result.empty())
-            pathHelp(runas(iid));
-        return result.c_str();
+        if (result)
+            return result.value().c_str();
+        
+        pathHelp(runas(iid));
     }
     
     /// @brief convert id to string

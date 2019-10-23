@@ -72,15 +72,16 @@ static bool ignore(std::string const &key)
 }
 
 Config::Config() {
+    static char const *argv[] = {
+        "vdb-config", "--output=n",
+        NULL
+    };
     auto const toolpath = which("vdb-config");
-    if (!toolpath.empty()) {
+    if (toolpath) {
+        auto const path = toolpath.value();
         int fd = -1;
         auto const child = process::run_child_with_redirected_stdout(&fd, [&]() {
-            char const *argv[] = {
-                "vdb-config", "--output=n",
-                NULL
-            };
-            execve(toolpath.c_str(), argv);
+            execve(path.c_str(), argv);
         });
 
         std::string raw;

@@ -42,13 +42,6 @@
 #include "util.hpp"
 #include "debug.hpp"
 
-#if __cplusplus < 201703L
-// [[fallthrough]] is not available; cook one up
-#define FALLTHROUGH ((void)0)
-#else
-#define FALLTHROUGH [[fallthrough]]
-#endif
-
 namespace sratools {
 
 static bool ignore(std::string const &key)

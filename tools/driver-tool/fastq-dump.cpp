@@ -161,6 +161,9 @@ void running_as_fastq_dump [[noreturn]] () {
     ArgsList accessions;
     
     if (parse_fastq_dump_args(params, accessions)) {
+        if (ngc) {
+            params.push_back({"--ngc", *ngc});
+        }
         processAccessions(toolname, toolpath
                           , nullptr, ".fastq"
                           , params, accessions);

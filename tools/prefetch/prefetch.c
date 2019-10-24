@@ -618,11 +618,21 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if (rc == 0 && item->mane->location != NULL)
         rc = KServiceSetLocation(service, item->mane->location);
 
-    if (rc == 0 && item->mane->jwtCart != NULL)
+    if (rc == 0 && item->mane->jwtCart != NULL) {
         rc = KServiceSetJwtKartFile(service, item->mane->jwtCart);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "cannot use '$(perm)' as jwt cart file",
+                "perm=%s", item->mane->jwtCart));
+    }
 
-    if (rc == 0 && item->mane->ngc != NULL)
+    if (rc == 0 && item->mane->ngc != NULL) {
         rc = KServiceSetNgcFile(service, item->mane->ngc);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "cannot use '$(ngc)' as ngc file",
+                "ngc=%s", item->mane->ngc));
+    }
 
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,

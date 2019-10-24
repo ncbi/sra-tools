@@ -108,16 +108,16 @@ static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
         auto &arg = args->at(i);
         
         if (nextIsParamArg) {
-            assert(params.size() > 0);
+            nextIsParamArg = 0;
             if (nextIsParamArg > 1 && arg[0] == '-') {
                 // it was an optional argument
             }
             else {
+                assert(params.size() > 0);
                 params.back().second = arg;
                 continue;
             }
         }
-        nextIsParamArg = 0;
         
         if (arg.empty()) continue;
         if (!(arg[0] == '-')) {
@@ -144,12 +144,12 @@ static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
             return false;
         }
         
+        params.push_back({param, opt_string()});
+
         auto const iter = hasArgs.find(param);
-        if (iter == hasArgs.end()) {
-            params.push_back({param, opt_string()});
-            continue;
+        if (iter != hasArgs.end()) {
+            nextIsParamArg = (iter->second == "0") ? 2 : 1;
         }
-        nextIsParamArg = (iter->second == "0") ? 2 : 1;
     }
     return true;
 }

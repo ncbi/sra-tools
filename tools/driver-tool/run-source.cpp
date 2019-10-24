@@ -95,7 +95,7 @@ static std::string run_srapath(std::string const run)
         
         assert(i != argend && *i == NULL);
         if (perm) {
-            *i++ = "--cart";
+            *i++ = "--perm";
             assert(i != argend && *i == NULL);
             *i++ = perm->c_str();
         }

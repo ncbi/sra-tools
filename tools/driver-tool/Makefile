@@ -22,66 +22,75 @@
 #
 # ===========================================================================
 
-by_default: default
 
-TOP ?= $(abspath ..)
-MODULE = tools
+default: std
 
-include $(TOP)/build/Makefile.shell
+TOP ?= $(abspath ../..)
+MODULE = tools/driver-tool
 
-include $(TOP)/build/Makefile.config
+INT_TOOLS =
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =             \
-	driver-tool       \
-	util              \
-	align-cache       \
-	kar               \
-	kqsh              \
-	vdb-dump          \
-	sra-dump          \
-	sra-pileup        \
-	bam-loader        \
-	fastq-loader      \
-	srapath           \
-	sra-stat          \
-	vdb-copy          \
-	rd-filter-redact  \
-	vdb-config        \
-	align-info        \
-	qual-recalib-stat \
-	prefetch          \
-	vdb-decrypt       \
-	vdb-validate      \
-	sra-sort          \
-	cache-mgr         \
-	vcf-loader        \
-	copycat           \
-	fasterq-dump      \
-	sra-load          \
-	ccextract         \
-	pacbio-load       \
-	fuse              \
-	vdb-diff          \
-	kget              \
-	ngs-pileup        \
-	vdb-sql           \
-	cg-load           \
+EXT_TOOLS = \
+	sratools
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+include $(TOP)/build/Makefile.env
+JSON_DIR = $(SRCDIR)/json
 
-.PHONY: default $(SUBDIRS)
+CPFLAGS += -std=c++11
+CPFLAGS += -I$(SRCDIR)/inc
 
 #-------------------------------------------------------------------------------
-# pass-through
+# outer targets
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+ifeq (win,$(OS))
+all std:
+	@ echo "not building sratools under Windows"
+else
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
+endif
 
-.PHONY: out debug profile release GCC ICC VC++
+$(ALL_TOOLS): makedirs
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+	@ $(MAKE) -C $(JSON_DIR) clean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# sratools
+#
+
+$(ILIBDIR)/libjson.$(LIBX):
+	$(MAKE) -C $(JSON_DIR)
+
+SRATOOLS_SRC = \
+	sratools \
+	split_path \
+	config \
+	proc \
+	which \
+	tool-args \
+	parse_args \
+	run-source \
+	fastq-dump
+
+SRATOOLS_OBJ = \
+	$(addsuffix .$(OBJX),$(SRATOOLS_SRC))
+
+SRATOOLS_LIB = \
+	-sjson \
+	-lm
+
+$(BINDIR)/sratools: $(SRATOOLS_OBJ) $(ILIBDIR)/libjson.$(LIBX)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRATOOLS_LIB)

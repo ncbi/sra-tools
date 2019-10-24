@@ -22,66 +22,85 @@
 #
 # ===========================================================================
 
-by_default: default
 
-TOP ?= $(abspath ..)
-MODULE = tools
+default: std
 
-include $(TOP)/build/Makefile.shell
+TOP ?= $(abspath ../../..)
+MODULE = tools/driver-tool/secure
 
-include $(TOP)/build/Makefile.config
+INT_LIBS = \
+	libsecure
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =             \
-	driver-tool       \
-	util              \
-	align-cache       \
-	kar               \
-	kqsh              \
-	vdb-dump          \
-	sra-dump          \
-	sra-pileup        \
-	bam-loader        \
-	fastq-loader      \
-	srapath           \
-	sra-stat          \
-	vdb-copy          \
-	rd-filter-redact  \
-	vdb-config        \
-	align-info        \
-	qual-recalib-stat \
-	prefetch          \
-	vdb-decrypt       \
-	vdb-validate      \
-	sra-sort          \
-	cache-mgr         \
-	vcf-loader        \
-	copycat           \
-	fasterq-dump      \
-	sra-load          \
-	ccextract         \
-	pacbio-load       \
-	fuse              \
-	vdb-diff          \
-	kget              \
-	ngs-pileup        \
-	vdb-sql           \
-	cg-load           \
+ALL_LIBS = \
+	$(INT_LIBS) \
+	$(EXT_LIBS)
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
+include $(TOP)/build/Makefile.env
+CPFLAGS += -std=c++11
+CPFLAGS += -I$(SRCDIR)/../inc
 
 #-------------------------------------------------------------------------------
-# pass-through
+# outer targets
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+ifeq (win,$(OS))
+all std:
+	@ echo "not building secure under Windows"
+else
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-.PHONY: out debug profile release GCC ICC VC++
+$(INT_LIBS): makedirs
+	@ $(MAKE_CMD) $(ILIBDIR)/$@
+
+endif
+
+.PHONY: all std $(ALL_LIBS)
+
+#-------------------------------------------------------------------------------
+# std
+#
+$(TARGDIR)/std: \
+	$(addprefix $(ILIBDIR)/,$(INT_LIBS)) \
+	$(addprefix $(LIBDIR)/,$(EXT_LIBS)) \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(ILIBDIR)/,$(INT_LIBS)) \
+	$(addprefix $(LIBDIR)/,$(EXT_LIBS)) \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# secure
+#
+$(ILIBDIR)/libsecure: $(ILIBDIR)/libsecure.$(LIBX)
+
+SECURE_SRC = \
+	busy \
+	payload \
+	base64 \
+	except \
+	string \
+	atoi \
+	memset_s
+
+SECURE_OBJ = \
+	$(addsuffix .$(LOBX),$(SECURE_SRC))
+
+SECURE_LIB = \
+
+$(ILIBDIR)/libsecure.$(LIBX): $(SECURE_OBJ)
+	$(LP) --slib -o $@ $^ $(SECURE_LIB)

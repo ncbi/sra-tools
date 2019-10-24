@@ -664,6 +664,7 @@ static const SRADumperFmt_Arg KMainArgs[] =
     { "A",   "accession",        "accession",   { "Replaces accession derived from <path> in filename(s) and deflines (only for single table dump)", NULL } },
     { "O",   "outdir",           "path",        { "Output directory, default is working directory ( '.' )", NULL } },
     { "Z",   "stdout",           NULL,          { "Output to stdout, all split data become joined into single stream", NULL } },
+    { NULL,  "ngc",              "path",       { "<path> to ngc file", NULL } },
     { NULL, "gzip",              NULL,         { "Compress output using gzip: deprecated, not recommended", NULL } },
     { NULL, "bzip2",             NULL,         { "Compress output using bzip2: deprecated, not recommended", NULL } },
     { "N",   "minSpotId",        "rowid",       { "Minimum spot id", NULL } },
@@ -1123,6 +1124,9 @@ rc_t CC KMain ( int argc, char* argv[] )
         else if ( SRADumper_GetArg( &fmt, "Z", "stdout", &i, argc, argv, NULL ) )
         {
             to_stdout = true;
+        }
+        else if (SRADumper_GetArg(&fmt, NULL, "ngc", &i, argc, argv, &arg)) {
+            KConfigSetNgcFile(arg);
         }
         else if ( fmt.gzip && SRADumper_GetArg( &fmt, NULL, "gzip", &i, argc, argv, NULL ) )
         {

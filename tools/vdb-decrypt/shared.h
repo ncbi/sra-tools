@@ -35,8 +35,11 @@
 
 #define OPTION_FORCE   "force"
 #define OPTION_DEC_SRA "decrypt-sra-files"
+#define OPTION_NGC     "ngc"
+
 #define ALIAS_FORCE    "f"
 #define ALIAS_DEC_SRA  NULL
+#define ALIAS_NGC      NULL
 
 extern const bool Decrypting;
 
@@ -50,6 +53,7 @@ extern const char SraOption[];
 extern const char EncExt[];
 bool NameFixUp (char * name);
 extern const char * ForceUsage[];
+extern const char * NgcUsage[];
 
 /* for encfile encrypt/decrypt */
 extern KKey Key;

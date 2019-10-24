@@ -168,6 +168,8 @@ typedef struct {
 
     VResolver *resolver;
 
+    const KSrvResponse * response;
+    uint32_t respObjIdx;
     KSrvRespObjIterator * respIt;
     KSrvRespFile * respFile;
 } Resolved;
@@ -228,6 +230,7 @@ typedef struct {
     const char * orderOrOutFile; /* do not free! */
     const char * fileType;  /* do not free! */
     const char * ngc;  /* do not free! */
+    const char * jwtCart;  /* do not free! */
 
 #if _DEBUGGING
     const char *textkart;
@@ -244,6 +247,8 @@ typedef struct {
     const char *textkart;
 #endif
 
+    const char *jwtCart;
+
     Resolved resolved;
     int number;
     
@@ -257,6 +262,7 @@ typedef struct {
     bool done;
     Kart *kart;
     bool isKart;
+    const char *jwtCart;
 } Iterator;
 typedef struct {
     BSTNode n;
@@ -565,7 +571,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
     uint32_t l = 0;
     const char * id = item -> desc;
     KService * service = NULL;
-    const KSrvResponse * response = NULL;
     const KSrvRespObj * obj = NULL;
     KSrvRespObjIterator * it = NULL;
     KSrvRespFile * file = NULL;
@@ -602,7 +607,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
             rc_t r = VResolverGetProject ( self, & project );
             if ( r == 0 && project != 0 )
                 rc = KServiceAddProject ( service, project );
-            if ( rc == 0 )
+            if ( rc == 0 && item -> jwtCart == NULL)
                 rc = KServiceAddId ( service, id );
         }
     }
@@ -613,18 +618,31 @@ static rc_t V_ResolverRemote(const VResolver *self,
     if (rc == 0 && item->mane->location != NULL)
         rc = KServiceSetLocation(service, item->mane->location);
 
-    if (rc == 0 && item->mane->ngc != NULL)
+    if (rc == 0 && item->mane->jwtCart != NULL) {
+        rc = KServiceSetJwtKartFile(service, item->mane->jwtCart);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "cannot use '$(perm)' as jwt cart file",
+                "perm=%s", item->mane->jwtCart));
+    }
+
+    if (rc == 0 && item->mane->ngc != NULL) {
         rc = KServiceSetNgcFile(service, item->mane->ngc);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "cannot use '$(ngc)' as ngc file",
+                "ngc=%s", item->mane->ngc));
+    }
 
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
-            NULL, odir, ofile, & response );
+            NULL, odir, ofile, &resolved->response );
 
     if ( rc == 0 )
-        l = KSrvResponseLength  ( response );
+        l = KSrvResponseLength  (resolved->response );
 
     if ( rc == 0 && l > 0 )
-        rc = KSrvResponseGetObjByIdx ( response, 0, & obj );
+        rc = KSrvResponseGetObjByIdx (resolved->response, 0, & obj );
     if ( rc == 0 && l > 0 )
         rc = KSrvRespObjMakeIterator ( obj, & it );
     if (rc == 0 && l > 0) {
@@ -719,7 +737,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
         }
     }
     RELEASE ( KSrvRespObj, obj );
-    RELEASE ( KSrvResponse, response );
     RELEASE ( KService, service );
     return rc;
 }
@@ -1028,6 +1045,7 @@ static rc_t ResolvedFini(Resolved *self) {
 
     RELEASE(String, self->cache);
 
+    RELEASE(KSrvResponse, self->response);
     RELEASE(KSrvRespObjIterator, self->respIt);
     RELEASE(KSrvRespFile, self->respFile);
 
@@ -1922,9 +1940,10 @@ static rc_t ItemInit(Item *self, const char *obj) {
 static char* ItemName(const Item *self) {
     char *c = NULL;
     assert(self);
-    if (self->desc != NULL) {
+    if (self->desc != NULL)
         return string_dup_measure(self->desc, NULL);
-    }
+    else if (self->jwtCart != NULL)
+        return string_dup_measure(self->jwtCart, NULL);
     else {
         rc_t rc = 0;
         const String *elem = NULL;
@@ -2154,6 +2173,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             }
         }
     }
+    else if (item->jwtCart != NULL);
     else {
         rc = KartItemProjIdNumber(item->item, &resolved->project);
         if (rc != 0) {
@@ -2293,10 +2313,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 if (rc3 != 0)
                     DISP_RC2(rc3, "cannot get remote file size",
                         remote -> str->addr);
-                else if (resolved->remoteSz >= maxSize)
-                    return rc;
-                else if (resolved->remoteSz < minSize)
-                    return rc;
+                else if (item->jwtCart == NULL) {
+                    if (resolved->remoteSz >= maxSize)
+                        return rc;
+                    else if (resolved->remoteSz < minSize)
+                        return rc;
+                }
             }
         }
     }
@@ -2350,6 +2372,8 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
             if (type == kptFile)
                 local = true;
             else if (type == kptDir) {
+                /* directory is ignored */
+#if 0
                 KNamelist * list = NULL;
                 rc = KDirectoryList(dir, &list, NULL, NULL, "%s", self->desc);
                 if (rc == 0) {
@@ -2359,6 +2383,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                         local = true;
                 }
                 RELEASE(KNamelist, list);
+#endif
             }
 
             if (local) {
@@ -2397,13 +2422,15 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         remote = & resolved -> remoteFasp;
 
     if (rc == 0) {
-        if (resolved->remoteSz >= self->mane-> maxSize) {
-            resolved->oversized = true;
-            return rc;
-        }
-        if (resolved->remoteSz < self->mane-> minSize) {
-            resolved->undersized = true;
-            return rc;
+        if (self->jwtCart == NULL) {
+            if (resolved->remoteSz >= self->mane->maxSize) {
+                resolved->oversized = true;
+                return rc;
+            }
+            if (resolved->remoteSz < self->mane->minSize) {
+                resolved->undersized = true;
+                return rc;
+            }
         }
 
         if (resolved->local.str == NULL
@@ -2548,9 +2575,14 @@ static rc_t ItemDownload(Item *item) {
     int n = 0;
     rc_t rc = 0;
     Resolved *self = NULL;
+    const char * name = NULL;
+
     assert(item && item->mane);
+
     n = item->number;
     self = &item->resolved;
+    name = self->name;
+
     assert(self->type);
 
     if (rc == 0) {
@@ -2564,10 +2596,14 @@ static rc_t ItemDownload(Item *item) {
             rc_t r = KSrvRespFileGetSize(self->respFile, & sz);
             if (r == 0) {
                 oversized = sz >= item->mane->maxSize;
-                self->oversized = oversized;
                 undersized = sz < item->mane->minSize;
-                self->undersized = undersized;
+                if (item->jwtCart == NULL) {
+                    self->oversized = oversized;
+                    self->undersized = undersized;
+                }
             }
+
+            r = KSrvRespFileGetName(self->respFile, &name);
 
             r = KSrvRespFileGetLocal(self->respFile, & local);
             if (r == 0)
@@ -2580,13 +2616,15 @@ static rc_t ItemDownload(Item *item) {
         if (undersized) {
             STSMSG(STS_TOP,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
-                n, self->name, self->remoteSz / 1024));
+                n, name, sz / 1024));
             skip = true;
+            item->mane->undersized = true;
         }
         else if (oversized) {
             logMaxSize(item->mane->maxSize);
-            logBigFile(n, self->name, self->remoteSz);
+            logBigFile(n, name, sz);
             skip = true;
+            item->mane->oversized = true;
         }
 
         rc = ResolvedLocal(self, item->mane, &isLocal,
@@ -2617,10 +2655,10 @@ static rc_t ItemDownload(Item *item) {
                 if ( sep != NULL )
                     start = sep + 1;
                 STSMSG(STS_TOP, ("%d) '%s' is found locally (%.*s)",
-                    n, self->name, ( uint32_t ) ( end - start ), start));
+                    n, name, ( uint32_t ) ( end - start ), start));
             }
             else
-                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, self->name));
+                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, name));
             if (self->local.str != NULL) {
                 VPathStrFini(&self->path);
                 rc = StringCopy(&self->path.str, self->local.str);
@@ -2630,7 +2668,7 @@ static rc_t ItemDownload(Item *item) {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);
             PLOGERR(klogErr, (klogErr, rc,
                 "cannot download '$(name)' using requested transport",
-                "name=%s", self->name));
+                "name=%s", name));
         }
         else {
             bool notFound = false;
@@ -2800,6 +2838,21 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
             if (r1 != 0 && rc == 0) {
                 rc = r1;
                 break;
+            }
+            if (self->resolved.respFile == NULL) {
+                uint32_t l = KSrvResponseLength(self->resolved.response);
+                if (++self->resolved.respObjIdx < l) {
+                    const KSrvRespObj * obj = NULL;
+                    rc = KSrvResponseGetObjByIdx(self->resolved.response,
+                        self->resolved.respObjIdx, &obj);
+                    if (rc == 0)
+                        rc = KSrvRespObjMakeIterator(
+                            obj, &self->resolved.respIt);
+                    if (rc == 0)
+                        rc = KSrvRespObjIteratorNextFile(
+                            self->resolved.respIt, &self->resolved.respFile);
+                    RELEASE(KSrvRespObj, obj);
+                }
             }
         } while (self->resolved.respFile != NULL);
     }
@@ -3323,6 +3376,17 @@ rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
     }
 #endif
 
+    if (obj == NULL && mane->jwtCart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->jwtCart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->jwtCart);
+        }
+        else
+            self->jwtCart = mane->jwtCart;
+        return rc;
+    }
+
     assert(obj);
     type = KDirectoryPathType(mane->dir, "%s", obj);
     if ((type & ~kptAlias) == kptFile) {
@@ -3381,9 +3445,12 @@ static rc_t IteratorNext(Iterator *self, Item **next, bool *done) {
             self->done = true;
         }
     }
+    else if (self->jwtCart != NULL) {
+        (*next)->jwtCart = self->jwtCart;
+        self->done = true;
+    }
     else {
         rc = ItemInit(*next, self->obj);
-
         self->done = true;
     }
 
@@ -3542,6 +3609,9 @@ static const char* STRIP_QUALS_USAGE[] =
 static const char* ELIM_QUALS_USAGE[] =
 { "Don't download QUALITY column", NULL };
 
+#define CART_OPTION "perm"
+static const char* CART_USAGE[] = { "PATH to jwt cart file", NULL };
+
 #define NGC_OPTION "ngc"
 #define NGC_ALIAS  NULL
 static const char* NGC_USAGE[] = { "PATH to ngc file", NULL };
@@ -3569,6 +3639,7 @@ static OptDef OPTIONS[] = {
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
 ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
 ,{ NGC_OPTION         , NULL              , NULL, NGC_USAGE   , 1, true ,false }
 #if _DEBUGGING
 ,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
@@ -4070,6 +4141,28 @@ option_name = TYPE_OPTION;
             }
         }
 
+/* CART_OPTION */
+        {
+            rc = ArgsOptionCount(self->args, CART_OPTION, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" CART_OPTION "' argument");
+                break;
+            }
+
+            if (pcount > 0) {
+                const char *val = NULL;
+                rc = ArgsOptionValue(self->args, CART_OPTION,
+                    0, (const void **)&val);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" CART_OPTION "' argument value");
+                    break;
+                }
+                self->jwtCart = val;
+            }
+        }
+
 #if _DEBUGGING
 /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
@@ -4172,8 +4265,11 @@ rc_t CC Usage(const Args *args) {
         }
         else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
             param = "value";
-        else if (strcmp(opt->name, NGC_OPTION) == 0)
+        else if (strcmp(opt->name, NGC_OPTION) == 0
+            || strcmp(opt->name, CART_OPTION) == 0)
+        {
             param = "PATH";
+        }
         else if (strcmp(opt->name, OUT_FILE_OPTION) == 0) {
             param = "FILE";
             alias = OUT_FILE_ALIAS;
@@ -4451,6 +4547,8 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
                         OUTMSG(("Checking sizes of kart files...\n"));
                     }
                 }
+                else if (self->jwtCart != NULL)
+                    OUTMSG(("Downloading jwt cart file '%s'\n", self->jwtCart));
                 OUTMSG(("\n"));
             }
 
@@ -4580,9 +4678,11 @@ rc_t CC KMain(int argc, char *argv[]) {
         rc = ArgsParamCount(pars.args, &pcount);
     }
     if (rc == 0 && pcount == 0) {
+        if (pars.jwtCart == NULL
 #if _DEBUGGING
-        if (!pars.textkart)
+            && pars.textkart == NULL
 #endif
+            )
         {
           rc = UsageSummary(UsageDefaultName);
           insufficient = true;
@@ -4592,6 +4692,10 @@ rc_t CC KMain(int argc, char *argv[]) {
     if (rc == 0) {
         bool multiErrorReported = false;
         uint32_t i = ~0;
+
+        if (pars.jwtCart != NULL) {
+            rc = MainRun(&pars, NULL, pars.jwtCart, 1, &multiErrorReported);
+        }
 
 #if _DEBUGGING
         if (pars.textkart) {

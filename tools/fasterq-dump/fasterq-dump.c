@@ -37,6 +37,9 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <klib/out.h>
 #include <klib/printf.h>
 #include <search/grep.h>
@@ -157,6 +160,9 @@ static const char * append_usage[] = { "append to output-file", NULL };
 #define OPTION_APPEND   "append"
 #define ALIAS_APPEND    "A"
 
+static const char * ngc_usage[] = { "PATH to ngc file", NULL };
+#define OPTION_NGC   "ngc"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -186,7 +192,8 @@ OptDef ToolOptions[] =
     { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
     { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
-    { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false }    
+    { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false },
+    { OPTION_NGC,       NULL,            NULL, ngc_usage, 1, true,  false },
 };
 
 const char UsageDefaultName[] = "fasterq-dump";
@@ -218,8 +225,19 @@ rc_t CC Usage ( const Args * args )
 
     KOutMsg( "Options:\n" );
     for ( idx = 1; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
-        HelpOptionLine( ToolOptions[ idx ] . aliases, ToolOptions[ idx ] . name, NULL, ToolOptions[ idx ] . help );
+    {
+        const OptDef * opt = &ToolOptions[idx];
+
+        const char * param = NULL;
+
+        assert(opt);
+        if (strcmp(opt->name, OPTION_NGC) == 0)
+            param = "PATH";
+
+        HelpOptionLine(opt->aliases, opt->name, param, opt->help);
+    }
     
+    KOutMsg("\n");
     HelpOptionsStandard();
     HelpVersion( fullpath, KAppVersion() );
     return rc;
@@ -363,6 +381,12 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> stdout = get_bool_option( args, OPTION_STDOUT );
+
+    {
+        const char * ngc = get_str_option(args, OPTION_NGC, NULL);
+        if (ngc != NULL)
+            KConfigSetNgcFile(ngc);
+    }
 }
 
 #define DFLT_MAX_FD 32

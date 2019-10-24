@@ -68,7 +68,7 @@ bool hasParamValue(ParamList::value_type::first_type const &param, ParamList con
 /// @param current the current item
 /// @param end the end, e.g. args.end()
 ///
-/// @returns if found, tuple<true, this is the value, the next item to resume at>. if not found, tuple<false, "", current>
+/// @returns if found, tuple<true, this is the value, the next item to resume at>. if not found, tuple<false, ???, ???>
 extern
 std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, ArgsList::iterator current, ArgsList::iterator end);
 

@@ -501,7 +501,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 
     auto s_args = loadArgv(argc, argv);
     
-    // extract and remove --location from args
+    // get --location, --perm, --ngc from args (and remove)
     for (auto i = s_args.begin(); i != s_args.end(); ) {
         bool found;
         std::string value;

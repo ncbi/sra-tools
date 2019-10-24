@@ -462,6 +462,7 @@ static rc_t names_remote_json ( KService * const service
         unsigned output_count = 0;
         
         OUTMSG(("{\n"));
+        OUTMSG(("\"count\": %u,\n", count));
         get_compute_environment();
         OUTMSG(("\"responses\": [\n"));
         for (i = 0; i < count; ++i) {
@@ -651,7 +652,14 @@ static rc_t names_request_1 (  const request_params * request
         rc = KServiceSetLocation(service, request->location);
         if (rc != 0)
             PLOGERR(klogErr, (klogErr, rc,
-                "Cannot sel location '$(l)'", "l=%s", request->location));
+                "Cannot set location '$(l)'", "l=%s", request->location));
+    }
+
+    if (rc == 0 && request->ngc != NULL) {
+        rc = KServiceSetNgcFile(service, request->ngc);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot set ngc file '$(l)'", "l=%s", request->ngc));
     }
 
     if ( rc == 0 && request -> proto != NULL )

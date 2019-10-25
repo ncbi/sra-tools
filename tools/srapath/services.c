@@ -465,39 +465,58 @@ static rc_t names_remote_json ( KService * const service
         get_compute_environment();
         OUTMSG(("\"responses\": [\n"));
         for (i = 0; i < count; ++i) {
-            KSrvRespObj const *obj = NULL;
             KSrvRespObjIterator *iter = NULL;
             uint32_t fileCount = 0;
             char const *acc = NULL;
             uint32_t id = 0;
-            
-            INFALLIBLE(KSrvResponseGetObjByIdx(response, i, &obj));
-            INFALLIBLE(KSrvRespObjGetAccOrId(obj, &acc, &id));
-            INFALLIBLE(KSrvRespObjGetFileCount(obj, &fileCount));
-            if (fileCount > 0) {
-                INFALLIBLE(KSrvRespObjMakeIterator(obj, &iter));
-                
-                for ( ; ; ) { /* iterate files */
-                    KSrvRespFile *file = NULL;
+            KSrvError const *error;
+            VPath const *dummy1;
+            VPath const *dummy2;
+            rc_t err_rc = 0;
+
+            INFALLIBLE(KSrvResponseGetPath(response, i, protocols, &dummy1, &dummy2, &error));
+            VPathRelease(dummy1);
+            VPathRelease(dummy2);
+            if (error == NULL) {
+                KSrvRespObj const *obj = NULL;
+
+                INFALLIBLE(KSrvResponseGetObjByIdx(response, i, &obj));
+                INFALLIBLE(KSrvRespObjGetAccOrId(obj, &acc, &id));
+                INFALLIBLE(KSrvRespObjGetFileCount(obj, &fileCount));
+                if (fileCount > 0) {
+                    INFALLIBLE(KSrvRespObjMakeIterator(obj, &iter));
                     
-                    INFALLIBLE(KSrvRespObjIteratorNextFile(iter, &file));
-                    if (file == NULL) /* done iterating */
-                        break;
-                    output_count = json_print_response_file(file, acc, id, output_count);
-                    RELEASE(KSrvRespFile, file);
+                    for ( ; ; ) { /* iterate files */
+                        KSrvRespFile *file = NULL;
+                        
+                        INFALLIBLE(KSrvRespObjIteratorNextFile(iter, &file));
+                        if (file == NULL) /* done iterating */
+                            break;
+                        output_count = json_print_response_file(file, acc, id, output_count);
+                        RELEASE(KSrvRespFile, file);
+                    }
+                    RELEASE(KSrvRespObjIterator, iter);
                 }
-                RELEASE(KSrvRespObjIterator, iter);
+                else {
+                    char const *err_msg = NULL;
+                    int64_t err_code = 0;
+                    INFALLIBLE(KSrvRespObjGetError(obj, &err_rc, &err_code, &err_msg));
+                    OUTMSG(("%.*s{\"accession\": %s, \"error\": \"%03u\", \"message\": \"%s\"}", count == 0 ? 0 : 2, ",\n", acc, (unsigned)err_code, err_msg));
+                    output_count += 1;
+                }
+                RELEASE(KSrvRespObj, obj);
             }
             else {
-                rc_t err_rc = 0;
-                int64_t err_code = 0;
-                char const *err_msg = NULL;
-
-                INFALLIBLE(KSrvRespObjGetError(obj, &err_rc, &err_code, &err_msg));
-                OUTMSG(("%.*s{\"accession\": %s, \"error\": \"%03u\", \"message\": \"%s\"}", count == 0 ? 0 : 2, ",\n", acc, (unsigned)err_code, err_msg));
+                String err_msg;
+                uint32_t err_code = 0;
+                
+                INFALLIBLE(KSrvErrorRc(error, &err_rc));
+                INFALLIBLE(KSrvErrorCode(error, &err_code));
+                INFALLIBLE(KSrvErrorMessage(error, &err_msg));
+                OUTMSG(("%.*s{\"accession\": %s, \"error\": \"%03u\", \"message\": \"%S\"}", count == 0 ? 0 : 2, ",\n", acc, (unsigned)err_code, &err_msg));
                 output_count += 1;
+                RELEASE(KSrvError, error);
             }
-            RELEASE(KSrvRespObj, obj);
         }
         output_count = json_print_response_file(NULL, NULL, 0, output_count);
         OUTMSG(("]}\n"));

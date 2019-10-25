@@ -34,6 +34,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <utility>
 #include <iostream>
 
 #include <cstdlib>
@@ -49,6 +50,18 @@
 #include "constants.hpp"
 
 #include "fastq-dump.hpp"
+
+#if __cplusplus >= 201403L
+#define exchange std::exchange
+#else
+template <class T, class U = T>
+static inline T exchange(T &obj, U &&new_value)
+{
+    auto const old_value = std::move(obj);
+    obj = std::move(new_value);
+    return old_value;
+}
+#endif
 
 namespace sratools {
 
@@ -106,21 +119,21 @@ static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
     
     for (decltype(args->size()) i = 0; i < args->size(); ++i) {
         auto &arg = args->at(i);
-        
-        if (nextIsParamArg) {
-            nextIsParamArg = 0;
-            if (nextIsParamArg > 1 && arg[0] == '-') {
-                // it was an optional argument
-            }
-            else {
+        auto const maybeParam = arg.size() > 0 && arg[0] == '-';
+        auto const isArgOrAcc = arg.size() > 0 && arg[0] != '-';
+
+        switch (exchange(nextIsParamArg, 0)) {
+            case 2:
+                if (maybeParam)
+                    break;
+            case 1:
                 assert(params.size() > 0);
                 params.back().second = arg;
                 continue;
-            }
+            default:
+                break;
         }
-        
-        if (arg.empty()) continue;
-        if (!(arg[0] == '-')) {
+        if (isArgOrAcc) {
             accessions.push_back(arg);
             continue;
         }

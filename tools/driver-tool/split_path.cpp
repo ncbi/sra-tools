@@ -40,21 +40,12 @@
 std::string split_basename(std::string *const path)
 {
     auto result = std::string();
-    auto i = path->begin();
-    auto last = path->end();
-    auto const end = last;
-    
-    while (i != end) {
-        if (*i == '/') last = i;
-        ++i;
-    }
-    if (last == end) {
-        path->swap(result); // result = *path; *path = "";
-    }
+    auto const at = path->find_last_of('/');
+    if (at == std::string::npos)
+        path->swap(result);
     else {
-        auto const save = last++;
-        result = std::string(last, end);    // NB: might be empty
-        path->erase(save, end);             // NB: might be whole string
+        result.assign(path->substr(at + 1));
+        path->assign(path->substr(0, at));
     }
     return result;
 }

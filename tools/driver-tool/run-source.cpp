@@ -224,8 +224,8 @@ struct raw_response {
         std::string message;
         error(std::string const &accession, std::string const &error, std::string const &message)
         : accession(accession)
-        , message(message)
         , code(error)
+        , message(message)
         {
         }
     };

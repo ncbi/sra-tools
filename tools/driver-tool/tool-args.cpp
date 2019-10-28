@@ -125,7 +125,6 @@ ArgsInfo infoFor(int toolID)
                     { "--min-read-len", "TRUE" },
                     { "--outdir", "TRUE" },
                     { "--outfile", "TRUE" },
-                    { "--stdout", "TRUE" },
                     { "--temp", "TRUE" },
                     { "--threads", "TRUE" },
                 }

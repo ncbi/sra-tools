@@ -101,8 +101,11 @@ struct process {
         }
         
         /// @brief did child exit(0)
-        operator bool() const {
+        bool normal() const {
             return exited() && exit_code() == 0;
+        }
+        operator bool() const {
+            return normal();
         }
 
         exit_status(exit_status const &other) : value(other.value) {}

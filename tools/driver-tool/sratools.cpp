@@ -488,7 +488,9 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
     std::string s_selfpath(cargv0)
               , s_basename(split_basename(&s_selfpath))
               , s_version(split_version(&s_basename));
-    std::string s_location, s_perm, s_ngc;
+    std::string s_location;
+    std::string s_perm;
+    std::string s_ngc;
     
     // setup const globals
     argv0 = &s_argv0;

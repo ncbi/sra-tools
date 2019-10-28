@@ -910,6 +910,7 @@ RUNNING_AS_FASTQ_DUMP:
         '--offset' => TRUE,
         '--defline-seq' => TRUE,
         '--defline-qual' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
         '--dumpcs' => 0, # argument not required
@@ -964,6 +965,7 @@ RUNNING_AS_FASTERQ_DUMP:
         '--temp' => TRUE,
         '--threads' => TRUE,
         '--min-read-len'=> TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1013,6 +1015,7 @@ RUNNING_AS_SAM_DUMP:
         '--min-mapq' => TRUE,
         '--rna-splice-level' => TRUE,
         '--rna-splice-log' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1069,6 +1072,7 @@ RUNNING_AS_PREFETCH:
         '--ascp-options' => TRUE,
         '--output-file' => TRUE,
         '--output-directory' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1115,6 +1119,7 @@ RUNNING_AS_SRAPATH:
         '--url' => TRUE,
         '--param' => TRUE,
         '--perm' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1158,6 +1163,7 @@ RUNNING_AS_SRA_PILEUP:
         '--minmismatch' => TRUE,
         '--merge-dist' => TRUE,
         '--function' => TRUE,        
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );

@@ -145,7 +145,6 @@ static rc_t vdb_dump_hex_ascii( p_dump_str s, const p_dump_src src,
         uint32_t i, dst = 0;
         for ( i = 0; i < src->number_of_elements && rc == 0; ++i )
             rc = vdb_dump_hex_char( tmp, &dst, src_ptr[ i ] );
-        src_ptr[ dst ] = 0;
         if ( rc == 0 )
             rc = vds_append_fmt( s, dst, "%.*s", dst, tmp );
         free( tmp );

@@ -493,7 +493,7 @@ static rc_t names_remote_json ( KService * const service
                 int64_t err_code = 0;
                 rc_t err_rc = 0;
                 INFALLIBLE(KSrvRespObjGetError(obj, &err_rc, &err_code, &err_msg));
-                OUTMSG(("%.*s{\"accession\": %s, \"error\": \"%03u\", \"message\": \"%s\"}", count == 0 ? 0 : 2, ",\n", acc, (unsigned)err_code, err_msg));
+                OUTMSG(("%.*s{\"accession\": \"%s\", \"error\": \"%03u\", \"message\": \"%s\"}", count == 0 ? 0 : 2, ",\n", acc, (unsigned)err_code, err_msg));
                 output_count += 1;
             }
             RELEASE(KSrvRespObj, obj);

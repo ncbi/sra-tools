@@ -102,6 +102,7 @@ ArgsInfo infoFor(int toolID)
                     { "-P", "--print-read-nr" },
                     { "-S", "--split-files" },
                     { "-V", "--version" },
+                    { "-Z", "--stdout" },
                     { "-b", "--bufsize" },
                     { "-c", "--curcache" },
                     { "-e", "--threads" },
@@ -124,6 +125,7 @@ ArgsInfo infoFor(int toolID)
                     { "--min-read-len", "TRUE" },
                     { "--outdir", "TRUE" },
                     { "--outfile", "TRUE" },
+                    { "--stdout", "TRUE" },
                     { "--temp", "TRUE" },
                     { "--threads", "TRUE" },
                 }

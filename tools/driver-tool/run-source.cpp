@@ -63,6 +63,7 @@ static std::string run_srapath(std::string const run)
     auto const url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
     enum {
         TOOL_NAME,
+        LOG_LEVEL, LOG_LEVEL_VALUE,
         FUNCTION_PARAM, FUNCTION_VALUE,
         JSON_PARAM,
         VERSION_PARAM, VERSION_VALUE,
@@ -71,6 +72,7 @@ static std::string run_srapath(std::string const run)
     };
     char const *argv[] = {
         tool_name::real(tool_name::SRAPATH),
+        "--log-level", "fatal",
         "--function", "names",
         "--json",
         "--vers", version_string.c_str(),
@@ -125,16 +127,17 @@ static std::string run_srapath(std::string const run)
     DEBUG_OUT << response << std::endl;
     
     auto const result = child.wait();
-    assert(result.signaled() || result.exited());
+    if (result.normal())
+        return response;
+    
     if (result.signaled()) {
         std::cerr << "srapath (pid: " << child.get_pid() << ") was killed by signal " << result.termsig() << std::endl;
-        std::unexpected();
     }
-    if (result.exit_code() != 0) {
+    else if (result.exit_code() != 0) {
         std::cerr << "srapath exited with error code " << result.exit_code() << std::endl;
         exit(result.exit_code());
     }
-    return response;
+    std::unexpected();
 }
 
 struct srapath_unexpected_error : public std::logic_error
@@ -202,16 +205,32 @@ static void forEach(ncbi::JSONObject const &obj, char const *member, F && f)
 }
 
 struct raw_response {
+    struct error {
+        std::string accession;
+        std::string code;
+        std::string message;
+        error(ncbi::JSONObject const &obj)
+        : accession(getString(obj, "accession"))
+        , message(getString(obj, "message"))
+        , code(getString(obj, "error"))
+        {
+        }
+    };
     struct accessionType : public std::pair<std::string, std::string> {
         accessionType(std::string const &accession, std::string const &type) : std::pair<std::string, std::string>(std::make_pair(accession, type)) {}
         std::string const &accession() const { return first; }
         std::string const &type() const { return second; }
         
         static accessionType make(ncbi::JSONObject const &obj) {
-            auto const acc = getString(obj, "accession");
-            auto const typ = getString(obj, "itemType");
-            
-            return accessionType(acc, typ);
+            try {
+                auto const acc = getString(obj, "accession");
+                auto const typ = getString(obj, "itemType");
+                
+                return accessionType(acc, typ);
+            }
+            catch (...) {
+                throw error(obj);
+            }
         }
     };
     struct remote {
@@ -312,8 +331,13 @@ struct raw_response {
 
         forEach(obj, "responses", [&](ncbi::JSONValue const &value) {
             assert(value.isObject());
-            auto const &acc = make_accession(value.toObject());
-            result.responses.emplace(acc);
+            try {
+                auto const &acc = make_accession(value.toObject());
+                result.responses.emplace(acc);
+            }
+            catch (error const &err) {
+                std::cerr << "Accession " << err.accession << ": Error (" << err.code << ") " << err.message << std::endl;
+            }
         });
 
         return result;

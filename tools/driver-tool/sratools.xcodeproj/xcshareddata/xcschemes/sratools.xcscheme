@@ -60,12 +60,12 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "SRR000001"
+            argument = "-V"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-V"
-            isEnabled = "NO">
+            argument = "SRR000001"
+            isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>
       <EnvironmentVariables>

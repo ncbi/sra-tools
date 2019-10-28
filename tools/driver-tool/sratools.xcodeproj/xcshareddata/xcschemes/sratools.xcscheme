@@ -67,6 +67,10 @@
             argument = "SRR000001"
             isEnabled = "YES">
          </CommandLineArgument>
+         <CommandLineArgument
+            argument = "SRR000002"
+            isEnabled = "YES">
+         </CommandLineArgument>
       </CommandLineArguments>
       <EnvironmentVariables>
          <EnvironmentVariable

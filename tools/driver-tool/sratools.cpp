@@ -260,13 +260,14 @@ static bool processSource(std::string const &run, std::string const &toolname, F
 }
 
 static void processRun(  std::string const &run
+                       , data_sources const &allSources
                        , char const *const extension
                        , std::string const &toolname
                        , std::string const &toolpath
                        , ParamList const &parameters
                        , ParamList::iterator const &outputFile)
 {
-    auto const sources = data_sources(run);
+    auto const &sources = allSources.sourcesFor(run);
     if (sources.empty()) {
         std::cerr << "Could not get any data for " << run << ", there is no accessible source." << std::endl;
         // TODO: message about how this could be remedied.
@@ -274,7 +275,6 @@ static void processRun(  std::string const &run
     }
     auto success = false;
     
-    sources.set_ce_token_env_var();
     for (auto const &source : sources) {
         success = processSource(run, toolname, [&]() {
             if (outputFile != parameters.end())
@@ -564,6 +564,7 @@ void processAccessions [[noreturn]] (
         exec(toolname, toolpath, parameters, accessions);
     }
     auto const runs = expandAll(accessions);
+    auto const sources = data_sources::preload(runs);
     ParamList::iterator outputFile = parameters.end();
     
     if (runs.size() > 1 && unsafeOutputFileParamName) {
@@ -575,11 +576,12 @@ void processAccessions [[noreturn]] (
             }
         }
     }
+    sources.set_ce_token_env_var();
     for (auto const &run : runs) {
         LOG(3) << "Processing " << run << " ..." << std::endl;
-        processRun(run, extension, toolname, toolpath, parameters, outputFile);
+        processRun(run, sources, extension, toolname, toolpath, parameters, outputFile);
     }
-    LOG(1) << "All runs were processed successfully" << std::endl;
+    LOG(1) << "All runs were processed" << std::endl;
     exit(0);
 }
 

@@ -35,6 +35,7 @@
 #include <map>
 #include <set>
 #include <utility>
+#include <algorithm>
 
 #include "globals.hpp"
 #include "constants.hpp"
@@ -55,7 +56,7 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
-static std::string run_srapath(std::string const run)
+static std::string run_srapath(std::vector<std::string> const &runs)
 {
     auto const toolpath = tool_name::path(tool_name::SRAPATH);
     auto const toolpath_s = std::string(toolpath);
@@ -70,22 +71,25 @@ static std::string run_srapath(std::string const run)
         URL_PARAM, URL_VALUE,
         FIRST_NULL
     };
-    char const *argv[] = {
-        tool_name::real(tool_name::SRAPATH),
-        "--log-level", "fatal",
-        "--function", "names",
-        "--json",
-        "--vers", version_string.c_str(),
-        "--url", url_string.c_str(),
-        NULL, NULL,
-        NULL, NULL, ///< copy-paste this line to reserve space for more optional paramaters
-        NULL, NULL,
-        NULL,       // run goes here
-        NULL        // argv is terminated
-    };
-    auto constexpr argc = sizeof(argv) / sizeof(argv[0]);
-    auto const argend = argv + argc;
-    
+    auto const argc = FIRST_NULL
+                    + (location ? 2 : 0)
+                    + (ngc ? 2 : 0)
+                    + (perm ? 2 : 0)
+                    + runs.size();
+    auto argv = new char const * [argc + 1];
+    auto const argend = argv + argc + 1;
+
+    std::fill(argv, argv + argc + 1, nullptr);
+    argv[TOOL_NAME] = tool_name::runas(tool_name::SRAPATH);
+    argv[LOG_LEVEL] = "--log-level";
+    argv[LOG_LEVEL_VALUE] = "fatal";
+    argv[FUNCTION_PARAM] = "--function";
+    argv[FUNCTION_VALUE] = "names";
+    argv[JSON_PARAM] = "--json";
+    argv[VERSION_PARAM] = "--vers";
+    argv[VERSION_VALUE] = version_string.c_str();
+    argv[URL_PARAM] = "--url";
+    argv[URL_VALUE] = url_string.c_str();
     {
         auto i = argv + FIRST_NULL;
 
@@ -108,8 +112,10 @@ static std::string run_srapath(std::string const run)
             *i++ = ngc->c_str();
         }
         
-        assert(i != argend && *i == NULL);
-        *i++ = run.c_str();
+        for (auto && run : runs) {
+            assert(i != argend && *i == NULL);
+            *i++ = run.c_str();
+        }
         assert(i != argend && *i == NULL);
     }
     auto fd = -1;
@@ -133,6 +139,7 @@ static std::string run_srapath(std::string const run)
     DEBUG_OUT << response << std::endl;
     
     auto const result = child.wait();
+    delete [] argv;
     if (result.normal())
         return response;
     
@@ -215,10 +222,10 @@ struct raw_response {
         std::string accession;
         std::string code;
         std::string message;
-        error(ncbi::JSONObject const &obj)
-        : accession(getString(obj, "accession"))
-        , message(getString(obj, "message"))
-        , code(getString(obj, "error"))
+        error(std::string const &accession, std::string const &error, std::string const &message)
+        : accession(accession)
+        , message(message)
+        , code(error)
         {
         }
     };
@@ -228,15 +235,16 @@ struct raw_response {
         std::string const &type() const { return second; }
         
         static accessionType make(ncbi::JSONObject const &obj) {
+            auto const acc = getString(obj, "accession");
             try {
-                auto const acc = getString(obj, "accession");
                 auto const typ = getString(obj, "itemType");
                 
                 return accessionType(acc, typ);
             }
-            catch (...) {
-                throw error(obj);
-            }
+            catch (...) {}
+            auto const code = getString(obj, "error");
+            auto const message = getString(obj, "message");
+            throw error(acc, code, message);
         }
     };
     struct remote {
@@ -360,14 +368,8 @@ struct raw_response {
     }
 };
 
-data_sources::data_sources(std::string const &qry)
+data_sources::data_sources(std::string const &responseJSON)
 {
-    if (access(qry.c_str(), R_OK) == 0) {
-        // it is a local file
-        sources.push_back(data_source::local_file(qry));
-        return;
-    }
-    auto const responseJSON = run_srapath(qry);
     auto const raw = raw_response::make(responseJSON);
     
     have_ce_token = raw.hasCEToken;
@@ -380,7 +382,7 @@ data_sources::data_sources(std::string const &qry)
         auto const &vcachesBySource = vcaches.remotesBySource();
         auto default_vcache = -1;
         {
-            // default vdbcache sourse is either NCBI or the first one
+            // default vdbcache source is either NCBI or the first one
             auto i = vcachesBySource.find("sra-ncbi");
             if (i != vcachesBySource.end())
                 default_vcache = int(i->second);
@@ -393,8 +395,8 @@ data_sources::data_sources(std::string const &qry)
             auto vcache = (iter != vcachesBySource.end()) ? int(iter->second) : default_vcache;
             
             auto const run_source = runs.make_source(run, acc);
-            sources.push_back((vcache < 0) ? data_source(run_source)
-                                           : data_source(run_source, runs.make_source(vcaches.remotes[vcache], acc)));
+            addSource((vcache < 0) ? data_source(run_source)
+                      : data_source(run_source, runs.make_source(vcaches.remotes[vcache], acc)));
         }
     }
 }
@@ -425,6 +427,24 @@ void data_source::set_environment() const
 /// @brief set/unset CE Token environment variable
 void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
+}
+
+data_sources data_sources::preload(const std::vector<std::string> &runs) {
+    auto to_load = std::vector<std::string>();
+    auto local = std::vector<std::string>();
+    
+    for (auto && qry : runs) {
+        if (access(qry.c_str(), R_OK) == 0)
+            local.push_back(qry);
+        else
+            to_load.push_back(qry);
+    }
+    auto result = to_load.empty() ? data_sources() : data_sources(run_srapath(to_load));
+
+    for (auto && file : local)
+        result.addSource(data_source::local_file(file));
+    
+    return result;
 }
 
 } // namespace sratools

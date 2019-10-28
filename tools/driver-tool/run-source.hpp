@@ -39,6 +39,10 @@ struct source {
     std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
     bool needCE, needPmt;
     bool haveLocalPath, haveCachePath, haveSize;
+    
+    std::string const &key() const {
+        return haveLocalPath ? localPath : accession;
+    }
 };
 
 class data_source {
@@ -52,6 +56,8 @@ public:
     , vdbcache(vcache)
     , haveVdbCache(true)
     {}
+    
+    std::string const &key() const { return run.key(); }
     
     static data_source local_file(std::string const &file) {
         source result = {};
@@ -71,17 +77,32 @@ public:
     using iterator = container::iterator;
     using const_iterator = container::const_iterator;
 private:
-    std::vector<data_source> sources;
+    // std::vector<data_source> sources;
+    std::map<std::string, std::vector<data_source>> sources;
     std::string ce_token_;
     bool have_ce_token;
-public:
+
     /// @brief a lot can happen here
     ///
     /// NB. This will short-curcuit on a local file
     ///
-    /// @param qry the run (or accession) to query
-    data_sources(std::string const &qry);
+    /// @param responseJSON response from srapath
+    data_sources(std::string const &responseJSON);
+    data_sources() {}
     
+    /// @brief add a data sources, creates container if needed
+    ///
+    /// @param source the data source
+    void addSource(data_source && source)
+    {
+        auto const iter = sources.find(source.key());
+        if (iter != sources.end())
+            iter->second.emplace_back(source);
+        else
+            sources.insert({source.key(), container({source})});
+    }
+    
+public:
     /// @brief true if there are no sources
     bool empty() const {
         return sources.empty();
@@ -95,14 +116,15 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
-    /// @brief allows for-in loop
-    const_iterator begin() const {
-        return sources.begin();
+    container const &sourcesFor(std::string const &accession) const
+    {
+        auto const iter = sources.find(accession);
+        if (iter != sources.end())
+            return iter->second;
+        throw std::range_error("not found");
     }
-    /// @brief allows for-in loop
-    const_iterator end() const {
-        return sources.end();
-    }
+    
+    static data_sources preload(std::vector<std::string> const &runs);
 };
 
 } // namespace sratools

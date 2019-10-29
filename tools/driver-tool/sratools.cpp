@@ -298,52 +298,12 @@ static void processRun(  std::string const &run
     }
 }
 
-/// @brief runs tool on list of accessions
-///
-/// After args parsing, this is the called for tools that do their own communication with SDL, e.g. srapath.
-/// Accession can be any kind of SRA accession that can be resolved to runs.
-///
-/// @param toolname the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param parameters list of parameters (name-value pairs)
-/// @param accessions list of accessions to process
 static void processAccessionsNoSDL [[noreturn]] (
-                                     std::string const &toolname
-                                   , std::string const &toolpath
-                                   , ParamList const &parameters
-                                   , ArgsList const &accessions
-                                   )
-{
-    auto const runs = expandAll(accessions);
-    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
-    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
-        std::cerr << "would exec '" << toolpath << "' as:\n";
-        std::cerr << *argv0;
-        for (auto && value : parameters) {
-            std::cerr << ' ' << value.first;
-            if (value.second)
-                std::cerr << ' ' << value.second.value();
-        }
-        for (auto & run : accessions) {
-            std::cerr << ' ' << run;
-        }
-        std::cerr << std::endl;
-        {
-            auto const names = env_var::names();
-            auto const endp = names + env_var::END_ENUM;
-            std::cerr << "with environment:\n";
-            for (auto iter = names; iter != endp; ++iter) {
-                auto const name = *iter;
-                auto const value = getenv(name);
-                if (value)
-                    std::cerr << ' ' << name << "='" << value << "'\n";
-            }
-            std::cerr << std::endl;
-        }
-        exit(0);
-    }
-    exec(toolname, toolpath, parameters, runs);
-}
+                                                   std::string const &toolname
+                                                 , std::string const &toolpath
+                                                 , ParamList const &parameters
+                                                 , ArgsList const &accessions
+                                                 );
 
 /// @brief gets tool to print its help message; does not return
 ///
@@ -482,6 +442,8 @@ static void runas [[noreturn]] (int const tool)
     assert(!"reachable");
 }
 
+static void printInstallMessage [[noreturn]] (void);
+
 static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 {
     std::string const s_argv0(cargv0);
@@ -500,6 +462,10 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 
     auto s_config = Config();
     config = &s_config;
+    
+    if (config->noInstallID()) {
+        printInstallMessage();
+    }
 
     auto s_args = loadArgv(argc, argv);
     
@@ -583,6 +549,63 @@ void processAccessions [[noreturn]] (
     }
     LOG(1) << "All runs were processed" << std::endl;
     exit(0);
+}
+
+/// @brief runs tool on list of accessions
+///
+/// After args parsing, this is the called for tools that do their own communication with SDL, e.g. srapath.
+/// Accession can be any kind of SRA accession that can be resolved to runs.
+///
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param parameters list of parameters (name-value pairs)
+/// @param accessions list of accessions to process
+static void processAccessionsNoSDL [[noreturn]] (
+                                     std::string const &toolname
+                                   , std::string const &toolpath
+                                   , ParamList const &parameters
+                                   , ArgsList const &accessions
+                                   )
+{
+    auto const runs = expandAll(accessions);
+    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
+    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
+        std::cerr << "would exec '" << toolpath << "' as:\n";
+        std::cerr << *argv0;
+        for (auto && value : parameters) {
+            std::cerr << ' ' << value.first;
+            if (value.second)
+                std::cerr << ' ' << value.second.value();
+        }
+        for (auto & run : accessions) {
+            std::cerr << ' ' << run;
+        }
+        std::cerr << std::endl;
+        {
+            auto const names = env_var::names();
+            auto const endp = names + env_var::END_ENUM;
+            std::cerr << "with environment:\n";
+            for (auto iter = names; iter != endp; ++iter) {
+                auto const name = *iter;
+                auto const value = getenv(name);
+                if (value)
+                    std::cerr << ' ' << name << "='" << value << "'\n";
+            }
+            std::cerr << std::endl;
+        }
+        exit(0);
+    }
+    exec(toolname, toolpath, parameters, runs);
+}
+
+static void printInstallMessage [[noreturn]] (void)
+{
+    std::cerr <<
+        "This sra toolkit installation has not been configured.\n"
+        "Before continuing, please run: vdb-config --interactive\n"
+        "For more information, see https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud/"
+        << std::endl;
+    exit(EX_CONFIG);
 }
 
 } // namespace sratools

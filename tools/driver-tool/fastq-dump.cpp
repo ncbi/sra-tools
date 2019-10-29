@@ -52,7 +52,7 @@
 #include "fastq-dump.hpp"
 
 #if __cplusplus >= 201403L
-#define exchange std::exchange
+using std::exchange;
 #else
 template <class T, class U = T>
 static inline T exchange(T &obj, U &&new_value)

@@ -102,6 +102,7 @@ ArgsInfo infoFor(int toolID)
                     { "-P", "--print-read-nr" },
                     { "-S", "--split-files" },
                     { "-V", "--version" },
+                    { "-Z", "--stdout" },
                     { "-b", "--bufsize" },
                     { "-c", "--curcache" },
                     { "-e", "--threads" },

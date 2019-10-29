@@ -49,7 +49,8 @@ extern std::vector<std::string> const *args; ///< original command line argument
 extern std::map<std::string, std::string> const *parameters;
 
 extern std::string const *location; ///< may be null
-extern std::string const *ngc;      ///< may be null
+extern std::string const *perm; ///< may be null
+extern std::string const *ngc; ///< may be null
 
 extern Config const *config;
 

@@ -75,6 +75,7 @@ std::vector<std::string> const *args;
 std::map<std::string, std::string> const *parameters;
 
 std::string const *location = NULL;
+std::string const *perm = NULL;
 std::string const *ngc = NULL;
 
 Config const *config = NULL;
@@ -373,6 +374,9 @@ static void running_as_tool_no_sdl [[noreturn]] ()
         if (location) {
             params.push_back({"--location", *location});
         }
+        if (perm) {
+            params.push_back({"--perm", *perm});
+        }
         if (ngc) {
             params.push_back({"--ngc", *ngc});
         }
@@ -484,7 +488,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
     std::string s_selfpath(cargv0)
               , s_basename(split_basename(&s_selfpath))
               , s_version(split_version(&s_basename));
-    std::string s_location, s_ngc;
+    std::string s_location, s_perm, s_ngc;
     
     // setup const globals
     argv0 = &s_argv0;
@@ -497,7 +501,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 
     auto s_args = loadArgv(argc, argv);
     
-    // get --location, --ngc from args (and remove)
+    // get --location, --perm, --ngc from args (and remove)
     for (auto i = s_args.begin(); i != s_args.end(); ) {
         bool found;
         std::string value;
@@ -507,6 +511,14 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
         if (found) {
             s_location.swap(value);
             location = &s_location;
+            i = s_args.erase(i, next);
+            continue;
+        }
+
+        std::tie(found, value, next) = matched("--perm", i, s_args.end());
+        if (found) {
+            s_perm.swap(value);
+            perm = &s_perm;
             i = s_args.erase(i, next);
             continue;
         }

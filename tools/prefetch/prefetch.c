@@ -612,18 +612,28 @@ static rc_t V_ResolverRemote(const VResolver *self,
         }
     }
 
-    if (rc == 0 && item->mane ->fileType != NULL)
+    if (rc == 0 && item->mane->fileType != NULL)
         rc = KServiceSetFormat(service, item->mane->fileType);
 
     if (rc == 0 && item->mane->location != NULL)
         rc = KServiceSetLocation(service, item->mane->location);
 
     if (rc == 0 && item->mane->jwtCart != NULL) {
+        uint32_t pcount = 0;
+        uint32_t i = 0;
         rc = KServiceSetJwtKartFile(service, item->mane->jwtCart);
         if (rc != 0)
             PLOGERR(klogErr, (klogErr, rc,
                 "cannot use '$(perm)' as jwt cart file",
                 "perm=%s", item->mane->jwtCart));
+        if (rc == 0)
+            rc = ArgsParamCount(item->mane->args, &pcount);
+        for (i = 0; i < pcount && rc == 0; ++i) {
+            const char *obj = NULL;
+            rc = ArgsParamValue(item->mane->args, i, (const void **)&obj);
+            if (rc == 0)
+                rc = KServiceAddId(service, obj);
+        }
     }
 
     if (rc == 0 && item->mane->ngc != NULL) {
@@ -4693,6 +4703,8 @@ rc_t CC KMain(int argc, char *argv[]) {
         bool multiErrorReported = false;
         uint32_t i = ~0;
 
+        /* JWT cart is processed here.
+     All command line parameters are applied as accession filters to the cart */
         if (pars.jwtCart != NULL) {
             rc = MainRun(&pars, NULL, pars.jwtCart, 1, &multiErrorReported);
         }
@@ -4712,7 +4724,9 @@ rc_t CC KMain(int argc, char *argv[]) {
         else
 #endif
 
-        for (i = 0; i < pcount; ++i) {
+        /* All command line parameters are precessed here
+           unless JWT cart is specified. */
+        for (i = 0; i < pcount && pars.jwtCart == NULL; ++i) {
             const char *obj = NULL;
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");

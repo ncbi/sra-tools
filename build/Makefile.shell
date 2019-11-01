@@ -88,10 +88,10 @@ else
 				HOST_ARCH = x86_64
 			else
 				HOST_ARCH = i386
-			endif			
+			endif
 		else
 			HOST_ARCH = i386
-		endif	
+		endif
 	endif
 	ifeq (x86_64, $(MARCH))
 		HOST_ARCH = x86_64
@@ -116,7 +116,7 @@ endif
 
 # determine SRCDIR
 ifdef MODULE
-    SRCDIR=$(TOP)/$(MODULE)
+    override SRCDIR=$(TOP)/$(MODULE)
 else
     SRCDIR=$(TOP)
 endif
@@ -169,7 +169,7 @@ ifeq (yes,$(HAS_RHOST))
 	RFLAGS=--rhome "$(RHOME)" --lhome "$(LHOME)" --rhost "$(RHOST)" --rport $(RPORT) --proxy_tool "$(PROXY_TOOL)" \
  --loutdir "$(OUTDIR)" --routdir "$(ROUTDIR)"
 	# RWORKDIR can be redefined by individual makefiles as needed
-	RWORKDIR = . 
+	RWORKDIR = .
 	RUN_REMOTELY = $(TOP)/build/run_remotely.sh $(PROXY_TOOL) $(RHOST) $(RPORT) $(RHOME) $(LHOME) $(RWORKDIR) $(ROUTDIR) $(OUTDIR)
 endif
 

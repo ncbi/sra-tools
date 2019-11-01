@@ -105,14 +105,20 @@ sub environment_vars
 
 delete $ENV{$_} for environment_vars;
 
-# prefetch and srapath will handle --location themselves
-goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+sub find_ngc();
+my $ngc = find_ngc();
+
+# srapath and prefetch will handle --location and --perm
 goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
+goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+
+sub find_perm();
+my $perm = find_perm();
 
 sub findLocation();
 my $location = findLocation();
 
-# these functions don't know location or need it
+# these functions don't know or need --location or --perm
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
 goto RUNNING_AS_SAM_DUMP        if $basename =~ /^sam-dump/;
@@ -172,6 +178,8 @@ sub processAccessions($$$$\@@)
     my $params = shift;
     my $overrideOutputFile = FALSE;
     my @runs = expandAllAccessions(@_);
+    
+    push @$params, '--ngc', $ngc if $ngc;
     
     LOG 1, "running $toolname on ".join(' ', @runs);
     
@@ -288,6 +296,8 @@ sub processAccessionsNoResolver($$\@@)
     my $params = shift;
     my @runs = expandAllAccessions(@_);
 
+    push @$params, '--ngc', $ngc if $ngc;
+    
     if ($ENV{SRATOOLS_DRY_RUN}) {
         LOG -1, sprintf("would exec '%s' as:", $toolpath);
         LOG -1, join(' ', '$', $0, @$params, @runs);
@@ -305,22 +315,23 @@ sub processAccessionsNoResolver($$\@@)
     die "can't exec $toolname: $!";
 }
 
-### \brief: find (and remove) location parameter from ARGV
+### \brief: find (and remove) a parameter from ARGV
 ###
 ### \returns: the value of the parameter or undef
-sub findLocation()
+sub findAndRemoveParamWithArg($)
 {
     my $result = undef;
+    my $param = $_[0];
     for my $i (0 .. $#ARGV) {
         local $_ = $ARGV[$i];
-        next unless /^--location/;
-        if ($_ eq '--location') {
+        next unless /^--$param/;
+        if ($_ eq '--$param') {
             (undef, $result) = splice @ARGV, $i, 2;
-            die "location parameter requires a value" unless $result;
+            die "$param parameter requires a value" unless $result;
             LOG 0, "Requesting data from $result";
             last;
         }
-        elsif (/^--location=(.+)/) {
+        elsif (/^--$param=(.+)/) {
             $result = $1;
             LOG 0, "Requesting data from $result";
             splice @ARGV, $i, 1;
@@ -328,6 +339,33 @@ sub findLocation()
         }
     }
     $result
+}
+
+### \brief: find (and remove) location parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub findLocation()
+{
+    my $result = findAndRemoveParamWithArg("location");
+    LOG 0, "Requesting data from $result" if $result;
+}
+
+### \brief: find (and remove) perm parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub find_perm()
+{
+    my $result = findAndRemoveParamWithArg("perm");
+    LOG 0, "Using permissions from $result" if $result;
+}
+
+### \brief: find (and remove) ngc parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub find_ngc()
+{
+    my $result = findAndRemoveParamWithArg("ngc");
+    LOG 0, "Using ngc file $result" if $result;
 }
 
 ### \brief: search parameter array for a parameter and return its index
@@ -592,6 +630,7 @@ sub resolveAccessionURLs($)
         , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
         , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL);
     push @tool_args, ('--location', $location) if $location;
+    push @tool_args, ('--perm', $perm) if $perm;
     push @tool_args, $_[0];
 
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
@@ -871,6 +910,7 @@ RUNNING_AS_FASTQ_DUMP:
         '--offset' => TRUE,
         '--defline-seq' => TRUE,
         '--defline-qual' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
         '--dumpcs' => 0, # argument not required
@@ -925,6 +965,7 @@ RUNNING_AS_FASTERQ_DUMP:
         '--temp' => TRUE,
         '--threads' => TRUE,
         '--min-read-len'=> TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -974,6 +1015,7 @@ RUNNING_AS_SAM_DUMP:
         '--min-mapq' => TRUE,
         '--rna-splice-level' => TRUE,
         '--rna-splice-log' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1030,6 +1072,7 @@ RUNNING_AS_PREFETCH:
         '--ascp-options' => TRUE,
         '--output-file' => TRUE,
         '--output-directory' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1075,6 +1118,8 @@ RUNNING_AS_SRAPATH:
         '--vers' => TRUE,
         '--url' => TRUE,
         '--param' => TRUE,
+        '--ngc' => TRUE,
+        '--perm' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1118,6 +1163,7 @@ RUNNING_AS_SRA_PILEUP:
         '--minmismatch' => TRUE,
         '--merge-dist' => TRUE,
         '--function' => TRUE,        
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1207,7 +1253,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
 ### \param: filename
 ###
 ### \return: array of parsed arguments
-sub parseOptionsFile($)
+sub parseOptionFile($)
 {
     my @rslt = ();
     my $string = '';

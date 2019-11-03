@@ -1279,7 +1279,7 @@ sub parseArgv($\@\@\%\%@)
         if ($param =~ /^--option-file(=.+)*/) {
             my $filename = substr($1, 1) // shift or die "file name is required for --option-file";
             LOG 4, "options file: $filename";
-            push @_, parseOptionFile($filename);
+            push @_, parseOptionsFile($filename);
             next;
         }
         if ($param =~ /^--/ ) {

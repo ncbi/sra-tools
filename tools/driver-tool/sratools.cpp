@@ -585,10 +585,23 @@ void processAccessions [[noreturn]] (
     exit(0);
 }
 
+static void test() {
+#if DEBUG || _DEBUGGING
+    auto const envar = getenv("SRATOOLS_TESTING");
+    if (envar && std::atoi(envar)) {
+        data_sources::test();
+        exit(0);
+    }
+#endif
+}
+        
 } // namespace sratools
 
 int main(int argc, char *argv[])
 {
+#if DEBUG || _DEBUGGING
+    sratools::test();
+#endif
     auto const impersonate = getenv("SRATOOLS_IMPERSONATE");
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
 

@@ -295,6 +295,8 @@ struct raw_response {
             result.needCE = remote.ceRequired;
             result.needPmt = remote.payRequired;
             
+            result.haveAccession = true;
+            
             return result;
         }
     };

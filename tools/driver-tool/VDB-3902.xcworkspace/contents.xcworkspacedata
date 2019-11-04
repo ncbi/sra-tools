@@ -11,6 +11,9 @@
       location = "group:../srapath/services.c">
    </FileRef>
    <FileRef
+      location = "group:../../../ncbi-vdb/interfaces/vfs/services.h">
+   </FileRef>
+   <FileRef
       location = "group:sratools.xcodeproj">
    </FileRef>
 </Workspace>

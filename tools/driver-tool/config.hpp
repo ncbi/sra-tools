@@ -52,6 +52,10 @@ public:
     opt_string operator [](std::string const &keypath) const {;
         return get(keypath);
     }
+    bool noInstallID() const {
+        auto const iter = kvps.find("/LIBS/GUID");
+        return iter == kvps.end();
+    }
 };
 
 }

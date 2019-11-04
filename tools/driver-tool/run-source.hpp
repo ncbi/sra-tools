@@ -37,8 +37,13 @@ namespace sratools {
 
 struct source {
     std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
-    bool needCE, needPmt;
-    bool haveLocalPath, haveCachePath, haveSize;
+    bool needCE = false, needPmt = false;
+    bool haveLocalPath = false, haveCachePath = false, haveSize = false, haveAccession = false;
+    
+    std::string const &key() const {
+        assert(haveAccession || haveLocalPath);
+        return haveAccession ? accession : localPath;
+    }
 };
 
 class data_source {
@@ -52,6 +57,8 @@ public:
     , vdbcache(vcache)
     , haveVdbCache(true)
     {}
+    
+    std::string const &key() const { return run.key(); }
     
     static data_source local_file(std::string const &file) {
         source result = {};
@@ -68,20 +75,42 @@ public:
 class data_sources {
 public:
     using container = std::vector<data_source>;
-    using iterator = container::iterator;
-    using const_iterator = container::const_iterator;
 private:
-    std::vector<data_source> sources;
+    // std::vector<data_source> sources;
+    std::map<std::string, std::vector<data_source>> sources;
     std::string ce_token_;
     bool have_ce_token;
-public:
+
     /// @brief a lot can happen here
     ///
     /// NB. This will short-curcuit on a local file
     ///
-    /// @param qry the run (or accession) to query
-    data_sources(std::string const &qry);
+    /// @param responseJSON response from srapath
+    data_sources(std::string const &responseJSON);
+    data_sources() {}
     
+    /// @brief add a data sources, creates container if needed
+    ///
+    /// @param source the data source
+    void addSource(data_source && source)
+    {
+        auto const iter = sources.find(source.key());
+        if (iter != sources.end())
+            iter->second.emplace_back(source);
+        else
+            sources.insert({source.key(), container({source})});
+    }
+        
+#if DEBUG || _DEBUGGING
+    static void test_local_and_remote() {
+        static char const responseJSON[] =
+        "{\"count\": 1,\"CE-Token\": null,\"responses\": [{\"accession\": \"SRR10063844\", \"itemType\": \"sra\", \"size\": 37644943, \"local\": \"/netmnt/traces04/sra44/SRR/009827/SRR10063844\", \"remote\": [{ \"path\": \"https://sra-download.ncbi.nlm.nih.gov/traces/sra44/SRR/009827/SRR10063844\", \"service\": \"sra-ncbi\", \"CE-Required\": false, \"Payment-Required\": false }]}]}";
+        auto const sources = data_sources(responseJSON);
+        assert(sources.sourcesFor("SRR10063844").empty() == false);
+    }
+#endif
+
+public:
     /// @brief true if there are no sources
     bool empty() const {
         return sources.empty();
@@ -95,14 +124,20 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
-    /// @brief allows for-in loop
-    const_iterator begin() const {
-        return sources.begin();
+    container const &sourcesFor(std::string const &accession) const
+    {
+        static auto const empty = container();
+        auto const iter = sources.find(accession);
+        return (iter != sources.end()) ? iter->second : empty;
     }
-    /// @brief allows for-in loop
-    const_iterator end() const {
-        return sources.end();
+    
+    static data_sources preload(std::vector<std::string> const &runs);
+    
+#if DEBUG || _DEBUGGING
+    static void test() {
+        test_local_and_remote();
     }
+#endif
 };
 
 } // namespace sratools

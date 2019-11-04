@@ -56,6 +56,15 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
+static unsigned count_debug_args()
+{
+    unsigned result = 0;
+    for (auto && arg : *args) {
+        if (arg == "--debug") result += 1;
+    }
+    return result;
+}
+
 static std::string run_srapath(std::vector<std::string> const &runs)
 {
     auto const toolpath = tool_name::path(tool_name::SRAPATH);
@@ -75,6 +84,7 @@ static std::string run_srapath(std::vector<std::string> const &runs)
                     + (location ? 2 : 0)
                     + (ngc ? 2 : 0)
                     + (perm ? 2 : 0)
+                    + (count_debug_args() * 2)
                     + runs.size();
     auto argv = new char const * [argc + 1];
     auto const argend = argv + argc + 1;
@@ -116,6 +126,18 @@ static std::string run_srapath(std::vector<std::string> const &runs)
             assert(i != argend && *i == NULL);
             *i++ = run.c_str();
         }
+        assert(i != argend && *i == NULL);
+        
+        bool appendNext = false;
+        for (auto j = decltype(args->size())(0); j < args->size(); ++j) {
+            auto const &arg = args->at(j);
+            if (appendNext || arg == "--debug") {
+                assert(i != argend && *i == NULL);
+                *i++ = arg.c_str();
+                appendNext = !appendNext;
+            }
+        }
+        assert(appendNext == false);
         assert(i != argend && *i == NULL);
     }
     auto fd = -1;

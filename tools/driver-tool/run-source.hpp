@@ -37,11 +37,12 @@ namespace sratools {
 
 struct source {
     std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
-    bool needCE, needPmt;
-    bool haveLocalPath, haveCachePath, haveSize;
+    bool needCE = false, needPmt = false;
+    bool haveLocalPath = false, haveCachePath = false, haveSize = false, haveAccession = false;
     
     std::string const &key() const {
-        return haveLocalPath ? localPath : accession;
+        assert(haveAccession || haveLocalPath);
+        return haveAccession ? accession : localPath;
     }
 };
 
@@ -74,8 +75,6 @@ public:
 class data_sources {
 public:
     using container = std::vector<data_source>;
-    using iterator = container::iterator;
-    using const_iterator = container::const_iterator;
 private:
     // std::vector<data_source> sources;
     std::map<std::string, std::vector<data_source>> sources;
@@ -101,7 +100,16 @@ private:
         else
             sources.insert({source.key(), container({source})});
     }
-    
+        
+#if DEBUG || _DEBUGGING
+    static void test_local_and_remote() {
+        static char const responseJSON[] =
+        "{\"count\": 1,\"CE-Token\": null,\"responses\": [{\"accession\": \"SRR10063844\", \"itemType\": \"sra\", \"size\": 37644943, \"local\": \"/netmnt/traces04/sra44/SRR/009827/SRR10063844\", \"remote\": [{ \"path\": \"https://sra-download.ncbi.nlm.nih.gov/traces/sra44/SRR/009827/SRR10063844\", \"service\": \"sra-ncbi\", \"CE-Required\": false, \"Payment-Required\": false }]}]}";
+        auto const sources = data_sources(responseJSON);
+        assert(sources.sourcesFor("SRR10063844").empty() == false);
+    }
+#endif
+
 public:
     /// @brief true if there are no sources
     bool empty() const {
@@ -118,13 +126,18 @@ public:
 
     container const &sourcesFor(std::string const &accession) const
     {
+        static auto const empty = container();
         auto const iter = sources.find(accession);
-        if (iter != sources.end())
-            return iter->second;
-        throw std::range_error("not found");
+        return (iter != sources.end()) ? iter->second : empty;
     }
     
     static data_sources preload(std::vector<std::string> const &runs);
+    
+#if DEBUG || _DEBUGGING
+    static void test() {
+        test_local_and_remote();
+    }
+#endif
 };
 
 } // namespace sratools

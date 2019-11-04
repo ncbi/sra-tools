@@ -1118,8 +1118,8 @@ RUNNING_AS_SRAPATH:
         '--vers' => TRUE,
         '--url' => TRUE,
         '--param' => TRUE,
-        '--ngc' => TRUE,
         '--perm' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );

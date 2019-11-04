@@ -63,6 +63,8 @@
 #include "util.hpp"
 #include "fastq-dump.hpp"
 #include "split_path.hpp"
+#include "uuid.hpp"
+#include "env_vars.h"
 
 namespace sratools {
 
@@ -204,6 +206,13 @@ static void print_unsafe_output_file_message(  Container const &runs
     }
 }
 
+static void debugPrintEnvVar(char const *const name)
+{
+    auto const value = getenv(name);
+    if (value)
+        std::cerr << ' ' << name << "='" << value << "'\n";
+}
+
 static void debugPrintDryRun(  std::string const &toolpath
                              , ParamList const &parameters
                              , std::string const &run
@@ -220,15 +229,11 @@ static void debugPrintDryRun(  std::string const &toolpath
         }
         std::cerr << ' ' << run << std::endl;
         {
-            auto const names = env_var::names();
-            auto const endp = names + env_var::END_ENUM;
             std::cerr << "with environment:\n";
-            for (auto iter = names; iter != endp; ++iter) {
-                auto const name = *iter;
-                auto const value = getenv(name);
-                if (value)
-                    std::cerr << ' ' << name << "='" << value << "'\n";
+            for (auto name : make_sequence(env_var::names(), env_var::END_ENUM)) {
+                debugPrintEnvVar(name);
             }
+            debugPrintEnvVar(ENV_VAR_SESSION_ID);
             std::cerr << std::endl;
         }
         exit(0);
@@ -260,13 +265,14 @@ static bool processSource(std::string const &run, std::string const &toolname, F
 }
 
 static void processRun(  std::string const &run
+                       , data_sources const &allSources
                        , char const *const extension
                        , std::string const &toolname
                        , std::string const &toolpath
                        , ParamList const &parameters
                        , ParamList::iterator const &outputFile)
 {
-    auto const sources = data_sources(run);
+    auto const &sources = allSources.sourcesFor(run);
     if (sources.empty()) {
         std::cerr << "Could not get any data for " << run << ", there is no accessible source." << std::endl;
         // TODO: message about how this could be remedied.
@@ -274,7 +280,6 @@ static void processRun(  std::string const &run
     }
     auto success = false;
     
-    sources.set_ce_token_env_var();
     for (auto const &source : sources) {
         success = processSource(run, toolname, [&]() {
             if (outputFile != parameters.end())
@@ -488,7 +493,12 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
     std::string s_selfpath(cargv0)
               , s_basename(split_basename(&s_selfpath))
               , s_version(split_version(&s_basename));
-    std::string s_location, s_perm, s_ngc;
+    std::string s_location;
+    std::string s_perm;
+    std::string s_ngc;
+
+    auto const sessionID = uuid();
+    setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
     
     // setup const globals
     argv0 = &s_argv0;
@@ -562,6 +572,7 @@ void processAccessions [[noreturn]] (
         exec(toolname, toolpath, parameters, accessions);
     }
     auto const runs = expandAll(accessions);
+    auto const sources = data_sources::preload(runs, parameters);
     ParamList::iterator outputFile = parameters.end();
     
     if (runs.size() > 1 && unsafeOutputFileParamName) {
@@ -573,18 +584,32 @@ void processAccessions [[noreturn]] (
             }
         }
     }
+    sources.set_ce_token_env_var();
     for (auto const &run : runs) {
         LOG(3) << "Processing " << run << " ..." << std::endl;
-        processRun(run, extension, toolname, toolpath, parameters, outputFile);
+        processRun(run, sources, extension, toolname, toolpath, parameters, outputFile);
     }
-    LOG(1) << "All runs were processed successfully" << std::endl;
+    LOG(1) << "All runs were processed" << std::endl;
     exit(0);
 }
 
+static void test() {
+#if DEBUG || _DEBUGGING
+    auto const envar = getenv("SRATOOLS_TESTING");
+    if (envar && std::atoi(envar)) {
+        data_sources::test();
+        exit(0);
+    }
+#endif
+}
+        
 } // namespace sratools
 
 int main(int argc, char *argv[])
 {
+#if DEBUG || _DEBUGGING
+    sratools::test();
+#endif
     auto const impersonate = getenv("SRATOOLS_IMPERSONATE");
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
 

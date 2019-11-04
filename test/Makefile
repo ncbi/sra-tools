@@ -42,7 +42,6 @@ SUBDIRS =    \
 	vcf-loader      \
 	align-info      \
 	align-cache     \
-	vdb-validate    \
 	kar             \
 	copycat         \
 	sra-stat        \
@@ -55,6 +54,7 @@ SUBDIRS =    \
 	vdb-dump        \
 	vdb-copy        \
 	qual-recalib-stat \
+	vdb-validate      \
 
 # under construction
 #    ngs-pileup      \

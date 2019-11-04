@@ -113,7 +113,7 @@ static const char* USAGE_FIX[] =
 
 #define ALIAS_IMP    NULL
 #define OPTION_IMP   "import"
-static const char* USAGE_IMP[] = { "import ngc file", NULL };
+/* static const char* USAGE_IMP[] = { "import ngc file", NULL }; */
 
 #define ALIAS_MOD    "m"
 #define OPTION_MOD   "modules"
@@ -222,8 +222,8 @@ OptDef Options[] =
     , { OPTION_ENV, ALIAS_ENV, NULL, USAGE_ENV, 1, false, false, NULL }
     , { OPTION_FIL, ALIAS_FIL, NULL, USAGE_FIL, 1, false, false, NULL }
     , { OPTION_FIX, ALIAS_FIX, NULL, USAGE_FIX, 1, false, false, NULL }
-    , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false,
-                                                              ArgsConvFilepath }
+/*  , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false,
+                                                             ArgsConvFilepath}*/
     , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false, NULL }
     , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false, NULL }
     , { OPTION_C_IN,ALIAS_C_IN,NULL, USAGE_C_IN,1, false, false, NULL }

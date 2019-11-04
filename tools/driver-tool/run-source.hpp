@@ -32,6 +32,7 @@
 
 #include <string>
 #include <vector>
+#include "parse_args.hpp"
 
 namespace sratools {
 
@@ -131,7 +132,7 @@ public:
         return (iter != sources.end()) ? iter->second : empty;
     }
     
-    static data_sources preload(std::vector<std::string> const &runs);
+    static data_sources preload(std::vector<std::string> const &runs, ParamList const &parameters);
     
 #if DEBUG || _DEBUGGING
     static void test() {

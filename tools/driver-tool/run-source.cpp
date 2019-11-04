@@ -56,16 +56,17 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
-static unsigned count_debug_args()
+static unsigned count_debug_args(ParamList const &parameters)
 {
     unsigned result = 0;
-    for (auto && arg : *args) {
-        if (arg == "--debug") result += 1;
+    for (auto && arg : parameters) {
+        if (arg.first == "--debug")
+            result += 1;
     }
     return result;
 }
 
-static std::string run_srapath(std::vector<std::string> const &runs)
+static std::string run_srapath(std::vector<std::string> const &runs, ParamList const &parameters)
 {
     auto const toolpath = tool_name::path(tool_name::SRAPATH);
     auto const toolpath_s = std::string(toolpath);
@@ -84,7 +85,7 @@ static std::string run_srapath(std::vector<std::string> const &runs)
                     + (location ? 2 : 0)
                     + (ngc ? 2 : 0)
                     + (perm ? 2 : 0)
-                    + (count_debug_args() * 2)
+                    + (count_debug_args(parameters) * 2)
                     + runs.size();
     auto argv = new char const * [argc + 1];
     auto const argend = argv + argc + 1;
@@ -128,16 +129,16 @@ static std::string run_srapath(std::vector<std::string> const &runs)
         }
         assert(i != argend && *i == NULL);
         
-        bool appendNext = false;
-        for (auto j = decltype(args->size())(0); j < args->size(); ++j) {
-            auto const &arg = args->at(j);
-            if (appendNext || arg == "--debug") {
+        for (auto && arg : parameters) {
+            if (arg.first == "--debug") {
+                auto const &flag = arg.second;
+                assert(flag.has_value());
                 assert(i != argend && *i == NULL);
-                *i++ = arg.c_str();
-                appendNext = !appendNext;
+                *i++ = "--debug";
+                assert(i != argend && *i == NULL);
+                *i++ = flag.value().c_str();
             }
         }
-        assert(appendNext == false);
         assert(i != argend && *i == NULL);
     }
     auto fd = -1;
@@ -453,7 +454,8 @@ void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
 }
 
-data_sources data_sources::preload(const std::vector<std::string> &runs) {
+data_sources data_sources::preload(std::vector<std::string> const &runs,
+                                   ParamList const &parameters) {
     auto to_load = std::vector<std::string>();
     auto local = std::vector<std::string>();
     
@@ -463,7 +465,7 @@ data_sources data_sources::preload(const std::vector<std::string> &runs) {
         else
             to_load.push_back(qry);
     }
-    auto result = to_load.empty() ? data_sources() : data_sources(run_srapath(to_load));
+    auto result = to_load.empty() ? data_sources() : data_sources(run_srapath(to_load, parameters));
 
     for (auto && file : local)
         result.addSource(data_source::local_file(file));

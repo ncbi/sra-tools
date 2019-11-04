@@ -564,7 +564,7 @@ void processAccessions [[noreturn]] (
         exec(toolname, toolpath, parameters, accessions);
     }
     auto const runs = expandAll(accessions);
-    auto const sources = data_sources::preload(runs);
+    auto const sources = data_sources::preload(runs, parameters);
     ParamList::iterator outputFile = parameters.end();
     
     if (runs.size() > 1 && unsafeOutputFileParamName) {

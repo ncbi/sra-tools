@@ -79,6 +79,11 @@
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
+            key = "SRATOOLS_TESTING"
+            value = "1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
             key = "SRATOOLS_DEBUG"
             value = "1"
             isEnabled = "YES">

@@ -82,8 +82,8 @@ static int validate_uuid_format(char const s[])
             return n;
     }
     {
-        auto const &type = s[14];
-        auto const &vers_char = s[19];
+        auto const type = s[14];
+        auto const vers_char = s[19];
         auto const vers = (vers_char <= '9' ? (vers_char - '0') : (10 + vers_char - 'a'));
         if (type != '4') {
             return 15;
@@ -104,10 +104,13 @@ static void test_success()
 /// @brief verify that validation function does reject bad UUIDs
 static void test_failure()
 {
-    assert(validate_uuid_format("a38fa5da-1456-498a-9ef5-1f39e35b") != 0);
-    assert(validate_uuid_format("a38fa5da-1456-498a-9ef5-1f39e35bfe57fe57") != 0);
-    assert(validate_uuid_format("a38fa5da-1456-498a-Nef5-1f39e35bfe57") != 0);
-    assert(validate_uuid_format("a38fa5da-1456-498a-9ef5-1f39-35bfe57") != 0);
+    assert(validate_uuid_format("a38fa5da-1456-798a-9ef5-1f39e35bfe57") != 0);      // invalid type
+    assert(validate_uuid_format("a38fa5da-1456-498a-1ef5-1f39e35bfe57") != 0);      // invalid version
+    assert(validate_uuid_format("a38fa5da1-456-498a-1ef5-1f39e35bfe57") != 0);      // invalid placement of seperator
+    assert(validate_uuid_format("a38fa5da-1456-498a-9ef5-1f39e35b") != 0);          // too short
+    assert(validate_uuid_format("a38fa5da-1456-498a-9ef5-1f39e35bfe57fe57") != 0);  // too long
+    assert(validate_uuid_format("a38fa5da-1456-498a-Nef5-1f39e35bfe57") != 0);      // invalid character
+    assert(validate_uuid_format("a38fa5da-1456-498a-9ef5-1f39-35bfe57") != 0);      // invalid seperator
     assert(validate_uuid_format("xxxxxxxx-xxxx-4xxx-Nxxx-xxxxxxxxxxxx") != 0);
 }
 

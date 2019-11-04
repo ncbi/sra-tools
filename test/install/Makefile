@@ -81,6 +81,8 @@ test-install: cleanup
 	@ for i in $(INSTALLED_FILES); do test -f "$$i" || ( echo "$$i is not found" >>$(INSTALL_DIR)/missing ); done
 	@ ! test -f $(INSTALL_DIR)/missing || ! cat $(INSTALL_DIR)/missing
 	@ #
+	@ # make sure sratools is not Perl
+	( ! file $(INST_BINDIR)/sratools$(VERSION_EXEX) | grep Perl ) || ( echo "Error: $(INST_BINDIR)/sratools is a Perl script" && exit 1 )
 	@ #
 	@ echo "2. uninstall"
 	@ #

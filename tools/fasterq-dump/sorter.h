@@ -35,7 +35,6 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-
 #ifndef _h_cmn_iter_
 #include "cmn_iter.h"
 #endif
@@ -44,7 +43,12 @@ extern "C" {
 #include "merge_sorter.h"
 #endif
 
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
 rc_t execute_lookup_production( KDirectory * dir,
+                                const VDBManager * vdb_mgr,
                                 const char * accession,
                                 struct background_vector_merger * merger,
                                 size_t cursor_cache,

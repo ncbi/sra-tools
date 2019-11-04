@@ -75,7 +75,9 @@ static std::string run_srapath(std::string const run)
         "--json",
         "--vers", version_string.c_str(),
         "--url", url_string.c_str(),
+        NULL, NULL,
         NULL, NULL, ///< copy-paste this line to reserve space for more optional paramaters
+        NULL, NULL,
         NULL,       // run goes here
         NULL        // argv is terminated
     };
@@ -90,6 +92,18 @@ static std::string run_srapath(std::string const run)
             *i++ = "--location";
             assert(i != argend && *i == NULL);
             *i++ = location->c_str();
+        }
+        
+        assert(i != argend && *i == NULL);
+        if (ngc) {
+            *i++ = "--ngc";
+            assert(i != argend && *i == NULL);
+            *i++ = ngc->c_str();
+        }
+        if (perm) {
+            *i++ = "--perm";
+            assert(i != argend && *i == NULL);
+            *i++ = perm->c_str();
         }
         
         assert(i != argend && *i == NULL);

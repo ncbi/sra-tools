@@ -373,6 +373,16 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         }
     }
 
+    {
+        const string name("/repository/remote/protected/SDL.2/resolver-cgi");
+        if (!NodeExists(name)) {
+            rc_t r2 = UpdateNode(name,
+                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve");
+            if (r2 != 0 && rc == 0)
+                rc = r2;
+        }
+    }
+
     return rc;
 }
 
@@ -429,7 +439,7 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
         return rc;
 
     {
-        string name(repoNode + "/apps/sraPileup/volumes/flat");
+        string name(repoNode + "/apps/sraPileup/volumes/withExtFlat");
         if (!NodeExists(name)) {
             rc_t r2 = UpdateNode(name, "sra");
             if (r2 != 0 && rc == 0)
@@ -437,7 +447,7 @@ rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
         }
     }
     {
-        string name(repoNode + "/apps/sraRealign/volumes/flat");
+        string name(repoNode + "/apps/sraRealign/volumes/withExtFlat");
         if (!NodeExists(name)) {
             rc_t r2 = UpdateNode(name, "sra");
             if (r2 != 0 && rc == 0)

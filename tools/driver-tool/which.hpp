@@ -31,7 +31,7 @@
  */
 
 #pragma once
-#include <string>
+#include "opt_string.hpp"
 
 namespace sratools {
 
@@ -43,6 +43,6 @@ namespace sratools {
 ///
 /// @returns full path to executable if found
 extern
-std::string which(std::string const &name, bool allowNotFound = true, bool isaSraTool = false);
+opt_string which(std::string const &name, bool allowNotFound = true, bool isaSraTool = false);
 
 } // namespace sratools

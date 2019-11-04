@@ -31,6 +31,27 @@
 #include <string>
 #include <unistd.h>
 
+template <typename T, typename ITER = typename T::const_iterator>
+static inline bool hasPrefix(ITER start, ITER end, ITER in_start, ITER in_end)
+{
+    while (start != end && in_start != in_end) {
+        if (!(*start == *in_start))
+            return false;
+        ++start;
+        ++in_start;
+    }
+    return start == end;
+}
+
+static inline bool hasPrefix(std::string const &prefix, std::string const &in_string)
+{
+    return (in_string.size() < prefix.size())
+           ? false
+           : (in_string.size() == prefix.size())
+           ? (prefix == in_string)
+           : hasPrefix<std::string>(prefix.begin(), prefix.end(), in_string.begin(), in_string.end());
+}
+
 static inline std::error_code error_code_from_errno()
 {
     return std::error_code(errno, std::system_category());

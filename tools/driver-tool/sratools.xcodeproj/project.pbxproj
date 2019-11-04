@@ -14,6 +14,9 @@
 		BE3DE42523464F5F00BD4256 /* tool-args.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE3DE42423464F5F00BD4256 /* tool-args.cpp */; };
 		BE64ACC5234F90C00031AE83 /* fastq-dump.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE64ACC3234F90C00031AE83 /* fastq-dump.cpp */; };
 		BE64ACC82350BC810031AE83 /* config.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE64ACC62350BC810031AE83 /* config.cpp */; };
+		BEA00B5A2359054500B8C58C /* uuid.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA00B582359054500B8C58C /* uuid.cpp */; };
+		BEA00B6223594B3F00B8C58C /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA00B6123594B3F00B8C58C /* main.cpp */; };
+		BEA00B6623594B4B00B8C58C /* uuid.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA00B582359054500B8C58C /* uuid.cpp */; };
 		BEC0FEDB234BA16600D87485 /* run-source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEC0FED9234BA16600D87485 /* run-source.cpp */; };
 		BEC0FF1A234BAF4800D87485 /* libjson.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC0FF0E234BAF3F00D87485 /* libjson.a */; };
 		BEC0FF22234BAF7700D87485 /* json-value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEC0FF1B234BAF7700D87485 /* json-value.cpp */; };
@@ -53,6 +56,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
+		BEA00B5D23594B3F00B8C58C /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -76,7 +88,11 @@
 		BE64ACC62350BC810031AE83 /* config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = config.cpp; sourceTree = SOURCE_ROOT; };
 		BE64ACC72350BC810031AE83 /* config.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = config.hpp; sourceTree = SOURCE_ROOT; };
 		BE92D3A7235791C7007117FF /* split_path.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = split_path.hpp; sourceTree = SOURCE_ROOT; };
-		BEC0FED8234B710000D87485 /* util.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = util.hpp; path = ../util.hpp; sourceTree = "<group>"; };
+		BEA00B582359054500B8C58C /* uuid.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = uuid.cpp; sourceTree = SOURCE_ROOT; };
+		BEA00B592359054500B8C58C /* uuid.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = uuid.hpp; sourceTree = SOURCE_ROOT; };
+		BEA00B5F23594B3F00B8C58C /* test-UUID */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "test-UUID"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEA00B6123594B3F00B8C58C /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		BEC0FED8234B710000D87485 /* util.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = util.hpp; sourceTree = "<group>"; };
 		BEC0FED9234BA16600D87485 /* run-source.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "run-source.cpp"; sourceTree = SOURCE_ROOT; };
 		BEC0FEDA234BA16600D87485 /* run-source.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = "run-source.hpp"; sourceTree = SOURCE_ROOT; };
 		BEC0FF0E234BAF3F00D87485 /* libjson.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libjson.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -117,6 +133,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BEA00B5C23594B3F00B8C58C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BEC0FF0C234BAF3F00D87485 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -142,6 +165,7 @@
 				BE33048D2345922B00DE8015 /* sratools */,
 				BEC0FF0F234BAF3F00D87485 /* json */,
 				BEC0FF37234BAFF800D87485 /* secure */,
+				BEA00B6023594B3F00B8C58C /* test-UUID */,
 				BE33048C2345922B00DE8015 /* Products */,
 				BEC0FF19234BAF4800D87485 /* Frameworks */,
 			);
@@ -153,6 +177,7 @@
 				BE33048B2345922B00DE8015 /* sratools */,
 				BEC0FF0E234BAF3F00D87485 /* libjson.a */,
 				BEC0FF36234BAFD900D87485 /* libsecure.a */,
+				BEA00B5F23594B3F00B8C58C /* test-UUID */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -184,8 +209,18 @@
 				BEC0FED8234B710000D87485 /* util.hpp */,
 				BE64ACC62350BC810031AE83 /* config.cpp */,
 				BE64ACC72350BC810031AE83 /* config.hpp */,
+				BEA00B582359054500B8C58C /* uuid.cpp */,
+				BEA00B592359054500B8C58C /* uuid.hpp */,
 			);
 			path = sratools;
+			sourceTree = "<group>";
+		};
+		BEA00B6023594B3F00B8C58C /* test-UUID */ = {
+			isa = PBXGroup;
+			children = (
+				BEA00B6123594B3F00B8C58C /* main.cpp */,
+			);
+			path = "test-UUID";
 			sourceTree = "<group>";
 		};
 		BEC0FF0F234BAF3F00D87485 /* json */ = {
@@ -273,6 +308,23 @@
 			productReference = BE33048B2345922B00DE8015 /* sratools */;
 			productType = "com.apple.product-type.tool";
 		};
+		BEA00B5E23594B3F00B8C58C /* test-UUID */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEA00B6323594B3F00B8C58C /* Build configuration list for PBXNativeTarget "test-UUID" */;
+			buildPhases = (
+				BEA00B5B23594B3F00B8C58C /* Sources */,
+				BEA00B5C23594B3F00B8C58C /* Frameworks */,
+				BEA00B5D23594B3F00B8C58C /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "test-UUID";
+			productName = "test-UUID";
+			productReference = BEA00B5F23594B3F00B8C58C /* test-UUID */;
+			productType = "com.apple.product-type.tool";
+		};
 		BEC0FF0D234BAF3F00D87485 /* json */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BEC0FF18234BAF3F00D87485 /* Build configuration list for PBXNativeTarget "json" */;
@@ -319,6 +371,9 @@
 					BE33048A2345922B00DE8015 = {
 						CreatedOnToolsVersion = 11.0;
 					};
+					BEA00B5E23594B3F00B8C58C = {
+						CreatedOnToolsVersion = 11.1;
+					};
 					BEC0FF0D234BAF3F00D87485 = {
 						CreatedOnToolsVersion = 11.1;
 					};
@@ -340,6 +395,7 @@
 				BE33048A2345922B00DE8015 /* sratools */,
 				BEC0FF0D234BAF3F00D87485 /* json */,
 				BEC0FF29234BAFD900D87485 /* secure */,
+				BEA00B5E23594B3F00B8C58C /* test-UUID */,
 			);
 		};
 /* End PBXProject section */
@@ -357,7 +413,17 @@
 				BE3304A12345929800DE8015 /* split_path.cpp in Sources */,
 				BEDB42D42346283500AA4B53 /* proc.cpp in Sources */,
 				BE3304A22345929800DE8015 /* which.cpp in Sources */,
+				BEA00B5A2359054500B8C58C /* uuid.cpp in Sources */,
 				BE64ACC82350BC810031AE83 /* config.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA00B5B23594B3F00B8C58C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEA00B6623594B4B00B8C58C /* uuid.cpp in Sources */,
+				BEA00B6223594B3F00B8C58C /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -524,6 +590,33 @@
 			};
 			name = Release;
 		};
+		BEA00B6423594B3F00B8C58C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+					"TESTING=1",
+				);
+				OTHER_CFLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BEA00B6523594B3F00B8C58C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"MAC=1",
+					"TESTING=1",
+				);
+				OTHER_CFLAGS = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		BEC0FF16234BAF3F00D87485 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -601,6 +694,15 @@
 			buildConfigurations = (
 				BE3304932345922B00DE8015 /* Debug */,
 				BE3304942345922B00DE8015 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEA00B6323594B3F00B8C58C /* Build configuration list for PBXNativeTarget "test-UUID" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA00B6423594B3F00B8C58C /* Debug */,
+				BEA00B6523594B3F00B8C58C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

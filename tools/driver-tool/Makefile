@@ -83,7 +83,8 @@ SRATOOLS_SRC = \
 	tool-args \
 	parse_args \
 	run-source \
-	fastq-dump
+	fastq-dump \
+	uuid
 
 SRATOOLS_OBJ = \
 	$(addsuffix .$(OBJX),$(SRATOOLS_SRC))

@@ -4468,6 +4468,12 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
     if (rc == 0)
         rc = IteratorInit(&it, arg, self);
 
+    if (rc == 0 && it.isKart) {
+        rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcUnsupported);
+        LOGERR(klogErr, rc, "Your kart file is out of date. "
+            "Login to the dbGaP portal to get a fresh one.");
+    }
+
     if ( rc == 0 ) {
         if ( it . kart != NULL ) {
             if ( self -> outFile ) {

@@ -169,7 +169,7 @@ rc_t vds_append_fmt( p_dump_str s, const size_t aprox_len, const char *fmt, ... 
             size_t num_writ;
             
             va_start( argp, fmt );
-            rc = string_vprintf( s->buf + s->str_len, s->buf_size - 1, &num_writ, fmt, argp );
+            rc = string_vprintf( s->buf + s->str_len, s->buf_size, &num_writ, fmt, argp );
             va_end( argp );
             
             if ( rc == 0 )

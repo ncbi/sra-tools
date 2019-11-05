@@ -106,6 +106,7 @@ vdb-dump: makedb
 	@ rm -rf actual
 	@ rm -rf data
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-dump
+	@ ./test_buffer_insufficient.sh $(BINDIR)/vdb-dump VDB-3937.kar
 	@ echo "...all tests passed"
 
 .PHONY: kar

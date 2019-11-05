@@ -630,12 +630,23 @@ static void test() {
 
 int main(int argc, char *argv[])
 {
+    static auto const error_continues_message = std::string("If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/");
 #if DEBUG || _DEBUGGING
     sratools::test();
 #endif
     auto const impersonate = getenv("SRATOOLS_IMPERSONATE");
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
 
-    sratools::main(argv0, argc - 1, argv + 1);
+    try {
+        sratools::main(argv0, argc - 1, argv + 1);
+    }
+    catch (std::exception const &e) {
+        std::cerr << "An error occured: " << e.what() << std::endl << error_continues_message << std::endl;
+        exit(3);
+    }
+    catch (...) {
+        std::cerr << "An unexpected error occured." << std::endl << error_continues_message << std::endl;
+        exit(3);
+    }
 }
 #endif // c++11

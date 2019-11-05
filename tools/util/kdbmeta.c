@@ -49,6 +49,9 @@
 #include <kdb/meta.h>
 #include <kdb/namelist.h>
 #include <kdb/kdb-priv.h>
+
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <vfs/manager.h>
 #include <vfs/resolver.h>
 #include <vfs/path.h>
@@ -1011,6 +1014,11 @@ static const char* USAGE_UNSIGNED[]
 static const char* USAGE_OUT[] = { "Output type: one of (xml text): ",
     "whether to generate well-formed XML. Default: xml (well-formed)", NULL };
 
+#define OPTION_NGC "ngc"
+#define ALIAS_NGC  NULL
+static const char* USAGE_NGC[] = { "path to ngc file", NULL };
+
+
 const OptDef opt[] = {
   { OPTION_TABLE    , ALIAS_TABLE    , NULL, USAGE_TABLE    , 1, true , false }
  ,{ OPTION_UNSIGNED , ALIAS_UNSIGNED , NULL, USAGE_UNSIGNED , 1, false, false }
@@ -1018,6 +1026,7 @@ const OptDef opt[] = {
  ,{ OPTION_READ_ONLY, ALIAS_READ_ONLY, NULL, USAGE_READ_ONLY, 1, false, false }
 #endif
  ,{ OPTION_OUT      , ALIAS_OUT      , NULL, USAGE_OUT      , 1, true , false }
+ ,{ OPTION_NGC      , ALIAS_NGC      , NULL, USAGE_NGC      , 1, true , false }
 };
 
 static const char * const * target_usage [] = { t1, t2, t3, t4 };
@@ -1069,7 +1078,11 @@ rc_t CC Usage (const Args * args)
 
     for(idx = 0; idx < sizeof(opt) / sizeof(opt[0]); ++idx) {
         const char *param = NULL;
-        if (strcmp(opt[idx].aliases, ALIAS_TABLE) == 0) {
+        if (opt[idx].aliases == NULL) {
+            if (strcmp(opt[idx].name, OPTION_NGC) == 0)
+                param = "path";
+        }
+        else if (strcmp(opt[idx].aliases, ALIAS_TABLE) == 0) {
             param = "table";
         }
         else if (strcmp(opt[idx].aliases, ALIAS_OUT) == 0) {
@@ -1077,6 +1090,8 @@ rc_t CC Usage (const Args * args)
         }
         HelpOptionLine(opt[idx].aliases, opt[idx].name, param, opt[idx].help);
     }
+
+    OUTMSG(("\n"));
 
     HelpOptionsStandard ();
 
@@ -1166,6 +1181,28 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
                 else if (strcmp(dummy, "t") == 0) {
                     as_valid_xml = false;
+                }
+            }
+
+/* OPTION_NGC */
+            {
+                rc = ArgsOptionCount(args, OPTION_NGC, &pcount);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_NGC "' argument");
+                    break;
+                }
+                if (pcount > 0) {
+                    const char* dummy = NULL;
+                    rc = ArgsOptionValue(args, OPTION_NGC, 0,
+                        (const void **)&dummy);
+                    if (rc != 0) {
+                        LOGERR(klogErr, rc,
+                            "Failure to get '" OPTION_NGC "' argument");
+                        break;
+                    }
+
+                    KConfigSetNgcFile(dummy);
                 }
             }
 

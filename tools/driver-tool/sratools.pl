@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use integer;
 use Config;
+use Encode qw{ encode decode };
 use IO::Handle;
 use IO::File;
 use File::Spec;
@@ -51,6 +52,7 @@ my $level = eval {
     0+$ENV{SRATOOLS_VERBOSE}
 } // 0;
 $level = 5 if $level > 5;
+$level = 0 if $level < 0;
 $loggers[0] = sub { print STDERR join("\n", @_)."\n" if @_ };
 $loggers[$_] = $loggers[0] for 1 .. 4;
 if ($level < 5) {
@@ -63,12 +65,20 @@ sub LOG($@)
 {
     return unless $_[0] <= 5;
     my $level = shift;
-    goto &{$loggers[$level]};
+    if ($level < 0) {
+        print STDERR join("\n", @_)."\n" if @_;
+        return
+    }
+    goto &{$loggers[$level]}
 }
 
 sub SignalName($);
 sub remove_version_string($);
 
+if ($ENV{SRATOOLS_IMPERSONATE}) {
+    $0 = $ENV{SRATOOLS_IMPERSONATE}
+}
+    
 my ($selfvol, $selfdir, $basename) = File::Spec->splitpath($0);
 my $selfpath = File::Spec->rel2abs(File::Spec->catpath($selfvol, $selfdir, ''));
 my $vers_string = '';
@@ -88,16 +98,27 @@ LOG 2, "VDB_MEM_LIMIT = $ENV{VDB_MEM_LIMIT}";
 
 goto RUN_TESTS  if $basename eq 'sratools.pl' && ($ARGV[0] // '') eq 'runtests';
 
-delete $ENV{$_} for qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_REMOTE_NEED_CE VDB_REMOTE_NEED_PMT VDB_CACHE_URL VDB_CACHE_NEED_CE VDB_CACHE_NEED_PMT VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE };
+sub environment_vars
+{
+    qw{ VDB_CE_TOKEN VDB_LOCAL_URL VDB_REMOTE_URL VDB_REMOTE_NEED_CE VDB_REMOTE_NEED_PMT VDB_CACHE_URL VDB_CACHE_NEED_CE VDB_CACHE_NEED_PMT VDB_LOCAL_VDBCACHE VDB_REMOTE_VDBCACHE VDB_CACHE_VDBCACHE VDB_SIZE_URL VDB_SIZE_VDBCACHE }
+}
 
-# prefetch and srapath will handle --location themselves
-goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+delete $ENV{$_} for environment_vars;
+
+sub find_ngc();
+my $ngc = find_ngc();
+
+# srapath and prefetch will handle --location and --perm
 goto RUNNING_AS_SRAPATH         if $basename =~ /^srapath/;
+goto RUNNING_AS_PREFETCH        if $basename =~ /^prefetch/;
+
+sub find_perm();
+my $perm = find_perm();
 
 sub findLocation();
 my $location = findLocation();
 
-# these functions don't know location or need it
+# these functions don't know or need --location or --perm
 goto RUNNING_AS_FASTQ_DUMP      if $basename =~ /^fastq-dump/;
 goto RUNNING_AS_FASTERQ_DUMP    if $basename =~ /^fasterq-dump/;
 goto RUNNING_AS_SAM_DUMP        if $basename =~ /^sam-dump/;
@@ -157,6 +178,8 @@ sub processAccessions($$$$\@@)
     my $params = shift;
     my $overrideOutputFile = FALSE;
     my @runs = expandAllAccessions(@_);
+    
+    push @$params, '--ngc', $ngc if $ngc;
     
     LOG 1, "running $toolname on ".join(' ', @runs);
     
@@ -225,6 +248,15 @@ FMT
                 if ($overrideOutputFile) {
                     push @$params, $unsafeOutputFile, $acc.$extension
                 }
+                if ($ENV{SRATOOLS_DRY_RUN}) {
+                    LOG -1, sprintf("would exec '%s' as:", $toolpath);
+                    LOG -1, join(' ', '$', $0, @$params, $acc);
+                    LOG 0, 'with environment:';
+                    for (environment_vars) {
+                        LOG 0, " $_ => " . (defined($ENV{$_}) ? '"'.$ENV{$_}.'"' : 'undef')
+                    }
+                    exit 0
+                }
                 exec {$toolpath} $0, @$params, $acc; ### tool should run as what user invoked
                 die "can't exec $toolname: $!";
             }
@@ -238,6 +270,7 @@ FMT
                 LOG 1, sprintf("Processed %s", $acc);
                 last
             }
+            last if $ENV{SRATOOLS_DRY_RUN};
             last if $exitcode == 0 && $signal == 0; # SUCCESS! process the next run
             die sprintf('%s (PID %u) was killed [%s (%u)] (%s core dump was generated)', $toolname, $kid, SignalName($signal), $signal, $cored ? 'a' : 'no') if $signal;
             LOG 1, sprintf("%s (PID %u) quit with exit code %u", $toolname, $kid, $exitcode);
@@ -263,6 +296,18 @@ sub processAccessionsNoResolver($$\@@)
     my $params = shift;
     my @runs = expandAllAccessions(@_);
 
+    push @$params, '--ngc', $ngc if $ngc;
+    
+    if ($ENV{SRATOOLS_DRY_RUN}) {
+        LOG -1, sprintf("would exec '%s' as:", $toolpath);
+        LOG -1, join(' ', '$', $0, @$params, @runs);
+        LOG 0, 'with environment:';
+        for (environment_vars) {
+            LOG 0, " $_ => " . (defined($ENV{$_}) ? '"'.$ENV{$_}.'"' : 'undef')
+        }
+        exit 0
+    }
+
     LOG 1, "running $toolname on ".join(' ', @runs);
     LOG 1, 'with parameters: '.join(' ', @$params) if @$params;
 
@@ -270,22 +315,23 @@ sub processAccessionsNoResolver($$\@@)
     die "can't exec $toolname: $!";
 }
 
-### \brief: find (and remove) location parameter from ARGV
+### \brief: find (and remove) a parameter from ARGV
 ###
 ### \returns: the value of the parameter or undef
-sub findLocation()
+sub findAndRemoveParamWithArg($)
 {
     my $result = undef;
+    my $param = $_[0];
     for my $i (0 .. $#ARGV) {
         local $_ = $ARGV[$i];
-        next unless /^--location/;
-        if ($_ eq '--location') {
+        next unless /^--$param/;
+        if ($_ eq '--$param') {
             (undef, $result) = splice @ARGV, $i, 2;
-            die "location parameter requires a value" unless $result;
+            die "$param parameter requires a value" unless $result;
             LOG 0, "Requesting data from $result";
             last;
         }
-        elsif (/^--location=(.+)/) {
+        elsif (/^--$param=(.+)/) {
             $result = $1;
             LOG 0, "Requesting data from $result";
             splice @ARGV, $i, 1;
@@ -293,6 +339,33 @@ sub findLocation()
         }
     }
     $result
+}
+
+### \brief: find (and remove) location parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub findLocation()
+{
+    my $result = findAndRemoveParamWithArg("location");
+    LOG 0, "Requesting data from $result" if $result;
+}
+
+### \brief: find (and remove) perm parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub find_perm()
+{
+    my $result = findAndRemoveParamWithArg("perm");
+    LOG 0, "Using permissions from $result" if $result;
+}
+
+### \brief: find (and remove) ngc parameter from ARGV
+###
+### \returns: the value of the parameter or undef
+sub find_ngc()
+{
+    my $result = findAndRemoveParamWithArg("ngc");
+    LOG 0, "Using ngc file $result" if $result;
 }
 
 ### \brief: search parameter array for a parameter and return its index
@@ -387,37 +460,26 @@ sub expandAllAccessions(@)
         next if $seen{$_};
         $seen{$_} = TRUE;
         
-        # check if it is a file
-        if (-f) {
-            push @rslt, $_;
-            next;
-        }
-        # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
-        if (/^[DES]RR\d+$/) {
-            push @rslt, $_;
-            next;
-        }
-        # check for run accessions with known extensions
-        if (/^[DES]RR\d+\.(.+)$/) {
-            my $ext = $1;
-            if ($ext =~ /^realign$/i) {
-                push @rslt, $_;
+        # check if it exists in the file system
+        goto ADD_TO_RESULT if -e;
+
+        if (/^[DES]R[APRSX]\d+/) { # looks like it might be an SRA accession
+            # check for ordinary run accessions, e.g. SRR000001 ERR000001 DRR000001
+            goto ADD_TO_RESULT if substr($_, 2, 1) eq 'R';
+
+            # see if it can be expanded into run accessions
+            my @expanded = expandAccession($_);
+            if (@expanded) {
+                # expanded accessions are push back on to the original list so that
+                # they can potentially be recursively expanded
+                push @_, @expanded;
                 next;
             }
         }
-        # see if it can be expanded into run accessions
-        my @expanded = expandAccession($_);
-        if (@expanded) {
-            # expanded accessions are push back on to the original list so that
-            # they can potentially be recursively expanded
-            push @_, @expanded;
-        }
-        else {
-            ### Note: could add it back into the list,
-            ### but the tool has no better means to make
-            ### sense of the request.
-            print STDERR "warn: nothing found for $_\n";
-        }
+        # send it as-is to srapath
+    ADD_TO_RESULT:
+        push @rslt, $_;
+        next;
     }
     return @rslt;
 }
@@ -568,6 +630,7 @@ sub resolveAccessionURLs($)
         , '--vers', $config{'repository/remote/version'} // DEFAULT_RESOLVER_VERSION
         , '--url', $config{'repository/remote/main/SDL.2/resolver-cgi'} // DEFAULT_RESOLVER_URL);
     push @tool_args, ('--location', $location) if $location;
+    push @tool_args, ('--perm', $perm) if $perm;
     push @tool_args, $_[0];
 
     my $toolpath = which(REAL_SRAPATH) or help_path(REAL_SRAPATH, TRUE);
@@ -614,14 +677,14 @@ sub queryEUtilsViaCurl($$)
 
 RETRY:
     my ($output, $exitcode) = do {
-        use open qw{ :encoding(UTF-8) };
+        use Encode qw{ encode decode };
         my $kid = open(my $pipe, '-|') // die "can't fork: $!";
 
         if ($kid == 0) {
             exec {$curl} $curl, qw{ --location --header "Accept-Charset: UTF-8" --silent --fail }, $url;
             die "can't exec curl: $!";
         }
-        my $output = do { local $/; <$pipe> }; # slurp
+        my $output = do { local $/; encode('utf-8', <$pipe>) }; # slurp
         close($pipe);
         my $exitcode = $?;
         ($output, $exitcode)
@@ -646,10 +709,10 @@ sub queryEUtils($$)
 ### \param: the search term
 ###
 ### \return: array of matching IDs
-sub esearch($)
+sub esearch($$)
 {
     my $query = shift;
-    my $isAccession = $query =~ m/^[DES]R[APRSX]\d+/;
+    my $isAccession = shift;
     my $content = queryEUtils('esearch', {
         retmax => $isAccession ? 200 : 20,
         retmode => 'json', db => 'sra', term => $query });
@@ -802,7 +865,7 @@ sub getRunInfo(@)
 ### \return: array of run accessions
 sub expandAccession($)
 {
-    return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo(esearch($_[0]))->{'runs'}};
+    return map { $_->{accession} } grep { $_->{loaded} && $_->{public} } @{getRunInfo(esearch($_[0], TRUE))->{'runs'}};
 }
 
 RUNNING_AS_FASTQ_DUMP:
@@ -847,6 +910,7 @@ RUNNING_AS_FASTQ_DUMP:
         '--offset' => TRUE,
         '--defline-seq' => TRUE,
         '--defline-qual' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
         '--dumpcs' => 0, # argument not required
@@ -901,6 +965,7 @@ RUNNING_AS_FASTERQ_DUMP:
         '--temp' => TRUE,
         '--threads' => TRUE,
         '--min-read-len'=> TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -950,6 +1015,7 @@ RUNNING_AS_SAM_DUMP:
         '--min-mapq' => TRUE,
         '--rna-splice-level' => TRUE,
         '--rna-splice-log' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1006,6 +1072,7 @@ RUNNING_AS_PREFETCH:
         '--ascp-options' => TRUE,
         '--output-file' => TRUE,
         '--output-directory' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1051,6 +1118,8 @@ RUNNING_AS_SRAPATH:
         '--vers' => TRUE,
         '--url' => TRUE,
         '--param' => TRUE,
+        '--perm' => TRUE,
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1094,6 +1163,7 @@ RUNNING_AS_SRA_PILEUP:
         '--minmismatch' => TRUE,
         '--merge-dist' => TRUE,
         '--function' => TRUE,        
+        '--ngc' => TRUE,
         '--log-level' => TRUE,
         '--debug' => TRUE,
     );
@@ -1183,7 +1253,7 @@ sub parseArgvOldStyle(\@\@\%\%@)
 ### \param: filename
 ###
 ### \return: array of parsed arguments
-sub parseOptionsFile($)
+sub parseOptionFile($)
 {
     my @rslt = ();
     my $string = '';
@@ -1396,6 +1466,8 @@ sub isExecutable($$)
     return (-e && -x) ? $_ : undef;
 }
 
+sub sandwich($);
+
 ### \brief: like shell `which` but checks more than just PATH
 ###
 ### \param: executable name
@@ -1409,6 +1481,10 @@ sub sandwich($)
     LOG(4, "looking for $exe in self directory");
     $fullpath = isExecutable($exe, $selfpath);
     return $fullpath if $fullpath;
+
+    if ($ENV{SRATOOLS_IMPERSONATE} && $exe =~ /-orig$/) {
+        return sandwich substr($exe, 0, -5);
+    }
 
     LOG(4, "looking for $exe in PATH");
     for my $dir (File::Spec->path()) {
@@ -1457,7 +1533,8 @@ sub info(@)
     
     my $before = '';
     foreach my $query (@_) {
-        my $info = getRunInfo(esearch($query)) or goto NOTHING;
+        my $isAccession = $query =~ m/^[A-Z][A-Z_]+\d{6,}/;
+        my $info = getRunInfo(esearch($query, $isAccession)) or goto NOTHING;
         my @runs = sort { 
                $a->{'sample'} cmp $b->{'sample'}
             || ($a->{'organism'} // '') cmp ($b->{'organism'} // '')

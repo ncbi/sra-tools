@@ -58,6 +58,8 @@
 
 #include <kdb/manager.h>
 
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/report.h> /* ReportSetVDBManager() */
@@ -100,6 +102,8 @@
 #define OPTION_MERGE   "merge-dist"
 
 #define OPTION_DEPTH_PER_SPOTGRP	"depth-per-spotgroup"
+
+#define OPTION_NGC "ngc"
 
 #define OPTION_FUNC    "function"
 #define ALIAS_FUNC     NULL
@@ -176,6 +180,8 @@ static const char * func_deletes_usage[]    = { "list deletions greater then 20"
 
 static const char * func_usage[]            = { "alternative functionality", NULL };
 
+static const char * ngc_usage[] = { "path to ngc file", NULL };
+
 OptDef MyOptions[] =
 {
     /*name,           	alias,         	hfkt,	usage-help,		maxcount, needs value, required */
@@ -189,7 +195,8 @@ OptDef MyOptions[] =
     { OPTION_SEQNAME,	ALIAS_SEQNAME,	NULL,	seqname_usage,	1,        false,       false },
     { OPTION_MIN_M,		NULL,			NULL,	min_m_usage,	1,        true,        false },
     { OPTION_MERGE,		NULL,			NULL,	merge_usage,	1,        true,        false },
-    { OPTION_FUNC,		ALIAS_FUNC,		NULL,	func_usage,		1,        true,        false }
+    { OPTION_FUNC,		ALIAS_FUNC,		NULL,	func_usage,		1,        true,        false },
+    { OPTION_NGC,       NULL,           NULL,   ngc_usage, 1, true, false },
 };
 
 /* =========================================================================================== */
@@ -336,6 +343,14 @@ static rc_t get_pileup_options( Args * args, pileup_options *opts )
                 opts->function = sra_pileup_indels;
         }
     }
+
+    if (rc == 0) {
+        const char * ngc = NULL;
+        rc = get_str_option(args, OPTION_NGC, &ngc);
+        if (rc == 0 && ngc != NULL)
+            KConfigSetNgcFile(ngc);
+    }
+
     return rc;
 }
 
@@ -375,6 +390,7 @@ rc_t CC Usage ( const Args * args )
     UsageSummary ( progname );
     KOutMsg ( "Options:\n" );
     print_common_helplines();
+    HelpOptionLine ( NULL, OPTION_NGC, "path", ngc_usage );
     HelpOptionLine ( ALIAS_MINMAPQ, OPTION_MINMAPQ, "min. mapq", minmapq_usage );
     HelpOptionLine ( ALIAS_DUPS, OPTION_DUPS, "dup-mode", dups_usage );
     HelpOptionLine ( ALIAS_SPOTGRP, OPTION_SPOTGRP, NULL, spotgrp_usage );

@@ -165,7 +165,9 @@ char const *rna_splice_log_usage[]    = { "file, into which rna-splice events ar
 char const *no_mt_usage[]             = { "disable multithreading", NULL };
 
 char const *with_md_flag_usage[]      = { "print MD-flag", NULL };
-                                      
+                            
+char const *ngc_usage[]               = { "PATH to ngc file", NULL };
+
 OptDef SamDumpArgs[] =
 {
     { OPT_UNALIGNED,     "u", NULL, sd_unaligned_usage,      0, false, false },  /* print unaligned reads */
@@ -213,6 +215,7 @@ OptDef SamDumpArgs[] =
     { OPT_CIGAR_TEST,   NULL, NULL, NULL,                    0, true,  false },  /* test cg-treatment of cigar string */
     { OPT_LEGACY,       NULL, NULL, NULL,                    0, false, false },  /* force legacy code-path */
     { OPT_NEW,          NULL, NULL, NULL,                    0, false, false },   /* force new code-path */
+    { OPT_NGC,          NULL, NULL, ngc_usage, 0, true, false },  /* ngc file */
     { OPT_TIMING,       NULL, NULL, NULL,                    0, true, false }    /* optional timing */
 };
 
@@ -263,6 +266,7 @@ char const *sd_usage_params[] =
     NULL,                       /* cigar test */
     NULL,                       /* force legacy code path */
     NULL,                       /* force new code path */
+    "PATH",                     /* ngc file */
     NULL                        /* optional timing */
 };
 

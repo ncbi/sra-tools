@@ -27,23 +27,64 @@ default: runtests
 TOP ?= $(abspath ../..)
 MODULE = test/vdb-config
 
-TEST_TOOLS = \
+EXT_TOOLS = \
 	test-vdb-config-model
+
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
 
 include $(TOP)/build/Makefile.env # BINDIR
 
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-.PHONY: $(TEST_TOOLS)
+#-------------------------------------------------------------------------------
+# outer targets
+#
+all std: vers-includes
+	@ $(MAKE_CMD) $(TARGDIR)/$@
 
+$(ALL_TOOLS): vers-includes
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
+
+#-------------------------------------------------------------------------------
+# std
+#
+$(TARGDIR)/std: \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# vers-includes
+#
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/vers-includes
+
+#-------------------------------------------------------------------------------
+# clean
+#
 clean: stdclean
+
+.PHONY: clean
 
 #-------------------------------------------------------------------------------
 # test-vdb-config
 #
 
-runtests: test-vdb-config
+runtests: test-vdb-config model
 
 test-vdb-config:
 	@ printf "Testing exit code vdb-config of vdb-config... "
@@ -65,10 +106,10 @@ STRIDES_LIB = \
 	-sktst \
 	-sncbi-vdb \
 
-$(TEST_BINDIR)/test-vdb-config-model: $(STRIDES_OBJ)
+$(BINDIR)/test-vdb-config-model: $(STRIDES_OBJ)
 	$(LP) --exe -o $@ $^ $(STRIDES_LIB)
 
 model: test-vdb-config-model
-	$(TEST_BINDIR)/test-vdb-config-model  2>&1
+	NCBI_SETTINGS=`pwd`/tmp/u $(BINDIR)/test-vdb-config-model ; rm -r tmp
 
 

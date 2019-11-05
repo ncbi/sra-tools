@@ -38,13 +38,45 @@ TGT_FILE=$3/$1
 
 mkdir -p ${KONFIG_DIR}
 
+function get_md5 ()
+{
+    local MD5="$(which md5sum)"
+    if [ "$MD5" != "" ] && [ -x "$MD5" ]
+    then
+        "$MD5" "$1" | awk '{print $1;}'
+    else
+        MD5=/usr/bin/md5sum
+        if [ -x "$MD5" ]
+        then
+            "$MD5" "$1" | awk '{print $1;}'
+        else
+            MD5="$(which md5)"
+            if [ "$MD5" != "" ] && [ -x "$MD5" ]
+            then
+                "$MD5" -q "$1"
+            else
+                MD5=/sbin/md5
+                if [ -x "$MD5" ]
+                then
+                    "$MD5" -q "$1"
+                else
+                    echo "failed to locate md5 tool" 2>&1 1>/dev/null
+                    exit 5
+                fi
+            fi
+        fi
+    fi
+}
+
 #echo "installing $1 from $2 to $3, mdsums = $4"
 
 # create a backup if installed file has been modified by user
-if [ -f ${TGT_FILE} ] ; then
-    md5=$(md5sum ${TGT_FILE} | awk '{print $1;}')
+if [ -f ${TGT_FILE} ]
+then
+    md5=$(get_md5 ${TGT_FILE})
     #echo "$1 md5=$md5"
-    if [ "$(grep ${md5} ${MD5SUMS})" == "" ] ; then
+    if [ "$(grep ${md5} ${MD5SUMS})" == "" ]
+    then
         # not a known version of the file; create a backup copy
         mv -b -v ${TGT_FILE} ${TGT_FILE}.orig
     fi

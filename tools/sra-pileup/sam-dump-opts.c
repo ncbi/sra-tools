@@ -30,6 +30,8 @@
 
 #include <klib/time.h>
 #include <align/quality-quantizer.h>
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <sysalloc.h>
 
 #define CURSOR_CACHE_SIZE 256*1024*1024
@@ -1128,6 +1130,10 @@ static rc_t gather_string_options( Args * args, samdump_opts * opts )
         else
             opts->rna_splice_log = make_rna_splice_log( opts->rna_splice_log_file, "sam-dump" );
     }
+
+    rc = get_str_option(args, OPT_NGC, &s);
+    if (rc == 0 && s != NULL)
+        KConfigSetNgcFile(s);
 
     return rc;
 }

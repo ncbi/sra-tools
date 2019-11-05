@@ -753,20 +753,30 @@ uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files 
     return res;
 }
 
-int get_vdb_pathtype( KDirectory * dir, const char * accession )
+/*
+int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession )
 {
     int res = kptAny;
-    const VDBManager * vdb_mgr;
-    rc_t rc = VDBManagerMakeRead( &vdb_mgr, dir );
-    if ( rc != 0 )
-        ErrMsg( "get_vdb_pathtype().VDBManagerMakeRead() -> %R\n", rc );
-    else
+    rc_t rc = 0;
+    bool release_mgr = false;
+    const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
+    if ( mgr == NULL )
     {
-        res = ( VDBManagerPathType ( vdb_mgr, "%s", accession ) & ~ kptAlias );
-        VDBManagerRelease( vdb_mgr );
+        rc = VDBManagerMakeRead( &mgr, dir );
+        if ( rc != 0 )
+            ErrMsg( "get_vdb_pathtype().VDBManagerMakeRead() -> %R\n", rc );
+        else
+            release_mgr = true;
+    }
+    if ( rc == 0 )
+    {
+        res = ( VDBManagerPathType ( mgr, "%s", accession ) & ~ kptAlias );
+        if ( release_mgr )
+            VDBManagerRelease( mgr );
     }
     return res;
 }
+*/
 
 /* ===================================================================================== */
 

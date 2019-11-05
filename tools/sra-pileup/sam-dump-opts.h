@@ -99,6 +99,7 @@ extern "C" {
 #define OPT_NO_MT       "disable-multithreading"
 #define OPT_TIMING      "timing"
 #define OPT_MD_FLAG     "with-md-flag"
+#define OPT_NGC         "ngc"
 
 typedef struct range
 {

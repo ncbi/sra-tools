@@ -37,13 +37,14 @@ KMER=$(SRA)/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
-SRR=$(SRA)/traces/sra59/SRR/000052/SRR053325
+SRAC=SRR053325
+SRR=$(SRA)/traces/sra57/SRR/000052/$(SRAC)
 INT=https://sra-download-internal.ncbi.nlm.nih.gov
-SRAC=SRR003325
-SRR=$(INT)/traces/sra4/SRR/000003/$(SRAC)
+DDB=https://sra-downloadb.be-md.ncbi.nlm.nih.gov
+#SRR=$(DDB)/sos/sra-pub-run-5/$(SRAC)/$(SRAC).3
 SRAI=fasp://dbtest@sra-download-internal.ncbi.nlm.nih.gov
-SRRF=$(SRAF):data/sracloud/traces/sra59/SRR/000052/SRR053325
-SRRF=$(SRAI):data/sracloud/traces/sra4/SRR/000003/$(SRAC)
+SRRF=$(SRAF):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
+SRRF=$(SRAI):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
@@ -200,7 +201,7 @@ urls_and_accs:
 	@echo '$(PUBLIC)/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/t.kfg
 	@echo WGS HTTP download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
-     then echo AFVF01 found ; exit 1; fi
+		then echo AFVF01 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(WGS) > /dev/null
 	@echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537
@@ -289,15 +290,14 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch AFVF01 > /dev/null
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null
-#	@echo
 
 	@if ls `pwd`/tmp2/100MB 2> /dev/null ; \
      then echo 100MB found ; exit 1; fi
-	@ echo FASP download: asperasoft/100MB
-	@if ascp -h > /dev/null ; \
+	@ echo FASP download: asperasoft/100MB: turned off
+#	@if ascp -h > /dev/null ; \
      then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch $(LARGE) > /dev/null ; \
+	    $(BINDIR)/prefetch $(LARGE) > /dev/null && \
 	    ls `pwd`/100MB > /dev/null ; \
 	 else \
 	    if $(BINDIR)/prefetch $(LARGE) 2> /dev/null ; \
@@ -306,7 +306,17 @@ urls_and_accs:
             exit 1; \
 	     fi ; \
 	 fi
-#	@echo
+
+	@if ascp -h > /dev/null ; \
+     then \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
+	 else \
+	    if $(BINDIR)/prefetch $(LARGE) 2> /dev/null ; \
+        then \
+            echo "prefetch <FASP URL> when ascp is not found should fail" ; \
+            exit 1; \
+	     fi ; \
+	 fi
 
 	@if ls `pwd`/tmp2/1GB 2> /dev/null; \
      then echo 1GB found ; exit 1; fi
@@ -405,7 +415,7 @@ out_dir_and_file:
 	    echo PREFETCH FASP URL TO OUT-FILE ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
-	    $(BINDIR)/prefetch $(LARGE) -O / -o tmp3/dir/file > /dev/null ; \
+	    $(BINDIR)/prefetch $(REFSEQF) -O / -o tmp3/dir/file > /dev/null ; \
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
@@ -469,9 +479,9 @@ out_dir_and_file:
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    if ls `pwd`/100MB 2> /dev/null ; then exit 1; fi ; \
-	    $(BINDIR)/prefetch $(LARGE) > /dev/null ; \
-	    ls `pwd`/100MB > /dev/null ; \
+	    if ls `pwd`/KC702174.1 2> /dev/null ; then exit 1; fi ; \
+	    $(BINDIR)/prefetch $(REFSEQF) > /dev/null && \
+	    ls `pwd`/KC702174.1 > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -522,10 +532,10 @@ out_dir_and_file:
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL TO OUT-DIR ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if ls `pwd`/tmp3/dir/100MB 2> /dev/null ; then \
+	    if ls `pwd`/tmp3/dir/KC702174.1 2> /dev/null ; then \
         echo 100MB found ; exit 1 ; fi ; \
-	    $(BINDIR)/prefetch $(LARGE) -O tmp3/dir > /dev/null ; \
-	    ls `pwd`/tmp3/dir/100MB > /dev/null ; \
+	    $(BINDIR)/prefetch $(REFSEQF) -O tmp3/dir > /dev/null && \
+	    ls `pwd`/tmp3/dir/KC702174.1 > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo

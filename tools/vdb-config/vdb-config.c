@@ -196,12 +196,11 @@ static const char* USAGE_P_UR[] = { "prefetch downloads to "
 
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
 {
-    rc_t rc;
-    uint32_t imp_count;
+    uint32_t imp_count = 0;
     
-    rc = ArgsOptionCount(args, OPTION_IMP, &imp_count);
+/*  rc_t rc = ArgsOptionCount(args, OPTION_IMP, &imp_count);
     if (rc != 0)
-        return rc;
+        return rc; */
     
     // first parameter is a directory only if OPTION_IMP is present; otherwise it is a query
     if (imp_count > 0)
@@ -251,7 +250,6 @@ rc_t CC UsageSummary (const char * progname) {
     return KOutMsg (
         "Usage:\n"
         "  %s [options] [<query> ...]\n\n"
-        "  %s [options] --import <ngc-file> [<workspace directory path>]\n"
         "\n"
         "Summary:\n"
         "  Manage VDB configuration\n"
@@ -621,7 +619,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 ++count;
             }
         }
-        {   // OPTION_IMP
+/*      {   // OPTION_IMP
             rc = ArgsOptionCount(args, OPTION_IMP, &pcount);
             if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
@@ -637,7 +635,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                      prm->modeShowCfg = false;
                 }
             }
-        }
+        } */
         {   // OPTION_MOD
             rc = ArgsOptionCount(args, OPTION_MOD, &pcount);
             if (rc) {

@@ -3612,7 +3612,7 @@ static OptDef OPTIONS[] = {
 #if ALLOW_STRIP_QUALS
 ,{ STRIP_QUALS_OPTION ,STRIP_QUALS_ALIAS,NULL,STRIP_QUALS_USAGE,1, false,false }
 #endif
-,{ OUT_FILE_OPTION    , NULL              ,NULL,OUT_FILE_USAGE ,1, true, false }
+,{ OUT_FILE_OPTION    , OUT_FILE_ALIAS    ,NULL,OUT_FILE_USAGE ,1, true, false }
 ,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE,1, true, false }
 ,{ DRY_RUN_OPTION     , NULL              , NULL, DRY_RUN_USAGE,1, false,false }
 };

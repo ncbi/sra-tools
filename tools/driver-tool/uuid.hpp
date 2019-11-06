@@ -26,58 +26,24 @@
  *  sratools command line tool
  *
  * Purpose:
- *  argv[0] manipulations
+ *  uuid
  *
  */
 
+#pragma once
+
 #include <string>
-#include <cassert>
 
-#include "split_path.hpp"
+/// @brief generate a type 4 version 1 UUID
+///
+/// @returns a type 4 version 1 UUID
+extern std::string uuid();
 
-#include "../../shared/toolkit.vers.h"
-
-std::string split_basename(std::string *const path)
-{
-    auto result = std::string();
-    auto const at = path->find_last_of('/');
-    if (at == std::string::npos)
-        path->swap(result);
-    else {
-        result.assign(path->substr(at + 1));
-        path->assign(path->substr(0, at));
-    }
-    return result;
-}
-
-std::string split_version(std::string *const name)
-{
-    auto result = std::string();
-    auto i = name->begin();
-    auto last = name->end();
-    auto const end = last;
-    
-    while (i != end) {
-        if (last == end) {
-            if (*i == '.')
-                last = i;
-        }
-        else if (!isdigit(*i) && *i != '.')
-            last = end;
-        ++i;
-    }
-    if (last == end) {
-        result.reserve(14);
-        result.assign(std::to_string((TOOLKIT_VERS) >> 24));
-        result.append(1, '.');
-        result.append(std::to_string(((TOOLKIT_VERS) >> 16) & 0xFF));
-        result.append(1, '.');
-        result.append(std::to_string((TOOLKIT_VERS) & 0xFFFF));
-    }
-    else {
-        auto const save = last++;
-        result.assign(last, end);
-        name->erase(save, end);
-    }
-    return result;
-}
+#if TESTING
+/// @brief generate a type 4 version 1 UUID, exported for testing
+///
+/// Uses c++ 11 random_device
+///
+/// @param buffer filled in with new uuid
+extern void uuid_random(char buffer[37]);
+#endif

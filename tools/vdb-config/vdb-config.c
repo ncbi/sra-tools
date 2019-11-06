@@ -113,7 +113,7 @@ static const char* USAGE_FIX[] =
 
 #define ALIAS_IMP    NULL
 #define OPTION_IMP   "import"
-static const char* USAGE_IMP[] = { "import ngc file", NULL };
+/* static const char* USAGE_IMP[] = { "import ngc file", NULL }; */
 
 #define ALIAS_MOD    "m"
 #define OPTION_MOD   "modules"
@@ -196,12 +196,11 @@ static const char* USAGE_P_UR[] = { "prefetch downloads to "
 
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
 {
-    rc_t rc;
-    uint32_t imp_count;
+    uint32_t imp_count = 0;
     
-    rc = ArgsOptionCount(args, OPTION_IMP, &imp_count);
+/*  rc_t rc = ArgsOptionCount(args, OPTION_IMP, &imp_count);
     if (rc != 0)
-        return rc;
+        return rc; */
     
     // first parameter is a directory only if OPTION_IMP is present; otherwise it is a query
     if (imp_count > 0)
@@ -222,8 +221,8 @@ OptDef Options[] =
     , { OPTION_ENV, ALIAS_ENV, NULL, USAGE_ENV, 1, false, false, NULL }
     , { OPTION_FIL, ALIAS_FIL, NULL, USAGE_FIL, 1, false, false, NULL }
     , { OPTION_FIX, ALIAS_FIX, NULL, USAGE_FIX, 1, false, false, NULL }
-    , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false,
-                                                              ArgsConvFilepath }
+/*  , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false,
+                                                             ArgsConvFilepath}*/
     , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false, NULL }
     , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false, NULL }
     , { OPTION_C_IN,ALIAS_C_IN,NULL, USAGE_C_IN,1, false, false, NULL }
@@ -251,8 +250,6 @@ rc_t CC UsageSummary (const char * progname) {
     return KOutMsg (
         "Usage:\n"
         "  %s [options] [<query> ...]\n\n"
-        "  %s [options] --import <ngc-file> [<workspace directory path>]\n"
-        "\n"
         "Summary:\n"
         "  Manage VDB configuration\n"
         , progname, progname);
@@ -621,7 +618,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 ++count;
             }
         }
-        {   // OPTION_IMP
+/*      {   // OPTION_IMP
             rc = ArgsOptionCount(args, OPTION_IMP, &pcount);
             if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
@@ -637,7 +634,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                      prm->modeShowCfg = false;
                 }
             }
-        }
+        } */
         {   // OPTION_MOD
             rc = ArgsOptionCount(args, OPTION_MOD, &pcount);
             if (rc) {

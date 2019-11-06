@@ -242,7 +242,11 @@ class vdbconf_model
         /* how much memory to use for caching */
         uint32_t get_cache_amount_in_MB( void ) const;
         void set_cache_amount_in_MB( uint32_t value );
-        
+
+        /* guid related functions */
+        std::string get_guid( void ) const;
+        void check_guid( void );
+
         // ----------------------------------------------------------------
         bool commit( void );
         void reload( void ); // throws on error

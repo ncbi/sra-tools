@@ -63,6 +63,8 @@
 #include "util.hpp"
 #include "fastq-dump.hpp"
 #include "split_path.hpp"
+#include "uuid.hpp"
+#include "env_vars.h"
 
 namespace sratools {
 
@@ -204,6 +206,13 @@ static void print_unsafe_output_file_message(  Container const &runs
     }
 }
 
+static void debugPrintEnvVar(char const *const name)
+{
+    auto const value = getenv(name);
+    if (value)
+        std::cerr << ' ' << name << "='" << value << "'\n";
+}
+
 static void debugPrintDryRun(  std::string const &toolpath
                              , ParamList const &parameters
                              , std::string const &run
@@ -220,15 +229,11 @@ static void debugPrintDryRun(  std::string const &toolpath
         }
         std::cerr << ' ' << run << std::endl;
         {
-            auto const names = env_var::names();
-            auto const endp = names + env_var::END_ENUM;
             std::cerr << "with environment:\n";
-            for (auto iter = names; iter != endp; ++iter) {
-                auto const name = *iter;
-                auto const value = getenv(name);
-                if (value)
-                    std::cerr << ' ' << name << "='" << value << "'\n";
+            for (auto name : make_sequence(env_var::names(), env_var::END_ENUM)) {
+                debugPrintEnvVar(name);
             }
+            debugPrintEnvVar(ENV_VAR_SESSION_ID);
             std::cerr << std::endl;
         }
         exit(0);
@@ -260,13 +265,14 @@ static bool processSource(std::string const &run, std::string const &toolname, F
 }
 
 static void processRun(  std::string const &run
+                       , data_sources const &allSources
                        , char const *const extension
                        , std::string const &toolname
                        , std::string const &toolpath
                        , ParamList const &parameters
                        , ParamList::iterator const &outputFile)
 {
-    auto const sources = data_sources(run);
+    auto const &sources = allSources.sourcesFor(run);
     if (sources.empty()) {
         std::cerr << "Could not get any data for " << run << ", there is no accessible source." << std::endl;
         // TODO: message about how this could be remedied.
@@ -274,7 +280,6 @@ static void processRun(  std::string const &run
     }
     auto success = false;
     
-    sources.set_ce_token_env_var();
     for (auto const &source : sources) {
         success = processSource(run, toolname, [&]() {
             if (outputFile != parameters.end())
@@ -298,52 +303,12 @@ static void processRun(  std::string const &run
     }
 }
 
-/// @brief runs tool on list of accessions
-///
-/// After args parsing, this is the called for tools that do their own communication with SDL, e.g. srapath.
-/// Accession can be any kind of SRA accession that can be resolved to runs.
-///
-/// @param toolname the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param parameters list of parameters (name-value pairs)
-/// @param accessions list of accessions to process
 static void processAccessionsNoSDL [[noreturn]] (
-                                     std::string const &toolname
-                                   , std::string const &toolpath
-                                   , ParamList const &parameters
-                                   , ArgsList const &accessions
-                                   )
-{
-    auto const runs = expandAll(accessions);
-    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
-    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
-        std::cerr << "would exec '" << toolpath << "' as:\n";
-        std::cerr << *argv0;
-        for (auto && value : parameters) {
-            std::cerr << ' ' << value.first;
-            if (value.second)
-                std::cerr << ' ' << value.second.value();
-        }
-        for (auto & run : accessions) {
-            std::cerr << ' ' << run;
-        }
-        std::cerr << std::endl;
-        {
-            auto const names = env_var::names();
-            auto const endp = names + env_var::END_ENUM;
-            std::cerr << "with environment:\n";
-            for (auto iter = names; iter != endp; ++iter) {
-                auto const name = *iter;
-                auto const value = getenv(name);
-                if (value)
-                    std::cerr << ' ' << name << "='" << value << "'\n";
-            }
-            std::cerr << std::endl;
-        }
-        exit(0);
-    }
-    exec(toolname, toolpath, parameters, runs);
-}
+                                                   std::string const &toolname
+                                                 , std::string const &toolpath
+                                                 , ParamList const &parameters
+                                                 , ArgsList const &accessions
+                                                 );
 
 /// @brief gets tool to print its help message; does not return
 ///
@@ -482,13 +447,20 @@ static void runas [[noreturn]] (int const tool)
     assert(!"reachable");
 }
 
+static void printInstallMessage [[noreturn]] (void);
+
 static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 {
     std::string const s_argv0(cargv0);
     std::string s_selfpath(cargv0)
               , s_basename(split_basename(&s_selfpath))
               , s_version(split_version(&s_basename));
-    std::string s_location, s_perm, s_ngc;
+    std::string s_location;
+    std::string s_perm;
+    std::string s_ngc;
+
+    auto const sessionID = uuid();
+    setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
     
     // setup const globals
     argv0 = &s_argv0;
@@ -498,6 +470,10 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 
     auto s_config = Config();
     config = &s_config;
+    
+    if (config->noInstallID()) {
+        printInstallMessage();
+    }
 
     auto s_args = loadArgv(argc, argv);
     
@@ -562,6 +538,7 @@ void processAccessions [[noreturn]] (
         exec(toolname, toolpath, parameters, accessions);
     }
     auto const runs = expandAll(accessions);
+    auto const sources = data_sources::preload(runs, parameters);
     ParamList::iterator outputFile = parameters.end();
     
     if (runs.size() > 1 && unsafeOutputFileParamName) {
@@ -573,21 +550,103 @@ void processAccessions [[noreturn]] (
             }
         }
     }
+    sources.set_ce_token_env_var();
     for (auto const &run : runs) {
         LOG(3) << "Processing " << run << " ..." << std::endl;
-        processRun(run, extension, toolname, toolpath, parameters, outputFile);
+        processRun(run, sources, extension, toolname, toolpath, parameters, outputFile);
     }
-    LOG(1) << "All runs were processed successfully" << std::endl;
+    LOG(1) << "All runs were processed" << std::endl;
     exit(0);
 }
 
+/// @brief runs tool on list of accessions
+///
+/// After args parsing, this is the called for tools that do their own communication with SDL, e.g. srapath.
+/// Accession can be any kind of SRA accession that can be resolved to runs.
+///
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param parameters list of parameters (name-value pairs)
+/// @param accessions list of accessions to process
+static void processAccessionsNoSDL [[noreturn]] (
+                                     std::string const &toolname
+                                   , std::string const &toolpath
+                                   , ParamList const &parameters
+                                   , ArgsList const &accessions
+                                   )
+{
+    auto const runs = expandAll(accessions);
+    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
+    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
+        std::cerr << "would exec '" << toolpath << "' as:\n";
+        std::cerr << *argv0;
+        for (auto && value : parameters) {
+            std::cerr << ' ' << value.first;
+            if (value.second)
+                std::cerr << ' ' << value.second.value();
+        }
+        for (auto & run : accessions) {
+            std::cerr << ' ' << run;
+        }
+        std::cerr << std::endl;
+        {
+            auto const names = env_var::names();
+            auto const endp = names + env_var::END_ENUM;
+            std::cerr << "with environment:\n";
+            for (auto iter = names; iter != endp; ++iter) {
+                auto const name = *iter;
+                auto const value = getenv(name);
+                if (value)
+                    std::cerr << ' ' << name << "='" << value << "'\n";
+            }
+            std::cerr << std::endl;
+        }
+        exit(0);
+    }
+    exec(toolname, toolpath, parameters, runs);
+}
+
+static void printInstallMessage [[noreturn]] (void)
+{
+    std::cerr <<
+        "This sra toolkit installation has not been configured.\n"
+        "Before continuing, please run: vdb-config --interactive\n"
+        "For more information, see https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud/"
+        << std::endl;
+    exit(EX_CONFIG);
+}
+
+static void test() {
+#if DEBUG || _DEBUGGING
+    auto const envar = getenv("SRATOOLS_TESTING");
+    if (envar && std::atoi(envar)) {
+        data_sources::test();
+        exit(0);
+    }
+#endif
+}
+        
 } // namespace sratools
 
 int main(int argc, char *argv[])
 {
+    static auto const error_continues_message = std::string("If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/");
+#if DEBUG || _DEBUGGING
+    sratools::test();
+#endif
     auto const impersonate = getenv("SRATOOLS_IMPERSONATE");
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
 
-    sratools::main(argv0, argc - 1, argv + 1);
+    try {
+        sratools::main(argv0, argc - 1, argv + 1);
+    }
+    catch (std::exception const &e) {
+        std::cerr << "An error occured: " << e.what() << std::endl << error_continues_message << std::endl;
+        exit(3);
+    }
+    catch (...) {
+        std::cerr << "An unexpected error occured." << std::endl << error_continues_message << std::endl;
+        exit(3);
+    }
 }
 #endif // c++11

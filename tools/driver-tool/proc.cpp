@@ -57,6 +57,7 @@ namespace sratools {
 static
 char const * const* makeArgv(ParamList const &parameters , ArgsList const &arguments, std::string const &arg0 = *argv0)
 {
+    static auto const verbose = std::string("-v");
     auto const argc = 1                     // for argv[0]
                     + parameters.size() * 2 // probably an over-estimate
                     + arguments.size();
@@ -66,7 +67,7 @@ char const * const* makeArgv(ParamList const &parameters , ArgsList const &argum
     
     argv[i++] = arg0.c_str();
     for (auto & param : parameters) {
-        auto const &name = param.first;
+        auto const &name = param.first != "--verbose" ? param.first : verbose;
         auto const &value = param.second;
         
         assert(i < argc);

@@ -3501,7 +3501,7 @@ static const char* FAIL_ASCP_USAGE[] = {
 
 #define LIST_OPTION "list"
 #define LIST_ALIAS  "l"
-static const char* LIST_USAGE[] = { "List the content of a kart file", NULL };
+/*static const char* LIST_USAGE[] = {"List the content of a kart file", NULL};*/
 
 #define LOCN_OPTION "location"
 #define LOCN_ALIAS  NULL
@@ -3509,8 +3509,8 @@ static const char* LOCN_USAGE[] = { "Location of data", NULL };
 
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
-static const char* NM_L_USAGE[] =
-{ "List the content of a kart file with kart row numbers", NULL };
+/*static const char* NM_L_USAGE[] =
+{ "List the content of a kart file with kart row numbers", NULL }; */
 
 #define MINSZ_OPTION "min-size"
 #define MINSZ_ALIAS  "N"
@@ -3519,9 +3519,9 @@ static const char* MINSZ_USAGE[] =
 
 #define ORDR_OPTION "order"
 #define ORDR_ALIAS  "o"
-static const char* ORDR_USAGE[] = {
+/*static const char* ORDR_USAGE[] = {
     "Kart prefetch order when downloading a kart: one of: kart, size.",
-    "(in kart order, by file size: smallest first), default: size", NULL };
+    "(in kart order, by file size: smallest first), default: size", NULL };*/
 
 #define OUT_DIR_OPTION "output-directory"
 #define OUT_DIR_ALIAS  "O"
@@ -3540,13 +3540,14 @@ static const char* HBEAT_USAGE[] = {
 
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
-static const char* ROWS_USAGE[] =
+/*static const char* ROWS_USAGE[] =
 { "Kart rows to download (default all).", "row list should be ordered", NULL };
+*/
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
-static const char* SZ_L_USAGE[] =
-{ "List the content of a kart file with target file sizes", NULL };
+/*static const char* SZ_L_USAGE[] =
+{ "List the content of a kart file with target file sizes", NULL }; */
 
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
@@ -3596,11 +3597,13 @@ static OptDef OPTIONS[] = {
 ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
 ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
+/*
 ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
 ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
-,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
+*/
 ,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
 ,{ NGC_OPTION         , NULL              , NULL, NGC_USAGE   , 1, true ,false }
 ,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
@@ -3689,6 +3692,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             self->check_all = true;
         }
 
+#if 0
 /******* LIST OPTIONS BEGIN ********/
 /* LIST_OPTION */
         rc = ArgsOptionCount(self->args, LIST_OPTION, &pcount);
@@ -3723,6 +3727,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             self->list_kart_sized = true;
         }
 /******* LIST OPTIONS END ********/
+#endif
 
 option_name = LOCN_OPTION;
         {
@@ -3838,7 +3843,7 @@ option_name = DRY_RUN_OPTION;
             self->heartbeat = (uint64_t)f;
         }
 
-/* ROWS_OPTION */
+/* ROWS_OPTION *
         rc = ArgsOptionCount(self->args, ROWS_OPTION, &pcount);
         if (rc != 0) {
             LOGERR(klogErr,
@@ -3852,7 +3857,7 @@ option_name = DRY_RUN_OPTION;
                     "Failure to get '" ROWS_OPTION "' argument value");
                 break;
             }
-        }
+        } */
 
 /* MINSZ_OPTION */
         {
@@ -4053,7 +4058,7 @@ option_name = TYPE_OPTION;
         if ( self->outFile != NULL )
             self->outDir = NULL;
 
-/* ORDR_OPTION */
+/* ORDR_OPTION *
         rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
         if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get '" ORDR_OPTION "' argument");
@@ -4076,7 +4081,7 @@ option_name = TYPE_OPTION;
                 self->order = eOrderOrig;
             if (asAlias)
                 self -> orderOrOutFile = val;
-        }
+        } */
 
 /* NGC_OPTION */
         {
@@ -4145,8 +4150,6 @@ rc_t CC UsageSummary(const char *progname) {
         "  Check SRA file for missed dependencies "
                                            "and download them\n"
         "\n"
-        "  %s --list <kart file> [...]\n"
-        "  List content of kart file\n\n"
         , progname, progname, progname, progname, progname));
 }
 

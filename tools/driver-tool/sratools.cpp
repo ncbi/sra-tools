@@ -335,7 +335,7 @@ static void running_as_tool_no_sdl [[noreturn]] ()
     ParamList params;
     ArgsList accessions;
     
-    if (parseArgs(&params, &accessions, info.first, info.second)) {
+    if (parseArgs(&params, &accessions, info)) {
         if (location) {
             params.push_back({"--location", *location});
         }
@@ -362,7 +362,7 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
     ParamList params;
     ArgsList accessions;
     
-    if (parseArgs(&params, &accessions, info.first, info.second)) {
+    if (parseArgs(&params, &accessions, info)) {
         if (ngc) {
             params.push_back({"--ngc", *ngc});
         }
@@ -388,7 +388,7 @@ static void running_as_sam_dump [[noreturn]] ()
     ParamList params;
     ArgsList accessions;
     
-    if (parseArgs(&params, &accessions, info.first, info.second)) {
+    if (parseArgs(&params, &accessions, info)) {
         char const *outputFileParam = nullptr;
         char const *extension = nullptr;
         auto const param = std::find_if(params.begin(), params.end(), [](ParamList::value_type const &value) {

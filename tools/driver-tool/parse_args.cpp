@@ -230,10 +230,11 @@ LOAD_OPTION_FILE:
 
 bool parseArgs(  ParamList *parameters
                , ArgsList *arguments
-               , Dictionary const &longNames
-               , Dictionary const &hasArg
+               , ArgsInfo const &info
                )
 {
+    auto &longNames = info.first;
+    auto &hasArg = info.second;
     auto putback = std::string();
     auto nextIsParamArg = false;
     

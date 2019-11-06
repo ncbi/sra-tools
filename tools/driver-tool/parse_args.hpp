@@ -82,6 +82,7 @@ std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &par
 extern
 ArgsList loadArgv(int argc, char *argv[]);
 
+using ArgsInfo = std::pair<Dictionary, Dictionary>;
 
 /// @brief splits argv into parameters and arguments
 ///
@@ -94,8 +95,7 @@ ArgsList loadArgv(int argc, char *argv[]);
 extern
 bool parseArgs(  ParamList *parameters
                , ArgsList *arguments
-               , Dictionary const &longNames
-               , Dictionary const &hasArg
+               , ArgsInfo const &info
                );
 
 } // namespace sratools

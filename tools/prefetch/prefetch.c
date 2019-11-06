@@ -4408,7 +4408,7 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
     if (rc == 0 && it.isKart) {
         rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcUnsupported);
         LOGERR(klogErr, rc, "Your kart file is out of date. "
-            "Login to the dbGaP portal to get a fresh one.");
+            "Please login to the dbGaP portal to download a new one.");
     }
 
     if ( rc == 0 ) {

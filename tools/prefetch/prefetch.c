@@ -4132,7 +4132,7 @@ const char UsageDefaultName[] = "prefetch";
 rc_t CC UsageSummary(const char *progname) {
     return OUTMSG((
         "Usage:\n"
-        "  %s [options] <SRA accession | kart file> [...]\n"
+        "  %s [options] <SRA accession> [...]\n"
         "  Download SRA or dbGaP files and their dependencies\n"
         "\n"
         "  %s [options] <URL> --output-file <FILE>\n"

@@ -514,6 +514,8 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
     runas(tool_name::lookup_iid(basename->c_str()));
 }
 
+static void printNoAccessionsMessage [[noreturn]] (std::string const &toolname);
+
 /// @brief runs tool on list of accessions
 ///
 /// After args parsing, this is the called to do the meat of the work.
@@ -525,8 +527,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
 /// @param extension file extension to use for output file, e.g. ".sam"
 /// @param parameters list of parameters (name-value pairs)
 /// @param accessions list of accessions to process
-void processAccessions [[noreturn]] (
-                                     std::string const &toolname
+void processAccessions [[noreturn]] (  std::string const &toolname
                                      , std::string const &toolpath
                                      , char const *const unsafeOutputFileParamName
                                      , char const *const extension
@@ -535,7 +536,7 @@ void processAccessions [[noreturn]] (
                                      )
 {
     if (accessions.empty()) {
-        exec(toolname, toolpath, parameters, accessions);
+        printNoAccessionsMessage(toolname);
     }
     auto const runs = expandAll(accessions);
     auto const sources = data_sources::preload(runs, parameters);
@@ -614,6 +615,14 @@ static void printInstallMessage [[noreturn]] (void)
         "For more information, see https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud/"
         << std::endl;
     exit(EX_CONFIG);
+}
+
+static void printNoAccessionsMessage [[noreturn]] (std::string const &toolname)
+{
+    std::cerr << toolname << " requires at lease one accession.\n"
+        << "For more information on how to use this tool, type:\n"
+        << *argv0 << " --help" << std::endl;
+    exit(EX_USAGE);
 }
 
 static void test() {

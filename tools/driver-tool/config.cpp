@@ -225,7 +225,7 @@ Config::Config() {
             }
 #if DEBUG || _DEBUGGING
             if (!haveInstallID && forceInstallID())
-                kvps.emplace(InstallKey(), "00000000-1111-4333-4444-5555deadbeef");
+                kvps.emplace(InstallKey(), "8badf00d-1111-4444-8888-deaddeadbeef");
 #endif
             return;
         }

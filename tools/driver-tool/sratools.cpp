@@ -483,7 +483,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
         std::string value;
         decltype(i) next;
 
-        std::tie(found, value, next) = matched("--location", i, s_args.end());
+        std::tie(found, value, next) = matched("--location", "value", i, s_args.end());
         if (found) {
             s_location.swap(value);
             location = &s_location;
@@ -491,7 +491,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
             continue;
         }
 
-        std::tie(found, value, next) = matched("--perm", i, s_args.end());
+        std::tie(found, value, next) = matched("--perm", "file name", i, s_args.end());
         if (found) {
             s_perm.swap(value);
             perm = &s_perm;
@@ -499,7 +499,7 @@ static void main [[noreturn]] (const char *cargv0, int argc, char *argv[])
             continue;
         }
 
-        std::tie(found, value, next) = matched("--ngc", i, s_args.end());
+        std::tie(found, value, next) = matched("--ngc", "file name", i, s_args.end());
         if (found) {
             s_ngc.swap(value);
             ngc = &s_ngc;

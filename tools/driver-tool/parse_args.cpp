@@ -42,7 +42,9 @@
 
 namespace sratools {
 
-std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, ArgsList::iterator i, ArgsList::iterator end)
+std::tuple<bool, std::string, ArgsList::iterator> matched(  std::string const &param
+                                                          , std::string const &value_type
+                                                          , ArgsList::iterator i, ArgsList::iterator end)
 {
     auto const len = param.size();
     auto const &arg = *i;
@@ -56,7 +58,7 @@ std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &par
     if (len == arg.size()) {
         if (next == end) {
 NO_VALUE:
-            std::cerr << param << " requires a value" << std::endl;
+            std::cerr << param << " requires a " << value_type << std::endl;
             exit(EX_USAGE);
         }
         value = *next++;
@@ -176,7 +178,7 @@ static ArgsList loadOptionFile(std::string const &filename)
         std::string value;
         decltype(i) next;
         
-        std::tie(found, value, next) = matched(optionFileParam, i, file.end());
+        std::tie(found, value, next) = matched(optionFileParam, "file name", i, file.end());
         if (found) {
             auto const &option = loadOptionFile(value);
             std::copy(option.begin(), option.end(), std::back_inserter(result));

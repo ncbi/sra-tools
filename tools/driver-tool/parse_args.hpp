@@ -70,7 +70,7 @@ bool hasParamValue(ParamList::value_type::first_type const &param, ParamList con
 ///
 /// @returns if found, tuple<true, this is the value, the next item to resume at>. if not found, tuple<false, ???, ???>
 extern
-std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, ArgsList::iterator current, ArgsList::iterator end);
+std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &param, std::string const &value_type, ArgsList::iterator current, ArgsList::iterator end);
 
 
 /// @brief load argv, handle any option files

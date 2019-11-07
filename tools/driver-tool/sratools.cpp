@@ -619,7 +619,7 @@ static void printInstallMessage [[noreturn]] (void)
 
 static void printNoAccessionsMessage [[noreturn]] (std::string const &toolname)
 {
-    std::cerr << "This tool requires at lease one accession.\n"
+    std::cerr << "This tool requires at least one accession.\n"
         << "For more information on how to use " << toolname << ", run:\n"
         << *argv0 << " --help" << std::endl;
     exit(EX_USAGE);

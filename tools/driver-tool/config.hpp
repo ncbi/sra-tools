@@ -39,6 +39,10 @@ namespace sratools {
 class Config {
     using Container = std::map<std::string, std::string>;
     Container kvps;
+
+    static constexpr char const *InstallKey() {
+        return "/LIBS/GUID";
+    }
 public:
     Config();
     opt_string get(char const *const keypath) const {
@@ -53,7 +57,7 @@ public:
         return get(keypath);
     }
     bool noInstallID() const {
-        auto const iter = kvps.find("/LIBS/GUID");
+        auto const iter = kvps.find(InstallKey());
         return iter == kvps.end();
     }
 };

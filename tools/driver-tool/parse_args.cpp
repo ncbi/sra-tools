@@ -54,14 +54,19 @@ std::tuple<bool, std::string, ArgsList::iterator> matched(std::string const &par
         goto DONE;
 
     if (len == arg.size()) {
-        if (next == end)
-            goto DONE;
+        if (next == end) {
+NO_VALUE:
+            std::cerr << param << " requires a value" << std::endl;
+            exit(EX_USAGE);
+        }
         value = *next++;
     }
     else {
         if (arg[len] != '=')
             goto DONE;
         value = i->substr(len + 1);
+        if (value.empty())
+            goto NO_VALUE;
     }
     found = true;
 DONE:

@@ -159,26 +159,23 @@ ArgsList expandAll(ArgsList const &accessions)
 
         seen.insert(acc);
 
-        // if readable then just try using it
-        if (access(acc.c_str(), R_OK) != 0) {
-            auto const type = SRA_AccessionType(acc);
-            switch (type) {
-                case 'R':
-                    // it's a run, just use it
-                    break;
-                    
-                case 'P':
-                case 'S':
-                case 'X':
-                    // TODO: open container types
-                    std::cerr << acc << " is a container accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
-                    failed = true;
-                    break;
+        auto const type = SRA_AccessionType(acc);
+        switch (type) {
+        case 'R':
+            // it's a run, just use it
+            break;
+            
+        case 'P':
+        case 'S':
+        case 'X':
+            // TODO: open container types
+            std::cerr << acc << " is a container accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+            failed = true;
+            break;
 
-                default:
-                    // see if resolver has any clue
-                    break;
-            }
+        default:
+            // see if resolver has any clue
+            break;
         }
         result.push_back(acc);
     }

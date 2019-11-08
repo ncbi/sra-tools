@@ -455,22 +455,9 @@ void data_sources::set_ce_token_env_var() const {
 }
 
 data_sources data_sources::preload(std::vector<std::string> const &runs,
-                                   ParamList const &parameters) {
-    auto to_load = std::vector<std::string>();
-    auto local = std::vector<std::string>();
-    
-    for (auto && qry : runs) {
-        if (access(qry.c_str(), R_OK) == 0)
-            local.push_back(qry);
-        else
-            to_load.push_back(qry);
-    }
-    auto result = to_load.empty() ? data_sources() : data_sources(run_srapath(to_load, parameters));
-
-    for (auto && file : local)
-        result.addSource(data_source::local_file(file));
-    
-    return result;
+                                   ParamList const &parameters)
+{
+    return data_sources(run_srapath(runs, parameters));
 }
 
 } // namespace sratools

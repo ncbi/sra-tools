@@ -96,7 +96,7 @@ urls_and_accs:
 	     $(BINDIR)/prefetch http://intranet/irb/support.shtml \
 	        | grep "found local" > /dev/null ; fi
 
-	@rm support.shtml
+	@rm -f support.shtml
 
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.shtml found ; exit 1; fi
@@ -344,7 +344,7 @@ urls_and_accs:
 		then echo SRR6667190.sra.vdbcache found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 		$(BINDIR)/prefetch SRR6667190 > /dev/null
-	@ls `pwd`/tmp/sra/SRR6667190.sra          > /dev/null 
+	@ls `pwd`/tmp/sra/SRR6667190.sra          > /dev/null
 	@ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache > /dev/null
 
 	@rm -r tmp*

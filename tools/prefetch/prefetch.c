@@ -775,8 +775,9 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             rc = RC(rcExe, rcResolver, rcResolving, rcPath, rcNotFound);
             PLOGERR(klogInt, (klogInt, rc, "cannot get cache location "
              "for $(acc). Hint: run \"vdb-config --interactive\" "
-             "and make sure Workspace Location Path is set. "
-             "See https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration",
+             "and make sure user-repository area is set. "
+             "See "
+             "https://github.com/ncbi/sra-tools/wiki/05.-Toolkit-Configuration",
              "acc=%s" , name));
         }
 

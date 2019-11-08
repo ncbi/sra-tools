@@ -1249,7 +1249,7 @@ static void sort_key_pairs(size_t const N, id_pair_t array[/* N */])
 {
     id_pair_t a;
     id_pair_t b;
-    
+
 #define GET(P, V) ((void)(V = ((id_pair_t const *)(P))[0]))
 #define SET(P, V) ((void)((((id_pair_t *)(P))[0]) = V))
 #define CMP(A, B) (((GET(A, a)),(GET(B, b))), (a.first  < b.first  ? -1 :      \
@@ -1294,7 +1294,7 @@ static size_t load_key_pairs(int64_t const startId,
     int64_t row = startId;
     size_t j = 0;
     bool ordered = true;
-    
+
     while (row < endId) {
         int64_t first;
         int64_t maybe_last;
@@ -1307,13 +1307,13 @@ static size_t load_key_pairs(int64_t const startId,
             return 0;
         }
         CHECK_QUITTING;
-        
+
         if (first < row)
             first = row;
         if (row != startId && pairs < count + j)
             break;
         plast[0] = last;
-        
+
         for ( ; j < pairs && row <= last; ++row) {
             rc_t const rc = VCursorCellDataDirect(acurs, row, aci->idx,
                                                   &aci->elem_bits, &aci->value.vp,
@@ -1321,7 +1321,7 @@ static size_t load_key_pairs(int64_t const startId,
             if (rc == 0) {
                 if (aci->elem_count == 1) {
                     int64_t const fkey = aci->value.i64[0];
-                    
+
                     ordered &= (last_fkey <= fkey);
                     pair[j].second = row;
                     pair[j].first = fkey;
@@ -1342,7 +1342,7 @@ static size_t load_key_pairs(int64_t const startId,
     }
     if (!ordered)
         sort_key_pairs(j, pair);
-    
+
     Rc[0] = 0;
     return j;
 }
@@ -1351,10 +1351,10 @@ static bool is_sorted(uint32_t const N, int64_t const key[/* N */])
 {
     uint32_t i = 0;
     int64_t last = key[i];
-    
+
     for (i = 1; i < N; ++i) {
         int64_t const cur = key[i];
-        
+
         if (cur < last)
             return false;
 
@@ -1405,12 +1405,12 @@ static rc_t ric_align_generic(int64_t const startId,
         for (i = 0; i < n; ++i) {
             int64_t const fkey = pair[i].first;
             int64_t const row = pair[i].second;
-            
+
             if (cur_fkey != fkey) {
                 uint32_t dummy;
-                
+
                 CHECK_QUITTING;
-                
+
                 rc = VCursorCellDataDirect(bcurs, fkey, bci->idx,
                                            &dummy, (void const **)&id,
                                            NULL, &elem_count);
@@ -1424,16 +1424,16 @@ static rc_t ric_align_generic(int64_t const startId,
                                      pair[i].first,pair[i].second));
 
                     return RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
-                } else if (rc) 
+                } else if (rc)
                     return rc;
-                
+
                 if (!is_sorted(elem_count, id)) {
                     if (scratch_size < elem_count) {
                         void *const temp = realloc(scratch[0], elem_count * sizeof(id[0]));
-                        
+
                         if (temp == NULL)
                             return RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
-                        
+
                         scratch[0] = temp;
                         scratch_size = elem_count;
                     }
@@ -1490,7 +1490,7 @@ static rc_t ric_align_ref_and_align(char const dbname[],
 
     aci.name = "REF_ID";
     bci.name = id_col_name;
-    
+
     rc = VTableCreateCursorRead(align, &acurs);
     if (rc == 0) {
         rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
@@ -1518,7 +1518,7 @@ static rc_t ric_align_ref_and_align(char const dbname[],
 
         if (pair) {
             void *scratch = NULL;
-            
+
             rc = ric_align_generic(startId, count, chunk, pair, &scratch,
                                    acurs, &aci, bcurs, &bci);
             if (scratch)
@@ -1546,7 +1546,7 @@ static rc_t ric_align_ref_and_align(char const dbname[],
         }
         else
             rc = RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
-        
+
         if (GetRCObject(rc) == rcMemory && GetRCState(rc) == rcExhausted) {
             rc = 0;
             (void)PLOGERR(klogWarn, (klogWarn, rc, "Database '$(name)':"
@@ -1573,7 +1573,7 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
 
     aci.name = "SEQ_SPOT_ID";
     bci.name = "PRIMARY_ALIGNMENT_ID";
-    
+
     rc = VTableCreateCursorRead(pri, &acurs);
     if (rc == 0)
         rc = VCursorAddColumn(acurs, &aci.idx, "%s", aci.name);
@@ -1600,12 +1600,12 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
 
         if (pair) {
             void *scratch = NULL;
-            
+
             rc = ric_align_generic(startId, count, chunk, pair, &scratch,
                                    acurs, &aci, bcurs, &bci);
             if (scratch)
                 free(scratch);
-            
+
             if (GetRCObject(rc) == (enum RCObject)rcData && GetRCState(rc) == rcUnexpected)
                 (void)PLOGERR(klogErr, (klogErr, rc,
                     "Database '$(name)': failed referential "
@@ -2018,17 +2018,15 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
                     const char * p_sa_tmp_mismatch;
                     // SECONDARY_ALIGNMENT:TMP_MISMATCH
                     rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_tmp_mismatch_idx, NULL, (const void**)&p_sa_tmp_mismatch, NULL, &data_len );
-                    if ( rc != 0 || p_sa_tmp_mismatch == NULL )
+                    if ( rc != 0 )
                     {
-                        if (rc == 0)
-                            rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
                         (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
                                                 "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, TMP_MISMATCH column, row_id: $(ROW_ID)",
                                                 "name=%s,ROW_ID=%ld", dbname, sec_row_id));
                         break;
                     }
 
-                    if (string_chr(p_sa_tmp_mismatch, data_len, '=') != NULL)
+                    if (data_len > 0 && string_chr(p_sa_tmp_mismatch, data_len, '=') != NULL)
                     {
                         rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
                         (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
@@ -2153,7 +2151,7 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
 
             // SEQUENCE:CMP_READ
             rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_cmp_read_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
-            if ( rc != 0 || data_ptr == NULL )
+            if ( rc != 0 /*|| data_ptr == NULL*/ )
             {
                 if (rc == 0)
                     rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
@@ -2390,7 +2388,7 @@ static rc_t verify_mgr_database(const vdb_validate_params *pb,
     rc_t rc = 0;
     VDatabase const *child;
     const VDBManager *mgr = NULL;
-    
+
     assert(pb);
 
     mgr = pb->vmgr;

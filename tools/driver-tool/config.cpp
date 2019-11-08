@@ -33,7 +33,7 @@
 #include <iostream>
 #include <cctype>
 #include <set>
-
+#include <cstdlib>
 #include <sysexits.h>
 
 #include "config.hpp"
@@ -43,6 +43,14 @@
 #include "debug.hpp"
 
 namespace sratools {
+
+#if DEBUG || _DEBUGGING
+static bool forceInstallID(void)
+{
+    auto const envar = getenv("SRATOOLS_FORCE_INSTALL");
+    return envar && envar[0] && !(envar[0] == '0' && envar[1] == '\0');
+}
+#endif
 
 static bool ignore(std::string const &key)
 {
@@ -85,6 +93,9 @@ Config::Config() {
         
         auto const rc = child.wait();
         if (rc.exited() && rc.exit_code() == 0) {
+#if DEBUG || _DEBUGGING
+            auto haveInstallID = false;
+#endif
             auto start = raw.cbegin();
             auto const end = raw.cend();
             auto section = 0;
@@ -101,6 +112,10 @@ Config::Config() {
                         if (ch == '"') {
                             ws = true;
                             state = 0;
+#if DEBUG || _DEBUGGING
+                            if (key == InstallKey())
+                                haveInstallID = true;
+#endif
                             if (!ignore(key))
                                 kvps.emplace(key, value);
                             continue;
@@ -208,6 +223,10 @@ Config::Config() {
                 std::cerr << "unterminated value in configuration" << std::endl;
                 exit(EX_CONFIG);
             }
+#if DEBUG || _DEBUGGING
+            if (!haveInstallID && forceInstallID())
+                kvps.emplace(InstallKey(), "8badf00d-1111-4444-8888-deaddeadbeef");
+#endif
             return;
         }
         if (rc.exited() && rc.exit_code() != 0) {

@@ -89,7 +89,10 @@ vdbconf_model::~vdbconf_model( void )
 
 bool vdbconf_model::commit( void )
 {
-    return _config.Commit() == 0;
+    bool x = _config.Commit() == 0;
+    if (x)
+        reload();
+    return x;
 }
 
 void vdbconf_model::reload( void )

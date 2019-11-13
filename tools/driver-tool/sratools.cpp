@@ -601,7 +601,7 @@ static void processAccessionsNoSDL [[noreturn]] (
         }
         exit(0);
     }
-    exec(toolname, toolpath, parameters, runs);
+    exec(toolname, toolpath, *argv0, parameters, runs);
 }
 
 static void printInstallMessage [[noreturn]] (void)

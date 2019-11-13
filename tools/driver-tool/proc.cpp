@@ -30,9 +30,17 @@
  *
  */
 
+#if DEBUG || _DEBUGGING
+#define USE_DEBUGGER 0
+#endif
+
 #include <string>
 #include <vector>
 #include <iostream>
+
+#if USE_DEBUGGER
+#include <sstream>
+#endif
 
 #include <cstdlib>
 
@@ -100,14 +108,49 @@ void exec [[noreturn]] (  std::string const &toolname
     throw std::system_error(error, "failed to exec "+toolname);
 }
 
+#if USE_DEBUGGER
+/// @brief run child tool in a debugger
+///
+/// @note uses $SHELL; escaping is super-primitive here, it just quotes all elements of argv
+///
+/// @example SRATOOLS_DEBUG_CMD="lldb --" SRATOOLS_IMPERSONATE=sam-dump sratools SRR000001 --output-file /dev/null
+static void exec_debugger [[noreturn]] (  char const *debugger
+                                        , char const * const *argv)
+{
+    auto const shell_envar = getenv("SHELL");
+    auto const shell = (shell_envar && *shell_envar) ? shell_envar : "/bin/sh";
+    auto oss = std::ostringstream();
+    
+    std::cerr << shell << " -c " << debugger;
+    oss << debugger;
+    for (auto arg = argv; *arg; ++arg) {
+        std::cerr << " \"" << *arg << '"';
+        oss << " \"" << *arg << '"';
+    }
+    std::cerr << std::endl;
+    
+    char const *new_argv[] = { shell, "-c", oss.str().c_str() };
+    execve(shell, new_argv);
+    
+    auto const error = error_code_from_errno();
+    throw std::system_error(error, "failed to exec debugger");
+}
+#endif
+
 void exec [[noreturn]] (  std::string const &toolname
                         , std::string const &toolpath
                         , std::string const &argv0
                         , ParamList const &parameters
                         , ArgsList const &arguments)
 {
-    auto const argv = makeArgv(parameters, arguments);
+    auto const argv = makeArgv(parameters, arguments, argv0);
     
+#if USE_DEBUGGER
+    auto const envar = getenv("SRATOOLS_DEBUG_CMD");
+    if (envar && *envar) {
+        exec_debugger(envar, argv);
+    }
+#endif
     execve(toolpath.c_str(), argv);
     
     // NB. we should never get here

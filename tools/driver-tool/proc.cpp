@@ -113,23 +113,25 @@ void exec [[noreturn]] (  std::string const &toolname
 ///
 /// @note uses $SHELL; escaping is super-primitive here, it just quotes all elements of argv
 ///
-/// @example SRATOOLS_DEBUG_CMD="lldb --" SRATOOLS_IMPERSONATE=sam-dump sratools SRR000001 --output-file /dev/null
+/// @example SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="gdb --args" sratools SRR000001 --output-file /dev/null
+/// SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="lldb --" sratools SRR000001 --output-file /dev/null
 static void exec_debugger [[noreturn]] (  char const *debugger
                                         , char const * const *argv)
 {
     auto const shell_envar = getenv("SHELL");
     auto const shell = (shell_envar && *shell_envar) ? shell_envar : "/bin/sh";
-    auto oss = std::ostringstream();
-    
-    std::cerr << shell << " -c " << debugger;
-    oss << debugger;
-    for (auto arg = argv; *arg; ++arg) {
-        std::cerr << " \"" << *arg << '"';
-        oss << " \"" << *arg << '"';
+    auto cmd = std::string();
+    {
+        std::ostringstream oss;
+        
+        oss << debugger;
+        for (auto arg = argv; *arg; ++arg)
+            oss << " \"" << *arg << '"';
+        cmd = oss.str();
     }
-    std::cerr << std::endl;
+    std::cerr << shell << " -c " << cmd << std::endl;
     
-    char const *new_argv[] = { shell, "-c", oss.str().c_str() };
+    char const *new_argv[] = { shell, "-c", cmd.c_str(), nullptr };
     execve(shell, new_argv);
     
     auto const error = error_code_from_errno();

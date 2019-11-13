@@ -84,16 +84,22 @@ ArgsList loadArgv(int argc, char *argv[]);
 
 using ArgsInfo = std::pair<Dictionary, Dictionary>;
 
+enum ParseArgsResult {
+    ok,     ///< success
+    failed, ///< unrecognized parameter or missing argument
+    help,   ///< user asked for help
+    version ///< user asked for version
+};
+
 /// @brief splits argv into parameters and arguments
 ///
 /// @param parameters [out] recieves the parameters, always translated to long form
 /// @param arguments [out] recieves the arguments
-/// @param longNames maps parameter short form to long form
-/// @param hasArg what parameters (long form) take arguments
+/// @param info information need to parse, e.g. what parameters take arguments
 ///
 /// @return false if not parsed okay or help, else true
 extern
-bool parseArgs(  ParamList *parameters
+ParseArgsResult parseArgs(  ParamList *parameters
                , ArgsList *arguments
                , ArgsInfo const &info
                );

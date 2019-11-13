@@ -67,7 +67,7 @@ namespace sratools {
 
 using namespace constants;
 
-static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
+static ParseArgsResult parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
 {
     static Dictionary const longArgs =
     {
@@ -138,7 +138,7 @@ static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
             continue;
         }
         if (arg.size() < 2) {
-            return false;
+            return failed;
         };
         
         auto param = arg;
@@ -149,14 +149,17 @@ static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
             // short form
             auto const iter = longArgs.find(arg);
             if (iter == longArgs.end()) {
-                return false;
+                return failed;
             };
             param = iter->second;
         }
         if (param == "--help") {
-            return false;
+            return help;
         }
-        
+        if (param == "--version") {
+            return version;
+        }
+
         params.push_back({param, opt_string()});
 
         auto const iter = hasArgs.find(param);
@@ -164,7 +167,7 @@ static bool parse_fastq_dump_args(ParamList &params, ArgsList &accessions)
             nextIsParamArg = (iter->second == "0") ? 2 : 1;
         }
     }
-    return true;
+    return ok;
 }
 
 void running_as_fastq_dump [[noreturn]] () {
@@ -172,8 +175,11 @@ void running_as_fastq_dump [[noreturn]] () {
     auto const &toolpath = tool_name::path(tool_name::FASTQ_DUMP);
     ParamList params;
     ArgsList accessions;
+    auto const parseResult = parse_fastq_dump_args(params, accessions);
     
-    if (parse_fastq_dump_args(params, accessions)) {
+    switch (parseResult) {
+    case ok:
+    {
         if (ngc) {
             params.push_back({"--ngc", *ngc});
         }
@@ -181,7 +187,9 @@ void running_as_fastq_dump [[noreturn]] () {
                           , nullptr, ".fastq"
                           , params, accessions);
     }
-    else {
+    case version:
+        toolVersion(toolpath);
+    default:
         toolHelp(toolpath);
     }
 }

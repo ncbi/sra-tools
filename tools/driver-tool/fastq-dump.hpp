@@ -44,6 +44,7 @@ extern void processAccessions [[noreturn]] (  std::string const &toolname
                                             , ArgsList const &accessions
                                             );
 extern void toolHelp [[noreturn]] (std::string const &toolpath);
+extern void toolVersion [[noreturn]] (std::string const &toolpath);
 extern void emptyInvocation [[noreturn]] (std::string const &toolpath);
 
 void running_as_fastq_dump [[noreturn]] ();

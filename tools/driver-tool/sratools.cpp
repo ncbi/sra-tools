@@ -323,6 +323,22 @@ void toolHelp [[noreturn]] (std::string const &toolpath)
     throw_system_error("failed to exec " + toolpath);
 }
 
+/// @brief gets tool to print its version message; does not return
+///
+/// @param toolpath path to tool
+///
+/// @throw system_error if exec fails
+void toolVersion [[noreturn]] (std::string const &toolpath)
+{
+    char const *argv[] = {
+        argv0->c_str(),
+        "--version",
+        NULL
+    };
+    execve(toolpath.c_str(), argv);
+    throw_system_error("failed to exec " + toolpath);
+}
+
 template <int toolID>
 static void running_as_tool_no_sdl [[noreturn]] ()
 {
@@ -331,8 +347,11 @@ static void running_as_tool_no_sdl [[noreturn]] ()
     auto const &info = infoFor(toolID);
     ParamList params;
     ArgsList accessions;
+    auto const parseResult = parseArgs(&params, &accessions, info);
     
-    if (parseArgs(&params, &accessions, info)) {
+    switch (parseResult) {
+    case ok:
+    {
         if (location) {
             params.push_back({"--location", *location});
         }
@@ -344,7 +363,9 @@ static void running_as_tool_no_sdl [[noreturn]] ()
         }
         processAccessionsNoSDL(toolname, toolpath, params, accessions);
     }
-    else {
+    case version:
+        toolVersion(toolpath);
+    default:
         toolHelp(toolpath);
     }
 }
@@ -359,7 +380,11 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
     ParamList params;
     ArgsList accessions;
     
-    if (parseArgs(&params, &accessions, info)) {
+    auto const parseResult = parseArgs(&params, &accessions, info);
+    
+    switch (parseResult) {
+    case ok:
+    {
         if (ngc) {
             params.push_back({"--ngc", *ngc});
         }
@@ -367,7 +392,9 @@ static void running_as_tool [[noreturn]] (char const *const unsafeOutputFilePara
                           , unsafeOutputFileParamName, extension
                           , params, accessions);
     }
-    else {
+    case version:
+        toolVersion(toolpath);
+    default:
         toolHelp(toolpath);
     }
 }
@@ -384,8 +411,11 @@ static void running_as_sam_dump [[noreturn]] ()
     auto const &info = infoFor(tool_name::SAM_DUMP);
     ParamList params;
     ArgsList accessions;
+    auto const parseResult = parseArgs(&params, &accessions, info);
     
-    if (parseArgs(&params, &accessions, info)) {
+    switch (parseResult) {
+    case ok:
+    {
         char const *outputFileParam = nullptr;
         char const *extension = nullptr;
         auto const param = std::find_if(params.begin(), params.end(), [](ParamList::value_type const &value) {
@@ -404,7 +434,9 @@ static void running_as_sam_dump [[noreturn]] ()
                           , params
                           , accessions);
     }
-    else {
+    case version:
+        toolVersion(toolpath);
+    default:
         toolHelp(toolpath);
     }
 }

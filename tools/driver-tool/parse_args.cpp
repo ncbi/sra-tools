@@ -235,7 +235,7 @@ LOAD_OPTION_FILE:
     return result;
 }
 
-bool parseArgs(  ParamList *parameters
+ParseArgsResult parseArgs(  ParamList *parameters
                , ArgsList *arguments
                , ArgsInfo const &info
                )
@@ -287,7 +287,7 @@ bool parseArgs(  ParamList *parameters
             if (iter == longNames.end()) {
                 // complain
                 std::cerr << "unknown parameter " << ch << std::endl;
-                return false;
+                return failed;
             }
             auto const &name = iter->second;
             
@@ -308,11 +308,12 @@ bool parseArgs(  ParamList *parameters
             }
         }
     }
-    if (nextIsParamArg) return false; // missing argument
+    if (nextIsParamArg) return failed; // missing argument
     for (auto && arg : *parameters) {
-        if (arg.first == "--help") return false;
+        if (arg.first == "--help") return help;
+        if (arg.first == "--version") return version;
     }
-    return true;
+    return ok;
 }
 
 } // namespace sratools

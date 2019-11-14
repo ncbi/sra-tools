@@ -31,18 +31,15 @@
  */
 
 #if DEBUG || _DEBUGGING
-#define USE_DEBUGGER 0
+#define USE_DEBUGGER 1
 #endif
 
 #include <string>
 #include <vector>
 #include <iostream>
 
-#if USE_DEBUGGER
-#include <sstream>
-#endif
-
 #include <cstdlib>
+#include <cstdio>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -109,29 +106,39 @@ void exec [[noreturn]] (  std::string const &toolname
 }
 
 #if USE_DEBUGGER
+
 /// @brief run child tool in a debugger
 ///
-/// @note uses $SHELL; escaping is super-primitive here, it just quotes all elements of argv
+/// @note uses $SHELL; it squotes all elements of argv, escaping squote and backslash
 ///
-/// @example SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="gdb --args" sratools SRR000001 --output-file /dev/null
-/// SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="lldb --" sratools SRR000001 --output-file /dev/null
+/// @example With gdb: SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="gdb --args" sratools SRR000001 --output-file /dev/null \par
+/// With lldb: SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="lldb --" sratools SRR000001 --output-file /dev/null
 static void exec_debugger [[noreturn]] (  char const *debugger
                                         , char const * const *argv)
 {
     auto const shell_envar = getenv("SHELL");
     auto const shell = (shell_envar && *shell_envar) ? shell_envar : "/bin/sh";
-    auto cmd = std::string();
-    {
-        std::ostringstream oss;
-        
-        oss << debugger;
-        for (auto arg = argv; *arg; ++arg)
-            oss << " \"" << *arg << '"';
-        cmd = oss.str();
-    }
-    std::cerr << shell << " -c " << cmd << std::endl;
+    auto cmd = std::string(debugger);
     
+    for (auto arg = argv; ; ) {
+        auto cp = *arg++;
+        if (cp == nullptr)
+            break;
+        
+        cmd += " '";
+        for ( ; ; ) {
+            auto const ch = *cp++;
+            if (ch == '\0')
+                break;
+            if (ch == '\'' || ch == '\\') // these need to be escaped
+                cmd += '\\';
+            cmd += ch;
+        }
+        cmd += "'";
+    }
     char const *new_argv[] = { shell, "-c", cmd.c_str(), nullptr };
+
+    fprintf(stderr, "%s %s %s", new_argv[0], new_argv[1], new_argv[2]);
     execve(shell, new_argv);
     
     auto const error = error_code_from_errno();

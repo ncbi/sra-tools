@@ -231,6 +231,10 @@ typedef struct {
     const char * fileType;  /* do not free! */
     const char * ngc;  /* do not free! */
     const char * jwtCart;  /* do not free! */
+
+#if _DEBUGGING
+    const char *textkart;
+#endif
 } Main;
 
 typedef struct {
@@ -238,6 +242,10 @@ typedef struct {
     const char *desc;
 
     const KartItem *item;
+
+#if _DEBUGGING
+    const char *textkart;
+#endif
 
     const char *jwtCart;
 
@@ -3356,6 +3364,29 @@ rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
     assert(self && mane);
     memset(self, 0, sizeof *self);
 
+#if _DEBUGGING
+    if (obj == NULL && mane->textkart) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->textkart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->textkart);
+            return rc;
+        }
+        rc = KartMakeText(mane->dir, mane->textkart, &self->kart,
+            &self->isKart);
+        if (rc != 0) {
+            if (!self->isKart) {
+                rc = 0;
+            }
+            else {
+                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a text kart file",
+                    "F=%s", mane->textkart));
+            }
+        }
+        return rc;
+    }
+#endif
+
     if (obj == NULL && mane->jwtCart != NULL) {
         type = KDirectoryPathType(mane->dir, "%s", mane->jwtCart);
         if ((type & ~kptAlias) != kptFile) {
@@ -3597,6 +3628,12 @@ static const char* CART_USAGE[] = { "PATH to jwt cart file", NULL };
 #define NGC_ALIAS  NULL
 static const char* NGC_USAGE[] = { "PATH to ngc file", NULL };
 
+#if _DEBUGGING
+#define TEXTKART_OPTION "text-kart"
+static const char* TEXTKART_USAGE[] =
+{ "To read a textual format kart file (DEBUG ONLY)", NULL };
+#endif
+
 static OptDef OPTIONS[] = {
     /*                                          max_count needs_value required*/
  { TYPE_OPTION        , TYPE_ALIAS        , NULL, TYPE_USAGE  , 1, true, false }
@@ -3617,6 +3654,9 @@ static OptDef OPTIONS[] = {
 */
 ,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
 ,{ NGC_OPTION         , NULL              , NULL, NGC_USAGE   , 1, true ,false }
+#if _DEBUGGING
+,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
+#endif
 ,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
 ,{ ASCP_PAR_OPTION    , ASCP_PAR_ALIAS    , NULL, ASCP_PAR_USAGE,1,true, false}
 ,{ FAIL_ASCP_OPTION   , FAIL_ASCP_ALIAS  ,NULL,FAIL_ASCP_USAGE, 1, false,false }
@@ -4069,8 +4109,10 @@ option_name = TYPE_OPTION;
         if ( self->outFile != NULL )
             self->outDir = NULL;
 
-/* ORDR_OPTION *
-        rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
+/* ORDR_OPTION */
+        /* default kart download order is kart order */
+        self->order = eOrderOrig;
+/*      rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
         if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get '" ORDR_OPTION "' argument");
             break;
@@ -4137,6 +4179,27 @@ option_name = TYPE_OPTION;
                 self->jwtCart = val;
             }
         }
+
+#if _DEBUGGING
+        /* TEXTKART_OPTION */
+        rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc,
+                "Failure to get '" TEXTKART_OPTION "' argument");
+            break;
+        }
+
+        if (pcount > 0) {
+            const char *val = NULL;
+            rc = ArgsOptionValue(self->args, TEXTKART_OPTION, 0, (const void **)&val);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" TEXTKART_OPTION "' argument value");
+                break;
+            }
+            self->textkart = val;
+        }
+#endif
     } while (false);
 
     STSMSG(STS_FIN, ("heartbeat = %ld Milliseconds", self->heartbeat));
@@ -4148,7 +4211,7 @@ const char UsageDefaultName[] = "prefetch";
 rc_t CC UsageSummary(const char *progname) {
     return OUTMSG((
         "Usage:\n"
-        "  %s [options] <SRA accession> [...]\n"
+        "  %s [options] <SRA accession> | kart file> [...]\n"
         "  Download SRA or dbGaP files and their dependencies\n"
         "\n"
         "  %s [options] <URL> --output-file <FILE>\n"
@@ -4194,6 +4257,10 @@ rc_t CC Usage(const Args *args) {
         if (OPTIONS[i].aliases != NULL) {
             if (strcmp(alias, FAIL_ASCP_ALIAS) == 0)
                 continue; /* debug option */
+#if _DEBUGGING
+            else if (strcmp(opt->name, TEXTKART_OPTION) == 0)
+                param = "value";
+#endif
 
             if (strcmp(alias, ASCP_ALIAS) == 0)
                 param = "ascp-binary|private-key-file";
@@ -4416,7 +4483,7 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
     if (rc == 0)
         rc = IteratorInit(&it, arg, self);
 
-    if (rc == 0 && it.isKart) {
+    if (false && rc == 0 && it.isKart) {
         rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcUnsupported);
         LOGERR(klogErr, rc, "Your kart file is out of date. "
             "Please login to the dbGaP portal to download a new one.");
@@ -4631,7 +4698,12 @@ rc_t CC KMain(int argc, char *argv[]) {
     if (rc == 0) {
         rc = ArgsParamCount(pars.args, &pcount);
     }
-    if (rc == 0 && pcount == 0 && pars.jwtCart == NULL) {
+    if (rc == 0 && pcount == 0 && pars.jwtCart == NULL
+#if _DEBUGGING
+        && pars.textkart == NULL
+#endif
+        )
+    {
         rc = UsageSummary(UsageDefaultName);
         insufficient = true;
     }
@@ -4645,6 +4717,21 @@ rc_t CC KMain(int argc, char *argv[]) {
         if (pars.jwtCart != NULL) {
             rc = MainRun(&pars, NULL, pars.jwtCart, 1, &multiErrorReported);
         }
+
+#if _DEBUGGING
+        if (pars.textkart) {
+            if (pars.outFile != NULL) {
+                LOGERR(klogWarn,
+                    RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid),
+                    "Cannot specify both --" OUT_FILE_OPTION
+                    " and --" TEXTKART_OPTION ": "
+                    "--" OUT_FILE_OPTION " is ignored");
+                pars.outFile = NULL;
+            }
+            rc = MainRun(&pars, NULL, pars.textkart, 1, &multiErrorReported);
+        }
+        else
+#endif
 
         /* All command line parameters are precessed here
            unless JWT cart is specified. */

@@ -128,4 +128,4 @@ if ANANASA:
 ## C'onclusion
 ##
 
-print ( "[" + os.path.basename ( __file__ ) + "] test passed for [" + BANANA + "]\n" )
+print ( "[" + os.path.basename ( __file__ ) + "] test passed for [" + BANANA + "]" )

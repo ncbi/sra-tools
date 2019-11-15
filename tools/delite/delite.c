@@ -131,6 +131,10 @@ KMain ( int ArgC, char * ArgV [] )
 #define ALS_EXCLF       NULL
 #define PRM_EXCLF       NULL
 
+#define OPT_EXQUAL      "exqual"
+#define ALS_EXQUAL      NULL
+#define PRM_EXQUAL      NULL
+
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Params
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
@@ -387,6 +391,25 @@ DeLiteParamsSetDelite (
                                         );
 }   /* DeLiteParamsSetDelite () */
 
+static
+rc_t
+DeLiteParamsSetExtractQualities (
+                        struct DeLiteParams * Params,
+                        const struct Args * TheArgs
+)
+{
+    if ( Params == NULL ) {
+        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
+    }
+
+    return DeleteParamsSetBooleanParam (
+                                    & ( Params -> _extract_qualities ),
+                                    OPT_EXQUAL,
+                                    TheArgs,
+                                    false
+                                    );
+}   /* DeLiteParamsSetExtractQualities () */
+
 /*)))
   \\\   KApp and Options ...
   (((*/
@@ -397,6 +420,7 @@ static const char * UsgAppNoedit [] = { "Do not process, just print expected act
 static const char * UsgAppUpdate [] = { "Update schemas for tables in archive. Optional.", NULL };
 static const char * UsgAppDelite [] = { "Delete quality scores in archive. Optional.", NULL };
 static const char * UsgAppExclf []  = { "Path to the list of schema names to exclude from deliting. Optional, string.", NULL };
+static const char * UsgAppExQual [] = { "Extract quality scores from archive. Optional.", NULL };
 
 struct OptDef DeeeOpts [] = {
     {       /* Where we will dump new KAR fiel */
@@ -460,6 +484,15 @@ struct OptDef DeeeOpts [] = {
         UsgAppExclf,        /* help as text is here */
         1,                  /* max amount */
         true,               /* need value */
+        false               /* is required */
+    },
+    {       /* Option to delete quality scores in archive */
+        OPT_EXQUAL,         /* option name */
+        ALS_EXQUAL,         /* option alias */
+        NULL,               /* help generator */
+        UsgAppExQual,       /* help as text is here */
+        1,                  /* max amount */
+        false,              /* need value */
         false               /* is required */
     }
 };  /* OptDef */
@@ -577,6 +610,11 @@ __porseAndHandle (
                 break;
             }
 
+            RCt = DeLiteParamsSetExtractQualities ( Params, TheArgs );
+            if ( RCt != 0 ) {
+                break;
+            }
+
             break;
         }
 
@@ -584,18 +622,53 @@ __porseAndHandle (
     }
 
     if ( RCt == 0 ) {
-        if ( ! Params -> _update && ! Params -> _delite ) {
-            KOutMsg ( "One or both parameters should be defined \"%s\" and/or \"%s\"\n", OPT_UPDATE, OPT_DELITE );
+        if ( ! Params -> _update && ! Params -> _delite && ! Params -> _extract_qualities) {
+            KOutMsg ( "One of parameters should be defined ( \"%s\" and/or \"%s\" ) or \"%s\"\n", OPT_UPDATE, OPT_DELITE, OPT_EXQUAL );
             pLogErr (
                     klogErr,
                     RCt,
-                    "One or both parameters should be defined $(upd)] and/or [$(dlt)]",
-                    "upd=%s,dlt=%s",
+                    "One of parameters should be defined ( $(upd)] and/or [$(dlt)] ) or [$(exq)]",
+                    "upd=%s,dlt=%s,exq=%s",
+                    OPT_UPDATE,
+                    OPT_DELITE,
+                    OPT_EXQUAL
+                    );
+
+            RCt = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
+        }
+    }
+
+    if ( RCt == 0 ) {
+        if ( ( Params -> _update || Params -> _delite ) && Params -> _extract_qualities) {
+            KOutMsg ( "Can not use parameter \"%s\" with ( \"%s\" and/or \"%s\" )\n", OPT_EXQUAL, OPT_UPDATE, OPT_DELITE );
+            pLogErr (
+                    klogErr,
+                    RCt,
+                    "Can not use parameter [$(exq)] with ( $(upd)] and/$(dlt)] )",
+                    "exq=%s,upd=%s,dlt=%s",
+                    OPT_EXQUAL,
                     OPT_UPDATE,
                     OPT_DELITE
                     );
 
             RCt = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
+        }
+
+    }
+
+    if ( RCt == 0 ) {
+        if ( Params -> _output_stdout && Params -> _extract_qualities ) {
+            KOutMsg ( "Can not use parameter \"%s\" with STDOUT as output\n", OPT_EXQUAL );
+            pLogErr (
+                    klogErr,
+                    RCt,
+                    "Can not use parameter [$(exq)] with STDOUT as output",
+                    "exq=%s",
+                    OPT_EXQUAL
+                    );
+
+            RCt = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
+
         }
     }
 
@@ -700,6 +773,13 @@ Usage ( const struct Args * TheArgs )
                 UsgAppDelite
                 );
 
+    HelpOptionLine (
+                ALS_EXQUAL,
+                OPT_EXQUAL,
+                PRM_EXQUAL,
+                UsgAppExQual
+                );
+
     KOutMsg ( "\n" );
 
     KOutMsg ( "Standard Options:\n" );
@@ -737,6 +817,10 @@ __runKar ( struct DeLiteParams * Params )
             strcat ( BB, " & " );
         }
         strcat ( BB, "delite" );
+    }
+
+    if ( Params -> _extract_qualities ) {
+        strcat ( BB, "extracting qualities" );
     }
 
     KOutMsg ( "ACT [%s]\n", BB );

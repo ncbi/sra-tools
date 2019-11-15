@@ -3615,6 +3615,11 @@ static rc_t CC _karChiveEditForPath (
                                     const char * Path,
                                     struct DeLiteParams * Params
                                     );
+static rc_t CC _karChiveExtractForPath (
+                                    const struct karChive * self,
+                                    const char * Path,
+                                    struct DeLiteParams * Params
+                                    );
 static rc_t CC _karChiveEditMetaFile (
                                     const struct karChive * self,
                                     const char * Path,
@@ -3751,7 +3756,11 @@ karChiveEdit (
         /* #3 - selecting columns ( directories ) to delite and
          *      meta nodes
          */
-    if ( RCt == 0 && Params -> _delite ) {
+            /*  Sorry, I do not know what to do here, but I had to
+             *  add that step now, later will embed it with something
+             *  else
+             */
+    if ( RCt == 0 && ( Params -> _delite || Params -> _extract_qualities ) ) {
             /*  First we are travercing TOC looking for all tables
              *  which contains QUALITY
              */
@@ -3792,24 +3801,33 @@ karChiveEdit (
         for ( llp = 0; llp < edtPlotLen ( & Plot ); llp ++ ) {
             Step = edtPlotGet ( & Plot, llp );
 
-                /*  First we are editing schema 
-                 */
-            RCt = _karChiveEditMetaFile (
-                                        self,
-                                        Step -> _update,
-                                        Params,
-                                        Step -> _is_delite
-                                        );
-            if ( RCt == 0 ) {
-                    /*  Second we are removing qualit columns
+            if ( ! Params -> _extract_qualities ) {
+                    /*  First we are editing schema 
                      */
-                if ( Step -> _is_delite ) {
-                    RCt = _karChiveEditForPath (
+                RCt = _karChiveEditMetaFile (
+                                            self,
+                                            Step -> _update,
+                                            Params,
+                                            Step -> _is_delite
+                                            );
+                if ( RCt == 0 ) {
+                        /*  Second we are removing qualit columns
+                         */
+                    if ( Step -> _is_delite ) {
+                        RCt = _karChiveEditForPath (
+                                                    self,
+                                                    Step -> _delite,
+                                                    Params
+                                                    );
+                    }
+                }
+            }
+            else {
+                RCt = _karChiveExtractForPath (
                                                 self,
                                                 Step -> _delite,
                                                 Params
                                                 );
-                }
             }
 
             if ( RCt != 0 ) {
@@ -4023,6 +4041,233 @@ _karChiveEditForPath (
 
     return RCt;
 }   /* _karChiveEditForPath () */
+
+void CC 
+_karChivePreserveQualitiesCallback ( struct BSTNode * Nd, void * Dt )
+{
+    const struct karChiveEntry * cEntry;
+    const struct karChiveFile * cFile;
+    const char * Path;
+    struct KDirectory * Dir;
+    struct KFile * File;
+    rc_t RCt;
+    size_t cSize;
+    uint64_t cOff;
+    size_t nRead;
+    size_t tRead;
+    size_t nWrit;
+    char * Buf;
+    size_t BufSize = 1024 * 1024 * 64;
+
+    cEntry = ( const struct karChiveEntry * ) Nd;
+    cFile = ( const struct karChiveFile * ) Nd;
+    Path = ( const char * ) Dt;
+    Dir = NULL;
+    File = NULL;
+    RCt = 0;
+    cSize = 0;
+    cOff = 0;
+    nRead = 0;
+    tRead = 0;
+    nWrit = 0;
+
+        /* JOJOBA !!!! proceed recurcively 
+         */
+    if (    strcmp ( cEntry -> _name, "md" ) == 0
+        ||  strcmp ( cEntry -> _name, "md5" ) == 0
+    ) {
+        return;
+    }
+
+    Buf = calloc ( BufSize, sizeof ( char ) );
+    if ( Buf == NULL ) {
+            /*  JOJOBA ??? How to report error
+             */
+        RCt = RC ( rcApp, rcFile, rcWriting, rcMemory, rcExhausted );
+        return;
+    }
+
+    RCt = KDirectoryNativeDir ( & Dir );
+    if ( RCt == 0 ) {
+        RCt = KDirectoryCreateFile (
+                                    Dir,
+                                    & File,
+                                    false,
+                                    0644,
+                                    kcmInit | kcmCreate,
+                                    "%s/%s",
+                                    Path,
+                                    cFile -> _da_da_dad . _name
+                                    );
+        if ( RCt == 0 ) {
+            if ( cFile -> _data_source != NULL ) {
+                    /*  Here we are reading and writing
+                     *  JOJOBA ... check if karChiveDSSize need 
+                     *  handle NULL DS
+                     */
+                RCt = karChiveDSSize ( cFile -> _data_source, & cSize );
+                if ( RCt == 0 && cSize != 0 ) {
+                    while ( cOff < cSize ) {
+                        tRead = cSize - cOff;
+                        if ( BufSize < tRead ) {
+                            tRead = BufSize;
+                        }
+    
+                        RCt = karChiveDSRead (
+                                            cFile -> _data_source,
+                                            cOff,
+                                            Buf,
+                                            tRead,
+                                            & nRead
+                                            );
+                        if ( RCt == 0 ) {
+                            if ( nRead == 0 ) {
+                                    /*  Actually it is end of file
+                                     */
+                                break;
+                            }
+                            else {
+                                RCt = KFileWriteAll (
+                                                    File,
+                                                    cOff,
+                                                    Buf,
+                                                    nRead,
+                                                    & nWrit
+                                                    );
+                                if ( RCt == 0 ) {
+                                    if ( nRead != nWrit ) {
+                                        RCt = RC ( rcApp, rcFile, rcWriting, rcTransfer, rcIncomplete );
+                                    }
+                                    else {
+                                        cOff += nWrit;
+                                    }
+                                }
+                            }
+                        }
+                        if ( RCt != 0 ) {
+                                /*  What did I expect here ?
+                                 */
+                            break;
+                        }
+                    }
+                }
+            }
+    
+            KFileRelease ( File );
+        }
+
+        KDirectoryRelease ( Dir );
+    }
+
+    free ( Buf );
+
+    if ( RCt != 0 ) {
+        printf ( "ERROR: %s/%s %d\n", Path, cFile -> _da_da_dad . _name, RCt );
+    }
+
+}   /* _karChivePreserveQualitiesCallback () */
+
+rc_t CC
+_karChivePreserveQualities (
+                        const struct karChiveEntry * Column,
+                        const char * Path,
+                        struct DeLiteParams * Params
+)
+{
+    rc_t RCt;
+    char Name [ 1024 ];
+    char DirName [ 1024 ];
+    char * Bg, * En;
+    struct KDirectory * Dir;
+
+    RCt = 0;
+    Bg = En = NULL;
+    Dir = NULL;
+
+        /*  First, we should make unique name for directory to preserve
+         */
+    strcpy ( Name, Path );
+    Bg = Name;
+    while ( * Bg != 0 ) {
+        if ( * Bg == '/' || * Bg == '.' ) {
+            * Bg = '_';
+        }
+
+        Bg ++;
+    }
+
+    strcpy ( DirName, Params -> _output );
+    strcat ( DirName, "_" );
+    strcat ( DirName, Name );
+
+    RCt = KDirectoryNativeDir ( & Dir );
+    if ( RCt == 0 ) {
+        RCt = KDirectoryCreateDir (
+                                Dir,
+                                0775,
+                                kcmInit | kcmCreate,
+                                "%s",
+                                DirName
+                                );
+        if ( RCt == 0 ) {
+            KOutMsg ( "    [%s]\n", DirName );
+            BSTreeForEach (
+                & ( ( ( struct karChiveDir * ) Column ) -> _entries ),
+                false,
+                _karChivePreserveQualitiesCallback,
+                & DirName
+                );
+        }
+
+        KDirectoryRelease ( Dir );
+    }
+
+    return RCt;
+}   /* _karChivePreserveQualities () */
+
+rc_t CC
+_karChiveExtractForPath (
+                        const struct karChive * self,
+                        const char * Path,
+                        struct DeLiteParams * Params
+)
+{
+    rc_t RCt;
+    const struct karChiveEntry * Found;
+
+    RCt = 0;
+    Found = NULL;
+
+    if ( self == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcSelf, rcNull );
+    }
+
+    if ( Path == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
+    }
+
+    if ( Params == NULL ) {
+        return RC ( rcApp, rcArc, rcProcessing, rcParam, rcNull );
+    }
+
+    KOutMsg ( "EXT [%s]\n", Path );
+    pLogMsg ( klogInfo, "Extracting entry for [$(path)]", "path=%s", Path );
+
+    if ( Params -> _noedit ) {
+        return 0;
+    }
+
+    RCt = _karChiveResolvePath ( & Found, self -> _root, Path );
+    if ( RCt == 0 ) {
+        RCt = _karChivePreserveQualities ( Found, Path, Params );
+    }
+    else {
+        pLogMsg ( klogInfo, "Can not find entry for [$(path)]", "path=%s", Path );
+        RCt = 0;
+    }
+
+    return RCt;
+}   /* _karChiveExtractForPath () */
 
 static
 rc_t CC
@@ -5207,7 +5452,9 @@ Delite ( struct DeLiteParams * Params )
 
         RCt = karChiveEdit ( Chive, Params );
         if ( RCt == 0 ) {
-            RCt = karChiveWrite ( Chive, Params );
+            if ( ! Params -> _extract_qualities ) {
+                RCt = karChiveWrite ( Chive, Params );
+            }
         }
 
         karChiveRelease ( Chive );

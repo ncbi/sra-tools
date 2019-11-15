@@ -47,6 +47,7 @@ struct DeLiteParams {
     bool _noedit;                   /* Just produce output, no edit */
     bool _update;                   /* Update schemas for tables */
     bool _delite;                   /* Delete quality scores */
+    bool _extract_qualities;        /* Extract qualities from archive */
     bool _output_stdout;            /* Output is stdout */
     bool _force_write;              /* If we need to force write */
 

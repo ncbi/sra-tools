@@ -147,6 +147,17 @@ DONE:
     return (6 <= digits && digits <= 9) ? type : 0;
 }
 
+static void containerMessage(std::string const &acc)
+{
+    std::cerr << acc << " is a container accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+}
+
+static void failedMessage [[noreturn]] (void)
+{
+    std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the constituent run data accessions. For example, you can download the accession list and then re-run with --option-file=SraAccList.txt " << std::endl;
+    exit(EX_UNAVAILABLE);
+}
+
 static
 ArgsList expandAll(ArgsList const &accessions)
 {
@@ -170,7 +181,7 @@ ArgsList expandAll(ArgsList const &accessions)
         case 'S':
         case 'X':
             // TODO: open container types
-            std::cerr << acc << " is a container accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+            containerMessage(acc);
             failed = true;
             break;
 
@@ -180,10 +191,8 @@ ArgsList expandAll(ArgsList const &accessions)
         }
         result.push_back(acc);
     }
-    if (failed) {
-        std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the constituent run data accessions. For example, you can download the accession list and then re-run with --option-file=SraAccList.txt " << std::endl;
-        exit(EX_UNAVAILABLE);
-    }
+    if (failed)
+        failedMessage();
     return result;
 }
 

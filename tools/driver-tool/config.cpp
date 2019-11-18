@@ -85,10 +85,7 @@ Config::Config() {
             execve(path.c_str(), argv);
         });
 
-        std::string raw;
-        read_fd(fd, [&](char const *buffer, size_t size) {
-            raw.append(buffer, size);
-        });
+        auto const raw = read_fd(fd);
         close(fd);
         
         auto const rc = child.wait();
@@ -200,13 +197,7 @@ Config::Config() {
                             section += 1;
                             continue;
                         }
-                        try {
-                            parse(line);
-                        }
-                        catch (std::exception const &e) {
-                            std::cerr << e.what() << std::endl;
-                            exit(EX_CONFIG);
-                        }
+                        parse(line);
                         break;
                     case 2:
                         if (line == "<!-- Environment -->\n") {

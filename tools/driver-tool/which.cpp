@@ -232,7 +232,7 @@ std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char co
     return result;
 }
 
-/// @brief: prints help message for failing to find an executable
+/// @brief prints help message for failing to find an executable
 static void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSraTool)
 {
     std::cerr << "could not find " << toolname;

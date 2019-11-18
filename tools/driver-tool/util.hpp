@@ -67,6 +67,100 @@ static inline void throw_system_error [[noreturn]] (std::string const &what)
     throw std::system_error(error_code_from_errno(), what);
 }
 
+template <typename T, typename PREDICATE = std::less<T>>
+class LimitChecker {
+#if DEBUG || _DEBUGGING
+    T const limit;
+#endif
+public:
+    LimitChecker(T const &o)
+#if DEBUG || _DEBUGGING
+    : limit(o)
+#endif
+    {}
+    void operator ()(T const &x) const {
+#if DEBUG || _DEBUGGING
+        PREDICATE const pred;
+        if (!pred(x, limit))
+            throw std::logic_error("assertion failed");
+#endif
+    }
+};
+
+template <typename PREDICATE>
+class Checker {
+#if DEBUG || _DEBUGGING
+    PREDICATE const predicate;
+#endif
+    Checker(PREDICATE && f)
+#if DEBUG || _DEBUGGING
+    : predicate(std::forward<PREDICATE>(f))
+#endif
+    {}
+    template<typename T> friend Checker<T> make_checker(T &&);
+public:
+    void operator ()() const {
+#if DEBUG || _DEBUGGING
+        if (!predicate())
+            throw std::logic_error("assertion failure");
+#endif
+    }
+};
+template <typename PREDICATE>
+Checker<PREDICATE> make_checker(PREDICATE && f) {
+    return Checker<PREDICATE>(std::forward<PREDICATE>(f));
+}
+
+template <typename T>
+class ClosedRangeChecker {
+#if DEBUG || _DEBUGGING
+    T const min;
+    T const max;
+#endif
+public:
+    ClosedRangeChecker(T const &min, T const &max)
+#if DEBUG || _DEBUGGING
+    : min(min), max(max)
+#endif
+    {}
+    void operator ()(T const &x) const {
+#if DEBUG || _DEBUGGING
+        if (!(min <= x && x <= max))
+            throw std::range_error("assertion failed");
+#endif
+    }
+};
+
+template <typename T>
+class ScopeExit {
+    T f;
+    bool owner;
+public:
+    ScopeExit(T && f) : f(std::forward<T>(f)), owner(true) {}
+    ScopeExit(ScopeExit const &) = delete;
+    ScopeExit(ScopeExit && other)
+    : f(std::forward<T>(other.f))
+    , owner(other.owner)
+    {
+        other.owner = false;
+    }
+    ~ScopeExit() {
+        if (owner) f();
+    }
+};
+
+struct ScopeExitHelper {};
+template <typename T>
+ScopeExit<T> operator <<(ScopeExitHelper, T && f)
+{
+    return ScopeExit<T>(std::forward<T>(f));
+}
+
+#define TOKENPASTY(X, Y) X ## Y
+#define TOKENPASTY2(X, Y) TOKENPASTY(X, Y)
+#define defer auto TOKENPASTY2(ScopeExit_invoker, __COUNTER__) = ScopeExitHelper() << [&]()
+
+
 /// @brief read all from a file descriptor
 ///
 /// @param fd file descriptor to read
@@ -74,7 +168,7 @@ static inline void throw_system_error [[noreturn]] (std::string const &what)
 ///
 /// @throw system_error, see man 2 read
 template <typename F>
-void read_fd(int fd, F && f)
+static inline void read_fd(int fd, F && f)
 {
     char buffer[4096];
     ssize_t nread;
@@ -85,6 +179,26 @@ void read_fd(int fd, F && f)
         }
         if (nread == 0)
             return;
+
+        auto const error = error_code_from_errno();
+        if (error != std::errc::interrupted)
+            throw std::system_error(error, "read failed");
+    }
+}
+
+/// @brief read all from a file descriptor into a std::string
+static inline std::string read_fd(int fd)
+{
+    auto result = std::string();
+    char buffer[4096];
+    
+    for ( ; ; ) {
+        ssize_t nread;
+        while ((nread = ::read(fd, buffer, sizeof(buffer))) > 0) {
+            result.append(buffer, nread);
+        }
+        if (nread == 0)
+            return result;
 
         auto const error = error_code_from_errno();
         if (error != std::errc::interrupted)

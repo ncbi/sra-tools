@@ -176,7 +176,7 @@ urls_and_accs:
 	    $(BINDIR)/prefetch $(REFSEQ) | grep "found local" > /dev/null
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(KMER) 2> /dev/null ; \
+	    if $(BINDIR)/prefetch $(KMER) > /dev/null 2>&1 ; \
         then echo "prefetch $(KMER) when there is no kfg should fail"; exit 1; \
 	    fi
 
@@ -194,11 +194,12 @@ urls_and_accs:
 	    $(BINDIR)/prefetch $(KMER) | grep "found local" > /dev/null
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(WGS) 2> /dev/null; \
+	    if $(BINDIR)/prefetch $(WGS) > /dev/null 2>&1 ; \
         then echo "prefetch $(WGS) when there is no kfg should fail" ; exit 1; \
 	    fi
 
 	@echo '$(PUBLIC)/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/t.kfg
+	@echo
 	@echo WGS HTTP download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
 		then echo AFVF01 found ; exit 1; fi
@@ -241,7 +242,7 @@ urls_and_accs:
 	@rm `pwd`/tmp/wgs/AFVF01
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
      then echo AFVF01 found ; exit 1; fi
-	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then echo ; \
 	    echo WGS FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(BINDIR)/prefetch $(WGSF) > /dev/null ; \
@@ -352,16 +353,16 @@ urls_and_accs:
 ################################################################################
 
 out_dir_and_file:
-#	@ echo
 	@ mkdir -p tmp tmp2
 	@ rm -fr tmp*/*
 	@ echo  version 1.0     >  tmp/k
 	@ echo '0||SRR053325||' >> tmp/k
 	@ echo '$$end'          >> tmp/k
-#	@ echo
+
 	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >  tmp/t.kfg
 	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
+	@ echo '/repository/site/disabled = "true"'                 >> tmp/t.kfg
 
 	@ echo PREFETCH ACCESSION TO OUT-FILE
 	@ rm -f `pwd`/tmp-file*
@@ -419,16 +420,12 @@ out_dir_and_file:
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
-#	@ echo
 
 	@ if [ "$(BUILD)" = "dbg" ]; then \
-	    echo PREFETCH TEXT-KART should fail; \
+	    echo PREFETCH TEXT-KART ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    rm -f `pwd`/tmp/sra/SRR053325.sra ; \
-	    if $(BINDIR)/prefetch --text-kart tmp/k 2> /dev/null ; \
-	    then echo "prefetch --text-kart should fail"; exit 1; fi ; \
-	    if ls `pwd`/tmp/sra/SRR053325.sra 2> /dev/null ; \
-	    then echo "SRR053325.sra should not be found"; exit 1; fi ; \
+	    $(BINDIR)/prefetch --text-kart tmp/k > /dev/null ; \
+	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
 	  fi
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -438,13 +435,10 @@ out_dir_and_file:
 	  fi ;
 
 	@ echo PREFETCH MULTIPLE ITEMS
-	@ if ls `pwd`/tmp/sra/SRR045450.sra 2> /dev/null ; \
-      then echo SRR045450.sra found ; exit 1 ; fi ;
-	@ rm -f `pwd`/tmp/sra/SRR053325.sra
+	@ rm -fr `pwd`/SRR0* `pwd`/tmp/sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR045450 SRR053325 > /dev/null
 	@ ls `pwd`/tmp/sra/SRR045450.sra `pwd`/tmp/sra/SRR053325.sra > /dev/null
-#	@ echo
 
 	@ echo PREFETCH SRR HTTP URL
 	@ rm `pwd`/tmp/sra/SRR053325.sra
@@ -549,15 +543,14 @@ s-option:
 	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
 	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
-#	@ echo
 
-	@ echo DOWNLOADING KART should fail
+	@ echo DOWNLOADING KART
+	@ rm -fv tmp/sra/SRR0*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		if $(BINDIR)/prefetch kart.krt 2> /dev/null ; \
-	    then echo "prefetch kart.krt should fail"; exit 1; fi
+		$(BINDIR)/prefetch kart.krt > /dev/null
 
 	@ echo DOWNLOADING KART: ORDER BY SIZE / SHORT OPTION should fail
-	@ rm -fv tmp/sra/*
+	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(BINDIR)/prefetch kart.krt -os 2> /dev/null ; \
 	    then echo "prefetch kart.krt -os should fail"; exit 1; fi
@@ -596,13 +589,11 @@ s-option:
 	@ rm -f tmp/2
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR053325 --output-file tmp/2 > /dev/null
-#	@ echo
 
 	@ echo DOWNLOADING ACCESSIONS
-	@ rm tmp/sra/*
+	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR053325 SRR045450 > /dev/null
-#	@ echo
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	  if $(BINDIR)/prefetch SRR045450 SRR053325 -o tmp/o 2> /dev/null ; \
@@ -623,33 +614,30 @@ s-option:
 	@ echo '$$end'          >> tmp/k
 
 	@ if [ "$(BUILD)" = "dbg" ]; then \
-	      echo DOWNLOADING TEXT KART should fail; \
-	      rm tmp/sra/* ; \
-	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	      if $(BINDIR)/prefetch --text-kart tmp/k 2> /dev/null ; \
-	      then echo "prefetch --text-kart should fail"; exit 1; fi ; \
+	      echo DOWNLOADING TEXT KART && \
+	      rm -f tmp/sra/* && \
+	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	      $(BINDIR)/prefetch --text-kart tmp/k > /dev/null && \
           \
-	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / SHORT OPTION should fail; \
-	      rm -fv tmp/sra/* ; \
-	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	      if $(BINDIR)/prefetch --text-kart tmp/k -os 2> /dev/null ; \
-	      then echo "prefetch --text-kart -os should fail"; exit 1; fi ; \
+	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / SHORT OPTION && \
+	      rm -f tmp/sra/* && \
+	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	      $(BINDIR)/prefetch --text-kart tmp/k -os > /dev/null 2>&1 && \
           \
-	      echo DOWNLOADING TEXT KART: ORDER BY KART / SHORT OPTION should fail; \
-	      rm -fv tmp/sra/* ; \
-	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	      if $(BINDIR)/prefetch --text-kart tmp/k -ok 2> /dev/null ; \
-	      then echo "prefetch --text-kart -ok should fail"; exit 1; fi ; \
+	      echo DOWNLOADING TEXT KART: ORDER BY KART / SHORT OPTION && \
+	      rm -fv tmp/sra/* && \
+	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	      $(BINDIR)/prefetch --text-kart tmp/k -ok > /dev/null 2>&1 && \
           \
-	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / LONG OPTION should fail ; \
-	      rm -fv tmp/sra/* ; \
-	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / LONG OPTION should fail &&\
+	      rm -fv tmp/sra/* && \
+	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
 	      if $(BINDIR)/prefetch --text-kart tmp/k --order s 2> /dev/null ; \
-	      then echo "prefetch --text-kart --order s should fail"; exit 1; fi ; \
+	      then echo "prefetch --text-kart --order s should fail"; exit 1; fi && \
           \
-	      echo DOWNLOADING TEXT KART: ORDER BY KART / LONG OPTION should fail ; \
-	      rm -fv tmp/sra/* ; \
-	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      echo DOWNLOADING TEXT KART: ORDER BY KART / LONG OPTION should fail &&\
+	      rm -fv tmp/sra/* && \
+	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
 	      if $(BINDIR)/prefetch --text-kart tmp/k --order k 2> /dev/null ; \
 	      then echo "prefetch --text-kart --order k should fail"; exit 1; fi ; \
 	      fi

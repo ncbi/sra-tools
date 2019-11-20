@@ -1935,6 +1935,14 @@ bool CC kar_extract ( BSTNode *node, void *data )
     return false;
 }
 
+/*  JOJOBA: here we do some forward declaration
+ */
+rc_t kar_open_file_read (
+                        struct KDirectory * Dir,
+                        const struct KFile ** File,
+                        const char * PathOrAccession
+                        );
+
 static
 rc_t kar_test_extract ( const Params *p )
 {
@@ -1950,7 +1958,10 @@ rc_t kar_test_extract ( const Params *p )
     else
     {
         const KFile *archive;
+/*  JOJOBA : temparary
         rc = KDirectoryOpenFileRead ( wd, &archive, p -> archive_path );
+ */
+        rc = kar_open_file_read ( wd, &archive, p -> archive_path );
         if ( rc != 0 )
             LogErr ( klogInt, rc, "Failed to open archive" );
         else

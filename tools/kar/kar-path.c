@@ -176,11 +176,15 @@ kar_open_file_read (
     char ResolvedPath [ 2048 ];
     struct KDirectory * NatDir;
     bool IsLocal;
+    int PathType;
+    const char * PathToOpen;
 
     RCt = 0;
     Manager = NULL;
     NatDir = NULL;
     IsLocal = false;
+    PathType = 0;
+    PathToOpen = NULL;
 
     if ( File != NULL ) {
         * File = NULL;
@@ -193,60 +197,70 @@ kar_open_file_read (
     if ( File == NULL ) {
         return RC ( rcExe, rcFile, rcOpening, rcParam, rcInvalid );
     }
-
-    RCt = kar_resolve_path (
-                            PathOrAccession,
-                            ResolvedPath,
-                            sizeof ( ResolvedPath ),
-                            & IsLocal
-                            );
-    if ( RCt != 0 ) {
-        return RCt;
+        /*  First we will try to find/open it as a local file
+         *  and after that we will go and try to resolve as accession
+         */
+    NatDir = Dir;
+    if ( NatDir == NULL ) {
+        RCt = KDirectoryNativeDir ( & NatDir );
     }
-
-    if ( IsLocal ) {
-        NatDir = Dir;
-        if ( NatDir == NULL ) {
-            RCt = KDirectoryNativeDir ( & NatDir );
+    if ( RCt == 0 ) {
+        PathType = KDirectoryPathType ( NatDir, PathOrAccession );
+        if ( ( PathType & ~kptAlias ) == kptFile ) {
+            PathToOpen = PathOrAccession;
+            IsLocal = true;
         }
+        else {
+            RCt = kar_resolve_path (
+                                    PathOrAccession,
+                                    ResolvedPath,
+                                    sizeof ( ResolvedPath ),
+                                    & IsLocal
+                                    );
+            PathToOpen = ResolvedPath;
+        }
+
         if ( RCt == 0 ) {
-            RCt = KDirectoryOpenFileRead (
-                                            NatDir,
-                                            File,
-                                            "%s",
-                                            ResolvedPath
-                                            );
+            if ( IsLocal ) {
+                RCt = KDirectoryOpenFileRead (
+                                                NatDir,
+                                                File,
+                                                "%s",
+                                                PathToOpen
+                                                );
+
+            }
+            else {
+                RCt = KNSManagerMake ( & Manager );
+                if ( RCt == 0 ) {
+                    RCt = KNSManagerMakeReliableHttpFile (
+                                                        Manager,
+                                                        File,
+                                                        NULL,
+                                                        0x01010000,
+                                                        true,
+                                                        false,
+                                                        false,
+                                                        "%s",
+                                                        PathToOpen
+                                                        );
+/*
+                    RCt = KNSManagerMakeHttpFile (
+                                                    Manager,
+                                                    File,
+                                                    NULL,
+                                                    0x01010000,
+                                                    "%s",
+                                                    PathToOpen
+                                                    );
+*/
+                }
+                KNSManagerRelease ( Manager );
+            }
 
             if ( Dir == NULL ) {
                 KDirectoryRelease ( NatDir );
             }
-        }
-    }
-    else {
-        RCt = KNSManagerMake ( & Manager );
-        if ( RCt == 0 ) {
-            RCt = KNSManagerMakeReliableHttpFile (
-                                        Manager,
-                                        File,
-                                        NULL,
-                                        0x01010000,
-                                        true,
-                                        false,
-                                        false,
-                                        "%s",
-                                        ResolvedPath
-                                        );
-/*
-            RCt = KNSManagerMakeHttpFile (
-                                        Manager,
-                                        File,
-                                        NULL,
-                                        0x01010000,
-                                        "%s",
-                                        ResolvedPath
-                                        );
-*/
-            KNSManagerRelease ( Manager );
         }
     }
 

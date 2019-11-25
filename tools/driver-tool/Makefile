@@ -76,6 +76,14 @@ $(ILIBDIR)/libjson.$(LIBX):
 
 SRATOOLS_SRC = \
 	sratools \
+	sratools2 \
+	imp_fasterq_dump \
+	imp_fastq_dump \
+	imp_prefetch \
+	imp_sam_dump \
+	imp_sra_pileup \
+	imp_srapath \
+	cmdline \
 	split_path \
 	config \
 	proc \

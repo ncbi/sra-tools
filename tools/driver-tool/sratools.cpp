@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <sysexits.h>
 
+#include "sratools2.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
 #include "args-decl.hpp"
@@ -668,6 +669,8 @@ static void test() {
 
 int main(int argc, char *argv[])
 {
+    return sratools2::main2( argc, argv );
+    
     static auto const error_continues_message = std::string("If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/");
 #if DEBUG || _DEBUGGING
     sratools::test();

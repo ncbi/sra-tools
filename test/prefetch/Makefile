@@ -29,6 +29,7 @@ include $(TOP)/build/Makefile.env
 CWD = $(shell pwd)
 PUBLIC=/repository/user/main/public
 CGI=https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi
+SDL=https://trace.ncbi.nlm.nih.gov/Traces/sdl/unstable/retrieve
 LARGE=fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
 SRA=https://sra-download.ncbi.nlm.nih.gov
 SRAF=fasp://dbtest@sra-download.ncbi.nlm.nih.gov
@@ -48,7 +49,7 @@ SRRF=$(SRAI):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
-runtests: urls_and_accs out_dir_and_file s-option truncated
+runtests: urls_and_accs out_dir_and_file s-option truncated kart
 
 ################################################################################
 urls_and_accs:
@@ -545,39 +546,34 @@ s-option:
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
 
 	@ echo DOWNLOADING KART
-	@ rm -fv tmp/sra/SRR0*
+	@ rm -f tmp/sra/SRR0*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 		$(BINDIR)/prefetch kart.krt > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY SIZE / SHORT OPTION should fail
+	@ echo DOWNLOADING KART: ORDER BY SIZE / SHORT OPTION
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch kart.krt -os 2> /dev/null ; \
-	    then echo "prefetch kart.krt -os should fail"; exit 1; fi
+	    $(BINDIR)/prefetch kart.krt -os > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY KART / SHORT OPTION should fail
-	@ rm -fv tmp/sra/*
+	@ echo DOWNLOADING KART: ORDER BY KART / SHORT OPTION
+	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch kart.krt -ok 2> /dev/null ; \
-	    then echo "prefetch kart.krt -ok should fail"; exit 1; fi
+	    $(BINDIR)/prefetch kart.krt -ok > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY SIZE / LONG OPTION should fail
-	@ rm -fv tmp/sra/*
+	@ echo DOWNLOADING KART: ORDER BY SIZE / LONG OPTION
+	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		if $(BINDIR)/prefetch kart.krt --order s 2> /dev/null ; \
-		then echo "prefetch kart.krt --order s should fail"; exit 1; fi
+		$(BINDIR)/prefetch kart.krt --order s > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY KART / LONG OPTION should fail
-	@ rm -fv tmp/sra/*
+	@ echo DOWNLOADING KART: ORDER BY KART / LONG OPTION
+	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		if $(BINDIR)/prefetch kart.krt --order k 2> /dev/null ; \
-		then echo "prefetch kart.krt --order k should fail"; exit 1; fi
+		$(BINDIR)/prefetch kart.krt --order k > /dev/null
 
 	@ echo DOWNLOADING ACCESSION
-	@ rm -fv tmp/sra/SRR053325.sra
+	@ rm -f tmp/sra/SRR053325.sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch SRR053325 > /dev/null
-#	@ echo
 
 	@ echo DOWNLOADING ACCESSION TO FILE: SHORT OPTION
 	@ rm -f tmp/1
@@ -625,22 +621,20 @@ s-option:
 	      $(BINDIR)/prefetch --text-kart tmp/k -os > /dev/null 2>&1 && \
           \
 	      echo DOWNLOADING TEXT KART: ORDER BY KART / SHORT OPTION && \
-	      rm -fv tmp/sra/* && \
+	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
 	      $(BINDIR)/prefetch --text-kart tmp/k -ok > /dev/null 2>&1 && \
           \
-	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / LONG OPTION should fail &&\
-	      rm -fv tmp/sra/* && \
+	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / LONG OPTION && \
+	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	      if $(BINDIR)/prefetch --text-kart tmp/k --order s 2> /dev/null ; \
-	      then echo "prefetch --text-kart --order s should fail"; exit 1; fi && \
+	      $(BINDIR)/prefetch --text-kart tmp/k --order s > /dev/null && \
           \
-	      echo DOWNLOADING TEXT KART: ORDER BY KART / LONG OPTION should fail &&\
-	      rm -fv tmp/sra/* && \
+	      echo DOWNLOADING TEXT KART: ORDER BY KART / LONG OPTION && \
+	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	      if $(BINDIR)/prefetch --text-kart tmp/k --order k 2> /dev/null ; \
-	      then echo "prefetch --text-kart --order k should fail"; exit 1; fi ; \
-	      fi
+	      $(BINDIR)/prefetch --text-kart tmp/k --order k > /dev/null ; \
+	  fi
 
 	@ rm -r tmp*
 
@@ -680,3 +674,106 @@ truncated:
 
 #cleanup
 	@ rm -r tmp
+
+kart: ##########################################################################
+	@rm -frv tmp/*
+	@mkdir -p tmp
+	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' > tmp/t.kfg
+
+	@echo "downloading kart ordered by default (size)"
+	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+
+	@echo "downloading kart ordered by size"
+	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+
+	@echo "downloading kart ordered by kart"
+	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok"
+	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
+	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
+	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra
+	@cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
+
+	@rm -frv tmp/sra
+	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' > tmp/t.kfg
+	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
+	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
+
+	@echo "downloading kart ordered by default (size) to user repo"
+	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+      "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+	@rmdir tmp/sra
+
+	@echo "downloading kart ordered by size to user repo"
+	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+	@rmdir tmp/sra
+
+	@echo "downloading kart ordered by kart to user repo"
+	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+	@rmdir tmp/sra
+
+	@echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg
+	@echo "downloading kart ordered by default (size) ignoring user repo"
+	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+
+	@echo "downloading kart ordered by size ignoring user repo"
+	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+
+	@echo "downloading kart ordered by kart ignoring user repo"
+	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok"
+	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
+	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
+	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra
+	@cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
+
+	@rm -r tmp

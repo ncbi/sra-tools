@@ -1959,13 +1959,13 @@ static char* ItemName(const Item *self) {
         rc_t rc = 0;
         const String *elem = NULL;
         assert(self->item);
-
+        /*
         rc = KartItemItemDesc(self->item, &elem);
         c = StringCheck(elem, rc);
         if (c != NULL) {
             return c;
         }
-
+*/
         rc = KartItemAccession(self->item, &elem);
         c = StringCheck(elem, rc);
         if (c != NULL) {
@@ -3561,9 +3561,9 @@ static const char* MINSZ_USAGE[] =
 
 #define ORDR_OPTION "order"
 #define ORDR_ALIAS  "o"
-/*static const char* ORDR_USAGE[] = {
+static const char* ORDR_USAGE[] = {
     "Kart prefetch order when downloading a kart: one of: kart, size.",
-    "(in kart order, by file size: smallest first), default: size", NULL };*/
+    "(in kart order, by file size: smallest first), default: size", NULL };
 
 #define OUT_DIR_OPTION "output-directory"
 #define OUT_DIR_ALIAS  "O"
@@ -3649,7 +3649,9 @@ static OptDef OPTIONS[] = {
 ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
 ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
+*/
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+/*
 ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
 */
 ,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
@@ -3663,7 +3665,7 @@ static OptDef OPTIONS[] = {
 #if ALLOW_STRIP_QUALS
 ,{ STRIP_QUALS_OPTION ,STRIP_QUALS_ALIAS,NULL,STRIP_QUALS_USAGE,1, false,false }
 #endif
-,{ OUT_FILE_OPTION    , OUT_FILE_ALIAS    ,NULL,OUT_FILE_USAGE ,1, true, false }
+,{ OUT_FILE_OPTION    , NULL              ,NULL,OUT_FILE_USAGE ,1, true, false }
 ,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE,1, true, false }
 ,{ DRY_RUN_OPTION     , NULL              , NULL, DRY_RUN_USAGE,1, false,false }
 };
@@ -4110,9 +4112,7 @@ option_name = TYPE_OPTION;
             self->outDir = NULL;
 
 /* ORDR_OPTION */
-        /* default kart download order is kart order */
-        self->order = eOrderOrig;
-/*      rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
+        rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
         if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get '" ORDR_OPTION "' argument");
             break;
@@ -4134,7 +4134,7 @@ option_name = TYPE_OPTION;
                 self->order = eOrderOrig;
             if (asAlias)
                 self -> orderOrOutFile = val;
-        } */
+        }
 
 /* NGC_OPTION */
         {

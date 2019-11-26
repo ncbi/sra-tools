@@ -35,11 +35,134 @@
 namespace sratools2
 {
 
-// just a demo-struct
-struct OriginalParams
+struct FastqParams : ToolOptions
 {
-    std :: vector <ncbi::String> params;
-    ncbi::U32 opt1, opt1_count;
+    ncbi::String accession_replacement;
+    ncbi::String table_name;
+    ncbi::String read_filter;
+    ncbi::String aligned_region;
+    ncbi::String matepair_dist;
+    std::vector < ncbi::String > spot_groups;
+    bool split_spot, clip, qual_filter, qual_filter1;
+    bool aligned, unaligned, skip_tech;
+    ncbi::U64 minSpotId;
+    ncbi::U32 minSpotIdCount;
+    ncbi::U64 maxSpotId;
+    ncbi::U32 maxSpotIdCount;
+    ncbi::U32 minReadLen;
+    ncbi::U32 minReadLenCount;
+    
+    FastqParams() : accession_replacement( "" )
+        , table_name( "" )
+        , read_filter( "" )
+        , split_spot( false )
+        , clip( false )
+        , qual_filter( false )
+        , qual_filter1( false )
+        , aligned( false )
+        , unaligned( false )
+        , skip_tech( false )
+        , minSpotId( 0 )
+        , minSpotIdCount( 0 )
+        , maxSpotId( 0 )
+        , maxSpotIdCount( 0 )
+        , minReadLen( 0 )
+        , minReadLenCount( 0 )
+
+    {}
+
+    void add_options( ncbi::Cmdline &cmdline )
+    {
+        cmdline . addOption ( accession_replacement, nullptr, "A", "accession", "<accession>",
+            "Replaces accession derived from <path> in filename(s) and deflines ( only for single table dump)" );
+
+        cmdline . addOption ( table_name, nullptr, "", "table", "<table-name>",
+            "Table name within cSRA object, default is \"SEQUENCE\"" );
+
+        cmdline . addOption ( split_spot, "", "split-spot", "Split spots into individual reads" );
+
+        cmdline . addOption ( minSpotId, &minSpotIdCount, "N", "minSpotId", "<rowid>", "Minimum spot id" );
+        cmdline . addOption ( maxSpotId, &maxSpotIdCount, "X", "maxSpotId", "<rowid>", "Maximum spot id" );
+
+        cmdline . addListOption( spot_groups, ',', 255, "", "spot-groups", "<[list]>",
+            "Filter by SPOT_GROUP (member): name[,...]" );
+
+        cmdline . addOption ( clip, "W", "clip", "Remove adapter sequences from reads" );
+
+        cmdline . addOption ( minReadLen, &minReadLenCount, "M", "minReadLen", "<len>",
+            "Filter by sequence length >= <len>" );
+
+        cmdline . addOption ( read_filter, nullptr, "R", "read-filter", "<[filter]>",
+            "Split into files by READ_FILTER value, optionally filter by value: [pass|reject|criteria|redacted]" );
+
+        cmdline . addOption ( qual_filter, "E", "qual-filter",
+            "Filter used in early 1000 Genomes data: no sequences starting or ending with >= 10N" );
+
+        cmdline . addOption ( qual_filter1, "", "qual-filter-1",
+            "Filter used in current 1000 Genomes data" );
+
+        cmdline . addOption ( aligned, "", "aligned", "Dump only aligned sequences" );
+        cmdline . addOption ( unaligned, "", "unaligned", "Dump only unaligned sequences" );
+
+        cmdline . addOption ( aligned_region, nullptr, "", "aligned-region", "<name[:from-to]>",
+            "Filter by position on genome. Name can eiter by accession.version (ex: NC_000001.10) or file specific name (ex: \"chr1\" or \"1\". \"from\" and \"to\" are 1-based coordinates" );
+
+        cmdline . addOption ( matepair_dist, nullptr, "", "matepair_distance", "<from-to|unknown>",
+            "Filter by distance between matepairs. Use \"unknown\" to find matepairs split between the references. Use from-to to limit matepair distance on the same reference" );
+
+        cmdline . addOption ( skip_tech, "", "skip-technical", "Dump only biological reads" );
+    }
+
+    std::string as_string()
+    {
+        std::stringstream ss;
+        if ( !accession_replacement.isEmpty() )  ss << "acc-replace : " << accession_replacement << std::endl;
+        if ( !table_name.isEmpty() )  ss << "table-name : " << table_name << std::endl;
+        if ( split_spot ) ss << "split-spot" << std::endl;
+        if ( minSpotIdCount > 0 ) ss << "minSpotId : " << minSpotId << std::endl;
+        if ( maxSpotIdCount > 0 ) ss << "maxSpotId : " << maxSpotId << std::endl;
+        if ( spot_groups.size() > 0 )
+        {
+            ss << "spot-groups : ";
+            int i = 0;
+            for ( auto const &value : spot_groups )
+            {
+                if ( i++ > 0 ) ss << ',';
+                ss << value;
+            }
+        }
+        if ( clip ) ss << "clip" << std::endl;
+        if ( minReadLenCount > 0 ) ss << "minReadLen : " << minReadLen << std::endl;
+        if ( !read_filter.isEmpty() )  ss << "read-filter : " << read_filter << std::endl;
+        if ( qual_filter ) ss << "qual-filter" << std::endl;
+        if ( qual_filter1 ) ss << "qual-filter-1" << std::endl;
+        if ( aligned ) ss << "aligned" << std::endl;
+        if ( unaligned ) ss << "unaligned" << std::endl;
+        if ( !aligned_region.isEmpty() )  ss << "aligned-region : " << aligned_region << std::endl;
+        if ( !matepair_dist.isEmpty() )  ss << "matepair-dist : " << matepair_dist << std::endl;
+        if ( skip_tech ) ss << "skip-tech" << std::endl;        
+        return ss.str();
+    }
+
+    void populate_argv_builder( ArgvBuilder & builder )
+    {
+        if ( !accession_replacement.isEmpty() ) builder . add_option( "-A", accession_replacement );
+        if ( !table_name.isEmpty() ) builder . add_option( "--table", table_name );
+        if ( split_spot ) builder . add_option( "--split-spot" );
+        if ( minSpotIdCount > 0 ) builder . add_option( "-N", minSpotId );
+        if ( maxSpotIdCount > 0 ) builder . add_option( "-X", maxSpotId );
+        if ( spot_groups.size() > 0 ) builder . add_list_option( "--spot-groups", ',', spot_groups );
+        if ( clip ) builder . add_option( "-W" );
+        if ( minReadLenCount > 0 ) builder . add_option( "-M", minReadLen );
+        if ( !read_filter.isEmpty() ) builder . add_option( "-R", read_filter );
+        if ( qual_filter ) builder . add_option( "-E" );
+        if ( qual_filter1 ) builder . add_option( "--qual-filter-1" );
+        if ( aligned ) builder . add_option( "--aligned" );
+        if ( unaligned ) builder . add_option( "--unaligned" );
+        if ( !aligned_region.isEmpty() ) builder . add_option( "--aligned-region", aligned_region );
+        if ( !matepair_dist.isEmpty() ) builder . add_option( "--matepair-distance", matepair_dist );
+        if ( skip_tech ) builder . add_option( "--skip-technical" );
+    }
 };
 
 int impersonate_fastq_dump( const Args &args )
@@ -48,29 +171,46 @@ int impersonate_fastq_dump( const Args &args )
 
     // Cmdline is a class defined in cmdline.hpp
     ncbi::Cmdline cmdline( args._argc, args._argv );
-    CmnOptAndAccessions cmn;
-
-    cmn.add( cmdline );
-    /*
-    OriginalParams org;
-    org . opt1 = 0;
-
-    cmdline . addParam ( org . params, 0, 256, "token(s)", "list of tokens to process" );
-    cmdline . addOption ( org . opt1, &( org . opt1_count ), "o", "option", "a value", "opt1 help" );
-    cmdline . addOption ( org . opt1, &( org . opt1_count ), "lo", "long-option", "a value", "opt1 help" );
-    */
     
+    // CmnOptAndAccessions is defined in support2.hpp
+    CmnOptAndAccessions cmn( "fastq-dump" );
+
+    // add all common options and the parameters to the parser
+    cmn.add( cmdline );
+
+    // FastqParams is a derived class of ToolOptions, defined in support2.hpp
+    FastqParams params;
+    
+    // add all the tool-specific options to the parser
+    params.add_options( cmdline );
+
     try
     {
+        // let the parser parse the original args,
+        // and let the parser handle help,
+        // and let the parser write all values into cmn and params
         cmdline . parse ( true );
-
         cmdline . parse ();
 
-        std::cout << cmn.as_string() << std::endl;
-        //for ( auto const& value : cmn . accessions )
-        //    std::cout << "acc = " << value << std::endl;
-        //std::cout << "option1 = " << org . opt1 << std::endl;
+        // just to see what we got
+        // std::cout << cmn . as_string() << std::endl;
 
+        // just to see what we got
+        //std::cout << params . as_string() << std::endl;
+
+        // create an argv-builder 
+        ArgvBuilder builder;
+        params . populate_argv_builder( builder );
+
+        // what should happen before executing the tool
+        int argc;
+        char ** argv = builder . generate_argv( argc );
+        if ( argv != nullptr )
+        {
+            for ( int i = 0; i < argc; ++i )
+                std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
+            builder . free_argv( argc, argv );
+        }
     }
     catch ( ncbi::InvalidArgument const &e )
     {

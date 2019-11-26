@@ -88,8 +88,79 @@ namespace sratools2
 
     };
 
+    struct ArgvBuilder
+    {
+        std::vector < std::string > parameters;
+        std::vector < std::string > options;
+
+        void add_parameter( const std::string p ) { parameters.push_back( p ); }
+        void clear_parameters( void ) { parameters.clear(); }
+
+        void add_option( const std::string &o ) { options.push_back( o ); }
+        template < class T > void add_option( const std::string &o, const T &v )
+        {
+            options.push_back( o );
+            std::stringstream ss;
+            ss << v;
+            options.push_back( ss.str() );
+        }
+        void add_list_option( const std::string &o, char delim, std::vector< ncbi::String > &v )
+        {
+            options.push_back( o );
+            std::stringstream ss;
+            int i = 0;
+            for ( auto const &value : v )
+            {
+                if ( i++ > 0 ) ss << delim;
+                ss << value;
+            }
+            options.push_back( ss.str() );
+        }
+
+        char * add_string( const std::string &src )
+        {
+            size_t l = src.length();
+            char * dst = ( char * )malloc( l + 1 );
+            if ( dst != nullptr )
+            {
+                strncpy( dst, src . c_str(), l );
+                dst[ l ] = 0;
+            }
+            return dst;
+        }
+
+        char ** generate_argv( int &argc )
+        {
+            argc = 0;
+            int cnt = parameters.size() + options.size() + 1;
+            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
+            if ( res != nullptr )
+            {
+                for ( auto const &value : parameters )
+                    res[ argc++ ] = add_string( value );
+                for ( auto const &value : options )
+                    res[ argc++ ] = add_string( value );
+                res[ argc ] = nullptr;
+            }
+            return res;
+        }
+        
+        void free_argv( int argc, char ** argv )
+        {
+            if ( argv != nullptr )
+            {
+                for ( int i = 0; i < argc; ++i )
+                {
+                    if ( argv[ i ] != nullptr )
+                        free( argv[ i ] );
+                }
+                free( argv );
+            }
+        }
+    };
+
     enum class Imposter { SRAPATH, PREFETCH, FASTQ_DUMP, FASTERQ_DUMP, SRA_PILEUP, SAM_DUMP, INVALID };
-    
+
     struct WhatImposter
     {
         public :
@@ -177,7 +248,7 @@ namespace sratools2
                 , _version_ok( is_version_ok() )
             {
             }
-            
+
             std::string as_string( void )
             {
                 std::stringstream ss;
@@ -188,7 +259,7 @@ namespace sratools2
                 ss << " _version_ok: " << ( _version_ok ? "YES" : "NO" );
                 return ss.str();
             }
-            
+
             bool invalid( void )
             {
                 return ( _imposter == Imposter::INVALID );
@@ -202,12 +273,19 @@ namespace sratools2
 
     struct CmnOptAndAccessions
     {
+        ncbi::String toolname;
         std::vector < ncbi::String > accessions;
         ncbi::String ngc_file;
         ncbi::String kar_file;
         ncbi::String perm_file;
         ncbi::String location;
+        bool disable_multithreading;
 
+        CmnOptAndAccessions( const ncbi::String & the_toolname ) : toolname( the_toolname )
+        {
+            disable_multithreading = false;
+        }
+        
         void add( ncbi::Cmdline &cmdline )
         {
             cmdline . addParam ( accessions, 0, 256, "accessions(s)", "list of accessions to process" );
@@ -216,7 +294,7 @@ namespace sratools2
             cmdline . addOption ( perm_file, nullptr, "", "perm", "<path>", "<path> to permission file" );
             cmdline . addOption ( location, nullptr, "", "location", "loc", "location in cloud" );
         }
-        
+
         std::string as_string()
         {
             std::stringstream ss;
@@ -226,8 +304,17 @@ namespace sratools2
             if ( !kar_file.isEmpty() )  ss << "kar-file : " << kar_file << std::endl;
             if ( !perm_file.isEmpty() ) ss << "perm-file: " << perm_file << std::endl;
             if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
+            if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
             return ss.str();
         }
+    };
+
+    struct ToolOptions
+    {
+        virtual ~ToolOptions() {}
+
+        virtual std::string as_string() { return std::string( "" ); }
+        virtual void populate_argv_builder( ArgvBuilder & builder ) { }
     };
     
     int impersonate_fasterq_dump( const Args &args );

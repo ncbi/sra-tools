@@ -45,11 +45,12 @@ static inline bool hasPrefix(ITER start, ITER end, ITER in_start, ITER in_end)
 
 static inline bool hasPrefix(std::string const &prefix, std::string const &in_string)
 {
-    return (in_string.size() < prefix.size())
-           ? false
-           : (in_string.size() == prefix.size())
-           ? (prefix == in_string)
-           : hasPrefix<std::string>(prefix.begin(), prefix.end(), in_string.begin(), in_string.end());
+    return (in_string.size() < prefix.size()) ? false : (in_string.compare(0, prefix.size(), prefix) == 0);
+}
+
+static inline bool hasSuffix(std::string const &suffix, std::string const &in_string)
+{
+    return (in_string.size() < suffix.size()) ? false : in_string.compare(in_string.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 static inline std::error_code error_code_from_errno()

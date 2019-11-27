@@ -52,7 +52,7 @@ class data_source {
     source run, vdbcache;
     bool haveVdbCache;
 public:
-    data_source(source const &run) : run(run), haveVdbCache(false) {}
+    explicit data_source(source const &run) : run(run), haveVdbCache(false) {}
     data_source(source const &run, source const &vcache)
     : run(run)
     , vdbcache(vcache)
@@ -61,10 +61,12 @@ public:
     
     std::string const &key() const { return run.key(); }
     
-    static data_source local_file(std::string const &file) {
+    static data_source local_file(std::string const &file, std::string const &cache = "") {
         source result = {};
         result.localPath = file;
         result.haveLocalPath = true;
+        result.cachePath = cache;
+        result.haveCachePath = !cache.empty();
         
         return data_source(result);
     }
@@ -82,13 +84,10 @@ private:
     std::string ce_token_;
     bool have_ce_token;
 
-    /// @brief a lot can happen here
-    ///
-    /// NB. This will short-curcuit on a local file
-    ///
-    /// @param responseJSON response from srapath
-    data_sources(std::string const &responseJSON);
-    data_sources() {}
+    data_sources(std::string const &CET)
+    : have_ce_token(!CET.empty())
+    , ce_token_(CET)
+    {}
     
     /// @brief add a data sources, creates container if needed
     ///
@@ -101,14 +100,13 @@ private:
         else
             sources.insert({source.key(), container({source})});
     }
-        
+    
 #if DEBUG || _DEBUGGING
-    static void test_local_and_remote() {
-        static char const responseJSON[] =
-        "{\"count\": 1,\"CE-Token\": null,\"responses\": [{\"accession\": \"SRR10063844\", \"itemType\": \"sra\", \"size\": 37644943, \"local\": \"/netmnt/traces04/sra44/SRR/009827/SRR10063844\", \"remote\": [{ \"path\": \"https://sra-download.ncbi.nlm.nih.gov/traces/sra44/SRR/009827/SRR10063844\", \"service\": \"sra-ncbi\", \"CE-Required\": false, \"Payment-Required\": false }]}]}";
-        auto const sources = data_sources(responseJSON);
-        assert(sources.sourcesFor("SRR10063844").empty() == false);
-    }
+    static void test_empty();
+    static void test_vdbcache();
+    static void test_2();
+    static void test_top_error();
+    static void test_inner_error();
 #endif
 
 public:
@@ -136,7 +134,11 @@ public:
     
 #if DEBUG || _DEBUGGING
     static void test() {
-        test_local_and_remote();
+        test_empty();
+        test_vdbcache();
+        test_2();
+        test_top_error();
+        test_inner_error();
     }
 #endif
 };

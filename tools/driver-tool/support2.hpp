@@ -279,11 +279,14 @@ namespace sratools2
         ncbi::String kar_file;
         ncbi::String perm_file;
         ncbi::String location;
-        bool disable_multithreading;
+        bool disable_multithreading, version;
 
-        CmnOptAndAccessions( const ncbi::String & the_toolname ) : toolname( the_toolname )
+        CmnOptAndAccessions( const ncbi::String & the_toolname )
+            : toolname( the_toolname )
+            , disable_multithreading( false )
+            , version( false )
         {
-            disable_multithreading = false;
+
         }
         
         void add( ncbi::Cmdline &cmdline )
@@ -293,6 +296,9 @@ namespace sratools2
             cmdline . addOption ( kar_file, nullptr, "", "kar", "<path>", "<path> to kar file" );
             cmdline . addOption ( perm_file, nullptr, "", "perm", "<path>", "<path> to permission file" );
             cmdline . addOption ( location, nullptr, "", "location", "loc", "location in cloud" );
+            
+            cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
+            cmdline . addOption ( version, "V", "version", "Display the version of the program" );
         }
 
         std::string as_string()
@@ -305,6 +311,7 @@ namespace sratools2
             if ( !perm_file.isEmpty() ) ss << "perm-file: " << perm_file << std::endl;
             if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
             if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
+            if ( version ) ss << "version" << std::endl;
             return ss.str();
         }
     };

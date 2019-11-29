@@ -168,6 +168,10 @@ struct raw_response {
                     getOptionalString(&expirationDate, obj, "expirationDate");
                     getOptionalString(&encryptedForProjectId, obj, "encryptedForProjectId");
                 }
+
+                bool readableWithEncryptionFrom(LocationEntry const &other) const {
+                    return encryptedForProjectId.empty() || encryptedForProjectId == other.encryptedForProjectId;
+                }
             };
             using Locations = std::vector<LocationEntry>;
             std::string object;
@@ -277,8 +281,14 @@ struct raw_response {
                 else {
                     for (auto &location : file.locations) {
                         auto const &run_source = file.make_source(location, accession, service.localInfo2(accession, file.name));
-                        auto const &cache_source = file.make_source(vcache->best_matching(location), accession, service.localInfo2(accession, vcache->name));
-                        func(data_source(run_source, cache_source));
+                        auto const &best = vcache->best_matching(location);
+                        if (best.readableWithEncryptionFrom(location)) {
+                            auto const &cache_source = file.make_source(best, accession, service.localInfo2(accession, vcache->name));
+                            func(data_source(run_source, cache_source));
+                        }
+                        else {
+                            func(data_source(run_source));
+                        }
                     }
                 }
             }

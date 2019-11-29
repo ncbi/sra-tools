@@ -180,12 +180,11 @@ Service::LocalInfo::FileInfo Service::localInfo2(std::string const &accession, s
     if (local) {
         info.have = true;
         info.path = VPathToString(local);
-        VPathRelease(local);
-        if (cache) {
+        if (cache)
             info.cachepath = VPathToString(cache);
-            VPathRelease(cache);
-        }
     }
+    VPathRelease(local);
+    VPathRelease(cache);
     return info;
 }
 

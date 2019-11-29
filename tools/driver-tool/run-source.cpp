@@ -208,17 +208,18 @@ struct raw_response {
                     return x.region == other.region && x.service == other.service;
                 });
             }
-            LocationEntry const &best_matching(LocationEntry const &other) const {
-                if (locations.size() > 1) {
-                    auto const match = matching(other);
-                    if (match != locations.end())
-                        return *match;
-                    
-                    auto const ncbi = from_ncbi();
-                    if (ncbi != locations.end())
-                        return *ncbi;
-                }
-                return locations[0];
+            Locations::const_iterator best_matching(LocationEntry const &other) const {
+                auto const match = matching(other);
+                if (match != locations.end())
+                    return match;
+
+                auto const ncbi = from_ncbi();
+                if (ncbi != locations.end() && ncbi->readableWithEncryptionFrom(other))
+                    return ncbi;
+
+                return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
+                    x.readableWithEncryptionFrom(other);
+                });
             }
             source make_source(LocationEntry const &location, std::string const &accession, Service::LocalInfo::FileInfo const &fileInfo) const {
                 auto result = source();
@@ -282,8 +283,8 @@ struct raw_response {
                     for (auto &location : file.locations) {
                         auto const &run_source = file.make_source(location, accession, service.localInfo2(accession, file.name));
                         auto const &best = vcache->best_matching(location);
-                        if (best.readableWithEncryptionFrom(location)) {
-                            auto const &cache_source = file.make_source(best, accession, service.localInfo2(accession, vcache->name));
+                        if (best != vcache->locations.end()) {
+                            auto const &cache_source = file.make_source(*best, accession, service.localInfo2(accession, vcache->name));
                             func(data_source(run_source, cache_source));
                         }
                         else {

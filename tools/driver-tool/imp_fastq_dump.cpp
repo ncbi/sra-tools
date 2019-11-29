@@ -24,10 +24,7 @@
  *
  */
 
-#include <stdlib.h>
-#include <string.h>
 #include <sstream>
-#include <ncbi/secure/string.hpp>
 
 #include "cmdline.hpp"
 #include "support2.hpp"
@@ -63,7 +60,8 @@ struct FastqParams : ToolOptions
     ncbi::U32 QOffsetCount;
     ncbi::U32 QOffset;
 
-    FastqParams() : accession_replacement( "" )
+    FastqParams()
+        : accession_replacement( "" )
         , split_spot( false )
         , clip( false )
         , qual_filter( false )
@@ -314,7 +312,7 @@ int impersonate_fastq_dump( const Args &args )
     int res = 0;
 
     // Cmdline is a class defined in cmdline.hpp
-    ncbi::Cmdline cmdline( args._argc, args._argv );
+    ncbi::Cmdline cmdline( args . _argc, args . _argv );
     
     // CmnOptAndAccessions is defined in support2.hpp
     CmnOptAndAccessions cmn( "fastq-dump" );
@@ -323,10 +321,10 @@ int impersonate_fastq_dump( const Args &args )
     FastqParams params;
     
     // add all the tool-specific options to the parser ( first )
-    params.add_options( cmdline );
+    params . add_options( cmdline );
 
     // add all common options and the parameters to the parser
-    cmn.add( cmdline );
+    cmn . add( cmdline );
 
     try
     {

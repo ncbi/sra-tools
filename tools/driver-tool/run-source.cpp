@@ -231,7 +231,8 @@ struct raw_response {
                 result.remoteUrl = location.link;
                 result.needCE = location.ceRequired;
                 result.needPmt = location.payRequired;
-                
+                result.encrypted = !location.encryptedForProjectId.empty();
+                result.projectId = location.encryptedForProjectId;
                 result.haveAccession = true;
                 
                 return result;

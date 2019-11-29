@@ -38,8 +38,10 @@ namespace sratools {
 
 struct source {
     std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
+    std::string projectId;
     bool needCE = false, needPmt = false;
     bool haveLocalPath = false, haveCachePath = false, haveSize = false, haveAccession = false;
+    bool encrypted;
     
     std::string const &key() const {
         assert(haveAccession || haveLocalPath);

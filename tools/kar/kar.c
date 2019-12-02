@@ -364,6 +364,14 @@ void kar_entry_whack ( BSTNode *node, void *data )
 {
     KAREntry *entry = ( KAREntry * ) node;
 
+    if ( ( entry -> type & ( ~kptAlias ) ) == kptDir ) {
+        BSTreeWhack (
+                    & ( ( KARDir * ) entry ) -> contents,
+                    kar_entry_whack,
+                    NULL
+                    );
+    }
+
     /* do the cleanup */
     switch ( entry -> type )
     {
@@ -1791,6 +1799,204 @@ rc_t kar_extract_toc ( const KFile *archive, BSTree *tree, uint64_t *toc_pos, co
     return rc;
 }
 
+/****************************************************************
+ * JOJOBA: Changes I made
+ * We are splitting extracting archive to two phases :
+ * 1) during first phase we will go through all items and will 
+ *    create directories, and will collect data about files to store
+ * 2) We will sort array of files to store by offset in original
+ *    archive file, and we will restore each file, so reading of
+ *    archive will be not random, but linear.
+ * 3) We setting attributes for all items extracted.
+ ****************************************************************/
+typedef struct stored_file stored_file;
+struct stored_file
+{
+    const KARFile * file;
+
+    KDirectory * cdir;      /*  Note, we add ref to it */
+};  /* stored_file */
+
+#define SF_SE(SF,SH)     SF -> file -> dad . SH
+#define SF_SF(SF,SH)     SF -> file -> SH
+
+static
+rc_t stored_file_init ( stored_file * self,
+                        const KARFile * file,
+                        KDirectory * cdir
+)
+{
+    rc_t rc = 0;
+
+    if ( self == NULL ) {
+        rc = RC ( rcExe, rcFile, rcConstructing, rcSelf, rcNull );
+    }
+
+    if ( file == NULL || cdir == NULL ) {
+        rc = RC ( rcExe, rcFile, rcConstructing, rcParam, rcNull );
+    }
+
+    memset ( self, 0, sizeof ( stored_file ) );
+
+    rc = KDirectoryAddRef ( cdir );
+    if ( rc == 0 ) {
+        self -> file = file;
+        self -> cdir = cdir;
+    }
+
+    return rc;
+}   /* stored_file_init () */
+
+static
+rc_t stored_file_whack ( stored_file * self )
+{
+    if ( self != NULL ) {
+        if ( self -> cdir != NULL ) {
+            KDirectoryRelease ( self -> cdir );
+            self -> cdir = NULL;
+        }
+
+        memset ( self, 0, sizeof ( stored_file ) );
+    }
+
+    return 0;
+}   /* stored_file_whack () */
+
+typedef struct file_depot file_depot;
+struct file_depot
+{
+    stored_file * depot;
+    size_t qty;
+    size_t capacity;
+};  /* file_depot */
+
+static
+rc_t file_depot_realloc ( file_depot * self, size_t capacity )
+{
+    rc_t rc = 0;
+
+    if ( self == NULL ) {
+        return RC ( rcExe, rcFile, rcAllocating, rcSelf, rcNull );
+    }
+
+    if ( capacity == 0 ) {
+        capacity = 256;
+    }
+
+    if ( self -> capacity < capacity ) {
+        stored_file * new_dep = NULL;
+        size_t cap_inc = 256;
+
+        size_t new_cap =
+                    ( ( self -> capacity / cap_inc ) + 1 ) * cap_inc;
+
+        new_dep = calloc ( new_cap, sizeof ( stored_file ) );
+        if ( new_dep == NULL ) {
+            return RC ( rcExe, rcFile, rcAllocating, rcMemory, rcExhausted );
+        }
+        else {
+            if ( self -> qty != 0 && self -> depot != NULL ) {
+                memmove (
+                        new_dep,
+                        self -> depot,
+                        sizeof ( stored_file ) * self -> qty
+                        );
+            }
+
+            free ( self -> depot );
+
+            self -> capacity = new_cap;
+            self -> depot = new_dep;
+        }
+    }
+    return rc;
+}   /* file_depot_realloc () */
+
+static
+rc_t file_depot_dispose ( file_depot * self )
+{
+    if ( self != NULL ) {
+        if ( self -> depot != NULL ) {
+            for ( size_t llp = 0; llp < self -> qty; llp ++ ) {
+                stored_file_whack ( self -> depot + llp );
+            }
+            free ( self -> depot );
+        }
+
+        memset ( self, 0, sizeof ( file_depot ) );
+
+        free ( self );
+    }
+    return 0;
+}   /* file_depot_dispose () */
+
+static
+rc_t file_depot_make ( file_depot ** depot, size_t initial_capacity )
+{
+    rc_t rc = 0;
+    file_depot * ret_depot = NULL;
+
+    if ( depot == NULL ) {
+        rc = RC ( rcExe, rcFile, rcConstructing, rcParam, rcNull );
+    }
+
+    * depot = NULL;
+
+    ret_depot = calloc ( 1, sizeof ( file_depot ) );
+    if ( ret_depot == NULL ) {
+        rc = RC ( rcExe, rcFile, rcConstructing, rcMemory, rcExhausted );
+    }
+    else {
+        memset ( ret_depot, 0, sizeof ( file_depot ) );
+        rc = file_depot_realloc ( ret_depot, initial_capacity );
+        if ( rc == 0 ) {
+            * depot = ret_depot;
+        }
+    }
+
+    if ( rc != 0 ) {
+        * depot = NULL;
+        if ( ret_depot != NULL ) {
+            file_depot_dispose ( ret_depot );
+            ret_depot = NULL;
+        }
+    }
+
+    return rc;
+}   /* file_depot_make () */
+
+static
+rc_t file_depot_add (
+                    file_depot * self,
+                    const KARFile * file,
+                    KDirectory * cdir
+)
+{
+    rc_t rc = 0;
+
+    if ( self == NULL ) {
+        rc = RC ( rcExe, rcFile, rcAllocating, rcSelf, rcNull );
+    }
+
+    rc = file_depot_realloc ( self, self -> qty + 1 );
+    if ( rc == 0 ) {
+        rc = stored_file_init (
+                                self -> depot + self -> qty,
+                                file,
+                                cdir
+                                );
+        if ( rc == 0 ) {
+            self -> qty ++;
+        }
+    }
+
+    return rc;
+}   /* file_depot_add () */
+
+/****************************************************************
+ * JOJOBA
+ ****************************************************************/
+
 typedef struct extract_block extract_block;
 struct extract_block
 {
@@ -1798,6 +2004,8 @@ struct extract_block
     
     KDirectory *cdir;
     const KFile *archive;
+
+    file_depot * depot;
 
     rc_t rc;
 
@@ -1808,16 +2016,30 @@ static bool CC kar_extract ( BSTNode *node, void *data );
 static
 rc_t extract_file ( const KARFile *src, const extract_block *eb )
 {
+        /*  We will extract files later, after sotrint
+         */
+    rc_t rc = file_depot_add ( eb -> depot, src, eb -> cdir );
+    if ( rc != 0 ) {
+        pLogErr (klogErr, rc, "something is wrong '$(fname)'", "fname=%s", src -> dad . name );
+        exit ( 4 );
+    }
+
+    return 0;
+}
+
+static
+rc_t store_extracted_file ( stored_file * sf, const extract_block * eb )
+{
     KFile *dst;
     char *buffer;
     size_t num_writ = 0, num_read = 0, total = 0;
     size_t bsize = 256 * 1024 *1024;
     
-    rc_t rc = KDirectoryCreateFile ( eb -> cdir, &dst, false, 0200, 
-                                     kcmCreate, "%s", src -> dad . name ); 
+    rc_t rc = KDirectoryCreateFile ( sf -> cdir, &dst, false, 0200, 
+                                 kcmCreate, "%s", SF_SE(sf,name) ); 
     if ( rc != 0 )
     {
-        pLogErr (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", src -> dad . name );
+        pLogErr (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", SF_SE(sf,name) );
         exit ( 4 );
     }
 
@@ -1830,31 +2052,31 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
         exit ( 4 );
     }
 
-    for ( total = 0; total < src -> byte_size; total += num_read )
+    for ( total = 0; total < SF_SF(sf,byte_size); total += num_read )
     {
-        size_t to_read =  src -> byte_size - total;
+        size_t to_read =  SF_SF(sf,byte_size) - total;
         if ( to_read > bsize )
             to_read = bsize;
         
-        rc = KFileReadAll ( eb -> archive, src -> byte_offset + eb -> extract_pos + total,
+        rc = KFileReadAll ( eb -> archive, SF_SF(sf,byte_offset) + eb -> extract_pos + total,
                             buffer, to_read, &num_read );
         if ( rc != 0 )
         {
-            pLogErr (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
+            pLogErr (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", SF_SE(sf,name) );
             exit ( 4 );
         }
         
         rc = KFileWriteAll ( dst, total, buffer, num_read, &num_writ );
         if ( rc != 0 )
         {
-            pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
+            pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", SF_SE(sf,name) );
             exit ( 4 );
         }
         
         if ( num_writ < num_read )
         {
             rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
-            pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
+            pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", SF_SE(sf,name) );
             exit ( 4 );
         }
     }
@@ -1864,7 +2086,47 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
     free ( buffer );
 
     return rc;
-}
+}   /* store_extracted_file () */
+
+int64_t CC
+store_extracted_files_comparator (
+                                    const void * l,
+                                    const void * r,
+                                    void * data
+)
+{
+    stored_file * sl = ( stored_file * ) l;
+    stored_file * sr = ( stored_file * ) r;
+
+    return SF_SF(sl,byte_offset) - SF_SF(sr,byte_offset);
+}   /* store_extracted_files_comparator () */
+
+static
+rc_t store_extracted_files ( const extract_block * eb )
+{
+    rc_t rc = 0;
+
+    file_depot * fb = eb -> depot;
+
+    ksort (
+            fb -> depot,
+            fb -> qty,
+            sizeof ( stored_file ),
+            store_extracted_files_comparator,
+            NULL
+            );
+
+    for ( size_t llp = 0; llp < fb -> qty; llp ++ ) {
+        stored_file * sf = fb -> depot + llp;
+        rc = store_extracted_file ( sf, eb );
+        if ( rc != 0 ) {
+            pLogErr (klogErr, rc, "failed to store extracted files", "" );
+            exit ( 4 );
+        }
+    }
+
+    return rc;
+}   /* store_extracted_files () */
 
 static
 rc_t extract_dir ( const KARDir *src, const extract_block *eb )
@@ -1880,6 +2142,8 @@ rc_t extract_dir ( const KARDir *src, const extract_block *eb )
         if ( rc == 0 )
         {      
             BSTreeDoUntil ( &src -> contents, false, kar_extract, &c_eb );
+
+            rc = c_eb . rc;
 
             KDirectoryRelease ( c_eb . cdir );
         }
@@ -1924,6 +2188,53 @@ bool CC kar_extract ( BSTNode *node, void *data )
         break;
     }
 
+/*
+    if ( eb -> rc == 0 )
+        eb -> rc = KDirectorySetAccess ( eb -> cdir, false, entry -> access_mode, 0777, "%s", entry -> name );
+    if ( eb -> rc == 0 )
+        eb -> rc = KDirectorySetDate ( eb -> cdir, false, entry -> mod_time, "%s", entry -> name );
+*/
+
+    if ( eb -> rc != 0 )
+        return true;
+
+    return false;
+}
+
+static bool CC kar_set_attributes ( BSTNode *node, void *data );
+
+static
+rc_t set_attributes_dir ( const KARDir *src, const extract_block *eb )
+{
+    rc_t rc;
+
+    STATUS ( STAT_QA, "set attributes dir: %s", src -> dad . name );
+    extract_block c_eb = *eb;
+    rc = KDirectoryOpenDirUpdate ( eb -> cdir, &c_eb . cdir, false, "%s", src -> dad . name );
+    if ( rc == 0 )
+    {      
+        BSTreeDoUntil ( &src -> contents, false, kar_set_attributes, &c_eb );
+
+        rc = c_eb . rc;
+
+        KDirectoryRelease ( c_eb . cdir );
+    }
+    return rc;
+}
+
+static
+bool CC kar_set_attributes ( BSTNode *node, void *data )
+{
+    const KAREntry *entry = ( KAREntry * ) node;
+    extract_block *eb = ( extract_block * ) data;
+    eb -> rc = 0;
+
+    STATUS ( STAT_QA, "Entry to set attributes: %s", entry -> name );
+
+    if ( entry -> type == kptDir ) {
+        eb -> rc = set_attributes_dir ( ( const KARDir * ) entry, eb );
+    }
+
     if ( eb -> rc == 0 )
         eb -> rc = KDirectorySetAccess ( eb -> cdir, false, entry -> access_mode, 0777, "%s", entry -> name );
     if ( eb -> rc == 0 )
@@ -1933,10 +2244,9 @@ bool CC kar_extract ( BSTNode *node, void *data )
         return true;
 
     return false;
-}
+}   /* kar_set_attributes () */
 
-/*  JOJOBA: here we do some forward declaration
- */
+
 rc_t kar_open_file_read (
                         struct KDirectory * Dir,
                         const struct KFile ** File,
@@ -2020,19 +2330,41 @@ rc_t kar_test_extract ( const Params *p )
                     eb . extract_pos = file_offset;
                     eb . rc = 0;
 
-                    STATUS ( STAT_QA, "creating directory from path: %s", p -> directory_path );
-                    rc = KDirectoryCreateDir ( wd, 0777, kcmInit, "%s", p -> directory_path );
+                    rc = file_depot_make ( & eb . depot, 256 );
                     if ( rc == 0 )
                     {
-                        STATUS ( STAT_QA, "opening directory"  );
-                        rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, "%s", p -> directory_path );
+
+                        STATUS ( STAT_QA, "creating directory from path: %s", p -> directory_path );
+                        rc = KDirectoryCreateDir ( wd, 0777, kcmInit, "%s", p -> directory_path );
                         if ( rc == 0 )
                         {
-                            BSTreeDoUntil ( tree, false, kar_extract, &eb );
-                            rc = eb . rc;
+                            STATUS ( STAT_QA, "opening directory"  );
+                            rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, "%s", p -> directory_path );
+                            if ( rc == 0 )
+                            {
+                                    /*  Extracting directories
+                                     */
+                                BSTreeDoUntil ( tree, false, kar_extract, &eb );
+                                rc = eb . rc;
+
+                                if ( rc == 0 ) {
+                                        /*  Writing files
+                                         */
+                                    rc = store_extracted_files ( & eb );
+
+                                    if ( rc == 0 ) {
+                                            /*  Setting attributes
+                                             */
+                                        BSTreeDoUntil ( tree, false, kar_set_attributes, &eb );
+                                        rc = eb . rc;
+                                    }
+                                }
+                            }
+
+                            KDirectoryRelease ( eb . cdir );
                         }
-                        
-                        KDirectoryRelease ( eb . cdir );
+
+                        file_depot_dispose ( eb . depot );
                     }
                 }
             }

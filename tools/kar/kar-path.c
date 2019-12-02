@@ -29,6 +29,7 @@
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
+#include <kfs/file-impl.h>
 
 #include <vfs/manager.h>
 #include <vfs/resolver.h>
@@ -163,6 +164,11 @@ kar_resolve_path (
     return RCt;
 }   /* kar_resolve_path () */
 
+#define __WRAP_IT__
+#ifdef __WRAP_IT__
+static rc_t CC WrapFileMake ( struct KFile * In, struct KFile ** Out );
+#endif /* __WRAP_IT__ */
+
 rc_t
 kar_open_file_read (
                 struct KDirectory * Dir,
@@ -175,6 +181,7 @@ kar_open_file_read (
     struct KNSManager * Manager;
     char ResolvedPath [ 2048 ];
     struct KDirectory * NatDir;
+    const struct KFile * RetFile;
     bool IsLocal;
     int PathType;
     const char * PathToOpen;
@@ -182,6 +189,7 @@ kar_open_file_read (
     RCt = 0;
     Manager = NULL;
     NatDir = NULL;
+    RetFile = NULL;
     IsLocal = false;
     PathType = 0;
     PathToOpen = NULL;
@@ -224,7 +232,7 @@ kar_open_file_read (
             if ( IsLocal ) {
                 RCt = KDirectoryOpenFileRead (
                                                 NatDir,
-                                                File,
+                                                & RetFile,
                                                 "%s",
                                                 PathToOpen
                                                 );
@@ -233,9 +241,11 @@ kar_open_file_read (
             else {
                 RCt = KNSManagerMake ( & Manager );
                 if ( RCt == 0 ) {
+#define __MAKE_IT_RELIABLE__
+#ifdef __MAKE_IT_RELIABLE__
                     RCt = KNSManagerMakeReliableHttpFile (
                                                         Manager,
-                                                        File,
+                                                        & RetFile,
                                                         NULL,
                                                         0x01010000,
                                                         true,
@@ -244,7 +254,7 @@ kar_open_file_read (
                                                         "%s",
                                                         PathToOpen
                                                         );
-/*
+#else /* __MAKE_IT_RELIABLE__ */
                     RCt = KNSManagerMakeHttpFile (
                                                     Manager,
                                                     File,
@@ -253,7 +263,17 @@ kar_open_file_read (
                                                     "%s",
                                                     PathToOpen
                                                     );
-*/
+#endif /* __MAKE_IT_RELIABLE__ */
+                    if ( RCt == 0 ) {
+#ifdef __WRAP_IT__
+                        RCt = WrapFileMake (
+                                            ( struct KFile * ) RetFile,
+                                            ( struct KFile ** ) File
+                                            );
+#else /* __WRAP_IT__ */
+                        * File = RetFile;
+#endif /* __WRAP_IT__ */
+                    }
                 }
                 KNSManagerRelease ( Manager );
             }
@@ -266,3 +286,233 @@ kar_open_file_read (
 
     return RCt;
 }   /* kar_open_file_read () */
+
+#ifdef __WRAP_IT__
+/********************************************************************
+ *  Communication Breakdown
+ ********************************************************************/
+
+struct WrapFile {
+    struct KFile _dad;
+    const struct KFile * _file;
+};
+
+static
+rc_t CC
+WF_destroy ( struct KFile * self )
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            KFileRelease ( File -> _file );
+            File -> _file = NULL;
+        }
+
+        free ( File );
+    }
+
+    return 0;
+}   /* WF_destroy () */
+
+static
+struct KSysFile_v1 * CC
+WF_get_sysfile ( const struct KFile * self, uint64_t * Offset )
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            return KFileGetSysFile ( File -> _file, Offset );
+        }
+    }
+
+    return NULL;
+}   /* WF_get_sysfile () */
+
+static rc_t CC
+WF_random_access ( const struct KFile * self )
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            return KFileRandomAccess ( File -> _file );
+        }
+    }
+
+    return 0;
+}   /* WF_random_access () */
+
+static
+rc_t CC
+WF_get_size ( const struct KFile * self, uint64_t * Size )
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            return KFileSize ( File -> _file, Size );
+        }
+    }
+
+    if ( Size != NULL ) {
+        * Size = 0;
+    }
+
+    return 0;
+}   /* WF_get_size () */ 
+
+static
+rc_t CC
+WF_set_size ( struct KFile * self, uint64_t Size )
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            return KFileSetSize (
+                                ( struct KFile * ) File -> _file,
+                                Size
+                                );
+        }
+    }
+
+    return 0;
+}   /* WF_set_size () */
+
+
+static
+rc_t CC
+WF_read (
+            const struct KFile * self,
+            uint64_t Offset,
+            void * Buffer,
+            size_t BufferSize,
+            size_t * NumRead
+)
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            return KFileRead (
+                                ( struct KFile * ) File -> _file,
+                                Offset,
+                                Buffer,
+                                BufferSize,
+                                NumRead
+                                );
+        }
+    }
+
+    if ( NumRead != NULL ) {
+        * NumRead = 0;
+    }
+
+    return 0;
+}   /* WF_get_read () */
+
+static
+rc_t CC
+WF_write (
+            struct KFile * self,
+            uint64_t Offset,
+            const void * Buffer,
+            size_t BufferSize,
+            size_t * NumWrite
+)
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            return KFileWrite (
+                                ( struct KFile * ) File -> _file,
+                                Offset,
+                                Buffer,
+                                BufferSize,
+                                NumWrite
+                                );
+        }
+    }
+
+    if ( NumWrite != NULL ) {
+        * NumWrite = 0;
+    }
+
+    return 0;
+}   /* WF_get_write () */
+
+static
+uint32_t CC
+WF_get_type ( const struct KFile * self )
+{
+    struct WrapFile * File = ( struct WrapFile * ) self;
+
+    if ( File != NULL ) {
+        if ( File -> _file != NULL ) {
+            return KFileType ( File -> _file );
+        }
+    }
+
+    return kptFile;
+}   /* WF_get_type () */
+
+
+static struct KFile_vt_v1 WrapFile_vt = {
+                                        1,  /* maj */
+                                        1,  /* min */
+
+                                /* start minor version == 0 */
+                                        WF_destroy,
+                                        WF_get_sysfile,
+                                        WF_random_access,
+                                        WF_get_size,
+                                        WF_set_size,
+                                        WF_read,
+                                        WF_write,
+                                /* end minor version == 0 */
+
+                                /* start minor version == 1 */
+                                        WF_get_type,
+                                /* end minor version == 1 */
+
+                                };
+
+static
+rc_t CC
+WrapFileMake ( struct KFile * In, struct KFile ** Out )
+{
+    rc_t RCt;
+    struct WrapFile * Ret;
+
+    RCt = 0;
+    Ret = NULL;
+
+    * Out = NULL;
+
+    Ret = calloc ( 1, sizeof ( struct WrapFile ) );
+    if ( Ret == NULL ) {
+        return RC ( rcExe, rcFile, rcCreating, rcMemory, rcExhausted );
+    }
+
+    RCt = KFileInit (
+                    & ( Ret -> _dad ),
+                    ( const KFile_vt * ) & WrapFile_vt,
+                    "BreakfastWrap",
+                    "Wrap",
+                    true,
+                    false
+                    );
+    if ( RCt == 0 ) {
+        RCt = KFileAddRef ( In );
+        if ( RCt == 0 ) {
+            Ret -> _file = In;
+            * Out = & ( Ret -> _dad );
+        }
+    }
+
+    return RCt;
+}   /* WrapFileMake () */
+#endif /* __WRAP_IT__ */

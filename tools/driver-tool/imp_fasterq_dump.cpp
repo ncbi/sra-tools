@@ -24,7 +24,7 @@
  *
  */
 
- #include "cmdline.hpp"
+#include "cmdline.hpp"
 #include "support2.hpp"
 
 namespace sratools2
@@ -125,13 +125,13 @@ struct FasterqParams : ToolOptions
     std::string as_string()
     {
         std::stringstream ss;
-        if ( !outfile.isEmpty() )  ss << "outfile : " << outfile << std::endl;
-        if ( !outdir.isEmpty() )  ss << "outdir : " << outdir << std::endl;
-        if ( !bufsize.isEmpty() )  ss << "bufsize : " << bufsize << std::endl;
-        if ( !curcache.isEmpty() )  ss << "curcache : " << curcache << std::endl;
-        if ( !mem.isEmpty() )  ss << "mem : " << mem << std::endl;
-        if ( !temp.isEmpty() )  ss << "temp : " << temp << std::endl;
-        if ( ThreadsCount > 0  )  ss << "threads : " << Threads << std::endl;
+        if ( !outfile.isEmpty() ) ss << "outfile : " << outfile << std::endl;
+        if ( !outdir.isEmpty() ) ss << "outdir : " << outdir << std::endl;
+        if ( !bufsize.isEmpty() ) ss << "bufsize : " << bufsize << std::endl;
+        if ( !curcache.isEmpty() ) ss << "curcache : " << curcache << std::endl;
+        if ( !mem.isEmpty() ) ss << "mem : " << mem << std::endl;
+        if ( !temp.isEmpty() ) ss << "temp : " << temp << std::endl;
+        if ( ThreadsCount > 0  ) ss << "threads : " << Threads << std::endl;
         if ( progress ) ss << "progress" << std::endl;
         if ( details ) ss << "details" << std::endl;
         if ( split_spot ) ss << "split-spot" << std::endl;

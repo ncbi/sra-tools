@@ -202,17 +202,7 @@ struct FastqParams : ToolOptions
         if ( split_spot ) ss << "split-spot" << std::endl;
         if ( minSpotIdCount > 0 ) ss << "minSpotId : " << minSpotId << std::endl;
         if ( maxSpotIdCount > 0 ) ss << "maxSpotId : " << maxSpotId << std::endl;
-        if ( spot_groups.size() > 0 )
-        {
-            ss << "spot-groups : ";
-            int i = 0;
-            for ( auto const &value : spot_groups )
-            {
-                if ( i++ > 0 ) ss << ',';
-                ss << value;
-            }
-            ss << std::endl;
-        }
+        print_vec( ss, spot_groups, "spot-groups : " );
         if ( clip ) ss << "clip" << std::endl;
         if ( minReadLenCount > 0 ) ss << "minReadLen : " << minReadLen << std::endl;
         if ( ReadFilterCount > 0 )  ss << "read-filter : '" << read_filter << "'" << std::endl;

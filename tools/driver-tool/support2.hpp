@@ -104,6 +104,15 @@ namespace sratools2
             ss << v;
             options.push_back( ss.str() );
         }
+        void add_option( const std::string &o, std::vector < ncbi::String > &v )
+        {
+            for ( auto const &value : v )
+            {
+                options.push_back( o );
+                options.push_back( value.toSTLString() );
+            }
+        }
+        
         void add_list_option( const std::string &o, char delim, std::vector< ncbi::String > &v )
         {
             options.push_back( o );
@@ -322,6 +331,22 @@ namespace sratools2
 
         virtual std::string as_string() { return std::string( "" ); }
         virtual void populate_argv_builder( ArgvBuilder & builder ) { }
+
+        void print_vec( std::stringstream &ss, std::vector < ncbi::String > &v, std::string name )
+        {
+            if ( v.size() > 0 )
+            {
+                ss << name;
+                int i = 0;
+                for ( auto const &value : v )
+                {
+                    if ( i++ > 0 ) ss << ',';
+                    ss << value;
+                }
+                ss << std::endl;
+            }
+        }
+
     };
     
     int impersonate_fasterq_dump( const Args &args );

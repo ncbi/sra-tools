@@ -60,6 +60,10 @@ public:
         auto const iter = kvps.find(InstallKey());
         return iter == kvps.end();
     }
+    bool canSendCEToken() const {
+        auto const iter = kvps.find("/libs/cloud/report_instance_identity");
+        return iter != kvps.end() && iter->second == "true";
+    }
 };
 
 }

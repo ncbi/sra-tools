@@ -36,6 +36,7 @@
 
 namespace sratools {
 
+/// @brief Contains the source info for a VDB database.
 struct source {
     std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
     std::string projectId;
@@ -49,6 +50,7 @@ struct source {
     }
 };
 
+/// @brief Contains the source info for a run and any associated vdbcache file.
 class data_source {
     data_source() {}
     source run, vdbcache;
@@ -79,7 +81,7 @@ public:
     std::string const &projectId() const { return run.projectId; }
 };
 
-/// @brief contains the responce from srapath names function
+/// @brief Contains the response from SDL and/or local file info.
 class data_sources {
 public:
     using container = std::vector<data_source>;
@@ -128,13 +130,16 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
+    /// @brief the data sources for an accession
     container const &sourcesFor(std::string const &accession) const
     {
         static auto const empty = container();
         auto const iter = sources.find(accession);
         return (iter != sources.end()) ? iter->second : empty;
     }
-    
+
+    /// @brief Call SDL with accesion/query list and process the results.
+    /// Can use local file info if no response from SDL.
     static data_sources preload(std::vector<std::string> const &runs, ParamList const &parameters);
     
 #if DEBUG || _DEBUGGING

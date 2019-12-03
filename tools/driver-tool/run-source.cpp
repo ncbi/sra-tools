@@ -45,6 +45,7 @@
 #include "proc.hpp"
 #include "which.hpp"
 #include "util.hpp"
+#include "opt_string.hpp"
 #include "run-source.hpp"
 #include "ncbi/json.hpp"
 
@@ -61,9 +62,9 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
-struct SDL_unexpected_error : public std::logic_error
+struct SDL_unexpected_error : public std::runtime_error
 {
-    SDL_unexpected_error(std::string const &what) : std::logic_error(std::string("unexpected response from srapath: ") + what) {}
+    SDL_unexpected_error(std::string const &what) : std::runtime_error(std::string("unexpected response from SDL: ") + what) {}
 };
 
 static std::string getString(ncbi::JSONObject const &obj, char const *const member)
@@ -75,41 +76,42 @@ static std::string getString(ncbi::JSONObject const &obj, char const *const memb
     throw SDL_unexpected_error(std::string("expected a string value labeled ") + member);
 }
 
-static bool getOptionalString(std::string *result, ncbi::JSONObject const &obj, char const *const member)
+static opt_string getOptionalString(ncbi::JSONObject const &obj, char const *const member)
 {
+    auto result = opt_string();
     try {
-        auto const &value = obj.getValue(member);
+        auto const &value = obj.getValue(member); // if throws, return false
+
         if (value.isNull())
-            return false;
+            return result;
 
         if (!value.isArray() && !value.isObject()) {
             auto const &string = value.toString();
-            result->assign(string.toSTLString());
-            return true;
-        }
-    }
-    catch (...) { return false; }
-    throw SDL_unexpected_error(std::string("expected a scalar value labeled ") + member);
-}
-
-static bool getOptionalBoolOrString(bool *result, ncbi::JSONObject const &obj, char const *const member)
-{
-    try {
-        auto const &value = obj.getValue(member);
-        if (value.isBoolean()) {
-            *result = value.toBoolean();
-            return true;
-        }
-        if (value.isString()) {
-            auto const &string = value.toString();
-            *result = (string == "true");
-            return true;
+            result = opt_string(string.toSTLString());
+            return result;
         }
     }
     catch (...) {
-        return false;
+        // member not found
+        return result;
     }
-    throw SDL_unexpected_error(std::string("expected a boolean-like value labeled ") + member);
+    // member existed but value is an array or object
+    throw SDL_unexpected_error(std::string("expected a scalar value labeled ") + member);
+}
+
+static bool getOptionalBool(ncbi::JSONObject const &obj, char const *const member, bool const default_value)
+{
+    try {
+        auto const &value = obj.getValue(member);
+        if (value.isBoolean())
+            return value.toBoolean();
+    }
+    catch (...) {
+        // member not found
+        return default_value;
+    }
+    // member existed but value is not a boolean
+    throw SDL_unexpected_error(std::string("expected a boolean value labeled ") + member);
 }
 
 template <typename F>
@@ -146,83 +148,98 @@ static std::string get_SDL_response(Service const &query, std::vector<std::strin
     return response;
 }
 
-struct raw_response {
-    struct ResponseEntry {
+/// @brief holds SDL version 2 response
+/// @Note member names generally match the corresponding member names in the SDL response JSON
+struct Response2 {
+    /// @brief holds a single element of the result array
+    struct ResultEntry {
+        /// @brief holds a single file (element of the files array)
         struct FileEntry {
+            /// @brief holds a single element of the locations array
             struct LocationEntry {
-                std::string link;
-                std::string service;
-                std::string region;
-                std::string expirationDate;
-                std::string encryptedForProjectId;
-                bool ceRequired;
-                bool payRequired;
+                std::string link;           // url to data
+                std::string service;        // who is providing the data
+                std::string region;         // as defined by service
+                opt_string expirationDate;
+                opt_string projectId;       // encryptedForProjectId
+                bool ceRequired;            // compute environment required
+                bool payRequired;           // data from this location is not free
                 
                 LocationEntry(ncbi::JSONObject const &obj)
-                : ceRequired(false)
-                , payRequired(false)
+                : link(getString(obj, "link"))
+                , service(getString(obj, "service"))
+                , region(getString(obj, "region"))
+                , expirationDate(getOptionalString(obj, "expirationDate"))
+                , projectId(getOptionalString(obj, "encryptedForProjectId"))
+                , ceRequired(getOptionalBool(obj, "ceRequired", false))
+                , payRequired(getOptionalBool(obj, "payRequired", false))
                 {
-                    link = getString(obj, "link");
-                    service = getString(obj, "service");
-                    region = getString(obj, "region");
-                    getOptionalBoolOrString(&ceRequired, obj, "ceRequired");
-                    getOptionalBoolOrString(&payRequired, obj, "payRequired");
-                    getOptionalString(&expirationDate, obj, "expirationDate");
-                    getOptionalString(&encryptedForProjectId, obj, "encryptedForProjectId");
                 }
 
-                bool readableWithEncryptionFrom(LocationEntry const &other) const {
-                    return encryptedForProjectId.empty() || encryptedForProjectId == other.encryptedForProjectId;
+                /// @brief is the data from this location readable using the encryption from other location
+                /// @Note if not encrypted then this location is always readable
+                bool readableWith(LocationEntry const &other) const {
+                    return !projectId ? true : !other.projectId ? false : projectId.value() == other.projectId.value();
                 }
             };
             using Locations = std::vector<LocationEntry>;
-            std::string object;
+            opt_string object;
             std::string type;
             std::string name;
-            std::string size;
-            std::string md5;
-            std::string format;
-            std::string modificationDate;
+            opt_string size;
+            opt_string md5;
+            opt_string format;
+            opt_string modificationDate;
             Locations locations;
             
-            FileEntry(ncbi::JSONObject const &obj) {
-                type = getString(obj, "type");
-                name = getString(obj, "name");
-
-                getOptionalString(&object, obj, "object");
-                getOptionalString(&size, obj, "size");
-                getOptionalString(&md5, obj, "md5");
-                getOptionalString(&modificationDate, obj, "modificationDate");
-                
+            FileEntry(ncbi::JSONObject const &obj)
+            : type(getString(obj, "type"))
+            , name(getString(obj, "name"))
+            , object(getOptionalString(obj, "object"))
+            , size(getOptionalString(obj, "size"))
+            , md5(getOptionalString(obj, "md5"))
+            , format(getOptionalString(obj, "format"))
+            , modificationDate(getOptionalString(obj, "modificationDate"))
+            {
                 forEach(obj, "locations", [&](ncbi::JSONValue const &value) {
                     assert(value.isObject());
                     auto const &entry = LocationEntry(value.toObject());
                     locations.emplace_back(entry);
                 });
             }
+
+            /// @brief find the location that is provided by NCBI/NLM/NIH
+            /// @Note might be encrypted
             Locations::const_iterator from_ncbi() const {
                 return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
                     return x.service == "sra-ncbi" || x.service == "ncbi";
                 });
             }
+
+            /// @brief find the location that is the same service and region
             Locations::const_iterator matching(LocationEntry const &other) const {
                 return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
-                    return x.region == other.region && x.service == other.service;
+                    return x.service == other.service && x.region == other.region;
                 });
             }
+
+            /// @brief find the location that is the best match for another location
+            /// @Note same service/region, else NCBI and compatible encryption, else any compatible encryption
             Locations::const_iterator best_matching(LocationEntry const &other) const {
                 auto const match = matching(other);
                 if (match != locations.end())
                     return match;
 
                 auto const ncbi = from_ncbi();
-                if (ncbi != locations.end() && ncbi->readableWithEncryptionFrom(other))
+                if (ncbi != locations.end() && ncbi->readableWith(other))
                     return ncbi;
 
                 return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
-                    return x.readableWithEncryptionFrom(other);
+                    return x.readableWith(other);
                 });
             }
+
+            /// @brief This is part of the interface to the rest of the program
             source make_source(LocationEntry const &location, std::string const &accession, Service::LocalInfo::FileInfo const &fileInfo) const {
                 auto result = source();
                 
@@ -238,8 +255,8 @@ struct raw_response {
                 result.remoteUrl = location.link;
                 result.needCE = location.ceRequired;
                 result.needPmt = location.payRequired;
-                result.encrypted = !location.encryptedForProjectId.empty();
-                result.projectId = location.encryptedForProjectId;
+                result.encrypted = location.projectId;
+                result.projectId = result.encrypted ? location.projectId.value() : std::string();
                 result.haveAccession = true;
                 
                 return result;
@@ -251,8 +268,9 @@ struct raw_response {
         std::string message;
         Files files;
 
-        ResponseEntry(ncbi::JSONObject const &obj) {
-            status = getString(obj, "status");
+        ResultEntry(ncbi::JSONObject const &obj)
+        : status(getString(obj, "status"))
+        {
             message = getString(obj, status == "200" ? "msg" : "message");
             accession = getString(obj, status == "200" ? "bundle" : "accession");
             
@@ -262,11 +280,23 @@ struct raw_response {
                 files.emplace_back(entry);
             });
         }
+
+        /// @brief find the entry that matches but has a different type
         Files::const_iterator matching(FileEntry const &entry, std::string const &type) const {
             return std::find_if(files.begin(), files.end(), [&](FileEntry const &x) {
                 return x.object == entry.object && x.type == type;
             });
         }
+
+        /// @brief Filter files and join sources to matching vdbcache.
+        ///
+        /// It is probably best to do this here in the version specific code.
+        ///
+        /// @param accession containing accession, aka bundle.
+        /// @param service SDL service object for local file lookups.
+        /// @param func callback, is called for each data source object.
+        ///
+        /// @Note This is the *primary* means by which information is handed out to the rest of the program.
         template <typename F>
         void process(std::string const &accession, Service const &service, F &&func) const
         {
@@ -276,6 +306,7 @@ struct raw_response {
                 
                 auto const vcache = matching(file, "vdbcache");
                 if (vcache == files.end()) {
+                    // there is no vdbcache with this object, nothing to join
                     for (auto &location : file.locations) {
                         // if the user had run prefetch and not moved the
                         // downloaded files, this should find them.
@@ -284,6 +315,7 @@ struct raw_response {
                     }
                 }
                 else {
+                    // there is a vdbcache with this object, do the join
                     for (auto &location : file.locations) {
                         auto const &run_source = file.make_source(location, accession, service.localInfo2(accession, file.name));
                         auto const &best = vcache->best_matching(location);
@@ -292,6 +324,7 @@ struct raw_response {
                             func(data_source(run_source, cache_source));
                         }
                         else {
+                            // there was no matching vdbcache for this source
                             func(data_source(run_source));
                         }
                     }
@@ -299,27 +332,25 @@ struct raw_response {
             }
         }
     };
-    using Responses = std::vector<ResponseEntry>;
-    Responses response;
+    using Results = std::vector<ResultEntry>;
+    Results result;
     std::string status;
     std::string message;
-    std::string nextToken;
+    opt_string nextToken;
     
-    raw_response(ncbi::JSONObject const &obj) {
-        status = "200";
-        message = "OK";
+    Response2(ncbi::JSONObject const &obj)
+    : status(getOptionalString(obj, "status").value_or("200"))
+    , message(getOptionalString(obj, "message").value_or("OK"))
+    , nextToken(getOptionalString(obj, "nextToken"))
+    {
 #if DEBUG || _DEBUGGING
         auto const version = getString(obj, "version");
         assert(version == "2" || version == "unstable");
 #endif
-        getOptionalString(&status, obj, "status");
-        getOptionalString(&message, obj, "message");
-        getOptionalString(&nextToken, obj, "nextToken");
-        
         forEach(obj, "result", [&](ncbi::JSONValue const &value) {
             assert(value.isObject());
-            auto const &entry = ResponseEntry(value.toObject());
-            response.emplace_back(entry);
+            auto const &entry = ResultEntry(value.toObject());
+            result.emplace_back(entry);
         });
     }
 };
@@ -391,10 +422,10 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
         };
         
         if (version_is("2")) {
-            auto const &raw = raw_response(obj);
+            auto const &raw = Response2(obj);
             LOG(7) << "Parsed SDL Response" << std::endl;
             
-            for (auto &sdl_result : raw.response) {
+            for (auto &sdl_result : raw.result) {
                 auto const &accession = sdl_result.accession;
                 auto const localInfo = local.find(accession);
 
@@ -543,15 +574,15 @@ void data_sources::test_vdbcache() {
 )###";
     auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
     auto const &obj = jvRef->toObject();
-    auto const &raw = raw_response(obj);
+    auto const &raw = Response2(obj);
     
-    assert(raw.response.size() == 1);
+    assert(raw.result.size() == 1);
     auto passed = false;
     auto files = 0;
     auto sras = 0;
     auto srrs = 0;
     
-    for (auto &file : raw.response[0].files) {
+    for (auto &file : raw.result[0].files) {
         ++files;
         if (file.type != "sra") continue;
         ++sras;
@@ -560,8 +591,8 @@ void data_sources::test_vdbcache() {
         
         assert(file.locations.size() == 1);
         
-        auto const vcache = raw.response[0].matching(file, "vdbcache");
-        assert(vcache != raw.response[0].files.end());
+        auto const vcache = raw.result[0].matching(file, "vdbcache");
+        assert(vcache != raw.result[0].files.end());
         
         auto const &location = file.locations[0];
         auto const &vdbcache = vcache->best_matching(location);
@@ -631,9 +662,9 @@ void data_sources::test_2() {
 )###";
     auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
     auto const &obj = jvRef->toObject();
-    auto const &raw = raw_response(obj);
+    auto const &raw = Response2(obj);
     
-    assert(raw.response.size() == 2);
+    assert(raw.result.size() == 2);
 }
 
 void data_sources::test_top_error() {
@@ -645,9 +676,9 @@ void data_sources::test_top_error() {
 })###";
     auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
     auto const &obj = jvRef->toObject();
-    auto const &raw = raw_response(obj);
+    auto const &raw = Response2(obj);
     
-    assert(raw.response.size() == 0);
+    assert(raw.result.size() == 0);
     assert(raw.status == "400");
 }
 
@@ -660,9 +691,9 @@ void data_sources::test_empty() {
 })###";
     auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
     auto const &obj = jvRef->toObject();
-    auto const &raw = raw_response(obj);
+    auto const &raw = Response2(obj);
     
-    assert(raw.response.size() == 0);
+    assert(raw.result.size() == 0);
 }
 
 void data_sources::test_inner_error() {
@@ -679,10 +710,10 @@ void data_sources::test_inner_error() {
 })###";
     auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
     auto const &obj = jvRef->toObject();
-    auto const &raw = raw_response(obj);
+    auto const &raw = Response2(obj);
     
-    assert(raw.response.size() == 1);
-    assert(raw.response[0].status == "404");
+    assert(raw.result.size() == 1);
+    assert(raw.result[0].status == "404");
 }
 #endif // DEBUG || _DEBUGGING
 

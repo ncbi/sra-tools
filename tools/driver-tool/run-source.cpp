@@ -37,6 +37,8 @@
 #include <utility>
 #include <algorithm>
 
+#include <sysexits.h>
+
 #include "globals.hpp"
 #include "constants.hpp"
 #include "debug.hpp"
@@ -218,7 +220,7 @@ struct raw_response {
                     return ncbi;
 
                 return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
-                    x.readableWithEncryptionFrom(other);
+                    return x.readableWithEncryptionFrom(other);
                 });
             }
             source make_source(LocationEntry const &location, std::string const &accession, Service::LocalInfo::FileInfo const &fileInfo) const {
@@ -275,6 +277,8 @@ struct raw_response {
                 auto const vcache = matching(file, "vdbcache");
                 if (vcache == files.end()) {
                     for (auto &location : file.locations) {
+                        // if the user had run prefetch and not moved the
+                        // downloaded files, this should find them.
                         auto const &run_source = file.make_source(location, accession, service.localInfo2(accession, file.name));
                         func(data_source(run_source));
                     }
@@ -351,40 +355,73 @@ void data_sources::set_ce_token_env_var() const {
 data_sources data_sources::preload(std::vector<std::string> const &runs,
                                    ParamList const &parameters)
 {
-    auto result = data_sources(Service::CE_Token());
-    auto const addSource = [&](data_source &&source) {
-        result.addSource(std::move(source));
-    };
+    auto const havePerm = perm != nullptr;
+    auto const canSendCE = config->canSendCEToken();
+    if (havePerm && !canSendCE) {
+        std::cerr << "--perm requires a cloud instance identity, please run vdb-config -i and enable the option to report cloud instance identity." << std::endl;
+        exit(EX_USAGE);
+    }
+
+    auto const ceToken = Service::CE_Token();
+    auto result = data_sources(canSendCE ? ceToken : "");
+    if (havePerm && ceToken.empty()) {
+        std::cerr << "--perm requires a cloud instance identity, but a cloud instance identity could not be found." << std::endl;
+        exit(EX_USAGE);
+    }
+
     auto local = std::map<std::string, Service::LocalInfo>();
     auto const &service = Service::make();
 
     for (auto & run : runs) {
+        // This is based on the query from the user; it might not be accurate.
+        // Later, we will use names that were returned from SDL to look up the
+        // same info, it should be as accurate as we can get.
         local[run] = service.localInfo(run);
     }
     try {
         auto const response = get_SDL_response(service, runs, result.have_ce_token);
-        LOG(7) << "SDL response:\n" << response << std::endl;
+        LOG(8) << "SDL response:\n" << response << std::endl;
 
         auto const jvRef = ncbi::JSON::parse(ncbi::String(response));
         auto const &obj = jvRef->toObject();
         auto const version = getString(obj, "version");
-        if (version == "2" || version == "unstable") {
+        auto const version_is = [&](std::string const &vers) {
+            static auto const unstable = "2"; ///< needs to track current SDL unstable
+            return version == vers || (version == "unstable" && vers == unstable);
+        };
+        
+        if (version_is("2")) {
             auto const &raw = raw_response(obj);
             LOG(7) << "Parsed SDL Response" << std::endl;
             
             for (auto &sdl_result : raw.response) {
-                auto const localInfo = local.find(sdl_result.accession);
-                
-                LOG(6) << "Accession " << sdl_result.accession << " " << sdl_result.status << " " << sdl_result.message << std::endl;
+                auto const &accession = sdl_result.accession;
+                auto const localInfo = local.find(accession);
+
+                LOG(6) << "Accession " << accession << " " << sdl_result.status << " " << sdl_result.message << std::endl;
                 if (sdl_result.status == "200") {
-                    sdl_result.process(sdl_result.accession, service, addSource);
+                    unsigned added = 0;
+                    sdl_result.process(accession, service, [&](data_source &&source) {
+                        if (havePerm && source.encrypted()) {
+                            std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
+                        }
+                        else {
+                            result.addSource(std::move(source));
+                            added += 1;
+                        }
+                    });
                     local.erase(localInfo); // remove since we used it here
+                    if (added == 0) {
+                        std::cerr
+                        << "Accession " << accession << " might be available in a different region or on a different cloud provider." << std::endl
+                        << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                    }
                 }
                 else if (sdl_result.status == "404" && localInfo->second.rundata) {
                     // use the local data (see below)
                 }
                 else {
-                    std::cerr << "Accession " << sdl_result.accession << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
+                    std::cerr << "Accession " << accession << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
                 }
             }
         }
@@ -528,8 +565,9 @@ void data_sources::test_vdbcache() {
         
         auto const &location = file.locations[0];
         auto const &vdbcache = vcache->best_matching(location);
-        assert(vdbcache.service == "sra-ncbi");
-        assert(vdbcache.region == "public");
+        assert(vdbcache != vcache->locations.end());
+        assert(vdbcache->service == "sra-ncbi");
+        assert(vdbcache->region == "public");
         
         passed = true;
     }

@@ -205,8 +205,15 @@ std::string Service::CE_Token() {
         return cloud.token();
     }
     catch (vdb::exception const &e) {
-        LOG(1) << "Failed to get cloud token" << std::endl;
-        LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+        switch (e.resultCode()) {
+        case 3017889624:
+            LOG(2) << "No cloud token, not in a cloud." << std::endl;
+            break;
+        default:
+            LOG(1) << "Failed to get cloud token" << std::endl;
+            LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+            break;
+        }
         return "";
     }
 }

@@ -264,6 +264,13 @@ setup_tree_and_clone ()
 setup_tree_and_clone $FUSERA_GIT $FUSERA_BRANCH
 setup_tree_and_clone $TWIG_GIT $TWIG_BRANCH
 
+if [ -n "$GOPATH" ]
+then
+    NGP="$GOPATH:$TARGET_DIR"
+else
+    NGP="$TARGET_DIR"
+fi
+
 ###
 ##  Doing weird stuff
 #
@@ -301,7 +308,7 @@ Layout :
 To run fusera, You need perform that set of commands :
 
 # cd $TARGET_DIR/src/github.com/ncbi/fusera
-# export GOPATH=$GOPATH:$TARGET_DIR 
+# export GOPATH=$NGP
 # go run main.go
 
 Enjoy :D
@@ -316,5 +323,5 @@ cat <<EOF >$TARGET_DIR/ENV.txt
 ## NOTE: it is important to export that varable ... lol
 ##
 
-export GOPATH=$GOPATH:$TARGET_DIR
+export GOPATH=$NGP
 EOF

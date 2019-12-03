@@ -74,6 +74,9 @@ public:
     }
     void set_environment() const;
     std::string const &service() const { return run.service; }
+    bool encrypted() const { return run.encrypted; }
+    std::string const &accession() const { return run.accession; }
+    std::string const &projectId() const { return run.projectId; }
 };
 
 /// @brief contains the responce from srapath names function

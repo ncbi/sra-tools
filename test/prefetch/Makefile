@@ -680,6 +680,16 @@ kart: ##########################################################################
 	@mkdir -p tmp
 	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' > tmp/t.kfg
 
+	@echo "downloading --cart <kart> ordered by default (size)"
+	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
+	 NCBI_SETTINGS=/ VDB_CONFIG=. \
+	 perl ../check-prefetch-out.pl 0 0 \
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc --cart ../3-dbGaP-0.krt"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+
 	@echo "downloading kart ordered by default (size)"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \

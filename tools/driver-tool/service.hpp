@@ -55,20 +55,8 @@ public:
 
 class Service {
     void *obj;
-    Service(void *);
+    explicit Service(void *);
 public:
-    static Service make();
-    ~Service();
-    
-    void add(std::string const &term) const;
-    void add(std::vector<std::string> const &terms) const;
-    void setLocation(std::string const &value) const;
-    void setPermissionsFile(std::string const &path) const;
-    void setNGCFile(std::string const &path) const;
-    std::string response(std::string const &url, std::string const &version) const;
-    
-    enum DataType { run, vdbcache };
-    
     struct LocalInfo {
         struct FileInfo {
             std::string path, cachepath;
@@ -78,8 +66,44 @@ public:
             operator bool() const { return have; }
         } rundata, vdbcache;
     };
+#if 0
     LocalInfo localInfo(std::string const &accession) const;
-    LocalInfo::FileInfo localInfo2(std::string const &accession, std::string const name) const;
+    LocalInfo::FileInfo localInfo2(std::string const &accession, std::string const &name) const;
+#endif
+
+    class Response {
+        void *obj;
+        std::string text;
+
+        Response(void *obj, char const *cstr)
+        : obj(obj)
+        , text(cstr)
+        {}
+        friend class Service;
+    public:
+        std::string const &responseText() const { return text; }
+
+        Service::LocalInfo localInfo(std::string const &accession) const;
+        Service::LocalInfo::FileInfo localInfo2(std::string const &accession, std::string const &name) const;
+
+        ~Response();
+
+        friend std::ostream &operator <<(std::ostream &os, Response const &rhs);
+    };
+    static Service make();
+    ~Service();
+    
+    void add(std::string const &term) const;
+    void add(std::vector<std::string> const &terms) const;
+    void setLocation(std::string const &value) const;
+    void setPermissionsFile(std::string const &path) const;
+    void setNGCFile(std::string const &path) const;
+#if 0
+    std::string response(std::string const &url, std::string const &version) const;
+#else
+    Response response(std::string const &url, std::string const &version) const;
+#endif
+
     static std::string CE_Token();
 };
 }

@@ -63,161 +63,208 @@ namespace vdb {
     #include "ncbi/vdb/cloud/cloud.h"
     #include "ncbi/vdb/cloud/manager.h"
 
-}
-
-class Cloud {
-    class Manager {
-        vdb::CloudMgr *mgr;
+    class Cloud {
+        class Manager {
+            vdb::CloudMgr *mgr;
+        public:
+            Manager() {
+                auto const rc = vdb::CloudMgrMake(&mgr, nullptr, nullptr);
+                if (rc)
+                    throw vdb::exception(rc, "CloudMgrMake", "");
+            }
+            ~Manager() { vdb::CloudMgrRelease(mgr); }
+            
+            vdb::Cloud *current() const {
+                vdb::Cloud *result = nullptr;
+                auto const rc = vdb::CloudMgrGetCurrentCloud(mgr, &result);
+                if (rc)
+                    throw vdb::exception(rc, "CloudMgrGetCurrentCloud", "");
+                return result;
+            }
+        };
+        vdb::Cloud *obj;
     public:
-        Manager() {
-            auto const rc = vdb::CloudMgrMake(&mgr, nullptr, nullptr);
-            if (rc)
-                throw vdb::exception(rc, "CloudMgrMake", "");
+        ~Cloud() { vdb::CloudRelease(obj); }
+        Cloud() {
+            auto const &mgr = Manager();
+            obj = mgr.current();
         }
-        ~Manager() { vdb::CloudMgrRelease(mgr); }
-        
-        vdb::Cloud *current() const {
-            vdb::Cloud *result = nullptr;
-            auto const rc = vdb::CloudMgrGetCurrentCloud(mgr, &result);
-            if (rc)
-                throw vdb::exception(rc, "CloudMgrGetCurrentCloud", "");
+        std::string token() const {
+            auto result = std::string();
+            
+            vdb::String const *s;
+            auto const rc = vdb::CloudMakeComputeEnvironmentToken(obj, &s);
+            if (rc == 0 && s) {
+                result.assign(s->addr, StringSize(s));
+                free((void *)s);
+            }
             return result;
         }
     };
-    vdb::Cloud *obj;
-public:
-    ~Cloud() { vdb::CloudRelease(obj); }
-    Cloud() {
-        auto const &mgr = Manager();
-        obj = mgr.current();
+    
+    extern "C" {
+        extern rc_t VPathMakeString(VPath const *, String const **);
+        extern rc_t VPathRelease(VPath const *);
     }
-    std::string token() const {
-        auto result = std::string();
-        
-        vdb::String const *s;
-        auto const rc = vdb::CloudMakeComputeEnvironmentToken(obj, &s);
-        if (rc == 0 && s) {
-            result.assign(s->addr, StringSize(s));
-            free((void *)s);
+    class Path {
+        VPath const *self;
+    public:
+        explicit Path(VPath const *self) : self(self) {}
+        ~Path() { VPathRelease(self); }
+        operator std::string() const {
+            auto result = std::string();
+            String const *s = nullptr;
+            auto const rc = VPathMakeString(self, &s);
+            if (rc == 0 && s) {
+                result.assign(s->addr, StringSize(s));
+                free((void *)s);
+            }
+            return result;
         }
-        return result;
+    };
+
+    Service Service::make() {
+        vdb::KService *obj;
+        auto const rc = vdb::KServiceMake(&obj);
+        if (rc)
+            throw vdb::exception(rc, "KServiceMake", "");
+        return Service(obj);
     }
-};
 
-namespace vdb {
-
-Service Service::make() {
-    vdb::KService *obj;
-    auto const rc = vdb::KServiceMake(&obj);
-    if (rc)
-        throw vdb::exception(rc, "KServiceMake", "");
-    return Service(obj);
-}
-
-void Service::add(std::string const &term) const {
-    auto const rc = vdb::KServiceAddId((vdb::KService *)obj, term.c_str());
-    if (rc)
-        throw vdb::exception(rc, "KServiceAddId", term);
-}
-
-void Service::add(std::vector<std::string> const &terms) const {
-    for (auto &term : terms)
-        add(term);
-}
-
-void Service::setLocation(std::string const &location) const {
-    auto const rc = vdb::KServiceSetLocation((vdb::KService *)obj, location.c_str());
-    if (rc)
-        throw vdb::exception(rc, "KServiceSetLocation", location);
-}
-
-void Service::setPermissionsFile(std::string const &path) const {
-    auto const rc = vdb::KServiceSetJwtKartFile((vdb::KService *)obj, path.c_str());
-    if (rc)
-        throw vdb::exception(rc, "KServiceSetJwtKartFile", path);
-}
-
-void Service::setNGCFile(std::string const &path) const {
-    auto const rc = vdb::KServiceSetNgcFile((vdb::KService *)obj, path.c_str());
-    if (rc)
-        throw vdb::exception(rc, "KServiceSetNgcFile", path);
-}
-
-std::string Service::response(std::string const &url, std::string const &version) const {
-    KSrvResponse const *resp = nullptr;
-    auto const rc = vdb::KServiceNamesExecuteExt((vdb::KService *)obj, 0, url.c_str(), version.c_str(), &resp);
-    if (rc == 0) {
-        auto const result = std::string(KServiceGetResponseCStr((vdb::KService *)obj));
-        KSrvResponseRelease(resp);
-        return result;
+    void Service::add(std::string const &term) const {
+        auto const rc = vdb::KServiceAddId((vdb::KService *)obj, term.c_str());
+        if (rc)
+            throw vdb::exception(rc, "KServiceAddId", term);
     }
-    throw vdb::exception(rc, "KServiceNamesExecuteExt", "");
-}
 
-extern "C" {
-extern rc_t KServiceQueryLocation(KService *, char const *, char const *, VPath **, VPath **);
-extern rc_t VPathMakeString(VPath const *, String const **);
-extern rc_t VPathRelease(VPath const *);
-}
-static std::string VPathToString(VPath const *path)
-{
-    auto result = std::string();
-    String const *s = nullptr;
-    auto const rc = VPathMakeString(path, &s);
-    if (rc == 0 && s) {
-        result.assign(s->addr, StringSize(s));
-        free((void *)s);
+    void Service::add(std::vector<std::string> const &terms) const {
+        for (auto &term : terms)
+            add(term);
     }
-    return result;
-}
 
-Service::LocalInfo::FileInfo Service::localInfo2(std::string const &accession, std::string const name) const
-{
-    LocalInfo::FileInfo info = {};
-    VPath *local = nullptr, *cache = nullptr;
-
-    // KServiceQueryLocation(obj, accession.c_str(), name.c_str(), &local, &cache);
-    if (local) {
-        info.have = true;
-        info.path = VPathToString(local);
-        if (cache)
-            info.cachepath = VPathToString(cache);
+    void Service::setLocation(std::string const &location) const {
+        auto const rc = vdb::KServiceSetLocation((vdb::KService *)obj, location.c_str());
+        if (rc)
+            throw vdb::exception(rc, "KServiceSetLocation", location);
     }
-    VPathRelease(local);
-    VPathRelease(cache);
-    return info;
-}
 
-Service::LocalInfo Service::localInfo(std::string const &accession) const
-{
-    LocalInfo info = {};
-
-    info.rundata = localInfo2(accession, accession);
-    if (info.rundata)
-        info.vdbcache = localInfo2(accession, accession + ".vdbcache");
-
-    return info;
-}
-
-std::string Service::CE_Token() {
-    try {
-        auto const &cloud = ::Cloud();
-        return cloud.token();
+    void Service::setPermissionsFile(std::string const &path) const {
+        auto const rc = vdb::KServiceSetJwtKartFile((vdb::KService *)obj, path.c_str());
+        if (rc)
+            throw vdb::exception(rc, "KServiceSetJwtKartFile", path);
     }
-    catch (vdb::exception const &e) {
-        switch (e.resultCode()) {
-        case 3017889624:
-            LOG(2) << "No cloud token, not in a cloud." << std::endl;
-            break;
-        default:
-            LOG(1) << "Failed to get cloud token" << std::endl;
-            LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
-            break;
+
+    void Service::setNGCFile(std::string const &path) const {
+        auto const rc = vdb::KServiceSetNgcFile((vdb::KService *)obj, path.c_str());
+        if (rc)
+            throw vdb::exception(rc, "KServiceSetNgcFile", path);
+    }
+
+#if 0
+    std::string Service::response(std::string const &url, std::string const &version) const {
+        KSrvResponse const *resp = nullptr;
+        auto const rc = vdb::KServiceNamesExecuteExt((vdb::KService *)obj, 0, url.c_str(), version.c_str(), &resp);
+        if (rc == 0) {
+            auto const result = std::string(KServiceGetResponseCStr((vdb::KService *)obj));
+            KSrvResponseRelease(resp);
+            return result;
         }
-        return "";
+        throw vdb::exception(rc, "KServiceNamesExecuteExt", "");
     }
-}
 
-Service::~Service() { vdb::KServiceRelease((vdb::KService *)obj); }
-Service::Service(void *obj) : obj(obj) {}
+    Service::LocalInfo::FileInfo Service::localInfo2(std::string const &accession, std::string const &name) const
+    {
+        LocalInfo::FileInfo info = {};
+        VPath *local = nullptr, *cache = nullptr;
+
+        // KServiceQueryLocation(obj, accession.c_str(), name.c_str(), &local, &cache);
+        if (local) {
+            info.have = true;
+            info.path = VPathToString(local);
+            if (cache)
+                info.cachepath = VPathToString(cache);
+        }
+        VPathRelease(local);
+        VPathRelease(cache);
+        return info;
+    }
+
+    Service::LocalInfo Service::localInfo(std::string const &accession) const
+    {
+        LocalInfo info = {};
+
+        info.rundata = localInfo2(accession, accession);
+        if (info.rundata)
+            info.vdbcache = localInfo2(accession, accession + ".vdbcache");
+
+        return info;
+    }
+#else
+    Service::Response Service::response(std::string const &url, std::string const &version) const {
+        KSrvResponse const *resp = nullptr;
+        auto const rc = vdb::KServiceNamesExecuteExt((vdb::KService *)obj, 0, url.c_str(), version.c_str(), &resp);
+        if (rc == 0) {
+            auto const cstr = KServiceGetResponseCStr((vdb::KService *)obj);
+            return Response((void *)resp, cstr);
+        }
+        throw vdb::exception(rc, "KServiceNamesExecuteExt", "");
+    }
+    Service::LocalInfo::FileInfo Service::Response::localInfo2(std::string const &accession, std::string const &name) const {
+        Service::LocalInfo::FileInfo info = {};
+        VPath const *vlocal = nullptr, *vcache = nullptr;
+        rc_t rc1 = 0, rc2 = 0;
+        auto const rc = vdb::KSrvResponseGetLocation((KSrvResponse const *)obj, accession.c_str(), name.c_str(), &vlocal, &rc1, &vcache, &rc2);
+
+        if (rc == 0 && rc1 == 0 && vlocal) {
+            Path local(vlocal);
+            info.have = true;
+            info.path = local;
+            if (vcache) {
+                Path cache(vcache);
+                info.cachepath = cache;
+            }
+        }
+        return info;
+    }
+    Service::LocalInfo Service::Response::localInfo(std::string const &accession) const {
+        Service::LocalInfo info = {};
+
+        info.rundata = localInfo2(accession, accession);
+        if (info.rundata)
+            info.vdbcache = localInfo2(accession, accession + ".vdbcache");
+
+        return info;
+    }
+
+    Service::Response::~Response() {
+        vdb::KSrvResponseRelease((vdb::KSrvResponse const *)(obj));
+    }
+    
+    std::ostream &operator <<(std::ostream &os, Service::Response const &rhs) {
+        return os << rhs.text;
+    }
+
+#endif
+
+    std::string Service::CE_Token() {
+        try {
+            auto const &cloud = Cloud();
+            return cloud.token();
+        }
+        catch (vdb::exception const &e) {
+            switch (e.resultCode()) {
+            case 3017889624:
+                LOG(2) << "No cloud token, not in a cloud." << std::endl;
+                break;
+            default:
+                LOG(1) << "Failed to get cloud token" << std::endl;
+                LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+                break;
+            }
+            return "";
+        }
+    }
+
+    Service::~Service() { vdb::KServiceRelease((vdb::KService *)obj); }
+    Service::Service(void *obj) : obj(obj) {}
 }

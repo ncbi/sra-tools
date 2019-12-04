@@ -26,7 +26,7 @@
 *  sratools command line tool
 *
 * Purpose:
-*  Communicate with SDL via srapath
+*  Communicate with SDL
 *
 */
 

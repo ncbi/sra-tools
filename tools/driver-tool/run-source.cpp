@@ -26,7 +26,7 @@
 *  sratools command line tool
 *
 * Purpose:
-*  Communicate with SDL via srapath
+*  Communicate with SDL
 *
 */
 
@@ -128,7 +128,7 @@ static void forEach(ncbi::JSONObject const &obj, char const *member, F && f)
     catch (...) {}
 }
 
-static std::string get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
+static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
 {
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
@@ -143,9 +143,8 @@ static std::string get_SDL_response(Service const &query, std::vector<std::strin
     
     if (ngc)
         query.setNGCFile(*ngc);
-    
-    auto const &response = query.response(url_string, version_string);
-    return response;
+
+    return query.response(url_string, version_string);
 }
 
 /// @brief holds SDL version 2 response
@@ -281,24 +280,24 @@ struct Response2 {
             });
         }
 
-        /// @brief find the entry that matches but has a different type
+        /// @brief find the file that matches but has a different type
         Files::const_iterator matching(FileEntry const &entry, std::string const &type) const {
             return std::find_if(files.begin(), files.end(), [&](FileEntry const &x) {
                 return x.object == entry.object && x.type == type;
             });
         }
 
-        /// @brief Filter files and join sources to matching vdbcache.
+        /// @brief Filter files and join to matching vdbcache file.
         ///
         /// It is probably best to do this here in the version specific code.
         ///
         /// @param accession containing accession, aka bundle.
-        /// @param service SDL service object for local file lookups.
+        /// @param response for local file lookups.
         /// @param func callback, is called for each data source object.
         ///
         /// @Note This is the *primary* means by which information is handed out to the rest of the program.
         template <typename F>
-        void process(std::string const &accession, Service const &service, F &&func) const
+        void process(std::string const &accession, Service::Response const &response, F &&func) const
         {
             for (auto & file : files) {
                 if (file.type != "sra") continue;
@@ -310,17 +309,17 @@ struct Response2 {
                     for (auto &location : file.locations) {
                         // if the user had run prefetch and not moved the
                         // downloaded files, this should find them.
-                        auto const &run_source = file.make_source(location, accession, service.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
                         func(data_source(run_source));
                     }
                 }
                 else {
                     // there is a vdbcache with this object, do the join
                     for (auto &location : file.locations) {
-                        auto const &run_source = file.make_source(location, accession, service.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
                         auto const &best = vcache->best_matching(location);
                         if (best != vcache->locations.end()) {
-                            auto const &cache_source = file.make_source(*best, accession, service.localInfo2(accession, vcache->name));
+                            auto const &cache_source = file.make_source(*best, accession, response.localInfo2(accession, vcache->name));
                             func(data_source(run_source, cache_source));
                         }
                         else {
@@ -389,36 +388,37 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
     if (havePerm && !canSendCE) {
-        std::cerr << "--perm requires a cloud instance identity, please run vdb-config -i and enable the option to report cloud instance identity." << std::endl;
+        std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
         exit(EX_USAGE);
     }
 
-    auto const ceToken = Service::CE_Token();
-    auto result = data_sources(canSendCE ? ceToken : "");
+    auto const &ceToken = Service::CE_Token();
     if (havePerm && ceToken.empty()) {
         std::cerr << "--perm requires a cloud instance identity, but a cloud instance identity could not be found." << std::endl;
         exit(EX_USAGE);
     }
 
-    auto local = std::map<std::string, Service::LocalInfo>();
+    auto result = data_sources(canSendCE ? ceToken : "");
     auto const &service = Service::make();
+    auto local = std::map<std::string, Service::LocalInfo>();
 
+#if 0
     for (auto & run : runs) {
         // This is based on the query from the user; it might not be accurate.
         // Later, we will use names that were returned from SDL to look up the
         // same info, it should be as accurate as we can get.
         local[run] = service.localInfo(run);
     }
+#endif
     try {
         auto const response = get_SDL_response(service, runs, result.have_ce_token);
         LOG(8) << "SDL response:\n" << response << std::endl;
 
-        auto const jvRef = ncbi::JSON::parse(ncbi::String(response));
+        auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
         auto const &obj = jvRef->toObject();
         auto const version = getString(obj, "version");
         auto const version_is = [&](std::string const &vers) {
-            static auto const unstable = "2"; ///< needs to track current SDL unstable
-            return version == vers || (version == "unstable" && vers == unstable);
+            return version == vers || (version == "unstable" && vers == resolver::unstable_version());
         };
         
         if (version_is("2")) {
@@ -427,12 +427,14 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
             
             for (auto &sdl_result : raw.result) {
                 auto const &accession = sdl_result.accession;
+#if 0
                 auto const localInfo = local.find(accession);
+#endif
 
                 LOG(6) << "Accession " << accession << " " << sdl_result.status << " " << sdl_result.message << std::endl;
                 if (sdl_result.status == "200") {
                     unsigned added = 0;
-                    sdl_result.process(accession, service, [&](data_source &&source) {
+                    sdl_result.process(accession, response, [&](data_source &&source) {
                         if (havePerm && source.encrypted()) {
                             std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
                         }
@@ -441,16 +443,20 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
                             added += 1;
                         }
                     });
+#if 0
                     local.erase(localInfo); // remove since we used it here
+#endif
                     if (added == 0) {
                         std::cerr
                         << "Accession " << accession << " might be available in a different region or on a different cloud provider." << std::endl
                         << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
                     }
                 }
+#if 0
                 else if (sdl_result.status == "404" && localInfo->second.rundata) {
                     // use the local data (see below)
                 }
+#endif
                 else {
                     std::cerr << "Accession " << accession << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
                 }

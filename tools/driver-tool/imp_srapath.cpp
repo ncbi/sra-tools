@@ -24,15 +24,108 @@
  *
  */
 
+#include "cmdline.hpp"
 #include "support2.hpp"
 
 namespace sratools2
 {
 
+struct SrapathParams : OptionBase
+{
+    ncbi::String function;
+    ncbi::String location;
+    ncbi::U32 timeout_count;
+    ncbi::U32 timeout_value;
+    ncbi::String protocol;
+    ncbi::String version;
+    ncbi::String url;
+    ncbi::String param;
+    ncbi::String project;
+    bool print_raw, print_json, resolve_cache, print_path;
+
+
+    SrapathParams()
+        : timeout_count( 0 ), timeout_value( 0 )
+        , print_raw( false )
+        , print_json( false )
+        , resolve_cache( false )
+        , print_path( false )
+    {
+    }
+    
+    void add( ncbi::Cmdline &cmdline )
+    {
+        cmdline . addOption ( function, nullptr, "f", "function", "<function>",
+            "function to perform (resolve, names, search) default=resolve "
+            "or names if protocol is specified" );
+        cmdline . addOption ( location, nullptr, "", "location", "<location>", "Location of data" );
+        cmdline . addOption ( timeout_value, &timeout_count, "t", "timeout", "<value>",
+            "timeout-value for request" );
+        cmdline . addOption ( protocol, nullptr, "a", "protocol", "<protocol>",
+            "protocol (fasp; http; https; fasp,http; ..) default=https" );
+        cmdline . addOption ( version, nullptr, "e", "vers", "<version>", "version-string for cgi-calls" );
+        cmdline . addOption ( url, nullptr, "u", "url", "<url>", "url to be used for cgi-calls" );
+        cmdline . addOption ( param, nullptr, "p", "param", "<parameter>", 
+            "param to be added to cgi-call (tic=XXXXX): raw-only" );
+            
+        cmdline . addOption ( print_raw, "r", "raw", "print the raw reply (instead of parsing it)" );
+        cmdline . addOption ( print_json, "j", "json", "print the reply in JSON" );
+
+        cmdline . addOption ( project, nullptr, "d", "project>", "<project-id>", 
+            "use numeric [dbGaP] project-id in names-cgi-call" );
+
+        cmdline . addOption ( resolve_cache, "c", "cache",
+            "resolve cache location along with remote when performing names function" );
+
+        cmdline . addOption ( print_path, "P", "path", "print path of object: names function-only" );
+    }
+
+    std::string as_string()
+    {
+        std::stringstream ss;
+        if ( !function.isEmpty() ) ss << "function: " << function << std::endl;
+        if ( !location.isEmpty() ) ss << "location: " << location << std::endl;
+        if ( timeout_count > 0 ) ss << "timeout: " << timeout_value << std::endl;
+        if ( !protocol.isEmpty() ) ss << "protocol: " << protocol << std::endl;
+        if ( !version.isEmpty() ) ss << "version: " << version << std::endl;
+        if ( !url.isEmpty() ) ss << "url: " << url << std::endl;
+        if ( !param.isEmpty() ) ss << "param: : "<< param << std::endl;
+        if ( print_raw ) ss << "print raw" << std::endl;
+        if ( print_json ) ss << "print json" << std::endl;
+        if ( !project.isEmpty() ) ss << "project: " << project << std::endl;
+        if ( resolve_cache ) ss << "resolve cache-file" << std::endl;
+        if ( print_path ) ss << "print path" << std::endl;
+        return ss.str();
+    }
+
+    void populate_argv_builder( ArgvBuilder & builder )
+    {
+        if ( !function.isEmpty() ) builder . add_option( "-f", function );
+        if ( !location.isEmpty() ) builder . add_option( "--location", location );
+        if ( timeout_count > 0 ) builder . add_option( "-t", timeout_value );
+        if ( !protocol.isEmpty() ) builder . add_option( "-a", protocol );
+        if ( !version.isEmpty() ) builder . add_option( "-e", version );
+        if ( !url.isEmpty() ) builder . add_option( "-u", url );
+        if ( !param.isEmpty() ) builder . add_option( "-p", param );
+        if ( print_raw ) builder . add_option( "-r" );
+        if ( print_json ) builder . add_option( "-j" );
+        if ( !project.isEmpty() ) builder . add_option( "-d", project );
+        if ( resolve_cache ) builder . add_option( "-c" );
+        if ( print_path ) builder . add_option( "-P" );
+    }
+
+};
+
 int impersonate_srapath( const Args &args )
 {
     int res = 0;
-    
+
+    // SrapathParams is a derived class of ToolOptions, defined in support2.hpp
+    SrapathParams params;
+
+    Impersonator imp( args, "srapath", params );
+    res = imp . run();
+
     return res;
 }
 

@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sstream>
+#include <cstdarg>
 
 #include "../../shared/toolkit.vers.h"
 #include "cmdline.hpp"
@@ -280,58 +281,15 @@ namespace sratools2
             }
     };
 
-    struct CmnOptAndAccessions
+    struct OptionBase
     {
-        ncbi::String toolname;
-        std::vector < ncbi::String > accessions;
-        ncbi::String ngc_file;
-        ncbi::String kar_file;
-        ncbi::String perm_file;
-        ncbi::String location;
-        bool disable_multithreading, version;
-
-        CmnOptAndAccessions( const ncbi::String & the_toolname )
-            : toolname( the_toolname )
-            , disable_multithreading( false )
-            , version( false )
-        {
-
-        }
+        virtual ~OptionBase() {}
         
-        void add( ncbi::Cmdline &cmdline )
-        {
-            cmdline . addParam ( accessions, 0, 256, "accessions(s)", "list of accessions to process" );
-            cmdline . addOption ( ngc_file, nullptr, "", "ngc", "<path>", "<path> to ngc file" );
-            cmdline . addOption ( kar_file, nullptr, "", "kar", "<path>", "<path> to kar file" );
-            cmdline . addOption ( perm_file, nullptr, "", "perm", "<path>", "<path> to permission file" );
-            cmdline . addOption ( location, nullptr, "", "location", "loc", "location in cloud" );
-            
-            cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
-            cmdline . addOption ( version, "V", "version", "Display the version of the program" );
-        }
-
-        std::string as_string()
-        {
-            std::stringstream ss;
-            for ( auto const& value : accessions )
-                ss << "acc  = " << value << std::endl;
-            if ( !ngc_file.isEmpty() )  ss << "ngc-file : " << ngc_file << std::endl;
-            if ( !kar_file.isEmpty() )  ss << "kar-file : " << kar_file << std::endl;
-            if ( !perm_file.isEmpty() ) ss << "perm-file: " << perm_file << std::endl;
-            if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
-            if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
-            if ( version ) ss << "version" << std::endl;
-            return ss.str();
-        }
-    };
-
-    struct ToolOptions
-    {
-        virtual ~ToolOptions() {}
-
         virtual std::string as_string() { return std::string( "" ); }
         virtual void populate_argv_builder( ArgvBuilder & builder ) { }
-
+        virtual void add( ncbi::Cmdline &cmdline ) { }
+        virtual bool check() { return true; }
+        
         void print_vec( std::stringstream &ss, std::vector < ncbi::String > &v, std::string name )
         {
             if ( v.size() > 0 )
@@ -347,8 +305,111 @@ namespace sratools2
             }
         }
 
+        bool is_one_of( const ncbi::String &value, int count, ... )
+        {
+            bool res = false;
+            int i = 0;
+            va_list args;
+            va_start( args, count );
+            while ( !res && i++ < count )
+            {
+                ncbi::String s_item( va_arg( args, char * ) );
+                res = value . equal( s_item );
+            }
+            va_end( args );
+            return res;
+        }
+        
     };
-    
+
+    struct CmnOptAndAccessions : OptionBase
+    {
+        ncbi::String toolname;
+        std::vector < ncbi::String > accessions;
+        ncbi::String ngc_file;
+        ncbi::String kar_file;
+        ncbi::String perm_file;
+        ncbi::String location;
+        bool disable_multithreading, version, quiet;
+        std::vector < ncbi::String > debug;
+        ncbi::String log_level;
+        ncbi::String option_file;
+
+        CmnOptAndAccessions( const ncbi::String & the_toolname )
+            : toolname( the_toolname )
+            , disable_multithreading( false )
+            , version( false )
+            , quiet( false )
+        {
+
+        }
+        
+        void add( ncbi::Cmdline &cmdline )
+        {
+            cmdline . addParam ( accessions, 0, 256, "accessions(s)", "list of accessions to process" );
+            cmdline . addOption ( ngc_file, nullptr, "", "ngc", "<path>", "<path> to ngc file" );
+            cmdline . addOption ( kar_file, nullptr, "", "kar", "<path>", "<path> to kar file" );
+            cmdline . addOption ( perm_file, nullptr, "", "perm", "<path>", "<path> to permission file" );
+            cmdline . addOption ( location, nullptr, "", "location", "loc", "location in cloud" );
+            
+            cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
+            cmdline . addOption ( version, "V", "version", "Display the version of the program" );
+
+            /*
+            // problem: 'q' could be used by the tool already...
+            cmdline . addOption ( quiet, "q", "quiet",
+                "Turn off all status messages for the program. Negated by verbose." );
+            */
+
+            cmdline . addListOption( debug, ',', 255, "+", "debug", "<Module[-Flag]>",
+                "Turn on debug output for module. All flags if not specified." );
+
+            cmdline . addOption ( log_level, nullptr, "L", "log-level", "<level>",
+                "Logging level as number or enum string. One of (fatal|sys|int|err|warn|info|debug) or "
+                "(0-6) Current/default is warn" );
+            cmdline . addOption ( option_file, nullptr, "", "option-file", "file",
+                "Read more options and parameters from the file." );
+        }
+
+        std::string as_string()
+        {
+            std::stringstream ss;
+            for ( auto const& value : accessions )
+                ss << "acc  = " << value << std::endl;
+            if ( !ngc_file.isEmpty() )  ss << "ngc-file : " << ngc_file << std::endl;
+            if ( !kar_file.isEmpty() )  ss << "kar-file : " << kar_file << std::endl;
+            if ( !perm_file.isEmpty() ) ss << "perm-file: " << perm_file << std::endl;
+            if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
+            if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
+            if ( version ) ss << "version" << std::endl;
+            print_vec( ss, debug, "debug modules:" );
+            if ( !log_level.isEmpty() ) ss << "log-level: " << log_level << std::endl;
+            if ( !option_file.isEmpty() ) ss << "option-file: " << option_file << std::endl;
+            return ss.str();
+        }
+
+        void populate_argv_builder( ArgvBuilder & builder )
+        {
+            builder . add_option( "-+", debug );
+            if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
+            if ( !log_level.isEmpty() ) builder . add_option( "-L", log_level );
+            if ( !option_file.isEmpty() ) builder . add_option( "--option-file", option_file );
+        }
+        
+        bool check()
+        {
+            bool res = true;
+            if ( !log_level.isEmpty() )
+            {
+                res = is_one_of( log_level, 14,
+                                  "fatal", "sys", "int", "err", "warn", "info", "debug",
+                                  "0", "1", "2", "3", "4", "5", "6" );
+            }
+            // we could check if ngc/kar/perm-files do actually exist...
+            return res;
+        }
+    };
+
     int impersonate_fasterq_dump( const Args &args );
     int impersonate_fastq_dump( const Args &args );
     int impersonate_srapath( const Args &args );
@@ -356,4 +417,85 @@ namespace sratools2
     int impersonate_sra_pileup( const Args &args );
     int impersonate_sam_dump( const Args &args );
 
+    struct Impersonator
+    {
+        const Args &args;
+        const ncbi::String &toolname;
+        OptionBase &tool_options;
+
+        Impersonator( const Args &_args, const ncbi::String &_toolname, OptionBase &_tool_options )
+            : args( _args ), toolname( _toolname ), tool_options( _tool_options )
+        {
+        }
+
+        int run( void )
+        {
+            // Cmdline is a class defined in cmdline.hpp
+            ncbi::Cmdline cmdline( args . _argc, args . _argv );
+            
+            // CmnOptAndAccessions is defined in support2.hpp
+            CmnOptAndAccessions cmn_options( toolname );
+
+            // add all the tool-specific options to the parser ( first )
+            tool_options . add( cmdline );
+
+            // add all common options and the parameters to the parser
+            cmn_options . add( cmdline );
+
+            try
+            {
+                // let the parser parse the original args,
+                // and let the parser handle help,
+                // and let the parser write all values into cmn and params
+                
+                // preparsing...
+                cmdline . parse ( true );
+
+                // full parsing
+                cmdline . parse ();
+
+                // pre-check the options, after the input has been parsed!
+                if ( !tool_options . check() )
+                    return 3;
+
+                if ( !cmn_options . check() )
+                    return 3;
+
+                // just to see what we got
+                std::cout << tool_options . as_string() << cmn_options . as_string() << std::endl;
+
+                // create an argv-builder 
+                ArgvBuilder builder;
+                // add all options from both to the builder
+                tool_options . populate_argv_builder( builder );
+                cmn_options . populate_argv_builder( builder );
+
+                // what should happen before executing the tool
+                int argc;
+                char ** argv = builder . generate_argv( argc );
+                if ( argv != nullptr )
+                {
+                    for ( int i = 0; i < argc; ++i )
+                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
+
+                    // at this point we have everything in place to execute
+                    // the tool on all accessions:
+                    // cmn_options . accessions has to be expanded ( resolve containers )
+                    // ( ngs/kar/perm/location is available in cmn_options )
+                    // cmn_options . toolname is the name of the tool to execute
+                    // argv is the sanitized new argument-vector to be passed on to the tool
+                    
+                    builder . free_argv( argc, argv );
+                }
+
+            }
+            catch ( ncbi::Exception const &e )
+            {
+                std::cerr << "An error occured: " << e.what() << std::endl;
+            }
+
+            return 0;
+        }
+    };
+    
 } // namespace...

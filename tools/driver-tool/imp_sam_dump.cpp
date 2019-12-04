@@ -30,7 +30,7 @@
 namespace sratools2
 {
 
-struct SamDumpParams : ToolOptions
+struct SamDumpParams : OptionBase
 {
     bool unaligned, primary, cigar_long, cigar_cg, header;
     ncbi::String header_file;
@@ -95,7 +95,7 @@ struct SamDumpParams : ToolOptions
     {
     }
 
-    void add_options( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline )
     {
         cmdline . addOption ( unaligned, "u", "unaligned", "output unaligned reads along with aligned reads" );
         cmdline . addOption ( primary, "1", "primary", "output only primary alignments" );
@@ -268,53 +268,11 @@ int impersonate_sam_dump( const Args &args )
 {
     int res = 0;
 
-    // Cmdline is a class defined in cmdline.hpp
-    ncbi::Cmdline cmdline( args . _argc, args . _argv );
-    
-    // CmnOptAndAccessions is defined in support2.hpp
-    CmnOptAndAccessions cmn( "sam-dump" );
-
-    // FastqParams is a derived class of ToolOptions, defined in support2.hpp
+    // SamDumpParams is a derived class of ToolOptions, defined in support2.hpp
     SamDumpParams params;
-    
-    // add all the tool-specific options to the parser ( first )
-    params . add_options( cmdline );
 
-    // add all common options and the parameters to the parser
-    cmn . add( cmdline );
-
-    try
-    {
-        // let the parser parse the original args,
-        // and let the parser handle help,
-        // and let the parser write all values into cmn and params
-        cmdline . parse ( true );
-        cmdline . parse ();
-
-        // just to see what we got
-        // std::cout << cmn . as_string() << std::endl;
-
-        // just to see what we got
-        std::cout << params . as_string() << std::endl;
-
-        // create an argv-builder 
-        ArgvBuilder builder;
-        params . populate_argv_builder( builder );
-
-        // what should happen before executing the tool
-        int argc;
-        char ** argv = builder . generate_argv( argc );
-        if ( argv != nullptr )
-        {
-            for ( int i = 0; i < argc; ++i )
-                std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-            builder . free_argv( argc, argv );
-        }
-    }
-    catch ( ncbi::InvalidArgument const &e )
-    {
-        std::cerr << "An error occured: " << e.what() << std::endl;
-    }
+    Impersonator imp( args, "sam-dump", params );
+    res = imp . run();
 
     return res;
 }

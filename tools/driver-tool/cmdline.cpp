@@ -1049,14 +1049,20 @@ namespace ncbi
                     }
 
                     // if short name was not found, blow exception
-                    if ( ! found && ! pre_parse )
+                    if ( ! found )
                     {
-                        throw InvalidArgument (
-                            XP ( XLOC, rc_param_err )
-                            << "unrecognized option: '-"
-                            << arg
-                            << "'"
-                            );
+                        if ( ! pre_parse )
+                        {
+                            throw InvalidArgument (
+                                XP ( XLOC, rc_param_err )
+                                << "unrecognized option: '-"
+                                << arg
+                                << "'"
+                                );
+                        }
+                        
+                        // assume single character short option
+                        ++ arg;
                     }
                 }
                 while ( arg [ 0 ] != 0 );

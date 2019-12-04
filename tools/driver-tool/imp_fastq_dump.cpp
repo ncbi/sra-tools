@@ -32,7 +32,7 @@
 namespace sratools2
 {
 
-struct FastqParams : ToolOptions
+struct FastqParams : OptionBase
 {
     ncbi::String accession_replacement;
     ncbi::String table_name;
@@ -95,7 +95,7 @@ struct FastqParams : ToolOptions
         , QOffset( 0 )
     {}
 
-    void add_options( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline )
     {
         cmdline . addOption ( accession_replacement, nullptr, "A", "accession", "<accession>",
             "Replaces accession derived from <path> in filename(s) and deflines ( only for single table dump)" );
@@ -301,53 +301,11 @@ int impersonate_fastq_dump( const Args &args )
 {
     int res = 0;
 
-    // Cmdline is a class defined in cmdline.hpp
-    ncbi::Cmdline cmdline( args . _argc, args . _argv );
-    
-    // CmnOptAndAccessions is defined in support2.hpp
-    CmnOptAndAccessions cmn( "fastq-dump" );
-
     // FastqParams is a derived class of ToolOptions, defined in support2.hpp
     FastqParams params;
-    
-    // add all the tool-specific options to the parser ( first )
-    params . add_options( cmdline );
 
-    // add all common options and the parameters to the parser
-    cmn . add( cmdline );
-
-    try
-    {
-        // let the parser parse the original args,
-        // and let the parser handle help,
-        // and let the parser write all values into cmn and params
-        cmdline . parse ( true );
-        cmdline . parse ();
-
-        // just to see what we got
-        // std::cout << cmn . as_string() << std::endl;
-
-        // just to see what we got
-        std::cout << params . as_string() << std::endl;
-
-        // create an argv-builder 
-        ArgvBuilder builder;
-        params . populate_argv_builder( builder );
-
-        // what should happen before executing the tool
-        int argc;
-        char ** argv = builder . generate_argv( argc );
-        if ( argv != nullptr )
-        {
-            for ( int i = 0; i < argc; ++i )
-                std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-            builder . free_argv( argc, argv );
-        }
-    }
-    catch ( ncbi::InvalidArgument const &e )
-    {
-        std::cerr << "An error occured: " << e.what() << std::endl;
-    }
+    Impersonator imp( args, "fastq-dumo", params );
+    res = imp . run();
 
     return res;
 }

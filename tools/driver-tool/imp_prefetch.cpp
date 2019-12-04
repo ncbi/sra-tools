@@ -30,7 +30,7 @@
 namespace sratools2
 {
 
-struct PrefetchParams : ToolOptions
+struct PrefetchParams : OptionBase
 {
     ncbi::String file_type;
     ncbi::String transport;
@@ -58,7 +58,7 @@ struct PrefetchParams : ToolOptions
     {
     }
     
-    void add_options( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline )
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
@@ -99,7 +99,19 @@ struct PrefetchParams : ToolOptions
     std::string as_string()
     {
         std::stringstream ss;
-
+        if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
+        if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
+        if ( !location.isEmpty() ) ss << "location: " << location << std::endl;
+        if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
+        if ( max_size_count > 0 ) ss << "max-size: " << max_size_value << std::endl;
+        if ( !force.isEmpty() ) ss << "force: " << force << std::endl;
+        if ( progress_count > 0 ) ss << "progress: " << progress_value << std::endl;
+        if ( eliminate_quals ) ss << "eliminate-quals" << std::endl;
+        if ( check_all ) ss << "check-all" << std::endl;
+        if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
+        if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
+        if ( !output_file.isEmpty() ) ss << "output-file: " << output_file << std::endl;
+        if ( !output_dir.isEmpty() ) ss << "output-dir: " << output_dir << std::endl;
         return ss.str();
     }
 
@@ -125,53 +137,11 @@ int impersonate_prefetch( const Args &args )
 {
     int res = 0;
 
-    // Cmdline is a class defined in cmdline.hpp
-    ncbi::Cmdline cmdline( args . _argc, args . _argv );
-    
-    // CmnOptAndAccessions is defined in support2.hpp
-    CmnOptAndAccessions cmn( "prefetch" );
-
-    // FastqParams is a derived class of ToolOptions, defined in support2.hpp
+    // PrefetchParams is a derived class of ToolOptions, defined in support2.hpp
     PrefetchParams params;
     
-    // add all the tool-specific options to the parser ( first )
-    params . add_options( cmdline );
-
-    // add all common options and the parameters to the parser
-    cmn . add( cmdline );
-
-    try
-    {
-        // let the parser parse the original args,
-        // and let the parser handle help,
-        // and let the parser write all values into cmn and params
-        cmdline . parse ( true );
-        cmdline . parse ();
-
-        // just to see what we got
-        // std::cout << cmn . as_string() << std::endl;
-
-        // just to see what we got
-        std::cout << params . as_string() << std::endl;
-
-        // create an argv-builder 
-        ArgvBuilder builder;
-        params . populate_argv_builder( builder );
-
-        // what should happen before executing the tool
-        int argc;
-        char ** argv = builder . generate_argv( argc );
-        if ( argv != nullptr )
-        {
-            for ( int i = 0; i < argc; ++i )
-                std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-            builder . free_argv( argc, argv );
-        }
-    }
-    catch ( ncbi::InvalidArgument const &e )
-    {
-        std::cerr << "An error occured: " << e.what() << std::endl;
-    }
+    Impersonator imp( args, "prefetch", params );
+    res = imp . run();
 
     return res;
 }

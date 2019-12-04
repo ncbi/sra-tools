@@ -35,7 +35,7 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: check_exit_code SRP
+runtests: check_exit_code SRP vdbcache
 
 #-------------------------------------------------------------------------------
 # scripted tests
@@ -46,7 +46,10 @@ check_exit_code:
 
 SRP:
 # TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
-	$(BINDIR)/srapath SRR000001 -fnames
+	$(BINDIR)/srapath SRR000001 -fnames > /dev/null
+
+vdbcache: #; print "<$_>"
+	$(BINDIR)/srapath SRR1557953 | wc -l | perl check-cnt.pl
 
 .PHONY: $(TEST_TOOLS)
 

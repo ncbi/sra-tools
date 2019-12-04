@@ -116,55 +116,55 @@ EXP_MD5 = "cdb959a48206fd335f766e6637993a78"
 '''---------------------------------------------------------------------
     main...
 ---------------------------------------------------------------------'''
-print "-" * 80
-print "we test download of accession '%s'"%( ACC )
+print ( "-" * 80 )
+print ( "we test download of accession '%s'"%( ACC ) )
 
 URL = get_remote_url( ACC )
 if URL == None :
-    print "cannot resolve accession '%s'"%( ACC )
+    print ( "cannot resolve accession '%s'"%( ACC ) )
     sys.exit( -1 )
 
-print "'%s' is resolved into '%s'"%( ACC, URL )
+print ( "'%s' is resolved into '%s'"%( ACC, URL ) )
 
 remote_size = kget_remote_size( URL )
 if remote_size != EXP_SIZE :
-    print "size (%d) differs from expected size(%d)"%( remote_size, EXP_SIZE )
+    print ( "size (%d) differs from expected size(%d)"%( remote_size, EXP_SIZE ) )
     sys.exit( -1 )
 else :
-    print "size as expected = %d"%( remote_size )
+    print ( "size as expected = %d"%( remote_size ) )
 
 t_start = datetime.datetime.now()
 remote_md5 = kget_download_partial( URL, ACC )
 t_partial = datetime.datetime.now() - t_start;
 if remote_md5 == None :
-    print "error downloading '%s'"%( URL )
+    print ( "error downloading '%s'"%( URL ) )
     sys.exit( -1 )
 
 if remote_md5 != EXP_MD5 :
-    print "md5 diff: expected (%s) vs remote (%s)"%( EXP_MD5, remote_md5 )
+    print ( "md5 diff: expected (%s) vs remote (%s)"%( EXP_MD5, remote_md5 ) )
     sys.exit( -1 )
 else :
-    print "partial donwload ok in %d ms"%( t_partial.microseconds)
+    print ( "partial donwload ok in %d ms"%( t_partial.microseconds) )
 
 t_start = datetime.datetime.now()
 remote_md5 = kget_download_full( URL, ACC )
 t_full = datetime.datetime.now() - t_start;
 if remote_md5 == None :
-    print "error downloading '%s'"%( URL )
+    print ( "error downloading '%s'"%( URL ) )
     sys.exit( -1 )
 
 if remote_md5 != EXP_MD5 :
-    print "md5 diff: expected (%s) vs remote (%s)"%( EXP_MD5, remote_md5 )
+    print ( "md5 diff: expected (%s) vs remote (%s)"%( EXP_MD5, remote_md5 ) )
     sys.exit( -1 )
 else :
-    print "full donwload ok in %d ms"%( t_full.microseconds )
+    print ( "full donwload ok in %d ms"%( t_full.microseconds ) )
 
 '''---------------------------------------------------------------------
 if t_full >= t_partial :
-    print "timing problem: full download should be faster than partial download"
+    print ( "timing problem: full download should be faster than partial download" )
     sys.exit( -1 )
 else :
-    print "timing ok: full download is faster than partial download"
+    print ( "timing ok: full download is faster than partial download" )
 ---------------------------------------------------------------------'''
 
 try:
@@ -172,4 +172,4 @@ try:
 except:
     pass
 
-print "-" * 80
+print ( "-" * 80 )

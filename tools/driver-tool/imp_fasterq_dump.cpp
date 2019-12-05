@@ -179,6 +179,39 @@ struct FasterqParams : OptionBase
         if ( !bases.isEmpty() ) builder . add_option( "-B", bases );
         if ( append ) builder . add_option( "-A" );
     }
+    
+    bool check()
+    {
+        int problems = 0;
+
+        return ( problems == 0 );
+    }
+
+    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
+    {
+        int res = 0;
+
+        // instead of looping over the accessions, expand them and loop over the 
+        // expanded url's
+        for ( auto const &value : cmn . accessions )
+        {
+            if ( res == 0 )
+            {
+                int argc;
+                char ** argv = builder . generate_argv( argc, value );
+                if ( argv != nullptr )
+                {
+                    // instead of this run the tool...
+                    for ( int i = 0; i < argc; ++i )
+                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
+
+                    builder . free_argv( argc, argv );
+                }
+            }
+        }
+        return res;
+    }
+
 };
 
 int impersonate_fasterq_dump( const Args &args )

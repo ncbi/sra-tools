@@ -141,6 +141,58 @@ struct SraPileupParams : OptionBase
         if ( noqual ) builder . add_option( "-n" );
         if ( !function.isEmpty() ) builder . add_option( "--function", function );
     }
+
+    bool check()
+    {
+        int problems = 0;
+        if ( !function.isEmpty() )
+        {
+            if ( !is_one_of( function, 9,
+                             "ref", "ref-ex", "count", "stat", "mismatch", "index",
+                             "varcount", "deletes", "indels" ) )
+            {
+                std::cerr << "invalid function: " << function << std::endl;
+                problems++;
+            }
+        }
+        if ( bzip && gzip )
+        {
+            std::cerr << "bzip2 and gzip cannot both be used at the same time" << std::endl;
+            problems++;
+        }
+        if ( duplicates_value > 1 )
+        {
+                std::cerr << "invalid value for duplicates: " << duplicates_value << std::endl;
+            problems++;
+        }
+        return ( problems == 0 );
+    }
+    
+    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
+    {
+        int res = 0;
+
+        // instead of looping over the accessions, expand them and loop over the 
+        // expanded url's
+        for ( auto const &value : cmn . accessions )
+        {
+            if ( res == 0 )
+            {
+                int argc;
+                char ** argv = builder . generate_argv( argc, value );
+                if ( argv != nullptr )
+                {
+                    // instead of this run the tool...
+                    for ( int i = 0; i < argc; ++i )
+                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
+                    std::cout << std::endl;
+
+                    builder . free_argv( argc, argv );
+                }
+            }
+        }
+        return res;
+    }
 };
 
 int impersonate_sra_pileup( const Args &args )

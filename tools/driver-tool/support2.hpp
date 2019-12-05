@@ -139,6 +139,11 @@ namespace sratools2
             return dst;
         }
 
+        char * add_string( const ncbi::String &src )
+        {
+            return add_string( src.toSTLString() );
+        }
+
         char ** generate_argv( int &argc )
         {
             argc = 0;
@@ -154,7 +159,65 @@ namespace sratools2
             }
             return res;
         }
-        
+
+        char ** generate_argv( int &argc, const std::string &argv0 )
+        {
+            argc = 0;
+            int cnt = parameters.size() + options.size() + 2;
+            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
+            if ( res != nullptr )
+            {
+                res[ argc++ ] = add_string( argv0 );
+                for ( auto const &value : parameters )
+                    res[ argc++ ] = add_string( value );
+                for ( auto const &value : options )
+                    res[ argc++ ] = add_string( value );
+                res[ argc ] = nullptr;
+            }
+            return res;
+        }
+
+        char ** generate_argv( int &argc, const ncbi::String &argv0 )
+        {
+            return generate_argv( argc, argv0 . toSTLString() );
+        }
+
+        char ** generate_argv( int &argc, std::vector< std::string > &args )
+        {
+            argc = 0;
+            int cnt = parameters.size() + options.size() + args.size() + 1;
+            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
+            if ( res != nullptr )
+            {
+                for ( auto const &value : args )
+                    res[ argc++ ] = add_string( value );
+                for ( auto const &value : parameters )
+                    res[ argc++ ] = add_string( value );
+                for ( auto const &value : options )
+                    res[ argc++ ] = add_string( value );
+                res[ argc ] = nullptr;
+            }
+            return res;
+        }
+
+        char ** generate_argv( int &argc, std::vector< ncbi::String > &args )
+        {
+            argc = 0;
+            int cnt = parameters.size() + options.size() + args.size() + 1;
+            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
+            if ( res != nullptr )
+            {
+                for ( auto const &value : args )
+                    res[ argc++ ] = add_string( value );
+                for ( auto const &value : parameters )
+                    res[ argc++ ] = add_string( value );
+                for ( auto const &value : options )
+                    res[ argc++ ] = add_string( value );
+                res[ argc ] = nullptr;
+            }
+            return res;
+        }
+
         void free_argv( int argc, char ** argv )
         {
             if ( argv != nullptr )
@@ -281,6 +344,8 @@ namespace sratools2
             }
     };
 
+    struct CmnOptAndAccessions;
+
     struct OptionBase
     {
         virtual ~OptionBase() {}
@@ -289,7 +354,8 @@ namespace sratools2
         virtual void populate_argv_builder( ArgvBuilder & builder ) { }
         virtual void add( ncbi::Cmdline &cmdline ) { }
         virtual bool check() { return true; }
-        
+        virtual int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn ) { return 0; }
+
         void print_vec( std::stringstream &ss, std::vector < ncbi::String > &v, std::string name )
         {
             if ( v.size() > 0 )
@@ -398,15 +464,19 @@ namespace sratools2
         
         bool check()
         {
-            bool res = true;
+            int problems = 0;
             if ( !log_level.isEmpty() )
             {
-                res = is_one_of( log_level, 14,
-                                  "fatal", "sys", "int", "err", "warn", "info", "debug",
-                                  "0", "1", "2", "3", "4", "5", "6" );
+                if ( !is_one_of( log_level, 14,
+                                 "fatal", "sys", "int", "err", "warn", "info", "debug",
+                                 "0", "1", "2", "3", "4", "5", "6" ) )
+                {
+                    std::cerr << "invalid log-level: " << log_level << std::endl;
+                    problems++;
+                }
             }
             // we could check if ngc/kar/perm-files do actually exist...
-            return res;
+            return ( problems == 0 );
         }
     };
 
@@ -430,6 +500,8 @@ namespace sratools2
 
         int run( void )
         {
+            int res = 0;
+            
             // Cmdline is a class defined in cmdline.hpp
             ncbi::Cmdline cmdline( args . _argc, args . _argv );
             
@@ -455,6 +527,7 @@ namespace sratools2
                 cmdline . parse ();
 
                 // pre-check the options, after the input has been parsed!
+                // give the tool-specific class an opportunity to check and change values
                 if ( !tool_options . check() )
                     return 3;
 
@@ -462,7 +535,7 @@ namespace sratools2
                     return 3;
 
                 // just to see what we got
-                std::cout << tool_options . as_string() << cmn_options . as_string() << std::endl;
+                // std::cout << tool_options . as_string() << cmn_options . as_string() << std::endl;
 
                 // create an argv-builder 
                 ArgvBuilder builder;
@@ -470,23 +543,15 @@ namespace sratools2
                 tool_options . populate_argv_builder( builder );
                 cmn_options . populate_argv_builder( builder );
 
-                // what should happen before executing the tool
-                int argc;
-                char ** argv = builder . generate_argv( argc );
-                if ( argv != nullptr )
-                {
-                    for ( int i = 0; i < argc; ++i )
-                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
+                // at this point we have everything in place to execute
+                // the tool on all accessions:
+                // cmn_options . accessions has to be expanded ( resolve containers )
+                // ( ngs/kar/perm/location is available in cmn_options )
+                // cmn_options . toolname is the name of the tool to execute
+                // argv is the sanitized new argument-vector to be passed on to the tool
 
-                    // at this point we have everything in place to execute
-                    // the tool on all accessions:
-                    // cmn_options . accessions has to be expanded ( resolve containers )
-                    // ( ngs/kar/perm/location is available in cmn_options )
-                    // cmn_options . toolname is the name of the tool to execute
-                    // argv is the sanitized new argument-vector to be passed on to the tool
-                    
-                    builder . free_argv( argc, argv );
-                }
+                // call the tool-specific way to run the tool
+                res = tool_options . run ( builder, cmn_options );
 
             }
             catch ( ncbi::Exception const &e )
@@ -494,7 +559,7 @@ namespace sratools2
                 std::cerr << "An error occured: " << e.what() << std::endl;
             }
 
-            return 0;
+            return res;
         }
     };
     

@@ -34,7 +34,6 @@ struct PrefetchParams : OptionBase
 {
     ncbi::String file_type;
     ncbi::String transport;
-    ncbi::String location;
     ncbi::U32 min_size_count;
     ncbi::U32 min_size_value;
     ncbi::U32 max_size_count;
@@ -65,7 +64,6 @@ struct PrefetchParams : OptionBase
         cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
             "Transport: one of: fasp; http; both. (fasp only; http only; first try fasp (ascp), use "
             "http if cannot download using fasp). Default: both" );
-        cmdline . addOption ( location, nullptr, "", "location", "<location>", "Location of data" );
 
         cmdline . addOption ( min_size_value, &min_size_count, "N", "min_size", "<size>",
             "Minimum file size to download in KB (inclusive)." );
@@ -101,7 +99,6 @@ struct PrefetchParams : OptionBase
         std::stringstream ss;
         if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
         if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
-        if ( !location.isEmpty() ) ss << "location: " << location << std::endl;
         if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
         if ( max_size_count > 0 ) ss << "max-size: " << max_size_value << std::endl;
         if ( !force.isEmpty() ) ss << "force: " << force << std::endl;
@@ -119,7 +116,6 @@ struct PrefetchParams : OptionBase
     {
         if ( !file_type.isEmpty() ) builder . add_option( "-T", file_type );
         if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
-        if ( !location.isEmpty() ) builder . add_option( "--location", location );
         if ( min_size_count > 0 ) builder . add_option( "-N", min_size_value );
         if ( max_size_count > 0 ) builder . add_option( "-X", max_size_value );
         if ( !force.isEmpty() ) builder . add_option( "-f", force );

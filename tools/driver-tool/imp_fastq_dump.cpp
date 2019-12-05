@@ -98,7 +98,7 @@ struct FastqParams : OptionBase
     void add( ncbi::Cmdline &cmdline )
     {
         cmdline . addOption ( accession_replacement, nullptr, "A", "accession", "<accession>",
-            "Replaces accession derived from <path> in filename(s) and deflines ( only for single table dump)" );
+            "Replaces accession derived from <path> in filename(s) and deflines (only for single table dump)" );
 
         cmdline . addOption ( table_name, nullptr, "", "table", "<table-name>",
             "Table name within cSRA object, default is \"SEQUENCE\"" );
@@ -291,7 +291,8 @@ struct FastqParams : OptionBase
         // problem-child: !!! fasta has dual form: with and without value !!!
         // we have ommited the possibility to specify the line-width optionally
         if ( !fasta.isEmpty() )
-        {   if ( fasta.equal( "default" ) )
+        {   
+            if ( fasta.equal( "default" ) )
                 builder . add_option( "--fasta" );
             else
                 builder . add_option( "--fasta", fasta );

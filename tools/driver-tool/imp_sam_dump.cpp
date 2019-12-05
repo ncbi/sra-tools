@@ -54,7 +54,7 @@ struct SamDumpParams : OptionBase
     ncbi::U32 rna_splice_level_count;
     ncbi::U32 rna_splice_level;
     ncbi::String rna_splice_log;
-    bool disable_multithreading, md_flag;
+    bool md_flag;
     
     SamDumpParams()
         : unaligned( false )
@@ -90,7 +90,6 @@ struct SamDumpParams : OptionBase
         , rna_splicing( false )
         , rna_splice_level_count( 0 )
         , rna_splice_level( 0 )
-        , disable_multithreading( false )
         , md_flag( false )
     {
     }
@@ -168,7 +167,6 @@ struct SamDumpParams : OptionBase
         cmdline . addOption ( rna_splice_log, nullptr, "", "rna-splice-log", "<filename>",
             "file, into which rna-splice events are written" );
 
-        cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
         cmdline . addOption ( md_flag, "", "with-md-flag", "print MD-flag" );
     }
 
@@ -213,7 +211,6 @@ struct SamDumpParams : OptionBase
         if ( rna_splicing ) ss << "rna-splicing" << std::endl;
         if ( rna_splice_level_count > 0 ) ss << "rna-splice-level: " << rna_splice_level << std::endl;
         if ( !rna_splice_log.isEmpty() ) ss << "rna-splice-log: " << rna_splice_log << std::endl;
-        if ( disable_multithreading ) ss << "disable-multithreading" << std::endl;
         if ( md_flag ) ss << "md-flag" << std::endl;
         return ss.str();
     }
@@ -258,7 +255,6 @@ struct SamDumpParams : OptionBase
         if ( rna_splicing ) builder . add_option( "--rna-splicing" );
         if ( rna_splice_level_count > 0 ) builder . add_option( "--rna-splice-level", rna_splice_level );
         if ( !rna_splice_log.isEmpty() ) builder . add_option( "--rna-splice-log", rna_splice_log );
-        if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
         if ( md_flag ) builder . add_option( "--with-md-flag" );
     }
 

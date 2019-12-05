@@ -416,7 +416,7 @@ namespace sratools2
             cmdline . addOption ( ngc_file, nullptr, "", "ngc", "<path>", "<path> to ngc file" );
             cmdline . addOption ( kar_file, nullptr, "", "kar", "<path>", "<path> to kar file" );
             cmdline . addOption ( perm_file, nullptr, "", "perm", "<path>", "<path> to permission file" );
-            cmdline . addOption ( location, nullptr, "", "location", "loc", "location in cloud" );
+            cmdline . addOption ( location, nullptr, "", "location", "<location>", "location in cloud" );
             
             cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
             cmdline . addOption ( version, "V", "version", "Display the version of the program" );

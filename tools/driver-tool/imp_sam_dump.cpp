@@ -265,6 +265,16 @@ struct SamDumpParams : OptionBase
     bool check()
     {
         int problems = 0;
+        if ( bzip && gzip )
+        {
+            std::cerr << "bzip2 and gzip cannot both be used at the same time" << std::endl;
+            problems++;
+        }
+        if ( rna_splice_level_count > 0 && rna_splice_level > 2 )
+        {
+            std::cerr << "invalid ran-splice-level: " << rna_splice_level << std::endl;
+            problems++;
+        }
 
         return ( problems == 0 );
     }

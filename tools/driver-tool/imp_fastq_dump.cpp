@@ -43,11 +43,12 @@ struct FastqParams : OptionBase
     ncbi::String dumpcs;
     ncbi::String defline_seq;
     ncbi::String defline_qual;
+    ncbi::String fasta;
     std::vector < ncbi::String > spot_groups;
     bool split_spot, clip, qual_filter, qual_filter1;
     bool aligned, unaligned, skip_tech, to_stdout, gzip, bzip;
     bool split_files, split3, spot_group, group_in_dirs;
-    bool keep_empty_files, dumpbase, fasta, no_q_for_cskey;
+    bool keep_empty_files, dumpbase, no_q_for_cskey;
     bool origfmt, readids, helicos;
     ncbi::U64 minSpotId;
     ncbi::U32 minSpotIdCount;
@@ -78,7 +79,6 @@ struct FastqParams : OptionBase
         , group_in_dirs( false )
         , keep_empty_files( false )
         , dumpbase( false )
-        , fasta( false )
         , no_q_for_cskey( false )
         , origfmt( false )
         , readids( false )
@@ -174,7 +174,11 @@ struct FastqParams : OptionBase
         cmdline . addOption ( QOffset, &QOffsetCount, "Q", "offset", "<integer",
             "Offset to use for quality conversion, default is 33" );
 
-        cmdline . addOption ( fasta, "", "fasta", "FASTA only, no qualities" );
+        // !!! double duty option: mandatory value introduced, "default" ---> "--fasta"
+        // other values ---> "--fasta value"
+        cmdline . addOption ( fasta, nullptr, "", "fasta", "<line-width>",
+            "FASTA only, no qualities, with can be \"default\" or \"0\" for no wrapping" );
+
         cmdline . addOption ( no_q_for_cskey, "", "suppress-qual-for-cskey", "suppress quality-value for cskey" );
         cmdline . addOption ( origfmt, "F", "origfmt", "Defline contains only original sequence name" );
         cmdline . addOption ( readids, "I",
@@ -225,7 +229,7 @@ struct FastqParams : OptionBase
         if ( DumpcsCount > 0 )  ss << "dumpcs : '" << dumpcs << "'" << std::endl;
         if ( dumpbase ) ss << "dumpbase" << std::endl;
         if ( QOffsetCount > 0 ) ss << "offset : " << QOffset << std::endl;
-        if ( fasta ) ss << "fasta" << std::endl;
+        if ( !fasta.isEmpty() ) ss << "fasta : " << fasta << std::endl;
         if ( no_q_for_cskey ) ss << "suppress-qual-for-cskey" << std::endl;
         if ( origfmt ) ss << "origfmt" << std::endl;
         if ( readids ) ss << "readids" << std::endl;
@@ -286,7 +290,12 @@ struct FastqParams : OptionBase
 
         // problem-child: !!! fasta has dual form: with and without value !!!
         // we have ommited the possibility to specify the line-width optionally
-        if ( fasta ) builder . add_option( "--fasta" );
+        if ( !fasta.isEmpty() )
+        {   if ( fasta.equal( "default" ) )
+                builder . add_option( "--fasta" );
+            else
+                builder . add_option( "--fasta", fasta );
+        }
 
         if ( no_q_for_cskey ) builder . add_option( "--suppress-qual-for-cskey" );
         if ( origfmt ) builder . add_option( "-F" );
@@ -299,6 +308,20 @@ struct FastqParams : OptionBase
     bool check()
     {
         int problems = 0;
+        if ( bzip && gzip )
+        {
+            std::cerr << "bzip2 and gzip cannot both be used at the same time" << std::endl;
+            problems++;
+        }
+        if ( !read_filter.isEmpty() )
+        {
+            if ( !is_one_of( read_filter, 5, "split", "pass", "reject", "criterial", "redacted" ) )
+            {
+                std::cerr << "invalid read-filter-value: " << read_filter << std::endl;
+                problems++;
+            }
+
+        }
 
         return ( problems == 0 );
     }
@@ -337,7 +360,7 @@ int impersonate_fastq_dump( const Args &args )
     // FastqParams is a derived class of ToolOptions, defined in support2.hpp
     FastqParams params;
 
-    Impersonator imp( args, "fastq-dumo", params );
+    Impersonator imp( args, "fastq-dump", params );
     res = imp . run();
 
     return res;

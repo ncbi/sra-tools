@@ -301,7 +301,7 @@ struct Response2 {
         {
             for (auto & file : files) {
                 if (file.type != "sra") continue;
-                if (hasSuffix(".pileup", file.name)) continue; // TODO: IS THIS CORRECT
+                if (ends_with(".pileup", file.name)) continue; // TODO: IS THIS CORRECT
                 
                 auto const vcache = matching(file, "vdbcache");
                 if (vcache == files.end()) {
@@ -592,7 +592,7 @@ void data_sources::test_vdbcache() {
         ++files;
         if (file.type != "sra") continue;
         ++sras;
-        if (hasSuffix(".pileup", file.name)) continue;
+        if (ends_with(".pileup", file.name)) continue;
         ++srrs;
         
         assert(file.locations.size() == 1);

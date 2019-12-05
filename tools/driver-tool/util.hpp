@@ -43,15 +43,30 @@ static inline bool hasPrefix(ITER start, ITER end, ITER in_start, ITER in_end)
     return start == end;
 }
 
-static inline bool hasPrefix(std::string const &prefix, std::string const &in_string)
+#if __cpp_lib_starts_ends_with
+
+static inline bool starts_with(std::string const &prefix, std::string const &in_string)
+{
+    return in_string.starts_with(prefix);
+}
+
+static inline bool ends_with(std::string const &suffix, std::string const &in_string)
+{
+    return in_string.ends_with(suffix);
+}
+
+#else
+
+static inline bool starts_with(std::string const &prefix, std::string const &in_string)
 {
     return (in_string.size() < prefix.size()) ? false : (in_string.compare(0, prefix.size(), prefix) == 0);
 }
 
-static inline bool hasSuffix(std::string const &suffix, std::string const &in_string)
+static inline bool ends_with(std::string const &suffix, std::string const &in_string)
 {
     return (in_string.size() < suffix.size()) ? false : in_string.compare(in_string.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
+#endif
 
 static inline std::error_code error_code_from_errno()
 {
@@ -67,6 +82,21 @@ static inline void throw_system_error [[noreturn]] (std::string const &what)
 {
     throw std::system_error(error_code_from_errno(), what);
 }
+
+#if __cplusplus < 201703L
+template <class InputIt, class T, class BinaryOp>
+T reduce(InputIt const first, InputIt const last, T const init, BinaryOp && binaryOp)
+{
+    auto total = init;
+    for (auto i = first; i != last; ++i) {
+        total = binaryOp(total, *i);
+    }
+    return total;
+}
+#else
+#include <numeric>
+using std::reduce;
+#endif
 
 template <typename T, typename PREDICATE = std::less<T>>
 class LimitChecker {

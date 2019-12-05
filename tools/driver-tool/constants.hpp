@@ -141,10 +141,14 @@ struct tool_name {
     }
 };
 
+/*TODO: compilation will fail on SDL_CGI.
+To fix it: add include where it's defined;
+but before move include file with definition to ncbi-vdb/interfaces */
+
 /// @brief constants used for calling SRA Data Locator
 struct resolver {
     static constexpr char const *version() { return "130"; }
-    static constexpr char const *url() { return "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve"; }
+    static constexpr char const *url() { return SDL_CGI; }
 };
 
 /// @brief environment variables for passing information to the driven tool

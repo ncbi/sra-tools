@@ -363,11 +363,14 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         }
     }
 
+    /*TODO: compilation will fail on SDL_CGI.
+    To fix it: add include where it's defined;
+    but before move include file with definition to ncbi-vdb/interfaces */
+
     {
         const string name("/repository/remote/main/SDL.2/resolver-cgi");
         if (!NodeExists(name)) {
-            rc_t r2 = UpdateNode(name,
-                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve");
+            rc_t r2 = UpdateNode(name, SDL_CGI);
             if (r2 != 0 && rc == 0)
                 rc = r2;
         }
@@ -376,8 +379,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     {
         const string name("/repository/remote/protected/SDL.2/resolver-cgi");
         if (!NodeExists(name)) {
-            rc_t r2 = UpdateNode(name,
-                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve");
+            rc_t r2 = UpdateNode(name, SDL_CGI);
             if (r2 != 0 && rc == 0)
                 rc = r2;
         }

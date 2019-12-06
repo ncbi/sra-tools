@@ -33,6 +33,13 @@
 
 namespace sratools2
 {
+    std::string runpath_from_argv0( int argc, char *argv[] )
+    {
+        Args args( argc, argv, getenv( "SRATOOLS_IMPERSONATE" ) );
+        WhatImposter what( args . argv[ 0 ] );
+        return what._runpath;
+    }
+
     static auto const error_continues_message = std::string( "If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/" );
     
     // the 'new' main-function of sratools
@@ -48,7 +55,7 @@ namespace sratools2
 
         // detect what imposter we are asked to impersonate
         // WhatImposter is a class defined in support2.hpp
-        WhatImposter what( args . _argv[ 0 ] );
+        WhatImposter what( args . argv[ 0 ] );
         
         // just to see what was detected...
         //std::cout << "what = " << what.as_string() << std::endl;
@@ -67,12 +74,12 @@ namespace sratools2
         {
             switch( what._imposter )
             {
-                case Imposter::SRAPATH      : return impersonate_srapath( args ); break;
-                case Imposter::PREFETCH     : return impersonate_prefetch( args ); break;
-                case Imposter::FASTQ_DUMP   : return impersonate_fastq_dump( args ); break;
-                case Imposter::FASTERQ_DUMP : return impersonate_fasterq_dump( args ); break;
-                case Imposter::SRA_PILEUP   : return impersonate_sra_pileup( args ); break;
-                case Imposter::SAM_DUMP     : return impersonate_sam_dump( args ); break;
+                case Imposter::SRAPATH      : return impersonate_srapath( args, what ); break;
+                case Imposter::PREFETCH     : return impersonate_prefetch( args, what ); break;
+                case Imposter::FASTQ_DUMP   : return impersonate_fastq_dump( args, what ); break;
+                case Imposter::FASTERQ_DUMP : return impersonate_fasterq_dump( args, what ); break;
+                case Imposter::SRA_PILEUP   : return impersonate_sra_pileup( args, what ); break;
+                case Imposter::SAM_DUMP     : return impersonate_sam_dump( args, what ); break;
                 default : 
                     std::cerr << "An error occured: invalid tool requested" << std::endl << error_continues_message << std::endl;
                     res = 3;

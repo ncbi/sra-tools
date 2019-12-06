@@ -27,10 +27,12 @@
 #include "cmdline.hpp"
 #include "support2.hpp"
 
+#define TOOL_NAME "sam-dump"
+
 namespace sratools2
 {
 
-struct SamDumpParams : OptionBase
+struct SamDumpParams final : CmnOptAndAccessions
 {
     bool unaligned, primary, cigar_long, cigar_cg, header;
     ncbi::String header_file;
@@ -54,48 +56,48 @@ struct SamDumpParams : OptionBase
     ncbi::U32 rna_splice_level_count;
     ncbi::U32 rna_splice_level;
     ncbi::String rna_splice_log;
-    bool disable_multithreading, md_flag;
+    bool md_flag;
     
-    SamDumpParams()
-        : unaligned( false )
-        , primary( false )
-        , cigar_long( false )
-        , cigar_cg( false )
-        , header( false )
-        , no_header( false )
-        , seq_id( false )
-        , hide_identical( false )
-        , gzip( false )
-        , bzip( false )
-        , spot_group( false )
-        , fastq( false )
-        , fasta( false )
-        , reverse( false )
-        , cigar_cg_merge( false )
-        , cg_evidence( false )
-        , cg_ev_dnb( false )
-        , cg_mappings( false )
-        , cg_sam( false )
-        , report( false )
-        , out_buf_size_count( 0 )
-        , out_buf_size( 0 )
-        , cache_report( false )
-        , unaligned_only( false )
-        , cg_names( false )
-        , cursor_cache_count( 0 )
-        , cursor_cache_size( 0 )
-        , min_mapq_count( 0 )
-        , min_mapq( 0 )
-        , no_mate_cache( false )
-        , rna_splicing( false )
-        , rna_splice_level_count( 0 )
-        , rna_splice_level( 0 )
-        , disable_multithreading( false )
-        , md_flag( false )
+    SamDumpParams(std::string const &toolpath)
+    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    , unaligned( false )
+    , primary( false )
+    , cigar_long( false )
+    , cigar_cg( false )
+    , header( false )
+    , no_header( false )
+    , seq_id( false )
+    , hide_identical( false )
+    , gzip( false )
+    , bzip( false )
+    , spot_group( false )
+    , fastq( false )
+    , fasta( false )
+    , reverse( false )
+    , cigar_cg_merge( false )
+    , cg_evidence( false )
+    , cg_ev_dnb( false )
+    , cg_mappings( false )
+    , cg_sam( false )
+    , report( false )
+    , out_buf_size_count( 0 )
+    , out_buf_size( 0 )
+    , cache_report( false )
+    , unaligned_only( false )
+    , cg_names( false )
+    , cursor_cache_count( 0 )
+    , cursor_cache_size( 0 )
+    , min_mapq_count( 0 )
+    , min_mapq( 0 )
+    , no_mate_cache( false )
+    , rna_splicing( false )
+    , rna_splice_level_count( 0 )
+    , rna_splice_level( 0 )
+    , md_flag( false )
     {
     }
 
-    void add( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline ) override
     {
         cmdline . addOption ( unaligned, "u", "unaligned", "output unaligned reads along with aligned reads" );
         cmdline . addOption ( primary, "1", "primary", "output only primary alignments" );
@@ -170,9 +172,11 @@ struct SamDumpParams : OptionBase
 
         cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
         cmdline . addOption ( md_flag, "", "with-md-flag", "print MD-flag" );
+
+        CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string()
+    std::string as_string() override
     {
         std::stringstream ss;
         if ( unaligned ) ss << "unaligned" << std::endl;
@@ -215,11 +219,13 @@ struct SamDumpParams : OptionBase
         if ( !rna_splice_log.isEmpty() ) ss << "rna-splice-log: " << rna_splice_log << std::endl;
         if ( disable_multithreading ) ss << "disable-multithreading" << std::endl;
         if ( md_flag ) ss << "md-flag" << std::endl;
-        return ss.str();
+        return ss.str() + CmnOptAndAccessions::as_string();
     }
 
-    void populate_argv_builder( ArgvBuilder & builder )
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
     {
+        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+
         if ( unaligned ) builder . add_option( "-u" );
         if ( primary ) builder . add_option( "-1" );
         if ( cigar_long ) builder . add_option( "-c" );
@@ -247,7 +253,16 @@ struct SamDumpParams : OptionBase
         if ( !matepair_dist.isEmpty() ) builder . add_option( "--matepair-distance", matepair_dist );
         if ( !prefix.isEmpty() ) builder . add_option( "--prefix", prefix );
         if ( !qual_quant.isEmpty() ) builder . add_option( "-Q", qual_quant );
-        if ( !output_file.isEmpty() ) builder . add_option( "--output-file", output_file );
+        if ( !output_file.isEmpty() ) {
+            if (accessions.size() > 1 && !(fasta || fastq)) {
+                if (acc_index == 0)
+                    print_unsafe_output_file_message("sam-dump", ".sam", accessions);
+
+                builder . add_option( "--output-file", accessions[acc_index] + ".sam" );
+            }
+            else
+                builder . add_option( "--output-file", output_file );
+        }
         if ( out_buf_size_count > 0 ) builder . add_option( "--output-buffer-size", out_buf_size );
         if ( cache_report ) builder . add_option( "--cachereport" );
         if ( unaligned_only ) builder . add_option( "--unaligned-spots-only" );
@@ -262,7 +277,7 @@ struct SamDumpParams : OptionBase
         if ( md_flag ) builder . add_option( "--with-md-flag" );
     }
 
-    bool check()
+    bool check() override
     {
         int problems = 0;
         if ( bzip && gzip )
@@ -275,48 +290,31 @@ struct SamDumpParams : OptionBase
             std::cerr << "invalid ran-splice-level: " << rna_splice_level << std::endl;
             problems++;
         }
-
-        return ( problems == 0 );
-    }
-
-    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
-    {
-        int res = 0;
-
-        // instead of looping over the accessions, expand them and loop over the 
-        // expanded url's
-        for ( auto const &value : cmn . accessions )
-        {
-            if ( res == 0 )
-            {
-                int argc;
-                char ** argv = builder . generate_argv( argc, value );
-                if ( argv != nullptr )
-                {
-                    // instead of this run the tool...
-                    for ( int i = 0; i < argc; ++i )
-                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-
-                    builder . free_argv( argc, argv );
-                }
-            }
+        if (!cart_file.isEmpty()) {
+            std::cerr << "unimplemented parameter: --cart is not yet implemented for " TOOL_NAME << std::endl;
+            problems++;
         }
-        return res;
+        if (fasta && fastq)
+        {
+            std::cerr << "fasta and fastq cannot both be used at the same time" << std::endl;
+            problems++;
+        }
+
+        return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
+    int run() override {
+        auto const toolname = this->toolname.toSTLString();
+        auto const toolpath = this->toolpath.toSTLString();
+        return ToolExec::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
+    }
 };
 
-int impersonate_sam_dump( const Args &args )
+int impersonate_sam_dump( const Args &args, WhatImposter const &what )
 {
-    int res = 0;
-
-    // SamDumpParams is a derived class of ToolOptions, defined in support2.hpp
-    SamDumpParams params;
-
-    Impersonator imp( args, "sam-dump", params );
-    res = imp . run();
-
-    return res;
+    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
+    SamDumpParams params(toolpath);
+    return Impersonator::run(args, params);
 }
 
 }

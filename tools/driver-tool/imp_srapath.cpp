@@ -27,13 +27,14 @@
 #include "cmdline.hpp"
 #include "support2.hpp"
 
+#define TOOL_NAME "srapath"
+
 namespace sratools2
 {
 
-struct SrapathParams : OptionBase
+struct SrapathParams final : CmnOptAndAccessions
 {
     ncbi::String function;
-    ncbi::String location;
     ncbi::U32 timeout_count;
     ncbi::U32 timeout_value;
     ncbi::String protocol;
@@ -44,16 +45,17 @@ struct SrapathParams : OptionBase
     bool print_raw, print_json, resolve_cache, print_path;
 
 
-    SrapathParams()
-        : timeout_count( 0 ), timeout_value( 0 )
-        , print_raw( false )
-        , print_json( false )
-        , resolve_cache( false )
-        , print_path( false )
+    SrapathParams(std::string const &toolpath)
+    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    , timeout_count( 0 ), timeout_value( 0 )
+    , print_raw( false )
+    , print_json( false )
+    , resolve_cache( false )
+    , print_path( false )
     {
     }
     
-    void add( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline ) override
     {
         cmdline . addOption ( function, nullptr, "f", "function", "<function>",
             "function to perform (resolve, names, search) default=resolve "
@@ -78,9 +80,11 @@ struct SrapathParams : OptionBase
             "resolve cache location along with remote when performing names function" );
 
         cmdline . addOption ( print_path, "P", "path", "print path of object: names function-only" );
+
+        CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string()
+    std::string as_string() override
     {
         std::stringstream ss;
         if ( !function.isEmpty() ) ss << "function: " << function << std::endl;
@@ -95,11 +99,15 @@ struct SrapathParams : OptionBase
         if ( !project.isEmpty() ) ss << "project: " << project << std::endl;
         if ( resolve_cache ) ss << "resolve cache-file" << std::endl;
         if ( print_path ) ss << "print path" << std::endl;
-        return ss.str();
+        return ss.str() + CmnOptAndAccessions::as_string();
     }
 
-    void populate_argv_builder( ArgvBuilder & builder )
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
     {
+        (void)(acc_index); (void)(accessions);
+
+        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+
         if ( !function.isEmpty() ) builder . add_option( "-f", function );
         if ( !location.isEmpty() ) builder . add_option( "--location", location );
         if ( timeout_count > 0 ) builder . add_option( "-t", timeout_value );
@@ -114,51 +122,25 @@ struct SrapathParams : OptionBase
         if ( print_path ) builder . add_option( "-P" );
     }
 
-    bool check()
+    bool check() override
     {
         int problems = 0;
 
-        return ( problems == 0 );
+        return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
-    {
-        int res = 0;
-
-        // instead of looping over the accessions, expand them and loop over the 
-        // expanded url's
-        for ( auto const &value : cmn . accessions )
-        {
-            if ( res == 0 )
-            {
-                int argc;
-                char ** argv = builder . generate_argv( argc, value );
-                if ( argv != nullptr )
-                {
-                    // instead of this run the tool...
-                    for ( int i = 0; i < argc; ++i )
-                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-
-                    builder . free_argv( argc, argv );
-                }
-            }
-        }
-        return res;
+    int run() override {
+        auto const toolname = this->toolname.toSTLString();
+        auto const toolpath = this->toolpath.toSTLString();
+        return ToolExecNoSDL::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
     }
-
 };
 
-int impersonate_srapath( const Args &args )
+int impersonate_srapath( const Args &args, WhatImposter const &what )
 {
-    int res = 0;
-
-    // SrapathParams is a derived class of ToolOptions, defined in support2.hpp
-    SrapathParams params;
-
-    Impersonator imp( args, "srapath", params );
-    res = imp . run();
-
-    return res;
+    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
+    SrapathParams params(toolpath);
+    return Impersonator::run(args, params);
 }
 
 }

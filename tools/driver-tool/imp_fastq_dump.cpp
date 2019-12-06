@@ -28,11 +28,14 @@
 
 #include "cmdline.hpp"
 #include "support2.hpp"
+#include "which.hpp"
+
+#define TOOL_NAME "fastq-dump"
 
 namespace sratools2
 {
 
-struct FastqParams : OptionBase
+struct FastqParams final : CmnOptAndAccessions
 {
     ncbi::String accession_replacement;
     ncbi::String table_name;
@@ -61,41 +64,42 @@ struct FastqParams : OptionBase
     ncbi::U32 QOffsetCount;
     ncbi::U32 QOffset;
 
-    FastqParams()
-        : accession_replacement( "" )
-        , split_spot( false )
-        , clip( false )
-        , qual_filter( false )
-        , qual_filter1( false )
-        , aligned( false )
-        , unaligned( false )
-        , skip_tech( false )
-        , to_stdout( false )
-        , gzip( false )
-        , bzip( false )
-        , split_files( false )
-        , split3( false )
-        , spot_group( false )
-        , group_in_dirs( false )
-        , keep_empty_files( false )
-        , dumpbase( false )
-        , no_q_for_cskey( false )
-        , origfmt( false )
-        , readids( false )
-        , helicos( false )
-        , minSpotId( 0 )
-        , minSpotIdCount( 0 )
-        , maxSpotId( 0 )
-        , maxSpotIdCount( 0 )
-        , minReadLen( 0 )
-        , minReadLenCount( 0 )
-        , ReadFilterCount( 0 )
-        , DumpcsCount( 0 )
-        , QOffsetCount( 0 )
-        , QOffset( 0 )
+    FastqParams(std::string const &toolpath)
+    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    , accession_replacement( "" )
+    , split_spot( false )
+    , clip( false )
+    , qual_filter( false )
+    , qual_filter1( false )
+    , aligned( false )
+    , unaligned( false )
+    , skip_tech( false )
+    , to_stdout( false )
+    , gzip( false )
+    , bzip( false )
+    , split_files( false )
+    , split3( false )
+    , spot_group( false )
+    , group_in_dirs( false )
+    , keep_empty_files( false )
+    , dumpbase( false )
+    , no_q_for_cskey( false )
+    , origfmt( false )
+    , readids( false )
+    , helicos( false )
+    , minSpotId( 0 )
+    , minSpotIdCount( 0 )
+    , maxSpotId( 0 )
+    , maxSpotIdCount( 0 )
+    , minReadLen( 0 )
+    , minReadLenCount( 0 )
+    , ReadFilterCount( 0 )
+    , DumpcsCount( 0 )
+    , QOffsetCount( 0 )
+    , QOffset( 0 )
     {}
 
-    void add( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline ) override
     {
         cmdline . addOption ( accession_replacement, nullptr, "A", "accession", "<accession>",
             "Replaces accession derived from <path> in filename(s) and deflines ( only for single table dump)" );
@@ -196,9 +200,10 @@ struct FastqParams : OptionBase
             "all vars in [] yield empty values whole group is not printed. Empty value is empty "
             "string or for numeric variables. Ex: @$sn[_$rn]/$ri '_$rn' is omitted if name is empty" );
 
+        CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string()
+    std::string as_string() override
     {
         std::stringstream ss;
         if ( !accession_replacement.isEmpty() )  ss << "acc-replace : " << accession_replacement << std::endl;
@@ -236,11 +241,13 @@ struct FastqParams : OptionBase
         if ( helicos ) ss << "helicos" << std::endl;
         if ( !defline_seq.isEmpty() ) ss << "defline-seq: '" << defline_seq << "'" << std::endl;
         if ( !defline_qual.isEmpty() ) ss << "defline-qual: '" << defline_qual << "'" << std::endl;
-        return ss.str();
+        return ss.str() + CmnOptAndAccessions::as_string();
     }
 
-    void populate_argv_builder( ArgvBuilder & builder )
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
     {
+        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+
         if ( !accession_replacement.isEmpty() ) builder . add_option( "-A", accession_replacement );
         if ( !table_name.isEmpty() ) builder . add_option( "--table", table_name );
         if ( split_spot ) builder . add_option( "--split-spot" );
@@ -305,7 +312,7 @@ struct FastqParams : OptionBase
         if ( !defline_qual.isEmpty() ) builder . add_option( "--defline-qual", defline_qual );
     }
 
-    bool check()
+    bool check() override
     {
         int problems = 0;
         if ( bzip && gzip )
@@ -323,47 +330,23 @@ struct FastqParams : OptionBase
 
         }
 
-        return ( problems == 0 );
+        return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
-    {
-        int res = 0;
-
-        // instead of looping over the accessions, expand them and loop over the 
-        // expanded url's
-        for ( auto const &value : cmn . accessions )
-        {
-            if ( res == 0 )
-            {
-                int argc;
-                char ** argv = builder . generate_argv( argc, value );
-                if ( argv != nullptr )
-                {
-                    // instead of this run the tool...
-                    for ( int i = 0; i < argc; ++i )
-                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-
-                    builder . free_argv( argc, argv );
-                }
-            }
-        }
-        return res;
+    int run() override {
+        auto const toolname = this->toolname.toSTLString();
+        auto const toolpath = this->toolpath.toSTLString();
+        return ToolExec::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
     }
 
 };
 
-int impersonate_fastq_dump( const Args &args )
+int impersonate_fastq_dump( const Args &args, WhatImposter const &what )
 {
-    int res = 0;
+    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
+    FastqParams params(toolpath);
+    return Impersonator::run(args, params);
 
-    // FastqParams is a derived class of ToolOptions, defined in support2.hpp
-    FastqParams params;
-
-    Impersonator imp( args, "fastq-dump", params );
-    res = imp . run();
-
-    return res;
 }
 
 } // namespace

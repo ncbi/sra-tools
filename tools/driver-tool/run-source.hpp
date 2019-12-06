@@ -71,11 +71,11 @@ public:
         result.haveLocalPath = true;
         result.cachePath = cache;
         result.haveCachePath = !cache.empty();
-        
+
         return data_source(result);
     }
     void set_environment() const;
-    std::string const &service() const { return run.service; }
+    std::string const &service() const { return run.haveLocalPath ? run.localPath : run.service; }
     bool encrypted() const { return run.encrypted; }
     std::string const &accession() const { return run.accession; }
     std::string const &projectId() const { return run.projectId; }
@@ -103,9 +103,9 @@ private:
     {
         auto const iter = sources.find(source.key());
         if (iter != sources.end())
-            iter->second.emplace_back(source);
+            iter->second.emplace_back(std::move(source));
         else
-            sources.insert({source.key(), container({source})});
+            sources.insert({source.key(), container({std::move(source)})});
     }
     
 #if DEBUG || _DEBUGGING
@@ -140,7 +140,7 @@ public:
 
     /// @brief Call SDL with accesion/query list and process the results.
     /// Can use local file info if no response from SDL.
-    static data_sources preload(std::vector<std::string> const &runs, ParamList const &parameters);
+    static data_sources preload(std::vector<std::string> const &runs, ParamList const &parameters = {});
     
 #if DEBUG || _DEBUGGING
     static void test() {

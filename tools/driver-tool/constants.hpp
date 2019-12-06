@@ -31,6 +31,9 @@
  */
 
 #pragma once
+
+#include <klib/strings.h> /* SDL_CGI */
+
 #include <cassert>
 #include <algorithm>
 #include <cstring>
@@ -140,10 +143,6 @@ struct tool_name {
         return -1;
     }
 };
-
-/*TODO: compilation will fail on SDL_CGI.
-To fix it: add include where it's defined;
-but before move include file with definition to ncbi-vdb/interfaces */
 
 /// @brief constants used for calling SRA Data Locator
 struct resolver {

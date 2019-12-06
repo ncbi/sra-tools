@@ -25,7 +25,9 @@
 */
 
 #include <kfg/kfg-priv.h> /* KConfigFixMainResolverCgiNode */
+
 #include <klib/printf.h> /* string_printf */
+#include <klib/strings.h> /* SDL_CGI */
 
 #include "util.hpp" // CStdIn
 
@@ -362,10 +364,6 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
             }
         }
     }
-
-    /*TODO: compilation will fail on SDL_CGI.
-    To fix it: add include where it's defined;
-    but before move include file with definition to ncbi-vdb/interfaces */
 
     {
         const string name("/repository/remote/main/SDL.2/resolver-cgi");

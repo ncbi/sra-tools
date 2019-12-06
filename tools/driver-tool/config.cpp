@@ -72,12 +72,12 @@ static bool ignore(std::string const &key)
     return false;
 }
 
-Config::Config() {
+Config::Config(std::string const &runpath) {
     static char const *argv[] = {
         "vdb-config", "--output=n",
         NULL
     };
-    auto const toolpath = which("vdb-config");
+    auto const toolpath = which(runpath, "vdb-config");
     if (toolpath) {
         auto const path = toolpath.value();
         int fd = -1;

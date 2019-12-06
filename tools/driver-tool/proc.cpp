@@ -50,6 +50,8 @@
 #include "proc.hpp"
 #include "globals.hpp"
 #include "util.hpp"
+#include "env_vars.h"
+#include "constants.hpp"
 
 namespace sratools {
 
@@ -92,6 +94,50 @@ static void exec_debugger [[noreturn]] (  char const *const debugger
 }
 #endif
 
+
+static void debugPrintEnvVar(char const *const name)
+{
+    auto const value = getenv(name);
+    if (value)
+        std::cerr << ' ' << name << "='" << value << "'\n";
+}
+
+static void debugPrintDryRun(  char const *const toolpath
+                             , char const *const toolname
+                             , char const *const *const argv)
+{
+    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
+    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
+        std::cerr << "would exec '" << toolpath << "' as:\n";
+        for (auto i = 0; argv[i]; ++i)
+            std::cerr << ' ' << argv[i];
+        {
+            std::cerr << "\nwith environment:\n";
+            for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
+                debugPrintEnvVar(name);
+            }
+            debugPrintEnvVar(ENV_VAR_SESSION_ID);
+            std::cerr << std::endl;
+        }
+        exit(0);
+    }
+}
+
+void exec [[noreturn]] (char const *const toolpath,
+                        char const *const toolname,
+                        char const *const *const argv)
+{
+#if USE_DEBUGGER
+    auto const envar = getenv("SRATOOLS_DEBUG_CMD");
+    if (envar && *envar) {
+        exec_debugger(envar, argv);
+    }
+#endif
+    debugPrintDryRun(toolpath, toolname, argv);
+    execve(toolpath, argv);
+    throw_system_error(std::string("failed to exec ")+toolname);
+}
+
 void exec [[noreturn]] (  std::string const &toolname
                         , std::string const &toolpath
                         , std::string const &argv0
@@ -123,15 +169,7 @@ void exec [[noreturn]] (  std::string const &toolname
         }
         check_index();
     }
-
-#if USE_DEBUGGER
-    auto const envar = getenv("SRATOOLS_DEBUG_CMD");
-    if (envar && *envar) {
-        exec_debugger(envar, argv);
-    }
- #endif
-    execve(toolpath.c_str(), argv);
-    throw_system_error("failed to exec "+toolname);
+    exec(toolpath.c_str(), toolname.c_str(), argv);
 }
 
 process::exit_status process::wait() const

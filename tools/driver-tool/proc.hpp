@@ -272,4 +272,15 @@ void exec [[noreturn]] (  std::string const &toolname
     exec(toolname, toolpath, argv0, parameters, ArgsList({ argument }));
 }
 
+/// @brief calls exec; does not return
+///
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param argv argv
+///
+/// @throw system_error if exec fails
+void exec [[noreturn]] (char const *const toolpath,
+                        char const *const toolname,
+                        char const *const *const argv);
+
 } // namespace sratools

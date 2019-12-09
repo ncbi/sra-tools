@@ -57,11 +57,11 @@ namespace vdb {
     #define _h_vfs_resolver_ 1
     #define _h_cloud_extern_ 1
 
-    #include "ncbi/vdb/klib/text.h"
-    #include "ncbi/vdb/vfs/services.h"
-    #include "ncbi/vdb/vfs/services-priv.h"
-    #include "ncbi/vdb/cloud/cloud.h"
-    #include "ncbi/vdb/cloud/manager.h"
+    #include <klib/text.h>
+    #include <vfs/services.h>
+    #include <vfs/services-priv.h>
+    #include <cloud/cloud.h>
+    #include <cloud/manager.h>
 
     class Cloud {
         class Manager {

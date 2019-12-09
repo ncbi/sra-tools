@@ -36,8 +36,8 @@
 
 namespace vdb {
 class exception : public std::runtime_error {
-    uint32_t rc;
     std::string from;
+    uint32_t rc;
 public:
     uint32_t resultCode() const { return rc; }
     std::string const &failedCall() const { return from; }
@@ -47,9 +47,9 @@ public:
     , std::runtime_error(what)
     {}
     exception(uint32_t rc, std::string const &from, std::string const &what)
-    : rc(rc)
+    : std::runtime_error(what)
+    , rc(rc)
     , from(from)
-    , std::runtime_error(what)
     {}
 };
 

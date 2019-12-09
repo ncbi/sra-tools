@@ -60,7 +60,6 @@ struct SrapathParams final : CmnOptAndAccessions
         cmdline . addOption ( function, nullptr, "f", "function", "<function>",
             "function to perform (resolve, names, search) default=resolve "
             "or names if protocol is specified" );
-        cmdline . addOption ( location, nullptr, "", "location", "<location>", "Location of data" );
         cmdline . addOption ( timeout_value, &timeout_count, "t", "timeout", "<value>",
             "timeout-value for request" );
         cmdline . addOption ( protocol, nullptr, "a", "protocol", "<protocol>",
@@ -87,7 +86,6 @@ struct SrapathParams final : CmnOptAndAccessions
     std::ostream &show(std::ostream &ss) const override
     {
         if ( !function.isEmpty() ) ss << "function: " << function << std::endl;
-        if ( !location.isEmpty() ) ss << "location: " << location << std::endl;
         if ( timeout_count > 0 ) ss << "timeout: " << timeout_value << std::endl;
         if ( !protocol.isEmpty() ) ss << "protocol: " << protocol << std::endl;
         if ( !version.isEmpty() ) ss << "version: " << version << std::endl;
@@ -108,7 +106,6 @@ struct SrapathParams final : CmnOptAndAccessions
         CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
 
         if ( !function.isEmpty() ) builder . add_option( "-f", function );
-        if ( !location.isEmpty() ) builder . add_option( "--location", location );
         if ( timeout_count > 0 ) builder . add_option( "-t", timeout_value );
         if ( !protocol.isEmpty() ) builder . add_option( "-a", protocol );
         if ( !version.isEmpty() ) builder . add_option( "-e", version );

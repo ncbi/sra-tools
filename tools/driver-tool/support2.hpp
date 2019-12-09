@@ -366,7 +366,7 @@ namespace sratools2
             cmdline . addParam ( accessions, 0, 256, "accessions(s)", "list of accessions to process" );
             cmdline . addOption ( ngc_file, nullptr, "", "ngc", "<path>", "<path> to ngc file" );
             cmdline . addOption ( perm_file, nullptr, "", "perm", "<path>", "<path> to permission file" );
-            cmdline . addOption ( location, nullptr, "", "location", "loc", "location in cloud" );
+            cmdline . addOption ( location, nullptr, "", "location", "<location>", "location in cloud" );
             cmdline . addOption ( cart_file, nullptr, "", "cart", "<path>", "<path> to cart file" );
 
             cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );

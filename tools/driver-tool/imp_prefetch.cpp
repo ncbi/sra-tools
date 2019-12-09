@@ -102,7 +102,6 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
         if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
-        if ( !location.isEmpty() ) ss << "location: " << location << std::endl;
         if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
         if ( max_size_count > 0 ) ss << "max-size: " << max_size_value << std::endl;
         if ( !force.isEmpty() ) ss << "force: " << force << std::endl;
@@ -124,7 +123,6 @@ struct PrefetchParams final : CmnOptAndAccessions
 
         if ( !file_type.isEmpty() ) builder . add_option( "-T", file_type );
         if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
-        if ( !location.isEmpty() ) builder . add_option( "--location", location );
         if ( !perm_file.isEmpty() ) builder . add_option( "--perm", perm_file );
         if ( !cart_file.isEmpty() ) builder . add_option( "--cart", cart_file );
         if ( min_size_count > 0 ) builder . add_option( "-N", min_size_value );

@@ -48,8 +48,8 @@ struct SraPileupParams final : CmnOptAndAccessions
     ncbi::U32 merge_dist_value;
     ncbi::String function;
 
-    SraPileupParams(std::string const &toolpath)
-    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    SraPileupParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
     , bzip( false )
     , gzip( false )
     , timing( false )
@@ -107,9 +107,8 @@ struct SraPileupParams final : CmnOptAndAccessions
         CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string() override
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         print_vec( ss, regions, "aligned-regions: " );
         if ( !outfile.isEmpty() ) ss << "outfile: " << outfile << std::endl;
         if ( !table.isEmpty() ) ss << "table: " << table << std::endl;
@@ -125,10 +124,10 @@ struct SraPileupParams final : CmnOptAndAccessions
         if ( merge_dist_count > 0 ) ss << "merge-dist: " << merge_dist_value << std::endl;
         if ( noqual ) ss << "no qualities" << std::endl;
         if ( !function.isEmpty() ) ss << "function: " << function << std::endl;
-        return ss.str() + CmnOptAndAccessions::as_string();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
         CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
 
@@ -157,7 +156,7 @@ struct SraPileupParams final : CmnOptAndAccessions
         if ( !function.isEmpty() ) builder . add_option( "--function", function );
     }
 
-    bool check() override
+    bool check() const override
     {
         int problems = 0;
         if ( !function.isEmpty() )
@@ -184,17 +183,14 @@ struct SraPileupParams final : CmnOptAndAccessions
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run() override {
-        auto const toolname = this->toolname.toSTLString();
-        auto const toolpath = this->toolpath.toSTLString();
-        return ToolExec::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
+    int run() const override {
+        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
 };
 
 int impersonate_sra_pileup( const Args &args, WhatImposter const &what )
 {
-    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
-    SraPileupParams params(toolpath);
+    SraPileupParams params(what);
     return Impersonator::run(args, params);
 }
 

@@ -80,7 +80,8 @@ namespace sratools2
             ss << v;
             options.push_back( ss.str() );
         }
-        void add_option( const std::string &o, std::vector < ncbi::String > &v )
+        template <>
+        void add_option( const std::string &o, std::vector < ncbi::String > const &v )
         {
             for ( auto const &value : v )
             {
@@ -89,19 +90,6 @@ namespace sratools2
             }
         }
         
-        void add_list_option( const std::string &o, char delim, std::vector< ncbi::String > &v )
-        {
-            options.push_back( o );
-            std::stringstream ss;
-            int i = 0;
-            for ( auto const &value : v )
-            {
-                if ( i++ > 0 ) ss << delim;
-                ss << value;
-            }
-            options.push_back( ss.str() );
-        }
-
         char * add_string( const std::string &src )
         {
             size_t l = src.length();
@@ -119,20 +107,6 @@ namespace sratools2
             return add_string( src.toSTLString() );
         }
 
-        char ** generate_argv( int &argc )
-        {
-            argc = 0;
-            auto cnt = options.size() + 1;
-            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
-            if ( res != nullptr )
-            {
-                for ( auto const &value : options )
-                    res[ argc++ ] = add_string( value );
-                res[ argc ] = nullptr;
-            }
-            return res;
-        }
-
         char ** generate_argv( int &argc, const std::string &argv0 )
         {
             argc = 0;
@@ -141,27 +115,6 @@ namespace sratools2
             if ( res != nullptr )
             {
                 res[ argc++ ] = add_string( argv0 );
-                for ( auto const &value : options )
-                    res[ argc++ ] = add_string( value );
-                res[ argc ] = nullptr;
-            }
-            return res;
-        }
-
-        char ** generate_argv( int &argc, const ncbi::String &argv0 )
-        {
-            return generate_argv( argc, argv0 . toSTLString() );
-        }
-
-        char ** generate_argv( int &argc, std::vector< std::string > const &args )
-        {
-            argc = 0;
-            auto cnt = options.size() + args.size() + 1;
-            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
-            if ( res != nullptr )
-            {
-                for ( auto const &value : args )
-                    res[ argc++ ] = add_string( value );
                 for ( auto const &value : options )
                     res[ argc++ ] = add_string( value );
                 res[ argc ] = nullptr;
@@ -248,11 +201,10 @@ namespace sratools2
 
             std::string get_toolkit_version( void )
             {
-                std::stringstream ss;
-                ss << ( ( TOOLKIT_VERS ) >> 24 ) << '.';
-                ss << ( ( ( TOOLKIT_VERS ) >> 16 ) & 0xFF ) << '.';
-                ss << ( ( TOOLKIT_VERS ) & 0xFFFF );
-                return ss.str();
+                auto const major = ((TOOLKIT_VERS) >> 24) & 0xFF;
+                auto const minor = ((TOOLKIT_VERS)>> 16) & 0xFF;
+                auto const subvers = ( TOOLKIT_VERS ) & 0xFFFF;
+                return std::to_string(major) + '.' + std::to_string(minor) + '.' + std::to_string(subvers);
             }
 
             Imposter detect_imposter( const std::string &src )
@@ -303,6 +255,10 @@ namespace sratools2
                 return _requested_version.empty() ? _toolkit_version : _requested_version;
             }
 
+            std::string toolpath() const {
+                return sratools::which(_runpath, _basename, _basename + "-orig", effective_version());
+            }
+
             std::string as_string( void )
             {
                 std::stringstream ss;
@@ -332,13 +288,13 @@ namespace sratools2
     {
         virtual ~OptionBase() {}
         
-        virtual std::string as_string() = 0;
-        virtual void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) = 0;
+        virtual std::ostream &show(std::ostream &os) const = 0;
+        virtual void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const = 0;
         virtual void add( ncbi::Cmdline &cmdline ) = 0;
-        virtual bool check() = 0;
-        virtual int run() = 0;
+        virtual bool check() const = 0;
+        virtual int run() const = 0;
 
-        void print_vec( std::stringstream &ss, std::vector < ncbi::String > &v, std::string name )
+        static void print_vec( std::ostream &ss, std::vector < ncbi::String > const &v, std::string const &name )
         {
             if ( v.size() > 0 )
             {
@@ -353,7 +309,7 @@ namespace sratools2
             }
         }
 
-        bool is_one_of( const ncbi::String &value, int count, ... )
+        static bool is_one_of( const ncbi::String &value, int count, ... )
         {
             bool res = false;
             int i = 0;
@@ -385,8 +341,7 @@ namespace sratools2
 
     struct CmnOptAndAccessions : OptionBase
     {
-        ncbi::String toolname;
-        ncbi::String toolpath;
+        WhatImposter const &what;
         std::vector < ncbi::String > accessions;
         ncbi::String ngc_file;
         ncbi::String perm_file;
@@ -397,9 +352,8 @@ namespace sratools2
         ncbi::String log_level;
         ncbi::String option_file;
 
-        CmnOptAndAccessions( std::string const &toolname, std::string const &toolpath )
-        : toolname( toolname.c_str() )
-        , toolpath( toolpath.c_str() )
+        CmnOptAndAccessions(WhatImposter const &what)
+        : what(what)
         , disable_multithreading( false )
         , version( false )
         , quiet( false )
@@ -434,10 +388,9 @@ namespace sratools2
                 "Read more options and parameters from the file." );
         }
 
-        std::string as_string() override
+        std::ostream &show(std::ostream &ss) const override
         {
-            std::stringstream ss;
-            for ( auto const& value : accessions )
+            for ( auto & value : accessions )
                 ss << "acc  = " << value << std::endl;
             if ( !ngc_file.isEmpty() )  ss << "ngc-file : " << ngc_file << std::endl;
             if ( !perm_file.isEmpty() ) ss << "perm-file: " << perm_file << std::endl;
@@ -447,10 +400,10 @@ namespace sratools2
             print_vec( ss, debugFlags, "debug modules:" );
             if ( !log_level.isEmpty() ) ss << "log-level: " << log_level << std::endl;
             if ( !option_file.isEmpty() ) ss << "option-file: " << option_file << std::endl;
-            return ss.str();
+            return ss;
         }
 
-        void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
+        void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
         {
             builder . add_option( "-+", debugFlags );
             if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
@@ -461,7 +414,7 @@ namespace sratools2
             (void)(acc_index); (void)(accessions);
         }
         
-        bool check() override
+        bool check() const override
         {
             int problems = 0;
             if ( !log_level.isEmpty() )
@@ -518,7 +471,7 @@ namespace sratools2
             abort();
         }
     public:
-        static int run(char const *toolpath, char const *toolname, CmnOptAndAccessions &tool_options, std::vector<ncbi::String> const &accessions)
+        static int run(char const *toolpath, char const *toolname, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
         {
             auto const s_location = tool_options.location.toSTLString();
             auto const s_perm = tool_options.perm_file.toSTLString();
@@ -577,7 +530,7 @@ namespace sratools2
     };
 
     struct ToolExecNoSDL {
-        static int run(char const *toolpath, char const *toolname, OptionBase &tool_options, std::vector<ncbi::String> const &accessions)
+        static int run(char const *toolpath, char const *toolname, OptionBase const &tool_options, std::vector<ncbi::String> const &accessions)
         {
             ArgvBuilder builder;
 
@@ -597,16 +550,15 @@ namespace sratools2
         }
     };
 
-    int impersonate_fasterq_dump( const Args &args, WhatImposter const &what );
-    int impersonate_fastq_dump( const Args &args, WhatImposter const &what );
-    int impersonate_srapath( const Args &args, WhatImposter const &what );
-    int impersonate_prefetch( const Args &args, WhatImposter const &what );
-    int impersonate_sra_pileup( const Args &args, WhatImposter const &what );
-    int impersonate_sam_dump( const Args &args, WhatImposter const &what );
+    int impersonate_fasterq_dump( Args const &args, WhatImposter const &what );
+    int impersonate_fastq_dump( Args const &args, WhatImposter const &what );
+    int impersonate_srapath( Args const &args, WhatImposter const &what );
+    int impersonate_prefetch( Args const &args, WhatImposter const &what );
+    int impersonate_sra_pileup( Args const &args, WhatImposter const &what );
+    int impersonate_sam_dump( Args const &args, WhatImposter const &what );
 
     struct Impersonator
     {
-#if 1
     private:
         static inline void preparse(ncbi::Cmdline &cmdline) { cmdline.parse(true); }
         static inline void parse(ncbi::Cmdline &cmdline) { cmdline.parse(); }
@@ -648,104 +600,6 @@ namespace sratools2
                 return EX_TEMPFAIL;
             }
         }
-#else
-        Args const &args;
-        char const *toolname;
-        OptionBase &tool_options;
-
-        Impersonator( const Args &args, char const *toolname, OptionBase &tool_options )
-        : args( args )
-        , toolname( toolname )
-        , tool_options( tool_options )
-        {
-        }
-
-        int run( void )
-        {
-            int res = 0;
-            
-            // CmnOptAndAccessions is defined in support2.hpp
-            CmnOptAndAccessions cmn_options( toolname );
-
-            try {
-                // Cmdline is a class defined in cmdline.hpp
-                ncbi::Cmdline cmdline( args . argc, args . argv );
-
-                // let the parser parse the original args,
-                // and let the parser handle help,
-                // and let the parser write all values into cmn and params
-
-                // add all the tool-specific options to the parser ( first )
-                tool_options . add( cmdline );
-
-                // add all common options and the parameters to the parser
-                cmn_options . add( cmdline );
-
-                // preparsing...
-                cmdline . parse ( true );
-
-                // full parsing
-                cmdline . parse ();
-
-                // pre-check the options, after the input has been parsed!
-                // give the tool-specific class an opportunity to check and change values
-                if ( !tool_options . check() )
-                    return EX_USAGE;
-
-                if ( !cmn_options . check() )
-                    return EX_USAGE;
-
-            }
-            catch ( ncbi::Exception const &e )
-            {
-                // std::cerr << "An error occured: " << e.what() << std::endl;
-                return EX_USAGE;
-            }
-            catch (std::exception const &e) {
-                std::cerr << "An error occured: " << e.what() << std::endl;
-                return EX_TEMPFAIL;
-            }
-            catch (...) {
-                std::cerr << "An error occured" << std::endl;
-                return EX_TEMPFAIL;
-            }
-            try
-            {
-                // just to see what we got
-                // std::cout << tool_options . as_string() << cmn_options . as_string() << std::endl;
-
-                // create an argv-builder 
-                ArgvBuilder builder;
-                // add all options from both to the builder
-                tool_options . populate_argv_builder( builder );
-                cmn_options . populate_argv_builder( builder );
-
-                // at this point we have everything in place to execute
-                // the tool on all accessions:
-                // cmn_options . accessions has to be expanded ( resolve containers )
-                // ( ngs/kar/perm/location is available in cmn_options )
-                // cmn_options . toolname is the name of the tool to execute
-                // argv is the sanitized new argument-vector to be passed on to the tool
-
-                // call the tool-specific way to run the tool
-                res = tool_options . run ( builder, cmn_options );
-
-            }
-            catch ( ncbi::Exception const &e )
-            {
-                std::cerr << "An error occured: " << e.what() << std::endl;
-            }
-
-            return res;
-        }
-#endif
     };
 
 } // namespace...
-
-#define COMMON_IMPERSONATE(TOOL_NAME, RUNNER) \
-do { \
-    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version()); \
-    if (toolpath) return Impersonator::run(toolpath.value().c_str(), TOOL_NAME, args, params, RUNNER); \
-    sratools::pathHelp(TOOL_NAME, true); \
-} while (0)

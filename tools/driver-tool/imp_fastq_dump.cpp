@@ -64,8 +64,8 @@ struct FastqParams final : CmnOptAndAccessions
     ncbi::U32 QOffsetCount;
     ncbi::U32 QOffset;
 
-    FastqParams(std::string const &toolpath)
-    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    FastqParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
     , accession_replacement( "" )
     , split_spot( false )
     , clip( false )
@@ -203,9 +203,8 @@ struct FastqParams final : CmnOptAndAccessions
         CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string() override
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         if ( !accession_replacement.isEmpty() )  ss << "acc-replace : " << accession_replacement << std::endl;
         if ( !table_name.isEmpty() )  ss << "table-name : " << table_name << std::endl;
         if ( split_spot ) ss << "split-spot" << std::endl;
@@ -241,10 +240,10 @@ struct FastqParams final : CmnOptAndAccessions
         if ( helicos ) ss << "helicos" << std::endl;
         if ( !defline_seq.isEmpty() ) ss << "defline-seq: '" << defline_seq << "'" << std::endl;
         if ( !defline_qual.isEmpty() ) ss << "defline-qual: '" << defline_qual << "'" << std::endl;
-        return ss.str() + CmnOptAndAccessions::as_string();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
         CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
 
@@ -253,7 +252,16 @@ struct FastqParams final : CmnOptAndAccessions
         if ( split_spot ) builder . add_option( "--split-spot" );
         if ( minSpotIdCount > 0 ) builder . add_option( "-N", minSpotId );
         if ( maxSpotIdCount > 0 ) builder . add_option( "-X", maxSpotId );
-        if ( spot_groups.size() > 0 ) builder . add_list_option( "--spot-groups", ',', spot_groups );
+        if ( spot_groups.size() > 0 ) {
+            auto list = spot_groups[0].toSTLString();
+            int i = 0;
+            for (auto & value : spot_groups) {
+                if (i++ > 0) {
+                    list += ',' + value.toSTLString();
+                }
+            }
+            builder.add_option("--spot-groups", list);
+        }
         if ( clip ) builder . add_option( "-W" );
         if ( minReadLenCount > 0 ) builder . add_option( "-M", minReadLen );
 
@@ -312,7 +320,7 @@ struct FastqParams final : CmnOptAndAccessions
         if ( !defline_qual.isEmpty() ) builder . add_option( "--defline-qual", defline_qual );
     }
 
-    bool check() override
+    bool check() const override
     {
         int problems = 0;
         if ( bzip && gzip )
@@ -333,18 +341,15 @@ struct FastqParams final : CmnOptAndAccessions
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run() override {
-        auto const toolname = this->toolname.toSTLString();
-        auto const toolpath = this->toolpath.toSTLString();
-        return ToolExec::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
+    int run() const override {
+        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
 
 };
 
 int impersonate_fastq_dump( const Args &args, WhatImposter const &what )
 {
-    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
-    FastqParams params(toolpath);
+    FastqParams params(what);
     return Impersonator::run(args, params);
 
 }

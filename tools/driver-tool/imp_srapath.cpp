@@ -45,8 +45,8 @@ struct SrapathParams final : CmnOptAndAccessions
     bool print_raw, print_json, resolve_cache, print_path;
 
 
-    SrapathParams(std::string const &toolpath)
-    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    SrapathParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
     , timeout_count( 0 ), timeout_value( 0 )
     , print_raw( false )
     , print_json( false )
@@ -84,9 +84,8 @@ struct SrapathParams final : CmnOptAndAccessions
         CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string() override
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         if ( !function.isEmpty() ) ss << "function: " << function << std::endl;
         if ( !location.isEmpty() ) ss << "location: " << location << std::endl;
         if ( timeout_count > 0 ) ss << "timeout: " << timeout_value << std::endl;
@@ -99,10 +98,10 @@ struct SrapathParams final : CmnOptAndAccessions
         if ( !project.isEmpty() ) ss << "project: " << project << std::endl;
         if ( resolve_cache ) ss << "resolve cache-file" << std::endl;
         if ( print_path ) ss << "print path" << std::endl;
-        return ss.str() + CmnOptAndAccessions::as_string();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
         (void)(acc_index); (void)(accessions);
 
@@ -122,24 +121,21 @@ struct SrapathParams final : CmnOptAndAccessions
         if ( print_path ) builder . add_option( "-P" );
     }
 
-    bool check() override
+    bool check() const override
     {
         int problems = 0;
 
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run() override {
-        auto const toolname = this->toolname.toSTLString();
-        auto const toolpath = this->toolpath.toSTLString();
-        return ToolExecNoSDL::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
+    int run() const override {
+        return ToolExecNoSDL::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
 };
 
 int impersonate_srapath( const Args &args, WhatImposter const &what )
 {
-    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
-    SrapathParams params(toolpath);
+    SrapathParams params(what);
     return Impersonator::run(args, params);
 }
 

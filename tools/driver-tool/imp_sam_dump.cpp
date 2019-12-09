@@ -58,8 +58,8 @@ struct SamDumpParams final : CmnOptAndAccessions
     ncbi::String rna_splice_log;
     bool md_flag;
     
-    SamDumpParams(std::string const &toolpath)
-    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    SamDumpParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
     , unaligned( false )
     , primary( false )
     , cigar_long( false )
@@ -176,9 +176,8 @@ struct SamDumpParams final : CmnOptAndAccessions
         CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string() override
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         if ( unaligned ) ss << "unaligned" << std::endl;
         if ( primary ) ss << "primary" << std::endl;
         if ( cigar_long ) ss << "cigar-long" << std::endl;
@@ -219,10 +218,10 @@ struct SamDumpParams final : CmnOptAndAccessions
         if ( !rna_splice_log.isEmpty() ) ss << "rna-splice-log: " << rna_splice_log << std::endl;
         if ( disable_multithreading ) ss << "disable-multithreading" << std::endl;
         if ( md_flag ) ss << "md-flag" << std::endl;
-        return ss.str() + CmnOptAndAccessions::as_string();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
         CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
 
@@ -277,7 +276,7 @@ struct SamDumpParams final : CmnOptAndAccessions
         if ( md_flag ) builder . add_option( "--with-md-flag" );
     }
 
-    bool check() override
+    bool check() const override
     {
         int problems = 0;
         if ( bzip && gzip )
@@ -291,7 +290,7 @@ struct SamDumpParams final : CmnOptAndAccessions
             problems++;
         }
         if (!cart_file.isEmpty()) {
-            std::cerr << "unimplemented parameter: --cart is not yet implemented for " TOOL_NAME << std::endl;
+            std::cerr << "unimplemented parameter: --cart is not yet implemented for " << what._basename << std::endl;
             problems++;
         }
         if (fasta && fastq)
@@ -303,17 +302,14 @@ struct SamDumpParams final : CmnOptAndAccessions
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run() override {
-        auto const toolname = this->toolname.toSTLString();
-        auto const toolpath = this->toolpath.toSTLString();
-        return ToolExec::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
+    int run() const override {
+        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
 };
 
 int impersonate_sam_dump( const Args &args, WhatImposter const &what )
 {
-    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
-    SamDumpParams params(toolpath);
+    SamDumpParams params(what);
     return Impersonator::run(args, params);
 }
 

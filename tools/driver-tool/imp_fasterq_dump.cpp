@@ -62,8 +62,8 @@ struct FasterqParams final : CmnOptAndAccessions
     bool strict;
     bool append;
 
-    FasterqParams(std::string const &toolpath)
-    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    FasterqParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
     , ThreadsCount( 0 )
     , Threads( 0 )
     , progress( false )
@@ -128,9 +128,8 @@ struct FasterqParams final : CmnOptAndAccessions
         CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string() override
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         if ( !outfile.isEmpty() ) ss << "outfile : " << outfile << std::endl;
         if ( !outdir.isEmpty() ) ss << "outdir : " << outdir << std::endl;
         if ( !bufsize.isEmpty() ) ss << "bufsize : " << bufsize << std::endl;
@@ -155,10 +154,10 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( strict ) ss << "strict" << std::endl;
         if ( !bases.isEmpty() )  ss << "bases : " << bases << std::endl;
         if ( append ) ss << "append" << std::endl;
-        return ss.str() + CmnOptAndAccessions::as_string();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
         CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
 
@@ -197,24 +196,21 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( append ) builder . add_option( "-A" );
     }
 
-    bool check() override
+    bool check() const override
     {
         int problems = 0;
 
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run() override {
-        auto const toolname = this->toolname.toSTLString();
-        auto const toolpath = this->toolpath.toSTLString();
-        return ToolExec::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
+    int run() const override {
+        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
 };
 
 int impersonate_fasterq_dump(Args const &args, WhatImposter const &what)
 {
-    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
-    FasterqParams params(toolpath);
+    FasterqParams params(what);
     return Impersonator::run(args, params);
 }
 

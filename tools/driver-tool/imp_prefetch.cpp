@@ -50,8 +50,8 @@ struct PrefetchParams final : CmnOptAndAccessions
     ncbi::String output_file;
     ncbi::String output_dir;
 
-    PrefetchParams(std::string const &toolpath)
-    : CmnOptAndAccessions(TOOL_NAME, toolpath)
+    PrefetchParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
     , min_size_count( 0 ), min_size_value( 0 )
     , max_size_count( 0 ), max_size_value( 0 )
     , progress_count( 0 ), progress_value( 0 )
@@ -98,9 +98,8 @@ struct PrefetchParams final : CmnOptAndAccessions
         CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string() override
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
         if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
         if ( !location.isEmpty() ) ss << "location: " << location << std::endl;
@@ -114,10 +113,10 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
         if ( !output_file.isEmpty() ) ss << "output-file: " << output_file << std::endl;
         if ( !output_dir.isEmpty() ) ss << "output-dir: " << output_dir << std::endl;
-        return ss.str() + CmnOptAndAccessions::as_string();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) override
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
         (void)(acc_index); (void)(accessions);
 
@@ -140,24 +139,21 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( !output_dir.isEmpty() ) builder . add_option( "-O", output_dir );
     }
 
-    bool check() override
+    bool check() const override
     {
         int problems = 0;
 
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run() override {
-        auto const toolname = this->toolname.toSTLString();
-        auto const toolpath = this->toolpath.toSTLString();
-        return ToolExecNoSDL::run(toolpath.c_str(), toolname.c_str(), *this, accessions);
+    int run() const override {
+        return ToolExecNoSDL::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
 };
 
 int impersonate_prefetch( const Args &args, WhatImposter const &what )
 {
-    auto const &toolpath = sratools::which(what._runpath, TOOL_NAME, TOOL_NAME "-orig", what.effective_version());
-    PrefetchParams params(toolpath);
+    PrefetchParams params(what);
     return Impersonator::run(args, params);
 }
 

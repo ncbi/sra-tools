@@ -104,8 +104,10 @@ private:
         auto const iter = sources.find(source.key());
         if (iter != sources.end())
             iter->second.emplace_back(std::move(source));
-        else
-            sources.insert({source.key(), container({std::move(source)})});
+        else {
+            auto key = source.key();
+            sources.insert({key, container({std::move(source)})});
+        }
     }
     
 #if DEBUG || _DEBUGGING

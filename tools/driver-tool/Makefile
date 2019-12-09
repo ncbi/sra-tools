@@ -95,6 +95,7 @@ SRATOOLS_OBJ = \
 	$(addsuffix .$(OBJX),$(SRATOOLS_SRC))
 
 SRATOOLS_LIB = \
+	-sncbi-vdb \
 	-sjson \
 	-lm
 

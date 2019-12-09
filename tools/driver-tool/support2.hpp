@@ -377,8 +377,8 @@ namespace sratools2
             cmdline . addOption ( quiet, "q", "quiet",
                 "Turn off all status messages for the program. Negated by verbose." );
             */
-#if _DEBUGGING
-            cmdline . addListOption( debug, ',', 255, "+", "debug", "<Module[-Flag]>",
+#if _DEBUGGING || DEBUG
+            cmdline . addListOption( debugFlags, ',', 255, "+", "debug", "<Module[-Flag]>",
                 "Turn on debug output for module. All flags if not specified." );
 #endif
             cmdline . addOption ( log_level, nullptr, "L", "log-level", "<level>",

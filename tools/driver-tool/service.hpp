@@ -42,14 +42,14 @@ public:
     uint32_t resultCode() const { return rc; }
     std::string const &failedCall() const { return from; }
     exception(uint32_t rc, char const *from, char const *what)
-    : rc(rc)
+    : std::runtime_error(what)
     , from(from)
-    , std::runtime_error(what)
+    , rc(rc)
     {}
     exception(uint32_t rc, std::string const &from, std::string const &what)
     : std::runtime_error(what)
-    , rc(rc)
     , from(from)
+    , rc(rc)
     {}
 };
 

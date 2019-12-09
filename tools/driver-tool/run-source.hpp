@@ -92,8 +92,8 @@ private:
     bool have_ce_token;
 
     data_sources(std::string const &CET)
-    : have_ce_token(!CET.empty())
-    , ce_token_(CET)
+    : ce_token_(CET)
+    , have_ce_token(!CET.empty())
     {}
     
     /// @brief add a data sources, creates container if needed

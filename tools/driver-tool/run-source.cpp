@@ -182,9 +182,9 @@ struct Response2 {
                 }
             };
             using Locations = std::vector<LocationEntry>;
-            opt_string object;
             std::string type;
             std::string name;
+            opt_string object;
             opt_string size;
             opt_string md5;
             opt_string format;

@@ -88,7 +88,8 @@ SRATOOLS_SRC = \
 	proc \
 	which \
 	run-source \
-	uuid
+	uuid \
+	service
 
 SRATOOLS_OBJ = \
 	$(addsuffix .$(OBJX),$(SRATOOLS_SRC))

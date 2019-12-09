@@ -38,25 +38,6 @@
 
 namespace vdb {
 
-// create missing types
-    typedef uint32_t rc_t;
-    typedef int VRemoteProtocols;
-    typedef struct EObjectType EObjectType;
-    typedef struct String String;
-
-// create missing definitions
-    #define KLIB_EXTERN extern
-    #define KLIB_EXTERN_DATA extern
-    #define CLOUD_EXTERN extern
-    #define CC
-
-// force no include
-    #define _h_klib_extern_ 1
-    #define _h_klib_defs_ 1
-    #define _h_kfg_kart_ 1
-    #define _h_vfs_resolver_ 1
-    #define _h_cloud_extern_ 1
-
     #include <klib/text.h>
     #include <vfs/services.h>
     #include <vfs/services-priv.h>

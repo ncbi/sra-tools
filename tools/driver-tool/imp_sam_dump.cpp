@@ -245,8 +245,8 @@ struct SamDumpParams final : CmnOptAndAccessions
         if ( cg_mappings ) builder . add_option( "--CG-mappings" );
         if ( cg_sam ) builder . add_option( "--CG-SAM" );
         if ( report ) builder . add_option( "--report" );
-        builder . add_option( "--header-comment", header_comments );
-        builder . add_option( "--aligned-region", aligned_regions );
+        builder . add_option_list( "--header-comment", header_comments );
+        builder . add_option_list( "--aligned-region", aligned_regions );
         if ( !matepair_dist.isEmpty() ) builder . add_option( "--matepair-distance", matepair_dist );
         if ( !prefix.isEmpty() ) builder . add_option( "--prefix", prefix );
         if ( !qual_quant.isEmpty() ) builder . add_option( "-Q", qual_quant );

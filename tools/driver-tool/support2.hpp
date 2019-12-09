@@ -80,8 +80,7 @@ namespace sratools2
             ss << v;
             options.push_back( ss.str() );
         }
-        template <>
-        void add_option( const std::string &o, std::vector < ncbi::String > const &v )
+        void add_option_list( const std::string &o, std::vector < ncbi::String > const &v )
         {
             for ( auto const &value : v )
             {
@@ -405,7 +404,7 @@ namespace sratools2
 
         void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
         {
-            builder . add_option( "-+", debugFlags );
+            builder . add_option_list( "-+", debugFlags );
             if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
             if ( !log_level.isEmpty() ) builder . add_option( "-L", log_level );
             if ( !option_file.isEmpty() ) builder . add_option( "--option-file", option_file );

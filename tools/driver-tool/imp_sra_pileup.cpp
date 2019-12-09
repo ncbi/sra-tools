@@ -131,7 +131,7 @@ struct SraPileupParams final : CmnOptAndAccessions
     {
         CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
 
-        builder . add_option( "-r", regions );
+        builder . add_option_list( "-r", regions );
         if ( !outfile.isEmpty() ) {
             if (accessions.size() > 1) {
                 if (acc_index == 0)

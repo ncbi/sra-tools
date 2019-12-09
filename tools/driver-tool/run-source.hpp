@@ -26,7 +26,7 @@
 *  sratools command line tool
 *
 * Purpose:
-*  Communicate with SDL via srapath
+*  Communicate with SDL
 *
 */
 
@@ -36,10 +36,13 @@
 
 namespace sratools {
 
+/// @brief Contains the source info for a VDB database.
 struct source {
     std::string accession, localPath, remoteUrl, service, cachePath, fileSize;
+    std::string projectId;
     bool needCE = false, needPmt = false;
     bool haveLocalPath = false, haveCachePath = false, haveSize = false, haveAccession = false;
+    bool encrypted;
     
     std::string const &key() const {
         assert(haveAccession || haveLocalPath);
@@ -47,12 +50,13 @@ struct source {
     }
 };
 
+/// @brief Contains the source info for a run and any associated vdbcache file.
 class data_source {
     data_source() {}
     source run, vdbcache;
     bool haveVdbCache;
 public:
-    data_source(source const &run) : run(run), haveVdbCache(false) {}
+    explicit data_source(source const &run) : run(run), haveVdbCache(false) {}
     data_source(source const &run, source const &vcache)
     : run(run)
     , vdbcache(vcache)
@@ -61,18 +65,23 @@ public:
     
     std::string const &key() const { return run.key(); }
     
-    static data_source local_file(std::string const &file) {
+    static data_source local_file(std::string const &file, std::string const &cache = "") {
         source result = {};
         result.localPath = file;
         result.haveLocalPath = true;
-        
+        result.cachePath = cache;
+        result.haveCachePath = !cache.empty();
+
         return data_source(result);
     }
     void set_environment() const;
-    std::string const &service() const { return run.service; }
+    std::string const &service() const { return run.haveLocalPath ? run.localPath : run.service; }
+    bool encrypted() const { return run.encrypted; }
+    std::string const &accession() const { return run.accession; }
+    std::string const &projectId() const { return run.projectId; }
 };
 
-/// @brief contains the responce from srapath names function
+/// @brief Contains the response from SDL and/or local file info.
 class data_sources {
 public:
     using container = std::vector<data_source>;
@@ -82,13 +91,10 @@ private:
     std::string ce_token_;
     bool have_ce_token;
 
-    /// @brief a lot can happen here
-    ///
-    /// NB. This will short-curcuit on a local file
-    ///
-    /// @param responseJSON response from srapath
-    data_sources(std::string const &responseJSON);
-    data_sources() {}
+    data_sources(std::string const &CET)
+    : have_ce_token(!CET.empty())
+    , ce_token_(CET)
+    {}
     
     /// @brief add a data sources, creates container if needed
     ///
@@ -97,18 +103,17 @@ private:
     {
         auto const iter = sources.find(source.key());
         if (iter != sources.end())
-            iter->second.emplace_back(source);
+            iter->second.emplace_back(std::move(source));
         else
-            sources.insert({source.key(), container({source})});
+            sources.insert({source.key(), container({std::move(source)})});
     }
-        
+    
 #if DEBUG || _DEBUGGING
-    static void test_local_and_remote() {
-        static char const responseJSON[] =
-        "{\"count\": 1,\"CE-Token\": null,\"responses\": [{\"accession\": \"SRR10063844\", \"itemType\": \"sra\", \"size\": 37644943, \"local\": \"/netmnt/traces04/sra44/SRR/009827/SRR10063844\", \"remote\": [{ \"path\": \"https://sra-download.ncbi.nlm.nih.gov/traces/sra44/SRR/009827/SRR10063844\", \"service\": \"sra-ncbi\", \"CE-Required\": false, \"Payment-Required\": false }]}]}";
-        auto const sources = data_sources(responseJSON);
-        assert(sources.sourcesFor("SRR10063844").empty() == false);
-    }
+    static void test_empty();
+    static void test_vdbcache();
+    static void test_2();
+    static void test_top_error();
+    static void test_inner_error();
 #endif
 
 public:
@@ -125,18 +130,25 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
+    /// @brief the data sources for an accession
     container const &sourcesFor(std::string const &accession) const
     {
         static auto const empty = container();
         auto const iter = sources.find(accession);
         return (iter != sources.end()) ? iter->second : empty;
     }
-    
-    static data_sources preload(std::vector<std::string> const &runs, ParamList const &parameters);
+
+    /// @brief Call SDL with accesion/query list and process the results.
+    /// Can use local file info if no response from SDL.
+    static data_sources preload(std::vector<std::string> const &runs, ParamList const &parameters = {});
     
 #if DEBUG || _DEBUGGING
     static void test() {
-        test_local_and_remote();
+        test_empty();
+        test_vdbcache();
+        test_2();
+        test_top_error();
+        test_inner_error();
     }
 #endif
 };

@@ -69,6 +69,13 @@
 
 namespace sratools {
 
+#if 1
+std::string const *location = NULL;
+std::string const *perm = NULL;
+std::string const *ngc = NULL;
+
+Config const *config = NULL;
+#else
 std::string const *argv0;
 std::string const *selfpath;
 std::string const *basename;
@@ -147,6 +154,17 @@ DONE:
     return (6 <= digits && digits <= 9) ? type : 0;
 }
 
+static void containerMessage(std::string const &acc)
+{
+    std::cerr << acc << " is a container accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+}
+
+static void failedMessage [[noreturn]] (void)
+{
+    std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the constituent run data accessions. For example, you can download the accession list and then re-run with --option-file=SraAccList.txt " << std::endl;
+    exit(EX_UNAVAILABLE);
+}
+
 static
 ArgsList expandAll(ArgsList const &accessions)
 {
@@ -170,7 +188,7 @@ ArgsList expandAll(ArgsList const &accessions)
         case 'S':
         case 'X':
             // TODO: open container types
-            std::cerr << acc << " is a container accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+            containerMessage(acc);
             failed = true;
             break;
 
@@ -180,10 +198,8 @@ ArgsList expandAll(ArgsList const &accessions)
         }
         result.push_back(acc);
     }
-    if (failed) {
-        std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the constituent run data accessions. For example, you can download the accession list and then re-run with --option-file=SraAccList.txt " << std::endl;
-        exit(EX_UNAVAILABLE);
-    }
+    if (failed)
+        failedMessage();
     return result;
 }
 
@@ -637,6 +653,15 @@ static void processAccessionsNoSDL [[noreturn]] (
     exec(toolname, toolpath, *argv0, parameters, runs);
 }
 
+static void printNoAccessionsMessage [[noreturn]] (std::string const &toolname)
+{
+    std::cerr << "This tool requires at least one SRA run.\n"
+        << "For more information on how to use " << toolname << ", run:\n"
+        << *argv0 << " --help" << std::endl;
+    exit(EX_USAGE);
+}
+#endif
+
 static void printInstallMessage [[noreturn]] (void)
 {
     std::cerr <<
@@ -645,14 +670,6 @@ static void printInstallMessage [[noreturn]] (void)
         "For more information, see https://www.ncbi.nlm.nih.gov/sra/docs/sra-cloud/"
         << std::endl;
     exit(EX_CONFIG);
-}
-
-static void printNoAccessionsMessage [[noreturn]] (std::string const &toolname)
-{
-    std::cerr << "This tool requires at least one SRA run.\n"
-        << "For more information on how to use " << toolname << ", run:\n"
-        << *argv0 << " --help" << std::endl;
-    exit(EX_USAGE);
 }
 
 static void test() {
@@ -664,30 +681,33 @@ static void test() {
     }
 #endif
 }
-        
 } // namespace sratools
 
 int main(int argc, char *argv[])
 {
-    return sratools2::main2( argc, argv );
-    
-    static auto const error_continues_message = std::string("If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/");
-#if DEBUG || _DEBUGGING
-    sratools::test();
-#endif
-    auto const impersonate = getenv("SRATOOLS_IMPERSONATE");
-    auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
+    static auto const error_continues_message = "If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/";
 
+    sratools::test();
+
+    int result = -1;
+
+    sratools::config = new sratools::Config(sratools2::runpath_from_argv0(argc, argv));
+    if (sratools::config->noInstallID()) {
+        sratools::printInstallMessage();
+    }
     try {
-        sratools::main(argv0, argc - 1, argv + 1);
+        result = sratools2::main2( argc, argv );
     }
     catch (std::exception const &e) {
         std::cerr << "An error occured: " << e.what() << std::endl << error_continues_message << std::endl;
-        exit(3);
+        result = 3;
     }
     catch (...) {
         std::cerr << "An unexpected error occured." << std::endl << error_continues_message << std::endl;
-        exit(3);
+        result = 3;
     }
+    delete sratools::config;
+    sratools::config = nullptr;
+    return result;
 }
 #endif // c++11

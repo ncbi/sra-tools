@@ -27,10 +27,12 @@
 #include "cmdline.hpp"
 #include "support2.hpp"
 
+#define TOOL_NAME "sra-pileup"
+
 namespace sratools2
 {
 
-struct SraPileupParams : OptionBase
+struct SraPileupParams final : CmnOptAndAccessions
 {
     std::vector < ncbi::String > regions;
     ncbi::String outfile;
@@ -46,22 +48,23 @@ struct SraPileupParams : OptionBase
     ncbi::U32 merge_dist_value;
     ncbi::String function;
 
-    SraPileupParams()
-        : bzip( false )
-        , gzip( false )
-        , timing( false )
-        , divide_by_spotgroups( false )
-        , depth_per_spotgroup( false )
-        , seqname( false )
-        , noqual( false )
-        , min_mapq_count( 0 ), min_mapq_value( 0 )
-        , duplicates_count( 0 ), duplicates_value( 0 )
-        , min_mismatch_count( 0 ), min_mismatch_value( 0 )
-        , merge_dist_count( 0 ), merge_dist_value( 0 )
+    SraPileupParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
+    , bzip( false )
+    , gzip( false )
+    , timing( false )
+    , divide_by_spotgroups( false )
+    , depth_per_spotgroup( false )
+    , seqname( false )
+    , noqual( false )
+    , min_mapq_count( 0 ), min_mapq_value( 0 )
+    , duplicates_count( 0 ), duplicates_value( 0 )
+    , min_mismatch_count( 0 ), min_mismatch_value( 0 )
+    , merge_dist_count( 0 ), merge_dist_value( 0 )
     {
     }
 
-    void add( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline ) override
     {
         cmdline . addListOption( regions, ',', 255, "r", "aligned-region", "<name[:from-to]>",
             "Filter by position on genome. Name can either be file specific name (ex: \"chr1\" or "
@@ -100,11 +103,12 @@ struct SraPileupParams : OptionBase
             "varcount = variation counters ( columns: ref-name, ref-pos, ref-base, coverage, mismatch A "
             "mismatch C, mismatch G, mismatch T, deletes, inserts, ins after A, ins after C ins after G "
             "ins after T ) deletes = list deletions greater than 20, indels = list only inserts/deletions" );
+
+        CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string()
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         print_vec( ss, regions, "aligned-regions: " );
         if ( !outfile.isEmpty() ) ss << "outfile: " << outfile << std::endl;
         if ( !table.isEmpty() ) ss << "table: " << table << std::endl;
@@ -120,13 +124,23 @@ struct SraPileupParams : OptionBase
         if ( merge_dist_count > 0 ) ss << "merge-dist: " << merge_dist_value << std::endl;
         if ( noqual ) ss << "no qualities" << std::endl;
         if ( !function.isEmpty() ) ss << "function: " << function << std::endl;
-        return ss.str();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder )
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
+        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+
         builder . add_option( "-r", regions );
-        if ( !outfile.isEmpty() ) builder . add_option( "-o", outfile );
+        if ( !outfile.isEmpty() ) {
+            if (accessions.size() > 1) {
+                if (acc_index == 0)
+                    print_unsafe_output_file_message("sra-pileup", ".pileup", accessions);
+                builder . add_option( "-o", accessions[acc_index] + ".pileup" );
+            }
+            else
+                builder . add_option( "-o", outfile );
+        }
         if ( !table.isEmpty() ) builder . add_option( "-t", table );
         if ( bzip ) builder . add_option( "--bzip2" );
         if ( gzip ) builder . add_option( "--gzip" );
@@ -142,7 +156,7 @@ struct SraPileupParams : OptionBase
         if ( !function.isEmpty() ) builder . add_option( "--function", function );
     }
 
-    bool check()
+    bool check() const override
     {
         int problems = 0;
         if ( !function.isEmpty() )
@@ -162,50 +176,22 @@ struct SraPileupParams : OptionBase
         }
         if ( duplicates_value > 1 )
         {
-                std::cerr << "invalid value for duplicates: " << duplicates_value << std::endl;
+            std::cerr << "invalid value for duplicates: " << duplicates_value << std::endl;
             problems++;
         }
-        return ( problems == 0 );
+
+        return CmnOptAndAccessions::check() && ( problems == 0 );
     }
-    
-    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
-    {
-        int res = 0;
 
-        // instead of looping over the accessions, expand them and loop over the 
-        // expanded url's
-        for ( auto const &value : cmn . accessions )
-        {
-            if ( res == 0 )
-            {
-                int argc;
-                char ** argv = builder . generate_argv( argc, value );
-                if ( argv != nullptr )
-                {
-                    // instead of this run the tool...
-                    for ( int i = 0; i < argc; ++i )
-                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-                    std::cout << std::endl;
-
-                    builder . free_argv( argc, argv );
-                }
-            }
-        }
-        return res;
+    int run() const override {
+        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
 };
 
-int impersonate_sra_pileup( const Args &args )
+int impersonate_sra_pileup( const Args &args, WhatImposter const &what )
 {
-    int res = 0;
-
-    // SraPileupParams is a derived class of ToolOptions, defined in support2.hpp
-    SraPileupParams params;
-
-    Impersonator imp( args, "sra-pileup", params );
-    res = imp . run();
-
-    return res;
+    SraPileupParams params(what);
+    return Impersonator::run(args, params);
 }
 
 }

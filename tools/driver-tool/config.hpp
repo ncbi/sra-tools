@@ -44,7 +44,7 @@ class Config {
         return "/LIBS/GUID";
     }
 public:
-    Config();
+    Config(std::string const &runpath);
     opt_string get(char const *const keypath) const {
         auto const iter = kvps.find(keypath);
         return iter == kvps.end() ? opt_string() : opt_string(iter->second);
@@ -59,6 +59,10 @@ public:
     bool noInstallID() const {
         auto const iter = kvps.find(InstallKey());
         return iter == kvps.end();
+    }
+    bool canSendCEToken() const {
+        auto const iter = kvps.find("/libs/cloud/report_instance_identity");
+        return iter != kvps.end() && iter->second == "true";
     }
 };
 

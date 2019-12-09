@@ -204,6 +204,40 @@ rc_t CC Usage( const Args *args )
     return rc;
 }
 
+static rc_t KSrvRespFile_Print(const KSrvRespFile * self) {
+    const VPath * path = NULL;
+    const VPath * vdbcache = NULL;
+    const String * tmp = NULL;
+
+    rc_t rc = KSrvRespFileGetLocal(self, &path);
+    if (rc != 0) {
+        KSrvRespFileIterator * fi = NULL;
+        rc = KSrvRespFileMakeIterator(self, &fi);
+        if (rc == 0)
+            rc = KSrvRespFileIteratorNextPath(fi, &path);
+        RELEASE(KSrvRespFileIterator, fi);
+    }
+
+    if (path != NULL) {
+        rc = VPathMakeString(path, &tmp);
+        if (rc == 0) {
+            OUTMSG(("%S\n", tmp));
+            free((void *)tmp);
+        }
+        RELEASE(VPath, path);
+    }
+
+    if (vdbcache != NULL) {
+        rc = VPathMakeString(vdbcache, &tmp);
+        if (rc == 0) {
+            OUTMSG(("%S\n", tmp));
+            free((void *)tmp);
+        }
+        RELEASE(VPath, vdbcache);
+    }
+
+    return rc;
+}
 
 static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
     const char * pc, const char * location,
@@ -259,42 +293,18 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
                     const KSrvRespObj * obj = NULL;
                     KSrvRespObjIterator * it = NULL;
                     KSrvRespFile * file = NULL;
-                    const VPath * path = NULL;
-                    const VPath * vdbcache = NULL;
+                    ESrvFileFormat type = eSFFInvalid;
                     rc = KSrvResponseGetObjByIdx ( response, i, & obj );
                     if ( rc == 0 )
                         rc = KSrvRespObjMakeIterator ( obj, & it );
                     while ( rc == 0 ) {
+                        rc_t r2 = 0;
                         rc = KSrvRespObjIteratorNextFile ( it, & file );
                         if ( rc != 0 || file == NULL )
                             break;
-                        rc = KSrvRespFileGetLocal ( file, & path );
-                        if ( rc != 0 ) {
-                            KSrvRespFileIterator * fi = NULL;
-                            rc = KSrvRespFileMakeIterator(file, &fi);
-                            if (rc == 0)
-                                rc = KSrvRespFileIteratorNextPath ( fi,
-                                                                    & path );
-                            RELEASE ( KSrvRespFileIterator, fi );
-                        }
-                        if ( path != NULL ) {
-                            const String * tmp = NULL;
-                            rc = VPathMakeString ( path, & tmp );
-                            if ( rc == 0 ) {
-                                OUTMSG ( ( "%S\n", tmp ) );
-                                free ( ( void * ) tmp );
-                            }
-                            VPathRelease ( path );
-                        }
-                        if ( vdbcache != NULL ) {
-                            const String * tmp = NULL;
-                            rc = VPathMakeString ( vdbcache, & tmp );
-                            if ( rc == 0 ) {
-                                OUTMSG ( ( "%S\n", tmp ) );
-                                free ( ( void * ) tmp );
-                            }
-                            VPathRelease ( vdbcache );
-                        }
+                        r2 = KSrvRespFileGetFormat(file, &type);
+                        if (r2 != 0 || type != eSFFVdbcache)
+                            rc = KSrvRespFile_Print(file);
                         RELEASE ( KSrvRespFile, file );
                     }
                     RELEASE ( KSrvRespObjIterator, it );

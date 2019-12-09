@@ -35,14 +35,28 @@
 
 namespace sratools {
 
-/// @brief like shell `which` but checks more than just PATH
-///
-/// @param name executable name
-/// @param allowNotFound return empty string if not found, else print message and exit
-/// @param isaSraTool the executable is part of the SRA toolkit, effects message if not found
-///
-/// @returns full path to executable if found
-extern
-opt_string which(std::string const &name, bool allowNotFound = true, bool isaSraTool = false);
+    /// @brief like shell `which` but checks more than just PATH
+    ///
+    /// @param name executable name
+    /// @param allowNotFound return empty string if not found, else print message and exit
+    /// @param isaSraTool the executable is part of the SRA toolkit, effects message if not found
+    ///
+    /// @returns full path to executable if found
+    extern
+    opt_string which(std::string const &runpath, std::string const &name, bool allowNotFound = true, bool isaSraTool = false);
+
+    /// @brief like shell `which` but checks more than just PATH
+    ///
+    /// @param runas_name user-friendly executable name, e.g. fastq-dump
+    /// @param real_name real executable name, e.g. fastq-dump-orig
+    /// @param version version to be appended to name, e.g. 2.10.0
+    ///
+    /// @returns full path to executable if found
+    extern
+    opt_string which(std::string const &runpath, std::string const &runas_name, std::string const &real_name, std::string const &version);
+
+    /// @brief prints help message for failing to find an executable
+    extern
+    void pathHelp [[noreturn]] (std::string const &toolname, bool isaSraTool);
 
 } // namespace sratools

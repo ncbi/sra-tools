@@ -1011,7 +1011,8 @@ namespace ncbi
                 // measure all remaining characters
                 // these can be one or more options
                 // and can be suffixed with parameters to the last option
-                U32 len, mlen = strlen ( arg );
+                auto mlen = strlen(arg);
+                decltype(mlen) len;
 
                 // process each short option in a potentially compound list
                 do
@@ -1424,7 +1425,7 @@ namespace ncbi
         if ( short_name ++ == 0 )
             short_name = argv [ 0 ];
 
-        U32 i, mode_count = mode_list . size ();
+        auto mode_count = mode_list . size ();
         if ( mode_count == 0 )
         {
             std :: cout
@@ -1436,8 +1437,8 @@ namespace ncbi
         }
         else
         {
-            Mode * save = mode;
-            for ( i = 0; i < mode_count; ++ i )
+            auto const save = mode;
+            for (auto i = decltype(mode_count)(0); i < mode_count; ++ i )
             {
                 mode = mode_list [ i ];
 
@@ -1455,8 +1456,8 @@ namespace ncbi
             longHelp ( short_name );
         else
         {
-            Mode * save = mode;
-            for ( i = 0; i < mode_count; ++ i )
+            auto const save = mode;
+            for (auto i = decltype(mode_count)(0); i < mode_count; ++ i )
             {
                 mode = mode_list [ i ];
                 longHelp ( short_name );

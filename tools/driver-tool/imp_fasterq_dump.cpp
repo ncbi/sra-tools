@@ -26,11 +26,14 @@
 
 #include "cmdline.hpp"
 #include "support2.hpp"
+#include "which.hpp"
+
+#define TOOL_NAME "fasterq-dump"
 
 namespace sratools2
 {
 
-struct FasterqParams : OptionBase
+struct FasterqParams final : CmnOptAndAccessions
 {
     ncbi::String outfile;
     ncbi::String outdir;
@@ -59,29 +62,30 @@ struct FasterqParams : OptionBase
     bool strict;
     bool append;
 
-    FasterqParams()
-        : ThreadsCount( 0 )
-        , Threads( 0 )
-        , progress( false )
-        , details( false )
-        , split_spot( false )
-        , split_files( false )
-        , split_3( false )
-        , concatenate_reads( false )
-        , to_stdout( false )
-        , force( false )
-        , rowid_as_name( false )
-        , skip_tech( false )
-        , include_tech( false )
-        , print_read_nr( false )
-        , MinReadLenCount( 0 )
-        , MinReadLen( 0 )
-        , strict( false )
-        , append( false )
+    FasterqParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
+    , ThreadsCount( 0 )
+    , Threads( 0 )
+    , progress( false )
+    , details( false )
+    , split_spot( false )
+    , split_files( false )
+    , split_3( false )
+    , concatenate_reads( false )
+    , to_stdout( false )
+    , force( false )
+    , rowid_as_name( false )
+    , skip_tech( false )
+    , include_tech( false )
+    , print_read_nr( false )
+    , MinReadLenCount( 0 )
+    , MinReadLen( 0 )
+    , strict( false )
+    , append( false )
     {
     }
 
-    void add( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline ) override
     {
         cmdline . addOption ( outfile, nullptr, "o", "outfile", "<path>",
             "full path of outputfile (overrides usage of current directory and given accession)" );
@@ -120,11 +124,12 @@ struct FasterqParams : OptionBase
 
         cmdline . addOption ( bases, nullptr, "B", "bases", "<bases>", "filter output by matching against given bases" );
         cmdline . addOption ( append, "A", "append", "append to output-file, instead of overwriting it" );
+
+        CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string()
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         if ( !outfile.isEmpty() ) ss << "outfile : " << outfile << std::endl;
         if ( !outdir.isEmpty() ) ss << "outdir : " << outdir << std::endl;
         if ( !bufsize.isEmpty() ) ss << "bufsize : " << bufsize << std::endl;
@@ -149,12 +154,23 @@ struct FasterqParams : OptionBase
         if ( strict ) ss << "strict" << std::endl;
         if ( !bases.isEmpty() )  ss << "bases : " << bases << std::endl;
         if ( append ) ss << "append" << std::endl;
-        return ss.str();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder )
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
-        if ( !outfile.isEmpty() ) builder . add_option( "-o", outfile );
+        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+
+        if ( !outfile.isEmpty() ) {
+            if (accessions.size() > 1) {
+                if (acc_index == 0) {
+                    print_unsafe_output_file_message("fasterq-dump", ".fastq", accessions);
+                }
+                builder . add_option( "-o", accessions[acc_index] + ".fastq" );
+            }
+            else
+                builder . add_option( "-o", outfile );
+        }
         if ( !outdir.isEmpty() ) builder . add_option( "-O", outdir );
         if ( !bufsize.isEmpty() ) builder . add_option( "-b", bufsize );
         if ( !curcache.isEmpty() ) builder . add_option( "-c", curcache );
@@ -179,52 +195,23 @@ struct FasterqParams : OptionBase
         if ( !bases.isEmpty() ) builder . add_option( "-B", bases );
         if ( append ) builder . add_option( "-A" );
     }
-    
-    bool check()
+
+    bool check() const override
     {
         int problems = 0;
 
-        return ( problems == 0 );
+        return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
-    {
-        int res = 0;
-
-        // instead of looping over the accessions, expand them and loop over the 
-        // expanded url's
-        for ( auto const &value : cmn . accessions )
-        {
-            if ( res == 0 )
-            {
-                int argc;
-                char ** argv = builder . generate_argv( argc, value );
-                if ( argv != nullptr )
-                {
-                    // instead of this run the tool...
-                    for ( int i = 0; i < argc; ++i )
-                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-
-                    builder . free_argv( argc, argv );
-                }
-            }
-        }
-        return res;
+    int run() const override {
+        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
-
 };
 
-int impersonate_fasterq_dump( const Args &args )
+int impersonate_fasterq_dump(Args const &args, WhatImposter const &what)
 {
-    int res = 0;
-
-    // FastqerParams is a derived class of ToolOptions, defined in support2.hpp
-    FasterqParams params;
-    
-    Impersonator imp( args, "fasterq-dump", params );
-    res = imp . run();
-
-    return res;
+    FasterqParams params(what);
+    return Impersonator::run(args, params);
 }
 
 }

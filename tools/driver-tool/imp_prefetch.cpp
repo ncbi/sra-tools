@@ -27,10 +27,12 @@
 #include "cmdline.hpp"
 #include "support2.hpp"
 
+#define TOOL_NAME "prefetch"
+
 namespace sratools2
 {
 
-struct PrefetchParams : OptionBase
+struct PrefetchParams final : CmnOptAndAccessions
 {
     ncbi::String file_type;
     ncbi::String transport;
@@ -47,17 +49,18 @@ struct PrefetchParams : OptionBase
     ncbi::String ascp_options;
     ncbi::String output_file;
     ncbi::String output_dir;
-    
-    PrefetchParams()
-        : min_size_count( 0 ), min_size_value( 0 )
-        , max_size_count( 0 ), max_size_value( 0 )
-        , progress_count( 0 ), progress_value( 0 )
-        , eliminate_quals( false )
-        , check_all( false )
+
+    PrefetchParams(WhatImposter const &what)
+    : CmnOptAndAccessions(what)
+    , min_size_count( 0 ), min_size_value( 0 )
+    , max_size_count( 0 ), max_size_value( 0 )
+    , progress_count( 0 ), progress_value( 0 )
+    , eliminate_quals( false )
+    , check_all( false )
     {
     }
     
-    void add( ncbi::Cmdline &cmdline )
+    void add( ncbi::Cmdline &cmdline ) override
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
@@ -92,11 +95,11 @@ struct PrefetchParams : OptionBase
         cmdline . addOption ( output_dir, nullptr, "O", "output-directory", "<path>",
             "Save files to path/" );
 
+        CmnOptAndAccessions::add(cmdline);
     }
 
-    std::string as_string()
+    std::ostream &show(std::ostream &ss) const override
     {
-        std::stringstream ss;
         if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
         if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
         if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
@@ -109,13 +112,19 @@ struct PrefetchParams : OptionBase
         if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
         if ( !output_file.isEmpty() ) ss << "output-file: " << output_file << std::endl;
         if ( !output_dir.isEmpty() ) ss << "output-dir: " << output_dir << std::endl;
-        return ss.str();
+        return CmnOptAndAccessions::show(ss);
     }
 
-    void populate_argv_builder( ArgvBuilder & builder )
+    void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
+        (void)(acc_index); (void)(accessions);
+
+        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+
         if ( !file_type.isEmpty() ) builder . add_option( "-T", file_type );
         if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
+        if ( !perm_file.isEmpty() ) builder . add_option( "--perm", perm_file );
+        if ( !cart_file.isEmpty() ) builder . add_option( "--cart", cart_file );
         if ( min_size_count > 0 ) builder . add_option( "-N", min_size_value );
         if ( max_size_count > 0 ) builder . add_option( "-X", max_size_value );
         if ( !force.isEmpty() ) builder . add_option( "-f", force );
@@ -128,51 +137,22 @@ struct PrefetchParams : OptionBase
         if ( !output_dir.isEmpty() ) builder . add_option( "-O", output_dir );
     }
 
-    bool check()
+    bool check() const override
     {
         int problems = 0;
 
-        return ( problems == 0 );
+        return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
-    int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn )
-    {
-        int res = 0;
-
-        // instead of looping over the accessions, expand them and loop over the 
-        // expanded url's
-        for ( auto const &value : cmn . accessions )
-        {
-            if ( res == 0 )
-            {
-                int argc;
-                char ** argv = builder . generate_argv( argc, value );
-                if ( argv != nullptr )
-                {
-                    // instead of this run the tool...
-                    for ( int i = 0; i < argc; ++i )
-                        std::cout << "argv[" << i << "] = '" << argv[ i ] << "'" << std::endl;
-
-                    builder . free_argv( argc, argv );
-                }
-            }
-        }
-        return res;
+    int run() const override {
+        return ToolExecNoSDL::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
     }
-
 };
 
-int impersonate_prefetch( const Args &args )
+int impersonate_prefetch( const Args &args, WhatImposter const &what )
 {
-    int res = 0;
-
-    // PrefetchParams is a derived class of ToolOptions, defined in support2.hpp
-    PrefetchParams params;
-    
-    Impersonator imp( args, "prefetch", params );
-    res = imp . run();
-
-    return res;
+    PrefetchParams params(what);
+    return Impersonator::run(args, params);
 }
 
 }

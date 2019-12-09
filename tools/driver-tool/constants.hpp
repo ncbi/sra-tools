@@ -145,6 +145,13 @@ struct tool_name {
 struct resolver {
     static constexpr char const *version() { return "130"; }
     static constexpr char const *url() { return "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve"; }
+
+    /// @brief the current unstable version of SDL response JSON
+    ///
+    /// @Note THIS NEEDS TO TRACK ACTUAL SDL VALUE
+    static constexpr char const *unstable_version() {
+        return "2";
+    }
 };
 
 /// @brief environment variables for passing information to the driven tool

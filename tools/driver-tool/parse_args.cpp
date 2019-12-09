@@ -52,7 +52,7 @@ std::tuple<bool, std::string, ArgsList::iterator> matched(  std::string const &p
     auto value = std::string();
     auto next = std::next(i);
     
-    if (!hasPrefix(param, *i))
+    if (!starts_with(param, *i))
         goto DONE;
 
     if (len == arg.size()) {
@@ -199,7 +199,7 @@ ArgsList loadArgv(int argc, char *argv[])
     for (int i = 0; i < argc; ) {
         auto const arg = std::string(argv[i++]);
 
-        if (hasPrefix(optionFileParam, arg)) {
+        if (starts_with(optionFileParam, arg)) {
             auto optionfile = std::string();
             auto opt_eq_file = false;
             

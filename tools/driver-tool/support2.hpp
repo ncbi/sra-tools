@@ -31,71 +31,46 @@
 #include <string.h>
 #include <sstream>
 #include <cstdarg>
+#include <assert.h>
+#include <sysexits.h>
 
 #include "../../shared/toolkit.vers.h"
 #include "cmdline.hpp"
+#include "proc.hpp"
+#include "run-source.hpp"
+#include "debug.hpp"
+#include "which.hpp"
+#include "globals.hpp"
 
 namespace sratools2
 {
     struct Args
     {
-        const int _argc;
-        char ** _argv;
-        bool _testing;
+        int const argc;
+        char **const argv;
+        char *const orig_argv0;
 
-        Args ( int argc, char * argv [], const char * test_imp ) : 
-            _argc( argc ),
-            _argv( nullptr ),
-            _testing( ( test_imp != NULL ) && ( test_imp[ 0 ] != 0 ) )
+        Args ( int argc, char * argv [], char * test_imp )
+        : argc( argc )
+        , argv( argv )
+        , orig_argv0( argv[0] )
         {
-            if ( _testing )
-                copy_argv( argv, test_imp );
-            else
-                _argv = argv;
-        }
-
-        ~ Args ()
-        {
-            if ( _testing )
-            {
-                for ( int i = 0; i < _argc; ++i )
-                    free( _argv[ i ] );
-                free( _argv );
+            if (test_imp && test_imp[0]) {
+                argv[0] = test_imp;
             }
         }
 
         void print( void )
         {
-            std::cout << "main2() ( testing = " << _testing << " )" << std::endl;
-            for ( int i = 0; i < _argc; ++i )
-                std::cout << "argv[" << i << "] = " << _argv[ i ] << std::endl;
+            std::cout << "main2() ( orig_argv0 = " << orig_argv0 << " )" << std::endl;
+            for ( int i = 0; i < argc; ++i )
+                std::cout << "argv[" << i << "] = " << argv[ i ] << std::endl;
         }
-
-        void populate_entry( int idx, const char * src )
-        {
-            size_t l = strlen( src ) + 1;
-            _argv[ idx ] = ( char * )malloc( l );
-            strcpy( _argv[ idx ], src );
-        }
-
-        void copy_argv( char *argv[], const char * argv0 )
-        {
-            _argv = ( char ** )malloc( ( _argc + 1 ) * ( sizeof * _argv ) );
-            populate_entry( 0, argv0 );
-            for ( int i = 1; i < _argc; ++i )
-                populate_entry( i, argv[ i ] );
-            _argv[ _argc ] = NULL;
-        }
-
     };
 
     struct ArgvBuilder
     {
-        std::vector < std::string > parameters;
         std::vector < std::string > options;
-
-        void add_parameter( const std::string p ) { parameters.push_back( p ); }
-        void clear_parameters( void ) { parameters.clear(); }
 
         void add_option( const std::string &o ) { options.push_back( o ); }
         template < class T > void add_option( const std::string &o, const T &v )
@@ -105,7 +80,8 @@ namespace sratools2
             ss << v;
             options.push_back( ss.str() );
         }
-        void add_option( const std::string &o, std::vector < ncbi::String > &v )
+        template <>
+        void add_option( const std::string &o, std::vector < ncbi::String > const &v )
         {
             for ( auto const &value : v )
             {
@@ -114,19 +90,6 @@ namespace sratools2
             }
         }
         
-        void add_list_option( const std::string &o, char delim, std::vector< ncbi::String > &v )
-        {
-            options.push_back( o );
-            std::stringstream ss;
-            int i = 0;
-            for ( auto const &value : v )
-            {
-                if ( i++ > 0 ) ss << delim;
-                ss << value;
-            }
-            options.push_back( ss.str() );
-        }
-
         char * add_string( const std::string &src )
         {
             size_t l = src.length();
@@ -144,32 +107,14 @@ namespace sratools2
             return add_string( src.toSTLString() );
         }
 
-        char ** generate_argv( int &argc )
-        {
-            argc = 0;
-            int cnt = parameters.size() + options.size() + 1;
-            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
-            if ( res != nullptr )
-            {
-                for ( auto const &value : parameters )
-                    res[ argc++ ] = add_string( value );
-                for ( auto const &value : options )
-                    res[ argc++ ] = add_string( value );
-                res[ argc ] = nullptr;
-            }
-            return res;
-        }
-
         char ** generate_argv( int &argc, const std::string &argv0 )
         {
             argc = 0;
-            int cnt = parameters.size() + options.size() + 2;
+            auto cnt = options.size() + 2;
             char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
             if ( res != nullptr )
             {
                 res[ argc++ ] = add_string( argv0 );
-                for ( auto const &value : parameters )
-                    res[ argc++ ] = add_string( value );
                 for ( auto const &value : options )
                     res[ argc++ ] = add_string( value );
                 res[ argc ] = nullptr;
@@ -177,39 +122,14 @@ namespace sratools2
             return res;
         }
 
-        char ** generate_argv( int &argc, const ncbi::String &argv0 )
-        {
-            return generate_argv( argc, argv0 . toSTLString() );
-        }
-
-        char ** generate_argv( int &argc, std::vector< std::string > &args )
+        char ** generate_argv( int &argc, std::vector< ncbi::String > const &args )
         {
             argc = 0;
-            int cnt = parameters.size() + options.size() + args.size() + 1;
+            auto cnt = options.size() + args.size() + 1;
             char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
             if ( res != nullptr )
             {
                 for ( auto const &value : args )
-                    res[ argc++ ] = add_string( value );
-                for ( auto const &value : parameters )
-                    res[ argc++ ] = add_string( value );
-                for ( auto const &value : options )
-                    res[ argc++ ] = add_string( value );
-                res[ argc ] = nullptr;
-            }
-            return res;
-        }
-
-        char ** generate_argv( int &argc, std::vector< ncbi::String > &args )
-        {
-            argc = 0;
-            int cnt = parameters.size() + options.size() + args.size() + 1;
-            char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
-            if ( res != nullptr )
-            {
-                for ( auto const &value : args )
-                    res[ argc++ ] = add_string( value );
-                for ( auto const &value : parameters )
                     res[ argc++ ] = add_string( value );
                 for ( auto const &value : options )
                     res[ argc++ ] = add_string( value );
@@ -237,6 +157,7 @@ namespace sratools2
     struct WhatImposter
     {
         public :
+            const std::string _runpath;
             const std::string _basename;
             const std::string _requested_version;
             const std::string _toolkit_version;
@@ -244,6 +165,14 @@ namespace sratools2
             const bool _version_ok;
 
         private :
+            std::string extract_path( const char * src )
+            {
+                std::string res( src );
+                auto const t1 = res . find_last_of( '/' );
+                res.resize(t1 == std::string::npos ? 0 : t1);
+                return res;
+            }
+
             std::string extract_basename( const char * src )
             {
                 std::string res( src );
@@ -272,11 +201,10 @@ namespace sratools2
 
             std::string get_toolkit_version( void )
             {
-                std::stringstream ss;
-                ss << ( ( TOOLKIT_VERS ) >> 24 ) << '.';
-                ss << ( ( ( TOOLKIT_VERS ) >> 16 ) & 0xFF ) << '.';
-                ss << ( ( TOOLKIT_VERS ) & 0xFFFF );
-                return ss.str();
+                auto const major = ((TOOLKIT_VERS) >> 24) & 0xFF;
+                auto const minor = ((TOOLKIT_VERS)>> 16) & 0xFF;
+                auto const subvers = ( TOOLKIT_VERS ) & 0xFFFF;
+                return std::to_string(major) + '.' + std::to_string(minor) + '.' + std::to_string(subvers);
             }
 
             Imposter detect_imposter( const std::string &src )
@@ -314,7 +242,8 @@ namespace sratools2
 
         public :
             WhatImposter( const char * argv0 )
-                : _basename( extract_basename( argv0 ) )
+                : _runpath( extract_path(argv0) )
+                , _basename( extract_basename( argv0 ) )
                 , _requested_version( extract_version( argv0 ) )
                 , _toolkit_version( get_toolkit_version() )
                 , _imposter( detect_imposter( _basename ) )
@@ -322,10 +251,19 @@ namespace sratools2
             {
             }
 
+            std::string const &effective_version() const {
+                return _requested_version.empty() ? _toolkit_version : _requested_version;
+            }
+
+            std::string toolpath() const {
+                return sratools::which(_runpath, _basename, _basename + "-orig", effective_version());
+            }
+
             std::string as_string( void )
             {
                 std::stringstream ss;
                 ss << imposter_2_string( _imposter );
+                ss << " _runpath:" << _runpath;
                 ss << " _basename:" << _basename;
                 ss << " _requested_version:" << _requested_version;
                 ss << " _toolkit_version:" << _toolkit_version;
@@ -350,13 +288,13 @@ namespace sratools2
     {
         virtual ~OptionBase() {}
         
-        virtual std::string as_string() { return std::string( "" ); }
-        virtual void populate_argv_builder( ArgvBuilder & builder ) { }
-        virtual void add( ncbi::Cmdline &cmdline ) { }
-        virtual bool check() { return true; }
-        virtual int run( ArgvBuilder &builder, CmnOptAndAccessions &cmn ) { return 0; }
+        virtual std::ostream &show(std::ostream &os) const = 0;
+        virtual void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const = 0;
+        virtual void add( ncbi::Cmdline &cmdline ) = 0;
+        virtual bool check() const = 0;
+        virtual int run() const = 0;
 
-        void print_vec( std::stringstream &ss, std::vector < ncbi::String > &v, std::string name )
+        static void print_vec( std::ostream &ss, std::vector < ncbi::String > const &v, std::string const &name )
         {
             if ( v.size() > 0 )
             {
@@ -371,7 +309,7 @@ namespace sratools2
             }
         }
 
-        bool is_one_of( const ncbi::String &value, int count, ... )
+        static bool is_one_of( const ncbi::String &value, int count, ... )
         {
             bool res = false;
             int i = 0;
@@ -385,39 +323,52 @@ namespace sratools2
             va_end( args );
             return res;
         }
-        
+
+        static void print_unsafe_output_file_message(char const *const toolname, char const *const extension, std::vector<ncbi::String> const &accessions)
+        {
+            // since we know the user asked that tool output go to a file,
+            // we can safely use cout to talk to the user.
+            std::cout
+            << toolname << " can not produce valid output from more than one\n"
+            "run into a single file.\n"
+            "The following output files will be created instead:\n";
+            for (auto const &acc : accessions) {
+                std::cout << "\t" << acc << extension << "\n";
+            }
+            std::cout << std::endl;
+        }
     };
 
     struct CmnOptAndAccessions : OptionBase
     {
-        ncbi::String toolname;
+        WhatImposter const &what;
         std::vector < ncbi::String > accessions;
         ncbi::String ngc_file;
-        ncbi::String kar_file;
         ncbi::String perm_file;
         ncbi::String location;
+        ncbi::String cart_file;
         bool disable_multithreading, version, quiet;
-        std::vector < ncbi::String > debug;
+        std::vector < ncbi::String > debugFlags;
         ncbi::String log_level;
         ncbi::String option_file;
 
-        CmnOptAndAccessions( const ncbi::String & the_toolname )
-            : toolname( the_toolname )
-            , disable_multithreading( false )
-            , version( false )
-            , quiet( false )
+        CmnOptAndAccessions(WhatImposter const &what)
+        : what(what)
+        , disable_multithreading( false )
+        , version( false )
+        , quiet( false )
         {
 
         }
         
-        void add( ncbi::Cmdline &cmdline )
+        void add( ncbi::Cmdline &cmdline ) override
         {
             cmdline . addParam ( accessions, 0, 256, "accessions(s)", "list of accessions to process" );
             cmdline . addOption ( ngc_file, nullptr, "", "ngc", "<path>", "<path> to ngc file" );
-            cmdline . addOption ( kar_file, nullptr, "", "kar", "<path>", "<path> to kar file" );
             cmdline . addOption ( perm_file, nullptr, "", "perm", "<path>", "<path> to permission file" );
             cmdline . addOption ( location, nullptr, "", "location", "<location>", "location in cloud" );
-            
+            cmdline . addOption ( cart_file, nullptr, "", "cart", "<path>", "<path> to cart file" );
+
             cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
             cmdline . addOption ( version, "V", "version", "Display the version of the program" );
 
@@ -426,10 +377,10 @@ namespace sratools2
             cmdline . addOption ( quiet, "q", "quiet",
                 "Turn off all status messages for the program. Negated by verbose." );
             */
-
+#if _DEBUGGING
             cmdline . addListOption( debug, ',', 255, "+", "debug", "<Module[-Flag]>",
                 "Turn on debug output for module. All flags if not specified." );
-
+#endif
             cmdline . addOption ( log_level, nullptr, "L", "log-level", "<level>",
                 "Logging level as number or enum string. One of (fatal|sys|int|err|warn|info|debug) or "
                 "(0-6) Current/default is warn" );
@@ -437,32 +388,33 @@ namespace sratools2
                 "Read more options and parameters from the file." );
         }
 
-        std::string as_string()
+        std::ostream &show(std::ostream &ss) const override
         {
-            std::stringstream ss;
-            for ( auto const& value : accessions )
+            for ( auto & value : accessions )
                 ss << "acc  = " << value << std::endl;
             if ( !ngc_file.isEmpty() )  ss << "ngc-file : " << ngc_file << std::endl;
-            if ( !kar_file.isEmpty() )  ss << "kar-file : " << kar_file << std::endl;
             if ( !perm_file.isEmpty() ) ss << "perm-file: " << perm_file << std::endl;
             if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
             if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
             if ( version ) ss << "version" << std::endl;
-            print_vec( ss, debug, "debug modules:" );
+            print_vec( ss, debugFlags, "debug modules:" );
             if ( !log_level.isEmpty() ) ss << "log-level: " << log_level << std::endl;
             if ( !option_file.isEmpty() ) ss << "option-file: " << option_file << std::endl;
-            return ss.str();
+            return ss;
         }
 
-        void populate_argv_builder( ArgvBuilder & builder )
+        void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
         {
-            builder . add_option( "-+", debug );
+            builder . add_option( "-+", debugFlags );
             if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
             if ( !log_level.isEmpty() ) builder . add_option( "-L", log_level );
             if ( !option_file.isEmpty() ) builder . add_option( "--option-file", option_file );
+            if (!ngc_file.isEmpty()) builder.add_option("--ngc", ngc_file);
+
+            (void)(acc_index); (void)(accessions);
         }
         
-        bool check()
+        bool check() const override
         {
             int problems = 0;
             if ( !log_level.isEmpty() )
@@ -480,87 +432,174 @@ namespace sratools2
         }
     };
 
-    int impersonate_fasterq_dump( const Args &args );
-    int impersonate_fastq_dump( const Args &args );
-    int impersonate_srapath( const Args &args );
-    int impersonate_prefetch( const Args &args );
-    int impersonate_sra_pileup( const Args &args );
-    int impersonate_sam_dump( const Args &args );
+    struct ToolExec {
+    private:
+        static std::vector<std::string> convert(std::vector<ncbi::String> const &other)
+        {
+            auto result = std::vector<std::string>();
+            result.reserve(other.size());
+            for (auto & s : other) {
+                result.emplace_back(s.toSTLString());
+            }
+            return result;
+        }
+        static bool exec_wait(char const *toolpath, char const *toolname, char **argv, sratools::data_source const &src)
+        {
+            auto const child = sratools::process::run_child([&]() {
+                src.set_environment();
+                sratools::exec(toolpath, toolname, argv);
+            });
+            auto const result = child.wait();
+            if (result.exited()) {
+                if (result.exit_code() == 0) { // success, process next run
+                    return true;
+                }
+
+                if (result.exit_code() == EX_TEMPFAIL)
+                    return false; // try next source
+
+                std::cerr << toolname << " (PID " << child.get_pid() << ") quit with error code " << result.exit_code() << std::endl;
+                exit(result.exit_code());
+            }
+
+            if (result.signaled()) {
+                std::cerr << toolname << " (PID " << child.get_pid() << ") was killed (signal " << result.termsig() << ")";
+                std::cerr << std::endl;
+                abort();
+            }
+            assert(!"reachable");
+            abort();
+        }
+    public:
+        static int run(char const *toolpath, char const *toolname, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
+        {
+            auto const s_location = tool_options.location.toSTLString();
+            auto const s_perm = tool_options.perm_file.toSTLString();
+            auto const s_ngc = tool_options.ngc_file.toSTLString();
+
+            sratools::location = s_location.empty() ? nullptr : &s_location;
+            sratools::perm = s_perm.empty() ? nullptr : &s_perm;
+            sratools::ngc = s_ngc.empty() ? nullptr : &s_ngc;
+
+            // talk to SDL
+            auto all_sources = sratools::data_sources::preload(convert(accessions));
+
+            sratools::location = nullptr;
+            sratools::perm = nullptr;
+            sratools::ngc = nullptr;
+
+            all_sources.set_ce_token_env_var();
+
+            int i = 0;
+            for (auto const &acc : accessions) {
+                auto const &sources = all_sources.sourcesFor(acc.toSTLString());
+                if (sources.empty())
+                    continue; // data_sources::preload already complained
+
+                ArgvBuilder builder;
+                tool_options . populate_argv_builder( builder, i++, accessions );
+                builder.add_option(acc.toSTLString());
+
+                int argc = 0;
+                char **argv = builder.generate_argv(argc, std::string(toolname));
+                auto success = false;
+
+                for (auto &src : sources) {
+                    // run tool and wait for it to exit
+                    success = exec_wait(toolpath, toolname, argv, src);
+                    if (success) {
+                        LOG(2) << "Processed " << acc << " with data from " << src.service() << std::endl;
+                        break;
+                    }
+                    LOG(1) << "Failed to get data for " << acc << " from " << src.service() << std::endl;
+                }
+
+                builder.free_argv(argc, argv);
+
+                if (!success) {
+                    std::cerr << "Could not get any data for " << acc << ", tried to get data from:" << std::endl;
+                    for (auto i : sources) {
+                        std::cerr << '\t' << i.service() << std::endl;
+                    }
+                    std::cerr << "This may be temporary, you should retry later." << std::endl;
+                    return EX_TEMPFAIL;
+                }
+            }
+            return 0;
+        }
+    };
+
+    struct ToolExecNoSDL {
+        static int run(char const *toolpath, char const *toolname, OptionBase const &tool_options, std::vector<ncbi::String> const &accessions)
+        {
+            ArgvBuilder builder;
+
+            builder.add_option(toolname);
+            tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
+            int argc = 0;
+            char **argv = builder.generate_argv(argc, accessions);
+
+            sratools::execve(toolpath, argv);
+
+            // exec returned! something went wrong
+            auto const error = std::error_code(errno, std::system_category());
+
+            builder.free_argv(argc, argv);
+
+            throw std::system_error(error, std::string("Failed to exec ")+toolpath);
+        }
+    };
+
+    int impersonate_fasterq_dump( Args const &args, WhatImposter const &what );
+    int impersonate_fastq_dump( Args const &args, WhatImposter const &what );
+    int impersonate_srapath( Args const &args, WhatImposter const &what );
+    int impersonate_prefetch( Args const &args, WhatImposter const &what );
+    int impersonate_sra_pileup( Args const &args, WhatImposter const &what );
+    int impersonate_sam_dump( Args const &args, WhatImposter const &what );
 
     struct Impersonator
     {
-        const Args &args;
-        const ncbi::String &toolname;
-        OptionBase &tool_options;
-
-        Impersonator( const Args &_args, const ncbi::String &_toolname, OptionBase &_tool_options )
-            : args( _args ), toolname( _toolname ), tool_options( _tool_options )
+    private:
+        static inline void preparse(ncbi::Cmdline &cmdline) { cmdline.parse(true); }
+        static inline void parse(ncbi::Cmdline &cmdline) { cmdline.parse(); }
+    public:
+        static int run(Args const &args, OptionBase &tool_options)
         {
-        }
+            try {
+                // Cmdline is a class defined in cmdline.hpp
+                ncbi::Cmdline cmdline(args.argc, args.argv);
 
-        int run( void )
-        {
-            int res = 0;
-            
-            // Cmdline is a class defined in cmdline.hpp
-            ncbi::Cmdline cmdline( args . _argc, args . _argv );
-            
-            // CmnOptAndAccessions is defined in support2.hpp
-            CmnOptAndAccessions cmn_options( toolname );
-
-            // add all the tool-specific options to the parser ( first )
-            tool_options . add( cmdline );
-
-            // add all common options and the parameters to the parser
-            cmn_options . add( cmdline );
-
-            try
-            {
                 // let the parser parse the original args,
                 // and let the parser handle help,
                 // and let the parser write all values into cmn and params
-                
-                // preparsing...
-                cmdline . parse ( true );
 
-                // full parsing
-                cmdline . parse ();
+                // add all the tool-specific options to the parser ( first )
+                tool_options.add(cmdline);
+
+                preparse(cmdline);
+                parse(cmdline);
 
                 // pre-check the options, after the input has been parsed!
                 // give the tool-specific class an opportunity to check and change values
-                if ( !tool_options . check() )
-                    return 3;
+                if (!tool_options.check())
+                    return EX_USAGE;
 
-                if ( !cmn_options . check() )
-                    return 3;
-
-                // just to see what we got
-                // std::cout << tool_options . as_string() << cmn_options . as_string() << std::endl;
-
-                // create an argv-builder 
-                ArgvBuilder builder;
-                // add all options from both to the builder
-                tool_options . populate_argv_builder( builder );
-                cmn_options . populate_argv_builder( builder );
-
-                // at this point we have everything in place to execute
-                // the tool on all accessions:
-                // cmn_options . accessions has to be expanded ( resolve containers )
-                // ( ngs/kar/perm/location is available in cmn_options )
-                // cmn_options . toolname is the name of the tool to execute
-                // argv is the sanitized new argument-vector to be passed on to the tool
-
-                // call the tool-specific way to run the tool
-                res = tool_options . run ( builder, cmn_options );
-
+                return tool_options.run();
             }
             catch ( ncbi::Exception const &e )
             {
-                std::cerr << "An error occured: " << e.what() << std::endl;
+                // std::cerr << "An error occured: " << e.what() << std::endl;
+                return EX_USAGE;
             }
-
-            return res;
+            catch (std::exception const &e) {
+                std::cerr << "An error occured: " << e.what() << std::endl;
+                return EX_TEMPFAIL;
+            }
+            catch (...) {
+                std::cerr << "An error occured" << std::endl;
+                return EX_TEMPFAIL;
+            }
         }
     };
-    
+
 } // namespace...

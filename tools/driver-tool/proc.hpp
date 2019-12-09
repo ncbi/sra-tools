@@ -239,21 +239,6 @@ static inline int execve(char const *path, char const *const *argv, char const *
 /// @brief prepares argv and calls exec; does not return
 ///
 /// @param toolname the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath the full path to the tool, also uses for argv[0], e.g. /path/to/fastq-dump-orig
-/// @param parameters list of parameters (name-value pairs)
-/// @param arguments list of strings
-///
-/// @throw system_error if exec fails
-extern
-void exec [[noreturn]] (  std::string const &toolname
-                        , std::string const &toolpath
-                        , ParamList const &parameters
-                        , ArgsList const &arguments);
-
-
-/// @brief prepares argv and calls exec; does not return
-///
-/// @param toolname the user-centric name of the tool, e.g. fastq-dump
 /// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
 /// @param argv0 use this for argv[0]
 /// @param parameters list of parameters (name-value pairs)
@@ -266,24 +251,6 @@ void exec [[noreturn]] (  std::string const &toolname
                         , std::string const &argv0
                         , ParamList const &parameters
                         , ArgsList const &arguments);
-
-
-/// @brief prepares argv and calls exec; does not return
-///
-/// @param toolname the user-centric name of the tool, e.g. fastq-dump
-/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
-/// @param parameters list of parameters (name-value pairs)
-/// @param argument a string
-///
-/// @throw system_error if exec fails
-static inline
-void exec [[noreturn]] (  std::string const &toolname
-                        , std::string const &toolpath
-                        , ParamList const &parameters
-                        , ArgsList::value_type const &argument)
-{
-    exec(toolname, toolpath, parameters, ArgsList({ argument }));
-}
 
 
 /// @brief prepares argv and calls exec; does not return
@@ -304,5 +271,16 @@ void exec [[noreturn]] (  std::string const &toolname
 {
     exec(toolname, toolpath, argv0, parameters, ArgsList({ argument }));
 }
+
+/// @brief calls exec; does not return
+///
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param argv argv
+///
+/// @throw system_error if exec fails
+void exec [[noreturn]] (char const *const toolpath,
+                        char const *const toolname,
+                        char const *const *const argv);
 
 } // namespace sratools

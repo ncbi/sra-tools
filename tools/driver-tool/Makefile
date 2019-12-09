@@ -84,14 +84,10 @@ SRATOOLS_SRC = \
 	imp_sra_pileup \
 	imp_srapath \
 	cmdline \
-	split_path \
 	config \
 	proc \
 	which \
-	tool-args \
-	parse_args \
 	run-source \
-	fastq-dump \
 	uuid
 
 SRATOOLS_OBJ = \

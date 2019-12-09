@@ -1464,7 +1464,10 @@ namespace ncbi
             }
             mode = save;
         }
+        version ( );
+    }
 
+    void Cmdline :: version () {
         std :: cout
             << '\n'
             << '"'

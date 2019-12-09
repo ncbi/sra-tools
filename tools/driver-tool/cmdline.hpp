@@ -85,6 +85,7 @@ namespace ncbi
         void help ( bool all_modes = false );
         void shortHelp ( const char * short_name );
         void longHelp ( const char * short_name );
+        void version ();
 
         Cmdline ( int argc, char * argv [] );
         Cmdline ( int argc, char * argv [], const String & vers );

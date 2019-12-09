@@ -50,10 +50,10 @@ namespace sratools2
         char **const argv;
         char *const orig_argv0;
 
-        Args ( int argc, char * argv [], char * test_imp )
-        : argc( argc )
-        , argv( argv )
-        , orig_argv0( argv[0] )
+        Args ( int argc_, char * argv_ [], char * test_imp )
+        : argc( argc_ )
+        , argv( argv_ )
+        , orig_argv0( argv_[0] )
         {
             if (test_imp && test_imp[0]) {
                 argv[0] = test_imp;
@@ -562,11 +562,12 @@ namespace sratools2
         static inline void preparse(ncbi::Cmdline &cmdline) { cmdline.parse(true); }
         static inline void parse(ncbi::Cmdline &cmdline) { cmdline.parse(); }
     public:
-        static int run(Args const &args, OptionBase &tool_options)
+        static int run(Args const &args, CmnOptAndAccessions &tool_options)
         {
             try {
                 // Cmdline is a class defined in cmdline.hpp
-                ncbi::Cmdline cmdline(args.argc, args.argv);
+                auto const version = tool_options.what.effective_version();
+                ncbi::Cmdline cmdline(args.argc, args.argv, version.c_str());
 
                 // let the parser parse the original args,
                 // and let the parser handle help,
@@ -579,10 +580,14 @@ namespace sratools2
                 parse(cmdline);
 
                 // pre-check the options, after the input has been parsed!
-                // give the tool-specific class an opportunity to check and change values
+                // give the tool-specific class an opportunity to check values
                 if (!tool_options.check())
                     return EX_USAGE;
 
+                if (tool_options.version) {
+                    cmdline.version();
+                    return 0;
+                }
                 return tool_options.run();
             }
             catch ( ncbi::Exception const &e )

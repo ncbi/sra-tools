@@ -35,8 +35,9 @@ namespace sratools2
 {
     std::string runpath_from_argv0( int argc, char *argv[] )
     {
-        Args args( argc, argv, getenv( "SRATOOLS_IMPERSONATE" ) );
-        WhatImposter what( args . argv[ 0 ] );
+        auto const impersonate = getenv( "SRATOOLS_IMPERSONATE" );
+        auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
+        WhatImposter what( argv0 );
         return what._runpath;
     }
 

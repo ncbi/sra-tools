@@ -414,68 +414,67 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
         auto const response = get_SDL_response(service, runs, result.have_ce_token);
         LOG(8) << "SDL response:\n" << response << std::endl;
 
-        try {
-            auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
-            auto const &obj = jvRef->toObject();
-            auto const version = getString(obj, "version");
-            auto const version_is = [&](std::string const &vers) {
-                return version == vers || (version == "unstable" && vers == resolver::unstable_version());
-            };
+        auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
+        auto const &obj = jvRef->toObject();
+        auto const version = getString(obj, "version");
+        auto const version_is = [&](std::string const &vers) {
+            return version == vers || (version == "unstable" && vers == resolver::unstable_version());
+        };
         
-            if (version_is("2")) {
-                auto const &raw = Response2(obj);
-                LOG(7) << "Parsed SDL Response" << std::endl;
+        if (version_is("2")) {
+            auto const &raw = Response2(obj);
+            LOG(7) << "Parsed SDL Response" << std::endl;
             
-                for (auto &sdl_result : raw.result) {
-                    auto const &accession = sdl_result.accession;
+            for (auto &sdl_result : raw.result) {
+                auto const &accession = sdl_result.accession;
 #if 0
-                    auto const localInfo = local.find(accession);
+                auto const localInfo = local.find(accession);
 #endif
 
-                    LOG(6) << "Accession " << accession << " " << sdl_result.status << " " << sdl_result.message << std::endl;
-                    if (sdl_result.status == "200") {
-                        unsigned added = 0;
-                        sdl_result.process(accession, response, [&](data_source &&source) {
-                                if (havePerm && source.encrypted()) {
-                                    std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
-                                }
-                                else {
-                                    result.addSource(std::move(source));
-                                    added += 1;
-                                }
-                            });
-#if 0
-                        local.erase(localInfo); // remove since we used it here
-#endif
-                        if (added == 0) {
-                            std::cerr
-                                << "Accession " << accession << " might be available in a different region or on a different cloud provider." << std::endl
-                                << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                LOG(6) << "Accession " << accession << " " << sdl_result.status << " " << sdl_result.message << std::endl;
+                if (sdl_result.status == "200") {
+                    unsigned added = 0;
+                    sdl_result.process(accession, response, [&](data_source &&source) {
+                        if (havePerm && source.encrypted()) {
+                            std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
                         }
-                    }
+                        else {
+                            result.addSource(std::move(source));
+                            added += 1;
+                        }
+                    });
 #if 0
-                    else if (sdl_result.status == "404" && localInfo->second.rundata) {
-                        // use the local data (see below)
-                    }
+                    local.erase(localInfo); // remove since we used it here
 #endif
-                    else {
-                        std::cerr << "Accession " << accession << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
+                    if (added == 0) {
+                        std::cerr
+                        << "Accession " << accession << " might be available in a different region or on a different cloud provider." << std::endl
+                        << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
                     }
                 }
-            }
-            else {
-                throw SDL_unexpected_error(std::string("unexpected version ") + version);
+#if 0
+                else if (sdl_result.status == "404" && localInfo->second.rundata) {
+                    // use the local data (see below)
+                }
+#endif
+                else {
+                    std::cerr << "Accession " << accession << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
+                }
             }
         }
-        catch (SDL_unexpected_error const &e) {
-            throw e;
-        }
-        catch (...) {
-            throw SDL_unexpected_error("unparsable response");
+        else {
+            throw SDL_unexpected_error(std::string("unexpected version ") + version);
         }
     }
-    catch (std::exception const &e) {
+    catch (vdb::exception const &e) {
         LOG(1) << "Failed to talk to SDL" << std::endl;
+        LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+    }
+    catch (SDL_unexpected_error const &e) {
+        throw e;
+    }
+    catch (...) {
+        throw SDL_unexpected_error("unparsable response");
     }
     // try to make sources for local files
     for (auto const &info : local) {

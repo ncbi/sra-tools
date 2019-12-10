@@ -34,66 +34,87 @@ namespace sratools2
 
 struct SamDumpParams final : CmnOptAndAccessions
 {
-    bool unaligned, primary, cigar_long, cigar_cg, header;
-    ncbi::String header_file;
-    bool no_header, seq_id, hide_identical, gzip, bzip, spot_group;
-    bool fastq, fasta, reverse, cigar_cg_merge, xi;
-    bool cg_evidence, cg_ev_dnb, cg_mappings, cg_sam, report;
     std::vector < ncbi::String > header_comments;
     std::vector < ncbi::String > aligned_regions;
+    ncbi::String header_file;
     ncbi::String matepair_dist;
     ncbi::String prefix;
     ncbi::String qual_quant;
     ncbi::String output_file;
+    ncbi::String rna_splice_log;
     ncbi::U32 out_buf_size_count;
     ncbi::U32 out_buf_size;
-    bool cache_report, unaligned_only, cg_names;
     ncbi::U32 cursor_cache_count;
     ncbi::U32 cursor_cache_size;
     ncbi::U32 min_mapq_count;
     ncbi::U32 min_mapq;
-    bool no_mate_cache, rna_splicing;
     ncbi::U32 rna_splice_level_count;
     ncbi::U32 rna_splice_level;
-    ncbi::String rna_splice_log;
+    bool unaligned;
+    bool primary;
+    bool cigar_long;
+    bool cigar_cg;
+    bool header;
+    bool no_header;
+    bool seq_id;
+    bool hide_identical;
+    bool gzip;
+    bool bzip;
+    bool spot_group;
+    bool fastq;
+    bool fasta;
+    bool reverse;
+    bool cigar_cg_merge;
+    bool xi;
+    bool cg_evidence;
+    bool cg_ev_dnb;
+    bool cg_mappings;
+    bool cg_sam;
+    bool report;
+    bool cache_report;
+    bool unaligned_only;
+    bool cg_names;
+    bool no_mate_cache;
+    bool rna_splicing;
     bool md_flag;
     
     SamDumpParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
-    , unaligned( false )
-    , primary( false )
-    , cigar_long( false )
-    , cigar_cg( false )
-    , header( false )
-    , no_header( false )
-    , seq_id( false )
-    , hide_identical( false )
-    , gzip( false )
-    , bzip( false )
-    , spot_group( false )
-    , fastq( false )
-    , fasta( false )
-    , reverse( false )
-    , cigar_cg_merge( false )
-    , cg_evidence( false )
-    , cg_ev_dnb( false )
-    , cg_mappings( false )
-    , cg_sam( false )
-    , report( false )
-    , out_buf_size_count( 0 )
-    , out_buf_size( 0 )
-    , cache_report( false )
-    , unaligned_only( false )
-    , cg_names( false )
-    , cursor_cache_count( 0 )
-    , cursor_cache_size( 0 )
-    , min_mapq_count( 0 )
-    , min_mapq( 0 )
-    , no_mate_cache( false )
-    , rna_splicing( false )
-    , rna_splice_level_count( 0 )
-    , rna_splice_level( 0 )
-    , md_flag( false )
+    , out_buf_size_count(0)
+    , out_buf_size(0)
+    , cursor_cache_count(0)
+    , cursor_cache_size(0)
+    , min_mapq_count(0)
+    , min_mapq(0)
+    , rna_splice_level_count(0)
+    , rna_splice_level(0)
+    , unaligned(false)
+    , primary(false)
+    , cigar_long(false)
+    , cigar_cg(false)
+    , header(false)
+    , no_header(false)
+    , seq_id(false)
+    , hide_identical(false)
+    , gzip(false)
+    , bzip(false)
+    , spot_group(false)
+    , fastq(false)
+    , fasta(false)
+    , reverse(false)
+    , cigar_cg_merge(false)
+    , xi(false)
+    , cg_evidence(false)
+    , cg_ev_dnb(false)
+    , cg_mappings(false)
+    , cg_sam(false)
+    , report(false)
+    , cache_report(false)
+    , unaligned_only(false)
+    , cg_names(false)
+    , no_mate_cache(false)
+    , rna_splicing(false)
+    , md_flag(false)
     {
     }
 

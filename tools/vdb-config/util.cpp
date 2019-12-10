@@ -25,7 +25,9 @@
 */
 
 #include <kfg/kfg-priv.h> /* KConfigFixMainResolverCgiNode */
+
 #include <klib/printf.h> /* string_printf */
+#include <klib/strings.h> /* SDL_CGI */
 
 #include "util.hpp" // CStdIn
 
@@ -366,8 +368,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     {
         const string name("/repository/remote/main/SDL.2/resolver-cgi");
         if (!NodeExists(name)) {
-            rc_t r2 = UpdateNode(name,
-                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve");
+            rc_t r2 = UpdateNode(name, SDL_CGI);
             if (r2 != 0 && rc == 0)
                 rc = r2;
         }
@@ -376,8 +377,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     {
         const string name("/repository/remote/protected/SDL.2/resolver-cgi");
         if (!NodeExists(name)) {
-            rc_t r2 = UpdateNode(name,
-                "https://trace.ncbi.nlm.nih.gov/Traces/sdl/2/retrieve");
+            rc_t r2 = UpdateNode(name, SDL_CGI);
             if (r2 != 0 && rc == 0)
                 rc = r2;
         }

@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 #include <exception>
+#include <stdexcept>
 
 namespace vdb {
 class exception : public std::runtime_error {

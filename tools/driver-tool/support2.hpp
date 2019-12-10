@@ -128,9 +128,9 @@ namespace sratools2
             char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
             if ( res != nullptr )
             {
-                for ( auto const &value : args )
-                    res[ argc++ ] = add_string( value );
                 for ( auto const &value : options )
+                    res[ argc++ ] = add_string( value );
+                for ( auto const &value : args )
                     res[ argc++ ] = add_string( value );
                 res[ argc ] = nullptr;
             }
@@ -538,7 +538,7 @@ namespace sratools2
             int argc = 0;
             char **argv = builder.generate_argv(argc, accessions);
 
-            sratools::execve(toolpath, argv);
+            sratools::exec(toolpath, toolname, argv);
 
             // exec returned! something went wrong
             auto const error = std::error_code(errno, std::system_category());

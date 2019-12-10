@@ -105,6 +105,7 @@ public:
     Response response(std::string const &url, std::string const &version) const;
 #endif
 
+    static bool haveCloudProvider();
     static std::string CE_Token();
 };
 }

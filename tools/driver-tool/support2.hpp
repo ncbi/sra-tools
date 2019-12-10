@@ -41,6 +41,7 @@
 #include "debug.hpp"
 #include "which.hpp"
 #include "globals.hpp"
+#include "service.hpp"
 
 namespace sratools2
 {
@@ -427,6 +428,15 @@ namespace sratools2
                 }
             }
             // we could check if ngc/kar/perm-files do actually exist...
+
+            if (!perm_file.isEmpty() && !sratools::config->canSendCEToken()) {
+                ++problems;
+                std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
+            }
+            if (!perm_file.isEmpty() && !vdb::Service::haveCloudProvider()) {
+                ++problems;
+                std::cerr << "--perm requires a cloud instance identity, but a cloud instance identity could not be found. Please run inside of a cloud." << std::endl;
+            }                
             return ( problems == 0 );
         }
     };

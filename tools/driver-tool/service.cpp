@@ -54,7 +54,16 @@ namespace vdb {
                     throw exception(rc, "CloudMgrMake", "");
             }
             ~Manager() { CloudMgrRelease(mgr); }
-            
+
+            bool haveCloudProvider() const {
+                ::Cloud *cloud = nullptr;
+                CloudMgrGetCurrentCloud(mgr, &cloud);
+                if (cloud) {
+                    CloudRelease(cloud);
+                    return true;
+                }
+                return false;
+            }
             ::Cloud *current() const {
                 ::Cloud *result = nullptr;
                 auto const rc = CloudMgrGetCurrentCloud(mgr, &result);
@@ -69,6 +78,10 @@ namespace vdb {
         Cloud() {
             auto const &mgr = Manager();
             obj = mgr.current();
+        }
+        static bool haveProvider() {
+            auto const &mgr = Manager();
+            return mgr.haveCloudProvider();
         }
         std::string token() const {
             auto result = std::string();
@@ -227,6 +240,9 @@ namespace vdb {
 
 #endif
 
+    bool Service::haveCloudProvider() {
+        return Cloud::haveProvider();
+    }
     std::string Service::CE_Token() {
         try {
             auto const &cloud = Cloud();

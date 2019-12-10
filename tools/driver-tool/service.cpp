@@ -43,6 +43,23 @@
     #include <cloud/manager.h>
 
 namespace vdb {
+class exception : public std::runtime_error {
+    std::string from;
+    uint32_t rc;
+public:
+    uint32_t resultCode() const { return rc; }
+    std::string const &failedCall() const { return from; }
+    exception(uint32_t rc, char const *from, char const *what)
+    : std::runtime_error(what)
+    , from(from)
+    , rc(rc)
+    {}
+    exception(uint32_t rc, std::string const &from, std::string const &what)
+    : std::runtime_error(what)
+    , from(from)
+    , rc(rc)
+    {}
+};
 
     class Cloud {
         class Manager {

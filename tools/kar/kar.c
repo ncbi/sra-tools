@@ -364,6 +364,14 @@ void kar_entry_whack ( BSTNode *node, void *data )
 {
     KAREntry *entry = ( KAREntry * ) node;
 
+    if ( ( entry -> type & ( ~kptAlias ) ) == kptDir ) {
+        BSTreeWhack (
+                    & ( ( KARDir * ) entry ) -> contents,
+                    kar_entry_whack,
+                    NULL
+                    );
+    }
+
     /* do the cleanup */
     switch ( entry -> type )
     {
@@ -1095,6 +1103,26 @@ void kar_write_toc ( KARArchiveFile * af, const BSTree * tree )
     {
         LogErr ( klogInt, rc, "Failed to determine TOC size" );
         exit(5);
+    }
+
+    if ( af -> starting_pos > af -> pos ) {
+            /* It would be better to use KFileSetSize,
+             * however, md5 file can only shrunk files.
+             */
+        uint32_t BF = 0;
+        rc = KFileWriteAll (
+                            af -> archive,
+                            af -> pos,
+                            & BF,
+                            af -> starting_pos - af -> pos,
+                            NULL
+                            );
+        if ( rc != 0 ) {
+            LogErr ( klogInt, rc, "Failed to write TOC" );
+            exit(5);
+        }
+
+        af -> pos = af -> starting_pos;
     }
 
     STATUS ( STAT_QA, "toc written" );
@@ -1841,6 +1869,13 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
         if ( rc != 0 )
         {
             pLogErr (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
+            exit ( 4 );
+        }
+
+        if ( num_read == 0 && to_read != 0 ) {
+            /*  we reached end of file, and we still need more data
+             */
+            pLogErr (klogErr, rc, "end of file reached while reading from archive '$(fname)'", "fname=%s", src -> dad . name );
             exit ( 4 );
         }
         

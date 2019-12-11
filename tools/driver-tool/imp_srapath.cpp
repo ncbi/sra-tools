@@ -116,6 +116,10 @@ struct SrapathParams final : CmnOptAndAccessions
         if ( !project.isEmpty() ) builder . add_option( "-d", project );
         if ( resolve_cache ) builder . add_option( "-c" );
         if ( print_path ) builder . add_option( "-P" );
+
+        // srapath get perm and location
+        if (!perm_file.isEmpty()) builder.add_option("--perm", perm_file);
+        if (!location.isEmpty()) builder.add_option("--location", perm_file);
     }
 
     bool check() const override

@@ -35,7 +35,7 @@ namespace sratools2
 struct PrefetchParams final : CmnOptAndAccessions
 {
     ncbi::String file_type;
-    ncbi::String transport;
+    //ncbi::String transport;
     ncbi::U32 min_size_count;
     ncbi::U32 min_size_value;
     ncbi::U32 max_size_count;
@@ -64,10 +64,11 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
+        /*
         cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
             "Transport: one of: fasp; http; both. (fasp only; http only; first try fasp (ascp), use "
             "http if cannot download using fasp). Default: both" );
-
+        */
         cmdline . addOption ( min_size_value, &min_size_count, "N", "min_size", "<size>",
             "Minimum file size to download in KB (inclusive)." );
         cmdline . addOption ( max_size_value, &max_size_count, "X", "max_size", "<size>",
@@ -101,7 +102,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     std::ostream &show(std::ostream &ss) const override
     {
         if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
-        if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
+        // if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
         if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
         if ( max_size_count > 0 ) ss << "max-size: " << max_size_value << std::endl;
         if ( !force.isEmpty() ) ss << "force: " << force << std::endl;
@@ -122,7 +123,7 @@ struct PrefetchParams final : CmnOptAndAccessions
         CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
 
         if ( !file_type.isEmpty() ) builder . add_option( "-T", file_type );
-        if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
+        //if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
         if ( !perm_file.isEmpty() ) builder . add_option( "--perm", perm_file );
         if ( !cart_file.isEmpty() ) builder . add_option( "--cart", cart_file );
         if ( min_size_count > 0 ) builder . add_option( "-N", min_size_value );

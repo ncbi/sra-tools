@@ -136,6 +136,9 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( !ascp_options.isEmpty() ) builder . add_option( "--ascp_options", ascp_options );
         if ( !output_file.isEmpty() ) builder . add_option( "-o", output_file );
         if ( !output_dir.isEmpty() ) builder . add_option( "-O", output_dir );
+        
+        // permanently pin the transport option to 'http'
+        builder . add_option( "-t", "http" );
     }
 
     bool check() const override

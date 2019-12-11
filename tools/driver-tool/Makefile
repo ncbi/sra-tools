@@ -76,20 +76,26 @@ $(ILIBDIR)/libjson.$(LIBX):
 
 SRATOOLS_SRC = \
 	sratools \
-	split_path \
+	sratools2 \
+	imp_fasterq_dump \
+	imp_fastq_dump \
+	imp_prefetch \
+	imp_sam_dump \
+	imp_sra_pileup \
+	imp_srapath \
+	cmdline \
 	config \
 	proc \
 	which \
-	tool-args \
-	parse_args \
 	run-source \
-	fastq-dump \
-	uuid
+	uuid \
+	service
 
 SRATOOLS_OBJ = \
 	$(addsuffix .$(OBJX),$(SRATOOLS_SRC))
 
 SRATOOLS_LIB = \
+	-sncbi-vdb \
 	-sjson \
 	-lm
 

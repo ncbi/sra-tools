@@ -26,7 +26,7 @@
 *  sratools command line tool
 *
 * Purpose:
-*  Communicate with SDL via srapath
+*  Communicate with SDL
 *
 */
 
@@ -37,14 +37,20 @@
 #include <utility>
 #include <algorithm>
 
+#include <sysexits.h>
+
 #include "globals.hpp"
 #include "constants.hpp"
 #include "debug.hpp"
 #include "proc.hpp"
 #include "which.hpp"
 #include "util.hpp"
+#include "opt_string.hpp"
 #include "run-source.hpp"
 #include "ncbi/json.hpp"
+
+#include "service.hpp"
+using Service = vdb::Service;
 
 using namespace constants;
 
@@ -56,174 +62,56 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
-static unsigned count_debug_args(ParamList const &parameters)
+struct SDL_unexpected_error : public std::runtime_error
 {
-    unsigned result = 0;
-    for (auto && arg : parameters) {
-        if (arg.first == "--debug")
-            result += 1;
-    }
-    return result;
-}
-
-static std::string run_srapath(std::vector<std::string> const &runs, ParamList const &parameters)
-{
-    auto const toolpath = tool_name::path(tool_name::SRAPATH);
-    auto const toolpath_s = std::string(toolpath);
-    auto const version_string = config_or_default("/repository/remote/version", resolver::version());
-    auto const url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
-    enum {
-        TOOL_NAME,
-        LOG_LEVEL, LOG_LEVEL_VALUE,
-        FUNCTION_PARAM, FUNCTION_VALUE,
-        JSON_PARAM,
-        VERSION_PARAM, VERSION_VALUE,
-        URL_PARAM, URL_VALUE,
-        FIRST_NULL
-    };
-    auto const argc = FIRST_NULL
-                    + (location ? 2 : 0)
-                    + (ngc ? 2 : 0)
-                    + (perm ? 2 : 0)
-                    + (count_debug_args(parameters) * 2)
-                    + runs.size();
-    auto argv = new char const * [argc + 1];
-    auto const argend = argv + argc + 1;
-
-    std::fill(argv, argv + argc + 1, nullptr);
-    argv[TOOL_NAME] = tool_name::runas(tool_name::SRAPATH);
-    argv[LOG_LEVEL] = "--log-level";
-    argv[LOG_LEVEL_VALUE] = "fatal";
-    argv[FUNCTION_PARAM] = "--function";
-    argv[FUNCTION_VALUE] = "names";
-    argv[JSON_PARAM] = "--json";
-    argv[VERSION_PARAM] = "--vers";
-    argv[VERSION_VALUE] = version_string.c_str();
-    argv[URL_PARAM] = "--url";
-    argv[URL_VALUE] = url_string.c_str();
-    {
-        auto i = argv + FIRST_NULL;
-
-        assert(i != argend && *i == NULL);
-        if (location) {
-            *i++ = "--location";
-            assert(i != argend && *i == NULL);
-            *i++ = location->c_str();
-        }
-        
-        assert(i != argend && *i == NULL);
-        if (perm) {
-            *i++ = "--perm";
-            assert(i != argend && *i == NULL);
-            *i++ = perm->c_str();
-        }
-        if (ngc) {
-            *i++ = "--ngc";
-            assert(i != argend && *i == NULL);
-            *i++ = ngc->c_str();
-        }
-        
-        for (auto && run : runs) {
-            assert(i != argend && *i == NULL);
-            *i++ = run.c_str();
-        }
-        assert(i != argend && *i == NULL);
-        
-        for (auto && arg : parameters) {
-            if (arg.first == "--debug") {
-                auto const &flag = arg.second;
-                assert(flag.has_value());
-                assert(i != argend && *i == NULL);
-                *i++ = "--debug";
-                assert(i != argend && *i == NULL);
-                *i++ = flag.value().c_str();
-            }
-        }
-        assert(i != argend && *i == NULL);
-    }
-    auto fd = -1;
-    auto const child = process::run_child_with_redirected_stdout(&fd, [&]() {
-        if (logging_state::is_debug()) {
-            std::cerr << toolpath_s << ": ";
-            for (auto i = argv; i != argend && *i; ++i) {
-                auto const &value = *i;
-                std::cerr << value << ' ';
-            }
-            std::cerr << std::endl;
-        }
-        execve(toolpath, argv);
-        throw_system_error("failed to exec " + toolpath_s);
-    });
-    auto response = std::string();
-    read_fd(fd, [&](char const *buffer, size_t nread) {
-        response.append(buffer, nread);
-    });
-    close(fd);
-    DEBUG_OUT << response << std::endl;
-    
-    auto const result = child.wait();
-    delete [] argv;
-    if (result.normal())
-        return response;
-    
-    if (result.signaled()) {
-        std::cerr << "srapath (pid: " << child.get_pid() << ") was killed by signal " << result.termsig() << std::endl;
-    }
-    else if (result.exit_code() != 0) {
-        std::cerr << "srapath exited with error code " << result.exit_code() << std::endl;
-        exit(result.exit_code());
-    }
-    std::unexpected();
-}
-
-struct srapath_unexpected_error : public std::logic_error
-{
-    srapath_unexpected_error() : std::logic_error("unexpected response from srapath") {}
+    SDL_unexpected_error(std::string const &what) : std::runtime_error(std::string("unexpected response from SDL: ") + what) {}
 };
 
 static std::string getString(ncbi::JSONObject const &obj, char const *const member)
 {
     auto const &value = obj.getValue(member);
-    if (value.isString())
+    
+    if (!value.isNull() && !value.isArray() && !value.isObject())
         return value.toString().toSTLString();
-    throw srapath_unexpected_error();
+    throw SDL_unexpected_error(std::string("expected a string value labeled ") + member);
 }
 
-static bool getOptionalString(std::string *result, ncbi::JSONObject const &obj, char const *const member)
+static opt_string getOptionalString(ncbi::JSONObject const &obj, char const *const member)
 {
+    auto result = opt_string();
     try {
-        auto const &value = obj.getValue(member);
+        auto const &value = obj.getValue(member); // if throws, return false
+
         if (value.isNull())
-            return false;
+            return result;
 
         if (!value.isArray() && !value.isObject()) {
             auto const &string = value.toString();
-            result->assign(string.toSTLString());
-            return true;
-        }
-    }
-    catch (...) { return false; }
-    throw srapath_unexpected_error();
-}
-
-static bool getOptionalBoolOrString(bool *result, ncbi::JSONObject const &obj, char const *const member)
-{
-    try {
-        auto const &value = obj.getValue(member);
-        if (value.isBoolean()) {
-            *result = value.toBoolean();
-            return true;
-        }
-        if (value.isString()) {
-            auto const &string = value.toString();
-            *result = (string == "true");
-            return true;
+            result = opt_string(string.toSTLString());
+            return result;
         }
     }
     catch (...) {
-        return false;
+        // member not found
+        return result;
     }
-    throw srapath_unexpected_error();
+    // member existed but value is an array or object
+    throw SDL_unexpected_error(std::string("expected a scalar value labeled ") + member);
+}
+
+static bool getOptionalBool(ncbi::JSONObject const &obj, char const *const member, bool const default_value)
+{
+    try {
+        auto const &value = obj.getValue(member);
+        if (value.isBoolean())
+            return value.toBoolean();
+    }
+    catch (...) {
+        // member not found
+        return default_value;
+    }
+    // member existed but value is not a boolean
+    throw SDL_unexpected_error(std::string("expected a boolean value labeled ") + member);
 }
 
 template <typename F>
@@ -240,191 +128,231 @@ static void forEach(ncbi::JSONObject const &obj, char const *member, F && f)
     catch (...) {}
 }
 
-struct raw_response {
-    struct error {
-        std::string accession;
-        std::string code;
-        std::string message;
-        error(std::string const &accession, std::string const &error, std::string const &message)
-        : accession(accession)
-        , code(error)
-        , message(message)
-        {
-        }
-    };
-    struct accessionType : public std::pair<std::string, std::string> {
-        accessionType(std::string const &accession, std::string const &type) : std::pair<std::string, std::string>(std::make_pair(accession, type)) {}
-        std::string const &accession() const { return first; }
-        std::string const &type() const { return second; }
-        
-        static accessionType make(ncbi::JSONObject const &obj) {
-            auto const acc = getString(obj, "accession");
-            try {
-                auto const typ = getString(obj, "itemType");
+static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
+{
+    auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
+    auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
+    
+    query.add(runs);
+
+    if (location)
+        query.setLocation(*location);
+
+    if (perm && haveCE)
+        query.setPermissionsFile(*perm);
+    
+    if (ngc)
+        query.setNGCFile(*ngc);
+
+    return query.response(url_string, version_string);
+}
+
+/// @brief holds SDL version 2 response
+/// @Note member names generally match the corresponding member names in the SDL response JSON
+struct Response2 {
+    /// @brief holds a single element of the result array
+    struct ResultEntry {
+        /// @brief holds a single file (element of the files array)
+        struct FileEntry {
+            /// @brief holds a single element of the locations array
+            struct LocationEntry {
+                std::string link;           // url to data
+                std::string service;        // who is providing the data
+                std::string region;         // as defined by service
+                opt_string expirationDate;
+                opt_string projectId;       // encryptedForProjectId
+                bool ceRequired;            // compute environment required
+                bool payRequired;           // data from this location is not free
                 
-                return accessionType(acc, typ);
+                LocationEntry(ncbi::JSONObject const &obj)
+                : link(getString(obj, "link"))
+                , service(getString(obj, "service"))
+                , region(getString(obj, "region"))
+                , expirationDate(getOptionalString(obj, "expirationDate"))
+                , projectId(getOptionalString(obj, "encryptedForProjectId"))
+                , ceRequired(getOptionalBool(obj, "ceRequired", false))
+                , payRequired(getOptionalBool(obj, "payRequired", false))
+                {
+                }
+
+                /// @brief is the data from this location readable using the encryption from other location
+                /// @Note if not encrypted then this location is always readable
+                bool readableWith(LocationEntry const &other) const {
+                    return !projectId ? true : !other.projectId ? false : projectId.value() == other.projectId.value();
+                }
+            };
+            using Locations = std::vector<LocationEntry>;
+            std::string type;
+            std::string name;
+            opt_string object;
+            opt_string size;
+            opt_string md5;
+            opt_string format;
+            opt_string modificationDate;
+            Locations locations;
+            
+            FileEntry(ncbi::JSONObject const &obj)
+            : type(getString(obj, "type"))
+            , name(getString(obj, "name"))
+            , object(getOptionalString(obj, "object"))
+            , size(getOptionalString(obj, "size"))
+            , md5(getOptionalString(obj, "md5"))
+            , format(getOptionalString(obj, "format"))
+            , modificationDate(getOptionalString(obj, "modificationDate"))
+            {
+                forEach(obj, "locations", [&](ncbi::JSONValue const &value) {
+                    assert(value.isObject());
+                    auto const &entry = LocationEntry(value.toObject());
+                    locations.emplace_back(entry);
+                });
             }
-            catch (...) {}
-            auto const code = getString(obj, "error");
-            auto const message = getString(obj, "message");
-            throw error(acc, code, message);
-        }
-    };
-    struct remote {
-        std::string source;
-        std::string path;
-        bool ceRequired;
-        bool payRequired;
-        remote(ncbi::JSONObject const &obj)
-        : ceRequired(false)
-        , payRequired(false)
+
+            /// @brief find the location that is provided by NCBI/NLM/NIH
+            /// @Note might be encrypted
+            Locations::const_iterator from_ncbi() const {
+                return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
+                    return x.service == "sra-ncbi" || x.service == "ncbi";
+                });
+            }
+
+            /// @brief find the location that is the same service and region
+            Locations::const_iterator matching(LocationEntry const &other) const {
+                return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
+                    return x.service == other.service && x.region == other.region;
+                });
+            }
+
+            /// @brief find the location that is the best match for another location
+            /// @Note same service/region, else NCBI and compatible encryption, else any compatible encryption
+            Locations::const_iterator best_matching(LocationEntry const &other) const {
+                auto const match = matching(other);
+                if (match != locations.end())
+                    return match;
+
+                auto const ncbi = from_ncbi();
+                if (ncbi != locations.end() && ncbi->readableWith(other))
+                    return ncbi;
+
+                return std::find_if(locations.begin(), locations.end(), [&](LocationEntry const &x) {
+                    return x.readableWith(other);
+                });
+            }
+
+            /// @brief This is part of the interface to the rest of the program
+            source make_source(LocationEntry const &location, std::string const &accession, Service::LocalInfo::FileInfo const &fileInfo) const {
+                auto result = source();
+                
+                if ((result.haveLocalPath = fileInfo.have) != false) {
+                    result.localPath = fileInfo.path;
+                    if ((result.haveCachePath = !fileInfo.cachepath.empty()) != false)
+                        result.cachePath = fileInfo.cachepath;
+                    if ((result.haveSize = fileInfo.size != 0) != false)
+                        result.fileSize = fileInfo.size;
+                }
+                result.accession = accession;
+                result.service = location.service;
+                result.remoteUrl = location.link;
+                result.needCE = location.ceRequired;
+                result.needPmt = location.payRequired;
+                result.encrypted = location.projectId;
+                result.projectId = result.encrypted ? location.projectId.value() : std::string();
+                result.haveAccession = true;
+                
+                return result;
+            }
+        };
+        using Files = std::vector<FileEntry>;
+        std::string accession;
+        std::string status;
+        std::string message;
+        Files files;
+
+        ResultEntry(ncbi::JSONObject const &obj)
+        : status(getString(obj, "status"))
         {
-            source = getString(obj, "service");
-            path = getString(obj, "path");
-            getOptionalBoolOrString(&ceRequired, obj, "CE-Required");
-            getOptionalBoolOrString(&payRequired, obj, "Payment-Required");
+            message = getString(obj, status == "200" ? "msg" : "message");
+            accession = getString(obj, status == "200" ? "bundle" : "accession");
+            
+            forEach(obj, "files", [&](ncbi::JSONValue const &value) {
+                assert(value.isObject());
+                auto const &entry = FileEntry(value.toObject());
+                files.emplace_back(entry);
+            });
         }
-    };
-    struct remotes {
-        using value_type = std::vector<remote>::value_type;
-        std::string size;
-        std::string localPath;
-        std::string itemClass;
-        std::string cachePath;
-        std::vector<remote> remotes;
-        bool haveSize, haveLocalPath, haveItemClass, haveCachePath;
-        
-        std::map<std::string, decltype(remotes.size())> remotesBySource() const {
-            auto result = std::map<std::string, decltype(remotes.size())>();
-            auto const n = remotes.size();
-            for (auto i = decltype(n)(0); i < n; ++i) {
-                result.insert({remotes[i].source, i});
-            }
-            return result;
-        }
-        source make_source(remote const &remote, std::string const &accession) const {
-            auto result = source();
-            
-            if ((result.haveLocalPath = haveLocalPath) != false)
-                result.localPath = localPath;
-            if ((result.haveCachePath = haveCachePath) != false)
-                result.cachePath = cachePath;
-            if ((result.haveSize = haveSize) != false)
-                result.fileSize = size;
-            
-            result.accession = accession;
-            result.service = remote.source;
-            result.remoteUrl = remote.path;
-            result.needCE = remote.ceRequired;
-            result.needPmt = remote.payRequired;
-            
-            result.haveAccession = true;
-            
-            return result;
-        }
-    };
-    std::map<accessionType, remotes> responses;
-    std::string ceToken;
-    bool hasCEToken;
 
-    remotes const &get_remotes(std::string const &acc, std::string const &typ) const
+        /// @brief find the file that matches but has a different type
+        Files::const_iterator matching(FileEntry const &entry, std::string const &type) const {
+            return std::find_if(files.begin(), files.end(), [&](FileEntry const &x) {
+                return x.object == entry.object && x.type == type;
+            });
+        }
+
+        /// @brief Filter files and join to matching vdbcache file.
+        ///
+        /// It is probably best to do this here in the version specific code.
+        ///
+        /// @param accession containing accession, aka bundle.
+        /// @param response for local file lookups.
+        /// @param func callback, is called for each data source object.
+        ///
+        /// @Note This is the *primary* means by which information is handed out to the rest of the program.
+        template <typename F>
+        void process(std::string const &accession, Service::Response const &response, F &&func) const
+        {
+            for (auto & file : files) {
+                if (file.type != "sra") continue;
+                if (ends_with(".pileup", file.name)) continue; // TODO: IS THIS CORRECT
+                
+                auto const vcache = matching(file, "vdbcache");
+                if (vcache == files.end()) {
+                    // there is no vdbcache with this object, nothing to join
+                    for (auto &location : file.locations) {
+                        // if the user had run prefetch and not moved the
+                        // downloaded files, this should find them.
+                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        func(std::move(data_source(run_source)));
+                    }
+                }
+                else {
+                    // there is a vdbcache with this object, do the join
+                    for (auto &location : file.locations) {
+                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        auto const &best = vcache->best_matching(location);
+                        if (best != vcache->locations.end()) {
+                            auto const &cache_source = file.make_source(*best, accession, response.localInfo2(accession, vcache->name));
+                            func(std::move(data_source(run_source, cache_source)));
+                        }
+                        else {
+                            // there was no matching vdbcache for this source
+                            func(std::move(data_source(run_source)));
+                        }
+                    }
+                }
+            }
+        }
+    };
+    using Results = std::vector<ResultEntry>;
+    Results result;
+    std::string status;
+    std::string message;
+    opt_string nextToken;
+    
+    Response2(ncbi::JSONObject const &obj)
+    : status(getOptionalString(obj, "status").value_or("200"))
+    , message(getOptionalString(obj, "message").value_or("OK"))
+    , nextToken(getOptionalString(obj, "nextToken"))
     {
-        static auto const empty = remotes();
-        auto const key = accessionType(acc, typ);
-        auto const iter = responses.find(key);
-        return iter != responses.end() ? iter->second : empty;
-    }
-    std::set<std::string> accessions() const {
-        auto result = std::set<std::string>();
-        
-        for (auto & i : responses) {
-            result.insert(i.first.accession());
-        }
-        return result;
-    }
-    static remotes::value_type make_remote(ncbi::JSONObject const &obj) {
-        auto result = remote(obj);
-
-        return result;
-    }
-    static decltype(responses)::value_type make_accession(ncbi::JSONObject const &obj) {
-        auto const &accTyp = accessionType::make(obj);
-        auto sources = remotes();
-        
-        sources.haveLocalPath = getOptionalString(&sources.localPath, obj, "local");
-        sources.haveCachePath = getOptionalString(&sources.cachePath, obj, "cache");
-        sources.haveItemClass = getOptionalString(&sources.itemClass, obj, "itemClass");
-        sources.haveSize = getOptionalString(&sources.size, obj, "size");
-        
-        forEach(obj, "remote", [&](ncbi::JSONValue const &value) {
+#if DEBUG || _DEBUGGING
+        auto const version = getString(obj, "version");
+        assert(version == "2" || version == "unstable");
+#endif
+        forEach(obj, "result", [&](ncbi::JSONValue const &value) {
             assert(value.isObject());
-            auto const &obj = value.toObject();
-            sources.remotes.push_back(make_remote(obj));
+            auto const &entry = ResultEntry(value.toObject());
+            result.emplace_back(entry);
         });
-        return {accTyp, sources};
-    }
-    static raw_response make(ncbi::JSONObject const &obj) {
-        auto result = raw_response();
-        
-        result.hasCEToken = getOptionalString(&result.ceToken, obj, "CE-Token");
-
-        forEach(obj, "responses", [&](ncbi::JSONValue const &value) {
-            assert(value.isObject());
-            try {
-                auto const &acc = make_accession(value.toObject());
-                result.responses.emplace(acc);
-            }
-            catch (error const &err) {
-                std::cerr << "Accession " << err.accession << ": Error (" << err.code << ") " << err.message << std::endl;
-            }
-        });
-
-        return result;
-    }
-    static raw_response make(std::string const &response) {
-        try {
-            auto const jvRef = ncbi::JSON::parse(ncbi::String(response));
-            auto const &obj = jvRef->toObject();
-            return make(obj);
-        }
-        catch (...) {
-            throw srapath_unexpected_error();
-        }
     }
 };
-
-data_sources::data_sources(std::string const &responseJSON)
-{
-    auto const raw = raw_response::make(responseJSON);
-    
-    have_ce_token = raw.hasCEToken;
-    if (raw.hasCEToken)
-        ce_token_ = raw.ceToken;
-    
-    for (auto & acc : raw.accessions()) {
-        auto const &runs = raw.get_remotes(acc, "sra");
-        auto const &vcaches = raw.get_remotes(acc, "vdbcache");
-        auto const &vcachesBySource = vcaches.remotesBySource();
-        auto default_vcache = -1;
-        {
-            // default vdbcache source is either NCBI or the first one
-            auto i = vcachesBySource.find("sra-ncbi");
-            if (i != vcachesBySource.end())
-                default_vcache = int(i->second);
-            else if (!vcaches.remotes.empty())
-                default_vcache = 0;
-        }
-        for (auto && run : runs.remotes) {
-            // find a vdbcache source that matches this source or use the default one
-            auto iter = vcachesBySource.find(run.source);
-            auto vcache = (iter != vcachesBySource.end()) ? int(iter->second) : default_vcache;
-            
-            auto const run_source = runs.make_source(run, acc);
-            addSource((vcache < 0) ? data_source(run_source)
-                      : data_source(run_source, runs.make_source(vcaches.remotes[vcache], acc)));
-        }
-    }
-}
 
 #define SETENV(VAR, VAL) env_var::set(env_var::VAR, VAL.c_str())
 #define SETENV_IF(EXPR, VAR, VAL) env_var::set(env_var::VAR, (EXPR) ? VAL.c_str() : NULL)
@@ -457,7 +385,342 @@ void data_sources::set_ce_token_env_var() const {
 data_sources data_sources::preload(std::vector<std::string> const &runs,
                                    ParamList const &parameters)
 {
-    return data_sources(run_srapath(runs, parameters));
+    auto const havePerm = perm != nullptr;
+    auto const canSendCE = config->canSendCEToken();
+    if (havePerm && !canSendCE) {
+        std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
+        exit(EX_USAGE);
+    }
+
+    auto const &ceToken = Service::CE_Token();
+    if (havePerm && ceToken.empty()) {
+        std::cerr << "--perm requires a cloud instance identity, but a cloud instance identity could not be found." << std::endl;
+        exit(EX_USAGE);
+    }
+
+    auto result = data_sources(canSendCE ? ceToken : "");
+    auto const &service = Service::make();
+    auto local = std::map<std::string, Service::LocalInfo>();
+
+#if 0
+    for (auto & run : runs) {
+        // This is based on the query from the user; it might not be accurate.
+        // Later, we will use names that were returned from SDL to look up the
+        // same info, it should be as accurate as we can get.
+        local[run] = service.localInfo(run);
+    }
+#endif
+    try {
+        auto const response = get_SDL_response(service, runs, result.have_ce_token);
+        LOG(8) << "SDL response:\n" << response << std::endl;
+
+        auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
+        auto const &obj = jvRef->toObject();
+        auto const version = getString(obj, "version");
+        auto const version_is = [&](std::string const &vers) {
+            return version == vers || (version == "unstable" && vers == resolver::unstable_version());
+        };
+        
+        if (version_is("2")) {
+            auto const &raw = Response2(obj);
+            LOG(7) << "Parsed SDL Response" << std::endl;
+            
+            for (auto &sdl_result : raw.result) {
+                auto const &accession = sdl_result.accession;
+#if 0
+                auto const localInfo = local.find(accession);
+#endif
+
+                LOG(6) << "Accession " << accession << " " << sdl_result.status << " " << sdl_result.message << std::endl;
+                if (sdl_result.status == "200") {
+                    unsigned added = 0;
+                    sdl_result.process(accession, response, [&](data_source &&source) {
+                        if (havePerm && source.encrypted()) {
+                            std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
+                        }
+                        else {
+                            result.addSource(std::move(source));
+                            added += 1;
+                        }
+                    });
+#if 0
+                    local.erase(localInfo); // remove since we used it here
+#endif
+                    if (added == 0) {
+                        std::cerr
+                        << "Accession " << accession << " might be available in a different region or on a different cloud provider." << std::endl
+                        << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                    }
+                }
+#if 0
+                else if (sdl_result.status == "404" && localInfo->second.rundata) {
+                    // use the local data (see below)
+                }
+#endif
+                else {
+                    std::cerr << "Accession " << accession << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
+                }
+            }
+        }
+        else {
+            throw SDL_unexpected_error(std::string("unexpected version ") + version);
+        }
+    }
+    catch (vdb::exception const &e) {
+        LOG(1) << "Failed to talk to SDL" << std::endl;
+        LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+    }
+    catch (SDL_unexpected_error const &e) {
+        throw e;
+    }
+    catch (...) {
+        throw SDL_unexpected_error("unparsable response");
+    }
+    // try to make sources for local files
+    for (auto const &info : local) {
+        if (info.second.rundata) {
+            source rsource = {};
+            rsource.accession = info.first;
+            rsource.localPath = info.second.rundata.path;
+            rsource.haveLocalPath = true;
+            rsource.cachePath = info.second.rundata.cachepath;
+            rsource.haveCachePath = !rsource.cachePath.empty();
+            if (!info.second.vdbcache)
+                result.addSource(data_source(rsource));
+            else {
+                source vsource = {};
+                vsource.accession = info.first;
+                vsource.localPath = info.second.vdbcache.path;
+                vsource.haveLocalPath = true;
+                vsource.cachePath = info.second.vdbcache.cachepath;
+                vsource.haveCachePath = !vsource.cachePath.empty();
+
+                result.addSource(data_source(rsource, vsource));
+            }
+        }
+    }
+    return result;
 }
+
+#if DEBUG || _DEBUGGING
+void data_sources::test_vdbcache() {
+    auto const testJSON = R"###(
+{
+    "version": "unstable",
+    "result": [
+        {
+            "bundle": "SRR850901",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "srapub_files|SRR850901",
+                    "type": "reference_fasta",
+                    "name": "SRR850901.contigs.fasta",
+                    "size": 5417080,
+                    "md5": "e0572326534bbf310c0ac744bd51c1ec",
+                    "modificationDate": "2016-11-19T08:00:46Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra7/SRZ/000850/SRR850901/SRR850901.contigs.fasta",
+                            "service": "sra-ncbi",
+                            "region": "public"
+                        }
+                    ]
+                },
+                {
+                    "object": "srapub_files|SRR850901",
+                    "type": "sra",
+                    "name": "SRR850901.pileup",
+                    "size": 842809,
+                    "md5": "323d0b76f741ae0b71aeec0176645301",
+                    "modificationDate": "2016-11-20T07:38:19Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra14/SRZ/000850/SRR850901/SRR850901.pileup",
+                            "service": "sra-ncbi",
+                            "region": "public"
+                        }
+                    ]
+                },
+                {
+                    "object": "srapub|SRR850901",
+                    "type": "sra",
+                    "name": "SRR850901",
+                    "size": 323741972,
+                    "md5": "5e213b2319bd1af17c47120ee8b16dbc",
+                    "modificationDate": "2016-11-19T07:35:20Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2",
+                            "service": "ncbi",
+                            "region": "be-md"
+                        }
+                    ]
+                },
+                {
+                    "object": "srapub|SRR850901",
+                    "type": "vdbcache",
+                    "name": "SRR850901.vdbcache",
+                    "size": 17615526,
+                    "md5": "2eb204cedf5eefe45819c228817ee466",
+                    "modificationDate": "2016-02-08T16:31:35Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000830/SRR850901.vdbcache",
+                            "service": "sra-ncbi",
+                            "region": "public"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+)###";
+    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
+    auto const &obj = jvRef->toObject();
+    auto const &raw = Response2(obj);
+    
+    assert(raw.result.size() == 1);
+    auto passed = false;
+    auto files = 0;
+    auto sras = 0;
+    auto srrs = 0;
+    
+    for (auto &file : raw.result[0].files) {
+        ++files;
+        if (file.type != "sra") continue;
+        ++sras;
+        if (ends_with(".pileup", file.name)) continue;
+        ++srrs;
+        
+        assert(file.locations.size() == 1);
+        
+        auto const vcache = raw.result[0].matching(file, "vdbcache");
+        assert(vcache != raw.result[0].files.end());
+        
+        auto const &location = file.locations[0];
+        auto const &vdbcache = vcache->best_matching(location);
+        assert(vdbcache != vcache->locations.end());
+        assert(vdbcache->service == "sra-ncbi");
+        assert(vdbcache->region == "public");
+        
+        passed = true;
+    }
+    assert(files == 4);
+    assert(sras == 2);
+    assert(srrs == 1);
+    assert(passed);
+}
+
+void data_sources::test_2() {
+    auto const testJSON = R"###(
+{
+    "version": "2",
+    "result": [
+        {
+            "bundle": "SRR000001",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "srapub|SRR000001",
+                    "type": "sra",
+                    "name": "SRR000001",
+                    "size": 312527083,
+                    "md5": "9bde35fefa9d955f457e22d9be52bcd9",
+                    "modificationDate": "2015-04-08T02:54:13Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-5/SRR000001/SRR000001.4",
+                            "service": "ncbi",
+                            "region": "be-md"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "bundle": "SRR000002",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "srapub|SRR000002",
+                    "type": "sra",
+                    "name": "SRR000002",
+                    "size": 358999861,
+                    "md5": "22c8b51d7caae31920df904a6b4164c0",
+                    "modificationDate": "2012-01-19T20:14:00Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-5/SRR000002/SRR000002.3",
+                            "service": "ncbi",
+                            "region": "be-md"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+)###";
+    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
+    auto const &obj = jvRef->toObject();
+    auto const &raw = Response2(obj);
+    
+    assert(raw.result.size() == 2);
+}
+
+void data_sources::test_top_error() {
+    auto const testJSON = R"###(
+{
+    "version": "2",
+    "status": 400,
+    "message": "Wrong service or/and region name"
+})###";
+    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
+    auto const &obj = jvRef->toObject();
+    auto const &raw = Response2(obj);
+    
+    assert(raw.result.size() == 0);
+    assert(raw.status == "400");
+}
+
+void data_sources::test_empty() {
+    auto const testJSON = R"###(
+{
+    "version": "2",
+    "result": [
+    ]
+})###";
+    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
+    auto const &obj = jvRef->toObject();
+    auto const &raw = Response2(obj);
+    
+    assert(raw.result.size() == 0);
+}
+
+void data_sources::test_inner_error() {
+    auto const testJSON = R"###(
+{
+    "version": "2",
+    "result": [
+        {
+            "accession": "SRR867664",
+            "status": 404,
+            "message": "No data at given location.region"
+        }
+    ]
+})###";
+    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
+    auto const &obj = jvRef->toObject();
+    auto const &raw = Response2(obj);
+    
+    assert(raw.result.size() == 1);
+    assert(raw.result[0].status == "404");
+}
+#endif // DEBUG || _DEBUGGING
 
 } // namespace sratools

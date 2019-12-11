@@ -37,6 +37,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <memory>
 
 #include <cstdlib>
 #include <cstdio>
@@ -49,61 +50,10 @@
 #include "proc.hpp"
 #include "globals.hpp"
 #include "util.hpp"
+#include "env_vars.h"
+#include "constants.hpp"
 
 namespace sratools {
-
-/// @brief creates and fills out argv
-///
-/// @param parameters list of parameters (name-value pairs)
-/// @param arguments list of strings
-/// @param arg0  value for argv[0]; default value is from original argv[0]
-///
-/// @return array suitable for passing to execve; can delete [] if execve fails
-static
-char const * const* makeArgv(ParamList const &parameters , ArgsList const &arguments, std::string const &arg0 = *argv0)
-{
-    static auto const verbose = std::string("-v");
-    auto const argc = 1                     // for argv[0]
-                    + parameters.size() * 2 // probably an over-estimate
-                    + arguments.size();
-    auto const argv = new char const * [argc + 1];
-    auto i = decltype(argc)(0);
-    auto empty = std::string();
-    
-    argv[i++] = arg0.c_str();
-    for (auto & param : parameters) {
-        auto const &name = param.first != "--verbose" ? param.first : verbose;
-        auto const &value = param.second;
-        
-        assert(i < argc);
-        argv[i++] = name.c_str();
-        if (value)
-            argv[i++] = value.value().c_str();
-    }
-    for (auto & arg : arguments) {
-        argv[i++] = arg.c_str();
-    }
-    argv[i] = NULL;
-    
-    return argv;
-}
-
-void exec [[noreturn]] (  std::string const &toolname
-                        , std::string const &toolpath
-                        , ParamList const &parameters
-                        , ArgsList const &arguments)
-{
-    auto const argv = makeArgv(parameters, arguments);
-    
-    execve(toolpath.c_str(), argv);
-    
-    // NB. we should never get here
-    auto const error = error_code_from_errno();
-
-    delete [] argv; // probably pointless, but be nice anyways
-
-    throw std::system_error(error, "failed to exec "+toolname);
-}
 
 #if USE_DEBUGGER
 
@@ -113,8 +63,8 @@ void exec [[noreturn]] (  std::string const &toolname
 ///
 /// @example With gdb: SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="gdb --args" sratools SRR000001 --output-file /dev/null \par
 /// With lldb: SRATOOLS_IMPERSONATE=sam-dump SRATOOLS_DEBUG_CMD="lldb --" sratools SRR000001 --output-file /dev/null
-static void exec_debugger [[noreturn]] (  char const *debugger
-                                        , char const * const *argv)
+static void exec_debugger [[noreturn]] (  char const *const debugger
+                                        , char const * const *const argv)
 {
     auto const shell_envar = getenv("SHELL");
     auto const shell = (shell_envar && *shell_envar) ? shell_envar : "/bin/sh";
@@ -140,11 +90,53 @@ static void exec_debugger [[noreturn]] (  char const *debugger
 
     fprintf(stderr, "%s %s %s", new_argv[0], new_argv[1], new_argv[2]);
     execve(shell, new_argv);
-    
-    auto const error = error_code_from_errno();
-    throw std::system_error(error, "failed to exec debugger");
+    throw_system_error("failed to exec debugger");
 }
 #endif
+
+
+static void debugPrintEnvVar(char const *const name)
+{
+    auto const value = getenv(name);
+    if (value)
+        std::cerr << ' ' << name << "='" << value << "'\n";
+}
+
+static void debugPrintDryRun(  char const *const toolpath
+                             , char const *const toolname
+                             , char const *const *const argv)
+{
+    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
+    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
+        std::cerr << "would exec '" << toolpath << "' as:\n";
+        for (auto i = 0; argv[i]; ++i)
+            std::cerr << ' ' << argv[i];
+        {
+            std::cerr << "\nwith environment:\n";
+            for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
+                debugPrintEnvVar(name);
+            }
+            debugPrintEnvVar(ENV_VAR_SESSION_ID);
+            std::cerr << std::endl;
+        }
+        exit(0);
+    }
+}
+
+void exec [[noreturn]] (char const *const toolpath,
+                        char const *const toolname,
+                        char const *const *const argv)
+{
+#if USE_DEBUGGER
+    auto const envar = getenv("SRATOOLS_DEBUG_CMD");
+    if (envar && *envar) {
+        exec_debugger(envar, argv);
+    }
+#endif
+    debugPrintDryRun(toolpath, toolname, argv);
+    execve(toolpath, argv);
+    throw_system_error(std::string("failed to exec ")+toolname);
+}
 
 void exec [[noreturn]] (  std::string const &toolname
                         , std::string const &toolpath
@@ -152,22 +144,32 @@ void exec [[noreturn]] (  std::string const &toolname
                         , ParamList const &parameters
                         , ArgsList const &arguments)
 {
-    auto const argv = makeArgv(parameters, arguments, argv0);
-    
-#if USE_DEBUGGER
-    auto const envar = getenv("SRATOOLS_DEBUG_CMD");
-    if (envar && *envar) {
-        exec_debugger(envar, argv);
+    auto const argc = 1                     // for argv[0]
+                    + parameters.size() * 2 // probably an over-estimate
+                    + arguments.size();
+    auto const argv = (char const **)calloc(argc, sizeof(char const *));
+    defer { free(argv); };
+    {
+        static auto const verbose = std::string("-v");
+        auto i = decltype(argc)(0);
+        auto const check_index = make_checker([&](){ return i < argc; });
+        
+        check_index(); argv[i++] = argv0.c_str();
+        for (auto & param : parameters) {
+            auto const &name = param.first != "--verbose" ? param.first : verbose;
+            auto const &value = param.second;
+            
+            check_index(); argv[i++] = name.c_str();
+            if (value) {
+                check_index(); argv[i++] = value.value().c_str();
+            }
+        }
+        for (auto & arg : arguments) {
+            check_index(); argv[i++] = arg.c_str();
+        }
+        check_index();
     }
-#endif
-    execve(toolpath.c_str(), argv);
-    
-    // NB. we should never get here
-    auto const error = error_code_from_errno();
-
-    delete [] argv; // probably pointless, but be nice anyways
-
-    throw std::system_error(error, "failed to exec "+toolname);
+    exec(toolpath.c_str(), toolname.c_str(), argv);
 }
 
 process::exit_status process::wait() const

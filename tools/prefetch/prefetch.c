@@ -3600,9 +3600,8 @@ static const char* HBEAT_USAGE[] = {
 
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
-/*static const char* ROWS_USAGE[] =
+static const char* ROWS_USAGE[] =
 { "Kart rows to download (default all).", "row list should be ordered", NULL };
-*/
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
@@ -3672,9 +3671,7 @@ static OptDef OPTIONS[] = {
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
 */
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
-/*
 ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
-*/
 ,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
 ,{ NGC_OPTION         , NULL              , NULL, NGC_USAGE   , 1, true ,false }
 ,{ KART_OPTION        , NULL              , NULL, KART_USAGE  , 1, true, false }
@@ -3918,7 +3915,7 @@ option_name = DRY_RUN_OPTION;
             self->heartbeat = (uint64_t)f;
         }
 
-/* ROWS_OPTION *
+/* ROWS_OPTION */
         rc = ArgsOptionCount(self->args, ROWS_OPTION, &pcount);
         if (rc != 0) {
             LOGERR(klogErr,
@@ -3932,7 +3929,7 @@ option_name = DRY_RUN_OPTION;
                     "Failure to get '" ROWS_OPTION "' argument value");
                 break;
             }
-        } */
+        }
 
 /* MINSZ_OPTION */
         {

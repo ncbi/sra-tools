@@ -256,7 +256,7 @@ namespace sratools2
             }
 
             std::string toolpath() const {
-                return sratools::which(_runpath, _basename, _basename + "-orig", effective_version());
+                return sratools::which(_runpath, _basename + "-orig", _basename, effective_version());
             }
 
             std::string as_string( void )

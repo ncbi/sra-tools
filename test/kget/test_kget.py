@@ -10,9 +10,11 @@ import datetime
     returns the remote url or None
 ---------------------------------------------------------------------'''
 def get_remote_url( acc ):
-    cmd = "vdb-dump %s --info"%( acc )
+    cmd = [ 'vdb-dump', '--info', acc ]
+    print ( "running: '%s'"%( cmd ) )
     try:
-        lines = subprocess.check_output( cmd, shell = True ).split( "\n" )
+        process = subprocess.run( cmd, check=True, stdout=subprocess.PIPE, universal_newlines=True )
+        lines = process.stdout.split( "\n" )
         for line in lines:
             try:
                 colon = line.index( ":" )
@@ -20,7 +22,7 @@ def get_remote_url( acc ):
                     url = line[ colon+1: ].strip()
                     if url.startswith( "http:" ) or url.startswith( "https:" ) :
                         return url
-            except:
+            except Exception as ex :
                 pass
         for line in lines:
             try:
@@ -29,10 +31,10 @@ def get_remote_url( acc ):
                     url = line[ colon+1: ].strip()
                     if url.startswith( "http:" ) or url.startswith( "https:" ) :
                         return url
-            except:
+            except Exception as ex :
                 pass
-    except:
-        pass
+    except Exception as ex :
+        print ( ex )
     return None
 
 '''---------------------------------------------------------------------
@@ -40,10 +42,12 @@ def get_remote_url( acc ):
     extracts from the output the line that starts with "file-size : ...."
     returns the value as int or 0
 ---------------------------------------------------------------------'''
-def kget_remote_size( url ): 
-    cmd = "kget %s --show-size"%( url )
+def kget_remote_size( url ):
+    cmd = [ 'kget', url, '--show-size' ]
+    print ( "running: '%s'"%( cmd ) )
     try:
-        lines = subprocess.check_output( cmd, shell = True ).split( "\n" )
+        process = subprocess.run( cmd, check=True, stdout=subprocess.PIPE, universal_newlines=True )
+        lines = process.stdout.split( "\n" )
         for line in lines:
             try:
                 eq = line.index( "=" )
@@ -51,8 +55,8 @@ def kget_remote_size( url ):
                     return int( line[ eq+1: ].strip() )
             except:
                 pass
-    except:
-        pass
+    except Exception as ex :
+        print ( ex )
     return 0
 
 '''---------------------------------------------------------------------
@@ -82,12 +86,14 @@ def kget_download_partial( url, acc ):
     except:
         pass
 
-    cmd = "kget %s"%( url )
+    cmd = [ 'kget', url ]
+    print ( "running: '%s'"%( cmd ) )
     try:
-        subprocess.check_output( cmd, shell = True )
+        process = subprocess.run( cmd, check=True, stdout=subprocess.PIPE, universal_newlines=True )
         return md5( acc )
-    except:
-        return None
+    except Exception as ex :
+        print ( ex )
+    return None
 
 '''---------------------------------------------------------------------
     calls "kget URL --full"
@@ -97,12 +103,15 @@ def kget_download_full( url, acc ):
         os.remove( acc )
     except:
         pass
-    cmd = "kget %s --full"%( url )
+
+    cmd = [ 'kget', url, '--full' ]
+    print ( "running: '%s'"%( cmd ) )
     try:
-        subprocess.check_output( cmd, shell = True )
+        process = subprocess.run( cmd, check=True, stdout=subprocess.PIPE, universal_newlines=True )
         return md5( acc )
-    except:
-        return None
+    except Exception as ex :
+        print ( ex )
+    return None
 
 
 '''---------------------------------------------------------------------
@@ -144,7 +153,7 @@ if remote_md5 != EXP_MD5 :
     print ( "md5 diff: expected (%s) vs remote (%s)"%( EXP_MD5, remote_md5 ) )
     sys.exit( -1 )
 else :
-    print ( "partial donwload ok in %d ms"%( t_partial.microseconds) )
+    print ( "partial donwload ok in %d microseconds"%( t_partial.microseconds) )
 
 t_start = datetime.datetime.now()
 remote_md5 = kget_download_full( URL, ACC )
@@ -157,7 +166,7 @@ if remote_md5 != EXP_MD5 :
     print ( "md5 diff: expected (%s) vs remote (%s)"%( EXP_MD5, remote_md5 ) )
     sys.exit( -1 )
 else :
-    print ( "full donwload ok in %d ms"%( t_full.microseconds ) )
+    print ( "full donwload ok in %d microseconds"%( t_full.microseconds ) )
 
 '''---------------------------------------------------------------------
 if t_full >= t_partial :

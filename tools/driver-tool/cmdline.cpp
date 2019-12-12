@@ -1512,6 +1512,7 @@ namespace ncbi
         , argx ( 1 )
         , argc ( _argc )
         , num_params ( 0 )
+	, options_are_silent ( false )
     {
         if ( _argc <= 0 )
         {
@@ -1533,6 +1534,7 @@ namespace ncbi
         , argx ( 1 )
         , argc ( _argc )
         , num_params ( 0 )
+	, options_are_silent ( false )
     {
         if ( _argc <= 0 )
         {

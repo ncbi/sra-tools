@@ -45,10 +45,11 @@ struct PrefetchParams final : CmnOptAndAccessions
     ncbi::U32 progress_value;
     bool eliminate_quals;
     bool check_all;
-    ncbi::String ascp_path;
-    ncbi::String ascp_options;
+    //ncbi::String ascp_path;
+    //ncbi::String ascp_options;
     ncbi::String output_file;
     ncbi::String output_dir;
+    bool dryrun;
 
     PrefetchParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
@@ -57,6 +58,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     , progress_count( 0 ), progress_value( 0 )
     , eliminate_quals( false )
     , check_all( false )
+    , dryrun( false )
     {
     }
     
@@ -86,17 +88,23 @@ struct PrefetchParams final : CmnOptAndAccessions
         cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
         cmdline . addOption ( check_all, "c", "check-all", "Double-check all refseqs" );
 
+        /*
         cmdline . addOption ( ascp_path, nullptr, "a", "ascp-path", "<ascp-binary|private-key-file>",
             "Path to ascp program and private key file (asperaweb_id_dsa.putty)" );
         cmdline . addOption ( ascp_options, nullptr, "", "ascp-options", "<value>",
             "Arbitrary options to pass to ascp command line" );
-
+        */
+        
         cmdline . addOption ( output_file, nullptr, "o", "output-file", "<value>",
             "Write file to FILE when downloading single file" );
         cmdline . addOption ( output_dir, nullptr, "O", "output-directory", "<path>",
             "Save files to path/" );
 
         CmnOptAndAccessions::add(cmdline);
+
+        // add a silent option...
+        cmdline . startSilentOptions();
+        cmdline . addOption ( dryrun, "", "dryrun", "-" );
     }
 
     std::ostream &show(std::ostream &ss) const override
@@ -109,10 +117,11 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( progress_count > 0 ) ss << "progress: " << progress_value << std::endl;
         if ( eliminate_quals ) ss << "eliminate-quals" << std::endl;
         if ( check_all ) ss << "check-all" << std::endl;
-        if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
-        if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
+        //if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
+        //if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
         if ( !output_file.isEmpty() ) ss << "output-file: " << output_file << std::endl;
         if ( !output_dir.isEmpty() ) ss << "output-dir: " << output_dir << std::endl;
+        if ( dryrun ) ss << "dryrun" << std::endl;
         return CmnOptAndAccessions::show(ss);
     }
 
@@ -132,11 +141,12 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( progress_count > 0 ) builder . add_option( "-p", progress_value );
         if ( eliminate_quals ) builder . add_option( "--eliminate-quals" );
         if ( check_all ) builder . add_option( "-c" );
-        if ( !ascp_path.isEmpty() ) builder . add_option( "-a", ascp_path );
-        if ( !ascp_options.isEmpty() ) builder . add_option( "--ascp_options", ascp_options );
+        //if ( !ascp_path.isEmpty() ) builder . add_option( "-a", ascp_path );
+        //if ( !ascp_options.isEmpty() ) builder . add_option( "--ascp_options", ascp_options );
         if ( !output_file.isEmpty() ) builder . add_option( "-o", output_file );
         if ( !output_dir.isEmpty() ) builder . add_option( "-O", output_dir );
-        
+        if ( dryrun ) builder . add_option( "--dryrun" );
+
         // permanently pin the transport option to 'http'
         builder . add_option( "-t", "http" );
 

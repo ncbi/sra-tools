@@ -364,7 +364,7 @@ void kar_entry_whack ( BSTNode *node, void *data )
 {
     KAREntry *entry = ( KAREntry * ) node;
 
-    if ( ( entry -> type & ( ~kptAlias ) ) == kptDir ) {
+    if ( entry -> type == kptDir ) {
         BSTreeWhack (
                     & ( ( KARDir * ) entry ) -> contents,
                     kar_entry_whack,

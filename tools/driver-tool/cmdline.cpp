@@ -512,11 +512,20 @@ namespace ncbi
             delete opt;
         }
 
+        count = silent_opts . size ();
+        for ( i = 0; i < count; ++ i )
+        {
+            Option * opt = silent_opts [ i ];
+            assert ( opt != 0 );
+            delete opt;
+        }
+
         delete trailing_command;
         trailing_command = 0;
 
         formal_params . clear ();
         formal_opts . clear ();
+        silent_opts . clear ();
         required_params = 0;
         min_last_param = 0;
         max_last_param = 0;
@@ -711,6 +720,11 @@ namespace ncbi
     template void Cmdline :: addListOption < String > ( std :: vector < String > &, const char, U32,
         const String &, const String &, const String &, const String & );
 
+    // indicate start of silent options
+    void Cmdline :: startSilentOptions ()
+    {
+        options_are_silent = true;
+    }
 
     // add trailing cmd - following a '--' will gather but not parse parameters
     void Cmdline :: addTrailingCmd ( std :: vector < String > & args,
@@ -817,6 +831,8 @@ namespace ncbi
     {
         num_params = 0;
         argx = 0;
+
+	options_are_silent = false;
 
         TRACE ( TRACE_GEEK, "pre_parse = %s\n", pre_parse ? "true" : "false" );
         {
@@ -1660,7 +1676,10 @@ namespace ncbi
         }
 
         // accept it
-        mode -> formal_opts . push_back ( opt );
+	if (  options_are_silent )
+	  mode -> silent_opts . push_back ( opt );
+	else
+	  mode -> formal_opts . push_back ( opt );
     }
 
     /* EnvImport

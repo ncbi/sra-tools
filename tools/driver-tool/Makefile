@@ -83,6 +83,7 @@ SRATOOLS_SRC = \
 	imp_sam_dump \
 	imp_sra_pileup \
 	imp_srapath \
+	imp_vdb_dump \
 	cmdline \
 	config \
 	proc \

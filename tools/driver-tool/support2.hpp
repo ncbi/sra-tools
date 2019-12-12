@@ -152,7 +152,7 @@ namespace sratools2
         }
     };
 
-    enum class Imposter { SRAPATH, PREFETCH, FASTQ_DUMP, FASTERQ_DUMP, SRA_PILEUP, SAM_DUMP, INVALID };
+    enum class Imposter { SRAPATH, PREFETCH, FASTQ_DUMP, FASTERQ_DUMP, SRA_PILEUP, SAM_DUMP, VDB_DUMP, INVALID };
 
     struct WhatImposter
     {
@@ -215,6 +215,7 @@ namespace sratools2
                 else if ( src.compare( "fasterq-dump" ) == 0 ) return Imposter::FASTERQ_DUMP;
                 else if ( src.compare( "sra-pileup" ) == 0 ) return Imposter::SRA_PILEUP;
                 else if ( src.compare( "sam-dump" ) == 0 ) return Imposter::SAM_DUMP;
+                else if ( src.compare( "vdb-dump" ) == 0 ) return Imposter::VDB_DUMP;
                 return Imposter::INVALID;
             }
 
@@ -563,7 +564,8 @@ namespace sratools2
     int impersonate_prefetch( Args const &args, WhatImposter const &what );
     int impersonate_sra_pileup( Args const &args, WhatImposter const &what );
     int impersonate_sam_dump( Args const &args, WhatImposter const &what );
-
+    int impersonate_vdb_dump( Args const &args, WhatImposter const &what );
+    
     struct Impersonator
     {
     private:

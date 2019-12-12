@@ -81,6 +81,7 @@ namespace sratools2
                 case Imposter::FASTERQ_DUMP : return impersonate_fasterq_dump( args, what ); break;
                 case Imposter::SRA_PILEUP   : return impersonate_sra_pileup( args, what ); break;
                 case Imposter::SAM_DUMP     : return impersonate_sam_dump( args, what ); break;
+                case Imposter::VDB_DUMP     : return impersonate_vdb_dump( args, what ); break;
                 default : 
                     std::cerr << "An error occured: invalid tool requested" << std::endl << error_continues_message << std::endl;
                     res = 3;

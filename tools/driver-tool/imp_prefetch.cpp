@@ -152,7 +152,7 @@ struct PrefetchParams final : CmnOptAndAccessions
 
         // prefetch gets perm and location
         if (!perm_file.isEmpty()) builder.add_option("--perm", perm_file);
-        if (!location.isEmpty()) builder.add_option("--location", perm_file);
+        if (!location.isEmpty()) builder.add_option("--location", location);
     }
 
     bool check() const override

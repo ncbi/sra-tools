@@ -150,8 +150,7 @@ struct PrefetchParams final : CmnOptAndAccessions
         // permanently pin the transport option to 'http'
         builder . add_option( "-t", "http" );
 
-        // prefetch gets perm and location
-        if (!perm_file.isEmpty()) builder.add_option("--perm", perm_file);
+        // prefetch gets location
         if (!location.isEmpty()) builder.add_option("--location", location);
     }
 

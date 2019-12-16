@@ -50,6 +50,12 @@
   **vdb-validate**: fixed handling of empty cells affecting certain databases  
 
 
+## SRA Toolkit 2.10.1
+**December 16, 2019**
+
+  **sra-tools**: changed version to match that of _ncbi-vdb_
+
+
 ## SRA Toolkit 2.10.0
 **August 19, 2019**
 

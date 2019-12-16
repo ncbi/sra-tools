@@ -236,7 +236,9 @@ kar_open_file_read (
                                                 "%s",
                                                 PathToOpen
                                                 );
-
+                if ( RCt == 0 ) {
+                    * File = RetFile;
+                }
             }
             else {
                 RCt = KNSManagerMake ( & Manager );

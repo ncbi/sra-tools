@@ -431,6 +431,10 @@ namespace sratools2
             // we could check if ngc/kar/perm-files do actually exist...
 
             if (!perm_file.isEmpty()) {
+                if (!ngc_file.isEmpty()) {
+                    ++problems;
+                    std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
+                }
                 if (!vdb::Service::haveCloudProvider()) {
                     ++problems;
                     std::cerr << "Currently, --perm can only be used from inside a cloud computing environment.\nPlease run inside of a supported cloud computing environment, or get an ngc file from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>." << std::endl;

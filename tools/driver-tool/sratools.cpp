@@ -153,7 +153,7 @@ namespace sratools {
             auto const path = realpath("/proc/self/exe", nullptr);
             if (path) {
                 auto const &result = std::string(path);
-                free(rp);
+                free(path);
                 return result;
             }
         }

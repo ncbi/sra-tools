@@ -28,7 +28,6 @@
 
 #include "cmdline.hpp"
 #include "support2.hpp"
-#include "which.hpp"
 
 #define TOOL_NAME "fastq-dump"
 
@@ -343,7 +342,20 @@ struct FastqParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
+        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            if (realpath.executable())
+                return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#if DEBUG || _DEBUGGING
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
+            if (realpath.executable())
+                return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#endif
+        throw std::runtime_error(TOOL_NAME " was not found or is not executable.");
     }
 
 };

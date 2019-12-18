@@ -43,7 +43,6 @@
 #include "constants.hpp"
 #include "debug.hpp"
 #include "proc.hpp"
-#include "which.hpp"
 #include "util.hpp"
 #include "opt_string.hpp"
 #include "run-source.hpp"

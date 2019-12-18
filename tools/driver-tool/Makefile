@@ -87,7 +87,6 @@ SRATOOLS_SRC = \
 	cmdline \
 	config \
 	proc \
-	which \
 	run-source \
 	uuid \
 	service

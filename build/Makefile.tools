@@ -17,7 +17,6 @@ TOOLS_TO_COPY = \
 	vdb-config      \
 	vdb-copy        \
 	vdb-decrypt     \
-	vdb-dump        \
 	vdb-encrypt     \
 	vdb-lock        \
 	vdb-passwd      \
@@ -34,6 +33,7 @@ TOOLS_TO_SYMLINK = \
 	prefetch        \
 	srapath         \
 	sra-pileup      \
+	vdb-dump        \
 
 # these tools may be missing from $(BINDIR), not an error
 TOOLS_TO_COPY_OPTIONAL = \

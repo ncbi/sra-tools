@@ -555,12 +555,10 @@ namespace sratools2
                 return EX_USAGE;
             }
             catch (std::exception const &e) {
-                std::cerr << "An error occured: " << e.what() << std::endl;
-                return EX_TEMPFAIL;
+                throw e;
             }
             catch (...) {
-                std::cerr << "An error occured" << std::endl;
-                return EX_TEMPFAIL;
+                throw;
             }
         }
     };

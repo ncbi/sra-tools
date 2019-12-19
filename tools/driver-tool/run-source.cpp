@@ -68,10 +68,13 @@ struct SDL_unexpected_error : public std::runtime_error
 
 static std::string getString(ncbi::JSONObject const &obj, char const *const member)
 {
-    auto const &value = obj.getValue(member);
-    
-    if (!value.isNull() && !value.isArray() && !value.isObject())
-        return value.toString().toSTLString();
+    try {
+        auto const &value = obj.getValue(member);
+
+        if (!value.isNull() && !value.isArray() && !value.isObject())
+            return value.toString().toSTLString();
+    }
+    catch (...) {}
     throw SDL_unexpected_error(std::string("expected a string value labeled ") + member);
 }
 
@@ -116,15 +119,14 @@ static bool getOptionalBool(ncbi::JSONObject const &obj, char const *const membe
 template <typename F>
 static void forEach(ncbi::JSONObject const &obj, char const *member, F && f)
 {
-    try {
-        auto const &array = obj.getValue(member).toArray();
-        auto const n = array.count();
-        for (auto i = decltype(n)(0); i < n; ++i) {
-            auto const &value = array.getValue(i);
-            f(value);
-        }
+    if (!obj.exists(member)) return;
+
+    auto const &array = obj.getValue(member).toArray();
+    auto const n = array.count();
+    for (auto i = decltype(n)(0); i < n; ++i) {
+        auto const &value = array.getValue(i);
+        f(value);
     }
-    catch (...) {}
 }
 
 static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
@@ -269,8 +271,8 @@ struct Response2 {
         ResultEntry(ncbi::JSONObject const &obj)
         : status(getString(obj, "status"))
         {
-            message = getString(obj, status == "200" ? "msg" : "message");
-            accession = getString(obj, status == "200" ? "bundle" : "accession");
+            message = getString(obj, "msg");
+            accession = getString(obj, "bundle");
             
             forEach(obj, "files", [&](ncbi::JSONValue const &value) {
                 assert(value.isObject());
@@ -470,10 +472,11 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
         LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
     }
     catch (SDL_unexpected_error const &e) {
-        throw e;
+        LOG(1) << e.what() << std::endl;
+        throw std::logic_error("Error communicating with NCBI");
     }
     catch (...) {
-        throw SDL_unexpected_error("unparsable response");
+        throw std::logic_error("Error communicating with NCBI");
     }
     // try to make sources for local files
     for (auto const &info : local) {

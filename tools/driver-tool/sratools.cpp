@@ -120,11 +120,14 @@ namespace sratools {
 
     ToolPath::ToolPath(std::string const &argv0, char *extra[])
     {
-        auto const fullpath = get_exec_path(argv0, extra);
         {
+            auto const fullpath = get_exec_path(argv0, extra);
             auto const sep = fullpath.find_last_of('/');
             path_ = (sep == std::string::npos) ? "." : fullpath.substr(0, sep);
-            basename_ = (sep == std::string::npos) ? fullpath : fullpath.substr(sep + 1);
+        }
+        {
+            auto const sep = argv0.find_last_of('/');
+            basename_ = (sep == std::string::npos) ? argv0 : argv0.substr(sep + 1);
         }
         {
             auto const sep = basename_.find_first_of('.');

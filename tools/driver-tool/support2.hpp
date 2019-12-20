@@ -383,6 +383,31 @@ namespace sratools2
                     std::cerr << "Currently, --perm can only be used from inside a cloud computing environment.\nPlease run inside of a supported cloud computing environment, or get an ngc file from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>." << std::endl;
                 }
             }
+
+            auto containers = 0;
+            for (auto & acc : accessions) {
+                if (acc.size() < 9) continue;
+                if (!(acc[0] == 'S' || acc[0] == 'E' || acc[0] == 'D')) continue;
+                if (!(acc[1] == 'R')) continue;
+                if (acc[2] == 'R') continue; // it's a run; it's okay
+
+                auto is_sra = true;
+                for (auto i = 3; i < 9; ++i) {
+                    if (!isdigit(acc[i])) {
+                        is_sra = false;
+                        break;
+                    }
+                }
+                if (!is_sra) continue;
+
+                ++problems;
+                ++containers;
+
+                std::cerr << acc << " is not a run accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+            }
+            if (containers > 0) {
+                std::cerr << "Automatic expansion of non-data accessions is not currently available. See the above link(s) for information about the accessions. For example, you can download the data accession list and then re-run with --option-file=SraAccList.txt " << std::endl;
+            }
             return ( problems == 0 );
         }
     };

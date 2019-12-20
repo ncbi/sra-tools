@@ -39,9 +39,9 @@
 #include "proc.hpp"
 #include "run-source.hpp"
 #include "debug.hpp"
-#include "which.hpp"
 #include "globals.hpp"
 #include "service.hpp"
+#include "tool-path.hpp"
 
 namespace sratools2
 {
@@ -157,55 +157,11 @@ namespace sratools2
     struct WhatImposter
     {
         public :
-            const std::string _runpath;
-            const std::string _basename;
-            const std::string _requested_version;
-            const std::string _toolkit_version;
+            sratools::ToolPath const &toolpath;
             const Imposter _imposter;
             const bool _version_ok;
 
         private :
-            std::string extract_path( const char * src )
-            {
-                std::string res( src );
-                auto const t1 = res . find_last_of( '/' );
-                res.resize(t1 == std::string::npos ? 0 : t1);
-                return res;
-            }
-
-            std::string extract_basename( const char * src )
-            {
-                std::string res( src );
-                auto const t1 = res . find_last_of( '/' );
-                if ( t1 != std::string::npos )
-                    res.assign( res . substr( t1 + 1 ) );
-                auto const t2 = res . find_first_of( '.' );
-                if ( t2 != std::string::npos )
-                    res.assign( res . substr( 0, t2 ) ); 
-                return res;
-            }
-
-            std::string extract_version( const char * src )
-            {
-                std::string res( src );
-                auto const t1 = res . find_last_of( '/' );
-                if ( t1 != std::string::npos )
-                    res.assign( res . substr( t1 + 1 ) );
-                auto const t2 = res . find_first_of( '.' );
-                if ( t2 != std::string::npos )
-                    res.assign( res . substr( t2 + 1 ) );
-                else
-                    res.clear();
-                return res;
-            }
-
-            std::string get_toolkit_version( void )
-            {
-                auto const major = ((TOOLKIT_VERS) >> 24) & 0xFF;
-                auto const minor = ((TOOLKIT_VERS)>> 16) & 0xFF;
-                auto const subvers = ( TOOLKIT_VERS ) & 0xFFFF;
-                return std::to_string(major) + '.' + std::to_string(minor) + '.' + std::to_string(subvers);
-            }
 
             Imposter detect_imposter( const std::string &src )
             {
@@ -236,38 +192,25 @@ namespace sratools2
 
             bool is_version_ok( void )
             {
-                if ( _requested_version.empty() ) return true;
-                else if ( _requested_version.compare( _toolkit_version ) == 0 ) return true;
-                return false;
+                return toolpath.version() == toolpath.toolkit_version();
             }
 
         public :
-            WhatImposter( const char * argv0 )
-                : _runpath( extract_path(argv0) )
-                , _basename( extract_basename( argv0 ) )
-                , _requested_version( extract_version( argv0 ) )
-                , _toolkit_version( get_toolkit_version() )
-                , _imposter( detect_imposter( _basename ) )
-                , _version_ok( is_version_ok() )
+            WhatImposter( sratools::ToolPath const &toolpath )
+            : toolpath(toolpath)
+            , _imposter( detect_imposter( toolpath.basename() ) )
+            , _version_ok( is_version_ok() )
             {
-            }
-
-            std::string const &effective_version() const {
-                return _requested_version.empty() ? _toolkit_version : _requested_version;
-            }
-
-            std::string toolpath() const {
-                return sratools::which(_runpath, _basename + "-orig", _basename, effective_version());
             }
 
             std::string as_string( void )
             {
                 std::stringstream ss;
                 ss << imposter_2_string( _imposter );
-                ss << " _runpath:" << _runpath;
-                ss << " _basename:" << _basename;
-                ss << " _requested_version:" << _requested_version;
-                ss << " _toolkit_version:" << _toolkit_version;
+                ss << " _runpath:" << toolpath.fullpath();
+                ss << " _basename:" << toolpath.basename();
+                ss << " _requested_version:" << toolpath.version();
+                ss << " _toolkit_version:" << toolpath.toolkit_version();
                 ss << " _version_ok: " << ( _version_ok ? "YES" : "NO" );
                 return ss.str();
             }
@@ -431,6 +374,10 @@ namespace sratools2
             // we could check if ngc/kar/perm-files do actually exist...
 
             if (!perm_file.isEmpty()) {
+                if (!ngc_file.isEmpty()) {
+                    ++problems;
+                    std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
+                }
                 if (!vdb::Service::haveCloudProvider()) {
                     ++problems;
                     std::cerr << "Currently, --perm can only be used from inside a cloud computing environment.\nPlease run inside of a supported cloud computing environment, or get an ngc file from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>." << std::endl;
@@ -479,7 +426,7 @@ namespace sratools2
             abort();
         }
     public:
-        static int run(char const *toolpath, char const *toolname, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
+        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
         {
             auto const s_location = tool_options.location.toSTLString();
             auto const s_perm = tool_options.perm_file.toSTLString();
@@ -505,16 +452,17 @@ namespace sratools2
                     continue; // data_sources::preload already complained
 
                 ArgvBuilder builder;
+
+                builder.add_option(theirpath);
                 tool_options . populate_argv_builder( builder, i++, accessions );
-                builder.add_option(acc.toSTLString());
 
                 int argc = 0;
-                char **argv = builder.generate_argv(argc, std::string(toolname));
+                char **argv = builder.generate_argv(argc, { acc });
                 auto success = false;
 
                 for (auto &src : sources) {
                     // run tool and wait for it to exit
-                    success = exec_wait(toolpath, toolname, argv, src);
+                    success = exec_wait(toolpath.c_str(), toolname, argv, src);
                     if (success) {
                         LOG(2) << "Processed " << acc << " with data from " << src.service() << std::endl;
                         break;
@@ -538,23 +486,24 @@ namespace sratools2
     };
 
     struct ToolExecNoSDL {
-        static int run(char const *toolpath, char const *toolname, OptionBase const &tool_options, std::vector<ncbi::String> const &accessions)
+        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
         {
             ArgvBuilder builder;
 
-            builder.add_option(toolname);
+            builder.add_option(theirpath);
             tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
+
             int argc = 0;
             char **argv = builder.generate_argv(argc, accessions);
 
-            sratools::exec(toolpath, toolname, argv);
+            sratools::exec(toolpath.c_str(), toolname, argv);
 
             // exec returned! something went wrong
             auto const error = std::error_code(errno, std::system_category());
 
             builder.free_argv(argc, argv);
 
-            throw std::system_error(error, std::string("Failed to exec ")+toolpath);
+            throw std::system_error(error, std::string("Failed to exec ")+toolname);
         }
     };
 
@@ -576,7 +525,7 @@ namespace sratools2
         {
             try {
                 // Cmdline is a class defined in cmdline.hpp
-                auto const version = tool_options.what.effective_version();
+                auto const version = tool_options.what.toolpath.version();
                 ncbi::Cmdline cmdline(args.argc, args.argv, version.c_str());
 
                 // let the parser parse the original args,
@@ -606,12 +555,10 @@ namespace sratools2
                 return EX_USAGE;
             }
             catch (std::exception const &e) {
-                std::cerr << "An error occured: " << e.what() << std::endl;
-                return EX_TEMPFAIL;
+                throw e;
             }
             catch (...) {
-                std::cerr << "An error occured" << std::endl;
-                return EX_TEMPFAIL;
+                throw;
             }
         }
     };

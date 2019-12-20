@@ -38,6 +38,8 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <functional>
+#include <atomic>
 
 #include <cstdlib>
 #include <cstdio>
@@ -45,6 +47,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sysexits.h>
+#include <signal.h>
 
 #include "debug.hpp"
 #include "proc.hpp"
@@ -172,6 +175,45 @@ void exec [[noreturn]] (  std::string const &toolname
     exec(toolpath.c_str(), toolname.c_str(), argv);
 }
 
+static pid_t forward_target_pid;
+static void sig_handler_for_waiting(int sig)
+{
+    kill(forward_target_pid, sig);
+}
+
+static int waitpid_with_signal_forwarding(pid_t const pid, int *const status)
+{
+    struct sigaction act, old;
+
+    // we are not reentrant
+    static std::atomic_flag lock = ATOMIC_FLAG_INIT;
+    auto const was_locked = lock.test_and_set();
+    assert(was_locked == false);
+    if (was_locked)
+        throw std::logic_error("NOT REENTRANT!!!");
+
+    // set up signal forwarding
+    forward_target_pid = pid;
+
+    act.sa_handler = sig_handler_for_waiting;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+
+    // set the signal handler
+    if (sigaction(SIGINT, &act, &old) < 0)
+        throw_system_error("sigaction failed");
+
+    auto const rc = waitpid(pid, status, 0);
+
+    // restore signal handler to old state
+    if (sigaction(SIGINT, &old, nullptr))
+        throw_system_error("sigaction failed");
+
+    lock.clear();
+
+    return rc;
+}
+
 process::exit_status process::wait() const
 {
     assert(pid != 0); ///< you can't wait on yourself
@@ -179,7 +221,8 @@ process::exit_status process::wait() const
         throw std::logic_error("you can't wait on yourself!");
 
     auto status = int(0);
-    auto const rc = waitpid(pid, &status, 0);
+    auto const rc = waitpid_with_signal_forwarding(pid, &status);
+
     if (rc > 0) {
         assert(rc == pid);
         return exit_status(status);

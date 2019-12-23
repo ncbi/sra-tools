@@ -220,20 +220,19 @@ process::exit_status process::wait() const
     if (pid == 0)
         throw std::logic_error("you can't wait on yourself!");
 
-    auto status = int(0);
-    auto const rc = waitpid_with_signal_forwarding(pid, &status);
+    do {
+        auto status = int(0);
+        auto const rc = waitpid_with_signal_forwarding(pid, &status);
 
-    if (rc > 0) {
-        assert(rc == pid);
-        return exit_status(status);
-    }
+        if (rc > 0) {
+            assert(rc == pid);
+            return exit_status(status); ///< normal return is here
+        }
 
-    assert(rc != 0); // only happens if WNOHANG is given
-    if (rc == 0)
-        std::unexpected();
-
-    if (errno == EINTR)
-        return wait();
+        assert(rc != 0); // only happens if WNOHANG is given
+        if (rc == 0)
+            std::unexpected();
+    } while (errno == EINTR);
     
     assert(errno != ECHILD); // you already waited on this!
     if (errno == ECHILD)

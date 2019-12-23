@@ -121,6 +121,9 @@ namespace sratools {
 
         int result = -1;
 
+        auto const sessionID = uuid();
+        setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
+
         config = new Config(toolpath);
         if (config->noInstallID()) {
             printInstallMessage();

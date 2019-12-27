@@ -85,7 +85,11 @@ struct PrefetchParams final : CmnOptAndAccessions
         cmdline . addOption ( progress_value, &progress_count, "p", "progress", "<value>",
             "Time period in minutes to display download progress (0: no progress), default: 1" );
 
+        /*
+        temp. disabled because of ticket VDB-4069
         cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
+        */
+        
         cmdline . addOption ( check_all, "c", "check-all", "Double-check all refseqs" );
 
         /*

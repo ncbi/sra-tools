@@ -161,18 +161,26 @@ static std::vector<std::string> loadPATH()
     return result;
 }
 
-static void versioned(std::vector<std::string> *candidate, std::string const &basename)
+static std::vector<std::string> versioned(std::string const &basename, std::string const &version_string)
 {
-    auto fullname = basename + '.' + *version_string;
+    auto candidate = std::vector<std::string>();
+    auto fullname = basename + '.' + version_string;
 
+    candidate.reserve(4);
     for (auto i = fullname.begin(); i != fullname.end(); ++i) {
         if (*i == '.')
-            candidate->push_back(std::string(fullname.begin(), i));
+            candidate.emplace_back(std::string(fullname.begin(), i));
     }
-    candidate->push_back(fullname);
-}
+    candidate.emplace_back(fullname);
 
-static void pathHelp [[noreturn]] (std::string const &toolname, bool const isSraTools);
+    return candidate;
+}
+#if 0
+static void versioned(std::vector<std::string> *candidate, std::string const &basename)
+{
+    for (auto && i : versioned(basename, *version_string))
+        candidate->emplace_back(i);
+}
 
 opt_string which(std::string const &toolname, bool const allowNotFound, bool const isaSraTool)
 {
@@ -189,7 +197,57 @@ opt_string which(std::string const &toolname, bool const allowNotFound, bool con
 
     pathHelp(toolname, isaSraTool);
 }
+#endif
 
+opt_string which(std::string const &runpath, std::string const &toolname, bool const allowNotFound, bool const isaSraTool)
+{
+    auto paths = std::vector<std::string>();
+    paths.reserve(PATH.size() + 2);
+    if (!runpath.empty())
+        paths.push_back(runpath);
+    paths.insert(paths.end(), PATH.begin(), PATH.end());
+    paths.push_back(".");
+
+    auto const &found = ::which(toolname, paths, toolname);
+    if (found || allowNotFound)
+        return found;
+
+    pathHelp(toolname, isaSraTool);
+}
+
+extern opt_string which(std::string const &runpath, std::string const &runas_name, std::string const &real_name, std::string const &version)
+{
+    auto result = opt_string();
+    auto paths = std::vector<std::string>();
+    paths.reserve(PATH.size() + 2);
+    if (!runpath.empty())
+        paths.insert(paths.end(), runpath);
+    paths.insert(paths.end(), ".");
+    paths.insert(paths.end(), PATH.begin(), PATH.end());
+
+    {
+        auto const &candidate = versioned(runas_name, version);
+        for (auto i = candidate.rbegin(); i != candidate.rend(); ++i) {
+            for (auto && path : paths) {
+                result = is_exe(*i, path);
+                if (result)
+                    return result;
+            }
+        }
+    }
+    {
+        auto const &candidate = versioned(real_name, version);
+        for (auto i = candidate.rbegin(); i != candidate.rend(); ++i) {
+            for (auto && path : paths) {
+                result = is_exe(*i, path);
+                if (result)
+                    return result;
+            }
+        }
+    }
+    return result;
+}
+#if 0
 static inline
 std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char const *const *real)
 {
@@ -231,16 +289,16 @@ std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char co
     }
     return result;
 }
-
-/// @brief: prints help message for failing to find an executable
-static void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSraTool)
+#endif
+/// @brief prints help message for failing to find an executable
+void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSraTool)
 {
     std::cerr << "could not find " << toolname;
     if (isaSraTool)
         std::cerr << " which is part of this software distribution";
     std::cerr << std::endl;
     std::cerr << "This can be fixed in several ways, for example" << std::endl
-              << "* adding " << toolname << " to the directory that contains this tool, " << *selfpath << std::endl
+              << "* adding " << toolname << " to the directory that contains this tool" << std::endl
               << "* adding the directory that contains " << toolname << " to the PATH environment variable" << std::endl
               << "* adding " << toolname << " to the current directory" << std::endl
             ;
@@ -250,7 +308,7 @@ static void pathHelp [[noreturn]] (std::string const &toolname, bool const isaSr
 } // namespace sratools
 
 namespace constants {
-
+#if 0
 std::vector<opt_string> load_tool_paths(int n, char const *const *runas, char const *const *real)
 {
     return sratools::load_tool_paths(n, runas, real);
@@ -260,5 +318,5 @@ void pathHelp [[noreturn]] (std::string const &toolname)
 {
     sratools::pathHelp(toolname, true);
 }
-
+#endif
 }

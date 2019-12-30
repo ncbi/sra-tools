@@ -678,7 +678,7 @@ class vdbconf_view2 : public Dlg
                               model.is_user_cache_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
             y += 2;
-            PopulateLabel( lbl1_rect( r, y ), resize, CACHE_REPO_LBL_ID, "location of public user-repository:",
+            PopulateLabel( lbl1_rect( r, y ), resize, CACHE_REPO_LBL_ID, "location of user-repository:",
                                 BOX_COLOR, LABEL_FG, page_id );
             y++;
             PopulateButton( choose_rect( r, y ), resize, CACHE_REPO_CHOOSE_ID, "ch&oose",
@@ -822,7 +822,7 @@ class vdbconf_view2 : public Dlg
             if ( GetWidgetStringCount( TOOLS_PREFETCH_ID ) == 0 )
             {
                 AddWidgetStringN( TOOLS_PREFETCH_ID, 2,
-                                  "public user-repository", "current directory" );
+                                  "user-repository", "current directory" );
                 bool value = model.does_prefetch_download_to_cache();
                 SetWidgetSelectedString( TOOLS_PREFETCH_ID, value ? 0 : 1 );
             }

@@ -512,11 +512,20 @@ namespace ncbi
             delete opt;
         }
 
+        count = silent_opts . size ();
+        for ( i = 0; i < count; ++ i )
+        {
+            Option * opt = silent_opts [ i ];
+            assert ( opt != 0 );
+            delete opt;
+        }
+
         delete trailing_command;
         trailing_command = 0;
 
         formal_params . clear ();
         formal_opts . clear ();
+        silent_opts . clear ();
         required_params = 0;
         min_last_param = 0;
         max_last_param = 0;
@@ -711,6 +720,11 @@ namespace ncbi
     template void Cmdline :: addListOption < String > ( std :: vector < String > &, const char, U32,
         const String &, const String &, const String &, const String & );
 
+    // indicate start of silent options
+    void Cmdline :: startSilentOptions ()
+    {
+        options_are_silent = true;
+    }
 
     // add trailing cmd - following a '--' will gather but not parse parameters
     void Cmdline :: addTrailingCmd ( std :: vector < String > & args,
@@ -817,6 +831,8 @@ namespace ncbi
     {
         num_params = 0;
         argx = 0;
+
+	options_are_silent = false;
 
         TRACE ( TRACE_GEEK, "pre_parse = %s\n", pre_parse ? "true" : "false" );
         {
@@ -1011,7 +1027,8 @@ namespace ncbi
                 // measure all remaining characters
                 // these can be one or more options
                 // and can be suffixed with parameters to the last option
-                U32 len, mlen = strlen ( arg );
+                auto mlen = strlen(arg);
+                decltype(mlen) len;
 
                 // process each short option in a potentially compound list
                 do
@@ -1049,14 +1066,20 @@ namespace ncbi
                     }
 
                     // if short name was not found, blow exception
-                    if ( ! found && ! pre_parse )
+                    if ( ! found )
                     {
-                        throw InvalidArgument (
-                            XP ( XLOC, rc_param_err )
-                            << "unrecognized option: '-"
-                            << arg
-                            << "'"
-                            );
+                        if ( ! pre_parse )
+                        {
+                            throw InvalidArgument (
+                                XP ( XLOC, rc_param_err )
+                                << "unrecognized option: '-"
+                                << arg
+                                << "'"
+                                );
+                        }
+                        
+                        // assume single character short option
+                        ++ arg;
                     }
                 }
                 while ( arg [ 0 ] != 0 );
@@ -1418,7 +1441,7 @@ namespace ncbi
         if ( short_name ++ == 0 )
             short_name = argv [ 0 ];
 
-        U32 i, mode_count = mode_list . size ();
+        auto mode_count = mode_list . size ();
         if ( mode_count == 0 )
         {
             std :: cout
@@ -1430,8 +1453,8 @@ namespace ncbi
         }
         else
         {
-            Mode * save = mode;
-            for ( i = 0; i < mode_count; ++ i )
+            auto const save = mode;
+            for (auto i = decltype(mode_count)(0); i < mode_count; ++ i )
             {
                 mode = mode_list [ i ];
 
@@ -1449,15 +1472,18 @@ namespace ncbi
             longHelp ( short_name );
         else
         {
-            Mode * save = mode;
-            for ( i = 0; i < mode_count; ++ i )
+            auto const save = mode;
+            for (auto i = decltype(mode_count)(0); i < mode_count; ++ i )
             {
                 mode = mode_list [ i ];
                 longHelp ( short_name );
             }
             mode = save;
         }
+        version ( );
+    }
 
+    void Cmdline :: version () {
         std :: cout
             << '\n'
             << '"'
@@ -1486,6 +1512,7 @@ namespace ncbi
         , argx ( 1 )
         , argc ( _argc )
         , num_params ( 0 )
+	, options_are_silent ( false )
     {
         if ( _argc <= 0 )
         {
@@ -1507,6 +1534,7 @@ namespace ncbi
         , argx ( 1 )
         , argc ( _argc )
         , num_params ( 0 )
+	, options_are_silent ( false )
     {
         if ( _argc <= 0 )
         {
@@ -1650,7 +1678,10 @@ namespace ncbi
         }
 
         // accept it
-        mode -> formal_opts . push_back ( opt );
+	if (  options_are_silent )
+	  mode -> silent_opts . push_back ( opt );
+	else
+	  mode -> formal_opts . push_back ( opt );
     }
 
     /* EnvImport

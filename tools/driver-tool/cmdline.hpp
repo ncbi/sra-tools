@@ -67,6 +67,9 @@ namespace ncbi
             U32 max, const String & short_name, const String & long_name,
             const String & elem_name, const String & help );
 
+        // indicate start of silent options
+        void startSilentOptions ();
+
         // add trailing cmd - following a '--' will gather but not parse parameters
         void addTrailingCmd ( std :: vector < String > & argv,
             const String & cmd_name, const String & help );
@@ -85,6 +88,7 @@ namespace ncbi
         void help ( bool all_modes = false );
         void shortHelp ( const char * short_name );
         void longHelp ( const char * short_name );
+        void version ();
 
         Cmdline ( int argc, char * argv [] );
         Cmdline ( int argc, char * argv [], const String & vers );
@@ -142,6 +146,7 @@ namespace ncbi
             String mode_help;
             std :: vector < Param * > formal_params;
             std :: vector < Option * > formal_opts;
+            std :: vector < Option * > silent_opts;
             std :: map < String, Option * > short_opt_map;
             std :: map < String, Option * > long_opt_map;
             Command * trailing_command;
@@ -167,6 +172,8 @@ namespace ncbi
         U32 argc;
 
         U32 num_params;
+
+        bool options_are_silent;
     };
 
     /*=====================================================*

@@ -1707,9 +1707,45 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
+    rc_t r2 = 0;
+    VPath * path = NULL;
+
     vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /*ctx->force_sra_schema*/ );
 
-    rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
+//  rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
+
+    {
+        VPath * in_path = NULL;
+        VFSManager * vfs_mgr = NULL;
+        rc = VFSManagerMake(&vfs_mgr);
+        if (rc != 0)
+            ErrMsg("VFSManagerMake() -> %R", rc);
+        if (rc == 0) {
+            rc = VFSManagerMakePath(vfs_mgr, &in_path, "%s", ctx->path);
+            if (rc != 0)
+                ErrMsg("VFSManagerVMakePath() -> %R", rc);
+        }
+        if (rc == 0) {
+            rc = VFSManagerResolvePath(vfs_mgr, vfsmgr_rflag_kdb_acc,
+                in_path, &path);
+            if (rc != 0)
+                ErrMsg("VFSManagerResolvePath() -> %R", rc);
+        }
+        r2 = VPathRelease(in_path);
+        if (r2 != 0) {
+            ErrMsg("VPathRelease() -> %R", r2);
+            if (rc == 0)
+                rc = r2;
+        }
+        r2 = VFSManagerRelease(vfs_mgr);
+        if (r2 != 0) {
+            ErrMsg("VFSManagerRelease() -> %R", r2);
+            if (rc == 0)
+                rc = r2;
+        }
+    }
+
+    rc = VDBManagerOpenTableReadVPath( my_manager, &my_table, my_schema, path );
     if ( rc != 0 )
         ErrMsg( "VDBManagerOpenTableRead( '%R' ) -> %R", ctx->path, rc );
     else
@@ -1726,6 +1762,14 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
         if ( rc != 0 )
             ErrMsg( "VSchemaRelease() -> %R", rc );
     }
+
+    r2 = VPathRelease(path);
+    if (r2 != 0) {
+        ErrMsg("VPathRelease() -> %R", r2);
+        if (rc == 0)
+            rc = r2;
+    }
+
     return rc;
 }
 

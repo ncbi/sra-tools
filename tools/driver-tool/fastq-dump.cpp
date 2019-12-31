@@ -44,7 +44,6 @@
 #include <sysexits.h>
 
 #include "globals.hpp"
-#include "which.hpp"
 #include "debug.hpp"
 #include "tool-args.hpp"
 #include "constants.hpp"

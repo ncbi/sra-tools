@@ -33,18 +33,10 @@
 
 namespace sratools2
 {
-    std::string runpath_from_argv0( int argc, char *argv[] )
-    {
-        auto const impersonate = getenv( "SRATOOLS_IMPERSONATE" );
-        auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
-        WhatImposter what( argv0 );
-        return what._runpath;
-    }
-
     static auto const error_continues_message = std::string( "If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/" );
     
     // the 'new' main-function of sratools
-    int main2( int argc, char *argv[] )
+    int main2( int argc, char *argv[], sratools::ToolPath const &toolpath )
     {
         int res = 0;
         // encapsulate the original args into a class, eventually inserting argv[0] from env-variable
@@ -56,7 +48,7 @@ namespace sratools2
 
         // detect what imposter we are asked to impersonate
         // WhatImposter is a class defined in support2.hpp
-        WhatImposter what( args . argv[ 0 ] );
+        WhatImposter what( toolpath );
         
         // just to see what was detected...
         //std::cout << "what = " << what.as_string() << std::endl;
@@ -81,6 +73,7 @@ namespace sratools2
                 case Imposter::FASTERQ_DUMP : return impersonate_fasterq_dump( args, what ); break;
                 case Imposter::SRA_PILEUP   : return impersonate_sra_pileup( args, what ); break;
                 case Imposter::SAM_DUMP     : return impersonate_sam_dump( args, what ); break;
+                case Imposter::VDB_DUMP     : return impersonate_vdb_dump( args, what ); break;
                 default : 
                     std::cerr << "An error occured: invalid tool requested" << std::endl << error_continues_message << std::endl;
                     res = 3;

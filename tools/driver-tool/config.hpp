@@ -33,6 +33,7 @@
 #include <string>
 #include <map>
 #include "opt_string.hpp"
+#include "tool-path.hpp"
 
 namespace sratools {
 
@@ -44,7 +45,7 @@ class Config {
         return "/LIBS/GUID";
     }
 public:
-    Config(std::string const &runpath);
+    Config(ToolPath const &runpath);
     opt_string get(char const *const keypath) const {
         auto const iter = kvps.find(keypath);
         return iter == kvps.end() ? opt_string() : opt_string(iter->second);

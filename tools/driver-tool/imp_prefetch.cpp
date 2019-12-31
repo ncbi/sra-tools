@@ -35,7 +35,7 @@ namespace sratools2
 struct PrefetchParams final : CmnOptAndAccessions
 {
     ncbi::String file_type;
-    //ncbi::String transport;
+    ncbi::String transport;
     ncbi::U32 min_size_count;
     ncbi::U32 min_size_value;
     ncbi::U32 max_size_count;
@@ -45,10 +45,11 @@ struct PrefetchParams final : CmnOptAndAccessions
     ncbi::U32 progress_value;
     bool eliminate_quals;
     bool check_all;
-    ncbi::String ascp_path;
-    ncbi::String ascp_options;
+    //ncbi::String ascp_path;
+    //ncbi::String ascp_options;
     ncbi::String output_file;
     ncbi::String output_dir;
+    bool dryrun;
 
     PrefetchParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
@@ -57,6 +58,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     , progress_count( 0 ), progress_value( 0 )
     , eliminate_quals( false )
     , check_all( false )
+    , dryrun( false )
     {
     }
     
@@ -64,11 +66,6 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
-        /*
-        cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
-            "Transport: one of: fasp; http; both. (fasp only; http only; first try fasp (ascp), use "
-            "http if cannot download using fasp). Default: both" );
-        */
         cmdline . addOption ( min_size_value, &min_size_count, "N", "min_size", "<size>",
             "Minimum file size to download in KB (inclusive)." );
         cmdline . addOption ( max_size_value, &max_size_count, "X", "max_size", "<size>",
@@ -83,20 +80,31 @@ struct PrefetchParams final : CmnOptAndAccessions
         cmdline . addOption ( progress_value, &progress_count, "p", "progress", "<value>",
             "Time period in minutes to display download progress (0: no progress), default: 1" );
 
-        cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
         cmdline . addOption ( check_all, "c", "check-all", "Double-check all refseqs" );
 
+        /*
         cmdline . addOption ( ascp_path, nullptr, "a", "ascp-path", "<ascp-binary|private-key-file>",
             "Path to ascp program and private key file (asperaweb_id_dsa.putty)" );
         cmdline . addOption ( ascp_options, nullptr, "", "ascp-options", "<value>",
             "Arbitrary options to pass to ascp command line" );
-
+        */
+        
         cmdline . addOption ( output_file, nullptr, "o", "output-file", "<value>",
             "Write file to FILE when downloading single file" );
         cmdline . addOption ( output_dir, nullptr, "O", "output-directory", "<path>",
             "Save files to path/" );
 
         CmnOptAndAccessions::add(cmdline);
+
+        // add a silent option...
+        cmdline . startSilentOptions();
+        cmdline . addOption ( dryrun, "", "dryrun", "-" );
+        /* switched to silent instead of removing it */
+        cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
+        cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
+            "Transport: one of: fasp; http; both. (fasp only; http only; first try fasp (ascp), use "
+            "http if cannot download using fasp). Default: both" );
+
     }
 
     std::ostream &show(std::ostream &ss) const override
@@ -109,10 +117,11 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( progress_count > 0 ) ss << "progress: " << progress_value << std::endl;
         if ( eliminate_quals ) ss << "eliminate-quals" << std::endl;
         if ( check_all ) ss << "check-all" << std::endl;
-        if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
-        if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
+        //if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
+        //if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
         if ( !output_file.isEmpty() ) ss << "output-file: " << output_file << std::endl;
         if ( !output_dir.isEmpty() ) ss << "output-dir: " << output_dir << std::endl;
+        if ( dryrun ) ss << "dryrun" << std::endl;
         return CmnOptAndAccessions::show(ss);
     }
 
@@ -132,24 +141,57 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( progress_count > 0 ) builder . add_option( "-p", progress_value );
         if ( eliminate_quals ) builder . add_option( "--eliminate-quals" );
         if ( check_all ) builder . add_option( "-c" );
-        if ( !ascp_path.isEmpty() ) builder . add_option( "-a", ascp_path );
-        if ( !ascp_options.isEmpty() ) builder . add_option( "--ascp_options", ascp_options );
+        //if ( !ascp_path.isEmpty() ) builder . add_option( "-a", ascp_path );
+        //if ( !ascp_options.isEmpty() ) builder . add_option( "--ascp_options", ascp_options );
         if ( !output_file.isEmpty() ) builder . add_option( "-o", output_file );
         if ( !output_dir.isEmpty() ) builder . add_option( "-O", output_dir );
-        
+        if ( dryrun ) builder . add_option( "--dryrun" );
+
         // permanently pin the transport option to 'http'
         builder . add_option( "-t", "http" );
+
+        // prefetch gets location
+        if (!location.isEmpty()) builder.add_option("--location", location);
     }
 
     bool check() const override
     {
         int problems = 0;
+        if ( eliminate_quals )
+        {
+            std::cerr << "The option 'eliminate-quals' has been temporary disabled." << std::endl;
+            problems++;
+        }
+
+        if ( !transport.isEmpty() )
+        {
+            bool http = ( ( transport.compare( "http" ) == 0 ) ||
+                          ( transport.compare( "https" ) == 0 ) );
+            if ( !http )
+            {
+                std::cerr << "The option 'transport' has been temporary disabled due to the unavailability of Aspera servers. "
+                    "The data will be downloaded using https." << std::endl;
+            }
+        }
 
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }
 
     int run() const override {
-        return ToolExecNoSDL::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
+        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            if (realpath.executable())
+                return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#if DEBUG || _DEBUGGING
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
+            if (realpath.executable())
+                return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#endif
+        throw std::runtime_error(TOOL_NAME " was not found or is not executable.");
     }
 };
 

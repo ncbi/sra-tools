@@ -308,7 +308,7 @@ struct SamDumpParams final : CmnOptAndAccessions
             problems++;
         }
         if (!cart_file.isEmpty()) {
-            std::cerr << "unimplemented parameter: --cart is not yet implemented for " << what._basename << std::endl;
+            std::cerr << "unimplemented parameter: --cart is not yet implemented for " TOOL_NAME << std::endl;
             problems++;
         }
         if (fasta && fastq)
@@ -321,7 +321,20 @@ struct SamDumpParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        return ToolExec::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
+        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            if (realpath.executable())
+                return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#if DEBUG || _DEBUGGING
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
+            if (realpath.executable())
+                return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#endif
+        throw std::runtime_error(TOOL_NAME " was not found or is not executable.");
     }
 };
 

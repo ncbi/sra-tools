@@ -38,7 +38,7 @@
 
 #include "config.hpp"
 #include "proc.hpp"
-#include "which.hpp"
+#include "tool-path.hpp"
 #include "util.hpp"
 #include "debug.hpp"
 
@@ -72,14 +72,14 @@ static bool ignore(std::string const &key)
     return false;
 }
 
-Config::Config(std::string const &runpath) {
+Config::Config(ToolPath const &runpath) {
     static char const *argv[] = {
         "vdb-config", "--output=n",
         NULL
     };
-    auto const toolpath = which(runpath, "vdb-config");
-    if (toolpath) {
-        auto const path = toolpath.value();
+    auto const toolpath = runpath.getPathFor(argv[0]);
+    if (toolpath.executable()) {
+        auto const path = toolpath.fullpath();
         int fd = -1;
         auto const child = process::run_child_with_redirected_stdout(&fd, [&]() {
             execve(path.c_str(), argv);

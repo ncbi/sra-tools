@@ -116,6 +116,10 @@ struct SrapathParams final : CmnOptAndAccessions
         if ( !project.isEmpty() ) builder . add_option( "-d", project );
         if ( resolve_cache ) builder . add_option( "-c" );
         if ( print_path ) builder . add_option( "-P" );
+
+        // srapath get perm and location
+        if (!perm_file.isEmpty()) builder.add_option("--perm", perm_file);
+        if (!location.isEmpty()) builder.add_option("--location", location);
     }
 
     bool check() const override
@@ -126,7 +130,20 @@ struct SrapathParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        return ToolExecNoSDL::run(what.toolpath().c_str(), what._basename.c_str(), *this, accessions);
+        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            if (realpath.executable())
+                return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#if DEBUG || _DEBUGGING
+        {
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
+            if (realpath.executable())
+                return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+        }
+#endif
+        throw std::runtime_error(TOOL_NAME " was not found or is not executable.");
     }
 };
 

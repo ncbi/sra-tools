@@ -35,7 +35,7 @@ namespace sratools2
 struct PrefetchParams final : CmnOptAndAccessions
 {
     ncbi::String file_type;
-    //ncbi::String transport;
+    ncbi::String transport;
     ncbi::U32 min_size_count;
     ncbi::U32 min_size_value;
     ncbi::U32 max_size_count;
@@ -66,11 +66,6 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
-        /*
-        cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
-            "Transport: one of: fasp; http; both. (fasp only; http only; first try fasp (ascp), use "
-            "http if cannot download using fasp). Default: both" );
-        */
         cmdline . addOption ( min_size_value, &min_size_count, "N", "min_size", "<size>",
             "Minimum file size to download in KB (inclusive)." );
         cmdline . addOption ( max_size_value, &max_size_count, "X", "max_size", "<size>",
@@ -85,7 +80,6 @@ struct PrefetchParams final : CmnOptAndAccessions
         cmdline . addOption ( progress_value, &progress_count, "p", "progress", "<value>",
             "Time period in minutes to display download progress (0: no progress), default: 1" );
 
-        cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
         cmdline . addOption ( check_all, "c", "check-all", "Double-check all refseqs" );
 
         /*
@@ -105,6 +99,12 @@ struct PrefetchParams final : CmnOptAndAccessions
         // add a silent option...
         cmdline . startSilentOptions();
         cmdline . addOption ( dryrun, "", "dryrun", "-" );
+        /* switched to silent instead of removing it */
+        cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
+        cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
+            "Transport: one of: fasp; http; both. (fasp only; http only; first try fasp (ascp), use "
+            "http if cannot download using fasp). Default: both" );
+
     }
 
     std::ostream &show(std::ostream &ss) const override
@@ -157,6 +157,22 @@ struct PrefetchParams final : CmnOptAndAccessions
     bool check() const override
     {
         int problems = 0;
+        if ( eliminate_quals )
+        {
+            std::cerr << "The option 'eliminate-quals' has been temporary disabled." << std::endl;
+            problems++;
+        }
+
+        if ( !transport.isEmpty() )
+        {
+            bool http = ( ( transport.compare( "http" ) == 0 ) ||
+                          ( transport.compare( "https" ) == 0 ) );
+            if ( !http )
+            {
+                std::cerr << "The option 'transport' has been temporary disabled due to the unavailability of Aspera servers. "
+                    "The data will be downloaded using https." << std::endl;
+            }
+        }
 
         return CmnOptAndAccessions::check() && ( problems == 0 );
     }

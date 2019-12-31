@@ -40,9 +40,10 @@ runtests: kar_test
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-kar_test: kar-test.sh
+kar_test: kar-test.sh kar-ntest.sh
 	@ echo "Starting kar tests..."
 	@ bash kar-test.sh $(BINDIR)/kar
+	@ bash kar-ntest.sh $(BINDIR)/kar
 
 kar:
 	rm -rf actual

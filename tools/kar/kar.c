@@ -2093,13 +2093,6 @@ rc_t store_extracted_file ( stored_file * sf, const extract_block * eb )
             exit ( 4 );
         }
 
-        if ( num_read == 0 && to_read != 0 ) {
-            /*  we reached end of file, and we still need more data
-             */
-            pLogErr (klogErr, rc, "end of file reached while reading from archive '$(fname)'", "fname=%s", src -> dad . name );
-            exit ( 4 );
-        }
-        
         rc = KFileWriteAll ( dst, total, buffer, num_read, &num_writ );
         if ( rc != 0 )
         {

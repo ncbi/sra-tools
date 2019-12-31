@@ -67,6 +67,7 @@
 #include "uuid.hpp"
 #include "env_vars.h"
 #include "tool-path.hpp"
+#include "sratools.hpp"
 
 namespace sratools {
 
@@ -78,10 +79,32 @@ namespace sratools {
 
     static void printInstallMessage [[noreturn]] (void);
 
+#if DEBUG || _DEBUGGING
+    static void testAccessionType() {
+        assert(accessionType("SRR000000") == run);
+        assert(accessionType("ERR000000") == run);
+        assert(accessionType("DRR000000") == run);
+        assert(accessionType("srr000000") == run);
+
+        assert(accessionType("SRA000000") == submitter);
+        assert(accessionType("SRP000000") == project);
+        assert(accessionType("SRS000000") == study);
+        assert(accessionType("SRX000000") == experiment);
+
+        assert(accessionType("SRR000000.2") == run);
+
+        assert(accessionType("SRR00000") == unknown); // too short
+        assert(accessionType("SRF000000") == unknown); // bad type
+        assert(accessionType("ZRR000000") == unknown); // bad issuer
+        assert(accessionType("SRRR00000") == unknown); // not digits
+    }
+#endif
+
     static void test() {
 #if DEBUG || _DEBUGGING
         auto const envar = getenv("SRATOOLS_TESTING");
         if (envar && std::atoi(envar)) {
+            testAccessionType();
             data_sources::test();
             exit(0);
         }
@@ -97,6 +120,9 @@ namespace sratools {
         test();
 
         int result = -1;
+
+        auto const sessionID = uuid();
+        setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
 
         config = new Config(toolpath);
         if (config->noInstallID()) {
@@ -167,6 +193,48 @@ namespace sratools {
     ToolPath makeToolPath(char const *argv0, char *extra[]) {
         return ToolPath(argv0, extra);
     }
+
+    AccessionType accessionType(std::string const &accession)
+    {
+        auto result = AccessionType::unknown;
+        int st = 0;
+        int digits = 0;
+
+        for (auto & ch : accession) {
+            auto const CH = toupper(ch);
+            switch (st) {
+            case 0:
+                if (!(CH == 'D' || CH == 'E' || CH == 'S')) return unknown;
+                ++st;
+                break;
+            case 1:
+                if (CH != 'R') return unknown;
+                ++st;
+                break;
+            case 2:
+                switch (CH) {
+                case 'A': result = submitter; break;
+                case 'P': result = project; break;
+                case 'R': result = run; break;
+                case 'S': result = study; break;
+                case 'X': result = experiment; break;
+                default:
+                    return unknown;
+                }
+                ++st;
+                break;
+            default:
+                if (isdigit(ch)) {
+                    ++digits;
+                    break;
+                }
+                if (ch != '.') return unknown;
+                return digits < 6 ? unknown : result;
+            }
+        }
+        return digits < 6 ? unknown : result;
+    }
+
 } // namespace sratools
 
 #if MAC

@@ -42,6 +42,7 @@
 #include "globals.hpp"
 #include "service.hpp"
 #include "tool-path.hpp"
+#include "sratools.hpp"
 
 namespace sratools2
 {
@@ -371,7 +372,6 @@ namespace sratools2
                     problems++;
                 }
             }
-            // we could check if ngc/kar/perm-files do actually exist...
 
             if (!perm_file.isEmpty()) {
                 if (!ngc_file.isEmpty()) {
@@ -382,6 +382,40 @@ namespace sratools2
                     ++problems;
                     std::cerr << "Currently, --perm can only be used from inside a cloud computing environment.\nPlease run inside of a supported cloud computing environment, or get an ngc file from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>." << std::endl;
                 }
+                if (!fileExists(perm_file.toSTLString())) {
+                    ++problems;
+                    std::cerr << "--perm " << perm_file << "\nFile not found." << std::endl;
+                }
+            }
+            if (!ngc_file.isEmpty()) {
+                if (!fileExists(ngc_file.toSTLString())) {
+                    ++problems;
+                    std::cerr << "--ngc " << ngc_file << "\nFile not found." << std::endl;
+                }
+            }
+            if (!cart_file.isEmpty()) {
+                if (!fileExists(cart_file.toSTLString())) {
+                    ++problems;
+                    std::cerr << "--cart " << cart_file << "\nFile not found." << std::endl;
+                }
+            }
+
+            auto containers = 0;
+            for (auto & Acc : accessions) {
+                auto const &acc = Acc.toSTLString();
+                if (fileExists(acc)) continue;
+
+                auto const type = sratools::accessionType(acc);
+                if (type == sratools::unknown || type == sratools::run)
+                    continue;
+
+                ++problems;
+                ++containers;
+
+                std::cerr << acc << " is not a run accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << acc << std::endl;
+            }
+            if (containers > 0) {
+                std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the accessions." << std::endl;
             }
             return ( problems == 0 );
         }

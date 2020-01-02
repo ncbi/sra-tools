@@ -388,16 +388,20 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
 {
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
+#ifndef CAN_RUN_OUTSIDE_OF_CLOUD
     if (havePerm && !canSendCE) {
         std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
         exit(EX_USAGE);
     }
+#endif
 
     auto const &ceToken = Service::CE_Token();
+#ifndef CAN_RUN_OUTSIDE_OF_CLOUD
     if (havePerm && ceToken.empty()) {
         std::cerr << "--perm requires a cloud instance identity, but a cloud instance identity could not be found." << std::endl;
         exit(EX_USAGE);
     }
+#endif
 
     auto result = data_sources(canSendCE ? ceToken : "");
     auto const &service = Service::make();
@@ -457,6 +461,10 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
     catch (vdb::exception const &e) {
         LOG(1) << "Failed to talk to SDL" << std::endl;
         LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+
+        std::cerr << e.msg << "." << std::endl;
+        exit(EX_USAGE);
+
     }
     catch (SDL_unexpected_error const &e) {
         LOG(1) << e.what() << std::endl;

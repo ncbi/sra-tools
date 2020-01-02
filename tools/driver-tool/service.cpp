@@ -128,7 +128,8 @@ namespace vdb {
     void Service::add(std::string const &term) const {
         auto const rc = KServiceAddId((KService *)obj, term.c_str());
         if (rc)
-            throw exception(rc, "KServiceAddId", term);
+            throw exception(rc, "KServiceAddId", term,
+                "Cannot process '" + term + "'");
     }
 
     void Service::add(std::vector<std::string> const &terms) const {
@@ -139,19 +140,22 @@ namespace vdb {
     void Service::setLocation(std::string const &location) const {
         auto const rc = KServiceSetLocation((KService *)obj, location.c_str());
         if (rc)
-            throw exception(rc, "KServiceSetLocation", location);
+            throw exception(rc, "KServiceSetLocation", location,
+                "Cannot use '" + location + "' as location");
     }
 
     void Service::setPermissionsFile(std::string const &path) const {
         auto const rc = KServiceSetJwtKartFile((KService *)obj, path.c_str());
         if (rc)
-            throw exception(rc, "KServiceSetJwtKartFile", path);
+            throw exception(rc, "KServiceSetJwtKartFile", path,
+                "Cannot use '" + path + "' as jwt cart file");
     }
 
     void Service::setNGCFile(std::string const &path) const {
         auto const rc = KServiceSetNgcFile((KService *)obj, path.c_str());
         if (rc)
-            throw exception(rc, "KServiceSetNgcFile", path);
+            throw exception(rc, "KServiceSetNgcFile", path,
+                "Cannot use '" + path + "' as ngc file");
     }
 
 #if 0
@@ -201,7 +205,8 @@ namespace vdb {
             auto const cstr = KServiceGetResponseCStr((KService *)obj);
             return Response((void *)resp, cstr);
         }
-        throw exception(rc, "KServiceNamesExecuteExt", "");
+        throw exception(rc, "KServiceNamesExecuteExt", "",
+            "Failed to call external services");
     }
     Service::LocalInfo::FileInfo Service::Response::localInfo2(std::string const &accession, std::string const &name) const {
         Service::LocalInfo::FileInfo info = {};

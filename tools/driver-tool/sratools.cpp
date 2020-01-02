@@ -237,6 +237,9 @@ namespace sratools {
 
 } // namespace sratools
 
+#include <klib/debug.h> /* KDbgSetString */
+#include <klib/log.h> /* KLogLibHandlerSetStdErr */
+
 #if MAC
 int main(int argc, char *argv[], char *envp[], char *apple[])
 #elif LINUX
@@ -247,6 +250,14 @@ int main(int argc, char *argv[])
 {
     auto const impersonate = getenv( "SRATOOLS_IMPERSONATE" );
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
+
+    rc_t rc = KWrtInit(argv[0], 0);
+    if (rc == 0)
+        rc = KLogLibHandlerSetStdErr();
+#ifdef HACKING
+    assert(!KDbgSetString("VFS"));
+#endif
+
 #if MAC
     return sratools::main(argc, argv, envp, sratools::makeToolPath(argv0, apple));
 #elif LINUX

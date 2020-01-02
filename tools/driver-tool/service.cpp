@@ -206,7 +206,7 @@ namespace vdb {
             return Response((void *)resp, cstr);
         }
         throw exception(rc, "KServiceNamesExecuteExt", "",
-            "Failed to call external services. Please try later");
+            "Failed to call external services");
     }
     Service::LocalInfo::FileInfo Service::Response::localInfo2(std::string const &accession, std::string const &name) const {
         Service::LocalInfo::FileInfo info = {};

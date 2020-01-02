@@ -263,7 +263,7 @@ struct Response2 {
             }
         };
         using Files = std::vector<FileEntry>;
-        std::string accession;
+        std::string query;
         std::string status;
         std::string message;
         Files files;
@@ -272,7 +272,7 @@ struct Response2 {
         : status(getString(obj, "status"))
         {
             message = getString(obj, "msg");
-            accession = getString(obj, "bundle");
+            query = getString(obj, "bundle");
             
             forEach(obj, "files", [&](ncbi::JSONValue const &value) {
                 assert(value.isObject());
@@ -401,16 +401,8 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
 
     auto result = data_sources(canSendCE ? ceToken : "");
     auto const &service = Service::make();
-    auto local = std::map<std::string, Service::LocalInfo>();
+    auto notfound = std::set<std::string>(runs.begin(), runs.end());
 
-#if 0
-    for (auto & run : runs) {
-        // This is based on the query from the user; it might not be accurate.
-        // Later, we will use names that were returned from SDL to look up the
-        // same info, it should be as accurate as we can get.
-        local[run] = service.localInfo(run);
-    }
-#endif
     try {
         auto const response = get_SDL_response(service, runs, result.have_ce_token);
         LOG(8) << "SDL response:\n" << response << std::endl;
@@ -427,15 +419,13 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
             LOG(7) << "Parsed SDL Response" << std::endl;
             
             for (auto &sdl_result : raw.result) {
-                auto const &accession = sdl_result.accession;
-#if 0
-                auto const localInfo = local.find(accession);
-#endif
+                auto const &query = sdl_result.query;
+                auto const localInfo = notfound.find(query);
 
-                LOG(6) << "Accession " << accession << " " << sdl_result.status << " " << sdl_result.message << std::endl;
+                LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
                 if (sdl_result.status == "200") {
                     unsigned added = 0;
-                    sdl_result.process(accession, response, [&](data_source &&source) {
+                    sdl_result.process(query, response, [&](data_source &&source) {
                         if (havePerm && source.encrypted()) {
                             std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
                         }
@@ -444,22 +434,19 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
                             added += 1;
                         }
                     });
-#if 0
-                    local.erase(localInfo); // remove since we used it here
-#endif
+                    notfound.erase(localInfo); // remove since we found it
                     if (added == 0) {
                         std::cerr
-                        << "Accession " << accession << " might be available in a different region or on a different cloud provider." << std::endl
+                        << "Accession " << query << " might be available in a different region or on a different cloud provider." << std::endl
                         << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
                     }
                 }
-#if 0
-                else if (sdl_result.status == "404" && localInfo->second.rundata) {
+                else if (sdl_result.status == "404") {
                     // use the local data (see below)
+                    LOG(5) << "Query '" << query << "' 404 " << sdl_result.message << std::endl;
                 }
-#endif
                 else {
-                    std::cerr << "Accession " << accession << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
+                    std::cerr << "Query " << query << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
                 }
             }
         }
@@ -478,28 +465,13 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
     catch (...) {
         throw std::logic_error("Error communicating with NCBI");
     }
-    // try to make sources for local files
-    for (auto const &info : local) {
-        if (info.second.rundata) {
-            source rsource = {};
-            rsource.accession = info.first;
-            rsource.localPath = info.second.rundata.path;
-            rsource.haveLocalPath = true;
-            rsource.cachePath = info.second.rundata.cachepath;
-            rsource.haveCachePath = !rsource.cachePath.empty();
-            if (!info.second.vdbcache)
-                result.addSource(data_source(rsource));
-            else {
-                source vsource = {};
-                vsource.accession = info.first;
-                vsource.localPath = info.second.vdbcache.path;
-                vsource.haveLocalPath = true;
-                vsource.cachePath = info.second.vdbcache.cachepath;
-                vsource.haveCachePath = !vsource.cachePath.empty();
-
-                result.addSource(data_source(rsource, vsource));
-            }
-        }
+    // make "file" sources for unrecognized query elements
+    for (auto const &run : notfound) {
+        source s = {};
+        s.accession = run;
+        s.localPath = run;
+        s.haveLocalPath = true;
+        result.addSource(data_source(s));
     }
     return result;
 }

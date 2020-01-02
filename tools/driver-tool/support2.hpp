@@ -382,19 +382,19 @@ namespace sratools2
                     ++problems;
                     std::cerr << "Currently, --perm can only be used from inside a cloud computing environment.\nPlease run inside of a supported cloud computing environment, or get an ngc file from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>." << std::endl;
                 }
-                if (!fileExists(perm_file.toSTLString())) {
+                if (!pathExists(perm_file.toSTLString())) {
                     ++problems;
                     std::cerr << "--perm " << perm_file << "\nFile not found." << std::endl;
                 }
             }
             if (!ngc_file.isEmpty()) {
-                if (!fileExists(ngc_file.toSTLString())) {
+                if (!pathExists(ngc_file.toSTLString())) {
                     ++problems;
                     std::cerr << "--ngc " << ngc_file << "\nFile not found." << std::endl;
                 }
             }
             if (!cart_file.isEmpty()) {
-                if (!fileExists(cart_file.toSTLString())) {
+                if (!pathExists(cart_file.toSTLString())) {
                     ++problems;
                     std::cerr << "--cart " << cart_file << "\nFile not found." << std::endl;
                 }
@@ -403,7 +403,7 @@ namespace sratools2
             auto containers = 0;
             for (auto & Acc : accessions) {
                 auto const &acc = Acc.toSTLString();
-                if (fileExists(acc)) continue;
+                if (pathExists(acc)) continue; // skip check if it's a file system object
 
                 auto const type = sratools::accessionType(acc);
                 if (type == sratools::unknown || type == sratools::run)

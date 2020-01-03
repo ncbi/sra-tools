@@ -475,11 +475,20 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
             throw SDL_unexpected_error(std::string("unexpected version ") + version);
         }
     };
+#if 0
     auto const &split = split_by_type(runs);
     try {
         run_query(split.first);
         run_query(split.second);
     }
+#else
+    try {
+        for (auto && i : runs) {
+            std::vector<std::string> runs = {i};
+            run_query(runs);
+        }
+    }
+#endif
     catch (vdb::exception const &e) {
         LOG(1) << "Failed to talk to SDL" << std::endl;
         LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;

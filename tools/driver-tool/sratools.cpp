@@ -116,13 +116,11 @@ namespace sratools {
 
     static void enableLogging(char const *argv0)
     {
-#if DEBUG || _DEBUGGING
-        auto const rc = KWrtInit(argv0, 0);
+        auto const rc = KWrtInit(argv0, TOOLKIT_VERS);
         if (rc == 0)
             KLogLibHandlerSetStdErr();
 #ifdef HACKING
         assert(!KDbgSetString("VFS"));
-#endif
 #endif
     }
 

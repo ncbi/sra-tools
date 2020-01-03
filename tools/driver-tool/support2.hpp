@@ -454,7 +454,7 @@ namespace sratools2
             if (result.signaled()) {
                 std::cerr << toolname << " (PID " << child.get_pid() << ") was killed (signal " << result.termsig() << ")";
                 std::cerr << std::endl;
-                abort();
+                exit(3);
             }
             assert(!"reachable");
             abort();

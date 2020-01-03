@@ -753,21 +753,21 @@ static int64_t CC pchar_vs_srn_cmp( const void * item, const BSTNode * n )
 }
 
 
-void skiplist_enter_ref( struct skiplist * list, const char * name )
+void skiplist_enter_ref( struct skiplist * list, const char * name1, const char * name2 )
 {
     if ( list != NULL )
     {
-        if ( name == NULL )
-            list->current = NULL;
-        else
+        struct skiplist_ref_node * cur_node = NULL;
+        if ( name1 != NULL )
+            cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name1, pchar_vs_srn_cmp );
+        if ( cur_node == NULL && name2 != NULL)
+            cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name2, pchar_vs_srn_cmp );
+        
+        list->current = cur_node;
+        if ( cur_node != NULL )
         {
-            struct skiplist_ref_node * cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name, pchar_vs_srn_cmp );
-            list->current = cur_node;
-			if ( cur_node != NULL )
-			{
-				cur_node->current_id = 0;
-				cur_node->current_skip_range = VectorGet ( &( cur_node->skip_ranges ), 0 );
-			}
+            cur_node->current_id = 0;
+            cur_node->current_skip_range = VectorGet ( &( cur_node->skip_ranges ), 0 );
         }
     }
 }

@@ -955,8 +955,9 @@ static rc_t ref_walker_walk_ref_region( struct ref_walker * self,
 
     if ( rc == 0 )
     {
+        /* TODO: we need seq-name and seq-id here to identify the skiplist correctly */
         if ( self->skiplist != NULL )
-            skiplist_enter_ref( self->skiplist, rwd->ref_name );
+            skiplist_enter_ref( self->skiplist, rwd->ref_name, NULL );
 
         for ( idx = 0; idx < count; ++ idx )
         {

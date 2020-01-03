@@ -186,41 +186,42 @@ rc_t walk_0( walk_data * data, walk_funcs * funcs )
             }
             else if ( data->ref_obj != NULL )
             {
-                if ( data->options->use_seq_name )
-                    rc = ReferenceObj_Name( data->ref_obj, &data->ref_name );
-                else
-                    rc = ReferenceObj_SeqId( data->ref_obj, &data->ref_name );
-
-                if ( data->options->skiplist != NULL )
-                    skiplist_enter_ref( data->options->skiplist, data->ref_name );
-
+                const char * seq_name;
+                rc = ReferenceObj_Name( data->ref_obj, &seq_name );
                 if ( rc != 0 )
                 {
-                    if ( data->options->use_seq_name )
-                    {
-                        LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
-                    }
-                    else
-                    {
-                        LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
-                    }
+                    LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
                 }
                 else
                 {
-					rc = ReferenceObj_SeqLength( data->ref_obj, &data->ref_len );
-					if ( rc != 0 )
+                    const char * seq_id;
+                    rc = ReferenceObj_SeqId( data->ref_obj, &seq_id );
+                    if ( rc != 0 )
                     {
-                        LOGERR( klogInt, rc, "ReferenceObj_SeqLength() failed" );
+                        LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
                     }
-					else
-					{
-						if ( funcs->on_enter_ref != NULL )
-							rc = funcs->on_enter_ref( data );
-						if ( rc == 0 )
-							rc = walk_ref_window( data, funcs );
-						if ( rc == 0 && funcs->on_exit_ref != NULL )
-							rc = funcs->on_exit_ref( data );
-					}
+                    else
+                    {
+                        data->ref_name = data->options->use_seq_name ? seq_name : seq_id;
+
+                        if ( data->options->skiplist != NULL )
+                            skiplist_enter_ref( data->options->skiplist, seq_name, seq_id );
+
+                        rc = ReferenceObj_SeqLength( data->ref_obj, &data->ref_len );
+                        if ( rc != 0 )
+                        {
+                            LOGERR( klogInt, rc, "ReferenceObj_SeqLength() failed" );
+                        }
+                        else
+                        {
+                            if ( funcs->on_enter_ref != NULL )
+                                rc = funcs->on_enter_ref( data );
+                            if ( rc == 0 )
+                                rc = walk_ref_window( data, funcs );
+                            if ( rc == 0 && funcs->on_exit_ref != NULL )
+                                rc = funcs->on_exit_ref( data );
+                        }
+                    }
                 }
             }
         }

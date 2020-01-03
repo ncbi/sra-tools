@@ -958,27 +958,30 @@ static rc_t walk_ref_iter( ReferenceIterator *ref_iter, pileup_options *options 
         {
             if ( refobj != NULL )
             {
-                const char * refname = NULL;
-                if ( options->use_seq_name )
-                    rc = ReferenceObj_Name( refobj, &refname );
-                else
-                    rc = ReferenceObj_SeqId( refobj, &refname );
-
-                if ( rc == 0 )
+                /* we need both: seq-name ( for inst: chr1 ) and seq-id ( NC.... )
+                   to perform a correct lookup into the skiplist */
+                const char * seq_name = NULL;
+                rc = ReferenceObj_Name( refobj, &seq_name );
+                if ( rc != 0 )
                 {
-                    if ( options->skiplist != NULL )
-                        skiplist_enter_ref( options->skiplist, refname );
-                    rc = walk_reference( ref_iter, refname, options );
+                    LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
                 }
                 else
                 {
-                    if ( options->use_seq_name )
+                    const char * seq_id = NULL;
+                    rc = ReferenceObj_SeqId( refobj, &seq_id );
+                    if ( rc != 0 )
                     {
-                        LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
+                        LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
                     }
                     else
                     {
-                        LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
+                        const char * refname = options->use_seq_name ? seq_name : seq_id;
+
+                        if ( options->skiplist != NULL )
+                            skiplist_enter_ref( options->skiplist, seq_name, seq_id ); /* ref_regions.c */
+
+                        rc = walk_reference( ref_iter, refname, options );
                     }
                 }
             }

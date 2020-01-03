@@ -60,7 +60,7 @@ uint64_t get_ref_range_end( const struct reference_range * range );
 
 struct skiplist * skiplist_make( BSTree * regions );
 void skiplist_release( struct skiplist * list );
-void skiplist_enter_ref( struct skiplist * list, const char * name );
+void skiplist_enter_ref( struct skiplist * list, const char * name1, const char * name2 );
 bool skiplist_is_skip_position( struct skiplist * list, uint64_t pos );
 void skiplist_report( const struct skiplist * list );
 

@@ -69,6 +69,9 @@
 #include "tool-path.hpp"
 #include "sratools.hpp"
 
+#include <klib/debug.h> /* KDbgSetString */
+#include <klib/log.h> /* KLogLibHandlerSetStdErr */
+
 namespace sratools {
 
     std::string const *location = NULL;
@@ -111,8 +114,25 @@ namespace sratools {
 #endif
     }
 
+    static void enableLogging(char const *argv0)
+    {
+#if DEBUG || _DEBUGGING
+        auto const rc = KWrtInit(argv0, 0);
+        if (rc == 0)
+            KLogLibHandlerSetStdErr();
+#ifdef HACKING
+        assert(!KDbgSetString("VFS"));
+#endif
+#endif
+    }
+
     int main(int argc, char *argv[], char *envp[], ToolPath const &toolpath)
     {
+#if DEBUG || _DEBUGGING
+        enableLogging(argv[0]); // we probably want to log as ourselves in a debug build
+#else
+        enableLogging(toolpath.fullpath().c_str());
+#endif
         LOG(7) << "executable path: " << toolpath.fullpath() << std::endl;
 
         static auto const error_continues_message = "If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/";
@@ -194,51 +214,66 @@ namespace sratools {
         return ToolPath(argv0, extra);
     }
 
+    bool isSRAPattern(std::string const &accession)
+    {
+        // pattern is 3 alpha followed by 6 to 9 digits
+        // taken from get_accession_code and get_accession_app in vfs/resolver.c
+        auto alphas = 0;
+        auto digits = 0;
+
+        while (alphas < accession.size()) {
+            auto const ch = accession[alphas];
+            if (!isalpha(ch))
+                break;
+            ++alphas;
+            if (alphas > 3)
+                return false;
+        }
+        
+        if (alphas < 3)
+            return false;
+
+        while (digits + 3 < accession.size()) {
+            auto const ch = accession[digits + 3];
+            if (!isdigit(ch))
+                break;
+            ++digits;
+            if (digits > 9)
+                return false;
+        }
+        return digits + 3 == accession.size() && 6 <= digits && digits <= 9;
+    }
     AccessionType accessionType(std::string const &accession)
     {
-        auto result = AccessionType::unknown;
-        int st = 0;
-        int digits = 0;
+        if (!isSRAPattern(accession))
+            return unknown;
 
-        for (auto & ch : accession) {
-            auto const CH = toupper(ch);
-            switch (st) {
-            case 0:
-                if (!(CH == 'D' || CH == 'E' || CH == 'S')) return unknown;
-                ++st;
-                break;
-            case 1:
-                if (CH != 'R') return unknown;
-                ++st;
-                break;
-            case 2:
-                switch (CH) {
-                case 'A': result = submitter; break;
-                case 'P': result = project; break;
-                case 'R': result = run; break;
-                case 'S': result = study; break;
-                case 'X': result = experiment; break;
-                default:
-                    return unknown;
-                }
-                ++st;
-                break;
-            default:
-                if (isdigit(ch)) {
-                    ++digits;
-                    break;
-                }
-                if (ch != '.') return unknown;
-                return digits < 6 ? unknown : result;
-            }
+        auto const issuer = toupper(accession[0]);
+        switch (issuer) {
+        case 'D':
+        case 'E':
+        case 'S':
+            break;
+        default:
+            return unknown;
         }
-        return digits < 6 ? unknown : result;
+
+        auto const read = toupper(accession[1]);
+        if (read != 'R')
+            return unknown;
+
+        auto const type = toupper(accession[2]);
+        switch (type) {
+        case 'A': return submitter;
+        case 'P': return project;
+        case 'R': return run;
+        case 'S': return study;
+        case 'X': return experiment;
+        default:  return unknown;
+        }
     }
 
 } // namespace sratools
-
-#include <klib/debug.h> /* KDbgSetString */
-#include <klib/log.h> /* KLogLibHandlerSetStdErr */
 
 #if MAC
 int main(int argc, char *argv[], char *envp[], char *apple[])
@@ -250,13 +285,6 @@ int main(int argc, char *argv[])
 {
     auto const impersonate = getenv( "SRATOOLS_IMPERSONATE" );
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
-
-    rc_t rc = KWrtInit(argv[0], 0);
-    if (rc == 0)
-        rc = KLogLibHandlerSetStdErr();
-#ifdef HACKING
-    assert(!KDbgSetString("VFS"));
-#endif
 
 #if MAC
     return sratools::main(argc, argv, envp, sratools::makeToolPath(argv0, apple));

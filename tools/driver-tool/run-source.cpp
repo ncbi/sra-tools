@@ -46,6 +46,7 @@
 #include "util.hpp"
 #include "opt_string.hpp"
 #include "run-source.hpp"
+#include "sratools.hpp"
 #include "ncbi/json.hpp"
 
 #include "service.hpp"
@@ -383,6 +384,22 @@ void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
 }
 
+std::pair<std::vector<std::string>, std::vector<std::string>> split_by_type(std::vector<std::string> const &runs)
+{
+    std::vector<std::string> sra, nonsra;
+    std::set<std::string> seen;
+
+    for (auto && i : runs) {
+        if (!seen.insert(i).second) continue;
+
+        if (isSRAPattern(i))
+            sra.push_back(i);
+        else
+            nonsra.push_back(i);
+    }
+    return {sra, nonsra};
+}
+
 data_sources data_sources::preload(std::vector<std::string> const &runs,
                                    ParamList const &parameters)
 {
@@ -404,11 +421,11 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
 #endif
 
     auto result = data_sources(canSendCE ? ceToken : "");
-    auto const &service = Service::make();
     auto notfound = std::set<std::string>(runs.begin(), runs.end());
 
-    try {
-        auto const response = get_SDL_response(service, runs, result.have_ce_token);
+    auto run_query = [&](std::vector<std::string> const &terms) {
+        auto const &service = Service::make();
+        auto const &response = get_SDL_response(service, terms, result.have_ce_token);
         LOG(8) << "SDL response:\n" << response << std::endl;
 
         auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
@@ -417,11 +434,11 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
         auto const version_is = [&](std::string const &vers) {
             return version == vers || (version == "unstable" && vers == resolver::unstable_version());
         };
-        
+
         if (version_is("2")) {
             auto const &raw = Response2(obj);
             LOG(7) << "Parsed SDL Response" << std::endl;
-            
+
             for (auto &sdl_result : raw.result) {
                 auto const &query = sdl_result.query;
                 auto const localInfo = notfound.find(query);
@@ -457,6 +474,11 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
         else {
             throw SDL_unexpected_error(std::string("unexpected version ") + version);
         }
+    };
+    auto const &split = split_by_type(runs);
+    try {
+        run_query(split.first);
+        run_query(split.second);
     }
     catch (vdb::exception const &e) {
         LOG(1) << "Failed to talk to SDL" << std::endl;

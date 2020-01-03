@@ -36,6 +36,7 @@ namespace sratools {
         experiment = 'X'
     };
 
+    bool isSRAPattern(std::string const &accession);
     AccessionType accessionType(std::string const &accession);
 }
 

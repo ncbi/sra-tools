@@ -265,6 +265,6 @@ static inline Sequence<ITER> make_sequence(ITER const &beg, size_t const count) 
     return Sequence<ITER>(beg, beg + count);
 }
 
-static inline bool fileExists(std::string const &path) {
+static inline bool pathExists(std::string const &path) {
     return access(path.c_str(), F_OK) == 0;
 }

@@ -40,6 +40,9 @@ class exception : public std::runtime_error {
     std::string from;
     uint32_t rc;
 public:
+
+    const std::string msg;
+
     uint32_t resultCode() const { return rc; }
     std::string const &failedCall() const { return from; }
     exception(uint32_t rc, char const *from, char const *what)
@@ -47,10 +50,12 @@ public:
     , from(from)
     , rc(rc)
     {}
-    exception(uint32_t rc, std::string const &from, std::string const &what)
+    exception(uint32_t rc, std::string const &from, std::string const &what,
+        const std::string &message = "")
     : std::runtime_error(what)
     , from(from)
     , rc(rc)
+        , msg(message)
     {}
 };
 

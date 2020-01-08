@@ -204,7 +204,7 @@ OptDef MyOptions[] =
 typedef struct pileup_callback_data
 {
     const AlignMgr *almgr;
-    pileup_options *options;
+    pileup_options *options;    /* pileup_options.h */
 } pileup_callback_data;
 
 
@@ -280,8 +280,8 @@ static int cmp_pchar( const char * a, const char * b )
 
 static rc_t get_pileup_options( Args * args, pileup_options *opts )
 {
-    rc_t rc = get_common_options( args, &opts->cmn );
-    opts->function = sra_pileup_samtools;
+    rc_t rc = get_common_options( args, &opts->cmn ); /* cmdline_cmn.h */
+    opts->function = sra_pileup_samtools; /* above */
 
     if ( rc == 0 )
         rc = get_uint32_option( args, OPTION_MINMAPQ, &opts->minmapq, 0 );
@@ -1588,21 +1588,21 @@ rc_t CC KMain( int argc, char *argv [] )
                 rc = get_pileup_options( args, &options );
                 if ( rc == 0 )
                 {
-					out_redir redir; /* from out_redir.h */
-					enum out_redir_mode mode;
+                    out_redir redir; /* from out_redir.h */
+                    enum out_redir_mode mode;
 
-					options.skiplist = NULL;
-					
-					if ( options.cmn.gzip_output )
-						mode = orm_gzip;
-					else if ( options.cmn.bzip_output )
-						mode = orm_bzip2;
-					else
-						mode = orm_uncompressed;
+                    options.skiplist = NULL;
+                    
+                    if ( options.cmn.gzip_output )
+                        mode = orm_gzip;
+                    else if ( options.cmn.bzip_output )
+                        mode = orm_bzip2;
+                    else
+                        mode = orm_uncompressed;
 
-					rc = init_out_redir( &redir, mode, options.cmn.output_file, 32 * 1024 ); /* from out_redir.c */
-					
-					/*
+                    rc = init_out_redir( &redir, mode, options.cmn.output_file, 32 * 1024 ); /* from out_redir.c */
+                    
+                    /*
                     if ( options.cmn.output_file != NULL )
                     {
                         rc = set_stdout_to( options.cmn.gzip_output,
@@ -1610,8 +1610,8 @@ rc_t CC KMain( int argc, char *argv [] )
                                             options.cmn.output_file,
                                             32 * 1024 );
                     }
-					*/
-					
+                    */
+                    
                     if ( rc == 0 )
                     {
                         if ( options.function == sra_pileup_report_ref ||
@@ -1635,12 +1635,12 @@ rc_t CC KMain( int argc, char *argv [] )
                         }
                     }
 
-					/*
+                    /*
                     if ( options.cmn.output_file != NULL )
                         release_stdout_redirection();
-					*/
-					release_out_redir( &redir ); /* from out_redir.c */
-					
+                    */
+                    release_out_redir( &redir ); /* from out_redir.c */
+                    
                     if ( options.skiplist != NULL )
                         skiplist_release( options.skiplist );
                 }

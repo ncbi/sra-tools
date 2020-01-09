@@ -195,9 +195,14 @@ ScopeExit<T> operator <<(ScopeExitHelper, T && f)
 /// @brief read all from a file descriptor
 ///
 /// @param fd file descriptor to read
-/// @param f gets called back with partial contents (char const *, size_t) -> void
+/// @param f called back with partial contents
 ///
 /// @throw system_error, see man 2 read
+///
+/// @code read_fd(fd, [&](char const *buffer, size_t size) {
+///     ...
+/// }
+/// @endcode
 template <typename F>
 static inline void read_fd(int fd, F && f)
 {
@@ -206,7 +211,7 @@ static inline void read_fd(int fd, F && f)
     
     for ( ; ; ) {
         while ((nread = ::read(fd, buffer, sizeof(buffer))) > 0) {
-            f(buffer, nread);
+            f(buffer, (size_t)nread);
         }
         if (nread == 0)
             return;
@@ -221,20 +226,10 @@ static inline void read_fd(int fd, F && f)
 static inline std::string read_fd(int fd)
 {
     auto result = std::string();
-    char buffer[4096];
-    
-    for ( ; ; ) {
-        ssize_t nread;
-        while ((nread = ::read(fd, buffer, sizeof(buffer))) > 0) {
-            result.append(buffer, nread);
-        }
-        if (nread == 0)
-            return result;
-
-        auto const error = error_code_from_errno();
-        if (error != std::errc::interrupted)
-            throw std::system_error(error, "read failed");
-    }
+    read_fd(fd, [&](char const *const buffer, size_t const count) {
+        result.append(buffer, count);
+    });
+    return result;
 }
 
 /// @brief helper class for doing range-for on iterate-able things that don't have begin/end, like c arrays

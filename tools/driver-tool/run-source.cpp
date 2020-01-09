@@ -340,11 +340,12 @@ struct Response2 {
     opt_string nextToken;
     
     Response2(ncbi::JSONObject const &obj)
-    : status(getOptionalString(obj, "status").value_or("200"))
-    , message(getOptionalString(obj, "message").value_or("OK"))
+    : status(getOptionalString(obj, "status").value_or("200"))  ///< there is no status when there is no error
+    , message(getOptionalString(obj, "message").value_or("OK")) ///< there is no message when there is no error
     , nextToken(getOptionalString(obj, "nextToken"))
     {
 #if DEBUG || _DEBUGGING
+        // caller should have checked this first
         auto const version = getString(obj, "version");
         assert(version == "2" || version == "unstable");
 #endif
@@ -516,6 +517,8 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
 }
 
 #if DEBUG || _DEBUGGING
+// these tests all use asserts because these are all hard-coded values
+
 void data_sources::test_vdbcache() {
     auto const testJSON = R"###(
 {
@@ -721,9 +724,9 @@ void data_sources::test_inner_error() {
     "version": "2",
     "result": [
         {
-            "accession": "SRR867664",
+            "bundle": "SRR867664",
             "status": 404,
-            "message": "No data at given location.region"
+            "msg": "No data at given location.region"
         }
     ]
 })###";

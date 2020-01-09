@@ -484,9 +484,12 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
     }
 #else
     try {
+        std::set<std::string> seen;
         for (auto && i : runs) {
-            std::vector<std::string> runs = {i};
-            run_query(runs);
+            if (!seen.insert(i).second) continue;
+            if (pathExists(i)) continue;
+
+            run_query({i});
         }
     }
 #endif

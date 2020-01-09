@@ -53,9 +53,9 @@
 #include <sysexits.h>
 
 #include "sratools2.hpp"
+#include "support2.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
-#include "args-decl.hpp"
 #include "parse_args.hpp"
 #include "run-source.hpp"
 #include "proc.hpp"
@@ -84,6 +84,7 @@ namespace sratools {
 
 #if DEBUG || _DEBUGGING
     static void testAccessionType() {
+        // asserts because these are all hard-coded values
         assert(accessionType("SRR000000") == run);
         assert(accessionType("ERR000000") == run);
         assert(accessionType("DRR000000") == run);
@@ -94,7 +95,7 @@ namespace sratools {
         assert(accessionType("SRS000000") == study);
         assert(accessionType("SRX000000") == experiment);
 
-        assert(accessionType("SRR000000.2") == run);
+        assert(accessionType("SRR000000.2") == run); // not certain of this one
 
         assert(accessionType("SRR00000") == unknown); // too short
         assert(accessionType("SRF000000") == unknown); // bad type
@@ -103,15 +104,22 @@ namespace sratools {
     }
 #endif
 
+    /**
+     * @brief Runs internal tests
+     *
+     * Does nothing if the environment variable is not set.
+     * Does not return if the environment variable is set (but the tests can throw).
+     */
     static void test() {
-#if DEBUG || _DEBUGGING
         auto const envar = getenv("SRATOOLS_TESTING");
         if (envar && std::atoi(envar)) {
+#if DEBUG || _DEBUGGING
             testAccessionType();
+            uuid_test();
             data_sources::test();
+#endif
             exit(0);
         }
-#endif
     }
 
     static void enableLogging(char const *argv0)
@@ -135,31 +143,46 @@ namespace sratools {
 
         static auto const error_continues_message = "If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/";
 
-        test();
+        test(); ///< needs to be outside of any try/catch; it needs to be able to go BANG!!!
 
-        int result = -1;
-
-        auto const sessionID = uuid();
-        setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
-
-        config = new Config(toolpath);
-        if (config->noInstallID()) {
-            printInstallMessage();
-        }
         try {
-            result = sratools2::main2( argc, argv, toolpath );
+            auto const sessionID = uuid();
+            setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
+
+            config = new Config(toolpath);
+            defer { delete config; config = nullptr; };
+            if (config->noInstallID()) {
+                printInstallMessage();
+            }
+
+            auto const &what = sratools2::WhatImposter(toolpath);
+            auto const &args = sratools2::Args(argc, argv, getenv("SRATOOLS_IMPERSONATE"));
+            switch (what._imposter) {
+            case sratools2::Imposter::FASTERQ_DUMP  : return sratools2::impersonate_fasterq_dump(args, what);
+            case sratools2::Imposter::FASTQ_DUMP    : return sratools2::impersonate_fastq_dump(args, what);
+            case sratools2::Imposter::PREFETCH      : return sratools2::impersonate_prefetch(args, what);
+            case sratools2::Imposter::SAM_DUMP      : return sratools2::impersonate_sam_dump(args, what);
+            case sratools2::Imposter::SRA_PILEUP    : return sratools2::impersonate_sra_pileup(args, what);
+            case sratools2::Imposter::SRAPATH       : return sratools2::impersonate_srapath(args, what);
+            case sratools2::Imposter::VDB_DUMP      : return sratools2::impersonate_vdb_dump(args, what);
+            default:
+                assert(!"reachable");
+                abort();
+            }
+        }
+        catch (sratools2::WhatImposter::InvalidToolException) {
+            std::cerr << "An error occured: unrecognized tool " << toolpath.basename() << std::endl << error_continues_message << std::endl;
+        }
+        catch (sratools2::WhatImposter::InvalidVersionException) {
+            std::cerr << "An error occured: unrecognized version " << toolpath.version() << ", expected " << toolpath.toolkit_version() << std::endl << error_continues_message << std::endl;
         }
         catch (std::exception const &e) {
             std::cerr << "An error occured: " << e.what() << std::endl << error_continues_message << std::endl;
-            result = 3;
         }
         catch (...) {
             std::cerr << "An unexpected error occured." << std::endl << error_continues_message << std::endl;
-            result = 3;
         }
-        delete config;
-        config = nullptr;
-        return result;
+        return EX_TEMPFAIL;
     }
 
     ToolPath::ToolPath(std::string const &argv0, char *extra[])
@@ -214,39 +237,67 @@ namespace sratools {
 
     bool isSRAPattern(std::string const &accession)
     {
-        // pattern is 3 alpha followed by 6 to 9 digits
-        // taken from get_accession_code and get_accession_app in vfs/resolver.c
+        // as specified in get_accession_code and get_accession_app in vfs/resolver.c
+        // the pattern is 3 alpha followed by 6 to 9 digits
+        auto constexpr min_alpha = 3;
+        auto constexpr max_alpha = 3;
+        auto constexpr min_digit = 6;
+        auto constexpr max_digit = 9;
         auto alphas = 0;
         auto digits = 0;
 
         while (alphas < accession.size()) {
             auto const ch = accession[alphas];
+
             if (!isalpha(ch))
                 break;
-            ++alphas;
-            if (alphas > 3)
-                return false;
-        }
-        
-        if (alphas < 3)
-            return false;
 
-        while (digits + 3 < accession.size()) {
-            auto const ch = accession[digits + 3];
+            ++alphas;
+            if (alphas > max_alpha)
+                return false; ///< too many alpha characters
+        }
+        assert(alphas <= max_alpha);
+        if (alphas < min_alpha)
+            return false; /// < too few alpha characters (or too few characters)
+
+        while (digits + alphas < accession.size()) {
+            auto const ch = accession[digits + alphas];
+
             if (!isdigit(ch))
                 break;
+
             ++digits;
-            if (digits > 9)
-                return false;
+            if (digits > max_digit)
+                return false; ///< too many digit characters
         }
-        return digits + 3 == accession.size() && 6 <= digits && digits <= 9;
+        assert(digits <= max_digit);
+        if (digits < min_digit)
+            return false; ///< too few digit characters
+
+        if (digits + alphas == accession.size())
+            return true;
+        assert (digits + alphas < accession.size());
+        if (accession[digits + alphas] != '.')
+            return false; ///< extraneous characters
+
+        auto version = 0;
+        for (auto i = digits + alphas + 1; i < accession.size(); ++i) {
+            if (!isdigit(accession[i]))
+                return false; ///< extraneous characters
+            ++version;
+        }
+        return (version > 0 && (digits + alphas + 1 + version) == accession.size());
     }
+
     AccessionType accessionType(std::string const &accession)
     {
         if (!isSRAPattern(accession))
             return unknown;
 
         auto const issuer = toupper(accession[0]);
+        auto const read = toupper(accession[1]);
+        auto const type = toupper(accession[2]);
+
         switch (issuer) {
         case 'D':
         case 'E':
@@ -256,11 +307,9 @@ namespace sratools {
             return unknown;
         }
 
-        auto const read = toupper(accession[1]);
         if (read != 'R')
             return unknown;
 
-        auto const type = toupper(accession[2]);
         switch (type) {
         case 'A': return submitter;
         case 'P': return project;

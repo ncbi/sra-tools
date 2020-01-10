@@ -24,7 +24,7 @@ def run( cmd, lines, q_out ) :
 
 def sam_dump_full( sam_dump, acc, spots, q_out ) :
     run( [ sam_dump, '-u', '-g', acc ], spots, q_out )
-    print "sam-dump done"
+    print ( "sam-dump done" )
 
 
 def count_lines( q_in, q_out ) :
@@ -55,11 +55,11 @@ if __name__ == '__main__':
     try :
         opts, args = getopt.getopt( sys.argv[ 1: ], short_opts, long_opts )
     except getopt.GetoptError :
-        print sys.argv[ 0 ], ' -a <accession> -s <spots> -m <sam-dump-binary>'
+        print ( sys.argv[ 0 ], ' -a <accession> -s <spots> -m <sam-dump-binary>' )
         sys.exit( 2 )
     for opt, arg in opts :
         if opt == '-h' :
-            print sys.argv[ 0 ], ' -a <accession> -s <spots> -m <sam-dump-binary>'
+            print ( sys.argv[ 0 ], ' -a <accession> -s <spots> -m <sam-dump-binary>' )
             sys.exit()
         elif opt in ( "-a", "--acc" ) :
             acc = arg
@@ -68,9 +68,9 @@ if __name__ == '__main__':
         elif opt in ( "-m", "--sam_dump" ) :
             sam_dump = arg
 
-    print 'accession = ', acc
+    print ( 'accession = ', acc )
     if spots != None :
-        print 'spots = ', spots
+        print ( 'spots = ', spots )
    
     q1 = multiprocessing.Queue()
     q2 = multiprocessing.Queue()
@@ -85,8 +85,8 @@ if __name__ == '__main__':
     p2.join()
     
     res = q2.get()
-    print "total        : ", res[ 0 ]
-    print "with_spotgrp : ", res[ 1 ]
+    print ( "total        : ", res[ 0 ] )
+    print ( "with_spotgrp : ", res[ 1 ] )
     if res[ 0 ] != res[ 1 ] :
-        print "not all sam-lines have a spotgroup in the QNAME-field!"
+        print ( "not all sam-lines have a spotgroup in the QNAME-field!" )
         sys.exit( 3 )

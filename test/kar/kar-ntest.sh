@@ -23,6 +23,8 @@
 #
 # ===========================================================================
 
+# set -x
+
 #####
 #### This script will test ability of kar utility to work with remote
 ### archives. It will download remote file during executing extract
@@ -49,7 +51,28 @@
 #   right one. ( actually I did, with another set )
 #######################################################################
 
-echo "## Das Buch"
+echo "## TEST INIT"
+
+##
+## Usual stuff
+multi_bark ()
+{
+    CMD="$@"
+    if [ -z "$CMD" ]
+    then
+        echo Error: no command defined >&2
+        exit 1
+    fi
+
+    echo "## $CMD"
+    # eval time "$CMD"
+    eval "$CMD"
+    if [ $? -ne 0 ]
+    then
+        echo Error: command failed \"$CMD\" >&2
+        exit 1
+    fi
+}
 
 ##
 ## ### ARGUMENTS
@@ -113,6 +136,165 @@ then
 fi
 
 ##
+## Here is wild part. To execute test we need one of those utilities:
+## "GET/HEAD", curl or wget
+## So, here we are determining which one to use
+##
+GET_SUFF=
+
+if [ `which GET >/dev/null 2>&1; echo $?` -eq 0 -a `which HEAD>/dev/null 2>&1 ; echo $?` -eq 0 ]
+then
+    echo "## Using 'GET/HEAD' utility to access web"
+    GET_SUFF="get"
+else 
+    if [ `which curl >/dev/null 2>&1; echo $?` -eq 0 ]
+    then
+        echo "## Using 'curl' utility to access web"
+        GET_SUFF="curl"
+    else
+        if [ `which wget >/dev/null 2>&1; echo $?` -eq 0 ]
+        then
+            echo "## Using 'wget' utility to access web"
+            GET_SUFF="wget"
+        fi
+    fi
+fi
+
+if [ -z "$GET_SUFF" ]
+then
+    echo "Error: can't stat appropriate web access utility (GET/HEAD, curl or wget)" >&2
+    exit 1
+fi
+
+GET_SIZE_PROC="get_size_${GET_SUFF}"
+DOWNLOAD_PROC="download_${GET_SUFF}"
+
+get_size_get()
+{
+    RES=`HEAD $1 | grep "Content-Length:" | tr -d "[:cntrl:]" | awk ' { print $2 } '`
+    if [ -z "$RES" ]
+    then
+        return 1
+    fi
+
+    echo $RES
+}
+
+download_get()
+{
+    multi_bark "GET $1 > $2"
+}
+
+get_size_curl()
+{
+    RES=`curl -sI $1 | grep "Content-Length:" | tr -d "[:cntrl:]" | awk ' { print $2 } '`
+    if [ -z "$RES" ]
+    then
+        return 0
+    fi
+
+    echo $RES
+}
+
+download_curl()
+{
+    multi_bark "curl -s $1 > $2"
+}
+
+get_size_wget()
+{
+    RES=`wget --spider --server-response $1 2>&1 | grep "Content-Length:" | tr -d "[:cntrl:]" | awk ' { print $2 } '`
+    if [ -z "$RES" ]
+    then
+        return 1
+    fi
+
+    echo $RES
+}
+
+download_wget()
+{
+    multi_bark "wget -O $2 $1 2>/dev/null"
+}
+
+##
+## This function will return size of remote object
+## In the case of error function will return real utility ret code
+## 
+## Syntax: get_size url
+##
+get_size ()
+{
+    if [ $# -ne 1 ]
+    then
+        echo "Error: 'get_size()' required ULS as parameter" >&2
+        exit 1
+    fi
+    U2S=$1
+
+    if [ -z "$GET_SIZE_PROC" ]
+    then
+        echo "Error: 'get_size()' no web access defined" >&2
+        exit 1
+    fi
+
+    eval "$GET_SIZE_PROC $U2S"
+    RET_VAL=$?
+    if [ $RET_VAL -ne 0 ]
+    then
+        echo "Error: 'get_size()' can not get size for '$U2S'" >&2
+    fi
+
+    return $RET_VAL
+}
+
+##
+## This function will download remote object to file
+## In the case of error function force script to exit
+##
+## Syntax: download source_url destination_path
+##
+download ()
+{
+    if [ $# -ne 2 ]
+    then
+        echo "Error: 'download()' required source URL and destination PATH as parameters" >&2
+        exit 1
+    fi
+
+    SRC=$1
+    DST=$2
+
+    if [ -z "$DOWNLOAD_PROC" ]
+    then
+        echo "Error: 'download()' no web access defined" >&2
+        exit 1
+    fi
+
+    if [ -f "$DST" ]
+    then
+        rm -r $DST 
+        if [ $? -ne 0 ]
+        then
+            echo "Error: 'download()' can not remove file '$DST'" >&2
+            exit 1
+        fi
+    fi
+
+    eval "$DOWNLOAD_PROC $SRC $DST"
+    RET_VAL=$?
+    if [ $RET_VAL -ne 0 ]
+    then
+        echo "Error: 'download()' can not download '$SRC' to '$DST'" >&2
+        exit 1
+    fi
+
+    return $RET_VAL
+}
+
+echo "## TEST START"
+
+##
 ## Known accessions of small size
 ## They are sorted by increase of size, we need choose good one
 ##
@@ -139,7 +321,7 @@ check_accn()
         return 1
     fi
 
-    NS=`HEAD $TPT | grep "Content-Length:" | awk ' { print $2 } '`
+    NS=`get_size $TPT`
     if [ $NS -ne $AS ]
     then
         return 1
@@ -175,27 +357,6 @@ then
 fi
 
 ##
-## Usual stuff
-multi_bark ()
-{
-    CMD="$@"
-    if [ -z "$CMD" ]
-    then
-        echo Error: no command defined >&2
-        exit 1
-    fi
-
-    echo "## $CMD"
-    # eval time "$CMD"
-    eval "$CMD"
-    if [ $? -ne 0 ]
-    then
-        echo Error: command failed \"$CMD\" >&2
-        exit 1
-    fi
-}
-
-##
 ## Here we are cleaning and starting tests
 ##
 VOTCHINA="votchina"
@@ -226,7 +387,7 @@ multi_bark $KAR_B --extract $WORK_ACCN --directory $OUT1
 ## Third we download data and un-kar it locally
 ##
 SRC_F=$VOTCHINA/f2
-multi_bark "GET $WORK_URL >$SRC_F"
+download $WORK_URL $SRC_F
 OUT2=$VOTCHINA/d2
 multi_bark $KAR_B --extract $SRC_F --directory $OUT2
 
@@ -247,7 +408,7 @@ done
 ##
 ## Everything is OK
 ##
-echo TEST PASSED
+echo "## TEST PASSED"
 
 ##
 ## Finishing touch

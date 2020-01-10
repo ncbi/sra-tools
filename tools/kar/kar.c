@@ -1106,6 +1106,9 @@ void kar_write_toc ( KARArchiveFile * af, const BSTree * tree )
     }
 
     if ( af -> starting_pos > af -> pos ) {
+            /* It would be better to use KFileSetSize,
+             * however, md5 file can only shrunk files.
+             */
         uint32_t BF = 0;
         rc = KFileWriteAll (
                             af -> archive,
@@ -2089,7 +2092,7 @@ rc_t store_extracted_file ( stored_file * sf, const extract_block * eb )
             pLogErr (klogErr, rc, "end of file reached while reading from archive '$(fname)'", "fname=%s", SF_SE(sf,name) );
             exit ( 4 );
         }
-        
+
         rc = KFileWriteAll ( dst, total, buffer, num_read, &num_writ );
         if ( rc != 0 )
         {

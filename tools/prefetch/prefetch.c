@@ -2333,8 +2333,6 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
 
     assert ( item -> mane );
 
-    KConfigPrint(cfg,0);
-
     if (rc == 0) {
         rc2 = 0;
         resolved->remoteSz = 0;

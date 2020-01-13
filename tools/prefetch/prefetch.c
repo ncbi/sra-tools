@@ -163,7 +163,12 @@ typedef struct {
     VPath *accession;
     bool isUri; /* accession is URI */
     bool inOutDir; /* cache location is in the output directory ow cwd */
+
     uint64_t project;
+    bool dbgapProject;
+    /* project > 0 : protected
+       project = 0 & dbgapProject   : protected (1000 genomes)
+       project = 0 & ! dbgapProject : public  */
 
     const KartItem *kartItem;
 
@@ -621,7 +626,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
     assert ( id );
 
     if ( rc == 0 ) {
-        if ( resolved -> project != 0 ) {
+        if ( resolved -> project != 0 || resolved -> dbgapProject ) {
             bool dbgap = false;
             rc = KServiceAddProject ( service, resolved -> project );
             if (rc != 0)
@@ -645,7 +650,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 }
             }
         }
-        else {
+        else { /* to investigate for dbGaP project 0 */
             uint32_t project = 0;
             rc_t r = VResolverGetProject ( self, & project );
             if ( r == 0 && project != 0 )
@@ -2217,7 +2222,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                     }
                 }
             }
-            else {
+            else { /* to investigate for dbGaP project 0 */
                 uint32_t projectId = 0;
                 rc_t r = KRepositoryMgrCurrentProtectedRepository(repoMgr,
                                                                   &p_protected);
@@ -2236,6 +2241,10 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             DISP_RC(rc, "KartItemProjIdNumber");
             return rc;
         }
+        /* no support for kart files with items within public project
+           (project 0 is protected '1000 genomes' project) */
+        resolved->dbgapProject = true;
+
         rc = _KartItemToVPath(item->item, vfs, &resolved->accession);
         if (rc != 0) {
             DISP_RC(rc, "invalid kart file row");

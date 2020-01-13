@@ -116,7 +116,7 @@ namespace sratools {
 #if DEBUG || _DEBUGGING
             testAccessionType();
             uuid_test();
-            data_sources::test();
+            data_sources::test(); ///< mostly likely to fail due to changes in SDL invalidating the tests
 #endif
             exit(0);
         }

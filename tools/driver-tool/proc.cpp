@@ -110,19 +110,32 @@ static void debugPrintDryRun(  char const *const toolpath
                              , char const *const *const argv)
 {
     auto const dryrun = getenv("SRATOOLS_DRY_RUN");
-    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
-        std::cerr << "would exec '" << toolpath << "' as:\n";
-        for (auto i = 0; argv[i]; ++i)
-            std::cerr << ' ' << argv[i];
-        {
-            std::cerr << "\nwith environment:\n";
-            for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
-                debugPrintEnvVar(name);
+    if (dryrun && dryrun[0]) {
+        switch (std::atoi(dryrun)) {
+        case 1:
+            std::cerr << "would exec '" << toolpath << "' as:\n";
+            for (auto i = 0; argv[i]; ++i)
+                std::cerr << ' ' << argv[i];
+            {
+                std::cerr << "\nwith environment:\n";
+                for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
+                    debugPrintEnvVar(name);
+                }
+                debugPrintEnvVar(ENV_VAR_SESSION_ID);
+                std::cerr << std::endl;
             }
-            debugPrintEnvVar(ENV_VAR_SESSION_ID);
+            exit(0);
+            break;
+        case 2:
+            std::cerr << argv[0];
+            for (auto i = 1; argv[i]; ++i)
+                std::cerr << ' ' << argv[i];
             std::cerr << std::endl;
+            exit(0);
+            break;
+        default:
+            break;
         }
-        exit(0);
     }
 }
 

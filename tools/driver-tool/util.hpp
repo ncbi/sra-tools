@@ -189,7 +189,7 @@ ScopeExit<T> operator <<(ScopeExitHelper, T && f)
 
 #define TOKENPASTY(X, Y) X ## Y
 #define TOKENPASTY2(X, Y) TOKENPASTY(X, Y)
-#define defer auto TOKENPASTY2(ScopeExit_invoker, __COUNTER__) = ScopeExitHelper() << [&]()
+#define defer auto const TOKENPASTY2(ScopeExit_invoker, __COUNTER__) = ScopeExitHelper() << [&]()
 
 
 /// @brief read all from a file descriptor

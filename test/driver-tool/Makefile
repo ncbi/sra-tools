@@ -30,7 +30,7 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-runtests: good
+runtests: built-in bogus good
 
 #.PHONY runtests
 
@@ -49,10 +49,10 @@ actual:
 built-in:
 	@echo "running built-in tests" ; SRATOOLS_TESTING=1 $(BINDIR)/sratools
 
-$(GOOD): | bogus
+$(GOOD): | actual
 	@echo "testing" $@ ; PATH=$(BINDIR):$$PATH SRATOOLS_DRY_RUN=2 SRATOOLS_IMPERSONATE=$@ $(BINDIR)/sratools SRR000001 2>actual/$@.stderr && \
 	diff expected/$@.stderr actual/$@.stderr
 
-bogus: | built-in actual
+bogus: | actual
 	@echo "testing expected failure for unknown tool" ; SRATOOLS_IMPERSONATE=bogus $(BINDIR)/sratools 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr

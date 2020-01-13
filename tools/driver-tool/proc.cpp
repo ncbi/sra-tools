@@ -127,7 +127,7 @@ static void debugPrintDryRun(  char const *const toolpath
             exit(0);
             break;
         case 2:
-            std::cerr << argv[0];
+            std::cerr << toolname;
             for (auto i = 1; argv[i]; ++i)
                 std::cerr << ' ' << argv[i];
             std::cerr << std::endl;

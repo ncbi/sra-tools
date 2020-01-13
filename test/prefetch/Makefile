@@ -423,10 +423,10 @@ out_dir_and_file:
 	  fi
 
 	@ if [ "$(BUILD)" = "dbg" ]; then \
-	    echo PREFETCH TEXT-KART ; \
+	    echo PREFETCH TEXT-KART was disabled: need to have a public example of protected run or add support of public accessions; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch --text-kart tmp/k > /dev/null ; \
-	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
+	    echo $(BINDIR)/prefetch --text-kart tmp/k > /dev/null ; \
+	    echo ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
 	  fi
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -545,30 +545,30 @@ s-option:
 	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
 
-	@ echo DOWNLOADING KART
+	@ echo DOWNLOADING KART was disabled: need to have a public example of protected run or add support of public accessions
 	@ rm -f tmp/sra/SRR0*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		$(BINDIR)/prefetch kart.krt > /dev/null
+	#	$(BINDIR)/prefetch kart.krt > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY SIZE / SHORT OPTION
+	@ echo DOWNLOADING KART: ORDER BY SIZE / SHORT OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch kart.krt -os > /dev/null
+	#	$(BINDIR)/prefetch kart.krt -os > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY KART / SHORT OPTION
+	@ echo DOWNLOADING KART: ORDER BY KART / SHORT OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch kart.krt -ok > /dev/null
+	#	$(BINDIR)/prefetch kart.krt -ok > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY SIZE / LONG OPTION
+	@ echo DOWNLOADING KART: ORDER BY SIZE / LONG OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		$(BINDIR)/prefetch kart.krt --order s > /dev/null
+	#	$(BINDIR)/prefetch kart.krt --order s > /dev/null
 
-	@ echo DOWNLOADING KART: ORDER BY KART / LONG OPTION
+	@ echo DOWNLOADING KART: ORDER BY KART / LONG OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		$(BINDIR)/prefetch kart.krt --order k > /dev/null
+	#	$(BINDIR)/prefetch kart.krt --order k > /dev/null
 
 	@ echo DOWNLOADING ACCESSION
 	@ rm -f tmp/sra/SRR053325.sra
@@ -610,6 +610,8 @@ s-option:
 	@ echo '$$end'          >> tmp/k
 
 	@ if [ "$(BUILD)" = "dbg" ]; then \
+	echo DOWNLOADING TEXT KART is disabled, as well ; \
+    if [ "$(BUILD)" = "dg" ]; then \
 	      echo DOWNLOADING TEXT KART && \
 	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
@@ -634,6 +636,7 @@ s-option:
 	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
 	      $(BINDIR)/prefetch --text-kart tmp/k --order k > /dev/null ; \
+	  fi \
 	  fi
 
 	@ rm -r tmp*

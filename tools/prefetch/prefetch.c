@@ -581,8 +581,10 @@ static rc_t KService_ProcessId(KService * self,
     assert(dbgap);
     *dbgap = false;
 
-    if (!numeric)
-        return aRc;
+    if (!numeric) {
+        *dbgap = false;
+        return rc;
+    }
 
     if (numeric) {
         char ticket[4096] = "";

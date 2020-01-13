@@ -39,7 +39,9 @@ GOOD =\
 	fasterq-dump \
 	sam-dump \
 	sra-pileup \
-	vdb-dump
+	vdb-dump \
+	prefetch \
+	srapath
 
 good: $(GOOD)
 
@@ -50,7 +52,9 @@ built-in:
 	@echo "running built-in tests" ; SRATOOLS_TESTING=1 $(BINDIR)/sratools
 
 $(GOOD): | actual
-	@echo "testing" $@ ; PATH=$(BINDIR):$$PATH SRATOOLS_DRY_RUN=2 SRATOOLS_IMPERSONATE=$@ $(BINDIR)/sratools SRR000001 2>actual/$@.stderr && \
+	@# SRATOOLS_TESTING=2 skip SDL, sub-tool invocation is simulated to always
+	@# succeed, but everything up to the exec call is real
+	@echo "testing" $@ ; PATH=$(BINDIR):$$PATH SRATOOLS_TESTING=2 SRATOOLS_IMPERSONATE=$@ $(BINDIR)/sratools SRR000001 2>actual/$@.stderr && \
 	diff expected/$@.stderr actual/$@.stderr
 
 bogus: | actual

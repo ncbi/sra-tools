@@ -1,1 +1,3 @@
 vdb-dump -n SRR000001
+vdb-dump -n ERR000001
+vdb-dump -n DRR000001

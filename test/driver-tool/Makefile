@@ -30,7 +30,7 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-runtests: built-in bogus good
+runtests: built-in bogus container good
 
 #.PHONY runtests
 
@@ -43,7 +43,17 @@ GOOD =\
 	prefetch \
 	srapath
 
+CONTAINER =\
+	SRP000001 \
+	SRX000001 \
+	SRS000001 \
+	SRA000001 \
+	ERP000001 \
+	DRX000001
+
 good: $(GOOD)
+
+container: $(CONTAINER)
 
 actual:
 	@ mkdir actual
@@ -54,9 +64,13 @@ built-in:
 $(GOOD): | actual
 	@# SRATOOLS_TESTING=2 skip SDL, sub-tool invocation is simulated to always
 	@# succeed, but everything up to the exec call is real
-	@echo "testing" $@ ; PATH=$(BINDIR):$$PATH SRATOOLS_TESTING=2 SRATOOLS_IMPERSONATE=$@ $(BINDIR)/sratools SRR000001 2>actual/$@.stderr && \
+	@echo "testing" $@ ; PATH=$(BINDIR):$$PATH SRATOOLS_TESTING=2 SRATOOLS_IMPERSONATE=$@ $(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
 	diff expected/$@.stderr actual/$@.stderr
 
 bogus: | actual
 	@echo "testing expected failure for unknown tool" ; SRATOOLS_IMPERSONATE=bogus $(BINDIR)/sratools 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+$(CONTAINER): | actual
+	@echo "testing expected failure for container accession" ; SRATOOLS_IMPERSONATE=fastq-dump $(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr

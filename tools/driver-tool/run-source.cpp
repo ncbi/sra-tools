@@ -401,8 +401,21 @@ std::pair<std::vector<std::string>, std::vector<std::string>> split_by_type(std:
     return {sra, nonsra};
 }
 
-data_sources data_sources::preload(std::vector<std::string> const &runs,
-                                   ParamList const &parameters)
+data_sources::data_sources(std::vector<std::string> const &runs)
+{
+    have_ce_token = false;
+
+    auto notfound = std::set<std::string>(runs.begin(), runs.end());
+    for (auto const &run : notfound) {
+        source s = {};
+        s.accession = run;
+        s.localPath = run;
+        s.haveLocalPath = true;
+        addSource(data_source(s));
+    }
+}
+
+data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 {
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
@@ -421,12 +434,13 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
     }
 #endif
 
-    auto result = data_sources(canSendCE ? ceToken : "");
+    have_ce_token = canSendCE && !ceToken.empty();
+    if (have_ce_token) ce_token_ = ceToken;
     auto notfound = std::set<std::string>(runs.begin(), runs.end());
 
     auto run_query = [&](std::vector<std::string> const &terms) {
         auto const &service = Service::make();
-        auto const &response = get_SDL_response(service, terms, result.have_ce_token);
+        auto const &response = get_SDL_response(service, terms, have_ce_token);
         LOG(8) << "SDL response:\n" << response << std::endl;
 
         auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
@@ -452,7 +466,7 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
                             std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
                         }
                         else {
-                            result.addSource(std::move(source));
+                            addSource(std::move(source));
                             added += 1;
                         }
                     });
@@ -514,9 +528,14 @@ data_sources data_sources::preload(std::vector<std::string> const &runs,
         s.accession = run;
         s.localPath = run;
         s.haveLocalPath = true;
-        result.addSource(data_source(s));
+        addSource(data_source(s));
     }
-    return result;
+}
+
+data_sources data_sources::preload(std::vector<std::string> const &runs,
+                                   ParamList const &parameters)
+{
+    return logging_state::testing_level() != 2 ? data_sources(runs, true) : data_sources(runs);
 }
 
 #if DEBUG || _DEBUGGING

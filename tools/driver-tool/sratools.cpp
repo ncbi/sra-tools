@@ -111,8 +111,7 @@ namespace sratools {
      * Does not return if the environment variable is set (but the tests can throw).
      */
     static void test() {
-        auto const envar = getenv("SRATOOLS_TESTING");
-        if (envar && std::atoi(envar)) {
+        if (logging_state::testing_level() == 1) {
 #if DEBUG || _DEBUGGING
             testAccessionType();
             uuid_test();
@@ -158,13 +157,16 @@ namespace sratools {
             auto const &what = sratools2::WhatImposter(toolpath);
             auto const &args = sratools2::Args(argc, argv, getenv("SRATOOLS_IMPERSONATE"));
             switch (what._imposter) {
+                // normal tools
             case sratools2::Imposter::FASTERQ_DUMP  : return sratools2::impersonate_fasterq_dump(args, what);
             case sratools2::Imposter::FASTQ_DUMP    : return sratools2::impersonate_fastq_dump(args, what);
-            case sratools2::Imposter::PREFETCH      : return sratools2::impersonate_prefetch(args, what);
             case sratools2::Imposter::SAM_DUMP      : return sratools2::impersonate_sam_dump(args, what);
             case sratools2::Imposter::SRA_PILEUP    : return sratools2::impersonate_sra_pileup(args, what);
-            case sratools2::Imposter::SRAPATH       : return sratools2::impersonate_srapath(args, what);
             case sratools2::Imposter::VDB_DUMP      : return sratools2::impersonate_vdb_dump(args, what);
+
+                // special tools
+            case sratools2::Imposter::PREFETCH      : return sratools2::impersonate_prefetch(args, what);
+            case sratools2::Imposter::SRAPATH       : return sratools2::impersonate_srapath(args, what);
             default:
                 assert(!"reachable");
                 abort();

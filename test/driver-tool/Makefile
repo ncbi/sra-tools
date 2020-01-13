@@ -32,8 +32,6 @@ include $(TOP)/build/Makefile.env
 
 runtests: built-in bogus container good
 
-#.PHONY runtests
-
 GOOD =\
 	fastq-dump \
 	fasterq-dump \
@@ -72,5 +70,7 @@ bogus: | actual
 	diff expected/$@.stderr actual/$@.stderr
 
 $(CONTAINER): | actual
-	@echo "testing expected failure for container accession" ; SRATOOLS_IMPERSONATE=fastq-dump $(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
+	@echo "testing expected failure for container" $@ ; SRATOOLS_IMPERSONATE=fastq-dump $(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
+
+.PHONY: runtests bogus container good $(CONTAINER) $(GOOD)

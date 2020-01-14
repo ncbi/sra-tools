@@ -31,7 +31,8 @@ MODULE = tools/kar
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	kar \
+	kar    \
+	kar+
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -96,4 +97,24 @@ SRA_KAR_LIB = \
 $(BINDIR)/sra-kar: $(SRA_KAR_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_KAR_LIB)
 
+
+#----------------------------------------------------------------
+# kar+
+#
+
+KARP_SRC = \
+	kar-args \
+	kar+
+
+KARP_OBJ = \
+	$(addsuffix .$(OBJX),$(KARP_SRC))
+
+KARP_LIB = \
+	-lkapp \
+	-stk-version \
+	-sncbi-vdb \
+
+
+$(BINDIR)/kar+: $(KARP_OBJ)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KARP_LIB)
 

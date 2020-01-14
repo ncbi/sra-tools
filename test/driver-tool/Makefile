@@ -32,7 +32,8 @@ include $(TOP)/build/Makefile.env
 
 runtests: built-in bogus container good
 
-TEMPDIR ?= $$TMPDIR
+TMPDIR ?= /tmp
+TEMPDIR ?= $(TMPDIR)
 
 GOOD =\
 	fastq-dump \
@@ -56,7 +57,7 @@ good: $(GOOD)
 container: $(CONTAINER)
 
 $(TEMPDIR)/tmp.mkfg:
-	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
+	echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
 
 mkfg: $(TEMPDIR)/tmp.mkfg
 

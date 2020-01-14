@@ -245,10 +245,11 @@ namespace sratools {
         auto constexpr max_alpha = 3;
         auto constexpr min_digit = 6;
         auto constexpr max_digit = 9;
-        auto alphas = 0;
-        auto digits = 0;
+        auto const size = accession.size();
+        auto alphas = decltype(size)(0);
+        auto digits = decltype(size)(0);
 
-        while (alphas < accession.size()) {
+        while (alphas < size) {
             auto const ch = accession[alphas];
 
             if (!isalpha(ch))
@@ -262,7 +263,7 @@ namespace sratools {
         if (alphas < min_alpha)
             return false; /// < too few alpha characters (or too few characters)
 
-        while (digits + alphas < accession.size()) {
+        while (digits + alphas < size) {
             auto const ch = accession[digits + alphas];
 
             if (!isdigit(ch))
@@ -276,19 +277,20 @@ namespace sratools {
         if (digits < min_digit)
             return false; ///< too few digit characters
 
-        if (digits + alphas == accession.size())
+        if (digits + alphas == size)
             return true;
-        assert (digits + alphas < accession.size());
+
+        assert(digits + alphas < size);
         if (accession[digits + alphas] != '.')
             return false; ///< extraneous characters
 
         auto version = 0;
-        for (auto i = digits + alphas + 1; i < accession.size(); ++i) {
+        for (auto i = digits + alphas + 1; i < size; ++i) {
             if (!isdigit(accession[i]))
                 return false; ///< extraneous characters
             ++version;
         }
-        return (version > 0 && (digits + alphas + 1 + version) == accession.size());
+        return (version > 0 && (digits + alphas + 1 + version) == size);
     }
 
     AccessionType accessionType(std::string const &accession)

@@ -32,6 +32,8 @@ include $(TOP)/build/Makefile.env
 
 runtests: built-in bogus container good
 
+TEMPDIR ?= $$TMPDIR
+
 GOOD =\
 	fastq-dump \
 	fasterq-dump \
@@ -53,24 +55,45 @@ good: $(GOOD)
 
 container: $(CONTAINER)
 
+$(TEMPDIR)/tmp.mkfg:
+	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
+
+mkfg: $(TEMPDIR)/tmp.mkfg
+
 actual:
 	@ mkdir actual
 
 built-in:
-	@echo "running built-in tests" ; SRATOOLS_TESTING=1 $(BINDIR)/sratools
+	@echo "running built-in tests" ; \
+	SRATOOLS_TESTING=1 \
+	$(BINDIR)/sratools
 
-$(GOOD): | actual
+$(GOOD): | actual mkfg
 	@# SRATOOLS_TESTING=2 skip SDL, sub-tool invocation is simulated to always
 	@# succeed, but everything up to the exec call is real
-	@echo "testing" $@ ; PATH=$(BINDIR):$$PATH SRATOOLS_TESTING=2 SRATOOLS_IMPERSONATE=$@ $(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
+	@echo "testing expected output for dry run of" $@ ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(BINDIR):$$PATH \
+	SRATOOLS_TESTING=2 \
+	SRATOOLS_IMPERSONATE=$@ \
+	$(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
 	diff expected/$@.stderr actual/$@.stderr
 
-bogus: | actual
-	@echo "testing expected failure for unknown tool" ; SRATOOLS_IMPERSONATE=bogus $(BINDIR)/sratools 2>actual/$@.stderr ; \
+bogus: | actual mkfg
+	@echo "testing expected output for unknown tool" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(BINDIR):$$PATH \
+	SRATOOLS_IMPERSONATE=rcexplain \
+	$(BINDIR)/sratools 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
-$(CONTAINER): | actual
-	@echo "testing expected failure for container" $@ ; SRATOOLS_IMPERSONATE=fastq-dump $(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
+$(CONTAINER): | actual mkfg
+	@echo "testing expected output for container" $@ ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(BINDIR):$$PATH \
+	SRATOOLS_IMPERSONATE=fastq-dump \
+	$(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
 .PHONY: runtests bogus container good $(CONTAINER) $(GOOD)
+.INTERMEDIATE: $(TEMPDIR)/tmp.mkfg

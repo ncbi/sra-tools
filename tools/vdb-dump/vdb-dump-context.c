@@ -33,6 +33,9 @@
 #include <klib/text.h>
 #include <klib/num-gen.h>
 #include <kapp/args.h>
+
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <os-native.h>
 #include <sysalloc.h>
 
@@ -637,6 +640,12 @@ static void vdco_evaluate_options( const Args *my_args,
     vdco_set_schemas( my_args, ctx );
     vdco_set_filter( ctx, vdco_get_str_option( my_args, OPTION_FILTER ) );
     vdco_set_boolean_char( ctx, vdco_get_str_option( my_args, OPTION_BOOLEAN ) );
+
+    {
+        const char * ngc = vdco_get_str_option(my_args, OPTION_NGC);
+        if (ngc != NULL)
+            KConfigSetNgcFile(ngc);
+    }
 
     if ( ctx->format == df_sra_dump )
         ctx->without_sra_types = true;

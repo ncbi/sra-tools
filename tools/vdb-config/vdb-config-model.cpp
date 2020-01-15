@@ -29,6 +29,7 @@
 #include <klib/text.h> /* string_cmp */
 #include <klib/vector.h> /* Vector */
 #include <klib/rc.h>
+#include <klib/guid.h>
 
 #include <kfg/kfg-priv.h>
 
@@ -88,7 +89,10 @@ vdbconf_model::~vdbconf_model( void )
 
 bool vdbconf_model::commit( void )
 {
-    return _config.Commit() == 0;
+    bool x = _config.Commit() == 0;
+    if (x)
+        reload();
+    return x;
 }
 
 void vdbconf_model::reload( void )
@@ -896,3 +900,24 @@ std::string vdbconf_model::get_dflt_import_path_start_dir( void )
     return res;
 }
 
+std::string vdbconf_model::get_guid( void ) const
+{
+    char buf[ 64 ];
+    size_t written = 0;
+    rc_t rc = KConfig_Get_GUID ( _config.Get(), buf, sizeof buf, &written );
+    if ( rc != 0 ) written = 0;
+    return std::string( buf, written );
+}
+
+void vdbconf_model::check_guid( void )
+{
+    std::string value = get_guid();
+    if ( value.empty() )
+    {
+        char buf[ 64 ];
+        MODEL_THROW_ON_RC ( KGUIDMake( buf, sizeof buf ) );
+        MODEL_THROW_ON_RC ( KConfig_Set_GUID( _config.Get(), buf ) );
+        _config.Updated();
+        commit();
+    }
+}

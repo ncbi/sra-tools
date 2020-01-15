@@ -17,14 +17,14 @@ TOOLS_TO_COPY = \
 	vdb-config      \
 	vdb-copy        \
 	vdb-decrypt     \
-	vdb-dump        \
 	vdb-encrypt     \
 	vdb-lock        \
 	vdb-passwd      \
 	vdb-unlock      \
 	vdb-validate    \
+	sratools        \
 
-# these tools will be copied to <instdir>/<toolname>-orig; 
+# these tools will be copied to <instdir>/<toolname>-orig;
 # <toolname> will be created as a symlink to sratools
 TOOLS_TO_SYMLINK = \
 	fasterq-dump    \
@@ -33,6 +33,7 @@ TOOLS_TO_SYMLINK = \
 	prefetch        \
 	srapath         \
 	sra-pileup      \
+	vdb-dump        \
 
 # these tools may be missing from $(BINDIR), not an error
 TOOLS_TO_COPY_OPTIONAL = \

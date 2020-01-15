@@ -62,6 +62,7 @@ clean: stdclean
 #
 
 KAR_SRC = \
+	kar-path \
 	kar-args \
 	kar
 

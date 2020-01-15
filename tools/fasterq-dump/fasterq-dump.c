@@ -37,11 +37,15 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include <klib/out.h>
 #include <klib/printf.h>
 #include <search/grep.h>
 #include <kfs/directory.h>
 #include <kproc/procmgr.h>
+#include <vdb/manager.h>
 
 #include <stdio.h>
 #include <os-native.h>
@@ -156,6 +160,9 @@ static const char * append_usage[] = { "append to output-file", NULL };
 #define OPTION_APPEND   "append"
 #define ALIAS_APPEND    "A"
 
+static const char * ngc_usage[] = { "PATH to ngc file", NULL };
+#define OPTION_NGC   "ngc"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -185,7 +192,8 @@ OptDef ToolOptions[] =
     { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
     { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
-    { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false }    
+    { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false },
+    { OPTION_NGC,       NULL,            NULL, ngc_usage, 1, true,  false },
 };
 
 const char UsageDefaultName[] = "fasterq-dump";
@@ -217,8 +225,19 @@ rc_t CC Usage ( const Args * args )
 
     KOutMsg( "Options:\n" );
     for ( idx = 1; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
-        HelpOptionLine( ToolOptions[ idx ] . aliases, ToolOptions[ idx ] . name, NULL, ToolOptions[ idx ] . help );
+    {
+        const OptDef * opt = &ToolOptions[idx];
+
+        const char * param = NULL;
+
+        assert(opt);
+        if (strcmp(opt->name, OPTION_NGC) == 0)
+            param = "PATH";
+
+        HelpOptionLine(opt->aliases, opt->name, param, opt->help);
+    }
     
+    KOutMsg("\n");
     HelpOptionsStandard();
     HelpVersion( fullpath, KAppVersion() );
     return rc;
@@ -231,6 +250,7 @@ rc_t CC Usage ( const Args * args )
 typedef struct tool_ctx_t
 {
     KDirectory * dir;
+    const VDBManager * vdb_mgr;     /* created, but unused to avoid race-condition in threads */
 
     const char * requested_temp_path;
     const char * accession_path;
@@ -361,6 +381,12 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> stdout = get_bool_option( args, OPTION_STDOUT );
+
+    {
+        const char * ngc = get_str_option(args, OPTION_NGC, NULL);
+        if (ngc != NULL)
+            KConfigSetNgcFile(ngc);
+    }
 }
 
 #define DFLT_MAX_FD 32
@@ -572,6 +598,13 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
     if ( rc == 0 )
         rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
                 get_temp_dir( tool_ctx -> temp_dir ) );
+                
+    if ( rc == 0 )
+    {
+        rc = VDBManagerMakeRead( &( tool_ctx -> vdb_mgr ), tool_ctx -> dir );
+        if ( rc != 0 )
+            ErrMsg( "fasterq-dump.c populate_tool_ctx().VDBManagerMakeRead() -> %R\n", rc );
+    }
     return rc;
 }
 
@@ -659,6 +692,7 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
     /* the lookup-producer is the source of the chain */
     if ( rc == 0 )
         rc = execute_lookup_production( tool_ctx -> dir,
+                                        tool_ctx -> vdb_mgr,
                                         tool_ctx -> accession_short,
                                         bg_vec_merger, /* drives the bg_file_merger */
                                         tool_ctx -> cursor_cache,
@@ -708,6 +742,7 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
     
     if ( rc == 0 )
         rc = execute_db_join( tool_ctx -> dir,
+                           tool_ctx -> vdb_mgr,
                            tool_ctx -> accession_path,
                            tool_ctx -> accession_short,
                            &stats,
@@ -853,6 +888,7 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 
     if ( rc == 0 )
         rc = execute_tbl_join( tool_ctx -> dir,
+                           tool_ctx -> vdb_mgr,
                            tool_ctx -> accession_path,
                            tool_ctx -> accession_short,
                            &stats,
@@ -897,7 +933,8 @@ static const char * consensus_table = "CONSENSUS";
 static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx )
 {
     const char * res = tool_ctx -> seq_tbl_name;
-    VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> accession_path ); /* cmn_iter.c */
+    VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> vdb_mgr,
+                                              tool_ctx -> accession_path ); /* cmn_iter.c */
     if ( tables != NULL )
     {
         int32_t idx;
@@ -913,8 +950,9 @@ static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx )
 
 static rc_t perform_tool( tool_ctx_t * tool_ctx )
 {
-    acc_type_t acc_type;
-    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> accession_path, &acc_type ); /* cmn_iter.c */
+    acc_type_t acc_type; /* cmn_iter.h */
+    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> vdb_mgr,
+                                tool_ctx -> accession_path, &acc_type ); /* cmn_iter.c */
     if ( rc == 0 )
     {
         /* =================================================== */
@@ -963,6 +1001,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                     KDirectoryRelease( tool_ctx . dir );
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */
+                    VDBManagerRelease( tool_ctx . vdb_mgr );
                 }
             }
         }

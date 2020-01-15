@@ -120,6 +120,7 @@ static const char * spotgroup_usage[]           = { "show spotgroups",          
 static const char * merge_ranges_usage[]        = { "merge and sort row-ranges",                    NULL };
 static const char * spread_usage[]              = { "show spread of integer values",                NULL };
 static const char * append_usage[]              = { "append to output-file, if output-file used",   NULL };
+static const char * ngc_usage[]                 = { "path to ngc file", NULL };
 
 /* from here on: not mentioned in help */
 static const char * len_spread_usage[]          = { "show spread of READ/REF_LEN values",           NULL };
@@ -178,7 +179,8 @@ OptDef DumpOptions[] =
     
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_INTERACTIVE,           NULL,                     NULL, interactive_usage,       1, false,  false },    
-    { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false }
+    { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
+    { OPTION_NGC,                   NULL,     NULL, ngc_usage, 1, true, false },
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -267,7 +269,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_MERGE_RANGES,    NULL,           merge_ranges_usage );
     HelpOptionLine ( NULL,                      OPTION_SPREAD,          NULL,           spread_usage );
     HelpOptionLine ( ALIAS_APPEND,              OPTION_APPEND,          NULL,           append_usage );
-    
+    HelpOptionLine ( NULL,                      OPTION_NGC, "path", ngc_usage);
+
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );
@@ -1704,9 +1707,45 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
+    rc_t r2 = 0;
+    VPath * path = NULL;
+
     vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /*ctx->force_sra_schema*/ );
 
-    rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
+//  rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
+
+    {
+        VPath * in_path = NULL;
+        VFSManager * vfs_mgr = NULL;
+        rc = VFSManagerMake(&vfs_mgr);
+        if (rc != 0)
+            ErrMsg("VFSManagerMake() -> %R", rc);
+        if (rc == 0) {
+            rc = VFSManagerMakePath(vfs_mgr, &in_path, "%s", ctx->path);
+            if (rc != 0)
+                ErrMsg("VFSManagerVMakePath() -> %R", rc);
+        }
+        if (rc == 0) {
+            rc = VFSManagerResolvePath(vfs_mgr, vfsmgr_rflag_kdb_acc,
+                in_path, &path);
+            if (rc != 0)
+                ErrMsg("VFSManagerResolvePath() -> %R", rc);
+        }
+        r2 = VPathRelease(in_path);
+        if (r2 != 0) {
+            ErrMsg("VPathRelease() -> %R", r2);
+            if (rc == 0)
+                rc = r2;
+        }
+        r2 = VFSManagerRelease(vfs_mgr);
+        if (r2 != 0) {
+            ErrMsg("VFSManagerRelease() -> %R", r2);
+            if (rc == 0)
+                rc = r2;
+        }
+    }
+
+    rc = VDBManagerOpenTableReadVPath( my_manager, &my_table, my_schema, path );
     if ( rc != 0 )
         ErrMsg( "VDBManagerOpenTableRead( '%R' ) -> %R", ctx->path, rc );
     else
@@ -1723,6 +1762,14 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
         if ( rc != 0 )
             ErrMsg( "VSchemaRelease() -> %R", rc );
     }
+
+    r2 = VPathRelease(path);
+    if (r2 != 0) {
+        ErrMsg("VPathRelease() -> %R", r2);
+        if (rc == 0)
+            rc = r2;
+    }
+
     return rc;
 }
 

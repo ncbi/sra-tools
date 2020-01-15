@@ -67,6 +67,10 @@ extern "C" {
 #include <kproc/lock.h>
 #endif
 
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
 rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
 typedef struct join_stats
@@ -118,6 +122,7 @@ typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 typedef struct cmn_params
 {
     const KDirectory * dir;
+    const VDBManager * vdb_mgr;
     const char * accession;
     int64_t first_row;
     uint64_t row_count;
@@ -174,7 +179,9 @@ rc_t join_and_release_threads( Vector * threads );
 rc_t delete_files( KDirectory * dir, const VNamelist * files );
 uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
 
-int get_vdb_pathtype( KDirectory * dir, const char * accession );
+/*
+int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession );
+*/
 
 void clear_join_stats( join_stats * stats );
 void add_join_stats( join_stats * stats, const join_stats * to_add );

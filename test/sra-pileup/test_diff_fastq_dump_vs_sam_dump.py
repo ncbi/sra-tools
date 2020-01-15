@@ -33,11 +33,11 @@ def run( cmd, spots, q ) :
 
 def fastq_dump_full( fastq_dump, acc, spots, q ) :
     run( [ fastq_dump, '--split-3', '-Z', acc ], spots, q )
-    print "fastq-dump done"
+    print ( "fastq-dump done" )
 
 def sam_dump_full( sam_dump, acc, spots, q ) :
     run( [ sam_dump, '-u', '--fastq', acc ], spots, q )
-    print "sam-dump done"
+    print ( "sam-dump done" )
 
 def handle_q( d, q ) :
     res = 0
@@ -166,8 +166,8 @@ def join_2( q1, q2, q3 ) :
             r2 = handle_q( d2, q2 )
             n2 += r2
             
-    print "from fastq-dump : %d" % n1
-    print "from sam-dump   : %d" % n2
+    print ( "from fastq-dump : %d" % n1 )
+    print ( "from sam-dump   : %d" % n2 )
     
     for bases in d1 :
         ql_1 = d1[ bases ]
@@ -189,7 +189,7 @@ def join_2( q1, q2, q3 ) :
             else :
                 js.n_not_found += 1
     
-    print js
+    print ( js )
     q3.put( js.non_matches() )
 
     
@@ -204,11 +204,11 @@ if __name__ == '__main__':
     try :
         opts, args = getopt.getopt( sys.argv[ 1: ], short_opts, long_opts )
     except getopt.GetoptError :
-        print sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>'
+        print ( sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>' )
         sys.exit( 2 )
     for opt, arg in opts :
         if opt == '-h' :
-            print sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>'
+            print ( sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>' )
             sys.exit()
         elif opt in ( "-a", "--acc" ) :
             acc = arg
@@ -219,9 +219,9 @@ if __name__ == '__main__':
         elif opt in ( "-m", "--sam_dump" ) :
             sam_dump = arg
 
-    print 'accession = ', acc
+    print ( 'accession = ', acc )
     if spots != None :
-        print 'spots = ', spots
+        print ( 'spots = ', spots )
    
     q1 = multiprocessing.Queue()
     q2 = multiprocessing.Queue()
@@ -240,6 +240,6 @@ if __name__ == '__main__':
     p3.join()
     
     nm = q3.get()
-    print "non-matches : ", nm
+    print ( "non-matches : ", nm )
     if nm > 0 :
         sys.exit( 3 )

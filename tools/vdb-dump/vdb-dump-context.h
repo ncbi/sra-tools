@@ -91,6 +91,8 @@ extern "C" {
 #define OPTION_INTERACTIVE       "interactive"
 #define OPTION_LEN_SPREAD        "len-spread"
 
+#define OPTION_NGC               "ngc"
+
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
 #define ALIAS_COLNAME_OFF       "N"

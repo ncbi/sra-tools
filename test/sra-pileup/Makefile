@@ -35,7 +35,7 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: check_exit_code
+runtests: check_exit_code check_skiplist
 
 slowtests: fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
 
@@ -46,6 +46,8 @@ slowtests: fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
 check_exit_code:
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/sra-pileup
 
+check_skiplist:
+	@ python check_skiplist.py $(BINDIR)/sra-pileup
 
 ACC = SRR3332402
 
@@ -61,7 +63,6 @@ fastq_dump_vs_sam_dump :
 sam_dump_spotgroup_for_all :
 	@ python test_all_sam_dump_has_spotgroup.py -a $(ACC) -m $(BINDIR)/sam-dump
 
-    
 .PHONY: $(TEST_TOOLS)
 
 clean: stdclean

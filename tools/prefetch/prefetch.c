@@ -72,6 +72,7 @@
 #include <sysalloc.h>
 
 #include <assert.h>
+#include <ctype.h> /* isdigit */
 #include <stdlib.h> /* free */
 #include <string.h> /* memset */
 #include <time.h> /* time */
@@ -162,12 +163,19 @@ typedef struct {
     VPath *accession;
     bool isUri; /* accession is URI */
     bool inOutDir; /* cache location is in the output directory ow cwd */
+
     uint64_t project;
+    bool dbgapProject;
+    /* project > 0 : protected
+       project = 0 & dbgapProject   : protected (1000 genomes)
+       project = 0 & ! dbgapProject : public  */
 
     const KartItem *kartItem;
 
     VResolver *resolver;
 
+    const KSrvResponse * response;
+    uint32_t respObjIdx;
     KSrvRespObjIterator * respIt;
     KSrvRespFile * respFile;
 } Resolved;
@@ -227,11 +235,15 @@ typedef struct {
     const char * outFile; /* do not free! */
     const char * orderOrOutFile; /* do not free! */
     const char * fileType;  /* do not free! */
+    const char * ngc;  /* do not free! */
+    const char * jwtCart;  /* do not free! */
 
+    const char * kart;
 #if _DEBUGGING
-    const char *textkart;
+    const char * textkart;
 #endif
 } Main;
+
 typedef struct {
     /* "plain" command line argument */
     const char *desc;
@@ -241,6 +253,8 @@ typedef struct {
 #if _DEBUGGING
     const char *textkart;
 #endif
+
+    const char *jwtCart;
 
     Resolved resolved;
     int number;
@@ -255,6 +269,7 @@ typedef struct {
     bool done;
     Kart *kart;
     bool isKart;
+    const char *jwtCart;
 } Iterator;
 typedef struct {
     BSTNode n;
@@ -551,6 +566,35 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
 }
 
 /********** VResolver extension **********/
+static rc_t KService_ProcessId(KService * self,
+    const KartItem * item, const char * id, rc_t aRc, bool * dbgap)
+{
+    rc_t rc = 0;
+    bool numeric = true;
+    int i = 0; assert(id);
+    for (i = 0; id[i] != '\0'; ++i)
+        if (!isdigit(id[i])) {
+            numeric = false;
+            break;
+        }
+
+    assert(dbgap);
+    *dbgap = false;
+
+    if (!numeric) {
+        *dbgap = false;
+        return rc;
+    }
+
+    if (numeric) {
+        char ticket[4096] = "";
+        rc_t rc = KartItemGetTicket(item, ticket, sizeof ticket, NULL);
+        if (rc == 0)
+            *dbgap = true;
+    }
+
+    return rc;
+}
 static rc_t V_ResolverRemote(const VResolver *self,
     Resolved * resolved, VRemoteProtocols protocols,
     struct VPath const ** cache,
@@ -563,7 +607,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
     uint32_t l = 0;
     const char * id = item -> desc;
     KService * service = NULL;
-    const KSrvResponse * response = NULL;
     const KSrvRespObj * obj = NULL;
     KSrvRespObjIterator * it = NULL;
     KSrvRespFile * file = NULL;
@@ -585,41 +628,83 @@ static rc_t V_ResolverRemote(const VResolver *self,
     assert ( id );
 
     if ( rc == 0 ) {
-        if ( resolved -> project != 0 ) {
+        if ( resolved -> project != 0 || resolved -> dbgapProject ) {
+            bool dbgap = false;
             rc = KServiceAddProject ( service, resolved -> project );
+            if (rc != 0)
+                rc = KService_ProcessId(service, item->item, id, rc, &dbgap);
             if ( rc == 0 ) {
-                char path [ 99 ] = "";
+                char path [ 512 ] = "dbgap|";
+                size_t s = strlen(path);
+                char * p = path + s;
+                if (!dbgap) {
+                    s = 0;
+                    p = path;
+                }
+
                 rc = VPathReadPath ( resolved -> accession,
-                                        path, sizeof path, NULL );
-                if ( rc == 0 )
-                    rc = KServiceAddId ( service, path );
+                                        p, sizeof path - s, NULL );
+                if (rc == 0) {
+                    if (dbgap)
+                        rc = KServiceAddObject(service, path);
+                    else
+                        rc = KServiceAddId(service, path);
+                }
             }
         }
-        else {
+        else { /* to investigate for dbGaP project 0 */
             uint32_t project = 0;
             rc_t r = VResolverGetProject ( self, & project );
             if ( r == 0 && project != 0 )
                 rc = KServiceAddProject ( service, project );
-            if ( rc == 0 )
+            if ( rc == 0 && item -> jwtCart == NULL ) {
+/*              rc = KService_ProcessId(service, item->item, id, rc); */
                 rc = KServiceAddId ( service, id );
+            }
         }
     }
 
-    if (rc == 0 && item->mane ->fileType != NULL)
+    if (rc == 0 && item->mane->fileType != NULL)
         rc = KServiceSetFormat(service, item->mane->fileType);
 
     if (rc == 0 && item->mane->location != NULL)
         rc = KServiceSetLocation(service, item->mane->location);
 
+    if (rc == 0 && item->mane->jwtCart != NULL) {
+        uint32_t pcount = 0;
+        uint32_t i = 0;
+        rc = KServiceSetJwtKartFile(service, item->mane->jwtCart);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "cannot use '$(perm)' as jwt cart file",
+                "perm=%s", item->mane->jwtCart));
+        if (rc == 0)
+            rc = ArgsParamCount(item->mane->args, &pcount);
+        for (i = 0; i < pcount && rc == 0; ++i) {
+            const char *obj = NULL;
+            rc = ArgsParamValue(item->mane->args, i, (const void **)&obj);
+            if (rc == 0)
+                rc = KServiceAddId(service, obj);
+        }
+    }
+
+    if (rc == 0 && item->mane->ngc != NULL) {
+        rc = KServiceSetNgcFile(service, item->mane->ngc);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "cannot use '$(ngc)' as ngc file",
+                "ngc=%s", item->mane->ngc));
+    }
+
     if ( rc == 0 )
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
-            NULL, odir, ofile, & response );
+            NULL, odir, ofile, &resolved->response );
 
     if ( rc == 0 )
-        l = KSrvResponseLength  ( response );
+        l = KSrvResponseLength  (resolved->response );
 
     if ( rc == 0 && l > 0 )
-        rc = KSrvResponseGetObjByIdx ( response, 0, & obj );
+        rc = KSrvResponseGetObjByIdx (resolved->response, 0, & obj );
     if ( rc == 0 && l > 0 )
         rc = KSrvRespObjMakeIterator ( obj, & it );
     if (rc == 0 && l > 0) {
@@ -714,7 +799,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
         }
     }
     RELEASE ( KSrvRespObj, obj );
-    RELEASE ( KSrvResponse, response );
     RELEASE ( KService, service );
     return rc;
 }
@@ -751,8 +835,9 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             rc = RC(rcExe, rcResolver, rcResolving, rcPath, rcNotFound);
             PLOGERR(klogInt, (klogInt, rc, "cannot get cache location "
              "for $(acc). Hint: run \"vdb-config --interactive\" "
-             "and make sure Workspace Location Path is set. "
-             "See https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration",
+             "and make sure user-repository area is set. "
+             "See "
+             "https://github.com/ncbi/sra-tools/wiki/05.-Toolkit-Configuration",
              "acc=%s" , name));
         }
 
@@ -1023,6 +1108,7 @@ static rc_t ResolvedFini(Resolved *self) {
 
     RELEASE(String, self->cache);
 
+    RELEASE(KSrvResponse, self->response);
     RELEASE(KSrvRespObjIterator, self->respIt);
     RELEASE(KSrvRespFile, self->respFile);
 
@@ -1917,20 +2003,21 @@ static rc_t ItemInit(Item *self, const char *obj) {
 static char* ItemName(const Item *self) {
     char *c = NULL;
     assert(self);
-    if (self->desc != NULL) {
+    if (self->desc != NULL)
         return string_dup_measure(self->desc, NULL);
-    }
+    else if (self->jwtCart != NULL)
+        return string_dup_measure(self->jwtCart, NULL);
     else {
         rc_t rc = 0;
         const String *elem = NULL;
         assert(self->item);
-
+        /*
         rc = KartItemItemDesc(self->item, &elem);
         c = StringCheck(elem, rc);
         if (c != NULL) {
             return c;
         }
-
+*/
         rc = KartItemAccession(self->item, &elem);
         c = StringCheck(elem, rc);
         if (c != NULL) {
@@ -2137,7 +2224,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                     }
                 }
             }
-            else {
+            else { /* to investigate for dbGaP project 0 */
                 uint32_t projectId = 0;
                 rc_t r = KRepositoryMgrCurrentProtectedRepository(repoMgr,
                                                                   &p_protected);
@@ -2149,22 +2236,30 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             }
         }
     }
+    else if (item->jwtCart != NULL);
     else {
         rc = KartItemProjIdNumber(item->item, &resolved->project);
         if (rc != 0) {
             DISP_RC(rc, "KartItemProjIdNumber");
             return rc;
         }
+        /* no support for kart files with items within public project
+           (project 0 is protected '1000 genomes' project) */
+        resolved->dbgapProject = true;
+
         rc = _KartItemToVPath(item->item, vfs, &resolved->accession);
         if (rc != 0) {
             DISP_RC(rc, "invalid kart file row");
             return rc;
         }
         else {
+/*
             if ( resolved->project == 0 ) {
+*/
                 rc = VResolverAddRef(resolver);
                 if (rc == 0)
                     resolved->resolver = resolver;
+/*
             }
             else {
                 rc = KRepositoryMgrGetProtectedRepository(repoMgr, 
@@ -2187,6 +2282,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                 }
                 RELEASE(KRepository, p_protected);
             }
+*/
         }
     }
 
@@ -2288,10 +2384,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 if (rc3 != 0)
                     DISP_RC2(rc3, "cannot get remote file size",
                         remote -> str->addr);
-                else if (resolved->remoteSz >= maxSize)
-                    return rc;
-                else if (resolved->remoteSz < minSize)
-                    return rc;
+                else if (item->jwtCart == NULL) {
+                    if (resolved->remoteSz >= maxSize)
+                        return rc;
+                    else if (resolved->remoteSz < minSize)
+                        return rc;
+                }
             }
         }
     }
@@ -2345,6 +2443,8 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
             if (type == kptFile)
                 local = true;
             else if (type == kptDir) {
+                /* directory is ignored */
+#if 0
                 KNamelist * list = NULL;
                 rc = KDirectoryList(dir, &list, NULL, NULL, "%s", self->desc);
                 if (rc == 0) {
@@ -2354,6 +2454,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                         local = true;
                 }
                 RELEASE(KNamelist, list);
+#endif
             }
 
             if (local) {
@@ -2392,13 +2493,15 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         remote = & resolved -> remoteFasp;
 
     if (rc == 0) {
-        if (resolved->remoteSz >= self->mane-> maxSize) {
-            resolved->oversized = true;
-            return rc;
-        }
-        if (resolved->remoteSz < self->mane-> minSize) {
-            resolved->undersized = true;
-            return rc;
+        if (self->jwtCart == NULL) {
+            if (resolved->remoteSz >= self->mane->maxSize) {
+                resolved->oversized = true;
+                return rc;
+            }
+            if (resolved->remoteSz < self->mane->minSize) {
+                resolved->undersized = true;
+                return rc;
+            }
         }
 
         if (resolved->local.str == NULL
@@ -2543,9 +2646,14 @@ static rc_t ItemDownload(Item *item) {
     int n = 0;
     rc_t rc = 0;
     Resolved *self = NULL;
+    const char * name = NULL;
+
     assert(item && item->mane);
+
     n = item->number;
     self = &item->resolved;
+    name = self->name;
+
     assert(self->type);
 
     if (rc == 0) {
@@ -2559,10 +2667,14 @@ static rc_t ItemDownload(Item *item) {
             rc_t r = KSrvRespFileGetSize(self->respFile, & sz);
             if (r == 0) {
                 oversized = sz >= item->mane->maxSize;
-                self->oversized = oversized;
                 undersized = sz < item->mane->minSize;
-                self->undersized = undersized;
+                if (item->jwtCart == NULL) {
+                    self->oversized = oversized;
+                    self->undersized = undersized;
+                }
             }
+
+            r = KSrvRespFileGetName(self->respFile, &name);
 
             r = KSrvRespFileGetLocal(self->respFile, & local);
             if (r == 0)
@@ -2575,13 +2687,15 @@ static rc_t ItemDownload(Item *item) {
         if (undersized) {
             STSMSG(STS_TOP,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
-                n, self->name, self->remoteSz / 1024));
+                n, name, sz / 1024));
             skip = true;
+            item->mane->undersized = true;
         }
         else if (oversized) {
             logMaxSize(item->mane->maxSize);
-            logBigFile(n, self->name, self->remoteSz);
+            logBigFile(n, name, sz);
             skip = true;
+            item->mane->oversized = true;
         }
 
         rc = ResolvedLocal(self, item->mane, &isLocal,
@@ -2612,10 +2726,10 @@ static rc_t ItemDownload(Item *item) {
                 if ( sep != NULL )
                     start = sep + 1;
                 STSMSG(STS_TOP, ("%d) '%s' is found locally (%.*s)",
-                    n, self->name, ( uint32_t ) ( end - start ), start));
+                    n, name, ( uint32_t ) ( end - start ), start));
             }
             else
-                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, self->name));
+                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, name));
             if (self->local.str != NULL) {
                 VPathStrFini(&self->path);
                 rc = StringCopy(&self->path.str, self->local.str);
@@ -2625,7 +2739,7 @@ static rc_t ItemDownload(Item *item) {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);
             PLOGERR(klogErr, (klogErr, rc,
                 "cannot download '$(name)' using requested transport",
-                "name=%s", self->name));
+                "name=%s", name));
         }
         else {
             bool notFound = false;
@@ -2795,6 +2909,21 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
             if (r1 != 0 && rc == 0) {
                 rc = r1;
                 break;
+            }
+            if (self->resolved.respFile == NULL) {
+                uint32_t l = KSrvResponseLength(self->resolved.response);
+                if (++self->resolved.respObjIdx < l) {
+                    const KSrvRespObj * obj = NULL;
+                    rc = KSrvResponseGetObjByIdx(self->resolved.response,
+                        self->resolved.respObjIdx, &obj);
+                    if (rc == 0)
+                        rc = KSrvRespObjMakeIterator(
+                            obj, &self->resolved.respIt);
+                    if (rc == 0)
+                        rc = KSrvRespObjIteratorNextFile(
+                            self->resolved.respIt, &self->resolved.respFile);
+                    RELEASE(KSrvRespObj, obj);
+                }
             }
         } while (self->resolved.respFile != NULL);
     }
@@ -3284,115 +3413,6 @@ static rc_t ItemProcess(Item *item, int32_t row) {
     return rc;*/
 }
 
-/*********** Iterator **********/
-static
-rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
-{
-    rc_t rc = 0;
-
-    KPathType type = kptNotFound;
-
-    assert(self && mane);
-    memset(self, 0, sizeof *self);
-
-#if _DEBUGGING
-    if (obj == NULL && mane->textkart) {
-        type = KDirectoryPathType(mane->dir, "%s", mane->textkart);
-        if ((type & ~kptAlias) != kptFile) {
-            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
-            DISP_RC(rc, mane->textkart);
-            return rc;
-        }
-        rc = KartMakeText(mane->dir, mane->textkart, &self->kart,
-            &self->isKart);
-        if (rc != 0) {
-            if (!self->isKart) {
-                rc = 0;
-            }
-            else {
-                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a text kart file",
-                    "F=%s", mane->textkart));
-            }
-        }
-        return rc;
-    }
-#endif
-
-    assert(obj);
-    type = KDirectoryPathType(mane->dir, "%s", obj);
-    if ((type & ~kptAlias) == kptFile) {
-        type = VDBManagerPathType(mane->mgr, "%s", obj);
-        if ((type & ~kptAlias) == kptFile) {
-            rc = KartMake(mane->dir, obj, &self->kart, &self->isKart);
-            if (!self->isKart) {
-                rc = 0;
-            }
-        }
-    }
-
-    if (rc == 0 && !self->isKart) {
-        self->obj = obj;
-    }
-
-    return rc;
-}
-
-static rc_t IteratorNext(Iterator *self, Item **next, bool *done) {
-    rc_t rc = 0;
-
-    assert(self && next && done);
-
-    *next = NULL;
-
-    if (self->done) {
-        *done = true;
-        return 0;
-    }
-
-    *done = false;
-
-    *next = calloc(1, sizeof **next);
-    if (*next == NULL) {
-        return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
-    }
-
-    if (self->isKart) {
-        rc = KartMakeNextItem(self->kart, &(*next)->item);
-        if (rc != 0) {
-            if ( rc ==
-                  SILENT_RC ( rcKFG, rcNode, rcAccessing, rcNode, rcNotFound ) )
-                LOGERR (klogErr, rc, "Cannot read kart file. "
-                                "Did you Import Repository Key (ngc file)?");
-            else
-                LOGERR (klogErr, rc, "Invalid kart file: cannot read next row");
-        }
-        else if ((*next)->item == NULL) {
-            RELEASE(Item, *next);
-            *next = NULL;
-            *done = true;
-        }
-
-        if (rc == 0 && *done) {
-            self->done = true;
-        }
-    }
-    else {
-        rc = ItemInit(*next, self->obj);
-
-        self->done = true;
-    }
-
-    return rc;
-}
-
-static void IteratorFini(Iterator *self) {
-    rc_t rc = 0;
-
-    assert(self);
-
-    RELEASE(Kart, self->kart);
-}
-
 /*********** Command line arguments **********/
 
 static size_t _sizeFromString(const char *val) {
@@ -3460,7 +3480,7 @@ static const char* FAIL_ASCP_USAGE[] = {
 
 #define LIST_OPTION "list"
 #define LIST_ALIAS  "l"
-static const char* LIST_USAGE[] = { "List the content of a kart file", NULL };
+/*static const char* LIST_USAGE[] = {"List the content of a kart file", NULL};*/
 
 #define LOCN_OPTION "location"
 #define LOCN_ALIAS  NULL
@@ -3468,8 +3488,8 @@ static const char* LOCN_USAGE[] = { "Location of data", NULL };
 
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
-static const char* NM_L_USAGE[] =
-{ "List the content of a kart file with kart row numbers", NULL };
+/*static const char* NM_L_USAGE[] =
+{ "List the content of a kart file with kart row numbers", NULL }; */
 
 #define MINSZ_OPTION "min-size"
 #define MINSZ_ALIAS  "N"
@@ -3504,8 +3524,8 @@ static const char* ROWS_USAGE[] =
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
-static const char* SZ_L_USAGE[] =
-{ "List the content of a kart file with target file sizes", NULL };
+/*static const char* SZ_L_USAGE[] =
+{ "List the content of a kart file with target file sizes", NULL }; */
 
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
@@ -3537,6 +3557,16 @@ static const char* STRIP_QUALS_USAGE[] =
 static const char* ELIM_QUALS_USAGE[] =
 { "Don't download QUALITY column", NULL };
 
+#define CART_OPTION "perm"
+static const char* CART_USAGE[] = { "PATH to jwt cart file", NULL };
+
+#define NGC_OPTION "ngc"
+#define NGC_ALIAS  NULL
+static const char* NGC_USAGE[] = { "PATH to ngc file", NULL };
+
+#define KART_OPTION "cart"
+static const char* KART_USAGE[] = { "To read a kart file", NULL };
+
 #if _DEBUGGING
 #define TEXTKART_OPTION "text-kart"
 static const char* TEXTKART_USAGE[] =
@@ -3554,11 +3584,16 @@ static OptDef OPTIONS[] = {
 ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
 ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
+/*
 ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
 ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
 ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
-,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
+*/
 ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
+,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
+,{ NGC_OPTION         , NULL              , NULL, NGC_USAGE   , 1, true ,false }
+,{ KART_OPTION        , NULL              , NULL, KART_USAGE  , 1, true, false }
 #if _DEBUGGING
 ,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
 #endif
@@ -3648,6 +3683,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             self->check_all = true;
         }
 
+#if 0
 /******* LIST OPTIONS BEGIN ********/
 /* LIST_OPTION */
         rc = ArgsOptionCount(self->args, LIST_OPTION, &pcount);
@@ -3682,6 +3718,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             self->list_kart_sized = true;
         }
 /******* LIST OPTIONS END ********/
+#endif
 
 option_name = LOCN_OPTION;
         {
@@ -3949,19 +3986,19 @@ option_name = TYPE_OPTION;
             LOGERR(klogErr, rc, "Failure to get '" STRIP_QUALS_OPTION "' argument");
             break;
         }
-        
+
         if (pcount > 0) {
             self->stripQuals = true;
         }
 #endif
-        
+
 /* ELIM_QUALS_OPTION */
         rc = ArgsOptionCount(self->args, ELIM_QUALS_OPTION, &pcount);
         if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get '" ELIM_QUALS_OPTION "' argument");
             break;
         }
-        
+
         if (pcount > 0) {
             self->eliminateQuals = true;
         }
@@ -3974,7 +4011,7 @@ option_name = TYPE_OPTION;
             break;
         }
 #endif
-        
+
 /* OUT_DIR_OPTION */
         rc = ArgsOptionCount(self->args, OUT_DIR_OPTION, &pcount);
         if (rc != 0) {
@@ -4037,8 +4074,74 @@ option_name = TYPE_OPTION;
                 self -> orderOrOutFile = val;
         }
 
+/* NGC_OPTION */
+        {
+            rc = ArgsOptionCount(self->args, NGC_OPTION, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" NGC_OPTION "' argument");
+                break;
+            }
+
+            if (pcount > 0) {
+                const char *val = NULL;
+                rc = ArgsOptionValue(self->args, NGC_OPTION,
+                    0, (const void **)&val);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" NGC_OPTION "' argument value");
+                    break;
+                }
+                self->ngc = val;
+            }
+        }
+
+/* CART_OPTION */
+        {
+            rc = ArgsOptionCount(self->args, CART_OPTION, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" CART_OPTION "' argument");
+                break;
+            }
+
+            if (pcount > 0) {
+                const char *val = NULL;
+                rc = ArgsOptionValue(self->args, CART_OPTION,
+                    0, (const void **)&val);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" CART_OPTION "' argument value");
+                    break;
+                }
+                self->jwtCart = val;
+            }
+        }
+
+/* KART_OPTION */
+        {
+            rc = ArgsOptionCount(self->args, KART_OPTION, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" KART_OPTION "' argument");
+                break;
+            }
+
+            if (pcount > 0) {
+                const char *val = NULL;
+                rc = ArgsOptionValue(self->args,
+                    KART_OPTION, 0, (const void **)&val);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" KART_OPTION "' argument value");
+                    break;
+                }
+                self->kart = val;
+            }
+        }
+
 #if _DEBUGGING
-/* TEXTKART_OPTION */
+        /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
         if (rc != 0) {
             LOGERR(klogErr, rc,
@@ -4056,6 +4159,14 @@ option_name = TYPE_OPTION;
             }
             self->textkart = val;
         }
+
+        if (self->kart != NULL && self->textkart != NULL) {
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            LOGERR(klogErr, rc, "Cannot specify both --" KART_OPTION
+                "and --" TEXTKART_OPTION);
+            break;
+        }
+
 #endif
     } while (false);
 
@@ -4068,8 +4179,11 @@ const char UsageDefaultName[] = "prefetch";
 rc_t CC UsageSummary(const char *progname) {
     return OUTMSG((
         "Usage:\n"
-        "  %s [options] <SRA accession | kart file> [...]\n"
-        "  Download SRA or dbGaP files and their dependencies\n"
+        "  %s [options] <SRA accession> [...]\n"
+        "  Download SRA files and their dependencies\n"
+        "\n"
+        "  %s [options] --cart <kart file>\n"
+        "  Download cart file\n"
         "\n"
         "  %s [options] <URL> --output-file <FILE>\n"
         "  Download URL to FILE\n"
@@ -4081,8 +4195,6 @@ rc_t CC UsageSummary(const char *progname) {
         "  Check SRA file for missed dependencies "
                                            "and download them\n"
         "\n"
-        "  %s --list <kart file> [...]\n"
-        "  List content of kart file\n\n"
         , progname, progname, progname, progname, progname));
 }
 
@@ -4116,6 +4228,12 @@ rc_t CC Usage(const Args *args) {
         if (OPTIONS[i].aliases != NULL) {
             if (strcmp(alias, FAIL_ASCP_ALIAS) == 0)
                 continue; /* debug option */
+            else if (strcmp(opt->name, KART_OPTION) == 0)
+                param = "value";
+#if _DEBUGGING
+            else if (strcmp(opt->name, TEXTKART_OPTION) == 0)
+                param = "value";
+#endif
 
             if (strcmp(alias, ASCP_ALIAS) == 0)
                 param = "ascp-binary|private-key-file";
@@ -4127,28 +4245,29 @@ rc_t CC Usage(const Args *args) {
             {
                 param = "value";
             }
-            else if (strcmp(alias, ROWS_ALIAS) == 0)
-                param = "rows";
             else if (strcmp(alias, OUT_DIR_ALIAS) == 0)
                 param = "DIRECTORY";
+            else if (strcmp(alias, ROWS_ALIAS) == 0)
+                param = "rows";
             else if (strcmp(alias, SIZE_ALIAS) == 0
                   || strcmp(alias, MINSZ_ALIAS) == 0)
             {
                 param = "size";
             }
         }
+        else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
+            param = "value";
+        else if (strcmp(opt->name, NGC_OPTION) == 0
+            || strcmp(opt->name, CART_OPTION) == 0)
+        {
+            param = "PATH";
+        }
         else if (strcmp(opt->name, OUT_FILE_OPTION) == 0) {
             param = "FILE";
             alias = OUT_FILE_ALIAS;
         }
-        else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
-            param = "value";
         else if (strcmp(opt->name, DRY_RUN_OPTION) == 0)
             continue; /* debug option */
-#if _DEBUGGING
-        else if (strcmp(opt->name, TEXTKART_OPTION) == 0)
-            param = "value";
-#endif
 
         if (alias != NULL) {
             if (strcmp(alias, ASCP_ALIAS) == 0 ||
@@ -4172,6 +4291,150 @@ rc_t CC Usage(const Args *args) {
 }
 
 /******************************************************************************/
+
+/*********** Iterator **********/
+static
+rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
+{
+    rc_t rc = 0;
+
+    KPathType type = kptNotFound;
+
+    assert(self && mane);
+    memset(self, 0, sizeof *self);
+
+    if (obj == NULL && mane->kart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->kart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->kart);
+            return rc;
+        }
+        rc = KartMakeWithNgc(mane->dir, mane->kart, &self->kart, &self->isKart,
+            mane->ngc);
+        if (rc != 0) {
+            if (!self->isKart)
+                rc = 0;
+            else
+                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a kart file",
+                    "F=%s", mane->kart));
+        }
+        return rc;
+    }
+#if _DEBUGGING
+    else if (obj == NULL && mane->textkart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->textkart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->textkart);
+            return rc;
+        }
+        rc = KartMakeText(mane->dir, mane->textkart, &self->kart,
+            &self->isKart);
+        if (rc != 0) {
+            if (!self->isKart) {
+                rc = 0;
+            }
+            else {
+                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a text kart file",
+                    "F=%s", mane->textkart));
+            }
+        }
+        return rc;
+    }
+#endif
+
+    if (obj == NULL && mane->jwtCart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->jwtCart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->jwtCart);
+        }
+        else
+            self->jwtCart = mane->jwtCart;
+        return rc;
+    }
+
+    assert(obj);
+    type = KDirectoryPathType(mane->dir, "%s", obj);
+    if ((type & ~kptAlias) == kptFile) {
+        type = VDBManagerPathType(mane->mgr, "%s", obj);
+        if ((type & ~kptAlias) == kptFile) {
+            rc = KartMakeWithNgc(mane->dir, obj, &self->kart, &self->isKart,
+                mane->ngc);
+            if (!self->isKart) {
+                rc = 0;
+            }
+        }
+    }
+
+    if (rc == 0 && !self->isKart) {
+        self->obj = obj;
+    }
+
+    return rc;
+}
+
+static rc_t IteratorNext(Iterator *self, Item **next, bool *done) {
+    rc_t rc = 0;
+
+    assert(self && next && done);
+
+    *next = NULL;
+
+    if (self->done) {
+        *done = true;
+        return 0;
+    }
+
+    *done = false;
+
+    *next = calloc(1, sizeof **next);
+    if (*next == NULL) {
+        return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
+    }
+
+    if (self->isKart) {
+        rc = KartMakeNextItem(self->kart, &(*next)->item);
+        if (rc != 0) {
+            if (rc ==
+                SILENT_RC(rcKFG, rcNode, rcAccessing, rcNode, rcNotFound))
+            {
+                LOGERR(klogErr, rc, "Cannot read kart file. "
+                    "Did you specify --" NGC_OPTION " command line option?");
+            }
+            else
+                LOGERR(klogErr, rc, "Invalid kart file: cannot read next row");
+        }
+        else if ((*next)->item == NULL) {
+            RELEASE(Item, *next);
+            *next = NULL;
+            *done = true;
+        }
+
+        if (rc == 0 && *done) {
+            self->done = true;
+        }
+    }
+    else if (self->jwtCart != NULL) {
+        (*next)->jwtCart = self->jwtCart;
+        self->done = true;
+    }
+    else {
+        rc = ItemInit(*next, self->obj);
+        self->done = true;
+    }
+
+    return rc;
+}
+
+static void IteratorFini(Iterator *self) {
+    rc_t rc = 0;
+
+    assert(self);
+
+    RELEASE(Kart, self->kart);
+}
 
 /********** KartTreeNode **********/
 static void CC bstKrtWhack(BSTNode *n, void *ignore) {
@@ -4337,6 +4600,12 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
     if (rc == 0)
         rc = IteratorInit(&it, arg, self);
 
+    if (false && rc == 0 && it.isKart) {
+        rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcUnsupported);
+        LOGERR(klogErr, rc, "Your kart file is out of date. "
+            "Please login to the dbGaP portal to download a new one.");
+    }
+
     if ( rc == 0 ) {
         if ( it . kart != NULL ) {
             if ( self -> outFile ) {
@@ -4416,6 +4685,8 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
                         OUTMSG(("Checking sizes of kart files...\n"));
                     }
                 }
+                else if (self->jwtCart != NULL)
+                    OUTMSG(("Downloading jwt cart file '%s'\n", self->jwtCart));
                 OUTMSG(("\n"));
             }
 
@@ -4544,36 +4815,54 @@ rc_t CC KMain(int argc, char *argv[]) {
     if (rc == 0) {
         rc = ArgsParamCount(pars.args, &pcount);
     }
-    if (rc == 0 && pcount == 0) {
+    if (rc == 0 && pcount == 0 && pars.jwtCart == NULL && pars.kart == NULL
 #if _DEBUGGING
-        if (!pars.textkart)
+        && pars.textkart == NULL
 #endif
-        {
-          rc = UsageSummary(UsageDefaultName);
-          insufficient = true;
-        }
+        )
+    {
+        rc = UsageSummary(UsageDefaultName);
+        insufficient = true;
     }
 
     if (rc == 0) {
         bool multiErrorReported = false;
         uint32_t i = ~0;
 
+        /* JWT cart is processed here.
+     All command line parameters are applied as accession filters to the cart */
+        if (pars.jwtCart != NULL) {
+            rc = MainRun(&pars, NULL, pars.jwtCart, 1, &multiErrorReported);
+        }
+        else if (pars.kart != NULL) {
+            if (pars.outFile != NULL) {
+                LOGERR(klogWarn,
+                    RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid),
+                    "Cannot specify both --" OUT_FILE_OPTION
+                    " and --" KART_OPTION ": "
+                    "--" OUT_FILE_OPTION " is ignored");
+                pars.outFile = NULL;
+            }
+            rc = MainRun(&pars, NULL, pars.kart, 1, &multiErrorReported);
+        }
 #if _DEBUGGING
-        if (pars.textkart) {
-            if ( pars . outFile != NULL ) {
-                LOGERR ( klogWarn,
-                         RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid ),
-                         "Cannot specify both --" OUT_FILE_OPTION
-                         " and --" TEXTKART_OPTION ": "
-                         "--" OUT_FILE_OPTION " is ignored");
-                pars . outFile = NULL;
+        else if (pars.textkart != NULL) {
+            if (pars.outFile != NULL) {
+                LOGERR(klogWarn,
+                    RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid),
+                    "Cannot specify both --" OUT_FILE_OPTION
+                    " and --" TEXTKART_OPTION ": "
+                    "--" OUT_FILE_OPTION " is ignored");
+                pars.outFile = NULL;
             }
             rc = MainRun(&pars, NULL, pars.textkart, 1, &multiErrorReported);
         }
         else
 #endif
 
-        for (i = 0; i < pcount; ++i) {
+        /* All command line parameters are precessed here
+           unless JWT cart is specified. */
+        for (i = 0; i < pcount && pars.jwtCart == NULL; ++i) {
             const char *obj = NULL;
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");

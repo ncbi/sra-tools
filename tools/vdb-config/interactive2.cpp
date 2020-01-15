@@ -34,16 +34,19 @@
 
 using namespace tui;
 
+const bool With_DbGaP = false;
+const bool With_Verfify = false;
+
 const KTUI_color BOX_COLOR      = KTUI_c_dark_blue;
-const KTUI_color STATUS_COLOR	= KTUI_c_gray;
-const KTUI_color LABEL_BG		= KTUI_c_light_gray;
-const KTUI_color LABEL_FG		= KTUI_c_white;
-const KTUI_color CB_COLOR_FG	= KTUI_c_black;
-const KTUI_color CB_COLOR_BG	= KTUI_c_cyan;
-const KTUI_color BTN_COLOR_FG	= KTUI_c_black;
-const KTUI_color BTN_COLOR_BG	= KTUI_c_cyan;
-const KTUI_color INP_COLOR_FG	= KTUI_c_black;
-const KTUI_color INP_COLOR_BG	= KTUI_c_white;
+const KTUI_color STATUS_COLOR   = KTUI_c_gray;
+const KTUI_color LABEL_BG       = KTUI_c_light_gray;
+const KTUI_color LABEL_FG       = KTUI_c_white;
+const KTUI_color CB_COLOR_FG    = KTUI_c_black;
+const KTUI_color CB_COLOR_BG    = KTUI_c_cyan;
+const KTUI_color BTN_COLOR_FG   = KTUI_c_black;
+const KTUI_color BTN_COLOR_BG   = KTUI_c_cyan;
+const KTUI_color INP_COLOR_FG   = KTUI_c_black;
+const KTUI_color INP_COLOR_BG   = KTUI_c_white;
 
 enum e_id
 {
@@ -51,7 +54,7 @@ enum e_id
     SAVE_BTN_ID, EXIT_BTN_ID, VERIFY_BTN_ID, DISCARD_BTN_ID, DEFAULT_BTN_ID, BOX_ID,
     
     MAIN_HDR_ID = 200,
-    MAIN_USE_REMOTE_ID, MAIN_USE_SITE_ID,
+    MAIN_USE_REMOTE_ID, MAIN_USE_SITE_ID, MAIN_GUID_ID,
     
     CACHE_HDR_ID = 300,
     CACHE_USE_CACHE_ID,
@@ -437,7 +440,7 @@ static bool import_ngc( Dlg &dlg, vdbconf_model * model )
     return res;
 }
 
-/* ==== helper-model for the dbGap - grid ======================================================= */
+/* ==== helper-model for the dbGaP - grid ======================================================= */
 class vdbconf_grid : public Grid
 {
     public:
@@ -589,6 +592,7 @@ class vdbconf_view2 : public Dlg
         Tui_Rect pf_lbl_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , r.get_w() -2, 1 ); }
         Tui_Rect pf_box_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , r.get_w() -2, 4 ); }
         Tui_Rect pf_cb_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +2, r.get_y() + y , 32, 2 ); }
+        Tui_Rect bottom( Tui_Rect const &r ) { return Tui_Rect( r.get_x() +1, r.get_y() + r.get_h() -2 , r.get_w() -2, 1 ); }
         
         Tui_Rect HDR_rect( Tui_Rect const &r, uint32_t ident )
         {
@@ -619,8 +623,11 @@ class vdbconf_view2 : public Dlg
             PopulateButton( rr, resize, SAVE_BTN_ID,  "&save", BTN_COLOR_BG, BTN_COLOR_FG );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
             PopulateButton( rr, resize, EXIT_BTN_ID,  "e&xit", BTN_COLOR_BG, BTN_COLOR_FG );
-            rr.change( rr.get_w() + 2, 0, 0, 0 );
-            PopulateButton( rr, resize, VERIFY_BTN_ID, "&verify", BTN_COLOR_BG, BTN_COLOR_FG );
+            if ( With_Verfify )
+            {
+                rr.change( rr.get_w() + 2, 0, 0, 0 );
+                PopulateButton( rr, resize, VERIFY_BTN_ID, "&verify", BTN_COLOR_BG, BTN_COLOR_FG );
+            }
             rr.change( rr.get_w() + 2, 0, 0, 0 );
             PopulateButton( rr, resize, DISCARD_BTN_ID, "&discard", BTN_COLOR_BG, BTN_COLOR_FG );
             rr.change( rr.get_w() + 2, 0, 0, 0 );
@@ -629,13 +636,17 @@ class vdbconf_view2 : public Dlg
 
         void populate_tab_headers( Tui_Rect const &r, bool resize )
         {
-            PopulateTabHdr( HDR_rect( r, 0 ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG );            
-            PopulateTabHdr( HDR_rect( r, 1 ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG );
-            PopulateTabHdr( HDR_rect( r, 2 ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG );
-            PopulateTabHdr( HDR_rect( r, 3 ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG );
-            PopulateTabHdr( HDR_rect( r, 4 ), resize, NETW_HDR_ID, "&NET", STATUS_COLOR, LABEL_FG );
-            PopulateTabHdr( HDR_rect( r, 5 ), resize, DBGAP_HDR_ID, "d&bGap", STATUS_COLOR, LABEL_FG );
-            PopulateTabHdr( HDR_rect( r, 6 ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG );
+            uint32_t ident = 0;
+            PopulateTabHdr( HDR_rect( r, ident++ ), resize, MAIN_HDR_ID, "&MAIN", STATUS_COLOR, LABEL_FG );            
+            PopulateTabHdr( HDR_rect( r, ident++ ), resize, CACHE_HDR_ID, "&CACHE", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, ident++ ), resize, AWS_HDR_ID, "&AWS", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, ident++ ), resize, GCP_HDR_ID, "&GCP", STATUS_COLOR, LABEL_FG );
+            PopulateTabHdr( HDR_rect( r, ident++ ), resize, NETW_HDR_ID, "&NET", STATUS_COLOR, LABEL_FG );
+            
+            if ( With_DbGaP )
+                PopulateTabHdr( HDR_rect( r, ident++ ), resize, DBGAP_HDR_ID, "d&bGaP", STATUS_COLOR, LABEL_FG );
+
+            PopulateTabHdr( HDR_rect( r, ident ), resize, TOOLS_HDR_ID, "&TOOLS", STATUS_COLOR, LABEL_FG );
         }
         
         // populate the MAIN page
@@ -652,6 +663,11 @@ class vdbconf_view2 : public Dlg
                               model.is_site_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
             }
+            
+            /* the GUID-label at the bottom */
+            std::stringstream ss;
+            ss << "GUID: " << model.get_guid();
+            PopulateLabel( bottom( r ), resize, MAIN_GUID_ID, ss.str().c_str(), BOX_COLOR, LABEL_FG, page_id );
         }
 
         // populate the CACHE page
@@ -662,7 +678,7 @@ class vdbconf_view2 : public Dlg
                               model.is_user_cache_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
             y += 2;
-            PopulateLabel( lbl1_rect( r, y ), resize, CACHE_REPO_LBL_ID, "location of public user-repository:",
+            PopulateLabel( lbl1_rect( r, y ), resize, CACHE_REPO_LBL_ID, "location of user-repository:",
                                 BOX_COLOR, LABEL_FG, page_id );
             y++;
             PopulateButton( choose_rect( r, y ), resize, CACHE_REPO_CHOOSE_ID, "ch&oose",
@@ -806,7 +822,7 @@ class vdbconf_view2 : public Dlg
             if ( GetWidgetStringCount( TOOLS_PREFETCH_ID ) == 0 )
             {
                 AddWidgetStringN( TOOLS_PREFETCH_ID, 2,
-                                  "public user-repository", "current directory" );
+                                  "user-repository", "current directory" );
                 bool value = model.does_prefetch_download_to_cache();
                 SetWidgetSelectedString( TOOLS_PREFETCH_ID, value ? 0 : 1 );
             }
@@ -827,7 +843,8 @@ class vdbconf_view2 : public Dlg
             populate_AWS( tab_rect, resize, PAGE_AWS );
             populate_GCP( tab_rect, resize, PAGE_GCP );
             populate_NETW( tab_rect, resize, PAGE_NETW );
-            populate_DBGAP( tab_rect, resize, PAGE_DBGAP );
+            if ( With_DbGaP )
+                populate_DBGAP( tab_rect, resize, PAGE_DBGAP );
             populate_TOOLS( tab_rect, resize, PAGE_TOOLS );
         }
 };
@@ -951,7 +968,7 @@ class vdbconf_ctrl2 : public Dlg_Runner
                 
                 case DBGAP_IMPORT_KEY_ID  : view.status_txt( "import a ngc-file" ); break;
                 case DBGAP_IMPORT_PATH_ID : view.status_txt( "set default import path for ngc-files" ); break;
-                case DBGAP_REPOS_ID       : view.status_txt( "list of available dbGap repositories, press ENTER to edit" ); break;
+                case DBGAP_REPOS_ID       : view.status_txt( "list of available dbGaP repositories, press ENTER to edit" ); break;
                 
                 case TOOLS_PREFETCH_ID   : view.status_txt( "choose where prefetch downloads files to" ); break;                
             }
@@ -1241,6 +1258,9 @@ extern "C"
         rc_t rc = 0;
         try
         {
+            /* try to get a GUID from config, create and store if none found */
+            model.check_guid();
+                    
             /* (1) ... create a view */
             vdbconf_view2 view( model );
             

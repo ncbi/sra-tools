@@ -109,6 +109,7 @@ static rc_t init_multi_producer( lookup_producer * self,
             self -> processed_row_count = processed_row_count;
             
             cp . dir                = cmn -> dir;
+            cp . vdb_mgr            = cmn -> vdb_mgr;
             cp . accession          = cmn -> accession;
             cp . first_row          = first_row;
             cp . row_count          = row_count;
@@ -225,6 +226,7 @@ static uint64_t find_out_row_count( cmn_params * cmn )
     cmn_params cp; /* cmn_iter.h */
     
     cp . dir            = cmn -> dir;
+    cp . vdb_mgr        = cmn -> vdb_mgr;
     cp . accession      = cmn -> accession;
     cp . first_row      = 0;
     cp . row_count      = 0;
@@ -331,6 +333,7 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
 
 
 rc_t execute_lookup_production( KDirectory * dir,
+                                const VDBManager * vdb_mgr,
                                 const char * accession,
                                 struct background_vector_merger * merger,
                                 size_t cursor_cache,
@@ -349,7 +352,7 @@ rc_t execute_lookup_production( KDirectory * dir,
     
     if ( rc == 0 )
     {
-        cmn_params cmn = { dir, accession, 0, 0, cursor_cache };
+        cmn_params cmn = { dir, vdb_mgr, accession, 0, 0, cursor_cache };
         rc = run_producer_pool( &cmn,
                                 merger,
                                 buf_size,

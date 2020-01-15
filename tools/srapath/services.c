@@ -320,6 +320,16 @@ static void json_print_nzp(  char const *const name
             , value));
 }
 
+static void json_print_nbp(  char const *const name
+                           , bool const value
+                           , bool const comma)
+{
+    OUTMSG(("%.*s\"%s\": %s"
+            , comma ? 2 : 0, ", "
+            , name
+            , value ? "true" : "false"));
+}
+
 static void json_print_named_url(  char const *const name
                                  , VPath const *const url
                                  , bool const comma)
@@ -359,8 +369,8 @@ static unsigned json_print_named_urls_and_service(  char const *const name
         OUTMSG(("%.*s{ ", count > 0 ? 2 : 0, ",\n"));
         json_print_nVp("path", tmp, false);
         json_print_nVp("service", &service, true);
-        json_print_nvp("CE-Required", ce ? "true" : "false", true);
-        json_print_nvp("Payment-Required", pay ? "true" : "false", true);
+        json_print_nbp("CE-Required", ce, true);
+        json_print_nbp("Payment-Required", pay, true);
         OUTMSG((" }"));
 
         free((void *)tmp);
@@ -373,19 +383,19 @@ static unsigned json_print_named_urls_and_service(  char const *const name
     return count;
 }
 
-static unsigned json_print_response_file(KSrvRespFile const *const file, unsigned count)
+#define INFALLIBLE(X) do { rc_t const rc = (X); assert(rc == 0); if (rc) abort(); } while (0)
+
+static unsigned json_print_response_file(KSrvRespFile const *const file, char const *const acc, uint32_t const id, unsigned count)
 {
     if (file) {
         rc_t rc = 0;
         VPath const *path = NULL;
         char const *str = NULL;
-        uint32_t id = 0;
         uint64_t sz = 0;
         KSrvRespFileIterator *iter = NULL;
         
-        str = NULL; rc = KSrvRespFileGetAccOrId(file, &str, &id); assert(rc == 0);
         OUTMSG(("%.*s{", count == 0 ? 0 : 2, ",\n"));
-        json_print_nvp("accession", str, false);
+        json_print_nvp("accession", acc, false);
         count += 1;
 
         str = NULL; rc = KSrvRespFileGetType(file, &str);
@@ -452,32 +462,45 @@ static rc_t names_remote_json ( KService * const service
         unsigned output_count = 0;
         
         OUTMSG(("{\n"));
+        OUTMSG(("\"count\": %u,\n", count));
         get_compute_environment();
         OUTMSG(("\"responses\": [\n"));
         for (i = 0; i < count; ++i) {
-            KSrvRespObj const *obj = NULL;
             KSrvRespObjIterator *iter = NULL;
-            
-            rc = KSrvResponseGetObjByIdx(response, i, &obj);
-            assert(rc == 0); /* if everything was done right, should not be fail-able */
-            rc = KSrvRespObjMakeIterator(obj, &iter);
-            assert(rc == 0); /* if everything was done right, should not be fail-able */
-            
-            for ( ; ; ) { /* iterate files */
-                KSrvRespFile *file = NULL;
+            char const *acc = NULL;
+            KSrvRespObj const *obj = NULL;
+            uint32_t id = 0;
+            uint32_t fileCount = 0;
+
+            INFALLIBLE(KSrvResponseGetObjByIdx(response, i, &obj));
+            INFALLIBLE(KSrvRespObjGetAccOrId(obj, &acc, &id));
+            rc = KSrvRespObjGetFileCount(obj, &fileCount);
+            if (rc == 0) {
+                INFALLIBLE(KSrvRespObjMakeIterator(obj, &iter));
                 
-                rc = KSrvRespObjIteratorNextFile(iter, &file);
-                assert(rc == 0); /* if everything was done right, should not be fail-able */
-                
-                if (file == NULL) /* done iterating */
-                    break;
-                output_count = json_print_response_file(file, output_count);
-                RELEASE(KSrvRespFile, file);
+                for ( ; ; ) { /* iterate files */
+                    KSrvRespFile *file = NULL;
+                    
+                    INFALLIBLE(KSrvRespObjIteratorNextFile(iter, &file));
+                    if (file == NULL) /* done iterating */
+                        break;
+                    output_count = json_print_response_file(file, acc, id, output_count);
+                    RELEASE(KSrvRespFile, file);
+                }
+                RELEASE(KSrvRespObjIterator, iter);
             }
-            RELEASE(KSrvRespObjIterator, iter);
+            else {
+                char const *err_msg = NULL;
+                int64_t err_code = 0;
+                rc_t err_rc = 0;
+                INFALLIBLE(KSrvRespObjGetError(obj, &err_rc, &err_code, &err_msg));
+                OUTMSG(("%.*s{\"accession\": \"%s\", \"error\": \"%03u\", \"message\": \"%s\"}", output_count == 0 ? 0 : 2, ",\n", acc, (unsigned)err_code, err_msg));
+                output_count += 1;
+                rc = 0;
+            }
             RELEASE(KSrvRespObj, obj);
         }
-        output_count = json_print_response_file(NULL, output_count);
+        output_count = json_print_response_file(NULL, NULL, 0, output_count);
         OUTMSG(("]}\n"));
     }
     RELEASE ( KSrvResponse, response );
@@ -519,6 +542,14 @@ static rc_t KService_Make ( KService ** self, const request_params * request ) {
 
         for ( id = request -> terms; * id != NULL && rc == 0; ++ id)
             rc = KServiceAddId ( * self, * id );
+
+        if (rc == 0 && request->cart != NULL) {
+            rc = KServiceSetJwtKartFile(*self, request->cart);
+            if (rc != 0)
+                PLOGERR(klogErr, (klogErr, rc,
+                    "cannot use '$(perm)' as jwt cart file",
+                    "perm=%s", request->cart));
+        }
     }
 
     return rc;
@@ -629,11 +660,25 @@ static rc_t names_request_1 (  const request_params * request
         }
     }
     
+    if (rc == 0 && request->cart != NULL) {
+        rc = KServiceSetJwtKartFile(service, request->cart);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot set cart '$(l)'", "l=%s", request->cart));
+    }
+
     if (rc == 0 && request->location != NULL) {
         rc = KServiceSetLocation(service, request->location);
         if (rc != 0)
             PLOGERR(klogErr, (klogErr, rc,
-                "Cannot sel location '$(l)'", "l=%s", request->location));
+                "Cannot set location '$(l)'", "l=%s", request->location));
+    }
+
+    if (rc == 0 && request->ngc != NULL) {
+        rc = KServiceSetNgcFile(service, request->ngc);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot set ngc file '$(l)'", "l=%s", request->ngc));
     }
 
     if ( rc == 0 && request -> proto != NULL )

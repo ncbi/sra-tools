@@ -321,7 +321,7 @@ static TTest processTests(TTest testsOn, TTest testsOff) {
     }
 
     return tests;
-} 
+}
 
 static void MainMakeQuick(Main *self) {
     assert(self);
@@ -1307,7 +1307,7 @@ static rc_t MainResolveCache(const Main *self, const VResolver *resolver,
     const VPath* cache = NULL;
 
     assert(self);
-    
+
     if (remote == NULL) {
         rc = MainPathReport(self,
             rc, cache, ePathCache, name, remote, NULL, fasp, NULL);
@@ -1574,7 +1574,7 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
                 }
             }
             if (rc == 0) {
-                rc = KRepositoryMgrGetProtectedRepository(self->repoMgr, 
+                rc = KRepositoryMgrGetProtectedRepository(self->repoMgr,
                     (uint32_t)project, &p_protected);
                 if (rc != 0) {
                     OUTMSG((
@@ -1674,7 +1674,7 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
         }
     }
 
-    RELEASE(VPath, acc); 
+    RELEASE(VPath, acc);
     RELEASE(VResolver, resolver);
 
     if (self->xml) {
@@ -2190,7 +2190,7 @@ static rc_t ipv6_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
 	b[6] = ( ep->u.ipv6.addr[ 12 ] << 8 ) | ep->u.ipv6.addr[ 13 ];
 	b[7] = ( ep->u.ipv6.addr[ 14 ] << 8 ) | ep->u.ipv6.addr[ 15 ];
 	return string_printf( buffer, buflen, NULL,
-        "ipv6: %.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X: :%d", 
+        "ipv6: %.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X: :%d",
 		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], ep->u.ipv6.port );
 }
 
@@ -2289,7 +2289,7 @@ static rc_t read_stream_into_databuffer(
     KStream *stream, KDataBuffer *databuffer)
 {
 	rc_t rc;
-	
+
 	size_t total = 0;
 	KDataBufferMakeBytes( databuffer, 4096 );
 	while ( 1 )
@@ -2306,7 +2306,7 @@ static rc_t read_stream_into_databuffer(
 				break;
 			}
 		}
-		
+
 		base = databuffer->base;
 		rc = KStreamRead(stream, &base[total],
             (size_t) databuffer->elem_count - total, &num_read);
@@ -2338,8 +2338,8 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     const char *acc, KDataBuffer *databuffer, const char *eol)
 {
     KClientHttpRequest * req = NULL;
-    char b [1024 ] = "";
     rc_t rc = 0;
+    KDataBuffer buffer;
     assert(self);
     rc = KNSManagerMakeReliableClientRequest
         (self->knsMgr, &req, HTTP_VERSION, NULL, cgi_url);
@@ -2369,8 +2369,9 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
     }
+    rc = KDataBufferMake( &buffer, 8, 0 );
     if (rc == 0) {
-        rc = KClientHttpRequestFormatPostMsg ( req, b, sizeof b, NULL );
+        rc = KClientHttpRequestFormatPostMsg ( req, &buffer );
     }
     if (rc == 0) {
         KHttpResult *rslt = NULL;
@@ -2470,15 +2471,10 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
     if ( self -> xml )
         OUTMSG ( ( "%s    <%s protocol=\"%s\">\n", bol, method, protocol ) );
     {
-        char buffer [ 1024 ] = "";
         KClientHttp * http = NULL;
         KClientHttpRequest * req = NULL;
         KClientHttpResult * rslt = NULL;
         const char root [] = "Request";
-        size_t len = 0;
-        char * b = buffer;
-        size_t sizeof_b = sizeof buffer;
-        char * allocated = NULL;
         String host;
         CONST_STRING ( & host, "sra-download.ncbi.nlm.nih.gov" );
         if ( self -> xml )
@@ -2506,27 +2502,19 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 OUTMSG ( ( "KClientHttpRequestByteRange(0,4096)=%R\n", rc ) );
         }
         if ( rc == 0 ) {
-            rc = KClientHttpRequestFormatMsg
-                ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
-            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
-                    GetRCState ( rc ) == rcInsufficient )
-            {
-                free ( allocated );
-                sizeof_b = 0;
-                allocated = b = malloc ( len );
-                if ( allocated == NULL )
-                    rc = RC
-                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                else {
-                    sizeof_b = len;
-                    rc = KClientHttpRequestFormatMsg
-                        ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
-                }
-            }
+            KDataBuffer b;
+            rc = KDataBufferMake( &b, 8, 0 );
             if ( rc == 0 )
-                OUTMSG ( ( "%s", b ) );
+            {
+                rc = KClientHttpRequestFormatMsg( req, &b, get ? "GET" : "HEAD" );
+                if ( rc == 0 )
+                    OUTMSG ( ( "%.*s", (int)b.elem_count, (char*)b.base ) );
+                else
+                    OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
+                KDataBufferWhack( & b );
+            }
             else
-                OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
+                OUTMSG ( ( "KDataBufferMake()=%R\n", rc ) );
         }
         if ( rc == 0 ) {
             if ( get ) {
@@ -2540,44 +2528,37 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                     OUTMSG ( ( "KClientHttpRequestHEAD()=%R\n", rc ) );
             }
         }
-        if ( rc == 0 ) {
-            rc = KClientHttpResultFormatMsg
-                ( rslt, b, sizeof_b, & len, "", "\n" );
-            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
-                 GetRCState ( rc ) == rcInsufficient )
-            {
-                free ( allocated );
-                sizeof_b = 0;
-                allocated = b = malloc ( len );
-                if ( allocated == NULL )
-                    rc = RC
-                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                else {
-                    sizeof_b = len;
-                    rc = KClientHttpResultFormatMsg
-                        ( rslt, b, sizeof_b, & len, "", "\n" );
+
+        if ( rc == 0 )
+        {
+            KDataBuffer b;
+            rc = KDataBufferMake( &b, 8, 0 );
+            if ( rc == 0 ) {
+                if ( rc == 0 )
+                {
+                    rc = KClientHttpResultFormatMsg( rslt, &b, "", "\n" );
+                    if ( rc != 0 )
+                        OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
                 }
+                else
+                    OUTMSG ( ( "KDataBufferMake()=%R\n", rc ) );
             }
-            if ( rc != 0 )            
-                OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
+            if ( self -> xml )
+                OUTMSG ( ( "%s      </%s>\n", bol, root ) );
+            if ( rc == 0 ) {
+                const char root [] = "Response";
+                if (self->xml)
+                    OUTMSG(("%s      <%s>\n", bol, root));
+                else
+                    OUTMSG(("%s\n", root));
+                OUTMSG ( ( "%.*s", (int)b.elem_count, (char*)b.base ) );
+                if (self->xml)
+                    OUTMSG(("%s      </%s>\n", bol, root));
+                else
+                    OUTMSG ( ( "\n" ) );
+            }
+            KDataBufferWhack( & b );
         }
-        if ( self -> xml )
-            OUTMSG ( ( "%s      </%s>\n", bol, root ) );
-        if ( rc == 0 ) {
-            const char root [] = "Response";
-            if (self->xml)
-                OUTMSG(("%s      <%s>\n", bol, root));
-            else
-                OUTMSG(("%s\n", root));
-            OUTMSG ( ( "%s", b ) );
-            if (self->xml)
-                OUTMSG(("%s      </%s>\n", bol, root));
-            else
-                OUTMSG ( ( "\n" ) );
-        }
-        free ( allocated );
-        allocated = NULL;
-        b = buffer;
         RELEASE ( KClientHttpResult, rslt );
         RELEASE ( KClientHttpRequest, req );
         RELEASE ( KClientHttp, http );
@@ -3421,7 +3402,7 @@ static rc_t MainFreeSpace ( const Main * self, const KDirectory * dir ) {
     uint64_t total_number_of_bytes = 0;
     rc_t rc = KDirectoryGetDiskFreeSpace ( dir, & free_bytes_available,
                                            & total_number_of_bytes );
-    if ( rc != 0 ) 
+    if ( rc != 0 )
         return rc;
 
     assert ( self );
@@ -3467,7 +3448,7 @@ static rc_t MainRepository ( const Main * self, const KRepository * repo ) {
                 found = false;
                 rc = 0;
             }
-    
+
             if ( rc == 0 ) {
                 char b1 [ PATH_MAX ] = "";
                 char b2 [ PATH_MAX ] = "";

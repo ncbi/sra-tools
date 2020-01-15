@@ -29,10 +29,10 @@
 #include "helper.h"
 #include "line_iter.h"
 
-#include <vfs/resolver.h>
-#include <vfs/services.h> /* KServiceMake */
-#include <vfs/path.h>
 #include <vfs/manager.h>
+#include <vfs/path.h>
+#include <vfs/resolver-priv.h> /* VResolverGetProject */
+#include <vfs/services.h> /* KServiceMake */
 
 #include <kfs/directory.h>
 #include <kapp/main.h>
@@ -66,6 +66,10 @@ static const char * cache_usage[] = { "resolve cache location along with remote"
                                       " when performing names function", NULL };
 #define ALIAS_CACHE   "c"
 
+static const char * cart_usage[] = { "PATH to jwt cart file", NULL };
+#define OPTION_CART   "perm"
+#define ALIAS_CART    NULL
+
 static const char * prj_usage[]
  = { "use numeric [dbGaP] project-id in names-cgi-call", NULL };
 #define ALIAS_PRJ    "d"
@@ -84,6 +88,10 @@ static const char * func_usage[] = { "function to perform "
 static const char * locn_usage[] = { "location of data", NULL };
 #define OPTION_LOCN   "location"
 #define ALIAS_LOCN    NULL
+
+static const char * ngc_usage[] = { "PATH to ngc file", NULL };
+#define OPTION_NGC   "ngc"
+#define ALIAS_NGC     NULL
 
 static const char * path_usage[]
  = { "print path of object: names function-only", NULL };
@@ -119,9 +127,11 @@ OptDef ToolOptions[] =
     { OPTION_PARAM  , ALIAS_PARAM  , NULL, param_usage  ,  10,  true,   false },
     { OPTION_RAW    , ALIAS_RAW    , NULL, raw_usage    ,   1,  false,  false },
     { OPTION_JSON   , ALIAS_JSON   , NULL, json_usage   ,   1,  false,  false },
-    { OPTION_PRJ    , ALIAS_PRJ    , NULL, prj_usage    ,  10,  true  , false },
+    { OPTION_PRJ    , ALIAS_PRJ    , NULL, prj_usage    ,  10,  true ,  false },
     { OPTION_CACHE  , ALIAS_CACHE  , NULL, cache_usage  ,   1,  false,  false },
     { OPTION_PATH   , ALIAS_PATH   , NULL, path_usage   ,   1,  false,  false },
+    { OPTION_CART   , ALIAS_CART   , NULL, cart_usage   ,   1,  true ,  false },
+    { OPTION_NGC    , ALIAS_NGC    , NULL, ngc_usage    ,   1,  true ,  false },
 };
 
 const char UsageDefaultName[] = "srapath";
@@ -172,8 +182,20 @@ rc_t CC Usage( const Args *args )
 
     OUTMSG(( "Options:\n" ));
 
-    for ( idx = 0; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
-        HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name, NULL, ToolOptions[ idx ].help );
+    for ( idx = 0; idx < count; ++idx ) {
+        /* start with 1, do not advertize row-range-option*/
+        const char * param = NULL;
+        if (ToolOptions[idx].aliases == NULL) {
+            if (strcmp(ToolOptions[idx].name, OPTION_NGC) == 0 ||
+                strcmp(ToolOptions[idx].name, OPTION_CART) == 0)
+            {
+                param = "PATH";
+            }
+        }
+
+        HelpOptionLine( ToolOptions[ idx ].aliases, ToolOptions[ idx ].name,
+            param, ToolOptions[ idx ].help );
+        }
 
     OUTMSG(( "\n" ));
     HelpOptionsStandard();
@@ -182,22 +204,83 @@ rc_t CC Usage( const Args *args )
     return rc;
 }
 
+static rc_t KSrvRespFile_Print(const KSrvRespFile * self) {
+    const VPath * path = NULL;
+    const VPath * vdbcache = NULL;
+    const String * tmp = NULL;
+
+    rc_t rc = KSrvRespFileGetLocal(self, &path);
+    if (rc != 0) {
+        KSrvRespFileIterator * fi = NULL;
+        rc = KSrvRespFileMakeIterator(self, &fi);
+        if (rc == 0)
+            rc = KSrvRespFileIteratorNextPath(fi, &path);
+        RELEASE(KSrvRespFileIterator, fi);
+    }
+
+    if (path != NULL) {
+        rc = VPathMakeString(path, &tmp);
+        if (rc == 0) {
+            OUTMSG(("%S\n", tmp));
+            free((void *)tmp);
+        }
+        RELEASE(VPath, path);
+    }
+
+    if (vdbcache != NULL) {
+        rc = VPathMakeString(vdbcache, &tmp);
+        if (rc == 0) {
+            OUTMSG(("%S\n", tmp));
+            free((void *)tmp);
+        }
+        RELEASE(VPath, vdbcache);
+    }
+
+    return rc;
+}
 
 static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
-    const char * pc, const char * location )
+    const char * pc, const char * location,
+    const char * cart, const char * ngc )
 {
     bool found = true;
     rc_t rc = 0;
 
 /*  uint32_t s = string_measure ( pc, NULL ); */
     if ( true ) { /* s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { SRP or SRX */
-        KService * service = NULL;
         found = false;
+
+        KService * service = NULL;
         rc = KServiceMake ( & service );
-        if ( rc == 0 )
-            rc = KServiceAddId ( service, pc );
+        if ( rc == 0 ) {
+            if ( pc != NULL )
+                rc = KServiceAddId ( service, pc );
+            else if (cart != NULL) {
+                rc = KServiceSetJwtKartFile(service, cart);
+                if (rc != 0)
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "cannot use '$(perm)' as jwt cart file",
+                        "perm=%s", cart));
+            }
+            else
+                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
+        }
         if (rc == 0 && location != NULL)
             rc = KServiceSetLocation(service, location);
+        if (rc == 0) {
+            uint32_t project = 0;
+            rc = VResolverGetProject(resolver, &project);
+            if (rc == 0 && project != 0)
+                rc = KServiceAddProject(service, project);
+            if (rc == 0 && ngc != NULL) {
+                rc = KServiceSetNgcFile(service, ngc);
+                if (rc != 0)
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "cannot use '$(ngc)' as ngc file",
+                        "ngc=%s", ngc));
+            }
+        }
+
         if ( rc == 0 ) {
             VRemoteProtocols protocol = eProtocolHttps;
             const KSrvResponse * response = NULL;
@@ -210,42 +293,18 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
                     const KSrvRespObj * obj = NULL;
                     KSrvRespObjIterator * it = NULL;
                     KSrvRespFile * file = NULL;
-                    const VPath * path = NULL;
-                    const VPath * vdbcache = NULL;
+                    ESrvFileFormat type = eSFFInvalid;
                     rc = KSrvResponseGetObjByIdx ( response, i, & obj );
                     if ( rc == 0 )
                         rc = KSrvRespObjMakeIterator ( obj, & it );
                     while ( rc == 0 ) {
+                        rc_t r2 = 0;
                         rc = KSrvRespObjIteratorNextFile ( it, & file );
                         if ( rc != 0 || file == NULL )
                             break;
-                        rc = KSrvRespFileGetLocal ( file, & path );
-                        if ( rc != 0 ) {
-                            KSrvRespFileIterator * fi = NULL;
-                            rc = KSrvRespFileMakeIterator(file, &fi);
-                            if (rc == 0)
-                                rc = KSrvRespFileIteratorNextPath ( fi,
-                                                                    & path );
-                            RELEASE ( KSrvRespFileIterator, fi );
-                        }
-                        if ( path != NULL ) {
-                            const String * tmp = NULL;
-                            rc = VPathMakeString ( path, & tmp );
-                            if ( rc == 0 ) {
-                                OUTMSG ( ( "%S\n", tmp ) );
-                                free ( ( void * ) tmp );
-                            }
-                            VPathRelease ( path );
-                        }
-                        if ( vdbcache != NULL ) {
-                            const String * tmp = NULL;
-                            rc = VPathMakeString ( vdbcache, & tmp );
-                            if ( rc == 0 ) {
-                                OUTMSG ( ( "%S\n", tmp ) );
-                                free ( ( void * ) tmp );
-                            }
-                            VPathRelease ( vdbcache );
-                        }
+                        r2 = KSrvRespFileGetFormat(file, &type);
+                        if (r2 != 0 || type != eSFFVdbcache)
+                            rc = KSrvRespFile_Print(file);
                         RELEASE ( KSrvRespFile, file );
                     }
                     RELEASE ( KSrvRespObjIterator, it );
@@ -349,12 +408,21 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
 static rc_t resolve_arguments( Args * args )
 {
     uint32_t acount;
-    rc_t rc = ArgsParamCount( args, &acount );
+    rc_t rc = 0;
+
+    uint32_t idx = 0;
+    const char * cart = NULL;
+    rc = ArgsOptionCount(args, OPTION_CART, &idx);
+    if (rc == 0 && idx > 0)
+        rc = ArgsOptionValue(args, OPTION_CART, 0, (const void**)&cart);
+
+    if (rc == 0)
+        rc = ArgsParamCount(args, &acount);
     if ( rc != 0 )
         LOGERR ( klogInt, rc, "failed to count parameters" );
-    else if ( acount < 1 )
+    else if ( acount < 1 && cart == NULL )
     {
-        /* That useless: rc = */ MiniUsage( args );
+        MiniUsage( args );
         rc = RC( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
     }
     else
@@ -372,9 +440,9 @@ static rc_t resolve_arguments( Args * args )
             else
             {
                 rc_t r2 = 0;
-                uint32_t idx;
 
                 const char * location = get_str_option(args, OPTION_LOCN, NULL);
+                const char * ngc = get_str_option(args, OPTION_NGC, NULL);
 
                 rc = ArgsOptionCount ( args, OPTION_PROTO, & idx );
                 if ( rc == 0 && idx == 0 )
@@ -400,11 +468,19 @@ static rc_t resolve_arguments( Args * args )
                     if ( rc != 0 )
                         LOGERR( klogInt, rc, "failed to retrieve parameter value" );
                     else {
-                        rc_t rx = resolve_one_argument( mgr, resolver, pc, location );
+                        rc_t rx = resolve_one_argument(
+                            mgr, resolver, pc, location, NULL, ngc );
                         if ( rx != 0 && r2 == 0)
                             r2 = rx;
                     }
                 }
+                if (cart != NULL) {
+                    rc_t rx = resolve_one_argument(
+                        mgr, resolver, NULL, location, cart, ngc);
+                    if (rx != 0 && r2 == 0)
+                        r2 = rx;
+                }
+
                 if (r2 != 0 && rc == 0)
                     rc = r2;
                 VResolverRelease( resolver );
@@ -487,6 +563,8 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
 
     fmt->raw = get_bool_option( args, OPTION_RAW );
     fmt->json = get_bool_option( args, OPTION_JSON );
+    r->cart = get_str_option(args, OPTION_CART, NULL);
+    r->ngc = get_str_option(args, OPTION_NGC, NULL);
 
     return rc;
 }

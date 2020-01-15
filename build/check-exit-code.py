@@ -48,7 +48,7 @@ if not os.access ( BANANA, os.X_OK ):
 
 def check_stream ( stream ):
     for line in stream:
-        if line.startswith ( "Usage:" ):
+        if line.startswith ( b"Usage:" ):
             return True
     return False
 
@@ -128,4 +128,4 @@ if ANANASA:
 ## C'onclusion
 ##
 
-print ( "[" + os.path.basename ( __file__ ) + "] test passed for [" + BANANA + "]\n" )
+print ( "[" + os.path.basename ( __file__ ) + "] test passed for [" + BANANA + "]" )

@@ -283,6 +283,8 @@ static inline void randomfill(void *p, size_t size)
     }
 }
 
+#include <memory>
+
 template <typename T>
 static inline std::unique_ptr<T, decltype(free) *>uninitialized()
 {

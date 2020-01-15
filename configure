@@ -41,5 +41,5 @@ else
         echo >&2 "configure: error: perl not found."; exit 1; }
 
     cd $CURDIR/setup
-    perl -w konfigure.perl "$@"
+    perl konfigure.perl "$@"
 fi

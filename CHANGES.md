@@ -1,5 +1,42 @@
 # NCBI External Developer Release:
 
+## SRA Toolkit 2.10.2
+**January 15, 2020**
+
+  **cloud, kfg, vdb-config**: added command line options for cloud configuration  
+  **fasterq-dump**: fixed bug of random error at startup  
+  **kfg, kns, krypto, prefetch, vdb-config, vfs**: names service URL was updated to locate.ncbi.nlm.nih.gov  
+  **kfg, prefetch, vfs**: fixed possibility to prefetch karts with genotype and phenotype files  
+  **latf-load**: latf-load now preserves read names  
+  **prefetch**: accepts JWT cart command line argument  
+  **prefetch**: accepts JWT cart command line argument plus accession filter  
+  **prefetch**: fixed crash when run with --output-file option  
+  **prefetch**: make sure to accept old style kart file; added --cart command line option  
+  **prefetch**: the download transport has been limited to https and the eliminate-quals option has been temporarily disabled.  
+  **prefetch, vfs**: allow to specify file type to resolve  
+  **prefetch, vfs**: allow to use "prefetch --type all" to request download of all file types  
+  **sra-pileup**: printing bases inbetween slices when user-defined ref-name given fixed  
+  **sra-stat**: can accept any number of reads  
+  **srapath**: fixed regression when an extra vdbcache URL is printed  
+  **srapath**: fixed regression when resolving protected data  
+  **sratools**: add --perm option to all accessor tools  
+  **sratools**: added --ngc command line argument  
+  **sratools**: fastq-dump accepts both -v and --verbose to enable verbose mode  
+  **sratools**: sratools accept --ngc to specify the ngc file  
+  **sratools**: sratools accepts -Z for fasterq-dump  
+  **sratools**: sratools was rewritten as a stand-alone binary  
+  **sratools, vdb-config**: dbGaP page removed  
+  **vdb, vdb-config**: GUID shown in vdb-config or created if not yet present  
+  **vdb, vdb-dump**: fixed an error reporting bug  
+  **vdb-config**: allow multiple saves in interactive mode  
+  **vdb-config**: disabled possibility to import ngc file  
+  **vdb-config**: fixed bug in file-select-dialog  
+  **vdb-config**: wording of public user-repository changed to just user-repository  
+  **vdb-dump**: fixed bug in -X ( hex ) mode  
+  **vdb-dump, vfs**: addressed obscure bug preventing access to a single external reference  
+  **vdb-validate**: fixed handling of empty cells affecting certain databases  
+
+
 ## SRA Toolkit 2.10.0
 **August 19, 2019**
 

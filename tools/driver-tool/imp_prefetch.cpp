@@ -197,7 +197,11 @@ struct PrefetchParams final : CmnOptAndAccessions
 
 int impersonate_prefetch( const Args &args, WhatImposter const &what )
 {
+#if DEBUG || _DEBUGGING
+    auto params = randomized<PrefetchParams>(what);
+#else
     PrefetchParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

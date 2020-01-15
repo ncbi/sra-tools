@@ -222,7 +222,11 @@ struct FasterqParams final : CmnOptAndAccessions
 
 int impersonate_fasterq_dump(Args const &args, WhatImposter const &what)
 {
+#if DEBUG || _DEBUGGING
+    auto params = randomized<FasterqParams>(what);
+#else
     FasterqParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

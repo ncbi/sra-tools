@@ -203,7 +203,11 @@ struct SraPileupParams final : CmnOptAndAccessions
 
 int impersonate_sra_pileup( const Args &args, WhatImposter const &what )
 {
+#if DEBUG || _DEBUGGING
+    auto params = randomized<SraPileupParams>(what);
+#else
     SraPileupParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

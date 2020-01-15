@@ -332,7 +332,11 @@ struct VdbDumpParams final : CmnOptAndAccessions
 
 int impersonate_vdb_dump( Args const &args, WhatImposter const &what )
 {
-    VdbDumpParams params( what );
+#if DEBUG || _DEBUGGING
+    auto params = randomized<VdbDumpParams>(what);
+#else
+    VdbDumpParams params(what);
+#endif
     return Impersonator::run( args, params );
 }
 

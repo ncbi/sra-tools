@@ -28,7 +28,9 @@
 
 #include <stdexcept>
 #include <system_error>
+#include <type_traits>
 #include <string>
+#include <stdlib.h>
 #include <unistd.h>
 
 template <typename T, typename ITER = typename T::const_iterator>
@@ -263,3 +265,53 @@ static inline Sequence<ITER> make_sequence(ITER const &beg, size_t const count) 
 static inline bool pathExists(std::string const &path) {
     return access(path.c_str(), F_OK) == 0;
 }
+
+#if DEBUG || _DEBUGGING
+#include <random>
+static inline void randomfill(void *p, size_t size)
+{
+    auto begp = (char *)p;
+    auto const endp = (char const *)(begp + size);
+    std::random_device rdev;
+    while (begp < endp) {
+        auto const r = rdev();
+        auto const end = (char const *)reinterpret_cast<void const *>((&r) + 1);
+        auto cur = (char const *)reinterpret_cast<void const *>(&r);
+
+        while (cur < end && begp < endp)
+            *begp++ = *cur++;
+    }
+}
+
+template <typename T>
+static inline std::unique_ptr<T, decltype(free) *>uninitialized()
+{
+    void *temp = malloc(sizeof(T));
+    randomfill(temp, sizeof(T));
+    return { reinterpret_cast<T *>(temp), free };
+}
+
+/**
+ @brief initialize something; prefills with random bytes.
+
+ The goal is to try to find uninitialized members. It hopefully causes tests to randomly fail.
+ */
+template <typename T, typename U>
+static inline T randomized(U const &init)
+{
+    auto const &temp = uninitialized<T>();
+    return *(new (temp.get()) T(init));
+}
+
+/**
+ @brief initialize something; prefills with random bytes.
+
+ The goal is to try to find uninitialized members.
+ */
+template <typename T>
+static inline T randomized()
+{
+    auto const &temp = uninitialized<T>();
+    return *(new (temp.get()) T());
+}
+#endif

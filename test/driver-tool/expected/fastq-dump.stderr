@@ -1,0 +1,3 @@
+fastq-dump SRR000001
+fastq-dump ERR000001
+fastq-dump DRR000001

@@ -45,7 +45,7 @@ struct SrapathParams final : CmnOptAndAccessions
     bool print_raw, print_json, resolve_cache, print_path;
 
 
-    SrapathParams(WhatImposter const &what)
+    explicit SrapathParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , timeout_count( 0 ), timeout_value( 0 )
     , print_raw( false )
@@ -149,7 +149,12 @@ struct SrapathParams final : CmnOptAndAccessions
 
 int impersonate_srapath( const Args &args, WhatImposter const &what )
 {
+#if DEBUG || _DEBUGGING
+    SrapathParams temp(what);
+    auto &params = *randomized(&temp, what);
+#else
     SrapathParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

@@ -25,11 +25,3 @@
  */
 
 #pragma once
-#include "tool-path.hpp"
-
-namespace sratools2
-{
-    extern std::string runpath_from_argv0( int argc, char *argv[] );
-
-    extern int main2( int argc, char *argv[], sratools::ToolPath const &toolpath );
-}

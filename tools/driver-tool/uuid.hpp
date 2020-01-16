@@ -39,11 +39,6 @@
 /// @returns a type 4 version 1 UUID
 extern std::string uuid();
 
-#if TESTING
-/// @brief generate a type 4 version 1 UUID, exported for testing
-///
-/// Uses c++ 11 random_device
-///
-/// @param buffer filled in with new uuid
-extern void uuid_random(char buffer[37]);
+#if DEBUG || _DEBUGGING
+extern void uuid_test(void);
 #endif

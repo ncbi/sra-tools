@@ -267,6 +267,7 @@ static inline bool pathExists(std::string const &path) {
 }
 
 #if DEBUG || _DEBUGGING
+
 #include <random>
 static inline void randomfill(void *p, size_t size)
 {
@@ -275,45 +276,19 @@ static inline void randomfill(void *p, size_t size)
     std::random_device rdev;
     while (begp < endp) {
         auto const r = rdev();
-        auto const end = (char const *)reinterpret_cast<void const *>((&r) + 1);
-        auto cur = (char const *)reinterpret_cast<void const *>(&r);
+        auto const end = (char const *)((&r) + 1);
+        auto cur = (char const *)(&r);
 
         while (cur < end && begp < endp)
             *begp++ = *cur++;
     }
 }
 
-#include <memory>
-
-template <typename T>
-static inline std::unique_ptr<T, decltype(free) *>uninitialized()
-{
-    void *temp = malloc(sizeof(T));
-    randomfill(temp, sizeof(T));
-    return { reinterpret_cast<T *>(temp), free };
-}
-
-/**
- @brief initialize something; prefills with random bytes.
-
- The goal is to try to find uninitialized members. It hopefully causes tests to randomly fail.
- */
 template <typename T, typename U>
-static inline T randomized(U const &init)
+static inline T *randomized(T *p, U const &init)
 {
-    auto const &temp = uninitialized<T>();
-    return *(new (temp.get()) T(init));
+    randomfill(p, sizeof(T));
+    return (new (p) T(init));
 }
 
-/**
- @brief initialize something; prefills with random bytes.
-
- The goal is to try to find uninitialized members.
- */
-template <typename T>
-static inline T randomized()
-{
-    auto const &temp = uninitialized<T>();
-    return *(new (temp.get()) T());
-}
 #endif

@@ -341,7 +341,8 @@ struct SamDumpParams final : CmnOptAndAccessions
 int impersonate_sam_dump( const Args &args, WhatImposter const &what )
 {
 #if DEBUG || _DEBUGGING
-    auto params = randomized<SamDumpParams>(what);
+    SamDumpParams temp(what);
+    auto &params = *randomized(&temp, what);
 #else
     SamDumpParams params(what);
 #endif

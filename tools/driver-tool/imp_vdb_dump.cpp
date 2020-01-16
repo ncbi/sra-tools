@@ -333,7 +333,8 @@ struct VdbDumpParams final : CmnOptAndAccessions
 int impersonate_vdb_dump( Args const &args, WhatImposter const &what )
 {
 #if DEBUG || _DEBUGGING
-    auto params = randomized<VdbDumpParams>(what);
+    VdbDumpParams temp(what);
+    auto &params = *randomized(&temp, what);
 #else
     VdbDumpParams params(what);
 #endif

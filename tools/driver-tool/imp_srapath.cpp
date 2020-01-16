@@ -150,7 +150,8 @@ struct SrapathParams final : CmnOptAndAccessions
 int impersonate_srapath( const Args &args, WhatImposter const &what )
 {
 #if DEBUG || _DEBUGGING
-    auto params = randomized<SrapathParams>(what);
+    SrapathParams temp(what);
+    auto &params = *randomized(&temp, what);
 #else
     SrapathParams params(what);
 #endif

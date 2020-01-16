@@ -363,7 +363,8 @@ struct FastqParams final : CmnOptAndAccessions
 int impersonate_fastq_dump( const Args &args, WhatImposter const &what )
 {
 #if DEBUG || _DEBUGGING
-    auto params = randomized<FastqParams>(what);
+    FastqParams temp(what);
+    auto &params = *randomized(&temp, what);
 #else
     FastqParams params(what);
 #endif

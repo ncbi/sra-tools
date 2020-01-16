@@ -204,7 +204,8 @@ struct SraPileupParams final : CmnOptAndAccessions
 int impersonate_sra_pileup( const Args &args, WhatImposter const &what )
 {
 #if DEBUG || _DEBUGGING
-    auto params = randomized<SraPileupParams>(what);
+    SraPileupParams temp(what);
+    auto &params = *randomized(&temp, what);
 #else
     SraPileupParams params(what);
 #endif

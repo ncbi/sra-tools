@@ -51,7 +51,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     ncbi::String output_dir;
     bool dryrun;
 
-    PrefetchParams(WhatImposter const &what)
+    explicit PrefetchParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , min_size_count( 0 ), min_size_value( 0 )
     , max_size_count( 0 ), max_size_value( 0 )

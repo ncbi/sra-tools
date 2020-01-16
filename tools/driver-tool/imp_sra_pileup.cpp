@@ -48,7 +48,7 @@ struct SraPileupParams final : CmnOptAndAccessions
     ncbi::U32 merge_dist_value;
     ncbi::String function;
 
-    SraPileupParams(WhatImposter const &what)
+    explicit SraPileupParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , bzip( false )
     , gzip( false )

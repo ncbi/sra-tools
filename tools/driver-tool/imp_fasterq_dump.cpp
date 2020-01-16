@@ -61,7 +61,7 @@ struct FasterqParams final : CmnOptAndAccessions
     bool strict;
     bool append;
 
-    FasterqParams(WhatImposter const &what)
+    explicit FasterqParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , ThreadsCount( 0 )
     , Threads( 0 )

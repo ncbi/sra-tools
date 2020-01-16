@@ -63,7 +63,7 @@ struct FastqParams final : CmnOptAndAccessions
     ncbi::U32 QOffsetCount;
     ncbi::U32 QOffset;
 
-    FastqParams(WhatImposter const &what)
+    explicit FastqParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , accession_replacement( "" )
     , split_spot( false )

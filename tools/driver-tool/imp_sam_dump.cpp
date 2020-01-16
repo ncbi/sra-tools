@@ -78,7 +78,7 @@ struct SamDumpParams final : CmnOptAndAccessions
     bool rna_splicing;
     bool md_flag;
     
-    SamDumpParams(WhatImposter const &what)
+    explicit SamDumpParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , out_buf_size_count(0)
     , out_buf_size(0)

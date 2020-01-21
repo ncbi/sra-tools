@@ -56,6 +56,4 @@ RUN make install
 FROM ${BASE_IMAGE}
 COPY --from=build /etc/ncbi /etc/ncbi
 COPY --from=build /usr/local/ncbi /usr/local/ncbi
-COPY user-settings.mkfg /root/.ncbi/
-COPY prj_phs710EA_test.ngc /root
 ENV PATH=/usr/local/ncbi/sra-tools/bin:${PATH}

@@ -23,7 +23,7 @@ FROM debian:stretch AS base-debian
 RUN apt-get update && apt-get upgrade
 
 FROM ubuntu:latest AS base-ubuntu
-RUN apt-get update && apt-get upgrade
+RUN apt-get update -y && apt-get upgrade -y
 
 FROM amazonlinux:latest AS base-amazon
 RUN yum -q -y update

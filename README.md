@@ -4,7 +4,7 @@
 email: sra@ncbi.nlm.nih.gov
 
 ### Download
-Visit our [download page](https://github.com/ncbi/sra-tools/wiki/Downloads) for pre-built binaries.
+Visit our [download page](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit) for pre-built binaries.
 
 ### Change Log
 Please check the CHANGES.md file for change history.

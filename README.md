@@ -15,7 +15,7 @@ using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
 
-Release 2.10.2 of `sra-tools` provides access to all the **public and controlled-access dbGaP** of SRA in the AWS and GCP environments _(Linux only for this release)_.
+Release 2.10.2 of `sra-tools` provides access to all the **public and controlled-access dbGaP** of SRA in the AWS and GCP environments _(Linux only for this release)_ This vast archive's original submission format and SRA-formatted data can both be accessed and computed on these clouds, eliminating the need to download from NCBI FTP as well as improving performance.
 
 The `prefetch` tool also retrieves **original submission files** in addition to ETL data for public and controlled-access dbGaP data.
 

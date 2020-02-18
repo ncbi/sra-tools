@@ -1,5 +1,12 @@
 # NCBI External Developer Release:
 
+
+## SRA Toolkit 2.10.3
+**February 18, 2020**
+
+  **sraxf, fasterq-dump, fastq-dump, sam-dump**: fixed a problem resulting in a segmentation fault 
+
+
 ## SRA Toolkit 2.10.2
 **January 15, 2020**
 
@@ -12,7 +19,7 @@
   **prefetch**: accepts JWT cart command line argument plus accession filter  
   **prefetch**: fixed crash when run with --output-file option  
   **prefetch**: make sure to accept old style kart file; added --cart command line option  
-  **prefetch**: the download transport has been limited to https and the eliminate-quals option has been temporarily disabled.  
+  **prefetch**: the download transport has been limited to https and the eliminate-quals option has been temporarily disabled  
   **prefetch, vfs**: allow to specify file type to resolve  
   **prefetch, vfs**: allow to use "prefetch --type all" to request download of all file types  
   **sra-pileup**: printing bases inbetween slices when user-defined ref-name given fixed  

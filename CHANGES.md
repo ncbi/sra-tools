@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.3
+**February 18, 2020**
+
+  **sraxf, fasterq-dump, fastq-dump, sam-dump**: fixed a problem resulting in a segmentation fault 
+
+
 ## SRA Toolkit 2.10.2
 **January 15, 2020**
 

@@ -432,7 +432,14 @@ namespace sratools2
             if (containers > 0) {
                 std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the accessions." << std::endl;
             }
-            return ( problems == 0 );
+            if (problems == 0)
+                return true;
+
+            if (logging_state::testing_level() >= 2 && logging_state::testing_level() <= 4) {
+                std::cerr << "Problems allowed for testing purposes!" << std::endl;
+                return true;
+            }
+            return false;
         }
     };
 

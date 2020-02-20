@@ -419,21 +419,7 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 {
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
-#ifndef CAN_RUN_OUTSIDE_OF_CLOUD
-    if (havePerm && !canSendCE) {
-        std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
-        exit(EX_USAGE);
-    }
-#endif
-
     auto const &ceToken = Service::CE_Token();
-#ifndef CAN_RUN_OUTSIDE_OF_CLOUD
-    if (havePerm && ceToken.empty()) {
-        std::cerr << "--perm requires a cloud instance identity, but a cloud instance identity could not be found." << std::endl;
-        exit(EX_USAGE);
-    }
-#endif
-
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;
     auto notfound = std::set<std::string>(runs.begin(), runs.end());

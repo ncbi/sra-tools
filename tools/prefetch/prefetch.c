@@ -64,6 +64,7 @@
 #include <klib/log.h> /* PLOGERR */
 #include <klib/out.h> /* KOutMsg */
 #include <klib/printf.h> /* string_printf */
+#include <klib/progressbar.h> /* make_progressbar */
 #include <klib/rc.h>
 #include <klib/status.h> /* STSMSG */
 #include <klib/text.h> /* String */
@@ -212,6 +213,7 @@ typedef struct {
     size_t minSize;
     size_t maxSize;
     uint64_t heartbeat;
+    bool showProgress;
 
     bool noAscp;
     bool noHttp;
@@ -1336,6 +1338,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
     uint64_t opos = 0;
     size_t num_writ = 0;
 
+    struct progressbar * pb = NULL;
+
     const VPathStr * remote = NULL;
     String src;
 
@@ -1445,10 +1449,27 @@ static rc_t MainDownloadHttpFile(Resolved *self,
             DISP_RC2 ( rc, "Cannot KClientHttpRequestGET", src . addr );
 
             if ( rc == 0 ) {
+                uint64_t size = 0;
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
                 DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
                            src . addr );
+
+                if (rc == 0 && mane->showProgress&& !mane->dryRun) {
+                    rc_t rc = 0;
+                    bool opened = false;
+                    if (in == NULL) {
+                        rc = _KFileOpenRemote(&in, mane->kns, path,
+                            &src, !self->isUri);
+                        opened = true;
+                    }
+                    if (rc == 0)
+                        rc = KFileSize(in, &size);
+                    if (rc == 0)
+                        rc = make_progressbar(&pb, 2);
+                    if (opened)
+                        RELEASE(KFile, in);
+                }
 
                 while ( rc == 0 ) {
                     rc = KStreamRead
@@ -1469,6 +1490,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                             rcFile, rcCopying, rcTransfer, rcIncomplete );
                     }
                     opos += num_writ;
+                    if (pb != NULL)
+                        update_progressbar(pb, 100 * 100 * opos / size);
                 }
 
                 RELEASE ( KStream, s );
@@ -1481,6 +1504,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
     }
 
     RELEASE(KFile, out);
+
+    destroy_progressbar(pb);
 
     if (rc == 0 && !mane->dryRun)
         STSMSG(STS_INFO, ("%s (%ld)", to, opos));
@@ -3511,11 +3536,15 @@ static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/", NULL };
 static const char* OUT_FILE_USAGE[] = {
     "Write file to FILE when downloading a single file", NULL };
 
-#define HBEAT_OPTION "progress"
-#define HBEAT_ALIAS  "p"
+#define HBEAT_OPTION "heartbeat"
+#define HBEAT_ALIAS  "H"
 static const char* HBEAT_USAGE[] = {
     "Time period in minutes to display download progress",
     "(0: no progress), default: 1", NULL };
+
+#define PRGRS_OPTION "progress"
+#define PRGRS_ALIAS  "p"
+static const char* PRGRS_USAGE[] = { "show progress", NULL };
 
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
@@ -3581,6 +3610,7 @@ static OptDef OPTIONS[] = {
 ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
 ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
 ,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+,{ PRGRS_OPTION       , PRGRS_ALIAS       , NULL, PRGRS_USAGE , 1, false,false }
 ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
 ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
@@ -3812,6 +3842,17 @@ option_name = DRY_RUN_OPTION;
         }
         if (pcount > 0)
             self->dryRun = true;
+    }
+
+/* PRGRS_OPTION */
+    {
+        rc = ArgsOptionCount(self->args, PRGRS_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" PRGRS_OPTION "' argument");
+            break;
+        }
+        if (pcount > 0)
+            self->showProgress = true;
     }
 
 /* HBEAT_OPTION */

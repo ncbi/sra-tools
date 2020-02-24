@@ -30,7 +30,7 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-runtests: built-in bogus container good
+runtests: built-in bogus container good testing
 
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
@@ -95,6 +95,15 @@ $(CONTAINER): | actual mkfg
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
+
+testing: | actual mkfg
+	@echo "testing expected output for testing modes with bad inputs" $@ ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(BINDIR):$$PATH \
+	SRATOOLS_TESTING=2 \
+	SRATOOLS_IMPERSONATE=prefetch \
+	$(BINDIR)/sratools --perm foo.jwt --cart foo.cart --ngc foo.ngc DRX000001 2>actual/testing.stderr ; \
+	diff expected/testing.stderr actual/testing.stderr || diff expected/testing-cloudy.stderr actual/testing.stderr
 
 .PHONY: runtests bogus container good $(CONTAINER) $(GOOD)
 .INTERMEDIATE: $(TEMPDIR)/tmp.mkfg

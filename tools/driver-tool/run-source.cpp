@@ -421,10 +421,10 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 {
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
-    assert(!(havePerm && !canSendCE) && !logging_state::is_dry_run());
+    if (logging_state::is_dry_run()) ; else assert(!(havePerm && !canSendCE));
 
     auto const &ceToken = Service::CE_Token();
-    assert(!(havePerm && ceToken.empty()) && !logging_state::is_dry_run());
+    if (logging_state::is_dry_run()) ; else assert(!(havePerm && ceToken.empty()));
 
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;

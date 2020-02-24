@@ -1452,8 +1452,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                 uint64_t size = 0;
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
-                DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
-                           src . addr );
+                DISP_RC2 ( rc,
+                    "Cannot KClientHttpResultGetInputStream", src . addr );
 
                 if (rc == 0 && mane->showProgress&& !mane->dryRun) {
                     rc_t rc = 0;
@@ -1470,7 +1470,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                     rc = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
                     if ( rc != 0 || num_read == 0) {
-                        DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
+                        DISP_RC2 ( rc, "Cannot KStreamRead: retrying...",
+                            src . addr );
                         break;
                     }
 
@@ -1492,6 +1493,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                 RELEASE ( KStream, s );
 
                 if (rc != 0) {
+                    uint64_t lastBad = opos;
                     rc = 0;
                     if (in == NULL)
                         rc = _KFileOpenRemote(&in, mane->kns, path,
@@ -1500,18 +1502,24 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                         rc = KFileRead(
                             in, opos, mane->buffer, mane->bsize, &num_read);
                         if (rc != 0) {
-                            DISP_RC2(rc, "Cannot KFileRead", src.addr);
-                            break;
+                            DISP_RC2(rc, "Cannot KFileRead: retrying...",
+                                src.addr);
+                            if (lastBad == opos)
+                                break;
+                            else {
+                                lastBad = opos;
+                                rc = 0;
+                                continue;
+                            }
                         }
                         else if (num_read == 0)
                             break;
                         rc = KFileWriteAll(
                             out, opos, mane->buffer, num_read, &num_writ);
                         DISP_RC2(rc, "Cannot KFileWrite", to);
-                        if (rc == 0 && num_writ != num_read) {
+                        if (rc == 0 && num_writ != num_read)
                             rc = RC(rcExe,
                                 rcFile, rcCopying, rcTransfer, rcIncomplete);
-                        }
                         opos += num_writ;
                         if (pb != NULL)
                             update_progressbar(pb, 100 * 100 * opos / size);

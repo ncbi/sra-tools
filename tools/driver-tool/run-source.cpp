@@ -419,11 +419,15 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 {
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
+    assert(!(havePerm && !canSendCE) && !logging_state::is_dry_run());
+
     auto const &ceToken = Service::CE_Token();
+    assert(!(havePerm && ceToken.empty()) && !logging_state::is_dry_run());
+
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;
-    auto notfound = std::set<std::string>(runs.begin(), runs.end());
 
+    auto notfound = std::set<std::string>(runs.begin(), runs.end());
     auto run_query = [&](std::vector<std::string> const &terms) {
         auto const &service = Service::make();
         auto const &response = get_SDL_response(service, terms, have_ce_token);
@@ -476,23 +480,16 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
             throw SDL_unexpected_error(std::string("unexpected version ") + version);
         }
     };
-#if 0
-    auto const &split = split_by_type(runs);
-    try {
-        run_query(split.first);
-        run_query(split.second);
-    }
-#else
     try {
         std::set<std::string> seen;
-        for (auto && i : runs) {
-            if (!seen.insert(i).second) continue;
-            if (pathExists(i)) continue;
-
-            run_query({i});
+        for (auto const & run : runs) {
+            auto const is_new = seen.insert(run).second;
+            if (is_new) {
+                if (!pathExists(run))
+                    run_query({run});
+            }
         }
     }
-#endif
     catch (vdb::exception const &e) {
         LOG(1) << "Failed to talk to SDL" << std::endl;
         LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
@@ -508,7 +505,7 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
     catch (...) {
         throw std::logic_error("Error communicating with NCBI");
     }
-    // make "file" sources for unrecognized query elements
+    // make "file" sources for unrecognized query items
     for (auto const &run : notfound) {
         source s = {};
         s.accession = run;

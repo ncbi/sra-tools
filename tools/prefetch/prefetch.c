@@ -1457,18 +1457,13 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
                 if (rc == 0 && mane->showProgress&& !mane->dryRun) {
                     rc_t rc = 0;
-                    bool opened = false;
-                    if (in == NULL) {
+                    if (in == NULL)
                         rc = _KFileOpenRemote(&in, mane->kns, path,
                             &src, !self->isUri);
-                        opened = true;
-                    }
                     if (rc == 0)
                         rc = KFileSize(in, &size);
                     if (rc == 0)
                         rc = make_progressbar(&pb, 2);
-                    if (opened)
-                        RELEASE(KFile, in);
                 }
 
                 while ( rc == 0 ) {
@@ -1495,6 +1490,33 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                 }
 
                 RELEASE ( KStream, s );
+
+                if (rc != 0) {
+                    rc = 0;
+                    if (in == NULL)
+                        rc = _KFileOpenRemote(&in, mane->kns, path,
+                            &src, !self->isUri);
+                    while (rc == 0) {
+                        rc = KFileRead(
+                            in, opos, mane->buffer, mane->bsize, &num_read);
+                        if (rc != 0) {
+                            DISP_RC2(rc, "Cannot KFileRead", src.addr);
+                            break;
+                        }
+                        else if (num_read == 0)
+                            break;
+                        rc = KFileWriteAll(
+                            out, opos, mane->buffer, num_read, &num_writ);
+                        DISP_RC2(rc, "Cannot KFileWrite", to);
+                        if (rc == 0 && num_writ != num_read) {
+                            rc = RC(rcExe,
+                                rcFile, rcCopying, rcTransfer, rcIncomplete);
+                        }
+                        opos += num_writ;
+                        if (pb != NULL)
+                            update_progressbar(pb, 100 * 100 * opos / size);
+                    }
+                }
             }
 
             RELEASE ( KClientHttpResult, rslt );
@@ -1509,6 +1531,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
     if (rc == 0 && !mane->dryRun)
         STSMSG(STS_INFO, ("%s (%ld)", to, opos));
+
+    RELEASE(KFile, in);
 
     return rc;
 }

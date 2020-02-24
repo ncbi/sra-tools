@@ -439,7 +439,7 @@ namespace sratools2
             if (problems == 0)
                 return true;
 
-            if (logging_state::testing_level() >= 2 && logging_state::testing_level() <= 4) {
+            if (logging_state::is_dry_run()) {
                 std::cerr << "Problems allowed for testing purposes!" << std::endl;
                 return true;
             }

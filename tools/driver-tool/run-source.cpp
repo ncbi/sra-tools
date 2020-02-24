@@ -304,24 +304,26 @@ struct Response2 {
             for (auto & file : files) {
                 if (file.type != "sra") continue;
                 if (ends_with(".pileup", file.name)) continue; // TODO: IS THIS CORRECT
-                
+
+                auto const &fileInfo = response.localInfo2(accession, file.name);
                 auto const vcache = matching(file, "vdbcache");
                 if (vcache == files.end()) {
                     // there is no vdbcache with this object, nothing to join
                     for (auto &location : file.locations) {
                         // if the user had run prefetch and not moved the
                         // downloaded files, this should find them.
-                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, fileInfo);
                         func(std::move(data_source(run_source)));
                     }
                 }
                 else {
                     // there is a vdbcache with this object, do the join
+                    auto const &vcache_fileInfo = response.localInfo2(accession, vcache->name);
                     for (auto &location : file.locations) {
-                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, fileInfo);
                         auto const &best = vcache->best_matching(location);
                         if (best != vcache->locations.end()) {
-                            auto const &cache_source = file.make_source(*best, accession, response.localInfo2(accession, vcache->name));
+                            auto const &cache_source = file.make_source(*best, accession, vcache_fileInfo);
                             func(std::move(data_source(run_source, cache_source)));
                         }
                         else {

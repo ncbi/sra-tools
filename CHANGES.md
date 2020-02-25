@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.4
+**February 26, 2020**
+
+  **kns, sra-tools:**: fixed errors when using ngc file
+
+
 ## SRA Toolkit 2.10.3
 **February 18, 2020**
 

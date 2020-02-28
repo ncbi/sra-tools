@@ -1345,6 +1345,7 @@ typedef struct {
     bool isUri;
     const KFile ** f;
 
+    bool failed;
     uint64_t pos;
     ERetryState state;
     size_t curSize;
@@ -1354,9 +1355,18 @@ typedef struct {
 static void RetrierReset(Retrier * self, uint64_t pos) {
     self->pos = pos;
 
-    self->state = eRSJustRetry;
-    self->curSize = self->bsize;
-    self->sleepTO = 0;
+    if (self->failed) {
+        self->failed = false;
+
+        self->state = eRSJustRetry;
+        self->curSize = self->bsize;
+        self->sleepTO = 0;
+
+        if (KStsLevelGet() >= 1)
+            PLOGERR(klogErr, (klogErr, 0,
+                "KFileRead success: '$(name)':$(pos)",
+                "name=%S,pos=%lu", self->src, self->pos));
+    }
 }
 
 static void RetrierInit(Retrier * self, const Main * mane,
@@ -1364,6 +1374,8 @@ static void RetrierInit(Retrier * self, const Main * mane,
     uint64_t pos)
 {
     assert(self && f && *f && src);
+
+    memset(self, 0, sizeof *self);
 
     self->bsize = mane->bsize;
     self->mgr = mane->kns;
@@ -1453,39 +1465,53 @@ static rc_t Retry(Retrier * self, rc_t rc, uint64_t opos) {
         default: assert(0); break;
         }
 
+    self->failed = true;
+
     if (retry) {
-        switch (self->state) {
-        case eRSJustRetry:
-            PLOGERR(klogErr, (klogErr, rc,
-                "Cannot KFileRead: retrying '$(name)'...",
-                "name=%S", self->src));
-            break;
-        case eRSReopen:
-            PLOGERR(klogErr, (klogErr, rc,
-                "Cannot KFileRead: reopened, retrying '$(name)'...",
-                "name=%S", self->src));
-            break;
-        case eRSDecBuf:
-            PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
-                "buffer size = $(sz), retrying '$(name)'...",
-                "sz=%zu,name=%S", self->curSize, self->src));
-            break;
-        case eRSIncTO:
-            PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
-                "sleep TO = $(to)s, retrying '$(name)'...",
-                "to=%u,name=%S", self->sleepTO, self->src));
-            break;
-        default: assert(0); break;
+        KStsLevel lvl = KStsLevelGet();
+        if (lvl > 0) {
+            if (lvl == 1)
+                PLOGERR(klogErr, (klogErr, rc,
+                    "Cannot KFileRead: retrying '$(name)'...",
+                    "name=%S", self->src));
+            else
+                switch (self->state) {
+                case eRSJustRetry:
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "Cannot KFileRead: retrying '$(name)':$(pos)...",
+                        "name=%S,pos=%lu", self->src, self->pos));
+                    break;
+                case eRSReopen:
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "Cannot KFileRead: reopened, retrying '$(name)'...",
+                        "name=%S", self->src));
+                    break;
+                case eRSDecBuf:
+                    PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
+                        "buffer size = $(sz), retrying '$(name)'...",
+                        "sz=%zu,name=%S", self->curSize, self->src));
+                    break;
+                case eRSIncTO:
+                    PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
+                        "sleep TO = $(to)s, retrying '$(name)'...",
+                        "to=%u,name=%S", self->sleepTO, self->src));
+                    break;
+                default: assert(0); break;
+                }
         }
 
         rc = 0;
     }
     else
-        DISP_RC2(rc, "Cannot KFileRead", self->src->addr);
+        PLOGERR(klogErr, (klogErr, rc,
+            "Cannot KFileRead '$(name)': sz=$(sz), to=$(to)",
+            "name=%S,sz=%zu,to=%u", self->src, self->curSize, self->sleepTO));
 
     if (rc == 0) {
-        if (self->sleepTO > 0)
+        if (self->sleepTO > 0) {
+            STSMSG(2, ("Sleeping %us...", self->sleepTO));
             KSleep(self->sleepTO);
+        }
 
         if (++self->state == eRSMax)
             self->state = eRSReopen;
@@ -1624,26 +1650,32 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                     "Cannot KClientHttpResultGetInputStream", src . addr );
 
                 if (rc == 0 && mane->showProgress&& !mane->dryRun) {
-                    rc_t rc = 0;
+                    rc_t r2 = 0;
                     if (in == NULL)
-                        rc = _KFileOpenRemote(&in, mane->kns, path,
+                        r2 = _KFileOpenRemote(&in, mane->kns, path,
                             &src, !self->isUri);
-                    if (rc == 0)
+                    if (r2 == 0)
                         rc = KFileSize(in, &size);
-                    if (rc == 0)
+                    if (r2 == 0)
                         rc = make_progressbar(&pb, 2);
                 }
 
                 while ( rc == 0 ) {
+                    rc = Quitting();
+                    if (rc != 0)
+                        break;
+
                     rc = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
 #ifdef TESTING_FAILURES
                     if (opos > 0&&rc==0)rc = 1;
 #endif
                     if ( rc != 0 || num_read == 0) {
-                        if (opos > 0)
-                            DISP_RC2 ( rc, "Cannot KStreamRead: retrying...",
-                                src . addr );
+                        if (opos > 0) {
+                            if (KStsLevelGet() > 0)
+                                DISP_RC2(rc, "Cannot KStreamRead: "
+                                    "switching to KFileRead...", src.addr);
+                        }
                         else
                             DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
                         break;
@@ -1655,10 +1687,9 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                     rc = KFileWriteAll
                         ( out, opos, mane -> buffer, num_read, & num_writ);
                     DISP_RC2 ( rc, "Cannot KFileWrite", to );
-                    if ( rc == 0 && num_writ != num_read ) {
+                    if ( rc == 0 && num_writ != num_read )
                         rc = RC ( rcExe,
                             rcFile, rcCopying, rcTransfer, rcIncomplete );
-                    }
                     opos += num_writ;
                     if (pb != NULL)
                         update_progressbar(pb, 100 * 100 * opos / size);
@@ -1673,7 +1704,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         RELEASE ( KClientHttpRequest, kns_req );
     }
 
-    if (rc != 0 && opos > 0) {
+    if (rc != 0 && opos > 0 && Quitting() == 0) {
 #ifdef TESTING_FAILURES
         bool already = false;
         rc_t testRc = 1;
@@ -1686,6 +1717,10 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         RetrierInit(&retrier, mane, path,
             &src, self->isUri, &in, opos);
         while (rc == 0) {
+            rc = Quitting();
+            if (rc != 0)
+                break;
+
             rc = KFileRead(
                 in, opos, mane->buffer, retrier.curSize, &num_read);
 #ifdef TESTING_FAILURES

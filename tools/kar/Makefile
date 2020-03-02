@@ -32,6 +32,7 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	kar \
+	kar+
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -77,6 +78,28 @@ KAR_LIB = \
 
 $(BINDIR)/kar: $(KAR_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KAR_LIB)
+
+#----------------------------------------------------------------
+# kar+
+#
+KARP_SRC = \
+	kar-path \
+	kar+args \
+	kar+print \
+	kar+util \
+	kar+
+
+KARP_OBJ = \
+	$(addsuffix .$(OBJX),$(KARP_SRC))
+
+KARP_LIB = \
+	-lkapp \
+	-stk-version \
+	-sncbi-vdb \
+
+
+$(BINDIR)/kar+: $(KARP_OBJ)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KARP_LIB)
 
 
 #----------------------------------------------------------------

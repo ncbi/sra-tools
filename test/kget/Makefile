@@ -37,11 +37,17 @@ include $(TOP)/build/Makefile.env
 #-------------------------------------------------------------------------------
 # runtests: 
 #
+ifdef PYTHON
 runtests: download
+
+else
+runtests: ;
+
+endif
 
 download:
 	export PATH=$(BINDIR):$$PATH; export VDB_CONFIG=`pwd` ; \
-		NCBI_SETTINGS=/ python test_kget.py # expect rc = 0 
+		NCBI_SETTINGS=/ $(PYTHON) test_kget.py # expect rc = 0 
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget

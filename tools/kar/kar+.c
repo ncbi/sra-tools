@@ -908,6 +908,10 @@ rc_t CC kar_keep_keep_entries ( KARDir * kar_dir, const Params * params )
         return 0;
     }
 
+    if ( params -> keep == NULL ) {
+        return 0;
+    }
+
     rc = VNameListCount ( params -> keep, & Count );
     if ( rc == 0 ) {
         if ( Count == 0 ) {
@@ -965,6 +969,10 @@ rc_t CC kar_drop_drop_entries ( KARDir * kar_dir, const Params * params )
     Count = 0;
 
     if ( params == NULL ) {
+        return 0;
+    }
+
+    if ( params -> drop == NULL ) {
         return 0;
     }
 

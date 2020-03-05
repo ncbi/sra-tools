@@ -1383,6 +1383,7 @@ static void RetrierInit(Retrier * self, const Main * mane,
     self->src = src;
     self->isUri = isUri;
 
+    self->curSize = self->bsize;
     self->f = f;
 
     RetrierReset(self, pos);
@@ -1439,6 +1440,8 @@ static bool RetrierIncSleepTO(Retrier * self) {
     else
         return true;
 }
+
+/* #define TESTING_FAILURES */
 
 static rc_t Retry(Retrier * self, rc_t rc, uint64_t opos) {
     bool retry = true;
@@ -1510,7 +1513,9 @@ static rc_t Retry(Retrier * self, rc_t rc, uint64_t opos) {
     if (rc == 0) {
         if (self->sleepTO > 0) {
             STSMSG(2, ("Sleeping %us...", self->sleepTO));
+#ifndef TESTING_FAILURES
             KSleep(self->sleepTO);
+#endif
         }
 
         if (++self->state == eRSMax)
@@ -1519,8 +1524,6 @@ static rc_t Retry(Retrier * self, rc_t rc, uint64_t opos) {
 
     return rc;
 }
-
-/* #define TESTING_FAILURES */
 
 static rc_t MainDownloadHttpFile(Resolved *self,
     Main *mane, const char *to, const VPath * path)

@@ -418,6 +418,9 @@ rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
 {
     rc_t rc;
 
+        /* to shut valgrind */
+    memset ( p, 0, sizeof ( Params ) );
+
     p -> members = ( const char ** ) argv;
     p -> archive_path = "";
     p -> directory_path = "";
@@ -446,6 +449,40 @@ rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
 
     return rc;
 }
+
+rc_t whack_params ( Params * p )
+{
+    if ( p != NULL ) {
+
+        p -> members = NULL;
+        p -> archive_path = "";
+        p -> directory_path = "";
+        p -> mem_count = 0;
+        p -> dir_count = 0;
+        p -> c_count = 0;
+        p -> x_count = 0;
+        p -> t_count = 0;
+        p -> long_list = false;
+        p -> force = false;
+        p -> stdout = false;
+
+        if ( p -> keep != NULL ) {
+            VNamelistRelease ( p -> keep );
+            p -> keep = NULL;
+        }
+
+        if ( p -> drop != NULL ) {
+            VNamelistRelease ( p -> drop );
+            p -> drop = NULL;
+        }
+
+        p -> kdfile = NULL;
+
+        memset ( p, 0, sizeof ( Params ) );
+    }
+
+    return 0;
+}   /* whack_params () */
 
 rc_t validate_params ( Params *p )
 {

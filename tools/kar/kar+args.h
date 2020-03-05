@@ -105,6 +105,8 @@ struct Params
 
 
 rc_t parse_params ( Params *p, struct Args *args, int argc, char * argv [] );
+
+rc_t whack_params ( Params *p );
 rc_t validate_params ( Params *p );
 
 #endif /*_h_kar_args_*/

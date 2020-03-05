@@ -1022,9 +1022,8 @@ rc_t CC kar_transform_tok ( KARDir * kar_dir, const Params * params )
     rc = 0;
 
     if ( kar_dir == NULL ) {
-        rc = RC ( rcExe, rcTocEntry, rcProcessing, rcParam, rcNull );
+        return RC ( rcExe, rcTocEntry, rcProcessing, rcParam, rcNull );
     }
-
 
     if ( params -> kdfile != NULL ) {
         rc = kar_load_kdfile ( params );
@@ -1047,7 +1046,13 @@ rc_t CC kar_transform_tok ( KARDir * kar_dir, const Params * params )
 static 
 rc_t kar_prepare_toc ( KARDir *kar_dir, KARWek ** Wek, const Params * params )
 {
-    rc_t rc = kar_transform_tok ( kar_dir, params );
+    rc_t rc = 0;
+
+    if ( kar_dir == NULL ) {
+        return RC ( rcExe, rcTocEntry, rcProcessing, rcParam, rcNull );
+    }
+
+    rc = kar_transform_tok ( kar_dir, params );
     if ( rc == 0 ) {
         rc = kar_entry_list_files ( & ( kar_dir -> dad ), Wek );
         if ( rc == 0 ) {
@@ -1722,34 +1727,45 @@ struct stored_file
 #define SF_SF(SF,SH)     SF -> file -> SH
 
 static
-rc_t stored_file_init ( stored_file * self,
+rc_t stored_file_make ( stored_file ** ret,
                         const KARFile * file,
                         KDirectory * cdir
 )
 {
     rc_t rc = 0;
+    stored_file * stf = NULL;
 
-    if ( self == NULL ) {
-        rc = RC ( rcExe, rcFile, rcConstructing, rcSelf, rcNull );
+    if ( ret != NULL ) {
+        * ret = NULL;
+    }
+
+    if ( ret == NULL ) {
+        return RC ( rcExe, rcFile, rcConstructing, rcSelf, rcNull );
     }
 
     if ( file == NULL || cdir == NULL ) {
-        rc = RC ( rcExe, rcFile, rcConstructing, rcParam, rcNull );
+        return RC ( rcExe, rcFile, rcConstructing, rcParam, rcNull );
     }
 
-    memset ( self, 0, sizeof ( stored_file ) );
+    stf = calloc ( 1, sizeof ( stored_file ) );
+    if ( stf == NULL ) {
+        rc = RC ( rcExe, rcFile, rcConstructing, rcMemory, rcExhausted );
+    }
+    else {
+        rc = KDirectoryAddRef ( cdir );
+        if ( rc == 0 ) {
+            stf -> file = file;
+            stf -> cdir = cdir;
 
-    rc = KDirectoryAddRef ( cdir );
-    if ( rc == 0 ) {
-        self -> file = file;
-        self -> cdir = cdir;
+            * ret = stf;
+        }
     }
 
     return rc;
-}   /* stored_file_init () */
+}   /* stored_file_make () */
 
 static
-rc_t stored_file_whack ( stored_file * self )
+rc_t stored_file_dispose ( stored_file * self )
 {
     if ( self != NULL ) {
         if ( self -> cdir != NULL ) {
@@ -1757,142 +1773,33 @@ rc_t stored_file_whack ( stored_file * self )
             self -> cdir = NULL;
         }
 
-        memset ( self, 0, sizeof ( stored_file ) );
+        free ( self );
     }
 
     return 0;
 }   /* stored_file_whack () */
 
-typedef struct file_depot file_depot;
-struct file_depot
-{
-    stored_file * depot;
-    size_t qty;
-    size_t capacity;
-};  /* file_depot */
-
 static
-rc_t file_depot_realloc ( file_depot * self, size_t capacity )
-{
-    rc_t rc = 0;
-
-    if ( self == NULL ) {
-        return RC ( rcExe, rcFile, rcAllocating, rcSelf, rcNull );
-    }
-
-    if ( capacity == 0 ) {
-        capacity = 256;
-    }
-
-    if ( self -> capacity < capacity ) {
-        stored_file * new_dep = NULL;
-        size_t cap_inc = 256;
-
-        size_t new_cap =
-                    ( ( self -> capacity / cap_inc ) + 1 ) * cap_inc;
-
-        new_dep = calloc ( new_cap, sizeof ( stored_file ) );
-        if ( new_dep == NULL ) {
-            return RC ( rcExe, rcFile, rcAllocating, rcMemory, rcExhausted );
-        }
-        else {
-            if ( self -> qty != 0 && self -> depot != NULL ) {
-                memmove (
-                        new_dep,
-                        self -> depot,
-                        sizeof ( stored_file ) * self -> qty
-                        );
-            }
-
-            free ( self -> depot );
-
-            self -> capacity = new_cap;
-            self -> depot = new_dep;
-        }
-    }
-    return rc;
-}   /* file_depot_realloc () */
-
-static
-rc_t file_depot_dispose ( file_depot * self )
-{
-    if ( self != NULL ) {
-        if ( self -> depot != NULL ) {
-            for ( size_t llp = 0; llp < self -> qty; llp ++ ) {
-                stored_file_whack ( self -> depot + llp );
-            }
-            free ( self -> depot );
-        }
-
-        memset ( self, 0, sizeof ( file_depot ) );
-
-        free ( self );
-    }
-    return 0;
-}   /* file_depot_dispose () */
-
-static
-rc_t file_depot_make ( file_depot ** depot, size_t initial_capacity )
-{
-    rc_t rc = 0;
-    file_depot * ret_depot = NULL;
-
-    if ( depot == NULL ) {
-        rc = RC ( rcExe, rcFile, rcConstructing, rcParam, rcNull );
-    }
-
-    * depot = NULL;
-
-    ret_depot = calloc ( 1, sizeof ( file_depot ) );
-    if ( ret_depot == NULL ) {
-        rc = RC ( rcExe, rcFile, rcConstructing, rcMemory, rcExhausted );
-    }
-    else {
-        memset ( ret_depot, 0, sizeof ( file_depot ) );
-        rc = file_depot_realloc ( ret_depot, initial_capacity );
-        if ( rc == 0 ) {
-            * depot = ret_depot;
-        }
-    }
-
-    if ( rc != 0 ) {
-        * depot = NULL;
-        if ( ret_depot != NULL ) {
-            file_depot_dispose ( ret_depot );
-            ret_depot = NULL;
-        }
-    }
-
-    return rc;
-}   /* file_depot_make () */
-
-static
-rc_t file_depot_add (
-                    file_depot * self,
+rc_t stored_file_add (
+                    KARWek * wek,
                     const KARFile * file,
                     KDirectory * cdir
 )
 {
     rc_t rc = 0;
+    stored_file * SF;
 
-    if ( self == NULL ) {
-        rc = RC ( rcExe, rcFile, rcAllocating, rcSelf, rcNull );
+    if ( wek == NULL ) {
+        rc = RC ( rcExe, rcFile, rcAllocating, rcParam, rcNull );
     }
 
-    rc = file_depot_realloc ( self, self -> qty + 1 );
+    rc = stored_file_make ( & SF, file, cdir );
     if ( rc == 0 ) {
-        rc = stored_file_init (
-                                self -> depot + self -> qty,
-                                file,
-                                cdir
-                                );
-        if ( rc == 0 ) {
-            self -> qty ++;
-        }
+        rc = kar_wek_append ( wek, ( void * ) SF );
     }
 
     return rc;
-}   /* file_depot_add () */
+}   /* stored_file_add () */
 
 /****************************************************************
  * JOJOBA
@@ -1906,7 +1813,7 @@ struct extract_block
     KDirectory *cdir;
     const KFile *archive;
 
-    file_depot * depot;
+    KARWek * wek;
 
     rc_t rc;
 
@@ -1919,7 +1826,7 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
 {
         /*  We will extract files later, after sotrint
          */
-    rc_t rc = file_depot_add ( eb -> depot, src, eb -> cdir );
+    rc_t rc = stored_file_add ( eb -> wek, src, eb -> cdir );
     if ( rc != 0 ) {
         pLogErr (klogErr, rc, "something is wrong '$(fname)'", "fname=%s", src -> dad . name );
         exit ( 4 );
@@ -2003,8 +1910,8 @@ store_extracted_files_comparator (
                                     void * data
 )
 {
-    stored_file * sl = ( stored_file * ) l;
-    stored_file * sr = ( stored_file * ) r;
+    stored_file * sl = * ( stored_file ** ) l;
+    stored_file * sr = * ( stored_file ** ) r;
 
     return SF_SF(sl,byte_offset) - SF_SF(sr,byte_offset);
 }   /* store_extracted_files_comparator () */
@@ -2014,18 +1921,18 @@ rc_t store_extracted_files ( const extract_block * eb )
 {
     rc_t rc = 0;
 
-    file_depot * fb = eb -> depot;
+    KARWek * wek = eb -> wek;
 
     ksort (
-            fb -> depot,
-            fb -> qty,
-            sizeof ( stored_file ),
+            kar_wek_data ( wek ),
+            kar_wek_size ( wek ),
+            sizeof ( stored_file * ),
             store_extracted_files_comparator,
             NULL
             );
 
-    for ( size_t llp = 0; llp < fb -> qty; llp ++ ) {
-        stored_file * sf = fb -> depot + llp;
+    for ( size_t llp = 0; llp < kar_wek_size ( wek ); llp ++ ) {
+        stored_file * sf = ( stored_file * ) kar_wek_get ( wek, llp );
         rc = store_extracted_file ( sf, eb );
         if ( rc != 0 ) {
             pLogErr (klogErr, rc, "failed to store extracted files", "" );
@@ -2236,7 +2143,12 @@ rc_t kar_test_extract ( const Params *p )
                     eb . extract_pos = file_offset;
                     eb . rc = 0;
 
-                    rc = file_depot_make ( & eb . depot, 256 );
+                    rc = kar_wek_make (
+                                & ( eb . wek ),
+                                256,
+                                16,
+                                ( void (*)(void *) ) stored_file_dispose
+                                );
                     if ( rc == 0 )
                     {
 
@@ -2270,7 +2182,7 @@ rc_t kar_test_extract ( const Params *p )
                             KDirectoryRelease ( eb . cdir );
                         }
 
-                        file_depot_dispose ( eb . depot );
+                        kar_wek_dispose ( eb . wek );
                     }
                 }
             }
@@ -2311,6 +2223,8 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( rc == 0 )
     {
         rc = run ( &params );
+
+        whack_params ( & params );
 
         ArgsWhack ( args );
     }

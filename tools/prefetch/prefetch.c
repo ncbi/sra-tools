@@ -1344,6 +1344,7 @@ typedef struct {
     const String * src;
     bool isUri;
     const KFile ** f;
+    uint64_t size;
 
     bool failed;
     uint64_t pos;
@@ -1364,14 +1365,15 @@ static void RetrierReset(Retrier * self, uint64_t pos) {
 
         if (KStsLevelGet() >= 1)
             PLOGERR(klogErr, (klogErr, 0,
-                "KFileRead success: '$(name)':$(pos)",
-                "name=%S,pos=%lu", self->src, self->pos));
+                "KFileRead success: '$(name)':$(pos)/$(sz)",
+                "name=%S,pos=%\'lu,sz=%\'lu",
+                self->src, self->pos, self->size));
     }
 }
 
 static void RetrierInit(Retrier * self, const Main * mane,
     const VPath * path, const String * src, bool isUri, const KFile ** f,
-    uint64_t pos)
+    size_t size, uint64_t pos)
 {
     assert(self && f && *f && src);
 
@@ -1381,6 +1383,7 @@ static void RetrierInit(Retrier * self, const Main * mane,
     self->mgr = mane->kns;
     self->path = path;
     self->src = src;
+    self->size = size;
     self->isUri = isUri;
 
     self->curSize = self->bsize;
@@ -1718,7 +1721,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
             rc = _KFileOpenRemote(&in, mane->kns, path,
                 &src, !self->isUri);
         RetrierInit(&retrier, mane, path,
-            &src, self->isUri, &in, opos);
+            &src, self->isUri, &in, size, opos);
         while (rc == 0) {
             rc = Quitting();
             if (rc != 0)

@@ -63,7 +63,7 @@ struct FastqParams final : CmnOptAndAccessions
     ncbi::U32 QOffsetCount;
     ncbi::U32 QOffset;
 
-    FastqParams(WhatImposter const &what)
+    explicit FastqParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , accession_replacement( "" )
     , split_spot( false )
@@ -362,9 +362,13 @@ struct FastqParams final : CmnOptAndAccessions
 
 int impersonate_fastq_dump( const Args &args, WhatImposter const &what )
 {
+#if DEBUG || _DEBUGGING
+    FastqParams temp(what);
+    auto &params = *randomized(&temp, what);
+#else
     FastqParams params(what);
+#endif
     return Impersonator::run(args, params);
-
 }
 
 } // namespace

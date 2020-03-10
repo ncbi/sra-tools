@@ -92,6 +92,7 @@ makedb:
 
 #-------------------------------------------------------------------------------
 # run tests for vdb-dump
+ifdef PYTHON
 vdb-dump: makedb
 	@ rm -rf actual
 	@ mkdir -p actual
@@ -105,9 +106,28 @@ vdb-dump: makedb
 	@ NCBI_SETTINGS=/ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase >actual/2.2.stdout && diff expected/2.2.stdout actual/2.2.stdout
 	@ rm -rf actual
 	@ rm -rf data
-	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-dump
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-dump
 	@ ./test_buffer_insufficient.sh $(BINDIR)/vdb-dump VDB-3937.kar
 	@ echo "...all tests passed"
+
+else
+vdb-dump: makedb
+	@ rm -rf actual
+	@ mkdir -p actual
+	@ echo "testing vdb-dump..."
+	@ # output format
+	@ NCBI_SETTINGS=/ $(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
+	@ NCBI_SETTINGS=/ $(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
+	@ # nested databases
+	@ NCBI_SETTINGS=/ $(BINDIR)/vdb-dump -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
+	@ NCBI_SETTINGS=/ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase >actual/2.1.stdout && diff expected/2.1.stdout actual/2.1.stdout
+	@ NCBI_SETTINGS=/ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase >actual/2.2.stdout && diff expected/2.2.stdout actual/2.2.stdout
+	@ rm -rf actual
+	@ rm -rf data
+	@ ./test_buffer_insufficient.sh $(BINDIR)/vdb-dump VDB-3937.kar
+	@ echo "...all tests passed"
+
+endif
 
 .PHONY: kar
 

@@ -72,6 +72,7 @@
 #include <sysalloc.h>
 
 #include <assert.h>
+#include <ctype.h> /* isdigit */
 #include <stdlib.h> /* free */
 #include <string.h> /* memset */
 #include <time.h> /* time */
@@ -162,7 +163,12 @@ typedef struct {
     VPath *accession;
     bool isUri; /* accession is URI */
     bool inOutDir; /* cache location is in the output directory ow cwd */
+
     uint64_t project;
+    bool dbgapProject;
+    /* project > 0 : protected
+       project = 0 & dbgapProject   : protected (1000 genomes)
+       project = 0 & ! dbgapProject : public  */
 
     const KartItem *kartItem;
 
@@ -560,6 +566,35 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
 }
 
 /********** VResolver extension **********/
+static rc_t KService_ProcessId(KService * self,
+    const KartItem * item, const char * id, rc_t aRc, bool * dbgap)
+{
+    rc_t rc = 0;
+    bool numeric = true;
+    int i = 0; assert(id);
+    for (i = 0; id[i] != '\0'; ++i)
+        if (!isdigit(id[i])) {
+            numeric = false;
+            break;
+        }
+
+    assert(dbgap);
+    *dbgap = false;
+
+    if (!numeric) {
+        *dbgap = false;
+        return rc;
+    }
+
+    if (numeric) {
+        char ticket[4096] = "";
+        rc_t rc = KartItemGetTicket(item, ticket, sizeof ticket, NULL);
+        if (rc == 0)
+            *dbgap = true;
+    }
+
+    return rc;
+}
 static rc_t V_ResolverRemote(const VResolver *self,
     Resolved * resolved, VRemoteProtocols protocols,
     struct VPath const ** cache,
@@ -593,23 +628,39 @@ static rc_t V_ResolverRemote(const VResolver *self,
     assert ( id );
 
     if ( rc == 0 ) {
-        if ( resolved -> project != 0 ) {
+        if ( resolved -> project != 0 || resolved -> dbgapProject ) {
+            bool dbgap = false;
             rc = KServiceAddProject ( service, resolved -> project );
+            if (rc != 0)
+                rc = KService_ProcessId(service, item->item, id, rc, &dbgap);
             if ( rc == 0 ) {
-                char path [ 99 ] = "";
+                char path [ 512 ] = "dbgap|";
+                size_t s = strlen(path);
+                char * p = path + s;
+                if (!dbgap) {
+                    s = 0;
+                    p = path;
+                }
+
                 rc = VPathReadPath ( resolved -> accession,
-                                        path, sizeof path, NULL );
-                if ( rc == 0 )
-                    rc = KServiceAddId ( service, path );
+                                        p, sizeof path - s, NULL );
+                if (rc == 0) {
+                    if (dbgap)
+                        rc = KServiceAddObject(service, path);
+                    else
+                        rc = KServiceAddId(service, path);
+                }
             }
         }
-        else {
+        else { /* to investigate for dbGaP project 0 */
             uint32_t project = 0;
             rc_t r = VResolverGetProject ( self, & project );
             if ( r == 0 && project != 0 )
                 rc = KServiceAddProject ( service, project );
-            if ( rc == 0 && item -> jwtCart == NULL)
+            if ( rc == 0 && item -> jwtCart == NULL ) {
+/*              rc = KService_ProcessId(service, item->item, id, rc); */
                 rc = KServiceAddId ( service, id );
+            }
         }
     }
 
@@ -2173,7 +2224,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                     }
                 }
             }
-            else {
+            else { /* to investigate for dbGaP project 0 */
                 uint32_t projectId = 0;
                 rc_t r = KRepositoryMgrCurrentProtectedRepository(repoMgr,
                                                                   &p_protected);
@@ -2192,16 +2243,23 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             DISP_RC(rc, "KartItemProjIdNumber");
             return rc;
         }
+        /* no support for kart files with items within public project
+           (project 0 is protected '1000 genomes' project) */
+        resolved->dbgapProject = true;
+
         rc = _KartItemToVPath(item->item, vfs, &resolved->accession);
         if (rc != 0) {
             DISP_RC(rc, "invalid kart file row");
             return rc;
         }
         else {
+/*
             if ( resolved->project == 0 ) {
+*/
                 rc = VResolverAddRef(resolver);
                 if (rc == 0)
                     resolved->resolver = resolver;
+/*
             }
             else {
                 rc = KRepositoryMgrGetProtectedRepository(repoMgr, 
@@ -2224,6 +2282,7 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                 }
                 RELEASE(KRepository, p_protected);
             }
+*/
         }
     }
 
@@ -3354,146 +3413,6 @@ static rc_t ItemProcess(Item *item, int32_t row) {
     return rc;*/
 }
 
-/*********** Iterator **********/
-static
-rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
-{
-    rc_t rc = 0;
-
-    KPathType type = kptNotFound;
-
-    assert(self && mane);
-    memset(self, 0, sizeof *self);
-
-    if (obj == NULL && mane->kart != NULL) {
-        type = KDirectoryPathType(mane->dir, "%s", mane->kart);
-        if ((type & ~kptAlias) != kptFile) {
-            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
-            DISP_RC(rc, mane->kart);
-            return rc;
-        }
-        rc = KartMake(mane->dir, mane->kart, &self->kart, &self->isKart);
-        if (rc != 0) {
-            if (!self->isKart)
-                rc = 0;
-            else
-                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a kart file",
-                    "F=%s", mane->kart));
-        }
-        return rc;
-    }
-#if _DEBUGGING
-    else if (obj == NULL && mane->textkart != NULL) {
-        type = KDirectoryPathType(mane->dir, "%s", mane->textkart);
-        if ((type & ~kptAlias) != kptFile) {
-            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
-            DISP_RC(rc, mane->textkart);
-            return rc;
-        }
-        rc = KartMakeText(mane->dir, mane->textkart, &self->kart,
-            &self->isKart);
-        if (rc != 0) {
-            if (!self->isKart) {
-                rc = 0;
-            }
-            else {
-                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a text kart file",
-                    "F=%s", mane->textkart));
-            }
-        }
-        return rc;
-    }
-#endif
-
-    if (obj == NULL && mane->jwtCart != NULL) {
-        type = KDirectoryPathType(mane->dir, "%s", mane->jwtCart);
-        if ((type & ~kptAlias) != kptFile) {
-            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
-            DISP_RC(rc, mane->jwtCart);
-        }
-        else
-            self->jwtCart = mane->jwtCart;
-        return rc;
-    }
-
-    assert(obj);
-    type = KDirectoryPathType(mane->dir, "%s", obj);
-    if ((type & ~kptAlias) == kptFile) {
-        type = VDBManagerPathType(mane->mgr, "%s", obj);
-        if ((type & ~kptAlias) == kptFile) {
-            rc = KartMake(mane->dir, obj, &self->kart, &self->isKart);
-            if (!self->isKart) {
-                rc = 0;
-            }
-        }
-    }
-
-    if (rc == 0 && !self->isKart) {
-        self->obj = obj;
-    }
-
-    return rc;
-}
-
-static rc_t IteratorNext(Iterator *self, Item **next, bool *done) {
-    rc_t rc = 0;
-
-    assert(self && next && done);
-
-    *next = NULL;
-
-    if (self->done) {
-        *done = true;
-        return 0;
-    }
-
-    *done = false;
-
-    *next = calloc(1, sizeof **next);
-    if (*next == NULL) {
-        return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
-    }
-
-    if (self->isKart) {
-        rc = KartMakeNextItem(self->kart, &(*next)->item);
-        if (rc != 0) {
-            if ( rc ==
-                  SILENT_RC ( rcKFG, rcNode, rcAccessing, rcNode, rcNotFound ) )
-                LOGERR (klogErr, rc, "Cannot read kart file. "
-                                "Did you Import Repository Key (ngc file)?");
-            else
-                LOGERR (klogErr, rc, "Invalid kart file: cannot read next row");
-        }
-        else if ((*next)->item == NULL) {
-            RELEASE(Item, *next);
-            *next = NULL;
-            *done = true;
-        }
-
-        if (rc == 0 && *done) {
-            self->done = true;
-        }
-    }
-    else if (self->jwtCart != NULL) {
-        (*next)->jwtCart = self->jwtCart;
-        self->done = true;
-    }
-    else {
-        rc = ItemInit(*next, self->obj);
-        self->done = true;
-    }
-
-    return rc;
-}
-
-static void IteratorFini(Iterator *self) {
-    rc_t rc = 0;
-
-    assert(self);
-
-    RELEASE(Kart, self->kart);
-}
-
 /*********** Command line arguments **********/
 
 static size_t _sizeFromString(const char *val) {
@@ -4372,6 +4291,150 @@ rc_t CC Usage(const Args *args) {
 }
 
 /******************************************************************************/
+
+/*********** Iterator **********/
+static
+rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
+{
+    rc_t rc = 0;
+
+    KPathType type = kptNotFound;
+
+    assert(self && mane);
+    memset(self, 0, sizeof *self);
+
+    if (obj == NULL && mane->kart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->kart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->kart);
+            return rc;
+        }
+        rc = KartMakeWithNgc(mane->dir, mane->kart, &self->kart, &self->isKart,
+            mane->ngc);
+        if (rc != 0) {
+            if (!self->isKart)
+                rc = 0;
+            else
+                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a kart file",
+                    "F=%s", mane->kart));
+        }
+        return rc;
+    }
+#if _DEBUGGING
+    else if (obj == NULL && mane->textkart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->textkart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->textkart);
+            return rc;
+        }
+        rc = KartMakeText(mane->dir, mane->textkart, &self->kart,
+            &self->isKart);
+        if (rc != 0) {
+            if (!self->isKart) {
+                rc = 0;
+            }
+            else {
+                PLOGERR(klogErr, (klogErr, rc, "'$(F)' is not a text kart file",
+                    "F=%s", mane->textkart));
+            }
+        }
+        return rc;
+    }
+#endif
+
+    if (obj == NULL && mane->jwtCart != NULL) {
+        type = KDirectoryPathType(mane->dir, "%s", mane->jwtCart);
+        if ((type & ~kptAlias) != kptFile) {
+            rc = RC(rcExe, rcFile, rcOpening, rcFile, rcNotFound);
+            DISP_RC(rc, mane->jwtCart);
+        }
+        else
+            self->jwtCart = mane->jwtCart;
+        return rc;
+    }
+
+    assert(obj);
+    type = KDirectoryPathType(mane->dir, "%s", obj);
+    if ((type & ~kptAlias) == kptFile) {
+        type = VDBManagerPathType(mane->mgr, "%s", obj);
+        if ((type & ~kptAlias) == kptFile) {
+            rc = KartMakeWithNgc(mane->dir, obj, &self->kart, &self->isKart,
+                mane->ngc);
+            if (!self->isKart) {
+                rc = 0;
+            }
+        }
+    }
+
+    if (rc == 0 && !self->isKart) {
+        self->obj = obj;
+    }
+
+    return rc;
+}
+
+static rc_t IteratorNext(Iterator *self, Item **next, bool *done) {
+    rc_t rc = 0;
+
+    assert(self && next && done);
+
+    *next = NULL;
+
+    if (self->done) {
+        *done = true;
+        return 0;
+    }
+
+    *done = false;
+
+    *next = calloc(1, sizeof **next);
+    if (*next == NULL) {
+        return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
+    }
+
+    if (self->isKart) {
+        rc = KartMakeNextItem(self->kart, &(*next)->item);
+        if (rc != 0) {
+            if (rc ==
+                SILENT_RC(rcKFG, rcNode, rcAccessing, rcNode, rcNotFound))
+            {
+                LOGERR(klogErr, rc, "Cannot read kart file. "
+                    "Did you specify --" NGC_OPTION " command line option?");
+            }
+            else
+                LOGERR(klogErr, rc, "Invalid kart file: cannot read next row");
+        }
+        else if ((*next)->item == NULL) {
+            RELEASE(Item, *next);
+            *next = NULL;
+            *done = true;
+        }
+
+        if (rc == 0 && *done) {
+            self->done = true;
+        }
+    }
+    else if (self->jwtCart != NULL) {
+        (*next)->jwtCart = self->jwtCart;
+        self->done = true;
+    }
+    else {
+        rc = ItemInit(*next, self->obj);
+        self->done = true;
+    }
+
+    return rc;
+}
+
+static void IteratorFini(Iterator *self) {
+    rc_t rc = 0;
+
+    assert(self);
+
+    RELEASE(Kart, self->kart);
+}
 
 /********** KartTreeNode **********/
 static void CC bstKrtWhack(BSTNode *n, void *ignore) {

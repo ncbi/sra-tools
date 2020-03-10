@@ -30,6 +30,7 @@
 *
 */
 
+#pragma once
 #include <string>
 #include <vector>
 #include "parse_args.hpp"
@@ -91,10 +92,8 @@ private:
     std::string ce_token_;
     bool have_ce_token;
 
-    data_sources(std::string const &CET)
-    : ce_token_(CET)
-    , have_ce_token(!CET.empty())
-    {}
+    data_sources(std::vector<std::string> const &runs);
+    data_sources(std::vector<std::string> const &runs, bool withSDL);
     
     /// @brief add a data sources, creates container if needed
     ///

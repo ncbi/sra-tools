@@ -2,7 +2,6 @@
 
 import sys, getopt, subprocess, multiprocessing
 
-
 def run( cmd, spots, q ) :
     p = subprocess.Popen( cmd, stdout = subprocess.PIPE )
     n = 0
@@ -11,13 +10,14 @@ def run( cmd, spots, q ) :
     if spots != None :
         lines = spots * 4
     bases = None
+    
     while True :
-        line = p.stdout.readline()
+        line = p.stdout.readline().decode( 'ascii' ).strip()
         if line != '' :
             if l == 1 :
-                bases = line.strip()
+                bases = line
             elif l == 3 :
-                q.put( ( bases, line.strip() ) )
+                q.put( ( bases, line ) )
             n += 1
             if lines != None :
                 if n > lines :
@@ -30,14 +30,15 @@ def run( cmd, spots, q ) :
             break
     q.put( None )
 
-
 def fastq_dump_full( fastq_dump, acc, spots, q ) :
+    print( "starting fastq-dump" )
     run( [ fastq_dump, '--split-3', '-Z', acc ], spots, q )
-    print "fastq-dump done"
+    print( "fastq-dump done" )
 
 def sam_dump_full( sam_dump, acc, spots, q ) :
+    print( "starting sam-dump" )
     run( [ sam_dump, '-u', '--fastq', acc ], spots, q )
-    print "sam-dump done"
+    print( "sam-dump done" )
 
 def handle_q( d, q ) :
     res = 0
@@ -103,13 +104,13 @@ class join_stats() :
         self.nr_no_match += n
     
     def __str__( self ) :
-        res  = "matches    : %d\n" % self.n_matches
-        res += "r-matches  : %d\n" % self.nr_matches
-        res += "reversed   : %d\n" % self.n_reversed
-        res += "r-reversed : %d\n" % self.nr_reversed
-        res += "no_match   : %d\n" % self.n_no_match
-        res += "r-no_match : %d\n" % self.nr_no_match
-        res += "not_found  : %d" % self.n_not_found
+        res  = "matches     : %d\n" % self.n_matches
+        res += "r-matches   : %d\n" % self.nr_matches
+        res += "reversed    : %d\n" % self.n_reversed
+        res += "r-reversed  : %d\n" % self.nr_reversed
+        res += "no_match    : %d\n" % self.n_no_match
+        res += "r-no_match  : %d\n" % self.nr_no_match
+        res += "not_found   : %d" % self.n_not_found
         return res
 
     def non_matches( self ) :
@@ -166,8 +167,8 @@ def join_2( q1, q2, q3 ) :
             r2 = handle_q( d2, q2 )
             n2 += r2
             
-    print "from fastq-dump : %d" % n1
-    print "from sam-dump   : %d" % n2
+    print( "from fastq-dump : %d" % n1 )
+    print( "from sam-dump   : %d" % n2 )
     
     for bases in d1 :
         ql_1 = d1[ bases ]
@@ -189,11 +190,17 @@ def join_2( q1, q2, q3 ) :
             else :
                 js.n_not_found += 1
     
-    print js
+    print( js )
     q3.put( js.non_matches() )
 
     
 if __name__ == '__main__':
+    print( "running: ", __file__ )
+
+    if sys.version_info[ 0 ] < 3 :
+        print( "does not work with python version < 3!" )
+        sys.exit( 3 )
+
     acc = 'SRR3332402'
     spots = None
     fastq_dump = 'fastq-dump'
@@ -204,11 +211,11 @@ if __name__ == '__main__':
     try :
         opts, args = getopt.getopt( sys.argv[ 1: ], short_opts, long_opts )
     except getopt.GetoptError :
-        print sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>'
+        print ( sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>' )
         sys.exit( 2 )
     for opt, arg in opts :
         if opt == '-h' :
-            print sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>'
+            print ( sys.argv[ 0 ], ' -a <accession> -s <spots> -f <fastq-dump-binary> -m <sam-dump-binary>' )
             sys.exit()
         elif opt in ( "-a", "--acc" ) :
             acc = arg
@@ -219,9 +226,9 @@ if __name__ == '__main__':
         elif opt in ( "-m", "--sam_dump" ) :
             sam_dump = arg
 
-    print 'accession = ', acc
+    print( "accession = ", acc )
     if spots != None :
-        print 'spots = ', spots
+        print( "spots = ", spots )
    
     q1 = multiprocessing.Queue()
     q2 = multiprocessing.Queue()
@@ -240,6 +247,7 @@ if __name__ == '__main__':
     p3.join()
     
     nm = q3.get()
-    print "non-matches : ", nm
+    print( "non-matches : ", nm )
     if nm > 0 :
         sys.exit( 3 )
+    print( "success: ", __file__, "\n" )

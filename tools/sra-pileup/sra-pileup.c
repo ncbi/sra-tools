@@ -204,7 +204,7 @@ OptDef MyOptions[] =
 typedef struct pileup_callback_data
 {
     const AlignMgr *almgr;
-    pileup_options *options;
+    pileup_options *options;    /* pileup_options.h */
 } pileup_callback_data;
 
 
@@ -280,8 +280,8 @@ static int cmp_pchar( const char * a, const char * b )
 
 static rc_t get_pileup_options( Args * args, pileup_options *opts )
 {
-    rc_t rc = get_common_options( args, &opts->cmn );
-    opts->function = sra_pileup_samtools;
+    rc_t rc = get_common_options( args, &opts->cmn ); /* cmdline_cmn.h */
+    opts->function = sra_pileup_samtools; /* above */
 
     if ( rc == 0 )
         rc = get_uint32_option( args, OPTION_MINMAPQ, &opts->minmapq, 0 );
@@ -958,27 +958,30 @@ static rc_t walk_ref_iter( ReferenceIterator *ref_iter, pileup_options *options 
         {
             if ( refobj != NULL )
             {
-                const char * refname = NULL;
-                if ( options->use_seq_name )
-                    rc = ReferenceObj_Name( refobj, &refname );
-                else
-                    rc = ReferenceObj_SeqId( refobj, &refname );
-
-                if ( rc == 0 )
+                /* we need both: seq-name ( for inst: chr1 ) and seq-id ( NC.... )
+                   to perform a correct lookup into the skiplist */
+                const char * seq_name = NULL;
+                rc = ReferenceObj_Name( refobj, &seq_name );
+                if ( rc != 0 )
                 {
-                    if ( options->skiplist != NULL )
-                        skiplist_enter_ref( options->skiplist, refname );
-                    rc = walk_reference( ref_iter, refname, options );
+                    LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
                 }
                 else
                 {
-                    if ( options->use_seq_name )
+                    const char * seq_id = NULL;
+                    rc = ReferenceObj_SeqId( refobj, &seq_id );
+                    if ( rc != 0 )
                     {
-                        LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
+                        LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
                     }
                     else
                     {
-                        LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
+                        const char * refname = options->use_seq_name ? seq_name : seq_id;
+
+                        if ( options->skiplist != NULL )
+                            skiplist_enter_ref( options->skiplist, seq_name, seq_id ); /* ref_regions.c */
+
+                        rc = walk_reference( ref_iter, refname, options );
                     }
                 }
             }
@@ -1585,21 +1588,21 @@ rc_t CC KMain( int argc, char *argv [] )
                 rc = get_pileup_options( args, &options );
                 if ( rc == 0 )
                 {
-					out_redir redir; /* from out_redir.h */
-					enum out_redir_mode mode;
+                    out_redir redir; /* from out_redir.h */
+                    enum out_redir_mode mode;
 
-					options.skiplist = NULL;
-					
-					if ( options.cmn.gzip_output )
-						mode = orm_gzip;
-					else if ( options.cmn.bzip_output )
-						mode = orm_bzip2;
-					else
-						mode = orm_uncompressed;
+                    options.skiplist = NULL;
+                    
+                    if ( options.cmn.gzip_output )
+                        mode = orm_gzip;
+                    else if ( options.cmn.bzip_output )
+                        mode = orm_bzip2;
+                    else
+                        mode = orm_uncompressed;
 
-					rc = init_out_redir( &redir, mode, options.cmn.output_file, 32 * 1024 ); /* from out_redir.c */
-					
-					/*
+                    rc = init_out_redir( &redir, mode, options.cmn.output_file, 32 * 1024 ); /* from out_redir.c */
+                    
+                    /*
                     if ( options.cmn.output_file != NULL )
                     {
                         rc = set_stdout_to( options.cmn.gzip_output,
@@ -1607,8 +1610,8 @@ rc_t CC KMain( int argc, char *argv [] )
                                             options.cmn.output_file,
                                             32 * 1024 );
                     }
-					*/
-					
+                    */
+                    
                     if ( rc == 0 )
                     {
                         if ( options.function == sra_pileup_report_ref ||
@@ -1632,12 +1635,12 @@ rc_t CC KMain( int argc, char *argv [] )
                         }
                     }
 
-					/*
+                    /*
                     if ( options.cmn.output_file != NULL )
                         release_stdout_redirection();
-					*/
-					release_out_redir( &redir ); /* from out_redir.c */
-					
+                    */
+                    release_out_redir( &redir ); /* from out_redir.c */
+                    
                     if ( options.skiplist != NULL )
                         skiplist_release( options.skiplist );
                 }

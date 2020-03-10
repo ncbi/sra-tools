@@ -51,7 +51,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     ncbi::String output_dir;
     bool dryrun;
 
-    PrefetchParams(WhatImposter const &what)
+    explicit PrefetchParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , min_size_count( 0 ), min_size_value( 0 )
     , max_size_count( 0 ), max_size_value( 0 )
@@ -197,7 +197,12 @@ struct PrefetchParams final : CmnOptAndAccessions
 
 int impersonate_prefetch( const Args &args, WhatImposter const &what )
 {
+#if DEBUG || _DEBUGGING
+    PrefetchParams temp(what);
+    auto &params = *randomized(&temp, what);
+#else
     PrefetchParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

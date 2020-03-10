@@ -105,8 +105,8 @@ static void free_range( struct reference_range * self )
 
 static int64_t cmp_range( const struct reference_range * a, const struct reference_range * b )
 {
-	if ( a != NULL && b != NULL )
-	{
+    if ( a != NULL && b != NULL )
+    {
         if ( a->start < b->start )
             return -1;
         else if ( a->start > b->start )
@@ -117,24 +117,24 @@ static int64_t cmp_range( const struct reference_range * a, const struct referen
             return 1;
         else
             return 0;
-	}
-	return 1; /* question from ukrainch: so, cmp_range cannot be used for sorting? */
+    }
+    return 1; /* question from ukrainch: so, cmp_range cannot be used for sorting? */
 }
 
 
 static bool range_overlapp( const struct reference_range * a, const struct reference_range * b )
 {
-	if ( a != NULL && b != NULL )
-	    return ( !( ( b->end < a->start ) || ( b->start > a->end ) ) );
-	return false;
+    if ( a != NULL && b != NULL )
+        return ( !( ( b->end < a->start ) || ( b->start > a->end ) ) );
+    return false;
 }
 
 
 static uint64_t range_distance( const struct reference_range * a, const struct reference_range * b )
 {
-	if ( a != NULL && b != NULL )
-		return ( b->start - a->end );
-	return 0;
+    if ( a != NULL && b != NULL )
+        return ( b->start - a->end );
+    return 0;
 }
 
 /* =========================================================================================== */
@@ -753,21 +753,21 @@ static int64_t CC pchar_vs_srn_cmp( const void * item, const BSTNode * n )
 }
 
 
-void skiplist_enter_ref( struct skiplist * list, const char * name )
+void skiplist_enter_ref( struct skiplist * list, const char * name1, const char * name2 )
 {
     if ( list != NULL )
     {
-        if ( name == NULL )
-            list->current = NULL;
-        else
+        struct skiplist_ref_node * cur_node = NULL;
+        if ( name1 != NULL )
+            cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name1, pchar_vs_srn_cmp );
+        if ( cur_node == NULL && name2 != NULL )
+            cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name2, pchar_vs_srn_cmp );
+        
+        list->current = cur_node;
+        if ( cur_node != NULL )
         {
-            struct skiplist_ref_node * cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name, pchar_vs_srn_cmp );
-            list->current = cur_node;
-			if ( cur_node != NULL )
-			{
-				cur_node->current_id = 0;
-				cur_node->current_skip_range = VectorGet ( &( cur_node->skip_ranges ), 0 );
-			}
+            cur_node->current_id = 0;
+            cur_node->current_skip_range = VectorGet ( &( cur_node->skip_ranges ), 0 );
         }
     }
 }

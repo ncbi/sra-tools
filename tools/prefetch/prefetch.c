@@ -1980,7 +1980,6 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
 static rc_t MainDownload(Resolved *self, const Item * item,
                          bool isDependency, const VPath *vdbcache)
 {
-/*  bool canceled = false;*/
     rc_t rc = 0;
     KFile *flock = NULL;
     Main * mane = NULL;
@@ -2589,9 +2588,9 @@ rc_t MainOutDirCheck ( Main * self, bool * setAndNotExists ) {
 
 /* resolve locations */
 static rc_t _ItemResolveResolved(VResolver *resolver,
-    VRemoteProtocols protocols, Item *item,
-    const KRepositoryMgr *repoMgr, const KConfig *cfg,
-    const VFSManager *vfs, KNSManager *kns, size_t minSize, size_t maxSize)
+    VRemoteProtocols protocols, Item *item, const KRepositoryMgr *repoMgr,
+    const KConfig *cfg, const VFSManager *vfs, KNSManager *kns,
+    size_t minSize, size_t maxSize)
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;
@@ -3033,7 +3032,8 @@ static rc_t ItemDownload(Item *item) {
                 KDirectoryPathType(item->mane->dir, "%s", name) == kptNotFound;
             rc = MainDownload(self, item, item->isDependency, NULL);
             if (item->mane->dryRun && notFound
-                && KDirectoryPathType(item->mane->dir, "%s", name) == kptDir)
+                && KDirectoryPathType(item->mane->dir, "%s", name)
+                    == kptDir)
             {
                 KNamelist * list = NULL;
                 rc = KDirectoryList(item->mane->dir,
@@ -3308,323 +3308,6 @@ static rc_t ItemDownloadDependencies(Item *item) {
     return rc;
 }
 
-#define TODO 1
-
-#if 0
-static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
-    Item *self, char *remotePath, size_t remotePathLen, bool *exists)
-{
-    rc_t rc = 0;
-    size_t len = 0;
-    Resolved *resolved = NULL;
-    VPath *cremote = NULL;
-    const VPathStr * remote = NULL;
-    assert(self && self->mane && exists);
-    resolved = &self->resolved;
-    assert(resolved);
-    remote = resolved -> remoteHttp . path != NULL ? & resolved -> remoteHttp
-                                                   : & resolved -> remoteHttps;
-    *exists = false;
-    VPathStrFini ( & resolved -> remoteFasp );
-    if (remote -> path == NULL) {
-        rc_t rc = TODO;
-        DISP_RC(rc, "UNKNOWN REMOTE LOCATION WHEN TRYING TO FIND VDBCACHE");
-        return rc;
-    }
-    rc = VFSManagerMakePathWithExtension(self->mane->vfsMgr,
-        &cremote, remote -> path, ".vdbcache");
-    if (rc != 0) {
-        if (remote -> str != NULL) {
-            DISP_RC2(rc, "VFSManagerMakePathWithExtension",
-                remote -> str->addr);
-        }
-        else {
-            DISP_RC(rc, "VFSManagerMakePathWithExtension(remote)");
-        }
-        return rc;
-    }
-    rc = VPathReadUri(cremote, remotePath, remotePathLen, &len);
-    if (rc == 0) {
-        String remote;
-        char *query = string_chr(remotePath, len, '?');
-        if (query != NULL) {
-            *query = '\0';
-            len = query - remotePath;
-        }
-        StringInitCString ( & remote, remotePath );
-        RELEASE(KFile, resolved->file);
-        rc = _KFileOpenRemote(&resolved->file, self->mane->kns, &remote,
-                              !resolved->isUri);
-        if (rc == 0) {
-            STSMSG(STS_DBG, ("'%s' exists", remotePath));
-            STSMSG(STS_TOP, ("'%s' has remote vdbcache", resolved->name));
-            *exists = true;
-            if ( resolved -> remoteHttp . path != NULL ) {
-                rc = VPathStrInitStr ( & resolved->remoteHttp, remotePath, len);
-                DISP_RC2(rc, "StringCopy(Remote.vdbcache)", remotePath);
-                resolved->remoteHttp.path = cremote;
-            }
-            else {
-                rc = VPathStrInitStr ( & resolved->remoteHttps,remotePath, len);
-                DISP_RC2(rc, "StringCopy(Remote.vdbcache)", remotePath);
-                resolved->remoteHttps.path = cremote;
-            }
-            cremote = NULL;
-        }
-        else if (rc == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcNotFound)) {
-            STSMSG(STS_DBG, ("'%s' does not exist", remotePath));
-            *exists = false;
-            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", resolved->name));
-            rc = 0;
-        }
-        else if
-            (rc == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcUnauthorized))
-        {
-            STSMSG(STS_DBG, (
-                "Access to '%s's vdbcahe file is forbidden or it does not exist"
-                , resolved->name));
-            *exists = false;
-            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", resolved->name));
-            rc = 0;
-        }
-        else {
-            DISP_RC2(rc, "Failed to check vdbcache", resolved->name);
-        }
-    }
-    RELEASE(VPath, cremote);
-    return rc;
-}
-
-static rc_t MainDetectVdbcacheCachePath(const Main *self,
-    const String *runCache, const VPath **runCachePath,
-    const String **vdbcacheCache)
-{
-    rc_t rc = 0;
-
-    VPath *vlocal = NULL;
-    VPath *clocal = NULL;
-
-    if (runCache == NULL && (runCachePath == NULL || *runCachePath == NULL))
-    {
-        rc_t rc = TODO;
-        DISP_RC(rc, "UNKNOWN CACHE LOCATION WHEN TRYING TO FIND VDBCACHE");
-        return rc;
-    }
-
-    if (runCachePath != NULL && *runCachePath != NULL) {
-        vlocal = (VPath*)*runCachePath;
-    }
-    else {
-        rc = VFSManagerMakePath(self->vfsMgr, &vlocal, "%S", runCache);
-        if (rc != 0) {
-            DISP_RC2(rc, "VFSManagerMakePath", runCache->addr);
-            return rc;
-        }
-    }
-
-    rc = VFSManagerMakePathWithExtension(
-        self->vfsMgr, &clocal, vlocal, ".vdbcache");
-    DISP_RC2(rc, "VFSManagerMakePathWithExtension", runCache->addr);
-
-    if (rc == 0) {
-        rc = VPathMakeString(clocal, vdbcacheCache);
-    }
-
-    RELEASE(VPath, clocal);
-
-    if (runCachePath == NULL) {
-        RELEASE(VPath, vlocal);
-    }
-    else if (*runCachePath == NULL) {
-        *runCachePath = vlocal;
-    }
-
-    return rc;
-}
-
-static bool MainNeedDownload(const Main *self, const String *local,
-    const char *remotePath, const KFile *remote, uint64_t *remoteSz)
-{
-    KPathType type = kptNotFound;
-    assert(self && local);
-    type = KDirectoryPathType(self->dir, "%s", local->addr) & ~kptAlias;
-    if (type == kptNotFound) {
-        return false;
-    }
-    if (type != kptFile) {
-        if (self->force == eForceNo) {
-            STSMSG(STS_TOP, (
-                "%S (not a file) is found locally: consider it complete",
-                local));
-            return false;
-        }
-        else {
-            STSMSG(STS_TOP, (
-                "%S (not a file) is found locally and will be redownloaded",
-                local));
-            return true;
-        }
-    }
-    else if (self->force != eForceNo) {
-        return true;
-    }
-    else {
-        rc_t rc = 0;
-        uint64_t sLocal = 0;
-        assert(remoteSz);
-        rc = KFileSize(remote, remoteSz);
-        DISP_RC2(rc, "KFileSize(remote.vdbcache)", remotePath);
-        if (rc != 0) {
-            return true;
-        }
-        {
-            const KFile *f = NULL;
-            rc = KDirectoryOpenFileRead(self->dir, &f, "%s", local->addr);
-            if (rc != 0) {
-                DISP_RC2(rc, "KDirectoryOpenFileRead", local->addr);
-                return true;
-            }
-            rc = KFileSize(f, &sLocal);
-            if (rc != 0) {
-                DISP_RC2(rc, "KFileSize", local->addr);
-            }
-            RELEASE(KFile, f);
-            if (rc != 0) {
-                return true;
-            }
-        }
-        if (sLocal == *remoteSz) {
-            STSMSG(STS_INFO, ("%S (%,lu) is found", local, sLocal));
-            return false;
-        }
-        else {
-            STSMSG(STS_INFO,
-                ("%S (%,lu) is found and will be redownloaded", local, sLocal));
-            return true;
-        }
-    }
-}
-
-static rc_t ItemDownloadVdbcache(Item *item) {
-    rc_t rc = 0;
-    Resolved *resolved = NULL;
-    bool checkRemote = true;
-    bool remoteExists = false;
-    char remotePath[PATH_MAX] = "";
-    const String *local = NULL;
-    const String *cache = NULL;
-    bool localExists = false;
-    bool download = true;
-
-return 0;
-
-    assert(item && item->mane);
-    resolved = &item->resolved;
-    if (!resolved) {
-        STSMSG(STS_TOP,
-            ("CANNOT DOWNLOAD VDBCACHE FOR UNRESOLVED ITEM '%s'", item->desc));
-        /* TODO error? */
-        return 0;
-    }
-    {
-        bool csra = false;
-        const VDatabase *db = NULL;
-        KPathType type = VDBManagerPathType
-            (item->mane->mgr, "%S", resolved->path.str) & ~kptAlias;
-        if (type == kptTable) {
-            STSMSG(STS_INFO, ("'%S' is a table", resolved->path.str));
-        }
-        else if (type != kptDatabase) {
-            STSMSG(STS_INFO, ("'%S' is not recognized as a database or a table",
-                resolved->path.str));
-        }
-        else {
-            rc_t rc = VDBManagerOpenDBRead(item->mane->mgr,
-                &db, NULL, "%S", resolved->path.str);
-            if (rc == 0) {
-                csra = VDatabaseIsCSRA(db);
-            }
-            RELEASE(VDatabase, db);
-            if (csra) {
-                STSMSG(STS_INFO, ("'%s' is cSRA", resolved->name));
-            }
-            else {
-                STSMSG(STS_INFO, ("'%s' is not cSRA", resolved->name));
-            }
-            if (!csra) {
-                return 0;
-            }
-        }
-    }
-    
-    if (!checkRemote) {
-        return 0;
-    }
-    if (rc == 0) {
-        rc = ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
-            item, remotePath, sizeof remotePath, &remoteExists);
-    }
-    if (!remoteExists) {
-        return 0;
-    }
-    {
-        bool cacheExists = false;
-        if (resolved->existing) {
-            /* resolved->path.str is a local file path */
-            rc = MainDetectVdbcacheCachePath(item->mane,
-                resolved->path.str, &resolved->path.path, &local);
-            assert(local);
-            localExists = (VDBManagerPathType(item->mane->mgr, "%S", local)
-                & ~kptAlias) != kptNotFound;
-            STSMSG(STS_DBG, ("'%S' %sexist%s", local,
-                localExists ? "" : "does not ", localExists ? "s" : ""));
-        }
-        /* check vdbcache file cache location and its existence */
-        rc = MainDetectVdbcacheCachePath(item->mane,
-            resolved->cache, NULL, &cache);
-        cacheExists = (VDBManagerPathType(item->mane->mgr, "%S", cache)
-            & ~kptAlias) != kptNotFound;
-        STSMSG(STS_DBG, ("'%S' %sexist%s", cache,
-            cacheExists ? "" : "does not ", cacheExists ? "s" : ""));
-        if (!localExists) {
-            localExists = cacheExists;
-        }
-    }
-    if (!remoteExists) {
-        return 0;
-    }
-    if (localExists) {
-        download = MainNeedDownload(item->mane, local ? local : cache,
-            remotePath, resolved->file, &resolved->remoteSz);
-        if ( ! download )
-            STSMSG(STS_TOP, (" vdbcache is found locally"));
-    }
-    RELEASE(String, local);
-    RELEASE(String, resolved->cache);
-    resolved->cache = cache;
-    if (download && rc == 0) {
-
-     /* ignore fasp transport request while ascp vdbcache address is unknown */
-        item->mane->noHttp = false;
-
-        STSMSG(STS_TOP, (" Downloading vdbcache..."));
-        rc = MainDownload(&item->resolved, item, item->isDependency);
-        if (rc == 0) {
-            STSMSG(STS_TOP, (" vdbcache was downloaded successfully"));
-            if (local && StringCompare(local, cache) != 0) {
-                STSMSG(STS_DBG, ("Removing '%S'", local));
-                /* TODO rm local vdbcache file
-                    if full path is specified and it is not the cache path
-                rc = KDirectoryRemove(item->mane->dir, false, "%S", local);
-                    */
-            }
-        } else
-            STSMSG(STS_TOP, (" failed to download vdbcache"));
-    }
-    return rc;
-}
-#endif
-
 static rc_t ItemPostDownload(Item *item, int32_t row) {
     rc_t rc = 0;
     Resolved *resolved = NULL;
@@ -3679,16 +3362,6 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
 static rc_t ItemProcess(Item *item, int32_t row) {
     /* resolve: locate; download if not found */
     return ItemResolveResolvedAndDownloadOrProcess(item, row);
-
-/*  if (item->resolved.type != eRunTypeDownload) {
-        return rc;
-    }
-
-    if (rc == 0 && !item->mane->dryRun) {
-        rc = ItemPostDownload(item, row);
-    }
-
-    return rc;*/
 }
 
 /*********** Command line arguments **********/

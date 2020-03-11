@@ -41,8 +41,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     ncbi::U32 max_size_count;
     ncbi::U32 max_size_value;
     ncbi::String force;
-    ncbi::U32 progress_count;
-    ncbi::U32 progress_value;
+    bool progress;
     bool eliminate_quals;
     bool check_all;
     //ncbi::String ascp_path;
@@ -55,7 +54,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     : CmnOptAndAccessions(what)
     , min_size_count( 0 ), min_size_value( 0 )
     , max_size_count( 0 ), max_size_value( 0 )
-    , progress_count( 0 ), progress_value( 0 )
+    , progress( false )
     , eliminate_quals( false )
     , check_all( false )
     , dryrun( false )
@@ -77,8 +76,7 @@ struct PrefetchParams final : CmnOptAndAccessions
             "ignore lock files (stale locks or it is being downloaded by another process: "
             "use at your own risk!)" );
 
-        cmdline . addOption ( progress_value, &progress_count, "p", "progress", "<value>",
-            "Time period in minutes to display download progress (0: no progress), default: 1" );
+        cmdline . addOption ( progress, "p", "progress", "Show progress" );
 
         cmdline . addOption ( check_all, "c", "check-all", "Double-check all refseqs" );
 
@@ -114,7 +112,7 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
         if ( max_size_count > 0 ) ss << "max-size: " << max_size_value << std::endl;
         if ( !force.isEmpty() ) ss << "force: " << force << std::endl;
-        if ( progress_count > 0 ) ss << "progress: " << progress_value << std::endl;
+        if ( progress ) ss << "progress: " << std::endl;
         if ( eliminate_quals ) ss << "eliminate-quals" << std::endl;
         if ( check_all ) ss << "check-all" << std::endl;
         //if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
@@ -138,7 +136,7 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( min_size_count > 0 ) builder . add_option( "-N", min_size_value );
         if ( max_size_count > 0 ) builder . add_option( "-X", max_size_value );
         if ( !force.isEmpty() ) builder . add_option( "-f", force );
-        if ( progress_count > 0 ) builder . add_option( "-p", progress_value );
+        if ( progress ) builder . add_option( "-p" );
         if ( eliminate_quals ) builder . add_option( "--eliminate-quals" );
         if ( check_all ) builder . add_option( "-c" );
         //if ( !ascp_path.isEmpty() ) builder . add_option( "-a", ascp_path );

@@ -64,7 +64,7 @@ PREFETCH_SRC = \
 	kfile-no-q \
 	PrfMain \
 	prefetch \
-#	PrfRetrier \
+	PrfRetrier \
 
 PREFETCH_OBJ = \
 	$(addsuffix .$(OBJX),$(PREFETCH_SRC))

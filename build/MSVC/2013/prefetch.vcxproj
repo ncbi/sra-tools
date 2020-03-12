@@ -21,4 +21,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\tools\prefetch\PrfMain.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\tools\prefetch\PrfRetrier.h" />
+  </ItemGroup>
 </Project>

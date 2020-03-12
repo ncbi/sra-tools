@@ -36,6 +36,8 @@
 #include <klib/text.h> /* string_dup_measure */
 
 #include <kns/ascp.h> /* ascp_locate */
+#include <kns/http.h> /* KNSManagerMakeHttpFile */
+#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableHttpFile */
 #include <kns/manager.h> /* KNSManagerRelease */
 
 #include <vdb/database.h> /* VDBManagerOpenDBRead */
@@ -44,11 +46,71 @@
 #include <vdb/vdb-priv.h> /* VDBManagerSetResolver */
 
 #include <vfs/manager.h> /* VFSManagerMake */
+#include <vfs/path.h> /* VPathGetCeRequired */
 #include <vfs/resolver.h> /* VResolverRelease */
 
 #include <time.h> /* time */
 
 #include "PrfMain.h"
+
+bool _StringIsXYZ(const String *self, const char **withoutScheme,
+    const char * scheme, size_t scheme_size)
+{
+    const char *dummy = NULL;
+
+    assert(self && self->addr);
+
+    if (withoutScheme == NULL) {
+        withoutScheme = &dummy;
+    }
+
+    *withoutScheme = NULL;
+
+    if (string_cmp(self->addr, self->len, scheme, scheme_size,
+        scheme_size) == 0)
+    {
+        *withoutScheme = self->addr + scheme_size;
+        return true;
+    }
+    return false;
+}
+
+bool _StringIsFasp(const String *self, const char **withoutScheme) {
+    const char fasp[] = "fasp://";
+    return _StringIsXYZ(self, withoutScheme, fasp, sizeof fasp - 1);
+}
+
+/********** KFile extension **********/
+rc_t _KFileOpenRemote(const struct KFile **self, KNSManager *kns,
+    const VPath *vpath, const struct String *path, bool reliable)
+{
+    rc_t rc = 0;
+
+    bool ceRequired = false;
+    bool payRequired = false;
+
+    assert(self);
+
+    if (*self != NULL)
+        return 0;
+
+    assert(path);
+
+    if (_StringIsFasp(path, NULL))
+        return
+        SILENT_RC(rcExe, rcFile, rcConstructing, rcParam, rcWrongType);
+
+    VPathGetCeRequired(vpath, &ceRequired);
+    VPathGetPayRequired(vpath, &payRequired);
+
+    if (reliable)
+        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, true,
+            ceRequired, payRequired, "%S", path);
+    else
+        rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
+
+    return rc;
+}
 
 /********** TreeNode **********/
 

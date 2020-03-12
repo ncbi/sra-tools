@@ -49,7 +49,7 @@
 #include <kns/ascp.h> /* AscpOptions */
 #include <kns/manager.h>
 #include <kns/stream.h> /* KStreamRelease */
-#include <kns/kns-mgr-priv.h>
+#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
 #include <kns/http.h>
 
 #include <kfs/directory.h> /* KDirectoryPathType */
@@ -67,7 +67,6 @@
 #include <klib/rc.h>
 #include <klib/status.h> /* STSMSG */
 #include <klib/text.h> /* String */
-#include <klib/time.h> /* KSleep */
 
 #include <strtol.h> /* strtou64 */
 #include <sysalloc.h>
@@ -82,6 +81,7 @@
 
 #include "kfile-no-q.h"
 #include "PrfMain.h"
+#include "PrfRetrier.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -155,71 +155,10 @@ static char* StringCheck(const String *self, rc_t rc) {
     return NULL;
 }
 
-static bool _StringIsXYZ(const String *self, const char **withoutScheme,
-    const char * scheme, size_t scheme_size)
-{
-    const char *dummy = NULL;
-
-    assert(self && self->addr);
-
-    if (withoutScheme == NULL) {
-        withoutScheme = &dummy;
-    }
-
-    *withoutScheme = NULL;
-
-    if (string_cmp(self->addr, self->len, scheme, scheme_size,
-                                                scheme_size) == 0)
-    {
-        *withoutScheme = self->addr + scheme_size;
-        return true;
-    }
-    return false;
-}
-
-static
-bool _StringIsFasp(const String *self, const char **withoutScheme)
-{
-    const char fasp[] = "fasp://";
-    return _StringIsXYZ ( self, withoutScheme, fasp, sizeof fasp - 1 );
-}
-
 static
 bool _SchemeIsFasp(const String *self) {
     const char fasp[] = "fasp";
     return _StringIsXYZ(self, NULL, fasp, sizeof fasp - 1);
-}
-
-/********** KFile extension **********/
-static rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns,
-    const VPath *vpath, const String *path, bool reliable)
-{
-    rc_t rc = 0;
-
-    bool ceRequired = false;
-    bool payRequired = false;
-
-    assert(self);
-
-    if (*self != NULL)
-        return 0;
-
-    assert (path);
-
-    if ( _StringIsFasp ( path, NULL ) )
-        return
-            SILENT_RC ( rcExe, rcFile, rcConstructing, rcParam, rcWrongType );
-
-    VPathGetCeRequired(vpath, &ceRequired);
-    VPathGetPayRequired(vpath, &payRequired);
-
-    if ( reliable )
-        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, true,
-            ceRequired, payRequired, "%S", path);
-    else
-        rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, "%S", path);
-
-    return rc;
 }
 
 /********** KDirectory extension **********/
@@ -1109,205 +1048,6 @@ static rc_t ResolvedLocal(const Resolved *self,
     return rc;
 }
 
-typedef enum {
-    eRSJustRetry,
-    eRSReopen,
-    eRSDecBuf,
-    eRSIncTO,
-    eRSMax,
-} ERetryState;
-
-typedef struct {
-    size_t bsize;
-    KNSManager * mgr;
-    const VPath * path;
-    const String * src;
-    bool isUri;
-    const KFile ** f;
-    uint64_t size;
-
-    bool failed;
-    uint64_t pos;
-    ERetryState state;
-    size_t curSize;
-    uint32_t sleepTO;
-} Retrier;
-
-static void RetrierReset(Retrier * self, uint64_t pos) {
-    self->pos = pos;
-
-    if (self->failed) {
-        self->failed = false;
-
-        self->state = eRSJustRetry;
-        self->curSize = self->bsize;
-        self->sleepTO = 0;
-
-        if (KStsLevelGet() >= 1)
-            PLOGERR(klogErr, (klogErr, 0,
-                "KFileRead success: '$(name)':$(pos)/$(sz)",
-                "name=%S,pos=%\'lu,sz=%\'lu",
-                self->src, self->pos, self->size));
-    }
-}
-
-static void RetrierInit(Retrier * self, const PrfMain * mane,
-    const VPath * path, const String * src, bool isUri, const KFile ** f,
-    size_t size, uint64_t pos)
-{
-    assert(self && f && *f && src);
-
-    memset(self, 0, sizeof *self);
-
-    self->bsize = mane->bsize;
-    self->mgr = mane->kns;
-    self->path = path;
-    self->src = src;
-    self->size = size;
-    self->isUri = isUri;
-
-    self->curSize = self->bsize;
-    self->f = f;
-
-    RetrierReset(self, pos);
-}
-
-static rc_t RetrierReopenRemote(Retrier * self) {
-    rc_t rc = 0;
-
-    uint32_t timeout = 1;
-
-    KFileRelease(*self->f);
-    *self->f = NULL;
-
-    while (timeout < 10 * 60 /* 10 minutes */) {
-        rc = _KFileOpenRemote(self->f, self->mgr, self->path,
-            self->src, !self->isUri);
-        if (rc == 0)
-            break;
-
-        KSleep(timeout);
-        timeout *= 2;
-    }
-
-    return rc;
-}
-
-static bool RetrierDecBufSz(Retrier * self, rc_t rc) {
-    const size_t MIN = 3768;
-
-    assert(self);
-
-    /* 3768 is usually returned by KStreamRead (size of TLS buffer?) */
-    if (self->curSize == MIN)
-        return false;
-
-    self->curSize /= 2;
-    if (self->curSize < MIN)
-        self->curSize = MIN;
-
-    return true;
-}
-
-static bool RetrierIncSleepTO(Retrier * self) {
-    if (self->sleepTO == 0)
-        self->sleepTO = 1;
-    else
-        self->sleepTO *= 2;
-
-    if (self->sleepTO == 16)
-        --self->sleepTO;
-
-    if (self->sleepTO > 20 * 60 /* 20 minutes */)
-        return false;
-    else
-        return true;
-}
-
-/* #define TESTING_FAILURES */
-
-static rc_t Retry(Retrier * self, rc_t rc, uint64_t opos) {
-    bool retry = true;
-
-    assert(self);
-
-    if (opos <= self->pos)
-        switch (self->state) {
-        case eRSJustRetry:
-            break;
-        case eRSReopen:
-            if (RetrierReopenRemote(self) != 0)
-                retry = false;
-            break;
-        case eRSDecBuf:
-            if (RetrierDecBufSz(self, rc))
-                break;
-            else
-                self->state = eRSIncTO;
-        case eRSIncTO:
-            if (!RetrierIncSleepTO(self))
-                retry = false;
-            break;
-        default: assert(0); break;
-        }
-
-    self->failed = true;
-
-    if (retry) {
-        KStsLevel lvl = KStsLevelGet();
-        if (lvl > 0) {
-            if (lvl == 1)
-                PLOGERR(klogErr, (klogErr, rc,
-                    "Cannot KFileRead: retrying '$(name)'...",
-                    "name=%S", self->src));
-            else
-                switch (self->state) {
-                case eRSJustRetry:
-                    PLOGERR(klogErr, (klogErr, rc,
-                        "Cannot KFileRead: retrying '$(name)':$(pos)...",
-                        "name=%S,pos=%lu", self->src, self->pos));
-                    break;
-                case eRSReopen:
-                    PLOGERR(klogErr, (klogErr, rc,
-                        "Cannot KFileRead: reopened, retrying '$(name)'...",
-                        "name=%S", self->src));
-                    break;
-                case eRSDecBuf:
-                    PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
-                        "buffer size = $(sz), retrying '$(name)'...",
-                        "sz=%zu,name=%S", self->curSize, self->src));
-                    break;
-                case eRSIncTO:
-                    PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
-                        "sleep TO = $(to)s, retrying '$(name)'...",
-                        "to=%u,name=%S", self->sleepTO, self->src));
-                    break;
-                default: assert(0); break;
-                }
-        }
-
-        rc = 0;
-    }
-    else
-        PLOGERR(klogErr, (klogErr, rc,
-            "Cannot KFileRead '$(name)': sz=$(sz), to=$(to)",
-            "name=%S,sz=%zu,to=%u", self->src, self->curSize, self->sleepTO));
-
-    if (rc == 0) {
-        if (self->sleepTO > 0) {
-            STSMSG(2, ("Sleeping %us...", self->sleepTO));
-#ifndef TESTING_FAILURES
-            KSleep(self->sleepTO);
-#endif
-        }
-
-        if (++self->state == eRSMax)
-            self->state = eRSReopen;
-    }
-
-    return rc;
-}
-
 static rc_t PrfMainDownloadHttpFile(Resolved *self,
     PrfMain *mane, const char *to, const VPath * path)
 {
@@ -1495,12 +1235,12 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         bool already = false;
         rc_t testRc = 1;
 #endif
-        Retrier retrier;
+        PrfRetrier retrier;
         rc = 0;
         if (in == NULL)
             rc = _KFileOpenRemote(&in, mane->kns, path,
                 &src, !self->isUri);
-        RetrierInit(&retrier, mane, path,
+        PrfRetrierInit(&retrier, mane, path,
             &src, self->isUri, &in, size, opos);
         while (rc == 0) {
             rc = Quitting();
@@ -1513,7 +1253,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             if (!already&&rc == 0)rc = testRc; else already = true;
 #endif
             if (rc != 0) {
-                rc = Retry(&retrier, rc, opos != 0);
+                rc = PrfRetrierAgain(&retrier, rc, opos != 0);
                 if (rc != 0)
                     break;
                 else
@@ -1528,7 +1268,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 rc = RC(rcExe,
                     rcFile, rcCopying, rcTransfer, rcIncomplete);
             opos += num_writ;
-            RetrierReset(&retrier, opos);
+            PrfRetrierReset(&retrier, opos);
             if (pb != NULL)
                 update_progressbar(pb, 100 * 100 * opos / size);
         }

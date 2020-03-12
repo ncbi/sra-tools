@@ -90,7 +90,7 @@ typedef enum {
     eForceYES /* force download; ignore lockes */
 } EForce;
 
-typedef struct {
+typedef struct PrfMain {
     struct Args *args;
     bool check_all;
 
@@ -155,6 +155,13 @@ typedef struct {
     const char * textkart;
 #endif
 } PrfMain;
+
+bool _StringIsXYZ(const struct String *self, const char **withoutScheme,
+    const char * scheme, size_t scheme_size);
+bool _StringIsFasp(const struct String *self, const char **withoutScheme);
+
+rc_t _KFileOpenRemote(const struct KFile **self, struct KNSManager *kns,
+    const struct VPath *vpath, const struct String *path, bool reliable);
 
 rc_t _VDBManagerSetDbGapCtx(
     const struct VDBManager *self, struct VResolver *resolver);

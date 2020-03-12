@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project=".\exe-project.props" />
   
@@ -15,4 +15,10 @@
     <ProjectGuid>{2CF4BF04-4C4D-442E-A7AD-0AE5EF87C733}</ProjectGuid>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="..\..\..\tools\prefetch\Makefile" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\tools\prefetch\PrfMain.h" />
+  </ItemGroup>
 </Project>

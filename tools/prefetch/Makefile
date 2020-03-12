@@ -32,7 +32,6 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	prefetch \
-#	aget
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -62,8 +61,10 @@ clean: stdclean
 # prefetch
 #
 PREFETCH_SRC = \
+	kfile-no-q \
+	PrfMain \
 	prefetch \
-	kfile-no-q
+#	PrfRetrier \
 
 PREFETCH_OBJ = \
 	$(addsuffix .$(OBJX),$(PREFETCH_SRC))
@@ -77,17 +78,3 @@ PREFETCH_LIB = \
 
 $(BINDIR)/prefetch: $(PREFETCH_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(PREFETCH_LIB)
-
-#-------------------------------------------------------------------------------
-# aget
-#
-GET_SRC = \
-	aget \
-	getAscp
-
-GET_OBJ = \
-	$(addsuffix .$(OBJX),$(GET_SRC))
-
-$(BINDIR)/aget: $(GET_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(PREFETCH_LIB)
-

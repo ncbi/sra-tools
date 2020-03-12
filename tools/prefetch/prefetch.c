@@ -28,32 +28,31 @@
 
 #include <cloud/manager.h> /* CloudMgrMake */
 
-#include <kapp/args-conv.h> /* ArgsConvFilepath */
-#include <kapp/main.h> /* KAppVersion */
+#include <kapp/args.h> /* ArgsParamCount */
+#include <kapp/main.h> /* Quitting */
 
 #include <kdb/manager.h> /* kptDatabase */
 
-#include <kfg/config.h> /* KConfig */
 #include <kfg/kart.h> /* Kart */
 #include <kfg/repository.h> /* KRepositoryMgr */
 
-#include <vdb/database.h> /* VDatabase */
-#include <vdb/dependencies.h> /* VDBDependencies */
+#include <vdb/dependencies.h> /* VDBDependenciesRemoteAndCache */
 #include <vdb/manager.h> /* VDBManager */
-#include <vdb/vdb-priv.h> /* VDatabaseIsCSRA */
+#include <vdb/vdb-priv.h> /* VDBManagerPathTypeUnreliable */
 
-#include <vfs/manager.h> /* VFSManager */
+#include <vfs/manager.h> /* VFSManagerMakePathWithExtension */
 #include <vfs/manager-priv.h> /* VResolverCacheForUrl */
 #include <vfs/path.h> /* VPathRelease */
 #include <vfs/resolver-priv.h> /* VResolverQueryWithDir */
 #include <vfs/services-priv.h> /* KServiceNamesQueryExt */
 
-#include <kns/ascp.h> /* ascp_locate */
+#include <kns/ascp.h> /* AscpOptions */
 #include <kns/manager.h>
 #include <kns/stream.h> /* KStreamRelease */
 #include <kns/kns-mgr-priv.h>
 #include <kns/http.h>
 
+#include <kfs/directory.h> /* KDirectoryPathType */
 #include <kfs/file.h> /* KFile */
 #include <kfs/gzip.h> /* KFileMakeGzipForRead */
 #include <kfs/subfile.h> /* KFileMakeSubRead */
@@ -62,7 +61,7 @@
 #include <klib/container.h> /* BSTree */
 #include <klib/data-buffer.h> /* KDataBuffer */
 #include <klib/log.h> /* PLOGERR */
-#include <klib/out.h> /* KOutMsg */
+#include <klib/out.h> /* OUTMSG */
 #include <klib/printf.h> /* string_printf */
 #include <klib/progressbar.h> /* make_progressbar */
 #include <klib/rc.h>
@@ -82,23 +81,13 @@
 #include <stdio.h> /* printf */
 
 #include "kfile-no-q.h"
-
-#define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
-
-#define DISP_RC2(rc, msg, name) (void)((rc == 0) ? 0 : \
-    PLOGERR(klogInt, (klogInt,rc, "$(msg): $(name)","msg=%s,name=%s",msg,name)))
-
-#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
-    if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
+#include "PrfMain.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
 
-#define STS_TOP 0
 #define STS_INFO 1
-#define STS_DBG 2
-#define STS_FIN 3
 
 #define USE_CURL 0
 #define ALLOW_STRIP_QUALS 0
@@ -116,136 +105,6 @@ static bool NotFoundByResolver(rc_t rc) {
     }
     return false;
 }
-
-typedef enum {
-    eOrderSize,
-    eOrderOrig
-} EOrder;
-typedef enum {
-    eForceNo, /* do not download found and complete objects */
-    eForceYes,/* force download of found and complete objects */
-    eForceYES /* force download; ignore lockes */
-} EForce;
-typedef enum {
-    eRunTypeUnknown,
-    eRunTypeList,     /* list sizes */
-    eRunTypeDownload,
-    eRunTypeGetSize    /* download ordered by sizes */
-} ERunType;
-typedef struct {
-    const VPath *path;
-    const String *str;
-} VPathStr;
-typedef struct {
-    BSTNode n;
-    char *path;
-} TreeNode;
-typedef struct {
-    ERunType type;
-    char *name; /* name to resolve */
-
-    VPathStr      local;
-    const String *cache;
-
-    VPathStr      remoteHttp;
-    VPathStr      remoteHttps;
-    VPathStr      remoteFasp;
-
-    const KFile *file;
-    uint64_t remoteSz;
-
-    bool undersized; /* remoteSz < min allowed size */
-    bool oversized; /* remoteSz >= max allowed size */
-
-    bool existing; /* the path is a path to an existing local file */
-
- /* path to the resolved object : absolute path or resolved(local or cache) */
-    VPathStr path;
-
-    VPath *accession;
-    bool isUri; /* accession is URI */
-    bool inOutDir; /* cache location is in the output directory ow cwd */
-
-    uint64_t project;
-    bool dbgapProject;
-    /* project > 0 : protected
-       project = 0 & dbgapProject   : protected (1000 genomes)
-       project = 0 & ! dbgapProject : public  */
-
-    const KartItem *kartItem;
-
-    VResolver *resolver;
-
-    const KSrvResponse * response;
-    uint32_t respObjIdx;
-    KSrvRespObjIterator * respIt;
-    KSrvRespFile * respFile;
-} Resolved;
-typedef struct {
-    Args *args;
-    bool check_all;
-
-    bool list_kart;
-    bool list_kart_numbered;
-    bool list_kart_sized;
-    EOrder order;
-
-    const char *rows;
-
-    EForce force;
-    KConfig *cfg;
-    KDirectory *dir;
-
-    const KRepositoryMgr *repoMgr;
-    const VDBManager *mgr;
-    VFSManager *vfsMgr;
-    KNSManager *kns;
-
-    VResolver *resolver;
-
-    void *buffer;
-    size_t bsize;
-
-    bool undersized; /* remoteSz < min allowed size */
-    bool oversized; /* remoteSz >= max allowed size */
-
-    BSTree downloaded;
-
-    size_t minSize;
-    size_t maxSize;
-    uint64_t heartbeat;
-    bool showProgress;
-
-    bool noAscp;
-    bool noHttp;
-
-    bool forceAscpFail;
-
-    bool ascpChecked;
-    const char *ascp;
-    const char *asperaKey;
-    String *ascpMaxRate;
-    const char *ascpParams; /* do not free! */
-
-    bool stripQuals;     /* this will download file without quality columns */
-    bool eliminateQuals; /* this will download cache file with eliminated
-                            quality columns which could filled later */
-
-    bool dryRun; /* Dry run the app: don't download, only check resolving */
-
-    const char * location; /* do not free! */
-    const char * outDir;  /* do not free! */
-    const char * outFile; /* do not free! */
-    const char * orderOrOutFile; /* do not free! */
-    const char * fileType;  /* do not free! */
-    const char * ngc;  /* do not free! */
-    const char * jwtCart;  /* do not free! */
-
-    const char * kart;
-#if _DEBUGGING
-    const char * textkart;
-#endif
-} Main;
 
 typedef struct {
     /* "plain" command line argument */
@@ -265,8 +124,9 @@ typedef struct {
     bool isDependency;
     char * seq_id;
 
-    Main *mane; /* just a pointer, no refcount here, don't release it */
+    PrfMain *mane; /* just a pointer, no refcount here, don't release it */
 } Item;
+
 typedef struct {
     const char *obj;
     bool done;
@@ -274,10 +134,12 @@ typedef struct {
     bool isKart;
     const char *jwtCart;
 } Iterator;
+
 typedef struct {
     BSTNode n;
     Item *i;
 } KartTreeNode;
+
 /********** String extension **********/
 static rc_t StringRelease(const String *self) {
     free((String*)self);
@@ -812,7 +674,7 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
     rc_t rc = 0;
     const VPath *vcache = NULL;
     const char * dir = NULL;
-    const Main * mane = NULL;
+    const PrfMain * mane = NULL;
 
     const char *name = NULL;
     const String **cache = NULL;
@@ -913,34 +775,6 @@ static rc_t VPathStrInit(VPathStr *self, const VPath * path) {
     return rc;
 }
 
-/********** TreeNode **********/
-static int64_t CC bstCmp(const void *item, const BSTNode *n) {
-    const char* path = item;
-    const TreeNode* sn = (const TreeNode*) n;
-
-    assert(path && sn && sn->path);
-
-    return strcmp(path, sn->path);
-}
-
-static int64_t CC bstSort(const BSTNode* item, const BSTNode* n) {
-    const TreeNode* sn = (const TreeNode*) item;
-
-    return bstCmp(sn->path, n);
-}
-
-static void CC bstWhack(BSTNode* n, void* ignore) {
-    TreeNode* sn = (TreeNode*) n;
-
-    assert(sn);
-
-    free(sn->path);
-
-    memset(sn, 0, sizeof *sn);
-
-    free(sn);
-}
-
 /********** NumIterator **********/
 
 typedef enum {
@@ -953,6 +787,7 @@ typedef enum {
     eNIForever,
     eNIEnd
 } ENumIteratorState;
+
 typedef struct {
     ENumIteratorState state;
     bool skip;
@@ -960,6 +795,7 @@ typedef struct {
     int32_t crnt;
     int32_t intEnd;
 } NumIterator;
+
 static void NumIteratorInit(NumIterator *self, const char *row) {
     assert(self);
     memset(self, 0, sizeof *self);
@@ -1133,7 +969,7 @@ static void ResolvedReset(Resolved *self, ERunType type) {
 /** isLocal is set to true when the object is found locally.
     i.e. does not need need not be [re]downloaded */
 static rc_t ResolvedLocal(const Resolved *self,
-    const Main *mane, bool *isLocal, EForce force)
+    const PrfMain *mane, bool *isLocal, EForce force)
 {
     rc_t rc = 0;
     const KDirectory *dir = NULL;
@@ -1273,62 +1109,6 @@ static rc_t ResolvedLocal(const Resolved *self,
     return rc;
 }
 
-/********** Main **********/
-static bool MainUseAscp(Main *self) {
-    rc_t rc = 0;
-
-    assert(self);
-
-    if (self->ascpChecked) {
-        return self->ascp != NULL;
-    }
-
-    self->ascpChecked = true;
-
-    if (self->noAscp) {
-        return false;
-    }
-
-    rc = ascp_locate(&self->ascp, &self->asperaKey, true, true);
-    return rc == 0 && self->ascp && self->asperaKey;
-}
-
-static bool MainHasDownloaded(const Main *self, const char *local) {
-    TreeNode *sn = NULL;
-
-    assert(self);
-
-    sn = (TreeNode*) BSTreeFind(&self->downloaded, local, bstCmp);
-
-    return sn != NULL;
-}
-
-static rc_t MainDownloaded(Main *self, const char *path) {
-    TreeNode *sn = NULL;
-
-    assert(self);
-
-    if (MainHasDownloaded(self, path)) {
-        return 0;
-    }
-
-    sn = calloc(1, sizeof *sn);
-    if (sn == NULL) {
-        return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
-    }
-
-    sn->path = string_dup_measure(path, NULL);
-    if (sn->path == NULL) {
-        bstWhack((BSTNode*) sn, NULL);
-        sn = NULL;
-        return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
-    }
-
-    BSTreeInsert(&self->downloaded, (BSTNode*)sn, bstSort);
-
-    return 0;
-}
-
 typedef enum {
     eRSJustRetry,
     eRSReopen,
@@ -1371,7 +1151,7 @@ static void RetrierReset(Retrier * self, uint64_t pos) {
     }
 }
 
-static void RetrierInit(Retrier * self, const Main * mane,
+static void RetrierInit(Retrier * self, const PrfMain * mane,
     const VPath * path, const String * src, bool isUri, const KFile ** f,
     size_t size, uint64_t pos)
 {
@@ -1528,8 +1308,8 @@ static rc_t Retry(Retrier * self, rc_t rc, uint64_t opos) {
     return rc;
 }
 
-static rc_t MainDownloadHttpFile(Resolved *self,
-    Main *mane, const char *to, const VPath * path)
+static rc_t PrfMainDownloadHttpFile(Resolved *self,
+    PrfMain *mane, const char *to, const VPath * path)
 {
     rc_t rc = 0;
     const KFile *in = NULL;
@@ -1559,7 +1339,7 @@ static rc_t MainDownloadHttpFile(Resolved *self,
 
     rc = VPathReadUri(path, spath, sizeof spath, &len);
     if (rc != 0) {
-        DISP_RC(rc, "VPathReadUri(MainDownloadHttpFile)");
+        DISP_RC(rc, "VPathReadUri(PrfMainDownloadHttpFile)");
         return rc;
     }
     else
@@ -1766,8 +1546,8 @@ static rc_t MainDownloadHttpFile(Resolved *self,
     return rc;
 }
 
-static rc_t MainDownloadCacheFile(Resolved *self,
-                        Main *mane, const char *to, bool elimQuals)
+static rc_t PrfMainDownloadCacheFile(Resolved *self,
+                        PrfMain *mane, const char *to, bool elimQuals)
 {
     rc_t rc = 0;
     const KFile *out = NULL;
@@ -1823,7 +1603,7 @@ static rc_t MainDownloadCacheFile(Resolved *self,
 /*  https://sra-download.ncbi.nlm.nih.gov/srapub/SRR125365.sra
 anonftp@ftp-private.ncbi.nlm.nih.gov:/sra/sra-instant/reads/ByR.../SRR125365.sra
 */
-static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
+static rc_t PrfMainDownloadAscp(const Resolved *self, PrfMain *mane,
     const char *to, const VPath * path)
 {
     rc_t rc = 0;
@@ -1849,7 +1629,7 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
 
     rc = VPathReadUri(path, spath, sizeof spath, &len);
     if (rc != 0) {
-        DISP_RC(rc, "VPathReadUri(MainDownloadAscp)");
+        DISP_RC(rc, "VPathReadUri(PrfMainDownloadAscp)");
         return rc;
     }
     else {
@@ -1884,12 +1664,12 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *mane,
     return aspera_get(mane->ascp, mane->asperaKey, src, to, &opt);
 }
 
-static rc_t MainDoDownload(Resolved *self, const Item * item,
+static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
             bool isDependency, const VPath * path, const char * to)
 {
     bool canceled = false;
     rc_t rc = 0;
-    Main * mane = NULL;
+    PrfMain * mane = NULL;
     String cache;
     memset(&cache, 0, sizeof cache);
     assert(item);
@@ -1936,7 +1716,7 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
                     rc = 1;
                 }
                 else
-                    rd = MainDownloadAscp(self, mane, to, path);
+                    rd = PrfMainDownloadAscp(self, mane, to, path);
                 if (rd == 0)
                     STSMSG(STS_TOP, (" fasp download succeed"));
                 else {
@@ -1955,10 +1735,10 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
             STSMSG(STS_TOP,
                 (" Downloading via %s...", https ? "https" : "http"));
             if (mane->eliminateQuals)
-                rd = MainDownloadCacheFile(self, mane,
+                rd = PrfMainDownloadCacheFile(self, mane,
                     cache.addr, mane->eliminateQuals && !isDependency);
             else
-                rd = MainDownloadHttpFile(self, mane, to, path);
+                rd = PrfMainDownloadHttpFile(self, mane, to, path);
             if (rd == 0)
                 STSMSG(STS_TOP, (" %s download succeed",
                     https ? "https" : "http"));
@@ -1977,12 +1757,12 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
     return rc;
 }
 
-static rc_t MainDownload(Resolved *self, const Item * item,
+static rc_t PrfMainDownload(Resolved *self, const Item * item,
                          bool isDependency, const VPath *vdbcache)
 {
     rc_t rc = 0;
     KFile *flock = NULL;
-    Main * mane = NULL;
+    PrfMain * mane = NULL;
 
     char tmp[PATH_MAX] = "";
     char lock[PATH_MAX] = "";
@@ -2013,7 +1793,7 @@ static rc_t MainDownload(Resolved *self, const Item * item,
             if (rc == 0) {
                 rc = VPathGetPath(vcache, &cache);
                 if (rc != 0) {
-                    DISP_RC(rc, "VPathGetPath(MainDownload)");
+                    DISP_RC(rc, "VPathGetPath(PrfMainDownload)");
                     return rc;
                 }
             }
@@ -2034,7 +1814,7 @@ static rc_t MainDownload(Resolved *self, const Item * item,
     }
 
     if (mane->force != eForceYES &&
-        MainHasDownloaded(mane, cache.addr))
+        PrfMainHasDownloaded(mane, cache.addr))
     {
         STSMSG(STS_INFO, ("%s has just been downloaded", cache.addr));
         return 0;
@@ -2102,17 +1882,17 @@ static rc_t MainDownload(Resolved *self, const Item * item,
                         break;
                     }
                 }
-                rd = MainDoDownload(self, item, isDependency, path, tmp);
+                rd = PrfMainDoDownload(self, item, isDependency, path, tmp);
             }
             else
-                MainDoDownload(self, item, isDependency, vdbcache, tmp);
+                PrfMainDoDownload(self, item, isDependency, vdbcache, tmp);
             if (rd == 0 && vdbcache == NULL) {
                 const VPath * vdbcache = NULL;
                 rc_t rc = VPathGetVdbcache(path, & vdbcache, NULL);
                 if (rc == 0 && vdbcache != NULL) {
                     STSMSG(STS_TOP, ("%d,2) Downloading '%s.vdbcache'...",
                         item->number, self->name));
-                    if (MainDownload(self, item, isDependency, vdbcache) == 0)
+                    if (PrfMainDownload(self, item, isDependency, vdbcache) == 0)
                         STSMSG(STS_TOP, (
                             "%d.2) '%s.vdbcache' was downloaded successfully",
                             item->number, self->name));
@@ -2131,19 +1911,19 @@ static rc_t MainDownload(Resolved *self, const Item * item,
     else {
         do {
             if (self->remoteFasp.path != NULL) {
-                rc = MainDoDownload(self, item,
+                rc = PrfMainDoDownload(self, item,
                     isDependency, self->remoteFasp.path, tmp);
                 if (rc == 0)
                     break;
             }
             if (self->remoteHttp.path != NULL) {
-                rc = MainDoDownload(self, item,
+                rc = PrfMainDoDownload(self, item,
                     isDependency, self->remoteHttp.path, tmp);
                 if (rc == 0)
                     break;
             }
             if (self->remoteHttps.path != NULL) {
-                rc = MainDoDownload(self, item,
+                rc = PrfMainDoDownload(self, item,
                     isDependency, self->remoteHttps.path, tmp);
                 if (rc == 0)
                     break;
@@ -2167,7 +1947,7 @@ static rc_t MainDownload(Resolved *self, const Item * item,
     }
 
     if (rc == 0)
-        rc = MainDownloaded(mane, cache.addr);
+        rc = PrfMainDownloaded(mane, cache.addr);
 
     if (rc == 0 && !mane->eliminateQuals) {
         rc_t rc2 = _KDirectoryCleanCache(mane->dir, & cache);
@@ -2181,73 +1961,6 @@ static rc_t MainDownload(Resolved *self, const Item * item,
         if (rc == 0 && rc2 != 0)
             rc = rc2;
     }
-
-    return rc;
-}
-
-static rc_t _VDBManagerSetDbGapCtx(
-    const VDBManager *self, VResolver *resolver)
-{
-    if (resolver == NULL) {
-        return 0;
-    }
-
-    return VDBManagerSetResolver(self, resolver);
-}
-
-static rc_t MainDependenciesList(const Main *self,
-    const Resolved *resolved, const VDBDependencies **deps)
-{
-    rc_t rc = 0;
-    bool isDb = true;
-    const VDatabase *db = NULL;
-    const String *str = NULL;
-    KPathType type = kptNotFound;
-
-    assert(self && resolved && deps);
-
-    str = resolved->path.str;
-    assert(str && str->addr);
-
-    rc = _VDBManagerSetDbGapCtx(self->mgr, resolved->resolver);
-
-    STSMSG(STS_DBG, ("Listing '%S's dependencies...", str));
-
-    type = VDBManagerPathType(self->mgr, "%S", str) & ~kptAlias;
-    if (type != kptDatabase) {
-        if (type == kptTable) {
-            STSMSG(STS_DBG, ("...'%S' is a table", str));
-        }
-        else {
-            STSMSG(STS_DBG,
-                ("...'%S' is not recognized as a database or a table", str));
-        }
-        return 0;
-    }
-
-    rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%S", str);
-    if (rc != 0) {
-        if (rc == SILENT_RC(rcDB, rcMgr, rcOpening, rcDatabase, rcIncorrect)) {
-            isDb = false;
-            rc = 0;
-        }
-        else if (rc ==
-            SILENT_RC(rcKFG, rcEncryptionKey, rcRetrieving, rcItem, rcNotFound))
-        {
-            STSMSG(STS_TOP, ("Cannot open encrypted file '%s'", resolved->name));
-            isDb = false;
-            rc = 0;
-        }
-        DISP_RC2(rc, "Cannot open database", resolved->name);
-    }
-
-    if (rc == 0 && isDb) {
-        bool all = self->check_all || self->force != eForceNo;
-        rc = VDatabaseListDependencies(db, deps, !all);
-        DISP_RC2(rc, "VDatabaseListDependencies", resolved->name);
-    }
-
-    RELEASE(VDatabase, db);
 
     return rc;
 }
@@ -2375,8 +2088,8 @@ rc_t ItemSetDependency(Item *self, const VDBDependencies *deps, uint32_t idx)
     return rc;
 }
 
-static
-rc_t _KartItemToVPath(const KartItem *self, const VFSManager *vfs, VPath **path)
+static rc_t _KartItemToVPath(const KartItem *self,
+    const VFSManager *vfs, VPath **path)
 {
     uint64_t oid = 0;
     rc_t rc = KartItemItemIdNumber(self, &oid);
@@ -2399,14 +2112,14 @@ rc_t _KartItemToVPath(const KartItem *self, const VFSManager *vfs, VPath **path)
 }
 
 static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
-    VResolver *resolver, const KConfig *cfg, const KRepositoryMgr *repoMgr,
+    VResolver *resolver, const KRepositoryMgr *repoMgr,
     const VFSManager *vfs)
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;
     const KRepository *p_protected = NULL;
 
-    assert(item && resolver && cfg && repoMgr && vfs);
+    assert(item && resolver && repoMgr && vfs);
 
     resolved = &item->resolved;
 
@@ -2530,66 +2243,19 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             return rc;
         }
         else {
-/*
-            if ( resolved->project == 0 ) {
-*/
                 rc = VResolverAddRef(resolver);
                 if (rc == 0)
                     resolved->resolver = resolver;
-/*
-            }
-            else {
-                rc = KRepositoryMgrGetProtectedRepository(repoMgr, 
-                    (uint32_t)resolved->project, &p_protected);
-                if (rc == 0) {
-                    rc = KRepositoryMakeResolver(p_protected,
-                        &resolved->resolver, cfg);
-                    if (rc != 0) {
-                        DISP_RC(rc, "KRepositoryMakeResolver");
-                        return rc;
-                    }
-                    else
-                        VResolverCacheEnable(resolved->resolver,
-                                             vrAlwaysEnable);
-                }
-                else {
-                    PLOGERR(klogErr, (klogErr, rc, "project '$(P)': "
-                        "cannot find protected repository", "P=%d",
-                        resolved->project));
-                }
-                RELEASE(KRepository, p_protected);
-            }
-*/
         }
     }
 
     return rc;
 }
 
-rc_t MainOutDirCheck ( Main * self, bool * setAndNotExists ) {
-    assert ( self && setAndNotExists );
-
-    * setAndNotExists = false;
-
-    if ( self -> outDir == NULL )
-        return 0;
-
-    if ( ( KDirectoryPathType ( self -> dir, self -> outDir ) & ~ kptAlias ) ==
-         kptNotFound )
-    {
-        * setAndNotExists = true;
-    }
-
-    return 0;
-/*  return KDirectoryOpenDirUpdate ( self -> dir, & self -> outDir, false,
-                                     self -> outDir );
-    return KDirectoryCreateDir ( self -> dir, 0775, kcmCreate | kcmParents,                                 self -> outDir );*/
-}
-
 /* resolve locations */
 static rc_t _ItemResolveResolved(VResolver *resolver,
     VRemoteProtocols protocols, Item *item, const KRepositoryMgr *repoMgr,
-    const KConfig *cfg, const VFSManager *vfs, KNSManager *kns,
+    const VFSManager *vfs, KNSManager *kns,
     size_t minSize, size_t maxSize)
 {
     Resolved *resolved = NULL;
@@ -2617,7 +2283,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     assert(resolved->accession == NULL);
 
     rc = _ItemSetResolverAndAccessionInResolved(item,
-        resolver, cfg, repoMgr, vfs);
+        resolver, repoMgr, vfs);
 
     assert ( item -> mane );
 
@@ -2693,7 +2359,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
 
 /* Resolved: resolve locations */
 static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
-    bool ascp, const KRepositoryMgr *repoMgr, const KConfig *cfg,
+    bool ascp, const KRepositoryMgr *repoMgr,
     const VFSManager *vfs, KNSManager *kns)
 {
     Resolved *resolved = NULL;
@@ -2760,7 +2426,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     if (!self->isDependency)
         rc = _ItemResolveResolved(resolver, protocols, self,
-            repoMgr, cfg, vfs, kns, self->mane->minSize, self->mane->maxSize);
+            repoMgr, vfs, kns, self->mane->minSize, self->mane->maxSize);
 
     if ( resolved -> remoteHttp . path != NULL )
         remote = & resolved -> remoteHttp;
@@ -2816,14 +2482,13 @@ static rc_t ItemResolve(Item *item, int32_t row) {
 
     item->number = n;
 
-    ascp = MainUseAscp(item->mane);
+    ascp = PrfMainUseAscp(item->mane);
     if (self->type == eRunTypeList) {
         ascp = false;
     }
 
     rc = ItemInitResolved(item, item->mane->resolver, item->mane->dir, ascp,
-        item->mane->repoMgr, item->mane->cfg, item->mane->vfsMgr,
-        item->mane->kns);
+        item->mane->repoMgr, item->mane->vfsMgr, item->mane->kns);
 
     return rc;
 }
@@ -3030,7 +2695,7 @@ static rc_t ItemDownload(Item *item) {
             STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, name));
             notFound =
                 KDirectoryPathType(item->mane->dir, "%s", name) == kptNotFound;
-            rc = MainDownload(self, item, item->isDependency, NULL);
+            rc = PrfMainDownload(self, item, item->isDependency, NULL);
             if (item->mane->dryRun && notFound
                 && KDirectoryPathType(item->mane->dir, "%s", name)
                     == kptDir)
@@ -3228,7 +2893,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
     assert(resolved);
 
     if (resolved->path.str != NULL) {
-        rc = MainDependenciesList(item->mane, resolved, &deps);
+        rc = PrfMainDependenciesList(item->mane, resolved, &deps);
     }
 
     /* resolve dependencies (refseqs) */
@@ -3364,784 +3029,6 @@ static rc_t ItemProcess(Item *item, int32_t row) {
     return ItemResolveResolvedAndDownloadOrProcess(item, row);
 }
 
-/*********** Command line arguments **********/
-
-static size_t _sizeFromString(const char *val) {
-    size_t s = 0;
-
-    for (s = 0; *val != '\0'; ++val) {
-        if (*val < '0' || *val > '9') {
-            break;
-        }
-        s = s * 10 + *val - '0';
-    }
-
-    if (*val == '\0' || *val == 'k' || *val == 'K') {
-        s *= 1024L;
-    }
-    else if (*val == 'b' || *val == 'B') {
-    }
-    else if (*val == 'm' || *val == 'M') {
-        s *= 1024L * 1024;
-    }
-    else if (*val == 'g' || *val == 'G') {
-        s *= 1024L * 1024 * 1024;
-    }
-    else if (*val == 't' || *val == 'T') {
-        s *= 1024L * 1024 * 1024 * 1024;
-    }
-    else if (*val == 'u' || *val == 'U') {  /* unlimited */
-        s = 0;
-    }
-
-    return s;
-}
-
-#define ASCP_OPTION "ascp-path"
-#define ASCP_ALIAS  "a"
-static const char* ASCP_USAGE[] =
-{ "Path to ascp program and private key file (asperaweb_id_dsa.putty)", NULL };
-
-#define ASCP_PAR_OPTION "ascp-options"
-#define ASCP_PAR_ALIAS  NULL
-static const char* ASCP_PAR_USAGE[] =
-{ "Arbitrary options to pass to ascp command line", NULL };
-
-#define CHECK_ALL_OPTION "check-all"
-#define CHECK_ALL_ALIAS  "c"
-static const char* CHECK_ALL_USAGE[] = { "Double-check all refseqs", NULL };
-
-#define DRY_RUN_OPTION "dryrun"
-static const char* DRY_RUN_USAGE[] = {
-    "Dry run the application: don't download, only check resolving" };
-
-#define FORCE_OPTION "force"
-#define FORCE_ALIAS  "f"
-static const char* FORCE_USAGE[] = {
-    "Force object download - one of: no, yes, all.",
-    "no [default]: skip download if the object if found and complete;",
-    "yes: download it even if it is found and is complete;", "all: ignore lock "
-    "files (stale locks or it is being downloaded by another process: "
-    "use at your own risk!)", NULL };
-
-#define FAIL_ASCP_OPTION "FAIL-ASCP"
-#define FAIL_ASCP_ALIAS  "F"
-static const char* FAIL_ASCP_USAGE[] = {
-    "Force ascp download fail to test ascp->http download combination" };
-
-#define LIST_OPTION "list"
-#define LIST_ALIAS  "l"
-/*static const char* LIST_USAGE[] = {"List the content of a kart file", NULL};*/
-
-#define LOCN_OPTION "location"
-#define LOCN_ALIAS  NULL
-static const char* LOCN_USAGE[] = { "Location of data", NULL };
-
-#define NM_L_OPTION "numbered-list"
-#define NM_L_ALIAS  "n"
-/*static const char* NM_L_USAGE[] =
-{ "List the content of a kart file with kart row numbers", NULL }; */
-
-#define MINSZ_OPTION "min-size"
-#define MINSZ_ALIAS  "N"
-static const char* MINSZ_USAGE[] =
-{ "Minimum file size to download in KB (inclusive).", NULL };
-
-#define ORDR_OPTION "order"
-#define ORDR_ALIAS  "o"
-static const char* ORDR_USAGE[] = {
-    "Kart prefetch order when downloading a kart: one of: kart, size.",
-    "(in kart order, by file size: smallest first), default: size", NULL };
-
-#define OUT_DIR_OPTION "output-directory"
-#define OUT_DIR_ALIAS  "O"
-static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/", NULL };
-
-#define OUT_FILE_OPTION "output-file"
-#define OUT_FILE_ALIAS  "o"
-static const char* OUT_FILE_USAGE[] = {
-    "Write file to FILE when downloading a single file", NULL };
-
-#define HBEAT_OPTION "heartbeat"
-#define HBEAT_ALIAS  "H"
-static const char* HBEAT_USAGE[] = {
-    "Time period in minutes to display download progress",
-    "(0: no progress), default: 1", NULL };
-
-#define PRGRS_OPTION "progress"
-#define PRGRS_ALIAS  "p"
-static const char* PRGRS_USAGE[] = { "show progress", NULL };
-
-#define ROWS_OPTION "rows"
-#define ROWS_ALIAS  "R"
-static const char* ROWS_USAGE[] =
-{ "Kart rows to download (default all).", "row list should be ordered", NULL };
-
-#define SZ_L_OPTION "list-sizes"
-#define SZ_L_ALIAS  "s"
-/*static const char* SZ_L_USAGE[] =
-{ "List the content of a kart file with target file sizes", NULL }; */
-
-#define TRANS_OPTION "transport"
-#define TRASN_ALIAS  "t"
-static const char* TRANS_USAGE[] = { "Transport: one of: fasp; http; both.",
-    "(fasp only; http only; first try fasp (ascp), "
-    "use http if cannot download using fasp).",
-    "Default: both", NULL };
-
-#define TYPE_OPTION "type"
-#define TYPE_ALIAS  "T"
-static const char* TYPE_USAGE[] = { "Specify file type to download.",
-    "Default: sra", NULL };
-
-#define DEFAULT_MAX_FILE_SIZE "20G"
-#define SIZE_OPTION "max-size"
-#define SIZE_ALIAS  "X"
-static const char* SIZE_USAGE[] = {
-    "Maximum file size to download in KB (exclusive).",
-    "Default: " DEFAULT_MAX_FILE_SIZE, NULL };
-
-#if ALLOW_STRIP_QUALS
-#define STRIP_QUALS_OPTION "strip-quals"
-#define STRIP_QUALS_ALIAS NULL
-static const char* STRIP_QUALS_USAGE[] =
-{ "Remove QUALITY column from all tables", NULL };
-#endif
-
-#define ELIM_QUALS_OPTION "eliminate-quals"
-static const char* ELIM_QUALS_USAGE[] =
-{ "Don't download QUALITY column", NULL };
-
-#define CART_OPTION "perm"
-static const char* CART_USAGE[] = { "PATH to jwt cart file", NULL };
-
-#define NGC_OPTION "ngc"
-#define NGC_ALIAS  NULL
-static const char* NGC_USAGE[] = { "PATH to ngc file", NULL };
-
-#define KART_OPTION "cart"
-static const char* KART_USAGE[] = { "To read a kart file", NULL };
-
-#if _DEBUGGING
-#define TEXTKART_OPTION "text-kart"
-static const char* TEXTKART_USAGE[] =
-{ "To read a textual format kart file (DEBUG ONLY)", NULL };
-#endif
-
-static OptDef OPTIONS[] = {
-    /*                                          max_count needs_value required*/
- { TYPE_OPTION        , TYPE_ALIAS        , NULL, TYPE_USAGE  , 1, true, false }
-,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
-,{ LOCN_OPTION        , LOCN_ALIAS        , NULL, LOCN_USAGE  , 1, true, false }
-,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
-,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
-,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
-,{ PRGRS_OPTION       , PRGRS_ALIAS       , NULL, PRGRS_USAGE , 1, false,false }
-,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
-,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
-,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
-/*
-,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
-,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
-,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
-*/
-,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
-,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
-,{ CART_OPTION        , NULL              , NULL, CART_USAGE  , 1, true ,false }
-,{ NGC_OPTION         , NULL              , NULL, NGC_USAGE   , 1, true ,false }
-,{ KART_OPTION        , NULL              , NULL, KART_USAGE  , 1, true, false }
-#if _DEBUGGING
-,{ TEXTKART_OPTION    , NULL              , NULL,TEXTKART_USAGE,1, true, false }
-#endif
-,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
-,{ ASCP_PAR_OPTION    , ASCP_PAR_ALIAS    , NULL, ASCP_PAR_USAGE,1,true, false}
-,{ FAIL_ASCP_OPTION   , FAIL_ASCP_ALIAS  ,NULL,FAIL_ASCP_USAGE, 1, false,false }
-#if ALLOW_STRIP_QUALS
-,{ STRIP_QUALS_OPTION ,STRIP_QUALS_ALIAS,NULL,STRIP_QUALS_USAGE,1, false,false }
-#endif
-,{ OUT_FILE_OPTION    , NULL              ,NULL,OUT_FILE_USAGE ,1, true, false }
-,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE,1, true, false }
-,{ DRY_RUN_OPTION     , NULL              , NULL, DRY_RUN_USAGE,1, false,false }
-};
-
-static ParamDef Parameters[] = { { ArgsConvFilepath } };
-
-static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
-    rc_t rc = 0;
-
-    assert(self);
-
-    rc = ArgsMakeAndHandle2(&self->args, argc, argv,
-        Parameters, sizeof Parameters / sizeof Parameters[0],
-        1, OPTIONS, sizeof OPTIONS / sizeof OPTIONS[0]);
-    if (rc != 0) {
-        DISP_RC(rc, "ArgsMakeAndHandle");
-        return rc;
-    }
-
-    do {
-        const char * option_name = NULL;
-        uint32_t pcount = 0;
-
-/* FORCE_OPTION goes first */
-        rc = ArgsOptionCount (self->args, FORCE_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" FORCE_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            const char *val = NULL;
-            rc = ArgsOptionValue(self->args, FORCE_OPTION, 0, (const void **)&val);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" FORCE_OPTION "' argument value");
-                break;
-            }
-            if (val == NULL || val[0] == '\0') {
-                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                LOGERR(klogErr, rc,
-                    "Unrecognized '" FORCE_OPTION "' argument value");
-                break;
-            }
-            switch (val[0]) {
-                case 'n':
-                case 'N':
-                    self->force = eForceNo;
-                    break;
-                case 'y':
-                case 'Y':
-                    self->force = eForceYes;
-                    break;
-                case 'a':
-                case 'A':
-                    self->force = eForceYES;
-                    break;
-                default:
-                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                    LOGERR(klogErr, rc,
-                        "Unrecognized '" FORCE_OPTION "' argument value");
-                    break;
-            }
-            if (rc != 0) {
-                break;
-            }
-        }
-
-/* CHECK_ALL_OPTION goes after FORCE_OPTION */
-        rc = ArgsOptionCount(self->args, CHECK_ALL_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" CHECK_ALL_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0 || self->force != eForceNo) {
-            self->check_all = true;
-        }
-
-#if 0
-/******* LIST OPTIONS BEGIN ********/
-/* LIST_OPTION */
-        rc = ArgsOptionCount(self->args, LIST_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" LIST_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            self->list_kart = true;
-        }
-
-/* NM_L_OPTION */
-        rc = ArgsOptionCount(self->args, NM_L_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" NM_L_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            self->list_kart = self->list_kart_numbered = true;
-        }
-
-/* SZ_L_OPTION */
-        rc = ArgsOptionCount(self->args, SZ_L_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" SZ_L_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) { /* self->list_kart is not set here! */
-            self->list_kart_sized = true;
-        }
-/******* LIST OPTIONS END ********/
-#endif
-
-option_name = LOCN_OPTION;
-        {
-            rc = ArgsOptionCount(self->args, option_name, &pcount);
-            if (rc != 0) {
-                PLOGERR(klogInt, (klogInt, rc,
-                    "Failure to get '$(opt)' argument", "opt=%s", option_name));
-                break;
-            }
-            if (pcount > 0) {
-                rc = ArgsOptionValue(self->args,
-                    option_name, 0, (const void **)&self->location);
-                if (rc != 0) {
-                    PLOGERR(klogInt, (klogInt, rc, "Failure to get "
-                        "'$(opt)' argument value", "opt=%s", option_name));
-                    break;
-                }
-            }
-        }
-
-/* ASCP_OPTION */
-        rc = ArgsOptionCount(self->args, ASCP_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" ASCP_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            const char *val = NULL;
-            rc = ArgsOptionValue(self->args, ASCP_OPTION, 0, (const void **)&val);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" ASCP_OPTION "' argument value");
-                break;
-            }
-            if (val != NULL) {
-                char *sep = strchr(val, '|');
-                if (sep == NULL) {
-                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                    LOGERR(klogErr, rc,
-             "ascp-path expected in the following format:\n"
-             "--" ASCP_OPTION " \"<ascp-binary|private-key-file>\"\n"
-             "Examples:\n"
-             "--" ASCP_OPTION " \"/usr/bin/ascp|/etc/asperaweb_id_dsa.putty\"\n"
-             "--" ASCP_OPTION " \"C:\\Program Files\\Aspera\\ascp.exe|C:\\Program Files\\Aspera\\etc\\asperaweb_id_dsa.putty\"\n");
-                    break;
-                }
-                else {
-                    self->ascp = string_dup(val, sep - val);
-                    self->asperaKey = string_dup_measure(sep + 1, NULL);
-                    self->ascpChecked = true;
-                }
-            }
-        }
-
-/* ASCP_PAR_OPTION */
-        rc = ArgsOptionCount(self->args, ASCP_PAR_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" ASCP_PAR_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            rc = ArgsOptionValue(self->args,
-                ASCP_PAR_OPTION, 0, (const void **)&self->ascpParams);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" ASCP_PAR_OPTION "' argument value");
-                break;
-            }
-        }
-
-/* FAIL_ASCP_OPTION */
-        rc = ArgsOptionCount(self->args, FAIL_ASCP_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" FAIL_ASCP_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            self->forceAscpFail = true;
-        }
-
-option_name = DRY_RUN_OPTION;
-    {
-        rc = ArgsOptionCount(self->args, option_name, &pcount);
-        if (rc != 0) {
-            PLOGERR(klogInt, (klogInt, rc,
-                "Failure to get '$(opt)' argument", "opt=%s", option_name));
-            break;
-        }
-        if (pcount > 0)
-            self->dryRun = true;
-    }
-
-/* PRGRS_OPTION */
-    {
-        rc = ArgsOptionCount(self->args, PRGRS_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" PRGRS_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0)
-            self->showProgress = true;
-    }
-
-/* HBEAT_OPTION */
-        rc = ArgsOptionCount(self->args, HBEAT_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" HBEAT_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            double f;
-            const char *val = NULL;
-            rc = ArgsOptionValue(self->args, HBEAT_OPTION, 0, (const void **)&val);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" HBEAT_OPTION "' argument value");
-                break;
-            }
-            f = atof(val) * 60000;
-            self->heartbeat = (uint64_t)f;
-        }
-
-/* ROWS_OPTION */
-        rc = ArgsOptionCount(self->args, ROWS_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" ROWS_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            rc = ArgsOptionValue(self->args, ROWS_OPTION, 0, (const void **)&self->rows);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" ROWS_OPTION "' argument value");
-                break;
-            }
-        }
-
-/* MINSZ_OPTION */
-        {
-            const char *val = "0";
-            rc = ArgsOptionCount(self->args, MINSZ_OPTION, &pcount);
-            if (rc != 0) {
-                LOGERR(klogErr,
-                    rc, "Failure to get '" MINSZ_OPTION "' argument");
-                break;
-            }
-            if (pcount > 0) {
-                rc = ArgsOptionValue(self->args, MINSZ_OPTION, 0, (const void **)&val);
-                if (rc != 0) {
-                    LOGERR(klogErr, rc,
-                        "Failure to get '" MINSZ_OPTION "' argument value");
-                    break;
-                }
-            }
-            self->minSize = _sizeFromString(val);
-        }
-
-/* SIZE_OPTION */
-        {
-            const char *val = DEFAULT_MAX_FILE_SIZE;
-            rc = ArgsOptionCount(self->args, SIZE_OPTION, &pcount);
-            if (rc != 0) {
-                LOGERR(klogErr,
-                    rc, "Failure to get '" SIZE_OPTION "' argument");
-                break;
-            }
-            if (pcount > 0) {
-                rc = ArgsOptionValue(self->args, SIZE_OPTION, 0, (const void **)&val);
-                if (rc != 0) {
-                    LOGERR(klogErr, rc,
-                        "Failure to get '" SIZE_OPTION "' argument value");
-                    break;
-                }
-            }
-            self->maxSize = _sizeFromString(val);
-            if (self->maxSize == 0) {
-                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                LOGERR(klogErr, rc, "Maximum requested file size is zero");
-                break;
-            }
-        }
-
-        if (self->maxSize > 0 && self->minSize > self->maxSize) {
-            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-            LOGERR(klogErr, rc, "Minimum file size is larger than maximum");
-            break;
-        }
-
-/* TRANS_OPTION */
-        {
-            rc = ArgsOptionCount(self->args, TRANS_OPTION, &pcount);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" TRANS_OPTION "' argument");
-                break;
-            }
-
-            if (pcount > 0) {
-                bool ok = false;
-                const char *val = NULL;
-                rc = ArgsOptionValue(
-                    self->args, TRANS_OPTION, 0, (const void **)&val);
-                if (rc != 0) {
-                    LOGERR(klogErr, rc,
-                        "Failure to get '" TRANS_OPTION "' argument value");
-                    break;
-                }
-                assert(val);
-                switch (val[0]) {
-                case 'a':
-                case 'f': {
-                    const char ascp[] = "ascp";
-                    const char fasp[] = "fasp";
-                    if (string_cmp(val, string_measure(val, NULL),
-                            ascp, sizeof ascp - 1, sizeof ascp - 1) == 0
-                        ||
-                        string_cmp(val, string_measure(val, NULL),
-                            fasp, sizeof fasp - 1, sizeof fasp - 1) == 0
-                        ||
-                        (val[0] == 'a' && val[1] == '\0'))
-                    {
-                        self->noHttp = true;
-                        ok = true;
-                    }
-                    break;
-                }
-                case 'h': {
-                    const char http[] = "http";
-                    if (string_cmp(val, string_measure(val, NULL),
-                            http, sizeof http - 1, sizeof http - 1) == 0
-                        || val[1] == '\0')
-                    {
-                        self->noAscp = true;
-                        ok = true;
-                    }
-                    break;
-                }
-                }
-                if (!ok) {
-                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                    LOGERR(klogErr, rc,
-                           "Bad '" TRANS_OPTION "' argument value");
-                    break;
-                }
-            }
-        }
-
-option_name = TYPE_OPTION;
-        {
-            rc = ArgsOptionCount(self->args, option_name, &pcount);
-            if (rc != 0) {
-                PLOGERR(klogInt, (klogInt, rc,
-                    "Failure to get '$(opt)' argument", "opt=%s", option_name));
-                break;
-            }
-            if (pcount > 0) {
-                rc = ArgsOptionValue(self->args,
-                    option_name, 0, (const void **)&self->fileType);
-                if (rc != 0) {
-                    PLOGERR(klogInt, (klogInt, rc, "Failure to get "
-                        "'$(opt)' argument value", "opt=%s", option_name));
-                    break;
-                }
-            }
-        }
-
-#if ALLOW_STRIP_QUALS
-/* STRIP_QUALS_OPTION */
-        rc = ArgsOptionCount(self->args, STRIP_QUALS_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" STRIP_QUALS_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            self->stripQuals = true;
-        }
-#endif
-
-/* ELIM_QUALS_OPTION */
-        rc = ArgsOptionCount(self->args, ELIM_QUALS_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" ELIM_QUALS_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            self->eliminateQuals = true;
-        }
-
-#if ALLOW_STRIP_QUALS
-        if (self->stripQuals && self->eliminateQuals) {
-            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-            LOGERR(klogErr, rc, "Cannot specify both --" STRIP_QUALS_OPTION
-                                       "and --" ELIM_QUALS_OPTION );
-            break;
-        }
-#endif
-
-/* OUT_DIR_OPTION */
-        rc = ArgsOptionCount(self->args, OUT_DIR_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" OUT_DIR_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            rc = ArgsOptionValue(self->args,
-                OUT_DIR_OPTION, 0, (const void **)&self->outDir);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OUT_DIR_OPTION "' argument value");
-                break;
-            }
-        }
-
-/* OUT_FILE_OPTION */
-        rc = ArgsOptionCount(self->args, OUT_FILE_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr,
-                rc, "Failure to get '" OUT_FILE_OPTION "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            rc = ArgsOptionValue(self->args,
-                OUT_FILE_OPTION, 0, (const void **)&self->outFile);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OUT_FILE_OPTION "' argument value");
-                break;
-            }
-        }
-
-        if ( self->outFile != NULL )
-            self->outDir = NULL;
-
-/* ORDR_OPTION */
-        rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" ORDR_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            bool asAlias = false;
-            const char *val = NULL;
-            rc = ArgsOptionValueExt(self->args, ORDR_OPTION, 0,
-                                    (const void **)&val, &asAlias);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" ORDR_OPTION "' argument value");
-                break;
-            }
-            if (val != NULL && val[0] == 's')
-                self->order = eOrderSize;
-            else
-                self->order = eOrderOrig;
-            if (asAlias)
-                self -> orderOrOutFile = val;
-        }
-
-/* NGC_OPTION */
-        {
-            rc = ArgsOptionCount(self->args, NGC_OPTION, &pcount);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" NGC_OPTION "' argument");
-                break;
-            }
-
-            if (pcount > 0) {
-                const char *val = NULL;
-                rc = ArgsOptionValue(self->args, NGC_OPTION,
-                    0, (const void **)&val);
-                if (rc != 0) {
-                    LOGERR(klogErr, rc,
-                        "Failure to get '" NGC_OPTION "' argument value");
-                    break;
-                }
-                self->ngc = val;
-            }
-        }
-
-/* CART_OPTION */
-        {
-            rc = ArgsOptionCount(self->args, CART_OPTION, &pcount);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" CART_OPTION "' argument");
-                break;
-            }
-
-            if (pcount > 0) {
-                const char *val = NULL;
-                rc = ArgsOptionValue(self->args, CART_OPTION,
-                    0, (const void **)&val);
-                if (rc != 0) {
-                    LOGERR(klogErr, rc,
-                        "Failure to get '" CART_OPTION "' argument value");
-                    break;
-                }
-                self->jwtCart = val;
-            }
-        }
-
-/* KART_OPTION */
-        {
-            rc = ArgsOptionCount(self->args, KART_OPTION, &pcount);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" KART_OPTION "' argument");
-                break;
-            }
-
-            if (pcount > 0) {
-                const char *val = NULL;
-                rc = ArgsOptionValue(self->args,
-                    KART_OPTION, 0, (const void **)&val);
-                if (rc != 0) {
-                    LOGERR(klogErr, rc,
-                        "Failure to get '" KART_OPTION "' argument value");
-                    break;
-                }
-                self->kart = val;
-            }
-        }
-
-#if _DEBUGGING
-        /* TEXTKART_OPTION */
-        rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc,
-                "Failure to get '" TEXTKART_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            const char *val = NULL;
-            rc = ArgsOptionValue(self->args, TEXTKART_OPTION, 0, (const void **)&val);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" TEXTKART_OPTION "' argument value");
-                break;
-            }
-            self->textkart = val;
-        }
-
-        if (self->kart != NULL && self->textkart != NULL) {
-            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-            LOGERR(klogErr, rc, "Cannot specify both --" KART_OPTION
-                "and --" TEXTKART_OPTION);
-            break;
-        }
-
-#endif
-    } while (false);
-
-    STSMSG(STS_FIN, ("heartbeat = %ld Milliseconds", self->heartbeat));
-
-    return rc;
-}
-
 const char UsageDefaultName[] = "prefetch";
 rc_t CC UsageSummary(const char *progname) {
     return OUTMSG((
@@ -4165,103 +3052,11 @@ rc_t CC UsageSummary(const char *progname) {
         , progname, progname, progname, progname, progname));
 }
 
-rc_t CC Usage(const Args *args) {
-    rc_t rc = 0;
-    int i = 0;
-
-    const char *progname = UsageDefaultName;
-    const char *fullpath = UsageDefaultName;
-
-    if (args == NULL) {
-        rc = RC(rcExe, rcArgv, rcAccessing, rcSelf, rcNull);
-    }
-    else {
-        rc = ArgsProgram(args, &fullpath, &progname);
-    }
-    if (rc != 0) {
-        progname = fullpath = UsageDefaultName;
-    }
-
-    UsageSummary(progname);
-    OUTMSG(("\n"));
-
-    OUTMSG(("Options:\n"));
-    for (i = 0; i < sizeof(OPTIONS) / sizeof(OPTIONS[0]); i++ ) {
-        const OptDef * opt = & OPTIONS[i];
-        const char * alias = opt->aliases;
-
-        const char *param = NULL;
-
-        if (OPTIONS[i].aliases != NULL) {
-            if (strcmp(alias, FAIL_ASCP_ALIAS) == 0)
-                continue; /* debug option */
-            else if (strcmp(opt->name, KART_OPTION) == 0)
-                param = "value";
-#if _DEBUGGING
-            else if (strcmp(opt->name, TEXTKART_OPTION) == 0)
-                param = "value";
-#endif
-
-            if (strcmp(alias, ASCP_ALIAS) == 0)
-                param = "ascp-binary|private-key-file";
-            else if (strcmp(alias, FORCE_ALIAS) == 0 ||
-                strcmp(alias, HBEAT_ALIAS) == 0 ||
-                strcmp(alias, HBEAT_ALIAS) == 0 ||
-                strcmp(alias, ORDR_ALIAS) == 0 ||
-                strcmp(alias, TRASN_ALIAS) == 0)
-            {
-                param = "value";
-            }
-            else if (strcmp(alias, OUT_DIR_ALIAS) == 0)
-                param = "DIRECTORY";
-            else if (strcmp(alias, ROWS_ALIAS) == 0)
-                param = "rows";
-            else if (strcmp(alias, SIZE_ALIAS) == 0
-                  || strcmp(alias, MINSZ_ALIAS) == 0)
-            {
-                param = "size";
-            }
-        }
-        else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
-            param = "value";
-        else if (strcmp(opt->name, NGC_OPTION) == 0
-            || strcmp(opt->name, CART_OPTION) == 0)
-        {
-            param = "PATH";
-        }
-        else if (strcmp(opt->name, OUT_FILE_OPTION) == 0) {
-            param = "FILE";
-            alias = OUT_FILE_ALIAS;
-        }
-        else if (strcmp(opt->name, DRY_RUN_OPTION) == 0)
-            continue; /* debug option */
-
-        if (alias != NULL) {
-            if (strcmp(alias, ASCP_ALIAS) == 0 ||
-                strcmp(alias, LIST_ALIAS) == 0 ||
-                strcmp(alias, MINSZ_ALIAS) == 0 ||
-                strcmp(opt->name, OUT_FILE_OPTION) == 0
-            )
-                OUTMSG(("\n"));
-        }
-        else if (strcmp(opt ->name, ELIM_QUALS_OPTION) == 0)
-            OUTMSG(("\n"));
-
-        HelpOptionLine(alias, opt->name, param, opt->help);
-    }
-
-    OUTMSG(("\n"));
-    HelpOptionsStandard();
-    HelpVersion(fullpath, KAppVersion());
-
-    return rc;
-}
-
 /******************************************************************************/
 
 /*********** Iterator **********/
-static
-rc_t IteratorInit(Iterator *self, const char *obj, const Main *mane)
+static rc_t
+IteratorInit(Iterator *self, const char *obj, const PrfMain *mane)
 {
     rc_t rc = 0;
 
@@ -4443,119 +3238,8 @@ static void CC bstKrtDownload(BSTNode *n, void *data) {
     }
 }
 
-/*********** Finalize Main object **********/
-static rc_t MainFini(Main *self) {
-    rc_t rc = 0;
-
-    assert(self);
-
-    RELEASE(VResolver, self->resolver);
-    RELEASE(VDBManager, self->mgr);
-    RELEASE(KDirectory, self->dir);
-    RELEASE(KRepositoryMgr, self->repoMgr);
-    RELEASE(VFSManager, self->vfsMgr);
-    RELEASE(KConfig, self->cfg);
-    RELEASE(KNSManager, self->kns);
-    RELEASE(Args, self->args);
-
-    BSTreeWhack(&self->downloaded, bstWhack, NULL);
-
-    free(self->buffer);
-
-    free((void*)self->ascp);
-    free((void*)self->asperaKey);
-    free(self->ascpMaxRate);
-
-    memset(self, 0, sizeof *self);
-
-    return rc;
-}
-
-/*********** Initialize Main object **********/
-static rc_t MainInit(int argc, char *argv[], Main *self) {
-    rc_t rc = 0;
-
-    assert(self);
-    memset(self, 0, sizeof *self);
-
-    self->heartbeat = 60000;
-/*  self->heartbeat = 69; */
-
-    BSTreeInit(&self->downloaded);
-
-    if (rc == 0) {
-        rc = MainProcessArgs(self, argc, argv);
-    }
-
-    if (rc == 0) {
-        self->bsize = 1024 * 1024;
-        self->buffer = malloc(self->bsize);
-        if (self->buffer == NULL) {
-            rc = RC(rcExe, rcData, rcAllocating, rcMemory, rcExhausted);
-        }
-    }
-
-    if (rc == 0) {
-        rc = VFSManagerMake(&self->vfsMgr);
-        DISP_RC(rc, "VFSManagerMake");
-        if (rc == 0)
-            VFSManagerSetAdCaching(self->vfsMgr, true);
-    }
-
-    if ( rc == 0 )
-    {
-        rc = VFSManagerGetKNSMgr (self->vfsMgr, & self->kns);
-        DISP_RC(rc, "VFSManagerGetKNSMgr");
-    }
-
-    if (rc == 0) {
-        VResolver *resolver = NULL;
-        rc = VFSManagerGetResolver(self->vfsMgr, &resolver);
-        DISP_RC(rc, "VFSManagerGetResolver");
-        VResolverRemoteEnable(resolver, vrAlwaysEnable);
-        VResolverCacheEnable(resolver, vrAlwaysEnable);
-        RELEASE(VResolver, resolver);
-    }
-
-    if (rc == 0) {
-        rc = KConfigMake(&self->cfg, NULL);
-        DISP_RC(rc, "KConfigMake");
-    }
-
-    if (rc == 0) {
-        rc = KConfigMakeRepositoryMgrRead(self->cfg, &self->repoMgr);
-        DISP_RC(rc, "KConfigMakeRepositoryMgrRead");
-    }
-
-    if (rc == 0) {
-        rc = VFSManagerMakeResolver(self->vfsMgr, &self->resolver, self->cfg);
-        DISP_RC(rc, "VFSManagerMakeResolver");
-    }
-
-    if (rc == 0) {
-        VResolverRemoteEnable(self->resolver, vrAlwaysEnable);
-        VResolverCacheEnable(self->resolver, vrAlwaysEnable);
-    }
-
-    if (rc == 0) {
-        rc = VDBManagerMakeRead(&self->mgr, NULL);
-        DISP_RC(rc, "VDBManagerMakeRead");
-    }
-
-    if (rc == 0) {
-        rc = KDirectoryNativeDir(&self->dir);
-        DISP_RC(rc, "KDirectoryNativeDir");
-    }
-
-    if (rc == 0) {
-        srand((unsigned)time(NULL));
-    }
-
-    return rc;
-}
-
 /*********** Process one command line argument **********/
-static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
+static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                       uint32_t pcount, bool * multiErrorReported )
 {
     ERunType type = eRunTypeDownload;
@@ -4770,14 +3454,14 @@ static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
     return rc;
 }
 
-/*********** Main **********/
+/*********** PrfMain **********/
 rc_t CC KMain(int argc, char *argv[]) {
     rc_t rc = 0;
     bool insufficient = false;
     uint32_t pcount = 0;
 
-    Main pars;
-    rc = MainInit(argc, argv, &pars);
+    PrfMain pars;
+    rc = PrfMainInit(argc, argv, &pars);
 
     if (rc == 0) {
         rc = ArgsParamCount(pars.args, &pcount);
@@ -4799,7 +3483,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         /* JWT cart is processed here.
      All command line parameters are applied as accession filters to the cart */
         if (pars.jwtCart != NULL) {
-            rc = MainRun(&pars, NULL, pars.jwtCart, 1, &multiErrorReported);
+            rc = PrfMainRun(&pars, NULL, pars.jwtCart, 1, &multiErrorReported);
         }
         else if (pars.kart != NULL) {
             if (pars.outFile != NULL) {
@@ -4810,7 +3494,7 @@ rc_t CC KMain(int argc, char *argv[]) {
                     "--" OUT_FILE_OPTION " is ignored");
                 pars.outFile = NULL;
             }
-            rc = MainRun(&pars, NULL, pars.kart, 1, &multiErrorReported);
+            rc = PrfMainRun(&pars, NULL, pars.kart, 1, &multiErrorReported);
         }
 #if _DEBUGGING
         else if (pars.textkart != NULL) {
@@ -4822,7 +3506,7 @@ rc_t CC KMain(int argc, char *argv[]) {
                     "--" OUT_FILE_OPTION " is ignored");
                 pars.outFile = NULL;
             }
-            rc = MainRun(&pars, NULL, pars.textkart, 1, &multiErrorReported);
+            rc = PrfMainRun(&pars, NULL, pars.textkart, 1, &multiErrorReported);
         }
         else
 #endif
@@ -4834,7 +3518,7 @@ rc_t CC KMain(int argc, char *argv[]) {
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");
             if (rc2 == 0) {
-                rc2 = MainRun(&pars, obj, obj, pcount, &multiErrorReported);
+                rc2 = PrfMainRun(&pars, obj, obj, pcount, &multiErrorReported);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
             }
@@ -4860,7 +3544,7 @@ rc_t CC KMain(int argc, char *argv[]) {
     }
 
     {
-        rc_t rc2 = MainFini(&pars);
+        rc_t rc2 = PrfMainFini(&pars);
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
         }

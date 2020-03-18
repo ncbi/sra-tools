@@ -32,6 +32,7 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	kar \
+	kar+meta    \
 	kar+
 
 ALL_TOOLS = \
@@ -103,6 +104,26 @@ $(BINDIR)/kar+: $(KARP_OBJ)
 
 
 #----------------------------------------------------------------
+# kar+meta
+#
+KARPM_SRC = \
+	kar+util \
+	kar+meta
+
+KARPM_OBJ = \
+	$(addsuffix .$(OBJX),$(KARPM_SRC))
+
+KARPM_LIB = \
+	-lkapp \
+	-stk-version \
+	-sncbi-wvdb \
+
+
+$(BINDIR)/kar+meta: $(KARPM_OBJ)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KARPM_LIB)
+
+
+#----------------------------------------------------------------
 # sra-kar
 #
 
@@ -115,7 +136,7 @@ SRA_KAR_OBJ = \
 SRA_KAR_LIB = \
 	-skapp \
 	-stk-version \
-	-sncbi-vdb \
+	-sncbi-wvdb \
 
 $(BINDIR)/sra-kar: $(SRA_KAR_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_KAR_LIB)

@@ -148,6 +148,10 @@ void kar_print_set_max_offset_fw ( uint64_t num );
  **/
 rc_t CC kar_stdp ( const char ** Dst, const char * Src );
 
+/**  allocating and copying 'n' characters of string
+ **/
+rc_t CC kar_stndp ( const char ** Dst, const char * Src, size_t n );
+
 /**  composes path from top to node, allocates, result should be freed
  **/
 rc_t CC kar_entry_path ( const char ** Ret, KAREntry * Entry );

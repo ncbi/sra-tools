@@ -88,6 +88,32 @@ rc_t CC kar_stdp ( const char ** Dst, const char * Src )
     return 0;
 }   /* kar_stdp () */
 
+rc_t CC
+kar_stndp ( const char ** Dst, const char * Src, size_t n )
+{
+    char * Ret;
+
+    Ret = NULL;
+
+    if ( Dst != NULL ) {
+        * Dst = NULL;
+    }
+
+    if ( Dst == NULL || Src == NULL || n == 0 ) {
+        return RC (rcExe, rcData, rcCopying, rcParam, rcNull);
+    }
+
+    Ret = ( char * ) calloc ( n + 1, sizeof ( char ) );
+    if ( Ret == NULL ) {
+        return RC (rcExe, rcNode, rcAllocating, rcMemory, rcExhausted);
+    }
+
+    memmove ( Ret, Src, n );
+    * Dst = Ret;
+
+    return 0;
+}   /* kar_stndp () */
+
 /********************************************************************
  **  composes path from top to node, allocates, result should be freed
  **  JOJOBA : That is very poorly made method, need to reimplement

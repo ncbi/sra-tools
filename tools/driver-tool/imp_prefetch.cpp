@@ -65,9 +65,9 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
-        cmdline . addOption ( min_size_value, &min_size_count, "N", "min_size", "<size>",
+        cmdline . addOption ( min_size_value, &min_size_count, "N", "min-size", "<size>",
             "Minimum file size to download in KB (inclusive)." );
-        cmdline . addOption ( max_size_value, &max_size_count, "X", "max_size", "<size>",
+        cmdline . addOption ( max_size_value, &max_size_count, "X", "max-size", "<size>",
             "Maximum file size to download in KB (exclusive). Default: 20G" );
 
         cmdline . addOption ( force, nullptr, "f", "force", "<value>",

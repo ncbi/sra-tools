@@ -75,7 +75,7 @@
  *      kar_meta [options] path
  *
  * where path is local path to directory with SRA data.
- * Options could be "set/get value", "update schema", "update md5"
+ * Options could be "set/get value", "update schema"
  * "set/get value" and "update schema" are using locator string to
  * address value to acces. The format of locator string is :
  *
@@ -264,7 +264,7 @@ struct Porams {
     const char * path;
     const char * spath;
 
-    bool updmd5;
+    bool allow_remote;
 
     KARWek * loks;
 };
@@ -340,31 +340,31 @@ rc_t CC kar_porams_add_locator (
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  * Arguments
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
-#define OPTION_INFO     "info"
-#define OPTION_SET_VAL  "setvalue"
-#define OPTION_ERASE    "erase"
-#define OPTION_UPD_SCM  "updschema"
-#define OPTION_UPD_MD5  "updatemd5"
-#define OPTION_SPATH    "spath"
+#define OPTION_INFO          "info"
+#define OPTION_SET_VAL       "setvalue"
+#define OPTION_ERASE         "erase"
+#define OPTION_UPD_SCM       "updschema"
+#define OPTION_ALLOW_REMOTE  "ara"
+#define OPTION_SPATH         "spath"
 
-static const char * info_usage[] = { "Get info about node node/alias.", NULL };
-static const char * set_val_usage[] = { "Set value of node.", NULL };
-static const char * erase_usage[] = { "Erase node or attribute.", NULL };
-static const char * upd_scm_usage[] = { "Update schema for node.", NULL };
-static const char * upd_md5_usage[] = { "Update checksum for metadata.", NULL };
-static const char * spath_usage[] = { "Schema path.", NULL };
+static const char * info_usage[]         = { "Get info about node node/alias.", NULL };
+static const char * set_val_usage[]      = { "Set value of node.", NULL };
+static const char * erase_usage[]        = { "Erase node or attribute.", NULL };
+static const char * upd_scm_usage[]      = { "Update schema for node.", NULL };
+static const char * allow_remote_usage[] = { "Will allow remote data access. Editing may be disabled.", NULL };
+static const char * spath_usage[]        = { "Schema path.", NULL };
 
 /* OptDef fields : name  alias  help_gen  help
  *                 max_count  need_value  required
  */
 OptDef Options [] = 
 {
-    { OPTION_INFO,      NULL,   NULL, info_usage,    0, true,  false },
-    { OPTION_SET_VAL,   NULL,   NULL, set_val_usage, 0, true,  false },
-    { OPTION_ERASE,     NULL,   NULL, erase_usage,   0, true,  false },
-    { OPTION_UPD_SCM,   NULL,   NULL, upd_scm_usage, 0, true,  false },
-    { OPTION_UPD_MD5,   NULL,   NULL, upd_md5_usage, 1, false, false },
-    { OPTION_SPATH,     NULL,   NULL, spath_usage,   1, true,  false }
+    { OPTION_INFO,          NULL,   NULL, info_usage,         0, true,  false },
+    { OPTION_SET_VAL,       NULL,   NULL, set_val_usage,      0, true,  false },
+    { OPTION_ERASE,         NULL,   NULL, erase_usage,        0, true,  false },
+    { OPTION_UPD_SCM,       NULL,   NULL, upd_scm_usage,      0, true,  false },
+    { OPTION_ALLOW_REMOTE,  NULL,   NULL, allow_remote_usage, 1, false, false },
+    { OPTION_SPATH,         NULL,   NULL, spath_usage,        1, true,  true }
 };
 
 const char UsageDefaultName[] = "kar_meta";
@@ -504,8 +504,12 @@ static
 rc_t parse_porams_int ( Porams *p, const Args *args )
 {
     rc_t rc;
-
+    const char *value;
     uint32_t count;
+
+    rc = 0;
+    value = NULL;
+    count = 0;
     
     /* Parameters */
     rc = ArgsParamCount ( args, &count );
@@ -514,26 +518,16 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
         LogErr ( klogFatal, rc, "Failed to retrieve parameter count" );
         return rc;
     }
-    else
-    {
-        const char *value;
-        rc = ArgsParamValue ( args, 0, ( const void ** ) &value );
-        if ( rc != 0 ) {
-            LogErr ( klogFatal, rc, "Failed to retrieve parameter value" );
-            return rc;
-        }
 
-        rc = kar_stdp ( & ( p -> path ), value );
-        if ( rc != 0 ) {
-            LogErr ( klogFatal, rc, "Failed to allocate parameter value" );
-            return rc;
-        }
+    if ( count != 1 ) {
+        LogErr ( klogFatal, rc, "Path to SRA database (local_path) undefined" );
+        return RC ( rcApp, rcArgv, rcParsing, rcParam, rcInsufficient );
     }
 
-    /* Bool Options : udate md5  */
-    rc = ArgsOptionCount ( args, OPTION_UPD_MD5, &count );
+    /* Bool Options : allow remote access */
+    rc = ArgsOptionCount ( args, OPTION_ALLOW_REMOTE, &count );
     if ( rc == 0 && count != 0 )
-        p -> updmd5 = true;
+        p -> allow_remote = true;
     
     /* Get Value Options */
     rc = get_multiply_options ( args, OPTION_INFO, p, kInfo );
@@ -558,9 +552,36 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
 
         /*  JOJOBA: schema path resolve
          */
+/*
     rc = get_single_option ( args, OPTION_SPATH, & ( p -> spath ), "/panfs/traces01/trace_software/vdb/schema" );
+*/
+    rc = get_single_option ( args, OPTION_SPATH, & ( p -> spath ), NULL );
     if ( rc != 0 ) {
         return rc;
+    }
+
+    rc = ArgsParamValue ( args, 0, ( const void ** ) &value );
+    if ( rc != 0 ) {
+        LogErr ( klogFatal, rc, "Failed to retrieve parameter value" );
+        return rc;
+    }
+
+    if ( p -> allow_remote ) {
+        rc = kar_stdp ( & ( p -> path ), value );
+        if ( rc != 0 ) {
+            LogErr ( klogFatal, rc, "Failed to allocate parameter value" );
+            return rc;
+        }
+    }
+    else {
+        char BF [ 1024 ];
+        const char * pos = strchr ( value, '/' );
+        sprintf ( BF, ( pos == NULL ? "./%s" : "%s" ), value );
+        rc = kar_stdp ( & ( p -> path ), BF );
+        if ( rc != 0 ) {
+            LogErr ( klogFatal, rc, "Failed to allocate parameter value" );
+            return rc;
+        }
     }
 
     return rc;
@@ -599,6 +620,12 @@ rc_t validate_porams ( Porams *p )
     if ( p -> path == NULL ) {
         rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
         LogErr ( klogErr, rc, "Missed path to SRA directory parameter" );
+        return rc;
+    }
+
+    if ( p -> spath == NULL ) {
+        rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
+        LogErr ( klogErr, rc, "Missed path to SCHEMA directory argument" );
         return rc;
     }
 
@@ -1573,7 +1600,7 @@ rc_t CC dump_node_value ( const KMDataNode * Node )
         Off += NmRd;
     }
 
-    if ( rc == 0 && Off != NULL ) {
+    if ( rc == 0 && Off != 0 ) {
         printf ( "\n" );
     }
 

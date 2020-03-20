@@ -15,6 +15,8 @@ II.  Script command line.
 III. Script configuration file
 IV.  Unpacking original KAR archive
 V.   Editing resulting database
+V|.  Exporting data
+VII. Status
 
 I. Script requirements, environment and configuring.
 =============================================================================
@@ -160,6 +162,51 @@ V.   Editing resulting database
 Action 'delite' is responsible for editing unpacked database. That action
 requires at least two parameters, and it's syntax is following:
 
-sra_delite.sh delite [ --config CONFIG ] [ --origqual ] --schema SCHEMA --target TARGET
+sra_delite.sh delite [ --config CONFIG ] --schema SCHEMA --target TARGET
+
+--schema parameter of that script shows path to directory where VDB schemas
+are stored. It is mandatory parameter. If You does not know where schemas
+are located, try to use vdb-config utility, or ask senpai. 
+
+--target parameter is the same as target parameter for action 'import'.
+
+During execution that 'action' script will scan TARGET/orig directory and
+perform following:
+
+    Rename all "QUALITY" columns to "ORIGINAL_QUALITY"
+
+    For all tables and databases, which includes columns configured fof
+    dropping, will be updated schema, if there exists translation for
+    that schema version.
+
+
+V|.  Exporting data
+=============================================================================
+Action 'export' will export delited data into KAR archive. There is syntax of
+that command:
+
+sra_delite.sh export [ --condig CONFIG ] --target TARGET --force --writeall --preserve
+
+By default that command will create KAR archive with name "TARGET/new.kar".
+That archive will have modified schemas and all columns, listed in configuration,
+will be dropped from archive.
+
+if '--writeall' option is defined, script will also created KAR file with all
+columns included and will store it in "TARGET/all.kar"
+
+if '--preserve' option is defined, scipr will create KAR file with only dropped
+columns included, it will be saved in file "TARGET/preserved.kar"
+
+In regular mode, if there already exists KAR archive, script will report error
+and will exit. To force script work and overwrite files, user should use
+'--force' option
+
+
+V|I.  Status
+=============================================================================
+Action 'status' will display status report on targeted directory. Syntax of
+that command is :
+
+sra_delite.sh status --target TARGET
 
 

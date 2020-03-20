@@ -1095,7 +1095,9 @@ rc_t CC update_schemas ( UtSt * utst )
             KARLok * Lok = kar_wek_get ( utst -> porams -> loks, llp );
             if ( Lok != NULL ) {
                 if ( Lok -> type == kUpdScm ) {
-                    kar_lok_dump ( Lok );
+/* JOJOBA
+kar_lok_dump ( Lok );
+*/
                     update_schema ( utst, Lok, Schema );
                 }
             }
@@ -1283,7 +1285,9 @@ rc_t CC do_erase (UtSt * utst, KARLok * Lok )
         return RC (rcExe, rcApp, rcAccessing, rcParam, rcNull);
     }
 
-    kar_lok_dump ( Lok );
+/* JOJOBA
+kar_lok_dump ( Lok );
+*/
 
     switch ( utst -> type ) {
         case kptDatabase:
@@ -1458,7 +1462,9 @@ rc_t CC set_value (UtSt * utst, KARLok * Lok )
         return RC (rcExe, rcApp, rcAccessing, rcParam, rcNull);
     }
 
-    kar_lok_dump ( Lok );
+/* JOJOBA
+kar_lok_dump ( Lok );
+*/
 
     switch ( utst -> type ) {
         case kptDatabase:
@@ -1769,7 +1775,9 @@ rc_t CC get_info (UtSt * utst, KARLok * Lok )
         return RC (rcExe, rcApp, rcAccessing, rcParam, rcNull);
     }
 
-    kar_lok_dump ( Lok );
+/* JOJOBA
+kar_lok_dump ( Lok );
+*/
 
     switch ( utst -> type ) {
         case kptDatabase:
@@ -1842,7 +1850,9 @@ rc_t CC run ( Porams * p )
 
     rc = utst_init ( & utst, p );
     if ( rc == 0 ) {
+/* JOJOBA
 utst_dump ( & utst );
+*/
 
         if ( ! utst . info && ! utst . setval && ! utst . erase && ! utst . updscm ) {
             rc = print_basic_info ( & utst );

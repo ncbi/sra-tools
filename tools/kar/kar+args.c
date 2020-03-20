@@ -240,6 +240,14 @@ rc_t parse_many_params_to_list (
                     break;
                 }
 
+                /* JOJOBA - make better solution
+                 */
+                if ( 2 < strlen ( opt ) ) {
+                    if ( opt [ 0 ] == '.' && opt [ 1 ] == '/' ) {
+                        opt += 2;
+                    }
+                }
+
                 rc = VNamelistAppend ( Ret, opt );
                 if ( rc != 0 )
                 {

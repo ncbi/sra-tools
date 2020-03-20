@@ -14,6 +14,7 @@ I.   Script requirements, environment and configuring.
 II.  Script command line.
 III. Script configuration file
 IV.  Unpacking original KAR archive
+V.   Editing resulting database
 
 I. Script requirements, environment and configuring.
 =============================================================================
@@ -50,6 +51,7 @@ Script will require two mandatory parameters path to source KAR archive,
 which could be accession, and path to directory, which will be used as working
 directory. Script will/may create different directories in working dir.
 
+
 II. Script command line 
 =============================================================================
 The script command line:
@@ -80,6 +82,9 @@ later. There is a list of options.
     --schema <path>  - path to directory with schemas to use for delite
                        String, mandatory for 'delite' action only.
     --force          - flag to force process, does not matter what
+    --preserve       - flag to preserve dropped columns in separated 
+                       KAR archive
+    --writeall       - flag to write KAR file including all columns
 
 III. Script configuration file
 =============================================================================
@@ -123,6 +128,38 @@ NOTE, if You do not know bash shell language, please, contact author and ask
 to help with modifications. Also, most of these settings could be overriden
 through command line
 
+User can provide configuration file in two ways: with argument '--config CONFIG',
+or put default config file 'sra_delite.kfg' in the directory with script.
+At the first, script will try to load user defined config, next it will try 
+to load default config, and if there is none of such it will use hardcoded
+parameters.
+
+
 IV.  Unpacking original KAR archive
 =============================================================================
-The first 
+Action 'import' is responsible for unpacking original KAR archive. That action
+requires at least two parameters, and it's syntax is following:
+
+sra_delite.sh import [ --force ] [ --config CONFIG ] --source SOURCE --target TARGET
+
+The flag --force is optional. If TARGET directory exists, script will reject
+to work unless that flag is provided. In that case the old TARGET directory
+and all it's content will be destroyed.
+
+The SOURCE parameter is reference on existing KAR archive, and it could be
+both as local file and as remote. In the case of remote file, it will be
+resolved and downloaded.
+
+The TARGET parameter is a reference to directory, which will be created by
+script, and the content of SOURCE KAR archive will be unpacked into it's
+subdirectory 'orig', so full path of that objec will be TARGET/orig
+
+
+V.   Editing resulting database
+=============================================================================
+Action 'delite' is responsible for editing unpacked database. That action
+requires at least two parameters, and it's syntax is following:
+
+sra_delite.sh delite [ --config CONFIG ] [ --origqual ] --schema SCHEMA --target TARGET
+
+

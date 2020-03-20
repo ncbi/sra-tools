@@ -364,7 +364,7 @@ OptDef Options [] =
     { OPTION_ERASE,         NULL,   NULL, erase_usage,        0, true,  false },
     { OPTION_UPD_SCM,       NULL,   NULL, upd_scm_usage,      0, true,  false },
     { OPTION_ALLOW_REMOTE,  NULL,   NULL, allow_remote_usage, 1, false, false },
-    { OPTION_SPATH,         NULL,   NULL, spath_usage,        1, true,  true }
+    { OPTION_SPATH,         NULL,   NULL, spath_usage,        1, true,  false }
 };
 
 const char UsageDefaultName[] = "kar_meta";
@@ -609,7 +609,13 @@ rc_t parse_porams ( Porams *p, Args *args, int argc, char * argv [] )
 
 rc_t validate_porams ( Porams *p )
 {
-    rc_t rc = 0;
+    rc_t rc;
+    bool UpdateSchema;
+    size_t llp;
+
+    rc = 0;
+    UpdateSchema = false;
+    llp = 0;
 
     if ( p == NULL ) {
         rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcNull );
@@ -623,11 +629,24 @@ rc_t validate_porams ( Porams *p )
         return rc;
     }
 
-    if ( p -> spath == NULL ) {
+    if ( p -> loks != NULL ) {
+        for ( llp = 0; llp < kar_wek_size ( p -> loks ) ; llp ++ ) {
+            KARLok * Lok = kar_wek_get ( p -> loks, llp );
+            if ( Lok != NULL ) {
+                if ( Lok -> type == kUpdScm ) {
+                    UpdateSchema = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if ( UpdateSchema && p -> spath == NULL ) {
         rc = RC ( rcApp, rcArgv, rcParsing, rcParam, rcInvalid );
         LogErr ( klogErr, rc, "Missed path to SCHEMA directory argument" );
         return rc;
     }
+
 
     return rc;
 }

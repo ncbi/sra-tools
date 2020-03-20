@@ -439,8 +439,11 @@ rc_t CC get_single_option ( const Args * args, const char * OptName, const char 
             Val = Dflt;
         }
         else {
+/* JOJOBA
             pLogErr ( klogFatal, rc, "Invalid amount of '$(name)' option", "name=%s", OptName );
             return rc;
+*/
+            return 0;
         }
     }
 

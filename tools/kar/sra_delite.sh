@@ -193,7 +193,7 @@ print_config_to_stdout ()
 {
     if [ -z "$CONFIG_FILE" ]
     then
-echo Loading standard confuguration >&2
+        echo INFO: using internal configuration settings
         cat <<EOF
 
 ### Standard configuration file.
@@ -256,7 +256,6 @@ exclude SIGNAL
 ### Environment definition section.
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
-POPO=HUHY
 
 EOF
     else

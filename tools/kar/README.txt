@@ -90,45 +90,59 @@ later. There is a list of options.
 
 III. Script configuration file
 =============================================================================
-Script configuration file is a SHELL script, and it is loading through inclusion
-That means, it should be interpretable, or scirpt will fail.
+Script configuration file is a simple text file. Script can recognize following
+entries in configuration file : commentaries, empty strings, translations,
+excludes and environment variable definitions.
 
-Because configuration file is a shell scipt, You may use here shell style
-commentaries as add own shell code
+There is example of configuration file :
 
-Configuration file contains three general section: schema translation table,
-list of columns to drop and rename, and common setting, like DELITE_BIN_DIR,
-etc ...
+        ### Standard configuration file.
+        ### '#'# character in beginning of line is treated as a commentary
 
-The schema translation table is a set of entries which contains schema name,
-old version of schem and new version of schema. It stored as a BASH array.
-Example:
+        ### Schema traslations
+        translate NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0
+        translate NCBI:SRA:GenericFastq:sequence  1.0     2.0
+        translate NCBI:SRA:GenericFastq:sequence_log_odds 1.0     2
+        translate NCBI:SRA:GenericFastq:sequence_nanopore 1.0     2.0
 
-    TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0"
-    TRANSLATIONS[${#TRANSLATIONS[*]}]="NNCBI:SRA:GenericFastq:sequence  1.0     2.0"
-    TRANSLATIONS[${#TRANSLATIONS[*]}]="NNCBI:SRA:GenericFastq:sequence_log_odds 1.0     2"
-    TRANSLATIONS[${#TRANSLATIONS[*]}]="NNCBI:SRA:GenericFastq:sequence_nanopore 1.0     2.0"
-    TRANSLATIONS[${#TRANSLATIONS[*]}]="NNCBI:SRA:GenericFastq:sequence_no_name  1.0     2.0"
-    TRANSLATIONS[${#TRANSLATIONS[*]}]="NNCBI:SRA:Helicos:tbl:v2 1.0.4   2"
+        ### Columns to drop
+        exclude QUALITY
+        exclude QUALITY2
 
-The drop column list looks exactly the same :
+        ### Environment definition section.
+        # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
 
-    DROPCOLUMNS[${#DROPCOLUMNS[*]}]=QUALITY
-    DROPCOLUMNS[${#DROPCOLUMNS[*]}]=QUALITY2
-    DROPCOLUMNS[${#DROPCOLUMNS[*]}]=CMP_QUALITY
-    DROPCOLUMNS[${#DROPCOLUMNS[*]}]=POSITION
-    DROPCOLUMNS[${#DROPCOLUMNS[*]}]=SIGNAL
+Each line of configuration file is a separate entty. Script does not support
+multiline entries.
 
-And, common settings looks like:
+Each line of Configuration file started with character '#' will be treated
+as a commentary
 
-DELITE_BIN_DIR="/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin"
+Empty line is a line which may contain 'space', 'tab', and/or 'newline' symbols.
+Because script is using internal bas 'read' command, it will automatically trim
+these character.
 
-Anyway, if You do not like to keep config files, You may edit script directly,
-the configuration part of script is exactly the same as configuration file.
+Line started with word 'translate' will be treated as translation definition.
+It should contain exactly four words, and it's format is:
 
-NOTE, if You do not know bash shell language, please, contact author and ask
-to help with modifications. Also, most of these settings could be overriden
-through command line
+<translate> <schema_name> <old_version> <new_version>
+
+Line started with word 'exclude' will be treated as definition of column to
+drop during delite process. It should contain exactly two words, and it's 
+format is:
+
+<exclue> <column_name>
+
+Line, which consist from single word and contains symbol '=' inside will be
+treated as environment variable definition. It's format is:
+
+<VARIABLE>=<VALUE>
+
+NOTE, SPACES ARE NOT ALLOWED IN ENVIRONMENT VARIABLE DEFINITION
+
+If user does not like to keep config files, he may edit script directly,
+the configuration part of script is exactly the same as configuration file,
+and it is located in bash function 'print_config_to_stdout()'
 
 User can provide configuration file in two ways: with argument '--config CONFIG',
 or put default config file 'sra_delite.kfg' in the directory with script.

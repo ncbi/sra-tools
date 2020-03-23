@@ -179,13 +179,13 @@ then
         exit 1
     fi
     CONFIG_FILE=$CONFIG_VAL
-    echo WARNING: loading user defined config file \'$CONFIG_FILE\'
+    echo WARNING: loading user defined config file \'$CONFIG_FILE\' >&2
 else
     TVAL=$SCRIPT_DIR/${SCRIPT_NAME_SHORT}.kfg
     if [ -f "$TVAL" ]
     then
         CONFIG_FILE=$SCRIPT_DIR/${SCRIPT_NAME_SHORT}.kfg
-        echo WARNING: loading default config file \'$CONFIG_FILE\'
+        echo WARNING: loading default config file \'$CONFIG_FILE\' >&2
     fi
 fi
 
@@ -193,7 +193,7 @@ print_config_to_stdout ()
 {
     if [ -z "$CONFIG_FILE" ]
     then
-        echo INFO: using internal configuration settings
+        echo INFO: using internal configuration settings >&2
         cat <<EOF
 
 ### Standard configuration file.
@@ -312,10 +312,12 @@ do
 done < <( print_config_to_stdout )
 
 TRANSLATION_QTY=${#TRANSLATIONS[*]}
-DROPCOLUMN_QTY=${#DROPCOLUMNS[*]}
 
+##
+## Here we manually adding DROPCOLUMN_QTY to list
 ORIGINAL_QUALITY=ORIGINAL_QUALITY
-
+DROPCOLUMNS[${#DROPCOLUMN_QTY[*]}]=$ORIGINAL_QUALITY
+DROPCOLUMN_QTY=${#DROPCOLUMNS[*]}
 
 ###
 ##  Binaries
@@ -549,19 +551,6 @@ find_objects_to_modify ()
     cd $DATABASE_DIR >/dev/null 2>&1
 
     add_object "."
-    for i in `find . -type d -name $ORIGINAL_QUALITY`
-    do
-        info_msg found column: $i
-
-        TVAR=`dirname $i`
-        TVAR=`dirname $TVAR`
-        add_object $TVAR
-
-        TVAR=`dirname $TVAR`
-        TVAR=`dirname $TVAR`
-        add_object $TVAR
-    done
-
     for i in ${DROPCOLUMNS[*]}
     do
         for u in `find . -type d -name $i`
@@ -727,13 +716,6 @@ find_columns_to_drop ()
     fi
 
     cd $DATABASE_DIR >/dev/null
-
-    for i in `find . -type d -name $ORIGINAL_QUALITY`
-    do
-        TD=$i
-        info_msg found column: $TD
-        TO_DROP[${#TO_DROP[*]}]=$TD
-    done
 
     for i in ${DROPCOLUMNS[*]}
     do

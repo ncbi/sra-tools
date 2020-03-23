@@ -168,7 +168,7 @@ DROPCOLUMN_QTY=0
 ##############################################################################################
 
 ###
-##  Loading config file, if such exists
+##  Loading config file, if such exists, overwise will load standard config
 #
 
 if [ -n "$CONFIG_VAL" ]
@@ -189,74 +189,128 @@ else
     fi
 fi
 
-if [ -n "$CONFIG_FILE" ]
-then
-    . $CONFIG_FILE
-    if [ $? -ne 0 ]
+print_config_to_stdout ()
+{
+    if [ -z "$CONFIG_FILE" ]
     then
-        echo ERROR: invalid config file \'$CONFIG_FILE\'
-        exit 1
-    fi
-else
+echo Loading standard confuguration >&2
+        cat <<EOF
+
+### Standard configuration file.
+### '#'# character in beginning of line is treated as a commentary
 
 ### Schema traslations
 #original by Kenneth
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence  1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence_log_odds 1.0     2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence_nanopore 1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence_no_name  1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Helicos:tbl:v2 1.0.4   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Illumina:qual4 2.1.0   3"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Illumina:tbl:phred:v2  1.0.4   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Illumina:tbl:q1:v2     1.1     2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Illumina:tbl:q4:v2     1.1.0   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Illumina:tbl:v2        1.0.4   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:IonTorrent:tbl:v2      1.0.3   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Nanopore:consensus     1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Nanopore:sequence      1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:PacBio:smrt:basecalls  1.0.2   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:PacBio:smrt:cons       1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:PacBio:smrt:fastq      1.0.3   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:PacBio:smrt:sequence   1.0     2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:_454_:tbl:v2   1.0.7   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:tbl:spotdesc   1.0.2   1.1"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:tbl:spotdesc_nocol     1.0.2   1.1"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:tbl:spotdesc_nophys    1.0.2   1.1"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:WGS:tbl:nucleotide 1.1     2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:align:tbl:reference        2       3"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:align:tbl:seq      1.1     2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:align:tbl:seq      1       2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:refseq:tbl:reference       1.0.2   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:tbl:base_space     2.0.3   3"
+translate NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0
+translate NCBI:SRA:GenericFastq:sequence  1.0     2.0
+translate NCBI:SRA:GenericFastq:sequence_log_odds 1.0     2
+translate NCBI:SRA:GenericFastq:sequence_nanopore 1.0     2.0
+translate NCBI:SRA:GenericFastq:sequence_no_name  1.0     2.0
+translate NCBI:SRA:Helicos:tbl:v2 1.0.4   2
+translate NCBI:SRA:Illumina:qual4 2.1.0   3
+translate NCBI:SRA:Illumina:tbl:phred:v2  1.0.4   2
+translate NCBI:SRA:Illumina:tbl:q1:v2     1.1     2
+translate NCBI:SRA:Illumina:tbl:q4:v2     1.1.0   2
+translate NCBI:SRA:Illumina:tbl:v2        1.0.4   2
+translate NCBI:SRA:IonTorrent:tbl:v2      1.0.3   2
+translate NCBI:SRA:Nanopore:consensus     1.0     2.0
+translate NCBI:SRA:Nanopore:sequence      1.0     2.0
+translate NCBI:SRA:PacBio:smrt:basecalls  1.0.2   2
+translate NCBI:SRA:PacBio:smrt:cons       1.0     2.0
+translate NCBI:SRA:PacBio:smrt:fastq      1.0.3   2
+translate NCBI:SRA:PacBio:smrt:sequence   1.0     2.0
+translate NCBI:SRA:_454_:tbl:v2   1.0.7   2
+translate NCBI:SRA:tbl:spotdesc   1.0.2   1.1
+translate NCBI:SRA:tbl:spotdesc_nocol     1.0.2   1.1
+translate NCBI:SRA:tbl:spotdesc_nophys    1.0.2   1.1
+translate NCBI:WGS:tbl:nucleotide 1.1     2
+translate NCBI:align:tbl:reference        2       3
+translate NCBI:align:tbl:seq      1.1     2
+translate NCBI:align:tbl:seq      1       2
+translate NCBI:refseq:tbl:reference       1.0.2   2
+translate NCBI:tbl:base_space     2.0.3   3
 
 #added first pass
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence  1       2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence_nanopore 1       2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence_no_name  1       2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Illumina:tbl:phred:v2  1.0.3   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Nanopore:sequence      1       2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:PacBio:smrt:cons       1.0.2   2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:PacBio:smrt:sequence   1.0.2   2.0"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:_454_:tbl:v2   1.0.6   2"
+translate NCBI:SRA:GenericFastq:sequence  1       2.0
+translate NCBI:SRA:GenericFastq:sequence_nanopore 1       2.0
+translate NCBI:SRA:GenericFastq:sequence_no_name  1       2.0
+translate NCBI:SRA:Illumina:tbl:phred:v2  1.0.3   2
+translate NCBI:SRA:Nanopore:sequence      1       2.0
+translate NCBI:SRA:PacBio:smrt:cons       1.0.2   2.0
+translate NCBI:SRA:PacBio:smrt:sequence   1.0.2   2.0
+translate NCBI:SRA:_454_:tbl:v2   1.0.6   2
 
 #added second pass
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:consensus_nanopore        1       2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:GenericFastq:sequence_log_odds 1       2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Helicos:tbl:v2 1.0.3   2"
-TRANSLATIONS[${#TRANSLATIONS[*]}]="NCBI:SRA:Nanopore:consensus     1       2"
+translate NCBI:SRA:GenericFastq:consensus_nanopore        1       2
+translate NCBI:SRA:GenericFastq:sequence_log_odds 1       2
+translate NCBI:SRA:Helicos:tbl:v2 1.0.3   2
+translate NCBI:SRA:Nanopore:consensus     1       2
 
 ### Columns to drop
-DROPCOLUMNS[${#DROPCOLUMNS[*]}]=QUALITY
-DROPCOLUMNS[${#DROPCOLUMNS[*]}]=QUALITY2
-DROPCOLUMNS[${#DROPCOLUMNS[*]}]=CMP_QUALITY
-DROPCOLUMNS[${#DROPCOLUMNS[*]}]=POSITION
-DROPCOLUMNS[${#DROPCOLUMNS[*]}]=SIGNAL
+exclude QUALITY
+exclude QUALITY2
+exclude CMP_QUALITY
+exclude POSITION
+exclude SIGNAL
 
-### Common section
-# DELITE_BIN_DIR="/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin"
+### Environment definition section.
+### Please, do not allow spaces between parameters
+# DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
+POPO=HUHY
 
-fi
+EOF
+    else
+        cat $CONFIG_FILE
+    fi
+}
+
+LINE_NUM=1
+while read -r INPUT_LINE
+do
+    LINE_NUM=$(( $LINE_NUM + 1 ))
+    case $INPUT_LINE in 
+        \#*)
+            :
+            ;;
+        *=*)
+            eval $INPUT_LINE 2>/dev/null
+            if [ $? -ne 0 ]
+            then
+                echo ERROR: invalid definition in configuration file at line $LINE_NUM
+                echo ERROR: invalid line [$INPUT_LINE]
+                exit 1
+            fi
+            ;;
+        translate*)
+            WNUM=`echo $INPUT_LINE | wc -w` 2>/dev/null
+            if [ $WNUM -ne 4 ]
+            then
+                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
+                echo ERROR: invalid line [$INPUT_LINE]
+                exit 1
+            fi
+            TRANSLATIONS[${#TRANSLATIONS[*]}]=`echo $INPUT_LINE | awk ' { print $2 " " $3 " " $4 } '`
+            ;;
+        exclude*)
+            WNUM=`echo $INPUT_LINE | wc -w` 2>/dev/null
+            if [ $WNUM -ne 2 ]
+            then
+                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
+                echo ERROR: invalid line [$INPUT_LINE]
+                exit 1
+            fi
+            DROPCOLUMNS[${#DROPCOLUMNS[*]}]=`echo $INPUT_LINE | awk ' { print $2 } '`
+            ;;
+        *)
+            if [ -n "$INPUT_LINE" ]
+            then
+                echo ERROR: invalid statement in configuration file at line $LINE_NUM
+                echo ERROR: invalid line [$INPUT_LINE]
+                exit 1
+            fi
+            ;;
+    esac
+done < <( print_config_to_stdout )
 
 TRANSLATION_QTY=${#TRANSLATIONS[*]}
 DROPCOLUMN_QTY=${#DROPCOLUMNS[*]}

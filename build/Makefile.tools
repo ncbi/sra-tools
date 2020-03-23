@@ -1,22 +1,28 @@
 TOOLS_TO_COPY = \
 	abi-dump        \
+	align-cache     \
 	align-info      \
 	bam-load        \
 	cache-mgr       \
+	ccextract       \
 	cg-load         \
 	illumina-dump   \
 	kar             \
 	kdbmeta         \
 	kget            \
 	latf-load       \
+	md5cp           \
 	rcexplain       \
+	read-filter-redact \
 	sff-dump        \
 	sra-sort        \
+	sra-sort-cg     \
 	sra-stat        \
 	test-sra        \
 	vdb-config      \
 	vdb-copy        \
 	vdb-decrypt     \
+	vdb-diff        \
 	vdb-encrypt     \
 	vdb-lock        \
 	vdb-passwd      \

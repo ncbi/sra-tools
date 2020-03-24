@@ -32,6 +32,13 @@ SCHEMA_TAG="--schema"
 FORCE_TAG="--force"
 PRESERVE_TAG="--preserve"
 WRITEALL_TAG="--writeall"
+SKIPTEST_TAG="--skiptest"
+GOLIGHT_TAG="--golight"
+
+IMPORTED_TAG="IMPORTED:"
+INITIALIZED_TAG="INITIALIZED:"
+DELITED_TAG="DELITED:"
+DOWNLOADED_TAG="DOWNLOADED:"
 
 ###
 ##  Usage
@@ -80,6 +87,8 @@ Options:
     $FORCE_TAG         - flag to force process does not matter what
     $PRESERVE_TAG      - flag to preserve dropped columns in separate KAR file
     $WRITEALL_TAG      - flag to write KAR file including all columns
+    $SKIPTEST_TAG      - flag to skip testing
+    $GOLIGHT_TAG       - flag do not keep original KAR archive
 
 EOF
 
@@ -150,6 +159,12 @@ do
             ;;
         $WRITEALL_TAG)
             WRITEALL_VAL=1
+            ;;
+        $SKIPTEST_TAG)
+            SKIPTEST_VAL=1
+            ;;
+        $GOLIGHT_TAG)
+            GOLIGHT_VAL=1
             ;;
         *)
             usage invalid argument \'$TARG\'
@@ -330,15 +345,19 @@ then
     VDBLOCK_BIN=$DELITE_BIN_DIR/vdb-lock
     VDBUNLOCK_BIN=$DELITE_BIN_DIR/vdb-unlock
     VDBVALIDATE_BIN=$DELITE_BIN_DIR/vdb-validate
+    VDBDIFF_BIN=$DELITE_BIN_DIR/vdb-diff
+    SRAPATH_BIN=$DELITE_BIN_DIR/srapath
 else
     KAR_BIN=$SCRIPT_DIR/kar+
     KARMETA_BIN=$SCRIPT_DIR/kar+meta
     VDBLOCK_BIN=$SCRIPT_DIR/vdb-lock
     VDBUNLOCK_BIN=$SCRIPT_DIR/vdb-unlock
     VDBVALIDATE_BIN=$SCRIPT_DIR/vdb-validate
+    VDBDIFF_BIN=$SCRIPT_DIR/vdb-diff
+    SRAPATH_BIN=$SCRIPT_DIR/srapath
 fi
 
-for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN
+for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN SRAPATH_BIN VDBDIFF_BIN
 do
     if [ ! -e ${!i} ]; then echo ERROR: can not stat executable \'${!i}\' >&2; exit 1; fi
     if [ ! -x ${!i} ]; then echo ERROR: has no permission to execute for \'${!i}\' >&2; exit 1; fi
@@ -418,6 +437,7 @@ fi
 TARGET_DIR=$TARGET_VAL
 DATABASE_DIR=$TARGET_DIR/orig
 NEW_KAR_FILE=$TARGET_DIR/new.kar
+ORIG_KAR_FILE=$TARGET_DIR/orig.kar
 PRESERVED_KAR_FILE=$TARGET_DIR/preserved.kar
 ALLCOLUMNS_KAR_FILE=$TARGET_DIR/all.kar
 STATUS_FILE=$TARGET_DIR/.status.txt
@@ -437,6 +457,64 @@ log_status ()
 $TMSG
 
 EOF
+}
+
+## Syntax: download_remote remote_path local_path
+##
+download_remote ()
+{
+    TRP=$1
+    TLP=$2
+
+    if [ -z "$TRP" -o -z "$TLP" ]
+    then
+        err_exit invalid usage of \'download_remote\' function
+    fi
+
+    TNM=`$SRAPATH_BIN $TRP`
+    if [ -z "$TNM" ]
+    then
+        err_exit can not resolve path \'SOURCE_VAL\'
+    fi
+
+    if [ -e "$TNM" ]
+    then
+        if [ -e "$TLP" ]
+        then
+            if [ "$TNM" -er "$TLP" ]
+            then
+                warn_msg file is downloaded already \'$TRP\'
+                return
+            fi
+        fi
+
+        exec_cmd_exit cp -p "$TNM" "$TLP"
+        return
+    fi
+
+    TDB=`which curl` 2>/dev/null
+    if [ $? -eq 0 ]
+    then
+        OCMD="$TDB --retry 3 -o $TLP $TNM"
+        exec_cmd_exit $OCMD
+
+        log_status "$DOWNLOADED_TAG $OCMD"
+
+        return
+    fi
+
+    echo "WARNING: can not stat 'curl' will use 'GET' instead" >&2
+    TDB=`which GET`
+    if [ $? -ne 0 ]
+    then
+        echo "ERROR: can not stat not 'curl' nor 'GET' utility. Exiting" >&2
+        exit 1
+    fi
+
+    OCMD="$TDB $TNM > $TLP"
+    exec_cmd_exit "$OCMD"
+
+    log_status "$DOWNLOADED_TAG $OCMD"
 }
 
 ###############################################################################################
@@ -468,7 +546,7 @@ import_proc ()
     fi
 
     exec_cmd_exit mkdir $TARGET_DIR
-    log_status initialized: $SOURCE_VAL
+    log_status $INITIALIZED_TAG $SOURCE_VAL
 
     ICMD="$KAR_BIN "
     if [ -n "$FORCE_VAL" ]
@@ -476,9 +554,16 @@ import_proc ()
         ICMD="$ICMD --force"
     fi
 
-    exec_cmd_exit $ICMD --extract $SOURCE_VAL --directory $DATABASE_DIR
+    if [ -n "$GOLIGHT_VAL" ]
+    then
+        exec_cmd_exit $ICMD --extract $SOURCE_VAL --directory $DATABASE_DIR
+    else
+        download_remote $SOURCE_VAL $ORIG_KAR_FILE
 
-    log_status "IMPORTED: $ORIGINAL_CMD"
+        exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
+    fi
+
+    log_status "$IMPORTED_TAG $ORIGINAL_CMD"
 
     info_msg "DONE"
 }
@@ -673,7 +758,7 @@ delite_proc ()
     ## Locking db
     exec_cmd_exit $VDBLOCK_BIN $DATABASE_DIR
 
-    log_status "DELITED: $ORIGINAL_CMD" 
+    log_status "$DELITED_TAG $ORIGINAL_CMD" 
 
     info_msg "DONE"
 }
@@ -732,6 +817,56 @@ find_columns_to_drop ()
     cd - >/dev/null
 }
 
+test_kar ()
+{
+    F2T=$1
+
+    if [ -n "$SKIPTEST_VAL" ]
+    then
+        warn_msg skipping tests for \'$F2T\' ...
+        return
+    fi
+
+    exec_cmd_exit $VDBVALIDATE_BIN -x $F2T
+
+    if [ ! -f $ORIG_KAR_FILE ]
+    then
+        warn_msg SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
+        return
+    fi
+
+    TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"
+
+    if [ $DROPCOLUMN_QTY -ne 0 ]
+    then
+        TDC="-x "
+
+        TCNT=0
+        while [ $TCNT -lt $DROPCOLUMN_QTY ]
+        do
+            TCN=${DROPCOLUMNS[$TCNT]}
+
+            if [ $TCNT -ne 0 ]
+            then
+                TDC="${TDC},"
+            fi
+
+            TDC="${TDC}$TCN"
+
+            if [ "$TCN" = "SIGNAL" ]
+            then
+                TDC="${TDC},SIGNAL_LEN,SPOT_DESC"
+            fi
+
+            TCNT=$(( $TCNT + 1 ))
+        done
+
+        TCMD="$TCMD $TDC"
+    fi
+
+    exec_cmd_exit $TCMD
+}
+
 kar_new ()
 {
     if [ -f "$NEW_KAR_FILE" ]
@@ -762,7 +897,8 @@ kar_new ()
     TCMD="$TCMD --create $NEW_KAR_FILE --directory $DATABASE_DIR"
 
     exec_cmd_exit $TCMD
-    exec_cmd_exit $VDBVALIDATE_BIN $NEW_KAR_FILE
+
+    test_kar $NEW_KAR_FILE
 }
 
 kar_all ()
@@ -792,6 +928,13 @@ kar_all ()
     TCMD="$TCMD --create $ALLCOLUMNS_KAR_FILE --directory $DATABASE_DIR"
 
     exec_cmd_exit $TCMD
+
+    if [ -n "$SKIPTEST_VAL" ]
+    then
+        warn_msg skipping tests for \'$ALLCOLUMNS_KAR_FILE\' ...
+        return
+    fi
+
     exec_cmd_exit $VDBVALIDATE_BIN $ALLCOLUMNS_KAR_FILE
 }
 

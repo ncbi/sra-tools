@@ -113,7 +113,9 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-static rc_t perform_table_diff( const VTable * tab_1, const VTable * tab_2, struct diff_ctx * dctx, const char * tablename )
+static rc_t perform_table_diff( const VTable * tab_1, const VTable * tab_2,
+                                const struct diff_ctx * dctx, const char * tablename,
+                                unsigned long int *diffs  )
 {
     KNamelist * cols_1;
     rc_t rc = VTableListReadableColumns( tab_1, &cols_1 );
@@ -161,9 +163,9 @@ static rc_t perform_table_diff( const VTable * tab_1, const VTable * tab_2, stru
                     {
                         /* ******************************************* */
                         if ( dctx -> columnwise )
-                            rc = cbc_diff_columns( defs, tab_1, tab_2, dctx, tablename );
+                            rc = cbc_diff_columns( defs, tab_1, tab_2, dctx, tablename, diffs );
                         else
-                            rc = rbr_diff_columns( defs, tab_1, tab_2, dctx );
+                            rc = rbr_diff_columns( defs, tab_1, tab_2, dctx, diffs );
                         /* ******************************************* */
                     }
                     col_defs_destroy( defs );
@@ -180,7 +182,8 @@ static rc_t perform_table_diff( const VTable * tab_1, const VTable * tab_2, stru
 
 
 static rc_t perform_database_diff_on_this_table( const VDatabase * db_1, const VDatabase * db_2,
-												 struct diff_ctx * dctx, const char * table_name )
+												 const struct diff_ctx * dctx, const char * table_name,
+                                                 unsigned long int *diffs )
 {
 	/* we want to compare only the table wich name was given at the commandline */
 	const VTable * tab_1;
@@ -204,7 +207,7 @@ static rc_t perform_database_diff_on_this_table( const VDatabase * db_1, const V
 		else
 		{
 			/* ******************************************* */
-			rc = perform_table_diff( tab_1, tab_2, dctx, table_name );
+			rc = perform_table_diff( tab_1, tab_2, dctx, table_name, diffs );
 			/* ******************************************* */
 			VTableRelease( tab_2 );
 		}
@@ -214,14 +217,15 @@ static rc_t perform_database_diff_on_this_table( const VDatabase * db_1, const V
 }
 
 
-static rc_t perform_database_diff( const VDatabase * db_1, const VDatabase * db_2, struct diff_ctx * dctx )
+static rc_t perform_database_diff( const VDatabase * db_1, const VDatabase * db_2,
+                                   const struct diff_ctx * dctx, unsigned long int *diffs )
 {
 	rc_t rc = 0;
 	if ( dctx -> table != NULL )
 	{
 		/* we want to compare only the table wich name was given at the commandline */
 		/* ************************************************************************** */
-		rc = perform_database_diff_on_this_table( db_1, db_2, dctx, dctx -> table );
+		rc = perform_database_diff_on_this_table( db_1, db_2, dctx, dctx -> table, diffs );
 		/* ************************************************************************** */
 	}
 	else
@@ -269,7 +273,7 @@ static rc_t perform_database_diff( const VDatabase * db_1, const VDatabase * db_
 								if ( rc == 0 )
 								{
 									/* ********************************************************************* */
-									rc = perform_database_diff_on_this_table( db_1, db_2, dctx, table_name );
+									rc = perform_database_diff_on_this_table( db_1, db_2, dctx, table_name, diffs );
 									/* ********************************************************************* */									
 								}
 							}
@@ -279,6 +283,7 @@ static rc_t perform_database_diff( const VDatabase * db_1, const VDatabase * db_
 				else
 				{
 					LOGERR ( klogInt, rc, "the 2 databases have not the same set of tables" );
+                    ( *diffs )++;
 				}
 				KNamelistRelease( table_set_2 );
 			}
@@ -292,7 +297,7 @@ static rc_t perform_database_diff( const VDatabase * db_1, const VDatabase * db_
 /***************************************************************************
     perform the actual diffing
 ***************************************************************************/
-static rc_t perform_diff( struct diff_ctx * dctx )
+static rc_t perform_diff( const struct diff_ctx * dctx, unsigned long int * diffs )
 {
     KDirectory * dir;
     rc_t rc = KDirectoryNativeDir( &dir );
@@ -328,7 +333,7 @@ static rc_t perform_diff( struct diff_ctx * dctx )
 					if ( rc == 0 )
 					{
 						/* ******************************************** */
-						rc = perform_database_diff( db_1, db_2, dctx );
+						rc = perform_database_diff( db_1, db_2, dctx, diffs );
 						/* ******************************************** */
 						VDatabaseRelease( db_2 );
 					}
@@ -349,7 +354,7 @@ static rc_t perform_diff( struct diff_ctx * dctx )
 						if ( rc == 0 )
 						{
 							/* ******************************************** */
-							rc = perform_table_diff( tab_1, tab_2, dctx, "SEQ" );
+							rc = perform_table_diff( tab_1, tab_2, dctx, "SEQ", diffs );
 							/* ******************************************** */
 							VTableRelease( tab_2 );
 						}
@@ -379,6 +384,7 @@ static rc_t perform_diff( struct diff_ctx * dctx )
 ***************************************************************************/
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    unsigned long int diffs = 0;
     Args * args;
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
                                   MyOptions, sizeof MyOptions / sizeof ( OptDef ) );
@@ -399,7 +405,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 			if ( rc == 0 )
 			{
 				/* ***************************** */
-				rc = perform_diff( &dctx );
+				rc = perform_diff( &dctx, &diffs );
 				/* ***************************** */				
 			}
         }
@@ -407,5 +413,19 @@ rc_t CC KMain ( int argc, char *argv [] )
 
         ArgsWhack ( args );
     }
+
+    if ( diffs > 0 ) rc = RC( rcExe, rcNoTarg, rcComparing, rcRow, rcInconsistent );
+    {
+        bool b = true;
+        while( b )
+        {
+            rc_t rc1;
+            const char * filename;
+            const char * funcname;
+            uint32_t lineno;
+            b = GetUnreadRCInfo ( &rc1, &filename, &funcname, &lineno );
+        }
+    }
+    KOutMsg( "%lu differences discovered ( rc = %d )\n", diffs, rc );
     return rc;
 }

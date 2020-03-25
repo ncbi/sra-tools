@@ -35,8 +35,8 @@
 extern "C" {
 #endif
 
-rc_t cbc_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab_2,
-                       struct diff_ctx * dctx, const char * tablename );
+rc_t cbc_diff_columns( const col_defs * defs, const VTable * tab_1, const VTable * tab_2,
+                       const struct diff_ctx * dctx, const char * tablename, unsigned long int *diffs );
 
 #ifdef __cplusplus
 }

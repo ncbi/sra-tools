@@ -40,8 +40,9 @@
 
 rc_t Quitting( void );  /* because we cannot include <kapp/main.h> where it is defined! */
 
-static rc_t cbc_diff_column_iter( col_pair * pair, const VCursor * cur_1, const VCursor * cur_2,
-                                  struct diff_ctx * dctx, const struct num_gen_iter * iter )
+static rc_t cbc_diff_column_iter( const col_pair * pair, const VCursor * cur_1, const VCursor * cur_2,
+                                  const struct diff_ctx * dctx, const struct num_gen_iter * iter,
+                                  unsigned long int * diffs )
 {
     rc_t rc = 0;
     struct progressbar * progress = NULL;
@@ -52,7 +53,7 @@ static rc_t cbc_diff_column_iter( col_pair * pair, const VCursor * cur_1, const 
     if ( dctx -> show_progress )
         make_progressbar( &progress, 2 );
 
-    while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) && rows_different < dctx -> max_err )
+    while ( ( rc == 0 ) && ( num_gen_iterator_next( iter, &row_id, &rc ) ) && ( *diffs < dctx -> max_err ) )
     {
         if ( rc == 0 ) rc = Quitting();    /* to be able to cancel the loop by signal */
         if ( rc == 0 )
@@ -65,9 +66,10 @@ static rc_t cbc_diff_column_iter( col_pair * pair, const VCursor * cur_1, const 
             if ( !col_equal )
             {
                 if ( rc == 0 )	rc = KOutMsg( "\n" );
-                rows_different ++;
+                rows_different++;
+                ( *diffs )++;
             }
-            rows_checked ++;
+            rows_checked++;
 
             if ( progress != NULL )
             {
@@ -79,9 +81,8 @@ static rc_t cbc_diff_column_iter( col_pair * pair, const VCursor * cur_1, const 
         } /* if (!Quitting) */
     } /* while ( num_gen_iterator_next() ) */
 
-    if ( rc == 0 ) rc = KOutMsg( "\n%,lu rows checked, %,lu rows differ\n", rows_checked, rows_different );
-
-    if ( rows_different > 0 ) rc = RC( rcExe, rcNoTarg, rcComparing, rcRow, rcInconsistent );
+    if ( rc == 0 )
+        rc = KOutMsg( "\n%,lu rows checked, %,lu rows differ\n", rows_checked, rows_different );
 
     if ( progress != NULL ) destroy_progressbar( progress );
 	
@@ -89,7 +90,7 @@ static rc_t cbc_diff_column_iter( col_pair * pair, const VCursor * cur_1, const 
 }
 
 static rc_t cbc_diff_column( col_pair * pair, const VCursor * cur_1, const VCursor * cur_2,
-                                  struct diff_ctx * dctx )
+                             const struct diff_ctx * dctx, unsigned long int *diffs )
 {
     rc_t rc = VCursorAddColumn( cur_1, &( pair -> idx[ 0 ] ), "%s", pair -> name );
     if ( rc != 0 )
@@ -132,7 +133,7 @@ static rc_t cbc_diff_column( col_pair * pair, const VCursor * cur_1, const VCurs
                         else
                         {
                             /* *************************************************************** */
-                            rc = cbc_diff_column_iter( pair, cur_1, cur_2, dctx, iter );
+                            rc = cbc_diff_column_iter( pair, cur_1, cur_2, dctx, iter, diffs );
                             /* *************************************************************** */
                             num_gen_iterator_destroy( iter );
                         }
@@ -145,13 +146,13 @@ static rc_t cbc_diff_column( col_pair * pair, const VCursor * cur_1, const VCurs
     return rc;
 }
 
-rc_t cbc_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab_2,
-                       struct diff_ctx * dctx, const char * tablename )
+rc_t cbc_diff_columns( const col_defs * defs, const VTable * tab_1, const VTable * tab_2,
+                       const struct diff_ctx * dctx, const char * tablename, unsigned long int *diffs )
 {
     rc_t rc = 0;
     uint32_t i;
     uint32_t count = VectorLength( &( defs -> cols ) );
-    for ( i = 0; i < count && rc == 0; ++i )
+    for ( i = 0; i < count && rc == 0 && ( *diffs < dctx -> max_err ); ++i )
     {
         col_pair * pair = VectorGet( &( defs -> cols ), i );
         if ( pair != NULL )
@@ -175,7 +176,9 @@ rc_t cbc_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab
                     }
                     else
                     {
-                        rc = cbc_diff_column( pair, cur_1, cur_2, dctx );
+                        /* *************************************************************** */
+                        rc = cbc_diff_column( pair, cur_1, cur_2, dctx, diffs );
+                        /* *************************************************************** */
                         VCursorRelease( cur_2 );
                     }
                     VCursorRelease( cur_1 );

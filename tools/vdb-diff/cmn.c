@@ -28,9 +28,9 @@
 #include <klib/log.h>
 #include <klib/out.h>
 
-rc_t cmn_diff_column( col_pair * pair,
-                    const VCursor * cur_1, const VCursor * cur_2,
-                    int64_t row_id,  bool * res )
+rc_t cmn_diff_column( const col_pair * pair,
+                      const VCursor * cur_1, const VCursor * cur_2,
+                      int64_t row_id,  bool * res )
 {
     uint32_t elem_bits_1, boff_1, row_len_1;
     const void * base_1;
@@ -127,14 +127,13 @@ rc_t cmn_make_num_gen( const VCursor * cur_1, const VCursor * cur_2,
         }
         else
         {
-            if ( src != NULL )
+            /* trick for static columns, they have only one value - so count=1 is OK */
+            if ( count_1 == 0 ) count_1 = 1;
+            if ( count_2 == 0 ) count_2 = 1;
+            
+            if ( src == NULL )
             {
-                num_gen_copy( src, dst );
-            }
-
-            if ( *dst == NULL )
-            {
-                /* no row-range given create the number generator from the discovered range, if it is the same */
+                /* no row-range given ( src == NULL ) create the number generator from the discovered range, if it is the same */
                 if ( first_1 != first_2 || count_1 != count_2 )
                 {
                     rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
@@ -144,8 +143,6 @@ rc_t cmn_make_num_gen( const VCursor * cur_1, const VCursor * cur_2,
                 }
                 else
                 {
-                    /* trick for static columns, they have only one value - so count=1 is OK */
-                    if ( count_1 == 0 ) count_1 = 1;
                     rc = num_gen_make_from_range( dst, first_1, count_1 );
                     if ( rc != 0 )
                     {
@@ -156,6 +153,8 @@ rc_t cmn_make_num_gen( const VCursor * cur_1, const VCursor * cur_2,
             else
             {
                 /* row-range given, clip the rows be the 2 ranges ( even if they are not the same ) */
+                num_gen_copy( src, dst );
+                KOutMsg( "cmn_make_num_gen: count_1=%lu, count2=%lu\n", count_1, count_2 );
                 rc = num_gen_trim( *dst, first_1, count_1 );
                 if ( rc != 0 )
                 {

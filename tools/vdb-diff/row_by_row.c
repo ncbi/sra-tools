@@ -40,8 +40,9 @@
 
 rc_t Quitting( void );  /* because we cannot include <kapp/main.h> where it is defined! */
 
-static rc_t rbr_diff_columns_iter( col_defs * defs, const VCursor * cur_1, const VCursor * cur_2,
-					        struct diff_ctx * dctx, const struct num_gen_iter * iter )
+static rc_t rbr_diff_columns_iter( const col_defs * defs, const VCursor * cur_1, const VCursor * cur_2,
+                                   const struct diff_ctx * dctx, const struct num_gen_iter * iter,
+                                   unsigned long int *diffs )
 {
 	uint32_t column_count;
 	rc_t rc = col_defs_count( defs, &column_count );
@@ -59,7 +60,7 @@ static rc_t rbr_diff_columns_iter( col_defs * defs, const VCursor * cur_1, const
 		if ( dctx -> show_progress )
 			make_progressbar( &progress, 2 );
 	
-		while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
+		while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) && *diffs < dctx->max_err )
 		{
 			if ( rc == 0 ) rc = Quitting();    /* to be able to cancel the loop by signal */
 			if ( rc == 0 )
@@ -75,16 +76,17 @@ static rc_t rbr_diff_columns_iter( col_defs * defs, const VCursor * cur_1, const
                         bool col_equal;
                         rc = cmn_diff_column( pair, cur_1, cur_2, row_id,  &col_equal );
                         if ( !col_equal )
+                        {
                             row_equal = false;
+                            ( *diffs )++;
+                        }
 					}
 				} /* for ( col_id ... ) */
 				
 				if ( !row_equal )
 				{
 					if ( rc == 0 )	rc = KOutMsg( "\n" );
-					rows_different ++;
-					if ( rows_different >= dctx -> max_err )
-						rc = RC( rcExe, rcNoTarg, rcComparing, rcRow, rcInconsistent );
+					rows_different++;
 				}
 				rows_checked ++;
 				
@@ -102,9 +104,6 @@ static rc_t rbr_diff_columns_iter( col_defs * defs, const VCursor * cur_1, const
 			rc = KOutMsg( "\n%,lu rows checked ( %d columns each ), %,lu rows differ\n",
 				rows_checked, column_count, rows_different );
 
-		if ( rows_different > 0 )
-			rc = RC( rcExe, rcNoTarg, rcComparing, rcRow, rcInconsistent );
-		
 		if ( progress != NULL )
 			destroy_progressbar( progress );
 			
@@ -114,7 +113,8 @@ static rc_t rbr_diff_columns_iter( col_defs * defs, const VCursor * cur_1, const
 }
 
 
-rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab_2, struct diff_ctx * dctx )
+rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab_2,
+                       const struct diff_ctx * dctx, unsigned long int *diffs )
 {
 	const VCursor * cur_1;
 	rc_t rc = VTableCreateCursorRead( tab_1, &cur_1 );
@@ -173,7 +173,7 @@ rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab
                                 else
                                 {
                                     /* *************************************************************** */
-                                    rc = rbr_diff_columns_iter( defs, cur_1, cur_2, dctx, iter );
+                                    rc = rbr_diff_columns_iter( defs, cur_1, cur_2, dctx, iter, diffs );
                                     /* *************************************************************** */
                                     num_gen_iterator_destroy( iter );
                                 }

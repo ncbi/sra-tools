@@ -35,7 +35,8 @@
 extern "C" {
 #endif
 
-rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab_2, struct diff_ctx * dctx );
+rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab_2,
+                       const struct diff_ctx * dctx, unsigned long int *diffs );
 
 #ifdef __cplusplus
 }

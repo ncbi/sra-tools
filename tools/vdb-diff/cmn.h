@@ -37,7 +37,7 @@
 extern "C" {
 #endif
 
-rc_t cmn_diff_column( col_pair * pair,
+rc_t cmn_diff_column( const col_pair * pair,
                       const VCursor * cur_1, const VCursor * cur_2,
                       int64_t row_id,  bool * res );
 

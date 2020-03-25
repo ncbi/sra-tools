@@ -409,6 +409,10 @@ rc_t CC KMain ( int argc, char *argv [] )
 				/* ***************************** */				
 			}
         }
+        else
+        {
+            Usage ( args );
+        }
         release_diff_ctx( &dctx );
 
         ArgsWhack ( args );

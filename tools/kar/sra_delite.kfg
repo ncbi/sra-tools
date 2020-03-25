@@ -48,6 +48,9 @@ translate NCBI:SRA:GenericFastq:sequence_log_odds 1       2
 translate NCBI:SRA:Helicos:tbl:v2 1.0.3   2
 translate NCBI:SRA:Nanopore:consensus     1       2
 
+#added by Zalunin
+translate NCBI:SRA:GenericFastq:db  1   2
+
 ### Columns to drop
 exclude QUALITY
 exclude QUALITY2

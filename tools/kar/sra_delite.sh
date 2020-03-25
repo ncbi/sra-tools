@@ -261,6 +261,9 @@ translate NCBI:SRA:GenericFastq:sequence_log_odds 1       2
 translate NCBI:SRA:Helicos:tbl:v2 1.0.3   2
 translate NCBI:SRA:Nanopore:consensus     1       2
 
+#added by Zalunin
+tranlsate NCBI:SRA:GenericFastq:db  1   2
+
 ### Columns to drop
 exclude QUALITY
 exclude QUALITY2
@@ -690,7 +693,7 @@ modify_object ()
     O2M=$1
     M2D=$DATABASE_DIR/$O2M
 
-    info_msg mdifying object \'$M2D\'
+    info_msg modifying object \'$M2D\'
 
     OLD_SCHEMA=`$KARMETA_BIN --info schema@name $M2D 2>/dev/null | awk ' { print $2 } '`
     if [ -z "$OLD_SCHEMA" ]
@@ -831,8 +834,7 @@ test_kar ()
 
     if [ ! -f $ORIG_KAR_FILE ]
     then
-        warn_msg SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
-        return
+        err_exit SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
     fi
 
     TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"
@@ -975,6 +977,27 @@ kar_preserved ()
     exec_cmd_exit $TCMD
 }
 
+print_stats ()
+{
+    NEW_SIZE=`stat --format="%s" $NEW_KAR_FILE`
+
+    if [ -f "$ORIG_KAR_FILE" ]
+    then
+        OLD_SIZE=`stat --format="%s" $ORIG_KAR_FILE`
+    else
+        OLD_SIZE=`stat --format="%s" $ALLCOLUMNS_KAR_FILE`
+    fi
+
+    info_msg New KAR size $NEW_SIZE
+    info_msg Old KAR size $OLD_SIZE
+    if [ $OLD_SIZE -ne 0 ]
+    then
+        info_msg Diff $(( $OLD_SIZE - $NEW_SIZE )) \($(( $NEW_SIZE * 100 / $OLD_SIZE ))%\)
+    else
+        info_msg Diff $(( $OLD_SIZE - $NEW_SIZE ))
+    fi
+}
+
 export_proc ()
 {
     ## checking if it is was delited
@@ -991,6 +1014,9 @@ export_proc ()
 
     ## writing preserved kar data
     kar_preserved
+
+    ## just printing stats
+    print_stats
 
     info_msg "DONE"
 }

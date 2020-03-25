@@ -24,70 +24,63 @@
 *
 */
 
-#ifndef _h_vdb_coldefs_
-#define _h_vdb_coldefs_
-
-#include <klib/defs.h>
-#include <klib/rc.h>
-#include <klib/vector.h>
-#include <klib/namelist.h>
-
-#include <vdb/schema.h>
-#include <vdb/table.h>
-#include <vdb/cursor.h>
+#ifndef _h_vdb_dump_context_
+#define _h_vdb_dump_context_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+#if 0
+}
+#endif
 
-/********************************************************************
-col-pair is the definition of pair of columns with same name
-********************************************************************/
-typedef struct col_pair
+#include <kapp/args.h>
+#include <klib/num-gen.h>
+#include <klib/out.h>
+
+#define OPTION_ROWS         "rows"
+#define ALIAS_ROWS          "R"
+
+#define OPTION_COLUMNS      "columns"
+#define ALIAS_COLUMNS       "C"
+
+#define OPTION_TABLE        "table"
+#define ALIAS_TABLE         "T"
+
+#define OPTION_PROGRESS     "progress"
+#define ALIAS_PROGRESS      "p"
+
+#define OPTION_MAXERR       "maxerr"
+#define ALIAS_MAXERR        "e"
+
+#define OPTION_INTERSECT    "intersect"
+#define ALIAS_INTERSECT     "i"
+
+#define OPTION_EXCLUDE      "exclude"
+#define ALIAS_EXCLUDE       "x"
+
+#define OPTION_COLUMNWISE   "col-by-col"
+#define ALIAS_COLUMNWISE    "c"
+
+struct diff_ctx
 {
-    char * name;
-	uint32_t idx[ 2 ];		/* a pair of sub-col-defs */
-} col_pair;
+    const char * src1;
+    const char * src2;
+	const char * columns;
+	const char * excluded;
+	const char * table;
+	
+    struct num_gen * rows;
+	uint32_t max_err;
+	bool show_progress;
+	bool intersect;
+    bool columnwise;
+};
 
-
-/********************************************************************
-the col-defs are a vector of single column-pairs
-********************************************************************/
-typedef struct col_defs
-{
-    Vector cols;
-} col_defs;
-
-
-/*
- * initializes a column-definitions-list
-*/
-rc_t col_defs_init( col_defs ** defs );
-
-
-/*
- * destroys the column-definitions-list
-*/
-rc_t col_defs_destroy( col_defs * defs );
-
-
-/*
- * setup the list with pairs made from the given list
-*/
-rc_t col_defs_fill( col_defs * defs, const KNamelist * list );
-
-
-/*
- * how many columns do we have in here?
-*/
-rc_t col_defs_count( const col_defs * defs, uint32_t * count );
-
-
-/*
- * add the pairs in defs to the given cursor
-*/
-rc_t col_defs_add_to_cursor( col_defs * defs, const VCursor * cur, int idx );
-
+void init_diff_ctx( struct diff_ctx * dctx );
+void release_diff_ctx( struct diff_ctx * dctx );
+rc_t gather_diff_ctx( struct diff_ctx * dctx, Args * args );
+rc_t report_diff_ctx( struct diff_ctx * dctx );
 
 #ifdef __cplusplus
 }

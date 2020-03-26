@@ -1,5 +1,18 @@
 # NCBI External Developer Release:
 
+
+## SRA Toolkit 2.10.4
+**February 26, 2020**
+
+  **kns, sra-tools:**: fixed errors when using ngc file
+
+
+## SRA Toolkit 2.10.3
+**February 18, 2020**
+
+  **sraxf, fasterq-dump, fastq-dump, sam-dump**: fixed a problem resulting in a segmentation fault 
+
+
 ## SRA Toolkit 2.10.2
 **January 15, 2020**
 
@@ -12,7 +25,7 @@
   **prefetch**: accepts JWT cart command line argument plus accession filter  
   **prefetch**: fixed crash when run with --output-file option  
   **prefetch**: make sure to accept old style kart file; added --cart command line option  
-  **prefetch**: the download transport has been limited to https and the eliminate-quals option has been temporarily disabled.  
+  **prefetch**: the download transport has been limited to https and the eliminate-quals option has been temporarily disabled  
   **prefetch, vfs**: allow to specify file type to resolve  
   **prefetch, vfs**: allow to use "prefetch --type all" to request download of all file types  
   **sra-pileup**: printing bases inbetween slices when user-defined ref-name given fixed  
@@ -35,6 +48,12 @@
   **vdb-dump**: fixed bug in -X ( hex ) mode  
   **vdb-dump, vfs**: addressed obscure bug preventing access to a single external reference  
   **vdb-validate**: fixed handling of empty cells affecting certain databases  
+
+
+## SRA Toolkit 2.10.1
+**December 16, 2019**
+
+  **sra-tools**: changed version to match that of _ncbi-vdb_
 
 
 ## SRA Toolkit 2.10.0

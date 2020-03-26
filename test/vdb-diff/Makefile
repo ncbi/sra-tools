@@ -26,7 +26,7 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/srapath
+MODULE = test/vdb-diff
 
 TEST_TOOLS = 
 
@@ -36,10 +36,13 @@ $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 ifdef PYTHON
-runtests: check_exit_code SRP vdbcache
+runtests: check_exit_code \
+	check_success \
+	check_failure
 
 else
-runtests: SRP vdbcache
+runtests: check_success\
+	check_failure;
 
 endif
 
@@ -47,15 +50,16 @@ endif
 # scripted tests
 #
 
+ACCESSION = SRR000001
+
 check_exit_code:
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/srapath
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-diff
 
-SRP:
-# TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
-	$(BINDIR)/srapath SRR000001 -fnames > /dev/null
+check_success:
+	@./test_success.sh $(BINDIR) $(ACCESSION)
 
-vdbcache: #; print "<$_>"
-	$(BINDIR)/srapath SRR1557953 | wc -l | perl check-cnt.pl
+check_failure:
+	@./test_failure.sh $(BINDIR) $(ACCESSION)
 
 .PHONY: $(TEST_TOOLS)
 

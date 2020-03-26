@@ -422,9 +422,9 @@ rc_t parse_params_int ( Params *p, const Args *args )
     return rc;
 }
 
-rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
+rc_t parse_params ( Params *p, struct Args ** args, int argc, char * argv [] )
 {
-    rc_t rc;
+    rc_t rc = 0;
 
         /* to shut valgrind */
     memset ( p, 0, sizeof ( Params ) );
@@ -444,15 +444,14 @@ rc_t parse_params ( Params *p, Args *args, int argc, char * argv [] )
     p -> drop = NULL;
     p -> kdfile = NULL;
 
-    rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
+    rc = ArgsMakeAndHandle ( args, argc, argv, 1,
         Options, sizeof Options / sizeof ( Options [ 0 ] ) );
     if ( rc == 0 )
     {
-        rc = parse_params_int ( p, args );
+        rc = parse_params_int ( p, * args );
 
         if ( rc == 0 )
             rc = validate_params ( p );
-
     }
 
     return rc;

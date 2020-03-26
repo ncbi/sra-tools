@@ -82,7 +82,7 @@ static rc_t read_bounded_quality( struct cmn_iter * cmn,
     if ( rc != 0 )
     {
         clear_quality( quality );
-        rc = 0;
+        /* rc = 0; this should not be needed */
     }
     return rc;
 }
@@ -115,10 +115,8 @@ static rc_t read_bounded_quality_fix( struct cmn_iter * cmn,
     }
     if ( rc != 0 )
     {
-        quality -> addr = NULL;
-        quality -> len = 0;
-        quality -> size = 0;
-        rc = 0;
+        clear_quality( quality );
+        /* rc = 0; this should not be needed */
     }
     return rc;
 }
@@ -247,6 +245,7 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
 
         if ( rc != NULL )
             *rc = rc1;
+        res = ( 0 == rc1 );
     }   
     return res;
 }
@@ -392,6 +391,7 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
 
         if ( rc != NULL )
             *rc = rc1;
+        res = ( 0 == rc1 );
     }
     return res;
 }

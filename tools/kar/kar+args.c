@@ -587,9 +587,6 @@ rc_t validate_params ( Params *p )
         }
     }
 
-/* JOJOBA : here we should do some arguments verification
- */
-
     return rc;
 }
 

@@ -110,41 +110,28 @@ struct KARLok {
 static
 void CC kar_lok_dump ( KARLok * self )
 {
+    const char * Nm = NULL;
+
     if ( self == NULL ) {
-        fprintf ( stderr, "LOK: NULL\n" );
+        LOGMSG ( klogDebug, "LOK: NULL" );
         return;
     }
 
     switch ( self -> type ) {
-        case kInfo   : fprintf ( stderr, "LOK[GV] " ); break;
-        case kSetVal : fprintf ( stderr, "LOK[SV] " ); break;
-        case kErase  : fprintf ( stderr, "LOK[ER] " ); break;
-        case kUpdScm : fprintf ( stderr, "LOK[US] " ); break;
-        default:       fprintf ( stderr, "LOK[??] " ); break;
+        case kInfo   : Nm = "LOK[GV]"; break;
+        case kSetVal : Nm = "LOK[SV]"; break;
+        case kErase  : Nm = "LOK[ER]"; break;
+        case kUpdScm : Nm = "LOK[US]"; break;
+        default:       Nm = "LOK[??]"; break;
     }
 
-    if ( self -> node != NULL ) {
-        fprintf ( stderr, "n [%s] ", self -> node );
-    }
-    else {
-        fprintf ( stderr, "n [NULL] " );
-    }
-
-    if ( self -> attr != NULL ) {
-        fprintf ( stderr, "a [%s] ", self -> attr );
-    }
-    else {
-        fprintf ( stderr, "a [NULL] " );
-    }
-
-    if ( self -> val != NULL ) {
-        fprintf ( stderr, "v [%s] ", self -> val );
-    }
-    else {
-        fprintf ( stderr, "v [NULL] " );
-    }
-
-    fprintf ( stderr, "\n" );
+    pLogMsg ( klogDebug, "$(name) n [$(node)] a [$(attr)] v [$(value)]",
+                "name=%s,node=%s,attr=%s,value=%s",
+                Nm,
+                ( self -> node != NULL ? self -> node : "NULL" ),
+                ( self -> attr != NULL ? self -> attr : "NULL" ),
+                ( self -> val != NULL ? self -> val : "NULL" )
+                );
 }   /* kar_lok_dump () */
 
 static
@@ -237,8 +224,6 @@ rc_t CC kar_lok_make ( KARLok ** Lok, const char * Str, AcType Type )
     }
 
     if ( Ret -> type == kSetVal && Ret -> val == NULL ) {
-        /*  JOJOBA: do we need that?
-         */
         rc = RC (rcExe, rcPath, rcParsing, rcParam, rcInvalid);
     }
 
@@ -415,7 +400,7 @@ rc_t CC Usage (const Args * args)
 }
 
 static
-rc_t CC get_single_option ( const Args * args, const char * OptName, const char ** Ret, const char * Dflt )
+rc_t CC get_single_option ( const Args * args, const char * OptName, const char ** Ret, const char * Dflt, bool Required )
 {
     rc_t rc;
     uint32_t count, i;
@@ -439,11 +424,13 @@ rc_t CC get_single_option ( const Args * args, const char * OptName, const char 
             Val = Dflt;
         }
         else {
-/* JOJOBA
-            pLogErr ( klogFatal, rc, "Invalid amount of '$(name)' option", "name=%s", OptName );
-            return rc;
-*/
-            return 0;
+            if ( Required ) {
+                pLogErr ( klogFatal, rc, "Invalid amount of '$(name)' option", "name=%s", OptName );
+                return rc;
+            }
+            else {
+                return 0;
+            }
         }
     }
 
@@ -553,12 +540,10 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
         return rc;
     }
 
-        /*  JOJOBA: schema path resolve
+        /*  JOJOBA: good idea to get SCHEMA path from configuration, but we
+         *          will leave it as is for now
          */
-/*
-    rc = get_single_option ( args, OPTION_SPATH, & ( p -> spath ), "/panfs/traces01/trace_software/vdb/schema" );
-*/
-    rc = get_single_option ( args, OPTION_SPATH, & ( p -> spath ), NULL );
+    rc = get_single_option ( args, OPTION_SPATH, & ( p -> spath ), NULL, false );
     if ( rc != 0 ) {
         return rc;
     }
@@ -592,9 +577,13 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
 
 rc_t validate_porams ( Porams *p );
 
-rc_t parse_porams ( Porams *p, Args *args, int argc, char * argv [] )
+rc_t parse_porams ( Porams *p, int argc, char * argv [] )
 {
     rc_t rc;
+    Args * args;
+
+    rc = 0;
+    args = NULL;
 
     rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
         Options, sizeof Options / sizeof ( Options [ 0 ] ) );
@@ -605,6 +594,7 @@ rc_t parse_porams ( Porams *p, Args *args, int argc, char * argv [] )
         if ( rc == 0 )
             rc = validate_porams ( p );
 
+        ArgsWhack ( args );
     }
 
     return rc;
@@ -665,13 +655,9 @@ rc_t CC KMain ( int argc, char *argv [] )
 
     rc_t rc = kar_porams_init ( & porams );
     if ( rc == 0 ) {
-        Args *args = NULL;
-
-        rc = parse_porams ( &porams, args, argc, argv );
+        rc = parse_porams ( &porams, argc, argv );
         if ( rc == 0 ) {
             rc = run ( &porams );
-
-            ArgsWhack ( args );
         }
 
         kar_porams_whack ( & porams );
@@ -719,7 +705,7 @@ rc_t CC utst_whack ( UtSt * self )
     }
 
     return 0;
-}   /* utst_shack () */
+}   /* utst_whack () */
 
 static
 rc_t CC utst_init ( UtSt * self, Porams * p )
@@ -789,42 +775,34 @@ rc_t CC utst_init ( UtSt * self, Porams * p )
 static
 void CC utst_dump ( UtSt * utst )
 {
-    if ( utst == NULL ) {
-        fprintf ( stderr, "UTST: NULL\n" );
-        return;
-    }
+    const char * Nm = NULL;
 
-    if ( utst -> porams == NULL ) {
-        fprintf ( stderr, "UTST: EMPTY\n" );
+    if ( utst == NULL ) {
+        LOGMSG ( klogDebug, "UTST: NULL" );
         return;
     }
 
     switch ( utst -> type ) {
-        case kptDatabase :
-                    fprintf ( stderr, "UTST: tp [%u][DB] ", utst -> type );
-                    break;
-        case kptTable    :
-                    fprintf ( stderr, "UTST: tp [%u][TBL] ", utst -> type );
-                    break;
-        case kptIndex    :
-                    fprintf ( stderr, "UTST: tp [%u][IND] ", utst -> type );
-                    break;
-        case kptColumn   :
-                    fprintf ( stderr, "UTST: tp [%u][COL] ", utst -> type );
-                    break;
-        case kptMetadata :
-                    fprintf ( stderr, "UTST: tp [%u][MD] ", utst -> type );
-                    break;
-        case kptPrereleaseTbl :
-                    fprintf ( stderr, "UTST: tp [%u][PRE TBL] ", utst -> type );
-                    break;
-        default:
-                    fprintf ( stderr, "UTST: tp [%u][UNK] ", utst -> type );
-                    break;
+        case kptDatabase      : Nm = "DB";      break;
+        case kptTable         : Nm = "TBL";     break;
+        case kptIndex         : Nm = "IND";     break;
+        case kptColumn        : Nm = "COL";     break;
+        case kptMetadata      : Nm = "MD";      break;
+        case kptPrereleaseTbl : Nm = "PRE TBL"; break;
+        default               : Nm = "UNK";     break;
     }
 
-    size_t Count = kar_wek_size ( utst -> porams -> loks );
-    fprintf ( stderr, "op [%ld] in [%ld] sv [%ld] er [%ld] us [%ld] sp [%s]\n", Count, utst -> info, utst -> setval, utst -> erase, utst -> updscm, ( utst -> porams == NULL ? NULL : ( utst -> porams -> spath ) ) );
+    pLogMsg ( klogDebug, "UTST: tp [$(type)][$(name)] op [$(oper)] in [$(info)] sv [$(setv)] er [$(eras)] us [$(ups)] sp [$(spat)]",
+                    "type=%u,name=%s,oper=%ld,info=%ld,setv=%ld,eras=%ld,ups=%ld,spat=%s",
+                    utst -> type,
+                    Nm,
+                    kar_wek_size ( utst -> porams -> loks ),
+                    utst -> info,
+                    utst -> setval,
+                    utst -> erase,
+                    utst -> updscm,
+                    ( utst -> porams == NULL ? NULL : ( utst -> porams -> spath ) )
+                    );
 }   /* utst_dump () */
 
 static
@@ -837,8 +815,6 @@ rc_t CC print_basic_info ( UtSt * utst )
     if ( utst -> info || utst -> setval || utst -> erase || utst -> updscm ) {
         return 0;
     }
-
-fprintf ( stderr, "[BAS IN]\n" );
 
     return rc;
 }   /* print_basic_info () */
@@ -994,6 +970,11 @@ rc_t CC make_parse_schema_callback (
     Schema = ( VSchema * ) Data;
 
     if ( Type == kptFile ) {
+        if ( strcmp ( Name, "pevents.vschema" ) == 0 ) {
+            pLogMsg ( klogInfo, "Skipping schema '$(name)'", "name=%s", Name );
+            return 0;
+        }
+
             /*  First we should be sure if that file is schema file
              *  or, in in other words it's name ends with ".vschema"
              */
@@ -1016,10 +997,7 @@ rc_t CC make_parse_schema_callback (
         }
     }
 
-        /* JOJOBA : find why error
-         */
-    // return rc;
-    return 0;
+    return rc;
 }   /* make_parse_schema_callback () */
 
 static
@@ -1051,18 +1029,18 @@ rc_t CC make_parse_schema ( UtSt * utst, VSchema ** Schema )
 
             rc = VDBManagerMakeSchema ( Mgr, & Ret );
             if ( rc == 0 ) {
-                    /* JOJOBA: - return rc if it failed on parsing schema
-                     */
-                VSchemaAddIncludePath ( Ret, utst -> porams -> spath );
-                rc = KDirectoryVisit (
-                                        Dir,
-                                        true,
-                                        make_parse_schema_callback,
-                                        Ret,
-                                        utst -> porams -> spath
-                                        );
+                rc = VSchemaAddIncludePath ( Ret, utst -> porams -> spath );
                 if ( rc == 0 ) {
-                    * Schema = Ret;
+                    rc = KDirectoryVisit (
+                                            Dir,
+                                            true,
+                                            make_parse_schema_callback,
+                                            Ret,
+                                            utst -> porams -> spath
+                                            );
+                    if ( rc == 0 ) {
+                        * Schema = Ret;
+                    }
                 }
             }
 
@@ -1095,9 +1073,8 @@ rc_t CC update_schemas ( UtSt * utst )
             KARLok * Lok = kar_wek_get ( utst -> porams -> loks, llp );
             if ( Lok != NULL ) {
                 if ( Lok -> type == kUpdScm ) {
-/* JOJOBA
-kar_lok_dump ( Lok );
-*/
+                    kar_lok_dump ( Lok );
+
                     update_schema ( utst, Lok, Schema );
                 }
             }
@@ -1285,9 +1262,7 @@ rc_t CC do_erase (UtSt * utst, KARLok * Lok )
         return RC (rcExe, rcApp, rcAccessing, rcParam, rcNull);
     }
 
-/* JOJOBA
-kar_lok_dump ( Lok );
-*/
+    kar_lok_dump ( Lok );
 
     switch ( utst -> type ) {
         case kptDatabase:
@@ -1339,14 +1314,66 @@ rc_t CC do_erase_all ( UtSt * utst )
  * Set Value
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 static
+rc_t reencode_hex ( const char ** Ret, const char * expr )
+{
+    char * buff = NULL;
+
+    * Ret = NULL;
+
+    /* took that code from kdbmeta.c without changes. I find that it works well */
+    /* according to documentation, "expr" is allowed to be text
+       or text with escaped hex sequences. examine for escaped hex */
+    size_t len = string_size ( expr );
+    buff = malloc ( len + 1 );
+    if ( buff == NULL )
+        return RC ( rcExe, rcMetadata, rcUpdating, rcMemory, rcExhausted );
+    else
+    {
+        size_t i, j;
+        for ( i = j = 0; i < len; ++ i, ++ j )
+        {
+            if ( ( buff [ j ] = expr [ i ] ) == '\\' )
+            {
+                /* we know "expr" is NUL-terminated, so this is safe */
+                if ( tolower ( expr [ i + 1 ] ) == 'x' &&
+                     isxdigit ( expr [ i + 2 ] ) &&
+                     isxdigit ( expr [ i + 3 ] ) )
+                {
+                    int msn = toupper ( expr [ i + 2 ] ) - '0';
+                    int lsn = toupper ( expr [ i + 3 ] ) - '0';
+                    if ( msn >= 10 )
+                        msn += '0' - 'A' + 10;
+                    if ( lsn >= 10 )
+                        lsn += '0' - 'A' + 10;
+                    buff [ j ] = ( char ) ( ( msn << 4 ) | lsn );
+                    i += 3;
+                }
+            }
+        }
+
+        buff [ j ] = 0;
+
+        * Ret = buff;
+    }
+
+    return 0;
+}   /* reencode_hex () */
+
+static
 rc_t CC update_attr_value ( KMDataNode * Node, const char * AttrName, const char * Val )
 {
     rc_t rc;
+    const char * Expr;
 
-    /*  JOJOBA : encode hex values here
-     */
+    rc = 0;
+    Expr = NULL;
 
-    rc = KMDataNodeWriteAttr ( Node, AttrName, Val );
+    rc = reencode_hex ( & Expr, Val );
+    if ( rc == 0 ) {
+        rc = KMDataNodeWriteAttr ( Node, AttrName, Expr );
+
+        free ( ( char * ) Expr );
+    }
 
     return rc;
 }   /* update_attr_value () */
@@ -1462,9 +1489,7 @@ rc_t CC set_value (UtSt * utst, KARLok * Lok )
         return RC (rcExe, rcApp, rcAccessing, rcParam, rcNull);
     }
 
-/* JOJOBA
-kar_lok_dump ( Lok );
-*/
+    kar_lok_dump ( Lok );
 
     switch ( utst -> type ) {
         case kptDatabase:
@@ -1538,10 +1563,10 @@ rc_t CC dump_namelist ( KNamelist * List, const char * Preffix )
             }
 
             if ( Preffix == NULL ) {
-                fprintf ( stderr, "%s\n", Name );
+                printf ( "%s\n", Name );
             }
             else {
-                fprintf ( stderr, "%s\t%s\n", Preffix, Name );
+                printf ( "%s\t%s\n", Preffix, Name );
             }
         }
     }
@@ -1775,9 +1800,7 @@ rc_t CC get_info (UtSt * utst, KARLok * Lok )
         return RC (rcExe, rcApp, rcAccessing, rcParam, rcNull);
     }
 
-/* JOJOBA
-kar_lok_dump ( Lok );
-*/
+    kar_lok_dump ( Lok );
 
     switch ( utst -> type ) {
         case kptDatabase:
@@ -1850,9 +1873,7 @@ rc_t CC run ( Porams * p )
 
     rc = utst_init ( & utst, p );
     if ( rc == 0 ) {
-/* JOJOBA
-utst_dump ( & utst );
-*/
+        utst_dump ( & utst );
 
         if ( ! utst . info && ! utst . setval && ! utst . erase && ! utst . updscm ) {
             rc = print_basic_info ( & utst );

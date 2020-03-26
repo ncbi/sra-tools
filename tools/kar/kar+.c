@@ -822,21 +822,6 @@ void kar_write_toc ( KARArchiveFile * af, KARDir *kar_dir )
     STATUS ( STAT_QA, "toc written" );
 }
 
-#ifdef JOJOBA
-static
-void CC kar_prune_entry ( BSTNode * Node, void * Data )
-{
-    if ( Node == NULL ) {
-        return;
-    }
-
-    KAREntry * Entry = ( ( KARENode * ) Node ) -> entry;
-    if ( Entry -> the_flag ) {
-
-    }
-}
-#endif /* JOJOBA */
-
 static
 rc_t CC kar_purge_entries ( KAREntry * Root, bool FlagValue )
 {
@@ -869,14 +854,6 @@ rc_t CC kar_purge_entries ( KAREntry * Root, bool FlagValue )
 
     return rc;
 }   /* kar_purge_entries () */
-
-static
-rc_t CC kar_load_kdfile ( const Params * params )
-{
-    /*  JOJOBA : we may need that in future
-     */
-    return 0;
-}   /* kar_load_kdfile () */
 
 static
 rc_t CC kar_entry_mark_to_keep ( KAREntry * self )
@@ -1031,10 +1008,6 @@ rc_t CC kar_transform_tok ( KARDir * kar_dir, const Params * params )
 
     if ( kar_dir == NULL ) {
         return RC ( rcExe, rcTocEntry, rcProcessing, rcParam, rcNull );
-    }
-
-    if ( params -> kdfile != NULL ) {
-        rc = kar_load_kdfile ( params );
     }
 
     if ( rc == 0 ) {
@@ -1810,7 +1783,7 @@ rc_t stored_file_add (
 }   /* stored_file_add () */
 
 /****************************************************************
- * JOJOBA
+ * Optimized retrieval data from remote
  ****************************************************************/
 
 typedef struct extract_block extract_block;
@@ -2011,13 +1984,6 @@ bool CC kar_extract ( BSTNode *node, void *data )
         break;
     }
 
-/*
-    if ( eb -> rc == 0 )
-        eb -> rc = KDirectorySetAccess ( eb -> cdir, false, entry -> access_mode, 0777, "%s", entry -> name );
-    if ( eb -> rc == 0 )
-        eb -> rc = KDirectorySetDate ( eb -> cdir, false, entry -> mod_time, "%s", entry -> name );
-*/
-
     if ( eb -> rc != 0 )
         return true;
 
@@ -2091,9 +2057,7 @@ rc_t kar_test_extract ( const Params *p )
     else
     {
         const KFile *archive;
-/*  JOJOBA : temparary
-        rc = KDirectoryOpenFileRead ( wd, &archive, p -> archive_path );
- */
+
         rc = kar_open_file_read ( wd, &archive, p -> archive_path );
         if ( rc != 0 )
             LogErr ( klogInt, rc, "Failed to open archive" );

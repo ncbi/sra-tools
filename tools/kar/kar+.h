@@ -245,17 +245,4 @@ rc_t CC kar_entry_filter_flag (
  **/
 rc_t CC kar_entry_set_flag ( const KAREntry * self, bool Value );
 
-#ifdef JOJOBA
-Temporary removing from here
-/**  General KAREntry functions
- **
- **/
-void kar_entry_whack ( BSTNode *node, void *data );
-
-rc_t CC car_entry_create ( KAREntry ** rtn, size_t entry_size,
-    const KDirectory * dir, const char * name, uint32_t type,
-    uint8_t eff_type
-);
-#endif /* JOJOBA */
-
 #endif /*_h_kar_args_*/

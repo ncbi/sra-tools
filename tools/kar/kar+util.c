@@ -549,6 +549,7 @@ rc_t CC kar_wek_init (
     self -> size = 0;
     self -> inc_size = increment_size == 0 ? 16 : increment_size;
     self -> capacity = 0;
+    self -> destructor = destructor;
 
     if ( initial_capacity != 0 ) {
         rc = kar_wek_realloc ( self, initial_capacity );

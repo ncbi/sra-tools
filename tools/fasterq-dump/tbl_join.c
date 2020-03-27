@@ -381,17 +381,9 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
     {
         rc_t rc_iter;
         fastq_rec rec;
-        join_options local_opt =
-        {
-            jo -> rowid_as_name,
-            false,
-            jo -> print_read_nr,
-            jo -> print_name,
-            jo -> terminate_on_invalid,
-            jo -> min_read_len,
-            jo -> filter_bases
-        };
+        join_options local_opt;
 
+        copy_join_options( &local_opt, jo, false ); /* helper.c */
         while ( rc == 0 && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             stats -> spots_read++;
@@ -519,17 +511,9 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     {
         rc_t rc_iter;
         fastq_rec rec;
-        join_options local_opt =
-        {
-            jo -> rowid_as_name,
-            true,
-            jo -> print_read_nr,
-            jo -> print_name,
-            jo -> terminate_on_invalid,
-            jo -> min_read_len,
-            jo -> filter_bases
-        };
-        
+        join_options local_opt;
+
+        copy_join_options( &local_opt, jo, true );
         while ( rc == 0 && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();

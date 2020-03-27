@@ -850,13 +850,9 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
     else
     {
         fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt = { jo -> rowid_as_name,
-                                   false, 
-                                   jo -> print_read_nr,
-                                   jo -> print_name,
-                                   jo -> terminate_on_invalid,
-                                   jo -> min_read_len,
-                                   jo -> filter_bases };
+        join_options local_opt;
+
+        copy_join_options( &local_opt, jo, false ); /* helper.c */
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -949,17 +945,10 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     else
     {
         fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt =
-            { 
-                jo -> rowid_as_name,
-                false,
-                jo -> print_read_nr,
-                jo -> print_name,
-                jo -> terminate_on_invalid,
-                jo -> min_read_len,
-                jo -> filter_bases
-            };
-            
+
+        join_options local_opt;
+        
+        copy_join_options( &local_opt, jo, false ); /* helper.c */
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -999,7 +988,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
-    
+
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
     if ( rc != 0 )
         ErrMsg( "perform_fastq_split_3_join().make_fastq_csra_iter() -> %R", rc );
@@ -1008,17 +997,8 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
         fastq_rec rec; /* fastq_iter.h */
         rc_t rc_iter = 0;
         
-        join_options local_opt =
-            {
-                jo -> rowid_as_name,
-                false,
-                jo -> print_read_nr,
-                jo -> print_name,
-                jo -> terminate_on_invalid,
-                jo -> min_read_len,
-                jo -> filter_bases
-            };
-
+        join_options local_opt;
+        copy_join_options( &local_opt, jo, false ); /* helper.c */
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -1100,8 +1080,13 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
     if ( rc == 0 && results != NULL )
     {
         join j;
-        cmn_params cp = { jtd -> dir, jtd -> vdb_mgr,
-                          jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+        cmn_params cp = { jtd -> dir,
+                          jtd -> vdb_mgr,
+                          jtd -> accession_path,
+                          jtd -> first_row,
+                          jtd -> row_count,
+                          jtd -> cur_cache,
+                          jtd -> join_options -> sim_err };
 
         rc = init_join( &cp,
                         results,
@@ -1198,15 +1183,8 @@ rc_t execute_db_join( KDirectory * dir,
             struct join_options corrected_join_options;
             
             VectorInit( &threads, 0, num_threads );
+            copy_join_options( &corrected_join_options, join_options, join_options -> skip_tech );
 
-            corrected_join_options . rowid_as_name = name_column_present ? join_options -> rowid_as_name : true;
-            corrected_join_options . skip_tech = join_options -> skip_tech;
-            corrected_join_options . print_read_nr = join_options -> print_read_nr;
-            corrected_join_options . print_name = join_options -> print_name;
-            corrected_join_options . min_read_len = join_options -> min_read_len;
-            corrected_join_options . filter_bases = join_options -> filter_bases;
-            corrected_join_options . terminate_on_invalid = join_options -> terminate_on_invalid;
-            
             if ( row_count < ( num_threads * 100 ) )
             {
                 num_threads = 1;
@@ -1262,7 +1240,7 @@ rc_t execute_db_join( KDirectory * dir,
                     }
                 }
             }
-            
+
             {
                 /* collect the threads, and add the join_stats */
                 uint32_t i, n = VectorLength( &threads );
@@ -1318,7 +1296,7 @@ rc_t check_lookup( const KDirectory * dir,
             params . first_row = 0;
             params . row_count = 0;
             params . cursor_cache = cursor_cache;
-            
+
             rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
             if ( rc == 0 )
             {

@@ -1262,3 +1262,31 @@ bool match_Buf2NA( Buf2NA * self, const String * ascii )
     }
     return res;
 }
+
+void copy_join_options( join_options * dst, const join_options * src, bool skip_tech )
+{
+    dst -> rowid_as_name = src -> rowid_as_name;
+    dst -> skip_tech = skip_tech;
+    dst -> print_read_nr = src -> print_read_nr;
+    dst -> print_name = src -> print_name;
+    dst -> terminate_on_invalid = src -> terminate_on_invalid;
+    dst -> min_read_len = src -> min_read_len;
+    dst -> sim_err = src -> sim_err;
+    dst -> filter_bases = src -> filter_bases;
+}
+
+unsigned long simple_rand( unsigned long *x )
+{
+    unsigned long r = *x;
+    r ^= ( r << 21 );
+    r ^= ( r >> 35 );
+    r ^= ( r << 4 );
+    *x = r;
+    return r;
+}
+
+unsigned long simple_rand_range( unsigned long *x, unsigned long lower, unsigned long upper )
+{
+    unsigned long r = simple_rand( x );
+    return lower + ( r % ( upper - lower + 1 ) );
+}

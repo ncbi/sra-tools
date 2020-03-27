@@ -92,8 +92,11 @@ typedef struct join_options
     bool print_name;
     bool terminate_on_invalid;
     uint32_t min_read_len;
+    uint32_t sim_err;
     const char * filter_bases;
 } join_options;
+
+void copy_join_options( join_options * dst, const join_options * src, bool skip_tech );
 
 typedef struct tmp_id
 {
@@ -127,6 +130,7 @@ typedef struct cmn_params
     int64_t first_row;
     uint64_t row_count;
     size_t cursor_cache;
+    uint32_t sim_err;
 } cmn_params;
 
 rc_t ErrMsg( const char * fmt, ... );
@@ -240,6 +244,11 @@ struct Buf2NA;
 rc_t make_Buf2NA( struct Buf2NA ** self, size_t size, const char * pattern );
 void release_Buf2NA( struct Buf2NA * self );
 bool match_Buf2NA( struct Buf2NA * self, const String * ascii );
+
+/* ===================================================================================== */
+
+unsigned long simple_rand( unsigned long *x );
+unsigned long simple_rand_range( unsigned long *x, unsigned long lower, unsigned long upper );
 
 #ifdef __cplusplus
 }

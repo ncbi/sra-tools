@@ -163,6 +163,9 @@ static const char * append_usage[] = { "append to output-file", NULL };
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC   "ngc"
 
+static const char * sim_err_usage[] = { "simulate errors", NULL };
+#define OPTION_SIM_ERR  "sim-err"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -193,7 +196,8 @@ OptDef ToolOptions[] =
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
     { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
     { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false },
-    { OPTION_NGC,       NULL,            NULL, ngc_usage, 1, true,  false },
+    { OPTION_NGC,       NULL,            NULL, ngc_usage,        1, true,   false },
+    { OPTION_SIM_ERR,   NULL,            NULL, sim_err_usage,    1, true,   false },
 };
 
 const char UsageDefaultName[] = "fasterq-dump";
@@ -230,11 +234,12 @@ rc_t CC Usage ( const Args * args )
 
         const char * param = NULL;
 
-        assert(opt);
-        if (strcmp(opt->name, OPTION_NGC) == 0)
+        assert( opt );
+        if ( strcmp( opt->name, OPTION_NGC ) == 0 )
             param = "PATH";
 
-        HelpOptionLine(opt->aliases, opt->name, param, opt->help);
+        if ( strcmp( opt->name, OPTION_SIM_ERR ) != 0 )
+            HelpOptionLine( opt->aliases, opt->name, param, opt->help );
     }
     
     KOutMsg("\n");
@@ -270,6 +275,7 @@ typedef struct tool_ctx_t
     size_t cursor_cache, buf_size, mem_limit;
 
     uint32_t num_threads /*, max_fds */;
+    uint32_t sim_err;
     uint64_t total_ram;
     
     format_t fmt; /* helper.h */
@@ -331,6 +337,9 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
         rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
     if ( rc == 0 )
         rc = KOutMsg( "stdout-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
+    if ( rc == 0 && tool_ctx -> sim_err > 0 )
+        rc = KOutMsg( "sim-error    : %u\n", tool_ctx -> sim_err );
+
     return rc;
 }
 
@@ -359,7 +368,8 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
-
+    tool_ctx -> sim_err = get_uint32_t_option( args, OPTION_SIM_ERR, 0 );
+    
     tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
     tool_ctx -> join_options . skip_tech = !( get_bool_option( args, OPTION_INCL_TECH ) );
     tool_ctx -> join_options . print_read_nr = get_bool_option( args, OPTION_PRNR );
@@ -367,6 +377,7 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
     tool_ctx -> join_options . terminate_on_invalid = get_bool_option( args, OPTION_STRICT );
+    tool_ctx -> join_options . sim_err = tool_ctx -> sim_err;
 
     split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );

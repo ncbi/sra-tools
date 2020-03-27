@@ -29,6 +29,7 @@
 
 #include <klib/out.h>
 #include <klib/num-gen.h>
+#include <klib/time.h>
 
 #include <sra/sraschema.h>
 
@@ -50,6 +51,8 @@ typedef struct cmn_iter
     const struct num_gen_iter * row_iter;
     uint64_t row_count;
     int64_t first_row, row_id;
+    uint32_t sim_err;
+    unsigned long rand_val;
 } cmn_iter;
 
 
@@ -164,6 +167,8 @@ rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, cmn_iter ** ite
                         i -> cursor = cur;
                         i -> first_row = cp -> first_row;
                         i -> row_count = cp -> row_count;
+                        i -> sim_err = cp -> sim_err;
+                        i -> rand_val = KTimeStamp();
                         *iter = i;
                     }
                 }
@@ -395,9 +400,15 @@ rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t **
 rc_t cmn_read_uint8_array( struct cmn_iter * self, uint32_t col_id, uint8_t ** values,
                             uint32_t * values_read )
 {
+    rc_t rc;
     uint32_t elem_bits, boff, row_len;
-    rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
-                                 (const void **)values, &boff, &row_len );
+
+    if ( self -> sim_err > 0 && ( ( simple_rand_range( &( self -> rand_val ), 0, 1000000 ) % self -> sim_err ) == 0 ) )
+        rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    else
+        rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
+                                    (const void **)values, &boff, &row_len );
+
     if ( rc != 0 )
         ErrMsg( "cmn_iter.c cmn_read_uint8_array( #%ld ).VCursorCellDataDirect() -> %R\n", self -> row_id, rc );
     else if ( elem_bits != 8 || boff != 0 )

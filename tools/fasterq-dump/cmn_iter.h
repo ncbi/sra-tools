@@ -47,6 +47,7 @@ struct cmn_iter;
 
 void destroy_cmn_iter( struct cmn_iter * self );
 
+/* cmn_params defined in helper.h */
 rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, struct cmn_iter ** iter );
 
 rc_t cmn_iter_add_column( struct cmn_iter * self, const char * name, uint32_t * id );

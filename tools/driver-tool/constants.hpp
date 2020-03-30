@@ -40,6 +40,7 @@
 #include <cstdlib>
 
 #include "env_vars.h"
+#include "util.hpp"
 
 namespace constants {
 
@@ -250,10 +251,7 @@ struct env_var {
     /// @param overwrite overwrite the value if it is already there, default is to overwrite
     static void set(int const iid, char const *value, bool overwrite = true) {
         auto const envar = name(iid);
-        if (value)
-            setenv(envar, value, overwrite ? 1 : 0);
-        else
-            unsetenv(envar);
+        EnvironmentVariables::set(envar, value ? EnvironmentVariables::Value(value) : EnvironmentVariables::Value());
     }
 };
 

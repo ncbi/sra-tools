@@ -104,77 +104,109 @@ rc_t cmn_diff_column( const col_pair * pair,
     return rc;
 }
 
+static bool is_range_empty( rc_t rc )
+{
+    if ( rcVDB != GetRCModule( rc ) ) return false;
+    if ( rcCursor != GetRCTarget( rc ) ) return false;
+    if ( rcAccessing != GetRCContext( rc ) ) return false;
+    if ( rcRange != GetRCObject( rc ) ) return false;
+    if ( rcEmpty != GetRCState( rc ) ) return false;
+    return true;
+}
+
 rc_t cmn_make_num_gen( const VCursor * cur_1, const VCursor * cur_2,
                     int idx_1, int idx_2,
                     const struct num_gen * src, struct num_gen ** dst )
 {
-    int64_t  first_1;
-    uint64_t count_1;
+    int64_t  first_1, first_2;
+    uint64_t count_1, count_2;
+    bool empty_1 = false;
+    bool empty_2 = false;
     rc_t rc = VCursorIdRange( cur_1, idx_1, &first_1, &count_1 );
     *dst = NULL;
     if ( rc != 0 )
     {
-        LOGERR ( klogInt, rc, "VCursorIdRange( acc #1 ) failed" );
+        empty_1 = is_range_empty( rc );
+        if ( !empty_1 )
+        {
+            LOGERR ( klogInt, rc, "VCursorIdRange( acc #1 ) failed" );
+            return rc;
+        }
     }
-    else
+
+    rc = VCursorIdRange( cur_2, idx_2, &first_2, &count_2 );
+    if ( rc != 0 )
     {
-        int64_t  first_2;
-        uint64_t count_2;
-        rc = VCursorIdRange( cur_2, idx_2, &first_2, &count_2 );
-        if ( rc != 0 )
+        empty_2 = is_range_empty( rc );
+        if ( !empty_2 )
         {
             LOGERR ( klogInt, rc, "VCursorIdRange( acc #2 ) failed" );
+            return rc;
+        }
+    }
+
+    if ( empty_1 || empty_2 )
+    {
+        if ( empty_1 == empty_2 )
+            return 0;
+        else
+        {
+            rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+            PLOGERR( klogInt, ( klogInt, rc,
+                                "tables differ: 1st table empty=$(e1), 2nd table empty=$(e2)",
+                                "e1=%s,e2=%s",
+                                 empty_1 ? "yes" : "no",
+                                 empty_2 ? "yes" : "no" ) );
+            return rc;
+        }
+    }
+
+    /* trick for static columns, they have only one value - so count=1 is OK */
+    if ( count_1 == 0 ) count_1 = 1;
+    if ( count_2 == 0 ) count_2 = 1;
+
+    if ( src == NULL )
+    {
+        /* no row-range given ( src == NULL ) create the number generator from the discovered range, if it is the same */
+        if ( first_1 != first_2 || count_1 != count_2 )
+        {
+            rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+            PLOGERR( klogInt, ( klogInt, rc, "row-ranges differ: $(first1).$(count1) != $(first2).$(count2)",
+                    "first1=%ld,count1=%lu,first2=%ld,count2=%lu",
+                    first_1, count_1, first_2, count_2 ) );
         }
         else
         {
-            /* trick for static columns, they have only one value - so count=1 is OK */
-            if ( count_1 == 0 ) count_1 = 1;
-            if ( count_2 == 0 ) count_2 = 1;
-            
-            if ( src == NULL )
+            rc = num_gen_make_from_range( dst, first_1, count_1 );
+            if ( rc != 0 )
             {
-                /* no row-range given ( src == NULL ) create the number generator from the discovered range, if it is the same */
-                if ( first_1 != first_2 || count_1 != count_2 )
-                {
-                    rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
-                    PLOGERR( klogInt, ( klogInt, rc, "row-ranges differ: $(first1).$(count1) != $(first2).$(count2)",
-                            "first1=%ld,count1=%lu,first2=%ld,count2=%lu",
-                            first_1, count_1, first_2, count_2 ) );
-                }
-                else
-                {
-                    rc = num_gen_make_from_range( dst, first_1, count_1 );
-                    if ( rc != 0 )
-                    {
-                        LOGERR ( klogInt, rc, "num_gen_make_from_range() failed" );
-                    }
-                }
-            }
-            else
-            {
-                /* row-range given, clip the rows be the 2 ranges ( even if they are not the same ) */
-                num_gen_copy( src, dst );
-                KOutMsg( "cmn_make_num_gen: count_1=%lu, count2=%lu\n", count_1, count_2 );
-                rc = num_gen_trim( *dst, first_1, count_1 );
-                if ( rc != 0 )
-                {
-                    LOGERR ( klogInt, rc, "num_gen_trim( acc #1 ) failed" );
-                }
-                else if ( first_1 != first_2 || count_1 != count_2 )
-                {
-                    rc = num_gen_trim( *dst, first_2, count_2 );
-                    if ( rc != 0 )
-                    {
-                        LOGERR ( klogInt, rc, "num_gen_trim( acc #2 ) failed" );
-                    }
-                }
-            }
-            
-            if ( rc != 0 && *dst != NULL )
-            {
-                num_gen_destroy( *dst );
+                LOGERR ( klogInt, rc, "num_gen_make_from_range() failed" );
             }
         }
     }
+    else
+    {
+        /* row-range given, clip the rows be the 2 ranges ( even if they are not the same ) */
+        num_gen_copy( src, dst );
+        rc = num_gen_trim( *dst, first_1, count_1 );
+        if ( rc != 0 )
+        {
+            LOGERR ( klogInt, rc, "num_gen_trim( acc #1 ) failed" );
+        }
+        else if ( first_1 != first_2 || count_1 != count_2 )
+        {
+            rc = num_gen_trim( *dst, first_2, count_2 );
+            if ( rc != 0 )
+            {
+                LOGERR ( klogInt, rc, "num_gen_trim( acc #2 ) failed" );
+            }
+        }
+    }
+
+    if ( rc != 0 && *dst != NULL )
+    {
+        num_gen_destroy( *dst );
+    }
+
     return rc;
 }

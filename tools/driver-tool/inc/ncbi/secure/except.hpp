@@ -162,7 +162,7 @@ namespace ncbi
         /**
          * Exception
          * @brief constructor
-         * @param XP with all parameters
+         * @param params XP with all parameters
          */
         explicit Exception ( const XP & params );
 

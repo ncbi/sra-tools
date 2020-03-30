@@ -1505,7 +1505,7 @@ namespace ncbi
             ;
     }
 
-    Cmdline :: Cmdline ( int _argc, char * _argv [] )
+    Cmdline :: Cmdline ( int _argc, char const * _argv [] )
         : mode ( new Mode )
         , argv ( ( const char ** ) _argv )
         , arg ( "" )
@@ -1526,7 +1526,7 @@ namespace ncbi
             throw InvalidArgument ( XP ( XLOC, rc_param_err ) << "null argument vector" );
     }
 
-    Cmdline :: Cmdline ( int _argc, char * _argv [], const String & _vers )
+    Cmdline :: Cmdline ( int _argc, char const * _argv [], const String & _vers )
         : mode ( new Mode )
         , vers ( _vers )
         , argv ( ( const char ** ) _argv )

@@ -76,6 +76,7 @@ public:
         return data_source(result);
     }
     void set_environment() const;
+    Dictionary get_environment() const;
     std::string const &service() const { return run.haveLocalPath ? run.localPath : run.service; }
     bool encrypted() const { return run.encrypted; }
     std::string const &accession() const { return run.accession; }

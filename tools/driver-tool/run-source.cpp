@@ -357,29 +357,44 @@ struct Response2 {
     }
 };
 
+/// @brief get run environment variables
+Dictionary data_source::get_environment() const
+{
+    auto result = Dictionary();
+    auto const names = env_var::names();
+
+    result[names[env_var::REMOTE_URL]] = run.remoteUrl;
+    if (run.haveCachePath)
+        result[names[env_var::CACHE_URL]] = run.cachePath;
+    if (run.haveLocalPath)
+        result[names[env_var::LOCAL_URL]] = run.localPath;
+    if (run.haveSize)
+        result[names[env_var::SIZE_URL]] = run.fileSize;
+    if (run.needCE)
+        result[names[env_var::REMOTE_NEED_CE]] = "1";
+    if (run.needPmt)
+        result[names[env_var::REMOTE_NEED_PMT]] = "1";
+
+    if (haveVdbCache) {
+        result[names[env_var::REMOTE_URL]] = vdbcache.remoteUrl;
+        if (vdbcache.haveCachePath)
+            result[names[env_var::CACHE_URL]] = vdbcache.cachePath;
+        if (vdbcache.haveLocalPath)
+            result[names[env_var::LOCAL_URL]] = vdbcache.localPath;
+        if (vdbcache.haveSize)
+            result[names[env_var::SIZE_URL]] = vdbcache.fileSize;
+        if (vdbcache.needCE)
+            result[names[env_var::CACHE_NEED_CE]] = "1";
+        if (haveVdbCache && vdbcache.needPmt)
+            result[names[env_var::CACHE_NEED_PMT]] = "1";
+    }
+    return result;
+}
+
 #define SETENV(VAR, VAL) env_var::set(env_var::VAR, VAL.c_str())
 #define SETENV_IF(EXPR, VAR, VAL) env_var::set(env_var::VAR, (EXPR) ? VAL.c_str() : NULL)
 #define SETENV_BOOL(VAR, VAL) env_var::set(env_var::VAR, (VAL) ? "1" : NULL)
 
-/// @brief set/unset run environment variables
-void data_source::set_environment() const
-{
-    SETENV(REMOTE_URL, run.remoteUrl);
-    SETENV_IF(run.haveCachePath, CACHE_URL, run.cachePath);
-    SETENV_IF(run.haveLocalPath, LOCAL_URL, run.localPath);
-    SETENV_IF(run.haveSize, SIZE_URL, run.fileSize);
-    SETENV_BOOL(REMOTE_NEED_CE, run.needCE);
-    SETENV_BOOL(REMOTE_NEED_PMT, run.needPmt);
-    
-    SETENV_IF(haveVdbCache, REMOTE_VDBCACHE, vdbcache.remoteUrl);
-    SETENV_IF(haveVdbCache && vdbcache.haveCachePath, CACHE_VDBCACHE, vdbcache.cachePath);
-    SETENV_IF(haveVdbCache && vdbcache.haveLocalPath, LOCAL_VDBCACHE, vdbcache.localPath);
-    SETENV_IF(haveVdbCache && vdbcache.haveSize, SIZE_VDBCACHE, vdbcache.fileSize);
-    SETENV_BOOL(CACHE_NEED_CE, haveVdbCache && vdbcache.needCE);
-    SETENV_BOOL(CACHE_NEED_PMT, haveVdbCache && vdbcache.needPmt);
-}
-
-    
 /// @brief set/unset CE Token environment variable
 void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);

@@ -522,6 +522,15 @@ download_remote ()
 
 ###############################################################################################
 ###############################################################################################
+###<<>>### Misc checks
+##############################################################################################
+check_colorspace_exit ()
+{
+    echo checking colorspace
+}
+
+###############################################################################################
+###############################################################################################
 ###<<>>### Unpacking original KAR archive
 ##############################################################################################
 
@@ -841,21 +850,16 @@ test_kar ()
 
     TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"
 
+    TDC="-x CLIPPED_QUALITY,SAM_QUALITY"
+
     if [ $DROPCOLUMN_QTY -ne 0 ]
     then
-        TDC="-x "
-
         TCNT=0
         while [ $TCNT -lt $DROPCOLUMN_QTY ]
         do
             TCN=${DROPCOLUMNS[$TCNT]}
 
-            if [ $TCNT -ne 0 ]
-            then
-                TDC="${TDC},"
-            fi
-
-            TDC="${TDC}$TCN"
+            TDC="${TDC},$TCN"
 
             if [ "$TCN" = "SIGNAL" ]
             then
@@ -864,9 +868,9 @@ test_kar ()
 
             TCNT=$(( $TCNT + 1 ))
         done
-
-        TCMD="$TCMD $TDC"
     fi
+
+    TCMD="$TCMD $TDC"
 
     exec_cmd_exit $TCMD
 }

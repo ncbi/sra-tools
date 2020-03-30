@@ -342,7 +342,7 @@ struct FastqParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        auto const theirArgv0 = what.toolpath.getPathFor(TOOL_NAME).fullpath();
         {
             auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
             if (realpath.executable())

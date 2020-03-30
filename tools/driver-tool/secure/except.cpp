@@ -453,7 +453,7 @@ namespace ncbi
         va_end ( args );
 
         if ( status < 0 )
-            status = strlen ( strcpy ( buffer, "<BAD format() PARAMETERS>" ) );
+            status = (int)strlen ( strcpy ( buffer, "<BAD format() PARAMETERS>" ) );
 
         else if ( ( size_t ) status >= sizeof buffer )
         {

@@ -707,6 +707,8 @@ modify_object ()
     then
         info_msg subst $OLD_SCHEMA to $NEW_SCHEMA
         exec_cmd_exit $KARMETA_BIN --spath $SCHEMA_VAL --updschema schema=\'$NEW_SCHEMA\' $M2D
+    else
+        warn_msg no subst found for $OLD_SCHEMA
     fi
 
     info_msg mark object DELITED

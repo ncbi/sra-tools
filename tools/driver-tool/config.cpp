@@ -47,8 +47,12 @@ namespace sratools {
 #if DEBUG || _DEBUGGING
 static bool forceInstallID(void)
 {
+#if WINDOWS
+    return false;
+#else // POSIX
     auto const envar = getenv("SRATOOLS_FORCE_INSTALL");
     return envar && envar[0] && !(envar[0] == '0' && envar[1] == '\0');
+#endif
 }
 #endif
 
@@ -80,15 +84,8 @@ Config::Config(ToolPath const &runpath) {
     auto const toolpath = runpath.getPathFor(argv[0]);
     if (toolpath.executable()) {
         auto const path = toolpath.fullpath();
-        int fd = -1;
-        auto const child = process::run_child_with_redirected_stdout(&fd, [&]() {
-            execve(path.c_str(), argv);
-        });
-
-        auto const raw = read_fd(fd);
-        close(fd);
-        
-        auto const rc = child.wait();
+        std::string raw;
+        auto const rc = process::run_child_and_get_stdout(&raw, path.c_str(), argv[0], argv, {});
         if (rc.exited() && rc.exit_code() == 0) {
 #if DEBUG || _DEBUGGING
             auto haveInstallID = false;

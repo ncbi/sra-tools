@@ -49,8 +49,10 @@
 #include <functional>
 
 #include <cstdlib>
+#if 0 //MAC || LINUX
 #include <unistd.h>
 #include <sysexits.h>
+#endif
 
 #include "sratools2.hpp"
 #include "support2.hpp"
@@ -146,16 +148,16 @@ namespace sratools {
 
         try {
             auto const sessionID = uuid();
-            setenv(ENV_VAR_SESSION_ID, sessionID.c_str(), 1);
+            EnvironmentVariables::set(ENV_VAR_SESSION_ID, sessionID);
 
             config = new Config(toolpath);
-            defer { delete config; config = nullptr; };
+            struct Defer { ~Defer() { delete config; config = nullptr; } } freeConfig;
             if (config->noInstallID()) {
                 printInstallMessage();
             }
 
             auto const &what = sratools2::WhatImposter(toolpath);
-            auto const &args = sratools2::Args(argc, argv, getenv("SRATOOLS_IMPERSONATE"));
+            auto const &args = sratools2::Args(argc, argv, EnvironmentVariables::impersonate());
             switch (what._imposter) {
                 // normal tools
             case sratools2::Imposter::FASTERQ_DUMP  : return sratools2::impersonate_fasterq_dump(args, what);
@@ -191,11 +193,11 @@ namespace sratools {
     {
         {
             auto const fullpath = get_exec_path(argv0, extra);
-            auto const sep = fullpath.find_last_of('/');
+            auto const sep = fullpath.find_last_of(ToolPath::seperator);
             path_ = (sep == std::string::npos) ? "." : fullpath.substr(0, sep);
         }
         {
-            auto const sep = argv0.find_last_of('/');
+            auto const sep = argv0.find_last_of(ToolPath::seperator);
             basename_ = (sep == std::string::npos) ? argv0 : argv0.substr(sep + 1);
         }
         {
@@ -204,6 +206,10 @@ namespace sratools {
                 version_ = toolkit_version();
             }
             else {
+#if WINDOWS
+                // our Windows exe names don't have version
+                assert(!"reachable");
+#endif
                 version_ = basename_.substr(sep + 1);
                 basename_.resize(sep);
             }
@@ -226,6 +232,18 @@ namespace sratools {
             if (path) {
                 auto const &result = std::string(path);
                 free(path);
+                return result;
+            }
+        }
+#elif WINDOWS
+        {
+            auto const path = GetFullPathToExe();
+            if (path) {
+                auto result = std::string(path);
+                free(path);
+                // remove .exe
+                if (ends_with(".exe", result))
+                    result = result.substr(0, result.size() - 4);
                 return result;
             }
         }
@@ -326,20 +344,74 @@ namespace sratools {
 
 } // namespace sratools
 
+#if WINDOWS
+/// compute the number of UTF8 bytes needed to store an array of Windows wchar strings
+/// Note: the count includes null terminators
+static size_t needUTF8s(int argc, wchar_t *wargv[])
+{
+    size_t result = 0;
+    for (int i = 0; i < argc; ++i) {
+        auto const count = unwideSize(wargv[i]);
+        if (count <= 0)
+            throw std::runtime_error("Can not convert command line to UTF-8!?"); ///< Windows shouldn't ever send us strings that it can't convert to UTF8
+        result += count;
+    }
+    return result;
+}
+
+/// convert an array of Windows wchar strings into an array of UTF8 strings
+static void convert2UTF8(int argc, char *argv[], size_t bufsize, char *buffer, wchar_t *wargv[])
+{
+    int i;
+    for (i = 0; i < argc; ++i) {
+        auto const count = unwiden(buffer, bufsize, wargv[i]);
+        assert(0 < count && count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
+        argv[i] = buffer;
+        buffer += count;
+        bufsize -= count;
+    }
+    argv[i] = NULL;
+}
+
+/// convert an array of Windows wchar strings into an array of UTF8 strings
+/// returns a new array that can be `free`d
+/// Note: don't free the individual strings in the array
+static char **convertWStrings(int argc, wchar_t *wargv[])
+{
+    auto const chars = needUTF8s(argc, wargv);
+    auto const argv = (char **)malloc((argc + 1) * sizeof(char *) + chars);
+    auto const buffer = (char *)&argv[argc + 1];
+
+    if (argv != NULL)
+        convert2UTF8(argc, argv, chars, buffer, wargv);
+
+    return argv;
+}
+#endif
+
 #if MAC
 int main(int argc, char *argv[], char *envp[], char *apple[])
 #elif LINUX
 int main(int argc, char *argv[], char *envp[])
+#elif WINDOWS
+
+int wmain(int argc, wchar_t *wargv[], wchar_t *wenvp[])
 #else
 int main(int argc, char *argv[])
 #endif
 {
-    auto const impersonate = getenv( "SRATOOLS_IMPERSONATE" );
+#if WINDOWS
+    auto const argv = convertWStrings(argc, wargv);
+    auto const freeArgv = DeferredFree(argv);
+#endif
+    auto const impersonate = EnvironmentVariables::impersonate();
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
 
 #if MAC
     return sratools::main(argc, argv, envp, sratools::makeToolPath(argv0, apple));
 #elif LINUX
+    return sratools::main(argc, argv, envp, sratools::makeToolPath(argv0, nullptr));
+#elif WINDOWS
     return sratools::main(argc, argv, envp, sratools::makeToolPath(argv0, nullptr));
 #else
     return sratools::main(argc, argv, nullptr, sratools::makeToolPath(argv0, nullptr));

@@ -49,12 +49,12 @@ namespace sratools2
     struct Args
     {
         int const argc;
-        char **const argv;
-        char *const orig_argv0;
+        char const **const argv;
+        char const *const orig_argv0;
 
-        Args ( int argc_, char * argv_ [], char * test_imp )
+        Args ( int argc_, char * argv_ [], char const * test_imp )
         : argc( argc_ )
-        , argv( argv_ )
+        , argv( (char const **)(&argv_[0]))
         , orig_argv0( argv_[0] )
         {
             if (test_imp && test_imp[0]) {
@@ -123,9 +123,9 @@ namespace sratools2
             return res;
         }
 
-        char ** generate_argv( int &argc, std::vector< ncbi::String > const &args )
+        char const **generate_argv(std::vector< ncbi::String > const &args )
         {
-            argc = 0;
+            auto argc = 0;
             auto cnt = options.size() + args.size() + 1;
             char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
             if ( res != nullptr )
@@ -136,20 +136,16 @@ namespace sratools2
                     res[ argc++ ] = add_string( value );
                 res[ argc ] = nullptr;
             }
-            return res;
+            return (char const **)res;
         }
 
-        void free_argv( int argc, char ** argv )
+        void free_argv(char const **argv)
         {
-            if ( argv != nullptr )
-            {
-                for ( int i = 0; i < argc; ++i )
-                {
-                    if ( argv[ i ] != nullptr )
-                        free( argv[ i ] );
-                }
-                free( argv );
+            auto p = (void **)argv;
+            while (*p) {
+                free(*p++);
             }
+            free((void *)argv);
         }
     };
 
@@ -447,13 +443,9 @@ namespace sratools2
             }
             return result;
         }
-        static bool exec_wait(char const *toolpath, char const *toolname, char **argv, sratools::data_source const &src)
+        static bool exec_wait(char const *toolpath, char const *toolname, char const **argv, sratools::data_source const &src)
         {
-            auto const child = sratools::process::run_child([&]() {
-                src.set_environment();
-                sratools::exec(toolpath, toolname, argv);
-            });
-            auto const result = child.wait();
+            auto const result = sratools::process::run_child_and_wait(toolpath, toolname, argv, src.get_environment());
             if (result.exited()) {
                 if (result.exit_code() == 0) { // success, process next run
                     return true;
@@ -462,12 +454,12 @@ namespace sratools2
                 if (result.exit_code() == EX_TEMPFAIL)
                     return false; // try next source
 
-                std::cerr << toolname << " (PID " << child.get_pid() << ") quit with error code " << result.exit_code() << std::endl;
+                std::cerr << toolname << " quit with error code " << result.exit_code() << std::endl;
                 exit(result.exit_code());
             }
 
             if (result.signaled()) {
-                std::cerr << toolname << " (PID " << child.get_pid() << ") was killed (signal " << result.termsig() << ")";
+                std::cerr << toolname << " was killed (signal " << result.termsig() << ")";
                 std::cerr << std::endl;
                 exit(3);
             }
@@ -493,6 +485,10 @@ namespace sratools2
             sratools::ngc = nullptr;
 
             all_sources.set_ce_token_env_var();
+#if WINDOWS
+            // make sure we got all hard-coded POSIX path seperators
+            assert(theirpath.find('/') == std::string::npos);
+#endif
 
             int i = 0;
             for (auto const &acc : accessions) {
@@ -505,8 +501,7 @@ namespace sratools2
                 builder.add_option(theirpath);
                 tool_options . populate_argv_builder( builder, i++, accessions );
 
-                int argc = 0;
-                char **argv = builder.generate_argv(argc, { acc });
+                auto const argv = builder.generate_argv({ acc });
                 auto success = false;
 
                 for (auto &src : sources) {
@@ -519,7 +514,7 @@ namespace sratools2
                     LOG(1) << "Failed to get data for " << acc << " from " << src.service() << std::endl;
                 }
 
-                builder.free_argv(argc, argv);
+                builder.free_argv(argv);
 
                 if (!success) {
                     std::cerr << "Could not get any data for " << acc << ", tried to get data from:" << std::endl;
@@ -539,18 +534,21 @@ namespace sratools2
         {
             ArgvBuilder builder;
 
+#if WINDOWS
+            // make sure we got all hard-coded POSIX path seperators
+            assert(theirpath.find('/') == std::string::npos);
+#endif
             builder.add_option(theirpath);
             tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
 
-            int argc = 0;
-            char **argv = builder.generate_argv(argc, accessions);
+            auto argv = builder.generate_argv(accessions);
 
-            sratools::exec(toolpath.c_str(), toolname, argv);
+            sratools::process::run_child(toolpath.c_str(), toolname, argv);
 
             // exec returned! something went wrong
             auto const error = std::error_code(errno, std::system_category());
 
-            builder.free_argv(argc, argv);
+            builder.free_argv(argv);
 
             throw std::system_error(error, std::string("Failed to exec ")+toolname);
         }

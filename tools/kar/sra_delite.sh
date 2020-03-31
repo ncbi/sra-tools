@@ -40,6 +40,7 @@ INITIALIZED_TAG="INITIALIZED:"
 DELITED_TAG="DELITED:"
 DOWNLOADED_TAG="DOWNLOADED:"
 COLORSPACE_TAG="COLORSPACE:"
+REJECTED_TAG="REJECTED:"
 
 ###
 ##  Usage
@@ -698,6 +699,17 @@ find_new_schema ()
     fi
 
     SATR=( `echo $S2R | sed "s#\## #1"` )
+
+    case ${SATR[0]} in
+        NCBI:SRA:Illumina:tbl:q4*)
+            log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
+            err_exit rejected ${SATR[0]} type run detected
+            ;;
+        NCBI:SRA:Illumina:tbl:q1:v2)
+            log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
+            err_exit rejected ${SATR[0]} type run detected
+            ;;
+    esac
 
     CNT=0
     while [ $CNT -lt $TRANSLATION_QTY ]

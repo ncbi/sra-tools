@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemGroup>
+        <ClCompile Include="..\..\..\tools\driver-tool\sratools.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\sratools2.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\imp_fasterq_dump.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\imp_fastq_dump.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\imp_prefetch.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\imp_sam_dump.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\imp_sra_pileup.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\imp_srapath.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\imp_vdb_dump.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\cmdline.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\config.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\proc.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\run-source.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\uuid.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\service.cpp" />
+    </ItemGroup>
+</Project>
+

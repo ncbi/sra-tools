@@ -32,7 +32,7 @@
 
 #pragma once
 #if WINDOWS
-#incluce "proc.win32.hpp"
+#include "proc.win32.hpp"
 #else
 #include "proc.posix.hpp"
 #endif

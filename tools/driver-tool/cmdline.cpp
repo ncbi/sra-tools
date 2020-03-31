@@ -36,7 +36,10 @@
 
 #include <iostream>
 
+#if defined __GNUC__
 #include <unistd.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -218,7 +221,7 @@ namespace ncbi
                 << "'"
                 );
         }
-#pragma message "TBD - check for NaN, INF, etc."
+#pragma message ( "TBD - check for NaN, INF, etc." )
     }
 
     template < >

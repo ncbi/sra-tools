@@ -365,7 +365,7 @@ static void convert2UTF8(int argc, char *argv[], size_t bufsize, char *buffer, w
     int i;
     for (i = 0; i < argc; ++i) {
         auto const count = unwiden(buffer, bufsize, wargv[i]);
-        assert(0 < count && count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
+        assert(0 < count && (size_t)count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
         argv[i] = buffer;
         buffer += count;
         bufsize -= count;
@@ -402,7 +402,7 @@ int main(int argc, char *argv[])
 {
 #if WINDOWS
     auto const argv = convertWStrings(argc, wargv);
-    auto const freeArgv = DeferredFree(argv);
+    auto const freeArgv = DeferredFree<char*>(argv);
 #endif
     auto const impersonate = EnvironmentVariables::impersonate();
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];
@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
 #elif LINUX
     return sratools::main(argc, argv, envp, sratools::makeToolPath(argv0, nullptr));
 #elif WINDOWS
-    return sratools::main(argc, argv, envp, sratools::makeToolPath(argv0, nullptr));
+    return sratools::main(argc, argv, nullptr, sratools::makeToolPath(argv0, nullptr));
 #else
     return sratools::main(argc, argv, nullptr, sratools::makeToolPath(argv0, nullptr));
 #endif

@@ -241,7 +241,13 @@ struct env_var {
     ///
     /// @param iid the variable to unset
     static void unset(int const iid) {
+#if WINDOWS
+        std::string n = name(iid);
+        n += "=";
+        _putenv(n.c_str());
+#else
         unsetenv(name(iid));
+#endif
     }
 
     /// @brief set (or unset) environment variable by symbolic id

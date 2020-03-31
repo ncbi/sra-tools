@@ -35,14 +35,16 @@
 #include <vector>
 #include <map>
 
-#include <sys/wait.h>
-
 #include "parse_args.hpp"
 #include "util.hpp"
+
+typedef int pid_t;
 
 namespace sratools {
 
 struct process {
+    pid_t pid;
+
     bool is_self() const { return pid == 0; }
     pid_t get_pid() const { return pid; }
     

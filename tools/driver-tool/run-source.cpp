@@ -37,8 +37,7 @@
 #include <utility>
 #include <algorithm>
 
-#include <sysexits.h>
-
+#include "support2.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
 #include "debug.hpp"

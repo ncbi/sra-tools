@@ -26,8 +26,14 @@
 
 #pragma once
 
-#include <apistringset.h>
+#include <windows.h>
+#include <stringapiset.h>
 #include <memory.h>
+
+#include <map>
+#include <cassert>
+
+typedef SSIZE_T ssize_t;
 
 /// Convert UTF8 string to Windows wide char string
 /// Note: if len == -1, the returned count includes the nil-terminator
@@ -38,7 +44,7 @@
 /// @return number of wide chars placed into wstr (including any nil-terminator)
 static ssize_t widen(wchar_t *wstr, size_t wlen, char const *str, ssize_t len = -1)
 {
-    return (ssize_t)MultiByteToWideChar(CP_UTF8, 0, wstr, wlen, str, len);
+    return (ssize_t)MultiByteToWideChar(CP_UTF8, 0, str, (int)len, wstr, (int)wlen);
 }
 
 /// Get the number of wide chars needed to hold a converted string
@@ -77,7 +83,7 @@ static wchar_t *makeWide(char const *str)
 /// @return number of chars placed into str (including any nil-terminator)
 static ssize_t unwiden(char *str, ssize_t len, wchar_t const *wstr, size_t wlen = -1)
 {
-    return (ssize_t)WideCharToMultiByte(CP_UTF8, 0, wstr, wlen, str, len);
+    return (ssize_t)WideCharToMultiByte(CP_UTF8, 0, wstr, (int)wlen, str, (int)len, NULL, NULL);
 }
 
 /// Get the number of chars needed to hold a converted wide string
@@ -129,20 +135,20 @@ public:
     static Value get(std::string const &name) {
         auto const wname = makeWide(name.c_str());
         assert(wname != NULL);
-        auto const freeLater = DeferredFree(wname);
+        auto const freeLater = DeferredFree<wchar_t>(wname);
         wchar_t wdummy[4];
 
         auto const wvaluelen = GetEnvironmentVariableW(wname, wdummy, 0);
         if (wvaluelen > 0) {
             auto const wbuffer = (wchar_t *)malloc(wvaluelen * sizeof(wchar_t));
             assert(wbuffer != NULL);
-            auto const freeLater1 = DeferredFree(wbuffer);
+            auto const freeLater1 = DeferredFree<wchar_t>(wbuffer);
 
             GetEnvironmentVariableW(wname, wbuffer, 0);
 
             auto const value = makeUnwide(wbuffer);
             assert(value != NULL);
-            auto const freeLater2 = DeferredFree(value);
+            auto const freeLater2 = DeferredFree<char>(value);
             return Value(std::string(value));
         }
         return Value();
@@ -150,12 +156,12 @@ public:
     static void set(std::string const &name, Value const &value) {
         auto const wname = makeWide(name.c_str());
         assert(wname != NULL);
-        auto const freeName = DeferredFree(wname);
+        auto const freeName = DeferredFree<wchar_t>(wname);
 
         if (value) {
             auto const wvalue = makeWide(value.c_str());
             assert(wvalue != NULL);
-            auto const freeValue = DeferredFree(wvalue);
+            auto const freeValue = DeferredFree<wchar_t>(wvalue);
 
             SetEnvironmentVariableW(wname, wvalue);
         }
@@ -187,7 +193,7 @@ static inline char *GetFullPathToExe()
         auto const buffer = (wchar_t *)malloc(size * sizeof(wchar_t));
         if (buffer == NULL)
             return NULL;
-        if (GetModuleFileNameW(NULL, buffer, size) < size) {
+        if (GetModuleFileNameW(NULL, buffer, (DWORD)size) < size) {
             auto const path = makeUnwide(buffer);
             free(buffer);
             return path;

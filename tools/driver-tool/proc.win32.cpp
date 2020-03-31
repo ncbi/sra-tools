@@ -61,7 +61,8 @@ static wchar_t *create_command_line(char const **argv)
     size_t wcmdline_len = 0;
     int argc = 0;
     {
-        for (int i = 0; ; ++i) {
+        int i;
+        for (i = 0; ; ++i) {
             auto const arg = argv[i];
             if (arg == NULL) break;
 
@@ -95,7 +96,7 @@ static wchar_t *create_command_line(char const **argv)
                     auto const wlen = widen(buffer, remain, str, j);
                     assert(wlen > 0);
                     buffer += wlen;
-                    assert(remain > wlen)
+                    assert((ssize_t)remain > wlen);
                     remain -= wlen;
                 }
                 if (str[j] == '\0')
@@ -120,9 +121,9 @@ PROCESS_INFORMATION createProcess(char const *toolpath, char const **argv, START
 {
     PROCESS_INFORMATION pi; ZeroMemory(&pi, sizeof(pi));
     auto const wtoolpath = makeWide(toolpath);
-    auto const freePath = DeferredFree(wtoolpath);
+    auto const freePath = DeferredFree<wchar_t>(wtoolpath);
     auto const wcmdline = create_command_line(argv);
-    auto const freeCmd = DeferredFree(wcmdline);
+    auto const freeCmd = DeferredFree<wchar_t>(wcmdline);
 
     if (!CreateProcessW(wtoolpath, wcmdline, NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, si, &pi))
         throw_system_error("CreateProcess failed");
@@ -164,7 +165,7 @@ process::exit_status process::run_child_and_get_stdout(std::string *out, char co
 {
     SECURITY_ATTRIBUTES attr;
     ZeroMemory(&attr, sizeof(attr));
-    addr.nLength = sizeof(attr);
+    attr.nLength = sizeof(attr);
     attr.bInheritHandle = TRUE;
 
     HANDLE fds[2];

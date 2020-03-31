@@ -39,7 +39,7 @@ public:
     class Value : public std::string {
         bool notSet;
     public:
-        Value(std::string const &value) : notSet(false), std::string(value) {}
+        Value(std::string const &value) : std::string(value), notSet(false) {}
         Value() : notSet(true) {}
         operator bool() const { return !notSet; }
         bool operator !() const { return notSet; }

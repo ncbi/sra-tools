@@ -34,8 +34,8 @@
 #include <cctype>
 #include <set>
 #include <cstdlib>
-#include <sysexits.h>
 
+#include "support2.hpp"
 #include "config.hpp"
 #include "proc.hpp"
 #include "tool-path.hpp"

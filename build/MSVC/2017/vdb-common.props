@@ -58,7 +58,6 @@
         <ClCompile>
             <WarningLevel>Level3</WarningLevel>
             <CompileAsManaged>false</CompileAsManaged>
-            <MinimalRebuild>true</MinimalRebuild>
             <DisableLanguageExtensions>false</DisableLanguageExtensions>
             <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
             <DisableSpecificWarnings>4996;4101</DisableSpecificWarnings>

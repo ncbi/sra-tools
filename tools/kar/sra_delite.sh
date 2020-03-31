@@ -39,6 +39,7 @@ IMPORTED_TAG="IMPORTED:"
 INITIALIZED_TAG="INITIALIZED:"
 DELITED_TAG="DELITED:"
 DOWNLOADED_TAG="DOWNLOADED:"
+COLORSPACE_TAG="COLORSPACE:"
 
 ###
 ##  Usage
@@ -526,7 +527,12 @@ download_remote ()
 ##############################################################################################
 check_colorspace_exit ()
 {
-    echo checking colorspace
+    TCS=`find $DATABASE_DIR -name CSREAD -type d`
+    if [ -n "$TCS" ]
+    then
+        log_status "$COLORSPACE_TAG can not procees colorspace type runs."
+        err_exit colorspace type run detected
+    fi
 }
 
 ###############################################################################################
@@ -574,6 +580,9 @@ import_proc ()
 
         exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
     fi
+
+    ## Checking if it is colorspace run
+    check_colorspace_exit
 
     log_status "$IMPORTED_TAG $ORIGINAL_CMD"
 
@@ -661,6 +670,14 @@ find_objects_to_modify ()
             TVAR=`dirname $TVAR`
             TVAR=`dirname $TVAR`
             add_object $TVAR
+        done
+    done
+
+    for i in `find . -type d -name tbl`
+    do
+        for u in `ls $i`
+        do
+            add_object $i/$u
         done
     done
 
@@ -754,6 +771,9 @@ delite_proc ()
         err_exit can not stat directory \'$SCHEMA_VAL\'
     fi
 
+    ## Checking if it is colorspace run
+    check_colorspace_exit
+
     ## Unlocking db
     exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
 
@@ -792,6 +812,9 @@ check_ready_for_export ()
     then
         err_exit can not stat status file
     fi
+
+    ## Checking if it is colorspace run
+    check_colorspace_exit
 
     TVAR=`grep DELITED: $STATUS_FILE 2>/dev/null`
     if [ -z "$TVAR" ]

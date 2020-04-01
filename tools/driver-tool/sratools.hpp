@@ -24,6 +24,7 @@
  *
  */
 
+#pragma once
 #include <string>
 
 namespace sratools {

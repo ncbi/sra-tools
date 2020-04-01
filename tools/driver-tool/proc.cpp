@@ -98,19 +98,29 @@ static void exec_debugger [[noreturn]] (  char const *const debugger
 #endif
 
 
-static void debugPrintEnvVar(char const *const name)
+static void debugPrintEnvVar(char const *const name, bool const continueline = false)
 {
     auto const value = getenv(name);
     if (value)
-        std::cerr << ' ' << name << "='" << value << "'\n";
+        std::cerr << name << "='" << value << "'" << (continueline ? " \\\n" : "\n");
 }
 
 static void debugPrintDryRun(  char const *const toolpath
                              , char const *const toolname
                              , char const *const *const argv)
 {
-    auto const dryrun = getenv("SRATOOLS_DRY_RUN");
-    if (dryrun && dryrun[0] && !(dryrun[0] == '0' && dryrun[1] == 0)) {
+    switch (logging_state::testing_level()) {
+    case 4:
+        for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
+            debugPrintEnvVar(name, true);
+        }
+        debugPrintEnvVar(ENV_VAR_SESSION_ID, true);
+        std::cerr << toolpath;
+        for (auto i = 1; argv[i]; ++i)
+            std::cerr << ' ' << argv[i];
+        std::cerr << std::endl;
+        exit(0);
+    case 3:
         std::cerr << "would exec '" << toolpath << "' as:\n";
         for (auto i = 0; argv[i]; ++i)
             std::cerr << ' ' << argv[i];
@@ -123,6 +133,16 @@ static void debugPrintDryRun(  char const *const toolpath
             std::cerr << std::endl;
         }
         exit(0);
+        break;
+    case 2:
+        std::cerr << toolname;
+        for (auto i = 1; argv[i]; ++i)
+            std::cerr << ' ' << argv[i];
+        std::cerr << std::endl;
+        exit(0);
+        break;
+    default:
+        break;
     }
 }
 

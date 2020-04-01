@@ -22,6 +22,10 @@ def run_tool( tool, args ) :
         exit( 1 )
     return res
 
+if sys.version_info[ 0 ] < 3 :
+    print( "does not work with python version < 3!" )
+    sys.exit( 3 )
+
 check_if_tool_exits( TOOL )
 
 REFNAME1 = "chr1"
@@ -84,4 +88,3 @@ if out1 != out2 :
 
 print ( "[" + os.path.basename ( __file__ ) + "] test passed for tool '" + TOOL + "'" )
 exit( 0 )
-

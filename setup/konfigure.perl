@@ -320,7 +320,7 @@ if ($MARCH =~ /x86_64/i) {
 println "$MARCH ($BITS bits) is supported" unless ($AUTORUN);
 
 # determine OS and related norms
-my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC);
+my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC, $PYTHON);
 
 print "checking for supported OS... " unless ($AUTORUN);
 if ($OSTYPE =~ /linux/i) {
@@ -332,6 +332,7 @@ if ($OSTYPE =~ /linux/i) {
     $EXEX = '';
     $OSINC = 'unix';
     $TOOLS = 'gcc' unless ($TOOLS);
+    $PYTHON = 'python';
 } elsif ($OSTYPE =~ /darwin/i) {
     $LPFX = 'lib';
     $OBJX = 'o';
@@ -341,6 +342,7 @@ if ($OSTYPE =~ /linux/i) {
     $EXEX = '';
     $OSINC = 'unix';
     $TOOLS = 'clang' unless ($TOOLS);
+    $PYTHON = 'python';
 } elsif ($OSTYPE eq 'win') {
     $TOOLS = 'vc++';
 } else {
@@ -431,6 +433,34 @@ if ($JAVAC) {
         println "configure: error: '$JAVAC' cannot be found";
         exit 1;
     }
+}
+
+print 'checking for Python 3... ' unless $AUTORUN;
+if ($PYTHON) {
+    my $p3;
+    for my $dir (File::Spec->path()) {
+        $p3 = File::Spec->join($dir, 'python3');
+        my $pX = substr($p3, 0, -1);
+        if (-x $pX && `$pX --version 2>&1` =~ /^\s*Python\s+(\d+)/i && $1 == 3) {
+            $p3 = $pX;
+            last;
+        }
+        if (-x $p3 && `$p3 --version 2>&1` =~ /^\s*Python\s+(\d+)/i && $1 == 3) {
+            last;
+        }
+        undef $p3;
+    }
+    if ($p3) {
+        $PYTHON = $p3;
+        println $PYTHON unless $AUTORUN;
+    }
+    else {
+        undef $PYTHON;
+        println 'no' unless $AUTORUN;
+    }
+}
+else {
+    println 'skipped' unless $AUTORUN;
 }
 
 my $NO_ARRAY_BOUNDS_WARNING = '';
@@ -881,6 +911,7 @@ EndText
     L($F, "ARLS          = $ARLS"         ) if ($ARLS);
     L($F, "LD            = $LD"           ) if ($LD);
     L($F, "LP            = $LP"           ) if ($LP);
+    L($F, "PYTHON        = $PYTHON"       ) if ($PYTHON);
     L($F, "JAVAC         = $JAVAC"        ) if ($JAVAC);
     L($F, "JAVAH         = $JAVAH"        ) if ($JAVAH);
     L($F, "JAR           = $JAR"          ) if ($JAR);

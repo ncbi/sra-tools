@@ -48,7 +48,7 @@ struct SraPileupParams final : CmnOptAndAccessions
     ncbi::U32 merge_dist_value;
     ncbi::String function;
 
-    SraPileupParams(WhatImposter const &what)
+    explicit SraPileupParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , bzip( false )
     , gzip( false )
@@ -203,7 +203,12 @@ struct SraPileupParams final : CmnOptAndAccessions
 
 int impersonate_sra_pileup( const Args &args, WhatImposter const &what )
 {
+#if DEBUG || _DEBUGGING
+    SraPileupParams temp(what);
+    auto &params = *randomized(&temp, what);
+#else
     SraPileupParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

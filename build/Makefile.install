@@ -40,6 +40,7 @@ include $(TOP)/build/Makefile.$(OS)
 include $(TOP)/build/Makefile.tools
 ifeq (1,$(HAVE_HDF5))
         TOOLS_TO_COPY += pacbio-load
+        TOOLS_TO_COPY += pacbio-loadxml
 endif
 
 # unset outside defined variables

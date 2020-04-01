@@ -78,7 +78,7 @@ struct SamDumpParams final : CmnOptAndAccessions
     bool rna_splicing;
     bool md_flag;
     
-    SamDumpParams(WhatImposter const &what)
+    explicit SamDumpParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , out_buf_size_count(0)
     , out_buf_size(0)
@@ -340,7 +340,12 @@ struct SamDumpParams final : CmnOptAndAccessions
 
 int impersonate_sam_dump( const Args &args, WhatImposter const &what )
 {
+#if DEBUG || _DEBUGGING
+    SamDumpParams temp(what);
+    auto &params = *randomized(&temp, what);
+#else
     SamDumpParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

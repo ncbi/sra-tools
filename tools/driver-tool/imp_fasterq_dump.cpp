@@ -61,7 +61,7 @@ struct FasterqParams final : CmnOptAndAccessions
     bool strict;
     bool append;
 
-    FasterqParams(WhatImposter const &what)
+    explicit FasterqParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
     , ThreadsCount( 0 )
     , Threads( 0 )
@@ -222,7 +222,12 @@ struct FasterqParams final : CmnOptAndAccessions
 
 int impersonate_fasterq_dump(Args const &args, WhatImposter const &what)
 {
+#if DEBUG || _DEBUGGING
+    FasterqParams temp(what);
+    auto &params = *randomized(&temp, what);
+#else
     FasterqParams params(what);
+#endif
     return Impersonator::run(args, params);
 }
 

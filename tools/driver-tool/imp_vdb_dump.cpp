@@ -34,13 +34,39 @@ namespace sratools2
 
 struct VdbDumpParams final : CmnOptAndAccessions
 {
-    bool row_id_on, colname_off, in_hex, schema_dump, table_enum, column_enum;
-    bool column_enum_short, id_range, without_sra, obj_vers, obj_timestamp, obj_type;
-    bool numelem, numelemsum, blobbing, phys, readable, idx_report, gzip, bzip, info;
-    bool spotgroups, merge_ranges, spread, append;
-    ncbi::U32 LineFeedCount, LineFeedValue;
-    ncbi::U32 MaxLenCount, MaxLenValue;
-    ncbi::U32 IndentCount, IndentValue;
+    bool
+          row_id_on
+        , colname_off
+        , in_hex
+        , schema_dump
+        , table_enum
+        , column_enum
+        , column_enum_short
+        , id_range
+        , without_sra
+        , obj_vers
+        , obj_timestamp
+        , obj_type
+        , numelem
+        , numelemsum
+        , blobbing
+        , phys
+        , readable
+        , idx_report
+        , gzip
+        , bzip
+        , info
+        , spotgroups
+        , merge_ranges
+        , spread
+        , append;
+    ncbi::U32
+          LineFeedCount
+        , LineFeedValue
+        , MaxLenCount
+        , MaxLenValue
+        , IndentCount
+        , IndentValue;
     ncbi::String table_name;
     ncbi::String rows;
     ncbi::String columns;
@@ -55,35 +81,39 @@ struct VdbDumpParams final : CmnOptAndAccessions
     ncbi::String output_path;
     ncbi::String output_buffer_size;
     
-    VdbDumpParams( WhatImposter const &what )
-        : CmnOptAndAccessions( what )
-        , row_id_on( false )
-        , colname_off( false )
-        , in_hex( false )
-        , schema_dump( false )
-        , table_enum( false )
-        , column_enum( false )
-        , column_enum_short( false )
-        , id_range( false )
-        , obj_vers( false )
-        , obj_timestamp( false )
-        , obj_type( false )
-        , numelem( false )
-        , numelemsum( false )
-        , blobbing( false )
-        , phys( false )
-        , readable( false )
-        , idx_report( false )
-        , gzip( false )
-        , bzip( false )
-        , info( false )
-        , spotgroups( false )
-        , merge_ranges( false )
-        , spread( false )
-        , append( false )
-        , LineFeedCount( 0 ), LineFeedValue( 0 )
-        , MaxLenCount( 0 ), MaxLenValue( 0 )
-        , IndentCount( 0 ), IndentValue( 0 )
+    explicit VdbDumpParams( WhatImposter const &what )
+    : CmnOptAndAccessions( what )
+    , row_id_on(false)
+    , colname_off(false)
+    , in_hex(false)
+    , schema_dump(false)
+    , table_enum(false)
+    , column_enum(false)
+    , column_enum_short(false)
+    , id_range(false)
+    , without_sra(false)
+    , obj_vers(false)
+    , obj_timestamp(false)
+    , obj_type(false)
+    , numelem(false)
+    , numelemsum(false)
+    , blobbing(false)
+    , phys(false)
+    , readable(false)
+    , idx_report(false)
+    , gzip(false)
+    , bzip(false)
+    , info(false)
+    , spotgroups(false)
+    , merge_ranges(false)
+    , spread(false)
+    , append(false)
+    , LineFeedCount(0)
+    , LineFeedValue(0)
+    , MaxLenCount(0)
+    , MaxLenValue(0)
+    , IndentCount(0)
+    , IndentValue(0)
     {
     }
 
@@ -302,7 +332,12 @@ struct VdbDumpParams final : CmnOptAndAccessions
 
 int impersonate_vdb_dump( Args const &args, WhatImposter const &what )
 {
-    VdbDumpParams params( what );
+#if DEBUG || _DEBUGGING
+    VdbDumpParams temp(what);
+    auto &params = *randomized(&temp, what);
+#else
+    VdbDumpParams params(what);
+#endif
     return Impersonator::run( args, params );
 }
 

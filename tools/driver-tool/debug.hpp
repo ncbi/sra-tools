@@ -52,6 +52,10 @@ struct logging_state {
     static bool is_verbose(int const level) {
         return level <= verbosity();
     }
+    static int testing_level() {
+        static auto const value(get_testing_value());
+        return value;
+    }
 private:
     logging_state() = delete;
     static bool is_falsy(char const *const str) {
@@ -66,10 +70,19 @@ private:
     static int get_verbose_value() {
         auto const str = getenv("SRATOOLS_VERBOSE");
         if (str && str[0] && str[1] == '\0') {
-            if ('1' <= str[0] && str[0] <= '9')
-                return str[0] - '0';
+            return std::atoi(str);
         }
         return 0;
+    }
+    static bool get_dry_run() {
+        return !is_falsy(getenv("SRATOOLS_DRY_RUN"));
+    }
+    static int get_testing_value() {
+        auto const str = getenv("SRATOOLS_TESTING");
+        if (str && str[0]) {
+            return std::atoi(str);
+        }
+        return get_dry_run() ? 3 : 0;
     }
 };
 

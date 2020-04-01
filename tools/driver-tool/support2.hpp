@@ -162,6 +162,17 @@ namespace sratools2
             const Imposter _imposter;
             const bool _version_ok;
 
+            struct InvalidVersionException : public std::exception {
+                const char * what() const noexcept override {
+                    return "Invalid tool version";
+                }
+            };
+            struct InvalidToolException : public std::exception {
+                const char * what() const noexcept override {
+                    return "Invalid tool requested";
+                }
+            };
+
         private :
 
             Imposter detect_imposter( const std::string &src )
@@ -202,6 +213,10 @@ namespace sratools2
             , _imposter( detect_imposter( toolpath.basename() ) )
             , _version_ok( is_version_ok() )
             {
+                if (!_version_ok)
+                    throw InvalidVersionException();
+                if (_imposter == Imposter::INVALID)
+                    throw InvalidToolException();
             }
 
             std::string as_string( void )

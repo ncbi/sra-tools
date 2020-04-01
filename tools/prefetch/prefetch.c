@@ -64,9 +64,11 @@
 #include <klib/log.h> /* PLOGERR */
 #include <klib/out.h> /* KOutMsg */
 #include <klib/printf.h> /* string_printf */
+#include <klib/progressbar.h> /* make_progressbar */
 #include <klib/rc.h>
 #include <klib/status.h> /* STSMSG */
 #include <klib/text.h> /* String */
+#include <klib/time.h> /* KSleep */
 
 #include <strtol.h> /* strtou64 */
 #include <sysalloc.h>
@@ -212,6 +214,7 @@ typedef struct {
     size_t minSize;
     size_t maxSize;
     uint64_t heartbeat;
+    bool showProgress;
 
     bool noAscp;
     bool noHttp;
@@ -1326,6 +1329,205 @@ static rc_t MainDownloaded(Main *self, const char *path) {
     return 0;
 }
 
+typedef enum {
+    eRSJustRetry,
+    eRSReopen,
+    eRSDecBuf,
+    eRSIncTO,
+    eRSMax,
+} ERetryState;
+
+typedef struct {
+    size_t bsize;
+    KNSManager * mgr;
+    const VPath * path;
+    const String * src;
+    bool isUri;
+    const KFile ** f;
+    uint64_t size;
+
+    bool failed;
+    uint64_t pos;
+    ERetryState state;
+    size_t curSize;
+    uint32_t sleepTO;
+} Retrier;
+
+static void RetrierReset(Retrier * self, uint64_t pos) {
+    self->pos = pos;
+
+    if (self->failed) {
+        self->failed = false;
+
+        self->state = eRSJustRetry;
+        self->curSize = self->bsize;
+        self->sleepTO = 0;
+
+        if (KStsLevelGet() >= 1)
+            PLOGERR(klogErr, (klogErr, 0,
+                "KFileRead success: '$(name)':$(pos)/$(sz)",
+                "name=%S,pos=%\'lu,sz=%\'lu",
+                self->src, self->pos, self->size));
+    }
+}
+
+static void RetrierInit(Retrier * self, const Main * mane,
+    const VPath * path, const String * src, bool isUri, const KFile ** f,
+    size_t size, uint64_t pos)
+{
+    assert(self && f && *f && src);
+
+    memset(self, 0, sizeof *self);
+
+    self->bsize = mane->bsize;
+    self->mgr = mane->kns;
+    self->path = path;
+    self->src = src;
+    self->size = size;
+    self->isUri = isUri;
+
+    self->curSize = self->bsize;
+    self->f = f;
+
+    RetrierReset(self, pos);
+}
+
+static rc_t RetrierReopenRemote(Retrier * self) {
+    rc_t rc = 0;
+
+    uint32_t timeout = 1;
+
+    KFileRelease(*self->f);
+    *self->f = NULL;
+
+    while (timeout < 10 * 60 /* 10 minutes */) {
+        rc = _KFileOpenRemote(self->f, self->mgr, self->path,
+            self->src, !self->isUri);
+        if (rc == 0)
+            break;
+
+        KSleep(timeout);
+        timeout *= 2;
+    }
+
+    return rc;
+}
+
+static bool RetrierDecBufSz(Retrier * self, rc_t rc) {
+    const size_t MIN = 3768;
+
+    assert(self);
+
+    /* 3768 is usually returned by KStreamRead (size of TLS buffer?) */
+    if (self->curSize == MIN)
+        return false;
+
+    self->curSize /= 2;
+    if (self->curSize < MIN)
+        self->curSize = MIN;
+
+    return true;
+}
+
+static bool RetrierIncSleepTO(Retrier * self) {
+    if (self->sleepTO == 0)
+        self->sleepTO = 1;
+    else
+        self->sleepTO *= 2;
+
+    if (self->sleepTO == 16)
+        --self->sleepTO;
+
+    if (self->sleepTO > 20 * 60 /* 20 minutes */)
+        return false;
+    else
+        return true;
+}
+
+/* #define TESTING_FAILURES */
+
+static rc_t Retry(Retrier * self, rc_t rc, uint64_t opos) {
+    bool retry = true;
+
+    assert(self);
+
+    if (opos <= self->pos)
+        switch (self->state) {
+        case eRSJustRetry:
+            break;
+        case eRSReopen:
+            if (RetrierReopenRemote(self) != 0)
+                retry = false;
+            break;
+        case eRSDecBuf:
+            if (RetrierDecBufSz(self, rc))
+                break;
+            else
+                self->state = eRSIncTO;
+        case eRSIncTO:
+            if (!RetrierIncSleepTO(self))
+                retry = false;
+            break;
+        default: assert(0); break;
+        }
+
+    self->failed = true;
+
+    if (retry) {
+        KStsLevel lvl = KStsLevelGet();
+        if (lvl > 0) {
+            if (lvl == 1)
+                PLOGERR(klogErr, (klogErr, rc,
+                    "Cannot KFileRead: retrying '$(name)'...",
+                    "name=%S", self->src));
+            else
+                switch (self->state) {
+                case eRSJustRetry:
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "Cannot KFileRead: retrying '$(name)':$(pos)...",
+                        "name=%S,pos=%lu", self->src, self->pos));
+                    break;
+                case eRSReopen:
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "Cannot KFileRead: reopened, retrying '$(name)'...",
+                        "name=%S", self->src));
+                    break;
+                case eRSDecBuf:
+                    PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
+                        "buffer size = $(sz), retrying '$(name)'...",
+                        "sz=%zu,name=%S", self->curSize, self->src));
+                    break;
+                case eRSIncTO:
+                    PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
+                        "sleep TO = $(to)s, retrying '$(name)'...",
+                        "to=%u,name=%S", self->sleepTO, self->src));
+                    break;
+                default: assert(0); break;
+                }
+        }
+
+        rc = 0;
+    }
+    else
+        PLOGERR(klogErr, (klogErr, rc,
+            "Cannot KFileRead '$(name)': sz=$(sz), to=$(to)",
+            "name=%S,sz=%zu,to=%u", self->src, self->curSize, self->sleepTO));
+
+    if (rc == 0) {
+        if (self->sleepTO > 0) {
+            STSMSG(2, ("Sleeping %us...", self->sleepTO));
+#ifndef TESTING_FAILURES
+            KSleep(self->sleepTO);
+#endif
+        }
+
+        if (++self->state == eRSMax)
+            self->state = eRSReopen;
+    }
+
+    return rc;
+}
+
 static rc_t MainDownloadHttpFile(Resolved *self,
     Main *mane, const char *to, const VPath * path)
 {
@@ -1335,6 +1537,9 @@ static rc_t MainDownloadHttpFile(Resolved *self,
     size_t num_read = 0;
     uint64_t opos = 0;
     size_t num_writ = 0;
+    uint64_t size = 0;
+
+    struct progressbar * pb = NULL;
 
     const VPathStr * remote = NULL;
     String src;
@@ -1447,14 +1652,38 @@ static rc_t MainDownloadHttpFile(Resolved *self,
             if ( rc == 0 ) {
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
-                DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
-                           src . addr );
+                DISP_RC2 ( rc,
+                    "Cannot KClientHttpResultGetInputStream", src . addr );
+
+                if (rc == 0 && mane->showProgress&& !mane->dryRun) {
+                    rc_t r2 = 0;
+                    if (in == NULL)
+                        r2 = _KFileOpenRemote(&in, mane->kns, path,
+                            &src, !self->isUri);
+                    if (r2 == 0)
+                        rc = KFileSize(in, &size);
+                    if (r2 == 0)
+                        rc = make_progressbar(&pb, 2);
+                }
 
                 while ( rc == 0 ) {
+                    rc = Quitting();
+                    if (rc != 0)
+                        break;
+
                     rc = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
+#ifdef TESTING_FAILURES
+                    if (opos > 0&&rc==0)rc = 1;
+#endif
                     if ( rc != 0 || num_read == 0) {
-                        DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
+                        if (opos > 0) {
+                            if (KStsLevelGet() > 0)
+                                DISP_RC2(rc, "Cannot KStreamRead: "
+                                    "switching to KFileRead...", src.addr);
+                        }
+                        else
+                            DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
                         break;
                     }
 
@@ -1464,11 +1693,12 @@ static rc_t MainDownloadHttpFile(Resolved *self,
                     rc = KFileWriteAll
                         ( out, opos, mane -> buffer, num_read, & num_writ);
                     DISP_RC2 ( rc, "Cannot KFileWrite", to );
-                    if ( rc == 0 && num_writ != num_read ) {
+                    if ( rc == 0 && num_writ != num_read )
                         rc = RC ( rcExe,
                             rcFile, rcCopying, rcTransfer, rcIncomplete );
-                    }
                     opos += num_writ;
+                    if (pb != NULL)
+                        update_progressbar(pb, 100 * 100 * opos / size);
                 }
 
                 RELEASE ( KStream, s );
@@ -1480,10 +1710,58 @@ static rc_t MainDownloadHttpFile(Resolved *self,
         RELEASE ( KClientHttpRequest, kns_req );
     }
 
+    if (rc != 0 && opos > 0 && Quitting() == 0) {
+#ifdef TESTING_FAILURES
+        bool already = false;
+        rc_t testRc = 1;
+#endif
+        Retrier retrier;
+        rc = 0;
+        if (in == NULL)
+            rc = _KFileOpenRemote(&in, mane->kns, path,
+                &src, !self->isUri);
+        RetrierInit(&retrier, mane, path,
+            &src, self->isUri, &in, size, opos);
+        while (rc == 0) {
+            rc = Quitting();
+            if (rc != 0)
+                break;
+
+            rc = KFileRead(
+                in, opos, mane->buffer, retrier.curSize, &num_read);
+#ifdef TESTING_FAILURES
+            if (!already&&rc == 0)rc = testRc; else already = true;
+#endif
+            if (rc != 0) {
+                rc = Retry(&retrier, rc, opos != 0);
+                if (rc != 0)
+                    break;
+                else
+                    continue;
+            }
+            else if (num_read == 0)
+                break;
+            rc = KFileWriteAll(
+                out, opos, mane->buffer, num_read, &num_writ);
+            DISP_RC2(rc, "Cannot KFileWrite", to);
+            if (rc == 0 && num_writ != num_read)
+                rc = RC(rcExe,
+                    rcFile, rcCopying, rcTransfer, rcIncomplete);
+            opos += num_writ;
+            RetrierReset(&retrier, opos);
+            if (pb != NULL)
+                update_progressbar(pb, 100 * 100 * opos / size);
+        }
+    }
+
     RELEASE(KFile, out);
+
+    destroy_progressbar(pb);
 
     if (rc == 0 && !mane->dryRun)
         STSMSG(STS_INFO, ("%s (%ld)", to, opos));
+
+    RELEASE(KFile, in);
 
     return rc;
 }
@@ -1702,7 +1980,6 @@ static rc_t MainDoDownload(Resolved *self, const Item * item,
 static rc_t MainDownload(Resolved *self, const Item * item,
                          bool isDependency, const VPath *vdbcache)
 {
-/*  bool canceled = false;*/
     rc_t rc = 0;
     KFile *flock = NULL;
     Main * mane = NULL;
@@ -2311,9 +2588,9 @@ rc_t MainOutDirCheck ( Main * self, bool * setAndNotExists ) {
 
 /* resolve locations */
 static rc_t _ItemResolveResolved(VResolver *resolver,
-    VRemoteProtocols protocols, Item *item,
-    const KRepositoryMgr *repoMgr, const KConfig *cfg,
-    const VFSManager *vfs, KNSManager *kns, size_t minSize, size_t maxSize)
+    VRemoteProtocols protocols, Item *item, const KRepositoryMgr *repoMgr,
+    const KConfig *cfg, const VFSManager *vfs, KNSManager *kns,
+    size_t minSize, size_t maxSize)
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;
@@ -2755,7 +3032,8 @@ static rc_t ItemDownload(Item *item) {
                 KDirectoryPathType(item->mane->dir, "%s", name) == kptNotFound;
             rc = MainDownload(self, item, item->isDependency, NULL);
             if (item->mane->dryRun && notFound
-                && KDirectoryPathType(item->mane->dir, "%s", name) == kptDir)
+                && KDirectoryPathType(item->mane->dir, "%s", name)
+                    == kptDir)
             {
                 KNamelist * list = NULL;
                 rc = KDirectoryList(item->mane->dir,
@@ -3030,323 +3308,6 @@ static rc_t ItemDownloadDependencies(Item *item) {
     return rc;
 }
 
-#define TODO 1
-
-#if 0
-static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
-    Item *self, char *remotePath, size_t remotePathLen, bool *exists)
-{
-    rc_t rc = 0;
-    size_t len = 0;
-    Resolved *resolved = NULL;
-    VPath *cremote = NULL;
-    const VPathStr * remote = NULL;
-    assert(self && self->mane && exists);
-    resolved = &self->resolved;
-    assert(resolved);
-    remote = resolved -> remoteHttp . path != NULL ? & resolved -> remoteHttp
-                                                   : & resolved -> remoteHttps;
-    *exists = false;
-    VPathStrFini ( & resolved -> remoteFasp );
-    if (remote -> path == NULL) {
-        rc_t rc = TODO;
-        DISP_RC(rc, "UNKNOWN REMOTE LOCATION WHEN TRYING TO FIND VDBCACHE");
-        return rc;
-    }
-    rc = VFSManagerMakePathWithExtension(self->mane->vfsMgr,
-        &cremote, remote -> path, ".vdbcache");
-    if (rc != 0) {
-        if (remote -> str != NULL) {
-            DISP_RC2(rc, "VFSManagerMakePathWithExtension",
-                remote -> str->addr);
-        }
-        else {
-            DISP_RC(rc, "VFSManagerMakePathWithExtension(remote)");
-        }
-        return rc;
-    }
-    rc = VPathReadUri(cremote, remotePath, remotePathLen, &len);
-    if (rc == 0) {
-        String remote;
-        char *query = string_chr(remotePath, len, '?');
-        if (query != NULL) {
-            *query = '\0';
-            len = query - remotePath;
-        }
-        StringInitCString ( & remote, remotePath );
-        RELEASE(KFile, resolved->file);
-        rc = _KFileOpenRemote(&resolved->file, self->mane->kns, &remote,
-                              !resolved->isUri);
-        if (rc == 0) {
-            STSMSG(STS_DBG, ("'%s' exists", remotePath));
-            STSMSG(STS_TOP, ("'%s' has remote vdbcache", resolved->name));
-            *exists = true;
-            if ( resolved -> remoteHttp . path != NULL ) {
-                rc = VPathStrInitStr ( & resolved->remoteHttp, remotePath, len);
-                DISP_RC2(rc, "StringCopy(Remote.vdbcache)", remotePath);
-                resolved->remoteHttp.path = cremote;
-            }
-            else {
-                rc = VPathStrInitStr ( & resolved->remoteHttps,remotePath, len);
-                DISP_RC2(rc, "StringCopy(Remote.vdbcache)", remotePath);
-                resolved->remoteHttps.path = cremote;
-            }
-            cremote = NULL;
-        }
-        else if (rc == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcNotFound)) {
-            STSMSG(STS_DBG, ("'%s' does not exist", remotePath));
-            *exists = false;
-            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", resolved->name));
-            rc = 0;
-        }
-        else if
-            (rc == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcUnauthorized))
-        {
-            STSMSG(STS_DBG, (
-                "Access to '%s's vdbcahe file is forbidden or it does not exist"
-                , resolved->name));
-            *exists = false;
-            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", resolved->name));
-            rc = 0;
-        }
-        else {
-            DISP_RC2(rc, "Failed to check vdbcache", resolved->name);
-        }
-    }
-    RELEASE(VPath, cremote);
-    return rc;
-}
-
-static rc_t MainDetectVdbcacheCachePath(const Main *self,
-    const String *runCache, const VPath **runCachePath,
-    const String **vdbcacheCache)
-{
-    rc_t rc = 0;
-
-    VPath *vlocal = NULL;
-    VPath *clocal = NULL;
-
-    if (runCache == NULL && (runCachePath == NULL || *runCachePath == NULL))
-    {
-        rc_t rc = TODO;
-        DISP_RC(rc, "UNKNOWN CACHE LOCATION WHEN TRYING TO FIND VDBCACHE");
-        return rc;
-    }
-
-    if (runCachePath != NULL && *runCachePath != NULL) {
-        vlocal = (VPath*)*runCachePath;
-    }
-    else {
-        rc = VFSManagerMakePath(self->vfsMgr, &vlocal, "%S", runCache);
-        if (rc != 0) {
-            DISP_RC2(rc, "VFSManagerMakePath", runCache->addr);
-            return rc;
-        }
-    }
-
-    rc = VFSManagerMakePathWithExtension(
-        self->vfsMgr, &clocal, vlocal, ".vdbcache");
-    DISP_RC2(rc, "VFSManagerMakePathWithExtension", runCache->addr);
-
-    if (rc == 0) {
-        rc = VPathMakeString(clocal, vdbcacheCache);
-    }
-
-    RELEASE(VPath, clocal);
-
-    if (runCachePath == NULL) {
-        RELEASE(VPath, vlocal);
-    }
-    else if (*runCachePath == NULL) {
-        *runCachePath = vlocal;
-    }
-
-    return rc;
-}
-
-static bool MainNeedDownload(const Main *self, const String *local,
-    const char *remotePath, const KFile *remote, uint64_t *remoteSz)
-{
-    KPathType type = kptNotFound;
-    assert(self && local);
-    type = KDirectoryPathType(self->dir, "%s", local->addr) & ~kptAlias;
-    if (type == kptNotFound) {
-        return false;
-    }
-    if (type != kptFile) {
-        if (self->force == eForceNo) {
-            STSMSG(STS_TOP, (
-                "%S (not a file) is found locally: consider it complete",
-                local));
-            return false;
-        }
-        else {
-            STSMSG(STS_TOP, (
-                "%S (not a file) is found locally and will be redownloaded",
-                local));
-            return true;
-        }
-    }
-    else if (self->force != eForceNo) {
-        return true;
-    }
-    else {
-        rc_t rc = 0;
-        uint64_t sLocal = 0;
-        assert(remoteSz);
-        rc = KFileSize(remote, remoteSz);
-        DISP_RC2(rc, "KFileSize(remote.vdbcache)", remotePath);
-        if (rc != 0) {
-            return true;
-        }
-        {
-            const KFile *f = NULL;
-            rc = KDirectoryOpenFileRead(self->dir, &f, "%s", local->addr);
-            if (rc != 0) {
-                DISP_RC2(rc, "KDirectoryOpenFileRead", local->addr);
-                return true;
-            }
-            rc = KFileSize(f, &sLocal);
-            if (rc != 0) {
-                DISP_RC2(rc, "KFileSize", local->addr);
-            }
-            RELEASE(KFile, f);
-            if (rc != 0) {
-                return true;
-            }
-        }
-        if (sLocal == *remoteSz) {
-            STSMSG(STS_INFO, ("%S (%,lu) is found", local, sLocal));
-            return false;
-        }
-        else {
-            STSMSG(STS_INFO,
-                ("%S (%,lu) is found and will be redownloaded", local, sLocal));
-            return true;
-        }
-    }
-}
-
-static rc_t ItemDownloadVdbcache(Item *item) {
-    rc_t rc = 0;
-    Resolved *resolved = NULL;
-    bool checkRemote = true;
-    bool remoteExists = false;
-    char remotePath[PATH_MAX] = "";
-    const String *local = NULL;
-    const String *cache = NULL;
-    bool localExists = false;
-    bool download = true;
-
-return 0;
-
-    assert(item && item->mane);
-    resolved = &item->resolved;
-    if (!resolved) {
-        STSMSG(STS_TOP,
-            ("CANNOT DOWNLOAD VDBCACHE FOR UNRESOLVED ITEM '%s'", item->desc));
-        /* TODO error? */
-        return 0;
-    }
-    {
-        bool csra = false;
-        const VDatabase *db = NULL;
-        KPathType type = VDBManagerPathType
-            (item->mane->mgr, "%S", resolved->path.str) & ~kptAlias;
-        if (type == kptTable) {
-            STSMSG(STS_INFO, ("'%S' is a table", resolved->path.str));
-        }
-        else if (type != kptDatabase) {
-            STSMSG(STS_INFO, ("'%S' is not recognized as a database or a table",
-                resolved->path.str));
-        }
-        else {
-            rc_t rc = VDBManagerOpenDBRead(item->mane->mgr,
-                &db, NULL, "%S", resolved->path.str);
-            if (rc == 0) {
-                csra = VDatabaseIsCSRA(db);
-            }
-            RELEASE(VDatabase, db);
-            if (csra) {
-                STSMSG(STS_INFO, ("'%s' is cSRA", resolved->name));
-            }
-            else {
-                STSMSG(STS_INFO, ("'%s' is not cSRA", resolved->name));
-            }
-            if (!csra) {
-                return 0;
-            }
-        }
-    }
-    
-    if (!checkRemote) {
-        return 0;
-    }
-    if (rc == 0) {
-        rc = ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
-            item, remotePath, sizeof remotePath, &remoteExists);
-    }
-    if (!remoteExists) {
-        return 0;
-    }
-    {
-        bool cacheExists = false;
-        if (resolved->existing) {
-            /* resolved->path.str is a local file path */
-            rc = MainDetectVdbcacheCachePath(item->mane,
-                resolved->path.str, &resolved->path.path, &local);
-            assert(local);
-            localExists = (VDBManagerPathType(item->mane->mgr, "%S", local)
-                & ~kptAlias) != kptNotFound;
-            STSMSG(STS_DBG, ("'%S' %sexist%s", local,
-                localExists ? "" : "does not ", localExists ? "s" : ""));
-        }
-        /* check vdbcache file cache location and its existence */
-        rc = MainDetectVdbcacheCachePath(item->mane,
-            resolved->cache, NULL, &cache);
-        cacheExists = (VDBManagerPathType(item->mane->mgr, "%S", cache)
-            & ~kptAlias) != kptNotFound;
-        STSMSG(STS_DBG, ("'%S' %sexist%s", cache,
-            cacheExists ? "" : "does not ", cacheExists ? "s" : ""));
-        if (!localExists) {
-            localExists = cacheExists;
-        }
-    }
-    if (!remoteExists) {
-        return 0;
-    }
-    if (localExists) {
-        download = MainNeedDownload(item->mane, local ? local : cache,
-            remotePath, resolved->file, &resolved->remoteSz);
-        if ( ! download )
-            STSMSG(STS_TOP, (" vdbcache is found locally"));
-    }
-    RELEASE(String, local);
-    RELEASE(String, resolved->cache);
-    resolved->cache = cache;
-    if (download && rc == 0) {
-
-     /* ignore fasp transport request while ascp vdbcache address is unknown */
-        item->mane->noHttp = false;
-
-        STSMSG(STS_TOP, (" Downloading vdbcache..."));
-        rc = MainDownload(&item->resolved, item, item->isDependency);
-        if (rc == 0) {
-            STSMSG(STS_TOP, (" vdbcache was downloaded successfully"));
-            if (local && StringCompare(local, cache) != 0) {
-                STSMSG(STS_DBG, ("Removing '%S'", local));
-                /* TODO rm local vdbcache file
-                    if full path is specified and it is not the cache path
-                rc = KDirectoryRemove(item->mane->dir, false, "%S", local);
-                    */
-            }
-        } else
-            STSMSG(STS_TOP, (" failed to download vdbcache"));
-    }
-    return rc;
-}
-#endif
-
 static rc_t ItemPostDownload(Item *item, int32_t row) {
     rc_t rc = 0;
     Resolved *resolved = NULL;
@@ -3401,16 +3362,6 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
 static rc_t ItemProcess(Item *item, int32_t row) {
     /* resolve: locate; download if not found */
     return ItemResolveResolvedAndDownloadOrProcess(item, row);
-
-/*  if (item->resolved.type != eRunTypeDownload) {
-        return rc;
-    }
-
-    if (rc == 0 && !item->mane->dryRun) {
-        rc = ItemPostDownload(item, row);
-    }
-
-    return rc;*/
 }
 
 /*********** Command line arguments **********/
@@ -3511,11 +3462,15 @@ static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/", NULL };
 static const char* OUT_FILE_USAGE[] = {
     "Write file to FILE when downloading a single file", NULL };
 
-#define HBEAT_OPTION "progress"
-#define HBEAT_ALIAS  "p"
+#define HBEAT_OPTION "heartbeat"
+#define HBEAT_ALIAS  "H"
 static const char* HBEAT_USAGE[] = {
     "Time period in minutes to display download progress",
     "(0: no progress), default: 1", NULL };
+
+#define PRGRS_OPTION "progress"
+#define PRGRS_ALIAS  "p"
+static const char* PRGRS_USAGE[] = { "show progress", NULL };
 
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
@@ -3581,6 +3536,7 @@ static OptDef OPTIONS[] = {
 ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
 ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
 ,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+,{ PRGRS_OPTION       , PRGRS_ALIAS       , NULL, PRGRS_USAGE , 1, false,false }
 ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
 ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
@@ -3812,6 +3768,17 @@ option_name = DRY_RUN_OPTION;
         }
         if (pcount > 0)
             self->dryRun = true;
+    }
+
+/* PRGRS_OPTION */
+    {
+        rc = ArgsOptionCount(self->args, PRGRS_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" PRGRS_OPTION "' argument");
+            break;
+        }
+        if (pcount > 0)
+            self->showProgress = true;
     }
 
 /* HBEAT_OPTION */

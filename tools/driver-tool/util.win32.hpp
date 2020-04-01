@@ -29,6 +29,7 @@
 #include <windows.h>
 #include <stringapiset.h>
 #include <memory.h>
+#include <limits.h>
 
 #include <map>
 #include <cassert>
@@ -44,6 +45,8 @@ typedef SSIZE_T ssize_t;
 /// @return number of wide chars placed into wstr (including any nil-terminator)
 static ssize_t widen(wchar_t *wstr, size_t wlen, char const *str, ssize_t len = -1)
 {
+    assert((0 <= len && len <= INT_MAX) || len == -1);
+    assert(0 <= wlen && wlen <= INT_MAX);
     return (ssize_t)MultiByteToWideChar(CP_UTF8, 0, str, (int)len, wstr, (int)wlen);
 }
 
@@ -54,6 +57,7 @@ static ssize_t widen(wchar_t *wstr, size_t wlen, char const *str, ssize_t len = 
 /// @return number of wide chars needed to hold converted str
 static ssize_t wideSize(char const *str, ssize_t len = -1)
 {
+    assert((0 <= len && len <= INT_MAX) || len == -1);
     wchar_t wdummy[1];
     return (ssize_t)widen(wdummy, 0, str, len);
 }
@@ -81,8 +85,10 @@ static wchar_t *makeWide(char const *str)
 /// @param wstr the string to convert
 /// @param wlen the length of wstr or -1 if nil-terminated
 /// @return number of chars placed into str (including any nil-terminator)
-static ssize_t unwiden(char *str, ssize_t len, wchar_t const *wstr, size_t wlen = -1)
+static ssize_t unwiden(char *str, ssize_t len, wchar_t const *wstr, ssize_t wlen = -1)
 {
+    assert(0 <= len && len <= INT_MAX);
+    assert((0 <= wlen && wlen <= INT_MAX) || wlen == -1);
     return (ssize_t)WideCharToMultiByte(CP_UTF8, 0, wstr, (int)wlen, str, (int)len, NULL, NULL);
 }
 
@@ -93,6 +99,7 @@ static ssize_t unwiden(char *str, ssize_t len, wchar_t const *wstr, size_t wlen 
 /// @return number of chars needed to hold converted wstr
 static ssize_t unwideSize(wchar_t const *wstr, ssize_t wlen = -1)
 {
+    assert((0 <= wlen && wlen <= INT_MAX) || wlen == -1);
     char dummy[1];
     return (ssize_t)unwiden(dummy, 0, wstr, wlen);
 }

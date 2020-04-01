@@ -1,6 +1,15 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.5
+**April 1, 2020**
+
+  **build, sratools**: fixed a potential build problem in libutf8proc  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: all Linux builds now use g++ 7.3 (C++11 ABI)  
+  **prefetch**: improvements were made to work in environments with bad network connections  
+  **prefetch, sratools**: fixed the names of the --min-size and --max-size command line arguments when running prefetch
+
+
 ## SRA Toolkit 2.10.4
 **February 26, 2020**
 

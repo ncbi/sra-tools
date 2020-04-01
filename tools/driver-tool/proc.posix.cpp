@@ -224,7 +224,7 @@ process::exit_status process::wait() const
     if (pid == 0)
         throw std::logic_error("you can't wait on yourself!");
 
-    do {
+    do { // loop if wait is interrupted
         auto status = int(0);
         auto const rc = waitpid_with_signal_forwarding(pid, &status);
 

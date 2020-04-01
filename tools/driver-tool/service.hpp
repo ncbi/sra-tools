@@ -57,7 +57,7 @@ public:
     : std::runtime_error(what)
     , from(from)
     , rc(rc)
-        , msg(message)
+    , msg(message)
     {}
 };
 

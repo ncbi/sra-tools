@@ -247,8 +247,8 @@ struct Response2 {
                     result.localPath = fileInfo.path;
                     if ((result.haveCachePath = !fileInfo.cachepath.empty()) != false)
                         result.cachePath = fileInfo.cachepath;
-                    if ((result.haveSize = fileInfo.size != 0) != false)
-                        result.fileSize = fileInfo.size;
+                    if ((result.haveSize = (fileInfo.size != 0)) != false)
+                        result.fileSize = std::to_string(fileInfo.size);
                 }
                 result.accession = accession;
                 result.service = location.service;

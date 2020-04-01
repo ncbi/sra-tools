@@ -147,7 +147,7 @@ public:
 
         auto const wvaluelen = GetEnvironmentVariableW(wname, wdummy, 0);
         if (wvaluelen > 0) {
-            auto const wbuffer = (wchar_t *)malloc(wvaluelen * sizeof(wchar_t));
+            auto const wbuffer = (wchar_t *)malloc((wvaluelen + 1) * sizeof(wchar_t));
             assert(wbuffer != NULL);
             auto const freeLater1 = DeferredFree<wchar_t>(wbuffer);
 

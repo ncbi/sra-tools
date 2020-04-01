@@ -213,7 +213,7 @@ print_config_to_stdout ()
         echo INFO: using internal configuration settings >&2
         cat <<EOF
 
-### Standard configuration file.
+## Standard configuration file.
 ### '#'# character in beginning of line is treated as a commentary
 
 ### Schema traslations
@@ -249,22 +249,19 @@ translate NCBI:tbl:base_space     2.0.3   3
 
 #added first pass
 translate NCBI:SRA:GenericFastq:sequence  1       2.0
-translate NCBI:SRA:GenericFastq:sequence_nanopore 1       2.0
-translate NCBI:SRA:GenericFastq:sequence_no_name  1       2.0
 translate NCBI:SRA:Illumina:tbl:phred:v2  1.0.3   2
-translate NCBI:SRA:Nanopore:sequence      1       2.0
-translate NCBI:SRA:PacBio:smrt:cons       1.0.2   2.0
-translate NCBI:SRA:PacBio:smrt:sequence   1.0.2   2.0
 translate NCBI:SRA:_454_:tbl:v2   1.0.6   2
 
 #added second pass
 translate NCBI:SRA:GenericFastq:consensus_nanopore        1       2
-translate NCBI:SRA:GenericFastq:sequence_log_odds 1       2
 translate NCBI:SRA:Helicos:tbl:v2 1.0.3   2
-translate NCBI:SRA:Nanopore:consensus     1       2
 
 #added by Zalunin
-tranlsate NCBI:SRA:GenericFastq:db  1   2
+translate NCBI:SRA:GenericFastq:db  1   2
+
+#added during new test from script
+translate NCBI:SRA:Illumina:tbl:q4:v2     1.1   2
+translate NCBI:align:db:alignment_sorted    1.2.1   2
 
 ### Columns to drop
 exclude QUALITY

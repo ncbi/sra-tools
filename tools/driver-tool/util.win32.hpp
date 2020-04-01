@@ -196,7 +196,7 @@ public:
 
 static inline char *GetFullPathToExe()
 {
-    for (size_t size = 1024; ; size *= 2) {
+    for (size_t size = 4096; ; size *= 2) {
         auto const buffer = (wchar_t *)malloc(size * sizeof(wchar_t));
         if (buffer == NULL)
             return NULL;

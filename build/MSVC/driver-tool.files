@@ -1,5 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemDefinitionGroup>
+        <ClCompile>
+        <PreprocessorDefinitions>UTF8PROC_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+        </ClCompile>
+    </ItemDefinitionGroup>
+
     <ItemGroup>
         <ClCompile Include="..\..\..\tools\driver-tool\sratools.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\sratools2.cpp" />
@@ -16,6 +22,24 @@
         <ClCompile Include="..\..\..\tools\driver-tool\run-source.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\uuid.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\service.cpp" />
+
+        <ClCompile Include="..\..\..\tools\driver-tool\json\json.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\json\json-array.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\json\json-object.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\json\json-primitive.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\json\json-value.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\json\json-wrapper.cpp" />
+
+        <ClCompile Include="..\..\..\tools\driver-tool\secure\busy.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\secure\payload.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\secure\base64.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\secure\except.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\secure\string.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\secure\atoi.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\secure\memset_s.cpp" />
+
+        <ClCompile Include="..\..\..\tools\driver-tool\utf8proc\utf8proc.c" />
+
     </ItemGroup>
 </Project>
 

@@ -14,6 +14,12 @@ The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
+SRA Toolkit 2.10.5
+sratools: fixed a potential build problem in libutf8proc
+ncbi-vdb, ngs, ngs-tools, sra-tools: all Linux builds now use g++ 7.3 (C++11 ABI)
+prefetch: improvements were made to work in environments with bad network connections
+prefetch, sratools: fixed the names of the --min-size and --max-size command line arguments when running prefetch
+
 SRA Toolkit 2.10.4
 kns, sra-tools:: fixed errors when using ngc file
 

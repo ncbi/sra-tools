@@ -351,7 +351,7 @@ static size_t needUTF8s(int argc, wchar_t *wargv[])
 {
     size_t result = 0;
     for (int i = 0; i < argc; ++i) {
-        auto const count = unwideSize(wargv[i]);
+        auto const count = Win32Shim::unwideSize(wargv[i]);
         if (count <= 0)
             throw std::runtime_error("Can not convert command line to UTF-8!?"); ///< Windows shouldn't ever send us strings that it can't convert to UTF8
         result += count;
@@ -364,7 +364,7 @@ static void convert2UTF8(int argc, char *argv[], size_t bufsize, char *buffer, w
 {
     int i;
     for (i = 0; i < argc; ++i) {
-        auto const count = unwiden(buffer, bufsize, wargv[i]);
+        auto const count = Win32Shim::unwiden(buffer, bufsize, wargv[i]);
         assert(0 < count && (size_t)count <= bufsize); ///< should never be < 0, since we should have caught that in `needUTF8s`
         argv[i] = buffer;
         buffer += count;
@@ -401,8 +401,8 @@ int main(int argc, char *argv[])
 #endif
 {
 #if WINDOWS
-    auto const argv = convertWStrings(argc, wargv);
-    auto const freeArgv = DeferredFree<char*>(argv);
+    auto const up_argv = std::unique_ptr<char *, decltype(free)>(convertWStrings(argc, wargv), free);
+    auto const argv = up_argv.get();
 #endif
     auto const impersonate = EnvironmentVariables::impersonate();
     auto const argv0 = (impersonate && impersonate[0]) ? impersonate : argv[0];

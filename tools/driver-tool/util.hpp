@@ -30,6 +30,7 @@
 #include <system_error>
 #include <type_traits>
 #include <string>
+#include <memory>
 #include <stdlib.h>
 
 #if __cpp_lib_starts_ends_with
@@ -126,15 +127,6 @@ static inline T *randomized(T *p, U const &init)
 }
 
 #endif // DEBUG || _DEBUGGING
-
-template <typename T>
-struct DeferredFree {
-    void *p;
-    ~DeferredFree() {
-        free(p);
-    }
-    DeferredFree(T *p_) : p(static_cast<void *>(p_)) {}
-};
 
 #if WINDOWS
 #include "util.win32.hpp"

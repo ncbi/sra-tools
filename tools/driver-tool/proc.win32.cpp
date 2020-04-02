@@ -56,7 +56,7 @@ static bool hasSpace(char const *str)
 static wchar_t *create_command_line(char const **argv)
 {
     wchar_t special[8];
-    widen(special, 8, " \\\"");
+    Win32Shim::widen(special, 8, " \\\"");
 
     size_t wcmdline_len = 0;
     int argc = 0;
@@ -70,7 +70,7 @@ static wchar_t *create_command_line(char const **argv)
             auto const quote = countChars(arg, '"');
             auto const space = hasSpace(arg);
             wcmdline_len += slash + quote + (space ? 2 : 0);
-            auto const wlen = wideSize(arg);
+            auto const wlen = Win32Shim::wideSize(arg);
             assert(wlen > 0);
             wcmdline_len += wlen;
         }
@@ -93,7 +93,7 @@ static wchar_t *create_command_line(char const **argv)
                 while (str[j] != '\\' && str[j] != '"' && str[j] != '\0')
                     ++j;
                 if (j > 0) {
-                    auto const wlen = widen(buffer, remain, str, j);
+                    auto const wlen = Win32Shim::widen(buffer, remain, str, j);
                     assert(wlen > 0);
                     buffer += wlen;
                     assert((ssize_t)remain > wlen);
@@ -120,12 +120,10 @@ static wchar_t *create_command_line(char const **argv)
 PROCESS_INFORMATION createProcess(char const *toolpath, char const **argv, STARTUPINFOW *si)
 {
     PROCESS_INFORMATION pi; ZeroMemory(&pi, sizeof(pi));
-    auto const wtoolpath = makeWide(toolpath);
-    auto const freePath = DeferredFree<wchar_t>(wtoolpath);
-    auto const wcmdline = create_command_line(argv);
-    auto const freeCmd = DeferredFree<wchar_t>(wcmdline);
+    auto const wtoolpath = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(toolpath), free);
+    auto const wcmdline = std::unique_ptr<wchar_t *, decltype(free)>(create_command_line(argv), free);
 
-    if (!CreateProcessW(wtoolpath, wcmdline, NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, si, &pi))
+    if (!CreateProcessW(wtoolpath.get(), wcmdline.get(), NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, si, &pi))
         throw_system_error("CreateProcess failed");
     return pi;
 }

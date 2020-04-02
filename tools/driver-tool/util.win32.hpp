@@ -36,94 +36,107 @@
 
 typedef SSIZE_T ssize_t;
 
-/// Convert UTF8 string to Windows wide char string
-/// Note: if len == -1, the returned count includes the nil-terminator
-/// @param wstr buffer to recieve converted string
-/// @param wlen max number of wide chars that wstr can hold, NB. not size in bytes
-/// @param str the string to convert
-/// @param len the length of str or -1 if nil-terminated
-/// @return number of wide chars placed into wstr (including any nil-terminator)
-static ssize_t widen(wchar_t *wstr, size_t wlen, char const *str, ssize_t len = -1)
-{
-    assert((0 <= len && len <= INT_MAX) || len == -1);
-    assert(0 <= wlen && wlen <= INT_MAX);
-    return (ssize_t)MultiByteToWideChar(CP_UTF8, 0, str, (int)len, wstr, (int)wlen);
-}
-
-/// Get the number of wide chars needed to hold a converted string
-/// Note: if len == -1, the returned count includes the nil-terminator
-/// @param str the string to measure
-/// @param len the length of str or -1 if nil-terminated
-/// @return number of wide chars needed to hold converted str
-static ssize_t wideSize(char const *str, ssize_t len = -1)
-{
-    assert((0 <= len && len <= INT_MAX) || len == -1);
-    wchar_t wdummy[1];
-    return (ssize_t)widen(wdummy, 0, str, len);
-}
-
-/// Convert nil-terminated UTF8 string to Windows nil-terminated wide char string
-/// @param str the string to convert
-/// @return a new wide char string, deallocate with free
-static wchar_t *makeWide(char const *str)
-{
-    auto const wlen = wideSize(str);
-    if (wlen > 0) {
-        auto const wvalue = (wchar_t *)malloc(wlen * sizeof(wchar_t));
-        if (wvalue != NULL) {
-            widen(wvalue, wlen, str);
-            return wvalue;
-        }
+struct Win32Shim {
+    /// Convert UTF8 string to Windows wide char string
+    /// Note: if len == -1, the returned count includes the nil-terminator
+    /// @param wstr buffer to recieve converted string
+    /// @param wlen max number of wide chars that wstr can hold, NB. not size in bytes
+    /// @param str the string to convert
+    /// @param len the length of str or -1 if nil-terminated
+    /// @return number of wide chars placed into wstr (including any nil-terminator)
+    static ssize_t widen(wchar_t *wstr, size_t wlen, char const *str, ssize_t len = -((ssize_t)1))
+    {
+        assert((0 <= len && len <= INT_MAX) || len == -((ssize_t)1));
+        assert(0 <= wlen && wlen <= INT_MAX);
+        return (ssize_t)MultiByteToWideChar(CP_UTF8, 0, str, (int)len, wstr, (int)wlen);
     }
-    return NULL;
-}
 
-/// Convert Windows wide char string to a UTF8 string
-/// Note: if len == -1, the returned count includes the nil-terminator
-/// @param str buffer to recieve converted string
-/// @param len max number of chars that str can hold
-/// @param wstr the string to convert
-/// @param wlen the length of wstr or -1 if nil-terminated
-/// @return number of chars placed into str (including any nil-terminator)
-static ssize_t unwiden(char *str, ssize_t len, wchar_t const *wstr, ssize_t wlen = -1)
-{
-    assert(0 <= len && len <= INT_MAX);
-    assert((0 <= wlen && wlen <= INT_MAX) || wlen == -1);
-    return (ssize_t)WideCharToMultiByte(CP_UTF8, 0, wstr, (int)wlen, str, (int)len, NULL, NULL);
-}
-
-/// Get the number of chars needed to hold a converted wide string
-/// Note: if srclen == -1, the returned count includes the nil-terminator
-/// @param wstr the string to measure
-/// @param wlen the length of wstr or -1 if nil-terminated
-/// @return number of chars needed to hold converted wstr
-static ssize_t unwideSize(wchar_t const *wstr, ssize_t wlen = -1)
-{
-    assert((0 <= wlen && wlen <= INT_MAX) || wlen == -1);
-    char dummy[1];
-    return (ssize_t)unwiden(dummy, 0, wstr, wlen);
-}
-
-/// Convert Windows nil-terminated wide char string to nil-terminated UTF8 string
-/// @param wvalue the wide string to convert
-/// @return a new char string, deallocate with free
-static char *makeUnwide(wchar_t const *wvalue)
-{
-    auto const len = unwideSize(wvalue);
-    if (len > 0) {
-        auto const value = (char *)malloc(len * sizeof(char));
-        if (value != NULL) {
-            unwiden(value, len, wvalue);
-            return value;
-        }
+    /// Get the number of wide chars needed to hold a converted string
+    /// Note: if len == -1, the returned count includes the nil-terminator
+    /// @param str the string to measure
+    /// @param len the length of str or -1 if nil-terminated
+    /// @return number of wide chars needed to hold converted str
+    static ssize_t wideSize(char const *str, ssize_t len = -((ssize_t)1))
+    {
+        assert((0 <= len && len <= INT_MAX) || len == -((ssize_t)1));
+        wchar_t wdummy[1];
+        return (ssize_t)widen(wdummy, 0, str, len);
     }
-    return NULL;
+
+    /// Convert nil-terminated UTF8 string to Windows nil-terminated wide char string
+    /// @param str the string to convert
+    /// @return a new wide char string, deallocate with free
+    static wchar_t *makeWide(char const *str)
+    {
+        auto const wlen = wideSize(str);
+        if (wlen > 0) {
+            auto const wvalue = (wchar_t *)malloc(wlen * sizeof(wchar_t));
+            if (wvalue != NULL) {
+                widen(wvalue, wlen, str);
+                return wvalue;
+            }
+        }
+        return NULL;
+    }
+
+    /// Convert Windows wide char string to a UTF8 string
+    /// Note: if len == -1, the returned count includes the nil-terminator
+    /// @param str buffer to recieve converted string
+    /// @param len max number of chars that str can hold
+    /// @param wstr the string to convert
+    /// @param wlen the length of wstr or -1 if nil-terminated
+    /// @return number of chars placed into str (including any nil-terminator)
+    static ssize_t unwiden(char *str, ssize_t len, wchar_t const *wstr, ssize_t wlen = -((ssize_t)1))
+    {
+        assert(0 <= len && len <= INT_MAX);
+        assert((0 <= wlen && wlen <= INT_MAX) || wlen == -((ssize_t)1));
+        return (ssize_t)WideCharToMultiByte(CP_UTF8, 0, wstr, (int)wlen, str, (int)len, NULL, NULL);
+    }
+
+    /// Get the number of chars needed to hold a converted wide string
+    /// Note: if srclen == -1, the returned count includes the nil-terminator
+    /// @param wstr the string to measure
+    /// @param wlen the length of wstr or -1 if nil-terminated
+    /// @return number of chars needed to hold converted wstr
+    static ssize_t unwideSize(wchar_t const *wstr, ssize_t wlen = -((ssize_t)1))
+    {
+        assert((0 <= wlen && wlen <= INT_MAX) || wlen == -((ssize_t)1));
+        char dummy[1];
+        return (ssize_t)unwiden(dummy, 0, wstr, wlen);
+    }
+
+    /// Convert Windows nil-terminated wide char string to nil-terminated UTF8 string
+    /// @param wvalue the wide string to convert
+    /// @return a new char string, deallocate with free
+    static char *makeUnwide(wchar_t const *wvalue)
+    {
+        auto const len = unwideSize(wvalue);
+        if (len > 0) {
+            auto const value = (char *)malloc(len * sizeof(char));
+            if (value != NULL) {
+                unwiden(value, len, wvalue);
+                return value;
+            }
+        }
+        return NULL;
+    }
+};
+
+static char *GetFullPathToExe()
+{
+    for (DWORD size = 4096; ; size *= 2) {
+        auto const wbuffer = std::unique_ptr<wchar_t *, decltype(free)>((wchar_t *)malloc(((size_t)size) * sizeof(wchar_t)), free);
+        if (!wbuffer)
+            return NULL;
+        if (GetModuleFileNameW(NULL, wbuffer.get(), (DWORD)size) < size)
+            return Win32Shim::makeUnwide(wbuffer);
+    }
 }
 
-static inline bool pathExists(std::string const &path) {
-    auto const wpath = makeWide(path.c_str());
+static bool pathExists(std::string const &path) {
+    auto const wpath = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(path.c_str()), free);
+    assert(wpath);
     auto const attr = GetFileAttributesW(wpath);
-    free(wpath);
     return attr != INVALID_FILE_ATTRIBUTES;
 }
 
@@ -140,35 +153,30 @@ public:
     using Set = std::map<std::string, Value>;
 
     static Value get(std::string const &name) {
-        auto const wname = makeWide(name.c_str());
-        assert(wname != NULL);
-        auto const freeLater = DeferredFree<wchar_t>(wname);
         wchar_t wdummy[4];
+        auto const wname = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(name.c_str()), free);
+        assert(wname);
 
-        auto const wvaluelen = GetEnvironmentVariableW(wname, wdummy, 0);
+        auto const wvaluelen = GetEnvironmentVariableW(wname.get(), wdummy, 0);
         if (wvaluelen > 0) {
-            auto const wbuffer = (wchar_t *)malloc((wvaluelen + 1) * sizeof(wchar_t));
-            assert(wbuffer != NULL);
-            auto const freeLater1 = DeferredFree<wchar_t>(wbuffer);
+            auto const wbuffer = std::unique_ptr<wchar_t *, decltype(free)>((wchar_t *)malloc((wvaluelen + 1) * sizeof(wchar_t)), free);
+            assert(wbuffer);
 
-            GetEnvironmentVariableW(wname, wbuffer, 0);
+            GetEnvironmentVariableW(wname.get(), wbuffer, 0);
 
-            auto const value = makeUnwide(wbuffer);
-            assert(value != NULL);
-            auto const freeLater2 = DeferredFree<char>(value);
+            auto const value = std::unique_ptr<char *, decltype(free)>(makeUnwide(wbuffer), free);
+            assert(value);
             return Value(std::string(value));
         }
         return Value();
     }
     static void set(std::string const &name, Value const &value) {
-        auto const wname = makeWide(name.c_str());
-        assert(wname != NULL);
-        auto const freeName = DeferredFree<wchar_t>(wname);
+        auto const wname = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(name.c_str()), free);
+        assert(wname);
 
         if (value) {
-            auto const wvalue = makeWide(value.c_str());
-            assert(wvalue != NULL);
-            auto const freeValue = DeferredFree<wchar_t>(wvalue);
+            auto const wvalue = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(value.c_str()), free);
+            assert(wvalue);
 
             SetEnvironmentVariableW(wname, wvalue);
         }
@@ -193,18 +201,3 @@ public:
         return NULL;
     }
 };
-
-static inline char *GetFullPathToExe()
-{
-    for (size_t size = 4096; ; size *= 2) {
-        auto const buffer = (wchar_t *)malloc(size * sizeof(wchar_t));
-        if (buffer == NULL)
-            return NULL;
-        if (GetModuleFileNameW(NULL, buffer, (DWORD)size) < size) {
-            auto const path = makeUnwide(buffer);
-            free(buffer);
-            return path;
-        }
-        free(buffer);
-    }
-}

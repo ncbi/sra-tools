@@ -23,28 +23,29 @@
 
 #include <kfs/file.h> /* KFileRelease */
 
-#include <klib/log.h> /* PLOGERR */
 #include <klib/time.h> /* KSleep */
 #include <klib/status.h> /* KStsLevelGet */
+
+#include <strtol.h> /* strtou64 */
 
 #include "PrfMain.h"
 #include "PrfRetrier.h"
 
 void PrfRetrierReset(PrfRetrier * self, uint64_t pos) {
-    self->pos = pos;
+    self->_pos = pos;
 
-    if (self->failed) {
-        self->failed = false;
+    if (self->_failed) {
+        self->_failed = false;
 
-        self->state = eRSJustRetry;
-        self->curSize = self->bsize;
-        self->sleepTO = 0;
+        self->_state = eRSJustRetry;
+        self->curSize = self->_bsize;
+        self->_sleepTO = 0;
 
         if (KStsLevelGet() >= 1)
             PLOGERR(klogErr, (klogErr, 0,
                 "KFileRead success: '$(name)':$(pos)/$(sz)",
                 "name=%S,pos=%\'lu,sz=%\'lu",
-                self->src, self->pos, self->size));
+                self->_src, self->_pos, self->_size));
     }
 }
 
@@ -56,15 +57,15 @@ void PrfRetrierInit(PrfRetrier * self, const PrfMain * mane,
 
     memset(self, 0, sizeof *self);
 
-    self->bsize = mane->bsize;
-    self->mgr = mane->kns;
-    self->path = path;
-    self->src = src;
-    self->size = size;
-    self->isUri = isUri;
+    self->_bsize = mane->bsize;
+    self->_mgr = mane->kns;
+    self->_path = path;
+    self->_src = src;
+    self->_size = size;
+    self->_isUri = isUri;
 
-    self->curSize = self->bsize;
-    self->f = f;
+    self->curSize = self->_bsize;
+    self->_f = f;
 
     PrfRetrierReset(self, pos);
 }
@@ -74,12 +75,12 @@ static rc_t PrfRetrierReopenRemote(PrfRetrier * self) {
 
     uint32_t timeout = 1;
 
-    KFileRelease(*self->f);
-    *self->f = NULL;
+    KFileRelease(*self->_f);
+    *self->_f = NULL;
 
     while (timeout < 10 * 60 /* 10 minutes */) {
-        rc = _KFileOpenRemote(self->f, self->mgr, self->path,
-            self->src, !self->isUri);
+        rc = _KFileOpenRemote(self->_f, self->_mgr, self->_path,
+            self->_src, !self->_isUri);
         if (rc == 0)
             break;
 
@@ -107,27 +108,40 @@ static bool PrfRetrierDecBufSz(PrfRetrier * self, rc_t rc) {
 }
 
 static bool PrfRetrierIncSleepTO(PrfRetrier * self) {
-    if (self->sleepTO == 0)
-        self->sleepTO = 1;
+    if (self->_sleepTO == 0)
+        self->_sleepTO = 1;
     else
-        self->sleepTO *= 2;
+        self->_sleepTO *= 2;
 
-    if (self->sleepTO == 16)
-        --self->sleepTO;
+    if (self->_sleepTO == 16)
+        --self->_sleepTO;
 
-    if (self->sleepTO > 20 * 60 /* 20 minutes */)
+    if (self->_sleepTO > 20 * 60 /* 20 minutes */)
         return false;
     else
         return true;
 }
 
-rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t opos) {
+rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos) {
     bool retry = true;
+
+    static KTime_t D_T = 0;
+    if (D_T == 0) {
+        const char * str = getenv("NCBI_VDB_PREFETCH_RETRY");
+        if (str != NULL) {
+            char *end = NULL;
+            D_T = strtou64(str, &end, 0);
+            if (end[0] != 0)
+                D_T = 0;
+        }
+        if (D_T == 0)
+            D_T = ~0;
+    }
 
     assert(self);
 
-    if (opos <= self->pos)
-        switch (self->state) {
+    if (pos <= self->_pos)
+        switch (self->_state) {
         case eRSJustRetry:
             break;
         case eRSReopen:
@@ -138,15 +152,20 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t opos) {
             if (PrfRetrierDecBufSz(self, rc))
                 break;
             else
-                self->state = eRSIncTO;
+                self->_state = eRSIncTO;
         case eRSIncTO:
             if (!PrfRetrierIncSleepTO(self))
+                retry = false;
+            else if (D_T != ~0 && KTimeStamp() - self->_tFailed > D_T)
                 retry = false;
             break;
         default: assert(0); break;
         }
 
-    self->failed = true;
+    if (!self->_failed) {
+        self->_failed = true;
+        self->_tFailed = KTimeStamp();
+    }
 
     if (retry) {
         KStsLevel lvl = KStsLevelGet();
@@ -154,28 +173,28 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t opos) {
             if (lvl == 1)
                 PLOGERR(klogErr, (klogErr, rc,
                     "Cannot KFileRead: retrying '$(name)'...",
-                    "name=%S", self->src));
+                    "name=%S", self->_src));
             else
-                switch (self->state) {
+                switch (self->_state) {
                 case eRSJustRetry:
                     PLOGERR(klogErr, (klogErr, rc,
                         "Cannot KFileRead: retrying '$(name)':$(pos)...",
-                        "name=%S,pos=%lu", self->src, self->pos));
+                        "name=%S,pos=%lu", self->_src, self->_pos));
                     break;
                 case eRSReopen:
                     PLOGERR(klogErr, (klogErr, rc,
                         "Cannot KFileRead: reopened, retrying '$(name)'...",
-                        "name=%S", self->src));
+                        "name=%S", self->_src));
                     break;
                 case eRSDecBuf:
                     PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
                         "buffer size = $(sz), retrying '$(name)'...",
-                        "sz=%zu,name=%S", self->curSize, self->src));
+                        "sz=%zu,name=%S", self->curSize, self->_src));
                     break;
                 case eRSIncTO:
                     PLOGERR(klogErr, (klogErr, rc, "Cannot KFileRead: "
                         "sleep TO = $(to)s, retrying '$(name)'...",
-                        "to=%u,name=%S", self->sleepTO, self->src));
+                        "to=%u,name=%S", self->_sleepTO, self->_src));
                     break;
                 default: assert(0); break;
                 }
@@ -186,18 +205,19 @@ rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t opos) {
     else
         PLOGERR(klogErr, (klogErr, rc,
             "Cannot KFileRead '$(name)': sz=$(sz), to=$(to)",
-            "name=%S,sz=%zu,to=%u", self->src, self->curSize, self->sleepTO));
+            "name=%S,sz=%zu,to=%u",
+            self->_src, self->curSize, self->_sleepTO));
 
     if (rc == 0) {
-        if (self->sleepTO > 0) {
-            STSMSG(2, ("Sleeping %us...", self->sleepTO));
+        if (self->_sleepTO > 0) {
+            STSMSG(2, ("Sleeping %us...", self->_sleepTO));
 #ifndef TESTING_FAILURES
-            KSleep(self->sleepTO);
+            KSleep(self->_sleepTO);
 #endif
         }
 
-        if (++self->state == eRSMax)
-            self->state = eRSReopen;
+        if (++self->_state == eRSMax)
+            self->_state = eRSReopen;
     }
 
     return rc;

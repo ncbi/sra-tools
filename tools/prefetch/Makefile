@@ -65,6 +65,7 @@ PREFETCH_SRC = \
 	PrfMain \
 	prefetch \
 	PrfRetrier \
+	PrfOutFile \
 
 PREFETCH_OBJ = \
 	$(addsuffix .$(OBJX),$(PREFETCH_SRC))

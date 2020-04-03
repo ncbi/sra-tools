@@ -4,6 +4,7 @@
     <ClCompile Include="..\..\..\tools\prefetch\kfile-no-q.c" />
     <ClCompile Include="..\..\..\tools\prefetch\prefetch.c" />
     <ClCompile Include="..\..\..\tools\prefetch\PrfMain.c" />
+    <ClCompile Include="..\..\..\tools\prefetch\PrfOutFile.c" />
     <ClCompile Include="..\..\..\tools\prefetch\PrfRetrier.c" />
    </ItemGroup>
 </Project>

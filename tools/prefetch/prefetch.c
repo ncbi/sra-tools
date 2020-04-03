@@ -60,7 +60,6 @@
 
 #include <klib/container.h> /* BSTree */
 #include <klib/data-buffer.h> /* KDataBuffer */
-#include <klib/log.h> /* PLOGERR */
 #include <klib/out.h> /* OUTMSG */
 #include <klib/printf.h> /* string_printf */
 #include <klib/progressbar.h> /* make_progressbar */
@@ -82,12 +81,7 @@
 #include "kfile-no-q.h"
 #include "PrfMain.h"
 #include "PrfRetrier.h"
-
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
-
-#define STS_INFO 1
+#include "PrfOutFile.h"
 
 #define USE_CURL 0
 #define ALLOW_STRIP_QUALS 0
@@ -161,65 +155,7 @@ bool _SchemeIsFasp(const String *self) {
     return _StringIsXYZ(self, NULL, fasp, sizeof fasp - 1);
 }
 
-/********** KDirectory extension **********/
-static rc_t _KDirectoryMkTmpPrefix(const KDirectory *self,
-    const String *prefix, char *out, size_t sz)
-{
-    size_t num_writ = 0;
-    rc_t rc = string_printf(out, sz, &num_writ, "%S.tmp", prefix);
-    if (rc != 0) {
-        DISP_RC2(rc, "string_printf(tmp)", prefix->addr);
-        return rc;
-    }
-
-    if (num_writ > sz) {
-        rc = RC(rcExe, rcFile, rcCopying, rcBuffer, rcInsufficient);
-        PLOGERR(klogInt, (klogInt, rc,
-            "bad string_printf($(s).tmp) result", "s=%S", prefix));
-        return rc;
-    }
-
-    return rc;
-}
-
-static rc_t _KDirectoryMkTmpName(const KDirectory *self,
-    const String *prefix, char *out, size_t sz)
-{
-    rc_t rc = 0;
-    int i = 0;
-
-    assert(prefix);
-
-    while (rc == 0) {
-        size_t num_writ = 0;
-        rc = string_printf(out, sz, &num_writ,
-            "%S.tmp.%d.tmp", prefix, rand() % 100000);
-        if (rc != 0) {
-            DISP_RC2(rc, "string_printf(tmp.rand)", prefix->addr);
-            break;
-        }
-
-        if (num_writ > sz) {
-            rc = RC(rcExe, rcFile, rcCopying, rcBuffer, rcInsufficient);
-            PLOGERR(klogInt, (klogInt, rc,
-                "bad string_printf($(s).tmp.rand) result", "s=%S", prefix));
-            return rc;
-        }
-        if (KDirectoryPathType(self, "%s", out) == kptNotFound) {
-            break;
-        }
-        if (++i > 999) {
-            rc = RC(rcExe, rcFile, rcCopying, rcName, rcUndefined);
-            PLOGERR(klogInt, (klogInt, rc,
-                "cannot generate unique tmp file name for $(name)", "name=%S",
-                prefix));
-            return rc;
-        }
-    }
-
-    return rc;
-}
-
+/********** KDirectory extension ***********/
 static rc_t _KDirectoryMkLockName(const KDirectory *self,
     const String *prefix, char *out, size_t sz)
 {
@@ -265,17 +201,18 @@ rc_t _KDirectoryCleanCache(KDirectory *self, const String *local)
 }
 
 static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
-    const char *lock, const char *tmp, bool rmSelf)
+    const char *lock)
 {
     rc_t rc = 0;
     rc_t rc2 = 0;
 
+    assert(self && cache);
+
+#if 0
     char tmpName[PATH_MAX] = "";
     const char *dir = tmpName;
     const char *tmpPfx = NULL;
     size_t tmpPfxLen = 0;
-
-    assert(self && cache);
 
     rc = _KDirectoryMkTmpPrefix(self, cache, tmpName, sizeof tmpName);
     if (rc == 0) {
@@ -297,26 +234,7 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
         tmpPfxLen = strlen(tmpPfx);
     }
 
-    if (tmp != NULL && KDirectoryPathType(self, "%s", tmp) != kptNotFound) {
-        rc_t rc3 = 0;
-        STSMSG(STS_DBG, ("removing %s", tmp));
-        rc3 = KDirectoryRemove(self, false, "%s", tmp);
-        if (rc2 == 0 && rc3 != 0) {
-            rc2 = rc3;
-        }
-    }
-
-    assert(cache);
-    if (rmSelf && KDirectoryPathType(self, "%s", cache->addr) != kptNotFound) {
-        rc_t rc3 = 0;
-        STSMSG(STS_DBG, ("removing %S", cache));
-        rc3 = KDirectoryRemove(self, false, "%S", cache);
-        if (rc2 == 0 && rc3 != 0) {
-            rc2 = rc3;
-        }
-    }
-
-    if (rc == 0) {
+    if (rc == 0 && false ) {
         uint32_t count = 0;
         uint32_t i = 0;
         KNamelist *list = NULL;
@@ -334,9 +252,8 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
         for (i = 0; i < count && rc == 0; ++i) {
             const char *name = NULL;
             rc = KNamelistGet(list, i, &name);
-            if (rc != 0) {
+            if (rc != 0)
                 DISP_RC2(rc, "KNamelistGet(KDirectoryList)", dir);
-            }
             else {
                 if (strncmp(name, tmpPfx, tmpPfxLen) == 0) {
                     rc_t rc3 = 0;
@@ -352,19 +269,18 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
 
         RELEASE(KNamelist, list);
     }
+#endif
 
     if (lock != NULL && KDirectoryPathType(self, "%s", lock) != kptNotFound) {
         rc_t rc3 = 0;
         STSMSG(STS_DBG, ("removing %s", lock));
         rc3 = KDirectoryRemove(self, false, "%s", lock);
-        if (rc2 == 0 && rc3 != 0) {
+        if (rc2 == 0 && rc3 != 0)
             rc2 = rc3;
-        }
     }
 
-    if (rc == 0 && rc2 != 0) {
+    if (rc == 0 && rc2 != 0)
         rc = rc2;
-    }
 
     return rc;
 }
@@ -1049,29 +965,28 @@ static rc_t ResolvedLocal(const Resolved *self,
 }
 
 static rc_t PrfMainDownloadHttpFile(Resolved *self,
-    PrfMain *mane, const char *to, const VPath * path)
+    PrfMain *mane, const VPath * path, PrfOutFile * pof)
 {
-    rc_t rc = 0;
+    rc_t rc = 0, rw = 0, r2 = 0;
     const KFile *in = NULL;
-    KFile *out = NULL;
     size_t num_read = 0;
-    uint64_t opos = 0;
     size_t num_writ = 0;
     uint64_t size = 0;
 
     struct progressbar * pb = NULL;
 
     const VPathStr * remote = NULL;
-    String src;
 
     KStsLevel lvl = STS_INFO;
 
     char spath[PATH_MAX] = "";
     size_t len = 0;
 
+    String src;
     memset(& src, 0, sizeof src);
 
-    assert(self && mane);
+    assert(self && mane && pof);
+
     assert(!mane->eliminateQuals);
 
     if (mane->dryRun)
@@ -1089,16 +1004,12 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                                                : & self -> remoteHttps;
     assert(remote);
 
-    if (rc == 0 && !mane->dryRun) {
-        STSMSG(STS_DBG, ("creating %s", to));
-        rc = KDirectoryCreateFile(mane->dir, &out,
-                                  false, 0664, kcmInit | kcmParents, "%s", to);
-        DISP_RC2(rc, "Cannot OpenFileWrite", to);
-    }
+    if (rc == 0 && !mane->dryRun)
+        rc = PrfOutFileOpen(pof, mane->force == eForceALL, self->name);
 
     assert ( src . addr );
 
-    if (!mane->dryRun && mane->stripQuals) {
+    if (rc == 0 && !mane->dryRun && mane->stripQuals) {
         if (in == NULL) {
             rc = _KFileOpenRemote(&in, mane->kns, path, & src, !self->isUri);
             if (rc != 0 && !self->isUri)
@@ -1117,8 +1028,20 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         }
     }
     
-    STSMSG(lvl, ("%S -> %s", & src, to));
-    {
+    STSMSG(lvl, ("%S -> %s", & src, pof->name));
+
+    if (rc == 0 && mane->showProgress && !mane->dryRun) {
+        r2 = 0;
+        if (in == NULL)
+            r2 = _KFileOpenRemote(&in, mane->kns, path,
+                &src, !self->isUri);
+        if (r2 == 0)
+            rc = KFileSize(in, &size);
+        if (r2 == 0)
+            rc = make_progressbar(&pb, 2);
+    }
+
+    if (rc == 0 && !PrfOutFileIsLoaded(pof)) {
         bool reliable = ! self -> isUri;
         ver_t http_vers = 0x01010000;
         KClientHttpRequest * kns_req = NULL;
@@ -1175,50 +1098,44 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 DISP_RC2 ( rc,
                     "Cannot KClientHttpResultGetInputStream", src . addr );
 
-                if (rc == 0 && mane->showProgress&& !mane->dryRun) {
-                    rc_t r2 = 0;
-                    if (in == NULL)
-                        r2 = _KFileOpenRemote(&in, mane->kns, path,
-                            &src, !self->isUri);
-                    if (r2 == 0)
-                        rc = KFileSize(in, &size);
-                    if (r2 == 0)
-                        rc = make_progressbar(&pb, 2);
-                }
-
-                while ( rc == 0 ) {
+                for (rw = 0; rw == 0 && rc == 0; ) {
                     rc = Quitting();
                     if (rc != 0)
                         break;
 
-                    rc = KStreamRead
+                    rw = KStreamRead
                         ( s, mane -> buffer, mane -> bsize, & num_read );
 #ifdef TESTING_FAILURES
-                    if (opos > 0&&rc==0)rc = 1;
+                    if (pof->pos > 0 && rw==0) rw = 1;
 #endif
-                    if ( rc != 0 || num_read == 0) {
-                        if (opos > 0) {
+                    if ( rw != 0 || num_read == 0) {
+                        if (pof->pos > 0) {
                             if (KStsLevelGet() > 0)
-                                DISP_RC2(rc, "Cannot KStreamRead: "
+                                DISP_RC2(rw, "Cannot KStreamRead: "
                                     "switching to KFileRead...", src.addr);
                         }
                         else
-                            DISP_RC2 ( rc, "Cannot KStreamRead", src . addr );
+                            DISP_RC2 ( rw, "Cannot KStreamRead", src . addr );
                         break;
                     }
 
                     if (mane->dryRun)
                         break;
 
-                    rc = KFileWriteAll
-                        ( out, opos, mane -> buffer, num_read, & num_writ);
-                    DISP_RC2 ( rc, "Cannot KFileWrite", to );
+                    rc = KFileWriteAll(pof->file, pof->pos,
+                        mane->buffer, num_read, &num_writ);
+                    DISP_RC2 ( rc, "Cannot KFileWrite", pof->name);
                     if ( rc == 0 && num_writ != num_read )
                         rc = RC ( rcExe,
                             rcFile, rcCopying, rcTransfer, rcIncomplete );
-                    opos += num_writ;
-                    if (pb != NULL)
-                        update_progressbar(pb, 100 * 100 * opos / size);
+                    if (rc == 0) {
+                        pof->pos += num_writ;
+                        if (pb != NULL)
+                            update_progressbar(pb, 100 * 100 * pof->pos / size);
+                        r2 = PrfOutFileCommitTry(pof);
+                        if (rc == 0 && r2 != 0 && pof->_fatal)
+                            rc = r2;
+                    }
                 }
 
                 RELEASE ( KStream, s );
@@ -1230,30 +1147,31 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         RELEASE ( KClientHttpRequest, kns_req );
     }
 
-    if (rc != 0 && opos > 0 && Quitting() == 0) {
+    if (rc == 0 && (rw != 0 || PrfOutFileIsLoaded (pof))
+        && pof->pos > 0 && Quitting() == 0)
+    {
 #ifdef TESTING_FAILURES
         bool already = false;
         rc_t testRc = 1;
 #endif
         PrfRetrier retrier;
-        rc = 0;
         if (in == NULL)
             rc = _KFileOpenRemote(&in, mane->kns, path,
                 &src, !self->isUri);
         PrfRetrierInit(&retrier, mane, path,
-            &src, self->isUri, &in, size, opos);
+            &src, self->isUri, &in, size, pof->pos);
         while (rc == 0) {
             rc = Quitting();
             if (rc != 0)
                 break;
 
             rc = KFileRead(
-                in, opos, mane->buffer, retrier.curSize, &num_read);
+                in, pof->pos, mane->buffer, retrier.curSize, &num_read);
 #ifdef TESTING_FAILURES
             if (!already&&rc == 0)rc = testRc; else already = true;
 #endif
             if (rc != 0) {
-                rc = PrfRetrierAgain(&retrier, rc, opos != 0);
+                rc = PrfRetrierAgain(&retrier, rc, pof->pos != 0);
                 if (rc != 0)
                     break;
                 else
@@ -1262,24 +1180,34 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             else if (num_read == 0)
                 break;
             rc = KFileWriteAll(
-                out, opos, mane->buffer, num_read, &num_writ);
-            DISP_RC2(rc, "Cannot KFileWrite", to);
+                pof->file, pof->pos, mane->buffer, num_read, &num_writ);
+            DISP_RC2(rc, "Cannot KFileWrite", pof->name);
             if (rc == 0 && num_writ != num_read)
                 rc = RC(rcExe,
                     rcFile, rcCopying, rcTransfer, rcIncomplete);
-            opos += num_writ;
-            PrfRetrierReset(&retrier, opos);
-            if (pb != NULL)
-                update_progressbar(pb, 100 * 100 * opos / size);
+            if (rc == 0) {
+                pof->pos += num_writ;
+                PrfRetrierReset(&retrier, pof->pos);
+                if (pb != NULL)
+                    update_progressbar(pb, 100 * 100 * pof->pos / size);
+                r2 = PrfOutFileCommitTry(pof);
+                if (rc == 0 && r2 != 0 && pof->_fatal)
+                    rc = r2;
+            }
         }
     }
 
-    RELEASE(KFile, out);
+    PrfOutFileCommitDo(pof);
+    {
+        rc_t r2 = PrfOutFileClose(pof, rc == 0);
+        if (r2 != 0 && rc == 0)
+            rc = r2;
+    }
 
     destroy_progressbar(pb);
 
     if (rc == 0 && !mane->dryRun)
-        STSMSG(STS_INFO, ("%s (%ld)", to, opos));
+        STSMSG(STS_INFO, ("%s (%ld)", pof->name, pof->pos));
 
     RELEASE(KFile, in);
 
@@ -1329,13 +1257,11 @@ static rc_t PrfMainDownloadCacheFile(Resolved *self,
   
     RELEASE(KFile, out);
     
-    if (rc != 0) {
+    if (rc != 0)
         return rc;
-    }
     
-    if (rc == 0) {
+    if (rc == 0)
         STSMSG(STS_INFO, ("%s", to));
-    }
     
     return rc;
 }
@@ -1405,16 +1331,14 @@ static rc_t PrfMainDownloadAscp(const Resolved *self, PrfMain *mane,
 }
 
 static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
-            bool isDependency, const VPath * path, const char * to)
+    bool isDependency, const VPath * path, PrfOutFile * pof)
 {
     bool canceled = false;
     rc_t rc = 0;
     PrfMain * mane = NULL;
-    String cache;
-    memset(&cache, 0, sizeof cache);
     assert(item);
     mane = item->mane;
-    assert(mane);
+    assert(mane && pof);
     {
         char spath[PATH_MAX] = "";
         KStsLevel lvl = STS_DBG;
@@ -1456,7 +1380,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                     rc = 1;
                 }
                 else
-                    rd = PrfMainDownloadAscp(self, mane, to, path);
+                    rd = PrfMainDownloadAscp(self, mane, pof->name, path);
                 if (rd == 0)
                     STSMSG(STS_TOP, (" fasp download succeed"));
                 else {
@@ -1476,9 +1400,9 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                 (" Downloading via %s...", https ? "https" : "http"));
             if (mane->eliminateQuals)
                 rd = PrfMainDownloadCacheFile(self, mane,
-                    cache.addr, mane->eliminateQuals && !isDependency);
+                    pof->name, mane->eliminateQuals && !isDependency);
             else
-                rd = PrfMainDownloadHttpFile(self, mane, to, path);
+                rd = PrfMainDownloadHttpFile(self, mane, path, pof);
             if (rd == 0)
                 STSMSG(STS_TOP, (" %s download succeed",
                     https ? "https" : "http"));
@@ -1504,10 +1428,11 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     KFile *flock = NULL;
     PrfMain * mane = NULL;
 
-    char tmp[PATH_MAX] = "";
     char lock[PATH_MAX] = "";
 
     const VPath * vcache = NULL;
+
+    PrfOutFile pof;
 
     String cache;
     memset( & cache, 0, sizeof cache );
@@ -1517,57 +1442,66 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     mane = item -> mane;
     assert ( mane );
 
-    if (self->respFile != NULL) {
-        rc = KSrvRespFileGetCache(self->respFile, &vcache);
-        if (rc == 0) {
-            if (vdbcache != NULL) {
-                VPath * clocal = NULL;
-                rc = VFSManagerMakePathWithExtension(
-                    mane->vfsMgr, &clocal, vcache, ".vdbcache");
-                if (rc == 0) {
-                    RELEASE(VPath, vcache);
-                    vcache = clocal;
-                }
+    rc = PrfOutFileInit(&pof, mane->resume);
+    if (rc != 0)
+        return rc;
 
-            }
+    if (rc == 0) {
+        if (self->respFile != NULL) {
+            rc = KSrvRespFileGetCache(self->respFile, &vcache);
             if (rc == 0) {
-                rc = VPathGetPath(vcache, &cache);
-                if (rc != 0) {
-                    DISP_RC(rc, "VPathGetPath(PrfMainDownload)");
-                    return rc;
+                if (vdbcache != NULL) {
+                    VPath * clocal = NULL;
+                    rc = VFSManagerMakePathWithExtension(
+                        mane->vfsMgr, &clocal, vcache, ".vdbcache");
+                    if (rc == 0) {
+                        RELEASE(VPath, vcache);
+                        vcache = clocal;
+                    }
+
+                }
+                if (rc == 0) {
+                    rc = VPathGetPath(vcache, &cache);
+                    if (rc != 0) {
+                        DISP_RC(rc, "VPathGetPath(PrfMainDownload)");
+                        return rc;
+                    }
                 }
             }
         }
-    }
-    else {
-        assert( self ->cache );
-        cache = * self->cache;
-    }
+        else {
+            assert(self->cache);
+            cache = *self->cache;
+        }
 
-    assert(cache.size && cache.addr);
+        assert(cache.size && cache.addr);
 
-    {
-        KStsLevel lvl = STS_DBG;
-        if (mane->dryRun)
-            lvl = STAT_USR;
-        STSMSG(lvl, ("########## cache(%S)", & cache));
-    }
+        {
+            KStsLevel lvl = STS_DBG;
+            if (mane->dryRun)
+                lvl = STAT_USR;
+            STSMSG(lvl, ("########## cache(%S)", &cache));
+        }
 
-    if (mane->force != eForceYES &&
-        PrfMainHasDownloaded(mane, cache.addr))
-    {
-        STSMSG(STS_INFO, ("%s has just been downloaded", cache.addr));
-        return 0;
+        if (mane->force != eForceAll && mane->force != eForceALL &&
+            PrfMainHasDownloaded(mane, cache.addr))
+        {
+            STSMSG(STS_INFO, ("%s has just been downloaded", cache.addr));
+            return 0;
+        }
     }
 
     if (rc == 0)
         rc = _KDirectoryMkLockName(mane->dir, & cache, lock, sizeof lock);
 
-    if (rc == 0 && !mane->eliminateQuals)
-        rc = _KDirectoryMkTmpName(mane->dir, & cache, tmp, sizeof tmp);
+    if (rc == 0) {
+        rc = PrfOutFileMkName(&pof, &cache);
+        if (rc != 0)
+            return rc;
+    }
 
     if (KDirectoryPathType(mane->dir, "%s", lock) != kptNotFound) {
-        if (mane->force != eForceYES) {
+        if (mane->force != eForceAll && mane->force != eForceALL) {
             KTime_t date = 0;
             rc = KDirectoryDate(mane->dir, &date, "%s", lock);
             if (rc == 0) {
@@ -1582,7 +1516,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                 }
                 else {
                     STSMSG(STS_DBG, ("%s found and ignored as too old", lock));
-                    rc = _KDirectoryClean(mane->dir, & cache, NULL, NULL, true);
+                    rc = _KDirectoryClean(mane->dir, pof.cache, lock);
                 }
             }
             else {
@@ -1592,7 +1526,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         }
         else {
             STSMSG(STS_DBG, ("%s found and forced to be ignored", lock));
-            rc = _KDirectoryClean(mane->dir, & cache, NULL, NULL, true);
+            rc = _KDirectoryClean(mane->dir, pof.cache, lock);
         }
     }
     else {
@@ -1603,7 +1537,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         STSMSG(STS_DBG, ("creating %s", lock));
         rc = KDirectoryCreateFile(mane->dir, &flock,
             false, 0664, kcmInit | kcmParents, "%s", lock);
-        DISP_RC2(rc, "Cannot OpenFileWrite", lock);
+        DISP_RC2(rc, "Cannot CreateFile", lock);
     }
 
     assert(!mane->noAscp || !mane->noHttp);
@@ -1622,20 +1556,23 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                         break;
                     }
                 }
-                rd = PrfMainDoDownload(self, item, isDependency, path, tmp);
+                rd = PrfMainDoDownload(self, item, isDependency, path, &pof);
             }
             else
-                PrfMainDoDownload(self, item, isDependency, vdbcache, tmp);
+                PrfMainDoDownload(self, item, isDependency, vdbcache, &pof);
             if (rd == 0 && vdbcache == NULL) {
                 const VPath * vdbcache = NULL;
                 rc_t rc = VPathGetVdbcache(path, & vdbcache, NULL);
                 if (rc == 0 && vdbcache != NULL) {
                     STSMSG(STS_TOP, ("%d,2) Downloading '%s.vdbcache'...",
                         item->number, self->name));
-                    if (PrfMainDownload(self, item, isDependency, vdbcache) == 0)
+                    if (PrfMainDownload(self, item, isDependency, vdbcache)
+                        == 0)
+                    {
                         STSMSG(STS_TOP, (
                             "%d.2) '%s.vdbcache' was downloaded successfully",
                             item->number, self->name));
+                    }
                     else
                         STSMSG(STS_TOP, ("%d) failed to download %s.vdbcache",
                             item->number, self->name));
@@ -1652,19 +1589,19 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         do {
             if (self->remoteFasp.path != NULL) {
                 rc = PrfMainDoDownload(self, item,
-                    isDependency, self->remoteFasp.path, tmp);
+                    isDependency, self->remoteFasp.path, &pof);
                 if (rc == 0)
                     break;
             }
             if (self->remoteHttp.path != NULL) {
                 rc = PrfMainDoDownload(self, item,
-                    isDependency, self->remoteHttp.path, tmp);
+                    isDependency, self->remoteHttp.path, &pof);
                 if (rc == 0)
                     break;
             }
             if (self->remoteHttps.path != NULL) {
                 rc = PrfMainDoDownload(self, item,
-                    isDependency, self->remoteHttps.path, tmp);
+                    isDependency, self->remoteHttps.path, &pof);
                 if (rc == 0)
                     break;
             }
@@ -1673,31 +1610,30 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
 
     RELEASE(KFile, flock);
     
-    if (rc == 0 && !mane->eliminateQuals) {
+    if (rc == 0) {
         KStsLevel lvl = STS_DBG;
         if (mane->dryRun)
             lvl = STAT_USR;
-        STSMSG(lvl, ("renaming %s -> %S", tmp, & cache));
+        STSMSG(lvl, ("renaming %s -> %S", pof.name, & cache));
         if (!mane->dryRun) {
-            rc = KDirectoryRename(mane->dir, true, tmp, cache.addr);
+            rc = KDirectoryRename(mane->dir, true, pof.name, cache.addr);
             if (rc != 0)
                 PLOGERR(klogInt, (klogInt, rc, "cannot rename $(from) to $(to)",
-                    "from=%s,to=%S", tmp, & cache));
+                    "from=%s,to=%S", pof.name, & cache));
         }
     }
 
     if (rc == 0)
         rc = PrfMainDownloaded(mane, cache.addr);
 
-    if (rc == 0 && !mane->eliminateQuals) {
+    if (rc == 0) {
         rc_t rc2 = _KDirectoryCleanCache(mane->dir, & cache);
         if (rc == 0 && rc2 != 0)
             rc = rc2;
     }
 
     {
-        rc_t rc2 = _KDirectoryClean(mane->dir, & cache, lock,
-            mane->eliminateQuals ? NULL : tmp, rc != 0);
+        rc_t rc2 = _KDirectoryClean(mane->dir, &cache, lock);
         if (rc == 0 && rc2 != 0)
             rc = rc2;
     }
@@ -1759,8 +1695,8 @@ static char* ItemName(const Item *self) {
     }
 }
 
-static
-rc_t ItemSetDependency(Item *self, const VDBDependencies *deps, uint32_t idx)
+static rc_t ItemSetDependency(Item *self,
+    const VDBDependencies *deps, uint32_t idx)
 {
     Resolved * resolved = NULL;
     const VPath * cache = NULL;
@@ -2973,9 +2909,8 @@ static void CC bstKrtDownload(BSTNode *n, void *data) {
 
     rc = ItemDownload(sn->i);
 
-    if (rc == 0) {
+    if (rc == 0)
         rc = ItemPostDownload(sn->i, sn->i->number);
-    }
 }
 
 /*********** Process one command line argument **********/
@@ -3194,18 +3129,18 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
     return rc;
 }
 
-/*********** PrfMain **********/
+/*********** KMain **********/
 rc_t CC KMain(int argc, char *argv[]) {
     rc_t rc = 0;
     bool insufficient = false;
     uint32_t pcount = 0;
 
     PrfMain pars;
+
     rc = PrfMainInit(argc, argv, &pars);
 
-    if (rc == 0) {
+    if (rc == 0)
         rc = ArgsParamCount(pars.args, &pcount);
-    }
     if (rc == 0 && pcount == 0 && pars.jwtCart == NULL && pars.kart == NULL
 #if _DEBUGGING
         && pars.textkart == NULL

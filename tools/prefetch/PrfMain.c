@@ -343,29 +343,36 @@ static const char* DRY_RUN_USAGE[] = {
 #define FORCE_OPTION "force"
 #define FORCE_ALIAS  "f"
 static const char* FORCE_USAGE[] = {
-    "Force object download - one of: no, yes, all.",
+    "Force object download - one of: no, yes, all, ALL.",
     "no [default]: skip download if the object if found and complete;",
-    "yes: download it even if it is found and is complete;", "all: ignore lock "
-    "files (stale locks or it is being downloaded by another process: "
-    "use at your own risk!)", NULL };
+    "yes: download it even if it is found and is complete;",
+    "all: ignore lock files (stale locks or "
+    "it is being downloaded by another process - "
+    "use at your own risk!);",
+    "ALL: ignore lock files, restart download from beginning.", NULL };
+
+#define RESUME_OPTION "resume"
+#define RESUME_ALIAS  "r"
+static const char* RESUME_USAGE[] = {
+    "Resume partial downloads - one of: no, yes. Default - yes.", NULL };
 
 #define FAIL_ASCP_OPTION "FAIL-ASCP"
 #define FAIL_ASCP_ALIAS  "F"
 static const char* FAIL_ASCP_USAGE[] = {
-    "Force ascp download fail to test ascp->http download combination" };
+    "Force ascp download fail to test ascp->http download combination." };
 
 #define LIST_OPTION "list"
 #define LIST_ALIAS  "l"
-/*static const char* LIST_USAGE[] = {"List the content of a kart file", NULL};*/
+/*static const char*LIST_USAGE[] = {"List the content of a kart file.", NULL};*/
 
 #define LOCN_OPTION "location"
 #define LOCN_ALIAS  NULL
-static const char* LOCN_USAGE[] = { "Location of data", NULL };
+static const char* LOCN_USAGE[] = { "Location of data.", NULL };
 
 #define NM_L_OPTION "numbered-list"
 #define NM_L_ALIAS  "n"
 /*static const char* NM_L_USAGE[] =
-{ "List the content of a kart file with kart row numbers", NULL }; */
+{ "List the content of a kart file with kart row numbers.", NULL }; */
 
 #define MINSZ_ALIAS  "N"
 static const char* MINSZ_USAGE[] =
@@ -375,42 +382,42 @@ static const char* MINSZ_USAGE[] =
 #define ORDR_ALIAS  "o"
 static const char* ORDR_USAGE[] = {
     "Kart prefetch order when downloading a kart: one of: kart, size.",
-    "(in kart order, by file size: smallest first), default: size", NULL };
+    "(in kart order, by file size: smallest first), default: size.", NULL };
 
 #define OUT_DIR_OPTION "output-directory"
 #define OUT_DIR_ALIAS  "O"
-static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/", NULL };
+static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/ .", NULL };
 
 #define OUT_FILE_ALIAS  "o"
 static const char* OUT_FILE_USAGE[] = {
-    "Write file to FILE when downloading a single file", NULL };
+    "Write file to FILE when downloading a single file.", NULL };
 
 #define HBEAT_OPTION "heartbeat"
 #define HBEAT_ALIAS  "H"
 static const char* HBEAT_USAGE[] = {
-    "Time period in minutes to display download progress",
+    "Time period in minutes to display download progress.",
     "(0: no progress), default: 1", NULL };
 
 #define PRGRS_OPTION "progress"
 #define PRGRS_ALIAS  "p"
-static const char* PRGRS_USAGE[] = { "show progress", NULL };
+static const char* PRGRS_USAGE[] = { "Show progress.", NULL };
 
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
 static const char* ROWS_USAGE[] =
-{ "Kart rows to download (default all).", "row list should be ordered", NULL };
+{ "Kart rows to download (default all).", "row list should be ordered.", NULL };
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
 /*static const char* SZ_L_USAGE[] =
-{ "List the content of a kart file with target file sizes", NULL }; */
+{ "List the content of a kart file with target file sizes.", NULL }; */
 
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
 static const char* TRANS_USAGE[] = { "Transport: one of: fasp; http; both.",
     "(fasp only; http only; first try fasp (ascp), "
     "use http if cannot download using fasp).",
-    "Default: both", NULL };
+    "Default: both.", NULL };
 
 #define TYPE_OPTION "type"
 #define TYPE_ALIAS  "T"
@@ -427,24 +434,24 @@ static const char* SIZE_USAGE[] = {
 #define STRIP_QUALS_OPTION "strip-quals"
 #define STRIP_QUALS_ALIAS NULL
 static const char* STRIP_QUALS_USAGE[] =
-{ "Remove QUALITY column from all tables", NULL };
+{ "Remove QUALITY column from all tables.", NULL };
 #endif
 
 #define ELIM_QUALS_OPTION "eliminate-quals"
 static const char* ELIM_QUALS_USAGE[] =
-{ "Don't download QUALITY column", NULL };
+{ "Don't download QUALITY column.", NULL };
 
 #define CART_OPTION "perm"
-static const char* CART_USAGE[] = { "PATH to jwt cart file", NULL };
+static const char* CART_USAGE[] = { "PATH to jwt cart file.", NULL };
 
 #define NGC_ALIAS  NULL
-static const char* NGC_USAGE[] = { "PATH to ngc file", NULL };
+static const char* NGC_USAGE[] = { "PATH to ngc file.", NULL };
 
-static const char* KART_USAGE[] = { "To read a kart file", NULL };
+static const char* KART_USAGE[] = { "To read a kart file.", NULL };
 
 #if _DEBUGGING
 static const char* TEXTKART_USAGE[] =
-{ "To read a textual format kart file (DEBUG ONLY)", NULL };
+{ "To read a textual format kart file (DEBUG ONLY).", NULL };
 #endif
 
 static OptDef OPTIONS[] = {
@@ -455,6 +462,7 @@ static OptDef OPTIONS[] = {
 ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
 ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
 ,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+,{ RESUME_OPTION      , RESUME_ALIAS      , NULL, RESUME_USAGE, 1, true, false }
 ,{ PRGRS_OPTION       , PRGRS_ALIAS       , NULL, PRGRS_USAGE , 1, false,false }
 ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
@@ -531,8 +539,10 @@ static rc_t PrfMainProcessArgs(PrfMain *self, int argc, char *argv[]) {
                 self->force = eForceYes;
                 break;
             case 'a':
+                self->force = eForceAll;
+                break;
             case 'A':
-                self->force = eForceYES;
+                self->force = eForceALL;
                 break;
             default:
                 rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
@@ -552,9 +562,53 @@ static rc_t PrfMainProcessArgs(PrfMain *self, int argc, char *argv[]) {
                 rc, "Failure to get '" CHECK_ALL_OPTION "' argument");
             break;
         }
-        if (pcount > 0 || self->force != eForceNo) {
+        if (pcount > 0 || self->force != eForceNo)
             self->check_all = true;
+
+option_name = RESUME_OPTION;
+{
+    self->resume = true; /* resume partial downloads by default */
+    rc = ArgsOptionCount(self->args, option_name, &pcount);
+    if (rc != 0) {
+        PLOGERR(klogInt, (klogInt, rc,
+            "Failure to get '$(opt)' argument", "opt=%s", option_name));
+        break;
+    }
+
+    if (pcount > 0) {
+        const char *val = NULL;
+        rc = ArgsOptionValue(
+            self->args, option_name, 0, (const void **)&val);
+        if (rc != 0) {
+            PLOGERR(klogInt, (klogInt, rc, "Failure to get "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
         }
+        if (val == NULL || val[0] == '\0') {
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            PLOGERR(klogInt, (klogInt, rc, "Unrecognized "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        switch (val[0]) {
+        case 'n':
+        case 'N':
+            self->resume = false;
+            break;
+        case 'y':
+        case 'Y':
+            self->resume = true;
+            break;
+        default:
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            PLOGERR(klogInt, (klogInt, rc, "Unrecognized "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        if (rc != 0)
+            break;
+    }
+}
 
 #if 0
 /******* LIST OPTIONS BEGIN ********/

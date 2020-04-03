@@ -21,41 +21,39 @@
 *  Please cite the author in any work or product based on this material.
 * =========================================================================== */
 
-#include <kfc/defs.h> /* rc_t */
+#include <kfs/file.h> /* KFile */
+#include <klib/data-buffer.h> /* KDataBuffer */
 
-/* #define TESTING_FAILURES */
-
-struct PrfMain;
+#include <limits.h> /* PATH_MAX */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 typedef enum {
-    eRSJustRetry,
-    eRSReopen,
-    eRSDecBuf,
-    eRSIncTO,
-    eRSMax,
-} ERetryState;
+    eTextual,
+} EType;
 
 typedef struct {
-    size_t _bsize;
-    struct KNSManager * _mgr;
-    const struct VPath * _path;
-    const struct String * _src;
-    bool _isUri;
-    const struct KFile ** _f;
-    uint64_t _size;
+    const  String     *  cache;
+    struct KDirectory * _dir;
+    KFile             *  file;
+    bool                _fatal;
+    bool                _loaded;
+    char                 name [PATH_MAX];
+    uint64_t             pos;
+    bool                _resume;
+    EType               _tfType;
+    KFile             * _tf;
+    uint64_t            _tfPos;
+    KDataBuffer         _buf;
+    uint32_t            _lastPos;
+    KTime_t             _committed;
+} PrfOutFile;
 
-    bool _failed;
-    KTime_t _tFailed;
-    uint64_t _pos;
-    ERetryState _state;
-    size_t curSize;
-    uint32_t _sleepTO;
-} PrfRetrier;
-
-void PrfRetrierInit(PrfRetrier * self, const struct PrfMain * mane,
-    const struct VPath * path, const struct String * src, bool isUri,
-    const struct KFile ** f, size_t size, uint64_t pos);
-
-void PrfRetrierReset(PrfRetrier * self, uint64_t pos);
-
-rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos);
+rc_t PrfOutFileInit(PrfOutFile * self, bool resume);
+rc_t PrfOutFileMkName(PrfOutFile * self, const String * cache);
+rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name);
+bool PrfOutFileIsLoaded(const PrfOutFile * self);
+rc_t PrfOutFileCommitTry(PrfOutFile * self);
+rc_t PrfOutFileCommitDo(PrfOutFile * self);
+rc_t PrfOutFileClose(PrfOutFile * self, bool success);

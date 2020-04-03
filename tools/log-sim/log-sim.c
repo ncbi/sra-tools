@@ -82,19 +82,19 @@
 #define OPTION_CLOCKOFS     "clock-offset"
 #define ALIAS_CLOCKOFS      "l"
 
-static const char * input_usage[]  = { "input file to replay (dflt: random data", NULL };
+static const char * input_usage[]  = { "input file to replay (dflt: stdin)", NULL };
 static const char * output_usage[] = { "output file to be written to (dflt: stdout)", NULL };
 static const char * force_usage[]  = { "overwrite output-file if it already exists", NULL };
 static const char * append_usage[] = { "append to output-file if it already exists", NULL };
 static const char * random_usage[] = { "generate random events - ignore input", NULL };
-static const char * analyze_usage[] = { "generate throughput volumne data", NULL };
+static const char * analyze_usage[] = { "analyze throughput of input file", NULL };
 static const char * gunzip_usage[] = { "gunzip the input-file", NULL };
-static const char * skip_usage[]   = { "skip events before current time", NULL };
+static const char * skip_usage[]   = { "skip events before current time for replay", NULL };
 static const char * count_usage[]  = { "how many records to produce", NULL };
-static const char * domain_usage[] = { "domain name to use", NULL };
+static const char * domain_usage[] = { "domain name to use for random", NULL };
 static const char * min_wait_usage[] = { "min wait-time for random (in ms)", NULL };
 static const char * max_wait_usage[] = { "max wait-time for random (in ms)", NULL };
-static const char * clockofs_usage[] = { "offset in minutes to clock (can be negative!)", NULL };
+static const char * clockofs_usage[] = { "clock-offset in minutes (can be negative!) for replay", NULL };
 
 OptDef MyOptions[] =
 {

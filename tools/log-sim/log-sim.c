@@ -58,6 +58,9 @@
 #define OPTION_RANDOM       "random"
 #define ALIAS_RANDOM        "r"
 
+#define OPTION_ANALYZE      "analyze"
+#define ALIAS_ANALYZE       "y"
+
 #define OPTION_GUNZIP       "gunzip"
 #define ALIAS_GUNZIP        "g"
 
@@ -84,6 +87,7 @@ static const char * output_usage[] = { "output file to be written to (dflt: stdo
 static const char * force_usage[]  = { "overwrite output-file if it already exists", NULL };
 static const char * append_usage[] = { "append to output-file if it already exists", NULL };
 static const char * random_usage[] = { "generate random events - ignore input", NULL };
+static const char * analyze_usage[] = { "generate throughput volumne data", NULL };
 static const char * gunzip_usage[] = { "gunzip the input-file", NULL };
 static const char * skip_usage[]   = { "skip events before current time", NULL };
 static const char * count_usage[]  = { "how many records to produce", NULL };
@@ -99,6 +103,7 @@ OptDef MyOptions[] =
 	{ OPTION_FORCE, 		ALIAS_FORCE, 		NULL, 	force_usage, 		1, 	false, 	false },
 	{ OPTION_APPEND, 		ALIAS_APPEND, 		NULL, 	append_usage, 		1, 	false, 	false },
 	{ OPTION_RANDOM, 		ALIAS_RANDOM, 		NULL, 	random_usage, 		1, 	false, 	false },
+	{ OPTION_ANALYZE, 		ALIAS_ANALYZE, 		NULL, 	analyze_usage, 		1, 	false, 	false },
 	{ OPTION_GUNZIP, 		ALIAS_GUNZIP, 		NULL, 	gunzip_usage, 		1, 	false, 	false },
 	{ OPTION_SKIP, 		    ALIAS_SKIP, 		NULL, 	skip_usage, 		1, 	false, 	false },
 	{ OPTION_COUNT, 		ALIAS_COUNT, 		NULL, 	count_usage, 		1, 	true, 	false },
@@ -195,6 +200,7 @@ static rc_t get_bool_option( const Args *args, const char * option_name, bool * 
     if ( rc != 0 )
     {
         PLOGERR ( klogInt, ( klogInt, rc, "ArgsOptionCount( '$(key)' ) failed", "key=%s", option_name ) );
+        *res = false;
     }
     else
         *res = ( count > 0 );
@@ -224,15 +230,13 @@ static rc_t get_long_option( const Args *args, const char * option_name, signed 
 }
 
 /***************************************************************************/
-typedef struct month_t { char name[ 4 ]; } month_t;
-
 typedef struct log_sim_ctx_t
 {
     /* input parameters */
     const char * src;
     const char * dst;
     const char * domain;
-    bool force, append, random, gunzip, skip;
+    bool force, append, random, analyze, gunzip, skip;
     unsigned long count, minwait, maxwait;
     signed long clock_offset;
 
@@ -243,26 +247,19 @@ typedef struct log_sim_ctx_t
     uint64_t dst_pos;
     uint64_t line_nr;
     KDataBuffer data_buffer;
-    unsigned long rnd;
-    month_t months[ 12 ];
 } log_sim_ctx_t;
 
 const char * dflt_domain = "sra-download.ncbi.nlm.nih.gov";
 
 static rc_t gather_log_sim_ctx( log_sim_ctx_t * self, Args * args )
 {
-    month_t m[ 12 ] = { {"Jan"}, {"Feb"}, {"Mar"}, {"Apr"}, {"May"}, {"Jun"}, {"Jul"}, {"Aug"}, {"Sep"}, {"Oct"}, {"Nov"}, {"Dec"} };
-    
     rc_t rc = get_str_option( args, OPTION_INPUT, &( self -> src ), NULL );
     if ( rc == 0 ) rc = get_str_option( args, OPTION_OUTPUT, &( self -> dst ), NULL );
     if ( rc == 0 ) rc = get_str_option( args, OPTION_DOMAIN, &( self -> domain ), dflt_domain );
-    self -> force = false;
-    self -> append = false;
-    self -> random = false;
-    self -> gunzip = false;
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_FORCE, &( self -> force ) );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_APPEND, &( self -> append ) );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_RANDOM, &( self -> random ) );
+    if ( rc == 0 ) rc = get_bool_option( args, OPTION_ANALYZE, &( self -> analyze ) );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_GUNZIP, &( self -> gunzip ) );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_SKIP, &( self -> skip ) );
     if ( rc == 0 ) rc = get_ulong_option( args, OPTION_COUNT, &( self -> count ), 0 );
@@ -283,11 +280,7 @@ static rc_t gather_log_sim_ctx( log_sim_ctx_t * self, Args * args )
     self -> dst_file = NULL;
     self -> dst_pos = 0;
     self -> line_nr = 0;
-    self -> rnd = KTimeStamp();
 
-    for ( int i = 0; i < 12; ++i )
-        for ( int j = 0; j < 4; ++j )
-            self -> months[ i ].name[ j ] = m[ i ].name[ j ];
     return rc;
 }
 
@@ -417,6 +410,7 @@ static rc_t dst_print( log_sim_ctx_t * self, const char * fmt, ... )
 }
 
 /***************************************************************************/
+
 typedef struct hms_t
 {
     uint32_t hour, minute, second;
@@ -472,6 +466,8 @@ static uint32_t to_seconds( uint32_t hours, uint32_t minutes, uint32_t seconds )
     res += minutes * 60;
     return res + seconds;
 }
+
+/***************************************************************************/
 
 static rc_t replay_callback( const String * line, void * data )
 {
@@ -536,6 +532,91 @@ static rc_t replay( log_sim_ctx_t * self )
 
 /***************************************************************************/
 
+typedef struct analyze_ctx_t
+{
+    log_sim_ctx_t * lctx;
+    hms_t hms;
+    bool empty;
+    uint32_t num_events;
+    uint64_t size_events;
+} analyze_ctx_t;
+
+static bool hms_diff( const hms_t * hms_1, const hms_t * hms_2 )
+{
+    if ( hms_1 -> second != hms_2 -> second ) return true;
+    if ( hms_1 -> minute != hms_2 -> minute ) return true;
+    if ( hms_1 -> hour != hms_2 -> hour ) return true;
+    return false;
+}
+
+static void set_actx( analyze_ctx_t * actx, hms_t *hms, uint32_t len )
+{
+    actx -> hms . hour = hms -> hour;
+    actx -> hms . minute = hms -> minute;
+    actx -> hms . second = hms -> second;
+    actx -> num_events = 1;
+    actx -> size_events = len;
+}
+
+static rc_t analyze_print( analyze_ctx_t * actx )
+{
+    rc_t rc = dst_print( actx -> lctx,
+        "%d\t%d\t%d\t%d\t%d\n",
+        actx -> hms . hour, actx -> hms . minute, actx -> hms . second, actx -> num_events, actx -> size_events );
+    return rc;
+}
+
+static rc_t analyze_callback( const String * line, void * data )
+{
+    rc_t rc = 0;
+    analyze_ctx_t * actx = data;
+    hms_t hms;
+
+    if ( extract_time( line, &hms ) )
+    {
+        if ( actx -> empty )
+        {
+            set_actx( actx, &hms, line -> len );
+            actx -> empty = false;
+        }
+        else
+        {
+            if ( hms_diff( &hms, &( actx -> hms ) ) )
+            {
+                rc = analyze_print( actx );
+                set_actx( actx, &hms, line -> len );
+            }
+            else
+            {
+                ( actx -> num_events ) ++;
+                ( actx -> size_events ) += line -> len;
+            }
+        }
+    }
+    return rc;
+}
+
+static rc_t analyze( log_sim_ctx_t * self )
+{
+    analyze_ctx_t actx = { self, { 0, 0, 0 }, true, 0, 0 };
+
+    rc_t rc = ProcessFileLineByLine( self -> src_file,  analyze_callback, &actx );
+    if ( rc != 0 )
+    {
+        rc_t rc1 = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
+        if ( rc != rc1 )
+            LOGERR ( klogInt, rc, "relpay() failed" );
+    }
+    else
+    {
+        if ( !actx . empty )
+            rc = analyze_print( &actx );
+    }
+    return rc;
+}
+
+/***************************************************************************/
+
 static unsigned long simple_rand( unsigned long *x )
 {
     unsigned long r = *x;
@@ -552,15 +633,12 @@ static unsigned long simple_rand_range( unsigned long *x, unsigned long lower, u
     return lower + ( r % ( upper - lower + 1 ) );
 }
 
-typedef struct rand_ip_t
-{
-    unsigned int addr[ 4 ];
-} rand_ip_t;
+typedef uint8_t rand_ip_t[ 4 ];
 
 static void make_rand_ip( unsigned long *x, rand_ip_t * ip )
 {
     for ( int i = 0; i < 4; i++ )
-        ip -> addr[ i ] = (unsigned int)simple_rand_range( x, 0, 255 );
+        (*ip)[ i ] = (uint8_t)simple_rand_range( x, 0, 255 );
 }
 
 static int tzoff( int tzoff_min )
@@ -570,30 +648,40 @@ static int tzoff( int tzoff_min )
     return ( h * 100 + m );
 }
 
-static rc_t generate_random_event( log_sim_ctx_t * self )
+typedef struct month_t { char name[ 4 ]; } month_t;
+
+typedef struct random_ctx_t
+{
+    log_sim_ctx_t * lctx;
+    unsigned long rnd;
+    month_t months[ 12 ];
+} random_ctx_t;
+
+static rc_t generate_random_event( random_ctx_t * rctx )
 {
     rc_t rc;
     rand_ip_t ip;
-    unsigned long acc = simple_rand_range( &( self -> rnd ), 1, 1000000 );
+    unsigned long acc = simple_rand_range( &( rctx -> rnd ), 1, 1000000 );
+    log_sim_ctx_t * self = rctx -> lctx;
     KTime t;
     int tz;
     char sign;
 
-    make_rand_ip( &( self -> rnd ), &ip );
+    make_rand_ip( &( rctx -> rnd ), &ip );
     KTimeLocal( &t, KTimeStamp() );
     tz = tzoff( t.tzoff );
     sign = ( tz < 0 ) ? '-' : '+';
     if ( tz < 0 ) tz = -tz;
     rc = dst_print( self,
         "%d.%d.%d.%d - - [%02d/%s/%04d:%02d:%02d:%02d %c%04d] \"%s\" \"GET /path/path/SRR%06d HTTP/1.1\" 206 32768 0.00 \"toolkit.2.9.1\" - port=443 rl=293\n",
-        ip.addr[ 0 ], ip.addr[ 1 ], ip.addr[ 2 ], ip.addr[ 3 ],
-        t.day + 1, self -> months[ t.month ].name, t.year, t.hour, t.minute, t.second, sign, tz,
+        ip[ 0 ], ip[ 1 ], ip[ 2 ], ip[ 3 ],
+        t.day + 1, rctx -> months[ t.month ].name, t.year, t.hour, t.minute, t.second, sign, tz,
         self -> domain, acc
         );
     if ( rc == 0 ) rc = Quitting();
     if ( rc == 0 && self -> minwait > 0 && self -> maxwait > 0 )
     {
-        unsigned long wait = simple_rand_range( &( self -> rnd ), self -> minwait, self -> maxwait );
+        unsigned long wait = simple_rand_range( &( rctx -> rnd ), self -> minwait, self -> maxwait );
         rc = KSleepMs( wait );
     }
     return rc;
@@ -602,25 +690,30 @@ static rc_t generate_random_event( log_sim_ctx_t * self )
 static rc_t generate_random( log_sim_ctx_t * self )
 {
     rc_t rc = 0;
+    random_ctx_t rctx = { self, KTimeStamp() };
+    month_t m[ 12 ] = { {"Jan"}, {"Feb"}, {"Mar"}, {"Apr"}, {"May"}, {"Jun"}, {"Jul"}, {"Aug"}, {"Sep"}, {"Oct"}, {"Nov"}, {"Dec"} };
+    
+    for ( int i = 0; i < 12; ++i )
+        for ( int j = 0; j < 4; ++j )
+            rctx . months[ i ].name[ j ] = m[ i ].name[ j ];
 
     if ( self -> count > 0 )
     {
         unsigned long i;
         for ( i = 0; rc == 0 && i < self -> count; i++ )
         {
-            rc = generate_random_event( self );
+            rc = generate_random_event( &rctx );
         }
     }
     else
     {
         while( rc == 0 )
         {
-            rc = generate_random_event( self );
+            rc = generate_random_event( &rctx );
         }
     }
     return rc;
 }
-
 
 /***************************************************************************
     Main:
@@ -647,6 +740,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                 /* ======================================== */
                 if ( lctx . random )
                     rc = generate_random( &lctx );
+                else if ( lctx . analyze )
+                    rc = analyze( &lctx );
                 else
                     rc = replay( &lctx );
                 /* ======================================== */

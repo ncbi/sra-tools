@@ -31,13 +31,11 @@
 #include <klib/log.h>
 #include <klib/text.h>
 #include <klib/printf.h>
-#include <klib/data-buffer.h>
 #include <klib/time.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
 #include <kfs/defs.h>
-#include <kfs/filetools.h>
 #include <kfs/gzip.h>
 
 #include <stdlib.h>
@@ -246,7 +244,7 @@ typedef struct log_sim_ctx_t
     KFile * dst_file;
     uint64_t dst_pos;
     uint64_t line_nr;
-    KDataBuffer data_buffer;
+    char buffer[ 4096 * 4 ];
 } log_sim_ctx_t;
 
 const char * dflt_domain = "sra-download.ncbi.nlm.nih.gov";
@@ -266,14 +264,6 @@ static rc_t gather_log_sim_ctx( log_sim_ctx_t * self, Args * args )
     if ( rc == 0 ) rc = get_ulong_option( args, OPTION_MINWAIT, &( self -> minwait ), 0 );
     if ( rc == 0 ) rc = get_ulong_option( args, OPTION_MAXWAIT, &( self -> maxwait ), 0 );
     if ( rc == 0 ) rc = get_long_option( args, OPTION_CLOCKOFS, &( self -> clock_offset ), 0 );
-    if ( rc == 0 )
-    {
-        rc = KDataBufferMake( &( self -> data_buffer ), 8, 1024 );
-        if ( rc != 0 )
-        {
-            LOGERR ( klogInt, rc, "KDataBufferMake() failed" );
-        }
-    }
 
     self -> dir = NULL;
     self -> src_file = NULL;
@@ -382,7 +372,6 @@ static rc_t prepare_log_sim_ctx( log_sim_ctx_t * self )
 
 static void destroy_log_sim_ctx( log_sim_ctx_t * self )
 {
-    KDataBufferWhack ( &( self -> data_buffer ) );
     if ( NULL != self -> dst_file && NULL != self -> dst ) KFileRelease( self -> dst_file );
     if ( NULL != self -> src_file && NULL != self -> src ) KFileRelease( self -> src_file );
     if ( NULL != self -> dir ) KDirectoryRelease( self -> dir );
@@ -390,22 +379,159 @@ static void destroy_log_sim_ctx( log_sim_ctx_t * self )
 
 static rc_t dst_print( log_sim_ctx_t * self, const char * fmt, ... )
 {
-    rc_t rc = KDataBufferWipe( &( self -> data_buffer ) );
+    rc_t rc;
+    va_list args;
+    size_t num_writ1;
+    va_start( args, fmt );
+
+    rc = string_vprintf ( self -> buffer, sizeof self -> buffer, &num_writ1, fmt, args );
     if ( rc == 0 )
     {
-        va_list args;
-        va_start( args, fmt );
-        rc = KDataBufferVPrintf( &( self -> data_buffer ), fmt, args );
+        size_t num_writ2;
+        rc = KFileWrite( self -> dst_file, self -> dst_pos, self -> buffer, num_writ1, &num_writ2 );
+        if ( rc == 0 )
+            self -> dst_pos += num_writ2;
+    }
+    va_end( args );
+    if ( rc == 0 ) self -> line_nr += 1;
+    return rc;
+}
+
+/***************************************************************************/
+
+#define STATE_ALPHA 0
+#define STATE_LF 1
+#define STATE_NL 2
+
+typedef struct buffer_range
+{
+    const char * start;
+    uint32_t processed, count, state;
+} buffer_range;
+
+static rc_t ProcessFromBuffer( buffer_range * range,
+    rc_t ( CC * on_line )( const String * line, void * data ), void * data  )
+{
+    rc_t rc = 0;
+    uint32_t idx;
+    const char * p = range->start;
+    String S;
+
+    S.addr = p;
+    S.len = S.size = range->processed;
+    for ( idx = range->processed; idx < range->count && rc == 0; ++idx )
+    {
+        switch( p[ idx ] )
+        {
+            case 0x0A : switch( range->state )
+                        {
+                            case STATE_ALPHA : /* ALPHA --> LF */
+                                                rc = on_line( &S, data );
+                                                range->state = STATE_LF;
+                                                break;
+
+                            case STATE_LF : /* LF --> LF */
+                                             break;
+
+                            case STATE_NL : /* NL --> LF */
+                                             range->state = STATE_LF;
+                                             break;
+                        }
+                        break;
+
+            case 0x0D : switch( range->state )
+                        {
+                            case STATE_ALPHA : /* ALPHA --> NL */
+                                                rc = on_line( &S, data );
+                                                range->state = STATE_NL;
+                                                break;
+
+                            case STATE_LF : /* LF --> NL */
+                                             range->state = STATE_NL;
+                                             break;
+
+                            case STATE_NL : /* NL --> NL */
+                                             break;
+                        }
+                        break;
+
+            default   : switch( range->state )
+                        {
+                            case STATE_ALPHA : /* ALPHA --> ALPHA */
+                                                S.len++; S.size++;
+                                                break;
+
+                            case STATE_LF : /* LF --> ALPHA */
+                                             S.addr = &p[ idx ]; S.len = S.size = 1;
+                                             range->state = STATE_ALPHA;
+                                             break;
+
+                            case STATE_NL : /* NL --> ALPHA */
+                                             S.addr = &p[ idx ]; S.len = S.size = 1;
+                                             range->state = STATE_ALPHA;
+                                             break;
+                        }
+                        break;
+        }
+    }
+    if ( range->state == STATE_ALPHA )
+    {
+        range->start = S.addr;
+        range->count = S.len;
+    }
+    else
+        range->count = 0;
+    return rc;
+}
+
+
+static rc_t ProcessLineByLine( struct KFile const * f,
+        rc_t ( CC * on_line )( const String * line, void * data ), void * data )
+{
+    rc_t rc = 0;
+    uint64_t pos = 0;
+    char buffer[ 4096 * 4 ];
+    buffer_range range;
+    bool done = false;
+
+    range.start = buffer;
+    range.count = 0;
+    range.processed = 0;
+    range.state = STATE_ALPHA;
+
+    do
+    {
+        size_t num_read;
+        rc = KFileReadAll ( f, pos, ( char * )( range.start + range.processed ),
+                        ( sizeof buffer ) - range.processed, &num_read );
         if ( rc == 0 )
         {
-            size_t num_writ;
-            rc = KFileWrite( self -> dst_file, self -> dst_pos, self -> data_buffer . base, self -> data_buffer . elem_count, &num_writ );
-            if ( rc == 0 )
-                self -> dst_pos += num_writ;
+            done = ( num_read == 0 );
+            if ( !done )
+            {
+                range.start = buffer;
+                range.count = range.processed + num_read;
+
+                rc = ProcessFromBuffer( &range, on_line, data );
+                if ( range.count > 0 )
+                {
+                    memmove ( buffer, range.start, range.count );
+                }
+                range.start = buffer;
+                range.processed = range.count;
+
+                pos += num_read;
+            }
+            else if ( range.state == STATE_ALPHA )
+            {
+                String S;
+                S.addr = range.start;
+                S.len = S.size = range.count;
+                rc = on_line( &S, data );
+            }
         }
-        va_end( args );
-    }
-    if ( rc == 0 ) self -> line_nr += 1;
+    } while ( rc == 0 && !done );
+
     return rc;
 }
 
@@ -520,7 +646,7 @@ static rc_t replay_callback( const String * line, void * data )
 
 static rc_t replay( log_sim_ctx_t * self )
 {
-    rc_t rc = ProcessFileLineByLine( self -> src_file,  replay_callback, self );
+    rc_t rc = ProcessLineByLine( self -> src_file,  replay_callback, self );
     if ( rc != 0 )
     {
         rc_t rc1 = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
@@ -539,6 +665,7 @@ typedef struct analyze_ctx_t
     bool empty;
     uint32_t num_events;
     uint64_t size_events;
+    unsigned long line_nr;
 } analyze_ctx_t;
 
 static bool hms_diff( const hms_t * hms_1, const hms_t * hms_2 )
@@ -593,19 +720,26 @@ static rc_t analyze_callback( const String * line, void * data )
             }
         }
     }
+    if ( rc == 0 )
+    {
+        unsigned long cnt = actx -> lctx -> count;
+        if ( cnt > 0 && actx -> line_nr > cnt )
+            rc = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
+        actx -> line_nr ++;
+    }
     return rc;
 }
 
 static rc_t analyze( log_sim_ctx_t * self )
 {
-    analyze_ctx_t actx = { self, { 0, 0, 0 }, true, 0, 0 };
+    analyze_ctx_t actx = { self, { 0, 0, 0 }, true, 0, 0, 0 };
 
-    rc_t rc = ProcessFileLineByLine( self -> src_file,  analyze_callback, &actx );
+    rc_t rc = ProcessLineByLine( self -> src_file,  analyze_callback, &actx );
     if ( rc != 0 )
     {
         rc_t rc1 = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
         if ( rc != rc1 )
-            LOGERR ( klogInt, rc, "relpay() failed" );
+            LOGERR ( klogInt, rc, "analyze() failed" );
     }
     else
     {

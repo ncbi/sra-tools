@@ -23,71 +23,20 @@
 * ===========================================================================
 *
 */
+#ifndef _h_row_by_row_
+#define _h_row_by_row_
 
-#ifndef _h_vdb_coldefs_
-#define _h_vdb_coldefs_
-
-#include <klib/defs.h>
 #include <klib/rc.h>
-#include <klib/vector.h>
-#include <klib/namelist.h>
-
-#include <vdb/schema.h>
 #include <vdb/table.h>
-#include <vdb/cursor.h>
+#include "vdb-diff-context.h"
+#include "coldefs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/********************************************************************
-col-pair is the definition of pair of columns with same name
-********************************************************************/
-typedef struct col_pair
-{
-    char * name;
-	uint32_t idx[ 2 ];		/* a pair of sub-col-defs */
-} col_pair;
-
-
-/********************************************************************
-the col-defs are a vector of single column-pairs
-********************************************************************/
-typedef struct col_defs
-{
-    Vector cols;
-} col_defs;
-
-
-/*
- * initializes a column-definitions-list
-*/
-rc_t col_defs_init( col_defs ** defs );
-
-
-/*
- * destroys the column-definitions-list
-*/
-rc_t col_defs_destroy( col_defs * defs );
-
-
-/*
- * setup the list with pairs made from the given list
-*/
-rc_t col_defs_fill( col_defs * defs, const KNamelist * list );
-
-
-/*
- * how many columns do we have in here?
-*/
-rc_t col_defs_count( const col_defs * defs, uint32_t * count );
-
-
-/*
- * add the pairs in defs to the given cursor
-*/
-rc_t col_defs_add_to_cursor( col_defs * defs, const VCursor * cur, int idx );
-
+rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab_2,
+                       const struct diff_ctx * dctx, unsigned long int *diffs );
 
 #ifdef __cplusplus
 }

@@ -52,6 +52,12 @@ rc_t nlt_build_intersect( const KNamelist *nl1, const KNamelist *nl2, const KNam
 
 bool nlt_namelist_is_sub_set_in_full_set( const KNamelist * sub_set, const KNamelist * full_set );
 
+rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2,
+                          const KNamelist ** cols_to_diff, bool intersect );
+
+rc_t extract_columns_from_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2,
+                                       const char * sub_set, const KNamelist ** cols_to_diff );
+
 #ifdef __cplusplus
 }
 #endif

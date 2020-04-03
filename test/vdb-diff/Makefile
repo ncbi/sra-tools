@@ -22,62 +22,45 @@
 #
 # ===========================================================================
 
-
-default: std
+default: runtests
 
 TOP ?= $(abspath ../..)
-MODULE = tools/vdb-diff
 
-INT_TOOLS = \
+MODULE = test/vdb-diff
 
-EXT_TOOLS = \
-	vdb-diff
+TEST_TOOLS = 
 
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-	
 include $(TOP)/build/Makefile.env
 
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+ifdef PYTHON
+runtests: check_exit_code \
+	check_success \
+	check_failure
+
+else
+runtests: check_success\
+	check_failure;
+
+endif
+
 #-------------------------------------------------------------------------------
-# outer targets
+# scripted tests
 #
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
+ACCESSION = SRR000001
 
-.PHONY: all std $(ALL_TOOLS)
+check_exit_code:
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-diff
 
-#-------------------------------------------------------------------------------
-# clean
-#
+check_success:
+	@./test_success.sh $(BINDIR) $(ACCESSION)
+
+check_failure:
+	@./test_failure.sh $(BINDIR) $(ACCESSION)
+
+.PHONY: $(TEST_TOOLS)
+
 clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vdb-diff
-#
-
-VDB_DIFF_SRC = \
-	namelist_tools \
-	coldefs \
-	vdb-diff-context \
-	cmn \
-	row_by_row \
-	col_by_col \
-	vdb-diff
-
-VDB_DIFF_OBJ = \
-	$(addsuffix .$(OBJX),$(VDB_DIFF_SRC))
-
-VDB_DIFF_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/vdb-diff: $(VDB_DIFF_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_DIFF_LIB)

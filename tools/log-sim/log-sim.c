@@ -40,6 +40,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #define OPTION_INPUT        "input"
 #define ALIAS_INPUT         "i"
@@ -53,11 +54,8 @@
 #define OPTION_APPEND       "append"
 #define ALIAS_APPEND        "a"
 
-#define OPTION_RANDOM       "random"
-#define ALIAS_RANDOM        "r"
-
-#define OPTION_ANALYZE      "analyze"
-#define ALIAS_ANALYZE       "y"
+#define OPTION_FN           "function"
+#define ALIAS_FN            "u"
 
 #define OPTION_GUNZIP       "gunzip"
 #define ALIAS_GUNZIP        "g"
@@ -77,22 +75,21 @@
 #define OPTION_MAXWAIT      "max-wait"
 #define ALIAS_MAXWAIT       "x"
 
-#define OPTION_CLOCKOFS     "clock-offset"
-#define ALIAS_CLOCKOFS      "l"
+#define OPTION_SPEED        "speed"
+#define ALIAS_SPEED         "e"
 
 static const char * input_usage[]  = { "input file to replay (dflt: stdin)", NULL };
 static const char * output_usage[] = { "output file to be written to (dflt: stdout)", NULL };
 static const char * force_usage[]  = { "overwrite output-file if it already exists", NULL };
 static const char * append_usage[] = { "append to output-file if it already exists", NULL };
-static const char * random_usage[] = { "generate random events - ignore input", NULL };
-static const char * analyze_usage[] = { "analyze throughput of input file", NULL };
+static const char * funct_usage[]  = { "pick other function: (random|analyze|presort)", NULL };
 static const char * gunzip_usage[] = { "gunzip the input-file", NULL };
 static const char * skip_usage[]   = { "skip events before current time for replay", NULL };
 static const char * count_usage[]  = { "how many records to produce", NULL };
 static const char * domain_usage[] = { "domain name to use for random", NULL };
 static const char * min_wait_usage[] = { "min wait-time for random (in ms)", NULL };
 static const char * max_wait_usage[] = { "max wait-time for random (in ms)", NULL };
-static const char * clockofs_usage[] = { "clock-offset in minutes (can be negative!) for replay", NULL };
+static const char * speed_usage[]  = { "speed-up (<1.0) or slow-down (>1.0) replay", NULL };
 
 OptDef MyOptions[] =
 {
@@ -100,15 +97,14 @@ OptDef MyOptions[] =
 	{ OPTION_OUTPUT, 		ALIAS_OUTPUT, 		NULL, 	output_usage, 		1, 	true, 	false },
 	{ OPTION_FORCE, 		ALIAS_FORCE, 		NULL, 	force_usage, 		1, 	false, 	false },
 	{ OPTION_APPEND, 		ALIAS_APPEND, 		NULL, 	append_usage, 		1, 	false, 	false },
-	{ OPTION_RANDOM, 		ALIAS_RANDOM, 		NULL, 	random_usage, 		1, 	false, 	false },
-	{ OPTION_ANALYZE, 		ALIAS_ANALYZE, 		NULL, 	analyze_usage, 		1, 	false, 	false },
+	{ OPTION_FN, 		    ALIAS_FN, 		    NULL, 	funct_usage, 		1, 	true, 	false },
 	{ OPTION_GUNZIP, 		ALIAS_GUNZIP, 		NULL, 	gunzip_usage, 		1, 	false, 	false },
 	{ OPTION_SKIP, 		    ALIAS_SKIP, 		NULL, 	skip_usage, 		1, 	false, 	false },
 	{ OPTION_COUNT, 		ALIAS_COUNT, 		NULL, 	count_usage, 		1, 	true, 	false },
 	{ OPTION_DOMAIN, 		ALIAS_DOMAIN, 		NULL, 	domain_usage, 		1, 	true, 	false },
 	{ OPTION_MINWAIT, 		ALIAS_MINWAIT, 		NULL, 	min_wait_usage, 	1, 	true, 	false },
 	{ OPTION_MAXWAIT, 		ALIAS_MAXWAIT, 		NULL, 	max_wait_usage,		1, 	true, 	false },
-	{ OPTION_CLOCKOFS, 		ALIAS_CLOCKOFS,     NULL, 	clockofs_usage,		1, 	true, 	false }
+	{ OPTION_SPEED, 		ALIAS_SPEED, 		NULL, 	speed_usage,		1, 	true, 	false }
 };
 
 const char UsageDefaultName[] = "log-sim";
@@ -151,7 +147,8 @@ rc_t CC Usage ( const Args * args )
             case 'd' : param = "NAME"; break;
             case 'm' :
             case 'x' : param = "mSec."; break;
-            case 'l' : param = "minutes"; break;
+            case 'u' : param = "FUNCTION"; break;
+            case 'e' : param = "FACTOR"; break;
         }
         HelpOptionLine ( opt->aliases, opt->name, param, opt->help );
     }
@@ -216,27 +213,56 @@ static rc_t get_ulong_option( const Args *args, const char * option_name, unsign
     return rc;
 }
 
-static rc_t get_long_option( const Args *args, const char * option_name, signed long * res, signed long dflt )
+static rc_t get_float_option( const Args *args, const char * option_name, double * res, double dflt )
 {
     const char * value; 
     rc_t rc = get_str_option( args, option_name, &value, NULL );
     if ( rc == 0 && value != NULL )
-        *res = atol( value );
+    {
+        *res = atof( value );
+        if ( *res == 0.0 ) *res = 1.0;
+    }
     else 
         *res = dflt;
     return rc;
 }
 
 /***************************************************************************/
+typedef enum e_fn { fn_replay, fn_random, fn_analyze, fn_presort } e_fn;
+
+static rc_t get_fn_option( const Args *args, e_fn * res )
+{
+    const char * value;
+    rc_t rc = get_str_option( args, OPTION_FN, &( value ), NULL );
+    if ( rc == 0 )
+    {
+        *res = fn_replay;
+        if ( value != NULL )
+        {
+            switch( value[ 0 ] )
+            {
+                case 'R' :
+                case 'r' : *res = fn_random; break;
+                case 'A' :
+                case 'a' : *res = fn_analyze; break;
+                case 'P' :
+                case 'p' : *res = fn_presort; break;
+            }
+        }
+    }
+    return rc;
+}
+
 typedef struct log_sim_ctx_t
 {
     /* input parameters */
     const char * src;
     const char * dst;
     const char * domain;
-    bool force, append, random, analyze, gunzip, skip;
+    bool force, append, gunzip, skip;
+    e_fn fn;
     unsigned long count, minwait, maxwait;
-    signed long clock_offset;
+    double speed;
 
     /* runtime variables */
     KDirectory * dir;
@@ -256,14 +282,13 @@ static rc_t gather_log_sim_ctx( log_sim_ctx_t * self, Args * args )
     if ( rc == 0 ) rc = get_str_option( args, OPTION_DOMAIN, &( self -> domain ), dflt_domain );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_FORCE, &( self -> force ) );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_APPEND, &( self -> append ) );
-    if ( rc == 0 ) rc = get_bool_option( args, OPTION_RANDOM, &( self -> random ) );
-    if ( rc == 0 ) rc = get_bool_option( args, OPTION_ANALYZE, &( self -> analyze ) );
+    if ( rc == 0 ) rc = get_fn_option( args, &( self -> fn ) );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_GUNZIP, &( self -> gunzip ) );
     if ( rc == 0 ) rc = get_bool_option( args, OPTION_SKIP, &( self -> skip ) );
     if ( rc == 0 ) rc = get_ulong_option( args, OPTION_COUNT, &( self -> count ), 0 );
     if ( rc == 0 ) rc = get_ulong_option( args, OPTION_MINWAIT, &( self -> minwait ), 0 );
     if ( rc == 0 ) rc = get_ulong_option( args, OPTION_MAXWAIT, &( self -> maxwait ), 0 );
-    if ( rc == 0 ) rc = get_long_option( args, OPTION_CLOCKOFS, &( self -> clock_offset ), 0 );
+    if ( rc == 0 ) rc = get_float_option( args, OPTION_SPEED, &( self -> speed ), 1.0 );
 
     self -> dir = NULL;
     self -> src_file = NULL;
@@ -364,7 +389,7 @@ static rc_t prepare_log_sim_ctx( log_sim_ctx_t * self )
     }
     else
     {
-        if ( !self -> random ) rc = open_input_file( self );
+        if ( !( self -> fn == fn_random )  ) rc = open_input_file( self );
         if ( rc == 0 ) rc = open_output_file( self );
     }
     return rc;
@@ -595,58 +620,71 @@ static uint32_t to_seconds( uint32_t hours, uint32_t minutes, uint32_t seconds )
 
 /***************************************************************************/
 
+typedef struct replay_ctx_t
+{
+    log_sim_ctx_t * lctx;
+    bool first;
+    uint32_t seconds;
+} replay_ctx_t;
+
 static rc_t replay_callback( const String * line, void * data )
 {
     rc_t rc = 0;
-    log_sim_ctx_t * self = data;
+    replay_ctx_t * rctx = data;
+    log_sim_ctx_t * self = rctx -> lctx;
     hms_t hms;
 
     if ( extract_time( line, &hms ) )
     {
-        KTime t;
-        uint32_t log_sec = to_seconds( hms.hour, hms.minute, hms.second );
-        uint32_t cur_sec;
-        bool print_it = false;
-        
-        KTimeLocal( &t, KTimeStamp() );
-        cur_sec = to_seconds( t.hour, t.minute, t.second ) + ( self -> clock_offset * 60 );
-
-        if ( log_sec < cur_sec )
+        uint32_t seconds = to_seconds( hms.hour, hms.minute, hms.second );
+        if ( rctx -> first  )
         {
-            /* time has passed, should we print or skip? */
-            print_it = !( self -> skip );
-        }
-        else if ( log_sec == cur_sec )
-        {
-            /* time matches: print now: */
-            print_it = true;
+            /* the first line in the log: records it's time + print*/
+            rctx -> seconds = seconds;
+            rctx -> first = false;
+            rc = dst_print( self, "%S\n", line );
         }
         else
         {
-            /* wait for time to match... */
-            while ( !print_it )
+            if ( seconds < rctx -> seconds )
             {
-                rc = KSleepMs( 250 );
-                KTimeLocal( &t, KTimeStamp() );
-                cur_sec = to_seconds( t.hour, t.minute, t.second ) + ( self -> clock_offset * 60 );
-                if ( log_sec == cur_sec )
-                    print_it = true;
+                /* jumping back in time? print it if no skipping requested */
+                if ( !( self -> skip ) )
+                    rc = dst_print( self, "%S\n", line );
+            }
+            else if ( seconds == rctx -> seconds )
+            {
+                /* same second as last one? print it.... */
+                rc = dst_print( self, "%S\n", line );
+            }
+            else
+            {
+                /* in the future? wait the difference in seconds then print, update last */
+                uint32_t int_sleep_time;
+                double float_sleep_time = seconds - rctx -> seconds;
+                /* adjust for slow-down/speed-up - factor */
+                float_sleep_time *= 1000;
+                float_sleep_time *= self -> speed;
+                int_sleep_time = ceil( float_sleep_time );
+                rc = KSleepMs( int_sleep_time );
+                if ( rc == 0 )
+                {
+                    rc = dst_print( self, "%S\n", line );
+                    rctx -> seconds = seconds;
+                }
             }
         }
-        
-        if ( print_it )
-        {
-            rc = dst_print( self, "%S\n", line );
-            if ( self -> count > 0 && ( self -> line_nr > self -> count ) )
-                rc = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
-        }
+
+        if ( rc == 0 && self -> count > 0 && self -> line_nr > self -> count )
+            rc = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
     }
     return rc;
 }
 
 static rc_t replay( log_sim_ctx_t * self )
 {
-    rc_t rc = ProcessLineByLine( self -> src_file,  replay_callback, self );
+    replay_ctx_t rctx = { self, true, 0 };
+    rc_t rc = ProcessLineByLine( self -> src_file,  replay_callback, &rctx );
     if ( rc != 0 )
     {
         rc_t rc1 = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
@@ -665,7 +703,6 @@ typedef struct analyze_ctx_t
     bool empty;
     uint32_t num_events;
     uint64_t size_events;
-    unsigned long line_nr;
 } analyze_ctx_t;
 
 static bool hms_diff( const hms_t * hms_1, const hms_t * hms_2 )
@@ -697,6 +734,7 @@ static rc_t analyze_callback( const String * line, void * data )
 {
     rc_t rc = 0;
     analyze_ctx_t * actx = data;
+    log_sim_ctx_t * self = actx -> lctx;
     hms_t hms;
 
     if ( extract_time( line, &hms ) )
@@ -720,19 +758,14 @@ static rc_t analyze_callback( const String * line, void * data )
             }
         }
     }
-    if ( rc == 0 )
-    {
-        unsigned long cnt = actx -> lctx -> count;
-        if ( cnt > 0 && actx -> line_nr > cnt )
-            rc = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
-        actx -> line_nr ++;
-    }
+    if ( rc == 0 && self -> count > 0 && self -> line_nr > self -> count )
+        rc = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
     return rc;
 }
 
 static rc_t analyze( log_sim_ctx_t * self )
 {
-    analyze_ctx_t actx = { self, { 0, 0, 0 }, true, 0, 0, 0 };
+    analyze_ctx_t actx = { self, { 0, 0, 0 }, true, 0, 0 };
 
     rc_t rc = ProcessLineByLine( self -> src_file,  analyze_callback, &actx );
     if ( rc != 0 )
@@ -745,6 +778,35 @@ static rc_t analyze( log_sim_ctx_t * self )
     {
         if ( !actx . empty )
             rc = analyze_print( &actx );
+    }
+    return rc;
+}
+
+/***************************************************************************/
+
+static rc_t presort_callback( const String * line, void * data )
+{
+    rc_t rc = 0;
+    log_sim_ctx_t * self = data;
+    hms_t hms;
+
+    if ( extract_time( line, &hms ) )
+        rc = dst_print( self, "%02d%02d%02d\t%S\n", hms . hour, hms . minute, hms . second, line );
+
+    if ( rc == 0 && self -> count > 0 && self -> line_nr > self -> count )
+        rc = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
+
+    return rc;
+}
+
+static rc_t presort( log_sim_ctx_t * self )
+{
+    rc_t rc = ProcessLineByLine( self -> src_file,  presort_callback, self );
+    if ( rc != 0 )
+    {
+        rc_t rc1 = SILENT_RC( rcExe, rcNoTarg, rcVisiting, rcRange, rcExhausted );
+        if ( rc != rc1 )
+            LOGERR ( klogInt, rc, "presort() failed" );
     }
     return rc;
 }
@@ -872,12 +934,13 @@ rc_t CC KMain ( int argc, char *argv [] )
             if ( rc == 0 )
             {
                 /* ======================================== */
-                if ( lctx . random )
-                    rc = generate_random( &lctx );
-                else if ( lctx . analyze )
-                    rc = analyze( &lctx );
-                else
-                    rc = replay( &lctx );
+                switch ( lctx . fn )
+                {
+                    case fn_replay  : rc = replay( &lctx ); break;
+                    case fn_random  : rc = generate_random( &lctx ); break;
+                    case fn_analyze : rc = analyze( &lctx ); break;
+                    case fn_presort : rc = presort( &lctx ); break;
+                }
                 /* ======================================== */
                 destroy_log_sim_ctx( &lctx );
             }

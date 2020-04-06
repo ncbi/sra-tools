@@ -287,7 +287,7 @@ static void openRow(uint64_t const row, VCursor const *const out)
 {
     rc_t const rc = VCursorOpenRow(out);
     if (rc) {
-        pLogErr(klogFatal, rc, "Failed to open a new row $(row)", "row=%"PRIu64, row);
+        pLogErr(klogFatal, rc, "Failed to open a new row $(row)", "row=%lu", row);
         exit(EX_IOERR);
     }
 }

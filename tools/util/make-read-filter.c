@@ -143,6 +143,8 @@ static void processCursors(VCursor *const out, VCursor const *const in)
     
     count = rowCount(in, &first);
     assert(first == 1);
+    pLogMsg(klogInfo, "progress: about to process $(rows) rows", "rows=%lu", count);
+
     /* MARK: Main loop over the input */
     for (r = 0; r < count; ++r) {
         int64_t const row = 1 + r;
@@ -152,6 +154,10 @@ static void processCursors(VCursor *const out, VCursor const *const in)
         CellData const readlen    = cellData("READ_LEN"   , cid_readlen    , row, in);
         CellData const quality    = cellData("QUALITY"    , cid_qual       , row, in);
 
+        if ((row & 0xFFFF) == 0) {
+            pLogMsg(klogInfo, "progress: $(row) rows", "row=%lu", row);
+        }
+
         out_filter = growFilterBuffer(out_filter, &out_filter_count, readfilter.count);
         computeReadFilter(out_filter, &readfilter, &readtype, &readstart, &readlen, &quality);
         openRow(row, out);
@@ -159,6 +165,7 @@ static void processCursors(VCursor *const out, VCursor const *const in)
         commitRow(row, out);
         closeRow(row, out);
     }
+    LogMsg(klogInfo, "progress: done");
     commitCursor(out);
     free(out_filter);
     VCursorRelease(out);

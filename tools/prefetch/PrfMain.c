@@ -330,15 +330,20 @@ static const char* ASCP_USAGE[] =
 #define ASCP_PAR_OPTION "ascp-options"
 #define ASCP_PAR_ALIAS  NULL
 static const char* ASCP_PAR_USAGE[] =
-{ "Arbitrary options to pass to ascp command line", NULL };
+{ "Arbitrary options to pass to ascp command line.", NULL };
 
 #define CHECK_ALL_OPTION "check-all"
 #define CHECK_ALL_ALIAS  "c"
-static const char* CHECK_ALL_USAGE[] = { "Double-check all refseqs", NULL };
+static const char* CHECK_ALL_USAGE[] = { "Double-check all refseqs.", NULL };
+
+#define VALIDATE_OPTION "validate"
+#define VALIDATE_ALIAS  "C"
+static const char* VALIDATE_USAGE[] = {
+    "Validate after download. Default - yes.", NULL };
 
 #define DRY_RUN_OPTION "dryrun"
 static const char* DRY_RUN_USAGE[] = {
-    "Dry run the application: don't download, only check resolving" };
+    "Dry run the application: don't download, only check resolving." };
 
 #define FORCE_OPTION "force"
 #define FORCE_ALIAS  "f"
@@ -386,7 +391,7 @@ static const char* ORDR_USAGE[] = {
 
 #define OUT_DIR_OPTION "output-directory"
 #define OUT_DIR_ALIAS  "O"
-static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/ .", NULL };
+static const char* OUT_DIR_USAGE[] = { "Save files to DIRECTORY/", NULL };
 
 #define OUT_FILE_ALIAS  "o"
 static const char* OUT_FILE_USAGE[] = {
@@ -405,7 +410,7 @@ static const char* PRGRS_USAGE[] = { "Show progress.", NULL };
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
 static const char* ROWS_USAGE[] =
-{ "Kart rows to download (default all).", "row list should be ordered.", NULL };
+{ "Kart rows to download (default all).", "Row list should be ordered.", NULL };
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
@@ -463,6 +468,7 @@ static OptDef OPTIONS[] = {
 ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
 ,{ FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
 ,{ RESUME_OPTION      , RESUME_ALIAS      , NULL, RESUME_USAGE, 1, true, false }
+,{ VALIDATE_OPTION    , VALIDATE_ALIAS    , NULL,VALIDATE_USAGE,1, true, false }
 ,{ PRGRS_OPTION       , PRGRS_ALIAS       , NULL, PRGRS_USAGE , 1, false,false }
 ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
@@ -598,6 +604,51 @@ option_name = RESUME_OPTION;
         case 'y':
         case 'Y':
             self->resume = true;
+            break;
+        default:
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            PLOGERR(klogInt, (klogInt, rc, "Unrecognized "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        if (rc != 0)
+            break;
+    }
+}
+
+option_name = VALIDATE_OPTION;
+{
+    self->validate = true; /* validate downloads by default */
+    rc = ArgsOptionCount(self->args, option_name, &pcount);
+    if (rc != 0) {
+        PLOGERR(klogInt, (klogInt, rc,
+            "Failure to get '$(opt)' argument", "opt=%s", option_name));
+        break;
+    }
+
+    if (pcount > 0) {
+        const char *val = NULL;
+        rc = ArgsOptionValue(
+            self->args, option_name, 0, (const void **)&val);
+        if (rc != 0) {
+            PLOGERR(klogInt, (klogInt, rc, "Failure to get "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        if (val == NULL || val[0] == '\0') {
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            PLOGERR(klogInt, (klogInt, rc, "Unrecognized "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        switch (val[0]) {
+        case 'n':
+        case 'N':
+            self->validate = false;
+            break;
+        case 'y':
+        case 'Y':
+            self->validate = true;
             break;
         default:
             rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);

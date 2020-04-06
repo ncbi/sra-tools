@@ -833,11 +833,18 @@ rc_t PrfOutFileClose(PrfOutFile * self, bool success) {
 
     RELEASE(String, self->cache);
     RELEASE(KFile, self->file);
-    RELEASE(KDirectory, self->_dir);
 
     r2 = KDataBufferWhack(&self->_buf);
     if (rc == 0 && r2 != 0)
         rc = r2;
+
+    return rc;
+}
+
+rc_t PrfOutFileWhack(PrfOutFile * self) {
+    rc_t rc = 0;
+
+    RELEASE(KDirectory, self->_dir);
 
     return rc;
 }

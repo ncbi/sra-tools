@@ -55,6 +55,7 @@
 #include <kfs/directory.h> /* KDirectoryPathType */
 #include <kfs/file.h> /* KFile */
 #include <kfs/gzip.h> /* KFileMakeGzipForRead */
+#include <kfs/md5.h> /* KFileMakeMD5Read */
 #include <kfs/subfile.h> /* KFileMakeSubRead */
 #include <kfs/cacheteefile.h> /* KDirectoryMakeCacheTee */
 
@@ -1330,6 +1331,56 @@ static rc_t PrfMainDownloadAscp(const Resolved *self, PrfMain *mane,
     return aspera_get(mane->ascp, mane->asperaKey, src, to, &opt);
 }
 
+static rc_t POFValidate(const PrfOutFile * self,
+    const VPath * path, bool * vSz, bool * vMd5)
+{
+    rc_t rc = 0, rd = 0;
+
+    const KFile * f = NULL;
+
+    uint64_t s = VPathGetSize(path);
+    const uint8_t * md5 = VPathGetMd5(path);
+
+    assert(self && vSz && vMd5);
+
+    rd = KDirectoryOpenFileRead(self->_dir, &f, "%s", self->name);
+    if (rd == 0 && s > 0) {
+        uint64_t size = 0;
+        rc = KFileSize(f, &size);
+        if (rc == 0) {
+            if (size == s)
+                *vSz = true;
+            else
+                *vSz = false;
+        }
+    }
+
+    if (rd == 0 && md5 != NULL) {
+        const KFile * kfmd5 = NULL;
+        rc_t r2 = KFileMakeMD5Read(&kfmd5, f, md5);
+        if (r2 == 0) {
+            char buf[10240];
+            size_t nr = 0;
+            r2 = KFileRead(kfmd5, ~0, buf, sizeof buf, &nr);
+            if (r2 != 0)
+                *vMd5 = false;
+            else
+                *vMd5 = true;
+        }
+
+        RELEASE(KFile, kfmd5);
+        f = NULL; /* MD5FileRelease releases underlying KFile */
+        if (rc == 0 && r2 != 0)
+            rc = r2;
+    }
+
+    RELEASE(KFile, f);
+    if (rc == 0 && rd != 0)
+        rc = rd;
+
+    return rc;
+}
+
 static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
     bool isDependency, const VPath * path, PrfOutFile * pof)
 {
@@ -1403,9 +1454,35 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                     pof->name, mane->eliminateQuals && !isDependency);
             else
                 rd = PrfMainDownloadHttpFile(self, mane, path, pof);
-            if (rd == 0)
+            if (rd == 0) {
                 STSMSG(STS_TOP, (" %s download succeed",
                     https ? "https" : "http"));
+                if (mane->validate) {
+                    bool size = false;
+                    bool md5 = false;
+                    rd = POFValidate(pof, path, &size, &md5);
+                    if (rd != 0)
+                        LOGERR(klogInt, rd, "failed to validate");
+                    else {
+                        if (size && md5)
+                            STSMSG(STS_TOP, (" %s is valid", self->name));
+                        else {
+                            if (!size) {
+                                STSMSG(STS_TOP,
+                                    (" %s: size does not match", self->name));
+                                rd = RC(rcExe, rcFile, rcValidating,
+                                    rcSize, rcUnequal);
+                            }
+                            if (!md5) {
+                                STSMSG(STS_TOP,
+                                    (" %s: md5 does not match", self->name));
+                                rd = RC(rcExe, rcFile, rcValidating,
+                                    rcChecksum, rcUnequal);
+                            }
+                        }
+                    }
+                }
+            }
             else {
                 rc_t rc = Quitting();
                 if (rc != 0)
@@ -1424,7 +1501,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
 static rc_t PrfMainDownload(Resolved *self, const Item * item,
                          bool isDependency, const VPath *vdbcache)
 {
-    rc_t rc = 0;
+    rc_t rc = 0, r2 = 0;
     KFile *flock = NULL;
     PrfMain * mane = NULL;
 
@@ -1627,16 +1704,18 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         rc = PrfMainDownloaded(mane, cache.addr);
 
     if (rc == 0) {
-        rc_t rc2 = _KDirectoryCleanCache(mane->dir, & cache);
-        if (rc == 0 && rc2 != 0)
-            rc = rc2;
+        r2 = _KDirectoryCleanCache(mane->dir, & cache);
+        if (rc == 0 && r2 != 0)
+            rc = r2;
     }
 
-    {
-        rc_t rc2 = _KDirectoryClean(mane->dir, &cache, lock);
-        if (rc == 0 && rc2 != 0)
-            rc = rc2;
-    }
+    r2 = _KDirectoryClean(mane->dir, &cache, lock);
+    if (rc == 0 && r2 != 0)
+        rc = r2;
+
+    r2 = PrfOutFileWhack(&pof);
+    if (rc == 0 && r2 != 0)
+        rc = r2;
 
     return rc;
 }

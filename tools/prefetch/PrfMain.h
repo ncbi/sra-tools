@@ -105,6 +105,7 @@ typedef struct PrfMain {
 
     EForce force;
     bool resume;
+    bool validate;
 
     struct KConfig *cfg;
     struct KDirectory *dir;

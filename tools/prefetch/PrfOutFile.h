@@ -59,3 +59,4 @@ bool PrfOutFileIsLoaded(const PrfOutFile * self);
 rc_t PrfOutFileCommitTry(PrfOutFile * self);
 rc_t PrfOutFileCommitDo(PrfOutFile * self);
 rc_t PrfOutFileClose(PrfOutFile * self, bool success);
+rc_t PrfOutFileWhack(PrfOutFile * self);

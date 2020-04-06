@@ -31,6 +31,8 @@
 
 typedef enum {
     eTextual,
+    eBinEol,
+    eBin8,
 } EType;
 
 typedef struct {

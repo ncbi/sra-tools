@@ -43,6 +43,8 @@ static rc_t StringRelease(const String *self) {
     return 0;
 }
 
+// TODO: add md5sum check
+
 static rc_t KDirectory_MkTmpName(const KDirectory *self,
     const String *prefix, char *out, size_t sz)
 {
@@ -73,6 +75,10 @@ static const char * TFExt(const PrfOutFile * self) {
     switch (self->_tfType) {
     case eTextual:
         return ".prt";
+    case eBinEol:
+        return ".prb";
+    case eBin8:
+        return ".prf";
     default:
         assert(0);
         return "";
@@ -141,9 +147,9 @@ static bool FTTimeToCommit(PrfOutFile * self) {
     static KTime_t D_TM = 0;
 
     if (D_PS == 0)
-        D_PS = GetEnv("NCBI_VDB_PREFETCH_COMMIT_SZ", 16 * 1024 * 1024);
+        D_PS = GetEnv("NCBI_VDB_PREFETCH_COMMIT_SZ", ~0);
     if (D_TM == 0)
-        D_TM = GetEnv("NCBI_VDB_PREFETCH_COMMIT_TM", 10 * 60);
+        D_TM = GetEnv("NCBI_VDB_PREFETCH_COMMIT_TM", 5 * 60);
 
     assert(self);
 
@@ -151,12 +157,31 @@ static bool FTTimeToCommit(PrfOutFile * self) {
         self->_committed = KTimeStamp();
         return false;
     }
-    else if (self->pos - self->_lastPos >= D_PS)
+    else if (self->pos - self->_lastPos >= D_PS) {
+        STSMSG(STS_DBG, ("committing by PZ: pos=%ld", self->pos));
         return true;
-    else if (KTimeStamp() - self->_committed >= D_TM)
-        return true;
-    else
-        return false;
+    }
+    else if (D_PS != ~0) {
+        if (KTimeStamp() - self->_committed >= D_TM) {
+            STSMSG(STS_DBG, ("committing by TM: pos=%ld", self->pos));
+            return true;
+        }
+        else
+            return false;
+    }
+    else {
+        if (self->pos - self->_lastPos < 16 * 1024 * 1024)
+            return false;
+        else {
+            self->_lastPos = self->pos;
+            if (KTimeStamp() - self->_committed >= D_TM) {
+                STSMSG(STS_DBG, ("committing by TM: pos=%ld", self->pos));
+                return true;
+            }
+            else
+                return false;
+        }
+    }
 }
 
 static void FTToCommit(PrfOutFile * self) {
@@ -179,12 +204,44 @@ static rc_t TFPutPosAsText(PrfOutFile * self,
         return rc;
 }
 
+static rc_t TFPutPosAsBinEol(PrfOutFile * self,
+    char * b, size_t sz, size_t * num)
+{
+    assert(num);
+    assert(sz >= sizeof self->pos + 1);
+    memmove(b, &self->pos, sizeof self->pos);
+    *num = sizeof self->pos;
+    b[(*num)++] = '\n';
+    return 0;
+}
+
+#define MAGIC "NCBIprTr"
+
+static rc_t TFPutPosAsBin8(PrfOutFile * self, uint64_t tfPos,
+    char * b, size_t sz, size_t * num)
+{
+    int i = 0;
+    assert(num);
+    assert(sz >= sizeof self->pos + 8);
+    if (tfPos == 0) {
+        i = sizeof MAGIC - 1;
+        memmove(b, MAGIC, i);
+    }
+    memmove(b + i, &self->pos, sizeof self->pos);
+    *num = i + sizeof self->pos;
+    return 0;
+}
+
 static
 rc_t TFPutPos(PrfOutFile * self, char * b, size_t sz, size_t * num)
 {
     switch (self->_tfType) {
     case eTextual:
         return TFPutPosAsText(self, b, sz, num);
+    case eBinEol:
+        return TFPutPosAsBinEol(self, b, sz, num);
+    case eBin8:
+        return TFPutPosAsBin8(self, self->_tfPos, b, sz, num);
     default:
         assert(0);
         return RC(rcExe, rcString, rcCreating, rcType, rcUnexpected);
@@ -305,16 +362,111 @@ static void TFGetPosAsText(PrfOutFile * self, uint64_t posSize, uint64_t fSize,
     }
 }
 
-static void TFGetPos(PrfOutFile * self, uint64_t posSize, uint64_t fSize,
+static void TFGetPosAsBinEol(PrfOutFile * self,
+    uint64_t posSize, uint64_t fSize, uint64_t *pPos, uint64_t *pTfPos)
+{
+    uint64_t pos = 0, prevPos = 0;
+    uint64_t first = 0;
+    const char * buf = NULL;
+    assert(self && pPos && pTfPos);
+    for (buf = self->_buf.base, first = 0; first < posSize; ) {
+        if (first + sizeof pos + 1 > posSize) {
+            *pPos = *pTfPos = 0;
+            break;
+        }
+        memmove(&pos, buf + first, sizeof pos);
+        first += sizeof pos;
+        if (buf[first] != '\n') {
+            *pPos = *pTfPos = 0;
+            break;
+        }
+        ++first;
+        if (pos == fSize) {
+            *pPos = pos;
+            *pTfPos = first;
+            break;
+        }
+        else if (pos > fSize) {
+            *pPos = prevPos;
+            if (first < sizeof pos + 1)
+                *pTfPos = 0;
+            else
+                *pTfPos = first - sizeof pos - 1;
+            break;
+        }
+        else
+            prevPos = pos;
+    }
+}
+
+static rc_t TFGetPosAsBin8(PrfOutFile * self,
+    uint64_t posSize, uint64_t fSize, uint64_t *pPos, uint64_t *pTfPos)
+{
+    uint64_t pos = 0, prevPos = 0;
+    uint64_t first = 0;
+    const char * buf = NULL;
+    assert(self && pPos && pTfPos);
+    buf = self->_buf.base;
+    if (posSize < sizeof MAGIC - 1) {
+        *pPos = *pTfPos = 0;
+        return RC(rcExe, rcFile, rcReading, rcFile, rcInsufficient);
+    }
+    if (string_cmp(buf, sizeof MAGIC - 1, MAGIC, sizeof MAGIC - 1,
+        sizeof MAGIC - 1) != 0)
+    {
+        *pPos = *pTfPos = 0;
+        return RC(rcExe, rcFile, rcReading, rcData, rcInvalid);
+    }
+    buf += sizeof MAGIC - 1;
+    posSize -= sizeof MAGIC - 1;
+    for (first = 0; first < posSize; ) {
+        if (first + sizeof pos > posSize) {
+            *pPos = prevPos;
+            if (first < sizeof pos)
+                *pTfPos = 0;
+            else
+                *pTfPos = first - sizeof pos;
+            break;
+        }
+        memmove(&pos, buf + first, sizeof pos);
+        first += sizeof pos;
+        if (pos == fSize) {
+            *pPos = pos;
+            *pTfPos = first;
+            break;
+        }
+        else if (pos > fSize) {
+            *pPos = prevPos;
+            if (first < sizeof pos)
+                *pTfPos = 0;
+            else
+                *pTfPos = first - sizeof pos;
+            break;
+        }
+        else
+            prevPos = pos;
+    }
+    *pTfPos += sizeof MAGIC - 1;
+    return 0;
+}
+
+static rc_t TFGetPos(PrfOutFile * self, uint64_t posSize, uint64_t fSize,
     uint64_t *pPos, uint64_t *pTfPos)
 {
     switch (self->_tfType) {
     case eTextual:
         TFGetPosAsText(self, posSize, fSize, pPos, pTfPos);
-        return;
+        break;
+    case eBinEol:
+        TFGetPosAsBinEol(self, posSize, fSize, pPos, pTfPos); 
+        break;
+    case eBin8:
+        return TFGetPosAsBin8(self, posSize, fSize, pPos, pTfPos);
     default:
         assert(0);
+        break;
     }
+    return 0;
 }
 
 static rc_t TFReadPos(PrfOutFile * self, uint64_t origSize) {
@@ -353,8 +505,11 @@ static rc_t TFReadPos(PrfOutFile * self, uint64_t origSize) {
         }
     }
 
-    TFGetPos(self, fsize, origSize, &pos, &tfPos);
-    return TFSetPos(self, pos, tfPos);
+    rc = TFGetPos(self, fsize, origSize, &pos, &tfPos);
+    if (rc != 0)
+        return rc;
+    else
+        return TFSetPos(self, pos, tfPos);
 }
 
 static rc_t TFNegotiatePos(PrfOutFile * self) {
@@ -366,7 +521,7 @@ static rc_t TFNegotiatePos(PrfOutFile * self) {
 #ifdef DEBUGGING
     OUTMSG(("%s: %S.prt found: loading...\n", __FUNCTION__, self->cache));
 #endif
-    STSMSG(STS_DBG, ("loading %S.prf", self->cache));
+    STSMSG(STS_DBG, ("loading %S%s", self->cache, TFExt(self)));
 
     rc = KFileSize(self->file, &fsize);
     if (rc != 0) {
@@ -378,7 +533,7 @@ static rc_t TFNegotiatePos(PrfOutFile * self) {
         rc = TFReadPos(self, fsize);
         if (rc != 0) {
             self->pos = 0;
-            KFileSetSize(self->file, self->pos);
+            KFileSetSize(self->file, 0);
         }
         if (!self->_resume)
             return rc;
@@ -399,6 +554,8 @@ static rc_t TFNegotiatePos(PrfOutFile * self) {
         }
     }
 
+    STSMSG(STS_DBG, ("loaded %S%s: fsize=%lu, starting from %lu",
+        self->cache, TFExt(self), fsize, self->pos));
 #ifdef DEBUGGING
     OUTMSG(("%s: fsize=%lu, starting from %lu\n", __FUNCTION__,
         fsize, self->pos));
@@ -537,7 +694,7 @@ rc_t PrfOutFileInit(PrfOutFile * self, bool resume) {
     memset(self, 0, sizeof *self);
 
     self->_buf.elem_bits = 8;
-    self->_tfType = eTextual;
+    self->_tfType = eBin8;
     self->_resume = resume;
 
     rc = KDirectoryNativeDir(&self->_dir);
@@ -590,8 +747,14 @@ rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name) {
     else {
         rc = PrfOutFileOpenWrite(self);
         if (rc == 0) {
-            if (force || !self->_resume)
+            if (force || !self->_resume) {
                 self->pos = 0;
+                if (force)
+                    STSMSG(STS_DBG, ("forced to ignore transaction file"));
+                else
+                    STSMSG(STS_DBG, (
+                        "ignoring transaction file by command line option"));
+            }
             else if (ro == 0) {
                 ro = TFNegotiatePos(self);
                 if (ro == 0)
@@ -651,6 +814,7 @@ rc_t PrfOutFileCommitTry(PrfOutFile * self) {
 }
 
 rc_t PrfOutFileCommitDo(PrfOutFile * self) {
+    STSMSG(STS_DBG, ("committing on exit: pos=%ld", self->pos));
     return PrfOutFileCommit(self, true);
 }
 
@@ -679,7 +843,3 @@ rc_t PrfOutFileClose(PrfOutFile * self, bool success) {
 }
 
 /******************************************************************************/
-/* add
-prn
-prb
-md5sum check*/

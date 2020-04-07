@@ -51,7 +51,7 @@ typedef struct CellData {
 } CellData;
 
 static CellData cellData(char const *const colName, int const col, int64_t const row, VCursor const *const curs);
-static uint64_t rowCount(VCursor const *const curs, int64_t *const first);
+static uint64_t rowCount(VCursor const *const curs, int64_t *const first, uint32_t cid);
 static uint32_t addColumn( char const *const name
                          , char const *const type
                          , VCursor const *const curs);
@@ -68,18 +68,26 @@ static void closeRow(uint64_t const row, VCursor *const out);
 static void commitCursor(VCursor *const out);
 static VDBManager *manager();
 static Args *getArgs(int argc, char *argv[]);
-static char const *getArgValue(int opt, Args *const args);
+static char const *getOptArgValue(int opt, Args *const args);
+static char const *getParameter(Args *const args);
 static int pathType(VDBManager const *mgr, char const *path);
-static VTable const *openTable(char const *const name, VDBManager const *const mgr, char const **schemaType);
+static VTable const *openTable(char const *const name
+                              , VDBManager const *const mgr
+                              , char const **schemaType
+                              , VSchema *schema
+                              );
 static VTable const *dbOpenTable(char const *const name
                                 , char const *const table
                                 , VDBManager const *const mgr
-                                , char const **schemaType);
-static char const *tblSchemaType(VTable const *tbl);
-static char const *dbSchemaType(VDatabase const *db);
-static VTable const *openInput(Args *args, VDBManager const *mgr, bool *noDb, char const **schemaType);
+                                , char const **schemaType
+                                , VSchema *schema
+                                );
+static void tblSchemaInfo(VTable const *tbl, char const **name, VSchema *schema);
+static void dbSchemaInfo(VDatabase const *db, char const **name, VSchema *schema);
+static VTable const *openInput(char const *input, VDBManager const *mgr, bool *noDb, char const **schemaType, VSchema *schema);
 static void processTables(VTable *const output, VTable const *const input);
-static VTable *createOutput( Args *const args , VDBManager *const mgr, bool noDb, char const *schemaType);
+static VTable *createOutput( Args *const args , VDBManager *const mgr, bool noDb, char const *schemaType, VSchema const *schema, char const **tempObjectPath);
+static VSchema *makeSchema(VDBManager *mgr);
 
 static void OUT_OF_MEMORY()
 {
@@ -93,7 +101,7 @@ static CellData cellData(char const *const colName, int const col, int64_t const
     CellData result = { 0, 0, 0 };
     rc_t rc = VCursorCellDataDirect(curs, row, col, &result.elem_bits, &result.data, &bit_offset, &result.count);
     if (rc) {
-        pLogErr(klogFatal, rc, "Failed to read $(col) at row ($row)", "col=%s,row=%"PRId64, colName, row);
+        pLogErr(klogFatal, rc, "Failed to read $(col) at row ($row)", "col=%s,row=%ld", colName, row);
         exit(EX_DATAERR);
     }
     assert(bit_offset == 0);
@@ -101,10 +109,10 @@ static CellData cellData(char const *const colName, int const col, int64_t const
     return result;
 }
 
-static uint64_t rowCount(VCursor const *const curs, int64_t *const first)
+static uint64_t rowCount(VCursor const *const curs, int64_t *const first, uint32_t cid)
 {
     uint64_t count = 0;
-    rc_t const rc = VCursorIdRange(curs, 0, first, &count);
+    rc_t const rc = VCursorIdRange(curs, cid, first, &count);
     assert(rc == 0);
     return count;
 }
@@ -131,12 +139,12 @@ static void openCursor(VCursor const *const curs, char const *const name)
     }
 }
 
-static VTable const *openTable(char const *const name, VDBManager const *const mgr, char const **schemaType)
+static VTable const *openTable(char const *const name, VDBManager const *const mgr, char const **schemaType, VSchema *schema)
 {
     VTable const *in = NULL;
     rc_t const rc = VDBManagerOpenTableRead(mgr, &in, NULL, "%s", name);
     if (rc == 0) {
-        *schemaType = tblSchemaType(in);
+        tblSchemaInfo(in, schemaType, schema);
         return in;
     }
 
@@ -155,7 +163,7 @@ static VDatabase const *openDatabase(char const *const input, VDBManager const *
     exit(EX_SOFTWARE);
 }
 
-static char const *getSchemaType(KMetadata const *const meta)
+static void getSchemaInfo(KMetadata const *const meta, char const **type, VSchema *schema)
 {
     KMDataNode const *root = NULL;
     KMDataNode const *node = NULL;
@@ -172,6 +180,21 @@ static char const *getSchemaType(KMetadata const *const meta)
     {
         rc_t const rc = KMDataNodeOpenNodeRead(root, &node, "schema");
         KMDataNodeRelease(root);
+        if (rc != 0) {
+            LogErr(klogFatal, rc, "can't get database schema");
+            exit(EX_SOFTWARE);
+        }
+    }
+    {
+        extern rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
+        rc_t const rc = KMDataNodeAddr(node, (const void **)&value, &valueLen);
+        if (rc != 0) {
+            LogErr(klogFatal, rc, "can't get database schema");
+            exit(EX_SOFTWARE);
+        }
+    }
+    {
+        rc_t const rc = VSchemaParseText(schema, NULL, value, valueLen);
         if (rc != 0) {
             LogErr(klogFatal, rc, "can't get database schema");
             exit(EX_SOFTWARE);
@@ -198,22 +221,11 @@ static char const *getSchemaType(KMetadata const *const meta)
         }
     }
     value[valueLen] = '\0';
-    {
-        int i;
-        for (i = 0; ; ++i) {
-            int const ch = value[i];
-            if (ch == '\0')
-                break;
-            if (ch == '#') {
-                value[i] = '\0';
-                break;
-            }
-        }
-    }
-    return value;
+    *type = value;
+    pLogMsg(klogInfo, "Schema type is $(type)", "type=%s", value);
 }
 
-static char const *dbSchemaType(VDatabase const *const db)
+static void dbSchemaInfo(VDatabase const *const db, char const **name, VSchema *schema)
 {
     KMetadata const *meta = NULL;
     {
@@ -223,10 +235,10 @@ static char const *dbSchemaType(VDatabase const *const db)
             exit(EX_SOFTWARE);
         }
     }
-    return getSchemaType(meta);
+    getSchemaInfo(meta, name, schema);
 }
 
-static char const *tblSchemaType(VTable const *const tbl)
+static void tblSchemaInfo(VTable const *const tbl, char const **name, VSchema *schema)
 {
     KMetadata const *meta = NULL;
     {
@@ -236,18 +248,20 @@ static char const *tblSchemaType(VTable const *const tbl)
             exit(EX_SOFTWARE);
         }
     }
-    return getSchemaType(meta);
+    getSchemaInfo(meta, name, schema);
 }
 
 static VTable const *dbOpenTable(char const *const name
                                 , char const *const table
                                 , VDBManager const *const mgr
-                                , char const **schemaType)
+                                , char const **schemaType
+                                , VSchema *schema
+                                )
 {
     VDatabase const *db = openDatabase(name, mgr);
     VTable const *in = NULL;
     rc_t const rc = VDatabaseOpenTableRead(db, &in, "%s", table);
-    *schemaType = dbSchemaType(db);
+    dbSchemaInfo(db, schemaType, schema);
     VDatabaseRelease(db);
     if (rc == 0)
         return in;

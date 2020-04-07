@@ -37,11 +37,7 @@
 
 /* NOTE: Needs to be in same order as Options array */
 enum OPTIONS {
-    OPT_INPUT,      /* input database or table path */
-    OPT_TABLE,      /* input table name if input is a database */
-    OPT_OUTPUT,     /* output path */
-    OPT_INCLUDE,    /* schema include directory */
-    OPT_SCHEMA,     /* schema file path */
+    OPT_OUTPUT,     /* temp path */
     OPTIONS_COUNT
 };
 
@@ -141,7 +137,7 @@ static void processCursors(VCursor *const out, VCursor const *const in)
     openCursor(in, "input");    
     openCursor(out, "output");
     
-    count = rowCount(in, &first);
+    count = rowCount(in, &first, cid_qual);
     assert(first == 1);
     pLogMsg(klogInfo, "progress: about to process $(rows) rows", "rows=%lu", count);
 
@@ -172,20 +168,185 @@ static void processCursors(VCursor *const out, VCursor const *const in)
     VCursorRelease(in);
 }
 
+#include <kfs/directory.h>
+static void copyColumn(VDBManager *mgr, char const *const temp, char const *const input, bool const noDb)
+{
+    KDirectory *ndir = NULL;
+    VTable *tbl = NULL;
+
+    rc_t rc = KDirectoryNativeDir(&ndir);
+    assert(rc == 0);
+        
+    if (noDb) {
+        rc_t rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", input);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open table for update");
+            exit(EX_DATAERR);
+        }
+    }
+    else {
+        VDatabase *db = NULL;
+        rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", input);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open database for update");
+            exit(EX_DATAERR);
+        }
+        rc = VDatabaseOpenTableUpdate(db, &tbl, NULL, "SEQUENCE");
+        VDatabaseRelease(db);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open table for update");
+            exit(EX_DATAERR);
+        }
+    }
+    {
+        rc_t rc = VTableDropColumn(tbl, "RD_FILTER");
+        if (rc)
+            LogErr(klogInfo, rc, "can't drop RD_FILTER column");
+    }
+    {
+        char const *const rd_filter = "col/RD_FILTER";
+        KDirectory const *tmp = NULL;
+        KDirectory *indir = NULL;
+        char const *const localPath = noDb ? rd_filter : "tbl/SEQUENCE/col/RD_FILTER";
+        rc_t rc = 0;
+        
+        VTableRelease(tbl);
+        
+        rc = KDirectoryOpenDirUpdate(ndir, &indir, false, "%s", input);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open input for update");
+            exit(EX_DATAERR);
+        }
+        
+        rc = KDirectoryOpenDirRead(ndir, &tmp, false, "%s", temp);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open temp object");
+            exit(EX_DATAERR);
+        }
+        
+        rc = KDirectoryCopy(tmp, indir, true, localPath, localPath);
+        KDirectoryRelease(tmp);
+        KDirectoryRelease(indir);
+        
+        if (rc) {
+            VTable const *tmp = NULL;
+            KMetadata *in_meta = NULL;
+            KMetadata const *tmp_meta = NULL;
+            KMDataNode *in_node = NULL;
+            KMDataNode const *tmp_node = NULL;
+            void const *data = NULL;
+            size_t data_size = 0;
+
+            LogErr(klogDebug, rc, "failed to copy replacement RD_FILTER column");        
+
+            if (noDb) {
+                rc = VDBManagerOpenTableRead(mgr, &tmp, NULL, "%s", temp);
+                if (rc) {
+                    LogErr(klogFatal, rc, "can't open temp table for read");
+                    exit(EX_DATAERR);
+                }
+            }
+            else {
+                VDatabase const *db = NULL;
+                rc_t rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", input);
+                if (rc) {
+                    LogErr(klogFatal, rc, "can't open temp database for read");
+                    exit(EX_DATAERR);
+                }
+                rc = VDatabaseOpenTableRead(db, &tmp, NULL, "SEQUENCE");
+                VDatabaseRelease(db);
+                if (rc) {
+                    LogErr(klogFatal, rc, "can't open temp table for read");
+                    exit(EX_DATAERR);
+                }
+            }
+            if (!VTableHasStaticColumn(tmp, "RD_FILTER")) {
+                LogMsg(klogFatal, "can't copy replacement RD_FILTER column");
+                exit(EX_DATAERR);
+            }
+
+            rc = VTableOpenMetadataRead(tmp, &tmp_meta);
+            assert(rc == 0);
+            if (rc) {
+                LogErr(klogFatal, rc, "can't open temp table metadata");
+                exit(EX_DATAERR);
+            }
+
+            rc = KMetadataOpenNodeRead(tmp_meta, &tmp_node, rd_filter);
+            assert(rc == 0);
+            KMetadataRelease(tmp_meta);
+            if (rc) {
+                LogErr(klogFatal, rc, "can't open temp table metadata");
+                exit(EX_DATAERR);
+            }
+
+            extern rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
+            rc = KMDataNodeAddr(tmp_node, &data, &data_size);
+            if (rc) {
+                LogErr(klogFatal, rc, "can't read temp metadata");
+                exit(EX_DATAERR);
+            }
+
+            rc = VTableOpenMetadataUpdate(tbl, &in_meta);
+            if (rc) {
+                LogErr(klogFatal, rc, "can't open input metadata");
+                exit(EX_DATAERR);
+            }
+
+            rc = KMetadataOpenNodeUpdate(in_meta, &in_node, rd_filter);
+            KMetadataRelease(in_meta);
+            if (rc) {
+                LogErr(klogFatal, rc, "can't open input metadata");
+                exit(EX_DATAERR);
+            }
+
+            rc = KMDataNodeWrite(in_node, data, data_size);
+            KMDataNodeRelease(in_node);
+            KMDataNodeRelease(tmp_node);
+            if (rc) {
+                LogErr(klogFatal, rc, "can't update input metadata");
+                exit(EX_DATAERR);
+            }
+        }
+    }
+    VTableRelease(tbl);
+    
+    {
+        char *dup = strdup(temp);
+        rc = KDirectoryResolvePath(ndir, true, dup, strlen(temp), "%s/../", temp);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't get temp object directory");
+            exit(EX_DATAERR);
+        }
+        rc = KDirectoryRemove(ndir, true, "%s", dup);
+        if (rc) {
+            LogErr(klogFatal, rc, "failed to delete temp object directory");
+            exit(EX_DATAERR);
+        }
+        pLogMsg(klogInfo, "Dropped temp object directory $(temp)", "temp=%s", dup);
+        free(dup);
+    }
+    KDirectoryRelease(ndir);
+}
+
 /* MARK: the main action starts here */
 void main_1(int argc, char *argv[])
 {
     Args *const args = getArgs(argc, argv);
     VDBManager *const mgr = manager();
     bool noDb = false;
+    VSchema *const schema = makeSchema(mgr);
     char const *schemaType = NULL;
-    VTable const *const in = openInput(args, mgr, &noDb, &schemaType);
-    VTable *const out = createOutput(args, mgr, noDb, schemaType);
+    char const *input = getParameter(args);
+    char const *tempTable = NULL;
+    VTable const *const in = openInput(input, mgr, &noDb, &schemaType, schema);
+    VTable *const out = createOutput(args, mgr, noDb, schemaType, schema, &tempTable);
+    
+    processTables(out, in);
+    copyColumn(mgr, tempTable, input, noDb);
     
     VDBManagerRelease(mgr);
     ArgsWhack(args);
-    
-    processTables(out, in);
 }
 
 static void processTables(VTable *const output, VTable const *const input)
@@ -211,55 +372,38 @@ static void processTables(VTable *const output, VTable const *const input)
     processCursors(out, in);
 }
 
+static char const *outputObject(Args *const args);
+
 static VTable *createOutput(  Args *const args
                             , VDBManager *const mgr
                             , bool noDb
-                            , char const *schemaType)
+                            , char const *schemaType
+                            , VSchema const *schema
+                            , char const **tempObject)
 {
     VTable *out = NULL;
-    VSchema *schema = NULL;
     VDatabase *db = NULL;
-    {
-        rc_t const rc = VDBManagerMakeSchema(mgr, &schema);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "Failed to make a schema object!");
-            exit(EX_TEMPFAIL);
-        }
-    }
-    {
-        rc_t const rc = VSchemaAddIncludePath(schema, "%s", getArgValue(OPT_INCLUDE, args));
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "Failed to add include path");
-            exit(EX_NOINPUT);
-        }
-    }
-    {
-        rc_t const rc = VSchemaParseFile(schema, "%s", getArgValue(OPT_SCHEMA, args));
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "Failed to add load schema file");
-            exit(EX_NOINPUT);
-        }
-    }
+    char const *const output = outputObject(args);
+    
     if (noDb) {
         rc_t const rc = VDBManagerCreateTable(mgr, &out, schema
                                               , schemaType
                                               , kcmInit + kcmMD5, "%s"
-                                              , getArgValue(OPT_OUTPUT, args));
-        VSchemaRelease(schema);
+                                              , output);
         if (rc != 0) {
-            LogErr(klogFatal, rc, "Failed to create output table");
+            LogErr(klogFatal, rc, "Failed to create temp table");
             exit(EX_CANTCREAT);
         }
+        pLogMsg(klogInfo, "Created temp table $(output) of type $(type)", "output=%s,type=%s", output, schemaType);
     }
     else {
         {
             rc_t const rc = VDBManagerCreateDB(mgr, &db, schema
                                               , schemaType
                                               , kcmInit + kcmMD5, "%s"
-                                              , getArgValue(OPT_OUTPUT, args));
-            VSchemaRelease(schema);
+                                              , output);
             if (rc != 0) {
-                LogErr(klogFatal, rc, "Failed to create output database");
+                LogErr(klogFatal, rc, "Failed to create temp database");
                 exit(EX_CANTCREAT);
             }
         }
@@ -271,7 +415,11 @@ static VTable *createOutput(  Args *const args
                 exit(EX_CANTCREAT);
             }
         }
+        pLogMsg(klogInfo, "Created temp database $(output) of type $(type)", "output=%s,type=%s", output, schemaType);
     }
+    free((void *)schemaType);
+    VSchemaRelease(schema);
+    *tempObject = output;
     return out;
 }
 
@@ -317,23 +465,15 @@ static void test(void)
     assert(shouldFilter(30, qual) == true);
 }
 
-#define OPT_DEF_VALUE(N, A, H) { N, A, NULL, H, 1, true, false }
+#define OPT_DEF_VALUE(N, A, H) { N, A, NULL, H, 1, true, true }
 #define OPT_DEF_REQUIRED_VALUE(N, A, H) { N, A, NULL, H, 1, true, true }
 #define OPT_NAME(n) Options[n].name
 
-static char const *input_help[]  = { "input to process (!= output)", NULL };
-static char const *table_help[]  = { "table to process, e.g. 'SEQUENCE'", NULL };
-static char const *output_help[] = { "output directory", NULL };
-static char const *ischema_help[] = { "schema include path", NULL };
-static char const *schema_help[] = { "schema file name", NULL };
+static char const *temp_help[] = { "temp directory to use for scratch space, default: $TMPDIR or $TEMPDIR or $TEMP or $TMP or /tmp", NULL };
 
 /* MARK: Options array */
 static OptDef Options [] = {
-    OPT_DEF_REQUIRED_VALUE("input" , "i", input_help),
-    OPT_DEF_VALUE         ("table" , "t", table_help),
-    OPT_DEF_REQUIRED_VALUE("output", "o", output_help),
-    OPT_DEF_REQUIRED_VALUE("include", "I", ischema_help),
-    OPT_DEF_REQUIRED_VALUE("schema", "s", schema_help),
+    { "temp", "t", NULL, temp_help, 1, true, false }
 };
 
 /* MARK: Mostly boilerplate from here */
@@ -353,10 +493,10 @@ rc_t CC UsageSummary ( const char *progname )
 {
     return KOutMsg ( "\n"
                      "Usage:\n"
-                     "  %s [options]\n"
+                     "  %s [options] <input>\n"
                      "\n"
                      "Summary:\n"
-                     "  Make RD_FILTER from QUALITY.\n"
+                     "  Make/Update RD_FILTER from QUALITY.\n"
                      , progname
         );
 }
@@ -377,7 +517,9 @@ rc_t CC Usage ( const Args *args )
     UsageSummary (progname);
 
     KOutMsg ("Options:\n");
+    HelpOptionLine(Options[0].aliases, Options[0].name, "path", Options[0].help);
 
+    KOutMsg ("Common options:\n");
     HelpOptionsStandard ();
     HelpVersion ( fullpath, KAppVersion () );
 
@@ -395,18 +537,19 @@ static Args *getArgs(int argc, char *argv[])
     exit(EX_USAGE);
 }
 
-VTable const *openInput(Args *const args, VDBManager const *const mgr, bool *const noDb, char const **const schemaType)
+VTable const *openInput(char const *const input, VDBManager const *const mgr, bool *const noDb, char const **const schemaType, VSchema *const schema)
 {
-    char const *const input = getArgValue(OPT_INPUT, args);
     int const inputType = pathType(mgr, input);
 
     if (PATH_TYPE_ISA_DATABASE(inputType)) {
+        LogMsg(klogInfo, "input is a database");
         *noDb = false;
-        return dbOpenTable(input, getArgValue(OPT_TABLE, args), mgr, schemaType);
+        return dbOpenTable(input, "SEQUENCE", mgr, schemaType, schema);
     }
     else if (PATH_TYPE_ISA_TABLE(inputType)) {
+        LogMsg(klogInfo, "input is a table");
         *noDb = true;
-        return openTable(input, mgr, schemaType);
+        return openTable(input, mgr, schemaType, schema);
     }
     else {
         LogMsg(klogFatal, "input is not a table or database");
@@ -414,13 +557,84 @@ VTable const *openInput(Args *const args, VDBManager const *const mgr, bool *con
     }
 }
 
-static char const *getArgValue(int opt, Args *const args)
+static char const *getOptArgValue(int opt, Args *const args)
 {
     void const *value = NULL;
     rc_t const rc = ArgsOptionValue(args, Options[opt].name, 0, &value);
     if (rc == 0)
         return value;
-        
-    pLogErr(klogFatal, rc, "Failed to get $(arg) value", "arg=%s", Options[opt].name);
-    exit(EX_USAGE);
+    return NULL;
+}
+
+static char const *getParameter(Args *const args)
+{
+    char const *value = NULL;
+    uint32_t count = 0;
+    rc_t rc = ArgsParamCount(args, &count);
+    if (rc != 0) {
+        LogErr(klogFatal, rc, "Failed to get parameter count");
+        exit(EX_SOFTWARE);
+    }
+    if (count != 1) {
+        Usage(args);
+        exit(EX_USAGE);
+    }
+    rc = ArgsParamValue(args, 0, (void const **)&value);
+    if (rc != 0) {
+        LogErr(klogFatal, rc, "Failed to get parameter value");
+        exit(EX_SOFTWARE);
+    }
+    return value;
+}
+
+static VSchema *makeSchema(VDBManager *mgr)
+{
+    VSchema *schema = NULL;
+    rc_t const rc = VDBManagerMakeSchema(mgr, &schema);
+    if (rc == 0)
+        return schema;
+
+    LogErr(klogFatal, rc, "Failed to make a schema object!");
+    exit(EX_TEMPFAIL);
+}
+
+#include <klib/data-buffer.h>
+#include <klib/printf.h>
+#include <unistd.h>
+static char const *outputObject(Args *const args)
+{
+    rc_t rc;
+    KDataBuffer buf;
+    char *pattern = NULL;
+    size_t len = 0;
+    char const *tmp = getOptArgValue(OPT_OUTPUT, args);
+    if (tmp == NULL)
+        tmp = getenv("TMPDIR");
+    if (tmp == NULL)
+        tmp = getenv("TEMPDIR");
+    if (tmp == NULL)
+        tmp = getenv("TEMP");
+    if (tmp == NULL)
+        tmp = getenv("TMP");
+    if (tmp == NULL)
+        tmp = "/tmp";
+
+    len = strlen(tmp);
+    while (len > 0 && tmp[len - 1] == '/')
+        --len;
+
+    memset(&buf, 0, sizeof(buf));
+    rc = KDataBufferPrintf(&buf, "%.*s/mkf.XXXXXX", (int)len, tmp);
+    assert(rc == 0);
+    mkdtemp(buf.base);
+
+    rc = KDataBufferResize(&buf, buf.elem_count + 4);
+    assert(rc == 0);
+    strcat(buf.base, "/out");
+
+    pattern = strdup(buf.base);
+    KDataBufferWhack(&buf);
+
+    pLogMsg(klogDebug, "output to $(out)", "out=%s", pattern);
+    return pattern;
 }

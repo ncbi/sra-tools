@@ -1331,45 +1331,78 @@ static rc_t PrfMainDownloadAscp(const Resolved *self, PrfMain *mane,
     return aspera_get(mane->ascp, mane->asperaKey, src, to, &opt);
 }
 
-static rc_t POFValidate(const PrfOutFile * self,
-    const VPath * path, bool * vSz, bool * vMd5)
+typedef enum {
+    eVinit,
+    eVyes,
+    eVno,
+    eVskipped,
+} EValidate;
+
+static rc_t POFValidate(const PrfOutFile * self, const VPath * remote,
+    const VPath * cache, EValidate * vSz, EValidate * vMd5)
 {
     rc_t rc = 0, rd = 0;
 
     const KFile * f = NULL;
+    const KFile ** fd = &f;
+    char buf[10240];
+    size_t nr = 0;
+    bool encrypted = false;
 
-    uint64_t s = VPathGetSize(path);
-    const uint8_t * md5 = VPathGetMd5(path);
+    uint64_t s = VPathGetSize(remote);
+    const uint8_t * md5 = VPathGetMd5(remote);
 
     assert(self && vSz && vMd5);
+    *vSz = *vMd5 = eVskipped;
 
-    rd = KDirectoryOpenFileRead(self->_dir, &f, "%s", self->name);
+    assert(self->cache);
+    rd = KDirectoryOpenFileRead(
+        self->_dir, &f, "%.*s", self->cache->size, self->cache->addr);
     if (rd == 0 && s > 0) {
         uint64_t size = 0;
         rc = KFileSize(f, &size);
+        if (rc == 0 && size > 7) {
+            rc = KFileRead(f, 0, buf, 8, &nr);
+#define MAGIC "NCBInenc"
+            if (rc == 0 &&
+                string_cmp(buf, sizeof MAGIC - 1, MAGIC, sizeof MAGIC - 1,
+                    sizeof MAGIC - 1) == 0)
+            {
+                encrypted = true;
+            }
+        }
+        if (rc == 0 && encrypted) {
+            VFSManager * mgr = NULL;
+            rc = VFSManagerMake(&mgr);
+            if (rc == 0)
+                rc = VFSManagerOpenFileReadDecrypt(mgr, fd, cache);
+            RELEASE(VFSManager, mgr);
+            assert(fd);
+            if (rc == 0)
+                rc = KFileSize(*fd, &size);
+        }
         if (rc == 0) {
             if (size == s)
-                *vSz = true;
+                *vSz = eVyes;
             else
-                *vSz = false;
+                *vSz = eVno;
         }
     }
 
     if (rd == 0 && md5 != NULL) {
-        const KFile * kfmd5 = NULL;
-        rc_t r2 = KFileMakeMD5Read(&kfmd5, f, md5);
+        const KFile * f2 = NULL;
+        rc_t r2 = 0;
+        assert(fd);
+        r2 = KFileMakeMD5Read(&f2, *fd, md5);
         if (r2 == 0) {
-            char buf[10240];
-            size_t nr = 0;
-            r2 = KFileRead(kfmd5, ~0, buf, sizeof buf, &nr);
+            r2 = KFileRead(f2, ~0, buf, sizeof buf, &nr);
             if (r2 != 0)
-                *vMd5 = false;
+                *vMd5 = eVno;
             else
-                *vMd5 = true;
+                *vMd5 = eVyes;
         }
-
-        RELEASE(KFile, kfmd5);
-        f = NULL; /* MD5FileRelease releases underlying KFile */
+        RELEASE(KFile, f2);
+        *fd = NULL; /* MD5FileRelease releases underlying KFile */
         if (rc == 0 && r2 != 0)
             rc = r2;
     }
@@ -1457,31 +1490,6 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
             if (rd == 0) {
                 STSMSG(STS_TOP, (" %s download succeed",
                     https ? "https" : "http"));
-                if (mane->validate) {
-                    bool size = false;
-                    bool md5 = false;
-                    rd = POFValidate(pof, path, &size, &md5);
-                    if (rd != 0)
-                        LOGERR(klogInt, rd, "failed to validate");
-                    else {
-                        if (size && md5)
-                            STSMSG(STS_TOP, (" %s is valid", self->name));
-                        else {
-                            if (!size) {
-                                STSMSG(STS_TOP,
-                                    (" %s: size does not match", self->name));
-                                rd = RC(rcExe, rcFile, rcValidating,
-                                    rcSize, rcUnequal);
-                            }
-                            if (!md5) {
-                                STSMSG(STS_TOP,
-                                    (" %s: md5 does not match", self->name));
-                                rd = RC(rcExe, rcFile, rcValidating,
-                                    rcChecksum, rcUnequal);
-                            }
-                        }
-                    }
-                }
             }
             else {
                 rc_t rc = Quitting();
@@ -1508,6 +1516,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     char lock[PATH_MAX] = "";
 
     const VPath * vcache = NULL;
+    const VPath * vremote = NULL;
 
     PrfOutFile pof;
 
@@ -1624,22 +1633,21 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         KSrvRespFileIterator * fi = NULL;
         rc = KSrvRespFileMakeIterator(self->respFile, &fi);
         while (rc == 0) {
-            const VPath * path = NULL;
             if (vdbcache == NULL) {
-                rc = KSrvRespFileIteratorNextPath(fi, &path);
+                rc = KSrvRespFileIteratorNextPath(fi, &vremote);
                 if (rc == 0) {
-                    if (path == NULL) {
+                    if (vremote == NULL) {
                         rc = rd;
                         break;
                     }
                 }
-                rd = PrfMainDoDownload(self, item, isDependency, path, &pof);
+                rd = PrfMainDoDownload(self, item, isDependency, vremote, &pof);
             }
             else
                 PrfMainDoDownload(self, item, isDependency, vdbcache, &pof);
             if (rd == 0 && vdbcache == NULL) {
                 const VPath * vdbcache = NULL;
-                rc_t rc = VPathGetVdbcache(path, & vdbcache, NULL);
+                rc_t rc = VPathGetVdbcache(vremote, & vdbcache, NULL);
                 if (rc == 0 && vdbcache != NULL) {
                     STSMSG(STS_TOP, ("%d,2) Downloading '%s.vdbcache'...",
                         item->number, self->name));
@@ -1656,9 +1664,9 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                     RELEASE(VPath, vdbcache);
                 }
             }
-            RELEASE ( VPath, path );
             if (rd == 0)
                 break;
+            RELEASE ( VPath, vremote );
         }
         RELEASE(KSrvRespFileIterator, fi);
     }
@@ -1700,6 +1708,30 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         }
     }
 
+    if (rc == 0 && mane->validate) {
+        EValidate size = eVinit;
+        EValidate md5 = eVinit;
+        rc = POFValidate(&pof, vremote, vcache, &size, &md5);
+        if (rc != 0)
+            LOGERR(klogInt, rc, "failed to validate");
+        else {
+            if (size == eVyes && md5 == eVyes)
+                STSMSG(STS_TOP, (" %s is valid", self->name));
+            else {
+                if (size == eVno) {
+                    STSMSG(STS_TOP,
+                        (" %s: size does not match", self->name));
+                    rc = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
+                }
+                if (md5 == eVno) {
+                    STSMSG(STS_TOP,
+                        (" %s: md5 does not match", self->name));
+                    rc = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
+                }
+            }
+        }
+    }
+
     if (rc == 0)
         rc = PrfMainDownloaded(mane, cache.addr);
 
@@ -1716,6 +1748,9 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     r2 = PrfOutFileWhack(&pof);
     if (rc == 0 && r2 != 0)
         rc = r2;
+
+    RELEASE(VPath, vcache);
+    RELEASE(VPath, vremote);
 
     return rc;
 }

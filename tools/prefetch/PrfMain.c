@@ -877,11 +877,8 @@ option_name = LOCN_OPTION;
                 }
             }
             self->maxSize = _sizeFromString(val);
-            if (self->maxSize == 0) {
-                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                LOGERR(klogErr, rc, "Maximum requested file size is zero");
-                break;
-            }
+            if (self->maxSize == 0)
+                self->maxSize = ~0; /* unlimited */
         }
 
         if (self->maxSize > 0 && self->minSize > self->maxSize) {
@@ -1082,6 +1079,7 @@ option_name = TYPE_OPTION;
                     break;
                 }
                 self->ngc = val;
+                KConfigSetNgcFile(self->ngc);
             }
         }
 

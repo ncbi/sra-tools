@@ -25,7 +25,7 @@ DELITE_TAG="delite"
 EXPORT_TAG="export"
 STATUS_TAG="status"
 
-SOURCE_TAG="--source"
+ACCESSION_TAG="--accession"
 TARGET_TAG="--target"
 CONFIG_TAG="--config"
 SCHEMA_TAG="--schema"
@@ -33,7 +33,6 @@ FORCE_TAG="--force"
 PRESERVE_TAG="--preserve"
 WRITEALL_TAG="--writeall"
 SKIPTEST_TAG="--skiptest"
-GOLIGHT_TAG="--golight"
 
 IMPORTED_TAG="IMPORTED:"
 INITIALIZED_TAG="INITIALIZED:"
@@ -77,20 +76,18 @@ Options:
 
     -h|--help - script will show that message
 
-    $SOURCE_TAG <name> - path to KAR archive, which could be as accesssion
-                      as local path.
-                      String, mandatory for 'import' action only.
-    $TARGET_TAG <path> - path to directory, where script will put it's output.
-                      String, mandatory.
-    $CONFIG_TAG <path> - path to existing configuration file.
-                      String, optional.
-    $SCHEMA_TAG <paht> - path to directory with schemas to use
-                      String, mandatory for 'delite' action only.
-    $FORCE_TAG         - flag to force process does not matter what
-    $PRESERVE_TAG      - flag to preserve dropped columns in separate KAR file
-    $WRITEALL_TAG      - flag to write KAR file including all columns
-    $SKIPTEST_TAG      - flag to skip testing
-    $GOLIGHT_TAG       - flag do not keep original KAR archive
+    $ACCESSION_TAG <name> - accession
+                         String, mandatory for 'import' action only.
+    $TARGET_TAG <path>    - path to directory, where script will put it's output.
+                         String, mandatory.
+    $CONFIG_TAG <path>    - path to existing configuration file.
+                         String, optional.
+    $SCHEMA_TAG <paht>    - path to directory with schemas to use
+                         String, mandatory for 'delite' action only.
+    $FORCE_TAG            - flag to force process does not matter what
+    $PRESERVE_TAG         - flag to preserve dropped columns in separate KAR file
+    $WRITEALL_TAG         - flag to write KAR file including all columns
+    $SKIPTEST_TAG         - flag to skip testing
 
 EOF
 
@@ -137,9 +134,9 @@ do
         --help)
             usage
             ;;
-        $SOURCE_TAG)
+        $ACCESSION_TAG)
             TCNT=$(( $TCNT + 1 ))
-            SOURCE_VAL=${ARGS[$TCNT]}
+            ACCESSION_VAL=${ARGS[$TCNT]}
             ;;
         $TARGET_TAG)
             TCNT=$(( $TCNT + 1 ))
@@ -165,9 +162,6 @@ do
         $SKIPTEST_TAG)
             SKIPTEST_VAL=1
             ;;
-        $GOLIGHT_TAG)
-            GOLIGHT_VAL=1
-            ;;
         *)
             usage invalid argument \'$TARG\'
             ;;
@@ -175,6 +169,15 @@ do
 
     TCNT=$(( $TCNT + 1 ))
 done
+
+if [ -n "$ACCESSION_VAL" ]
+then
+    if [[ ! $ACCESSION_VAL =~ [S,E,D]RR[0-9][0-9]*$ ]]
+    then
+        echo "ERROR: invalid accession format '$ACCESSION_VAL'. Should match '[S,E,D]RR[0-9][0-9]*$'">&2
+        exit 1
+    fi
+fi
 
 TRANSLATION_QTY=0
 DROPCOLUMN_QTY=0
@@ -262,6 +265,8 @@ translate NCBI:SRA:GenericFastq:db  1   2
 #added during new test from script
 translate NCBI:SRA:Illumina:tbl:q4:v2     1.1   2
 translate NCBI:align:db:alignment_sorted    1.2.1   2
+translate NCBI:align:db:alignment_sorted    1.3   2
+translate NCBI:SRA:IonTorrent:tbl:v2    1.0.2   2
 
 ### Columns to drop
 exclude QUALITY
@@ -348,7 +353,7 @@ then
     VDBUNLOCK_BIN=$DELITE_BIN_DIR/vdb-unlock
     VDBVALIDATE_BIN=$DELITE_BIN_DIR/vdb-validate
     VDBDIFF_BIN=$DELITE_BIN_DIR/vdb-diff
-    SRAPATH_BIN=$DELITE_BIN_DIR/srapath
+    PREFETCH_BIN=$DELITE_BIN_DIR/prefetch
 else
     KAR_BIN=$SCRIPT_DIR/kar+
     KARMETA_BIN=$SCRIPT_DIR/kar+meta
@@ -356,10 +361,10 @@ else
     VDBUNLOCK_BIN=$SCRIPT_DIR/vdb-unlock
     VDBVALIDATE_BIN=$SCRIPT_DIR/vdb-validate
     VDBDIFF_BIN=$SCRIPT_DIR/vdb-diff
-    SRAPATH_BIN=$SCRIPT_DIR/srapath
+    PREFETCH_BIN=$SCRIPT_DIR/prefetch
 fi
 
-for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN SRAPATH_BIN VDBDIFF_BIN
+for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN PREFETCH_BIN VDBDIFF_BIN
 do
     if [ ! -e ${!i} ]; then echo ERROR: can not stat executable \'${!i}\' >&2; exit 1; fi
     if [ ! -x ${!i} ]; then echo ERROR: has no permission to execute for \'${!i}\' >&2; exit 1; fi
@@ -443,6 +448,13 @@ ORIG_KAR_FILE=$TARGET_DIR/orig.kar
 PRESERVED_KAR_FILE=$TARGET_DIR/preserved.kar
 ALLCOLUMNS_KAR_FILE=$TARGET_DIR/all.kar
 STATUS_FILE=$TARGET_DIR/.status.txt
+VDBCFG_NAME=vdbconfig.kfg
+VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
+
+## IMPORTANT NOTE:
+## Prefetch will not work correctly without that
+export NCBI_SETTINGS=/
+export VDB_CONFIG=$VDBCFG_NAME
 
 ###############################################################################################
 ##  There will be description of status file, which is quite secret file
@@ -459,64 +471,6 @@ log_status ()
 $TMSG
 
 EOF
-}
-
-## Syntax: download_remote remote_path local_path
-##
-download_remote ()
-{
-    TRP=$1
-    TLP=$2
-
-    if [ -z "$TRP" -o -z "$TLP" ]
-    then
-        err_exit invalid usage of \'download_remote\' function
-    fi
-
-    TNM=`$SRAPATH_BIN $TRP`
-    if [ -z "$TNM" ]
-    then
-        err_exit can not resolve path \'SOURCE_VAL\'
-    fi
-
-    if [ -e "$TNM" ]
-    then
-        if [ -e "$TLP" ]
-        then
-            if [ "$TNM" -er "$TLP" ]
-            then
-                warn_msg file is downloaded already \'$TRP\'
-                return
-            fi
-        fi
-
-        exec_cmd_exit cp -p "$TNM" "$TLP"
-        return
-    fi
-
-    TDB=`which curl` 2>/dev/null
-    if [ $? -eq 0 ]
-    then
-        OCMD="$TDB --retry 3 -o $TLP $TNM"
-        exec_cmd_exit $OCMD
-
-        log_status "$DOWNLOADED_TAG $OCMD"
-
-        return
-    fi
-
-    echo "WARNING: can not stat 'curl' will use 'GET' instead" >&2
-    TDB=`which GET`
-    if [ $? -ne 0 ]
-    then
-        echo "ERROR: can not stat not 'curl' nor 'GET' utility. Exiting" >&2
-        exit 1
-    fi
-
-    OCMD="$TDB $TNM > $TLP"
-    exec_cmd_exit "$OCMD"
-
-    log_status "$DOWNLOADED_TAG $OCMD"
 }
 
 ###############################################################################################
@@ -542,12 +496,12 @@ import_proc ()
 {
     ##
     ## Checking args
-    if [ -z "$SOURCE_VAL" ]
+    if [ -z "$ACCESSION_VAL" ]
     then
-        err_exit missed mandatory parameter \'$SOURCE_TAG\'
+        err_exit missed mandatory parameter \'$ACCESSION_TAG\'
     fi
 
-    info_msg "IMPORT: $SOURCE_VAL to $TARGET_DIR"
+    info_msg "IMPORT: $ACCESSION_VAL to $TARGET_DIR"
 
     if [ -d "$TARGET_DIR" ]
     then
@@ -562,7 +516,32 @@ import_proc ()
     fi
 
     exec_cmd_exit mkdir $TARGET_DIR
-    log_status $INITIALIZED_TAG $SOURCE_VAL
+    log_status $INITIALIZED_TAG $ACCESSION_VAL
+
+    cat <<EOF >$VDBCFG_FILE
+/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"
+/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"
+/repository/user/main/public/root = "$TARGET_DIR"
+EOF
+
+    info_msg Changing directory to \'$TARGET_DIR\'
+    cd $TARGET_DIR
+
+    exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
+
+    TOUTD=$TARGET_DIR/$ACCESSION_VAL
+    if [ ! -d "$TOUTD" ]
+    then
+        err_exit can not stat directory \'$TOUTD\'
+    fi
+
+    TOUTF=$TOUTD/${ACCESSION_VAL}.sra
+    if [ ! -f "$TOUTF" ]
+    then
+        err_exit can not stat file \'$TOUTF\'
+    fi
+
+    exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
 
     ICMD="$KAR_BIN "
     if [ -n "$FORCE_VAL" ]
@@ -570,14 +549,7 @@ import_proc ()
         ICMD="$ICMD --force"
     fi
 
-    if [ -n "$GOLIGHT_VAL" ]
-    then
-        exec_cmd_exit $ICMD --extract $SOURCE_VAL --directory $DATABASE_DIR
-    else
-        download_remote $SOURCE_VAL $ORIG_KAR_FILE
-
-        exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
-    fi
+    exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
 
     ## Checking if it is colorspace run
     check_colorspace_exit
@@ -780,14 +752,22 @@ delite_proc ()
         err_exit can not stat directory \'$SCHEMA_VAL\'
     fi
 
+    info_msg Changing directory to \'$TARGET_DIR\'
+    cd $TARGET_DIR
+
+    if [ ! -f "$VDBCFG_NAME" ]
+    then
+        err_exit can not stat file \'$VDBCFG_FILE\'
+    fi
+
     ## Checking if it is colorspace run
     check_colorspace_exit
 
-    ## Unlocking db
-    exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
-
     ## Checking that it was already delited
     check_delited
+
+    ## Unlocking db
+    exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
 
     ## Rename original qualities
     make_original_qualities
@@ -1019,9 +999,11 @@ print_stats ()
 {
     NEW_SIZE=`stat --format="%s" $NEW_KAR_FILE`
 
-    if [ -f "$ORIG_KAR_FILE" ]
+    ORIG_FILE=`readlink -f $ORIG_KAR_FILE 2>/dev/null`
+
+    if [ -f "$ORIG_FILE" ]
     then
-        OLD_SIZE=`stat --format="%s" $ORIG_KAR_FILE`
+        OLD_SIZE=`stat --format="%s" $ORIG_FILE`
     else
         OLD_SIZE=`stat --format="%s" $ALLCOLUMNS_KAR_FILE`
     fi
@@ -1040,6 +1022,14 @@ export_proc ()
 {
     ## checking if it is was delited
     check_ready_for_export
+
+    info_msg Changing directory to \'$TARGET_DIR\'
+    cd $TARGET_DIR
+
+    if [ ! -f "$VDBCFG_NAME" ]
+    then
+        err_exit can not stat file \'$VDBCFG_FILE\'
+    fi
 
     ## looking up for all columns to drop
     find_columns_to_drop

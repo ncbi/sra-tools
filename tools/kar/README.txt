@@ -2,7 +2,7 @@ That is README on delite process which will help with use 'sra_delite.sh'
 
 The delite process is three stage process :
 
-1) unpacking original KAR archive, which could include downloading it from
+1) unpacking original KAR archive, which always includes downloading it from
    remote repository
 2) editing resulting database, which could include rename columns and change
    metadata
@@ -43,7 +43,7 @@ utilities are located :
             vdb-lock
             vdb-unlock
             vdb-validate
-            srapath
+            prefetch
             vdb-diff
 If one of these utilities does not exists, or permissions for execution for
 that utility are missed, script will exit with error message. You may alter
@@ -77,23 +77,20 @@ list of possible actions :
 Options could be different for each action, many of them will be discussed
 later. There is a list of options.
 
-    -h | --help      - prints help message.
-    --source <name>  - path to KAR archive, which could be as accesssion as
-                       local path.
-                       String, mandatory for 'import' action only.
-    --target <path>  - path to directory, where script will put it's output.
-                       String, mandatory.
-    --config <path>  - path to existing configuration file.
-                       String, optional.
-    --schema <path>  - path to directory with schemas to use for delite
-                       String, mandatory for 'delite' action only.
-    --force          - flag to force process, does not matter what
-    --preserve       - flag to preserve dropped columns in separated 
-                       KAR archive
-    --writeall       - flag to write KAR file including all columns
-    --golight        - flag not to use 'curl' or 'GET' command, but download
-                       and unpack database using kar+ utility
-    --skiptest       - flag to skip using vdb-diff to test resulting archive
+    -h | --help        - prints help message.
+    --accession <name> - accession name for run to delite
+                         String, mandatory for 'import' action only.
+    --target <path>    - path to directory, where script will put it's output.
+                         String, mandatory.
+    --config <path>    - path to existing configuration file.
+                         String, optional.
+    --schema <path>    - path to directory with schemas to use for delite
+                         String, mandatory for 'delite' action only.
+    --force            - flag to force process, does not matter what
+    --preserve         - flag to preserve dropped columns in separated 
+                         KAR archive
+    --writeall         - flag to write KAR file including all columns
+    --skiptest         - flag to skip using vdb-diff to test resulting archive
 
 III.  Script configuration file
 =============================================================================
@@ -163,35 +160,24 @@ IV.   Unpacking original KAR archive
 Action 'import' is responsible for unpacking original KAR archive. That action
 requires at least two parameters, and it's syntax is following:
 
-sra_delite.sh import [ --force ] [--golight] [ --config CONFIG ] --source SOURCE --target TARGET
+sra_delite.sh import [ --force ] [ --config CONFIG ] --accession ACCESSION --target TARGET
 
 The flag --force is optional. If TARGET directory exists, script will reject
 to work unless that flag is provided. In that case the old TARGET directory
 and all it's content will be destroyed.
 
-The SOURCE parameter is reference on existing KAR archive, and it could be
-both as local file and as remote. In the case of remote file, it will be
-resolved and downloaded.
+The ACCESSION parameter is accession name on existing KAR archive, which
+will be resolved, and downloaded.
 
 The TARGET parameter is a reference to directory, which will be created by
 script, and the content of SOURCE KAR archive will be unpacked into it's
 subdirectory 'orig', so full path of that objec will be TARGET/orig
 
-The unpacking process could be performed in two ways: direct and indirect.
-The direct way is using 'kar+' ability to download and unpack KAR file from
-immediately. Indirect way is different: script will use 'curl' or 'get' utility
-to download local copy of KAR archive, and that copy will be unpacked lately.
-Undirect way is made for ability to test original and new KAR archives by
-record-by-record comparision of their content. The indirect unpacking requires
-less disk space, while indirect has better tool to control results, which is
-and advantage. By default script will use indirect unpacking, however, user
-can turn on direct unpacking by adding flag '--golight' to command line.
-Script will use 'which' internal bash command to locate 'curl' or 'GET'
-utility, and it will fail if it will be unable to stat them in indirect
-mode. User should remember that using 'curl' command is better, because
-'GET' command is trying to upload remote file to memory, and it will hit
-heavily computer with larger SRA archives. Please, have 'curl' utility
-installed, or ask administrator to install it.
+The downloading process is performed by 'prefetch' utility, which will
+resolve and download local copy of KAR archive, as a references which archive
+depends on.
+
+The unpacking process is performed by kar+ utility.
 
 V.    Editing resulting database
 =============================================================================
@@ -221,7 +207,7 @@ V|.   Exporting data
 Action 'export' will export delited data into KAR archive and test result.
 There is syntax of that command:
 
-sra_delite.sh export [ --condig CONFIG ] --target TARGET [--force] [--writeall] [--preserve] [--skiptest]
+sra_delite.sh export [ --config CONFIG ] --target TARGET [--force] [--writeall] [--preserve] [--skiptest]
 
 By default that command will create KAR archive with name "TARGET/new.kar".
 That archive will have modified schemas and all columns, listed in configuration,
@@ -243,9 +229,6 @@ and consistency of schemas, it could take several minutes. The second test will
 be done by 'vdb-dump' utility. That test will perform record-by-record data
 comparation for both original and new KAR archives. It is longest test and can
 take more than several minutes. User can skip testing by adding flag '--skiptest'.
-If unpacking process (#IV) was performed with '--golight' flag, the file with
-original KAR archive will not be created, in that case if script was called 
-without '--skiptest' flag, it will fail with error message.
 
 
 V|I.   Status
@@ -260,23 +243,14 @@ V|II.  Physical requirements
 =============================================================================
 The delite process is quite lightweight. All utilities used does not require
 more than 1GB(usually less than 200MB) of virtual memory, and uses not
-more than 50MB(usually less than 20MB) of resident memory. However, when 
-indirect downloading is used and there is no installed 'curl' utility, 'GET'
-utility will be used, and it will try to load all KAR data to memory. Because
-there are many KAR archives with large size, it could cause very slow execution
-time, and in many cases 'GET' will be unable to download data. PLEASE, HAVE
-'curl' UTILITY INSTALLED.
+more than 50MB(usually less than 20MB) of resident memory. However, testing 
+process could be both long and consume a lot of memory, our tests shows up to
+10G resident memory for some runs.
 
 The delite process is very sencitive to disk space. In default case it will
 require 3X disk space than size of original SRA archive. User could estimate
 necessary disk space by this formula :
 
-REQUIRED_SIZE=
-            ( direct_download ? 1 : 2 ) * ORIGINAL_KAR_SIZE
-            +
-            ORIGINAL_KAR_SIZE   /* new.kar size + preserved.kar size */
-            +
-            ( --writeall option ? 1 : 0 ) * ORIGINAL_KAR_SIZE
-            ;
+    REQUIRED_SIZE= 3 * ORIGINAL_KAR_SIZE
 
 ENJOY

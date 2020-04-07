@@ -203,8 +203,8 @@ static void getSchemaInfo(KMetadata const *const meta, char const **type, VSchem
     {
         char dummy = 0;
         rc_t const rc = KMDataNodeReadAttr(node, "name", &dummy, 0, &valueLen);
-        assert(GetRCObject(rc) == rcBuffer && GetRCState(rc) == rcInsufficient);
-        if (!(GetRCObject(rc) == rcBuffer && GetRCState(rc) == rcInsufficient)) {
+        assert(GetRCObject(rc) == (int)rcBuffer && GetRCState(rc) == (int)rcInsufficient);
+        if (!(GetRCObject(rc) == (int)rcBuffer && GetRCState(rc) == (int)rcInsufficient)) {
             LogErr(klogFatal, rc, "can't get database schema");
             exit(EX_SOFTWARE);
         }

@@ -355,16 +355,22 @@ static void writeRow(int64_t const row
     }
 }
 
-static KDirectory *openDirUpdate(char const path[])
+static KDirectory *rootDir()
 {
     KDirectory *ndir = NULL;
+    rc_t const rc = KDirectoryNativeDir(&ndir);
+    if (rc) {
+        LogErr(klogFatal, rc, "Can't get a directory!!!");
+        exit(EX_SOFTWARE);
+    }
+    return ndir;
+}
+
+static KDirectory *openDirUpdate(char const *const path)
+{
+    KDirectory *ndir = rootDir();
     KDirectory *result = NULL;
-    rc_t rc = KDirectoryNativeDir(&ndir);
-    if (rc) {
-        LogErr(klogFatal, rc, "Can't get a directory!!!");
-        exit(EX_SOFTWARE);
-    }
-    rc = KDirectoryOpenDirUpdate(ndir, &result, false, "%s", path);
+    rc_t const rc = KDirectoryOpenDirUpdate(ndir, &result, false, "%s", path);
     KDirectoryRelease(ndir);
     if (rc) {
         pLogErr(klogFatal, rc, "Can't get directory $(path)", "path=%s", path);
@@ -373,16 +379,11 @@ static KDirectory *openDirUpdate(char const path[])
     return result;
 }
 
-static KDirectory const *openDirRead(char const path[])
+static KDirectory const *openDirRead(char const *const path)
 {
-    KDirectory *ndir = NULL;
+    KDirectory *ndir = rootDir();
     KDirectory const *result = NULL;
-    rc_t rc = KDirectoryNativeDir(&ndir);
-    if (rc) {
-        LogErr(klogFatal, rc, "Can't get a directory!!!");
-        exit(EX_SOFTWARE);
-    }
-    rc = KDirectoryOpenDirRead(ndir, &result, false, "%s", path);
+    rc_t const rc = KDirectoryOpenDirRead(ndir, &result, false, "%s", path);
     KDirectoryRelease(ndir);
     if (rc) {
         pLogErr(klogFatal, rc, "Can't get directory $(path)", "path=%s", path);
@@ -391,7 +392,7 @@ static KDirectory const *openDirRead(char const path[])
     return result;
 }
 
-static rc_t copyPhysicalColumn(char const to[], char const from[], char const localPath[])
+static rc_t copyPhysicalColumn(char const *const to, char const *const from, char const *const localPath)
 {
     KDirectory const *const srcdir = openDirRead(from);
     KDirectory *const dstdir = openDirUpdate(to);
@@ -403,7 +404,7 @@ static rc_t copyPhysicalColumn(char const to[], char const from[], char const lo
     return rc;
 }
 
-static KMDataNode const *openNodeRead(VTable const *tbl, char const path[])
+static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const path)
 {
     KMetadata const *meta = NULL;
     KMDataNode const *node = NULL;
@@ -424,7 +425,7 @@ static KMDataNode const *openNodeRead(VTable const *tbl, char const path[])
     return node;
 }
 
-static KMDataNode *openNodeUpdate(VTable *tbl, char const path[])
+static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path)
 {
     KMetadata *meta = NULL;
     KMDataNode *node = NULL;
@@ -465,12 +466,12 @@ static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
     }
 }
 
-static VTable *openUpdate(VDBManager *mgr, char const name[], bool noDb)
+static VTable *openUpdate(VDBManager *const mgr, char const *const name, bool const noDb)
 {
     VTable *tbl = NULL;
 
     if (noDb) {
-        rc_t rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name);
+        rc_t const rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name);
         if (rc) {
             LogErr(klogFatal, rc, "can't open table for update");
             exit(EX_DATAERR);
@@ -493,7 +494,7 @@ static VTable *openUpdate(VDBManager *mgr, char const name[], bool noDb)
     return tbl;
 }
 
-static VTable const *openRead(VDBManager const *const mgr, char const name[], bool const noDb)
+static VTable const *openRead(VDBManager const *const mgr, char const *const name, bool const noDb)
 {
 
     if (noDb) {
@@ -528,20 +529,30 @@ static void dropColumn(VTable *const tbl, char const *const name)
 
 static void removeTempDir(char const *const temp)
 {
-    KDirectory *ndir = NULL;
-    rc_t rc = KDirectoryNativeDir(&ndir);
     char *dup = strdup(temp);
+    KDirectory *ndir = rootDir();
+    rc_t rc;
+    
+    assert(dup != NULL);
+    if (dup == NULL)
+        OUT_OF_MEMORY();
+    
+    /* temp looks like /tmp/mkf.XXXXXX/out
+     * so remove last path element
+     */
     rc = KDirectoryResolvePath(ndir, true, dup, strlen(temp), "%s/../", temp);
     if (rc) {
         LogErr(klogFatal, rc, "can't get temp object directory");
         exit(EX_DATAERR);
     }
+
     rc = KDirectoryRemove(ndir, true, "%s", dup);
     KDirectoryRelease(ndir);
     if (rc) {
         LogErr(klogFatal, rc, "failed to delete temp object directory");
         exit(EX_DATAERR);
     }
+
     pLogMsg(klogInfo, "Dropped temp object directory $(temp)", "temp=%s", dup);
     free(dup);
 }

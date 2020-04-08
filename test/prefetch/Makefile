@@ -48,6 +48,7 @@ SRRF=$(SRAF):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
 SRRF=$(SRAI):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
+B=$(BINDIR)
 
 runtests: urls_and_accs out_dir_and_file s-option truncated kart wgs
 
@@ -804,29 +805,29 @@ wgs:
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
 	@echo '/repository/user/main/public/root = "$(PWD)/tmp"' >> tmp/k
 
-	@cd tmp &&                 prefetch SRR619505  -fy        > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ $B/prefetch SRR619505  -fy     > /dev/null
 	@ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
 	@rm -r tmp/S*
 
-	@cd tmp && NCBI_SETTINGS=k prefetch SRR619505  -fy        > /dev/null
+	@cd tmp && NCBI_SETTINGS=k $B/prefetch SRR619505  -fy     > /dev/null
 	@ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null
 	@rm -r tmp/[rS]*
 
 #TODO: TO ADD AD for AAAB01 cd tmp &&                 prefetch SRR353827 -fy -+VFS
 
-	@cd tmp && NCBI_SETTINGS=k prefetch SRR353827  -fy        > /dev/null
-	@cd tmp&&NCBI_SETTINGS=k align-info SRR353827|grep -v 'false,remote::https:' \
-															  > /dev/null
+	@cd tmp && NCBI_SETTINGS=k $B/prefetch SRR353827  -fy     > /dev/null
+	@cd tmp && NCBI_SETTINGS=k $B/align-info SRR353827 \
+		| grep -v 'false,remote::https:'                      > /dev/null
 	@ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null
 	@rm -r tmp/[wS]*
 
 	@echo  Verifying prefetch of run with with a lot of WGS references...
 	@echo '      ... prefetching...'
-	@cd tmp && NCBI_SETTINGS=k prefetch ERR3091357 -fy        > /dev/null
+	@cd tmp && NCBI_SETTINGS=k $B/prefetch   ERR3091357 -fy   > /dev/null
 	@echo '      ... align-infoing...'
-	@cd tmp&&NCBI_SETTINGS=k align-info ERR3091357|grep -v 'false,remote::https:'\
-															  > /dev/null
+	@cd tmp && NCBI_SETTINGS=k $B/align-info ERR3091357 \
+		| grep -v 'false,remote::https:'                      > /dev/null
 	@ls tmp/ERR3091357/ERR3091357.sra tmp/wgs/JTFH01 tmp/refseq/KN707955.1 \
-															  > /dev/null
+	                                                          > /dev/null
 
 	@rm -r tmp

@@ -39,9 +39,7 @@ INT_TOOLS = \
 	samview \
 	testld \
 	txt2kdb \
-	validate-names4 \
-	make-read-filter
-
+	validate-names4
 
 EXT_TOOLS = \
 	rcexplain \
@@ -51,6 +49,7 @@ EXT_TOOLS = \
 	vdb-unlock \
 	test-sra \
 	vdb-passwd \
+	make-read-filter
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

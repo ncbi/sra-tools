@@ -462,9 +462,6 @@ static VSchema *makeSchema(VDBManager *mgr)
     exit(EX_TEMPFAIL);
 }
 
-#include <klib/data-buffer.h>
-#include <klib/printf.h>
-#include <unistd.h>
 static char const *outputObject(Args *const args)
 {
     rc_t rc;

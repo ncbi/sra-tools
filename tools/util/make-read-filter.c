@@ -210,8 +210,6 @@ static void copyColumn(VDBManager *mgr, char const *const temp, char const *cons
         char const *const localPath = noDb ? rd_filter : "tbl/SEQUENCE/col/RD_FILTER";
         rc_t rc = 0;
         
-        VTableRelease(tbl);
-        
         rc = KDirectoryOpenDirUpdate(ndir, &indir, false, "%s", input);
         if (rc) {
             LogErr(klogFatal, rc, "can't open input for update");

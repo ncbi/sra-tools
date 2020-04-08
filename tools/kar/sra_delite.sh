@@ -521,7 +521,12 @@ import_proc ()
     cat <<EOF >$VDBCFG_FILE
 /repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"
 /repository/user/main/public/apps/refseq/volumes/refseq = "refseq"
+/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"
 /repository/user/main/public/root = "$TARGET_DIR"
+/repository/site/main/tracearc/apps/refseq/volumes/refseq = "refseq"
+/repository/site/main/tracearc/apps/wgs/volumes/wgs2 = "wgs03:wgs01"
+/repository/site/main/tracearc/root = "/netmnt/traces04"
+/sra/quality_type = "raw_scores"
 EOF
 
     info_msg Changing directory to \'$TARGET_DIR\'
@@ -853,7 +858,7 @@ test_kar ()
         return
     fi
 
-    exec_cmd_exit $VDBVALIDATE_BIN -x $F2T
+    exec_cmd_exit strace $VDBVALIDATE_BIN -x $F2T
 
     if [ ! -f $ORIG_KAR_FILE ]
     then
@@ -884,7 +889,7 @@ test_kar ()
 
     TCMD="$TCMD $TDC"
 
-    exec_cmd_exit $TCMD
+    exec_cmd_exit strace $TCMD
 }
 
 kar_new ()

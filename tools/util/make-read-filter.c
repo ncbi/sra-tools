@@ -342,6 +342,7 @@ void main_1(int argc, char *argv[])
     
     processTables(out, in);
     copyColumn(mgr, tempTable, input, noDb);
+    free((void *)tempTable);
     
     VDBManagerRelease(mgr);
     ArgsWhack(args);

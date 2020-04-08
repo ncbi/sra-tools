@@ -34,15 +34,19 @@
 #include <vdb/vdb-priv.h>
 #include <kdb/manager.h>
 #include <kdb/meta.h>
+#include <kfs/directory.h>
 #include <klib/log.h>
 #include <klib/out.h>
 #include <klib/rc.h>
+#include <klib/data-buffer.h>
+#include <klib/printf.h>
 #include <sra/sradb.h>
 
 #include <assert.h>
 #include <inttypes.h>
 
 #include <sysexits.h>
+#include <unistd.h>
 
 typedef struct CellData {
     void const *data;
@@ -71,11 +75,11 @@ static Args *getArgs(int argc, char *argv[]);
 static char const *getOptArgValue(int opt, Args *const args);
 static char const *getParameter(Args *const args);
 static int pathType(VDBManager const *mgr, char const *path);
-static VTable const *openTable(char const *const name
-                              , VDBManager const *const mgr
-                              , char const **schemaType
-                              , VSchema *schema
-                              );
+static VTable const *openInputTable(char const *const name
+                                   , VDBManager const *const mgr
+                                   , char const **schemaType
+                                   , VSchema *schema
+                                   );
 static VTable const *dbOpenTable(char const *const name
                                 , char const *const table
                                 , VDBManager const *const mgr
@@ -139,17 +143,22 @@ static void openCursor(VCursor const *const curs, char const *const name)
     }
 }
 
-static VTable const *openTable(char const *const name, VDBManager const *const mgr, char const **schemaType, VSchema *schema)
+static VTable const *openTable(char const *const name, VDBManager const *const mgr)
 {
     VTable const *in = NULL;
     rc_t const rc = VDBManagerOpenTableRead(mgr, &in, NULL, "%s", name);
-    if (rc == 0) {
-        tblSchemaInfo(in, schemaType, schema);
+    if (rc == 0)
         return in;
-    }
 
     LogErr(klogFatal, rc, "can't open input table");
     exit(EX_SOFTWARE);
+}
+
+static VTable const *openInputTable(char const *const name, VDBManager const *const mgr, char const **schemaType, VSchema *schema)
+{
+    VTable const *const in = openTable(name, mgr);
+    tblSchemaInfo(in, schemaType, schema);
+    return in;
 }
 
 static VDatabase const *openDatabase(char const *const input, VDBManager const *const mgr)
@@ -344,4 +353,195 @@ static void writeRow(int64_t const row
         pLogErr(klogFatal, rc, "Failed to write row $(row)", "row=%"PRIu64, row);
         exit(EX_IOERR);
     }
+}
+
+static KDirectory *openDirUpdate(char const path[])
+{
+    KDirectory *ndir = NULL;
+    KDirectory *result = NULL;
+    rc_t rc = KDirectoryNativeDir(&ndir);
+    if (rc) {
+        LogErr(klogFatal, rc, "Can't get a directory!!!");
+        exit(EX_SOFTWARE);
+    }
+    rc = KDirectoryOpenDirUpdate(ndir, &result, false, "%s", path);
+    KDirectoryRelease(ndir);
+    if (rc) {
+        pLogErr(klogFatal, rc, "Can't get directory $(path)", "path=%s", path);
+        exit(EX_SOFTWARE);
+    }
+    return result;
+}
+
+static KDirectory const *openDirRead(char const path[])
+{
+    KDirectory *ndir = NULL;
+    KDirectory const *result = NULL;
+    rc_t rc = KDirectoryNativeDir(&ndir);
+    if (rc) {
+        LogErr(klogFatal, rc, "Can't get a directory!!!");
+        exit(EX_SOFTWARE);
+    }
+    rc = KDirectoryOpenDirRead(ndir, &result, false, "%s", path);
+    KDirectoryRelease(ndir);
+    if (rc) {
+        pLogErr(klogFatal, rc, "Can't get directory $(path)", "path=%s", path);
+        exit(EX_SOFTWARE);
+    }
+    return result;
+}
+
+static rc_t copyPhysicalColumn(char const to[], char const from[], char const localPath[])
+{
+    KDirectory const *const srcdir = openDirRead(from);
+    KDirectory *const dstdir = openDirUpdate(to);
+    rc_t const rc = KDirectoryCopy(srcdir, dstdir, true, localPath, localPath);
+
+    KDirectoryRelease(srcdir);
+    KDirectoryRelease(dstdir);
+
+    return rc;
+}
+
+static KMDataNode const *openNodeRead(VTable const *tbl, char const path[])
+{
+    KMetadata const *meta = NULL;
+    KMDataNode const *node = NULL;
+    rc_t rc = VTableOpenMetadataRead(tbl, &meta);
+
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open table metadata!!!");
+        exit(EX_SOFTWARE);
+    }
+    
+    rc = KMetadataOpenNodeRead(meta, &node, path);
+    KMetadataRelease(meta);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't get table metadata!!!");
+        exit(EX_SOFTWARE);
+    }
+    
+    return node;
+}
+
+static KMDataNode *openNodeUpdate(VTable *tbl, char const path[])
+{
+    KMetadata *meta = NULL;
+    KMDataNode *node = NULL;
+    rc_t rc = VTableOpenMetadataUpdate(tbl, &meta);
+
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open table metadata!!!");
+        exit(EX_SOFTWARE);
+    }
+    
+    rc = KMetadataOpenNodeUpdate(meta, &node, path);
+    KMetadataRelease(meta);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't get table metadata!!!");
+        exit(EX_DATAERR);
+    }
+    
+    return node;
+}
+
+static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
+{
+    extern rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
+    void const *data = NULL;
+    size_t data_size = 0;
+    rc_t rc = KMDataNodeAddr(src, &data, &data_size);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't read metadata");
+        exit(EX_DATAERR);
+    }
+
+    rc = KMDataNodeWrite(dst, data, data_size);
+    KMDataNodeRelease(src);
+    KMDataNodeRelease(dst);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't write metadata");
+        exit(EX_DATAERR);
+    }
+}
+
+static VTable *openUpdate(VDBManager *mgr, char const name[], bool noDb)
+{
+    VTable *tbl = NULL;
+
+    if (noDb) {
+        rc_t rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open table for update");
+            exit(EX_DATAERR);
+        }
+    }
+    else {
+        VDatabase *db = NULL;
+        rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", name);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open database for update");
+            exit(EX_DATAERR);
+        }
+        rc = VDatabaseOpenTableUpdate(db, &tbl, NULL, "SEQUENCE");
+        VDatabaseRelease(db);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open table for update");
+            exit(EX_DATAERR);
+        }
+    }
+    return tbl;
+}
+
+static VTable const *openRead(VDBManager const *const mgr, char const name[], bool const noDb)
+{
+
+    if (noDb) {
+        return openTable(name, mgr);
+    }
+    else {
+        VTable const *tbl = NULL;
+        VDatabase const *db = NULL;
+        rc_t rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open database for read");
+            exit(EX_DATAERR);
+        }
+        rc = VDatabaseOpenTableRead(db, &tbl, NULL, "SEQUENCE");
+        VDatabaseRelease(db);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't open table for read");
+            exit(EX_DATAERR);
+        }
+        return tbl;
+    }
+}
+
+static void dropColumn(VTable *const tbl, char const *const name)
+{
+    rc_t const rc = VTableDropColumn(tbl, "%s", name);
+    if (rc && !(GetRCObject(rc) == (int)rcPath && GetRCState(rc) == (int)rcNotFound)) {
+        LogErr(klogInfo, rc, "can't drop RD_FILTER column");
+        exit(EX_SOFTWARE);
+    }
+}
+
+static void removeTempDir(char const *const temp)
+{
+    KDirectory *ndir = NULL;
+    rc_t rc = KDirectoryNativeDir(&ndir);
+    char *dup = strdup(temp);
+    rc = KDirectoryResolvePath(ndir, true, dup, strlen(temp), "%s/../", temp);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't get temp object directory");
+        exit(EX_DATAERR);
+    }
+    rc = KDirectoryRemove(ndir, true, "%s", dup);
+    KDirectoryRelease(ndir);
+    if (rc) {
+        LogErr(klogFatal, rc, "failed to delete temp object directory");
+        exit(EX_DATAERR);
+    }
+    pLogMsg(klogInfo, "Dropped temp object directory $(temp)", "temp=%s", dup);
+    free(dup);
 }

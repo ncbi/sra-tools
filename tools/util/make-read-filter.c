@@ -168,163 +168,28 @@ static void processCursors(VCursor *const out, VCursor const *const in)
     VCursorRelease(in);
 }
 
-#include <kfs/directory.h>
 static void copyColumn(VDBManager *mgr, char const *const temp, char const *const input, bool const noDb)
 {
-    KDirectory *ndir = NULL;
-    VTable *tbl = NULL;
+    char const *const rd_filter = "col/RD_FILTER";
+    char const *const localPath = noDb ? rd_filter : "tbl/SEQUENCE/col/RD_FILTER";
+    VTable *tbl = openUpdate(mgr, input, noDb);
 
-    rc_t rc = KDirectoryNativeDir(&ndir);
-    assert(rc == 0);
-        
-    if (noDb) {
-        rc_t rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", input);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't open table for update");
-            exit(EX_DATAERR);
-        }
-    }
-    else {
-        VDatabase *db = NULL;
-        rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", input);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't open database for update");
-            exit(EX_DATAERR);
-        }
-        rc = VDatabaseOpenTableUpdate(db, &tbl, NULL, "SEQUENCE");
-        VDatabaseRelease(db);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't open table for update");
-            exit(EX_DATAERR);
-        }
-    }
+    dropColumn(tbl, "RD_FILTER");
     {
-        rc_t rc = VTableDropColumn(tbl, "RD_FILTER");
-        if (rc)
-            LogErr(klogInfo, rc, "can't drop RD_FILTER column");
-    }
-    {
-        char const *const rd_filter = "col/RD_FILTER";
-        KDirectory const *tmp = NULL;
-        KDirectory *indir = NULL;
-        char const *const localPath = noDb ? rd_filter : "tbl/SEQUENCE/col/RD_FILTER";
-        rc_t rc = 0;
-        
-        rc = KDirectoryOpenDirUpdate(ndir, &indir, false, "%s", input);
+        rc_t const rc = copyPhysicalColumn(input, temp, localPath);
         if (rc) {
-            LogErr(klogFatal, rc, "can't open input for update");
-            exit(EX_DATAERR);
-        }
-        
-        rc = KDirectoryOpenDirRead(ndir, &tmp, false, "%s", temp);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't open temp object");
-            exit(EX_DATAERR);
-        }
-        
-        rc = KDirectoryCopy(tmp, indir, true, localPath, localPath);
-        KDirectoryRelease(tmp);
-        KDirectoryRelease(indir);
-        
-        if (rc) {
-            VTable const *tmp = NULL;
-            KMetadata *in_meta = NULL;
-            KMetadata const *tmp_meta = NULL;
-            KMDataNode *in_node = NULL;
-            KMDataNode const *tmp_node = NULL;
-            void const *data = NULL;
-            size_t data_size = 0;
+            VTable const *const tmp = openRead(mgr, temp, noDb);
 
-            LogErr(klogDebug, rc, "failed to copy replacement RD_FILTER column");        
-
-            if (noDb) {
-                rc = VDBManagerOpenTableRead(mgr, &tmp, NULL, "%s", temp);
-                if (rc) {
-                    LogErr(klogFatal, rc, "can't open temp table for read");
-                    exit(EX_DATAERR);
-                }
-            }
-            else {
-                VDatabase const *db = NULL;
-                rc_t rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", input);
-                if (rc) {
-                    LogErr(klogFatal, rc, "can't open temp database for read");
-                    exit(EX_DATAERR);
-                }
-                rc = VDatabaseOpenTableRead(db, &tmp, NULL, "SEQUENCE");
-                VDatabaseRelease(db);
-                if (rc) {
-                    LogErr(klogFatal, rc, "can't open temp table for read");
-                    exit(EX_DATAERR);
-                }
-            }
             if (!VTableHasStaticColumn(tmp, "RD_FILTER")) {
                 LogMsg(klogFatal, "can't copy replacement RD_FILTER column");
                 exit(EX_DATAERR);
             }
-
-            rc = VTableOpenMetadataRead(tmp, &tmp_meta);
-            assert(rc == 0);
-            if (rc) {
-                LogErr(klogFatal, rc, "can't open temp table metadata");
-                exit(EX_DATAERR);
-            }
-
-            rc = KMetadataOpenNodeRead(tmp_meta, &tmp_node, rd_filter);
-            assert(rc == 0);
-            KMetadataRelease(tmp_meta);
-            if (rc) {
-                LogErr(klogFatal, rc, "can't open temp table metadata");
-                exit(EX_DATAERR);
-            }
-
-            extern rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
-            rc = KMDataNodeAddr(tmp_node, &data, &data_size);
-            if (rc) {
-                LogErr(klogFatal, rc, "can't read temp metadata");
-                exit(EX_DATAERR);
-            }
-
-            rc = VTableOpenMetadataUpdate(tbl, &in_meta);
-            if (rc) {
-                LogErr(klogFatal, rc, "can't open input metadata");
-                exit(EX_DATAERR);
-            }
-
-            rc = KMetadataOpenNodeUpdate(in_meta, &in_node, rd_filter);
-            KMetadataRelease(in_meta);
-            if (rc) {
-                LogErr(klogFatal, rc, "can't open input metadata");
-                exit(EX_DATAERR);
-            }
-
-            rc = KMDataNodeWrite(in_node, data, data_size);
-            KMDataNodeRelease(in_node);
-            KMDataNodeRelease(tmp_node);
-            if (rc) {
-                LogErr(klogFatal, rc, "can't update input metadata");
-                exit(EX_DATAERR);
-            }
+            copyNodeValue(openNodeUpdate(tbl, rd_filter), openNodeRead(tmp, rd_filter));
+            VTableRelease(tmp);
         }
     }
     VTableRelease(tbl);
-    
-    {
-        char *dup = strdup(temp);
-        rc = KDirectoryResolvePath(ndir, true, dup, strlen(temp), "%s/../", temp);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't get temp object directory");
-            exit(EX_DATAERR);
-        }
-        rc = KDirectoryRemove(ndir, true, "%s", dup);
-        if (rc) {
-            LogErr(klogFatal, rc, "failed to delete temp object directory");
-            exit(EX_DATAERR);
-        }
-        pLogMsg(klogInfo, "Dropped temp object directory $(temp)", "temp=%s", dup);
-        free(dup);
-    }
-    KDirectoryRelease(ndir);
+    removeTempDir(temp);
 }
 
 /* MARK: the main action starts here */
@@ -536,7 +401,7 @@ static Args *getArgs(int argc, char *argv[])
     exit(EX_USAGE);
 }
 
-VTable const *openInput(char const *const input, VDBManager const *const mgr, bool *const noDb, char const **const schemaType, VSchema *const schema)
+static VTable const *openInput(char const *const input, VDBManager const *const mgr, bool *const noDb, char const **const schemaType, VSchema *const schema)
 {
     int const inputType = pathType(mgr, input);
 
@@ -548,7 +413,7 @@ VTable const *openInput(char const *const input, VDBManager const *const mgr, bo
     else if (PATH_TYPE_ISA_TABLE(inputType)) {
         LogMsg(klogInfo, "input is a table");
         *noDb = true;
-        return openTable(input, mgr, schemaType, schema);
+        return openInputTable(input, mgr, schemaType, schema);
     }
     else {
         LogMsg(klogFatal, "input is not a table or database");

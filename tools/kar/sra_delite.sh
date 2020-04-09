@@ -748,7 +748,7 @@ modify_objects ()
     fi
 }
 
-do_make_read_filter_applicable ()
+is_make_read_filter_applicable ()
 {
     ## first we check if it is DB or TABLE. 
     ## if it TABLE, by default it is SEQUENCE table
@@ -774,7 +774,7 @@ do_make_read_filter_applicable ()
 do_make_read_filter ()
 {
     ## First we should be sure that we need to call make_read_filter utility
-    do_make_read_filter_applicable
+    is_make_read_filter_applicable
     if [ $? -ne 0 ]
     then
         info_msg $SEQUENCE_COLUMN_NAME column does not present. Skipping make_read_filter step.
@@ -935,7 +935,7 @@ test_kar ()
         done
     fi
 
-    do_make_read_filter_applicable
+    is_make_read_filter_applicable
     if [ $? -eq 0 ]
     then
         TDC="${TDC},READ_FILTER,RD_FILTER"

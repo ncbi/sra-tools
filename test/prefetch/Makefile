@@ -798,20 +798,20 @@ wgs:
 	@rm -fr tmp
 	@mkdir  tmp
 
-	pwd
+	@#pwd
 	@echo '/repository/site/disabled = "true"' >  tmp/k
 	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
 		>> tmp/k
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
-	@echo '/repository/user/main/public/root = "$(PWD)/tmp"' >> tmp/k
-	cat tmp/k
+	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
+	@#cat tmp/k
 
 	@cd tmp && NCBI_SETTINGS=/ $B/prefetch SRR619505  -fy     > /dev/null
 	@ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
 	@rm -r tmp/S*
 
-	 cd tmp && NCBI_SETTINGS=k $B/prefetch SRR619505  -fy -+VFS #   > /dev/null
+	@cd tmp && NCBI_SETTINGS=k $B/prefetch SRR619505  -fy     > /dev/null
 	@ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null
 	@rm -r tmp/[rS]*
 

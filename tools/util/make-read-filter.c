@@ -188,7 +188,6 @@ static void copyColumn(VDBManager *mgr, char const *const temp, char const *cons
         }
     }
     VTableRelease(tbl);
-    removeTempDir(temp);
 }
 
 /* MARK: the main action starts here */
@@ -206,10 +205,11 @@ void main_1(int argc, char *argv[])
     
     processTables(out, in);
     copyColumn(mgr, tempTable, input, noDb);
-    free((void *)tempTable);
-    
     VDBManagerRelease(mgr);
     ArgsWhack(args);
+
+    removeTempDir(tempTable);
+    free((void *)tempTable);
 }
 
 static void processTables(VTable *const output, VTable const *const input)

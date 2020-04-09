@@ -41,6 +41,8 @@ DOWNLOADED_TAG="DOWNLOADED:"
 COLORSPACE_TAG="COLORSPACE:"
 REJECTED_TAG="REJECTED:"
 
+SEQUENCE_COLUMN_NAME="SEQUENCE"
+
 ###
 ##  Usage
 #
@@ -354,6 +356,7 @@ then
     VDBVALIDATE_BIN=$DELITE_BIN_DIR/vdb-validate
     VDBDIFF_BIN=$DELITE_BIN_DIR/vdb-diff
     PREFETCH_BIN=$DELITE_BIN_DIR/prefetch
+    MAKEREADFILTER_BIN=$DELITE_BIN_DIR/make-read-filter
 else
     KAR_BIN=$SCRIPT_DIR/kar+
     KARMETA_BIN=$SCRIPT_DIR/kar+meta
@@ -362,9 +365,10 @@ else
     VDBVALIDATE_BIN=$SCRIPT_DIR/vdb-validate
     VDBDIFF_BIN=$SCRIPT_DIR/vdb-diff
     PREFETCH_BIN=$SCRIPT_DIR/prefetch
+    MAKEREADFILTER_BIN=$SCRIPT_DIR/make-read-filter
 fi
 
-for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN PREFETCH_BIN VDBDIFF_BIN
+for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN PREFETCH_BIN VDBDIFF_BIN MAKEREADFILTER_BIN
 do
     if [ ! -e ${!i} ]; then echo ERROR: can not stat executable \'${!i}\' >&2; exit 1; fi
     if [ ! -x ${!i} ]; then echo ERROR: has no permission to execute for \'${!i}\' >&2; exit 1; fi
@@ -744,6 +748,47 @@ modify_objects ()
     fi
 }
 
+do_make_read_filter_applicable ()
+{
+    ## first we check if it is DB or TABLE. 
+    ## if it TABLE, by default it is SEQUENCE table
+    TFF=`find $DATABASE_DIR -type d -name tbl`
+    if [ -z "$TFF" ]
+    then
+        return 0;
+    fi
+
+    ## second if it is db, it should contain "tbl/SEQUENCE" subdirectory
+    ## if not, it is make_read_filter is not applicable
+    for i in $TFF
+    do
+        if [ -d "$i/$SEQUENCE_COLUMN_NAME" ]
+        then
+            return 0;
+        fi
+    done
+
+    return 1
+}
+
+do_make_read_filter ()
+{
+    ## First we should be sure that we need to call make_read_filter utility
+    do_make_read_filter_applicable
+    if [ $? -ne 0 ]
+    then
+        info_msg $SEQUENCE_COLUMN_NAME column does not present. Skipping make_read_filter step.
+        return
+    fi
+
+    TTMP_DIR=$TARGET_DIR/temp
+    exec_cmd_exit mkdir $TTMP_DIR
+
+    exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
+
+    exec_cmd_exit rm -rf $TTMP_DIR
+}
+
 delite_proc ()
 {
     ## Checking ARGS
@@ -782,6 +827,9 @@ delite_proc ()
 
     ## Modifying all objects
     modify_objects
+
+    ## Make ReadFilter
+    do_make_read_filter
 
     ## Locking db
     exec_cmd_exit $VDBLOCK_BIN $DATABASE_DIR
@@ -858,7 +906,7 @@ test_kar ()
         return
     fi
 
-    exec_cmd_exit strace $VDBVALIDATE_BIN -x $F2T
+    exec_cmd_exit $VDBVALIDATE_BIN -x $F2T
 
     if [ ! -f $ORIG_KAR_FILE ]
     then
@@ -887,9 +935,15 @@ test_kar ()
         done
     fi
 
+    do_make_read_filter_applicable
+    if [ $? -eq 0 ]
+    then
+        TDC="${TDC},READ_FILTER,RD_FILTER"
+    fi
+
     TCMD="$TCMD $TDC"
 
-    exec_cmd_exit strace $TCMD
+    exec_cmd_exit $TCMD
 }
 
 kar_new ()
@@ -953,14 +1007,6 @@ kar_all ()
     TCMD="$TCMD --create $ALLCOLUMNS_KAR_FILE --directory $DATABASE_DIR"
 
     exec_cmd_exit $TCMD
-
-    if [ -n "$SKIPTEST_VAL" ]
-    then
-        warn_msg skipping tests for \'$ALLCOLUMNS_KAR_FILE\' ...
-        return
-    fi
-
-    exec_cmd_exit $VDBVALIDATE_BIN $ALLCOLUMNS_KAR_FILE
 }
 
 kar_preserved ()

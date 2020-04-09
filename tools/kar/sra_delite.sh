@@ -550,6 +550,8 @@ EOF
         err_exit can not stat file \'$TOUTF\'
     fi
 
+    info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TOUTF\'
+
     exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
 
     ICMD="$KAR_BIN "

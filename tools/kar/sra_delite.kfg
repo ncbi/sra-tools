@@ -50,6 +50,15 @@ translate NCBI:align:db:alignment_sorted    1.2.1   2
 translate NCBI:align:db:alignment_sorted    1.3   2
 translate NCBI:SRA:IonTorrent:tbl:v2    1.0.2   2
 
+translate NCBI:SRA:Nanopore:db  1   2
+translate NCBI:SRA:Nanopore:consensus  1   2
+translate NCBI:SRA:Nanopore:sequence  1   2
+translate NCBI:SRA:PacBio:smrt:db   1.0.1   2
+translate NCBI:SRA:PacBio:smrt:cons 1.0.2   2
+translate NCBI:SRA:PacBio:smrt:sequence 1.0.2   2
+
+translate NCBI:align:db:alignment_sorted    1.2   2
+
 ### Columns to drop
 exclude QUALITY
 exclude QUALITY2

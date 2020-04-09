@@ -689,6 +689,14 @@ find_new_schema ()
             log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
             err_exit rejected ${SATR[0]} type run detected
             ;;
+        NCBI:sra:db:trace)
+            log_status "$REJECTED_TAG can not process TRACE object"
+            err_exit rejected ${SATR[0]} TRACE object detected
+            ;;
+        NCBI:sra:tbl:trace)
+            log_status "$REJECTED_TAG can not process TRACE object"
+            err_exit rejected ${SATR[0]} TRACE object detected
+            ;;
     esac
 
     CNT=0

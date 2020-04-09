@@ -36,10 +36,8 @@ struct PrefetchParams final : CmnOptAndAccessions
 {
     ncbi::String file_type;
     ncbi::String transport;
-    ncbi::U32 min_size_count;
-    ncbi::U32 min_size_value;
-    ncbi::U32 max_size_count;
-    ncbi::U32 max_size_value;
+    ncbi::String min_size;
+    ncbi::String max_size;
     ncbi::String force;
     bool progress;
     bool eliminate_quals;
@@ -52,8 +50,6 @@ struct PrefetchParams final : CmnOptAndAccessions
 
     explicit PrefetchParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
-    , min_size_count( 0 ), min_size_value( 0 )
-    , max_size_count( 0 ), max_size_value( 0 )
     , progress( false )
     , eliminate_quals( false )
     , check_all( false )
@@ -65,9 +61,9 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
-        cmdline . addOption ( min_size_value, &min_size_count, "N", "min_size", "<size>",
+        cmdline . addOption ( min_size, nullptr, "N", "min-size", "<size>",
             "Minimum file size to download in KB (inclusive)." );
-        cmdline . addOption ( max_size_value, &max_size_count, "X", "max_size", "<size>",
+        cmdline . addOption ( max_size, nullptr, "X", "max-size", "<size>",
             "Maximum file size to download in KB (exclusive). Default: 20G" );
 
         cmdline . addOption ( force, nullptr, "f", "force", "<value>",
@@ -109,8 +105,8 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
         // if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
-        if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
-        if ( max_size_count > 0 ) ss << "max-size: " << max_size_value << std::endl;
+        if ( !min_size.isEmpty() ) ss << "min-size: " << min_size << std::endl;
+        if ( !max_size.isEmpty() ) ss << "max-size: " << max_size << std::endl;
         if ( !force.isEmpty() ) ss << "force: " << force << std::endl;
         if ( progress ) ss << "progress: " << std::endl;
         if ( eliminate_quals ) ss << "eliminate-quals" << std::endl;
@@ -133,8 +129,8 @@ struct PrefetchParams final : CmnOptAndAccessions
         //if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
         if ( !perm_file.isEmpty() ) builder . add_option( "--perm", perm_file );
         if ( !cart_file.isEmpty() ) builder . add_option( "--cart", cart_file );
-        if ( min_size_count > 0 ) builder . add_option( "-N", min_size_value );
-        if ( max_size_count > 0 ) builder . add_option( "-X", max_size_value );
+        if ( !min_size.isEmpty() ) builder . add_option( "-N", min_size );
+        if ( !max_size.isEmpty() ) builder . add_option( "-X", max_size );
         if ( !force.isEmpty() ) builder . add_option( "-f", force );
         if ( progress ) builder . add_option( "-p" );
         if ( eliminate_quals ) builder . add_option( "--eliminate-quals" );

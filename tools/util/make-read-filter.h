@@ -484,7 +484,7 @@ static VTable *openUpdate(VDBManager *const mgr, char const *const name, bool co
             LogErr(klogFatal, rc, "can't open database for update");
             exit(EX_DATAERR);
         }
-        rc = VDatabaseOpenTableUpdate(db, &tbl, NULL, "SEQUENCE");
+        rc = VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
         VDatabaseRelease(db);
         if (rc) {
             LogErr(klogFatal, rc, "can't open table for update");
@@ -508,7 +508,7 @@ static VTable const *openRead(VDBManager const *const mgr, char const *const nam
             LogErr(klogFatal, rc, "can't open database for read");
             exit(EX_DATAERR);
         }
-        rc = VDatabaseOpenTableRead(db, &tbl, NULL, "SEQUENCE");
+        rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
         VDatabaseRelease(db);
         if (rc) {
             LogErr(klogFatal, rc, "can't open table for read");

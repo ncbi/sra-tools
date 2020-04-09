@@ -99,7 +99,7 @@ static void computeReadFilter(uint8_t *const out_filter
     assert(nreads == typeData->count);
     assert(nreads == startData->count);
     assert(nreads == lenData->count);
-    assert(qualData->count == start[nreads - 1] + len[nreads - 1]);
+    assert(nreads == 0 || qualData->count == start[nreads - 1] + len[nreads - 1]);
 
     for (i = 0; i < nreads; ++i) {
         uint8_t filt = filter[i];
@@ -205,6 +205,7 @@ void main_1(int argc, char *argv[])
     
     processTables(out, in);
     copyColumn(mgr, tempTable, input, noDb);
+
     VDBManagerRelease(mgr);
     ArgsWhack(args);
 

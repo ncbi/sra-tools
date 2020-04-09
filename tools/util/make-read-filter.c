@@ -171,12 +171,11 @@ static void processCursors(VCursor *const out, VCursor const *const in)
 static void copyColumn(VDBManager *mgr, char const *const temp, char const *const input, bool const noDb)
 {
     char const *const rd_filter = "col/RD_FILTER";
-    char const *const localPath = noDb ? rd_filter : "tbl/SEQUENCE/col/RD_FILTER";
     VTable *tbl = openUpdate(mgr, input, noDb);
 
     dropColumn(tbl, "RD_FILTER");
     {
-        rc_t const rc = copyPhysicalColumn(input, temp, localPath);
+        rc_t const rc = copyPhysicalColumn(input, temp, noDb ? rd_filter : "tbl/SEQUENCE/col/RD_FILTER");
         if (rc) {
             VTable const *const tmp = openRead(mgr, temp, noDb);
 
@@ -196,12 +195,12 @@ static void copyColumn(VDBManager *mgr, char const *const temp, char const *cons
 void main_1(int argc, char *argv[])
 {
     Args *const args = getArgs(argc, argv);
+    char const *const input = getParameter(args);
     VDBManager *const mgr = manager();
-    bool noDb = false;
-    VSchema *const schema = makeSchema(mgr);
-    char const *schemaType = NULL;
-    char const *input = getParameter(args);
-    char const *tempTable = NULL;
+    VSchema *const schema = makeSchema(mgr); // this schema will get a copy of the input's schema
+    bool noDb = false; // is input a table or a database
+    char const *schemaType = NULL; // schema type of input
+    char const *tempTable = NULL; // path of temp object
     VTable const *const in = openInput(input, mgr, &noDb, &schemaType, schema);
     VTable *const out = createOutput(args, mgr, noDb, schemaType, schema, &tempTable);
     
@@ -464,11 +463,12 @@ static VSchema *makeSchema(VDBManager *mgr)
 
 static char const *outputObject(Args *const args)
 {
+    KDirectory *ndir = rootDir();
     rc_t rc;
-    KDataBuffer buf;
     char *pattern = NULL;
     size_t len = 0;
     char const *tmp = getOptArgValue(OPT_OUTPUT, args);
+
     if (tmp == NULL)
         tmp = getenv("TMPDIR");
     if (tmp == NULL)
@@ -480,21 +480,21 @@ static char const *outputObject(Args *const args)
     if (tmp == NULL)
         tmp = "/tmp";
 
-    len = strlen(tmp);
-    while (len > 0 && tmp[len - 1] == '/')
-        --len;
-
-    memset(&buf, 0, sizeof(buf));
-    rc = KDataBufferPrintf(&buf, "%.*s/mkf.XXXXXX", (int)len, tmp);
-    assert(rc == 0);
-    mkdtemp(buf.base);
-
-    rc = KDataBufferResize(&buf, buf.elem_count + 4);
-    assert(rc == 0);
-    strcat(buf.base, "/out");
-
-    pattern = strdup(buf.base);
-    KDataBufferWhack(&buf);
+    len = 4096;
+    for ( ; ; ) {
+        pattern = malloc(len);
+        if (pattern == NULL)
+            OUT_OF_MEMORY();
+        rc = KDirectoryResolvePath(ndir, true, pattern, len - 4, "%s/mkf.XXXXXX", tmp);
+        if (rc == 0)
+            break;
+        free(pattern);
+        len *= 2;
+    }
+    KDirectoryRelease(ndir);
+    
+    mkdtemp(pattern);
+    strcat(pattern, "/out");
 
     pLogMsg(klogDebug, "output to $(out)", "out=%s", pattern);
     return pattern;

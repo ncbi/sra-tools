@@ -938,7 +938,7 @@ test_kar ()
     is_make_read_filter_applicable
     if [ $? -eq 0 ]
     then
-        TDC="${TDC},READ_FILTER,RD_FILTER"
+        TDC="${TDC},READ_FILTER,RD_FILTER,SAM_FLAGS"
     fi
 
     TCMD="$TCMD $TDC"

@@ -545,14 +545,18 @@ static void removeTempDir(char const *const temp)
         LogErr(klogFatal, rc, "can't get temp object directory");
         exit(EX_DATAERR);
     }
-
+    
     rc = KDirectoryRemove(ndir, true, "%s", dup);
     KDirectoryRelease(ndir);
-    if (rc) {
+    if (GetRCState(rc) == (int)rcBusy && GetRCObject(rc) == (int)rcPath) {
+        pLogErr(klogWarn, rc, "failed to delete temp object directory $(path), remove it manually", "path=%s", dup);
+    }
+    else if (rc) {
         LogErr(klogFatal, rc, "failed to delete temp object directory");
         exit(EX_DATAERR);
     }
-
-    pLogMsg(klogInfo, "Dropped temp object directory $(temp)", "temp=%s", dup);
+    else {
+        pLogMsg(klogInfo, "Deleted temp object directory $(temp)", "temp=%s", dup);
+    }
     free(dup);
 }

@@ -44,6 +44,7 @@ typedef struct {
     char                 name [PATH_MAX];
     uint64_t             pos;
     bool                _resume;
+    bool                 invalid;
     EType               _tfType;
     KFile             * _tf;
     uint64_t            _tfPos;
@@ -60,3 +61,5 @@ rc_t PrfOutFileCommitTry(PrfOutFile * self);
 rc_t PrfOutFileCommitDo(PrfOutFile * self);
 rc_t PrfOutFileClose(PrfOutFile * self, bool success);
 rc_t PrfOutFileWhack(PrfOutFile * self);
+
+rc_t PrfOutFileConvert(KDirectory * dir, const char * path);

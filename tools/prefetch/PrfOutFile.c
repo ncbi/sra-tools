@@ -43,8 +43,6 @@ static rc_t StringRelease(const String *self) {
     return 0;
 }
 
-// TODO: add md5sum check
-
 static rc_t KDirectory_MkTmpName(const KDirectory *self,
     const String *prefix, char *out, size_t sz)
 {
@@ -71,14 +69,18 @@ static bool KDirectory_Exist(const KDirectory * self,
         return true;
 }
 
+#define EXT_1   ".pr"
+#define EXT_BIN ".prf"
+#define EXT_TXT ".prt"
+
 static const char * TFExt(const PrfOutFile * self) {
     switch (self->_tfType) {
     case eTextual:
-        return ".prt";
+        return EXT_TXT;
     case eBinEol:
         return ".prb";
     case eBin8:
-        return ".prf";
+        return EXT_BIN;
     default:
         assert(0);
         return "";
@@ -208,10 +210,13 @@ static rc_t TFPutPosAsBinEol(PrfOutFile * self,
     char * b, size_t sz, size_t * num)
 {
     assert(num);
+
     assert(sz >= sizeof self->pos + 1);
     memmove(b, &self->pos, sizeof self->pos);
     *num = sizeof self->pos;
+
     b[(*num)++] = '\n';
+
     return 0;
 }
 
@@ -221,14 +226,19 @@ static rc_t TFPutPosAsBin8(PrfOutFile * self, uint64_t tfPos,
     char * b, size_t sz, size_t * num)
 {
     int i = 0;
+
     assert(num);
+
     assert(sz >= sizeof self->pos + 8);
+
     if (tfPos == 0) {
         i = sizeof MAGIC - 1;
         memmove(b, MAGIC, i);
     }
+
     memmove(b + i, &self->pos, sizeof self->pos);
     *num = i + sizeof self->pos;
+
     return 0;
 }
 
@@ -405,20 +415,26 @@ static rc_t TFGetPosAsBin8(PrfOutFile * self,
     uint64_t pos = 0, prevPos = 0;
     uint64_t first = 0;
     const char * buf = NULL;
+    bool found = false;
+
     assert(self && pPos && pTfPos);
+
     buf = self->_buf.base;
     if (posSize < sizeof MAGIC - 1) {
         *pPos = *pTfPos = 0;
         return RC(rcExe, rcFile, rcReading, rcFile, rcInsufficient);
     }
+
     if (string_cmp(buf, sizeof MAGIC - 1, MAGIC, sizeof MAGIC - 1,
         sizeof MAGIC - 1) != 0)
     {
         *pPos = *pTfPos = 0;
         return RC(rcExe, rcFile, rcReading, rcData, rcInvalid);
     }
+
     buf += sizeof MAGIC - 1;
     posSize -= sizeof MAGIC - 1;
+
     for (first = 0; first < posSize; ) {
         if (first + sizeof pos > posSize) {
             *pPos = prevPos;
@@ -426,13 +442,17 @@ static rc_t TFGetPosAsBin8(PrfOutFile * self,
                 *pTfPos = 0;
             else
                 *pTfPos = first - sizeof pos;
+            found = true;
             break;
         }
+
         memmove(&pos, buf + first, sizeof pos);
         first += sizeof pos;
+
         if (pos == fSize) {
             *pPos = pos;
             *pTfPos = first;
+            found = true;
             break;
         }
         else if (pos > fSize) {
@@ -441,12 +461,20 @@ static rc_t TFGetPosAsBin8(PrfOutFile * self,
                 *pTfPos = 0;
             else
                 *pTfPos = first - sizeof pos;
+            found = true;
             break;
         }
         else
             prevPos = pos;
     }
+
+    if (!found) {
+        *pPos = prevPos;
+        *pTfPos = first;
+    }
+
     *pTfPos += sizeof MAGIC - 1;
+
     return 0;
 }
 
@@ -466,6 +494,7 @@ static rc_t TFGetPos(PrfOutFile * self, uint64_t posSize, uint64_t fSize,
         assert(0);
         break;
     }
+
     return 0;
 }
 
@@ -686,6 +715,153 @@ static rc_t PrfOutFileCommit(PrfOutFile * self, bool force) {
     return rc;
 }
 
+static
+rc_t ConvertBinToTxt(const uint8_t * in, uint64_t sz, KFile * out)
+{
+    rc_t rc = 0;
+    uint64_t from = 0, to = 0;
+    size_t num_writ = 0;
+
+    if (sz < 8)
+        return KFileWrite(out, to, in, sz, &num_writ);
+
+    rc = KFileWrite(out, to, in, 8, &num_writ);
+    to += num_writ;
+
+    if (rc == 0) {
+        rc = KFileWrite(out, to, "\n", 1, &num_writ);
+        to += num_writ;
+    }
+
+    for (from = 8; rc == 0 && from < sz;) {
+        union {
+            uint64_t u;
+            uint8_t b[8];
+        } n;
+        char buf[128] = "";
+        int i = 0;
+
+        for (i = 0, n.u = 0; rc == 0 && i < 8 && from < sz; ++i, ++from)
+            n.b[i] = in[from];
+
+        rc = string_printf(buf, sizeof buf, &num_writ, "%lu\n", n.u);
+
+        if (rc == 0) {
+            rc = KFileWrite(out, to, buf, num_writ, &num_writ);
+            to += num_writ;
+        }
+    }
+
+    return rc;
+}
+static rc_t ConvertTxtToBin(const char * in, uint64_t sz, KFile * out) {
+    rc_t rc = 0;
+    uint64_t from = 0, to = 0;
+    size_t num_writ = 0;
+
+    if (sz < 9)
+        return KFileWrite(out, to, in, sz, &num_writ);
+
+    rc = KFileWrite(out, to, in + from, 8, &num_writ);
+    to += num_writ;
+
+    for (from = 9; rc == 0 && from < sz;) {
+        bool truncate = false;
+        int len = 0;
+        union {
+            uint64_t u;
+            uint8_t b[8];
+        } n;
+
+        if (in[from] == '0')
+            truncate = true;
+        for (n.u = 0, len = 0; rc == 0 && from < sz && in[from] != '\n';
+            ++from, ++len)
+        {
+            if (in[from] < '0' || in[from] > '9')
+                return RC(rcExe, rcFile, rcReading, rcData, rcInvalid);
+            n.u = n.u * 10 + in[from] - '0';
+        }
+        ++from;
+
+        if (rc == 0) {
+            if (truncate) {
+                int i = 0;
+                for (i = 0; i < len; ++i, ++to)
+                    rc = KFileWrite(out, to, &n.b[i], 1, NULL);
+            }
+            else {
+                rc = KFileWrite(out, to, &n.u, sizeof n.u, &num_writ);
+                to += num_writ;
+            }
+        }
+    }
+
+    return rc;
+}
+
+static
+rc_t Convert(KDirectory * dir, const String * from, bool fromBin)
+{
+    rc_t rc = 0, r2 = 0;
+    const KFile * in = NULL;
+    KFile * out = NULL;
+    uint64_t fsize = 0;
+
+    KDataBuffer buf;
+    const String * to = NULL;
+
+    memset(&buf, 0, sizeof buf);
+    buf.elem_bits = 8;
+    rc = StringCopy(&to, from);
+
+    if (rc == 0) {
+        assert(to);
+        if (fromBin)
+            ((char*)to->addr)[to->size - 1] = 't';
+        else
+            ((char*)to->addr)[to->size - 1] = 'f';
+        OUTMSG(("%S -> %S\n", from, to));
+    }
+
+    if (rc == 0)
+        rc = KDirectoryOpenFileRead(dir, &in, "%s", from->addr);
+
+    if (rc == 0 && KDirectory_Exist(dir, to, ""))
+        rc = KDirectoryRemove(dir, false, "%s", to->addr);
+
+    if (rc == 0)
+        rc = KDirectoryCreateFile(dir, &out, false,
+            0664, kcmInit | kcmParents, "%s", to->addr);
+
+    if (rc == 0)
+        rc = KFileSize(in, &fsize);
+
+    if (rc == 0)
+        rc = KDataBufferResize(&buf, fsize);
+
+    if (rc == 0)
+        rc = KFileReadExactly(in, 0, buf.base, fsize);
+
+    RELEASE(KFile, in);
+
+    if (rc == 0) {
+        if (fromBin)
+            rc = ConvertBinToTxt(buf.base, fsize, out);
+        else
+            rc = ConvertTxtToBin(buf.base, fsize, out);
+    }
+    
+    RELEASE(KFile, out);
+    RELEASE(String, to);
+
+    r2 = KDataBufferWhack(&buf);
+    if (rc == 0 && r2 != 0)
+        rc = r2;
+
+    return rc;
+}
+
 rc_t PrfOutFileInit(PrfOutFile * self, bool resume) {
     rc_t rc = 0;
 
@@ -827,7 +1003,7 @@ rc_t PrfOutFileClose(PrfOutFile * self, bool success) {
     self->_tf = NULL;
 
 #ifndef DEBUGGINGG
-    if (success)
+    if (success && !self->invalid)
         rc = TFRm(self);
 #endif
 
@@ -847,6 +1023,33 @@ rc_t PrfOutFileWhack(PrfOutFile * self) {
     RELEASE(KDirectory, self->_dir);
 
     return rc;
+}
+
+rc_t PrfOutFileConvert(KDirectory * dir, const char * path) {
+    if (path == NULL)
+        return 0;
+
+    else {
+        String s;
+        StringInitCString(&s, path);
+        if (s.size < sizeof EXT_BIN)
+            return 0;
+
+        if (string_cmp(s.addr + s.size - sizeof EXT_1, sizeof EXT_1 - 1,
+            EXT_1, sizeof EXT_1 - 1, sizeof EXT_1 - 1) != 0)
+        {
+            return 0;
+        }
+
+        switch (s.addr[s.size - 1]) {
+        case 'f':
+            return Convert(dir, &s, true);
+        case 't':
+            return Convert(dir, &s, false);
+        default:
+            return 0;
+        }
+    }
 }
 
 /******************************************************************************/

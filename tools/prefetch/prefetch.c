@@ -834,7 +834,7 @@ static rc_t ResolvedLocal(const Resolved *self,
     const KFile *local = NULL;
     char path[PATH_MAX] = "";
 
-    bool emptyDir = false;
+    bool transFile = false;
     KPathType type = kptNotFound;
 
     assert(isLocal && self && mane);
@@ -851,19 +851,15 @@ static rc_t ResolvedLocal(const Resolved *self,
 
     type = KDirectoryPathType(dir, "%s", path) & ~kptAlias;
     if (type == kptDir) {
-        KNamelist * list = NULL;
-        rc = KDirectoryList(dir, &list, NULL, NULL, "%s", path);
-        if (rc == 0) {
-            uint32_t count = 0;
-            rc = KNamelistCount(list, &count);
-            if (rc == 0 && count == 0) /* empty directory is ignored */
-                emptyDir = true;
+        if ((KDirectoryPathType(dir, "%s/%s.sra.tmp",
+            path, path) & ~kptAlias) == kptFile)
+        {
+            transFile = true;
         }
-        RELEASE(KNamelist, list);
     }
 
     if (rc == 0 && type != kptFile) {
-        if (emptyDir); /* ignore it */
+        if (transFile); /* ignore it: will resume */
         else if (force == eForceNo) {
             STSMSG(STS_TOP,
                 ("%s (not a file) is found locally: consider it complete",
@@ -968,7 +964,7 @@ static rc_t ResolvedLocal(const Resolved *self,
 static rc_t PrfMainDownloadHttpFile(Resolved *self,
     PrfMain *mane, const VPath * path, PrfOutFile * pof)
 {
-    rc_t rc = 0, rw = 0, r2 = 0;
+    rc_t rc = 0, rw = 0, r2 = 0, rwr = 0;
     const KFile *in = NULL;
     size_t num_read = 0;
     size_t num_writ = 0;
@@ -1123,12 +1119,14 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                     if (mane->dryRun)
                         break;
 
-                    rc = KFileWriteAll(pof->file, pof->pos,
+                    rwr = KFileWriteAll(pof->file, pof->pos,
                         mane->buffer, num_read, &num_writ);
-                    DISP_RC2 ( rc, "Cannot KFileWrite", pof->name);
-                    if ( rc == 0 && num_writ != num_read )
-                        rc = RC ( rcExe,
+                    DISP_RC2 ( rwr, "Cannot KFileWrite", pof->name);
+                    if ( rwr == 0 && num_writ != num_read )
+                        rwr = RC ( rcExe,
                             rcFile, rcCopying, rcTransfer, rcIncomplete );
+                    if (rwr != 0 && rc == 0)
+                        rc = rwr;
                     if (rc == 0) {
                         pof->pos += num_writ;
                         if (pb != NULL)
@@ -1180,12 +1178,14 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             }
             else if (num_read == 0)
                 break;
-            rc = KFileWriteAll(
+            rwr = KFileWriteAll(
                 pof->file, pof->pos, mane->buffer, num_read, &num_writ);
-            DISP_RC2(rc, "Cannot KFileWrite", pof->name);
-            if (rc == 0 && num_writ != num_read)
+            DISP_RC2(rwr, "Cannot KFileWrite", pof->name);
+            if (rwr == 0 && num_writ != num_read)
                 rc = RC(rcExe,
                     rcFile, rcCopying, rcTransfer, rcIncomplete);
+            if (rwr != 0 && rc == 0)
+                rc = rwr;
             if (rc == 0) {
                 pof->pos += num_writ;
                 PrfRetrierReset(&retrier, pof->pos);
@@ -1198,12 +1198,12 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         }
     }
 
-    PrfOutFileCommitDo(pof);
-    {
-        rc_t r2 = PrfOutFileClose(pof, rc == 0);
-        if (r2 != 0 && rc == 0)
-            rc = r2;
-    }
+    if (rwr == 0)
+        PrfOutFileCommitDo(pof);
+
+    r2 = PrfOutFileClose(pof, rc == 0);
+    if (r2 != 0 && rc == 0)
+        rc = r2;
 
     destroy_progressbar(pb);
 
@@ -1338,7 +1338,7 @@ typedef enum {
     eVskipped,
 } EValidate;
 
-static rc_t POFValidate(const PrfOutFile * self, const VPath * remote,
+static rc_t POFValidate(PrfOutFile * self, const VPath * remote,
     const VPath * cache, EValidate * vSz, EValidate * vMd5)
 {
     rc_t rc = 0, rd = 0;
@@ -1356,6 +1356,9 @@ static rc_t POFValidate(const PrfOutFile * self, const VPath * remote,
     *vSz = *vMd5 = eVskipped;
 
     assert(self->cache);
+
+    STSMSG(STS_DBG, ("validating %S...", self->cache));
+
     rd = KDirectoryOpenFileRead(
         self->_dir, &f, "%.*s", self->cache->size, self->cache->addr);
     if (rd == 0 && s > 0) {
@@ -1384,8 +1387,10 @@ static rc_t POFValidate(const PrfOutFile * self, const VPath * remote,
         if (rc == 0) {
             if (size == s)
                 *vSz = eVyes;
-            else
+            else {
                 *vSz = eVno;
+                self->invalid = true;
+            }
         }
     }
 
@@ -1396,8 +1401,10 @@ static rc_t POFValidate(const PrfOutFile * self, const VPath * remote,
         r2 = KFileMakeMD5Read(&f2, *fd, md5);
         if (r2 == 0) {
             r2 = KFileRead(f2, ~0, buf, sizeof buf, &nr);
-            if (r2 != 0)
+            if (r2 != 0) {
                 *vMd5 = eVno;
+                self->invalid = true;
+            }
             else
                 *vMd5 = eVyes;
         }
@@ -2176,18 +2183,11 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
             if (type == kptFile)
                 local = true;
             else if (type == kptDir) {
-                /* directory is ignored */
-#if 0
-                KNamelist * list = NULL;
-                rc = KDirectoryList(dir, &list, NULL, NULL, "%s", self->desc);
-                if (rc == 0) {
-                    uint32_t count = 0;
-                    rc = KNamelistCount(list, &count);
-                    if (rc == 0 && count > 0) /* empty directory is ignored */
-                        local = true;
+                if ((KDirectoryPathType(dir, "%s/%s.sra",
+                    self->desc, self->desc) & ~kptAlias) == kptFile)
+                {
+                    local = true;
                 }
-                RELEASE(KNamelist, list);
-#endif
             }
 
             if (local) {
@@ -2414,6 +2414,8 @@ static rc_t ItemDownload(Item *item) {
         }
         if (self->existing) { /* the path is a path to an existing local file */
             rc = VPathStrInitStr(&self->path, item->desc, 0);
+            if (rc == 0)
+                rc = PrfOutFileConvert(item->mane->dir, item->desc);
             return rc;
         }
         if (undersized) {

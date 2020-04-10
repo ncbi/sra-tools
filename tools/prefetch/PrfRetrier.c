@@ -125,22 +125,24 @@ static bool PrfRetrierIncSleepTO(PrfRetrier * self) {
 rc_t PrfRetrierAgain(PrfRetrier * self, rc_t rc, uint64_t pos) {
     bool retry = true;
 
-    static KTime_t D_T = 0;
-    if (D_T == 0) {
+    static bool INITED = false;
+    static KTime_t D_T = ~0;
+    if (!INITED) {
         const char * str = getenv("NCBI_VDB_PREFETCH_RETRY");
         if (str != NULL) {
             char *end = NULL;
             D_T = strtou64(str, &end, 0);
             if (end[0] != 0)
-                D_T = 0;
+                D_T = ~0;
         }
-        if (D_T == 0)
-            D_T = ~0;
+        INITED = true;
     }
 
     assert(self);
 
-    if (pos <= self->_pos)
+    if (D_T == 0)
+        retry = false;
+    else if (pos <= self->_pos)
         switch (self->_state) {
         case eRSJustRetry:
             break;

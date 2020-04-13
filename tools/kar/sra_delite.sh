@@ -38,8 +38,8 @@ IMPORTED_TAG="IMPORTED:"
 INITIALIZED_TAG="INITIALIZED:"
 DELITED_TAG="DELITED:"
 DOWNLOADED_TAG="DOWNLOADED:"
-COLORSPACE_TAG="COLORSPACE:"
 REJECTED_TAG="REJECTED:"
+NODELITE_TAG="NODELITE:"
 
 SEQUENCE_COLUMN_NAME="SEQUENCE"
 
@@ -355,6 +355,7 @@ then
     VDBUNLOCK_BIN=$DELITE_BIN_DIR/vdb-unlock
     VDBVALIDATE_BIN=$DELITE_BIN_DIR/vdb-validate
     VDBDIFF_BIN=$DELITE_BIN_DIR/vdb-diff
+    VDBDUMP_BIN=$DELITE_BIN_DIR/vdb-dump
     PREFETCH_BIN=$DELITE_BIN_DIR/prefetch
     MAKEREADFILTER_BIN=$DELITE_BIN_DIR/make-read-filter
 else
@@ -364,11 +365,12 @@ else
     VDBUNLOCK_BIN=$SCRIPT_DIR/vdb-unlock
     VDBVALIDATE_BIN=$SCRIPT_DIR/vdb-validate
     VDBDIFF_BIN=$SCRIPT_DIR/vdb-diff
+    VDBDUMP_BIN=$SCRIPT_DIR/vdb-dump
     PREFETCH_BIN=$SCRIPT_DIR/prefetch
     MAKEREADFILTER_BIN=$SCRIPT_DIR/make-read-filter
 fi
 
-for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN PREFETCH_BIN VDBDIFF_BIN MAKEREADFILTER_BIN
+for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN PREFETCH_BIN VDBDIFF_BIN VDBDUMP_BIN MAKEREADFILTER_BIN
 do
     if [ ! -e ${!i} ]; then echo ERROR: can not stat executable \'${!i}\' >&2; exit 1; fi
     if [ ! -x ${!i} ]; then echo ERROR: has no permission to execute for \'${!i}\' >&2; exit 1; fi
@@ -415,6 +417,20 @@ err_exit ()
     err_msg $@
     echo Exiting ... >&2
     exit 1
+}
+
+exec_cmd ()
+{
+    TCMD="$@"
+
+    if [ -z "$TCMD" ]
+    then
+        return 0
+    fi
+
+    echo "`date +%Y-%m-%d_%H:%M:%S` #### $TCMD"
+    eval $TCMD
+    return $?
 }
 
 exec_cmd_exit ()
@@ -486,7 +502,7 @@ check_colorspace_exit ()
     TCS=`find $DATABASE_DIR -name CSREAD -type d`
     if [ -n "$TCS" ]
     then
-        log_status "$COLORSPACE_TAG can not procees colorspace type runs."
+        log_status "$REJECTED_TAG can not procees colorspace type runs."
         err_exit colorspace type run detected
     fi
 }
@@ -574,8 +590,19 @@ EOF
 ###############################################################################################
 ###<<>>### Delite 
 ##############################################################################################
-check_delited ()
+check_ready_for_delite ()
 {
+    ## Checking ARGS
+    if [ -z "$SCHEMA_VAL" ]
+    then
+        err_exit missed mandatory parameter \'$SCHEMA_TAG\'
+    fi
+
+    if [ ! -e "$SCHEMA_VAL" ]
+    then
+        err_exit can not stat directory \'$SCHEMA_VAL\'
+    fi
+
     if [ ! -d "$DATABASE_DIR" ]
     then
         err_exit can not stat database \'$DATABASE_DIR\'
@@ -586,7 +613,19 @@ check_delited ()
         err_exit can not stat status file
     fi
 
-    TVAR=`grep DELITED: $STATUS_FILE 2>/dev/null`
+    TVAR=`grep "$REJECTED_TAG" $STATUS_FILE 2>/dev/null`
+    if [ -n "$TVAR" ]
+    then
+        err_exit status shows that object was recected for delite process \"$TVAR\"
+    fi
+
+    ## Checking if it is colorspace run
+    check_colorspace_exit
+}
+
+check_delited ()
+{
+    TVAR=`grep "$DELITED_TAG" $STATUS_FILE 2>/dev/null`
     if [ -n "$TVAR" ]
     then
         err_exit status shows that object was delited already: \'$TVAR\'
@@ -599,18 +638,44 @@ check_delited ()
     fi
 }
 
-make_original_qualities ()
+## QUALITY column exists only at SEQUENCE table, and if there is not
+## tables, the run itself is a table
+## We should replace schemas for all tables, and for DB object, if run
+## contains DB object ( case when there are several tables )
+## There are two variables we are using for modification of schemas
+## SEQUENCE_TABLE - table containing QUALITY column, and OBJECTS -
+## list of tables to modify schemas
+## Variable ORIGINAL_QUALITY_COL is need to drop it
+rename_quality_column ()
 {
     for i in `find $DATABASE_DIR -type d -name QUALITY`
     do
+        if [ -n "$SEQUENCE_TABLE" ]
+        then
+            error_exit invalid run object, has more than one QUALITY columns
+        fi
+
         TDIR=`dirname $i`
-        exec_cmd_exit mv $i $TDIR/${ORIGINAL_QUALITY}
+
+        SEQUENCE_TABLE=`dirname $TDIR`
+
+        ORIGINAL_QUALITY_COL=$TDIR/${ORIGINAL_QUALITY}
+        if [ -e "$ORIGINAL_QUALITY_COL" ]
+        then
+            err_exit can not rename \'$i\'. Directory \'$ORIGINAL_QUALITY_COL\' already exists
+        fi
+        exec_cmd_exit mv $i $ORIGINAL_QUALITY_COL
     done
+
+    if [ -z "$SEQUENCE_TABLE" ]
+    then
+        error_exit invalid run object, can not stat SEQUENCE table
+    fi
 }
 
 add_object ()
 {
-    ON=$1
+    ON=`cd $1; pwd`
 
     Q=${#OBJECTS[*]}
     C=0
@@ -625,79 +690,66 @@ add_object ()
     done
 
     OBJECTS[${#OBJECTS[*]}]="$ON"
+    OBJECTS_QTY=${#OBJECTS[*]}
 }
 
 find_objects_to_modify ()
 {
-    if [ $DROPCOLUMN_QTY -eq 0 ]
+    add_object $DATABASE_DIR
+
+    TDIR="$DATABASE_DIR/tbl"
+    if [ -d "$TDIR" ]
     then
-        warn_msg there are no column names to drop defined
-        return
+        for i in `ls $TDIR`
+        do
+            add_object $TDIR/$i
+        done
     fi
-
-    cd $DATABASE_DIR >/dev/null 2>&1
-
-    add_object "."
-    for i in ${DROPCOLUMNS[*]}
-    do
-        for u in `find . -type d -name $i`
-        do
-            info_msg found: $u
-
-            TVAR=`dirname $u`
-            TVAR=`dirname $TVAR`
-            add_object $TVAR
-
-            TVAR=`dirname $TVAR`
-            TVAR=`dirname $TVAR`
-            add_object $TVAR
-        done
-    done
-
-    for i in `find . -type d -name tbl`
-    do
-        for u in `ls $i`
-        do
-            add_object $i/$u
-        done
-    done
-
-    OBJECTS_QTY=${#OBJECTS[*]}
-
-    cd - >/dev/null 2>&1
 }
 
-find_new_schema ()
+check_schema_valid ()
 {
-    S2R=$1
+    S2CH=$1
+
+    case "$S2CH" in
+        NCBI:SRA:Illumina:tbl:q4*)
+            log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
+            err_exit rejected \'$S2CH\' type run detected
+            ;;
+        NCBI:SRA:Illumina:tbl:q1:v2)
+            log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
+            err_exit rejected \'$S2CH\' type run detected
+            ;;
+        NCBI:sra:db:trace)
+            log_status "$REJECTED_TAG can not process TRACE object"
+            err_exit rejected \'$S2CH\' TRACE object detected
+            ;;
+        NCBI:sra:tbl:trace)
+            log_status "$REJECTED_TAG can not process TRACE object"
+            err_exit rejected \'$S2CH\' TRACE object detected
+            ;;
+    esac
+}
+
+get_schema_for_object ()
+{
+    OPTH=$1
 
     NEW_SCHEMA=""
+    OLD_SCHEMA=`$KARMETA_BIN --info schema@name $OPTH 2>/dev/null | awk ' { print $2 } '`
+    if [ -z "$OLD_SCHEMA" ]
+    then
+        err_exit can not retrieve schema name for \'$OPTH\'
+    fi
 
     if [ $TRANSLATION_QTY -eq 0 ]
     then
         return
     fi
 
-    SATR=( `echo $S2R | sed "s#\## #1"` )
+    SATR=( `echo $OLD_SCHEMA | sed "s#\## #1"` )
 
-    case ${SATR[0]} in
-        NCBI:SRA:Illumina:tbl:q4*)
-            log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
-            err_exit rejected ${SATR[0]} type run detected
-            ;;
-        NCBI:SRA:Illumina:tbl:q1:v2)
-            log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
-            err_exit rejected ${SATR[0]} type run detected
-            ;;
-        NCBI:sra:db:trace)
-            log_status "$REJECTED_TAG can not process TRACE object"
-            err_exit rejected ${SATR[0]} TRACE object detected
-            ;;
-        NCBI:sra:tbl:trace)
-            log_status "$REJECTED_TAG can not process TRACE object"
-            err_exit rejected ${SATR[0]} TRACE object detected
-            ;;
-    esac
+    check_schema_valid ${SATR[0]}
 
     CNT=0
     while [ $CNT -lt $TRANSLATION_QTY ]
@@ -716,18 +768,11 @@ find_new_schema ()
 
 modify_object ()
 {
-    O2M=$1
-    M2D=$DATABASE_DIR/$O2M
+    M2D=$1
 
     info_msg modifying object \'$M2D\'
 
-    OLD_SCHEMA=`$KARMETA_BIN --info schema@name $M2D 2>/dev/null | awk ' { print $2 } '`
-    if [ -z "$OLD_SCHEMA" ]
-    then
-        err_exit can not retrieve schema name for \'$O2M\'
-    fi
-
-    find_new_schema $OLD_SCHEMA
+    get_schema_for_object $M2D
 
     if [ -n "$NEW_SCHEMA" ]
     then
@@ -746,6 +791,8 @@ modify_object ()
 
 modify_objects ()
 {
+    find_objects_to_modify
+
     OBJECTS_QTY=${#OBJECTS[*]}
 
     if [ $OBJECTS_QTY -ne 0 ]
@@ -799,18 +846,37 @@ do_make_read_filter ()
     exec_cmd_exit rm -rf $TTMP_DIR
 }
 
+check_read_quality_exit_with_message ()
+{
+    TCHK_CMD="$VDBDUMP_BIN -C QUALITY -R 1 $DATABASE_DIR"
+    info_msg "Checking run ## $TCHK_CMD"
+    TMSG=`$TCHK_CMD 2>&1 >/dev/null | grep "failed to resolve column 'QUALITY'"`
+
+    ## exec_cmd "$VDBDUMP_BIN -C QUALITY -R 1 $DATABASE_DIR >/dev/null 2>&1 "
+    ## if [ $? -ne 0 ]
+    if [ -n "$TMSG" ]
+    then
+        err_msg "Check failed ## $TMSG"
+        if [ $# -ne 0 ]
+        then
+            log_status "$NODELITE_TAG $@"
+        else
+            log_status "$NODELITE_TAG no qualities found for $DATABASE_DIR"
+        fi
+
+        err_exit $@
+    else
+        info_msg "Check passed ## $TCHK_CMD"
+    fi
+}
+
+## Delite process is process of substituting schemas and removing QUALITY column
+## with making read filter
+## If delite process exited by any means, archive should remain exactly as it was
+## before
 delite_proc ()
 {
-    ## Checking ARGS
-    if [ -z "$SCHEMA_VAL" ]
-    then
-        err_exit missed mandatory parameter \'$SCHEMA_TAG\'
-    fi
-
-    if [ ! -e "$SCHEMA_VAL" ]
-    then
-        err_exit can not stat directory \'$SCHEMA_VAL\'
-    fi
+    check_ready_for_delite
 
     info_msg Changing directory to \'$TARGET_DIR\'
     cd $TARGET_DIR
@@ -820,26 +886,52 @@ delite_proc ()
         err_exit can not stat file \'$VDBCFG_FILE\'
     fi
 
-    ## Checking if it is colorspace run
-    check_colorspace_exit
-
     ## Checking that it was already delited
     check_delited
+
+## KENNETH: In pseudo code, it should be something like:
+## if not can_read(QUALITY):
+##     exit "Can not process this run, there is no QUALITY"
+##
+## if not has_column(ORIGINAL_QUALITY):
+##     rename_column(QUALITY, ORIGINAL_QUALITY)
+##     new_schema = get_schema_substitution()
+##     if new_schema:
+##         update_schema(new_schema)
+##         if not can_read(QUALITY):
+##             exit "Can not read QUALITY, the substitute schema did not work"
+##     else if not can_read(QUALITY):
+##         exit "Can not read QUALITY, and there is no substitute schema"
+##
+## run_make_read_filter()
+## drop_column(ORIGINAL_QUALITY)
+## if not can_read(QUALITY):
+##     exit "Can not read QUALITY, delite failed"
+
+    check_read_quality_exit_with_message "can not process this run, there is no QUALITY"
 
     ## Unlocking db
     exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
 
-    ## Rename original qualities
-    make_original_qualities
+    rename_quality_column
 
-    ## Searching for drop columns
-    find_objects_to_modify
+    get_schema_for_object $SEQUENCE_TABLE
 
-    ## Modifying all objects
-    modify_objects
+    if [ -n "$NEW_SCHEMA" ]
+    then
+        info_msg found substitute schema $SEQUENCE_TABLE \($OLD_SCHEMA\ -\> $NEW_SCHEMA\)
+        modify_objects
+        check_read_quality_exit_with_message "Can not read QUALITY, the substitute schema did not work"
+    else
+        warn_msg no substitute schema for $SEQUENCE_TABLE \($OLD_SCHEMA\)
+        check_read_quality_exit_with_message "Can not read QUALITY, and there is no substitute schema"
+    fi
 
     ## Make ReadFilter
     do_make_read_filter
+
+    exec_cmd_exit rm -rf $ORIGINAL_QUALITY_COL
+    check_read_quality_exit_with_message "Can not read QUALITY, delite failed"
 
     ## Locking db
     exec_cmd_exit $VDBLOCK_BIN $DATABASE_DIR
@@ -868,7 +960,7 @@ check_ready_for_export ()
     ## Checking if it is colorspace run
     check_colorspace_exit
 
-    TVAR=`grep DELITED: $STATUS_FILE 2>/dev/null`
+    TVAR=`grep "$DELITED_TAG" $STATUS_FILE 2>/dev/null`
     if [ -z "$TVAR" ]
     then
         err_exit status shows that object was not delited yet
@@ -925,7 +1017,7 @@ test_kar ()
 
     TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"
 
-    TDC="-x CLIPPED_QUALITY,SAM_QUALITY"
+    TDC="-x CLIPPED_QUALITY,SAM_QUALITY,QUALITY_VALUE"
 
     if [ $DROPCOLUMN_QTY -ne 0 ]
     then

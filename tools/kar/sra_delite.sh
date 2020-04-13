@@ -30,8 +30,6 @@ TARGET_TAG="--target"
 CONFIG_TAG="--config"
 SCHEMA_TAG="--schema"
 FORCE_TAG="--force"
-PRESERVE_TAG="--preserve"
-WRITEALL_TAG="--writeall"
 SKIPTEST_TAG="--skiptest"
 
 IMPORTED_TAG="IMPORTED:"
@@ -87,8 +85,6 @@ Options:
     $SCHEMA_TAG <paht>    - path to directory with schemas to use
                          String, mandatory for 'delite' action only.
     $FORCE_TAG            - flag to force process does not matter what
-    $PRESERVE_TAG         - flag to preserve dropped columns in separate KAR file
-    $WRITEALL_TAG         - flag to write KAR file including all columns
     $SKIPTEST_TAG         - flag to skip testing
 
 EOF
@@ -154,12 +150,6 @@ do
             ;;
         $FORCE_TAG)
             FORCE_VAL=1
-            ;;
-        $PRESERVE_TAG)
-            PRESERVE_VAL=1
-            ;;
-        $WRITEALL_TAG)
-            WRITEALL_VAL=1
             ;;
         $SKIPTEST_TAG)
             SKIPTEST_VAL=1
@@ -465,8 +455,6 @@ TARGET_DIR=$TARGET_VAL
 DATABASE_DIR=$TARGET_DIR/orig
 NEW_KAR_FILE=$TARGET_DIR/new.kar
 ORIG_KAR_FILE=$TARGET_DIR/orig.kar
-PRESERVED_KAR_FILE=$TARGET_DIR/preserved.kar
-ALLCOLUMNS_KAR_FILE=$TARGET_DIR/all.kar
 STATUS_FILE=$TARGET_DIR/.status.txt
 VDBCFG_NAME=vdbconfig.kfg
 VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
@@ -1082,72 +1070,6 @@ kar_new ()
     test_kar $NEW_KAR_FILE
 }
 
-kar_all ()
-{
-    if [ -z "$WRITEALL_VAL" ]
-    then
-        return
-    fi
-
-    if [ -f "$ALLCOLUMNS_KAR_FILE" ]
-    then
-        if [ -n "$FORCE_VAL" ]
-        then
-            info_msg forcing to remove odl KAR file \'$ALLCOLUMNS_KAR_FILE\'
-            exec_cmd_exit rm -rf $ALLCOLUMNS_KAR_FILE
-        else
-            err_exit old KAR file found \'$ALLCOLUMNS_KAR_FILE\'
-        fi
-    fi
-
-    TCMD="$KAR_BIN"
-    if [ -n "$FORCE_VAL" ]
-    then
-        TCMD="$TCMD -f"
-    fi
-
-    TCMD="$TCMD --create $ALLCOLUMNS_KAR_FILE --directory $DATABASE_DIR"
-
-    exec_cmd_exit $TCMD
-}
-
-kar_preserved ()
-{
-    if [ -z "$PRESERVE_VAL" ]
-    then
-        return
-    fi
-
-    if [ -f "$PRESERVED_KAR_FILE" ]
-    then
-        if [ -n "$FORCE_VAL" ]
-        then
-            info_msg forcing to remove odl KAR file \'$PRESERVED_KAR_FILE\'
-            exec_cmd_exit rm -rf $PRESERVED_KAR_FILE
-        else
-            err_exit old KAR file found \'$PRESERVED_KAR_FILE\'
-        fi
-    fi
-
-    TCMD="$KAR_BIN"
-    if [ -n "$FORCE_VAL" ]
-    then
-        TCMD="$TCMD -f"
-    fi
-
-    TCNT=0
-    while [ $TCNT -lt $DROP_QTY ]
-    do
-        TCMD="$TCMD --keep ${TO_DROP[$TCNT]}"
-
-        TCNT=$(( $TCNT + 1 ))
-    done
-
-    TCMD="$TCMD --create $PRESERVED_KAR_FILE --directory $DATABASE_DIR"
-
-    exec_cmd_exit $TCMD
-}
-
 print_stats ()
 {
     NEW_SIZE=`stat --format="%s" $NEW_KAR_FILE`
@@ -1158,7 +1080,7 @@ print_stats ()
     then
         OLD_SIZE=`stat --format="%s" $ORIG_FILE`
     else
-        OLD_SIZE=`stat --format="%s" $ALLCOLUMNS_KAR_FILE`
+        OLD_SIZE=$NEW_SIZE
     fi
 
     info_msg New KAR size $NEW_SIZE
@@ -1190,12 +1112,6 @@ export_proc ()
     ## writing delited kar archive
     kar_new
 
-    ## writing kar archive with all columns
-    kar_all
-
-    ## writing preserved kar data
-    kar_preserved
-
     ## just printing stats
     print_stats
 
@@ -1224,16 +1140,6 @@ status_proc ()
     if [ -f "$NEW_KAR_FILE" ]
     then
         info_msg found delited KAR archive \'$NEW_KAR_FILE\'
-    fi
-
-    if [ -f "$ALLCOLUMNS_KAR_FILE" ]
-    then
-        info_msg found all columns KAR archive \'$ALLCOLUMNS_KAR_FILE\'
-    fi
-
-    if [ -f "$PRESERVED_KAR_FILE" ]
-    then
-        info_msg found preserved dropped columns KAR archive \'$PRESERVED_KAR_FILE\'
     fi
 
     info_msg DONE

@@ -87,9 +87,6 @@ later. There is a list of options.
     --schema <path>    - path to directory with schemas to use for delite
                          String, mandatory for 'delite' action only.
     --force            - flag to force process, does not matter what
-    --preserve         - flag to preserve dropped columns in separated 
-                         KAR archive
-    --writeall         - flag to write KAR file including all columns
     --skiptest         - flag to skip using vdb-diff to test resulting archive
 
 III.  Script configuration file
@@ -207,17 +204,11 @@ V|.   Exporting data
 Action 'export' will export delited data into KAR archive and test result.
 There is syntax of that command:
 
-sra_delite.sh export [ --config CONFIG ] --target TARGET [--force] [--writeall] [--preserve] [--skiptest]
+sra_delite.sh export [ --config CONFIG ] --target TARGET [--force] [--skiptest]
 
 By default that command will create KAR archive with name "TARGET/new.kar".
 That archive will have modified schemas and all columns, listed in configuration,
 will be dropped from archive.
-
-if '--writeall' option is defined, script will also created KAR file with all
-columns included and will store it in "TARGET/all.kar"
-
-if '--preserve' option is defined, scipr will create KAR file with only dropped
-columns included, it will be saved in file "TARGET/preserved.kar"
 
 In regular mode, if there already exists KAR archive, script will report error
 and will exit. To force script work and overwrite files, user should use

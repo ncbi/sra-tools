@@ -207,7 +207,6 @@ print_config_to_stdout ()
     then
         echo INFO: using internal configuration settings >&2
         cat <<EOF
-
 ## Standard configuration file.
 ### '#'# character in beginning of line is treated as a commentary
 
@@ -259,6 +258,23 @@ translate NCBI:SRA:Illumina:tbl:q4:v2     1.1   2
 translate NCBI:align:db:alignment_sorted    1.2.1   2
 translate NCBI:align:db:alignment_sorted    1.3   2
 translate NCBI:SRA:IonTorrent:tbl:v2    1.0.2   2
+
+translate NCBI:SRA:Nanopore:db  1   2
+translate NCBI:SRA:Nanopore:consensus  1   2
+translate NCBI:SRA:Nanopore:sequence  1   2
+translate NCBI:SRA:PacBio:smrt:db   1.0.1   2
+translate NCBI:SRA:PacBio:smrt:cons 1.0.2   2
+translate NCBI:SRA:PacBio:smrt:sequence 1.0.2   2
+
+translate NCBI:align:db:alignment_sorted    1.2   2
+translate NCBI:SRA:GenericFastqNoNames:db   1   2
+translate NCBI:SRA:GenericFastq:sequence_no_name    1   2
+
+translate NCBI:align:db:alignment_sorted    1.1   2
+translate NCBI:align:tbl:align_sorted   1.0.1   1.2
+translate NCBI:align:tbl:align_sorted   1.1   1.2
+translate NCBI:align:tbl:align_unsorted 1.1 1.2
+translate NCBI:SRA:Illumina:db  1   2
 
 ### Columns to drop
 exclude QUALITY
@@ -836,15 +852,13 @@ do_make_read_filter ()
 
 check_read_quality_exit_with_message ()
 {
-    TCHK_CMD="$VDBDUMP_BIN -C QUALITY -R 1 $DATABASE_DIR"
+    TCHK_CMD="$VDBDUMP_BIN -f tab -C QUALITY -R 1 $DATABASE_DIR"
     info_msg "Checking run ## $TCHK_CMD"
-    TMSG=`$TCHK_CMD 2>&1 >/dev/null | grep "failed to resolve column 'QUALITY'"`
+    TMSG=`$TCHK_CMD 2>/dev/null | wc -l`
 
-    ## exec_cmd "$VDBDUMP_BIN -C QUALITY -R 1 $DATABASE_DIR >/dev/null 2>&1 "
-    ## if [ $? -ne 0 ]
-    if [ -n "$TMSG" ]
+    if [ "$TMSG" -ne 1 ]
     then
-        err_msg "Check failed ## $TMSG"
+        err_msg "Check failed ## $@ ## $TCHK_CMD"
         if [ $# -ne 0 ]
         then
             log_status "$NODELITE_TAG $@"
@@ -996,11 +1010,22 @@ test_kar ()
         return
     fi
 
-    exec_cmd_exit $VDBVALIDATE_BIN -x $F2T
-
     if [ ! -f $ORIG_KAR_FILE ]
     then
         err_exit SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
+    fi
+
+    exec_cmd $VDBVALIDATE_BIN -x $F2T
+    if [ $? -ne 0 ]
+    then
+        warn_msg vdb-validate step failed, checking original KAR file
+        exec_cmd $VDBVALIDATE_BIN -x $ORIG_KAR_FILE
+        if [ $? -ne 0 ]
+        then
+            err_exit corrupted original KAR file
+        else
+            err_exit vdb-validate failed or original file, that means DELITE process failed
+        fi
     fi
 
     TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"

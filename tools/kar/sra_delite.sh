@@ -673,7 +673,7 @@ rename_quality_column ()
 
     if [ -z "$SEQUENCE_TABLE" ]
     then
-        error_exit invalid run object, can not stat SEQUENCE table
+        err_exit invalid run object, can not stat SEQUENCE table
     fi
 }
 

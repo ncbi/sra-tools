@@ -1175,5 +1175,8 @@ status_proc ()
 ###<<>>### That is main line of script
 ##############################################################################################
 
+trap "err_exit received SIGINT signal, exiting" SIGINT
+trap "err_exit received SIGTERM signal, exiting" SIGTERM
+
 eval $ACTION_PROC
 

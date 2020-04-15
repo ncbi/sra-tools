@@ -656,7 +656,7 @@ rename_quality_column ()
     do
         if [ -n "$SEQUENCE_TABLE" ]
         then
-            error_exit invalid run object, has more than one QUALITY columns
+            err_exit invalid run object, has more than one QUALITY columns
         fi
 
         TDIR=`dirname $i`

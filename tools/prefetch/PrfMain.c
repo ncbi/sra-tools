@@ -336,10 +336,10 @@ static const char* ASCP_PAR_USAGE[] =
 #define CHECK_ALL_ALIAS  "c"
 static const char* CHECK_ALL_USAGE[] = { "Double-check all refseqs.", NULL };
 
-#define VALIDATE_OPTION "validate"
+#define VALIDATE_OPTION "verify"
 #define VALIDATE_ALIAS  "C"
 static const char* VALIDATE_USAGE[] = {
-    "Validate after download. Default - yes.", NULL };
+    "Verify after download - one of: no, yes [default].", NULL };
 
 #define DRY_RUN_OPTION "dryrun"
 static const char* DRY_RUN_USAGE[] = {
@@ -348,7 +348,7 @@ static const char* DRY_RUN_USAGE[] = {
 #define FORCE_OPTION "force"
 #define FORCE_ALIAS  "f"
 static const char* FORCE_USAGE[] = {
-    "Force object download - one of: no, yes, all, ALL.",
+    "Force object download: one of: no, yes, all, ALL.",
     "no [default]: skip download if the object if found and complete;",
     "yes: download it even if it is found and is complete;",
     "all: ignore lock files (stale locks or "
@@ -359,7 +359,7 @@ static const char* FORCE_USAGE[] = {
 #define RESUME_OPTION "resume"
 #define RESUME_ALIAS  "r"
 static const char* RESUME_USAGE[] = {
-    "Resume partial downloads - one of: no, yes. Default - yes.", NULL };
+    "Resume partial downloads: one of: no, yes [default].", NULL };
 
 #define FAIL_ASCP_OPTION "FAIL-ASCP"
 #define FAIL_ASCP_ALIAS  "F"
@@ -419,10 +419,10 @@ static const char* ROWS_USAGE[] =
 
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
-static const char* TRANS_USAGE[] = { "Transport: one of: fasp; http; both.",
+static const char* TRANS_USAGE[] = {
+    "Transport: one of: fasp; http; both [default].",
     "(fasp only; http only; first try fasp (ascp), "
-    "use http if cannot download using fasp).",
-    "Default: both.", NULL };
+    "use http if cannot download using fasp).", NULL };
 
 #define TYPE_OPTION "type"
 #define TYPE_ALIAS  "T"
@@ -1192,20 +1192,21 @@ rc_t CC Usage(const Args *args) {
         if (OPTIONS[i].aliases != NULL) {
             if (strcmp(alias, FAIL_ASCP_ALIAS) == 0)
                 continue; /* debug option */
-            else if (strcmp(opt->name, KART_OPTION) == 0)
-                param = "value";
-#if _DEBUGGING
-            else if (strcmp(opt->name, TEXTKART_OPTION) == 0)
-                param = "value";
-#endif
-
-            if (strcmp(alias, ASCP_ALIAS) == 0)
+            else if (strcmp(alias, ASCP_ALIAS) == 0)
                 param = "ascp-binary|private-key-file";
-            else if (strcmp(alias, FORCE_ALIAS) == 0 ||
+            else if (strcmp(alias, ORDR_ALIAS) == 0)
+                param = "kart|size";
+            else if (strcmp(alias, TRASN_ALIAS) == 0)
+                param = "http|fasp|both";
+            else if (strcmp(alias, FORCE_ALIAS) == 0)
+                param = "yes|no|all|ALL";
+            else if (
+                strcmp(alias, RESUME_ALIAS) == 0 ||
+                strcmp(alias, VALIDATE_ALIAS) == 0)
+                param = "yes|no";
+            else if (
                 strcmp(alias, HBEAT_ALIAS) == 0 ||
-                strcmp(alias, HBEAT_ALIAS) == 0 ||
-                strcmp(alias, ORDR_ALIAS) == 0 ||
-                strcmp(alias, TRASN_ALIAS) == 0)
+                strcmp(alias, TYPE_ALIAS) == 0)
             {
                 param = "value";
             }
@@ -1219,10 +1220,19 @@ rc_t CC Usage(const Args *args) {
                 param = "size";
             }
         }
-        else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
+        else if (
+            strcmp(opt->name, ASCP_PAR_OPTION) == 0 ||
+            strcmp(opt->name, LOCN_OPTION) == 0)
+        {
             param = "value";
-        else if (strcmp(opt->name, NGC_OPTION) == 0
-            || strcmp(opt->name, CART_OPTION) == 0)
+        }
+        else if (
+            strcmp(opt->name, NGC_OPTION) == 0 ||
+            strcmp(opt->name, KART_OPTION) == 0
+#if _DEBUGGING
+         || strcmp(opt->name, TEXTKART_OPTION) == 0
+#endif
+        )
         {
             param = "PATH";
         }

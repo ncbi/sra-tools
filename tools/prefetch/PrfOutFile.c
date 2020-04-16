@@ -556,7 +556,7 @@ static rc_t TFNegotiatePos(PrfOutFile * self) {
     if (rc != 0) {
         self->_fatal = true;
         PLOGERR(klogInt,
-            (klogInt, rc, "Cannot Size($(arg).prf)", "arg=%S", self->cache));
+            (klogInt, rc, "Cannot Size($(arg))", "arg=%s", self->tmpName));
     }
     else {
         rc = TFReadPos(self, fsize);
@@ -568,23 +568,28 @@ static rc_t TFNegotiatePos(PrfOutFile * self) {
             return rc;
     }
 
-    if (rc == 0 && self->pos > 0)
-        self->_loaded = true;
+    if (!self->_fatal) {
+        if (rc == 0 && self->pos > 0)
+            self->_loaded = true;
 
-    assert(self->pos <= fsize);
-    if (self->pos > fsize)
-        self->pos = fsize; /* should never happen */
-    else if (self->pos < fsize) {
-        rc = KFileSetSize(self->file, self->pos);
-        if (rc != 0) {
-            self->_fatal = true;
-            PLOGERR(klogInt,
-                (klogInt, rc, "Cannot SetSize($(arg))", "arg=%s", self->name));
+        assert(self->pos <= fsize);
+        if (self->pos > fsize)
+            self->pos = fsize; /* should never happen */
+        else if (self->pos < fsize) {
+            rc = KFileSetSize(self->file, self->pos);
+            if (rc != 0) {
+                self->_fatal = true;
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Cannot SetSize($(arg))", "arg=%s", self->tmpName));
+            }
         }
     }
 
-    STSMSG(STS_DBG, ("loaded %S%s: fsize=%lu, starting from %lu",
-        self->cache, TFExt(self), fsize, self->pos));
+    if(self->_fatal)
+        STSMSG(STS_DBG, ("failed to load %S%s",self->cache, TFExt(self)));
+    else
+        STSMSG(STS_DBG, ("loaded %S%s: fsize=%lu, starting from %lu",
+            self->cache, TFExt(self), fsize, self->pos));
 #ifdef DEBUGGING
     OUTMSG(("%s: fsize=%lu, starting from %lu\n", __FUNCTION__,
         fsize, self->pos));
@@ -651,14 +656,14 @@ static rc_t PrfOutFileOpenWrite(PrfOutFile * self) {
 
     assert(self);
 
-    STSMSG(STS_DBG, ("opening %s", self->name));
+    STSMSG(STS_DBG, ("opening %s", self->tmpName));
 
     rc = KDirectoryOpenFileWrite(self->_dir,
-        &self->file, true, "%s", self->name);
+        &self->file, true, "%s", self->tmpName);
     if (rc != 0) {
         self->_fatal = true;
-        PLOGERR(klogInt, (
-            klogInt, rc, "Cannot OpenFileWrite($(arg))", "arg=%s", self->name));
+        PLOGERR(klogInt, (klogInt, rc,
+            "Cannot OpenFileWrite($(arg))", "arg=%s", self->tmpName));
         return rc;
     }
     else
@@ -676,8 +681,8 @@ static rc_t PrfOutFileCommit(PrfOutFile * self, bool force) {
         rc = KFileRelease(self->file);
         if (rc != 0) {
             self->_fatal = true;
-            PLOGERR(klogInt, (
-                klogInt, rc, "Cannot Release($(arg))", "arg=%s", self->name));
+            PLOGERR(klogInt, (klogInt, rc,
+                "Cannot Release($(arg))", "arg=%s", self->tmpName));
         }
         else
             rc = PrfOutFileOpenWrite(self);
@@ -686,8 +691,8 @@ static rc_t PrfOutFileCommit(PrfOutFile * self, bool force) {
             rc = KFileSize(self->file, &size);
             if (rc != 0) {
                 self->_fatal = true;
-                PLOGERR(klogInt, (
-                    klogInt, rc, "Cannot Size($(arg))", "arg=%s", self->name));
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Cannot Size($(arg))", "arg=%s", self->tmpName));
             }
         }
 
@@ -862,7 +867,9 @@ rc_t Convert(KDirectory * dir, const String * from, bool fromBin)
     return rc;
 }
 
-rc_t PrfOutFileInit(PrfOutFile * self, bool resume) {
+rc_t PrfOutFileInit(PrfOutFile * self, bool resume,
+    const char * name, bool vdbcache)
+{
     rc_t rc = 0;
 
     assert(self);
@@ -872,6 +879,8 @@ rc_t PrfOutFileInit(PrfOutFile * self, bool resume) {
     self->_buf.elem_bits = 8;
     self->_tfType = eBin8;
     self->_resume = resume;
+    self->_name = name; /* don't free ! */
+    self->_vdbcache = vdbcache;
 
     rc = KDirectoryNativeDir(&self->_dir);
     if (rc != 0) {
@@ -887,7 +896,8 @@ rc_t PrfOutFileMkName(PrfOutFile * self, const String * cache) {
 
     assert(self);
 
-    rc = KDirectory_MkTmpName(self->_dir, cache, self->name, sizeof self->name);
+    rc = KDirectory_MkTmpName(self->_dir, cache,
+        self->tmpName, sizeof self->tmpName);
     if (rc == 0) {
         rc = StringCopy(&self->cache, cache);
         return rc;
@@ -896,7 +906,7 @@ rc_t PrfOutFileMkName(PrfOutFile * self, const String * cache) {
         return rc;
 }
 
-rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name) {
+rc_t PrfOutFileOpen(PrfOutFile * self, bool force) {
     rc_t rc = 0;
     bool negotiated = false;
 
@@ -906,19 +916,20 @@ rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name) {
 
     assert(self && self->cache);
 
-    if (KDirectoryPathType(self->_dir, "%s", self->name)
+    if (KDirectoryPathType(self->_dir, "%s", self->tmpName)
         == kptNotFound)
     {
 #ifdef DEBUGGING
-        OUTMSG(("%s: %s not found: creating...\n", __FUNCTION__, self->name));
+        OUTMSG(("%s: %s not found: creating...\n",
+            __FUNCTION__, self->tmpName));
 #endif
-        STSMSG(STS_DBG, ("creating %s", self->name));
+        STSMSG(STS_DBG, ("%s not found: creating...", self->tmpName));
 
         rc = KDirectoryCreateFile(self->_dir, &self->file,
-            false, 0664, kcmInit | kcmParents, "%s", self->name);
+            false, 0664, kcmInit | kcmParents, "%s", self->tmpName);
         if (rc != 0)
             PLOGERR(klogInt, (klogInt, ro, "Cannot CreateFile($(arg))",
-                "arg=%s", self->name));
+                "arg=%s", self->tmpName));
     }
     else {
         rc = PrfOutFileOpenWrite(self);
@@ -941,7 +952,7 @@ rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name) {
         }
     }
 
-    if (ro == 0 && !negotiated) {
+    if (rc == 0 && ro == 0 && !negotiated) {
         self->pos = self->_tfPos = 0;
 
         if (self->_resume) {
@@ -954,11 +965,11 @@ rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name) {
     if (rc == 0) {
         uint64_t fsize = 0;
         rc = KFileSize(self->file, &fsize);
-        DISP_RC2(rc, "Cannot Size", self->name);
+        DISP_RC2(rc, "Cannot Size", self->tmpName);
         if (rc == 0) {
             if (self->pos < fsize) {
                 rc = KFileSetSize(self->file, self->pos);
-                DISP_RC2(rc, "Cannot SetSize", self->name);
+                DISP_RC2(rc, "Cannot SetSize", self->tmpName);
             }
             else if (self->pos > fsize)
                 self->pos = fsize;
@@ -966,8 +977,8 @@ rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name) {
     }
 
     if (rc == 0 && self->pos > 0)
-        STSMSG(STS_TOP, (
-            "   Continue download of '%s' from %lu", name, self->pos));
+        STSMSG(STS_TOP, ("   Continue download of '%s%s' from %lu",
+            self->_name, self->_vdbcache ? ".vdbcache" : "", self->pos));
 
 #ifdef DEBUGGING
     OUTMSG(("%s: start from %lu\n", __FUNCTION__, self->pos));
@@ -990,22 +1001,21 @@ rc_t PrfOutFileCommitTry(PrfOutFile * self) {
 }
 
 rc_t PrfOutFileCommitDo(PrfOutFile * self) {
-    STSMSG(STS_DBG, ("committing on exit: pos=%ld", self->pos));
-    return PrfOutFileCommit(self, true);
+    if (self->_resume) {
+        STSMSG(STS_DBG, ("committing on exit: pos=%ld", self->pos));
+        return PrfOutFileCommit(self, true);
+    }
+    else
+        return 0;
 }
 
-rc_t PrfOutFileClose(PrfOutFile * self, bool success) {
+rc_t PrfOutFileClose(PrfOutFile * self) {
     rc_t rc = 0, r2 = 0;
 
     assert(self);
 
     KFileRelease(self->_tf);
     self->_tf = NULL;
-
-#ifndef DEBUGGINGG
-    if (success && !self->invalid)
-        rc = TFRm(self);
-#endif
 
     RELEASE(KFile, self->file);
 
@@ -1016,8 +1026,13 @@ rc_t PrfOutFileClose(PrfOutFile * self, bool success) {
     return rc;
 }
 
-rc_t PrfOutFileWhack(PrfOutFile * self) {
+rc_t PrfOutFileWhack(PrfOutFile * self, bool success) {
     rc_t rc = 0;
+
+#ifndef DEBUGGINGG
+    if (success && !self->invalid)
+        rc = TFRm(self);
+#endif
 
     RELEASE(String, self->cache);
     RELEASE(KDirectory, self->_dir);

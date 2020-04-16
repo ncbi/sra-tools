@@ -36,12 +36,14 @@ typedef enum {
 } EType;
 
 typedef struct {
+    const  char       * _name; /* don't free ! */
+    bool                _vdbcache;
     const  String     *  cache;
     struct KDirectory * _dir;
     KFile             *  file;
     bool                _fatal;
     bool                _loaded;
-    char                 name [PATH_MAX];
+    char                 tmpName [PATH_MAX];
     uint64_t             pos;
     bool                _resume;
     bool                 invalid;
@@ -53,13 +55,14 @@ typedef struct {
     KTime_t             _committed;
 } PrfOutFile;
 
-rc_t PrfOutFileInit(PrfOutFile * self, bool resume);
+rc_t PrfOutFileInit(
+    PrfOutFile * self, bool resume, const char * name, bool vdbcache);
 rc_t PrfOutFileMkName(PrfOutFile * self, const String * cache);
-rc_t PrfOutFileOpen(PrfOutFile * self, bool force, const char * name);
+rc_t PrfOutFileOpen(PrfOutFile * self, bool force);
 bool PrfOutFileIsLoaded(const PrfOutFile * self);
 rc_t PrfOutFileCommitTry(PrfOutFile * self);
 rc_t PrfOutFileCommitDo(PrfOutFile * self);
-rc_t PrfOutFileClose(PrfOutFile * self, bool success);
-rc_t PrfOutFileWhack(PrfOutFile * self);
+rc_t PrfOutFileClose(PrfOutFile * self);
+rc_t PrfOutFileWhack(PrfOutFile * self, bool success);
 
 rc_t PrfOutFileConvert(KDirectory * dir, const char * path);

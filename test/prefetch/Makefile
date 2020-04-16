@@ -50,6 +50,9 @@ WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 B=$(BINDIR)
 
+HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
+HTTPFILE=contact.shtml
+
 runtests: urls_and_accs out_dir_and_file s-option truncated kart wgs
 
 ################################################################################
@@ -76,29 +79,29 @@ urls_and_accs:
 	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	     $(BINDIR)/prefetch http://intranet/irb/support.shtml  >/dev/null; \
+	     $(BINDIR)/prefetch $(HTTP_URL)  > /dev/null; \
 	    fi
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
 	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
 
-	@if ls `pwd`/tmp2/support.shtml 2> /dev/null ; \
-     then echo support.shtml found ; exit 1 ; fi
+	@if ls `pwd`/tmp2/$(HTTPFILE) 2> /dev/null ; \
+     then echo $(HTTPFILE) found ; exit 1 ; fi
 	@echo HTTP download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	    $(BINDIR)/prefetch http://intranet/irb/support.shtml > /dev/null ; fi
+	    $(BINDIR)/prefetch $(HTTP_URL) > /dev/null ; fi
 	@if ping -c1 intranet > /dev/null ; \
-	 then ls `pwd`/tmp2/support.shtml > /dev/null ; fi
+	 then ls `pwd`/tmp2/$(HTTPFILE) > /dev/null ; fi
 #	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
-	     $(BINDIR)/prefetch http://intranet/irb/support.shtml \
+	     $(BINDIR)/prefetch $(HTTP_URL) \
 	        | grep "found local" > /dev/null ; fi
 
-	@rm -f support.shtml
+	@rm -f $(HTTPFILE)
 
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.shtml found ; exit 1; fi

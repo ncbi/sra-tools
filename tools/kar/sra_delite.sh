@@ -557,7 +557,7 @@ check_rejected_run_exit ()
     if [ -n "$TCS" ]
     then
         log_status "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
-        log_status "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
+        err_exit "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
     fi
 }
 

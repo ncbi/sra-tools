@@ -27,10 +27,7 @@
 /* Synopsis: Updates read filter based on quality scores
  * Purpose: In preparation for removing quality scores
  * Example usage:
- *  make-read-filter --include ncbi-vdb/interfaces \
- *                   --schema ncbi-vdb/interfaces/illumina.vschema \
- *                   --output SRR123456.converted
- *                   --input SRR123456
+ *  make-read-filter --temp /tmp SRR123456
  */
 
 #include "make-read-filter.h" /* contains mostly boilerplate code */

@@ -185,7 +185,7 @@ DROPCOLUMN_QTY=0
 
 if [ -n "$CONFIG_VAL" ]
 then
-    if [ ! -f "$CONFIG_VAL" ]
+    if [ ! -r "$CONFIG_VAL" ]
     then
         echo ERROR: can not stat config file \'$CONFIG_VAL\' >&2
         exit 1
@@ -194,7 +194,7 @@ then
     echo WARNING: loading user defined config file \'$CONFIG_FILE\' >&2
 else
     TVAL=$SCRIPT_DIR/${SCRIPT_NAME_SHORT}.kfg
-    if [ -f "$TVAL" ]
+    if [ -r "$TVAL" ]
     then
         CONFIG_FILE=$SCRIPT_DIR/${SCRIPT_NAME_SHORT}.kfg
         echo WARNING: loading default config file \'$CONFIG_FILE\' >&2
@@ -289,7 +289,7 @@ exclude SIGNAL
 
 EOF
     else
-        cat $CONFIG_FILE
+        cat "$CONFIG_FILE"
     fi
 }
 
@@ -306,7 +306,7 @@ do
             if [ $? -ne 0 ]
             then
                 echo ERROR: invalid definition in configuration file at line $LINE_NUM
-                echo ERROR: invalid line [$INPUT_LINE]
+                echo ERROR: invalid line \[$INPUT_LINE\]
                 exit 1
             fi
             ;;
@@ -315,7 +315,7 @@ do
             if [ $WNUM -ne 4 ]
             then
                 echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
-                echo ERROR: invalid line [$INPUT_LINE]
+                echo ERROR: invalid line \[$INPUT_LINE\]
                 exit 1
             fi
             TRANSLATIONS[${#TRANSLATIONS[*]}]=`echo $INPUT_LINE | awk ' { print $2 " " $3 " " $4 } '`
@@ -325,7 +325,7 @@ do
             if [ $WNUM -ne 2 ]
             then
                 echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
-                echo ERROR: invalid line [$INPUT_LINE]
+                echo ERROR: invalid line \[$INPUT_LINE\]
                 exit 1
             fi
             DROPCOLUMNS[${#DROPCOLUMNS[*]}]=`echo $INPUT_LINE | awk ' { print $2 } '`
@@ -334,7 +334,7 @@ do
             if [ -n "$INPUT_LINE" ]
             then
                 echo ERROR: invalid statement in configuration file at line $LINE_NUM
-                echo ERROR: invalid line [$INPUT_LINE]
+                echo ERROR: invalid line \[$INPUT_LINE\]
                 exit 1
             fi
             ;;
@@ -516,6 +516,50 @@ check_colorspace_exit ()
 ###<<>>### Unpacking original KAR archive
 ##############################################################################################
 
+check_remove_target_dir ()
+{
+    if [ ! -e "$TARGET_DIR" ]
+    then
+        return
+    fi
+
+    if [ -z "$FORCE_VAL" ]
+    then
+        err_exit target directory \'$TARGET_DIR\' exist.
+    fi
+
+    info_msg forcing to remove old data for \'$TARGET_DIR\'
+
+    ## Checking that there exists status file, which should be created first.
+    ## if that file does not exist, it could be some mistake
+    if [ ! -e "$STATUS_FILE" ]
+    then
+        err_exit target directory \'$TARGET_DIR\' does not looks as valid. Please, remove it manually.
+    fi
+
+    ## Checking if there are remnaints of database, trying to unlock it
+    ##
+    if [ -d "$DATABASE_DIR" ]
+    then
+        warn_msg trying to unlock database \'$DATABASE_DIR\'
+        $VDBUNLOCK_BIN $DATABASE_DIR >/dev/null 2>&1
+    fi
+
+    ## Checking if content of directory is writtable and belong to effective user
+    ##
+    for i in `find $TARGET_DIR`
+    do
+        if [ ! -w $i -o ! -O $i ]
+        then
+            err_exit target directory contains files which could not be delited or does not belong to current user. Please remove it manually
+        fi
+    done
+
+    ## Removing contents
+    ##
+    exec_cmd_exit rm -r $TARGET_DIR
+}
+
 import_proc ()
 {
     ##
@@ -525,19 +569,9 @@ import_proc ()
         err_exit missed mandatory parameter \'$ACCESSION_TAG\'
     fi
 
-    info_msg "IMPORT: $ACCESSION_VAL to $TARGET_DIR"
+    check_remove_target_dir
 
-    if [ -d "$TARGET_DIR" ]
-    then
-        if [ -n "$FORCE_VAL" ]
-        then
-            info_msg forcing to remove old data for \'$TARGET_DIR\'
-            exec_cmd_exit chmod -R +w $TARGET_DIR
-            exec_cmd_exit rm -rf $TARGET_DIR
-        else
-            err_exit target directory \'$TARGET_DIR\' exist.
-        fi
-    fi
+    info_msg "IMPORT: $ACCESSION_VAL to $TARGET_DIR"
 
     exec_cmd_exit mkdir $TARGET_DIR
     log_status $INITIALIZED_TAG $ACCESSION_VAL
@@ -588,6 +622,8 @@ EOF
     log_status "$IMPORTED_TAG $ORIGINAL_CMD"
 
     info_msg "DONE"
+
+exit 1
 }
 
 ###############################################################################################
@@ -647,21 +683,21 @@ check_delited ()
 ## We should replace schemas for all tables, and for DB object, if run
 ## contains DB object ( case when there are several tables )
 ## There are two variables we are using for modification of schemas
-## SEQUENCE_TABLE - table containing QUALITY column, and OBJECTS -
+## QUALITY_TABLES - tables containing QUALITY column, and OBJECTS -
 ## list of tables to modify schemas
-## Variable ORIGINAL_QUALITY_COL is need to drop it
+## Variable ORIGINAL_QUALITY_COLUMNS is need to drop it
 rename_quality_column ()
 {
     for i in `find $DATABASE_DIR -type d -name QUALITY`
     do
-        if [ -n "$SEQUENCE_TABLE" ]
-        then
-            err_exit invalid run object, has more than one QUALITY columns
-        fi
+        # if [ -n "$SEQUENCE_TABLE" ]
+        # then
+            # err_exit invalid run object, has more than one QUALITY columns
+        # fi
 
         TDIR=`dirname $i`
 
-        SEQUENCE_TABLE=`dirname $TDIR`
+        QUALITY_TABLES[${#QUALITY_TABLES[*]}]=`dirname $TDIR`
 
         ORIGINAL_QUALITY_COL=$TDIR/${ORIGINAL_QUALITY}
         if [ -e "$ORIGINAL_QUALITY_COL" ]
@@ -669,11 +705,14 @@ rename_quality_column ()
             err_exit can not rename \'$i\'. Directory \'$ORIGINAL_QUALITY_COL\' already exists
         fi
         exec_cmd_exit mv $i $ORIGINAL_QUALITY_COL
+        ORIGINAL_QUALITY_COLUMNS[${#ORIGINAL_QUALITY_COLUMNS[*]}]=$ORIGINAL_QUALITY_COL
     done
 
-    if [ -z "$SEQUENCE_TABLE" ]
+    # if [ -z "$SEQUENCE_TABLE" ]
+    if [ ${#QUALITY_TABLES[*]} -eq 0 ]
     then
-        err_exit invalid run object, can not stat SEQUENCE table
+        # err_exit invalid run object, can not stat SEQUENCE table
+        err_exit invalid run object, can not stat table with QUALITY
     fi
 }
 
@@ -917,22 +956,40 @@ delite_proc ()
 
     rename_quality_column
 
-    get_schema_for_object $SEQUENCE_TABLE
+    HAS_SUBST=1
+    for i in ${QUALITY_TABLES[*]}
+    do
+        get_schema_for_object $i
+        if [ -n "$NEW_SCHEMA" ]
+        then
+            info_msg found substitute schema $i : $OLD_SCHEMA -\> $NEW_SCHEMA
+        else
+            info_msg no substitute schema $i : $OLD_SCHEMA -\> NONE
+            HAS_SUBST=0
+        fi
+    done
+    # get_schema_for_object $SEQUENCE_TABLE
 
-    if [ -n "$NEW_SCHEMA" ]
+    # if [ -n "$NEW_SCHEMA" ]
+    if [ $HAS_SUBST -eq 1 ]
     then
-        info_msg found substitute schema $SEQUENCE_TABLE \($OLD_SCHEMA\ -\> $NEW_SCHEMA\)
+        # info_msg found substitute schema $SEQUENCE_TABLE \($OLD_SCHEMA\ -\> $NEW_SCHEMA\)
         modify_objects
         check_read_quality_exit_with_message "Can not read QUALITY, the substitute schema did not work"
     else
-        warn_msg no substitute schema for $SEQUENCE_TABLE \($OLD_SCHEMA\)
+        # warn_msg no substitute schema for $SEQUENCE_TABLE \($OLD_SCHEMA\)
         check_read_quality_exit_with_message "Can not read QUALITY, and there is no substitute schema"
     fi
 
     ## Make ReadFilter
     do_make_read_filter
 
-    exec_cmd_exit rm -rf $ORIGINAL_QUALITY_COL
+    for i in ${ORIGINAL_QUALITY_COLUMNS[*]}
+    do
+        exec_cmd_exit rm -rf $i
+    done
+
+    # exec_cmd_exit rm -rf $ORIGINAL_QUALITY_COL
     check_read_quality_exit_with_message "Can not read QUALITY, delite failed"
 
     ## Locking db

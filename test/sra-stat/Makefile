@@ -116,7 +116,7 @@ test_bases: quick_bases
 
 	@echo
 	@echo SRR390427 is a non-cSRA DB
-	NCBI_SETTINGS=/ $(BINDIR)/sra-stat -+KNS-HTTP -x SRR390427 > actual/SRR390427
+	NCBI_SETTINGS=/ $(BINDIR)/sra-stat -x SRR390427 > actual/SRR390427
 	diff actual/SRR390427 expected/SRR390427
 
 	@echo

@@ -2,6 +2,7 @@
 ### '#'# character in beginning of line is treated as a commentary
 
 ### Schema traslations
+### Syntax: translate SCHEMA_NAME OLD_VER NEW_VER
 #original by Kenneth
 translate NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0
 translate NCBI:SRA:GenericFastq:sequence  1.0     2.0
@@ -68,12 +69,19 @@ translate NCBI:align:tbl:align_unsorted 1.1 1.2
 translate NCBI:SRA:Illumina:db  1   2
 
 ### Columns to drop
+### Syntax: exclude COLUMN_NAME
 exclude QUALITY
 exclude QUALITY2
 exclude CMP_QUALITY
 exclude POSITION
 exclude SIGNAL
 
+### Rejected platforms
+### Syntax: reject PLATFORM_NAME ["optional platform description"]
+reject SRA_PLATFORM_ABSOLID "colorspace run"
+# reject SRA_PLATFORM_454 "454 architecture run"
+
 ### Environment definition section.
+### Syntax: NAME=VALUE
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin

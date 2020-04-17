@@ -211,6 +211,7 @@ print_config_to_stdout ()
 ### '#'# character in beginning of line is treated as a commentary
 
 ### Schema traslations
+### Syntax: translate SCHEMA_NAME OLD_VER NEW_VER
 #original by Kenneth
 translate NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0
 translate NCBI:SRA:GenericFastq:sequence  1.0     2.0
@@ -277,13 +278,20 @@ translate NCBI:align:tbl:align_unsorted 1.1 1.2
 translate NCBI:SRA:Illumina:db  1   2
 
 ### Columns to drop
+### Syntax: exclude COLUMN_NAME
 exclude QUALITY
 exclude QUALITY2
 exclude CMP_QUALITY
 exclude POSITION
 exclude SIGNAL
 
+### Rejected platforms
+### Syntax: reject PLATFORM_NAME ["optional platform description"]
+reject SRA_PLATFORM_ABSOLID "colorspace run"
+# reject SRA_PLATFORM_454 "454 architecture run"
+
 ### Environment definition section.
+### Syntax: NAME=VALUE
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
 
@@ -306,35 +314,51 @@ do
             if [ $? -ne 0 ]
             then
                 echo ERROR: invalid definition in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \[$INPUT_LINE\]
+                echo ERROR: invalid line \"$INPUT_LINE\"
                 exit 1
             fi
             ;;
         translate*)
-            WNUM=`echo $INPUT_LINE | wc -w` 2>/dev/null
-            if [ $WNUM -ne 4 ]
+            eval "FARG=($INPUT_LINE)"
+            if [ ${#FARG[*]} -ne 4 ]
             then
                 echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \[$INPUT_LINE\]
+                echo ERROR: invalid line \"$INPUT_LINE\"
                 exit 1
             fi
-            TRANSLATIONS[${#TRANSLATIONS[*]}]=`echo $INPUT_LINE | awk ' { print $2 " " $3 " " $4 } '`
+            TRANSLATIONS[${#TRANSLATIONS[*]}]="${FARG[1]} ${FARG[2]} ${FARG[3]}"
             ;;
         exclude*)
-            WNUM=`echo $INPUT_LINE | wc -w` 2>/dev/null
-            if [ $WNUM -ne 2 ]
+            eval "FARG=($INPUT_LINE)"
+            if [ ${#FARG[*]} -ne 2 ]
             then
                 echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \[$INPUT_LINE\]
+                echo ERROR: invalid line \"$INPUT_LINE\"
                 exit 1
             fi
-            DROPCOLUMNS[${#DROPCOLUMNS[*]}]=`echo $INPUT_LINE | awk ' { print $2 } '`
+            DROPCOLUMNS[${#DROPCOLUMNS[*]}]=${FARG[1]}
+            ;;
+        reject*)
+            eval "FARG=($INPUT_LINE)"
+            if [ ${#FARG[*]} -ne 2 -a ${#FARG[*]} -ne 3 ]
+            then
+                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
+                echo ERROR: invalid line \"$INPUT_LINE\"
+                exit 1
+            fi
+            REJECTED_ARC[${#REJECTED_ARC[*]}]=${FARG[1]}
+            if [ ${#FARG[*]} -eq 3 ]
+            then
+                REJECTED_ARC_COMM[${#REJECTED_ARC_COMM[*]}]=${FARG[2]}
+            else
+                REJECTED_ARC_COMM[${#REJECTED_ARC_COMM[*]}]="unsupported"
+            fi
             ;;
         *)
             if [ -n "$INPUT_LINE" ]
             then
                 echo ERROR: invalid statement in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \[$INPUT_LINE\]
+                echo ERROR: invalid line \"$INPUT_LINE\"
                 exit 1
             fi
             ;;
@@ -501,13 +525,39 @@ EOF
 ###############################################################################################
 ###<<>>### Misc checks
 ##############################################################################################
-check_colorspace_exit ()
+check_rejected_run_exit ()
 {
+    ## Checking architecture type
+    TCS=`$VDBDUMP_BIN -R 1 -f tab -C PLATFORM $ORIG_KAR_FILE 2>/dev/null`
+    if [ -n "$TCS" ]
+    then
+        TCNT=0
+        while [ $TCNT -lt ${#REJECTED_ARC[*]} ]
+        do
+            if [ "$TCS" = "${REJECTED_ARC[$TCNT]}" ]
+            then
+                log_status "$REJECTED_TAG unsupported architecture run '$TCS' detected: ${REJECTED_ARC_COMM[$TCNT]}"
+                err_exit "$REJECTED_TAG unsupported architecture run '$TCS' detected: ${REJECTED_ARC_COMM[$TCNT]}"
+            fi
+
+            TCNT=$(( $TCNT + 1 ));
+        done
+    fi
+
+    ## Checking colorspace by CS_NATIVE column
+    TCS=`$VDBDUMP_BIN -R 1 -f tab -C CS_NATIVE $ORIG_KAR_FILE 2>/dev/null`
+    if [ "$TCS" = "true" ]
+    then
+        log_status "$REJECTED_TAG can not process colorspace rund, and here 'CS_NATIVE' column detected"
+        err_exit "$REJECTED_TAG can not process colorspace rund, and here 'CS_NATIVE' column detected"
+    fi
+
+    ## Last, my paranoidal check
     TCS=`find $DATABASE_DIR -name CSREAD -type d`
     if [ -n "$TCS" ]
     then
-        log_status "$REJECTED_TAG can not procees colorspace type runs."
-        err_exit colorspace type run detected
+        log_status "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
+        log_status "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
     fi
 }
 
@@ -617,13 +667,11 @@ EOF
     exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
 
     ## Checking if it is colorspace run
-    check_colorspace_exit
+    check_rejected_run_exit
 
     log_status "$IMPORTED_TAG $ORIGINAL_CMD"
 
     info_msg "DONE"
-
-exit 1
 }
 
 ###############################################################################################
@@ -660,7 +708,7 @@ check_ready_for_delite ()
     fi
 
     ## Checking if it is colorspace run
-    check_colorspace_exit
+    check_rejected_run_exit
 }
 
 check_delited ()
@@ -1017,7 +1065,7 @@ check_ready_for_export ()
     fi
 
     ## Checking if it is colorspace run
-    check_colorspace_exit
+    check_rejected_run_exit
 
     TVAR=`grep "$DELITED_TAG" $STATUS_FILE 2>/dev/null`
     if [ -z "$TVAR" ]

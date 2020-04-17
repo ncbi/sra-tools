@@ -2760,6 +2760,9 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
     assert(item && item->mane);
 
+    if (item->isDependency)
+        return 0;
+
     resolved = &item->resolved;
 
     assert(resolved);

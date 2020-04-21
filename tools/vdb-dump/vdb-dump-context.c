@@ -599,7 +599,8 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->without_sra_types = vdco_get_bool_option( my_args, OPTION_WITHOUT_SRA, false );
     ctx->print_num_elem = vdco_get_bool_option( my_args, OPTION_NUMELEM, false );
     ctx->sum_num_elem = vdco_get_bool_option( my_args, OPTION_NUMELEMSUM, false );
-    ctx->show_blobbing = vdco_get_bool_option( my_args, OPTION_SHOW_BLOBBING, false );
+    ctx->show_kdb_blobs = vdco_get_bool_option( my_args, OPTION_SHOW_KDB_BLOBS, false );
+    ctx->show_vdb_blobs = vdco_get_bool_option( my_args, OPTION_SHOW_VDB_BLOBS, false );
     ctx->enum_phys = vdco_get_bool_option( my_args, OPTION_ENUM_PHYS, false );
     ctx->enum_readable = vdco_get_bool_option( my_args, OPTION_ENUM_READABLE, false );
     ctx->enum_static = vdco_get_bool_option( my_args, OPTION_ENUM_STATIC, false );

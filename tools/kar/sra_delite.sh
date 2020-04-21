@@ -89,7 +89,7 @@ Options:
 
 EOF
 
-    exit 1
+    exit 100
 }
 
 ###
@@ -167,7 +167,7 @@ then
     if [[ ! $ACCESSION_VAL =~ [S,E,D]RR[0-9][0-9]*$ ]]
     then
         echo "ERROR: invalid accession format '$ACCESSION_VAL'. Should match '[S,E,D]RR[0-9][0-9]*$'">&2
-        exit 1
+        exit 101
     fi
 fi
 
@@ -188,7 +188,7 @@ then
     if [ ! -r "$CONFIG_VAL" ]
     then
         echo ERROR: can not stat config file \'$CONFIG_VAL\' >&2
-        exit 1
+        exit 102
     fi
     CONFIG_FILE=$CONFIG_VAL
     echo WARNING: loading user defined config file \'$CONFIG_FILE\' >&2
@@ -313,18 +313,18 @@ do
             eval $INPUT_LINE 2>/dev/null
             if [ $? -ne 0 ]
             then
-                echo ERROR: invalid definition in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \"$INPUT_LINE\"
-                exit 1
+                echo ERROR: invalid definition in configuration file at line $LINE_NUM >&2
+                echo ERROR: invalid line \"$INPUT_LINE\" >&2
+                exit 103
             fi
             ;;
         translate*)
             eval "FARG=($INPUT_LINE)"
             if [ ${#FARG[*]} -ne 4 ]
             then
-                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \"$INPUT_LINE\"
-                exit 1
+                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM >&2
+                echo ERROR: invalid line \"$INPUT_LINE\" >&2
+                exit 103
             fi
             TRANSLATIONS[${#TRANSLATIONS[*]}]="${FARG[1]} ${FARG[2]} ${FARG[3]}"
             ;;
@@ -332,9 +332,9 @@ do
             eval "FARG=($INPUT_LINE)"
             if [ ${#FARG[*]} -ne 2 ]
             then
-                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \"$INPUT_LINE\"
-                exit 1
+                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM >&2
+                echo ERROR: invalid line \"$INPUT_LINE\" >&2
+                exit 103
             fi
             DROPCOLUMNS[${#DROPCOLUMNS[*]}]=${FARG[1]}
             ;;
@@ -342,9 +342,9 @@ do
             eval "FARG=($INPUT_LINE)"
             if [ ${#FARG[*]} -ne 2 -a ${#FARG[*]} -ne 3 ]
             then
-                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \"$INPUT_LINE\"
-                exit 1
+                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM >&2
+                echo ERROR: invalid line \"$INPUT_LINE\" >&2
+                exit 103
             fi
             REJECTED_ARC[${#REJECTED_ARC[*]}]=${FARG[1]}
             if [ ${#FARG[*]} -eq 3 ]
@@ -357,9 +357,9 @@ do
         *)
             if [ -n "$INPUT_LINE" ]
             then
-                echo ERROR: invalid statement in configuration file at line $LINE_NUM
-                echo ERROR: invalid line \"$INPUT_LINE\"
-                exit 1
+                echo ERROR: invalid statement in configuration file at line $LINE_NUM >&2
+                echo ERROR: invalid line \"$INPUT_LINE\" >&2
+                exit 103
             fi
             ;;
     esac
@@ -402,8 +402,8 @@ fi
 
 for i in KAR_BIN KARMETA_BIN VDBLOCK_BIN VDBUNLOCK_BIN VDBVALIDATE_BIN PREFETCH_BIN VDBDIFF_BIN VDBDUMP_BIN MAKEREADFILTER_BIN
 do
-    if [ ! -e ${!i} ]; then echo ERROR: can not stat executable \'${!i}\' >&2; exit 1; fi
-    if [ ! -x ${!i} ]; then echo ERROR: has no permission to execute for \'${!i}\' >&2; exit 1; fi
+    if [ ! -e ${!i} ]; then echo ERROR: can not stat executable \'${!i}\' >&2;          exit 104; fi
+    if [ ! -x ${!i} ]; then echo ERROR: has no permission to execute for \'${!i}\' >&2; exit 104; fi
 done
 
 ###
@@ -442,11 +442,32 @@ err_msg ()
     fi
 }
 
+## There is special vairable DPEC__, which by default is integer and contains exit code of program;
+## It's default value is 1, but it could be alterated and set different value, but it will be reset to 1
+## once execution passed
+## dpec__ function if it called with param, it will set DPEC__ value, if it called without param, it
+##        will return value of DPEC__ and will reset it to 1
+dpec__ ()
+{
+    if [ $# -ne 0 ]
+    then
+        DPEC__=`echo $1 | awk ' { if ( int ( $1 ) == 0 ) { print "1"; } else { print int ($1); } } ' `
+    else
+        RV=1
+        if [ -n "$DPEC__" ]
+        then
+            RV=`echo $DPEC__ | awk ' { if ( int ( $1 ) == 0 ) { print "1"; } else { print int ($1); } } ' `
+        fi
+        DPEC__=1
+        echo $RV
+    fi
+}
+
 err_exit ()
 {
     err_msg $@
     echo Exiting ... >&2
-    exit 1
+    exit `dpec__`
 }
 
 exec_cmd ()
@@ -478,6 +499,9 @@ exec_cmd_exit ()
     then
         err_exit command failed \'$TCMD\'
     fi
+
+    ## reset return code to default
+    dpec__
 }
 
 ###
@@ -488,7 +512,7 @@ exec_cmd_exit ()
 ## Since target is mandatory, and actually it is place where we do play
 if [ -z "$TARGET_VAL" ]
 then
-    err_exit missed mandatory parameter \'$TARGET_TAG\'
+    dpec__ 100; err_exit missed mandatory parameter \'$TARGET_TAG\'
 fi
 
 TARGET_DIR=$TARGET_VAL
@@ -537,7 +561,7 @@ check_rejected_run_exit ()
             if [ "$TCS" = "${REJECTED_ARC[$TCNT]}" ]
             then
                 log_status "$REJECTED_TAG unsupported architecture run '$TCS' detected: ${REJECTED_ARC_COMM[$TCNT]}"
-                err_exit "$REJECTED_TAG unsupported architecture run '$TCS' detected: ${REJECTED_ARC_COMM[$TCNT]}"
+                dpec__ 80; err_exit "$REJECTED_TAG unsupported architecture run '$TCS' detected: ${REJECTED_ARC_COMM[$TCNT]}"
             fi
 
             TCNT=$(( $TCNT + 1 ));
@@ -549,7 +573,7 @@ check_rejected_run_exit ()
     if [ "$TCS" = "true" ]
     then
         log_status "$REJECTED_TAG can not process colorspace rund, and here 'CS_NATIVE' column detected"
-        err_exit "$REJECTED_TAG can not process colorspace rund, and here 'CS_NATIVE' column detected"
+        dpec__ 80; err_exit "$REJECTED_TAG can not process colorspace rund, and here 'CS_NATIVE' column detected"
     fi
 
     ## Last, my paranoidal check
@@ -557,7 +581,7 @@ check_rejected_run_exit ()
     if [ -n "$TCS" ]
     then
         log_status "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
-        err_exit "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
+        dpec__ 80; err_exit "$REJECTED_TAG can not process colorspace rund, and here 'CSREAD' physical column detected"
     fi
 }
 
@@ -575,7 +599,7 @@ check_remove_target_dir ()
 
     if [ -z "$FORCE_VAL" ]
     then
-        err_exit target directory \'$TARGET_DIR\' exist.
+        dpec__ 106; err_exit target directory \'$TARGET_DIR\' exist.
     fi
 
     info_msg forcing to remove old data for \'$TARGET_DIR\'
@@ -584,7 +608,7 @@ check_remove_target_dir ()
     ## if that file does not exist, it could be some mistake
     if [ ! -e "$STATUS_FILE" ]
     then
-        err_exit target directory \'$TARGET_DIR\' does not looks as valid. Please, remove it manually.
+        dpec__ 106; err_exit target directory \'$TARGET_DIR\' does not looks as valid. Please, remove it manually.
     fi
 
     ## Checking if there are remnaints of database, trying to unlock it
@@ -601,13 +625,13 @@ check_remove_target_dir ()
     do
         if [ ! -w $i -o ! -O $i ]
         then
-            err_exit target directory contains files which could not be delited or does not belong to current user. Please remove it manually
+            dpec__ 106; err_exit target directory contains files which could not be delited or does not belong to current user. Please remove it manually
         fi
     done
 
     ## Removing contents
     ##
-    exec_cmd_exit rm -r $TARGET_DIR
+    dpec__ 107; exec_cmd_exit rm -r $TARGET_DIR
 }
 
 import_proc ()
@@ -616,14 +640,14 @@ import_proc ()
     ## Checking args
     if [ -z "$ACCESSION_VAL" ]
     then
-        err_exit missed mandatory parameter \'$ACCESSION_TAG\'
+        dpec__ 100; err_exit missed mandatory parameter \'$ACCESSION_TAG\'
     fi
 
     check_remove_target_dir
 
     info_msg "IMPORT: $ACCESSION_VAL to $TARGET_DIR"
 
-    exec_cmd_exit mkdir $TARGET_DIR
+    dpec__ 109; exec_cmd_exit mkdir $TARGET_DIR
     log_status $INITIALIZED_TAG $ACCESSION_VAL
 
     cat <<EOF >$VDBCFG_FILE
@@ -640,23 +664,23 @@ EOF
     info_msg Changing directory to \'$TARGET_DIR\'
     cd $TARGET_DIR
 
-    exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
+    dpec__ 60; exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
 
     TOUTD=$TARGET_DIR/$ACCESSION_VAL
     if [ ! -d "$TOUTD" ]
     then
-        err_exit can not stat directory \'$TOUTD\'
+        dpec__ 105; err_exit can not stat directory \'$TOUTD\'
     fi
 
     TOUTF=$TOUTD/${ACCESSION_VAL}.sra
     if [ ! -f "$TOUTF" ]
     then
-        err_exit can not stat file \'$TOUTF\'
+        dpec__ 105; err_exit can not stat file \'$TOUTF\'
     fi
 
     info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TOUTF\'
 
-    exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
+    dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
 
     ICMD="$KAR_BIN "
     if [ -n "$FORCE_VAL" ]
@@ -664,7 +688,7 @@ EOF
         ICMD="$ICMD --force"
     fi
 
-    exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
+    dpec__ 62; exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
 
     ## Checking if it is colorspace run
     check_rejected_run_exit
@@ -683,28 +707,28 @@ check_ready_for_delite ()
     ## Checking ARGS
     if [ -z "$SCHEMA_VAL" ]
     then
-        err_exit missed mandatory parameter \'$SCHEMA_TAG\'
+        dpec__ 100; err_exit missed mandatory parameter \'$SCHEMA_TAG\'
     fi
 
     if [ ! -e "$SCHEMA_VAL" ]
     then
-        err_exit can not stat directory \'$SCHEMA_VAL\'
+        dpec__ 105; err_exit can not stat directory \'$SCHEMA_VAL\'
     fi
 
     if [ ! -d "$DATABASE_DIR" ]
     then
-        err_exit can not stat database \'$DATABASE_DIR\'
+        dpec__ 105; err_exit can not stat database \'$DATABASE_DIR\'
     fi
 
     if [ ! -f "$STATUS_FILE" ]
     then
-        err_exit can not stat status file
+        dpec__ 105; err_exit can not stat status file
     fi
 
     TVAR=`grep "$REJECTED_TAG" $STATUS_FILE 2>/dev/null`
     if [ -n "$TVAR" ]
     then
-        err_exit status shows that object was recected for delite process \"$TVAR\"
+        dpec__ 81; err_exit status shows that object was recected for delite process \"$TVAR\"
     fi
 
     ## Checking if it is colorspace run
@@ -716,13 +740,13 @@ check_delited ()
     TVAR=`grep "$DELITED_TAG" $STATUS_FILE 2>/dev/null`
     if [ -n "$TVAR" ]
     then
-        err_exit status shows that object was delited already: \'$TVAR\'
+        dpec__ 82; err_exit status shows that object was delited already: \'$TVAR\'
     fi
 
     TVAR=`$KARMETA_BIN --info SOFTWARE/delite $DATABASE_DIR 2>/dev/null`
     if [ -n "$TVAR" ]
     then
-        err_exit object was delited already: \'$TVAR\'
+        dpec__ 82; err_exit object was delited already: \'$TVAR\'
     fi
 }
 
@@ -738,11 +762,6 @@ rename_quality_column ()
 {
     for i in `find $DATABASE_DIR -type d -name QUALITY`
     do
-        # if [ -n "$SEQUENCE_TABLE" ]
-        # then
-            # err_exit invalid run object, has more than one QUALITY columns
-        # fi
-
         TDIR=`dirname $i`
 
         QUALITY_TABLES[${#QUALITY_TABLES[*]}]=`dirname $TDIR`
@@ -750,17 +769,15 @@ rename_quality_column ()
         ORIGINAL_QUALITY_COL=$TDIR/${ORIGINAL_QUALITY}
         if [ -e "$ORIGINAL_QUALITY_COL" ]
         then
-            err_exit can not rename \'$i\'. Directory \'$ORIGINAL_QUALITY_COL\' already exists
+            dpec__ 106; err_exit can not rename \'$i\'. Directory \'$ORIGINAL_QUALITY_COL\' already exists
         fi
-        exec_cmd_exit mv $i $ORIGINAL_QUALITY_COL
+        dpec__ 110; exec_cmd_exit mv $i $ORIGINAL_QUALITY_COL
         ORIGINAL_QUALITY_COLUMNS[${#ORIGINAL_QUALITY_COLUMNS[*]}]=$ORIGINAL_QUALITY_COL
     done
 
-    # if [ -z "$SEQUENCE_TABLE" ]
     if [ ${#QUALITY_TABLES[*]} -eq 0 ]
     then
-        # err_exit invalid run object, can not stat SEQUENCE table
-        err_exit invalid run object, can not stat table with QUALITY
+        dpec__ 83; err_exit invalid run object, can not stat table with QUALITY
     fi
 }
 
@@ -805,19 +822,19 @@ check_schema_valid ()
     case "$S2CH" in
         NCBI:SRA:Illumina:tbl:q4*)
             log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
-            err_exit rejected \'$S2CH\' type run detected
+            dpec__ 80; err_exit rejected \'$S2CH\' type run detected
             ;;
         NCBI:SRA:Illumina:tbl:q1:v2)
             log_status "$REJECTED_TAG can not process schema ${SATR[0]} yet"
-            err_exit rejected \'$S2CH\' type run detected
+            dpec__ 80; err_exit rejected \'$S2CH\' type run detected
             ;;
         NCBI:sra:db:trace)
             log_status "$REJECTED_TAG can not process TRACE object"
-            err_exit rejected \'$S2CH\' TRACE object detected
+            dpec__ 80; err_exit rejected \'$S2CH\' TRACE object detected
             ;;
         NCBI:sra:tbl:trace)
             log_status "$REJECTED_TAG can not process TRACE object"
-            err_exit rejected \'$S2CH\' TRACE object detected
+            dpec__ 80; err_exit rejected \'$S2CH\' TRACE object detected
             ;;
     esac
 }
@@ -830,7 +847,7 @@ get_schema_for_object ()
     OLD_SCHEMA=`$KARMETA_BIN --info schema@name $OPTH 2>/dev/null | awk ' { print $2 } '`
     if [ -z "$OLD_SCHEMA" ]
     then
-        err_exit can not retrieve schema name for \'$OPTH\'
+        dpec__ 84; err_exit can not retrieve schema name for \'$OPTH\'
     fi
 
     if [ $TRANSLATION_QTY -eq 0 ]
@@ -868,16 +885,16 @@ modify_object ()
     if [ -n "$NEW_SCHEMA" ]
     then
         info_msg subst $OLD_SCHEMA to $NEW_SCHEMA
-        exec_cmd_exit $KARMETA_BIN --spath $SCHEMA_VAL --updschema schema=\'$NEW_SCHEMA\' $M2D
+        dpec__ 63; exec_cmd_exit $KARMETA_BIN --spath $SCHEMA_VAL --updschema schema=\'$NEW_SCHEMA\' $M2D
     else
         warn_msg no subst found for $OLD_SCHEMA
     fi
 
     info_msg mark object DELITED
 
-    exec_cmd_exit $KARMETA_BIN --setvalue SOFTWARE/delite@date=\"`date`\" $M2D
-    exec_cmd_exit $KARMETA_BIN --setvalue SOFTWARE/delite@name=delite $M2D
-    exec_cmd_exit $KARMETA_BIN --setvalue SOFTWARE/delite@vers=1.1.1 $M2D
+    dpec__ 63; exec_cmd_exit $KARMETA_BIN --setvalue SOFTWARE/delite@date=\"`date`\" $M2D
+    dpec__ 63; exec_cmd_exit $KARMETA_BIN --setvalue SOFTWARE/delite@name=delite $M2D
+    dpec__ 63; exec_cmd_exit $KARMETA_BIN --setvalue SOFTWARE/delite@vers=1.1.1 $M2D
 }
 
 modify_objects ()
@@ -930,11 +947,12 @@ do_make_read_filter ()
     fi
 
     TTMP_DIR=$TARGET_DIR/temp
-    exec_cmd_exit mkdir $TTMP_DIR
+## JOJOBA - change that
+    dpec__ 109; exec_cmd_exit mkdir $TTMP_DIR
 
-    exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
+    dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
 
-    exec_cmd_exit rm -rf $TTMP_DIR
+    dpec__ 107; exec_cmd_exit rm -rf $TTMP_DIR
 }
 
 check_read_quality_exit_with_message ()
@@ -953,7 +971,7 @@ check_read_quality_exit_with_message ()
             log_status "$NODELITE_TAG no qualities found for $DATABASE_DIR"
         fi
 
-        err_exit $@
+        dpec__ 85; err_exit $@
     else
         info_msg "Check passed ## $TCHK_CMD"
     fi
@@ -972,7 +990,7 @@ delite_proc ()
 
     if [ ! -f "$VDBCFG_NAME" ]
     then
-        err_exit can not stat file \'$VDBCFG_FILE\'
+        dpec__ 105; err_exit can not stat file \'$VDBCFG_FILE\'
     fi
 
     ## Checking that it was already delited
@@ -1000,7 +1018,7 @@ delite_proc ()
     check_read_quality_exit_with_message "can not process this run, there is no QUALITY"
 
     ## Unlocking db
-    exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
+    dpec__ 65; exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
 
     rename_quality_column
 
@@ -1034,14 +1052,13 @@ delite_proc ()
 
     for i in ${ORIGINAL_QUALITY_COLUMNS[*]}
     do
-        exec_cmd_exit rm -rf $i
+        dpec__ 107; exec_cmd_exit rm -rf $i
     done
 
-    # exec_cmd_exit rm -rf $ORIGINAL_QUALITY_COL
     check_read_quality_exit_with_message "Can not read QUALITY, delite failed"
 
     ## Locking db
-    exec_cmd_exit $VDBLOCK_BIN $DATABASE_DIR
+    dpec__ 66; exec_cmd_exit $VDBLOCK_BIN $DATABASE_DIR
 
     log_status "$DELITED_TAG $ORIGINAL_CMD" 
 
@@ -1056,12 +1073,12 @@ check_ready_for_export ()
 {
     if [ ! -d "$DATABASE_DIR" ]
     then
-        err_exit can not stat database \'$DATABASE_DIR\'
+        dpec__ 105; err_exit can not stat database \'$DATABASE_DIR\'
     fi
 
     if [ ! -f "$STATUS_FILE" ]
     then
-        err_exit can not stat status file
+        dpec__ 105; err_exit can not stat status file
     fi
 
     ## Checking if it is colorspace run
@@ -1070,13 +1087,13 @@ check_ready_for_export ()
     TVAR=`grep "$DELITED_TAG" $STATUS_FILE 2>/dev/null`
     if [ -z "$TVAR" ]
     then
-        err_exit status shows that object was not delited yet
+        dpec__ 86; err_exit status shows that object was not delited yet
     fi
 
     TVAR=`$KARMETA_BIN --info SOFTWARE/delite $DATABASE_DIR 2>/dev/null`
     if [ -z "$TVAR" ]
     then
-        err_exit object was not delited yet
+        dpec__ 86; err_exit object was not delited yet
     fi
 }
 
@@ -1117,7 +1134,7 @@ test_kar ()
 
     if [ ! -f $ORIG_KAR_FILE ]
     then
-        err_exit SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
+        dpec__ 105; err_exit SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
     fi
 
     exec_cmd $VDBVALIDATE_BIN -x $F2T
@@ -1127,9 +1144,9 @@ test_kar ()
         exec_cmd $VDBVALIDATE_BIN -x $ORIG_KAR_FILE
         if [ $? -ne 0 ]
         then
-            err_exit corrupted original KAR file
+            dpec__ 87; err_exit corrupted original KAR file
         else
-            err_exit vdb-validate failed or original file, that means DELITE process failed
+            dpec__ 67; err_exit vdb-validate failed or original file, that means DELITE process failed
         fi
     fi
 
@@ -1163,7 +1180,7 @@ test_kar ()
 
     TCMD="$TCMD $TDC"
 
-    exec_cmd_exit $TCMD
+    dpec__ 68; exec_cmd_exit $TCMD
 }
 
 kar_new ()
@@ -1173,9 +1190,9 @@ kar_new ()
         if [ -n "$FORCE_VAL" ]
         then
             info_msg forcing to remove odl KAR file \'$NEW_KAR_FILE\'
-            exec_cmd_exit rm -rf $NEW_KAR_FILE
+            dpec__ 107; exec_cmd_exit rm $NEW_KAR_FILE
         else
-            err_exit old KAR file found \'$NEW_KAR_FILE\'
+            dpec__ 106; err_exit old KAR file found \'$NEW_KAR_FILE\'
         fi
     fi
 
@@ -1195,7 +1212,7 @@ kar_new ()
 
     TCMD="$TCMD --create $NEW_KAR_FILE --directory $DATABASE_DIR"
 
-    exec_cmd_exit $TCMD
+    dpec__ 62; exec_cmd_exit $TCMD
 
     test_kar $NEW_KAR_FILE
 }
@@ -1233,7 +1250,7 @@ export_proc ()
 
     if [ ! -f "$VDBCFG_NAME" ]
     then
-        err_exit can not stat file \'$VDBCFG_FILE\'
+        dpec__ 105; err_exit can not stat file \'$VDBCFG_FILE\'
     fi
 
     ## looking up for all columns to drop
@@ -1257,12 +1274,12 @@ status_proc ()
 {
     if [ ! -d "$TARGET_DIR" ]
     then
-        err_exit can not stat directory \'$TARGET_DIR\'
+        dpec__ 105; err_exit can not stat directory \'$TARGET_DIR\'
     fi
 
     if [ ! -f "$STATUS_FILE" ]
     then
-        err_exit can not stat status file
+        dpec__ 105; err_exit can not stat status file
     fi
 
     cat "$STATUS_FILE"
@@ -1280,8 +1297,8 @@ status_proc ()
 ###<<>>### That is main line of script
 ##############################################################################################
 
-trap "err_exit received SIGINT signal, exiting" SIGINT
-trap "err_exit received SIGTERM signal, exiting" SIGTERM
+trap "dpec__ 69; err_exit received SIGINT signal, exiting" SIGINT
+trap "dpec__ 69; err_exit received SIGTERM signal, exiting" SIGTERM
 
 eval $ACTION_PROC
 

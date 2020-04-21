@@ -19,6 +19,7 @@ V.    Editing resulting database
 V|.   Exporting data
 VII.  Status
 VIII. Physical requirements (important, read it)
+IX.   Error codes
 
 I.  Script requirements, environment and configuring.
 =============================================================================
@@ -243,5 +244,43 @@ require 3X disk space than size of original SRA archive. User could estimate
 necessary disk space by this formula :
 
     REQUIRED_SIZE= 3 * ORIGINAL_KAR_SIZE
+
+
+IX.  Error codes
+=============================================================================
+If script failed and it return one of those, imediately send it to us ... lol
+
+100 - invalid orguments, missed parameters
+101 - invalid ACCESSION format
+102 - parameter configuration file defined, but file does not exist
+103 - error in configuration file
+104 - can not stat necessary executable or has not permissions to execute
+105 - can not stat file or directory
+106 - directory or file exist
+107 - can not delete file or directory
+108 - can not copy file or directory
+109 - can not create file or directory
+110 - can not rename file or directory
+
+80 - unsupported architecture
+81 - try to process rejected run
+82 - try to process delited run
+83 - run object has not QUALITY column
+84 - can not find schema for table
+85 - run check failed
+86 - try to kar undelited run
+87 - corrupted input data
+
+60 - prefetch failed
+61 - 'ln -s' failed
+62 - kar+ failed
+63 - kar+meta failed
+64 - make_read_filter failed
+65 - vdb-unlock failed
+66 - vdb-lock failed
+67 - vdb-validate failed
+68 - vdb-diff failed
+69 - signal handled
+
 
 ENJOY

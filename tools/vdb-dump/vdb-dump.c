@@ -1092,7 +1092,7 @@ static rc_t vdm_show_row_blobbing( const p_col_def col_def,
     const KColumn * kcol;
     rc_t rc = KTableOpenColumnRead( ci->my_ktable, &kcol, "%s", col_def->name );
     if ( rc != 0 )
-        return KOutMsg( "'%s' is not a physical column\n", col_def->name );
+        return KOutMsg( "'%s' is not a physical column (%R)\n", col_def->name, rc );
     else
         rc = KOutMsg( "\nCOLUMN '%s':\n", col_def->name );
 
@@ -1294,7 +1294,7 @@ static rc_t vdm_enum_tab_columns( const p_dump_context ctx, const VTable *my_tab
                 rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
                 DISP_RC( rc, "VTableOpenKTableRead() failed" );
             }
-            if ( ctx->enum_static )
+            else if ( ctx->enum_static )
             {
                 extracted = vdm_extract_or_parse_static_columns( ctx, my_table, my_col_defs );
                 rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
@@ -2219,11 +2219,11 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 else switch( ctx->format )
                                 {
                                     case df_fastq  : ;
-                                    case df_fastq1 : ;                                    
+                                    case df_fastq1 : ;
                                     case df_fasta  : ;
                                     case df_fasta1 : ;
                                     case df_fasta2 : ;
-                                    case df_qual   : ;                                    
+                                    case df_qual   : ;
                                     case df_qual1  : vdf_main( ctx, mgr, value ); break; /* in vdb-dump-fastq.c */
                                     default : rc = vdm_main_one_obj( ctx, mgr, value ); break;
                                 }

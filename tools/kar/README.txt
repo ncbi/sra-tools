@@ -270,6 +270,7 @@ If script failed and it return one of those, imediately send it to us ... lol
 85 - run check failed
 86 - try to kar undelited run
 87 - corrupted input data
+88 - invalid output KAR archive
 
 60 - prefetch failed
 61 - 'ln -s' failed

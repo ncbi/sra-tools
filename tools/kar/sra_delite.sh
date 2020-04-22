@@ -39,7 +39,8 @@ DOWNLOADED_TAG="DOWNLOADED:"
 REJECTED_TAG="REJECTED:"
 NODELITE_TAG="NODELITE:"
 
-SEQUENCE_COLUMN_NAME="SEQUENCE"
+SEQUENCE_TBL_NAME="SEQUENCE"
+QUALITY_COL_NAME="QUALITY"
 
 ###
 ##  Usage
@@ -287,13 +288,14 @@ exclude SIGNAL
 
 ### Rejected platforms
 ### Syntax: reject PLATFORM_NAME ["optional platform description"]
-reject SRA_PLATFORM_ABSOLID "colorspace run"
 # reject SRA_PLATFORM_454 "454 architecture run"
+reject SRA_PLATFORM_ABSOLID "colorspace run"
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
+# USE_OWN_TEMPDIR=1
 
 EOF
     else
@@ -369,7 +371,7 @@ TRANSLATION_QTY=${#TRANSLATIONS[*]}
 
 ##
 ## Here we manually adding DROPCOLUMN_QTY to list
-ORIGINAL_QUALITY=ORIGINAL_QUALITY
+ORIGINAL_QUALITY="ORIGINAL_QUALITY"
 DROPCOLUMNS[${#DROPCOLUMN_QTY[*]}]=$ORIGINAL_QUALITY
 DROPCOLUMN_QTY=${#DROPCOLUMNS[*]}
 
@@ -501,7 +503,7 @@ exec_cmd_exit ()
     fi
 
     ## reset return code to default
-    dpec__
+    dpec__ 1
 }
 
 ###
@@ -750,17 +752,36 @@ check_delited ()
     fi
 }
 
-## QUALITY column exists only at SEQUENCE table, and if there is not
-## tables, the run itself is a table
-## We should replace schemas for all tables, and for DB object, if run
-## contains DB object ( case when there are several tables )
-## There are two variables we are using for modification of schemas
-## QUALITY_TABLES - tables containing QUALITY column, and OBJECTS -
-## list of tables to modify schemas
-## Variable ORIGINAL_QUALITY_COLUMNS is need to drop it
+## QUALITY column could exist at SEQUENCE table, and if there is not
+## tables, the run itself is a table. If that column does not exists,
+## we do reject deliting that run
+##
+## We ought to replace schemas for all tables, and for DB object,
+## if run contains DB object ( case when there are several tables )
+##
+## There could be a case when DB could contain two QUALITY columns
+## ( SEQUENCE and CONSENSUS ), and we will try to drop both, it
+## work sometimes.
+## 
+## Variables we are using for modification of schemas
+##     QUALITY_TABLES - tables with QUALITY column
+##     OBJECTS - list of tables to modify schemas
+##     ORIGINAL_QUALITY_COLUMNS - list of quality columns we need to
+##                                drop at the end of delite process
 rename_quality_column ()
 {
-    for i in `find $DATABASE_DIR -type d -name QUALITY`
+    ## checking if there is 'regular' QUALITY column
+    TDIR=$DATABASE_DIR/col/$QUALITY_COL_NAME
+    if [ ! -d "$TDIR" ]
+    then
+        TDIR=$DATABASE_DIR/tbl/$SEQUENCE_TBL_NAME/col/$QUALITY_COL_NAME
+        if [ ! -d "$TDIR" ]
+        then
+            dpec__ 83; err_exit can not stat table with $QUALITY_COL_NAME column
+        fi
+    fi
+
+    for i in `find $DATABASE_DIR -type d -name $QUALITY_COL_NAME`
     do
         TDIR=`dirname $i`
 
@@ -771,13 +792,19 @@ rename_quality_column ()
         then
             dpec__ 106; err_exit can not rename \'$i\'. Directory \'$ORIGINAL_QUALITY_COL\' already exists
         fi
+
         dpec__ 110; exec_cmd_exit mv $i $ORIGINAL_QUALITY_COL
         ORIGINAL_QUALITY_COLUMNS[${#ORIGINAL_QUALITY_COLUMNS[*]}]=$ORIGINAL_QUALITY_COL
     done
 
     if [ ${#QUALITY_TABLES[*]} -eq 0 ]
     then
-        dpec__ 83; err_exit invalid run object, can not stat table with QUALITY
+        dpec__ 83; err_exit can not stat table with $QUALITY_COL_NAME column
+    fi
+
+    if [ ${#QUALITY_TABLES[*]} -gt 1 ]
+    then
+        warn_msg RUN HAS MORE THAN ONE $QUALITY_COL_NAME COLUMNS \[${#QUALITY_TABLES[*]}\]
     fi
 }
 
@@ -927,7 +954,7 @@ is_make_read_filter_applicable ()
     ## if not, it is make_read_filter is not applicable
     for i in $TFF
     do
-        if [ -d "$i/$SEQUENCE_COLUMN_NAME" ]
+        if [ -d "$i/$SEQUENCE_TBL_NAME" ]
         then
             return 0;
         fi
@@ -942,22 +969,24 @@ do_make_read_filter ()
     is_make_read_filter_applicable
     if [ $? -ne 0 ]
     then
-        info_msg $SEQUENCE_COLUMN_NAME column does not present. Skipping make_read_filter step.
+        info_msg $SEQUENCE_TBL_NAME column does not present. Skipping make_read_filter step.
         return
     fi
 
-    TTMP_DIR=$TARGET_DIR/temp
-## JOJOBA - change that
-    dpec__ 109; exec_cmd_exit mkdir $TTMP_DIR
-
-    dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
-
-    dpec__ 107; exec_cmd_exit rm -rf $TTMP_DIR
+    if [ -n "$USE_OWN_TEMPDIR" ]
+    then
+        TTMP_DIR=$TARGET_DIR/temp
+        dpec__ 109; exec_cmd_exit mkdir $TTMP_DIR
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
+        dpec__ 107; exec_cmd_exit rm -rf $TTMP_DIR
+    else
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN $DATABASE_DIR
+    fi
 }
 
 check_read_quality_exit_with_message ()
 {
-    TCHK_CMD="$VDBDUMP_BIN -f tab -C QUALITY -R 1 $DATABASE_DIR"
+    TCHK_CMD="$VDBDUMP_BIN -f tab -C $QUALITY_COL_NAME -R 1 $DATABASE_DIR"
     info_msg "Checking run ## $TCHK_CMD"
     TMSG=`$TCHK_CMD 2>/dev/null | wc -l`
 
@@ -1034,17 +1063,13 @@ delite_proc ()
             HAS_SUBST=0
         fi
     done
-    # get_schema_for_object $SEQUENCE_TABLE
 
-    # if [ -n "$NEW_SCHEMA" ]
     if [ $HAS_SUBST -eq 1 ]
     then
-        # info_msg found substitute schema $SEQUENCE_TABLE \($OLD_SCHEMA\ -\> $NEW_SCHEMA\)
         modify_objects
-        check_read_quality_exit_with_message "Can not read QUALITY, the substitute schema did not work"
+        check_read_quality_exit_with_message "Can not read $QUALITY_COL_NAME, the substitute schema did not work"
     else
-        # warn_msg no substitute schema for $SEQUENCE_TABLE \($OLD_SCHEMA\)
-        check_read_quality_exit_with_message "Can not read QUALITY, and there is no substitute schema"
+        check_read_quality_exit_with_message "Can not read $QUALITY_COL_NAME, and there is no substitute schema"
     fi
 
     ## Make ReadFilter
@@ -1055,7 +1080,7 @@ delite_proc ()
         dpec__ 107; exec_cmd_exit rm -rf $i
     done
 
-    check_read_quality_exit_with_message "Can not read QUALITY, delite failed"
+    check_read_quality_exit_with_message "Can not read $QUALITY_COL_NAME, delite failed"
 
     ## Locking db
     dpec__ 66; exec_cmd_exit $VDBLOCK_BIN $DATABASE_DIR
@@ -1122,6 +1147,35 @@ find_columns_to_drop ()
     cd - >/dev/null
 }
 
+check_read_and_quality_len ()
+{
+    K2T=$1
+
+    if [ ! -r "$K2T" ]
+    then
+        dpec__ 105; err_exit can not stat KAR file \'$K2T\'
+    fi
+
+
+    TCMD="$VDBDUMP_BIN $K2T -f tab '-C READ,(INSDC:quality:text:phred_33)QUALITY' -uI"
+    echo "`date +%Y-%m-%d_%H:%M:%S` #### $TCMD"
+    TCNT=1
+
+    while read -r TILNE
+    do
+        eval "FARG=($TILNE)"
+        if [ ${FARG[1]} -ne ${FARG[2]} ]
+        then
+            dpec__ 88; err_exit READ\(${FARG[1]}\) and QUALITY\(${FARG[2]}\) length are different for record \#$TCNT
+        fi
+
+        TCNT=$(( $TCNT + 1 ))
+    done < <( eval "$TCMD" )
+
+    info_msg checked $TCNT records from KAR file \'$K2T\'
+    info_msg PASSED
+}
+
 test_kar ()
 {
     F2T=$1
@@ -1131,6 +1185,8 @@ test_kar ()
         warn_msg skipping tests for \'$F2T\' ...
         return
     fi
+
+    check_read_and_quality_len $F2T
 
     if [ ! -f $ORIG_KAR_FILE ]
     then
@@ -1175,7 +1231,7 @@ test_kar ()
     is_make_read_filter_applicable
     if [ $? -eq 0 ]
     then
-        TDC="${TDC},READ_FILTER,RD_FILTER,SAM_FLAGS"
+        TDC="${TDC},READ_FILTER,RD_FILTER,SAM_FLAGS,READ_SEG"
     fi
 
     TCMD="$TCMD $TDC"

@@ -52,10 +52,10 @@ endif
 #
 
 check_exit_code:
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/sra-pileup
+	@ NCBI_SETTINGS=/ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/sra-pileup
 
 check_skiplist:
-	@ $(PYTHON) check_skiplist.py $(BINDIR)/sra-pileup
+	@ NCBI_SETTINGS=/ $(PYTHON) check_skiplist.py $(BINDIR)/sra-pileup
 
 ACC = SRR3332402
 
@@ -63,13 +63,13 @@ ACC = SRR3332402
 # testing if sam-dump and fastq-dump produce the same READ/QUALITY values
 #
 fastq_dump_vs_sam_dump :
-	@ $(PYTHON) test_diff_fastq_dump_vs_sam_dump.py -a $(ACC) -f $(BINDIR)/fastq-dump -m $(BINDIR)/sam-dump
+	@ NCBI_SETTINGS=/ $(PYTHON) test_diff_fastq_dump_vs_sam_dump.py -a $(ACC) -f $(BINDIR)/fastq-dump -m $(BINDIR)/sam-dump
 
 #-------------------------------------------------------------------------------
 # testing if sam-dump and fastq-dump produce the same READ/QUALITY values
 #
 sam_dump_spotgroup_for_all :
-	@ $(PYTHON) test_all_sam_dump_has_spotgroup.py -a $(ACC) -m $(BINDIR)/sam-dump
+	@ NCBI_SETTINGS=/ $(PYTHON) test_all_sam_dump_has_spotgroup.py -a $(ACC) -m $(BINDIR)/sam-dump
 
 .PHONY: $(TEST_TOOLS)
 

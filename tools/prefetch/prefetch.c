@@ -1261,6 +1261,9 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     RELEASE(KFile, in);
 
+    if ( rc == 0 && rw != 0 )
+        rc = rw;
+
     return rc;
 }
 
@@ -2767,12 +2770,15 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
     assert(resolved);
 
-    if (KSrvRespFileGetFormat(resolved->respFile, &ff) == 0)
+    if (resolved->respFile != NULL &&
+        KSrvRespFileGetFormat(resolved->respFile, &ff) == 0)
+    {
         if (ff == eSFFVdbcache) {
             STSMSG(STS_DBG, ("skipped dependencies check for '%s.vdbcache'",
                 resolved->name));
             return 0;
         }
+    }
 
     if (resolved->path.str != NULL)
         rc = PrfMainDependenciesList(item->mane, resolved, &deps);

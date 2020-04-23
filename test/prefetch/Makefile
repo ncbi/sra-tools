@@ -691,7 +691,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc --cart ../3-dbGaP-0.krt"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc --cart ../3-dbGaP-0.krt -Cn"
 	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
 	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
 	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
@@ -701,7 +701,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
 	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
 	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
 	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
@@ -711,7 +711,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
 	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
 	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
 	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
@@ -721,7 +721,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
 	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
 	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
 	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra
@@ -736,7 +736,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-      "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt"
+      "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
 	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
 	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
 	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
@@ -746,7 +746,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
 	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
 	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
 	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
@@ -756,7 +756,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
 	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
 	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
 	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
@@ -767,7 +767,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
 	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
 	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
 	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
@@ -777,7 +777,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
 	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
 	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
 	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
@@ -787,7 +787,7 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok"
+	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
 	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
 	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
 	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra

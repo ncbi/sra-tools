@@ -291,6 +291,16 @@ exclude SIGNAL
 # reject SRA_PLATFORM_454 "454 architecture run"
 reject SRA_PLATFORM_ABSOLID "colorspace run"
 
+### Columns to skip during vdb-diff testing
+### Syntax: diff-exclude COLUMN_NAME
+diff-exclude CLIPPED_QUALITY
+diff-exclude SAM_QUALITY
+diff-exclude QUALITY_VALUE
+diff-exclude READ_FILTER
+diff-exclude RD_FILTER
+diff-exclude SAM_FLAGS
+diff-exclude READ_SEG
+
 ### Environment definition section.
 ### Syntax: NAME=VALUE
 ### Please, do not allow spaces between parameters
@@ -339,6 +349,21 @@ do
                 exit 103
             fi
             DROPCOLUMNS[${#DROPCOLUMNS[*]}]=${FARG[1]}
+            ;;
+        diff-exclude*)
+            eval "FARG=($INPUT_LINE)"
+            if [ ${#FARG[*]} -ne 2 ]
+            then
+                echo ERROR: invalid amount of tokens in configuration file at line $LINE_NUM >&2
+                echo ERROR: invalid line \"$INPUT_LINE\" >&2
+                exit 103
+            fi
+            if [ -z "$DIFFEXCLUDE" ]
+            then
+                DIFFEXCLUDE="${FARG[1]}"
+            else
+                DIFFEXCLUDE="${DIFFEXCLUDE},${FARG[1]}"
+            fi
             ;;
         reject*)
             eval "FARG=($INPUT_LINE)"
@@ -871,7 +896,8 @@ get_schema_for_object ()
     OPTH=$1
 
     NEW_SCHEMA=""
-    OLD_SCHEMA=`$KARMETA_BIN --info schema@name $OPTH 2>/dev/null | awk ' { print $2 } '`
+    FARR=(`$KARMETA_BIN --info schema@name $OPTH 2>/dev/null`)
+    OLD_SCHEMA=${FARR[1]}
     if [ -z "$OLD_SCHEMA" ]
     then
         dpec__ 84; err_exit can not retrieve schema name for \'$OPTH\'
@@ -937,50 +963,6 @@ modify_objects ()
         do
             modify_object $i
         done
-    fi
-}
-
-is_make_read_filter_applicable ()
-{
-    ## first we check if it is DB or TABLE. 
-    ## if it TABLE, by default it is SEQUENCE table
-    TFF=`find $DATABASE_DIR -type d -name tbl`
-    if [ -z "$TFF" ]
-    then
-        return 0;
-    fi
-
-    ## second if it is db, it should contain "tbl/SEQUENCE" subdirectory
-    ## if not, it is make_read_filter is not applicable
-    for i in $TFF
-    do
-        if [ -d "$i/$SEQUENCE_TBL_NAME" ]
-        then
-            return 0;
-        fi
-    done
-
-    return 1
-}
-
-do_make_read_filter ()
-{
-    ## First we should be sure that we need to call make_read_filter utility
-    is_make_read_filter_applicable
-    if [ $? -ne 0 ]
-    then
-        info_msg $SEQUENCE_TBL_NAME column does not present. Skipping make_read_filter step.
-        return
-    fi
-
-    if [ -n "$USE_OWN_TEMPDIR" ]
-    then
-        TTMP_DIR=$TARGET_DIR/temp
-        dpec__ 109; exec_cmd_exit mkdir $TTMP_DIR
-        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
-        dpec__ 107; exec_cmd_exit rm -rf $TTMP_DIR
-    else
-        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN $DATABASE_DIR
     fi
 }
 
@@ -1061,6 +1043,7 @@ delite_proc ()
         else
             info_msg no substitute schema $i : $OLD_SCHEMA -\> NONE
             HAS_SUBST=0
+            break
         fi
     done
 
@@ -1073,8 +1056,17 @@ delite_proc ()
     fi
 
     ## Make ReadFilter
-    do_make_read_filter
+    if [ -n "$USE_OWN_TEMPDIR" ]
+    then
+        TTMP_DIR=$TARGET_DIR/temp
+        dpec__ 109; exec_cmd_exit mkdir $TTMP_DIR
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
+        dpec__ 107; exec_cmd_exit rm -rf $TTMP_DIR
+    else
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN $DATABASE_DIR
+    fi
 
+    ## Dropping original quality columns
     for i in ${ORIGINAL_QUALITY_COLUMNS[*]}
     do
         dpec__ 107; exec_cmd_exit rm -rf $i
@@ -1208,7 +1200,7 @@ test_kar ()
 
     TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"
 
-    TDC="-x CLIPPED_QUALITY,SAM_QUALITY,QUALITY_VALUE"
+    TDC="$DIFFEXCLUDE"
 
     if [ $DROPCOLUMN_QTY -ne 0 ]
     then
@@ -1217,7 +1209,12 @@ test_kar ()
         do
             TCN=${DROPCOLUMNS[$TCNT]}
 
-            TDC="${TDC},$TCN"
+            if [ -n "$TDC" ]
+            then
+                TDC="${TDC},$TCN"
+            else
+                TDC="$TCN"
+            fi
 
             if [ "$TCN" = "SIGNAL" ]
             then
@@ -1228,13 +1225,10 @@ test_kar ()
         done
     fi
 
-    is_make_read_filter_applicable
-    if [ $? -eq 0 ]
+    if [ -n "$TDC" ]
     then
-        TDC="${TDC},READ_FILTER,RD_FILTER,SAM_FLAGS,READ_SEG"
+        TCMD="$TCMD -x $TDC"
     fi
-
-    TCMD="$TCMD $TDC"
 
     dpec__ 68; exec_cmd_exit $TCMD
 }

@@ -78,10 +78,22 @@ exclude SIGNAL
 
 ### Rejected platforms
 ### Syntax: reject PLATFORM_NAME ["optional platform description"]
-reject SRA_PLATFORM_ABSOLID "colorspace run"
 # reject SRA_PLATFORM_454 "454 architecture run"
+reject SRA_PLATFORM_ABSOLID "colorspace run"
+
+### Columns to skip during vdb-diff testing
+###
+diff-exclude CLIPPED_QUALITY
+diff-exclude SAM_QUALITY
+diff-exclude QUALITY_VALUE
+diff-exclude READ_FILTER
+diff-exclude RD_FILTER
+diff-exclude SAM_FLAGS
+diff-exclude READ_SEG
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
+# USE_OWN_TEMPDIR=1
+

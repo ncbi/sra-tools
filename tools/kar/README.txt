@@ -102,17 +102,31 @@ There is example of configuration file :
         ### '#'# character in beginning of line is treated as a commentary
 
         ### Schema traslations
+        ### Syntax: translate SCHEMA_NAME OLD_VER NEW_VER
         translate NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0
         translate NCBI:SRA:GenericFastq:sequence  1.0     2.0
         translate NCBI:SRA:GenericFastq:sequence_log_odds 1.0     2
         translate NCBI:SRA:GenericFastq:sequence_nanopore 1.0     2.0
+        translate NCBI:SRA:GenericFastq:sequence_no_name  1.0     2.0
 
         ### Columns to drop
+        ### Syntax: exclude COLUMN_NAME
         exclude QUALITY
         exclude QUALITY2
 
+        ### Rejected platforms
+        ### Syntax: reject PLATFORM_NAME ["optional platform description"]
+        ## reject SRA_PLATFORM_454 "454 architecture run"
+        reject SRA_PLATFORM_ABSOLID "colorspace run"
+
+        ### Columns to skip during vdb-diff testing
+        ### Syntax: diff-exclude COLUMN_NAME
+        diff-exclude CLIPPED_QUALITY
+        diff-exclude SAM_QUALITY
+
         ### Environment definition section.
         # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
+        # USE_OWN_TEMPDIR=1
 
 Each line of configuration file is a separate entty. Script does not support
 multiline entries.
@@ -134,6 +148,18 @@ drop during delite process. It should contain exactly two words, and it's
 format is:
 
 <exclue> <column_name>
+
+Line started with word 'reject' will be treated as definition of architecture
+which should not be delited. For now it is only colorspace platform OBSOLID,
+That line should contain two or three parameters, and format is:
+
+<reject> <platform_name> ["commentary which will be shown in messages"]
+
+Line started with word 'diff-exclude" will be treated as a name of column
+which will be excluded from testing by 'vdb-diff' command. It should contain
+exactly two words, and it's format is:
+
+<diff-exclude> <column_name>
 
 Line, which consist from single word and contains symbol '=' inside will be
 treated as environment variable definition. It's format is:

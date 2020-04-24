@@ -65,7 +65,8 @@ extern "C" {
 #define OPTION_OBJTYPE           "obj_type"
 #define OPTION_NUMELEM           "numelem"
 #define OPTION_NUMELEMSUM        "numelemsum"
-#define OPTION_SHOW_BLOBBING     "blobbing"
+#define OPTION_SHOW_KDB_BLOBS    "phys-blobs"
+#define OPTION_SHOW_VDB_BLOBS    "vdb-blobs"
 #define OPTION_ENUM_PHYS         "phys"
 #define OPTION_ENUM_READABLE     "readable"
 #define OPTION_ENUM_STATIC       "static"
@@ -190,7 +191,8 @@ typedef struct dump_context
     bool objtype_requested;
     bool print_num_elem;
     bool sum_num_elem;
-    bool show_blobbing;
+    bool show_kdb_blobs;
+    bool show_vdb_blobs;
     bool enum_phys;
     bool enum_readable;
     bool enum_static;

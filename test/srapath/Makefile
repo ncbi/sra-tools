@@ -52,10 +52,10 @@ check_exit_code:
 
 SRP:
 # TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
-	$(BINDIR)/srapath SRR000001 -fnames > /dev/null
+	@ NCBI_SETTINGS=/ $(BINDIR)/srapath SRR000001 -fnames > /dev/null
 
 vdbcache: #; print "<$_>"
-	$(BINDIR)/srapath SRR1557953 | wc -l | perl check-cnt.pl
+	@ NCBI_SETTINGS=/ $(BINDIR)/srapath SRR1557953 | wc -l | perl check-cnt.pl
 
 .PHONY: $(TEST_TOOLS)
 

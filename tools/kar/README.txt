@@ -362,5 +362,7 @@ each step, script will try to read QUALITY from freshly editet run, and if
 qualities are unreadable, script will exit with code 85
 there will be 
 
+After that, script will run standard checks as for: vdb-validate and vdb-diff to
+be sure that delite process finished correctly
 
 ENJOY

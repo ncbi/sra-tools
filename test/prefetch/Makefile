@@ -814,23 +814,23 @@ wgs:
 	@ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
 	@rm -r tmp/S*
 
-	@cd tmp && NCBI_SETTINGS=k $B/prefetch SRR619505  -fy     > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR619505  -fy     > /dev/null
 	@ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null
 	@rm -r tmp/[rS]*
 
 #TODO: TO ADD AD for AAAB01 cd tmp &&                 prefetch SRR353827 -fy -+VFS
 
-	@cd tmp && NCBI_SETTINGS=k $B/prefetch SRR353827  -fy     > /dev/null
-	@cd tmp && NCBI_SETTINGS=k $B/align-info SRR353827 \
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR353827  -fy     > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/align-info SRR353827 \
 		| grep -v 'false,remote::https:'                      > /dev/null
 	@ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null
 	@rm -r tmp/[wS]*
 
 	@echo  Verifying prefetch of run with with a lot of WGS references...
 	@echo '      ... prefetching...'
-	@cd tmp && NCBI_SETTINGS=k $B/prefetch   ERR3091357 -fy   > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch   ERR3091357 -fy   > /dev/null
 	@echo '      ... align-infoing...'
-	@cd tmp && NCBI_SETTINGS=k $B/align-info ERR3091357 \
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/align-info ERR3091357 \
 		| grep -v 'false,remote::https:'                      > /dev/null
 	@ls tmp/ERR3091357/ERR3091357.sra tmp/wgs/JTFH01 tmp/refseq/KN707955.1 \
 	                                                          > /dev/null

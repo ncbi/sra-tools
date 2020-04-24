@@ -20,6 +20,7 @@ V|.   Exporting data
 VII.  Status
 VIII. Physical requirements (important, read it)
 IX.   Error codes
+X.    Limitations: what to expect and what to not
 
 I.  Script requirements, environment and configuring.
 =============================================================================
@@ -274,7 +275,14 @@ necessary disk space by this formula :
 
 IX.  Error codes
 =============================================================================
-If script failed and it return one of those, imediately send it to us ... lol
+If script failed and it will return some error code. There are three types of
+errors, which script could return: 
+
+100-122 - invalid setup or configuration
+  80-89 - invalid data to process or processed
+  60-73 - vdb/sra/kdv program exited with non-zero return code
+
+There is a list of all error codes which script can return.
 
 100 - invalid orguments, missed parameters
 101 - invalid ACCESSION format
@@ -308,6 +316,51 @@ If script failed and it return one of those, imediately send it to us ... lol
 67 - vdb-validate failed
 68 - vdb-diff failed
 69 - signal handled
+
+
+X.    Limitations: what to expect and what to not
+=============================================================================
+Not every run can be delited. There are many limitations and exceptions.
+
+First it should be noted here that run can be delited only if it has QUALITY
+column. That means, that unpacked run should have one of these two :
+
+    RUNXXX/col/QUALITY                  /* run is a SEQUENCE table */
+or
+    RUNXXX/tbl/SEQUENCE/col/QUALITY     /* run is a database */
+
+After delite process downloaded kar archive with run and unpacked it, the first
+thing scritp does, is checking of existance of QUALITY directory. If script
+is unable to locate that directory, it will exit with return code 83.
+
+Next condition which run should comply with is: there should be substutute
+schema defined for table which contains quality column.
+
+User should remember that there are exists runs with two defined quality columns:
+SEQUENCE/col/QUALITY and CONSENSUS/col/QUALITY. If run contains two quality
+columns, there should exists substitute for schema for both.
+
+Colorspace runs can not be delited, and it is second check which script is
+doing before starting delite process. If run PLATFORM type is SRA_PLATFORM_ABSOLID
+then run is colorspace, and script will exit with return code 80.
+User can configure list of platforms to reject in configuration file.
+
+Next two check are necessary to recognize non ABSOLID colorspace runs : script 
+will check if run contains column CS_NATIVE, or it has physical column CSREAD.
+If run do have, script will fall with return code 80.
+
+There are two old type Illumina tables which script will not process, because
+they aren't supported : NCBI:SRA:Illumina:tbl:q4 and NCBI:SRA:Illumina:tbl:q1:v2.
+In the case if that type of table was detected, script will exit with exit
+code 80.
+
+TRACE type archives can not be delited and script will exit with code 80.
+
+Delite process itself consists of several steps, during which different utility
+could be involved to modify metadata, schema, and/or build read filter. After 
+each step, script will try to read QUALITY from freshly editet run, and if
+qualities are unreadable, script will exit with code 85
+there will be 
 
 
 ENJOY

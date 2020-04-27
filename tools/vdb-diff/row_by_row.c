@@ -160,17 +160,17 @@ rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab
 						}
 						else
 						{
-                            struct num_gen * rows_to_diff;
+                            struct num_gen * rows_to_diff = NULL;
                             rc = cmn_make_num_gen( cur_1, cur_2, 0, 0, dctx -> rows, &rows_to_diff );
-                            if ( rc == 0 )
+                            if ( rc == 0 && rows_to_diff != NULL )
                             {
-                                const struct num_gen_iter * iter;
+                                const struct num_gen_iter * iter = NULL;
                                 rc = num_gen_iterator_make( rows_to_diff, &iter );
                                 if ( rc != 0 )
                                 {
                                     LOGERR ( klogInt, rc, "num_gen_iterator_make() failed" );
                                 }
-                                else
+                                else if ( iter != NULL )
                                 {
                                     /* *************************************************************** */
                                     rc = rbr_diff_columns_iter( defs, cur_1, cur_2, dctx, iter, diffs );
@@ -187,5 +187,5 @@ rc_t rbr_diff_columns( col_defs * defs, const VTable * tab_1, const VTable * tab
 		}
 		VCursorRelease( cur_1 );
 	}
-	return 0;
+	return rc;
 }

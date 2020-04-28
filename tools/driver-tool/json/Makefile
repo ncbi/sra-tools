@@ -94,7 +94,7 @@ clean: stdclean
 $(ILIBDIR)/libjson: $(ILIBDIR)/libjson.$(LIBX)
 
 $(UTF8PROC_DIR)/utf8proc.o:
-	@ $(MAKE) -C $(UTF8PROC_DIR)
+	@ $(MAKE) AR=ar -C $(UTF8PROC_DIR)
 
 $(ILIBDIR)/libsecure.$(LIBX):
 	@ $(MAKE) -C $(SECURE_DIR)

@@ -28,6 +28,7 @@
 #include <vdb/schema.h>
 #include <vdb/table.h>
 #include <vdb/cursor.h>
+#include <vdb/blob.h>
 #include <vdb/database.h>
 #include <vdb/dependencies.h>
 #include <vdb/vdb-priv.h>
@@ -101,7 +102,8 @@ static const char * objver_usage[]              = { "request vdb-version",      
 static const char * objts_usage[]               = { "request object modification date",             NULL };
 static const char * numelem_usage[]             = { "print only element-count",                     NULL };
 static const char * numelemsum_usage[]          = { "sum element-count",                            NULL };
-static const char * show_blobbing_usage[]       = { "show blobbing",                                NULL };
+static const char * show_kdb_blobs_usage[]      = { "show physical blobs",                          NULL };
+static const char * show_vdb_blobs_usage[]      = { "show VDB-blobs",                               NULL };
 static const char * enum_phys_usage[]           = { "enumerate physical columns",                   NULL };
 static const char * enum_readable_usage[]       = { "enumerate readable columns",                   NULL };
 static const char * enum_static_usage[]         = { "enumerate static columns",                     NULL };
@@ -153,7 +155,8 @@ OptDef DumpOptions[] =
     { OPTION_BOOLEAN,               ALIAS_BOOLEAN,            NULL, boolean_usage,           1, true,   false },
     { OPTION_NUMELEM,               ALIAS_NUMELEM,            NULL, numelem_usage,           1, false,  false },
     { OPTION_NUMELEMSUM,            ALIAS_NUMELEMSUM,         NULL, numelemsum_usage,        1, false,  false },
-    { OPTION_SHOW_BLOBBING,         NULL,                     NULL, show_blobbing_usage,     1, false,  false },
+    { OPTION_SHOW_KDB_BLOBS,        NULL,                     NULL, show_kdb_blobs_usage,    1, false,  false },
+    { OPTION_SHOW_VDB_BLOBS,        NULL,                     NULL, show_vdb_blobs_usage,    1, false,  false },
     { OPTION_ENUM_PHYS,             NULL,                     NULL, enum_phys_usage,         1, false,  false },
     { OPTION_ENUM_READABLE,         NULL,                     NULL, enum_readable_usage,     1, false,  false },
     { OPTION_ENUM_STATIC,           NULL,                     NULL, enum_static_usage,       1, false,  false },    
@@ -252,7 +255,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_OBJTYPE,             OPTION_OBJTYPE,         NULL,           objtype_usage );
     HelpOptionLine ( ALIAS_NUMELEM,             OPTION_NUMELEM,         NULL,           numelem_usage );
     HelpOptionLine ( ALIAS_NUMELEMSUM,          OPTION_NUMELEMSUM,      NULL,           numelemsum_usage );
-    HelpOptionLine ( NULL,                      OPTION_SHOW_BLOBBING,   NULL,           show_blobbing_usage );
+    HelpOptionLine ( NULL,                      OPTION_SHOW_KDB_BLOBS,  NULL,           show_kdb_blobs_usage );
+    HelpOptionLine ( NULL,                      OPTION_SHOW_VDB_BLOBS,  NULL,           show_vdb_blobs_usage );
     HelpOptionLine ( NULL,                      OPTION_ENUM_PHYS,       NULL,           enum_phys_usage );
     HelpOptionLine ( NULL,                      OPTION_ENUM_READABLE,   NULL,           enum_readable_usage );
     HelpOptionLine ( NULL,                      OPTION_IDX_ENUM,        NULL,           idx_enum_usage );    
@@ -1086,13 +1090,13 @@ static rc_t vdm_print_column_datatypes( const p_col_def col_def,
 }
 
 
-static rc_t vdm_show_row_blobbing( const p_col_def col_def,
-                                   const p_col_info_context ci )
+static rc_t vdm_show_kdb_blobs( const p_col_def col_def,
+                                const p_col_info_context ci )
 {
     const KColumn * kcol;
     rc_t rc = KTableOpenColumnRead( ci->my_ktable, &kcol, "%s", col_def->name );
     if ( rc != 0 )
-        return KOutMsg( "'%s' is not a physical column\n", col_def->name );
+        return KOutMsg( "'%s' is not a physical column (%R)\n", col_def->name, rc );
     else
         rc = KOutMsg( "\nCOLUMN '%s':\n", col_def->name );
 
@@ -1143,6 +1147,83 @@ static rc_t vdm_show_row_blobbing( const p_col_def col_def,
     return rc;
 }
 
+static rc_t vdm_show_vdb_blobs( const p_col_def col_def,
+                                const p_col_info_context ci )
+{
+    const VCursor * curs;
+    rc_t rc = VTableCreateCachedCursorRead( ci -> my_table, &curs, ci -> ctx -> cur_cache_size );
+    DISP_RC( rc, "VTableCreateCachedCursorRead() failed" );
+    if ( rc == 0 )
+    {
+        uint32_t idx;
+        rc = VCursorAddColumn( curs, &idx, "%s", col_def -> name );
+        DISP_RC( rc, "VCursorAddColumn() failed" );
+        if ( rc == 0 )
+        {
+            rc = VCursorOpen( curs );
+            DISP_RC( rc, "VCursorOpen() failed" );
+            if ( rc == 0 )
+            {
+                int64_t column_first;
+                uint64_t column_count;
+                rc = VCursorIdRange( curs, idx, &column_first, &column_count );
+                DISP_RC( rc, "VCursorIdRange() failed" );
+                if ( rc == 0 && column_count > 0 )
+                {
+                    int64_t row_id = column_first;
+                    int64_t blob_nr = 0;
+                    bool done = false;
+                    while ( rc == 0 && !done )
+                    {
+                        rc = VCursorSetRowId ( curs, row_id );
+                        DISP_RC( rc, "VCursorSetRowId() failed" );
+                        if ( rc == 0 )
+                        {
+                            rc = VCursorOpenRow( curs );
+                            DISP_RC( rc, "VCursorOpenRow() failed" );
+                            if ( rc == 0 )
+                            {
+                                rc_t rc2;
+                                const VBlob * blob;
+                                rc = VCursorGetBlob ( curs, &blob, idx );
+                                DISP_RC( rc, "VCursorGetBlob() failed" );
+                                if ( rc == 0 )
+                                {
+                                    int64_t blob_first;
+                                    uint64_t blob_count;
+                                    rc = VBlobIdRange ( blob, &blob_first, &blob_count );
+                                    DISP_RC( rc, "VBlobIdRange() failed" );
+                                    if ( rc == 0 )
+                                    {
+                                        size_t blob_bytes;
+                                        rc = VBlobSize ( blob, &blob_bytes );
+                                        DISP_RC( rc, "VBlobSize() failed" );
+                                        if ( rc == 0 )
+                                        {
+                                            rc = KOutMsg( "%s.%d\t%d\t%u\t%u\n",
+                                                col_def -> name, blob_nr++,
+                                                blob_first, blob_count, blob_bytes );
+                                            row_id += blob_count;
+                                            done = ( blob_count == 0 ||
+                                                     row_id >= ( column_first + column_count ) );
+                                        }
+                                    }
+                                }
+
+                                rc2 = VCursorCloseRow ( curs );
+                                DISP_RC( rc2, "VCursorCloseRow() failed" );
+                                if ( rc == 0 ) rc = rc2;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        VCursorRelease( curs );
+    }
+    return rc;
+}
+
 /*************************************************************************************
     print_column_info:
     * get's called from "enum_tab_columns()" via VectorForEach
@@ -1156,8 +1237,10 @@ static rc_t vdm_print_column_info( const p_col_def col_def, p_col_info_context c
 {
     rc_t rc = 0;
 
-    if ( ci_ctx->ctx->show_blobbing )
-        rc = vdm_show_row_blobbing( col_def, ci_ctx );
+    if ( ci_ctx->ctx->show_kdb_blobs )
+        rc = vdm_show_kdb_blobs( col_def, ci_ctx );
+    else if ( ci_ctx->ctx->show_vdb_blobs )
+        rc = vdm_show_vdb_blobs( col_def, ci_ctx );
     else
     {
         /* print_col_info is in vdb-dump-helper.c */
@@ -1288,13 +1371,13 @@ static rc_t vdm_enum_tab_columns( const p_dump_context ctx, const VTable *my_tab
 
             ci_ctx.ctx = ctx;
             ci_ctx.my_table = my_table;
-            if ( ctx->show_blobbing )
+            if ( ctx->show_kdb_blobs )
             {
                 extracted = vdm_extract_or_parse_phys_columns( ctx, my_table, my_col_defs );
                 rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
                 DISP_RC( rc, "VTableOpenKTableRead() failed" );
             }
-            if ( ctx->enum_static )
+            else if ( ctx->enum_static )
             {
                 extracted = vdm_extract_or_parse_static_columns( ctx, my_table, my_col_defs );
                 rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
@@ -1777,7 +1860,8 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
 static bool enum_col_request( const p_dump_context ctx )
 {
     return ( ctx->column_enum_requested || ctx->column_enum_short || 
-             ctx->show_blobbing || ctx->enum_phys || ctx->enum_readable );
+             ctx->show_kdb_blobs || ctx -> show_vdb_blobs ||
+             ctx->enum_phys || ctx->enum_readable );
 }
 
 
@@ -2219,11 +2303,11 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 else switch( ctx->format )
                                 {
                                     case df_fastq  : ;
-                                    case df_fastq1 : ;                                    
+                                    case df_fastq1 : ;
                                     case df_fasta  : ;
                                     case df_fasta1 : ;
                                     case df_fasta2 : ;
-                                    case df_qual   : ;                                    
+                                    case df_qual   : ;
                                     case df_qual1  : vdf_main( ctx, mgr, value ); break; /* in vdb-dump-fastq.c */
                                     default : rc = vdm_main_one_obj( ctx, mgr, value ); break;
                                 }

@@ -26,7 +26,7 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/kar
+MODULE = test/vdb-diff
 
 TEST_TOOLS = 
 
@@ -35,14 +35,31 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: kar_test 
+ifdef PYTHON
+runtests: check_exit_code \
+	check_success \
+	check_failure
+
+else
+runtests: check_success\
+	check_failure;
+
+endif
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-kar_test: kar-ntest.sh
-	@ echo "Starting kar tests..."
-	@ NCBI_SETTINGS=/ bash kar-ntest.sh $(BINDIR)/kar
+
+ACCESSION = SRR000001
+
+check_exit_code:
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-diff
+
+check_success:
+	@./test_success.sh $(BINDIR) $(ACCESSION)
+
+check_failure:
+	@./test_failure.sh $(BINDIR) $(ACCESSION)
 
 .PHONY: $(TEST_TOOLS)
 

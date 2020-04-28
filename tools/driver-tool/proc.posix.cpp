@@ -154,7 +154,6 @@ static void debugPrintDryRun(  char const *const toolpath
     }
 }
 
-
 /// @brief calls exec; does not return
 ///
 /// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
@@ -173,6 +172,21 @@ static void exec [[noreturn]] (  char const *const toolpath
     }
 #endif
     debugPrintDryRun(toolpath, toolname, argv);
+    execve(toolpath, argv);
+    throw_system_error(std::string("failed to exec ")+toolname);
+}
+
+/// @brief calls exec; does not return; no debugging or dry run
+///
+/// @param toolpath the full path to the tool, e.g. /path/to/fastq-dump-orig
+/// @param toolname the user-centric name of the tool, e.g. fastq-dump
+/// @param argv argv
+///
+/// @throw system_error if exec fails
+static void exec_really [[noreturn]] (  char const *const toolpath
+                                      , char const *const toolname
+                                      , char const *const *const argv)
+{
     execve(toolpath, argv);
     throw_system_error(std::string("failed to exec ")+toolname);
 }
@@ -264,7 +278,7 @@ process::exit_status process::run_child_and_wait(char const *toolpath, char cons
     return process(pid).wait();
 }
 
-process::exit_status process::run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, Dictionary const &env)
+process::exit_status process::run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, bool const for_real, Dictionary const &env)
 {
     int fds[2];
 
@@ -286,7 +300,10 @@ process::exit_status process::run_child_and_get_stdout(std::string *out, char co
         for (auto && v : env) {
             setenv(v.first.c_str(), v.second.c_str(), 1);
         }
-        exec(toolpath, toolname, argv);
+        if (for_real)
+            exec_really(toolpath, toolname, argv);
+        else
+            exec(toolpath, toolname, argv);
         assert(!"reachable");
         throw std::logic_error("child must not return");
     }

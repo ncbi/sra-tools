@@ -112,7 +112,7 @@ struct process {
 
     static void run_child(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env = {});
     static exit_status run_child_and_wait(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env = {});
-    static exit_status run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, Dictionary const &env = {});
+    static exit_status run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, bool const for_real = false, Dictionary const &env = {});
 };
 
 } // namespace sratools

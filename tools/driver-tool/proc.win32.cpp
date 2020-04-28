@@ -159,7 +159,7 @@ process::exit_status process::run_child_and_wait(char const *toolpath, char cons
     return exit_status(exitCode);
 }
 
-process::exit_status process::run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, Dictionary const &env)
+process::exit_status process::run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, bool const for_real, Dictionary const &env)
 {
     SECURITY_ATTRIBUTES attr;
     ZeroMemory(&attr, sizeof(attr));

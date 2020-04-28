@@ -85,7 +85,7 @@ Config::Config(ToolPath const &runpath) {
     if (toolpath.executable()) {
         auto const path = toolpath.fullpath();
         std::string raw;
-        auto const rc = process::run_child_and_get_stdout(&raw, path.c_str(), argv[0], argv, {});
+        auto const rc = process::run_child_and_get_stdout(&raw, path.c_str(), argv[0], argv, true, {});
         if (rc.exited() && rc.exit_code() == 0) {
 #if DEBUG || _DEBUGGING
             auto haveInstallID = false;

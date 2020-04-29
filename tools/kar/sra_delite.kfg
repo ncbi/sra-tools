@@ -82,7 +82,7 @@ exclude SIGNAL
 reject SRA_PLATFORM_ABSOLID "colorspace run"
 
 ### Columns to skip during vdb-diff testing
-###
+### Syntax: diff-exclude COLUMN_NAME
 diff-exclude CLIPPED_QUALITY
 diff-exclude SAM_QUALITY
 diff-exclude QUALITY_VALUE

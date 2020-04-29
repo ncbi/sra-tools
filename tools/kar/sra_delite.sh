@@ -493,8 +493,9 @@ dpec__ ()
 err_exit ()
 {
     err_msg $@
-    echo Exiting ... >&2
-    exit `dpec__`
+    TEXCOD=`dpec__`
+    echo "Exiting ($TEXCOD)..." >&2
+    exit $TEXCOD
 }
 
 exec_cmd ()

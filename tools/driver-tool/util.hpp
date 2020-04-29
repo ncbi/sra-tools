@@ -58,10 +58,7 @@ static inline bool ends_with(std::string const &suffix, std::string const &in_st
 }
 #endif
 
-static inline std::error_code error_code_from_errno()
-{
-    return std::error_code(errno, std::system_category());
-}
+static inline std::error_code error_code_from_errno();
 
 static inline void throw_system_error [[noreturn]] (char const *const what)
 {

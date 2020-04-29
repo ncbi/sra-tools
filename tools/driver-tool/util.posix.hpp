@@ -30,6 +30,11 @@
 #include <map>
 #include <unistd.h>
 
+static inline std::error_code error_code_from_errno()
+{
+    return std::error_code(errno, std::system_category());
+}
+
 static inline bool pathExists(std::string const &path) {
     return access(path.c_str(), F_OK) == 0;
 }

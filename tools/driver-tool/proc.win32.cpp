@@ -77,12 +77,18 @@ static wchar_t *create_command_line(char const **argv)
         argc = i;
     }
     assert(wcmdline_len > 0);
-    auto const wcmdline = (wchar_t *)malloc(wcmdline_len * sizeof(wchar_t));
+    auto const wcmdline = (wchar_t *)malloc( wcmdline_len * sizeof(wchar_t) ); // add 1 for nil-terminator
     assert(wcmdline != NULL);
     {
         auto buffer = wcmdline;
         auto remain = wcmdline_len;
         for (int i = 0; i < argc; ++i) {
+            if (i > 0)
+            {   // separating space
+                *buffer++ = ' ';
+                --remain; // originally was counted as the nil-terminator of the previous argument
+            }
+
             auto str = argv[i];
             auto const space = hasSpace(str);
             if (space) {
@@ -112,7 +118,7 @@ static wchar_t *create_command_line(char const **argv)
             }
         }
         assert(remain == 1);
-        *buffer++ = special[3]; // replace space with nil-terminator
+        *buffer++ = special[3]; // add the nil-terminator
     }
     return wcmdline;
 }
@@ -120,11 +126,15 @@ static wchar_t *create_command_line(char const **argv)
 PROCESS_INFORMATION createProcess(char const *toolpath, char const **argv, STARTUPINFOW *si)
 {
     PROCESS_INFORMATION pi; ZeroMemory(&pi, sizeof(pi));
-    auto const wtoolpath = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(toolpath), free);
-    auto const wcmdline = std::unique_ptr<wchar_t *, decltype(free)>(create_command_line(argv), free);
+    {
+        auto const wtoolpath = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(toolpath), deleterFree);
+        {
+            auto const wcmdline = std::unique_ptr<wchar_t, decltype(deleterFree)>(create_command_line(argv), deleterFree);
 
-    if (!CreateProcessW(wtoolpath.get(), wcmdline.get(), NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, si, &pi))
-        throw_system_error("CreateProcess failed");
+            if (!CreateProcessW(wtoolpath.get(), wcmdline.get(), NULL, NULL, TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, si, &pi))
+                throw_system_error("CreateProcess failed");
+        }
+    }
     return pi;
 }
 

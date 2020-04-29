@@ -21,8 +21,10 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>del $(TargetDir)$(TargetName).lib
-del $(TargetDir)$(TargetName).exp</Command>
+        <Command>
+            del $(TargetDir)$(TargetName).lib
+            del $(TargetDir)$(TargetName).exp
+        </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
 

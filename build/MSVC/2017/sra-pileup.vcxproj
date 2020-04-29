@@ -1,14 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project=".\exe-project.props" />
-  <ItemDefinitionGroup>
-    <Link>
-      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
-  <Import Project="..\sra-pileup.files" />
-  <PropertyGroup Label="Globals">
-    <ProjectGuid>{9112BE22-FE04-407B-8B3B-9D7C3731E39A}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
-  </PropertyGroup>
+    <PropertyGroup Label="Configuration">
+        <TargetName>sra-pileup-orig</TargetName>
+    </PropertyGroup>
+    <Import Project=".\exe-project.props" />
+    <ItemDefinitionGroup>
+        <Link>
+            <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+        </Link>
+    </ItemDefinitionGroup>
+    <Import Project="..\sra-pileup.files" />
+    <PropertyGroup Label="Globals">
+        <ProjectGuid>{9112BE22-FE04-407B-8B3B-9D7C3731E39A}</ProjectGuid>
+        <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    </PropertyGroup>
 </Project>

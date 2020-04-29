@@ -201,18 +201,18 @@ namespace sratools {
             basename_ = (sep == std::string::npos) ? argv0 : argv0.substr(sep + 1);
         }
         {
+#if WINDOWS
+            version_ = toolkit_version();
+#else
             auto const sep = basename_.find_first_of('.');
             if (sep == std::string::npos) {
                 version_ = toolkit_version();
             }
             else {
-#if WINDOWS
-                // our Windows exe names don't have version
-                assert(!"reachable");
-#endif
                 version_ = basename_.substr(sep + 1);
                 basename_.resize(sep);
             }
+#endif
         }
     }
 
@@ -401,7 +401,7 @@ int main(int argc, char *argv[])
 #endif
 {
 #if WINDOWS
-    auto const up_argv = std::unique_ptr<char *, decltype(free)>(convertWStrings(argc, wargv), free);
+    auto const up_argv = std::unique_ptr<char *, decltype(deleterFree)>(convertWStrings(argc, wargv), deleterFree);
     auto const argv = up_argv.get();
 #endif
     auto const impersonate = EnvironmentVariables::impersonate();

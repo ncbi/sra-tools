@@ -182,8 +182,14 @@ namespace sratools2
 
         private :
 
-            Imposter detect_imposter( const std::string &src )
+            Imposter detect_imposter( const std::string &source )
             {
+#if WINDOWS
+                const std::string ext = ".exe";
+                const std::string src = ends_with(ext, source) ? source.substr( 0, source.size() - ext.size() ) : source;
+#else
+                const std::string & src = source;
+#endif
                 if ( src.compare( "srapath" ) == 0 ) return Imposter::SRAPATH;
                 else if ( src.compare( "prefetch" ) == 0 ) return Imposter::PREFETCH;
                 else if ( src.compare( "fastq-dump" ) == 0 ) return Imposter::FASTQ_DUMP;

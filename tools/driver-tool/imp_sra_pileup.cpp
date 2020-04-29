@@ -27,7 +27,11 @@
 #include "cmdline.hpp"
 #include "support2.hpp"
 
-#define TOOL_NAME "sra-pileup"
+#if WINDOWS
+    #define TOOL_NAME "sra-pileup-orig"
+#else
+    #define TOOL_NAME "sra-pileup"
+#endif
 
 namespace sratools2
 {
@@ -186,7 +190,7 @@ struct SraPileupParams final : CmnOptAndAccessions
     int run() const override {
         auto const theirArgv0 = what.toolpath.getPathFor(TOOL_NAME).fullpath();
         {
-            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
             if (realpath.executable())
                 return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }

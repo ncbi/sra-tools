@@ -36,6 +36,11 @@
 
 typedef SSIZE_T ssize_t;
 
+static inline std::error_code error_code_from_errno()
+{
+    return std::error_code((int)GetLastError(), std::system_category());
+}
+
 struct Win32Shim {
     /// Convert UTF8 string to Windows wide char string
     /// Note: if len == -1, the returned count includes the nil-terminator
@@ -122,21 +127,32 @@ struct Win32Shim {
     }
 };
 
+class DeleterFree
+{
+public:
+    void operator() (void* ptr) 
+    { 
+        free(ptr); 
+    }
+};
+
+static DeleterFree deleterFree;
+
 static char *GetFullPathToExe()
 {
     for (DWORD size = 4096; ; size *= 2) {
-        auto const wbuffer = std::unique_ptr<wchar_t *, decltype(free)>((wchar_t *)malloc(((size_t)size) * sizeof(wchar_t)), free);
+        auto const wbuffer = std::unique_ptr<wchar_t, decltype(deleterFree)>((wchar_t *)malloc(((size_t)size) * sizeof(wchar_t)), deleterFree);
         if (!wbuffer)
             return NULL;
         if (GetModuleFileNameW(NULL, wbuffer.get(), (DWORD)size) < size)
-            return Win32Shim::makeUnwide(wbuffer);
+            return Win32Shim::makeUnwide(wbuffer.get());
     }
 }
 
 static bool pathExists(std::string const &path) {
-    auto const wpath = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(path.c_str()), free);
+    auto const wpath = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(path.c_str()), deleterFree);
     assert(wpath);
-    auto const attr = GetFileAttributesW(wpath);
+    auto const attr = GetFileAttributesW(wpath.get());
     return attr != INVALID_FILE_ATTRIBUTES;
 }
 
@@ -154,34 +170,34 @@ public:
 
     static Value get(std::string const &name) {
         wchar_t wdummy[4];
-        auto const wname = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(name.c_str()), free);
+        auto const wname = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(name.c_str()), deleterFree);
         assert(wname);
 
         auto const wvaluelen = GetEnvironmentVariableW(wname.get(), wdummy, 0);
         if (wvaluelen > 0) {
-            auto const wbuffer = std::unique_ptr<wchar_t *, decltype(free)>((wchar_t *)malloc((wvaluelen + 1) * sizeof(wchar_t)), free);
+            auto const wbuffer = std::unique_ptr<wchar_t, decltype(deleterFree)>((wchar_t *)malloc((wvaluelen + 1) * sizeof(wchar_t)), deleterFree);
             assert(wbuffer);
 
-            GetEnvironmentVariableW(wname.get(), wbuffer, 0);
+            GetEnvironmentVariableW(wname.get(), wbuffer.get(), 0);
 
-            auto const value = std::unique_ptr<char *, decltype(free)>(makeUnwide(wbuffer), free);
+            auto const value = std::unique_ptr<char, decltype(deleterFree)>(Win32Shim::makeUnwide(wbuffer.get()), deleterFree);
             assert(value);
-            return Value(std::string(value));
+            return Value(std::string(value.get()));
         }
         return Value();
     }
     static void set(std::string const &name, Value const &value) {
-        auto const wname = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(name.c_str()), free);
+        auto const wname = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(name.c_str()), deleterFree);
         assert(wname);
 
         if (value) {
-            auto const wvalue = std::unique_ptr<wchar_t *, decltype(free)>(makeWide(value.c_str()), free);
+            auto const wvalue = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(value.c_str()), deleterFree);
             assert(wvalue);
 
-            SetEnvironmentVariableW(wname, wvalue);
+            SetEnvironmentVariableW(wname.get(), wvalue.get());
         }
         else {
-            SetEnvironmentVariableW(wname, NULL);
+            SetEnvironmentVariableW(wname.get(), NULL);
         }
     }
     static Set set_with_restore(std::map<std::string, std::string> const &vars) {

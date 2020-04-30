@@ -30,8 +30,9 @@
  *
  */
 
-#include "util.hpp"
 #include "proc.hpp"
+#include "debug.hpp"
+#include "constants.hpp"
 
 static int countChars(char const *str, char chr)
 {
@@ -140,6 +141,55 @@ PROCESS_INFORMATION createProcess(char const *toolpath, char const **argv, START
 
 namespace sratools {
 
+static bool debugPrintDryRun(char const *const toolpath
+    , char const *const toolname
+    , char const *const *const argv)
+{
+    switch (logging_state::testing_level()) {
+    case 4:
+        for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
+            debugPrintEnvVar(name, true);
+        }
+        debugPrintEnvVar(ENV_VAR_SESSION_ID, true);
+        std::cerr << toolpath;
+        for (auto i = 1; argv[i]; ++i)
+            std::cerr << ' ' << argv[i];
+        std::cerr << std::endl;
+        return true;
+    case 3:
+        std::cerr << "would exec '" << toolpath << "' as:\n";
+        for (auto i = 0; argv[i]; ++i)
+            std::cerr << ' ' << argv[i];
+        {
+            std::cerr << "\nwith environment:\n";
+            for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
+                debugPrintEnvVar(name);
+            }
+            debugPrintEnvVar(ENV_VAR_SESSION_ID);
+            std::cerr << std::endl;
+        }
+        return true;
+    case 2:
+        {
+            // remove "-orig"
+            std::string tool = toolname;
+            size_t pos = tool.find("-orig");
+            if (pos != std::string::npos)
+            {
+                tool = tool.substr(0, pos);
+            }
+
+            std::cerr << tool;
+            for (auto i = 1; argv[i]; ++i)
+                std::cerr << ' ' << argv[i];
+            std::cerr << std::endl;
+            return true;
+        }
+    default:
+        return false;
+    }
+}
+
 void process::run_child(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env)
 {
     ExitProcess(run_child_and_wait(toolpath, toolname, argv, env).exit_code());
@@ -147,6 +197,11 @@ void process::run_child(char const *toolpath, char const *toolname, char const *
 
 process::exit_status process::run_child_and_wait(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env)
 {
+    if (debugPrintDryRun(toolpath, toolname, argv))
+    {
+        return 0;
+    }
+
     STARTUPINFOW si; ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);

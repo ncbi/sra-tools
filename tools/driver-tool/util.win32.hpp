@@ -169,6 +169,13 @@ public:
     using Set = std::map<std::string, Value>;
 
     static Value get(std::string const &name) {
+        char * val = getenv(name.c_str());
+        if (val == nullptr)
+        {
+            return Value();
+        }
+        return Value(val);
+#if 0
         wchar_t wdummy[4];
         auto const wname = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(name.c_str()), deleterFree);
         assert(wname);
@@ -185,6 +192,7 @@ public:
             return Value(std::string(value.get()));
         }
         return Value();
+#endif
     }
     static void set(std::string const &name, Value const &value) {
         auto const wname = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(name.c_str()), deleterFree);
@@ -214,6 +222,6 @@ public:
         }
     }
     static char const *impersonate() {
-        return NULL;
+        return getenv("SRATOOLS_IMPERSONATE");
     }
 };

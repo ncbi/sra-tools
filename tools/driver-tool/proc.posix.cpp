@@ -106,13 +106,6 @@ static void exec_debugger [[noreturn]] (  char const *const debugger
 #endif
 
 
-static void debugPrintEnvVar(char const *const name, bool const continueline = false)
-{
-    auto const value = getenv(name);
-    if (value)
-        std::cerr << name << "='" << value << "'" << (continueline ? " \\\n" : "\n");
-}
-
 static void debugPrintDryRun(  char const *const toolpath
                              , char const *const toolname
                              , char const *const *const argv)

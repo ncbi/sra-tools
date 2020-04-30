@@ -59,6 +59,7 @@ Options:
         </exec>
     </target>
 
+
     <target name="runtests" depends="build">
         <exec executable="msbuild.exe" failonerror="true">
             <arg value="test-sra-tools.sln"/>
@@ -66,6 +67,11 @@ Options:
             <arg value="/p:Configuration=${Configuration}"/>
             <arg value="/p:NGS_OUTDIR=${Output}\"/>
             <arg value="/p:Autorun=true"/>
+        </exec>
+        <exec executable="cmd" dir="..\..\..\test\driver-tool">
+            <arg value="/c"/>
+            <arg value="test-driver-tool.bat"/>
+            <arg value="${Output}\sra-tools\win\v141\${Platform}\${Configuration}\bin"/>
         </exec>
     </target>
 

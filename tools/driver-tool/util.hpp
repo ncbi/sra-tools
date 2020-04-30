@@ -31,6 +31,7 @@
 #include <type_traits>
 #include <string>
 #include <memory>
+#include <iostream>
 #include <stdlib.h>
 
 #if __cpp_lib_starts_ends_with
@@ -121,6 +122,13 @@ static inline T *randomized(T *p, U const &init)
 {
     randomfill(p, sizeof(T));
     return (new (p) T(init));
+}
+
+static inline void debugPrintEnvVar(char const *const name, bool const continueline = false)
+{
+    auto const value = getenv(name);
+    if (value)
+        std::cerr << name << "='" << value << "'" << (continueline ? " \\\n" : "\n");
 }
 
 #endif // DEBUG || _DEBUGGING

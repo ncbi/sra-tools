@@ -54,6 +54,7 @@ HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
 HTTPFILE=contact.shtml
 
 runtests: urls_and_accs out_dir_and_file s-option truncated kart wgs resume
+slowtests: hs37d5
 
 ################################################################################
 urls_and_accs:
@@ -843,4 +844,11 @@ resume:
 	@ mkdir -p  tmp
 	@ echo '/repository/site/disabled = "true"' >  tmp/k
 	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-resume.pl
+	@ rm    -r  tmp
+
+hs37d5:
+	@ echo Verifying hs37d5
+	@ rm   -frv tmp/*
+	@ mkdir -p  tmp
+	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-hs37d5.pl
 	@ rm    -r  tmp

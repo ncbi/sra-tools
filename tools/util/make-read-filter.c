@@ -83,7 +83,8 @@ static void computeReadFilter(uint8_t *const out_filter
                              , CellData const *const typeData
                              , CellData const *const startData
                              , CellData const *const lenData
-                             , CellData const *const qualData)
+                             , CellData const *const qualData
+                             , int64_t row)
 {
     int const nreads = filterData->count;
     uint8_t const *const filter = filterData->data;
@@ -97,6 +98,20 @@ static void computeReadFilter(uint8_t *const out_filter
     assert(nreads == startData->count);
     assert(nreads == lenData->count);
     assert(nreads == 0 || qualData->count == start[nreads - 1] + len[nreads - 1]);
+    if (   nreads != typeData->count
+        || nreads != startData->count
+        || nreads != lenData->count)
+    {
+        pLogErr(klogFatal, RC(rcExe, rcFile, rcReading, rcData, rcInconsistent)
+                , "inconsistent read count in row $(row)", "row=%ld", row);
+        exit(EX_DATAERR);
+    }
+    if (nreads != 0 && qualData->count != start[nreads - 1] + len[nreads - 1])
+    {
+        pLogErr(klogFatal, RC(rcExe, rcFile, rcReading, rcData, rcInconsistent)
+                , "inconsistent QUALITY length in row $(row)", "row=%ld", row);
+        exit(EX_DATAERR);
+    }
 
     for (i = 0; i < nreads; ++i) {
         uint8_t filt = filter[i];
@@ -152,7 +167,7 @@ static void processCursors(VCursor *const out, VCursor const *const in)
         }
 
         out_filter = growFilterBuffer(out_filter, &out_filter_count, readfilter.count);
-        computeReadFilter(out_filter, &readfilter, &readtype, &readstart, &readlen, &quality);
+        computeReadFilter(out_filter, &readfilter, &readtype, &readstart, &readlen, &quality, row);
         openRow(row, out);
         writeRow(row, readfilter.count, out_filter, cid_rd_filter, out);
         commitRow(row, out);

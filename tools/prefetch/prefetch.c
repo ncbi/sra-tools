@@ -561,12 +561,8 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             StringInitCString ( & path_str, mane -> outFile );
         else if (vcache == NULL) {
             rc = RC(rcExe, rcResolver, rcResolving, rcPath, rcNotFound);
-            PLOGERR(klogInt, (klogInt, rc, "cannot get cache location "
-             "for $(acc). Hint: run \"vdb-config --interactive\" "
-             "and make sure user-repository area is set. "
-             "See "
-             "https://github.com/ncbi/sra-tools/wiki/05.-Toolkit-Configuration",
-             "acc=%s" , name));
+            PLOGERR(klogInt, (klogInt, rc,
+                "cannot get cache location for '$(acc)'", "acc=%s", name));
         }
 
         if (rc == 0 && mane->outFile == NULL) {
@@ -1442,8 +1438,20 @@ static rc_t POFValidate(PrfOutFile * self,
         if (rc == 0 && *encrypted) {
             VFSManager * mgr = NULL;
             rc = VFSManagerMake(&mgr);
-            if (rc == 0)
+            if (rc == 0) {
                 rc = VFSManagerOpenFileReadDecrypt(mgr, fd, cache);
+      /* TODO
+         1) if rc == 1948584216
+                (path not found while opening node within configuration module)
+               then
+                if (--verify yes) then log validate error "cannot get password".
+         2) make --verify 3-state: yes, no, default
+         3) add test in asm-trace/test/prefetch:
+         3.1) prefetch kart-withGaP, no pwd -> skip validation (no pwd found)
+         3.2) prefetch kart-withGaP --verify yes, no pwd -> fail (no pwd found)
+         3.3) prefetch kart-withGaP, with pwd -> ok
+         3.4) prefetch kart-withGaP --verify yes, with pwd -> ok */
+            }
             RELEASE(VFSManager, mgr);
             assert(fd);
             if (rc == 0)
@@ -1583,7 +1591,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
 static rc_t PrfMainDownload(Resolved *self, const Item * item,
                          bool isDependency, const VPath *vdbcache)
 {
-    rc_t rc = 0, r2 = 0;
+    rc_t rc = 0, r2 = 0, rv = 0;
     KFile *flock = NULL;
     PrfMain * mane = NULL;
 
@@ -1592,6 +1600,8 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     const VPath * vcache = NULL;
     const VPath * vremote = NULL;
 
+    const char * name = NULL;
+
     PrfOutFile pof;
 
     String cache;
@@ -1599,10 +1609,18 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
 
     assert(self && item);
 
+    name = self->name;
+    if (self->respFile != NULL) {
+        const char * acc = NULL;
+        rc_t r2 = KSrvRespFileGetName(self->respFile, &acc);
+        if (r2 == 0 && acc != NULL)
+            name = acc;
+    }
+
     mane = item -> mane;
     assert ( mane );
 
-    rc = PrfOutFileInit(&pof, mane->resume, self->name, vdbcache != NULL);
+    rc = PrfOutFileInit(&pof, mane->resume, name, vdbcache != NULL);
     if (rc != 0)
         return rc;
 
@@ -1732,17 +1750,17 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                 rc_t rc = VPathGetVdbcache(vremote, & vdbcache, NULL);
                 if (rc == 0 && vdbcache != NULL) {
                     STSMSG(STS_TOP, ("%d.2) Downloading '%s.vdbcache'...",
-                        item->number, self->name));
+                        item->number, name));
                     if (PrfMainDownload(self, item, isDependency, vdbcache)
                         == 0)
                     {
                         STSMSG(STS_TOP, (
                             "%d.2) '%s.vdbcache' was downloaded successfully",
-                            item->number, self->name));
+                            item->number, name));
                     }
                     else
                         STSMSG(STS_TOP, ("%d) failed to download %s.vdbcache",
-                            item->number, self->name));
+                            item->number, name));
                     RELEASE(VPath, vdbcache);
                 }
             }
@@ -1794,33 +1812,33 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         EValidate size = eVinit;
         EValidate md5 = eVinit;
         bool encrypted = false;
-        rc = POFValidate(
+        rv = POFValidate(
             &pof, vremote, vcache, mane->validate, &size, &md5, &encrypted);
-        if (rc != 0)
+        if (rv != 0)
             LOGERR(klogInt, rc, "failed to verify");
         else {
             if (size == eVyes && md5 == eVyes)
                 STSMSG(STS_TOP, (" '%s%s' is valid",
-                    self->name, vdbcache == NULL ? "" : ".vdbcache"));
+                    name, vdbcache == NULL ? "" : ".vdbcache"));
             else if (size == eVyes && encrypted)
                 STSMSG(STS_TOP, (" size of '%s%s' is correct",
-                    self->name, vdbcache == NULL ? "" : ".vdbcache"));
+                    name, vdbcache == NULL ? "" : ".vdbcache"));
             else {
                 if (size == eVno) {
                     STSMSG(STS_TOP, (" '%s%s': size does not match",
-                        self->name, vdbcache == NULL ? "" : ".vdbcache"));
-                    rc = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
+                        name, vdbcache == NULL ? "" : ".vdbcache"));
+                    rv = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
                 }
                 if (md5 == eVno) {
                     STSMSG(STS_TOP, (" '%s%s': md5 does not match",
-                        self->name, vdbcache == NULL ? "" : ".vdbcache"));
-                    rc = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
+                        name, vdbcache == NULL ? "" : ".vdbcache"));
+                    rv = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
                 }
             }
         }
     }
 
-    if (rc == 0)
+    if (rc == 0 && rv == 0)
         rc = PrfMainDownloaded(mane, cache.addr);
 
     if (rc == 0) {
@@ -1837,8 +1855,12 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     if (rc == 0 && r2 != 0)
         rc = r2;
 
+    if (rc == 0 && rv != 0)
+        rc = rv;
+
     RELEASE(VPath, vcache);
     RELEASE(VPath, vremote);
+
 
     return rc;
 }
@@ -3011,8 +3033,13 @@ IteratorInit(Iterator *self, const char *obj, const PrfMain *mane)
         if ((type & ~kptAlias) == kptFile) {
             rc = KartMakeWithNgc(mane->dir, obj, &self->kart, &self->isKart,
                 mane->ngc);
-            if (!self->isKart) {
-                rc = 0;
+            if (rc != 0) {
+                if (self->isKart)
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "Cannot open kart '$(kart)' with ngc '$(ngc)'",
+                        "kart=%s,ngc=%s", obj, mane->ngc));
+                else
+                    rc = 0;
             }
         }
     }

@@ -561,12 +561,8 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             StringInitCString ( & path_str, mane -> outFile );
         else if (vcache == NULL) {
             rc = RC(rcExe, rcResolver, rcResolving, rcPath, rcNotFound);
-            PLOGERR(klogInt, (klogInt, rc, "cannot get cache location "
-             "for $(acc). Hint: run \"vdb-config --interactive\" "
-             "and make sure user-repository area is set. "
-             "See "
-             "https://github.com/ncbi/sra-tools/wiki/05.-Toolkit-Configuration",
-             "acc=%s" , name));
+            PLOGERR(klogInt, (klogInt, rc,
+                "cannot get cache location for '$(acc)'", "acc=%s", name));
         }
 
         if (rc == 0 && mane->outFile == NULL) {

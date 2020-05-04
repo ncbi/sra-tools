@@ -1595,7 +1595,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
 static rc_t PrfMainDownload(Resolved *self, const Item * item,
                          bool isDependency, const VPath *vdbcache)
 {
-    rc_t rc = 0, r2 = 0;
+    rc_t rc = 0, r2 = 0, rv = 0;
     KFile *flock = NULL;
     PrfMain * mane = NULL;
 
@@ -1816,9 +1816,9 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         EValidate size = eVinit;
         EValidate md5 = eVinit;
         bool encrypted = false;
-        rc = POFValidate(
+        rv = POFValidate(
             &pof, vremote, vcache, mane->validate, &size, &md5, &encrypted);
-        if (rc != 0)
+        if (rv != 0)
             LOGERR(klogInt, rc, "failed to verify");
         else {
             if (size == eVyes && md5 == eVyes)
@@ -1831,18 +1831,18 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                 if (size == eVno) {
                     STSMSG(STS_TOP, (" '%s%s': size does not match",
                         name, vdbcache == NULL ? "" : ".vdbcache"));
-                    rc = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
+                    rv = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
                 }
                 if (md5 == eVno) {
                     STSMSG(STS_TOP, (" '%s%s': md5 does not match",
                         name, vdbcache == NULL ? "" : ".vdbcache"));
-                    rc = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
+                    rv = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
                 }
             }
         }
     }
 
-    if (rc == 0)
+    if (rc == 0 && rv == 0)
         rc = PrfMainDownloaded(mane, cache.addr);
 
     if (rc == 0) {
@@ -1859,8 +1859,12 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     if (rc == 0 && r2 != 0)
         rc = r2;
 
+    if (rc == 0 && rv != 0)
+        rc = rv;
+
     RELEASE(VPath, vcache);
     RELEASE(VPath, vremote);
+
 
     return rc;
 }

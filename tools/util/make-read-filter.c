@@ -83,7 +83,8 @@ static void computeReadFilter(uint8_t *const out_filter
                              , CellData const *const typeData
                              , CellData const *const startData
                              , CellData const *const lenData
-                             , CellData const *const qualData)
+                             , CellData const *const qualData
+                             , int64_t const row)
 {
     int const nreads = filterData->count;
     uint8_t const *const filter = filterData->data;
@@ -96,7 +97,12 @@ static void computeReadFilter(uint8_t *const out_filter
     assert(nreads == typeData->count);
     assert(nreads == startData->count);
     assert(nreads == lenData->count);
-    assert(nreads == 0 || qualData->count == start[nreads - 1] + len[nreads - 1]);
+    if (nreads == 0)
+        return;
+    if (qualData->count != start[nreads - 1] + len[nreads - 1]) {
+        pLogErr(klogErr, RC(rcExe, rcFile, rcReading, rcData, rcInvalid), "invalid length of QUALITY ($(actual)), should be $(expect) in row $(row)", "row=%li,actual=%u,expect=%u", row, (unsigned)qualData->count, start[nreads - 1] + len[nreads - 1]);
+        exit(EX_DATAERR);
+    }
 
     for (i = 0; i < nreads; ++i) {
         uint8_t filt = filter[i];
@@ -148,11 +154,11 @@ static void processCursors(VCursor *const out, VCursor const *const in)
         CellData const quality    = cellData("QUALITY"    , cid_qual       , row, in);
 
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogInfo, "progress: $(row) rows", "row=%lu", row);
+            pLogMsg(klogInfo, "progress: $(row) rows", "row=%li", row);
         }
 
         out_filter = growFilterBuffer(out_filter, &out_filter_count, readfilter.count);
-        computeReadFilter(out_filter, &readfilter, &readtype, &readstart, &readlen, &quality);
+        computeReadFilter(out_filter, &readfilter, &readtype, &readstart, &readlen, &quality, row);
         openRow(row, out);
         writeRow(row, readfilter.count, out_filter, cid_rd_filter, out);
         commitRow(row, out);

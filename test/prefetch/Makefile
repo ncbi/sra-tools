@@ -125,13 +125,11 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 	@ls `pwd`/tmp2/wiki > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki \
 	                              | grep "found local" > /dev/null
-#	@echo
 
 	@echo URL/ download when user repository is configured
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
@@ -139,7 +137,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ > /dev/null
 	@ls `pwd`/tmp2/index.html > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
@@ -156,7 +153,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
 	@ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -216,14 +212,14 @@ urls_and_accs:
 	@echo
 
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
-	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	@ echo SRR FASP download when user repository is configured IS DISABLED
+#	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo SRR FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
 	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	 else echo download of $(SRRF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm -f `pwd`/tmp/refseq/KC702174.1
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
@@ -233,7 +229,6 @@ urls_and_accs:
 	    ls `pwd`/tmp/refseq/KC702174.1 > /dev/null ; \
 	 else echo download of $(REFSEQF) when ascp is not found is disabled ; \
 	 fi
-#	@echo
 
 	@rm `pwd`/tmp/nannot/GCA_000390265.1_R
 	@echo NANNOT FASP download when user repository is configured

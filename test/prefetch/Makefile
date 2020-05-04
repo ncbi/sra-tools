@@ -378,16 +378,15 @@ out_dir_and_file:
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRAC) -O / -o tmp3/dir/file -v > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
-#	@ echo
 
 	@ echo PREFETCH SRR HTTP URL TO OUT-FILE
 	@ rm -f `pwd`/tmp3/dir/file
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) -O / -o tmp3/dir/file > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
-#	@ echo
 
-	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	@ echo PREFETCH SRR FASP URL TO OUT-FILE IS DISABLED
+#	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-FILE ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -395,6 +394,7 @@ out_dir_and_file:
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
+#	@ echo
 #	@ echo
 
 	@ echo PREFETCH HTTP DIRECTORY URL TO OUT-FILE
@@ -446,9 +446,9 @@ out_dir_and_file:
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
 	@ ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
-#	@ echo
 
-	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	@ echo PREFETCH SRR FASP URL IS DISABLED
+#	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL ; \
 	    rm `pwd`/tmp/sra/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -456,14 +456,12 @@ out_dir_and_file:
 	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
-#	@ echo
 
 	@ echo PREFETCH HTTP DIRECTORY URL
 	@ if ls `pwd`/tmp2/index.html 2> /dev/null ; then exit 1; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ > /dev/null
 	@ ls `pwd`/tmp2/index.html > /dev/null
-#	@ echo
 
 	@ echo PREFETCH HTTP FILE URL
 	@ if ls `pwd`/tmp2/wiki 2> /dev/null ; \
@@ -471,7 +469,6 @@ out_dir_and_file:
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 	@ ls `pwd`/tmp2/wiki > /dev/null
-#	@ echo
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL ; \
@@ -479,25 +476,23 @@ out_dir_and_file:
 	    if ls `pwd`/KC702174.1 2> /dev/null ; then exit 1; fi ; \
 	    $(BINDIR)/prefetch $(REFSEQF) > /dev/null && \
 	    ls `pwd`/KC702174.1 > /dev/null ; \
-	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
+	  else echo download of FASP URL when ascp is not found is disabled ; \
 	  fi
-#	@ echo
 
 	@ echo PREFETCH ACCESSION TO OUT-DIR
 	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRAC) -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
-#	@ echo
 
 	@ echo PREFETCH SRR HTTP URL TO OUT-DIR
 	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
-#	@ echo
 
-	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	@ echo PREFETCH SRR FASP URL TO OUT-DIR IS DISABLED
+#	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-DIR ; \
 	    rm -f `pwd`/tmp3/dir/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

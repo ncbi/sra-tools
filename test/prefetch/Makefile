@@ -54,7 +54,7 @@ HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
 HTTPFILE=contact.shtml
 
 runtests: urls_and_accs out_dir_and_file s-option truncated kart wgs resume
-slowtests: hs37d5
+slowtests: hs37d5 ncbi1GB
 
 ################################################################################
 urls_and_accs:
@@ -94,7 +94,6 @@ urls_and_accs:
 	    $(BINDIR)/prefetch $(HTTP_URL) > /dev/null ; fi
 	@if ping -c1 intranet > /dev/null ; \
 	 then ls `pwd`/tmp2/$(HTTPFILE) > /dev/null ; fi
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
@@ -111,14 +110,12 @@ urls_and_accs:
 	 if ping -c1 intranet > /dev/null ; then \
 	    $(BINDIR)/prefetch http://intranet/ > /dev/null ; fi
 	@if ping -c1 intranet>/dev/null; then ls `pwd`/tmp2/index.html > /dev/null;fi
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
 	    $(BINDIR)/prefetch http://intranet/ | grep "found local" > /dev/null ; fi
 	@rm -f tmp2/index.html
-#	@echo
 
 	@echo URL download when user repository is configured
 	@if ls `pwd`/tmp2/wiki 2> /dev/null ; then echo wiki found ; exit 1; fi
@@ -171,7 +168,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(REFSEQ) > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -189,7 +185,6 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(KMER) > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
-#	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -320,16 +315,6 @@ urls_and_accs:
 	     fi ; \
 	 fi
 
-	@if ls `pwd`/tmp2/1GB 2> /dev/null; \
-     then echo 1GB found ; exit 1; fi
-	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
-	  echo FASP download: ncbi/1GB ; \
-	  export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB > /dev/null;\
-	    ls `pwd`/1GB > /dev/null ; \
-	 fi
-#	@echo
-
 	@rm -f `pwd`/tmp2/100MB
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    if $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:100MB \
@@ -350,6 +335,25 @@ urls_and_accs:
 	@ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache > /dev/null
 
 	@rm -r tmp*
+
+################################################################################
+
+ncbi1GB:
+	@mkdir -p tmp
+
+	@echo 'foo = "bar"' > tmp/t.kfg
+
+	@if ls `pwd`/tmp/1GB 2> /dev/null; \
+     then echo 1GB found ; exit 1; fi
+
+	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
+	  echo FASP download: ncbi/1GB ; \
+	  export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp ; \
+	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB > /dev/null;\
+	    ls `pwd`/1GB > /dev/null ; \
+	 fi
+
+	@rm -r tmp
 
 ################################################################################
 

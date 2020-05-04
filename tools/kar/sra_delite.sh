@@ -300,6 +300,8 @@ diff-exclude READ_FILTER
 diff-exclude RD_FILTER
 diff-exclude SAM_FLAGS
 diff-exclude READ_SEG
+diff-exclude B_INFO
+diff-exclude CSREAD
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE

@@ -39,7 +39,7 @@ KMERF=$(SRAF):data/sracloud/traces/nannot01/kmer/000/390/GCA_000390265.1_R
 REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
 SRAC=SRR053325
-SRR=$(SRA)/traces/sra57/SRR/000052/$(SRAC)
+SRR=$(SRA)/sos2/sra-pub-run-15/$(SRAC)/$(SRAC).4
 INT=https://sra-download-internal.ncbi.nlm.nih.gov
 DDB=https://sra-downloadb.be-md.ncbi.nlm.nih.gov
 #SRR=$(DDB)/sos/sra-pub-run-5/$(SRAC)/$(SRAC).3
@@ -258,18 +258,18 @@ urls_and_accs:
 	 fi
 	@echo
 
-	@rm -f `pwd`/tmp/sra/SRR053325.sra
+	@rm -f `pwd`/tmp/sra/$(SRAC).sra
 #	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch SRR053325 2> /dev/null ; \
-        then echo "prefetch SRR053325 when there is no kfg should fail" ; \
+	    if $(BINDIR)/prefetch $(SRAC) 2> /dev/null ; \
+        then echo "prefetch $(SRAC) when there is no kfg should fail" ; \
              exit 1; \
 	    fi
 
 	@echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
 	@echo SRR accession download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 > /dev/null
-	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) > /dev/null
+	@ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 
 	@echo prefetch run with refseqs
 	@rm -fr `pwd`/SRR619505
@@ -373,7 +373,7 @@ out_dir_and_file:
 	@ echo PREFETCH ACCESSION TO OUT-FILE
 	@ rm -f `pwd`/tmp-file*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 -o tmp-file -v > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) -o tmp-file -v > /dev/null
 	@ ls `pwd`/tmp-file > /dev/null
 	@ rm `pwd`/tmp-file
 
@@ -381,7 +381,7 @@ out_dir_and_file:
 	@ if ls `pwd`/tmp3/dir/file 2> /dev/null ; \
       then echo file found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 -O / -o tmp3/dir/file -v > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) -O / -o tmp3/dir/file -v > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
 #	@ echo
 
@@ -435,7 +435,7 @@ out_dir_and_file:
 	  fi
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	  if $(BINDIR)/prefetch SRR045450 SRR053325 -o tmp/o 2> /dev/null ; \
+	  if $(BINDIR)/prefetch SRR045450 $(SRAC) -o tmp/o 2> /dev/null ; \
 	  then echo unexpected success when downloading multiple items to file ; \
 	      exit 1 ; \
 	  fi ;
@@ -443,11 +443,11 @@ out_dir_and_file:
 	@ echo PREFETCH MULTIPLE ITEMS
 	@ rm -fr `pwd`/SRR0* `pwd`/tmp/sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR045450 SRR053325 > /dev/null
-	@ ls `pwd`/tmp/sra/SRR045450.sra `pwd`/tmp/sra/SRR053325.sra > /dev/null
+	    $(BINDIR)/prefetch SRR045450 $(SRAC) > /dev/null
+	@ ls `pwd`/tmp/sra/SRR045450.sra `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 
 	@ echo PREFETCH SRR HTTP URL
-	@ rm `pwd`/tmp/sra/SRR053325.sra
+	@ rm `pwd`/tmp/sra/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) > /dev/null
 	@ ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
@@ -489,14 +489,14 @@ out_dir_and_file:
 #	@ echo
 
 	@ echo PREFETCH ACCESSION TO OUT-DIR
-	@ rm -f `pwd`/tmp3/dir/SRR053325.sra
+	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 -O tmp3/dir > /dev/null
-	@ ls `pwd`/tmp3/dir/SRR053325.sra > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) -O tmp3/dir > /dev/null
+	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
 #	@ echo
 
 	@ echo PREFETCH SRR HTTP URL TO OUT-DIR
-	@ rm -f `pwd`/tmp3/dir/SRR053325.sra
+	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRR) -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
@@ -576,34 +576,34 @@ s-option:
 	#	$(BINDIR)/prefetch kart.krt --order k > /dev/null
 
 	@ echo Downloading ACCESSION
-	@ rm -f tmp/sra/SRR053325.sra
+	@ rm -f tmp/sra/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) > /dev/null
 
 	@ echo Downloading ACCESSION TO FILE: SHORT OPTION
 	@ rm -f tmp/1
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 -otmp/1 > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) -otmp/1 > /dev/null
 #	@ echo
 
 	@ echo Downloading ACCESSION TO FILE: LONG OPTION
 	@ rm -f tmp/2
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 --output-file tmp/2 > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) --output-file tmp/2 > /dev/null
 
 	@ echo Downloading ACCESSIONS
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 SRR045450 > /dev/null
+	    $(BINDIR)/prefetch $(SRAC) SRR045450 > /dev/null
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	  if $(BINDIR)/prefetch SRR045450 SRR053325 -o tmp/o 2> /dev/null ; \
+	  if $(BINDIR)/prefetch SRR045450 $(SRAC) -o tmp/o 2> /dev/null ; \
 	  then echo unexpected success when downloading multiple items to file ; \
 	      exit 1 ; \
 	  fi ;
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	  if $(BINDIR)/prefetch SRR045450 SRR053325 -output-file tmp/o \
+	  if $(BINDIR)/prefetch SRR045450 $(SRAC) -output-file tmp/o \
                                                                 2> /dev/null ; \
 	  then echo unexpected success when downloading multiple items to file ; \
 	      exit 1 ; \
@@ -656,28 +656,28 @@ truncated:
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                     >> tmp/t.kfg
 #	@ ls -l tmp	@ cat tmp/t.kfg
 #	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/vdb-config -on
-#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/srapath SRR053325
+#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/srapath $(SRAC)
 #	echo 669	perl check-size.pl 4	echo 671
 
 # create truncated run
-	@ echo '123' > tmp/sra/SRR053325.sra
+	@ echo '123' > tmp/sra/$(SRAC).sra
 	@ if perl check-size.pl 4 > /dev/null; \
 	  then echo "run should be truncated for this test"; exit 1; \
 	  fi
 
 # prefetch should detect truncated run and redownload it
-	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch SRR053325 > tmp/out
-	@ if grep ": 1) 'SRR053325' is found locally" tmp/out ; \
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch $(SRAC) > tmp/out
+	@ if grep ": 1) '$(SRAC)' is found locally" tmp/out ; \
 	  then echo "prefetch incorrectly stopped on truncated run"; exit 1; \
 	  fi
-#	@ wc tmp/sra/SRR053325.sra	@ wc -c tmp/sra/SRR053325.sra
+#	@ wc tmp/sra/$(SRAC).sra	@ wc -c tmp/sra/$(SRAC).sra
 
 # run should be complete
 	@ perl check-size.pl 4
 
 # the second run of prefetch should find local file
-	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch SRR053325 > tmp/out
-	@ grep -q ": 1) 'SRR053325' is found locally" tmp/out
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch $(SRAC) > tmp/out
+	@ grep -q ": 1) '$(SRAC)' is found locally" tmp/out
 	@ perl check-size.pl 4
 
 #cleanup

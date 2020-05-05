@@ -29,20 +29,20 @@ RUN ./configure ${BUILD_STYLE} && make -s -C ngs-sdk >/dev/null 2>&1 || { echo "
 WORKDIR /sra-tools
 RUN ./configure ${BUILD_STYLE} && make -s >/dev/null 2>&1 || { echo "make failed"; exit 1; }
 RUN make install
-### Generate installation stamp
-RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /user-settings.mkfg
 
 FROM build AS delited
-### Install delite process binaries
-RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /usr/local/ncbi/sra-tools/bin
+### Install delite process binaries and script
+RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /usr/local/ncbi/sra-tools/bin
 ### Copy schema files
 WORKDIR /ncbi-vdb/interfaces
 RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done
+### Generate installation stamp
+RUN uuidgen -r > /build-id
 
 FROM ubuntu:latest
 COPY --from=delited /etc/ncbi /etc/ncbi
 COPY --from=delited /usr/local/ncbi /usr/local/ncbi
-COPY --from=delited /user-settings.mkfg /root/.ncbi/user-settings.mkfg
+COPY --from=delited /build-id /root/.ncbi/build-id
 COPY --from=delited /schema /etc/ncbi/schema
 ENV PATH=/usr/local/ncbi/sra-tools/bin:${PATH}
 # ENV SCHEMA_PATH=/etc/ncbi/schema

@@ -1,0 +1,48 @@
+# Example:
+# % docker build -f Dockerfile.delite -t sratoolkit:delite .
+# % docker run --rm sratoolkit:delite vdb-dump --info SRR000123
+# acc    : SRR000123
+# path   : https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos1/sra-pub-run-5/SRR000123/SRR000123.3
+# size   : 2,975,717
+# type   : Table
+# platf  : SRA_PLATFORM_454
+# SEQ    : 4,583
+# SCHEMA : NCBI:SRA:_454_:tbl:v2#1.0.7
+# UPD    : vdb-copy
+# UPDVER : 2.1.7
+# UPDDATE: Mon Nov  7 18:13:09 2011 (11/7/2011 18:13)
+# 
+
+FROM ubuntu:bionic AS build
+RUN apt-get --quiet update && apt-get --quiet install -y make cmake git gcc g++ flex bison uuid-runtime
+ARG BUILD_STYLE=--without-debug
+ARG NGS_BRANCH=engineering
+ARG VDB_BRANCH=engineering
+ARG SRA_BRANCH=engineering
+RUN git clone -b ${NGS_BRANCH} --depth 1 https://github.com/ncbi/ngs.git
+RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git
+RUN git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
+WORKDIR /ncbi-vdb
+RUN ./configure ${BUILD_STYLE} && make -s >/dev/null 2>&1 || { echo "make failed"; exit 1; }
+WORKDIR /ngs
+RUN ./configure ${BUILD_STYLE} && make -s -C ngs-sdk >/dev/null 2>&1 || { echo "make failed"; exit 1; }
+WORKDIR /sra-tools
+RUN ./configure ${BUILD_STYLE} && make -s >/dev/null 2>&1 || { echo "make failed"; exit 1; }
+RUN make install
+
+FROM build AS delited
+### Install delite process binaries and script
+RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /usr/local/ncbi/sra-tools/bin
+### Copy schema files
+WORKDIR /ncbi-vdb/interfaces
+RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done
+### Generate installation stamp
+RUN uuidgen -r > /build-id
+
+FROM ubuntu:latest
+COPY --from=delited /etc/ncbi /etc/ncbi
+COPY --from=delited /usr/local/ncbi /usr/local/ncbi
+COPY --from=delited /build-id /root/.ncbi/build-id
+COPY --from=delited /schema /etc/ncbi/schema
+ENV PATH=/usr/local/ncbi/sra-tools/bin:${PATH}
+# ENV SCHEMA_PATH=/etc/ncbi/schema

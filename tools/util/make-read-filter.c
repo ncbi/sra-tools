@@ -84,7 +84,7 @@ static void computeReadFilter(uint8_t *const out_filter
                              , CellData const *const startData
                              , CellData const *const lenData
                              , CellData const *const qualData
-                             , int64_t row)
+                             , int64_t const row)
 {
     int const nreads = filterData->count;
     uint8_t const *const filter = filterData->data;
@@ -97,19 +97,10 @@ static void computeReadFilter(uint8_t *const out_filter
     assert(nreads == typeData->count);
     assert(nreads == startData->count);
     assert(nreads == lenData->count);
-    assert(nreads == 0 || qualData->count == start[nreads - 1] + len[nreads - 1]);
-    if (   nreads != typeData->count
-        || nreads != startData->count
-        || nreads != lenData->count)
-    {
-        pLogErr(klogFatal, RC(rcExe, rcFile, rcReading, rcData, rcInconsistent)
-                , "inconsistent read count in row $(row)", "row=%ld", row);
-        exit(EX_DATAERR);
-    }
-    if (nreads != 0 && qualData->count != start[nreads - 1] + len[nreads - 1])
-    {
-        pLogErr(klogFatal, RC(rcExe, rcFile, rcReading, rcData, rcInconsistent)
-                , "inconsistent QUALITY length in row $(row)", "row=%ld", row);
+    if (nreads == 0)
+        return;
+    if (qualData->count != start[nreads - 1] + len[nreads - 1]) {
+        pLogErr(klogErr, RC(rcExe, rcFile, rcReading, rcData, rcInvalid), "invalid length of QUALITY ($(actual)), should be $(expect) in row $(row)", "row=%ld,actual=%u,expect=%u", row, (unsigned)qualData->count, (unsigned)(start[nreads - 1] + len[nreads - 1]));
         exit(EX_DATAERR);
     }
 
@@ -163,7 +154,7 @@ static void processCursors(VCursor *const out, VCursor const *const in)
         CellData const quality    = cellData("QUALITY"    , cid_qual       , row, in);
 
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogInfo, "progress: $(row) rows", "row=%lu", row);
+            pLogMsg(klogInfo, "progress: $(row) rows", "row=%li", row);
         }
 
         out_filter = growFilterBuffer(out_filter, &out_filter_count, readfilter.count);

@@ -4,7 +4,6 @@ TOOLS_TO_COPY = \
 	align-info      \
 	bam-load        \
 	cache-mgr       \
-	ccextract       \
 	cg-load         \
 	illumina-dump   \
 	kar             \
@@ -44,6 +43,7 @@ TOOLS_TO_SYMLINK = \
 # these tools may be missing from $(BINDIR), not an error
 TOOLS_TO_COPY_OPTIONAL = \
 	abi-load        \
+	ccextract       \
 	copycat         \
 	fastq-load      \
 	helicos-load    \

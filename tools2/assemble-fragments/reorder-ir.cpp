@@ -131,58 +131,23 @@ static IndexRow makeIndexRow(VDB::Cursor::RowID row, VDB::Cursor::RawData const 
     return y;
 }
 
-struct WorkUnit {
-    IndexRow *beg;
-    IndexRow *end;
-    IndexRow *out;
-    int level;
-    
-    WorkUnit() : beg(0), end(0), out(0), level(-1) {}
-    WorkUnit(IndexRow *const beg, IndexRow *const end, IndexRow *const scratch, int const level)
-    : beg(beg)
-    , end(end)
-    , out(scratch)
-    , level(level)
-    {}
-    size_t size() const { return end - beg; }
-    
-    void process(std::vector<WorkUnit> &result) const
-    {
-        static int const BPL[] = { 1, 3, 4, 8, 8, 8, 8, 8, 8, 8 };
-        static int const KPL[] = { 0, 0, 0, 1, 2, 3, 4, 5, 6, 7 };
-        static int const SPL[] = { 7, 4, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-        assert(level < sizeof(BPL)/sizeof(BPL[0]));
-
-        auto const bins = 1 << BPL[level];
-        auto const m = bins - 1;
-        auto const k = KPL[level];
-        auto const s = SPL[level];
-        size_t start[256];
-        IndexRow *cur = out;
-        
-        for (auto bin = 0; bin < bins; ++bin) {
-            for (auto i = beg; i != end; ++i) {
-                auto const key = (i->key[k] >> s) & m;
-                if (key == bin)
-                    *cur++ = *i;
-            }
-            start[bin] = cur - out;
-        }
-        
-        for (auto bin = 0; bin < bins; ++bin) {
-            auto const begin = (bin > 0 ? start[bin - 1] : 0);
-            auto const count = start[bin] - begin;
-            
-            if (count > 0) {
-                assert(level + 1 < sizeof(BPL)/sizeof(BPL[0]));
-                result.push_back(WorkUnit(out + begin, out + begin + count, beg + begin, level + 1));
-            }
-        }
-    }
-};
-
 struct Context {
+    struct WorkUnit {
+        IndexRow *const beg;
+        IndexRow *const end;
+        IndexRow *const out;
+        int const level;
+
+        WorkUnit() : beg(0), end(0), out(0), level(-1) {}
+        WorkUnit(IndexRow *const beg, IndexRow *const end, IndexRow *const scratch, int const level)
+        : beg(beg)
+        , end(end)
+        , out(scratch)
+        , level(level)
+        {}
+        size_t size() const { return end - beg; }
+    };
+
     IndexRow *const src;
     IndexRow *const srcEnd;
     IndexRow *const out;
@@ -208,7 +173,63 @@ struct Context {
     {
         queue.push_back(WorkUnit(src, srcEnd, out, 0));
     }
-    
+
+    void process(WorkUnit const &unit, std::vector<WorkUnit> &newWork) const
+    {
+        // many threads may run this function simultaneously
+
+        newWork.clear();
+        if (unit.size() <= smallSize) {
+            // sort in one shot
+            std::sort(unit.beg, unit.end, IndexRow::keyLess);
+            if (unit.beg >= src && unit.end <= srcEnd)
+                std::copy(unit.beg, unit.end, out + (unit.beg - src));
+        }
+        else {
+            // partial sort, can generate more work units
+            static int const BPL[] = { 1, 3, 4, 8, 8, 8, 8, 8, 8, 8 }; ///< key bits per level
+            static int const KPL[] = { 0, 0, 0, 1, 2, 3, 4, 5, 6, 7 }; ///< key byte index per level
+            static int const SPL[] = { 7, 4, 0, 0, 0, 0, 0, 0, 0, 0 }; ///< shift needed to discard unused key bits
+
+            assert(unit.level < sizeof(BPL)/sizeof(BPL[0]));
+
+            auto const bins = 1 << BPL[unit.level]; ///<  number of bins this level can sort into
+            auto const k = KPL[unit.level]; ///< which index byte
+            auto const s = SPL[unit.level]; ///< shift needed to discard unused key bits
+            auto const m = bins - 1;        ///< mask needed to discard unused key bits
+            size_t start[256];
+            auto cur = unit.out;
+
+            for (auto bin = 0; bin < bins; ++bin) {
+                // It is actually faster to make multiple scans across the input
+                // and produce the output sequentially, than to produce the output
+                // in an unpredictable order. This makes the CPU happy since the
+                // access patterns are perfectly predictable.
+                for (auto i = unit.beg; i != unit.end; ++i) {
+                    auto const key = (i->key[k] >> s) & m;
+                    if (key != bin) ///< this is true at least between 1/2 and 255/256
+                        ;
+                    else
+                        *cur++ = *i;
+                }
+                start[bin] = cur - unit.out;
+            }
+
+            for (auto bin = 0; bin < bins; ++bin) {
+                auto const begin = (bin > 0 ? start[bin - 1] : 0);
+                auto const count = start[bin] - begin;
+
+                if (count > 0) {
+                    auto const nw_begin = unit.out + begin; ///< note the swapping of input and output regions, the new work unit's input is in the old work unit's output
+                    auto const nw_end = nw_begin + count;
+                    auto const nw_out = unit.beg + begin;   ///< note the swapping of input and output regions, the new work unit's output is in the old work unit's input
+
+                    newWork.push_back(WorkUnit(nw_begin, nw_end, nw_out, unit.level + 1));
+                }
+            }
+            assert(!newWork.empty());
+        }
+    }
     void run(void) {
         auto newWork = std::vector<WorkUnit>();
         
@@ -217,24 +238,12 @@ struct Context {
         pthread_mutex_lock(&mutex);
         for ( ;; ) {
             if (next < queue.size()) {
-                auto const unit = queue[next++];
+                auto const &unit = queue[next++];
                 ++running;
                 
                 // the mutex is released before processing the work unit
                 pthread_mutex_unlock(&mutex);
-                {
-                    newWork.clear();
-                    if (unit.size() <= smallSize) {
-                        // sort in one shot
-                        std::sort(unit.beg, unit.end, IndexRow::keyLess);
-                        if (unit.beg >= src && unit.end <= srcEnd)
-                            std::copy(unit.beg, unit.end, out + (unit.beg - src));
-                    }
-                    else {
-                        // partial sort, can generate more work units
-                        unit.process(newWork);
-                    }
-                }
+                process(unit, newWork);
                 // the mutex is re-acquired after processing the work unit
                 pthread_mutex_lock(&mutex);
                 std::copy(newWork.begin(), newWork.end(), std::back_inserter(queue));
@@ -437,7 +446,7 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
         return true;
     }
     static std::initializer_list<char const *> columns() {
-        return { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION" };
+        return std::initializer_list<char const *>({ "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION" });
     }
     friend bool operator <(RawRecord const &a, RawRecord const &b) {
         auto const agroup = a.data->asString();

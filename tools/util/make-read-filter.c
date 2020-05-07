@@ -50,7 +50,7 @@ enum OPTIONS {
 static bool shouldFilter(uint32_t const len, uint8_t const *const qual)
 {
     uint32_t under = 0;
-    uint32_t last = len;
+    uint32_t lastgood = len;
     uint32_t i;
     
     for (i = 0; i < len; ++i) {
@@ -60,12 +60,12 @@ static bool shouldFilter(uint32_t const len, uint8_t const *const qual)
                 return true;
         }
         else
-            last = i;
+            lastgood = i; /* last good value */
     }
-    if (len <= 10)
+    if (len <= 10) /* if length <= 10, then rest of rules can't apply */
         return false;
-        
-    if (len - last > 10)
+    
+    if (lastgood < len - 11)
         return true;
 
     for (i = 0; i < len; ++i) {
@@ -307,6 +307,7 @@ static void test(void)
 {
     uint8_t qual[30];
     int i;
+    int j;
     
     assert(shouldFilter(0, NULL) == false);
     
@@ -321,14 +322,35 @@ static void test(void)
     
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
-    for (i = 0; i < 11; ++i)
+    for (i = 0; i < 10; ++i)
         qual[i] = 19;
+    assert(shouldFilter(30, qual) == false);
+    qual[10] = 19;
     assert(shouldFilter(30, qual) == true);
 
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
-    for (i = 19; i < 30; ++i)
+    for (i = 0; i < 10; ++i)
         qual[i] = 19;
+    for (i = 0, j = 29; i < j; ++i, --j) {
+        int vi = qual[i];
+        int vj = qual[j];
+        qual[i] = vj;
+        qual[j] = vi;
+    }
+    assert(shouldFilter(30, qual) == false);
+    
+    for (i = 0; i < 30; ++i)
+        qual[i] = 30;
+    for (i = 0; i < 10; ++i)
+        qual[i] = 19;
+    qual[10] = 19;
+    for (i = 0, j = 29; i < j; ++i, --j) {
+        int vi = qual[i];
+        int vj = qual[j];
+        qual[i] = vj;
+        qual[j] = vi;
+    }
     assert(shouldFilter(30, qual) == true);
 }
 

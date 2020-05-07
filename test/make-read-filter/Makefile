@@ -46,12 +46,12 @@ test-data.kar: generate-test-data.py | mkfg exe
 	VDB_LIBRARY_PATH=$(VDB_LIBDIR) \
 	python3 $^ $(TEMPDIR)/test-data && \
 	$(BINDIR)/kar -d $(TEMPDIR)/test-data -fc $@ && \
-	rm -rf $(TEMPDIR)/test-data
+	rm -rf $(TEMPDIR)/test-data expected
 
 runtests: test-data.kar | mkfg exe
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	$(BINDIR)/kar -d $(TEMPDIR)/test-data -x test-data.kar && \
-	$(BINDIR)/make-read-filter -Linfo --temp $(TEMPDIR) $(TEMPDIR)/test-data && \
+	$(BINDIR)/make-read-filter --temp $(TEMPDIR) $(TEMPDIR)/test-data && \
 	$(BINDIR)/vdb-dump $(TEMPDIR)/test-data >actual && \
 	rm -rf $(TEMPDIR)/test-data && \
 	diff expected actual

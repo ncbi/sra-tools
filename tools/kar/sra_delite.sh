@@ -300,6 +300,14 @@ diff-exclude READ_FILTER
 diff-exclude RD_FILTER
 diff-exclude SAM_FLAGS
 diff-exclude READ_SEG
+diff-exclude B_INFO
+diff-exclude CSREAD
+diff-exclude CLIPPED_HAS_MISMATCH
+diff-exclude CLIPPED_HAS_REF_OFFSET
+diff-exclude CLIPPED_MISMATCH
+diff-exclude CLIPPED_READ
+diff-exclude EDIT_DISTANCE
+diff-exclude RIGHT_SOFT_CLIP
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE
@@ -543,13 +551,26 @@ then
     dpec__ 100; err_exit missed mandatory parameter \'$TARGET_TAG\'
 fi
 
-TARGET_DIR=$TARGET_VAL
-DATABASE_DIR=$TARGET_DIR/orig
-NEW_KAR_FILE=$TARGET_DIR/new.kar
-ORIG_KAR_FILE=$TARGET_DIR/orig.kar
-STATUS_FILE=$TARGET_DIR/.status.txt
-VDBCFG_NAME=vdbconfig.kfg
-VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
+set_resolve_set_dir_values ()
+{
+    TDVAL=$TARGET_VAL
+    if [ ! -d "$TDVAL" ]
+    then
+        TDVAL=$TARGET_VAL
+    else
+        TDVAL=`cd $TDVAL; pwd`
+    fi
+
+    TARGET_DIR=$TDVAL
+    DATABASE_DIR=$TARGET_DIR/orig
+    NEW_KAR_FILE=$TARGET_DIR/new.kar
+    ORIG_KAR_FILE=$TARGET_DIR/orig.kar
+    STATUS_FILE=$TARGET_DIR/.status.txt
+    VDBCFG_NAME=vdbconfig.kfg
+    VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
+}
+
+set_resolve_set_dir_values
 
 ## IMPORTANT NOTE:
 ## Prefetch will not work correctly without that
@@ -676,6 +697,9 @@ import_proc ()
     info_msg "IMPORT: $ACCESSION_VAL to $TARGET_DIR"
 
     dpec__ 109; exec_cmd_exit mkdir $TARGET_DIR
+
+    set_resolve_set_dir_values
+
     log_status $INITIALIZED_TAG $ACCESSION_VAL
 
     cat <<EOF >$VDBCFG_FILE

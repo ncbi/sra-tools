@@ -90,6 +90,15 @@ diff-exclude READ_FILTER
 diff-exclude RD_FILTER
 diff-exclude SAM_FLAGS
 diff-exclude READ_SEG
+diff-exclude B_INFO
+diff-exclude CSREAD
+diff-exclude CLIPPED_HAS_MISMATCH
+diff-exclude CLIPPED_HAS_REF_OFFSET
+diff-exclude CLIPPED_MISMATCH
+diff-exclude CLIPPED_READ
+diff-exclude EDIT_DISTANCE
+diff-exclude RIGHT_SOFT_CLIP
+diff-exclude MATE_EDIT_DISTANCE
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE

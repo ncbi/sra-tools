@@ -49,9 +49,10 @@ test-data.kar: generate-test-data.py | mkfg exe
 	rm -rf $(TEMPDIR)/test-data expected
 
 runtests: test-data.kar | mkfg exe
-	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	$(BINDIR)/kar -d $(TEMPDIR)/test-data -x test-data.kar && \
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	$(BINDIR)/make-read-filter --temp $(TEMPDIR) $(TEMPDIR)/test-data && \
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	$(BINDIR)/vdb-dump $(TEMPDIR)/test-data >actual && \
 	rm -rf $(TEMPDIR)/test-data && \
 	diff expected actual

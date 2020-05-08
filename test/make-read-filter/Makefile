@@ -22,54 +22,40 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/make-read-filter
 
-include $(TOP)/build/Makefile.config
+include $(TOP)/build/Makefile.env
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	read-filter-redact \
-	prefetch        \
-	dump-test       \
-	vdb-config      \
-	vcf-loader      \
-	align-info      \
-	align-cache     \
-	kar             \
-	copycat         \
-	sra-stat        \
-	srapath         \
-	sra-sort        \
-	sra-pileup      \
-	fuse            \
-	fastq-loader    \
-	kget            \
-	vdb-dump        \
-	vdb-copy        \
-	qual-recalib-stat \
-	vdb-validate      \
-	make-read-filter  \
+TMPDIR ?= /tmp
+TEMPDIR ?= $(TMPDIR)
 
-# under construction
-#    ngs-pileup      \
+$(TEMPDIR)/tmp.mkfg:
+	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@; \
+	  echo '/sra/quality_type = "raw_scores"' >>$@
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+mkfg: $(TEMPDIR)/tmp.mkfg
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+exe: $(BINDIR)/make-read-filter $(BINDIR)/vdb-dump $(BINDIR)/kar
 
-.PHONY: default $(SUBDIRS)
+test-data.kar: generate-test-data.py | mkfg exe
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	VDB_LIBRARY_PATH=$(VDB_LIBDIR) \
+	python3 $^ $(TEMPDIR)/test-data && \
+	$(BINDIR)/kar -d $(TEMPDIR)/test-data -fc $@ && \
+	rm -rf $(TEMPDIR)/test-data expected
 
-#   time of slowtests in linux release mode
-# real    4m 0.076s      user    4m22.256s      sys     0m10.707s     sra-sort
-# real    5m21.151s      user    5m59.396s      sys     0m39.296s     fastdump
-# real    6m55.921s      user    6m28.035s      sys     6m58.052s     sra-pileup
-# real  184m21.347s      user   42m19.318s      sys   259m56.028s     fuse
+runtests: test-data.kar | mkfg exe
+	$(BINDIR)/kar -d $(TEMPDIR)/test-data -x test-data.kar && \
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	$(BINDIR)/make-read-filter --temp $(TEMPDIR) $(TEMPDIR)/test-data && \
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	$(BINDIR)/vdb-dump $(TEMPDIR)/test-data >actual && \
+	rm -rf $(TEMPDIR)/test-data && \
+	diff expected actual
+
+.PHONY: runtests
+.INTERMEDIATE: $(TEMPDIR)/tmp.mkfg

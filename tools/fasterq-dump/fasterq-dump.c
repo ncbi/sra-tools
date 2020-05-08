@@ -276,7 +276,7 @@ typedef struct tool_ctx_t
 
     compress_t compress; /* helper.h */ 
 
-    bool force, show_progress, show_details, append, stdout;
+    bool force, show_progress, show_details, append, stdout_;
     
     join_options join_options; /* helper.h */
 } tool_ctx_t;
@@ -380,7 +380,7 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
 
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
-    tool_ctx -> stdout = get_bool_option( args, OPTION_STDOUT );
+    tool_ctx -> stdout_ = get_bool_option( args, OPTION_STDOUT );
 
     {
         const char * ngc = get_str_option(args, OPTION_NGC, NULL);
@@ -404,7 +404,7 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
     if ( tool_ctx -> buf_size > MAX_BUF_SIZE )
         tool_ctx -> buf_size = MAX_BUF_SIZE;
     
-    if ( tool_ctx -> stdout )
+    if ( tool_ctx -> stdout_ )
     {
         switch( tool_ctx -> fmt )
         {
@@ -412,12 +412,12 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
             case ft_special             : break;
             case ft_whole_spot          : break;
             case ft_fastq_split_spot    : break;
-            case ft_fastq_split_file    : tool_ctx -> stdout = false; break;
-            case ft_fastq_split_3       : tool_ctx -> stdout = false; break;
+            case ft_fastq_split_file    : tool_ctx -> stdout_ = false; break;
+            case ft_fastq_split_3       : tool_ctx -> stdout_ = false; break;
         }
     }
     
-    if ( tool_ctx -> stdout )
+    if ( tool_ctx -> stdout_ )
     {
         tool_ctx -> compress = ct_none;
         //tool_ctx -> show_progress = false;
@@ -767,7 +767,7 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
     /* STEP 4 : concatenate output-chunks */
     if ( rc == 0 )
     {
-        if ( tool_ctx -> stdout )
+        if ( tool_ctx -> stdout_ )
             rc = temp_registry_to_stdout( registry,
                                           tool_ctx -> dir,
                                           tool_ctx -> buf_size ); /* temp_registry.c */
@@ -904,7 +904,7 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 
     if ( rc == 0 )
     {
-        if ( tool_ctx -> stdout )
+        if ( tool_ctx -> stdout_ )
             rc = temp_registry_to_stdout( registry,
                                           tool_ctx -> dir,
                                           tool_ctx -> buf_size ); /* temp_registry.c */

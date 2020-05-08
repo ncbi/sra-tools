@@ -185,6 +185,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "driver-tool", "driver-tool.
 		{2182DDEE-BE67-48FB-89BA-9EF23717C128} = {2182DDEE-BE67-48FB-89BA-9EF23717C128}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fasterq-dump", "fasterq-dump.vcxproj", "{A6EC334A-E669-40A7-88F0-99FBC2C21643}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -335,6 +337,10 @@ Global
 		{C2C78E19-90A8-4CC5-8A15-DFC7447E3576}.Debug|x64.Build.0 = Debug|x64
 		{C2C78E19-90A8-4CC5-8A15-DFC7447E3576}.Release|x64.ActiveCfg = Release|x64
 		{C2C78E19-90A8-4CC5-8A15-DFC7447E3576}.Release|x64.Build.0 = Release|x64
+		{A6EC334A-E669-40A7-88F0-99FBC2C21643}.Debug|x64.ActiveCfg = Debug|x64
+		{A6EC334A-E669-40A7-88F0-99FBC2C21643}.Debug|x64.Build.0 = Debug|x64
+		{A6EC334A-E669-40A7-88F0-99FBC2C21643}.Release|x64.ActiveCfg = Release|x64
+		{A6EC334A-E669-40A7-88F0-99FBC2C21643}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

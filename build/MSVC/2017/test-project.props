@@ -1,0 +1,15 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">  
+
+  <Import Project="exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ktst.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  
+  <Target Name="Runtests" DependsOnTargets="Build" >
+    <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" />
+  </Target>
+  
+</Project>

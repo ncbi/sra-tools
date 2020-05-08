@@ -37,7 +37,7 @@ RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-to
 WORKDIR /ncbi-vdb/interfaces
 RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done
 ### Generate installation stamp
-RUN uuidgen -r > /build-id
+RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg
 
 FROM ubuntu:latest
 COPY --from=delited /etc/ncbi /etc/ncbi

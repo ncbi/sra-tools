@@ -3,5 +3,6 @@
    <ItemGroup>
     <ClCompile Include="..\..\..\tools\kar\kar.c" />
     <ClCompile Include="..\..\..\tools\kar\kar-args.c" />
+    <ClCompile Include="..\..\..\tools\kar\kar-path.c" />
   </ItemGroup>
 </Project>

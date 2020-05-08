@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\fasterq-dump/helper.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/temp_dir.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/progress_thread.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/cleanup_task.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/index.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/lookup_writer.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/lookup_reader.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/file_printer.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/merge_sorter.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/sorter.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/cmn_iter.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/raw_read_iter.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/special_iter.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/fastq_iter.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/join.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/tbl_join.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/join_results.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/temp_registry.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/copy_machine.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/concatenator.c" />
+    <ClCompile Include="..\..\..\tools\fasterq-dump/fasterq-dump.c" />
+  </ItemGroup>
+</Project>

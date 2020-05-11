@@ -442,6 +442,15 @@ do
 done
 
 ###
+##  That necessary for running script on AWS environment
+#
+GUIDF=$SCRIPT_DIR/${SCRIPT_NAME_SHORT}.guid
+if [ -r "$GUIDF" ]
+then
+    GUID_VAL=`cat $GUIDF`
+fi
+
+###
 ##  Useful reuseful code
 #
 info_msg ()
@@ -713,11 +722,15 @@ import_proc ()
 /sra/quality_type = "raw_scores"
 EOF
 
-echo JOJOJO `uidgen`
+echo JOJOJO `uuidgen`
 UIDG=`which uuidgen`
 if [ -n "$IDG" ]
 then
 echo /LIBS/GUID = \"`uuidgen`\" >>$VDBCFG_FILE
+fi
+if [ -n "$GUID_VAL" ]
+then
+echo /LIBS/GUID = \"$GUID_VAL\" >>$VDBCFG_FILE
 fi
 
     info_msg Changing directory to \'$TARGET_DIR\'

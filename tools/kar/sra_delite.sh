@@ -713,6 +713,7 @@ import_proc ()
 /sra/quality_type = "raw_scores"
 EOF
 
+echo JOJOJO `uidgen`
 UIDG=`which uuidgen`
 if [ -n "$IDG" ]
 then

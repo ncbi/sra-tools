@@ -722,15 +722,12 @@ import_proc ()
 /sra/quality_type = "raw_scores"
 EOF
 
-echo JOJOJO `uuidgen`
-UIDG=`which uuidgen`
-if [ -n "$IDG" ]
-then
-echo /LIBS/GUID = \"`uuidgen`\" >>$VDBCFG_FILE
-fi
+###
+##  In the case of AWS, we needed GUID for correct work
+#
 if [ -n "$GUID_VAL" ]
 then
-echo /LIBS/GUID = \"$GUID_VAL\" >>$VDBCFG_FILE
+    echo /LIBS/GUID = \"$GUID_VAL\" >>$VDBCFG_FILE
 fi
 
     info_msg Changing directory to \'$TARGET_DIR\'

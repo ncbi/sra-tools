@@ -124,13 +124,6 @@ static inline T *randomized(T *p, U const &init)
     return (new (p) T(init));
 }
 
-static inline void debugPrintEnvVar(char const *const name, bool const continueline = false)
-{
-    auto const value = getenv(name);
-    if (value)
-        std::cerr << name << "='" << value << "'" << (continueline ? " \\\n" : "\n");
-}
-
 #endif // DEBUG || _DEBUGGING
 
 #if WINDOWS
@@ -138,3 +131,10 @@ static inline void debugPrintEnvVar(char const *const name, bool const continuel
 #else
 #include "util.posix.hpp"
 #endif
+
+static inline void debugPrintEnvVar(char const *const name, bool const continueline = false)
+{
+    auto const value = EnvironmentVariables::get(name);
+    if (value)
+        std::cerr << name << "='" << value << "'" << (continueline ? " \\\n" : "\n");
+}

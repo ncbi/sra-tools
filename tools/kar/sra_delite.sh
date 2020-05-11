@@ -713,6 +713,12 @@ import_proc ()
 /sra/quality_type = "raw_scores"
 EOF
 
+UIDG=`which uuidgen`
+if [ -n "$IDG" ]
+then
+echo /LIBS/GUID = \"`uuidgen`\" >>$VDBCFG_FILE
+fi
+
     info_msg Changing directory to \'$TARGET_DIR\'
     cd $TARGET_DIR
 

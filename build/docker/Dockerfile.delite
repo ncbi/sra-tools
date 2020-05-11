@@ -44,7 +44,7 @@ RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg
 FROM ubuntu:bionic
 COPY --from=delited /etc/ncbi /etc/ncbi
 COPY --from=delited /usr/local/ncbi /usr/local/ncbi
-COPY --from=delited /build-id /root/.ncbi/build-id
+#COPY --from=delited /build-id /root/.ncbi/build-id
 COPY --from=delited /schema /etc/ncbi/schema
 ENV PATH=/usr/local/ncbi/sra-tools/bin:${PATH}
 # ENV SCHEMA_PATH=/etc/ncbi/schema

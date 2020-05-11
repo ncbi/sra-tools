@@ -36,7 +36,7 @@ FROM build AS delited
 RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /usr/local/ncbi/sra-tools/bin
 ### Copy schema files
 WORKDIR /ncbi-vdb/interfaces
-RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done ; rm -f /schema/ncbu/trace.vschema
+RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done ; rm -f /schema/ncbi/trace.vschema
 ### Generate installation stamp
 RUN mkdir -p /root/.ncbi
 # RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg

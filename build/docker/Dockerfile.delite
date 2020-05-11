@@ -33,7 +33,7 @@ RUN make install
 
 FROM build AS delited
 ### Install delite process binaries and script
-RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /usr/local/ncbi/sra-tools/bin
+RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /usr/local/ncbi/sra-tools/bin
 ### Copy schema files
 WORKDIR /ncbi-vdb/interfaces
 RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done

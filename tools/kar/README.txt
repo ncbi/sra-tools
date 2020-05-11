@@ -22,6 +22,7 @@ VIII. Physical requirements (important, read it)
 IX.   Error codes
 X.    Limitations: what to expect and what to not
 XI.   Building, installing, and running from scratch
+XII.  Building, installing, and running from docker image
 
 I.  Script requirements, environment and configuring.
 =============================================================================
@@ -446,5 +447,30 @@ In simple it will look like that:
 # some_locateion/sra_delite.sh export --target target_directory
 
 More details about delite process user can find in previous parts of that README file
+
+
+XII.  Building, installing, and running from docker image on AWS cloud
+=============================================================================
+To build and run delite from docker image user should first to start an instance on AWS.
+After that user should login to AWS instance and check that docker and git are present.
+Good source of information user can find here :
+
+    https://docs.aws.amazon.com/AmazonECS/latest/developerguide/docker-basics.html
+
+In short, istalling docker is that series of commands:
+
+    sudo yum update -y
+    sudo amazon-linux-extras install docker
+    sudo service docker start
+    sudo usermod -a -G docker ec2-user
+    docker info
+        ## if after that command will appear message "Can not connect"
+        ## user should reboot host, and start docker again
+
+To install git, user should do that command:
+
+    sudo yum install git
+
+Now everything is ready for 
 
 ENJOY

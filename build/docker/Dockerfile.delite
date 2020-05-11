@@ -47,7 +47,7 @@ COPY --from=delited /etc/ncbi /etc/ncbi
 COPY --from=delited /usr/local/ncbi /usr/local/ncbi
 #COPY --from=delited /build-id /root/.ncbi/build-id
 COPY --from=delited /schema /etc/ncbi/schema
-COPY --from=delited /root/.ncbi/user-settings.mkfg /root/.ncbi/user-settings.mkfg
+# COPY --from=delited /root/.ncbi/user-settings.mkfg /root/.ncbi/user-settings.mkfg
 
 ENV PATH=/usr/local/ncbi/sra-tools/bin:${PATH}
 # ENV SCHEMA_PATH=/etc/ncbi/schema

@@ -13,6 +13,7 @@
 # UPDDATE: Mon Nov  7 18:13:09 2011 (11/7/2011 18:13)
 # 
 
+# bionic is 18.04 LTS
 FROM ubuntu:bionic AS build
 RUN apt-get --quiet update && apt-get --quiet install -y make cmake git gcc g++ flex bison uuid-runtime
 ARG BUILD_STYLE=--without-debug
@@ -37,9 +38,10 @@ RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-to
 WORKDIR /ncbi-vdb/interfaces
 RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done
 ### Generate installation stamp
+RUN mkdir -p /root/.ncbi
 RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg
 
-FROM ubuntu:latest
+FROM ubuntu:bionic
 COPY --from=delited /etc/ncbi /etc/ncbi
 COPY --from=delited /usr/local/ncbi /usr/local/ncbi
 COPY --from=delited /build-id /root/.ncbi/build-id

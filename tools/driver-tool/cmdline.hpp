@@ -90,8 +90,8 @@ namespace ncbi
         void longHelp ( const char * short_name );
         void version ();
 
-        Cmdline ( int argc, char * argv [] );
-        Cmdline ( int argc, char * argv [], const String & vers );
+        Cmdline ( int argc, char const * argv [] );
+        Cmdline ( int argc, char const * argv [], const String & vers );
         ~ Cmdline ();
 
         struct Param

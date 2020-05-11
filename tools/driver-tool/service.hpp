@@ -30,6 +30,8 @@
  *
  */
 
+#pragma once
+
 #include <string>
 #include <vector>
 #include <exception>
@@ -55,7 +57,7 @@ public:
     : std::runtime_error(what)
     , from(from)
     , rc(rc)
-        , msg(message)
+    , msg(message)
     {}
 };
 

@@ -502,9 +502,12 @@ The delite commands for docker case will looks like that:
     docker run -v ~/output/:/output:rw --rm sratoolkit:delite vdb-dump -R 1 /output/SRR000001/new.kar
 
 To simplify delite process there is script "delite_docker.sh", which embeds all delite
-commands, which could safe time on typing. Script has only one parameter ACCESSION.
-User can use it like that:
+commands, which could safe time on typing. User can pass several accessions as a prameter
+to script and they will be delited sequentially:
 
-    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh SRR000001
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh SRR000001 SRR000002
+
+NOTE: if there are results of previous delite process for accession, script will exit with
+error message. User is responsible for deleting these before calling script.
 
 ENJOY

@@ -728,7 +728,7 @@ fi
 
     dpec__ 60; exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
 
-    TOUTD=$TARGET_DIR/$ACCESSION_VAL
+    TOUTD=$ACCESSION_VAL
     if [ ! -d "$TOUTD" ]
     then
         dpec__ 105; err_exit can not stat directory \'$TOUTD\'
@@ -740,7 +740,7 @@ fi
         dpec__ 105; err_exit can not stat file \'$TOUTF\'
     fi
 
-    info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TOUTF\'
+    info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TARGET_DIR/$TOUTF\'
 
     dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
 

@@ -507,7 +507,9 @@ to script and they will be delited sequentially:
 
     docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh SRR000001 SRR000002
 
+In the case of error, script will return error code of failed sra_delite.sh command.
+
 NOTE: if there are results of previous delite process for accession, script will exit with
-error message. User is responsible for deleting these before calling script.
+      error message. User is responsible for deleting these before calling script.
 
 ENJOY

@@ -21,6 +21,8 @@ VII.  Status
 VIII. Physical requirements (important, read it)
 IX.   Error codes
 X.    Limitations: what to expect and what to not
+XI.   Building, installing, and running from scratch
+XII.  Building, installing, and running from docker image
 
 I.  Script requirements, environment and configuring.
 =============================================================================
@@ -40,6 +42,7 @@ The format of config file will be described later
 
 Script presumes that it is starts from directory where following standard VDB
 utilities are located :
+
             kar+
             kar+meta
             vdb-lock
@@ -47,6 +50,9 @@ utilities are located :
             vdb-validate
             prefetch
             vdb-diff
+            vdb-dump
+            make-read-filter
+
 If one of these utilities does not exists, or permissions for execution for
 that utility are missed, script will exit with error message. You may alter
 location of VDB utilities by exporting DELITE_BIN_DIR environment variable
@@ -54,6 +60,15 @@ which points to directory with utilities. DELITE_BIN_DIR variable has higher
 priority than local utilities, however there will be a message from script
 that it is using ateternate bin directory. User also can set that variable
 in configuration file.
+
+Some utilities from that list may create temporary files, usually they do it
+in directory /tmp, or at location defined by environment variable TEMPDIR.
+User can change that behaviour by setting value in configuration file:
+
+    USE_OWN_TEMPDIR=1
+
+in that case, script will ask utilities to put temporary data at the same
+directory where delite process is performed.
 
 Script will require two mandatory parameters path to source KAR archive, 
 which could be accession, and path to directory, which will be used as working
@@ -364,5 +379,98 @@ there will be
 
 After that, script will run standard checks as for: vdb-validate and vdb-diff to
 be sure that delite process finished correctly
+
+XI.   Building, installing, and running from scratch
+=============================================================================
+For working, delite process needed ten binaries, which are listed in first chapter
+of that README file. User could use precompiled binaries, which he could download
+from NCBI place <JOJOBA put path here>, or build binaries by itself.
+
+To build binaries, user should download, install, configure, and build 'ngs',
+'ncbi-vdb', and 'sra-tools' packages. In commands of shell it will look like :
+
+    # mkdir DELITE
+    # cd DELITE
+    # git clone https://github.com/ncbi/ngc.git
+    # git pull
+    # cd ngc
+    # ./configure
+    # cd ngc-sdk
+    # make
+    # cd ../ngc-java
+    # make
+    # cd ../..
+    # git clone https://github.com/ncbi/ncb-vdb.git
+    # git pull
+    # cd ncbi-vdb
+    # ./configure
+    # ./make
+    # cd ..
+    # git clone https://github.com/ncbi/sra-tools.git
+    # git pull
+    # cd sra-tools
+    # ./configure
+    # make
+
+After that user may pick up new binaries and use them for delite process
+More details about building these packages user can read in NCBI documentation
+
+Delite process is performed by 'sra_delite.sh' script, which is a part of sra-tools
+package, and located in directory:
+
+    sra-tools/tools/kar
+
+There is also example of 'sra_delite.kfg' file, which user can use if he need to
+modify delite process.
+
+Delite is needed valid schemas for correct processing. If user does not have access
+to schemas, he could use as source of schemas content of directory:
+
+    ncbi-vdb/interfaces
+
+By default sra_delite.sh script will look for a binaries in the same directory where
+it is located. The simplest way to install all necessary files for delite is to create
+directory, where user could put sra_delite.sh, and builded binaries.
+
+In the cases, user had to use precompiled binaries already installed somewhere, it should
+copy sra_delite.kfg file to directory with script and add here a line:
+
+    DELITE_BIN_DIR=/place/with/precompiled/files
+
+User may also want to copy directory ncbi-vdb/interfaces somewhere close to that directory.
+
+Now, when everything is ready for delite processing, user could start delite processing.
+In simple it will look like that:
+
+# some_locateion/sra_delite.sh import --accession SRR000001 --target target_directory
+# some_locateion/sra_delite.sh delite --schema path_to_schemas --target target_directory
+# some_locateion/sra_delite.sh export --target target_directory
+
+More details about delite process user can find in previous parts of that README file
+
+
+XII.  Building, installing, and running from docker image on AWS cloud
+=============================================================================
+To build and run delite from docker image user should first to start an instance on AWS.
+After that user should login to AWS instance and check that docker and git are present.
+Good source of information user can find here :
+
+    https://docs.aws.amazon.com/AmazonECS/latest/developerguide/docker-basics.html
+
+In short, istalling docker is that series of commands:
+
+    sudo yum update -y
+    sudo amazon-linux-extras install docker
+    sudo service docker start
+    sudo usermod -a -G docker ec2-user
+    docker info
+        ## if after that command will appear message "Can not connect"
+        ## user should reboot host, and start docker again
+
+To install git, user should do that command:
+
+    sudo yum install git
+
+Now everything is ready for 
 
 ENJOY

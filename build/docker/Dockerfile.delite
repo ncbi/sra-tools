@@ -40,7 +40,7 @@ RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dir
 ### Generate installation stamp
 RUN mkdir -p /root/.ncbi
 RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg
-RUN printf '%s\n' `uuidgen` > /usr/local/ncbi/sra-tools/bin/sra_delite.guid
+RUN printf 'DELITE_GUID=%s\n' `uuidgen` >> /usr/local/ncbi/sra-tools/bin/sra_delite.kfg
 
 FROM ubuntu:bionic
 COPY --from=delited /etc/ncbi /etc/ncbi

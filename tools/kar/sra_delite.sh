@@ -314,6 +314,8 @@ diff-exclude RIGHT_SOFT_CLIP
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
 # USE_OWN_TEMPDIR=1
+### That is for docker, and please do not modify it by yourself
+# DELITE_GUID=
 
 EOF
     else
@@ -440,15 +442,6 @@ do
     if [ ! -e ${!i} ]; then echo ERROR: can not stat executable \'${!i}\' >&2;          exit 104; fi
     if [ ! -x ${!i} ]; then echo ERROR: has no permission to execute for \'${!i}\' >&2; exit 104; fi
 done
-
-###
-##  That necessary for running script on AWS environment
-#
-GUIDF=$SCRIPT_DIR/${SCRIPT_NAME_SHORT}.guid
-if [ -r "$GUIDF" ]
-then
-    GUID_VAL=`cat $GUIDF`
-fi
 
 ###
 ##  Useful reuseful code
@@ -725,9 +718,9 @@ EOF
 ###
 ##  In the case of AWS, we needed GUID for correct work
 #
-if [ -n "$GUID_VAL" ]
+if [ -n "$DELITE_GUID" ]
 then
-    echo /LIBS/GUID = \"$GUID_VAL\" >>$VDBCFG_FILE
+    echo /LIBS/GUID = \"$DELITE_GUID\" >>$VDBCFG_FILE
 fi
 
     info_msg Changing directory to \'$TARGET_DIR\'

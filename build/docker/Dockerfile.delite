@@ -12,9 +12,7 @@
 # UPDVER : 2.1.7
 # UPDDATE: Mon Nov  7 18:13:09 2011 (11/7/2011 18:13)
 # % mkdir ~/output
-# % docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh import --accession SRR000001 --target /output/SRR000001
-# % docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh delite --target /output/SRR000001   --schema /etc/ncbi/schema
-# % docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh export --target /output/SRR000001
+# % docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh SRR000001 SRR000002
 # % docker run -v ~/output/:/output:rw --rm sratoolkit:delite vdb-dump -R 1 /output/SRR000001/new.kar
 # 
 
@@ -38,7 +36,8 @@ RUN make install
 
 FROM build AS delited
 ### Install delite process binaries and script
-RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /usr/local/ncbi/sra-tools/bin
+RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /sra-tools/tools/kar/delite_docker.sh /usr/local/ncbi/sra-tools/bin
+RUN chmod ugo+x /usr/local/ncbi/sra-tools/bin/delite_docker.sh
 ### Copy schema files
 WORKDIR /ncbi-vdb/interfaces
 RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done ; rm -f /schema/ncbi/trace.vschema

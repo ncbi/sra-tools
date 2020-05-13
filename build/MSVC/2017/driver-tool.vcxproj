@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-    <PropertyGroup Label="Configuration">
-        <TargetName>sratools</TargetName>
-    </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <TargetName>sratools</TargetName>
+  </PropertyGroup>
   <Import Project=".\exe-project.props" />
   <ItemDefinitionGroup>
     <ClCompile>
@@ -13,7 +13,7 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-        <Command>
+      <Command>
             del $(TargetDir)$(TargetName).lib
             del $(TargetDir)$(TargetName).exp
             echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)fastq-dump$(TargetExt)
@@ -26,12 +26,11 @@
             echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)vdb-dump.pdb
             echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)prefetch$(TargetExt)
             echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)prefetch.pdb
-            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)srapath$(TargetExt)
             echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)srapath.pdb
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)srapath$(TargetExt)
         </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-
   <Import Project="..\driver-tool.files" />
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C2C78E19-90A8-4CC5-8A15-DFC7447E3576}</ProjectGuid>

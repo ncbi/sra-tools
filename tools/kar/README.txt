@@ -380,6 +380,7 @@ there will be
 After that, script will run standard checks as for: vdb-validate and vdb-diff to
 be sure that delite process finished correctly
 
+
 XI.   Building, installing, and running from scratch
 =============================================================================
 For working, delite process needed ten binaries, which are listed in first chapter

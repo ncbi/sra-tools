@@ -380,6 +380,7 @@ there will be
 After that, script will run standard checks as for: vdb-validate and vdb-diff to
 be sure that delite process finished correctly
 
+
 XI.   Building, installing, and running from scratch
 =============================================================================
 For working, delite process needed ten binaries, which are listed in first chapter
@@ -447,6 +448,7 @@ In simple it will look like that:
 # some_locateion/sra_delite.sh export --target target_directory
 
 More details about delite process user can find in previous parts of that README file
+
 
 XII.  Building, installing, and running from docker image on AWS cloud
 =============================================================================

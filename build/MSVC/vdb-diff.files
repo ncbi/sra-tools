@@ -4,5 +4,9 @@
     <ClCompile Include="..\..\..\tools\vdb-diff\namelist_tools.c" />
     <ClCompile Include="..\..\..\tools\vdb-diff\coldefs.c" />
     <ClCompile Include="..\..\..\tools\vdb-diff\vdb-diff.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\vdb-diff-context.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\row_by_row.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\col_by_col.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\cmn.c" />
   </ItemGroup>
 </Project>

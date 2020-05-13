@@ -314,6 +314,8 @@ diff-exclude RIGHT_SOFT_CLIP
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
 # USE_OWN_TEMPDIR=1
+### That is for docker, and please do not modify it by yourself
+# DELITE_GUID=
 
 EOF
     else
@@ -713,12 +715,20 @@ import_proc ()
 /sra/quality_type = "raw_scores"
 EOF
 
+###
+##  In the case of AWS, we needed GUID for correct work
+#
+if [ -n "$DELITE_GUID" ]
+then
+    echo /LIBS/GUID = \"$DELITE_GUID\" >>$VDBCFG_FILE
+fi
+
     info_msg Changing directory to \'$TARGET_DIR\'
     cd $TARGET_DIR
 
     dpec__ 60; exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
 
-    TOUTD=$TARGET_DIR/$ACCESSION_VAL
+    TOUTD=$ACCESSION_VAL
     if [ ! -d "$TOUTD" ]
     then
         dpec__ 105; err_exit can not stat directory \'$TOUTD\'
@@ -730,7 +740,7 @@ EOF
         dpec__ 105; err_exit can not stat file \'$TOUTF\'
     fi
 
-    info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TOUTF\'
+    info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TARGET_DIR/$TOUTF\'
 
     dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
 

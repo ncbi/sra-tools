@@ -22,6 +22,7 @@ VIII. Physical requirements (important, read it)
 IX.   Error codes
 X.    Limitations: what to expect and what to not
 XI.   Building, installing, and running from scratch
+XII.  Building, installing, and running from docker image
 
 I.  Script requirements, environment and configuring.
 =============================================================================
@@ -446,5 +447,68 @@ In simple it will look like that:
 # some_locateion/sra_delite.sh export --target target_directory
 
 More details about delite process user can find in previous parts of that README file
+
+XII.  Building, installing, and running from docker image on AWS cloud
+=============================================================================
+To build and run delite from docker container user should first to start an instance
+on AWS. After that user should login to AWS instance and check that docker and git are
+present, by running commands 'docker' and 'git'.
+
+If 'docker' command is not found, user should install it. There is how to do that.
+
+    sudo yum update -y
+    sudo amazon-linux-extras install docker
+    sudo service docker start
+    sudo usermod -a -G docker ec2-user
+    docker info
+        ## if after that command will appear message "Can not connect"
+        ## user should reboot host, and start docker again
+
+User could find good source of information on Docker here:
+
+    https://docs.aws.amazon.com/AmazonECS/latest/developerguide/docker-basics.html
+
+To install git, user should do that command:
+
+    sudo yum install git
+
+Now everything is ready for delite process. 
+
+First step user should download docker file, or copy it. The simplest way to download
+docker file is clone sra-toolkit package from GITHUB:
+
+    git clone https://github.com/ncbi/sra-tools.git
+
+User could copy docker file to his working directory, and delete sra-toolkit package after.
+
+    cp sra-toolkit/build/docker/Dockerfile.delite .
+    rm -rf sra-tools
+
+Now user should build docker image:
+
+    docker build -f Dockerfile.delite -t sratoolkit:delite .
+
+Next, user should create output directory for delited runs and everything is ready for
+deliting:
+
+    mkdir ~/output
+
+The delite commands for docker case will looks like that:
+
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh import --accession SRR000001 --target /output/SRR000001
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh delite --target /output/SRR000001   --schema /etc/ncbi/schema
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh export --target /output/SRR000001
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite vdb-dump -R 1 /output/SRR000001/new.kar
+
+To simplify delite process there is script "delite_docker.sh", which embeds all delite
+commands, which could safe time on typing. User can pass several accessions as a prameter
+to script and they will be delited sequentially:
+
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh SRR000001 SRR000002
+
+In the case of error, script will return error code of failed sra_delite.sh command.
+
+NOTE: if there are results of previous delite process for accession, script will exit with
+      error message. User is responsible for deleting these before calling script.
 
 ENJOY

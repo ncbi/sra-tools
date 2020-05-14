@@ -201,7 +201,7 @@ namespace sratools {
 #if WINDOWS
             if (sep == std::string::npos) {
                 auto const sep = argv0.find_first_of(':'); // look for a drive letter
-                basename_ = (sep == std::string::npos) ? argv0 : (fullpath.substr(sep + 1));
+                basename_ = (sep == std::string::npos) ? argv0 : (argv0.substr(sep + 1));
             }
             else
                 basename_ = argv0.substr(sep + 1);

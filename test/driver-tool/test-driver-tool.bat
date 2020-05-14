@@ -23,9 +23,13 @@
 @rem # ===========================================================================
 
 @set BINDIR=%1%
-@set TEMPDIR=.\temp
+@set DRIVE=%~d1%
+@set CURDIR=%CD%
+@set TEMPDIR=%CURDIR%\temp
+@set ACTUAL=%CURDIR%\actual
+@set EXPECTED=%CURDIR%\expected
 
-@md .\actual 2>NUL
+@md %ACTUAL% 2>NUL
 @md %TEMPDIR% 2>NUL
 @echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >%TEMPDIR%/tmp.mkfg
 @set NCBI_SETTING=%TEMPDIR%/tmp.mkfg
@@ -43,8 +47,8 @@
 @echo testing expected output for unknown tool
 
 @set SRATOOLS_IMPERSONATE=rcexplain
-@%BINDIR%\sratools 2>actual/bogus.stderr
-@fc /L expected\bogus.stderr actual\bogus.stderr > NUL 2> NUL
+@%BINDIR%\sratools 2>%ACTUAL%/bogus.stderr
+@fc /L %EXPECTED%\bogus.stderr %ACTUAL%\bogus.stderr > NUL 2> NUL
 @if ERRORLEVEL   1 goto FAILED
 @set SRATOOLS_IMPERSONATE=
 
@@ -53,8 +57,8 @@
 @set SRATOOLS_IMPERSONATE=fastq-dump
 @for %%C in (SRP000001 SRX000001 SRS000001 SRA000001 ERP000001 DRX000001 ) do @(
     echo testing expected output for container %%C
-    %BINDIR%\sratools %%C 2>actual\%%C.stderr
-    fc /L expected\%%C.stderr actual\%%C.stderr > NUL 2> NUL
+    %BINDIR%\sratools %%C 2>%ACTUAL%\%%C.stderr
+    fc /L %EXPECTED%\%%C.stderr %ACTUAL%\%%C.stderr > NUL 2> NUL
     if ERRORLEVEL   1 goto FAILED
 )
 @set SRATOOLS_IMPERSONATE=
@@ -67,16 +71,26 @@
 @for %%C in ( fastq-dump fasterq-dump sam-dump sra-pileup vdb-dump prefetch srapath ) do @(
     echo testing expected output for dry run of %%C
     set SRATOOLS_IMPERSONATE=%%C
-	%BINDIR%/sratools -v SRR000001 ERR000001 DRR000001 2>actual\%%C.stderr
+	%BINDIR%/sratools -v SRR000001 ERR000001 DRR000001 2>%ACTUAL%\%%C.stderr
     if ERRORLEVEL   1 goto FAILED
     @set SRATOOLS_IMPERSONATE=
-    fc /L expected\%%C.stderr actual\%%C.stderr > NUL 2> NUL
+    fc /L %EXPECTED%\%%C.stderr %ACTUAL%\%%C.stderr > NUL 2> NUL
     if ERRORLEVEL   1 goto FAILED
 )
 @set SRATOOLS_TESTING=
 
 @rem # ===========================================================================
+@rem path to the executable with a drive letter
+@cd %BINDIR%
+@echo testing expected output for %DRIVE%fastq-dump
+@%DRIVE%fastq-dump -Z SRR000123 >NUL 2>%ACTUAL%\drive.stderr
+@fc /L %EXPECTED%\drive.stderr%ACTUAL%\drive.stderr > NUL 2> NUL
+@if ERRORLEVEL   1 goto FAILED
+@cd %CURDIR%
+
+@rem # ===========================================================================
 @rem all tests passed
+@cd %CURDIR%
 @rd /Q /S %TEMPDIR%
 @exit /B 0
 
@@ -84,4 +98,5 @@
 :FAILED
 @echo some tests failed!
 
+cd %CURDIR%
 @exit /B 1

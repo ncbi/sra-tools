@@ -174,10 +174,10 @@ namespace sratools {
                 abort();
             }
         }
-        catch (sratools2::WhatImposter::InvalidToolException) {
+        catch (sratools2::WhatImposter::InvalidToolException const &e) {
             std::cerr << "An error occured: unrecognized tool " << toolpath.basename() << std::endl << error_continues_message << std::endl;
         }
-        catch (sratools2::WhatImposter::InvalidVersionException) {
+        catch (sratools2::WhatImposter::InvalidVersionException const &e) {
             std::cerr << "An error occured: unrecognized version " << toolpath.version() << ", expected " << toolpath.toolkit_version() << std::endl << error_continues_message << std::endl;
         }
         catch (std::exception const &e) {
@@ -194,7 +194,16 @@ namespace sratools {
         {
             auto const fullpath = get_exec_path(argv0, extra);
             auto const sep = fullpath.find_last_of(ToolPath::seperator);
+#if WINDOWS
+            if (sep == std::string::npos) {
+                auto const sep = fullpath.find_first_of(':'); // look for a drive letter
+                path_ = (sep == std::string::npos) ? "." : (fullpath.substr(0, sep)+":.");
+            }
+            else
+                path_ = fullpath.substr(0, sep);
+#else
             path_ = (sep == std::string::npos) ? "." : fullpath.substr(0, sep);
+#endif
         }
         {
             auto const sep = argv0.find_last_of(ToolPath::seperator);

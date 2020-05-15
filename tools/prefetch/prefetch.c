@@ -1243,12 +1243,14 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
     }
 
-    if (rwr == 0)
-        PrfOutFileCommitDo(pof);
+    if (!mane->dryRun) {
+        if (rwr == 0)
+            PrfOutFileCommitDo(pof);
 
-    r2 = PrfOutFileClose(pof);
-    if (r2 != 0 && rc == 0)
-        rc = r2;
+        r2 = PrfOutFileClose(pof);
+        if (r2 != 0 && rc == 0)
+            rc = r2;
+    }
 
     destroy_progressbar(pb);
 
@@ -1525,12 +1527,12 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
         }
     }
     if (rc == 0) {
-        rc_t rd = 0;
-        bool ascp = false;
         String scheme;
         rc = VPathGetScheme(path, &scheme);
-        ascp = _SchemeIsFasp(&scheme);
-        if (!mane->noAscp) {
+        if (rc == 0) {
+          rc_t rd = 0;
+          bool ascp = _SchemeIsFasp(&scheme);
+          if (!mane->noAscp) {
             if (ascp) {
                 STSMSG(STS_TOP, (" Downloading via fasp..."));
                 if (mane->forceAscpFail)
@@ -1557,11 +1559,13 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                         STSMSG(STS_TOP, (" FASP download failed"));
                 }
             }
-        }
-        if (!ascp && /*(rc != 0 && GetRCObject(rc) != rcMemory&&*/
+          }
+          if (!ascp && /*(rc != 0 && GetRCObject(rc) != rcMemory&&*/
             !canceled && !mane->noHttp) /*&& !self->isUri))*/
-        {
+          {
             bool https = true;
+            if (scheme.size == 4)
+                https = false;
             STSMSG(STS_TOP,
                 (" Downloading via %s...", https ? "HTTPS" : "HTTP"));
             if (mane->eliminateQuals)
@@ -1581,9 +1585,10 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                     STSMSG(STS_TOP, (" %s download failed",
                         https ? "HTTPS" : "HTTP"));
             }
-        }
-        if ( rc == 0 && rd != 0 )
+          }
+          if ( rc == 0 && rd != 0 )
             rc = rd;
+        }
     }
     return rc;
 }
@@ -1808,7 +1813,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         }
     }
 
-    if (rc == 0) {
+    if (rc == 0 && !mane->dryRun) {
         EValidate size = eVinit;
         EValidate md5 = eVinit;
         bool encrypted = false;
@@ -1860,7 +1865,6 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
 
     RELEASE(VPath, vcache);
     RELEASE(VPath, vremote);
-
 
     return rc;
 }

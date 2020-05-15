@@ -316,6 +316,8 @@ diff-exclude RIGHT_SOFT_CLIP
 # USE_OWN_TEMPDIR=1
 ### That is for docker, and please do not modify it by yourself
 # DELITE_GUID=
+### That is for new version of make-read-filter
+DELITE_REJECT_VDBCACHE=1
 
 EOF
     else
@@ -738,6 +740,24 @@ fi
     if [ ! -f "$TOUTF" ]
     then
         dpec__ 105; err_exit can not stat file \'$TOUTF\'
+    fi
+
+    if [ -n "$DELITE_REJECT_VDBCACHE" ]
+    then
+        VCH=$( ls ${TOUTD}/*.vdbcache 2>/dev/null )
+        if [ -n "$VCH" ]
+        then
+cat <<EOF >&2
+
+WARNING: This run will not be processed because current make-read-filter
+utility does not support vdbcache files. Please, try to DELITE that run
+later, when new version of make-read-filter utility will be available.
+Thank You for understanding.
+
+EOF
+
+            dpec__ 80; err_exit can not process VDBCACHE file \'$TOUTF\'
+        fi
     fi
 
     info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TARGET_DIR/$TOUTF\'

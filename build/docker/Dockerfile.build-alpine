@@ -1,0 +1,39 @@
+FROM alpine:latest AS build-base
+RUN apk add build-base util-linux linux-headers g++ bash perl make cmake git bison flex
+
+FROM build-base AS build
+ARG VDB_BRANCH=master
+ARG NGS_BRANCH=${VDB_BRANCH}
+ARG SRA_BRANCH=${VDB_BRANCH}
+ARG BUILD_STYLE=--without-debug
+RUN git clone -b ${NGS_BRANCH} --depth 1 https://github.com/ncbi/ngs.git
+RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git
+RUN git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
+WORKDIR /ncbi-vdb
+RUN sed -e '/gnu\/libc-version.h/ s/^/\/\//' -e '/gnu_get_libc_version/s/^/\/\//' -i libs/kns/manager.c
+RUN ./configure ${BUILD_STYLE} && make -s >/dev/null 2>&1 || { echo "make failed"; exit 1; }
+WORKDIR /ngs
+RUN ./configure ${BUILD_STYLE} && make -s -C ngs-sdk >/dev/null 2>&1 || { echo "make failed"; exit 1; }
+WORKDIR /sra-tools
+RUN sed -e'/execinfo.h/ s/^/\/\//' -e'/backtrace/ s/^/\/\//' -i tools/driver-tool/secure/except.cpp
+RUN sed -e'/mv -b -v/ s/mv -b/mv/' -i build/install-kfg.sh
+RUN perl -pi.orig -e'BEGIN{@l=(279,383,407,415,416,420,770,907);$i=0}if ($.==$l[$i]){++$i;s/stdout/use_stdout/g unless /use_stdout/}' tools/fasterq-dump/fasterq-dump.c && rm -f tools/fasterq-dump/fasterq-dump.c.orig
+RUN ./configure ${BUILD_STYLE} && make -s >/dev/null 2>&1 || { echo "make failed"; exit 1; }
+RUN make install
+RUN mkdir -p /root/.ncbi
+RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg
+# SEND CLOUD INSTANCE IDENTITY
+RUN printf '/libs/cloud/report_instance_identity = "true"\n' >> /root/.ncbi/user-settings.mkfg
+
+FROM alpine:latest
+LABEL author="Kenneth Durbrow" \
+      maintainer="kenneth.durbrow@nih.gov" \
+      vendor="gov.nih.nlm.ncbi" \
+      website="https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software" \
+      repository="https://github.com/ncbi/sra-tools/" \
+      description="The SRA Toolkit along with a working default configuration." \
+      NOTICE="WHEN USING THIS IMAGE IN A CLOUD ENVIRONMENT, YOU WILL BE SENDING YOUR CLOUD INSTANCE IDENTITY TO NCBI."
+COPY --from=build /etc/ncbi /etc/ncbi
+COPY --from=build /usr/local/ncbi /usr/local/ncbi
+COPY --from=build /root/.ncbi /root/.ncbi
+ENV PATH=/usr/local/ncbi/sra-tools/bin:${PATH}

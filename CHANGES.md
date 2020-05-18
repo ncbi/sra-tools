@@ -1,6 +1,25 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.6
+**MAY 18, 2020**
+
+  **align, sra-tools, ngs-tools**: fixed fetching of reference sequences from cloud  
+  **align, sra-tools, vfs**: fixed resolving of hs37d5 reference sequence  
+  **build, sra-tools**: installation script works when libmagic is not present  
+  **kar**: errors fixed in kar utility  
+  **kfg, sra-tools**: ignore configuration with invalid protected user repository having a single 'root' node  
+  **kns, sra-tools, ngs-tools**: added new header to HTTP requests to communicate SRA version  
+  **kns, sra-tools**: close socket when accessing GCP files  
+  **kns, sra-tools, ngs-tools**: introduced a additional configurable network retry loop  
+  **krypto, sra-tools, vfs**: fixed decryption when password contains # symbol  
+  **prefetch**: allow to resume interrupted download, validate downloaded file   
+  **sratools**: sra-tools are now available on Windows  
+  **sratools, vdb-dump, vfs**: fixed vdb-dump <accession of prefetched run>  
+  **sra-tools, vdb**: restored possibility to cache WGS references to user repository  
+  **sra-tools, vfs**: fixed working with runs having WGS reference sequences  
+
+
 ## SRA Toolkit 2.10.5
 **April 1, 2020**
 

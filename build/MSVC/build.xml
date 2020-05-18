@@ -8,7 +8,7 @@
     <property name="Platform"       value="x64" />
     <property name="Configuration"  value="Debug" />
     <property name="Output"         value="${basedir}\..\..\..\OUTDIR\" />
-    <property name="MSVS"           value="2013" />
+    <property name="MSVS"           value="2017" />
 
     <target name="help">
   		<echo message="">
@@ -18,7 +18,7 @@ Usage (in the directory of this file, build.xml):
   ant [options] target1 target2 ...
 
 Example:
-  ant -DConfiguration=Debug -Platform=Win32 help std
+  ant -DConfiguration=Debug help runtests
 
 Supported targets:
 	help - print this text and exit
@@ -28,9 +28,7 @@ Supported targets:
 
 Options:
     -DConfiguration=Debug or -DConfiguration=Release (default)
-    -DPlatform=Win32 or -DPlatform=x64 (default)
     -DOutput=path   folder to create output in (default: ${basedir}\..\..\..\OUTDIR\)
-    -DMSVS=version  MSVS toolset, 2010 or 2013 (default: 2013)
   		</echo>
     </target>
 

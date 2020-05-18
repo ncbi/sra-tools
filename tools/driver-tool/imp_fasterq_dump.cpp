@@ -28,6 +28,7 @@
 #include "support2.hpp"
 
 #define TOOL_NAME "fasterq-dump"
+#define TOOL_ORIGINAL_NAME TOOL_NAME "-orig"
 
 namespace sratools2
 {
@@ -203,14 +204,14 @@ struct FasterqParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        auto const theirArgv0 = what.toolpath.getPathFor(TOOL_NAME).fullpath();
         {
-            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            auto const realpath = what.toolpath.getPathFor(TOOL_ORIGINAL_NAME);
             if (realpath.executable())
                 return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }
 #if DEBUG || _DEBUGGING
-        {
+        {	// look for the "official" name not the -orig; TODO: remove when Make creates symlinks
             auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
             if (realpath.executable())
                 return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);

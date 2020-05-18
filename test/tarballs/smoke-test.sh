@@ -85,8 +85,8 @@ FAILED=""
 echo
 echo "Smoke testing ${BIN_DIR} ..."
 
-# list all tools; vdb-passwd is obsolete but still in the package
-TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -vE '[0-9]$')
+# list all tools; vdb-passwd is obsolete but still in the package; sratools ios not to be run on its own
+TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -v sratools |  grep -vE '[0-9]$')
 
 # run all tools with -h and -V
 
@@ -111,9 +111,9 @@ RunTool ${BIN_DIR}/test-sra
 RunTool ${BIN_DIR}/vdb-config
 RunTool ${BIN_DIR}/prefetch SRR002749
 RunTool ${BIN_DIR}/vdb-dump SRR000001 -R 1
-RunTool ${BIN_DIR}/fastq-dump SRR002749 -fasta -Z
+RunTool ${BIN_DIR}/fastq-dump SRR002749 --fasta 0 -Z
 RunTool ${BIN_DIR}/sam-dump SRR002749
-RunTool ${BIN_DIR}/sra-pileup SRR619505 --quiet
+RunTool ${BIN_DIR}/sra-pileup SRR619505 # --quiet
 
 if [ "${FAILED}" != "" ]
 then

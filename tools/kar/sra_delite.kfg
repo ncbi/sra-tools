@@ -1,0 +1,109 @@
+## Standard configuration file.
+### '#'# character in beginning of line is treated as a commentary
+
+### Schema traslations
+### Syntax: translate SCHEMA_NAME OLD_VER NEW_VER
+#original by Kenneth
+translate NCBI:SRA:GenericFastq:consensus_nanopore        1.0     2.0
+translate NCBI:SRA:GenericFastq:sequence  1.0     2.0
+translate NCBI:SRA:GenericFastq:sequence_log_odds 1.0     2
+translate NCBI:SRA:GenericFastq:sequence_nanopore 1.0     2.0
+translate NCBI:SRA:GenericFastq:sequence_no_name  1.0     2.0
+translate NCBI:SRA:Helicos:tbl:v2 1.0.4   2
+translate NCBI:SRA:Illumina:qual4 2.1.0   3
+translate NCBI:SRA:Illumina:tbl:phred:v2  1.0.4   2
+translate NCBI:SRA:Illumina:tbl:q1:v2     1.1     2
+translate NCBI:SRA:Illumina:tbl:q4:v2     1.1.0   2
+translate NCBI:SRA:Illumina:tbl:v2        1.0.4   2
+translate NCBI:SRA:IonTorrent:tbl:v2      1.0.3   2
+translate NCBI:SRA:Nanopore:consensus     1.0     2.0
+translate NCBI:SRA:Nanopore:sequence      1.0     2.0
+translate NCBI:SRA:PacBio:smrt:basecalls  1.0.2   2
+translate NCBI:SRA:PacBio:smrt:cons       1.0     2.0
+translate NCBI:SRA:PacBio:smrt:fastq      1.0.3   2
+translate NCBI:SRA:PacBio:smrt:sequence   1.0     2.0
+translate NCBI:SRA:_454_:tbl:v2   1.0.7   2
+translate NCBI:SRA:tbl:spotdesc   1.0.2   1.1
+translate NCBI:SRA:tbl:spotdesc_nocol     1.0.2   1.1
+translate NCBI:SRA:tbl:spotdesc_nophys    1.0.2   1.1
+translate NCBI:WGS:tbl:nucleotide 1.1     2
+translate NCBI:align:tbl:reference        2       3
+translate NCBI:align:tbl:seq      1.1     2
+translate NCBI:align:tbl:seq      1       2
+translate NCBI:refseq:tbl:reference       1.0.2   2
+translate NCBI:tbl:base_space     2.0.3   3
+
+#added first pass
+translate NCBI:SRA:GenericFastq:sequence  1       2.0
+translate NCBI:SRA:Illumina:tbl:phred:v2  1.0.3   2
+translate NCBI:SRA:_454_:tbl:v2   1.0.6   2
+
+#added second pass
+translate NCBI:SRA:GenericFastq:consensus_nanopore        1       2
+translate NCBI:SRA:Helicos:tbl:v2 1.0.3   2
+
+#added by Zalunin
+translate NCBI:SRA:GenericFastq:db  1   2
+
+#added during new test from script
+translate NCBI:SRA:Illumina:tbl:q4:v2     1.1   2
+translate NCBI:align:db:alignment_sorted    1.2.1   2
+translate NCBI:align:db:alignment_sorted    1.3   2
+translate NCBI:SRA:IonTorrent:tbl:v2    1.0.2   2
+
+translate NCBI:SRA:Nanopore:db  1   2
+translate NCBI:SRA:Nanopore:consensus  1   2
+translate NCBI:SRA:Nanopore:sequence  1   2
+translate NCBI:SRA:PacBio:smrt:db   1.0.1   2
+translate NCBI:SRA:PacBio:smrt:cons 1.0.2   2
+translate NCBI:SRA:PacBio:smrt:sequence 1.0.2   2
+
+translate NCBI:align:db:alignment_sorted    1.2   2
+translate NCBI:SRA:GenericFastqNoNames:db   1   2
+translate NCBI:SRA:GenericFastq:sequence_no_name    1   2
+
+translate NCBI:align:db:alignment_sorted    1.1   2
+translate NCBI:align:tbl:align_sorted   1.0.1   1.2
+translate NCBI:align:tbl:align_sorted   1.1   1.2
+translate NCBI:align:tbl:align_unsorted 1.1 1.2
+translate NCBI:SRA:Illumina:db  1   2
+
+### Columns to drop
+### Syntax: exclude COLUMN_NAME
+exclude QUALITY
+exclude QUALITY2
+exclude CMP_QUALITY
+exclude POSITION
+exclude SIGNAL
+
+### Rejected platforms
+### Syntax: reject PLATFORM_NAME ["optional platform description"]
+# reject SRA_PLATFORM_454 "454 architecture run"
+reject SRA_PLATFORM_ABSOLID "colorspace run"
+
+### Columns to skip during vdb-diff testing
+### Syntax: diff-exclude COLUMN_NAME
+diff-exclude CLIPPED_QUALITY
+diff-exclude SAM_QUALITY
+diff-exclude QUALITY_VALUE
+diff-exclude READ_FILTER
+diff-exclude RD_FILTER
+diff-exclude SAM_FLAGS
+diff-exclude READ_SEG
+diff-exclude B_INFO
+diff-exclude CSREAD
+diff-exclude CLIPPED_HAS_MISMATCH
+diff-exclude CLIPPED_HAS_REF_OFFSET
+diff-exclude CLIPPED_MISMATCH
+diff-exclude CLIPPED_READ
+diff-exclude EDIT_DISTANCE
+diff-exclude RIGHT_SOFT_CLIP
+diff-exclude MATE_EDIT_DISTANCE
+
+### Environment definition section.
+### Syntax: NAME=VALUE
+### Please, do not allow spaces between parameters
+# DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
+# USE_OWN_TEMPDIR=1
+DELITE_REJECT_VDBCACHE=1
+

@@ -107,6 +107,20 @@ copykfg:
 	@ if [ -f $(KONFIG_DIR)/ncbi-vdb.kfg ] ; \
         then mv -v $(KONFIG_DIR)/ncbi-vdb.kfg  $(KONFIG_DIR)/ncbi-vdb.kfg.orig  ; fi
 
+DELITE = \
+	kar+ \
+	kar+meta \
+	make-read-filter
+
+$(DELITE):
+	@ printf "Installing $@..."
+	@ # ignore missing tools
+	@ - ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
+      $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
+      echo "done"
+
+install-delite: $(DELITE)
+
 install: installexes copykfg
 ifeq (true, $(LINUX_ROOT))
 	@ echo "Updating $(PROFILE_FILE).[c]sh"
@@ -144,4 +158,4 @@ ifeq (true, $(LINUX_ROOT))
 endif
 	@ echo "done."
 
-.PHONY: install installexes uninstall
+.PHONY: install installexes uninstall install-delite

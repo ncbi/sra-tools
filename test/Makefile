@@ -55,6 +55,7 @@ SUBDIRS =    \
 	vdb-copy        \
 	qual-recalib-stat \
 	vdb-validate      \
+	make-read-filter  \
 
 # under construction
 #    ngs-pileup      \

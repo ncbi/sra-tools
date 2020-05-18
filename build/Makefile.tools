@@ -4,7 +4,6 @@ TOOLS_TO_COPY = \
 	align-info      \
 	bam-load        \
 	cache-mgr       \
-	ccextract       \
 	cg-load         \
 	illumina-dump   \
 	kar             \

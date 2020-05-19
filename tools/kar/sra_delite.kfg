@@ -105,5 +105,4 @@ diff-exclude MATE_EDIT_DISTANCE
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
 # USE_OWN_TEMPDIR=1
-DELITE_REJECT_VDBCACHE=1
 

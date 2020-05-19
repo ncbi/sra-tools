@@ -316,8 +316,6 @@ diff-exclude RIGHT_SOFT_CLIP
 # USE_OWN_TEMPDIR=1
 ### That is for docker, and please do not modify it by yourself
 # DELITE_GUID=
-### That is for new version of make-read-filter
-DELITE_REJECT_VDBCACHE=1
 
 EOF
     else
@@ -566,9 +564,12 @@ set_resolve_set_dir_values ()
     fi
 
     TARGET_DIR=$TDVAL
-    DATABASE_DIR=$TARGET_DIR/orig
+    DATABASE_DIR=$TARGET_DIR/work
+    DATABASE_CACHE_DIR=$TARGET_DIR/work.vdbcache
     NEW_KAR_FILE=$TARGET_DIR/new.kar
+    NEW_CACHE_FILE=$TARGET_DIR/new.kar.vdbcache
     ORIG_KAR_FILE=$TARGET_DIR/orig.kar
+    ORIG_CACHE_FILE=$TARGET_DIR/orig.kar.vdbcache
     STATUS_FILE=$TARGET_DIR/.status.txt
     VDBCFG_NAME=vdbconfig.kfg
     VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
@@ -717,13 +718,13 @@ import_proc ()
 /sra/quality_type = "raw_scores"
 EOF
 
-###
-##  In the case of AWS, we needed GUID for correct work
-#
-if [ -n "$DELITE_GUID" ]
-then
-    echo /LIBS/GUID = \"$DELITE_GUID\" >>$VDBCFG_FILE
-fi
+    ###
+    ##  In the case of AWS, we needed GUID for correct work
+    #
+    if [ -n "$DELITE_GUID" ]
+    then
+        echo /LIBS/GUID = \"$DELITE_GUID\" >>$VDBCFG_FILE
+    fi
 
     info_msg Changing directory to \'$TARGET_DIR\'
     cd $TARGET_DIR
@@ -742,24 +743,6 @@ fi
         dpec__ 105; err_exit can not stat file \'$TOUTF\'
     fi
 
-    if [ -n "$DELITE_REJECT_VDBCACHE" ]
-    then
-        VCH=$( ls ${TOUTD}/*.vdbcache 2>/dev/null )
-        if [ -n "$VCH" ]
-        then
-cat <<EOF >&2
-
-WARNING: This run will not be processed because current make-read-filter
-utility does not support vdbcache files. Please, try to DELITE that run
-later, when new version of make-read-filter utility will be available.
-Thank You for understanding.
-
-EOF
-
-            dpec__ 80; err_exit can not process VDBCACHE file \'$TOUTF\'
-        fi
-    fi
-
     info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TARGET_DIR/$TOUTF\'
 
     dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
@@ -771,6 +754,14 @@ EOF
     fi
 
     dpec__ 62; exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
+
+    TOUTC=${TOUTF}.vdbcache
+    if [ -f "$TOUTC" ]
+    then
+        info_msg "Found .VDBCACHE file"
+        dpec__ 61; exec_cmd_exit ln -s $TOUTC $ORIG_CACHE_FILE
+        dpec__ 62; exec_cmd_exit $ICMD --extract $ORIG_CACHE_FILE --directory $DATABASE_CACHE_DIR
+    fi
 
     ## Checking if it is colorspace run
     check_rejected_run_exit
@@ -797,9 +788,23 @@ check_ready_for_delite ()
         dpec__ 105; err_exit can not stat directory \'$SCHEMA_VAL\'
     fi
 
+    SCHEMA_DIR=`cd $SCHEMA_VAL; pwd`
+    if [ -z "$SCHEMA_DIR" ]
+    then
+        dpec__ 105; err_exit can not resolve directory \'$SCHEMA_VAL\'
+    fi
+
     if [ ! -d "$DATABASE_DIR" ]
     then
         dpec__ 105; err_exit can not stat database \'$DATABASE_DIR\'
+    fi
+
+    if [ -e "$ORIG_CACHE_FILE" ]
+    then
+        if [ ! -d "$DATABASE_CACHE_DIR" ]
+        then
+            dpec__ 105; err_exit can not stat database VDBCACHE \'$DATABASE_CACHE_DIR\'
+        fi
     fi
 
     if [ ! -f "$STATUS_FILE" ]
@@ -993,7 +998,7 @@ modify_object ()
     if [ -n "$NEW_SCHEMA" ]
     then
         info_msg subst $OLD_SCHEMA to $NEW_SCHEMA
-        dpec__ 63; exec_cmd_exit $KARMETA_BIN --spath $SCHEMA_VAL --updschema schema=\'$NEW_SCHEMA\' $M2D
+        dpec__ 63; exec_cmd_exit $KARMETA_BIN --spath $SCHEMA_DIR --updschema schema=\'$NEW_SCHEMA\' $M2D
     else
         warn_msg no subst found for $OLD_SCHEMA
     fi
@@ -1253,7 +1258,7 @@ test_kar ()
         fi
     fi
 
-    TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"
+    TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -c -i"
 
     TDC="$DIFFEXCLUDE"
 
@@ -1288,18 +1293,32 @@ test_kar ()
     dpec__ 68; exec_cmd_exit $TCMD
 }
 
-kar_new ()
+check_force_remove_old_kar ()
 {
-    if [ -f "$NEW_KAR_FILE" ]
+    F2R=$1
+    MSS=$2
+
+    if [ -z "$MSS" ]
+    then
+        MSS="KAR"
+    fi
+
+    if [ -f "$F2R" ]
     then
         if [ -n "$FORCE_VAL" ]
         then
-            info_msg forcing to remove odl KAR file \'$NEW_KAR_FILE\'
-            dpec__ 107; exec_cmd_exit rm $NEW_KAR_FILE
+            info_msg forcing to remove old $MSS file \'$F2R\'
+            dpec__ 107; exec_cmd_exit rm "$F2R"
         else
-            dpec__ 106; err_exit old KAR file found \'$NEW_KAR_FILE\'
+            dpec__ 106; err_exit old $MSS file found \'$F2R\'
         fi
     fi
+}
+
+kar_new ()
+{
+    check_force_remove_old_kar $NEW_KAR_FILE KAR
+    check_force_remove_old_kar $NEW_CACHE_FILE .VDBCACHE
 
     TCMD="$KAR_BIN"
     if [ -n "$FORCE_VAL" ]
@@ -1318,6 +1337,21 @@ kar_new ()
     TCMD="$TCMD --create $NEW_KAR_FILE --directory $DATABASE_DIR"
 
     dpec__ 62; exec_cmd_exit $TCMD
+
+    if [ -d "$DATABASE_CACHE_DIR" ]
+    then
+        info_msg "Creating .VDBCACHE file"
+
+        TCMD="$KAR_BIN"
+        if [ -n "$FORCE_VAL" ]
+        then
+            TCMD="$TCMD -f"
+        fi
+
+        TCMD="$TCMD --create $NEW_CACHE_FILE --directory $DATABASE_CACHE_DIR"
+
+        dpec__ 62; exec_cmd_exit $TCMD
+    fi
 
     test_kar $NEW_KAR_FILE
 }

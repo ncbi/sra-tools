@@ -146,6 +146,11 @@ static bool debugPrintDryRun(char const *const toolpath
     , char const *const *const argv)
 {
     switch (logging_state::testing_level()) {
+    case 5:
+        for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
+            debugPrintEnvVarName(name);
+        }
+        exit(0);
     case 4:
         for (auto name : make_sequence(constants::env_var::names(), constants::env_var::END_ENUM)) {
             debugPrintEnvVar(name, true);

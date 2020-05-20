@@ -582,6 +582,15 @@ set_resolve_set_dir_values
 export NCBI_SETTINGS=/
 export VDB_CONFIG=$VDBCFG_NAME
 
+if [ -z "$DELITE_GUID" ]
+then
+    UUIDGEN=$( which uuidgen )
+    if [ $? -eq 0 ]
+    then
+        DELITE_GUID=$( uuidgen )
+    fi
+fi
+
 ###############################################################################################
 ##  There will be description of status file, which is quite secret file
 ##  ...

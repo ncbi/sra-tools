@@ -121,7 +121,7 @@ then
         DF=$BIN_DST/$i
         if [ "$SF" -nt "$DF" ]
         then
-            run_cmd cp -p "$SF" "$DF"
+            run_cmd cp -pP "$SF" "$DF"
         else
             echo "## SKIP: $i"
         fi
@@ -130,7 +130,7 @@ else
     echo "## Replacing binaries"
 
     run_cmd rm -r $BIN_DST
-    run_cmd cp -rp $BIN_SRC $BIN_DST
+    run_cmd cp -rpP $BIN_SRC $BIN_DST
 fi
 
 ##
@@ -153,7 +153,7 @@ then
             then
                 run_cmd mkdir $FDO
             fi
-            run_cmd cp -p "$SF" "$DF"
+            run_cmd cp -pP "$SF" "$DF"
         else
             echo "## SKIP: $SF"
         fi
@@ -162,7 +162,7 @@ else
     echo "## Replacing schemas"
 
     run_cmd rm -r $SCM_DST
-    run_cmd cp -rp $SCM_SRC $SCM_DST
+    run_cmd cp -rpP $SCM_SRC $SCM_DST
 fi
 
 for i in `find $SCM_DST -type f -name trace.vschema`

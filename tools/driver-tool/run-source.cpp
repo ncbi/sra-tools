@@ -375,13 +375,13 @@ Dictionary data_source::get_environment() const
         result[names[env_var::REMOTE_NEED_PMT]] = "1";
 
     if (haveVdbCache) {
-        result[names[env_var::REMOTE_URL]] = vdbcache.remoteUrl;
+        result[names[env_var::REMOTE_VDBCACHE]] = vdbcache.remoteUrl;
         if (vdbcache.haveCachePath)
-            result[names[env_var::CACHE_URL]] = vdbcache.cachePath;
+            result[names[env_var::CACHE_VDBCACHE]] = vdbcache.cachePath;
         if (vdbcache.haveLocalPath)
-            result[names[env_var::LOCAL_URL]] = vdbcache.localPath;
+            result[names[env_var::LOCAL_VDBCACHE]] = vdbcache.localPath;
         if (vdbcache.haveSize)
-            result[names[env_var::SIZE_URL]] = vdbcache.fileSize;
+            result[names[env_var::SIZE_VDBCACHE]] = vdbcache.fileSize;
         if (vdbcache.needCE)
             result[names[env_var::CACHE_NEED_CE]] = "1";
         if (haveVdbCache && vdbcache.needPmt)

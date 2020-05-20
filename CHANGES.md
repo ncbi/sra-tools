@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.7
+**May 20, 2020**
+
+  **sratools**: fixed issue with some runs not working correctly and fixed typo in fasterq-dump command line
+
+
 ## SRA Toolkit 2.10.6
 **MAY 18, 2020**
 

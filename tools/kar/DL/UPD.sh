@@ -242,10 +242,16 @@ copy_scripts ()
             sra_delite.sh   \
             sra_delite.kfg   \
             README.txt   \
-            DL/TEST.sh  \
             "
     SRC_D=$TMP_D/sra-tools/tools/kar
     DST_D=$TMP_BIN
+
+    copy_f $SCR2CP
+
+    SCR2CP="    \
+            TEST.sh  \
+            "
+    SRC_D=$TMP_D/sra-tools/tools/kar/DL
 
     copy_f $SCR2CP
 

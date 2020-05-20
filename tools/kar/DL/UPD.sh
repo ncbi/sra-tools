@@ -198,17 +198,6 @@ copy_bins ()
     DST_D=$TMP_BIN
 
     copy_f $BIN2CP
-
-    ## Here we are copying misc scripts
-    ##
-    echo CP MSC: $TMP_BIN
-
-    SCR2CP="    \
-            TEST.sh   \
-            "
-    SRC_D=$BIN_D
-
-    copy_f $SCR2CP
 }
 
 ## copying scripts

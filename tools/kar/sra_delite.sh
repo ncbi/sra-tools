@@ -566,10 +566,10 @@ set_resolve_set_dir_values ()
     TARGET_DIR=$TDVAL
     DATABASE_DIR=$TARGET_DIR/work
     DATABASE_CACHE_DIR=$TARGET_DIR/work.vch
-    NEW_KAR_FILE=$TARGET_DIR/new.kar
-    NEW_CACHE_FILE=$TARGET_DIR/new.kar.vch
-    ORIG_KAR_FILE=$TARGET_DIR/orig.kar
-    ORIG_CACHE_FILE=$TARGET_DIR/orig.kar.vch
+    NEW_KAR_FILE=$TARGET_DIR/out
+    NEW_CACHE_FILE=$TARGET_DIR/out.vch
+    ORIG_KAR_FILE=$TARGET_DIR/in
+    ORIG_CACHE_FILE=$TARGET_DIR/in.vch
     STATUS_FILE=$TARGET_DIR/.status.txt
     VDBCFG_NAME=vdbconfig.kfg
     VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME

@@ -9,6 +9,9 @@ The delite process is three stage process :
 3) packing modified KAR archive with/without reduced data, testing resulting
    KAR archive with VDB-DIFF program
 
+It is should note here, that user could perform testing of resulting KAR archive
+separately from stage #3/
+
 Contents:
 
 I.    Script requirements, environment and configuring.
@@ -17,6 +20,7 @@ III.  Script configuration file
 IV.   Unpacking original KAR archive
 V.    Editing resulting database
 V|.   Exporting data
+V|-|. Testing data
 VII.  Status
 VIII. Physical requirements (important, read it)
 IX.   Error codes
@@ -89,6 +93,7 @@ list of possible actions :
     import - script will download and/or unpack archive to working directory
     delite - script will perform DELITE on database content
     export - script will create 'delited' KAR archive
+      test - script will test 'delited' KAR archive
     status - script will report some status, or whatever.
 
 Options could be different for each action, many of them will be discussed
@@ -245,7 +250,7 @@ perform following:
 V|.   Exporting data
 =============================================================================
 Action 'export' will export delited data into KAR archive and test result.
-There is syntax of that command:
+There is syntax for that command:
 
 sra_delite.sh export [ --config CONFIG ] --target TARGET [--force] [--skiptest]
 
@@ -263,6 +268,18 @@ and consistency of schemas, it could take several minutes. The second test will
 be done by 'vdb-dump' utility. That test will perform record-by-record data
 comparation for both original and new KAR archives. It is longest test and can
 take more than several minutes. User can skip testing by adding flag '--skiptest'.
+Even if user skipped test, he cound test resulting data later.
+
+
+V|-|. Testing data
+=============================================================================
+Action 'test' will test exported delited KAR archive. There is syntax for that
+command:
+
+sra_delite.sh test [ --config CONFIG ] --target TARGET
+
+User should be ready that it could be lengtly procedure. It was introduced for
+the case if there will be two different queues for deliting and testing results.
 
 
 V|I.   Status
@@ -479,7 +496,7 @@ Now everything is ready for delite process.
 First step user should download docker file, or copy it. The simplest way to download
 docker file is clone sra-toolkit package from GITHUB:
 
-    git clone https://github.com/ncbi/sra-tools.git
+    git clone -b engineering https://github.com/ncbi/sra-tools.git
 
 User could copy docker file to his working directory, and delete sra-toolkit package after.
 
@@ -509,6 +526,12 @@ to script and they will be delited sequentially:
     docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh SRR000001 SRR000002
 
 In the case of error, script will return error code of failed sra_delite.sh command.
+
+If user want to separate delite process and testing results, he can use "delite_docker.sh" command
+with "--skiptest" flag, and perform testing after with "delite_test_docker.sh" command:
+
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh --skiptest SRR000001 SRR000002
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_test_docker.sh SRR000001 SRR000002
 
 NOTE: if there are results of previous delite process for accession, script will exit with
       error message. User is responsible for deleting these before calling script.

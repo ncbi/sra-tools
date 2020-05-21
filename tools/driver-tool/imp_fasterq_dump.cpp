@@ -103,7 +103,7 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline . addOption ( Threads, &ThreadsCount, "e", "threads", "<count>",
             "how many threads to use (dflt=6)" );
 
-        cmdline . addOption ( progress, "p", "progres", "show progress (not possible if stdout used)" );
+        cmdline . addOption ( progress, "p", "progress", "show progress (not possible if stdout used)" );
         cmdline . addOption ( details, "x", "details", "print details of all options selected" );
         cmdline . addOption ( split_spot, "s", "split-spot", "split spots into reads" );
         cmdline . addOption ( split_files, "S", "split-files", "write reads into different files" );

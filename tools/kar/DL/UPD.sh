@@ -236,7 +236,7 @@ copy_scripts ()
 
     BREP="https://github.com/ncbi/sra-tools.git"
 
-    run_cmd git clone -b VDB-4252-script https://github.com/ncbi/sra-tools.git $TMP_D/sra-tools
+    run_cmd git clone -b engineering https://github.com/ncbi/sra-tools.git $TMP_D/sra-tools
 
     SCR2CP="    \
             sra_delite.sh   \

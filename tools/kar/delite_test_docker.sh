@@ -5,17 +5,15 @@
 ##       run only from docker container. It is umbrella for sra_delite.sh script
 ##
 
-SKIPTEST_TAG="--skiptest"
-
 usage ()
 {
     cat <<EOF >&2
 
-That script will run delite process on SRA fun by it's accession
+That script will run test results of delite process on SRA run by it's accession
 
 Syntax:
 
-    `basename $0` < -h | --help | [$SKIPTEST_TAG] ACCESSION [ACCESSION ...] >
+    `basename $0` < -h | --help | ACCESSION [ACCESSION ...] >
 
 Where:
 
@@ -48,16 +46,6 @@ then
     esac
 fi
 
-unset SKIPTEST
-for i in $@
-do
-    if [ $i == "$SKIPTEST_TAG" ]
-    then
-        SKIPTEST=$i
-        break
-    fi
-done
-
 run_cmd ()
 {
     CMD="$@"
@@ -79,59 +67,29 @@ run_cmd ()
     fi
 }
 
-delite_work_dir ()
-{
-    D2R=$1
-    if [ -d "$D2R" ]
-    then
-            ## We do not care about if that command will fail
-        echo Removing directory $D2R
-        vdb-unlock $D2R
-        rm -r $D2R
-        if [ $? -ne 0 ]
-        then
-            echo WARNING: can not remove directory $D2R
-        fi
-    fi
-
-}
-
-delite_run ()
+delite_test ()
 {
     ACC=$1
 
     if [ -z "$ACC" ]
     then
-        echo ERROR: invalid usage or delite_run command, ACCESSION missed >&2
+        echo ERROR: invalid usage or delite_test command, ACCESSION missed >&2
         exit 1
     fi
 
     cat <<EOF 
 
 #######################################################################################
-## Running delite process for $ACC
+## Running test on results of delite process for $ACC
 ## `date`
 EOF
 
     OUTD=/output/$ACC
 
-    ##
-    ## Usual delite stuff: import/delite/export
-
-    run_cmd sra_delite.sh import --accession $ACC --target $OUTD
-
-    run_cmd sra_delite.sh delite --target $OUTD  --schema /etc/ncbi/schema
-
-    run_cmd sra_delite.sh export --target $OUTD $SKIPTEST
-
-    ##
-    ## Removing work directory
-
-    delite_work_dir $OUTD/work
-    delite_work_dir $OUTD/work.vch
+    run_cmd sra_delite.sh test --target $OUTD
 
 cat <<EOF
-## Finished delite process for $ACC
+## Finished test on results of delite process for $ACC
 ## `date`
 #######################################################################################
 
@@ -140,12 +98,7 @@ EOF
 
 for i in $@
 do
-    if [ $i = "$SKIPTEST_TAG" ]
-    then
-        continue
-    fi
-
-    delite_run $i
+    delite_test $i
 done
 
 echo "DONE ($@)"

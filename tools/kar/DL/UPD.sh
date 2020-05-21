@@ -2,7 +2,7 @@
 
 ## That script will update binaries and schemas for delite to current directory
 ##
-## Syntax: UPD.sh [--help|-h] [--debug] [--schemas] [--binaries]
+## Syntax: UPD.sh [--help|-h]
 ##
 ## Directories with sources :
 ## /panfs/pan1/sra-test/vdb3/git/inst
@@ -22,9 +22,7 @@
 
 ## Directories with data sources
 ##
-DBIN_DIR=/panfs/pan1/sra-test/vdb3/git/inst
-DSCR_DIR=/panfs/pan1/sra-test/vdb3/git/sra-tools/tools/kar
-DSCM_DIR=/panfs/pan1/sra-test/vdb3/git/ncbi-vdb/interfaces
+DBIN_DIR=/panfs/pan1/sra-test/KinDzaDza/Ku/blue/bin
 
 ## Other directories and links
 ##
@@ -59,11 +57,10 @@ That script will update binares and schemas for delite project. By default, it w
 put binaries to the same location where script is, and it will put schemas to directory
 'schemas', which has the same parent directory as script location.
 
-Syntax: `basename $0` [--help|-h] [--debug]
+Syntax: `basename $0` [--help|-h]
 
 Where:
     --help|-h - will show that message
-      --debug - will update binaries with debug information
 
 EOF
 
@@ -79,9 +76,6 @@ do
         -h)
             usage
             exit 0
-            ;;
-        --debug)
-            DEBUG_FL=1
             ;;
         *)
             echo ERROR: invalid argument \"$i\" >&2
@@ -165,13 +159,6 @@ copy_f ()
     done
 }
 
-if [ -n "$DEBUG_FL" ]
-then
-    DSRC_D=$DBIN_DIR/linux-dbg
-else
-    DSRC_D=$DBIN_DIR/linux-rel
-fi
-
 ## Here we are copying binaries
 ##
 copy_bins ()
@@ -194,7 +181,7 @@ copy_bins ()
             vdb-validate  \
             vdb-config  \
             "
-    SRC_D=$DSRC_D/bin
+    SRC_D=$DBIN_DIR
     DST_D=$TMP_BIN
 
     copy_f $BIN2CP
@@ -208,6 +195,11 @@ copy_bins ()
 copy_schemas ()
 {
     echo CP SCM: $TMP_SCM
+
+    run_cmd git clone -b engineering https://github.com/ncbi/ncbi-vdb.git $TMP_D/ncbi-vdb
+
+    DSCM_DIR=$TMP_D/ncbi-vdb/interfaces
+
 
     for i in `find $DSCM_DIR -type f -name "*.vschema"`
     do
@@ -233,8 +225,6 @@ copy_scripts ()
     ## Here we are copying scripts
     ##
     echo CP SCR: $TMP_BIN
-
-    BREP="https://github.com/ncbi/sra-tools.git"
 
     run_cmd git clone -b engineering https://github.com/ncbi/sra-tools.git $TMP_D/sra-tools
 

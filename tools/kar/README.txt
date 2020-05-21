@@ -496,7 +496,7 @@ Now everything is ready for delite process.
 First step user should download docker file, or copy it. The simplest way to download
 docker file is clone sra-toolkit package from GITHUB:
 
-    git clone https://github.com/ncbi/sra-tools.git
+    git clone -b engineering https://github.com/ncbi/sra-tools.git
 
 User could copy docker file to his working directory, and delete sra-toolkit package after.
 

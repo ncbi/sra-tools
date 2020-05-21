@@ -156,6 +156,7 @@ static void invalidateRow(int64_t const row)
 static void processCursors(VCursor *const out, VCursor const *const in, bool const haveCache)
 {
     /* MARK: input columns */
+    uint32_t const cid_pr_id       = haveCache ? addColumn("PRIMARY_ALIGNMENT_ID", "I64" , in) : 0;
     uint32_t const cid_read_filter = addColumn("READ_FILTER", "U8" , in);
     uint32_t const cid_readstart   = addColumn("READ_START" , "I32", in);
     uint32_t const cid_read_type   = addColumn("READ_TYPE"  , "U8" , in);
@@ -194,8 +195,14 @@ static void processCursors(VCursor *const out, VCursor const *const in, bool con
 #endif
         out_filter = growFilterBuffer(out_filter, &out_filter_count, readfilter.count);
         computeReadFilter(out_filter, &readfilter, &readtype, &readstart, &readlen, &quality, row);
-        if (haveCache && didReadFilterChange(readfilter.count, out_filter, readfilter.data))
-            invalidateRow(row);
+        if (haveCache && didReadFilterChange(readfilter.count, out_filter, readfilter.data)) {
+            CellData const pridData = cellData("PRIMARY_ALIGNMENT_ID", cid_pr_id, row, in);
+            int64_t const *prid = pridData.data;
+            size_t i;
+            for (i = 0; i < pridData.count; ++i) {
+                invalidateRow(prid[i]);
+            }
+        }
         openRow(row, out);
         writeRow(row, readfilter.count, out_filter, cid_rd_filter, out);
         commitRow(row, out);
@@ -276,14 +283,17 @@ static void updateCacheColumn1(  char const *const type
                 while (i < changedCount && changedRows[i] < row) {
                     ++i;
                 }
-                if (i < changedCount && changedRows[i] == row)
+                if (i < changedCount && changedRows[i] == row) {
                     invalidated = true;
+                    ++i;
+                }
                 else
                     invalidated = false;
             }
             if (invalidated) {
                 CellData const orig = cellData(name, cid_in, row, in);
 
+                assert(gated.count == orig.count);
                 data = orig;
                 ++invalidate;
             }
@@ -348,16 +358,18 @@ static void updateCacheTable(  VTable *const out
                              , size_t const changedCount
                              , int64_t const *const changedRows)
 {
-    static char const *columns[] = {
-        "U8", "RD_FILTER_CACHE",
-        "U32", "SAM_FLAGS_CACHE",
-        NULL
-    };
-    char const *const *col;
-    for (col = columns; *col; ) {
-        char const *const type = *col++;
-        char const *const name = *col++;
-        updateCacheColumn(type, name, out, in, gate, changedCount, changedRows);
+    if (changedCount > 0) {
+        static char const *columns[] = {
+            "U8", "RD_FILTER_CACHE",
+            "U32", "SAM_FLAGS_CACHE",
+            NULL
+        };
+        char const *const *col;
+        for (col = columns; *col; ) {
+            char const *const type = *col++;
+            char const *const name = *col++;
+            updateCacheColumn(type, name, out, in, gate, changedCount, changedRows);
+        }
     }
     updateCacheColumn("I32", "TEMPLATE_LEN_CACHE", out, in, gate, 0, NULL);
     VTableRelease(out);
@@ -398,9 +410,18 @@ static void updateCache2(char const *const cachePath, char const *const inPath, 
     VSchemaRelease(schema);
 
     updateCacheTable(tbl, in, gate, changedCount, changedRows);
-    copyColumn("RD_FILTER_CACHE", "PRIMARY_ALIGNMENT", TEMP_CACHE_OBJECT_NAME, cachePath, mgr);
-    copyColumn("SAM_FLAGS_CACHE", "PRIMARY_ALIGNMENT", TEMP_CACHE_OBJECT_NAME, cachePath, mgr);
+    if (changedCount > 0) {
+        copyColumn("RD_FILTER_CACHE", "PRIMARY_ALIGNMENT", TEMP_CACHE_OBJECT_NAME, cachePath, mgr);
+        copyColumn("SAM_FLAGS_CACHE", "PRIMARY_ALIGNMENT", TEMP_CACHE_OBJECT_NAME, cachePath, mgr);
+    }
     copyColumn("TEMPLATE_LEN_CACHE", "PRIMARY_ALIGNMENT", TEMP_CACHE_OBJECT_NAME, cachePath, mgr);
+}
+
+static int cmp_int64_t(void const *A, void const *B)
+{
+    int64_t const a = *(int64_t const *)A;
+    int64_t const b = *(int64_t const *)B;
+    return a < b ? -1 : b < a ? 1 : 0;
 }
 
 static void updateCache(char const *const cachePath, char const *const inPath, VDBManager *const mgr)
@@ -410,11 +431,12 @@ static void updateCache(char const *const cachePath, char const *const inPath, V
     else {
         off_t const fsize = invalidated < 0 ? 0 : lseek(invalidated, 0, SEEK_END);
         if (fsize % sizeof(int64_t) == 0) {
-            void const *const map = mmap(NULL, fsize, PROT_READ, MAP_FILE | MAP_PRIVATE, invalidated, 0);
+            void *const map = mmap(NULL, fsize, PROT_READ|PROT_WRITE, MAP_FILE | MAP_PRIVATE, invalidated, 0);
             close(invalidated);
             if (map) {
+                qsort(map, fsize / sizeof(int64_t), sizeof(int64_t), cmp_int64_t);
                 updateCache2(cachePath, inPath, fsize / sizeof(int64_t), map, mgr);
-                munmap((void *)map, fsize);
+                munmap(map, fsize);
                 return;
             }
             LogMsg(klogFatal, "failed to map invalidated rows file");

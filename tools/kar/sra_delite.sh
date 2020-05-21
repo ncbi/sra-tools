@@ -23,6 +23,7 @@ ORIGINAL_CMD="$0 $@"
 IMPORT_TAG="import"
 DELITE_TAG="delite"
 EXPORT_TAG="export"
+TEST_TAG="test"
 STATUS_TAG="status"
 
 ACCESSION_TAG="--accession"
@@ -71,6 +72,7 @@ Where :
                       working directory
              $DELITE_TAG - script will perform DELITE on database content
              $EXPORT_TAG - script will create 'delited' KAR archive
+               $TEST_TAG - script will test 'exported' KAR archive
              $STATUS_TAG - script will report some status, or whatever.
 
 Options:
@@ -111,6 +113,8 @@ case $ACTION in
     $DELITE_TAG)
         ;;
     $EXPORT_TAG)
+        ;;
+    $TEST_TAG)
         ;;
     $STATUS_TAG)
         ;;
@@ -1239,22 +1243,14 @@ check_read_and_quality_len ()
 
 test_kar ()
 {
-    F2T=$1
-
-    if [ -n "$SKIPTEST_VAL" ]
-    then
-        warn_msg skipping tests for \'$F2T\' ...
-        return
-    fi
-
-    check_read_and_quality_len $F2T
+    check_read_and_quality_len $NEW_KAR_FILE
 
     if [ ! -f $ORIG_KAR_FILE ]
     then
-        dpec__ 105; err_exit SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
+        dpec__ 105; err_exit SKIPPING DIFF TESTS for \'$NEW_KAR_FILE\', can not stat original KAR file \'$ORIG_KAR_FILE\'
     fi
 
-    exec_cmd $VDBVALIDATE_BIN -x $F2T
+    exec_cmd $VDBVALIDATE_BIN -x $NEW_KAR_FILE
     if [ $? -ne 0 ]
     then
         warn_msg vdb-validate step failed, checking original KAR file
@@ -1267,7 +1263,7 @@ test_kar ()
         fi
     fi
 
-    TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -c -i"
+    TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $NEW_KAR_FILE -c -i"
 
     TDC="$DIFFEXCLUDE"
 
@@ -1361,8 +1357,6 @@ kar_new ()
 
         dpec__ 62; exec_cmd_exit $TCMD
     fi
-
-    test_kar $NEW_KAR_FILE
 }
 
 print_stats ()
@@ -1407,8 +1401,82 @@ export_proc ()
     ## writing delited kar archive
     kar_new
 
+
+    if [ -n "$SKIPTEST_VAL" ]
+    then
+        warn_msg skipping tests for \'$NEW_KAR_FILE\' ...
+        return
+    else
+        test_kar
+    fi
+
     ## just printing stats
     print_stats
+
+    info_msg "DONE"
+}
+
+###############################################################################################
+###############################################################################################
+###<<>>### Test
+##############################################################################################
+check_ready_for_test ()
+{
+    if [ ! -f "$STATUS_FILE" ]
+    then
+        dpec__ 105; err_exit can not stat status file
+    fi
+
+    TVAR=`grep "$DELITED_TAG" $STATUS_FILE 2>/dev/null`
+    if [ -z "$TVAR" ]
+    then
+        dpec__ 86; err_exit status shows that object was not delited yet
+    fi
+
+    if [ ! -e "$ORIG_KAR_FILE" ]
+    then
+        dpec__ 105; err_exit can not stat original KAR file \'$ORIG_KAR_FILE\'
+    fi
+
+    if [ ! -f "$NEW_KAR_FILE" ]
+    then
+        dpec__ 105; err_exit can not stat delited KAR file \'$NEW_KAR_FILE\'
+    fi
+
+    TVAR=`$KARMETA_BIN --info SOFTWARE/delite $NEW_KAR_FILE 2>/dev/null`
+    if [ -z "$TVAR" ]
+    then
+        dpec__ 86; err_exit object was not delited yet
+    fi
+
+    if [ -h "$ORIG_CACHE_FILE" ]
+    then
+        if [ ! -e "$ORIG_CACHE_FILE" ]
+        then
+            dpec__ 105; err_exit can not stat .VDBCACHE for delited KAR file \'$ORIG_CACHE_FILE\'
+        fi
+
+        if [ ! -f "$NEW_CACHE_FILE" ]
+        then
+            dpec__ 105; err_exit can not stat .VDBCACHE for delited KAR file \'$NEW_CACHE_FILE\'
+        fi
+    fi
+}
+
+test_proc ()
+{
+    ## checking if it is was delited
+    check_ready_for_test
+
+    info_msg Changing directory to \'$TARGET_DIR\'
+    cd $TARGET_DIR
+
+    if [ ! -f "$VDBCFG_NAME" ]
+    then
+        dpec__ 105; err_exit can not stat file \'$VDBCFG_FILE\'
+    fi
+
+    test_kar
 
     info_msg "DONE"
 }

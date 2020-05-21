@@ -138,3 +138,10 @@ static inline void debugPrintEnvVar(char const *const name, bool const continuel
     if (value)
         std::cerr << name << "='" << value << "'" << (continueline ? " \\\n" : "\n");
 }
+
+static inline void debugPrintEnvVarName(char const *const name, bool const continueline = false)
+{
+    auto const value = EnvironmentVariables::get(name);
+    if (value)
+        std::cerr << name << (continueline ? " \\\n" : "\n");
+}

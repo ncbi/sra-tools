@@ -30,7 +30,7 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-runtests: built-in bogus container good
+runtests: built-in bogus container good vdbcache
 
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
@@ -96,5 +96,14 @@ $(CONTAINER): | actual mkfg
 	$(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
-.PHONY: runtests bogus container good $(CONTAINER) $(GOOD)
+vdbcache: | actual mkfg
+	@echo "testing expected output for run with vdbcache" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(BINDIR):$$PATH \
+	SRATOOLS_TESTING=5 \
+	SRATOOLS_IMPERSONATE=vdb-dump \
+	$(BINDIR)/sratools SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+.PHONY: runtests bogus container good $(CONTAINER) $(GOOD) vdbcache
 .INTERMEDIATE: $(TEMPDIR)/tmp.mkfg

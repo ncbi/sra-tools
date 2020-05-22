@@ -570,8 +570,8 @@ set_resolve_set_dir_values ()
     TARGET_DIR=$TDVAL
     DATABASE_DIR=$TARGET_DIR/work
     DATABASE_CACHE_DIR=$TARGET_DIR/work.vch
-    NEW_KAR_FILE=$TARGET_DIR/out
-    NEW_CACHE_FILE=$TARGET_DIR/out.vch
+    NEW_KAR_FILE=$TARGET_DIR/out.sra
+    NEW_CACHE_FILE=$TARGET_DIR/out.sra.vdbcache
     ORIG_KAR_FILE=$TARGET_DIR/in
     ORIG_CACHE_FILE=$TARGET_DIR/in.vch
     STATUS_FILE=$TARGET_DIR/.status.txt
@@ -1129,14 +1129,19 @@ delite_proc ()
     fi
 
     ## Make ReadFilter
+    if [ -d "$DATABASE_CACHE_DIR" ]
+    then
+        VCH_PARAM="--vdbcache $DATABASE_CACHE_DIR"
+    fi
+
     if [ -n "$USE_OWN_TEMPDIR" ]
     then
         TTMP_DIR=$TARGET_DIR/temp
         dpec__ 109; exec_cmd_exit mkdir $TTMP_DIR
-        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $VCH_PARAM $DATABASE_DIR
         dpec__ 107; exec_cmd_exit rm -rf $TTMP_DIR
     else
-        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN $DATABASE_DIR
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN $VCH_PARAM $DATABASE_DIR
     fi
 
     ## Dropping original quality columns

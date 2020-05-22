@@ -2,7 +2,7 @@
 
 ## That script will update binaries and schemas for delite to current directory
 ##
-## Syntax: UPD.sh [--help|-h]
+## Syntax: UPD.sh [--help|-h|--noexport]
 ##
 ## Directories with sources :
 ## /panfs/pan1/sra-test/vdb3/git/inst
@@ -57,11 +57,11 @@ That script will update binares and schemas for delite project. By default, it w
 put binaries to the same location where script is, and it will put schemas to directory
 'schemas', which has the same parent directory as script location.
 
-Syntax: `basename $0` [--help|-h]
+Syntax: `basename $0` [--help|-h|--noexport]
 
 Where:
-    --help|-h - will show that message
-
+     --help|-h - will show that message
+    --noexport - will not export data, for debug purposes
 EOF
 
 }
@@ -76,6 +76,9 @@ do
         -h)
             usage
             exit 0
+            ;;
+        --noexport)
+            NO_EXPORT="Y"
             ;;
         *)
             echo ERROR: invalid argument \"$i\" >&2
@@ -218,6 +221,8 @@ copy_schemas ()
     then
         run_cmd rm $FF
     fi
+
+    run_cmd rm -rf $TMP_D/ncbi-vdb
 }
 
 copy_scripts ()
@@ -250,6 +255,12 @@ copy_scripts ()
 
 make_prep ()
 {
+    if [ -n "$NO_EXPORT" ]
+    then
+        echo "SKIPPING EXPORT"
+        return
+    fi
+
     FUFIL=$( date +%y-%m-%d_%H:%M )
 
     echo $FUFIL >$TMP_VER/version

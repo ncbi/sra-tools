@@ -312,6 +312,7 @@ diff-exclude CLIPPED_MISMATCH
 diff-exclude CLIPPED_READ
 diff-exclude EDIT_DISTANCE
 diff-exclude RIGHT_SOFT_CLIP
+diff-exclude TEMPLATE_LEN
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE
@@ -572,8 +573,8 @@ set_resolve_set_dir_values ()
     DATABASE_CACHE_DIR=$TARGET_DIR/work.vch
     NEW_KAR_FILE=$TARGET_DIR/out.sra
     NEW_CACHE_FILE=$TARGET_DIR/out.sra.vdbcache
-    ORIG_KAR_FILE=$TARGET_DIR/in
-    ORIG_CACHE_FILE=$TARGET_DIR/in.vch
+    ORIG_KAR_FILE=$TARGET_DIR/in.sra
+    ORIG_CACHE_FILE=$TARGET_DIR/in.sra.vdbcache
     STATUS_FILE=$TARGET_DIR/.status.txt
     VDBCFG_NAME=vdbconfig.kfg
     VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME

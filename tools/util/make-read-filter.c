@@ -728,6 +728,7 @@ static char const *getOptArgValue(int opt, Args *const args)
 
 static char const *absolutePath(char const *const path, char const *const wd)
 {
+    if (path == NULL) return NULL;
     if (path[0] != '/') {
         KDirectory const *const dir = openDirRead(wd);
         char *buffer = NULL;

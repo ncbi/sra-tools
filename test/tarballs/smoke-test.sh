@@ -43,11 +43,15 @@ Usage()
 
 RunTool()
 {
-    #echo RunTool $*
-    eval $* >/dev/null 2>&1
-    if [ "$?" != "0" ]
+    echo RunTool $*
+    $* >/dev/null 2>&1
+    RC="$?"
+    if [ "$RC" != "0" ]
     then
+        echo Returned $RC
         FAILED="${FAILED} $* ;"
+    #else
+    #    echo Returned $RC
     fi
 }
 
@@ -102,7 +106,7 @@ do
     if [ "${tool}" = "sra-tblastn" ]    ; then VERSION_OPTION="-version"; fi
     if [ "${tool}" = "tblastn_vdb" ]    ; then VERSION_OPTION="-version"; fi
     if [ "${tool}" = "dump-ref-fasta" ] ; then VERSION_OPTION="--version"; fi
-    RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep -q ${VERSION}"
+    RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep ${VERSION}"
 
 done
 

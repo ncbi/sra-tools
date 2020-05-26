@@ -29,8 +29,9 @@ echo $0 $*
 #  Download and test SRA Toolkit tarballs (see VDB-1345)
 #  Errors are reported to the specified email
 #
-# Parameters:
-# $1 - working dir (will contain a copy of the latest md5sum.txt file)
+# Parameters: $1 - working dir (will contain a copy of the latest md5sum.txt file) 
+#             $2 - version of sra-toolkit, e.g. 2.10.7 ("current by default)
+#             $3 - versionof ngs, e.g. 2.10.7 ("current by default)
 #
 # return codes:
 # 0 - tests passed
@@ -49,6 +50,7 @@ WORKDIR="${1:-$DEF_WORKDIR}"
 
 DEF_VERS="current"
 VERS="${2:-$DEF_VERS}"
+NGSVERS="${3:-$DEF_VERS}"
 
 echo "Testing sra-tools tarballs, working directory = $WORKDIR"
 
@@ -100,8 +102,8 @@ wget -q --no-check-certificate "${SDK_URL}${GATK_TARGET}" || exit 4
 
 ################################### ngs-sdk ####################################
 
-NGS_URL="https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/${VERS}/"
-NGS_TARGET="ngs-sdk.${VERS}-${uname}"
+NGS_URL="https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/${NGSVERS}/"
+NGS_TARGET="ngs-sdk.${NGSVERS}-${uname}"
 echo wget -q --no-check-certificate "${NGS_URL}${NGS_TARGET}.tar.gz"
 wget -q --no-check-certificate "${NGS_URL}${NGS_TARGET}.tar.gz" || exit 5
 gunzip -f "${NGS_TARGET}.tar.gz" || exit 6
@@ -111,6 +113,7 @@ tar xf "${NGS_TARGET}.tar" || exit 7
 
 ################################## smoke-test ##################################
 
+echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" >./${TK_PACKAGE}/bin/ncbi/local.kfg
 echo VDB_CONFIG=`pwd`/${TK_PACKAGE}/bin/ncbi $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
 #ls `pwd`/${TK_PACKAGE}/bin/ncbi
      VDB_CONFIG=`pwd`/${TK_PACKAGE}/bin/ncbi $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}

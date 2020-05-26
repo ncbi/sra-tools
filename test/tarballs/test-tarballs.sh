@@ -62,12 +62,20 @@ Linux)
     realpath() {
         readlink -f $1
     }
+    get() {
+        echo wget -q --no-check-certificate "$1"
+        wget -q --no-check-certificate "$1"
+    }
     uname=linux
     ;;
 Darwin)
     OS=mac64
     realpath() {
         [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+    }
+    get() {
+        echo curl "$1"
+        curl --fail --silent --insecure --remote-name "$1"
     }
     uname=mac
     ;;
@@ -85,7 +93,7 @@ OLDDIR=$(pwd)
 cd ${WORKDIR}
 
 df -h .
-wget -q --no-check-certificate "${SDK_URL}${TK_TARGET}.tar.gz" || exit 1
+get "${SDK_URL}${TK_TARGET}.tar.gz" || exit 1
 gunzip -f "${TK_TARGET}.tar.gz" || exit 2
 TK_PACKAGE=$(tar tf "${TK_TARGET}.tar" | head -n 1)
 rm -rf "${TK_PACKAGE}"
@@ -98,14 +106,13 @@ echo Current version: "${VERSION}"
 ############################### GenomeAnalysisTK ###############################
 
 GATK_TARGET=GenomeAnalysisTK.jar
-wget -q --no-check-certificate "${SDK_URL}${GATK_TARGET}" || exit 4
+get "${SDK_URL}${GATK_TARGET}" || exit 4
 
 ################################### ngs-sdk ####################################
 
 NGS_URL="https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/${NGSVERS}/"
 NGS_TARGET="ngs-sdk.${NGSVERS}-${uname}"
-echo wget -q --no-check-certificate "${NGS_URL}${NGS_TARGET}.tar.gz"
-wget -q --no-check-certificate "${NGS_URL}${NGS_TARGET}.tar.gz" || exit 5
+get "${NGS_URL}${NGS_TARGET}.tar.gz" || exit 5
 gunzip -f "${NGS_TARGET}.tar.gz" || exit 6
 NGS_PACKAGE=$(tar tf "${NGS_TARGET}.tar" | head -n 1)
 rm -rf "${NGS_PACKAGE}"

@@ -126,3 +126,15 @@ then
 fi
 
 echo "Sratoolkit smoke test successful"
+
+########################## TEST broken symbolic links ##########################
+echo
+echo "Checking broken symbolic links ..."
+echo    find . -type l ! -exec test -e {} \; -print
+FAILED=`find . -type l ! -exec test -e {} \; -print`
+if [ "${FAILED}" != "" ]
+then
+    echo "Failed: found broken symbolic links ${FAILED}" | tr '\n' ' '
+    echo
+    exit 4
+fi

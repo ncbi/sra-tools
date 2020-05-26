@@ -84,45 +84,76 @@ VERSION=$2
 
 FAILED=""
 
-################################ TEST sratoolkit ###############################
+########################### TEST GenomeAnalysisTK.jar ##########################
+
+JAR=GenomeAnalysisTK.jar
+echo "Smoke testing ${JAR} ..."
+
+LOG=-Dvdb.log=FINEST
+LOG=-Dvdb.log=WARNING
+LOG=
+
+GLOG="-l INFO"
+GLOG="-l WARN"
+#GLOG="-l ERROR"
+#GLOG="-l FATAL"
+#GLOG="-l OFF"
+
+ARGS=-Dvdb.System.loadLibrary=1
+
+java -version 2>&1 | grep -q 1.7
+if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
+    export PATH=/net/pan1.be-md/sra-test/bin/jre1.8.0_171/bin:$PATH
+fi
+
+CL=org.broadinstitute.gatk.engine.CommandLineGATK
+L="-L NC_000020.10:61000001-61001000"
+
+# execute when dll download is disabled and dll-s cannot be located: should fail
+
+ACC=SRR835775
+GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
 
 echo
-echo "Smoke testing ${BIN_DIR} ..."
+echo ${cmd}
+eval ${cmd} 2>/dev/null
+if [ "$?" = "0" ] ; then
+    FAILED="${FAILED} ${JAR} with disabled smart dll search;"
+fi
 
-# list all tools; vdb-passwd is obsolete but still in the package; sratools ios not to be run on its own
-TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -v sratools |  grep -vE '[0-9]$')
+# execute when dll download is enabled
 
-# run all tools with -h and -V
+PWD=`pwd`
+ARGS=-Duser.home=${PWD}
 
-for tool in ${TOOLS}
-do
+GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
 
-    RunTool ${BIN_DIR}/$tool -h
+echo
+echo ${cmd}
+eval ${cmd} >/dev/null
+if [ "$?" != "0" ] ; then
+    FAILED="${FAILED} ${JAR};"
+fi
 
-    # All tools are supposed to respond to -V and --version, yet some respond only to --version, or -version, or nothing at all
-    VERSION_OPTION="-V"
-    if [ "${tool}" = "blastn_vdb" ]     ; then VERSION_OPTION="-version"; fi
-    if [ "${tool}" = "sra-blastn" ]     ; then VERSION_OPTION="-version"; fi
-    if [ "${tool}" = "sra-tblastn" ]    ; then VERSION_OPTION="-version"; fi
-    if [ "${tool}" = "tblastn_vdb" ]    ; then VERSION_OPTION="-version"; fi
-    if [ "${tool}" = "dump-ref-fasta" ] ; then VERSION_OPTION="--version"; fi
-    RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep ${VERSION}"
+# execute with "-jar GenomeAnalysisTK.jar"
 
-done
+GARG="-T HaplotypeCaller -R ${ACC} -I ${ACC} -o SRR8179.vcf ${L}"
+cmd="java ${LOG} ${ARGS} -jar ./${JAR} ${GARG} ${GLOG}"
+echo
+echo ${cmd}
+eval ${cmd} >/dev/null
+if [ "$?" != "0" ] ; then
+    FAILED="${FAILED} -jar ${JAR};"
+fi
 
-# run some key tools, check return codes
-RunTool ${BIN_DIR}/test-sra
-RunTool ${BIN_DIR}/vdb-config
-RunTool ${BIN_DIR}/prefetch SRR002749
-RunTool ${BIN_DIR}/vdb-dump SRR000001 -R 1
-RunTool ${BIN_DIR}/fastq-dump SRR002749 --fasta 0 -Z
-RunTool ${BIN_DIR}/sam-dump SRR002749
-RunTool ${BIN_DIR}/sra-pileup SRR619505 # --quiet
+echo
 
 if [ "${FAILED}" != "" ]
 then
     echo "Failed: ${FAILED}"
-    exit 2
+    exit 3
 fi
 
-echo "Sratoolkit smoke test successful"
+echo "${JAR} smoke test successful"

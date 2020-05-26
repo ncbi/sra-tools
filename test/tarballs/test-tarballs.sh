@@ -44,11 +44,11 @@ echo $0 $*
 # 8 - one of smoke tests failed
 # 9 - example failed
 
-WORKDIR=$1
-if [ "${WORKDIR}" == "" ]
-then
-    WORKDIR="./temp"
-fi
+DEF_WORKDIR="./temp"
+WORKDIR="${1:-$DEF_WORKDIR}"
+
+DEF_VERS="current"
+VERS="${2:-$DEF_VERS}"
 
 echo "Testing sra-tools tarballs, working directory = $WORKDIR"
 
@@ -74,8 +74,8 @@ HOMEDIR=$(dirname $(realpath $0))
 
 ################################## sratoolkit ##################################
 
-SDK_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
-TK_TARGET=sratoolkit.current-${OS}
+SDK_URL="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/${VERS}/"
+TK_TARGET="sratoolkit.${VERS}-${OS}"
 
 rm -rv ${WORKDIR}
 mkdir -p ${WORKDIR}
@@ -83,31 +83,31 @@ OLDDIR=$(pwd)
 cd ${WORKDIR}
 
 df -h .
-wget -q --no-check-certificate ${SDK_URL}${TK_TARGET}.tar.gz || exit 1
-gunzip -f ${TK_TARGET}.tar.gz || exit 2
-TK_PACKAGE=$(tar tf ${TK_TARGET}.tar | head -n 1)
-rm -rf ${TK_PACKAGE}
-tar xf ${TK_TARGET}.tar || exit 3
+wget -q --no-check-certificate "${SDK_URL}${TK_TARGET}.tar.gz" || exit 1
+gunzip -f "${TK_TARGET}.tar.gz" || exit 2
+TK_PACKAGE=$(tar tf "${TK_TARGET}.tar" | head -n 1)
+rm -rf "${TK_PACKAGE}"
+tar xf "${TK_TARGET}.tar" || exit 3
 
 # extract version number from the package's name
-[[ ${TK_PACKAGE} =~ \.[0-9]+\.[0-9]+\.[0-9]+ ]] && VERSION=${BASH_REMATCH[0]:1} # clip leading '.'
-echo Current version: ${VERSION}
+[[ "${TK_PACKAGE}" =~ \.[0-9]+\.[0-9]+\.[0-9]+ ]] && VERSION="${BASH_REMATCH[0]:1}" # clip leading '.'
+echo Current version: "${VERSION}"
 
 ############################### GenomeAnalysisTK ###############################
 
 GATK_TARGET=GenomeAnalysisTK.jar
-wget -q --no-check-certificate ${SDK_URL}${GATK_TARGET} || exit 4
+wget -q --no-check-certificate "${SDK_URL}${GATK_TARGET}" || exit 4
 
 ################################### ngs-sdk ####################################
 
-NGS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/current/
-NGS_TARGET=ngs-sdk.current-${uname}
-echo wget -q --no-check-certificate ${NGS_URL}${NGS_TARGET}.tar.gz
-wget -q --no-check-certificate ${NGS_URL}${NGS_TARGET}.tar.gz || exit 5
-gunzip -f ${NGS_TARGET}.tar.gz || exit 6
-NGS_PACKAGE=$(tar tf ${NGS_TARGET}.tar | head -n 1)
-rm -rf ${NGS_PACKAGE}
-tar xf ${NGS_TARGET}.tar || exit 7
+NGS_URL="https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/${VERS}/"
+NGS_TARGET="ngs-sdk.${VERS}-${uname}"
+echo wget -q --no-check-certificate "${NGS_URL}${NGS_TARGET}.tar.gz"
+wget -q --no-check-certificate "${NGS_URL}${NGS_TARGET}.tar.gz" || exit 5
+gunzip -f "${NGS_TARGET}.tar.gz" || exit 6
+NGS_PACKAGE=$(tar tf "${NGS_TARGET}.tar" | head -n 1)
+rm -rf "${NGS_PACKAGE}"
+tar xf "${NGS_TARGET}.tar" || exit 7
 
 ################################## smoke-test ##################################
 

@@ -46,6 +46,8 @@ RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dir
 ### Generate installation stamp
 RUN mkdir -p /root/.ncbi
 RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg
+RUN printf '/libs/cloud/report_instance_identity = "true"\n' >> /root/.ncbi/user-settings.mkfg
+RUN printf '/libs/cloud/accept_aws_charges = "true"\n/libs/cloud/accept_gcp_charges = "true"\n' >> /root/.ncbi/user-settings.mkfg
 RUN printf 'DELITE_GUID=%s\n' `uuidgen` >> /usr/local/ncbi/sra-tools/bin/sra_delite.kfg
 
 FROM ubuntu:bionic

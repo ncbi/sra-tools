@@ -92,11 +92,14 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline . addOption ( outdir, nullptr, "O", "outdir", "<path>",
             "path for outputfile (overrides usage of current directory, but uses given accession)" );
         cmdline . addOption ( bufsize, nullptr, "b", "bufsize", "<size>",
-            "size of file-buffer (dflt=1MB, takes number or number and unit)" );
+            "size of file-buffer (dflt=1MB, takes number or number and unit "
+            "where unit is one of (K|M|G) case-insensitive)");
         cmdline . addOption ( curcache, nullptr, "c", "curcache", "<size>",
-            "size of cursor-cache (dflt=10MB, takes number or number and unit)" );
+            "size of cursor-cache (dflt=10MB, takes number or number unit "
+            "where unit is one of (K|M|G) case-insensitive)");
         cmdline . addOption ( mem, nullptr, "m", "mem", "<size>",
-            "memory limit for sorting (dflt=100MB, takes number or number and unit)" );
+            "memory limit for sorting (dflt=100MB, takes number or number and unit "
+            "where unit is one of (K|M|G) case-insensitive)");
         cmdline . addOption ( temp, nullptr, "t", "temp", "<path>",
             "path to directory for temp. files (dflt=current dir.)" );
 

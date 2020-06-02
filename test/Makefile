@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	kdbmeta            \
 	read-filter-redact \
 	prefetch        \
 	dump-test       \

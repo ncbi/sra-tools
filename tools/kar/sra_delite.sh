@@ -1230,23 +1230,15 @@ check_read_and_quality_len ()
         dpec__ 105; err_exit can not stat KAR file \'$K2T\'
     fi
 
+    echo "`date +%Y-%m-%d_%H:%M:%S` #### Checking READ and QUALITY array lengths"
+    $VDBDUMP_BIN $K2T -f tab '-C READ,(INSDC:quality:text:phred_33)QUALITY' -u | awk '$1 != $2 { exit (1); } ' 
+    if [ $? -ne 0 ]
+    then
+        dpec__ 88; err_exit READ and QUALITY length are different for $K2T
+    fi
 
-    TCMD="$VDBDUMP_BIN $K2T -f tab '-C READ,(INSDC:quality:text:phred_33)QUALITY' -uI"
-    echo "`date +%Y-%m-%d_%H:%M:%S` #### $TCMD"
-    TCNT=1
+    echo "`date +%Y-%m-%d_%H:%M:%S` #### DONE: array lengths are GOOD"
 
-    while read -r TILNE
-    do
-        eval "FARG=($TILNE)"
-        if [ ${FARG[1]} -ne ${FARG[2]} ]
-        then
-            dpec__ 88; err_exit READ\(${FARG[1]}\) and QUALITY\(${FARG[2]}\) length are different for record \#$TCNT
-        fi
-
-        TCNT=$(( $TCNT + 1 ))
-    done < <( eval "$TCMD" )
-
-    info_msg checked $TCNT records from KAR file \'$K2T\'
     info_msg PASSED
 }
 

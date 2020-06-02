@@ -126,7 +126,8 @@ set ARGS=-Duser.home=%PWD%
 
 set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
 echo %cmd%
-%cmd% > NUL 2>&1
+rem %cmd% > NUL 2>&1
+%cmd%
 if errorlevel 1 ( call set FAILED=%%FAILED%% GenomeAnalysisTK.jar; )
 
 if "%FAILED%" NEQ "" (

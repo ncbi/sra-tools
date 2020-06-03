@@ -1466,8 +1466,8 @@ static rc_t POFValidate(PrfOutFile * self,
                 *vSz = eVno;
                 self->invalid = true;
             }
-            if (size > 0x20000000) /* don't check md5 for large encrypted */
-                checkMd5 = false;  /* files: it takes forever */
+            if (size > 0x20000000 && *encrypted) /* don't check md5 for large */
+                checkMd5 = false;       /*  encrypted files: it takes forever */
         }
     }
 

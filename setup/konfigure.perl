@@ -1022,9 +1022,9 @@ EndText
         T($F, '$(CC) -o $@ $< $(PIC) $(CFLAGS)');
     }
     L($F, '$(OBJDIR)/%.$(OBJX): %.cpp');
-    T($F, '$(CP) -o $@ $< $(CFLAGS)');
+    T($F, '$(CP) -std=c++11 -o $@ $< $(CFLAGS)');
     L($F, '$(OBJDIR)/%.$(LOBX): %.cpp');
-    T($F, '$(CP) -o $@ $< $(PIC) $(CFLAGS)');
+    T($F, '$(CP) -std=c++11 -o $@ $< $(PIC) $(CFLAGS)');
     L($F);
 
     # this is part of Makefile

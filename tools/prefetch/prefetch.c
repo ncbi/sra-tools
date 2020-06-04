@@ -1936,10 +1936,16 @@ static rc_t ItemSetDependency(Item *self,
     assert(self);
     resolved = &self->resolved;
     if (rc == 0) {
-        if (remoteRc != 0)
+        if (remoteRc != 0) {
             rc = remoteRc;
-        else if (cacheRc != 0)
+            PLOGERR(klogInt, (klogInt, rc, "cannot get remote"
+                "location for '$(id)'", "id=%s", self->seq_id));
+        }
+        else if (cacheRc != 0) {
             rc = cacheRc;
+            PLOGERR(klogInt, (klogInt, rc, "cannot get cache"
+                "location for '$(id)'", "id=%s", self->seq_id));
+        }
         else {
             VPathStr * v = NULL;
             String fasp;

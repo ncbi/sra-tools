@@ -45,7 +45,6 @@ SUBDIRS =    \
 	kar             \
 	copycat         \
 	sra-stat        \
-	srapath         \
 	sra-sort        \
 	sra-pileup      \
 	fuse            \
@@ -56,6 +55,7 @@ SUBDIRS =    \
 	qual-recalib-stat \
 	vdb-validate      \
 	make-read-filter  \
+	srapath           \
 
 # under construction
 #    ngs-pileup      \

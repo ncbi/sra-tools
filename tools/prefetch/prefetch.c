@@ -1938,12 +1938,12 @@ static rc_t ItemSetDependency(Item *self,
     if (rc == 0) {
         if (remoteRc != 0) {
             rc = remoteRc;
-            PLOGERR(klogInt, (klogInt, rc, "cannot get remote"
+            PLOGERR(klogInt, (klogInt, rc, "cannot get remote "
                 "location for '$(id)'", "id=%s", self->seq_id));
         }
         else if (cacheRc != 0) {
             rc = cacheRc;
-            PLOGERR(klogInt, (klogInt, rc, "cannot get cache"
+            PLOGERR(klogInt, (klogInt, rc, "cannot get cache "
                 "location for '$(id)'", "id=%s", self->seq_id));
         }
         else {

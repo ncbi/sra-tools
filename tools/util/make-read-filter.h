@@ -451,11 +451,27 @@ static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const
     va_end(va);
     KMetadataRelease(meta);
     if (rc) {
-        LogErr(klogFatal, rc, "can't get table metadata!!!");
+        LogErr(klogFatal, rc, "can't get metadata node to read");
         exit(EX_SOFTWARE);
     }
     
     return node;
+}
+
+static void commitMetadata(VTable *const tbl)
+{
+    KMetadata *meta = NULL;
+    rc_t rc = VTableOpenMetadataUpdate(tbl, &meta);
+
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open table metadata!!!");
+        exit(EX_SOFTWARE);
+    }
+    rc = KMetadataCommit(meta);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't write table metadata!!!");
+        exit(EX_SOFTWARE);
+    }
 }
 
 static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...)
@@ -475,11 +491,22 @@ static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...
     va_end(va);
     KMetadataRelease(meta);
     if (rc) {
-        LogErr(klogFatal, rc, "can't get table metadata!!!");
+        LogErr(klogFatal, rc, "can't get metadata node to update");
         exit(EX_DATAERR);
     }
     
     return node;
+}
+
+static KMDataNode *openChildNodeUpdate(KMDataNode *const node, char const *const name)
+{
+    KMDataNode *result = NULL;
+    rc_t const rc = KMDataNodeOpenNodeUpdate(node, &result, name);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't get metadata node to update");
+        exit(EX_DATAERR);
+    }
+    return result;
 }
 
 static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
@@ -499,6 +526,26 @@ static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
     if (rc) {
         LogErr(klogFatal, rc, "can't write metadata");
         exit(EX_DATAERR);
+    }
+}
+
+static void writeChildNode(KMDataNode *const node, char const *const name, size_t const size, void const *const data)
+{
+    KMDataNode *child = NULL;
+    {
+        rc_t const rc = KMDataNodeOpenNodeUpdate(node, &child, "%s", name);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't update metadata");
+            exit(EX_DATAERR);
+        }
+    }
+    {
+        rc_t const rc = KMDataNodeWrite(child, data, size);
+        KMDataNodeRelease(child);
+        if (rc) {
+            LogErr(klogFatal, rc, "can't write metadata");
+            exit(EX_DATAERR);
+        }
     }
 }
 

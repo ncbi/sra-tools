@@ -16,6 +16,8 @@
 # % docker run -v ~/output/:/output:rw --rm sratoolkit:delite vdb-dump -R 1 /output/SRR000001/new.kar
 # % docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh --skiptest SRR000001
 # % docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_test_docker.sh SRR000001
+# If docker container run at AWS, "-v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro" should be added to command line.
+# % docker run -v ~/output/:/output:rw -v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro --rm sratoolkit:delite delite_docker.sh SRR000001
 # 
 
 # bionic is 18.04 LTS

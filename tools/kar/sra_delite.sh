@@ -729,7 +729,7 @@ import_proc ()
 /repository/site/main/tracearc/apps/refseq/volumes/refseq = "refseq"
 /repository/site/main/tracearc/apps/wgs/volumes/wgs2 = "wgs03:wgs01"
 /repository/site/main/tracearc/root = "/netmnt/traces04"
-# /libs/cloud/report_instance_identity = "true"
+/libs/cloud/report_instance_identity = "true"
 # /libs/cloud/accept_aws_charges = "true"
 # /libs/cloud/accept_gcp_charges = "true"
 /sra/quality_type = "raw_scores"

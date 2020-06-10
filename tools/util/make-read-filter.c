@@ -46,37 +46,78 @@ enum OPTIONS {
         Reads that begin or end with a run of more than 10 quality scores <20
         are also flagged ‘reject’.
  */
+typedef enum FilterReason {
+    keep = 0,
+    low_quality_count = 1,
+    low_quality_back = 2,
+    low_quality_front = 4,
+    original_filter = 8,
+} FilterReason;
+
 /** @brief Apply the rules to determine if a read should be filtered
  **/
-static bool shouldFilter(uint32_t const len, uint8_t const *const qual)
+static FilterReason shouldFilter(uint32_t const len, uint8_t const *const qual)
 {
     uint32_t under = 0;
     uint32_t lastgood = len;
     uint32_t i;
+    FilterReason reason = keep;
     
     for (i = 0; i < len; ++i) {
         int const qval = qual[i];
-        if (qval < 20) {
-            if ((++under) * 2 > len)
-                return true;
-        }
+        if (qval < 20)
+            ++under;
         else
             lastgood = i; /* last good value */
     }
+    if (under * 2 > len)
+        reason |= low_quality_count;
     if (len <= 10) /* if length <= 10, then rest of rules can't apply */
-        return false;
+        return reason;
     
     if (lastgood < len - 11)
-        return true;
+        reason |= low_quality_back;
 
     for (i = 0; i < len; ++i) {
         int const qval = qual[i];
         if (qval >= 20)
-            return false;
-        if (i == 10)
-            return true;
+            break;
+        if (i == 10) {
+            reason |= low_quality_front;
+            break;
+        }
     }
-    assert(!"reachable");
+    return reason;
+}
+
+uint64_t dispositionCount[6];
+uint64_t dispositionBaseCount[6];
+static void updateCounts(FilterReason const reason, uint32_t const length)
+{
+    if (reason == keep) {
+        dispositionCount[0] += 1;
+        dispositionBaseCount[0] += length;
+    }
+    else {
+        dispositionCount[1] += 1;
+        dispositionBaseCount[1] += length;
+    }
+    if ((reason & original_filter) != 0) {
+        dispositionCount[2] += 1;
+        dispositionBaseCount[2] += length;
+    }
+    if ((reason & low_quality_count) != 0) {
+        dispositionCount[3] += 1;
+        dispositionBaseCount[3] += length;
+    }
+    if ((reason & low_quality_front) != 0) {
+        dispositionCount[4] += 1;
+        dispositionBaseCount[4] += length;
+    }
+    if ((reason & low_quality_back) != 0) {
+        dispositionCount[5] += 1;
+        dispositionBaseCount[5] += length;
+    }
 }
 
 static void computeReadFilter(uint8_t *const out_filter
@@ -107,13 +148,16 @@ static void computeReadFilter(uint8_t *const out_filter
 
     for (i = 0; i < nreads; ++i) {
         uint8_t filt = filter[i];
-        
-        if (   filt == SRA_READ_FILTER_PASS
-            && (type[i] & SRA_READ_TYPE_BIOLOGICAL) == SRA_READ_TYPE_BIOLOGICAL
-            && shouldFilter(len[i], qual + start[i])
-           )
-        {
-            filt = SRA_READ_FILTER_REJECT;
+
+        if ((type[i] & SRA_READ_TYPE_BIOLOGICAL) == SRA_READ_TYPE_BIOLOGICAL) {
+            FilterReason reason = original_filter;
+
+            if (filt == SRA_READ_FILTER_PASS) {
+                reason = shouldFilter(len[i], qual + start[i]);
+                if (reason != keep)
+                    filt = SRA_READ_FILTER_REJECT;
+            }
+            updateCounts(reason, len[i]);
         }
         out_filter[i] = filt;
     }
@@ -243,6 +287,45 @@ static void copyColumn(char const *const column, char const *const table, char c
             VTableRelease(tmp);
         }
     }
+    VTableRelease(tbl);
+}
+
+static void saveCounts(char const *const table, char const *const dest, VDBManager *const mgr)
+{
+    VTable *tbl = table ? openUpdateDb(dest, table, mgr) : openUpdateTbl(dest, mgr);
+    KMDataNode *const stats = openNodeUpdate(tbl, "%s", "STATS");
+
+    /* rename STATS/QUALITY to STATS/ORIGINAL_QUALITY */
+    {
+        rc_t const rc = KMDataNodeRenameChild(stats, "QUALITY", "ORIGINAL_QUALITY");
+        if (rc) {
+            LogErr(klogInfo, rc, "can't rename QUALITY stats");
+        }
+    }
+    /* write new STATS/QUALITY */
+    {
+        KMDataNode *const node = openChildNodeUpdate(stats, "QUALITY");
+        writeChildNode(node, "PHRED_3", sizeof(dispositionBaseCount[1]), &dispositionBaseCount[1]);
+        writeChildNode(node, "PHRED_30", sizeof(dispositionBaseCount[0]), &dispositionBaseCount[0]);
+        KMDataNodeRelease(node);
+    }
+    /* record stats about the other changes made */
+    {
+        KMDataNode *node = openNodeUpdate(tbl, "READ_FILTER_CHANGES");
+        writeChildNode(node, "FILTERED_READS", sizeof(dispositionCount[1]), &dispositionCount[1]);
+#define writeCounts(NAME, N) \
+    writeChildNode(node, NAME "_BASES", sizeof(dispositionBaseCount[N]), &dispositionBaseCount[N]); \
+    writeChildNode(node, NAME "_READS", sizeof(dispositionCount[N]), &dispositionCount[N]);
+
+        writeCounts("ORIGINAL_FILTERED", 2);
+        writeCounts("TOTAL_LOW_QUALITY", 3);
+        writeCounts("FRONT_LOW_QUALITY", 4);
+        writeCounts("BACK_LOW_QUALITY", 5);
+
+#undef writeCounts
+        KMDataNodeRelease(node);
+    }
+    KMDataNodeRelease(stats);
     VTableRelease(tbl);
 }
 
@@ -468,6 +551,7 @@ void main_1(int argc, char *argv[])
 
         processTables(out, in, cachePath != NULL);
         copyColumn("RD_FILTER", noDb ? NULL : "SEQUENCE", TEMP_MAIN_OBJECT_NAME, input, mgr);
+        saveCounts(noDb ? NULL : "SEQUENCE", input, mgr);
         if (cachePath) {
             if (invalidated >= 0)
                 fsync(invalidated);
@@ -500,7 +584,6 @@ static void processTables(VTable *const output, VTable const *const input, bool 
             exit(EX_CANTCREAT);
         }
     }
-    VTableRelease(output);
     {
         rc_t const rc = VTableCreateCursorRead(input, &in);
         if (rc != 0) {
@@ -510,6 +593,7 @@ static void processTables(VTable *const output, VTable const *const input, bool 
     }
     VTableRelease(input);
     processCursors(out, in, haveCache);
+    VTableRelease(output);
 }
 
 static VTable *createOutput(  Args *const args
@@ -577,24 +661,24 @@ static void test(void)
     int i;
     int j;
     
-    assert(shouldFilter(0, NULL) == false);
+    assert(shouldFilter(0, NULL) == keep);
     
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
-    assert(shouldFilter(30, qual) == false);
+    assert(shouldFilter(30, qual) == keep);
 
     for (i = 0; i < 30; ++i)
         qual[i] = (i & 1) ? 30 : 3;
     qual[19] = 3;
-    assert(shouldFilter(30, qual) == true);
+    assert((shouldFilter(30, qual) & low_quality_count) == low_quality_count);
     
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
     for (i = 0; i < 10; ++i)
         qual[i] = 19;
-    assert(shouldFilter(30, qual) == false);
+    assert(shouldFilter(30, qual) == keep);
     qual[10] = 19;
-    assert(shouldFilter(30, qual) == true);
+    assert((shouldFilter(30, qual) & low_quality_front) == low_quality_front);
 
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
@@ -606,7 +690,7 @@ static void test(void)
         qual[i] = vj;
         qual[j] = vi;
     }
-    assert(shouldFilter(30, qual) == false);
+    assert(shouldFilter(30, qual) == keep);
     
     for (i = 0; i < 30; ++i)
         qual[i] = 30;
@@ -619,7 +703,7 @@ static void test(void)
         qual[i] = vj;
         qual[j] = vi;
     }
-    assert(shouldFilter(30, qual) == true);
+    assert((shouldFilter(30, qual) & low_quality_back) == low_quality_back);
 }
 
 #define OPT_DEF_VALUE(N, A, H) { N, A, NULL, H, 1, true, true }

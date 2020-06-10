@@ -2755,7 +2755,7 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
             PLOGERR(klogErr, (klogErr, rc,
                 "VPathMake($(path)) failed", PLOG_S(path), path));
         else
-            KDBManagerCheckAd(pb->kmgr, acc, &path2);
+            VFSManagerCheckAd(mgr, acc, &path2);
         if (path2 != NULL) {
             rc = VPathMakeString(path2, &ad);
             if (rc == 0) {

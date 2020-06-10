@@ -458,22 +458,6 @@ static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const
     return node;
 }
 
-static void commitMetadata(VTable *const tbl)
-{
-    KMetadata *meta = NULL;
-    rc_t rc = VTableOpenMetadataUpdate(tbl, &meta);
-
-    if (rc) {
-        LogErr(klogFatal, rc, "can't open table metadata!!!");
-        exit(EX_SOFTWARE);
-    }
-    rc = KMetadataCommit(meta);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't write table metadata!!!");
-        exit(EX_SOFTWARE);
-    }
-}
-
 static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...)
 {
     va_list va;

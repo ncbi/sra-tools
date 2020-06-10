@@ -284,7 +284,6 @@ static void copyColumn(char const *const column, char const *const table, char c
                 pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", column);
                 exit(EX_DATAERR);
             }
-            commitMetadata(tbl);
             VTableRelease(tmp);
         }
     }
@@ -324,9 +323,9 @@ static void saveCounts(char const *const table, char const *const dest, VDBManag
         writeCounts("BACK_LOW_QUALITY", 5);
 
 #undef writeCounts
+        KMDataNodeRelease(node);
     }
     KMDataNodeRelease(stats);
-    commitMetadata(tbl);
     VTableRelease(tbl);
 }
 

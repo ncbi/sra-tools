@@ -846,3 +846,11 @@ hs37d5:
 	@ mkdir -p  tmp
 	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-hs37d5.pl
 	@ rm    -r  tmp
+
+ad_as_dir: # turned off by default. Library test is in 
+           # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
+	@ echo we can use AD as dir/...
+	@ mkdir -p tmp
+	@ export NCBI_SETTINGS=\ && export PATH=$(SRATOOLS_BINDIR):$(PATH) \
+		&& cd tmp && perl ../use-AD-as-dir.pl
+	@ rm -r tmp

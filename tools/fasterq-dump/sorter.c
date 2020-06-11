@@ -288,7 +288,7 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
                 if ( rc == 0 )
                 {
                     KThread * thread;
-                    rc = KThreadMake( &thread, producer_thread_func, producer );
+                    rc = KThreadMakeStackSize( &thread, producer_thread_func, producer, 16 * 1024 * 1024 );
                     if ( rc != 0 )
                         ErrMsg( "sorter.c run_producer_pool().KThreadMake( sort-thread #%d ) -> %R", chunk_id - 1, rc );
                     else

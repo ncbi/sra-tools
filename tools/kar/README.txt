@@ -100,8 +100,12 @@ Options could be different for each action, many of them will be discussed
 later. There is a list of options.
 
     -h | --help        - prints help message.
-    --accession <name> - accession name for run to delite
-                         String, mandatory for 'import' action only.
+    --accession <name> - accession
+                         String, for 'import' action only, there should
+                         be defined one of '--accession' or '--archive'
+    --archive <path>   - path to SRA archive
+                         String, for 'import' action only, there should
+                         be defined one of '--accession' or '--archive'
     --target <path>    - path to directory, where script will put it's output.
                          String, mandatory.
     --config <path>    - path to existing configuration file.
@@ -207,12 +211,18 @@ requires at least two parameters, and it's syntax is following:
 
 sra_delite.sh import [ --force ] [ --config CONFIG ] --accession ACCESSION --target TARGET
 
+or
+
+sra_delite.sh import [ --force ] [ --config CONFIG ] --archive PATH --target TARGET
+
 The flag --force is optional. If TARGET directory exists, script will reject
 to work unless that flag is provided. In that case the old TARGET directory
 and all it's content will be destroyed.
 
 The ACCESSION parameter is accession name on existing KAR archive, which
 will be resolved, and downloaded.
+
+The PAT parameter is path to existing downloaded KAR archive
 
 The TARGET parameter is a reference to directory, which will be created by
 script, and the content of SOURCE KAR archive will be unpacked into it's
@@ -532,6 +542,17 @@ with "--skiptest" flag, and perform testing after with "delite_test_docker.sh" c
 
     docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh --skiptest SRR000001 SRR000002
     docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_test_docker.sh SRR000001 SRR000002
+
+If user want to delite already downloaded KAR archive, he can use "delite_docker_local.sh" command
+It's syntax is following:
+
+    delite_test_docker.sh [--skiptest] path_to_kar_archive output_directory
+
+There is an example of that command:
+
+    docker run -v ~/output/:/output:rw -v ~/input/:/input:rw --rm sratoolkit:delite delite_docker_local.sh /input/SRR000001.sra /output/OUTPUT
+
+Script will read data from /input/SRR00001.sra file and write them to /output/OUTPUT directory
 
 NOTE: if there are results of previous delite process for accession, script will exit with
       error message. User is responsible for deleting these before calling script.

@@ -41,7 +41,7 @@ RUN make install
 FROM build AS delited
 ### Install delite process binaries and script
 RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /sra-tools/tools/kar/delite_docker.sh /sra-tools/tools/kar/delite_docker_local.sh /sra-tools/tools/kar/delite_test_docker.sh /usr/local/ncbi/sra-tools/bin
-RUN chmod ugo+x /usr/local/ncbi/sra-tools/bin/delite_docker.sh /usr/local/ncbi/sra-tools/bin/delite_test_docker.sh
+RUN chmod ugo+x /usr/local/ncbi/sra-tools/bin/delite_docker.sh /usr/local/ncbi/sra-tools/bin/delite_test_docker.sh /usr/local/ncbi/sra-tools/bin/delite_docker_local.sh 
 ### Copy schema files
 WORKDIR /ncbi-vdb/interfaces
 RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done

@@ -977,19 +977,35 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
     KClientHttpRequest * req, uint64_t size, progressbar * pb, rc_t * rwr,
     rc_t * rw)
 {
+    int i = 0;
+
     rc_t rc = 0, r2 = 0;
     KClientHttpResult * rslt = NULL;
     KStream * s = NULL;
 
     assert(self && rw && rwr &&pof && pof->cache);
 
-    rc = KClientHttpRequestGET(req, &rslt);
-    DISP_RC2(rc, "Cannot KClientHttpRequestGET", pof->cache->addr);
+    for (i = 0; i < 3; ++i) {
+        rc = KClientHttpRequestGET(req, &rslt);
+        DISP_RC2(rc, "Cannot KClientHttpRequestGET", pof->cache->addr);
 
-    if (rc == 0) {
-        rc = KClientHttpResultGetInputStream(rslt, &s);
-        DISP_RC2(rc, "Cannot KClientHttpResultGetInputStream",
-            pof->cache->addr);
+        if (rc == 0) {
+            rc = KClientHttpResultGetInputStream(rslt, &s);
+            DISP_RC2(rc, "Cannot KClientHttpResultGetInputStream",
+                pof->cache->addr);
+        }
+
+        if (rc != 0)
+            break;
+        else if (s != NULL)
+            break;
+        else /* retry 3 times to call GET if returned KStream is NULL */
+            RELEASE(KClientHttpResult, rslt);
+    }
+
+    if (s == NULL) {
+        *rw = RC(rcExe, rcFile, rcCopying, rcTransfer, rcNull);
+        return rc;
     }
 
     for (*rw = 0; *rw == 0 && rc == 0; ) {
@@ -1228,7 +1244,10 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     }
 
     if (rc == 0 && (rw != 0 || PrfOutFileIsLoaded (pof))
-        && pof->pos > 0 && Quitting() == 0)
+       /* && pof->pos > 0 :
+       sometimes KClientHttpResultGetInputStream() returns NULL
+       and streaming fails: try KFile anyway */
+        && Quitting() == 0)
     {
 #ifdef TESTING_FAILURES
         bool already = false;

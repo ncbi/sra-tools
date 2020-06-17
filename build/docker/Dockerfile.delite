@@ -26,7 +26,7 @@ RUN apt-get --quiet update && apt-get --quiet install -y make cmake git gcc g++ 
 ARG BUILD_STYLE=--without-debug
 ARG NGS_BRANCH=engineering
 ARG VDB_BRANCH=engineering
-ARG SRA_BRANCH=engineering
+ARG SRA_BRANCH=kar_plus
 RUN git clone -b ${NGS_BRANCH} --depth 1 https://github.com/ncbi/ngs.git
 RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git
 RUN git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
@@ -40,7 +40,7 @@ RUN make install
 
 FROM build AS delited
 ### Install delite process binaries and script
-RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /sra-tools/tools/kar/delite_docker.sh /sra-tools/tools/kar/delite_test_docker.sh /usr/local/ncbi/sra-tools/bin
+RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /sra-tools/tools/kar/delite_docker.sh /sra-tools/tools/kar/delite_docker_local.sh /sra-tools/tools/kar/delite_test_docker.sh /usr/local/ncbi/sra-tools/bin
 RUN chmod ugo+x /usr/local/ncbi/sra-tools/bin/delite_docker.sh /usr/local/ncbi/sra-tools/bin/delite_test_docker.sh
 ### Copy schema files
 WORKDIR /ncbi-vdb/interfaces

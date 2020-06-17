@@ -27,6 +27,7 @@ TEST_TAG="test"
 STATUS_TAG="status"
 
 ACCESSION_TAG="--accession"
+ARCHIVE_TAG="--archive"
 TARGET_TAG="--target"
 CONFIG_TAG="--config"
 SCHEMA_TAG="--schema"
@@ -80,7 +81,11 @@ Options:
     -h|--help - script will show that message
 
     $ACCESSION_TAG <name> - accession
-                         String, mandatory for 'import' action only.
+                         String, for '$IMPORT_TAG' action only, there should
+                         be defined one of '$ACCESSION_TAG' or '$ARCHIVE_TAG'
+    $ARCHIVE_TAG <path>   - path to SRA archive
+                         String, for '$IMPORT_TAG' action only, there should
+                         be defined one of '$ACCESSION_TAG' or '$ARCHIVE_TAG'
     $TARGET_TAG <path>    - path to directory, where script will put it's output.
                          String, mandatory.
     $CONFIG_TAG <path>    - path to existing configuration file.
@@ -141,6 +146,10 @@ do
             TCNT=$(( $TCNT + 1 ))
             ACCESSION_VAL=${ARGS[$TCNT]}
             ;;
+        $ARCHIVE_TAG)
+            TCNT=$(( $TCNT + 1 ))
+            ARCHIVE_VAL=${ARGS[$TCNT]}
+            ;;
         $TARGET_TAG)
             TCNT=$(( $TCNT + 1 ))
             TARGET_VAL=${ARGS[$TCNT]}
@@ -167,12 +176,28 @@ do
     TCNT=$(( $TCNT + 1 ))
 done
 
+if [ -n "$ACCESSION_VAL" -a -n "$ARCHIVE_VAL" ]
+then
+    echo "ERROR: there could be defined only '$ARCHIVE_TAG' or '$ACCESSION_TAG'" >&2
+    exit 100
+fi
+
 if [ -n "$ACCESSION_VAL" ]
 then
     if [[ ! $ACCESSION_VAL =~ [S,E,D]RR[0-9][0-9]*$ ]]
     then
         echo "ERROR: invalid accession format '$ACCESSION_VAL'. Should match '[S,E,D]RR[0-9][0-9]*$'">&2
         exit 101
+    fi
+fi
+
+if [ -n "$ARCHIVE_VAL" ]
+then
+    ARCHIVE_FILE=$( readlink -e $ARCHIVE_VAL )
+    if [ $? -ne 0 ]
+    then
+        echo "ERROR: can not stat file '$ARCHIVE_VAL'" >&2
+        exit 105
     fi
 fi
 
@@ -558,29 +583,24 @@ then
     dpec__ 100; err_exit missed mandatory parameter \'$TARGET_TAG\'
 fi
 
-set_resolve_set_dir_values ()
-{
-    TDVAL=$TARGET_VAL
-    if [ ! -d "$TDVAL" ]
-    then
-        TDVAL=$TARGET_VAL
-    else
-        TDVAL=`cd $TDVAL; pwd`
-    fi
+    ## Readlink -f can return non-zero result if entry
+    ## parent doesn't exist
+TDVAL=`readlink -f $TARGET_VAL`
+if [ $? -ne 0 ]
+then
+    dpec__ 105; err_exit can not resolve parameter \'$TARGET_TAG\' in \'$TARGET_VAL\'
+fi
 
-    TARGET_DIR=$TDVAL
-    DATABASE_DIR=$TARGET_DIR/work
-    DATABASE_CACHE_DIR=$TARGET_DIR/work.vch
-    NEW_KAR_FILE=$TARGET_DIR/out.sra
-    NEW_CACHE_FILE=$TARGET_DIR/out.sra.vdbcache
-    ORIG_KAR_FILE=$TARGET_DIR/in.sra
-    ORIG_CACHE_FILE=$TARGET_DIR/in.sra.vdbcache
-    STATUS_FILE=$TARGET_DIR/.status.txt
-    VDBCFG_NAME=vdbconfig.kfg
-    VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
-}
-
-set_resolve_set_dir_values
+TARGET_DIR=$TDVAL
+DATABASE_DIR=$TARGET_DIR/work
+DATABASE_CACHE_DIR=$TARGET_DIR/work.vch
+NEW_KAR_FILE=$TARGET_DIR/out.sra
+NEW_CACHE_FILE=$TARGET_DIR/out.sra.vdbcache
+ORIG_KAR_FILE=$TARGET_DIR/in.sra
+ORIG_CACHE_FILE=$TARGET_DIR/in.sra.vdbcache
+STATUS_FILE=$TARGET_DIR/.status.txt
+VDBCFG_NAME=vdbconfig.kfg
+VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
 
 ## IMPORTANT NOTE:
 ## Prefetch will not work correctly without that
@@ -706,9 +726,9 @@ import_proc ()
 {
     ##
     ## Checking args
-    if [ -z "$ACCESSION_VAL" ]
+    if [ -z "$ACCESSION_VAL" -a -z "$ARCHIVE_VAL" ]
     then
-        dpec__ 100; err_exit missed mandatory parameter \'$ACCESSION_TAG\'
+        dpec__ 100; err_exit missed mandatory parameter \'$ACCESSION_TAG\' or \'$ARCHIVE_TAG\'
     fi
 
     check_remove_target_dir
@@ -717,9 +737,14 @@ import_proc ()
 
     dpec__ 109; exec_cmd_exit mkdir $TARGET_DIR
 
-    set_resolve_set_dir_values
-
-    log_status $INITIALIZED_TAG $ACCESSION_VAL
+    ##
+    ## Here we are checking if we should or should not call prefetch
+    if [ -n "$ACCESSION_VAL" ]
+    then
+        log_status $INITIALIZED_TAG $ACCESSION_VAL
+    else
+        log_status $INITIALIZED_TAG $ARCHIVE_FILE
+    fi
 
     cat <<EOF >$VDBCFG_FILE
 /repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"
@@ -746,23 +771,42 @@ EOF
     info_msg Changing directory to \'$TARGET_DIR\'
     cd $TARGET_DIR
 
-    dpec__ 60; exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
-
-    TOUTD=$ACCESSION_VAL
-    if [ ! -d "$TOUTD" ]
+    if [ -n "$ACCESSION_VAL" ]
     then
-        dpec__ 105; err_exit can not stat directory \'$TOUTD\'
+        dpec__ 60; exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
+
+        TOUTD=$ACCESSION_VAL
+        if [ ! -d "$TOUTD" ]
+        then
+            dpec__ 105; err_exit can not stat directory \'$TOUTD\'
+        fi
+
+        TOUTF=$TOUTD/${ACCESSION_VAL}.sra
+        if [ ! -f "$TOUTF" ]
+        then
+            dpec__ 105; err_exit can not stat file \'$TOUTF\'
+        fi
+
+        info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TARGET_DIR/$TOUTF\'
+
+        dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
+
+        TOUTC=${TOUTF}.vdbcache
+        if [ -f "$TOUTC" ]
+        then
+            info_msg "Found .VDBCACHE file"
+            dpec__ 61; exec_cmd_exit ln -s $TOUTC $ORIG_CACHE_FILE
+        fi
+    else
+        dpec__ 61; exec_cmd_exit ln -s $ARCHIVE_FILE $ORIG_KAR_FILE
+
+        TOUTC=${ARCHIVE_FILE}.vdbcache
+        if [ -f "$TOUTC" ]
+        then
+            info_msg "Found .VDBCACHE file"
+            dpec__ 61; exec_cmd_exit ln -s $TOUTC $ORIG_CACHE_FILE
+        fi
     fi
-
-    TOUTF=$TOUTD/${ACCESSION_VAL}.sra
-    if [ ! -f "$TOUTF" ]
-    then
-        dpec__ 105; err_exit can not stat file \'$TOUTF\'
-    fi
-
-    info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TARGET_DIR/$TOUTF\'
-
-    dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
 
     ICMD="$KAR_BIN "
     if [ -n "$FORCE_VAL" ]
@@ -772,11 +816,8 @@ EOF
 
     dpec__ 62; exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
 
-    TOUTC=${TOUTF}.vdbcache
-    if [ -f "$TOUTC" ]
+    if [ -e "$ORIG_CACHE_FILE" ]
     then
-        info_msg "Found .VDBCACHE file"
-        dpec__ 61; exec_cmd_exit ln -s $TOUTC $ORIG_CACHE_FILE
         dpec__ 62; exec_cmd_exit $ICMD --extract $ORIG_CACHE_FILE --directory $DATABASE_CACHE_DIR
     fi
 

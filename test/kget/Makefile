@@ -58,7 +58,7 @@ slowtests: diff-vs-wget
 ACCESSION = SRR072810
 NAME = $(ACCESSION).4
 HOST = sra-download-internal.ncbi.nlm.nih.gov
-URL = https://$(HOST)/sos/sra-pub-run-1/$(ACCESSION)/$(NAME)
+URL=$(shell ${BINDIR}/srapath ${ACCESSION})
 
 clean:
 	rm -f $(ACCESSION)*
@@ -67,7 +67,6 @@ diff-vs-wget: clean
 	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat --progress
 	wget --no-check-certificate $(URL)
 	diff ./$(NAME) ./$(ACCESSION).dat
-	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
 	rm -f $(ACCESSION)*
 
 

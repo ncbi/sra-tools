@@ -1278,6 +1278,9 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     RELEASE(KFile, in);
 
+    if ( rc == 0 && rw != 0 )
+        rc = rw;
+
     return rc;
 }
 

@@ -1254,6 +1254,9 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         rc_t testRc = 1;
 #endif
         PrfRetrier retrier;
+
+        rw = 0;
+
         if (in == NULL)
             rc = _KFileOpenRemote(&in, mane->kns, path,
                 &src, !self->isUri);

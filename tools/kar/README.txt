@@ -557,4 +557,16 @@ Script will read data from /input/SRR00001.sra file and write them to /output/OU
 NOTE: if there are results of previous delite process for accession, script will exit with
       error message. User is responsible for deleting these before calling script.
 
+
+AWS users should remember that there could be problem with certificate. To avoid that
+problem, user should add following mount to docker command :
+
+-v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro
+
+For example:
+
+docker run -v ~/output/:/output:rw -v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro --rm sratoolkit:delite delite_docker.sh SRR000001
+
+This command will allow to mount certificates from computer to docker image.
+
 ENJOY

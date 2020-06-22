@@ -29,4 +29,4 @@ include $(TOP)/build/Makefile.env # BINDIR
 runtests: test-kdbmeta
 
 test-kdbmeta:
-	@ $(BINDIR)/kdbmeta SRR053325 > /dev/null
+	@ NCBI_SETTINGS=/ $(BINDIR)/kdbmeta SRR053325 > /dev/null

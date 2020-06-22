@@ -182,24 +182,43 @@ static rc_t write_to_store( lookup_producer * self,
 static rc_t CC producer_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
+    rc_t rc1;
     lookup_producer * producer = data;
     raw_read_rec rec;
     uint64_t row_count = 0;
     
-    while ( rc == 0 && get_from_raw_read_iter( producer -> iter, &rec, &rc ) ) /* raw_read_iter.c */
+    while ( rc == 0 && get_from_raw_read_iter( producer -> iter, &rec, &rc1 ) ) /* raw_read_iter.c */
     {
-        rc = Quitting();
-        if ( rc == 0 )
+        rc_t rc2 = Quitting();
+        if ( rc2 == 0 )
         {
-            uint64_t key = make_key( rec . seq_spot_id, rec . seq_read_id ); /* helper.c */
-            /* the keys are allowed to be out of order here */
-            rc = write_to_store( producer, key, &rec . read ); /* above! */
-            if ( rc == 0 )
+            if ( rc1 == 0 )
             {
-                bg_progress_inc( producer -> progress ); /* progress_thread.c (ignores NULL) */
-                row_count++;
+                if ( rec . read . len < 1 )
+                {
+                    rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+                    ErrMsg( "sorter.c producer_thread_func: rec.read.len = %d", rec . read . len );
+                }
+                else
+                {
+                    uint64_t key = make_key( rec . seq_spot_id, rec . seq_read_id ); /* helper.c */
+                    /* the keys are allowed to be out of order here */
+                    rc = write_to_store( producer, key, &rec . read ); /* above! */
+                    if ( rc == 0 )
+                    {
+                        bg_progress_inc( producer -> progress ); /* progress_thread.c (ignores NULL) */
+                        row_count++;
+                    }
+                }
+            }
+            else
+            {
+                ErrMsg( "sorter.c get_from_raw_read_iter( %lu ) -> %R", rec . seq_spot_id, rc1 );
+                rc = rc1;
             }
         }
+        else
+            rc = rc2;
     }
     
     if ( rc == 0 )
@@ -288,11 +307,9 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
                 if ( rc == 0 )
                 {
                     KThread * thread;
-#define THREAD_STACK_SIZE ((size_t)(16u * 1024u * 1024u))
-// #define THREAD_STACK_SIZE ((size_t)0)
-                    rc = KThreadMakeStackSize( &thread, producer_thread_func, producer, THREAD_STACK_SIZE );
+                    rc = helper_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
                     if ( rc != 0 )
-                        ErrMsg( "sorter.c run_producer_pool().KThreadMake( sort-thread #%d ) -> %R", chunk_id - 1, rc );
+                        ErrMsg( "sorter.c run_producer_pool().helper_make_thread( sort-thread #%d ) -> %R", chunk_id - 1, rc );
                     else
                     {
                         rc = VectorAppend( &threads, NULL, thread );

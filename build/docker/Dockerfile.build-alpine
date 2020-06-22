@@ -11,6 +11,7 @@ RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git
 RUN git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
 WORKDIR /ncbi-vdb
 RUN sed -e '/gnu\/libc-version.h/ s/^/\/\//' -e '/gnu_get_libc_version/s/^/\/\//' -i libs/kns/manager.c
+RUN sed -e '/\#if _DEBUGGING && LINUX/ s/$/ \&\& 0/' -i interfaces/kfc/defs.h
 RUN ./configure ${BUILD_STYLE} && make -s >/dev/null 2>&1 || { echo "make failed"; exit 1; }
 WORKDIR /ngs
 RUN ./configure ${BUILD_STYLE} && make -s -C ngs-sdk >/dev/null 2>&1 || { echo "make failed"; exit 1; }

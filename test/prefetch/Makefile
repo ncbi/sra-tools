@@ -40,6 +40,7 @@ REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
 SRAC=SRR053325
 SRR=$(SRA)/sos2/sra-pub-run-15/$(SRAC)/$(SRAC).4
+SRR=$(shell ${BINDIR}/srapath ${SRAC})
 INT=https://sra-download-internal.ncbi.nlm.nih.gov
 DDB=https://sra-downloadb.be-md.ncbi.nlm.nih.gov
 #SRR=$(DDB)/sos/sra-pub-run-5/$(SRAC)/$(SRAC).3

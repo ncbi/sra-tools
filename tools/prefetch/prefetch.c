@@ -26,16 +26,6 @@
 
 /********** includes **********/
 
-#include <cloud/manager.h> /* CloudMgrMake */
-
-#include <kapp/args.h> /* ArgsParamCount */
-#include <kapp/main.h> /* Quitting */
-
-#include <kdb/manager.h> /* kptDatabase */
-
-#include <kfg/kart.h> /* Kart */
-#include <kfg/repository.h> /* KRepositoryMgr */
-
 #include <vdb/dependencies.h> /* VDBDependenciesRemoteAndCache */
 #include <vdb/manager.h> /* VDBManager */
 #include <vdb/vdb-priv.h> /* VDBManagerPathTypeUnreliable */
@@ -46,7 +36,18 @@
 #include <vfs/resolver-priv.h> /* VResolverQueryWithDir */
 #include <vfs/services-priv.h> /* KServiceNamesQueryExt */
 
+#include <cloud/manager.h> /* CloudMgrMake */
+
+#include <kapp/args.h> /* ArgsParamCount */
+#include <kapp/main.h> /* Quitting */
+
+#include <kdb/manager.h> /* kptDatabase */
+
+#include <kfg/kart.h> /* Kart */
+#include <kfg/repository.h> /* KRepositoryMgr */
+
 #include <kns/ascp.h> /* AscpOptions */
+#include <kns/http-priv.h> /* KHttpStreamIsNull */
 #include <kns/manager.h>
 #include <kns/stream.h> /* KStreamRelease */
 #include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
@@ -1237,7 +1238,9 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             if (payRequired)
                 KHttpRequestSetCloudParams(kns_req, ceRequired, payRequired);
 
+            STSMSG(STS_DBG, ("Trying Stream Download..."));
             rc = PrfMainDownloadStream(mane, pof, kns_req, size, pb, &rwr, &rw);
+            STSMSG(STS_DBG, (".. Stream Download completed with %R", rc));
         }
 
         RELEASE ( KClientHttpRequest, kns_req );

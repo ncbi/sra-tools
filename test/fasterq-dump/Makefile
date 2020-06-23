@@ -33,8 +33,3 @@ TEST_TOOLS =
 include $(TOP)/build/Makefile.env
 
 .PHONY: $(TEST_TOOLS)
-
-slowtests: append-test
-
-append-test: $(BINDIR)/fasterq-dump
-	@./append-test.sh

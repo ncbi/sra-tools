@@ -997,7 +997,7 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
 
         if (rc != 0)
             break;
-        else if (s != NULL)
+        else if (!KHttpStreamIsNull(s))
             break;
         else /* retry 3 times to call GET if returned KStream is NULL */
             RELEASE(KClientHttpResult, rslt);

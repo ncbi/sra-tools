@@ -1260,9 +1260,12 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         if (in == NULL)
             rc = _KFileOpenRemote(&in, mane->kns, path,
                 &src, !self->isUri);
-        PrfRetrierInit(&retrier, mane, path,
-            &src, self->isUri, &in, size, pof->pos);
-        rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
+        if (rc == 0) {
+            assert(in);
+            PrfRetrierInit(&retrier, mane, path,
+                &src, self->isUri, &in, size, pof->pos);
+            rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
+        }
     }
 
     if (!mane->dryRun) {

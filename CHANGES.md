@@ -1,6 +1,18 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.8
+**June 24, 2020**
+
+  **fasterq-dump, kproc**: fixed problem with seg-faults caused by too small stack used by threads  
+  **kdbmeta**: allow to work with remote runs  
+  **kdb, sra-tools, vdb, vfs**: fixed bug preventing use of path to directory created by prefetch if it ends with '/'  
+  **ngs-tools, sra-tools, vfs**: report an error when file was encrypted for a different ngc file  
+  **prefetch**: print error message when cannot resolve reference sequence  
+  **prefetch, vfs**: download encrypted phenotype files with encrypted extension  
+  **sra-docker, vdb**: config can auto-generate LIBS/GUID when in a docker container  
+
+
 ## SRA Toolkit 2.10.7
 **May 20, 2020**
 

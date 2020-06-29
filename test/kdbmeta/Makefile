@@ -1,4 +1,4 @@
-# ===========================================================================
+# ==============================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
 #               National Center for Biotechnology Information
@@ -19,17 +19,14 @@
 #  purpose.
 #
 #  Please cite the author in any work or product based on this material.
-#
-# ===========================================================================
+# ==============================================================================
 
 default: runtests
 
 TOP ?= $(abspath ../..)
+include $(TOP)/build/Makefile.env # BINDIR
 
-MODULE = test/fasterq-dump
+runtests: test-kdbmeta
 
-TEST_TOOLS = 
-
-include $(TOP)/build/Makefile.env
-
-.PHONY: $(TEST_TOOLS)
+test-kdbmeta:
+	@ NCBI_SETTINGS=/ $(BINDIR)/kdbmeta SRR053325 > /dev/null

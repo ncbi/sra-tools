@@ -16,6 +16,8 @@
 # % docker run -v ~/output/:/output:rw --rm sratoolkit:delite vdb-dump -R 1 /output/SRR000001/new.kar
 # % docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh --skiptest SRR000001
 # % docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_test_docker.sh SRR000001
+# If docker container run at AWS, "-v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro" should be added to command line.
+# % docker run -v ~/output/:/output:rw -v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro --rm sratoolkit:delite delite_docker.sh SRR000001
 # 
 
 # bionic is 18.04 LTS
@@ -38,14 +40,16 @@ RUN make install
 
 FROM build AS delited
 ### Install delite process binaries and script
-RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /sra-tools/tools/kar/delite_docker.sh /sra-tools/tools/kar/delite_test_docker.sh /usr/local/ncbi/sra-tools/bin
-RUN chmod ugo+x /usr/local/ncbi/sra-tools/bin/delite_docker.sh /usr/local/ncbi/sra-tools/bin/delite_test_docker.sh
+RUN cp -a /root/ncbi-outdir/sra-tools/*/*/*/*/bin/kar+* /root/ncbi-outdir/sra-tools/*/*/*/*/bin/make-read-filter* /sra-tools/tools/kar/sra_delite.sh /sra-tools/tools/kar/sra_delite.kfg /sra-tools/tools/kar/delite_docker.sh /sra-tools/tools/kar/delite_docker_local.sh /sra-tools/tools/kar/delite_test_docker.sh /usr/local/ncbi/sra-tools/bin
+RUN chmod ugo+x /usr/local/ncbi/sra-tools/bin/delite_docker.sh /usr/local/ncbi/sra-tools/bin/delite_test_docker.sh /usr/local/ncbi/sra-tools/bin/delite_docker_local.sh 
 ### Copy schema files
 WORKDIR /ncbi-vdb/interfaces
-RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done ; rm -f /schema/ncbi/trace.vschema
+RUN rm -rf csra2 sra/pevents.* ; for i in */*.vschema ; do mkdir -p /schema/`dirname $i` ; cp $i /schema/`dirname $i` ; done
 ### Generate installation stamp
 RUN mkdir -p /root/.ncbi
 RUN printf '/LIBS/GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg
+RUN printf '/libs/cloud/report_instance_identity = "true"\n' >> /root/.ncbi/user-settings.mkfg
+RUN printf '/libs/cloud/accept_aws_charges = "true"\n/libs/cloud/accept_gcp_charges = "true"\n' >> /root/.ncbi/user-settings.mkfg
 RUN printf 'DELITE_GUID=%s\n' `uuidgen` >> /usr/local/ncbi/sra-tools/bin/sra_delite.kfg
 
 FROM ubuntu:bionic

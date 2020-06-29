@@ -343,9 +343,10 @@ rc_t make_a_copy( KDirectory * dir,
         /* create a writer-thread */
         if ( rc == 0 )
         {
-            rc = KThreadMake( &( cm . thread ), copy_machine_writer_thread, &cm );
+            rc = helper_make_thread( &( cm . thread ), copy_machine_writer_thread,
+                                    &cm, THREAD_DFLT_STACK_SIZE );
             if ( rc != 0 )
-                ErrMsg( "copy_machine.c make_a_copy().KThreadMake( writer-thread ) -> %R", rc );
+                ErrMsg( "copy_machine.c make_a_copy().helper_make_thread( writer-thread ) -> %R", rc );
         }
         
         /* read the data on the current thread */

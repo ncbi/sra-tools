@@ -232,14 +232,14 @@ static void CC on_merge( void *item, void *data )
             md -> files = item;
             md -> idx = omc -> idx;
             
-            rc = KThreadMake( &thread, merge_thread_func, md );
+            rc = helper_make_thread( &thread, merge_thread_func, md, THREAD_DFLT_STACK_SIZE );
             if ( rc != 0 )
-                ErrMsg( "KThreadMake( on_merge #%d ) -> %R", omc -> idx, rc );
+                ErrMsg( "temp_registry.c helper_make_thread( on_merge #%d ) -> %R", omc -> idx, rc );
             else
             {
                 rc = VectorAppend( &omc -> threads, NULL, thread );
                 if ( rc != 0 )
-                    ErrMsg( "VectorAppend( merge-thread #%d ) -> %R", omc -> idx, rc );
+                    ErrMsg( "temp_registry.c VectorAppend( merge-thread #%d ) -> %R", omc -> idx, rc );
             }
         }
     }

@@ -40,6 +40,7 @@ REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
 SRAC=SRR053325
 SRR=$(SRA)/sos2/sra-pub-run-15/$(SRAC)/$(SRAC).4
+SRR=$(shell ${BINDIR}/srapath ${SRAC})
 INT=https://sra-download-internal.ncbi.nlm.nih.gov
 DDB=https://sra-downloadb.be-md.ncbi.nlm.nih.gov
 #SRR=$(DDB)/sos/sra-pub-run-5/$(SRAC)/$(SRAC).3
@@ -846,3 +847,11 @@ hs37d5:
 	@ mkdir -p  tmp
 	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-hs37d5.pl
 	@ rm    -r  tmp
+
+ad_as_dir: # turned off by default. Library test is in 
+           # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
+	@ echo we can use AD as dir/...
+	@ mkdir -p tmp
+	@ export NCBI_SETTINGS=\ && export PATH=$(SRATOOLS_BINDIR):$(PATH) \
+		&& cd tmp && perl ../use-AD-as-dir.pl
+	@ rm -r tmp

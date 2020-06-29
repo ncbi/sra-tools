@@ -541,7 +541,12 @@ rc_t make_background_vector_merger( struct background_vector_merger ** merger,
         
         rc = KQueueMake ( &( b -> job_q ), batch_size );
         if ( rc == 0 )
-            rc = KThreadMake( &( b -> thread ), background_vector_merger_thread_func, b );
+        {
+            rc = helper_make_thread( &( b -> thread ), background_vector_merger_thread_func,
+                                     b, THREAD_DFLT_STACK_SIZE );
+            if ( 0 != rc )
+                ErrMsg( "merge_sorter.c helper_make_thread( vector-merger ) -> %R", rc );
+        }
 
         if ( rc == 0 )
             *merger = b;
@@ -886,8 +891,13 @@ rc_t make_background_file_merger( background_file_merger ** merger,
             rc = locked_value_init( &( b -> sealed ), 0 );
             
         if ( rc == 0 )
-            rc = KThreadMake( &( b -> thread ), background_file_merger_thread_func, b );
-
+        {
+            rc = helper_make_thread( &( b -> thread ), background_file_merger_thread_func,
+                                     b, THREAD_DFLT_STACK_SIZE );
+            if ( 0 != rc )
+                ErrMsg( "merge_sorter.c helper_make_thread( file-mergerr ) -> %R", rc );
+        }
+        
         if ( rc == 0 )
             *merger = b;
         else

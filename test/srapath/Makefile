@@ -32,6 +32,8 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -48,14 +50,14 @@ endif
 #
 
 check_exit_code:
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/srapath
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/srapath
 
 SRP:
 # TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
-	@ NCBI_SETTINGS=/ $(BINDIR)/srapath SRR000001 -fnames > /dev/null
+	@ NCBI_SETTINGS=/ $(DIRTOTEST)/srapath SRR000001 -fnames > /dev/null
 
 vdbcache: #; print "<$_>"
-	@ NCBI_SETTINGS=/ $(BINDIR)/srapath SRR1557953 | wc -l | perl check-cnt.pl
+	@ NCBI_SETTINGS=/ $(DIRTOTEST)/srapath SRR1557953 | wc -l | perl check-cnt.pl
 
 .PHONY: $(TEST_TOOLS)
 

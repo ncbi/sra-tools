@@ -64,10 +64,16 @@ clean:
 	rm -f $(ACCESSION)*
 
 diff-vs-wget: clean
-	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat --progress
-	wget --no-check-certificate $(URL)
-	diff ./$(NAME) ./$(ACCESSION).dat
-	rm -f $(ACCESSION)*
+	@ if echo $(URL) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     $(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee \
+	                    $(URL) $(ACCESSION).dat --progress && \
+	     wget --no-check-certificate $(URL) && \
+	     diff ./$(NAME) ./$(ACCESSION).dat && \
+	     rm -f $(ACCESSION)* ; \
+	  else \
+	     kget test when CE is required is skipped ; \
+	  fi
 
 
 .PHONY: 

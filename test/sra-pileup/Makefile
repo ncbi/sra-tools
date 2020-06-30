@@ -51,7 +51,7 @@ slowtests: ;
 endif
 
 announce:
-	@echo Testing $(DIRTOTEST)
+	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
 
 #-------------------------------------------------------------------------------
 # scripted tests

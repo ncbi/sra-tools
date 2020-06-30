@@ -32,13 +32,18 @@ TEST_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
+CONFIGTOUSE ?= NCBI_SETTINGS
+
 .PHONY: $(TEST_TOOLS)
+
+announce:
+	@ echo Testing $(BINDIR) CONFIGTOUSE=$(CONFIGTOUSE)
 
 #-------------------------------------------------------------------------------
 # runtests: 
 #
 ifdef PYTHON
-runtests: download
+runtests: announce download
 
 else
 runtests: ;
@@ -47,13 +52,13 @@ endif
 
 download:
 	export PATH=$(BINDIR):$$PATH; export VDB_CONFIG=`pwd` ; \
-		NCBI_SETTINGS=/ $(PYTHON) test_kget.py # expect rc = 0 
+		$(CONFIGTOUSE)=/ $(PYTHON) test_kget.py # expect rc = 0 
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget
 #
 
-slowtests: diff-vs-wget
+slowtests: announce diff-vs-wget
 
 ACCESSION = SRR072810
 NAME = $(ACCESSION).4

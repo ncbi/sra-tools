@@ -39,12 +39,15 @@ $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 ifdef PYTHON
-runtests: check_exit_code SRP vdbcache
+runtests: announce check_exit_code SRP vdbcache
 
 else
-runtests: SRP vdbcache
+runtests: announce SRP vdbcache
 
 endif
+
+announce:
+	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
 
 #-------------------------------------------------------------------------------
 # scripted tests

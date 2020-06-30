@@ -54,7 +54,7 @@ endif
 #
 
 check_exit_code:
-#	@ NCBI_SETTINGS=/ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/sra-pileup
+	@ NCBI_SETTINGS=/ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/sra-pileup
 
 check_skiplist:
 	@ NCBI_SETTINGS=/ $(PYTHON) check_skiplist.py $(DIRTOTEST)/sra-pileup

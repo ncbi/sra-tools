@@ -32,6 +32,7 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+CONFIGTOUSE ?= NCBI_SETTINGS
 DIRTOTEST ?= $(BINDIR)
 
 $(TEST_TOOLS): makedirs
@@ -54,10 +55,11 @@ check_exit_code:
 
 SRP:
 # TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/srapath SRR000001 -fnames > /dev/null
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/srapath SRR000001 -fnames > /dev/null
 
 vdbcache: #; print "<$_>"
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/srapath SRR1557953 | wc -l | perl check-cnt.pl
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/srapath SRR1557953 \
+	                                                 | wc -l | perl check-cnt.pl
 
 .PHONY: $(TEST_TOOLS)
 

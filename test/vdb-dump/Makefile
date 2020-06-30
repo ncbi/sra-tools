@@ -32,6 +32,7 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+CONFIGTOUSE ?= NCBI_SETTINGS
 DIRTOTEST ?= $(BINDIR)
 
 EXT_TOOLS = \
@@ -70,7 +71,10 @@ $(TARGDIR)/std: \
 
 .PHONY: $(TEST_TOOLS)
 
-runtests: vdb-dump
+runtests: announce vdb-dump
+
+announce:
+	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
 
 #-------------------------------------------------------------------------------
 # vdb-dump-makedb
@@ -100,12 +104,19 @@ vdb-dump: makedb
 	@ mkdir -p actual
 	@ echo "testing vdb-dump..."
 	@ # output format
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab \
+	    >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab -I \
+	    >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
 	@ # nested databases
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase >actual/2.1.stdout && diff expected/2.1.stdout actual/2.1.stdout
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase >actual/2.2.stdout && diff expected/2.2.stdout actual/2.2.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -E data/NestedDatabase \
+	    >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 \
+	       data/NestedDatabase >actual/2.1.stdout \
+	    && diff expected/2.1.stdout actual/2.1.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 \
+	       data/NestedDatabase >actual/2.2.stdout \
+	    && diff expected/2.2.stdout actual/2.2.stdout
 	@ rm -rf actual
 	@ rm -rf data
 	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/vdb-dump
@@ -118,12 +129,18 @@ vdb-dump: makedb
 	@ mkdir -p actual
 	@ echo "testing vdb-dump..."
 	@ # output format
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab \
+	    >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab -I \
+	    >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
 	@ # nested databases
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase >actual/2.1.stdout && diff expected/2.1.stdout actual/2.1.stdout
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase >actual/2.2.stdout && diff expected/2.2.stdout actual/2.2.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 \
+	       data/NestedDatabase >actual/2.1.stdout \
+	    && diff expected/2.1.stdout actual/2.1.stdout
+	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 \
+	       data/NestedDatabase >actual/2.2.stdout \
+	    && diff expected/2.2.stdout actual/2.2.stdout
 	@ rm -rf actual
 	@ rm -rf data
 	@ ./test_buffer_insufficient.sh $(DIRTOTEST)/vdb-dump VDB-3937.kar

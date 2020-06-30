@@ -38,9 +38,9 @@ $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 ifdef PYTHON
-runtests: check_exit_code check_skiplist
+runtests: announce check_exit_code check_skiplist
 
-slowtests: fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
+slowtests: announce fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
 
 else
 runtests: ;
@@ -48,6 +48,9 @@ runtests: ;
 slowtests: ;
 
 endif
+
+announce:
+	@echo Testing $(DIRTOTEST)
 
 #-------------------------------------------------------------------------------
 # scripted tests

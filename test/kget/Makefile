@@ -77,7 +77,7 @@ diff-vs-wget: clean
 	     diff ./$(NAME) ./$(ACCESSION).dat && \
 	     rm -f $(ACCESSION)* ; \
 	  else \
-	     kget test when CE is required is skipped ; \
+	     echo kget test when CE is required is skipped ; \
 	  fi
 
 

@@ -145,21 +145,31 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	  $(DIRTOTEST)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
 
-	@echo prefetch $(SRR) when there is no kfg
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(SRR) > /dev/null
-	@rm -r $(SRAC)
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+         echo prefetch $(SRR) when there is no kfg && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+	     rm -r $(SRAC) ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
-	@echo SRR download when user repository is configured
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(SRR) > /dev/null
-	@ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
-
-	@echo Running prefetch second time finds previous download
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(SRR) | grep "found local" > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     echo SRR download when user repository is configured && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+	     ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null && \
+	     \
+	     echo Running prefetch second time finds previous download && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	           $(DIRTOTEST)/prefetch $(SRR) | grep "found local" > /dev/null ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@echo prefetch $(REFSEQ) when there is no kfg
 	@rm -f KC702174.1
@@ -389,11 +399,16 @@ out_dir_and_file:
 	    $(DIRTOTEST)/prefetch $(SRAC) -O / -o tmp3/dir/file -v > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
 
-	@ echo PREFETCH SRR HTTP URL TO OUT-FILE
-	@ rm -f `pwd`/tmp3/dir/file
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(SRR) -O / -o tmp3/dir/file > /dev/null
-	@ ls `pwd`/tmp3/dir/file > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     echo PREFETCH SRR HTTP URL TO OUT-FILE && \
+	     rm -f `pwd`/tmp3/dir/file && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	         $(DIRTOTEST)/prefetch $(SRR) -O / -o tmp3/dir/file > /dev/null && \
+	     ls `pwd`/tmp3/dir/file > /dev/null ; \
+       else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@ echo PREFETCH SRR FASP URL TO OUT-FILE IS DISABLED
 #	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
@@ -451,11 +466,16 @@ out_dir_and_file:
 	    $(DIRTOTEST)/prefetch SRR045450 $(SRAC) > /dev/null
 	@ ls `pwd`/tmp/sra/SRR045450.sra `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 
-	@ echo PREFETCH SRR HTTP URL
-	@ rm `pwd`/tmp/sra/$(SRAC).sra
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(SRR) > /dev/null
-	@ ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     echo PREFETCH SRR HTTP URL && \
+	     rm `pwd`/tmp/sra/$(SRAC).sra && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+	     ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@ echo PREFETCH SRR FASP URL IS DISABLED
 #	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
@@ -495,11 +515,16 @@ out_dir_and_file:
 	    $(DIRTOTEST)/prefetch $(SRAC) -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
 
-	@ echo PREFETCH SRR HTTP URL TO OUT-DIR
-	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(SRR) -O tmp3/dir > /dev/null
-	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     echo PREFETCH SRR HTTP URL TO OUT-DIR && \
+	     rm -f `pwd`/tmp3/dir/$(SRAC).sra && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	                   $(DIRTOTEST)/prefetch $(SRR) -O tmp3/dir > /dev/null && \
+	     ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@ echo PREFETCH SRR FASP URL TO OUT-DIR IS DISABLED
 #	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
@@ -850,13 +875,13 @@ hs37d5:
 	@ echo Verifying hs37d5
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-hs37d5.pl
+	@ export NCBI_SETTINGS=k ; cd tmp && PATH=$(B):$(PATH) perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 
 ad_as_dir: # turned off by default. Library test is in 
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 	@ echo we can use AD as dir/...
 	@ mkdir -p tmp
-	@ export NCBI_SETTINGS=\ && export PATH=$(DIRTOTEST):$(PATH) \
+	@ export NCBI_SETTINGS=/ && export PATH=$(DIRTOTEST):$(PATH) \
 		&& cd tmp && perl ../use-AD-as-dir.pl
 	@ rm -r tmp

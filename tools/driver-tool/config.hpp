@@ -37,35 +37,27 @@
 #include "opt_string.hpp"
 #include "tool-path.hpp"
 
+struct KConfig;
+
 namespace sratools {
 
 class Config {
-    using Container = std::map<std::string, std::string>;
-    Container kvps;
+    struct KConfig *obj;
 
     static constexpr char const *InstallKey() {
         return "/LIBS/GUID";
     }
 public:
     Config(ToolPath const &runpath);
-    opt_string get(char const *const keypath) const {
-        auto const iter = kvps.find(keypath);
-        return iter == kvps.end() ? opt_string() : opt_string(iter->second);
-    }
-    opt_string get(std::string const &keypath) const {
-        auto const iter = kvps.find(keypath);
-        return iter == kvps.end() ? opt_string() : opt_string(iter->second);
-    }
+    ~Config();
+    opt_string get(char const *const keypath) const;
     opt_string operator [](std::string const &keypath) const {;
-        return get(keypath);
+        return get(keypath.c_str());
     }
-    bool noInstallID() const {
-        auto const iter = kvps.find(InstallKey());
-        return iter == kvps.end();
-    }
+    bool noInstallID() const;
     bool canSendCEToken() const {
-        auto const iter = kvps.find("/libs/cloud/report_instance_identity");
-        return iter != kvps.end() && iter->second == "true";
+        auto const x = get("/libs/cloud/report_instance_identity");
+        return x ? x.value() == "true" : false;
     }
 };
 

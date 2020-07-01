@@ -30,13 +30,16 @@
 *
 */
 
+#include "config.hpp"
+#include <kfg/config.h>
+#include <klib/text.h>
+
 #include <iostream>
 #include <cctype>
 #include <set>
 #include <cstdlib>
 
 #include "support2.hpp"
-#include "config.hpp"
 #include "proc.hpp"
 #include "tool-path.hpp"
 #include "util.hpp"
@@ -44,195 +47,47 @@
 
 namespace sratools {
 
-#if DEBUG || _DEBUGGING
 static bool forceInstallID(void)
 {
-#if WINDOWS
+#if DEBUG || _DEBUGGING
+    auto const &force = EnvironmentVariables::get("SRATOOLS_FORCE_INSTALL");
+    return force ? !force.empty() && force != "0" : false;
+#else
     return false;
-#else // POSIX
-    auto const envar = getenv("SRATOOLS_FORCE_INSTALL");
-    return envar && envar[0] && !(envar[0] == '0' && envar[1] == '\0');
 #endif
 }
-#endif
 
-static bool ignore(std::string const &key)
+opt_string Config::get(const char *const keypath) const
 {
-    static std::set<std::string> const keys_to_ignore = {
-        { "/APPNAME" },
-        { "/APPPATH" },
-        { "/BUILD" },
-        { "/HOME" },
-        { "/NCBI_HOME" },
-        { "/NCBI_SETTINGS" },
-        { "/PWD" },
-        { "/USER" }
-    };
-    auto const fnd = keys_to_ignore.find(key);
-    if (fnd != keys_to_ignore.end())
-        return true;
-    if (key.size() >= 9 && key.substr(0, 9) == "/VDBCOPY/")
-        return true;
-    return false;
+    String *kresult = NULL;
+    rc_t rc = KConfigReadString(obj, keypath, &kresult);
+    if (rc == 0) {
+        assert(kresult != NULL);
+        std::string result(kresult->addr, kresult->size);
+        free(kresult);
+        return result;
+    }
+    return opt_string();
+}
+
+bool Config::noInstallID() const
+{
+    return get(InstallKey()).has_value() || forceInstallID() ? false : true;
+}
+
+
+Config::~Config()
+{
+    KConfigRelease(obj);
 }
 
 Config::Config(ToolPath const &runpath) {
-    static char const *argv[] = {
-        "vdb-config", "--output=n",
-        NULL
-    };
-    auto const toolpath = runpath.getPathFor(argv[0]);
-    if (toolpath.executable()) {
-        auto const path = toolpath.fullpath();
-        std::string raw;
-        auto const rc = process::run_child_and_get_stdout(&raw, path.c_str(), argv[0], argv, true, {});
-        if (rc.exited() && rc.exit_code() == 0) {
-#if DEBUG || _DEBUGGING
-            auto haveInstallID = false;
-#endif
-            auto start = raw.cbegin();
-            auto const end = raw.cend();
-            auto section = 0;
-            auto state = 0;
-            auto ws = true; // eat whitespace
-            auto key = Container::key_type();
-            auto value = std::string();
-            auto parse = [&](std::string const &line) {
-                for (auto ch : line) {
-                    if (ws && isspace(ch)) continue;
-                    ws = false;
-                    
-                    if (state == 5) {
-                        if (ch == '"') {
-                            ws = true;
-                            state = 0;
-#if DEBUG || _DEBUGGING
-                            if (key == InstallKey())
-                                haveInstallID = true;
-#endif
-                            if (!ignore(key))
-                                kvps.emplace(key, value);
-                            continue;
-                        }
-                        if (ch == '\\')
-                            state = 6;
-                        else
-                            value.append(1, ch);
-                        continue;
-                    }
-                    if (state == 2) {
-                        if (isspace(ch)) {
-                            ws = true;
-                            state = 3;
-                            continue;
-                        }
-                        if (ch != '=') {
-                            key.append(1, ch);
-                            continue;
-                        }
-                        state = 3;
-                        // falls into next
-                    }
-                    if (state == 3) {
-                        if (ch == '=') {
-                            ws = true;
-                            state = 4;
-                            continue;
-                        }
-                        throw std::domain_error("expected '=' after "+key+" in "+line);
-                    }
-                    if (state == 0) {
-                        if (ch == '#')
-                            return; // discard comment line
-                        if (ch == '/') {
-                            key = "/";
-                            state = 1;
-                            continue;
-                        }
-                        throw std::domain_error("expected key in "+line);
-                    }
-                    if (state == 1) {
-                        if (('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z') || ('0' <= ch && ch <= '9') || ch == '_') {
-                            key.append(1, ch);
-                            state = 2;
-                            continue;
-                        }
-                        throw std::domain_error("invalid character in "+line);
-                    }
-                    if (state == 4) {
-                        if (ch == '"') {
-                            value.erase();
-                            state = 5;
-                            continue;
-                        }
-                        throw std::domain_error("expected value in "+line);
-                    }
-                    if (state == 6) {
-                        value.append(1, ch);
-                        state = 5;
-                        continue;
-                    }
-                }
-            };
-            
-            for (auto i = start; i != end; ) {
-                auto const ch = *i++;
-                if (ch == '\n' || i == end) {
-                    auto const line = std::string(start, i);
-                    start = i;
-                    
-                    switch (section) {
-                    case 0:
-                        if (line == "<!-- Current configuration -->\n") {
-                            section += 1;
-                            state = 0;
-                            continue;
-                        }
-                        break;
-                    case 1:
-                        if (line == "<!-- Configuration files -->\n") {
-                            section += 1;
-                            continue;
-                        }
-                        parse(line);
-                        break;
-                    case 2:
-                        if (line == "<!-- Environment -->\n") {
-                            section += 1;
-                            continue;
-                        }
-                        break;
-                    default:
-                        break;
-                    }
-                }
-            }
-            if (state != 0) {
-                std::cerr << "unterminated value in configuration" << std::endl;
-                exit(EX_CONFIG);
-            }
-#if DEBUG || _DEBUGGING
-            if (!haveInstallID && forceInstallID())
-                kvps.emplace(InstallKey(), "8badf00d-1111-4444-8888-deaddeadbeef");
-#endif
-            return;
-        }
-        if (rc.exited() && rc.exit_code() != 0) {
-            std::cerr << "vdb-config exited with error code " << rc.exit_code() << std::endl;
-            exit(rc.exit_code());
-        }
-        else if (rc.signaled()) {
-            std::cerr << "vdb-config was killed by signal " << rc.termsig() << std::endl;
-            if (rc.coredump())
-                std::cerr << "a coredump was generated" << std::endl;
-            exit(EX_SOFTWARE);
-        }
-        else {
-            std::cerr << "vdb-config stopped unexpectedly" << std::endl;
-            exit(EX_NOINPUT);
-        }
+    obj = NULL;
+    rc_t rc = KConfigMake(&obj, NULL);
+    if (rc != 0) {
+        assert(obj != NULL);
+        throw std::runtime_error("failed to load configuration");
     }
-    std::cerr << "configuration not loaded: no vdb-config found" << std::endl;
 }
 
 }

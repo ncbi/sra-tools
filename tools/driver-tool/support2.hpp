@@ -348,8 +348,7 @@ namespace sratools2
             cmdline . addOption ( version, "V", "version", "Display the version of the program" );
 
             cmdline.addOption(verbosity, "v", "verbose", "Increase the verbosity of the program "
-                              "status messages. Use multiple times for more "
-                              "verbosity. Negates quiet.");
+                              "status messages. Use multiple times for more verbosity.");
             /*
             // problem: 'q' could be used by the tool already...
             cmdline . addOption ( quiet, "q", "quiet",

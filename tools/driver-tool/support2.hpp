@@ -324,12 +324,14 @@ namespace sratools2
         std::vector < ncbi::String > debugFlags;
         ncbi::String log_level;
         ncbi::String option_file;
+        ncbi::U32 verbosity;
 
         CmnOptAndAccessions(WhatImposter const &what)
         : what(what)
         , disable_multithreading( false )
         , version( false )
         , quiet( false )
+        , verbosity(0)
         {
 
         }
@@ -345,6 +347,9 @@ namespace sratools2
             cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
             cmdline . addOption ( version, "V", "version", "Display the version of the program" );
 
+            cmdline.addOption(verbosity, "v", "verbose", "Increase the verbosity of the program "
+                              "status messages. Use multiple times for more "
+                              "verbosity. Negates quiet.");
             /*
             // problem: 'q' could be used by the tool already...
             cmdline . addOption ( quiet, "q", "quiet",
@@ -370,13 +375,19 @@ namespace sratools2
             if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
             if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
             if ( version ) ss << "version" << std::endl;
+            if (verbosity) ss << "verbosity: " << verbosity << std::endl;
             print_vec( ss, debugFlags, "debug modules:" );
             if ( !log_level.isEmpty() ) ss << "log-level: " << log_level << std::endl;
             if ( !option_file.isEmpty() ) ss << "option-file: " << option_file << std::endl;
             return ss;
         }
 
-        void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
+        enum VerbosityStyle {
+            standard,
+            fastq_dump
+        };
+        
+        void populate_common_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions, VerbosityStyle verbosityStyle = standard ) const
         {
             builder . add_option_list( "-+", debugFlags );
             if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
@@ -384,9 +395,20 @@ namespace sratools2
             if ( !option_file.isEmpty() ) builder . add_option( "--option-file", option_file );
             if (!ngc_file.isEmpty()) builder.add_option("--ngc", ngc_file);
 
+            if (verbosity) {
+                switch (verbosityStyle) {
+                case fastq_dump: /* fastq-dump can't handle -vvv, must repeat "-v" */
+                    for (ncbi::U32 i = 0; i < verbosity; ++i)
+                        builder.add_option("-v");
+                    break;
+                default:
+                    builder.add_option(std::string("-") + std::string(verbosity, 'v'));
+                    break;
+                }
+            }
             (void)(acc_index); (void)(accessions);
         }
-        
+
         bool check() const override
         {
             int problems = 0;

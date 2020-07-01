@@ -104,7 +104,7 @@ struct SrapathParams final : CmnOptAndAccessions
     {
         (void)(acc_index); (void)(accessions);
 
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( !function.isEmpty() ) builder . add_option( "-f", function );
         if ( timeout_count > 0 ) builder . add_option( "-t", timeout_value );

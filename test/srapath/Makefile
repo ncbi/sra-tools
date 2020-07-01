@@ -47,7 +47,7 @@ runtests: announce SRP vdbcache
 endif
 
 announce:
-	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
+	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE
 
 #-------------------------------------------------------------------------------
 # scripted tests

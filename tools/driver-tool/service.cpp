@@ -158,46 +158,6 @@ namespace vdb {
                 "Cannot use '" + path + "' as ngc file");
     }
 
-#if 0
-    std::string Service::response(std::string const &url, std::string const &version) const {
-        KSrvResponse const *resp = nullptr;
-        auto const rc = KServiceNamesExecuteExt((KService *)obj, 0, url.c_str(), version.c_str(), &resp);
-        if (rc == 0) {
-            auto const result = std::string(KServiceGetResponseCStr((KService *)obj));
-            KSrvResponseRelease(resp);
-            return result;
-        }
-        throw exception(rc, "KServiceNamesExecuteExt", "");
-    }
-
-    Service::LocalInfo::FileInfo Service::localInfo2(std::string const &accession, std::string const &name) const
-    {
-        LocalInfo::FileInfo info = {};
-        VPath *local = nullptr, *cache = nullptr;
-
-        // KServiceQueryLocation(obj, accession.c_str(), name.c_str(), &local, &cache);
-        if (local) {
-            info.have = true;
-            info.path = VPathToString(local);
-            if (cache)
-                info.cachepath = VPathToString(cache);
-        }
-        VPathRelease(local);
-        VPathRelease(cache);
-        return info;
-    }
-
-    Service::LocalInfo Service::localInfo(std::string const &accession) const
-    {
-        LocalInfo info = {};
-
-        info.rundata = localInfo2(accession, accession);
-        if (info.rundata)
-            info.vdbcache = localInfo2(accession, accession + ".vdbcache");
-
-        return info;
-    }
-#else
     Service::Response Service::response(std::string const &url, std::string const &version) const {
         KSrvResponse const *resp = nullptr;
         auto const rc = KServiceNamesExecuteExt((KService *)obj, 0, url.c_str(), version.c_str(), &resp);
@@ -242,8 +202,6 @@ namespace vdb {
     std::ostream &operator <<(std::ostream &os, Service::Response const &rhs) {
         return os << rhs.text;
     }
-
-#endif
 
     bool Service::haveCloudProvider() {
         return Cloud::haveProvider();

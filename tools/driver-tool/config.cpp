@@ -45,49 +45,73 @@
 #include "util.hpp"
 #include "debug.hpp"
 
-namespace sratools {
-
-static bool forceInstallID(void)
+/**
+ @brief make an opt_string from a String
+ @note free's the String
+ @param str the string, may be null
+ @returns a new opt_string
+ */
+static opt_string makeFromKString(String *str)
 {
-#if DEBUG || _DEBUGGING
-    auto const &force = EnvironmentVariables::get("SRATOOLS_FORCE_INSTALL");
-    return force ? !force.empty() && force != "0" : false;
-#else
-    return false;
-#endif
-}
-
-opt_string Config::get(const char *const keypath) const
-{
-    String *kresult = NULL;
-    rc_t rc = KConfigReadString(obj, keypath, &kresult);
-    if (rc == 0) {
-        assert(kresult != NULL);
-        std::string result(kresult->addr, kresult->size);
-        free(kresult);
+    if (str) {
+        auto result = std::string(str->addr, str->size);
+        free(str);
         return result;
     }
     return opt_string();
 }
 
-bool Config::noInstallID() const
+namespace sratools {
+
+opt_string Config::get(const char *const key) const
 {
-    return get(InstallKey()).has_value() || forceInstallID() ? false : true;
+    String *value = NULL;
+    KConfigReadString((KConfig *)obj, key, &value);
+    return makeFromKString(value);
 }
 
+bool Config::noInstallID() const
+{
+    return get("/LIBS/GUID").has_value() ? false : true;
+}
 
 Config::~Config()
 {
-    KConfigRelease(obj);
+    KConfigRelease((KConfig *)obj);
 }
 
 Config::Config(ToolPath const &runpath) {
+    (void)runpath;
     obj = NULL;
-    rc_t rc = KConfigMake(&obj, NULL);
+    rc_t rc = KConfigMake((KConfig **)&obj, NULL);
     if (rc != 0) {
         assert(obj != NULL);
         throw std::runtime_error("failed to load configuration");
     }
+}
+
+#if DEBUG || _DEBUGGING
+static bool forceInstallID(void)
+{
+    auto const &force = EnvironmentVariables::get("SRATOOLS_FORCE_INSTALL");
+    return force ? !force.empty() && force != "0" : false;
+}
+static opt_string fakeID(void) {
+    return forceInstallID() ? opt_string("8badf00d-1111-4444-8888-deaddeadbeef") : opt_string();
+}
+#else
+static bool forceInstallID(void)
+{
+    return false;
+}
+static opt_string fakeID(void) {
+    return opt_string();
+}
+#endif
+
+opt_string Config::installID() const {
+    auto const realID = get("/LIBS/GUID");
+    return realID ? realID : fakeID();
 }
 
 }

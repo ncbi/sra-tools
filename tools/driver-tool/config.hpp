@@ -37,24 +37,37 @@
 #include "opt_string.hpp"
 #include "tool-path.hpp"
 
-struct KConfig;
-
 namespace sratools {
 
+/// @brief class to manage KConfig object
 class Config {
-    struct KConfig *obj;
+    /// @brief the KConfig object
+    void *obj;
 
-    static constexpr char const *InstallKey() {
-        return "/LIBS/GUID";
-    }
+    /// @brief the installation ID
+    opt_string installID() const;
 public:
+    /// @brief create a new KConfig object
+    /// @param runpath ignored
     Config(ToolPath const &runpath);
+
+    /// @brief release the KConfig object
     ~Config();
+
+    /// @brief get value for keypath (if any)
+    /// @param keypath the path of the value to get
     opt_string get(char const *const keypath) const;
+
+    /// @brief get value for keypath (if any)
+    /// @param keypath the path of the value to get
     opt_string operator [](std::string const &keypath) const {;
         return get(keypath.c_str());
     }
+
+    /// @brief true if there is no installation ID
     bool noInstallID() const;
+
+    /// @brief true if user has allowed sending the cloud instance identity
     bool canSendCEToken() const {
         auto const x = get("/libs/cloud/report_instance_identity");
         return x ? x.value() == "true" : false;

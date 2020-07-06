@@ -57,7 +57,7 @@ HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
 HTTPFILE=contact.shtml
 
 runtests: announce urls_and_accs out_dir_and_file s-option truncated kart wgs resume
-slowtests: hs37d5 ncbi1GB
+slowtests: announce lots_wgs hs37d5 ncbi1GB
 
 announce:
 	@echo Testing $(DIRTOTEST)
@@ -829,7 +829,8 @@ wgs:
 
 	@#pwd
 	@echo '/repository/site/disabled = "true"' >  tmp/k
-	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = \
+	                    "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
 		>> tmp/k
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
@@ -851,8 +852,23 @@ wgs:
 		| grep -v 'false,remote::https:'                      > /dev/null
 	@ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null
 	@rm -r tmp/[wS]*
+	@rm -r tmp
 
+lots_wgs:
 	@echo  Verifying prefetch of run with with a lot of WGS references...
+	@rm -fr tmp
+	@mkdir  tmp
+
+	@#pwd
+	@echo '/repository/site/disabled = "true"' >  tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = \
+	                    "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
+	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
+		>> tmp/k
+	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
+	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
+	@#cat tmp/k
+
 	@echo '      ... prefetching...'
 	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch   ERR3091357 -fy   > /dev/null
 	@echo '      ... align-infoing...'

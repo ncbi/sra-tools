@@ -25,9 +25,14 @@
 TOP ?= $(abspath ../..)
 include $(TOP)/build/Makefile.env # BINDIR
 
+DIRTOTEST ?= $(BINDIR)
+
 default: runtests
 
-slowtests: test-copy
+slowtests: announce test-copy
+
+announce:
+	@echo Testing $(DIRTOTEST)
 
 test-copy:
-	PATH=$(BINDIR):$(PATH) ./md-created.sh
+	@ PATH=$(DIRTOTEST):$(PATH) sh md-created.sh

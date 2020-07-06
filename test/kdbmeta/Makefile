@@ -26,7 +26,9 @@ default: runtests
 TOP ?= $(abspath ../..)
 include $(TOP)/build/Makefile.env # BINDIR
 
+DIRTOTEST ?= $(BINDIR)
+
 runtests: test-kdbmeta
 
 test-kdbmeta:
-	@ NCBI_SETTINGS=/ $(BINDIR)/kdbmeta SRR053325 > /dev/null
+	@ NCBI_SETTINGS=/ $(DIRTOTEST)/kdbmeta SRR053325 > /dev/null

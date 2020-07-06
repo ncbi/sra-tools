@@ -35,6 +35,8 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -51,10 +53,13 @@ runtests: align-cache
 align-cache: $(BINDIR)/align-cache
 	@ rm -rf CSRA_file.cache
 	@ echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
-	@ export VDB_CONFIG=`pwd`; $(BINDIR)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
-	@ $(BINDIR)/vdb-validate CSRA_file.cache/ 2>&1 | grep --quiet "is consistent"
+	@ VDB_CONFIG=`pwd` $(DIRTOTEST)/align-cache \
+	                          -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
+	@ $(DIRTOTEST)/vdb-validate CSRA_file.cache/ 2>&1 \
+	                          | grep --quiet "is consistent"
 	@ rm tmp.kfg
 	@ rm -rf CSRA_file.cache
 	
 vg: $(BINDIR)/align-cache
-	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $(BINDIR)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
+	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress \
+	 $(DIRTOTEST)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache

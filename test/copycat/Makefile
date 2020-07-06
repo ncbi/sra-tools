@@ -32,6 +32,8 @@ TEST_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -53,8 +55,10 @@ runtests:
 endif
 
 copy: 
-	@ echo "Starting copycat tests..."
+	@ echo "Testing $(DIRTOTEST)/copycat"
 	@ rm -rf actual
-	@ $(BINDIR)/copycat -h >/dev/null
-	@ export PATH=$(BINDIR):$$PATH; vdb-config | grep bin; copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml 
+	@ $(DIRTOTEST)/copycat -h >/dev/null
+	@ export PATH=$(DIRTOTEST):$(PATH); vdb-config | grep bin > /dev/null && \
+	 copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml\
+	    > /dev/null
 	@ rm -rf actual

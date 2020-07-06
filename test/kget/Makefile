@@ -32,12 +32,13 @@ TEST_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
 CONFIGTOUSE ?= NCBI_SETTINGS
 
 .PHONY: $(TEST_TOOLS)
 
 announce:
-	@ echo Testing $(BINDIR) CONFIGTOUSE=$(CONFIGTOUSE)
+	@ echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
 
 #-------------------------------------------------------------------------------
 # runtests: 
@@ -51,7 +52,7 @@ runtests: ;
 endif
 
 download:
-	export PATH=$(BINDIR):$$PATH; export VDB_CONFIG=`pwd` ; \
+	@ PATH=$(DIRTOTEST):$(PATH) VDB_CONFIG=`pwd` \
 		$(CONFIGTOUSE)=/ $(PYTHON) test_kget.py # expect rc = 0 
 
 #-------------------------------------------------------------------------------
@@ -63,7 +64,7 @@ slowtests: announce diff-vs-wget
 ACCESSION = SRR072810
 NAME = $(ACCESSION).4
 HOST = sra-download-internal.ncbi.nlm.nih.gov
-URL=$(shell ${BINDIR}/srapath ${ACCESSION})
+URL=$(shell ${DIRTOTEST}/srapath ${ACCESSION})
 
 clean:
 	rm -f $(ACCESSION)*
@@ -71,7 +72,7 @@ clean:
 diff-vs-wget: clean
 	@ if echo $(URL) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
-	     $(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee \
+	     $(DIRTOTEST)/kget --reliable -c ./$(ACCESSION).cachetee \
 	                    $(URL) $(ACCESSION).dat --progress && \
 	     wget --no-check-certificate $(URL) && \
 	     diff ./$(NAME) ./$(ACCESSION).dat && \

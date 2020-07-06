@@ -236,7 +236,7 @@ urls_and_accs:
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo REFSEQ FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	      $(DIRTOTEST)/prefetch $(REFSEQF) > /dev/null ; \
+	      $(DIRTOTEST)/prefetch $(REFSEQF) > /dev/null && \
 	    ls `pwd`/tmp/refseq/KC702174.1 > /dev/null ; \
 	 else echo download of $(REFSEQF) when ascp is not found is disabled ; \
 	 fi
@@ -829,8 +829,7 @@ wgs:
 
 	@#pwd
 	@echo '/repository/site/disabled = "true"' >  tmp/k
-	@echo '/repository/remote/main/SDL.2/resolver-cgi = \
-	                    "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
 		>> tmp/k
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
@@ -861,8 +860,7 @@ lots_wgs:
 
 	@#pwd
 	@echo '/repository/site/disabled = "true"' >  tmp/k
-	@echo '/repository/remote/main/SDL.2/resolver-cgi = \
-	                    "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
 		>> tmp/k
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k

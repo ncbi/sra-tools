@@ -30,7 +30,9 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-runtests: built-in bogus container good vdbcache
+DIRTOTEST ?= $(BINDIR)
+
+runtests: announce built-in bogus container good vdbcache
 
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
@@ -56,8 +58,11 @@ good: $(GOOD)
 
 container: $(CONTAINER)
 
+announce:
+	@echo Testing $(DIRTOTEST)
+
 $(TEMPDIR)/tmp.mkfg:
-	echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
+	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
 
 mkfg: $(TEMPDIR)/tmp.mkfg
 
@@ -67,42 +72,42 @@ actual:
 built-in:
 	@echo "running built-in tests" ; \
 	SRATOOLS_TESTING=1 \
-	$(BINDIR)/sratools
+	$(DIRTOTEST)/sratools
 
 $(GOOD): | actual mkfg
 	@# SRATOOLS_TESTING=2 skip SDL, sub-tool invocation is simulated to always
 	@# succeed, but everything up to the exec call is real
 	@echo "testing expected output for dry run of" $@ ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=$@ \
-	$(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
+	$(DIRTOTEST)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
 	diff expected/$@.stderr actual/$@.stderr
 
 bogus: | actual mkfg
 	@echo "testing expected output for unknown tool" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=rcexplain \
-	$(BINDIR)/sratools 2>actual/$@.stderr ; \
+	$(DIRTOTEST)/sratools 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
 $(CONTAINER): | actual mkfg
 	@echo "testing expected output for container" $@ ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=fastq-dump \
-	$(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
+	$(DIRTOTEST)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
 vdbcache: | actual mkfg
 	@echo "testing expected output for run with vdbcache" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=5 \
 	SRATOOLS_IMPERSONATE=vdb-dump \
-	$(BINDIR)/sratools SRR390728 2>actual/$@.stderr ; \
+	$(DIRTOTEST)/sratools SRR390728 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
 .PHONY: runtests bogus container good $(CONTAINER) $(GOOD) vdbcache

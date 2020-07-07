@@ -890,7 +890,8 @@ resume:
 	@ echo Verifying prefetch resume
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ echo '/repository/site/disabled = "true"' >  tmp/k
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
+	@ echo '/repository/site/disabled = "true"'                 >> tmp/k
 	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-resume.pl
 	@ rm    -r  tmp
 

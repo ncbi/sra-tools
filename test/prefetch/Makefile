@@ -899,7 +899,7 @@ hs37d5:
 	@ echo Verifying hs37d5
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ export NCBI_SETTINGS=k ; cd tmp && PATH=$(B):$(PATH) perl ../test-hs37d5.pl
+	@ export NCBI_SETTINGS=k && cd tmp && PATH=$(B):$(PATH) perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 
 ad_as_dir: # turned off by default. Library test is in 

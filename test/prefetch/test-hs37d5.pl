@@ -14,6 +14,8 @@ my $VERBOSE = 0;
 #$VERBOSE = 2; # print commands
 #$VERBOSE = 3; # print command output
 
+`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'               >  k`;
+
 if ($ALL) {
 ########## use site repository (if exists) from default configuration ##########
 print "########################################################\n" if($VERBOSE);
@@ -98,7 +100,8 @@ print $O if ($VERBOSE > 2);
 
 ########## prefetch to user repository ##########
 my $cwd = cwd();
-`echo '/repository/site/disabled   = "true"'                              >  k`;
+`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'               >  k`;
+`echo '/repository/site/disabled = "true"'                                >> k`;
 `echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"'>> k`;
 `echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"'     >> k`;
 `echo '/repository/user/main/public/root = "$cwd"\n'                      >> k`;

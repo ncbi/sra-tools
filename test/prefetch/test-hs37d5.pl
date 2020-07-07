@@ -12,7 +12,7 @@ my $PRF_DEBUG = ''; # '-vv';
 my $VERBOSE = 0;
 #$VERBOSE = 1; # print what's executed'
 #$VERBOSE = 2; # print commands
-$VERBOSE = 3; # print command output
+#$VERBOSE = 3; # print command output
 
 if ($ALL) {
 ########## use site repository (if exists) from default configuration ##########
@@ -36,7 +36,7 @@ die if ($?);
 }
 
 ########## use remote repository ##########
-`echo '/repository/site/disabled = "true"' > k`;
+`echo '/repository/site/disabled = "true"' >> k`;
 
 if ($ALL) {
 print "########################################################\n" if($VERBOSE);

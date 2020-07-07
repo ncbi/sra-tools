@@ -66,7 +66,7 @@ announce:
 urls_and_accs:
 	@mkdir -p tmp tmp2
 	@rm -fr tmp/* tmp2/*
-	@echo 'foo = "bar"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
 
 	@echo prefetch URL-1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -86,10 +86,11 @@ urls_and_accs:
 	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	     $(DIRTOTEST)/prefetch $(HTTP_URL)  > /dev/null; \
+	     $(DIRTOTEST)/prefetch $(HTTP_URL) > /dev/null; \
 	    fi
 
-	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' >> tmp/t.kfg
 	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
 
 	@if ls `pwd`/tmp2/$(HTTPFILE) 2> /dev/null ; \
@@ -357,15 +358,15 @@ urls_and_accs:
 ncbi1GB:
 	@mkdir -p tmp
 
-	@echo 'foo = "bar"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
 
 	@if ls `pwd`/tmp/1GB 2> /dev/null; \
      then echo 1GB found ; exit 1; fi
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	  echo FASP download: ncbi/1GB ; \
-	  export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp ; \
-	    $(DIRTOTEST)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB>/dev/null;\
+	  export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && cd tmp && \
+	    $(DIRTOTEST)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB>/dev/null&&\
 	    ls `pwd`/1GB > /dev/null ; \
 	 fi
 
@@ -380,7 +381,8 @@ out_dir_and_file:
 	@ echo '0||SRR053325||' >> tmp/k
 	@ echo '$$end'          >> tmp/k
 
-	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >  tmp/t.kfg
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
 	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 	@ echo '/repository/site/disabled = "true"'                 >> tmp/t.kfg
@@ -571,9 +573,10 @@ out_dir_and_file:
 
 s-option:
 	@ mkdir -p tmp
-	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
-	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
-	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
+	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
+	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 
 	@ echo Downloading KART was disabled: need to have a public example of protected run or add support of public accessions
 	@ rm -f tmp/sra/SRR0*
@@ -676,9 +679,10 @@ truncated:
 
 #setup
 	@ mkdir -p tmp/sra
-	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
-	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'        >> tmp/t.kfg
-	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                     >> tmp/t.kfg
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
+	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
+	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 #	@ ls -l tmp	@ cat tmp/t.kfg
 #	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-config -on
 #	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/srapath $(SRAC)
@@ -711,7 +715,8 @@ truncated:
 kart: ##########################################################################
 	@rm -frv tmp/*
 	@mkdir -p tmp
-	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'   > tmp/t.kfg
+	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' >> tmp/t.kfg
 
 	@echo "Downloading --cart <kart> ordered by default (size)"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
@@ -754,9 +759,10 @@ kart: ##########################################################################
 	@cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
 
 	@rm -frv tmp/sra
-	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' > tmp/t.kfg
-	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
-	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'   > tmp/t.kfg
+	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' >> tmp/t.kfg
+	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'           >> tmp/t.kfg
+	@echo '$(PUBLIC)/root = "$(CWD)/tmp"'                        >> tmp/t.kfg
 
 	@echo "Downloading kart ordered by default (size) to user repo"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
@@ -828,10 +834,11 @@ wgs:
 	@mkdir  tmp
 
 	@#pwd
-	@echo '/repository/site/disabled = "true"' >  tmp/k
-	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
+	@echo '/repository/site/disabled = "true"'                 >> tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                 >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
-		>> tmp/k
+		                                                       >> tmp/k
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
 	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
 	@#cat tmp/k
@@ -859,12 +866,13 @@ lots_wgs:
 	@mkdir  tmp
 
 	@#pwd
-	@echo '/repository/site/disabled = "true"' >  tmp/k
-	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'            > tmp/k
+	@echo '/repository/site/disabled = "true"'                            >> tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                            >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
-		>> tmp/k
+		                                                                  >> tmp/k
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
-	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
+	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k
 	@#cat tmp/k
 
 	@echo '      ... prefetching...'
@@ -889,6 +897,7 @@ hs37d5:
 	@ echo Verifying hs37d5
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
 	@ export NCBI_SETTINGS=k ; cd tmp && PATH=$(B):$(PATH) perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 

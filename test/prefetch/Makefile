@@ -56,8 +56,8 @@ B=$(DIRTOTEST)
 HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
 HTTPFILE=contact.shtml
 
-runtests: announce urls_and_accs out_dir_and_file s-option truncated kart wgs resume
-slowtests: announce lots_wgs hs37d5 ncbi1GB
+runtests: announce urls_and_accs out_dir_and_file s-option truncated kart resume
+slowtests: announce wgs lots_wgs hs37d5 ncbi1GB
 
 announce:
 	@echo Testing $(DIRTOTEST)
@@ -835,6 +835,11 @@ wgs:
 
 	@#pwd
 	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
+
+	@cd tmp && NCBI_SETTINGS=k              $B/prefetch SRR619505  -fy > /dev/null
+	@ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
+	@rm -r tmp/S*
+
 	@echo '/repository/site/disabled = "true"'                 >> tmp/k
 	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                 >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
@@ -843,17 +848,13 @@ wgs:
 	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
 	@#cat tmp/k
 
-	@cd tmp && NCBI_SETTINGS=/ $B/prefetch SRR619505  -fy     > /dev/null
-	@ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
-	@rm -r tmp/S*
-
-	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR619505  -fy     > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR619505  -fy > /dev/null
 	@ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null
 	@rm -r tmp/[rS]*
 
 #TODO: TO ADD AD for AAAB01 cd tmp &&                 prefetch SRR353827 -fy -+VFS
 
-	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR353827  -fy     > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR353827  -fy > /dev/null
 	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/align-info SRR353827 \
 		| grep -v 'false,remote::https:'                      > /dev/null
 	@ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null

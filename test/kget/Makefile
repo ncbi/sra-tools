@@ -32,8 +32,14 @@ TEST_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
-DIRTOTEST ?= $(BINDIR)
 CONFIGTOUSE ?= NCBI_SETTINGS
+DIRTOTEST ?= $(BINDIR)
+TOOLTOTEST = $(DIRTOTEST)/kget
+ifneq ("$(wildcard $(TOOLTOTEST))","")
+    BIN_EXISTS = 1
+else
+    BIN_EXISTS = 0
+endif
 
 .PHONY: $(TEST_TOOLS)
 
@@ -44,12 +50,19 @@ announce:
 # runtests: 
 #
 ifdef PYTHON
+ifeq (0,$(BIN_EXISTS))
+runtests: no-test
+else
 runtests: announce download
+endif
 
 else
 runtests: ;
 
 endif
+
+no-test:
+	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
 download:
 	@ PATH=$(DIRTOTEST):$(PATH) VDB_CONFIG=`pwd` \

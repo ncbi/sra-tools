@@ -29,11 +29,25 @@ TOP ?= $(abspath ../..)
 include $(TOP)/build/Makefile.env
 
 DIRTOTEST ?= $(BINDIR)
+TOOLTOTEST = $(DIRTOTEST)/read-filter-redact
 
+ifneq ("$(wildcard $(TOOLTOTEST))","")
+    BIN_EXISTS = 1
+else
+    BIN_EXISTS = 0
+endif
+
+ifeq (0,$(BIN_EXISTS))
+runtests: no-test
+else
 runtests: announce check_version
+endif
 
 RUN=tmp-read-filter-redact-test-run
 FLT=tmp-read-filter-redact-test-in
+
+no-test:
+	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
 announce:
 	@ echo Testing $(DIRTOTEST)

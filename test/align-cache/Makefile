@@ -37,6 +37,13 @@ include $(TOP)/build/Makefile.env
 
 DIRTOTEST ?= $(BINDIR)
 
+TOOLTOTEST = $(DIRTOTEST)/align-cache
+ifneq ("$(wildcard $(TOOLTOTEST))","")
+    BIN_EXISTS = 1
+else
+    BIN_EXISTS = 0
+endif
+
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -47,8 +54,14 @@ clean: stdclean
 #-------------------------------------------------------------------------------
 # align-cache tool tests
 #
+ifeq (0,$(BIN_EXISTS))
+runtests: no-test
+else
 runtests: align-cache
+endif
 
+no-test:
+	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
 align-cache: $(BINDIR)/align-cache
 	@ rm -rf CSRA_file.cache

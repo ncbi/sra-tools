@@ -33,6 +33,12 @@ TEST_TOOLS = \
 include $(TOP)/build/Makefile.env
 
 DIRTOTEST ?= $(BINDIR)
+TOOLTOTEST = $(DIRTOTEST)/copycat
+ifneq ("$(wildcard $(TOOLTOTEST))","")
+    BIN_EXISTS = 1
+else
+    BIN_EXISTS = 0
+endif
 
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
@@ -45,7 +51,11 @@ clean: stdclean
 # scripted tests
 #
 ifeq (1,$(HAVE_MAGIC))
+  ifeq (0,$(BIN_EXISTS))
+runtests: no-test
+  else
 runtests: copy
+  endif
 else
 runtests:
 	@ echo "NOTE - copycat tests are skipped:"          \
@@ -53,6 +63,9 @@ runtests:
 	@ echo "because it requires our internal library 'libkff'" \
 		"which requires 'libmagic' and its development headers."
 endif
+
+no-test:
+	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
 copy: 
 	@ echo "Testing $(DIRTOTEST)/copycat"

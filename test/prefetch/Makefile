@@ -57,7 +57,7 @@ HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
 HTTPFILE=contact.shtml
 
 runtests: announce urls_and_accs out_dir_and_file s-option truncated kart resume
-slowtests: announce wgs lots_wgs hs37d5 ncbi1GB
+slowtests: announce vdbcache wgs lots_wgs hs37d5 ncbi1GB
 
 announce:
 	@echo Testing $(DIRTOTEST)
@@ -340,18 +340,22 @@ urls_and_accs:
              exit 1 ; \
 	    fi
 
-	@echo vdbcache download
-	@rm tmp/sra/*
-	@if ls `pwd`/tmp/sra/SRR6667190.sra 2> /dev/null ; \
-		then echo SRR6667190.sra found ; exit 1; fi
-	@if ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache 2> /dev/null ; \
-		then echo SRR6667190.sra.vdbcache found ; exit 1; fi
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		$(DIRTOTEST)/prefetch SRR6667190 > /dev/null
-	@ls `pwd`/tmp/sra/SRR6667190.sra          > /dev/null
-	@ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache > /dev/null
-
 	@rm -r tmp*
+
+vdbcache:
+	@ echo vdbcache download
+
+	@ rm -frv tmp
+	
+	@ mkdir -p tmp
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+		cd tmp && $(DIRTOTEST)/prefetch SRR6667190  > /dev/null
+	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra            > /dev/null
+	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra.vdbcache   > /dev/null
+
+	@ rm -r tmp
 
 ################################################################################
 
@@ -361,7 +365,7 @@ ncbi1GB:
 	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
 
 	@if ls `pwd`/tmp/1GB 2> /dev/null; \
-     then echo 1GB found ; exit 1; fi
+	     then echo 1GB found ; exit 1; fi
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	  echo FASP download: ncbi/1GB ; \

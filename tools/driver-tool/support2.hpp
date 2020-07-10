@@ -449,6 +449,31 @@ namespace sratools2
         }
     };
 
+    struct ToolExecNoSDL {
+        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
+        {
+            ArgvBuilder builder;
+
+#if WINDOWS
+            // make sure we got all hard-coded POSIX path seperators
+            assert(theirpath.find('/') == std::string::npos);
+#endif
+            builder.add_option(theirpath);
+            tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
+
+            auto argv = builder.generate_argv(accessions);
+
+            sratools::process::run_child(toolpath.c_str(), toolname, argv);
+
+            // exec returned! something went wrong
+            auto const error = std::error_code(errno, std::system_category());
+
+            builder.free_argv(argv);
+
+            throw std::system_error(error, std::string("Failed to exec ")+toolname);
+        }
+    };
+
     struct ToolExec {
     private:
         static std::vector<std::string> convert(std::vector<ncbi::String> const &other)
@@ -486,6 +511,9 @@ namespace sratools2
     public:
         static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
         {
+            if (accessions.empty()) {
+                return ToolExecNoSDL::run(toolname, toolpath, theirpath, tool_options, accessions);
+            }
             auto const s_location = tool_options.location.toSTLString();
             auto const s_perm = tool_options.perm_file.toSTLString();
             auto const s_ngc = tool_options.ngc_file.toSTLString();
@@ -543,31 +571,6 @@ namespace sratools2
                 }
             }
             return 0;
-        }
-    };
-
-    struct ToolExecNoSDL {
-        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
-        {
-            ArgvBuilder builder;
-
-#if WINDOWS
-            // make sure we got all hard-coded POSIX path seperators
-            assert(theirpath.find('/') == std::string::npos);
-#endif
-            builder.add_option(theirpath);
-            tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
-
-            auto argv = builder.generate_argv(accessions);
-
-            sratools::process::run_child(toolpath.c_str(), toolname, argv);
-
-            // exec returned! something went wrong
-            auto const error = std::error_code(errno, std::system_category());
-
-            builder.free_argv(argv);
-
-            throw std::system_error(error, std::string("Failed to exec ")+toolname);
         }
     };
 

@@ -115,21 +115,21 @@ fi
 KAR_B=$1
 if [ ! -x "$KAR_B" ]
 then
-    usage Error: can not stat executable '$KAR_B'
+    usage Error: can not stat executable \'$KAR_B\'
     exit 1
 fi
 
 PRE_B=$2
 if [ ! -x "$PRE_B" ]
 then
-    usage Error: can not stat executable '$PRE_B'
+    usage Error: can not stat executable \'$PRE_B\'
     exit 1
 fi
 
 SPT_B=$( dirname $PRE_B )/srapath
 if [ ! -x "$SPT_B" ]
 then
-    usage Error: can not stat executable '$SPT_B'
+    usage Error: can not stat executable \'$SPT_B\'
     exit 1
 fi
 
@@ -160,7 +160,8 @@ echo "## TEST ACCESSION $WORK_ACCN"
 ##
 ## Here we are cleaning and starting tests
 ##
-VOTCHINA=$( readlink -f votchina )
+BASEDIR=$( pwd )
+VOTCHINA=${BASEDIR}/votchina
 
 clean_up ()
 {

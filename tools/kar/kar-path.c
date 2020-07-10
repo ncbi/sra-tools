@@ -55,7 +55,8 @@ kar_resolve_path (
                     const char * AccessionOrPath,
                     char * RetBuf,
                     size_t BufSize,
-                    bool * IsLocal
+                    bool * IsLocal,
+                    const struct VPath ** Path
 )
 {
     rc_t RCt;
@@ -64,7 +65,6 @@ kar_resolve_path (
     struct VPath * Query;
     const struct VPath * Remote;
     const struct VPath * Local;
-    const struct VPath * Path;
     const String * Str;
 
     RCt = 0;
@@ -73,7 +73,7 @@ kar_resolve_path (
     Query = NULL;
     Remote = NULL;
     Local = NULL;
-    Path = NULL;
+    * Path = NULL;
     Str = NULL;
 
     if ( IsLocal != NULL ) {
@@ -113,16 +113,15 @@ kar_resolve_path (
                                     NULL 
                                     );
                 if ( RCt == 0 ) {
-                        /*  I believe that local path has priority
-                         *  and will be used at first.
+                        /*  Local path has priority and will be used first.
                          */
-                    Path = Local == NULL ? Remote : Local;
+                    * Path = Local == NULL ? Remote : Local;
                     if ( Path == NULL ) {
                         RCt = RC ( rcExe, rcPath, rcSearching, rcName, rcNotFound );
                     }
                     else {
                         * IsLocal = Local != NULL;
-                        RCt = VPathMakeString( Path, & Str );
+                        RCt = VPathMakeString( * Path, & Str );
                         if ( RCt == 0 ) {
                             if ( Str -> size + 1 >= BufSize ) {
                                 RCt = RC ( rcExe, rcPath, rcSearching, rcSize, rcInsufficient );
@@ -144,11 +143,11 @@ kar_resolve_path (
                     }
                 }
 
-                if ( Remote != NULL ) {
+                if ( Remote != NULL && * Path != Remote ) {
                     VPathRelease ( Remote );
                 }
 
-                if ( Local != NULL ) {
+                if ( Local != NULL && * Path != Local ) {
                     VPathRelease ( Local );
                 }
 
@@ -185,6 +184,7 @@ kar_open_file_read (
     bool IsLocal;
     int PathType;
     const char * PathToOpen;
+    const struct VPath * Path = NULL;
 
     RCt = 0;
     Manager = NULL;
@@ -223,7 +223,8 @@ kar_open_file_read (
                                     PathOrAccession,
                                     ResolvedPath,
                                     sizeof ( ResolvedPath ),
-                                    & IsLocal
+                                    & IsLocal,
+                                    & Path
                                     );
             PathToOpen = ResolvedPath;
         }
@@ -245,14 +246,22 @@ kar_open_file_read (
                 if ( RCt == 0 ) {
 #define __MAKE_IT_RELIABLE__
 #ifdef __MAKE_IT_RELIABLE__
-                    RCt = KNSManagerMakeReliableHttpFile (
+                    bool reliable = VPathIsHighlyReliable ( Path );
+                    bool need_env_token = false;
+                    bool payRequired = false;
+                    if ( RCt == 0 )
+                        RCt = VPathGetCeRequired ( Path, & need_env_token );
+                    if ( RCt == 0 )
+                        RCt = VPathGetPayRequired ( Path, & payRequired );
+                    if ( RCt == 0 )
+                        RCt = KNSManagerMakeReliableHttpFile (
                                                         Manager,
                                                         & RetFile,
                                                         NULL,
                                                         0x01010000,
-                                                        true,
-                                                        false,
-                                                        false,
+                                                        reliable,
+                                                        need_env_token,
+                                                        payRequired,
                                                         "%s",
                                                         PathToOpen
                                                         );
@@ -285,6 +294,8 @@ kar_open_file_read (
             }
         }
     }
+
+    VPathRelease ( Path );
 
     return RCt;
 }   /* kar_open_file_read () */

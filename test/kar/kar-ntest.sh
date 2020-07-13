@@ -136,28 +136,6 @@ fi
 echo "## TEST START"
 
 ##
-## Known accessions of small size
-## They are sorted by increase of size, we need choose good one
-##
-for i in  SRR1025702 SRR1022482 SRR3029805 SRR2064214 SRR1537524 SRR258852 SRR053769 SRR611340 SRR572719 DRR121070
-do
-    $SPT_B $i >/dev/null 2>&1
-    if [ $? -eq 0 ]
-    then
-        WORK_ACCN=$i
-        break;
-    fi
-done
-
-if [ -z "$WORK_ACCN" ]
-then
-    echo "Error: can not find appropriate accession" >&2
-    exit 1
-fi
-
-echo "## TEST ACCESSION $WORK_ACCN"
-
-##
 ## Here we are cleaning and starting tests
 ##
 BASEDIR=$( pwd )
@@ -193,6 +171,28 @@ cat <<EOF >$VDB_CONFIG
 /repository/user/main/public/root = "$TARGET_DIR"
 /sra/quality_type = "raw_scores"
 EOF
+
+##
+## Known accessions of small size
+## They are sorted by increase of size, we need choose good one
+##
+for i in  SRR1025702 SRR1022482 SRR3029805 SRR2064214 SRR1537524 SRR258852 SRR053769 SRR611340 SRR572719 DRR121070
+do
+    $SPT_B $i >/dev/null 2>&1
+    if [ $? -eq 0 ]
+    then
+        WORK_ACCN=$i
+        break;
+    fi
+done
+
+if [ -z "$WORK_ACCN" ]
+then
+    echo "Error: can not find appropriate accession" >&2
+    exit 1
+fi
+
+echo "## TEST ACCESSION $WORK_ACCN"
 
 ##
 ## Third we are using kar utility to extract data from far away

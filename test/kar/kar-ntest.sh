@@ -184,17 +184,13 @@ multi_bark mkdir $VOTCHINA
 ##
 cd $VOTCHINA
 
-export NCBI_SETTINGS=/
 export VDB_CONFIG=config.kfg
 cat <<EOF >$VDB_CONFIG
+/LIBS/GUID = "8test002-6ab7-41b2-bfd0-karkarkarkar"
 /repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"
 /repository/user/main/public/apps/refseq/volumes/refseq = "refseq"
 /repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"
 /repository/user/main/public/root = "$TARGET_DIR"
-/repository/site/main/tracearc/apps/refseq/volumes/refseq = "refseq"
-/repository/site/main/tracearc/apps/wgs/volumes/wgs2 = "wgs03:wgs01"
-/repository/site/main/tracearc/root = "/netmnt/traces04"
-/libs/cloud/report_instance_identity = "true"
 /sra/quality_type = "raw_scores"
 EOF
 

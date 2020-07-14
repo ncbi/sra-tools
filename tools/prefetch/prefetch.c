@@ -983,7 +983,11 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
     KClientHttpResult * rslt = NULL;
     KStream * s = NULL;
 
-    assert(self && rw && rwr &&pof && pof->cache);
+    assert(self);
+    assert(rw);
+    assert(rwr);
+    assert(pof);
+    assert(pof->cache);
 
     for (i = 0; i < 3; ++i) {
         rc = KClientHttpRequestGET(req, &rslt);
@@ -1067,7 +1071,9 @@ static rc_t PrfMainDownloadFile(const PrfMain * self, PrfOutFile * pof,
     rc_t testRc = 1;
 #endif
 
-    assert(self && retrier && rwr);
+    assert(self);
+    assert(retrier);
+    assert(rwr);
 
     while (rc == 0) {
         size_t num_read = 0, num_writ = 0;

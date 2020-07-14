@@ -135,7 +135,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         (void)(acc_index); (void)(accessions);
 
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( !file_type.isEmpty() ) builder . add_option( "-T", file_type );
         //if ( !transport.isEmpty() ) builder . add_option( "-t", transport );

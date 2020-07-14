@@ -86,6 +86,7 @@ my @options = ( 'build-prefix=s',
                 'help',
                 'prefix=s',
                 'reconfigure',
+                'relative-build-out-dir',
                 'status',
                 'with-debug',
                 'without-debug', );
@@ -136,11 +137,12 @@ EndText
 }
 
 $OPT{'local-build-out'} = $LOCAL_BUILD_OUT;
+unless ($OPT{'local-build-out'})
+{   $OPT{'local-build-out'} = $OPT{'relative-build-out-dir'} }
 my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
-if ($OPT{'local-build-out'}) {
-    my $o = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
-    $OUTDIR = $o if ($o);
-}
+my $REL_OUTDIR = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
+if ($OPT{'local-build-out'})
+{   $OUTDIR = $REL_OUTDIR if ($REL_OUTDIR) }
 
 if ($OPT{'help'}) {
     help();
@@ -1925,22 +1927,24 @@ EndText
         }
 
         print <<EndText;
-  --build-prefix=DIR      generate build output into DIR directory
-                          [$OUTDIR]
+  --relative-build-out-dir generate build output into directory
+                           relative to sources [$OUTDIR]
+  --build-prefix=DIR       generate build output into DIR directory
+                           [$OUTDIR]
 
 EndText
     }
 
     println 'Miscellaneous:';
-    println '  --reconfigure           rerun `configure\'';
-    println '                          using the same command-line arguments';
+    println '  --reconfigure            rerun `configure\'';
+    println '                           using the same command-line arguments';
     if ($^O ne 'MSWin32') {
         println
-            '  --status                print current configuration information'
+            '  --status                 print current configuration information'
     }
     print <<EndText;
-  --clean                 remove all configuration results
-  --debug                 print lots of debugging information
+  --clean                  remove all configuration results
+  --debug                  print lots of debugging information
 
 If `configure' was already run running `configure' without options
 will rerun `configure' using the same command-line arguments.

@@ -39,33 +39,38 @@
 
 namespace sratools {
 
+/// @brief class to manage KConfig object
 class Config {
-    using Container = std::map<std::string, std::string>;
-    Container kvps;
+    /// @brief the KConfig object
+    void *obj;
 
-    static constexpr char const *InstallKey() {
-        return "/LIBS/GUID";
-    }
+    /// @brief the installation ID
+    opt_string installID() const;
 public:
+    /// @brief create a new KConfig object
+    /// @param runpath ignored
     Config(ToolPath const &runpath);
-    opt_string get(char const *const keypath) const {
-        auto const iter = kvps.find(keypath);
-        return iter == kvps.end() ? opt_string() : opt_string(iter->second);
-    }
-    opt_string get(std::string const &keypath) const {
-        auto const iter = kvps.find(keypath);
-        return iter == kvps.end() ? opt_string() : opt_string(iter->second);
-    }
+
+    /// @brief release the KConfig object
+    ~Config();
+
+    /// @brief get value for keypath (if any)
+    /// @param keypath the path of the value to get
+    opt_string get(char const *const keypath) const;
+
+    /// @brief get value for keypath (if any)
+    /// @param keypath the path of the value to get
     opt_string operator [](std::string const &keypath) const {;
-        return get(keypath);
+        return get(keypath.c_str());
     }
-    bool noInstallID() const {
-        auto const iter = kvps.find(InstallKey());
-        return iter == kvps.end();
-    }
+
+    /// @brief true if there is no installation ID
+    bool noInstallID() const;
+
+    /// @brief true if user has allowed sending the cloud instance identity
     bool canSendCEToken() const {
-        auto const iter = kvps.find("/libs/cloud/report_instance_identity");
-        return iter != kvps.end() && iter->second == "true";
+        auto const x = get("/libs/cloud/report_instance_identity");
+        return x ? x.value() == "true" : false;
     }
 };
 

@@ -243,7 +243,7 @@ struct SamDumpParams final : CmnOptAndAccessions
 
     void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( unaligned ) builder . add_option( "-u" );
         if ( primary ) builder . add_option( "-1" );

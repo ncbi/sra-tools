@@ -852,6 +852,16 @@ ad_as_dir: # turned off by default. Library test is in
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 	@ echo we can use AD as dir/...
 	@ mkdir -p tmp
-	@ export NCBI_SETTINGS=\ && export PATH=$(SRATOOLS_BINDIR):$(PATH) \
+	@ export NCBI_SETTINGS=/ && export PATH=$(SRATOOLS_BINDIR):$(PATH) \
 		&& cd tmp && perl ../use-AD-as-dir.pl
+	@ rm -r tmp
+
+dump-vs-prefetch: # turned off by default. Library test is in
+              # ncbi-vdb\test\vfs\resolvertest.cpp::Remote_vrAlwaysEnable_vs_not
+	@ rm -frv tmp/*
+	@  mkdir -pv tmp
+	@echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
+	@  echo 'repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/t.kfg
+	@ cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=. PATH=$(B):$(PATH) \
+	                                 perl ../dump-vs-prefetch.pl
 	@ rm -r tmp

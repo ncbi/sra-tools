@@ -157,7 +157,7 @@ struct FastqParams final : CmnOptAndAccessions
             "number of reads, this option will produce files that WILL CAUSE ERRORS in most programs "
             "which process split pair fastq files." );
 
-        cmdline . addOption ( split3, "", "split-e",
+        cmdline . addOption ( split3, "", "split-3",
             "3-way splitting for mate-pairs. For each spot, if there are two biological reads "
             "satisfying filter conditions, the first is placed in the `*_1.fastq` file, and the "
             "second is placed in the `*_2.fastq` file. If there is only one biological read "
@@ -201,6 +201,11 @@ struct FastqParams final : CmnOptAndAccessions
             "string or for numeric variables. Ex: @$sn[_$rn]/$ri '_$rn' is omitted if name is empty" );
 
         CmnOptAndAccessions::add(cmdline);
+
+        // add a silent option...
+        cmdline . startSilentOptions();
+        cmdline . addOption ( split3, "", "split-e", "See split-3" );
+
     }
 
     std::ostream &show(std::ostream &ss) const override

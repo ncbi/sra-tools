@@ -329,6 +329,16 @@ struct FastqParams final : CmnOptAndAccessions
     bool check() const override
     {
         int problems = 0;
+
+        if (!fasta.isEmpty() && fasta != "default") {
+            for (auto && ch : fasta.toSTLString()) {
+                if (ch < '0' || ch > '9') {
+                    std::cerr << "fasta requires an integer value >= 0 or \"default\"" << std::endl;
+                    problems++;
+                    break;
+                }
+            }
+        }
         if ( bzip && gzip )
         {
             std::cerr << "bzip2 and gzip cannot both be used at the same time" << std::endl;

@@ -30,7 +30,19 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-runtests: built-in bogus container good vdbcache split_3 split_e
+runtests: \
+	built-in \
+	bogus \
+	container \
+	good \
+	vdbcache \
+	split_3 \
+	split_e \
+	fasta_missing_param \
+	fasta_default \
+	fasta_0 \
+	fasta_number \
+	fasta_neg_number
 
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)

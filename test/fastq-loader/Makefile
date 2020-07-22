@@ -40,6 +40,8 @@ VDB_CONFIG = $(SRCDIR)
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -133,12 +135,16 @@ tfl:
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-runtests: wb parse set_schema smalltests
+runtests: announce wb parse set_schema smalltests
+
+announce:
+	@ echo Testing $(DIRTOTEST)
 
 set_schema:
 	echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
 
-SMALLRUN = @ NCBI_SETTINGS= VDB_CONFIG=$(SRCDIR) $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
+SMALLRUN = @ NCBI_SETTINGS= VDB_CONFIG=$(SRCDIR) $(SRCDIR)/runtestcase.sh \
+        $(DIRTOTEST) $(SRCDIR)
 
 smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
@@ -194,7 +200,7 @@ smalltests: $(TEST_TOOLS)
 #   Command line options:
 #           4.1 --tmpfs             temporary files created at the specified location
 	@echo "running 4.1"; export NCBI_SETTINGS=/; export VDB_CONFIG=`pwd`; \
-	 export LD_LIBRARY_PATH=$(LIBDIR);$(BINDIR)/latf-load \
+	 export LD_LIBRARY_PATH=$(LIBDIR);$(DIRTOTEST)/latf-load \
 	 $(SRCDIR)/input/4.fastq --tmpfs $(SRCDIR)/actual/ -v \
 	 -o actual/4.1.obj --quality PHRED_33 \
 	 | grep "Path for scratch files: $(SRCDIR)/actual/" >/dev/null
@@ -203,7 +209,7 @@ smalltests: $(TEST_TOOLS)
 #           4.3 --cache-size        handled correctly
 	@echo "running 4.3"; export NCBI_SETTINGS=/; export VDB_CONFIG=`pwd`; \
 	 export LD_LIBRARY_PATH=$(LIBDIR); \
-	 $(BINDIR)/latf-load $(SRCDIR)/input/4.fastq --cache-size 10 -v \
+	 $(DIRTOTEST)/latf-load $(SRCDIR)/input/4.fastq --cache-size 10 -v \
      -o actual/4.1.obj --quality PHRED_33 \
      | grep "Cache size: 10M" >/dev/null
 #           4.3.1 --cache-size      rejected if invalid

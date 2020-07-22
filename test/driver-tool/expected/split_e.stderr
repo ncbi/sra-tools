@@ -1,0 +1,1 @@
+fastq-dump --split-3 SRR390728

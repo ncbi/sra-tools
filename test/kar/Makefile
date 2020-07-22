@@ -42,7 +42,7 @@ runtests: kar_test
 #
 kar_test: kar-ntest.sh
 	@ echo "Starting kar tests..."
-	@ NCBI_SETTINGS=/ bash kar-ntest.sh $(BINDIR)/kar
+	@ NCBI_SETTINGS=/ bash kar-ntest.sh $(BINDIR)/kar $(BINDIR)/prefetch
 
 .PHONY: $(TEST_TOOLS)
 

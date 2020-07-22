@@ -9,6 +9,9 @@ The delite process is three stage process :
 3) packing modified KAR archive with/without reduced data, testing resulting
    KAR archive with VDB-DIFF program
 
+It is should note here, that user could perform testing of resulting KAR archive
+separately from stage #3/
+
 Contents:
 
 I.    Script requirements, environment and configuring.
@@ -17,10 +20,13 @@ III.  Script configuration file
 IV.   Unpacking original KAR archive
 V.    Editing resulting database
 V|.   Exporting data
+V|-|. Testing data
 VII.  Status
 VIII. Physical requirements (important, read it)
 IX.   Error codes
 X.    Limitations: what to expect and what to not
+XI.   Building, installing, and running from scratch
+XII.  Building, installing, and running from docker image
 
 I.  Script requirements, environment and configuring.
 =============================================================================
@@ -40,6 +46,7 @@ The format of config file will be described later
 
 Script presumes that it is starts from directory where following standard VDB
 utilities are located :
+
             kar+
             kar+meta
             vdb-lock
@@ -47,6 +54,9 @@ utilities are located :
             vdb-validate
             prefetch
             vdb-diff
+            vdb-dump
+            make-read-filter
+
 If one of these utilities does not exists, or permissions for execution for
 that utility are missed, script will exit with error message. You may alter
 location of VDB utilities by exporting DELITE_BIN_DIR environment variable
@@ -54,6 +64,15 @@ which points to directory with utilities. DELITE_BIN_DIR variable has higher
 priority than local utilities, however there will be a message from script
 that it is using ateternate bin directory. User also can set that variable
 in configuration file.
+
+Some utilities from that list may create temporary files, usually they do it
+in directory /tmp, or at location defined by environment variable TEMPDIR.
+User can change that behaviour by setting value in configuration file:
+
+    USE_OWN_TEMPDIR=1
+
+in that case, script will ask utilities to put temporary data at the same
+directory where delite process is performed.
 
 Script will require two mandatory parameters path to source KAR archive, 
 which could be accession, and path to directory, which will be used as working
@@ -74,14 +93,19 @@ list of possible actions :
     import - script will download and/or unpack archive to working directory
     delite - script will perform DELITE on database content
     export - script will create 'delited' KAR archive
+      test - script will test 'delited' KAR archive
     status - script will report some status, or whatever.
 
 Options could be different for each action, many of them will be discussed
 later. There is a list of options.
 
     -h | --help        - prints help message.
-    --accession <name> - accession name for run to delite
-                         String, mandatory for 'import' action only.
+    --accession <name> - accession
+                         String, for 'import' action only, there should
+                         be defined one of '--accession' or '--archive'
+    --archive <path>   - path to SRA archive
+                         String, for 'import' action only, there should
+                         be defined one of '--accession' or '--archive'
     --target <path>    - path to directory, where script will put it's output.
                          String, mandatory.
     --config <path>    - path to existing configuration file.
@@ -187,12 +211,18 @@ requires at least two parameters, and it's syntax is following:
 
 sra_delite.sh import [ --force ] [ --config CONFIG ] --accession ACCESSION --target TARGET
 
+or
+
+sra_delite.sh import [ --force ] [ --config CONFIG ] --archive PATH --target TARGET
+
 The flag --force is optional. If TARGET directory exists, script will reject
 to work unless that flag is provided. In that case the old TARGET directory
 and all it's content will be destroyed.
 
 The ACCESSION parameter is accession name on existing KAR archive, which
 will be resolved, and downloaded.
+
+The PAT parameter is path to existing downloaded KAR archive
 
 The TARGET parameter is a reference to directory, which will be created by
 script, and the content of SOURCE KAR archive will be unpacked into it's
@@ -230,7 +260,7 @@ perform following:
 V|.   Exporting data
 =============================================================================
 Action 'export' will export delited data into KAR archive and test result.
-There is syntax of that command:
+There is syntax for that command:
 
 sra_delite.sh export [ --config CONFIG ] --target TARGET [--force] [--skiptest]
 
@@ -248,6 +278,18 @@ and consistency of schemas, it could take several minutes. The second test will
 be done by 'vdb-dump' utility. That test will perform record-by-record data
 comparation for both original and new KAR archives. It is longest test and can
 take more than several minutes. User can skip testing by adding flag '--skiptest'.
+Even if user skipped test, he cound test resulting data later.
+
+
+V|-|. Testing data
+=============================================================================
+Action 'test' will test exported delited KAR archive. There is syntax for that
+command:
+
+sra_delite.sh test [ --config CONFIG ] --target TARGET
+
+User should be ready that it could be lengtly procedure. It was introduced for
+the case if there will be two different queues for deliting and testing results.
 
 
 V|I.   Status
@@ -364,5 +406,167 @@ there will be
 
 After that, script will run standard checks as for: vdb-validate and vdb-diff to
 be sure that delite process finished correctly
+
+
+XI.   Building, installing, and running from scratch
+=============================================================================
+For working, delite process needed ten binaries, which are listed in first chapter
+of that README file. User could use precompiled binaries, which he could download
+from NCBI place <JOJOBA put path here>, or build binaries by itself.
+
+To build binaries, user should download, install, configure, and build 'ngs',
+'ncbi-vdb', and 'sra-tools' packages. In commands of shell it will look like :
+
+    # mkdir DELITE
+    # cd DELITE
+    # git clone https://github.com/ncbi/ngc.git
+    # git pull
+    # cd ngc
+    # ./configure
+    # cd ngc-sdk
+    # make
+    # cd ../ngc-java
+    # make
+    # cd ../..
+    # git clone https://github.com/ncbi/ncb-vdb.git
+    # git pull
+    # cd ncbi-vdb
+    # ./configure
+    # ./make
+    # cd ..
+    # git clone https://github.com/ncbi/sra-tools.git
+    # git pull
+    # cd sra-tools
+    # ./configure
+    # make
+
+After that user may pick up new binaries and use them for delite process
+More details about building these packages user can read in NCBI documentation
+
+Delite process is performed by 'sra_delite.sh' script, which is a part of sra-tools
+package, and located in directory:
+
+    sra-tools/tools/kar
+
+There is also example of 'sra_delite.kfg' file, which user can use if he need to
+modify delite process.
+
+Delite is needed valid schemas for correct processing. If user does not have access
+to schemas, he could use as source of schemas content of directory:
+
+    ncbi-vdb/interfaces
+
+By default sra_delite.sh script will look for a binaries in the same directory where
+it is located. The simplest way to install all necessary files for delite is to create
+directory, where user could put sra_delite.sh, and builded binaries.
+
+In the cases, user had to use precompiled binaries already installed somewhere, it should
+copy sra_delite.kfg file to directory with script and add here a line:
+
+    DELITE_BIN_DIR=/place/with/precompiled/files
+
+User may also want to copy directory ncbi-vdb/interfaces somewhere close to that directory.
+
+Now, when everything is ready for delite processing, user could start delite processing.
+In simple it will look like that:
+
+# some_locateion/sra_delite.sh import --accession SRR000001 --target target_directory
+# some_locateion/sra_delite.sh delite --schema path_to_schemas --target target_directory
+# some_locateion/sra_delite.sh export --target target_directory
+
+More details about delite process user can find in previous parts of that README file
+
+
+XII.  Building, installing, and running from docker image on AWS cloud
+=============================================================================
+To build and run delite from docker container user should first to start an instance
+on AWS. After that user should login to AWS instance and check that docker and git are
+present, by running commands 'docker' and 'git'.
+
+If 'docker' command is not found, user should install it. There is how to do that.
+
+    sudo yum update -y
+    sudo amazon-linux-extras install docker
+    sudo service docker start
+    sudo usermod -a -G docker ec2-user
+    docker info
+        ## if after that command will appear message "Can not connect"
+        ## user should reboot host, and start docker again
+
+User could find good source of information on Docker here:
+
+    https://docs.aws.amazon.com/AmazonECS/latest/developerguide/docker-basics.html
+
+To install git, user should do that command:
+
+    sudo yum install git
+
+Now everything is ready for delite process. 
+
+First step user should download docker file, or copy it. The simplest way to download
+docker file is clone sra-toolkit package from GITHUB:
+
+    git clone -b engineering https://github.com/ncbi/sra-tools.git
+
+User could copy docker file to his working directory, and delete sra-toolkit package after.
+
+    cp sra-toolkit/build/docker/Dockerfile.delite .
+    rm -rf sra-tools
+
+Now user should build docker image:
+
+    docker build -f Dockerfile.delite -t sratoolkit:delite .
+
+Next, user should create output directory for delited runs and everything is ready for
+deliting:
+
+    mkdir ~/output
+
+The delite commands for docker case will looks like that:
+
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh import --accession SRR000001 --target /output/SRR000001
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh delite --target /output/SRR000001   --schema /etc/ncbi/schema
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite sra_delite.sh export --target /output/SRR000001
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite vdb-dump -R 1 /output/SRR000001/new.kar
+
+To simplify delite process there is script "delite_docker.sh", which embeds all delite
+commands, which could safe time on typing. User can pass several accessions as a prameter
+to script and they will be delited sequentially:
+
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh SRR000001 SRR000002
+
+In the case of error, script will return error code of failed sra_delite.sh command.
+
+If user want to separate delite process and testing results, he can use "delite_docker.sh" command
+with "--skiptest" flag, and perform testing after with "delite_test_docker.sh" command:
+
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_docker.sh --skiptest SRR000001 SRR000002
+    docker run -v ~/output/:/output:rw --rm sratoolkit:delite delite_test_docker.sh SRR000001 SRR000002
+
+If user want to delite already downloaded KAR archive, he can use "delite_docker_local.sh" command
+It's syntax is following:
+
+    delite_test_docker.sh [--skiptest] path_to_kar_archive output_directory
+
+There is an example of that command:
+
+    docker run -v ~/output/:/output:rw -v ~/input/:/input:rw --rm sratoolkit:delite delite_docker_local.sh /input/SRR000001.sra /output/OUTPUT
+
+Script will read data from /input/SRR00001.sra file and write them to /output/OUTPUT directory
+
+NOTE: if there are results of previous delite process for accession, script will exit with
+      error message. User is responsible for deleting these before calling script.
+
+
+AWS users should remember that there could be problem with certificate. To avoid that
+problem, user should add following mount to docker command :
+
+-v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro
+
+For example:
+
+docker run -v ~/output/:/output:rw -v /etc/pki:/etc/pki:ro -v /etc/ssl:/etc/ssl:ro --rm sratoolkit:delite delite_docker.sh SRR000001
+
+This command will allow to mount certificates from computer to docker image.
 
 ENJOY

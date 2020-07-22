@@ -977,19 +977,39 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
     KClientHttpRequest * req, uint64_t size, progressbar * pb, rc_t * rwr,
     rc_t * rw)
 {
+    int i = 0;
+
     rc_t rc = 0, r2 = 0;
     KClientHttpResult * rslt = NULL;
     KStream * s = NULL;
 
-    assert(self && rw && rwr &&pof && pof->cache);
+    assert(self);
+    assert(rw);
+    assert(rwr);
+    assert(pof);
+    assert(pof->cache);
 
-    rc = KClientHttpRequestGET(req, &rslt);
-    DISP_RC2(rc, "Cannot KClientHttpRequestGET", pof->cache->addr);
+    for (i = 0; i < 3; ++i) {
+        rc = KClientHttpRequestGET(req, &rslt);
+        DISP_RC2(rc, "Cannot KClientHttpRequestGET", pof->cache->addr);
 
-    if (rc == 0) {
-        rc = KClientHttpResultGetInputStream(rslt, &s);
-        DISP_RC2(rc, "Cannot KClientHttpResultGetInputStream",
-            pof->cache->addr);
+        if (rc == 0) {
+            rc = KClientHttpResultGetInputStream(rslt, &s);
+            DISP_RC2(rc, "Cannot KClientHttpResultGetInputStream",
+                pof->cache->addr);
+        }
+
+        if (rc != 0)
+            break;
+        else if (s != NULL)
+            break;
+        else /* retry 3 times to call GET if returned KStream is NULL */
+            RELEASE(KClientHttpResult, rslt);
+    }
+
+    if (s == NULL) {
+        *rw = RC(rcExe, rcFile, rcCopying, rcTransfer, rcNull);
+        return rc;
     }
 
     for (*rw = 0; *rw == 0 && rc == 0; ) {
@@ -1051,7 +1071,9 @@ static rc_t PrfMainDownloadFile(const PrfMain * self, PrfOutFile * pof,
     rc_t testRc = 1;
 #endif
 
-    assert(self && retrier && rwr);
+    assert(self);
+    assert(retrier);
+    assert(rwr);
 
     while (rc == 0) {
         size_t num_read = 0, num_writ = 0;
@@ -1228,13 +1250,19 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     }
 
     if (rc == 0 && (rw != 0 || PrfOutFileIsLoaded (pof))
-        && pof->pos > 0 && Quitting() == 0)
+       /* && pof->pos > 0 :
+       sometimes KClientHttpResultGetInputStream() returns NULL
+       and streaming fails: try KFile anyway */
+        && Quitting() == 0)
     {
 #ifdef TESTING_FAILURES
         bool already = false;
         rc_t testRc = 1;
 #endif
         PrfRetrier retrier;
+
+        rw = 0;
+
         if (in == NULL)
             rc = _KFileOpenRemote(&in, mane->kns, path,
                 &src, !self->isUri);
@@ -1243,12 +1271,14 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
     }
 
-    if (rwr == 0)
-        PrfOutFileCommitDo(pof);
+    if (!mane->dryRun) {
+        if (rwr == 0)
+            PrfOutFileCommitDo(pof);
 
-    r2 = PrfOutFileClose(pof);
-    if (r2 != 0 && rc == 0)
-        rc = r2;
+        r2 = PrfOutFileClose(pof);
+        if (r2 != 0 && rc == 0)
+            rc = r2;
+    }
 
     destroy_progressbar(pb);
 
@@ -1464,8 +1494,8 @@ static rc_t POFValidate(PrfOutFile * self,
                 *vSz = eVno;
                 self->invalid = true;
             }
-            if (size > 0x20000000) /* don't check md5 for large encrypted */
-                checkMd5 = false;  /* files: it takes forever */
+            if (size > 0x20000000 && *encrypted) /* don't check md5 for large */
+                checkMd5 = false;       /*  encrypted files: it takes forever */
         }
     }
 
@@ -1525,12 +1555,12 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
         }
     }
     if (rc == 0) {
-        rc_t rd = 0;
-        bool ascp = false;
         String scheme;
         rc = VPathGetScheme(path, &scheme);
-        ascp = _SchemeIsFasp(&scheme);
-        if (!mane->noAscp) {
+        if (rc == 0) {
+          rc_t rd = 0;
+          bool ascp = _SchemeIsFasp(&scheme);
+          if (!mane->noAscp) {
             if (ascp) {
                 STSMSG(STS_TOP, (" Downloading via fasp..."));
                 if (mane->forceAscpFail)
@@ -1557,11 +1587,13 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                         STSMSG(STS_TOP, (" FASP download failed"));
                 }
             }
-        }
-        if (!ascp && /*(rc != 0 && GetRCObject(rc) != rcMemory&&*/
+          }
+          if (!ascp && /*(rc != 0 && GetRCObject(rc) != rcMemory&&*/
             !canceled && !mane->noHttp) /*&& !self->isUri))*/
-        {
+          {
             bool https = true;
+            if (scheme.size == 4)
+                https = false;
             STSMSG(STS_TOP,
                 (" Downloading via %s...", https ? "HTTPS" : "HTTP"));
             if (mane->eliminateQuals)
@@ -1581,9 +1613,10 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                     STSMSG(STS_TOP, (" %s download failed",
                         https ? "HTTPS" : "HTTP"));
             }
-        }
-        if ( rc == 0 && rd != 0 )
+          }
+          if ( rc == 0 && rd != 0 )
             rc = rd;
+        }
     }
     return rc;
 }
@@ -1808,7 +1841,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         }
     }
 
-    if (rc == 0) {
+    if (rc == 0 && !mane->dryRun) {
         EValidate size = eVinit;
         EValidate md5 = eVinit;
         bool encrypted = false;
@@ -1860,7 +1893,6 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
 
     RELEASE(VPath, vcache);
     RELEASE(VPath, vremote);
-
 
     return rc;
 }
@@ -1932,10 +1964,16 @@ static rc_t ItemSetDependency(Item *self,
     assert(self);
     resolved = &self->resolved;
     if (rc == 0) {
-        if (remoteRc != 0)
+        if (remoteRc != 0) {
             rc = remoteRc;
-        else if (cacheRc != 0)
+            PLOGERR(klogInt, (klogInt, rc, "cannot get remote "
+                "location for '$(id)'", "id=%s", self->seq_id));
+        }
+        else if (cacheRc != 0) {
             rc = cacheRc;
+            PLOGERR(klogInt, (klogInt, rc, "cannot get cache "
+                "location for '$(id)'", "id=%s", self->seq_id));
+        }
         else {
             VPathStr * v = NULL;
             String fasp;

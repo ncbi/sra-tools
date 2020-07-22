@@ -1241,6 +1241,9 @@ rc_t CC KMain ( int argc, char *argv [] )
                         LOGERR (klogInt, rc, "Unable to read target parameter");
                     else
                     {
+                        const VFSManager * vfs = NULL;
+                        VResolver * resolver = NULL;
+                        VPath * query = NULL;
                         char objpath [ 4096 ];
                         bool found;
                         uint32_t type;
@@ -1248,15 +1251,12 @@ rc_t CC KMain ( int argc, char *argv [] )
                         found = false;
 
                         {
-                            const VFSManager * vfs;
                             rc = KDBManagerGetVFSManager ( mgr, ( VFSManager ** )&vfs );
                             if ( rc == 0 )
                             {
-                                VResolver * resolver;
                                 rc = VFSManagerGetResolver ( vfs, & resolver );
                                 if ( rc == 0 )
                                 {
-                                    VPath * query;
                                     rc = VFSManagerMakePath ( vfs, & query, "%s", pc );
                                     if ( rc == 0 )
                                     {
@@ -1274,14 +1274,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                                         {
                                             rc = 0;
                                         }
-
-                                        VPathRelease ( query );
                                     }
-
-                                    VResolverRelease ( resolver );
                                 }
-
-                                VFSManagerRelease ( vfs );
                             }
                         }
 
@@ -1315,9 +1309,29 @@ rc_t CC KMain ( int argc, char *argv [] )
                             break;
 
                         case kptNotFound:
-                            rc = RC ( rcDB, rcMgr, rcAccessing, rcPath, rcNotFound );
-                            PLOGERR ( klogErr, ( klogErr, rc, "'$(path)' not found", "path=%s", pc ));
+                          {
+                            if (resolver != NULL) {
+                                const VPath * remote = NULL;
+                                rc = VResolverQuery(resolver, 0, query, NULL, &remote, NULL);
+                                if (rc == 0) {
+                                    rc = VPathReadUri(remote,
+                                        objpath, sizeof objpath, NULL);
+                                    if (rc == 0) {
+                                        type = KDBManagerPathType(mgr,
+                                            "%s", objpath);
+                                        found = true;
+                                    }
+                                    VPathRelease(remote);
+                                }
+                            }
+                            if (!found) {
+                                rc = RC ( rcDB,
+                                    rcMgr, rcAccessing, rcPath, rcNotFound );
+                                PLOGERR ( klogErr, ( klogErr, rc,
+                                    "'$(path)' not found", "path=%s", pc ));
+                            }
                             break;
+                          }
                         }
                         if (rc == 0)
                         {
@@ -1354,6 +1368,10 @@ rc_t CC KMain ( int argc, char *argv [] )
                                 VectorWhack (&q, NULL, NULL);
                             }
                         }
+
+                        VPathRelease(query);
+                        VResolverRelease(resolver);
+                        VFSManagerRelease(vfs);
                     }
                     KDBManagerRelease (mgr);
                 }

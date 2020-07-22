@@ -99,6 +99,7 @@ diff-exclude CLIPPED_READ
 diff-exclude EDIT_DISTANCE
 diff-exclude RIGHT_SOFT_CLIP
 diff-exclude MATE_EDIT_DISTANCE
+diff-exclude TEMPLATE_LEN
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE

@@ -59,6 +59,8 @@
 #include <klib/out.h>
 #endif
 
+#include "helper.h"
+
 typedef struct bg_progress
 {
     KThread * thread;
@@ -134,11 +136,14 @@ rc_t bg_progress_make( bg_progress ** bgp, uint64_t max_value, uint32_t sleep_ti
         atomic64_set( &p -> max_value, max_value );
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
         p -> digits = digits == 0 ? 2 : digits;
-        rc = KThreadMake( & p -> thread, bg_progress_thread_func, p );
-        if ( rc == 0 )
-            *bgp = p;
-        else
+        rc = helper_make_thread( & p -> thread, bg_progress_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        if ( 0 != rc )
+        {
+            ErrMsg( "progress_thread.c helper_make_thread( bg-progress-thread ) -> %R", rc );
             free( p );
+        }
+        else
+            *bgp = p;
     }
     return rc;
 }
@@ -251,11 +256,14 @@ rc_t bg_update_make( bg_update ** bga, uint32_t sleep_time )
     else
     {
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
-        rc = KThreadMake( & p -> thread, bg_update_thread_func, p );
-        if ( rc == 0 )
-            *bga = p;
-        else
+        rc = helper_make_thread( & p -> thread, bg_update_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        if ( 0 != rc )
+        {
+            ErrMsg( "progress_thread.c helper_make_thread( bg-update-thread ) -> %R", rc );
             free( p );
+        }
+        else
+            *bga = p;
     }
     return rc;
 }

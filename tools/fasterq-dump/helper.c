@@ -1262,3 +1262,12 @@ bool match_Buf2NA( Buf2NA * self, const String * ascii )
     }
     return res;
 }
+
+rc_t helper_make_thread( KThread ** self,
+                         rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                         void * data,
+                         size_t stacksize )
+{
+    rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );
+    return rc;
+}

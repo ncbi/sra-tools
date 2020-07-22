@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	kdbmeta            \
 	read-filter-redact \
 	prefetch        \
 	dump-test       \
@@ -45,7 +46,6 @@ SUBDIRS =    \
 	kar             \
 	copycat         \
 	sra-stat        \
-	srapath         \
 	sra-sort        \
 	sra-pileup      \
 	fuse            \
@@ -55,6 +55,8 @@ SUBDIRS =    \
 	vdb-copy        \
 	qual-recalib-stat \
 	vdb-validate      \
+	make-read-filter  \
+	srapath           \
 
 # under construction
 #    ngs-pileup      \

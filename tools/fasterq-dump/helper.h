@@ -241,6 +241,20 @@ rc_t make_Buf2NA( struct Buf2NA ** self, size_t size, const char * pattern );
 void release_Buf2NA( struct Buf2NA * self );
 bool match_Buf2NA( struct Buf2NA * self, const String * ascii );
 
+/* ===================================================================================== */
+
+/* common define for bigger stack-size */
+#define THREAD_BIG_STACK_SIZE ((size_t)(16u * 1024u * 1024u))
+#define THREAD_DFLT_STACK_SIZE ((size_t)(0))
+
+/* common-function to create a thread with a given thread-size */
+rc_t helper_make_thread( KThread ** self,
+                         rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                         void * data,
+                         size_t stacksize );
+
+/* ===================================================================================== */
+
 #ifdef __cplusplus
 }
 #endif

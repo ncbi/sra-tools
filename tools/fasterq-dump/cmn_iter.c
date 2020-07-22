@@ -40,6 +40,8 @@
 #include <vdb/cursor.h>
 #include <vdb/database.h>
 
+#include <insdc/sra.h>  /* platform enum */
+
 #include <os-native.h>
 #include <sysalloc.h>
 
@@ -379,7 +381,7 @@ rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t **
                                  (const void **)values, &boff, &row_len );
     if ( rc != 0 )
         ErrMsg( "cmn_iter.c cmn_read_uint32_array( #%ld ).VCursorCellDataDirect() -> %R\n", self -> row_id, rc );
-    else if ( elem_bits != 32 || boff != 0 || row_len < 1 )
+    else if ( elem_bits != 32 || boff != 0 )
     {
         ErrMsg( "row#%ld : bits=%d, boff=%d, len=%d\n", self -> row_id, elem_bits, boff, row_len );
         rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
@@ -437,6 +439,59 @@ static bool contains( VNamelist * tables, const char * table )
     return ( rc == 0 );
 }
 
+static bool cmn_get_db_platform( const VDatabase * db, const char * accession, uint8_t * pf )
+{
+    bool res = false;
+    const VTable * tbl = NULL;
+    rc_t rc = VDatabaseOpenTableRead ( db, &tbl, "SEQUENCE" );
+    if ( rc != 0 )
+        ErrMsg( "cmn_iter.c cmn_get_db_platform().VDatabaseOpenTableRead( '%s' ) -> %R\n", accession, rc );
+    else
+    {
+        const VCursor * curs = NULL;
+        rc = VTableCreateCursorRead( tbl, &curs );
+        if ( rc != 0 )
+            ErrMsg( "cmn_iter.c cmn_get_db_platform().VTableCreateCursor( '%s' ) -> %R\n", accession, rc );
+        else
+        {
+            uint32_t idx;
+            rc = VCursorAddColumn( curs, &idx, "PLATFORM" );
+            if ( rc != 0 )
+                ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorAddColumn( '%s', PLATFORM ) -> %R\n", accession, rc );
+            else
+            {
+                rc = VCursorOpen( curs );
+                if ( rc != 0 )
+                    ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorOpen( '%s' ) -> %R\n", accession, rc );
+                else
+                {
+                    int64_t first;
+                    uint64_t count;
+                    rc = VCursorIdRange( curs, idx, &first, &count );
+                    if ( rc != 0 )
+                        ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorIdRange( '%s' ) -> %R\n", accession, rc );
+                    else if ( count > 0 )
+                    {
+                        uint32_t elem_bits, boff, row_len;
+                        uint8_t *values;
+                        rc = VCursorCellDataDirect( curs, first, idx, &elem_bits, (const void **)&values, &boff, &row_len );
+                        if ( rc != 0 )
+                            ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorCellDataDirect( '%s' ) -> %R\n", accession, rc );
+                        else if ( values != NULL && elem_bits == 8 && boff == 0 && row_len > 0 )
+                        {
+                            *pf = values[ 0 ];
+                            res = true;
+                        }
+                    }
+                }
+            }
+            VCursorRelease( curs );
+        }
+        VTableRelease( tbl );
+    }
+    return res;
+}
+
 /*typedef enum acc_type_t { acc_csra, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;*/
 static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accession )
 {
@@ -469,9 +524,24 @@ static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accessio
                     {
                         res = acc_csra;
                     }
-                    else if ( contains( tables, "CONSENSUS" ) )
+                    else
                     {
-                        res = acc_pacbio;
+                        if ( contains( tables, "CONSENSUS" ) ||
+                             contains( tables, "ZMW_METRICS" ) ||
+                             contains( tables, "PASSES" ) )
+                        {
+                            res = acc_pacbio;
+                        }
+                        else
+                        {
+                            /* last resort try to find out what the database-type is */
+                            uint8_t pf;
+                            if ( cmn_get_db_platform( db, accession, &pf ) )
+                            {
+                                if ( pf == SRA_PLATFORM_PACBIO_SMRT )
+                                    res = acc_pacbio;
+                            }
+                        }
                     }
                 }
             }

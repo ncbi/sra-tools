@@ -63,16 +63,16 @@ endif
 no-test:
 	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
-align-cache: $(BINDIR)/align-cache
+align-cache: $(DIRTOTEST)/align-cache
 	@ rm -rf CSRA_file.cache
 	@ echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
-	@ VDB_CONFIG=`pwd` $(DIRTOTEST)/align-cache \
+	 VDB_CONFIG=`pwd` $(DIRTOTEST)/align-cache \
 	                          -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
 	@ $(DIRTOTEST)/vdb-validate CSRA_file.cache/ 2>&1 \
 	                          | grep --quiet "is consistent"
 	@ rm tmp.kfg
 	@ rm -rf CSRA_file.cache
 	
-vg: $(BINDIR)/align-cache
+vg: $(DIRTOTEST)/align-cache
 	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress \
 	 $(DIRTOTEST)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache

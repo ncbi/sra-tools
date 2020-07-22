@@ -52,7 +52,7 @@ runtests: announce vdb-validate
 announce:
 	@ echo Testing $(DIRTOTEST)
 
-vdb-validate: $(BINDIR)/vdb-validate
+vdb-validate: $(DIRTOTEST)/vdb-validate
 	@ echo "Starting vdb-validate tests..."
 	@ rm -rf actual/
 	@ mkdir actual/

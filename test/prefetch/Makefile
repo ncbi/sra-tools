@@ -852,6 +852,13 @@ ad_as_dir: # turned off by default. Library test is in
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 	@ echo we can use AD as dir/...
 	@ mkdir -p tmp
-	@ export NCBI_SETTINGS=\ && export PATH=$(SRATOOLS_BINDIR):$(PATH) \
+	@ export NCBI_SETTINGS=/ && export PATH=$(SRATOOLS_BINDIR):$(PATH) \
 		&& cd tmp && perl ../use-AD-as-dir.pl
+	@ rm -r tmp
+
+dump-vs-prefetch:
+	@ rm -frv tmp/*
+	@ mkdir -pv tmp
+	@ cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH=$(B):$(PATH) \
+	                                 perl ../dump-vs-prefetch.pl
 	@ rm -r tmp

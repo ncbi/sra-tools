@@ -387,6 +387,9 @@ static void updateCacheColumn1(  char const *const type
             pLogMsg(klogInfo, "progress: $(row) rows for $(col)", "row=%li,col=%s", row, name);
         }
 #endif
+        if (row == first)
+            setRow(first, out);
+
         openRow(row, out);
         writeCell(row, &data, cid_out, out);
         commitRow(row, out);

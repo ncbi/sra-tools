@@ -326,6 +326,16 @@ static int pathType(VDBManager const *mgr, char const *path)
     exit(EX_TEMPFAIL);
 }
 
+static void setRow(int64_t const row, VCursor const *const out)
+{
+    rc_t const rc = VCursorSetRowId(out, row);
+    assert(rc == 0); /* This is a programmer error, it can only happen when called out of order. */
+    if (rc) {
+        pLogErr(klogFatal, rc, "Failed to set row $(row)", "row=%li", row);
+        exit(EX_SOFTWARE);
+    }
+}
+
 static void openRow(int64_t const row, VCursor const *const out)
 {
     rc_t const rc = VCursorOpenRow(out);

@@ -278,6 +278,33 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
         rc3 = KDirectoryRemove(self, false, "%s", lock);
         if (rc2 == 0 && rc3 != 0)
             rc2 = rc3;
+
+        {   /* remove an empty AD directory id fownload failed or --dryrun */
+            size_t size = string_measure(lock, NULL);
+            const char * slash = NULL;
+            const char * lastslash = string_rchr(lock, size, '/');
+            if (lastslash != NULL)
+                slash = string_rchr(lock, lastslash - lock, '/');
+            if (slash != NULL) {
+                KNamelist * list = NULL;
+                rc = KDirectoryList(self, &list, NULL, NULL, "%.*s",
+                    (int)((lock + (lastslash - lock)) - (slash + 1)),
+                    slash + 1);
+                if (rc == 0) {
+                    uint32_t count = 0;
+                    rc = KNamelistCount(list, &count);
+                    if (rc == 0 && count == 0) {
+                        STSMSG(STS_DBG, ("removing empty '%.*s'",
+                            (int)((lock + (lastslash - lock)) - (slash + 1)),
+                            slash + 1));
+                        rc = KDirectoryRemove(self, false, "%.*s",
+                            (int)((lock + (lastslash - lock)) - (slash + 1)),
+                            slash + 1);
+                    }
+                }
+                RELEASE(KNamelist, list);
+            }
+        }
     }
 
     if (rc == 0 && rc2 != 0)
@@ -994,6 +1021,12 @@ static rc_t PrfMainDownloadStream(const PrfMain * self, PrfOutFile * pof,
         DISP_RC2(rc, "Cannot KClientHttpRequestGET", pof->cache->addr);
 
         if (rc == 0) {
+            uint32_t code = 0;
+            rc = KClientHttpResultStatus(rslt, &code, NULL, 0, NULL);
+            if (rc != 0)
+                break;
+            else if (code != 200)
+                break;
             rc = KClientHttpResultGetInputStream(rslt, &s);
             DISP_RC2(rc, "Cannot KClientHttpResultGetInputStream",
                 pof->cache->addr);
@@ -1266,9 +1299,11 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
         if (in == NULL)
             rc = _KFileOpenRemote(&in, mane->kns, path,
                 &src, !self->isUri);
-        PrfRetrierInit(&retrier, mane, path,
-            &src, self->isUri, &in, size, pof->pos);
-        rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
+        if (rc == 0) {
+            PrfRetrierInit(&retrier, mane, path,
+                &src, self->isUri, &in, size, pof->pos);
+            rc = PrfMainDownloadFile(mane, pof, in, size, pb, &rwr, &retrier);
+        }
     }
 
     if (!mane->dryRun) {
@@ -1782,18 +1817,19 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                 const VPath * vdbcache = NULL;
                 rc_t rc = VPathGetVdbcache(vremote, & vdbcache, NULL);
                 if (rc == 0 && vdbcache != NULL) {
+                    rc_t r2 = 0;
                     STSMSG(STS_TOP, ("%d.2) Downloading '%s.vdbcache'...",
                         item->number, name));
-                    if (PrfMainDownload(self, item, isDependency, vdbcache)
-                        == 0)
-                    {
+                    r2 = PrfMainDownload(self, item, isDependency, vdbcache);
+                    if (r2 == 0) {
                         STSMSG(STS_TOP, (
                             "%d.2) '%s.vdbcache' was downloaded successfully",
                             item->number, name));
                     }
                     else
-                        STSMSG(STS_TOP, ("%d) failed to download %s.vdbcache",
-                            item->number, name));
+                        STSMSG(STS_TOP, (
+                            "%d) failed to download '%s.vdbcache': %R",
+                            item->number, name, r2));
                     RELEASE(VPath, vdbcache);
                 }
             }
@@ -2675,13 +2711,13 @@ static rc_t ItemDownload(Item *item) {
             else if (rc != SILENT_RC(rcExe,
                 rcProcess, rcExecuting, rcProcess, rcCanceled))
             {
-                STSMSG(STS_TOP, ("%d) failed to download %s", n, name));
+                STSMSG(STS_TOP,
+                    ("%d) failed to download '%s': %R", n, name, rc));
             }
         }
     }
-    else {
+    else
         STSMSG(STS_TOP, ("%d) cannot locate '%s'", n, self->name));
-    }
 
     return rc;
 }

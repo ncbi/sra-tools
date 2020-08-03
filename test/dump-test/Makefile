@@ -31,4 +31,4 @@ include $(TOP)/build/Makefile.env
 runtests: check_fastq_dump_crash
 
 check_fastq_dump_crash:
-	@ $(BINDIR)/fastq-dump -Z -split-3 ERR034677 SRR125365 > /dev/null 2>&1
+	@NCBI_SETTINGS=/ $(BINDIR)/fastq-dump -Z -split-3 ERR034677 SRR125365 > /dev/null 2>&1

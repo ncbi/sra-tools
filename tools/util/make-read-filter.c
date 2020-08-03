@@ -387,6 +387,9 @@ static void updateCacheColumn1(  char const *const type
             pLogMsg(klogInfo, "progress: $(row) rows for $(col)", "row=%li,col=%s", row, name);
         }
 #endif
+        if (row == first)
+            setRow(first, out);
+
         openRow(row, out);
         writeCell(row, &data, cid_out, out);
         commitRow(row, out);
@@ -458,6 +461,33 @@ static void updateCacheTable(  VTable *const out
     VTableRelease(out);
     VTableRelease(in);
     VTableRelease(gate);
+}
+
+/** length of a common prefix
+ */
+static size_t prefixlen(char const *const a, char const *const b)
+{
+    size_t i = 0;
+    for ( ; ; ) {
+        int const cha = a[i];
+        int const chb = b[i];
+        if (cha == '\0' || chb == '\0' || cha != chb)
+            return i;
+        ++i;
+    }
+}
+
+/** check if cachePath == inPath + ".vdbcache"
+ */
+static bool checkForActiveCache(char const *const cachePath, char const *const inPath)
+{
+    size_t prefixLength;
+    if (cachePath == NULL)
+        return false;
+    prefixLength = prefixlen(cachePath, inPath);
+    if (inPath[prefixLength] != '\0')
+        return false;
+    return strcmp(cachePath + prefixLength, ".vdbcache") == 0;
 }
 
 static void updateCache2(char const *const cachePath, char const *const inPath, size_t const changedCount, int64_t const *const changedRows, VDBManager *const mgr)
@@ -541,6 +571,7 @@ void main_1(int argc, char *argv[])
         Args *const args = getArgs(argc, argv);
         char const *const input = getParameter(args, wd);
         char const *const cachePath = absolutePath(getOptArgValue(OPT_CACHE, args), wd);
+        bool const isActiveCache = checkForActiveCache(cachePath, input);
         char const *const tempDir = temporaryDirectory(args); // also cd's to temp dir
         VDBManager *const mgr = manager();
         VSchema *const schema = makeSchema(mgr); // this schema will get a copy of the input's schema
@@ -549,6 +580,9 @@ void main_1(int argc, char *argv[])
         VTable const *const in = openInput(input, mgr, &noDb, &schemaType, schema);
         VTable *const out = createOutput(args, mgr, noDb, schemaType, schema);
 
+        if (isActiveCache) {
+            pLogMsg(klogWarn, "vdbcache should NOT be named $(inpath).vdbcache; rename it or put it in a different directory!!!", "inpath=%s", input);
+        }
         processTables(out, in, cachePath != NULL);
         copyColumn("RD_FILTER", noDb ? NULL : "SEQUENCE", TEMP_MAIN_OBJECT_NAME, input, mgr);
         saveCounts(noDb ? NULL : "SEQUENCE", input, mgr);

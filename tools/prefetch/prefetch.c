@@ -279,27 +279,21 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
         if (rc2 == 0 && rc3 != 0)
             rc2 = rc3;
 
-        {   /* remove an empty AD directory id fownload failed or --dryrun */
-            size_t size = string_measure(lock, NULL);
-            const char * slash = NULL;
-            const char * lastslash = string_rchr(lock, size, '/');
-            if (lastslash != NULL)
-                slash = string_rchr(lock, lastslash - lock, '/');
+        {   /* remove an empty AD directory if download failed or --dryrun */
+            const char * slash
+                = string_rchr(lock, string_measure(lock, NULL), '/');
             if (slash != NULL) {
                 KNamelist * list = NULL;
                 rc = KDirectoryList(self, &list, NULL, NULL, "%.*s",
-                    (int)((lock + (lastslash - lock)) - (slash + 1)),
-                    slash + 1);
+                    (int)(slash - lock), lock);
                 if (rc == 0) {
                     uint32_t count = 0;
                     rc = KNamelistCount(list, &count);
                     if (rc == 0 && count == 0) {
                         STSMSG(STS_DBG, ("removing empty '%.*s'",
-                            (int)((lock + (lastslash - lock)) - (slash + 1)),
-                            slash + 1));
+                            (int)(slash - lock), lock));
                         rc = KDirectoryRemove(self, false, "%.*s",
-                            (int)((lock + (lastslash - lock)) - (slash + 1)),
-                            slash + 1);
+                            (int)(slash - lock), lock);
                     }
                 }
                 RELEASE(KNamelist, list);

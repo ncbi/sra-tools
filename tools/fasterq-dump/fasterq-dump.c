@@ -432,7 +432,7 @@ static rc_t handle_accession( tool_ctx_t * tool_ctx )
     tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );
     if ( tool_ctx -> accession_short == NULL )
     {
-        rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );            
+        rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );
         ErrMsg( "accession '%s' invalid", tool_ctx -> accession_path );
     }
     return rc;
@@ -1003,6 +1003,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */
                     VDBManagerRelease( tool_ctx . vdb_mgr );
                 }
+                if ( NULL != tool_ctx . accession_short )
+                    free( ( char * )tool_ctx . accession_short );
             }
         }
     }

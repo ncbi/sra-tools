@@ -792,6 +792,23 @@ bool ends_in_slash( const char * s )
     return res;
 }
 
+static bool ends_in_sra( const char * s )
+{
+    bool res = false;
+    if ( s != NULL )
+    {
+        uint32_t len = string_measure( s, NULL );
+        if ( len > 4 )
+        {
+            res = ( ( s[ len - 1 ] == 'a' ) &&
+                    ( s[ len - 2 ] == 'r' ) &&
+                    ( s[ len - 3 ] == 's' ) &&
+                    ( s[ len - 4 ] == '.' ) );
+        }
+    }
+    return res;
+}
+
 bool extract_path( const char * s, String * path )
 {
     bool res = false;
@@ -816,19 +833,36 @@ bool extract_path( const char * s, String * path )
     return res;
 }
 
+
 const char * extract_acc( const char * s )
 {
     const char * res = NULL;
-    if ( s != NULL )
+    if ( ( s != NULL ) && ( ! ends_in_slash( s ) ) )
     {
-        if ( !ends_in_slash( s ) )
+        size_t size = string_size ( s );
+        char * slash = string_rchr ( s, size, '/' );
+        if ( slash == NULL )
         {
-            size_t size = string_size ( s );
-            char * slash = string_rchr ( s, size, '/' );
-            if ( slash == NULL )
-                res = s;
+            if ( ends_in_sra( s ) )
+            {
+                res = string_dup ( s, size - 4 );
+            }
             else
-                res = slash + 1;
+            {
+                res = string_dup ( s, size );
+            }
+        }
+        else
+        {
+            char * tmp = slash + 1;
+            if ( ends_in_sra( tmp ) )
+            {
+                res = string_dup ( tmp, string_size ( tmp ) - 4 );
+            }
+            else
+            {
+                res = string_dup ( tmp, string_size ( tmp ) );
+            }
         }
     }
     return res;

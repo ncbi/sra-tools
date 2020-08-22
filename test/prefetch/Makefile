@@ -394,7 +394,7 @@ out_dir_and_file:
 
 	@ echo PREFETCH ACCESSION TO OUT-FILE
 	@ rm -f `pwd`/tmp-file*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	@ NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=1 VDB_CONFIG=`pwd`/tmp \
 	    $(DIRTOTEST)/prefetch $(SRAC) -o tmp-file -v > /dev/null
 	@ ls `pwd`/tmp-file > /dev/null
 	@ rm `pwd`/tmp-file

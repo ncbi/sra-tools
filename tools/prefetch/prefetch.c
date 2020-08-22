@@ -1248,13 +1248,44 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             RELEASE(CloudMgr, m);
         }
 
-        if (reliable)
-            if (ceRequired && ce_token != NULL)
-                rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                    &kns_req, http_vers, NULL, "%S&ident=%S", &src, ce_token);
-            else
-                rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                    &kns_req, http_vers, NULL, "%S", &src);
+#define ENV_VAR_LOG_HTTP_RETRY "NCBI_VDB_LOG_HTTP_RETRY"
+
+        if (reliable) {
+            bool toLog = false;
+            const char * e = getenv(ENV_VAR_LOG_HTTP_RETRY);
+            if ((e != NULL) && (e[0] == '1'))
+                toLog = true;
+            for (int i = 1; i < 9; ++i) {
+                if (ceRequired && ce_token != NULL)
+                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                        &kns_req, http_vers, NULL, "%S&ident=%S", &src,
+                        ce_token);
+                else
+                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                        &kns_req, http_vers, NULL, "%S", &src);
+                if (rc == 0) {
+                    if (toLog && i > 0)
+                        PLOGERR(klogErr, (klogErr, rc,
+                            "KNSManagerMakeReliableClientRequest success: "
+                            "attempt $(n)", "n=%d", i));
+                    break;
+                }
+                if (GetRCObject(rc) == rcConnection ||
+                    GetRCObject(rc) == (enum RCObject)(rcTimeout))
+                {
+                    if (toLog && i > 0)
+                        PLOGERR(klogErr, (klogErr, rc,
+                            "Cannot KNSManagerMakeReliableClientRequest: "
+                            "retrying $(n)...", "n=%d", i));
+                }
+                else {
+                    if (toLog && i > 0)
+                        LOGERR(klogErr, rc,
+                            "Cannot KNSManagerMakeReliableClientRequest");
+                    break;
+                }
+            }
+        }
         else
             if (ceRequired && ce_token != NULL)
                 rc = KNSManagerMakeClientRequest(mane->kns,

@@ -66,7 +66,9 @@
 #include <klib/progressbar.h> /* make_progressbar */
 #include <klib/rc.h>
 #include <klib/status.h> /* STSMSG */
+#include <klib/strings.h> /* ENV_VAR_LOG_HTTP_RETRY */
 #include <klib/text.h> /* String */
+#include <klib/time.h> /* KSleep */
 
 #include <strtol.h> /* strtou64 */
 #include <sysalloc.h>
@@ -1248,13 +1250,11 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             RELEASE(CloudMgr, m);
         }
 
-#define ENV_VAR_LOG_HTTP_RETRY "NCBI_VDB_LOG_HTTP_RETRY"
-
         if (reliable) {
-            bool toLog = false;
+            int logLevel = 0;
             const char * e = getenv(ENV_VAR_LOG_HTTP_RETRY);
-            if ((e != NULL) && (e[0] == '1'))
-                toLog = true;
+            if (e != NULL)
+                logLevel = atoi(e);
             for (int i = 1; i < 9; ++i) {
                 if (ceRequired && ce_token != NULL)
                     rc = KNSManagerMakeReliableClientRequest(mane->kns,
@@ -1264,7 +1264,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                     rc = KNSManagerMakeReliableClientRequest(mane->kns,
                         &kns_req, http_vers, NULL, "%S", &src);
                 if (rc == 0) {
-                    if (toLog && i > 0)
+                    if (logLevel > 0 && i > 0)
                         PLOGERR(klogErr, (klogErr, rc,
                             "KNSManagerMakeReliableClientRequest success: "
                             "attempt $(n)", "n=%d", i));
@@ -1273,17 +1273,19 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
                 if (GetRCObject(rc) == rcConnection ||
                     GetRCObject(rc) == (enum RCObject)(rcTimeout))
                 {
-                    if (toLog && i > 0)
+                    if (logLevel > 0 && i > 0)
                         PLOGERR(klogErr, (klogErr, rc,
                             "Cannot KNSManagerMakeReliableClientRequest: "
                             "retrying $(n)...", "n=%d", i));
                 }
                 else {
-                    if (toLog && i > 0)
+                    if (logLevel > 0 && i > 0)
                         LOGERR(klogErr, rc,
                             "Cannot KNSManagerMakeReliableClientRequest");
                     break;
                 }
+                if (i > 1)
+                    KSleep(i - 1);
             }
         }
         else

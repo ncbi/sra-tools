@@ -150,7 +150,7 @@ urls_and_accs:
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
          echo prefetch $(SRR) when there is no kfg && \
-	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	     NCBI_VDB_RELIABLE=y NCBI_SETTINGS=/ VDB_CONFIG=`pwd`/tmp \
 	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
 	     rm -r $(SRAC) ; \
 	  else \
@@ -394,7 +394,7 @@ out_dir_and_file:
 
 	@ echo PREFETCH ACCESSION TO OUT-FILE
 	@ rm -f `pwd`/tmp-file*
-	@ NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=1 VDB_CONFIG=`pwd`/tmp \
+	@ NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
 	    $(DIRTOTEST)/prefetch $(SRAC) -o tmp-file -v > /dev/null
 	@ ls `pwd`/tmp-file > /dev/null
 	@ rm `pwd`/tmp-file

@@ -921,3 +921,17 @@ void vdbconf_model::check_guid( void )
         commit();
     }
 }
+
+/* full-quality related functions */
+bool vdbconf_model::get_full_quality( void ) const
+{
+    bool res = false;
+    MODEL_THROW_ON_RC( KConfig_Get_FullQuality( _config.Get(), &res ) );
+    return res;
+}
+
+void vdbconf_model::set_full_quality( bool b )
+{
+    MODEL_THROW_ON_RC ( KConfig_Set_FullQuality( _config.Get(), b ) );
+    _config.Updated();
+}

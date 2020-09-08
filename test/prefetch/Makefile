@@ -163,7 +163,7 @@ urls_and_accs:
 	  then \
 		echo SRR download when user repository is configured && \
 		NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
-			$(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+		   ENV_VAR_LOG_HTTP_RETRY=1 $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
 		ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null && \
 	     \
 	     echo Running prefetch second time finds previous download && \

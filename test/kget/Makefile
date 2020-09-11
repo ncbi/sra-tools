@@ -66,7 +66,7 @@ no-test:
 
 download:
 	@ PATH=$(DIRTOTEST):$(PATH) VDB_CONFIG=`pwd` \
-		$(CONFIGTOUSE)=/ $(PYTHON) test_kget.py # expect rc = 0 
+		$(CONFIGTOUSE)=/ NCBI_VDB_RELIABLE=y $(PYTHON) test_kget.py #expect rc=0
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget

@@ -247,6 +247,10 @@ class vdbconf_model
         std::string get_guid( void ) const;
         void check_guid( void );
 
+        /* full-quality related functions */
+        bool get_full_quality( void ) const;
+        void set_full_quality( bool b );
+
         // ----------------------------------------------------------------
         bool commit( void );
         void reload( void ); // throws on error

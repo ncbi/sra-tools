@@ -30,7 +30,10 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 runtests: \
+	announce \
 	built-in \
 	bogus \
 	container \
@@ -68,8 +71,11 @@ good: $(GOOD)
 
 container: $(CONTAINER)
 
+announce:
+	@echo Testing $(DIRTOTEST)
+
 $(TEMPDIR)/tmp.mkfg:
-	echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
+	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
 
 mkfg: $(TEMPDIR)/tmp.mkfg
 
@@ -86,7 +92,7 @@ $(GOOD): | actual mkfg
 	@# succeed, but everything up to the exec call is real
 	@echo "testing expected output for dry run of" $@ ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=$@ \
 	$(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
@@ -95,7 +101,7 @@ $(GOOD): | actual mkfg
 bogus: | actual mkfg
 	@echo "testing expected output for unknown tool" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=rcexplain \
 	$(BINDIR)/sratools 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
@@ -103,7 +109,7 @@ bogus: | actual mkfg
 $(CONTAINER): | actual mkfg
 	@echo "testing expected output for container" $@ ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
@@ -111,7 +117,7 @@ $(CONTAINER): | actual mkfg
 vdbcache: | actual mkfg
 	@echo "testing expected output for run with vdbcache" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=5 \
 	SRATOOLS_IMPERSONATE=vdb-dump \
 	$(BINDIR)/sratools SRR390728 2>actual/$@.stderr ; \
@@ -120,7 +126,7 @@ vdbcache: | actual mkfg
 split_3: | actual mkfg
 	@echo "testing expected output for fastq-dump --split-3" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --split-3 SRR390728 2>actual/$@.stderr ; \
@@ -129,7 +135,7 @@ split_3: | actual mkfg
 split_e: | actual mkfg
 	@echo "testing expected output for fastq-dump --split-e (sic)" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --split-e SRR390728 2>actual/$@.stderr ; \
@@ -138,7 +144,7 @@ split_e: | actual mkfg
 fasta_missing_param: | actual mkfg
 	@echo "testing expected output for fastq-dump --fasta <run>" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --fasta SRR390728 2>actual/$@.stderr ; \
@@ -147,7 +153,7 @@ fasta_missing_param: | actual mkfg
 fasta_default: | actual mkfg
 	@echo "testing expected output for fastq-dump --fasta default <run>" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --fasta default SRR390728 2>actual/$@.stderr ; \
@@ -156,7 +162,7 @@ fasta_default: | actual mkfg
 fasta_0: | actual mkfg
 	@echo "testing expected output for fastq-dump --fasta 0 <run>" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --fasta 0 SRR390728 2>actual/$@.stderr ; \
@@ -165,7 +171,7 @@ fasta_0: | actual mkfg
 fasta_number: | actual mkfg
 	@echo "testing expected output for fastq-dump --fasta <number> <run>" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --fasta 75 SRR390728 2>actual/$@.stderr ; \
@@ -174,7 +180,7 @@ fasta_number: | actual mkfg
 fasta_neg_number: | actual mkfg
 	@echo "testing expected output for fastq-dump --fasta -<number> <run>" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	PATH=$(BINDIR):$$PATH \
+	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --fasta -75 SRR390728 2>actual/$@.stderr ; \

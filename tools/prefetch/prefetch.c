@@ -66,7 +66,9 @@
 #include <klib/progressbar.h> /* make_progressbar */
 #include <klib/rc.h>
 #include <klib/status.h> /* STSMSG */
+#include <klib/strings.h> /* ENV_VAR_LOG_HTTP_RETRY */
 #include <klib/text.h> /* String */
+#include <klib/time.h> /* KSleep */
 
 #include <strtol.h> /* strtou64 */
 #include <sysalloc.h>
@@ -1248,13 +1250,44 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             RELEASE(CloudMgr, m);
         }
 
-        if (reliable)
-            if (ceRequired && ce_token != NULL)
-                rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                    &kns_req, http_vers, NULL, "%S&ident=%S", &src, ce_token);
-            else
-                rc = KNSManagerMakeReliableClientRequest(mane->kns,
-                    &kns_req, http_vers, NULL, "%S", &src);
+        if (reliable) {
+            int logLevel = 0;
+            const char * e = getenv(ENV_VAR_LOG_HTTP_RETRY);
+            if (e != NULL)
+                logLevel = atoi(e);
+            for (int i = 1; i < 9; ++i) {
+                if (ceRequired && ce_token != NULL)
+                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                        &kns_req, http_vers, NULL, "%S&ident=%S", &src,
+                        ce_token);
+                else
+                    rc = KNSManagerMakeReliableClientRequest(mane->kns,
+                        &kns_req, http_vers, NULL, "%S", &src);
+                if (rc == 0) {
+                    if (logLevel > 0 && i > 0)
+                        PLOGERR(klogErr, (klogErr, rc,
+                            "KNSManagerMakeReliableClientRequest success: "
+                            "attempt $(n)", "n=%d", i));
+                    break;
+                }
+                if (GetRCObject(rc) == rcConnection ||
+                    GetRCObject(rc) == (enum RCObject)(rcTimeout))
+                {
+                    if (logLevel > 0 && i > 0)
+                        PLOGERR(klogErr, (klogErr, rc,
+                            "Cannot KNSManagerMakeReliableClientRequest: "
+                            "retrying $(n)...", "n=%d", i));
+                }
+                else {
+                    if (logLevel > 0 && i > 0)
+                        LOGERR(klogErr, rc,
+                            "Cannot KNSManagerMakeReliableClientRequest");
+                    break;
+                }
+                if (i > 1)
+                    KSleep(i - 1);
+            }
+        }
         else
             if (ceRequired && ce_token != NULL)
                 rc = KNSManagerMakeClientRequest(mane->kns,

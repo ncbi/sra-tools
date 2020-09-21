@@ -150,7 +150,7 @@ urls_and_accs:
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
          echo prefetch $(SRR) when there is no kfg && \
-	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	     NCBI_VDB_RELIABLE=y NCBI_SETTINGS=/ VDB_CONFIG=`pwd`/tmp \
 	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
 	     rm -r $(SRAC) ; \
 	  else \
@@ -161,14 +161,14 @@ urls_and_accs:
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
-	     echo SRR download when user repository is configured && \
-	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
-	     ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null && \
+		echo SRR download when user repository is configured && \
+		NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
+		   ENV_VAR_LOG_HTTP_RETRY=1 $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+		ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null && \
 	     \
 	     echo Running prefetch second time finds previous download && \
 	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	           $(DIRTOTEST)/prefetch $(SRR) | grep "found local" > /dev/null ; \
+		$(DIRTOTEST)/prefetch $(SRR) | grep "found local" > /dev/null ; \
 	  else \
 	     echo prefetch test when CE is required is skipped ; \
 	  fi
@@ -394,7 +394,7 @@ out_dir_and_file:
 
 	@ echo PREFETCH ACCESSION TO OUT-FILE
 	@ rm -f `pwd`/tmp-file*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	@ NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
 	    $(DIRTOTEST)/prefetch $(SRAC) -o tmp-file -v > /dev/null
 	@ ls `pwd`/tmp-file > /dev/null
 	@ rm `pwd`/tmp-file

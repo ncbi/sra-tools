@@ -664,11 +664,12 @@ class vdbconf_view2 : public Dlg
                               model.is_site_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
             }
+            /*
             y += 2;
             PopulateCheckbox( use_repo_rect( r, y ), resize, MAIN_FULL_QUALITY, "Use Full &Qualities",
                               model.get_full_quality(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
-
+            */
             /* the GUID-label at the bottom */
             std::stringstream ss;
             ss << "GUID: " << model.get_guid();

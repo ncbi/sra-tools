@@ -429,7 +429,12 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
 static rc_t handle_accession( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
-    tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );
+    tool_ctx -> accession_short = extract_acc2( tool_ctx -> accession_path );
+
+    // in case something goes wrong with acc-extraction via VFS-manager
+    if ( tool_ctx -> accession_short == NULL )
+        tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );    
+
     if ( tool_ctx -> accession_short == NULL )
     {
         rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );

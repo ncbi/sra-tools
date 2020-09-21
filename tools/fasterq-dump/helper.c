@@ -36,6 +36,8 @@
 
 #include <kdb/manager.h>
 #include <vdb/manager.h>
+#include <vfs/manager.h>
+#include <vfs/path.h>
 
 rc_t ErrMsg( const char * fmt, ... )
 {
@@ -864,6 +866,37 @@ const char * extract_acc( const char * s )
                 res = string_dup ( tmp, string_size ( tmp ) );
             }
         }
+    }
+    return res;
+}
+
+const char * extract_acc2( const char * s )
+{
+    const char * res = NULL;
+    VFSManager * mgr;
+    rc_t rc = VFSManagerMake ( &mgr );
+    if ( 0 == rc )
+    {
+        VPath * orig;
+        rc = VFSManagerMakePath ( mgr, &orig, "%s", s );
+        if ( 0 == rc )
+        {
+            VPath * acc_or_oid;
+            rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
+            if ( 0 == rc )
+            {
+                char buffer[ 1024 ];
+                size_t num_read;
+                rc = VPathReadPath ( acc_or_oid, buffer, sizeof buffer, &num_read );
+                if ( 0 == rc )
+                {
+                    res = string_dup ( buffer, num_read );
+                }
+                VPathRelease ( acc_or_oid );
+            }
+            VPathRelease ( orig );
+        }
+        VFSManagerRelease ( mgr );
     }
     return res;
 }

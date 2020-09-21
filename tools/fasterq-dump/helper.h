@@ -166,6 +166,7 @@ rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse );
 bool ends_in_slash( const char * s );
 bool extract_path( const char * s, String * path );
 const char * extract_acc( const char * s );
+const char * extract_acc2( const char * s );
 
 rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
 rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );

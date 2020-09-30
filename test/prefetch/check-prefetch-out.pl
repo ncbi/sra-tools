@@ -12,7 +12,8 @@ die unless defined $cmd;
 # It accepts list of strings on STDIN
 # and expects them to be present in the same order in prefetch's output.
 
-my @out = `$cmd -vv 2>&1`;
+$cmd .= ' -vvv';
+my @out = `$cmd 2>&1`;
 print '$? = ' . "$?\n";
 die "Unexpected failure while running:\n'$cmd':\n@out" if ($? && ! $exit);
 die if (! $? && $exit);

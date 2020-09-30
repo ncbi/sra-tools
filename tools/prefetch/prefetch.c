@@ -355,17 +355,12 @@ static rc_t V_ResolverRemote(const VResolver *self,
     KSrvRespObjIterator * it = NULL;
     KSrvRespFile * file = NULL;
     const char * cgi = NULL;
-    const KNSManager * mgr = NULL;
 
     assert(resolved && item && item->mane);
 
     local = &resolved->local.path;
 
-    rc = VResolverGetKNSManager(self, &mgr);
-
-    if (rc == 0)
-        rc = KServiceMakeWithMgr(&service, NULL, mgr, NULL);
-
+    rc = KServiceMake ( & service );
     if ( rc == 0 && item -> seq_id != NULL ) {
         assert ( item -> isDependency  );
         id = item -> seq_id;
@@ -555,7 +550,6 @@ static rc_t V_ResolverRemote(const VResolver *self,
         }
     }
     RELEASE ( KSrvRespObj, obj );
-    RELEASE ( KNSManager, mgr );
     RELEASE ( KService, service );
     return rc;
 }
@@ -3565,14 +3559,14 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     {
         rc_t rc2 = PrfMainFini(&pars);
-        if (rc2 != 0 && rc == 0)
+        if (rc2 != 0 && rc == 0) {
             rc = rc2;
+        }
     }
 
-    if ( rc == 0 && insufficient )
+    if ( rc == 0 && insufficient ) {
         rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
-
-    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+    }
 
     return rc;
 }

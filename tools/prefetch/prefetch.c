@@ -3572,7 +3572,7 @@ rc_t CC KMain(int argc, char *argv[]) {
     if ( rc == 0 && insufficient )
         rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
 
-    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+    STSMSG(STS_DBG, ("%s: exiting with %R", __func__, rc));
 
     return rc;
 }

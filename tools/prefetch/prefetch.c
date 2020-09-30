@@ -3482,6 +3482,8 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     PrfMain pars;
 
+    STSMSG(STS_FIN, ("%s: entered", __func__));
+
     rc = PrfMainInit(argc, argv, &pars);
 
     if (rc == 0)

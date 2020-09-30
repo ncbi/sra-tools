@@ -792,7 +792,7 @@ kart: ##########################################################################
 	@echo "Downloading kart ordered by kart to user repo"
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
-	 perl ../check-prefetch-out.pl 0 0 \
+	 perl ../check-prefetch-out.pl 0 2 \
   "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
 	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
 	@rm    tmp/sra/SRR1219880_dbGaP-0.sra

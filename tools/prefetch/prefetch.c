@@ -3388,7 +3388,11 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                     item->mane = self;
                     ResolvedReset(&item->resolved, type);
 
+                    STSMSG(STS_FIN, ("%s: %d: entering ItemProcess...",
+                        __func__, n));
                     rc3 = ItemProcess(item, (int32_t)n);
+                    STSMSG(STS_FIN, ("%s: %d: ...ItemProcess done with %R",
+                        __func__, n, rc3));
                     if (rc3 != 0) {
                         if (rc == 0)
                             rc = rc3;

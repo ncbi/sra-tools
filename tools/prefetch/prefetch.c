@@ -3354,9 +3354,8 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
             else {
                 if (it.kart != NULL) {
                     OUTMSG(("Downloading kart file '%s'\n", realArg));
-                    if (type == eRunTypeGetSize) {
+                    if (type == eRunTypeGetSize)
                         OUTMSG(("Checking sizes of kart files...\n"));
-                    }
                 }
                 else if (self->jwtCart != NULL)
                     OUTMSG(("Downloading jwt cart file '%s'\n", self->jwtCart));
@@ -3369,32 +3368,29 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 bool done = false;
                 Item *item = NULL;
                 rc_t rcq = Quitting();
+                STSMSG(STS_FIN, ("%s: processing item %d...", __func__, n));
                 if (rcq != 0) {
-                    if (rc == 0) {
+                    if (rc == 0)
                         rc = rcq;
-                    }
                     break;
                 }
                 rc2 = IteratorNext(&it, &item, &done);
                 if (rc2 != 0 || done) {
-                    if (rc == 0 && rc2 != 0) {
+                    if (rc == 0 && rc2 != 0)
                         rc = rc2;
-                    }
                     break;
                 }
                 done = ! NumIteratorNext(&nit, n);
-                if (done) {
+                if (done)
                     break;
-                }
                 if (!nit.skip) {
                     item->mane = self;
                     ResolvedReset(&item->resolved, type);
 
                     rc3 = ItemProcess(item, (int32_t)n);
                     if (rc3 != 0) {
-                        if (rc == 0) {
+                        if (rc == 0)
                             rc = rc3;
-                        }
                     }
                     else {
                         if (item->resolved.undersized &&
@@ -3438,6 +3434,8 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 }
 
                 RELEASE(Item, item);
+                STSMSG(STS_FIN, ("%s: ...finished processing item %d",
+                    __func__, n));
             }
 
             if ( rc == 0 ) {

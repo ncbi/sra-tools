@@ -13,7 +13,7 @@ die unless defined $cmd;
 # and expects them to be present in the same order in prefetch's output.
 
 $cmd .= ' -vvv';
-my @out = `$cmd 2>&1`;
+my @out = `NCBI_VDB_SILENCE_MBEDTLS_READ= $cmd 2>&1`;
 print '$? = ' . "$?\n";
 die "Unexpected failure while running:\n'$cmd':\n@out" if ($? && ! $exit);
 die if (! $? && $exit);

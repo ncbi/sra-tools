@@ -2797,8 +2797,12 @@ static rc_t ItemPostDownload(Item *item, int32_t row);
 static
 rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
 {
-    rc_t rc = ItemResolve(self, row);
-    if (rc != 0)
+    rc_t rc = 0;
+    STSMSG(STS_FIN, ("%s: entered", __func__));
+    STSMSG(STS_FIN, ("%s: entering ItemResolve...", __func__));
+    rc = ItemResolve(self, row);
+    STSMSG(STS_FIN, ("%s: ...ItemResolve done with %R", __func__, rc));
+        if (rc != 0)
         return rc;
 
     assert(self);
@@ -2878,6 +2882,8 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
         if (rc == 0 && self->resolved.type == eRunTypeDownload)
             rc = ItemPostDownload(self, row);
     }
+
+    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
 
     return rc;
 }

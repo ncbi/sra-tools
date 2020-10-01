@@ -3482,9 +3482,9 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     PrfMain pars;
 
-    STSMSG(STS_FIN, ("%s: entered", __func__));
-
     rc = PrfMainInit(argc, argv, &pars);
+
+    STSMSG(STS_FIN, ("%s: entered", __func__));
 
     if (rc == 0)
         rc = ArgsParamCount(pars.args, &pcount);
@@ -3574,7 +3574,7 @@ rc_t CC KMain(int argc, char *argv[]) {
     if ( rc == 0 && insufficient )
         rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
 
-    STSMSG(STS_DBG, ("%s: exiting with %R", __func__, rc));
+    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
 
     return rc;
 }

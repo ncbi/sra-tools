@@ -3498,6 +3498,8 @@ rc_t CC KMain(int argc, char *argv[]) {
         insufficient = true;
     }
 
+    STSMSG(STS_FIN, ("%s: starting download...", __func__));
+
     if (rc == 0) {
         bool multiErrorReported = false;
         uint32_t i = ~0;
@@ -3564,6 +3566,8 @@ rc_t CC KMain(int argc, char *argv[]) {
             ));
         }
     }
+
+    STSMSG(STS_FIN, ("%s: ...download finished", __func__));
 
     {
         rc_t rc2 = PrfMainFini(&pars);

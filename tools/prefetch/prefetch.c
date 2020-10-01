@@ -3362,13 +3362,13 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 OUTMSG(("\n"));
             }
 
+            STSMSG(STS_FIN, ("%s: starting items loop...", __func__));
             for (n = 1; ; ++n) {
                 rc_t rc2 = 0;
                 rc_t rc3 = 0;
                 bool done = false;
                 Item *item = NULL;
                 rc_t rcq = Quitting();
-                STSMSG(STS_FIN, ("%s: processing item %d...", __func__, n));
                 if (rcq != 0) {
                     if (rc == 0)
                         rc = rcq;
@@ -3383,6 +3383,7 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 done = ! NumIteratorNext(&nit, n);
                 if (done)
                     break;
+                STSMSG(STS_FIN, ("%s: processing item %d...", __func__, n));
                 if (!nit.skip) {
                     item->mane = self;
                     ResolvedReset(&item->resolved, type);
@@ -3437,6 +3438,7 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 STSMSG(STS_FIN, ("%s: ...finished processing item %d",
                     __func__, n));
             }
+            STSMSG(STS_FIN, ("%s: ...finished items loop", __func__));
 
             if ( rc == 0 ) {
                 if (type == eRunTypeList) {

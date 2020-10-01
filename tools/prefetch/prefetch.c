@@ -3535,7 +3535,8 @@ rc_t CC KMain(int argc, char *argv[]) {
         else
 #endif
 
-        /* All command line parameters are precessed here
+        STSMSG(STS_FIN, ("%s: starting download loop...", __func__));
+        /* All command line parameters are processed here
            unless JWT cart is specified. */
         for (i = 0; i < pcount && pars.jwtCart == NULL; ++i) {
             const char *obj = NULL;
@@ -3547,6 +3548,7 @@ rc_t CC KMain(int argc, char *argv[]) {
                     rc = rc2;
             }
         }
+        STSMSG(STS_FIN, ("%s: ...finished download loop", __func__));
 
         if (pars.undersized || pars.oversized) {
             OUTMSG(("\n"));

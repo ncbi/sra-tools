@@ -3268,6 +3268,8 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
     assert(self && realArg && multiErrorReported);
     memset(&it, 0, sizeof it);
 
+    STSMSG(STS_FIN, ("%s: entered", __func__));
+
     if (rc == 0)
         rc = IteratorInit(&it, arg, self);
 
@@ -3470,6 +3472,8 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
         }
     }
     IteratorFini(&it);
+
+    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
 
     return rc;
 }

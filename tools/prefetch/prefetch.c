@@ -3535,7 +3535,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         else
 #endif
 
-        STSMSG(STS_FIN, ("%s: starting download loop...", __func__));
+        STSMSG(STS_FIN, ("%s: try download loop...", __func__));
         /* All command line parameters are processed here
            unless JWT cart is specified. */
         for (i = 0; i < pcount && pars.jwtCart == NULL; ++i) {
@@ -3543,9 +3543,13 @@ rc_t CC KMain(int argc, char *argv[]) {
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");
             if (rc2 == 0) {
+                STSMSG(STS_FIN, ("%s: %d: downloading '%s'...",
+                    __func__, i, obj));
                 rc2 = PrfMainRun(&pars, obj, obj, pcount, &multiErrorReported);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
+                STSMSG(STS_FIN, ("%s: %d: finished downloading with %R",
+                    __func__, i, rc));
             }
         }
         STSMSG(STS_FIN, ("%s: ...finished download loop", __func__));

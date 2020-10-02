@@ -2274,6 +2274,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     uint32_t i;
     bool has_proto [ eProtocolMask + 1 ];
     memset ( has_proto, 0, sizeof has_proto );
+
+    STSMSG(STS_FIN, ("%s: entered", __func__));
+
     for ( i = 0; i < eProtocolMaxPref; ++ i )
         has_proto [ ( protocols >> ( i * 3 ) ) & eProtocolMask ] = true;
 
@@ -2361,6 +2364,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         }
     }
 
+    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
     return rc;
 }
 

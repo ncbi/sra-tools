@@ -2376,6 +2376,8 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     const VPathStr * remote = NULL;
 
+    STSMSG(STS_FIN, ("%s: entered", __func__));
+
     assert(self && self->mane);
 
     resolved = &self->resolved;
@@ -2459,6 +2461,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         }
     }
 
+    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
     return rc;
 }
 

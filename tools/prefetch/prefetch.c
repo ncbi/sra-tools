@@ -571,6 +571,8 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
     const char *name = NULL;
     const String **cache = NULL;
 
+    STSMSG(STS_FIN, ("%s: entered", __func__));
+
     assert(item);
 
     assert ( resolved );
@@ -582,8 +584,10 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
     dir = mane->outDir;
 
     assert ( item -> mane );
+    STSMSG(STS_FIN, ("%s: entering V_ResolverRemote...", __func__));
     rc = V_ResolverRemote(self, resolved, protocols,
                           &vcache, dir, item -> mane -> outFile, item );
+    STSMSG(STS_FIN, ("%s: ...V_ResolverRemote done with %R", __func__, rc));
     if (rc == 0 && cache != NULL) {
         String path_str;
         if (mane->outFile != NULL)
@@ -608,6 +612,8 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
     }
 
     RELEASE(VPath, vcache);
+
+    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
 
     return rc;
 }

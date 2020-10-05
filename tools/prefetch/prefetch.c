@@ -2301,8 +2301,11 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         rc2 = 0;
         resolved->remoteSz = 0;
         {
+            STSMSG(STS_FIN, ("%s: entering _VResolverRemote...", __func__));
             rc2 = _VResolverRemote(resolved->resolver, resolved, protocols,
                 item);
+            STSMSG(STS_FIN, ("%s: ..._VResolverRemote done with %R", __func__,
+                rc2));
             if ( rc2 == 0 ) {
                 if ( resolved -> remoteHttp . path != NULL )
                     remote = & resolved -> remoteHttp;

@@ -357,6 +357,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
     const char * cgi = NULL;
     const KNSManager * mgr = NULL;
 
+    STSMSG(STS_FIN, ("%s: entered", __func__));
+
     assert(resolved && item && item->mane);
 
     local = &resolved->local.path;
@@ -445,9 +447,13 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 "ngc=%s", item->mane->ngc));
     }
 
-    if ( rc == 0 )
+    if ( rc == 0 ) {
+        STSMSG(STS_FIN, ("%s: entering KServiceNamesQueryExt...", __func__));
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
             NULL, odir, ofile, &resolved->response );
+        STSMSG(STS_FIN, ("%s: ...KServiceNamesQueryExt done with %R", __func__,
+            rc));
+    }
 
     if ( rc == 0 )
         l = KSrvResponseLength  (resolved->response );
@@ -557,6 +563,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
     RELEASE ( KSrvRespObj, obj );
     RELEASE ( KNSManager, mgr );
     RELEASE ( KService, service );
+    STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
     return rc;
 }
 

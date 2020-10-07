@@ -1922,6 +1922,16 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                     "from=%s,to=%S", pof.tmpName, & cache));
         }
     }
+    else {
+        const KFile * f = NULL;
+        uint64_t size = 0;
+        rc_t rc = KDirectoryOpenFileRead(mane->dir, &f, pof.tmpName);
+        if (rc == 0)
+            rc = KFileSize(f, &size);
+        KFileRelease(f);
+        if (rc == 0 && size == 0)
+            KDirectoryRemove(mane->dir, 0, pof.tmpName);
+    }
 
     if (rc == 0 && !mane->dryRun) {
         EValidate size = eVinit;

@@ -109,6 +109,22 @@ static rc_t TFRm(PrfOutFile * self) {
         return 0;
 }
 
+static rc_t TFRmEmpty(PrfOutFile * self) {
+    if (TFExist(self)) {
+        const KFile * f = NULL;
+        uint64_t size = 0;
+        rc_t rc = KDirectoryOpenFileRead(self->_dir, &f,
+            "%.*s%s", self->cache->size, self->cache->addr, TFExt(self));
+        if (rc == 0)
+            rc = KFileSize(f, &size);
+        KFileRelease(f);
+        if (rc == 0 && size == 0)
+            return TFRm(self);
+    }
+
+    return 0;
+}
+
 static rc_t TFKill(PrfOutFile * self, rc_t rc, const char * msg) {
     assert(self);
 
@@ -1032,6 +1048,8 @@ rc_t PrfOutFileWhack(PrfOutFile * self, bool success) {
 #ifndef DEBUGGINGG
     if (success && !self->invalid)
         rc = TFRm(self);
+    else if (!success && !self->invalid)
+        rc = TFRmEmpty(self);
 #endif
 
     RELEASE(String, self->cache);

@@ -236,17 +236,33 @@ static rc_t KSrvRun_Print(const KSrvRun * self) {
         }
     }
 
-/*  if (vdbcache != NULL) {
-        rc = VPathMakeString(vdbcache, &tmp);
+    RELEASE(VPath, local);
+    RELEASE(VPath, remote);
+    return rc;
+}
+
+static rc_t KSrvRespFile_Print(const KSrvRespFile * self) {
+    const VPath * path = NULL;
+    const String * tmp = NULL;
+
+    rc_t rc = KSrvRespFileGetLocal(self, &path);
+    if (rc != 0) {
+        KSrvRespFileIterator * fi = NULL;
+        rc = KSrvRespFileMakeIterator(self, &fi);
+        if (rc == 0)
+            rc = KSrvRespFileIteratorNextPath(fi, &path);
+        RELEASE(KSrvRespFileIterator, fi);
+    }
+
+    if (path != NULL) {
+        rc = VPathMakeString(path, &tmp);
         if (rc == 0) {
             OUTMSG(("%S\n", tmp));
             free((void *)tmp);
         }
-        RELEASE(VPath, vdbcache);
-    } */
+    }
 
-    RELEASE(VPath, local);
-    RELEASE(VPath, remote);
+    RELEASE(VPath, path);
     return rc;
 }
 
@@ -257,8 +273,7 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
     bool found = true;
     rc_t rc = 0;
 
-/*  uint32_t s = string_measure ( pc, NULL ); */
-    if ( true ) { /* s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { SRP or SRX */
+    if ( true ) {
         found = false;
 
         KService * service = NULL;
@@ -299,38 +314,40 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
             if ( rc == 0 ) {
                 KSrvRunIterator * ri = NULL;
                 const KSrvRun * run = NULL;
-/*              uint32_t i = 0;
-                uint32_t l = KSrvResponseLength  ( response ); */
+                uint32_t i = 0;
+                uint32_t l = KSrvResponseLength  ( response );
                 rc = KSrvResponseMakeRunIterator ( response, & ri );
-                if ( rc == 0 )
-                    rc = KSrvRunIteratorNextRun ( ri, & run );
                 if ( rc == 0 ) {
-                    rc = KSrvRun_Print ( run );
-                    found = true;
-                }
-#if 0
-                for ( i = 0; i < l && rc == 0; ++ i ) {
-                    const KSrvRespObj * obj = NULL;
-                    KSrvRespObjIterator * it = NULL;
-                    KSrvRespFile * file = NULL;
-                    ESrvFileFormat type = eSFFInvalid;
-                    rc = KSrvResponseGetObjByIdx ( response, i, & obj );
-                    if ( rc == 0 )
-                        rc = KSrvRespObjMakeIterator ( obj, & it );
-                    while ( rc == 0 ) {
-                        rc_t r2 = 0;
-                        rc = KSrvRespObjIteratorNextFile ( it, & file );
-                        if ( rc != 0 || file == NULL )
-                            break;
-                        r2 = KSrvRespFileGetFormat(file, &type);
-                        if (r2 != 0 || type != eSFFVdbcache)
-                            rc = KSrvRespFile_Print(file);
-                        RELEASE ( KSrvRespFile, file );
+                    rc = KSrvRunIteratorNextRun ( ri, & run );
+                    if ( rc == 0 && run != NULL ) {
+                        rc = KSrvRun_Print ( run );
+                        found = true;
                     }
-                    RELEASE ( KSrvRespObjIterator, it );
-                    RELEASE ( KSrvRespObj, obj );
+                    for ( i = 0; !found && i < l && rc == 0; ++ i ) {
+                        const KSrvRespObj * obj = NULL;
+                        KSrvRespObjIterator * it = NULL;
+                        KSrvRespFile * file = NULL;
+                        ESrvFileFormat type = eSFFInvalid;
+                        rc = KSrvResponseGetObjByIdx ( response, i, & obj );
+                        if ( rc == 0 )
+                            rc = KSrvRespObjMakeIterator ( obj, & it );
+                        while ( rc == 0 ) {
+                            rc_t r2 = 0;
+                            rc = KSrvRespObjIteratorNextFile ( it, & file );
+                            if ( rc != 0 || file == NULL )
+                                break;
+                            r2 = KSrvRespFileGetFormat(file, &type);
+                            if (r2 != 0 || type != eSFFVdbcache) {
+                                rc = KSrvRespFile_Print(file);
+                                found = true;
+                            }
+                            RELEASE ( KSrvRespFile, file );
+                        }
+                        RELEASE ( KSrvRespObjIterator, it );
+                        RELEASE ( KSrvRespObj, obj );
+                    }
                 }
-#endif
+
                 RELEASE ( KSrvRun, run );
                 RELEASE ( KSrvRunIterator, ri );
                 KSrvResponseRelease ( response );

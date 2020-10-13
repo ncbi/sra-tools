@@ -42,13 +42,13 @@
 /* MARK: .sra file */
 
 /* Remote location of .sra file */
-#define ENV_VAR_REMOTE_URL "VDB_REMOTE_URL"
+#define ENV_VAR_REMOTE_URL ENV_MAGIC_REMOTE
 
 /* Local path of .sra file */
-#define ENV_VAR_LOCAL_URL "VDB_LOCAL_URL"
+#define ENV_VAR_LOCAL_URL ENV_MAGIC_LOCAL
 
 /* Local path for caching .sra file */
-#define ENV_VAR_CACHE_URL "VDB_CACHE_URL"
+#define ENV_VAR_CACHE_URL ENV_MAGIC_CACHE
 
 /* Size of .sra file */
 #define ENV_VAR_SIZE_URL "VDB_SIZE_URL"
@@ -64,13 +64,13 @@
 /* INFO: These are set ONLY if there is .vdbcache file */
 
 /* Remote location of .vdbcache file */
-#define ENV_VAR_REMOTE_VDBCACHE "VDB_REMOTE_VDBCACHE"
+#define ENV_VAR_REMOTE_VDBCACHE ENV_MAGIC_REMOTE_VDBCACHE
 
 /* Local path of .vdbcache file */
-#define ENV_VAR_LOCAL_VDBCACHE "VDB_LOCAL_VDBCACHE"
+#define ENV_VAR_LOCAL_VDBCACHE ENV_MAGIC_LOCAL_VDBCACHE
 
 /* Local path for caching .vdbcache file */
-#define ENV_VAR_CACHE_VDBCACHE "VDB_CACHE_VDBCACHE"
+#define ENV_VAR_CACHE_VDBCACHE ENV_MAGIC_CACHE_VDBCACHE
 
 /* Size of .vdbcache file */
 #define ENV_VAR_SIZE_VDBCACHE "VDB_SIZE_VDBCACHE"

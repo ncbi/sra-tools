@@ -12,9 +12,7 @@ die unless defined $cmd;
 # It accepts list of strings on STDIN
 # and expects them to be present in the same order in prefetch's output.
 
-$cmd .= ' -vvv';
-my @out = `NCBI_VDB_SILENCE_MBEDTLS_READ= $cmd 2>&1`;
-print '$? = ' . "$?\n";
+my @out = `$cmd 2>&1`;
 die "Unexpected failure while running:\n'$cmd':\n@out" if ($? && ! $exit);
 die if (! $? && $exit);
 print "'$cmd'\n" if ($verb);

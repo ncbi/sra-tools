@@ -346,6 +346,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
 {
     rc_t rc = 0;
 
+    const KNSManager * mgr = NULL;
+
     const VPath **local = NULL;
 
     uint32_t l = 0;
@@ -356,13 +358,18 @@ static rc_t V_ResolverRemote(const VResolver *self,
     KSrvRespFile * file = NULL;
     const char * cgi = NULL;
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
+#endif
 
     assert(resolved && item && item->mane);
 
     local = &resolved->local.path;
 
-    rc = KServiceMake ( & service );
+    rc = VResolverGetKNSManager(self, &mgr);
+
+    if ( rc == 0 )
+        rc = KServiceMakeWithMgr ( & service, NULL, mgr, NULL );
     if ( rc == 0 && item -> seq_id != NULL ) {
         assert ( item -> isDependency  );
         id = item -> seq_id;
@@ -443,11 +450,15 @@ static rc_t V_ResolverRemote(const VResolver *self,
     }
 
     if ( rc == 0 ) {
+#ifdef DBGNG
         STSMSG(STS_FIN, ("%s: entering KServiceNamesQueryExt...", __func__));
+#endif
         rc = KServiceNamesQueryExt ( service, protocols, cgi,
             NULL, odir, ofile, &resolved->response );
+#ifdef DBGNG
         STSMSG(STS_FIN, ("%s: ...KServiceNamesQueryExt done with %R", __func__,
             rc));
+#endif
     }
 
     if ( rc == 0 )
@@ -462,6 +473,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
         resolved->respIt = it;
         rc = KSrvRespObjIteratorNextFile(it, &file);
     }
+
     if ( rc == 0 && l > 0 ) {
         KSrvRespFileIterator * fi = NULL;
         String fasp;
@@ -543,6 +555,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
         }
         RELEASE ( KSrvRespFileIterator, fi );
     }
+
     if ( rc == 0 && l > 0 ) {
         if ( rc == 0 ) {
             rc = KSrvRespFileGetCache ( file, cache );
@@ -555,9 +568,13 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 rc = 0;
         }
     }
+
     RELEASE ( KSrvRespObj, obj );
+    RELEASE ( KNSManager, mgr );
     RELEASE ( KService, service );
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+#endif
     return rc;
 }
 
@@ -572,7 +589,9 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
     const char *name = NULL;
     const String **cache = NULL;
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
+#endif
 
     assert(item);
 
@@ -585,10 +604,14 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
     dir = mane->outDir;
 
     assert ( item -> mane );
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entering V_ResolverRemote...", __func__));
+#endif
     rc = V_ResolverRemote(self, resolved, protocols,
                           &vcache, dir, item -> mane -> outFile, item );
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: ...V_ResolverRemote done with %R", __func__, rc));
+#endif
     if (rc == 0 && cache != NULL) {
         String path_str;
         if (mane->outFile != NULL)
@@ -614,7 +637,9 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
 
     RELEASE(VPath, vcache);
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+#endif
 
     return rc;
 }
@@ -2292,7 +2317,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     bool has_proto [ eProtocolMask + 1 ];
     memset ( has_proto, 0, sizeof has_proto );
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
+#endif
 
     for ( i = 0; i < eProtocolMaxPref; ++ i )
         has_proto [ ( protocols >> ( i * 3 ) ) & eProtocolMask ] = true;
@@ -2318,11 +2345,15 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         rc2 = 0;
         resolved->remoteSz = 0;
         {
+#ifdef DBGNG
             STSMSG(STS_FIN, ("%s: entering _VResolverRemote...", __func__));
+#endif
             rc2 = _VResolverRemote(resolved->resolver, resolved, protocols,
                 item);
+#ifdef DBGNG
             STSMSG(STS_FIN, ("%s: ..._VResolverRemote done with %R", __func__,
                 rc2));
+#endif
             if ( rc2 == 0 ) {
                 if ( resolved -> remoteHttp . path != NULL )
                     remote = & resolved -> remoteHttp;
@@ -2384,7 +2415,10 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         }
     }
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+#endif
+
     return rc;
 }
 
@@ -2400,7 +2434,9 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     const VPathStr * remote = NULL;
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
+#endif
 
     assert(self && self->mane);
 
@@ -2485,7 +2521,10 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
         }
     }
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+#endif
+
     return rc;
 }
 
@@ -2825,11 +2864,15 @@ static
 rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
 {
     rc_t rc = 0;
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
     STSMSG(STS_FIN, ("%s: entering ItemResolve...", __func__));
+#endif
     rc = ItemResolve(self, row);
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: ...ItemResolve done with %R", __func__, rc));
-        if (rc != 0)
+#endif
+    if (rc != 0)
         return rc;
 
     assert(self);
@@ -2910,7 +2953,9 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
             rc = ItemPostDownload(self, row);
     }
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+#endif
 
     return rc;
 }
@@ -3301,7 +3346,9 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
     assert(self && realArg && multiErrorReported);
     memset(&it, 0, sizeof it);
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
+#endif
 
     if (rc == 0)
         rc = IteratorInit(&it, arg, self);
@@ -3395,7 +3442,9 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 OUTMSG(("\n"));
             }
 
+#ifdef DBGNG
             STSMSG(STS_FIN, ("%s: starting items loop...", __func__));
+#endif
             for (n = 1; ; ++n) {
                 rc_t rc2 = 0;
                 rc_t rc3 = 0;
@@ -3416,16 +3465,22 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 done = ! NumIteratorNext(&nit, n);
                 if (done)
                     break;
+#ifdef DBGNG
                 STSMSG(STS_FIN, ("%s: processing item %d...", __func__, n));
+#endif
                 if (!nit.skip) {
                     item->mane = self;
                     ResolvedReset(&item->resolved, type);
 
+#ifdef DBGNG
                     STSMSG(STS_FIN, ("%s: %d: entering ItemProcess...",
                         __func__, n));
+#endif
                     rc3 = ItemProcess(item, (int32_t)n);
+#ifdef DBGNG
                     STSMSG(STS_FIN, ("%s: %d: ...ItemProcess done with %R",
                         __func__, n, rc3));
+#endif
                     if (rc3 != 0) {
                         if (rc == 0)
                             rc = rc3;
@@ -3472,10 +3527,14 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                 }
 
                 RELEASE(Item, item);
+#ifdef DBGNG
                 STSMSG(STS_FIN, ("%s: ...finished processing item %d",
                     __func__, n));
+#endif
             }
+#ifdef DBGNG
             STSMSG(STS_FIN, ("%s: ...finished items loop", __func__));
+#endif
 
             if ( rc == 0 ) {
                 if (type == eRunTypeList) {
@@ -3510,7 +3569,9 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
     }
     IteratorFini(&it);
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
+#endif
 
     return rc;
 }
@@ -3525,7 +3586,9 @@ rc_t CC KMain(int argc, char *argv[]) {
 
     rc = PrfMainInit(argc, argv, &pars);
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: entered", __func__));
+#endif
 
     if (rc == 0)
         rc = ArgsParamCount(pars.args, &pcount);
@@ -3539,7 +3602,9 @@ rc_t CC KMain(int argc, char *argv[]) {
         insufficient = true;
     }
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: starting download...", __func__));
+#endif
 
     if (rc == 0) {
         bool multiErrorReported = false;
@@ -3576,7 +3641,9 @@ rc_t CC KMain(int argc, char *argv[]) {
         else
 #endif
 
-        STSMSG(STS_FIN, ("%s: try download loop...", __func__));
+#ifdef DBGNG
+            STSMSG(STS_FIN, ("%s: try download loop...", __func__));
+#endif
         /* All command line parameters are processed here
            unless JWT cart is specified. */
         for (i = 0; i < pcount && pars.jwtCart == NULL; ++i) {
@@ -3584,16 +3651,22 @@ rc_t CC KMain(int argc, char *argv[]) {
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");
             if (rc2 == 0) {
+#ifdef DBGNG
                 STSMSG(STS_FIN, ("%s: %d: downloading '%s'...",
                     __func__, i, obj));
+#endif
                 rc2 = PrfMainRun(&pars, obj, obj, pcount, &multiErrorReported);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
+#ifdef DBGNG
                 STSMSG(STS_FIN, ("%s: %d: finished downloading with %R",
                     __func__, i, rc));
+#endif
             }
         }
+#ifdef DBGNG
         STSMSG(STS_FIN, ("%s: ...finished download loop", __func__));
+#endif
 
         if (pars.undersized || pars.oversized) {
             OUTMSG(("\n"));
@@ -3614,7 +3687,9 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
     }
 
+#ifdef DBGNG
     STSMSG(STS_FIN, ("%s: ...download finished", __func__));
+#endif
 
     {
         rc_t rc2 = PrfMainFini(&pars);

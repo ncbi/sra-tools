@@ -410,7 +410,7 @@ out_dir_and_file:
 	  then \
 	     echo PREFETCH SRR HTTP URL TO OUT-FILE && \
 	     rm -f `pwd`/tmp3/dir/file && \
-	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	     NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
 	         $(DIRTOTEST)/prefetch $(SRR) -O / -o tmp3/dir/file > /dev/null && \
 	     ls `pwd`/tmp3/dir/file > /dev/null ; \
        else \

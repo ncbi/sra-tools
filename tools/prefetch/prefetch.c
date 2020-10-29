@@ -2764,10 +2764,8 @@ static rc_t ItemDownload(Item *item) {
             }
             else
                 STSMSG(STS_TOP, ("%d) '%s' is found locally", n, name));
-            if (self->local.str != NULL) {
-                VPathStrFini(&self->path);
-                rc = StringCopy(&self->path.str, self->local.str);
-            }
+            if (self->local.str != NULL)
+                rc = VPathStrInit(&self->path, self->local.path);
         }
         else if (self->remoteFasp.str == NULL && item->mane->noHttp) {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);

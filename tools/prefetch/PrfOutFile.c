@@ -1058,7 +1058,12 @@ rc_t PrfOutFileWhack(PrfOutFile * self, bool success) {
     return rc;
 }
 
-rc_t PrfOutFileConvert(KDirectory * dir, const char * path) {
+rc_t PrfOutFileConvert(KDirectory * dir, const char * path,
+    bool * recognized)
+{
+    assert(recognized);
+    *recognized = false;
+
     if (path == NULL)
         return 0;
 
@@ -1076,8 +1081,10 @@ rc_t PrfOutFileConvert(KDirectory * dir, const char * path) {
 
         switch (s.addr[s.size - 1]) {
         case 'f':
+            *recognized = true;
             return Convert(dir, &s, true);
         case 't':
+            *recognized = true;
             return Convert(dir, &s, false);
         default:
             return 0;

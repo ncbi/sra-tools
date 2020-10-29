@@ -36,8 +36,10 @@
 #include <kfg/kart.h> /* Kart */
 #include <kfg/repository.h> /* KRepositoryMgr */
 
+#include <vdb/database.h> /* VDatabaseRelease */
 #include <vdb/dependencies.h> /* VDBDependenciesRemoteAndCache */
 #include <vdb/manager.h> /* VDBManager */
+#include <vdb/table.h> /* VTableRelease */
 #include <vdb/vdb-priv.h> /* VDBManagerPathTypeUnreliable */
 
 #include <vfs/manager.h> /* VFSManagerMakePathWithExtension */
@@ -578,6 +580,56 @@ static rc_t V_ResolverRemote(const VResolver *self,
     return rc;
 }
 
+/********** VPathStr **********/
+static rc_t VPathStrFini(VPathStr *self) {
+    rc_t rc = 0;
+
+    assert(self);
+
+    VPathRelease(self->path);
+
+    RELEASE(String, self->str);
+
+    memset(self, 0, sizeof *self);
+
+    return rc;
+}
+
+/*static
+rc_t VPathStrInitStr(VPathStr *self, const char *str, size_t len)
+{
+    String s;
+    assert(self);
+    if (len == 0)
+        len = string_size(str);
+    StringInit(&s, str, len, (uint32_t)len);
+    VPathStrFini(self);
+    return StringCopy(&self->str, &s);
+}*/
+
+static rc_t VPathStrInit(VPathStr *self, const VPath * path) {
+    rc_t rc = VPathStrFini(self);
+
+    if (path == NULL)
+        return rc;
+
+    if (rc != 0)
+        return rc;
+    else {
+        String cache;
+
+        self->path = path;
+
+        rc = VPathGetPath(path, &cache);
+        if (rc != 0)
+            return rc;
+
+        rc = StringCopy(&self->str, &cache);
+    }
+
+    return rc;
+}
+
 static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
     VRemoteProtocols protocols, const Item * item)
 {
@@ -633,64 +685,16 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             rc = StringCopy(cache, &path_str);
             DISP_RC2(rc, "StringCopy(VResolverCache)", name);
         }
+    
+        if (rc == 0)
+            rc = VPathStrInit(&resolved->path, vcache);
     }
 
-    RELEASE(VPath, vcache);
+  /* RELEASE(VPath, vcache); */
 
 #ifdef DBGNG
     STSMSG(STS_FIN, ("%s: exiting with %R", __func__, rc));
 #endif
-
-    return rc;
-}
-
-/********** VPathStr **********/
-static rc_t VPathStrFini(VPathStr *self) {
-    rc_t rc = 0;
-
-    assert(self);
-
-    VPathRelease(self->path);
-
-    RELEASE(String, self->str);
-
-    memset(self, 0, sizeof *self);
-
-    return rc;
-}
-
-static
-rc_t VPathStrInitStr(VPathStr *self, const char *str, size_t len)
-{
-    String s;
-    assert(self);
-    if (len == 0) {
-        len = string_size(str);
-    }
-    StringInit(&s, str, len, (uint32_t)len);
-    VPathStrFini(self);
-    return StringCopy(&self->str, &s);
-}
-
-static rc_t VPathStrInit(VPathStr *self, const VPath * path) {
-    rc_t rc = VPathStrFini(self);
-
-    if (path == NULL)
-        return rc;
-
-    if (rc != 0)
-        return rc;
-    else {
-        String cache;
-
-        self->path = path;
-
-        rc = VPathGetPath(path, &cache);
-        if (rc != 0)
-            return rc;
-
-        rc = StringCopy(&self->str, &cache);
-    }
 
     return rc;
 }
@@ -1806,7 +1810,12 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         rc = _KDirectoryMkLockName(mane->dir, & cache, lock, sizeof lock);
 
     if (rc == 0) {
-        rc = PrfOutFileMkName(&pof, &cache);
+        /*const VPath * p = NULL;
+        if (self->remoteHttp.path != NULL)
+            p = self->remoteHttp.path;
+        else if (self->remoteHttps.path != NULL)
+            p = self->remoteHttps.path;*/
+        rc = PrfOutFileMkName(&pof, &cache);// , p);
         if (rc != 0)
             return rc;
     }
@@ -2448,28 +2457,37 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
     if (!self->isDependency &&
         self->desc != NULL) /* object name is specified (not kart item) */
     {
-        if ( self -> mane -> outFile == NULL ) {
+        if (self->mane->outFile == NULL) {
+            VPath * path = NULL;
             bool local = false;
             KPathType type
                 = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
-            if (type == kptFile)
+            if (type == kptFile) {
                 local = true;
+                rc = VFSManagerMakePath((VFSManager*)1, &path,
+                    "./%s", self->desc);
+            }
             else if (type == kptDir) {
                 if ((KDirectoryPathType(dir, "%s/%s.sra",
                     self->desc, self->desc) & ~kptAlias) == kptFile)
                 {
-                    if (self->mane->force == eForceNo)
+                    if (self->mane->force == eForceNo) {
                         local = true;
+                        rc = VFSManagerMakePath((VFSManager*)1, &path,
+                            "%s/%s.sra", self->desc, self->desc);
+                    }
                 }
             }
 
             if (local) {
-                rc = VPathStrInitStr(&resolved->path, self->desc, 0);
+                if (rc == 0)
+                    rc = VPathStrInit(&resolved->path, path);
                 resolved->existing = true;
                 if (resolved->type != eRunTypeDownload) {
                     uint64_t s = -1;
                     const KFile *f = NULL;
-                    rc = KDirectoryOpenFileRead(dir, &f, "%s", self->desc);
+                    if (rc == 0)
+                        rc = KDirectoryOpenFileRead(dir, &f, "%s", self->desc);
                     if (rc == 0)
                         rc = KFileSize(f, &s);
                     if (s != -1)
@@ -2690,9 +2708,14 @@ static rc_t ItemDownload(Item *item) {
                 rc = VPathStrInit(&self->local, local);
         }
         if (self->existing) { /* the path is a path to an existing local file */
-            rc = VPathStrInitStr(&self->path, item->desc, 0);
-            if (rc == 0)
-                rc = PrfOutFileConvert(item->mane->dir, item->desc);
+            bool recognized = false;
+         /* rc = VPathStrInitStr(&self->path, item->desc, 0); */
+            if (rc == 0 && !recognized)
+                rc = PrfOutFileConvert(item->mane->dir, item->desc,
+                    &recognized);
+            if (rc == 0 && !recognized)
+                rc = SraDescConvert(item->mane->dir, item->desc,
+                    &recognized);
             return rc;
         }
         if (undersized) {
@@ -2802,10 +2825,10 @@ static rc_t ItemDownload(Item *item) {
                 else
                     STSMSG(STS_TOP, ("%d) '%s' was downloaded successfully",
                                        n, name));
-                if (self->cache != NULL) {
+                /*if (self->cache != NULL) {
                     VPathStrFini(&self->path);
                     rc = StringCopy(&self->path.str, self->cache);
-                }
+                }*/
             }
             else if (rc != SILENT_RC(rcExe,
                 rcProcess, rcExecuting, rcProcess, rcCanceled))
@@ -3067,21 +3090,105 @@ static rc_t ItemDownloadDependencies(Item *item) {
     return rc;
 }
 
+static VQuality VPath_DetectQuality(const VPath * self, KPathType type,
+    const VDBManager * vdb)
+{
+    rc_t rc = 0;
+    VQuality q = eQualLast;
+
+    /* Try to open run to detect quality it supports... */
+    bool fullQualt = false, synthQualt = false;
+
+    switch (type) {
+
+    case kptDatabase: {
+        const VDatabase * db = NULL;
+        rc = VDBManagerOpenDBReadVPathLight(vdb, &db, NULL, self);
+        if (rc == 0)
+            rc = VDatabaseGetQualityCapability(db, &fullQualt, &synthQualt);
+        RELEASE(VDatabase, db);
+        break;
+    }
+
+    case kptTable: {
+        const VTable * tbl = NULL;
+        rc = VDBManagerOpenTableReadVPath(vdb, &tbl, NULL, self);
+        if (rc == 0)
+            rc = VTableGetQualityCapability(tbl, &fullQualt, &synthQualt);
+        RELEASE(VTable, tbl);
+        break;
+    }
+
+    default: assert(0); return eQualLast;
+    }
+
+    if (rc == 0) {
+        if (fullQualt && synthQualt)
+            q = eQualDefault;
+        else if (synthQualt)
+            q = eQualNo;
+        else if (fullQualt)
+            q = eQualFull;
+        else
+            assert(0);
+    }
+
+    return q;
+}
+
+static const char * VQualityToString(VQuality self) {
+    switch (self) {
+    case eQualDefault: return "double";
+    case eQualNo: return "synthetic";
+    case eQualFull: return "full";
+    default: assert(0); return "";
+    }
+}
+
+static rc_t ItemMkDesc(const Item * self, KPathType type) {
+    rc_t rc = 0;
+
+    VQuality q = eQualLast;
+
+    assert(self && self->mane && self->resolved.path.path);
+
+    rc = SraDescLoadQuality(self->resolved.path.str, &q);
+
+    if (rc == 0 && q < eQualLast) {
+        const char * s = VQualityToString(q);
+        STSMSG(STS_TOP, (" loaded description: %s quality", s));
+    }
+    else {
+        rc = 0;
+        
+        q = VPathGetQuality(self->resolved.path.path);
+        
+        if (q >= eQualLast)
+            q = VPath_DetectQuality(self->resolved.path.path, type,
+                self->mane->mgr);
+
+        if (q < eQualLast) {
+            const char * s = VQualityToString(q);
+            STSMSG(STS_TOP, (" description: %s quality", s));
+            rc = SraDescSaveQuality(self->resolved.path.str, q);
+        }
+    }
+
+    return rc;
+}
+
 static rc_t ItemPostDownload(Item *item, int32_t row) {
     rc_t rc = 0;
     Resolved *resolved = NULL;
     KPathType type = kptNotFound;
     assert(item);
     resolved = &item->resolved;
-    if (resolved->type == eRunTypeList) {
+    if (resolved->type == eRunTypeList)
         return rc;
-    }
-    else if (resolved->oversized) {
+    else if (resolved->oversized)
         item->mane->oversized = true;
-    }
-    else if (resolved->undersized) {
+    else if (resolved->undersized)
         item->mane->undersized = true;
-    }
 
     if (resolved->path.str != NULL) {
         const char * path = NULL;
@@ -3093,28 +3200,29 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
 
         assert ( path );
 
-        if (type != kptDatabase) {
-            if (type == kptTable) {
-                 STSMSG(STS_DBG, ("...'%s' is a table", path));
-            }
-            else {
-                 STSMSG(STS_DBG, ("...'%s' is not recognized "
-                     "as a database or a table", path));
-            }
-            return rc;
-         }
-        else {
-            STSMSG(STS_DBG, ("...'%s' is a database", path));
+        switch (type) {
+        case kptTable: STSMSG(STS_DBG, ("...'%s' is a table", path)); break;
+        case kptDatabase:
+            STSMSG(STS_DBG, ("...'%s' is a database", path)); break;
+        default: STSMSG(STS_DBG, ("...'%s' is not recognized "
+            "as a database or a table", path)); return rc;
         }
+
+        rc = ItemMkDesc(item, type);
+
+        if (type != kptDatabase)
+            return rc;
     }
 
-    rc = ItemDownloadDependencies(item);
+    if (rc == 0)
+        rc = ItemDownloadDependencies(item);
+
     if (true) {
         rc_t rc2 = Quitting();
-        if (rc == 0 && rc2 != 0) {
+        if (rc == 0 && rc2 != 0)
             rc = rc2;
-        }
     }
+
     return rc;
 }
 
@@ -3146,9 +3254,8 @@ rc_t CC UsageSummary(const char *progname) {
         , progname, progname, progname, progname, progname));
 }
 
-/******************************************************************************/
+/*********** Iterator *********************************************************/
 
-/*********** Iterator **********/
 static rc_t
 IteratorInit(Iterator *self, const char *obj, const PrfMain *mane)
 {

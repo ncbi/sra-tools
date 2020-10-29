@@ -856,12 +856,17 @@ static rc_t ResolvedFini(Resolved *self) {
 
     rc  = VPathStrFini(&self->local);
     rc2 = VPathStrFini(&self->remoteHttp);
-    rc2 = VPathStrFini(&self->remoteHttps);
-    rc2 = VPathStrFini(&self->remoteFasp);
-    if (rc == 0 && rc2 != 0) {
+    if (rc == 0 && rc2 != 0)
         rc = rc2;
-    }
+    rc2 = VPathStrFini(&self->remoteHttps);
+    if (rc == 0 && rc2 != 0)
+        rc = rc2;
+    rc2 = VPathStrFini(&self->remoteFasp);
+    if (rc == 0 && rc2 != 0)
+        rc = rc2;
     rc2 = VPathStrFini(&self->path);
+    if (rc == 0 && rc2 != 0)
+        rc = rc2;
 
     RELEASE(KFile, self->file);
     RELEASE(VPath, self->accession);
@@ -2764,8 +2769,11 @@ static rc_t ItemDownload(Item *item) {
             }
             else
                 STSMSG(STS_TOP, ("%d) '%s' is found locally", n, name));
-            if (self->local.str != NULL)
-                rc = VPathStrInit(&self->path, self->local.path);
+            if (self->local.str != NULL) {
+                rc = VPathAddRef(self->local.path);
+                if (rc == 0)
+                    rc = VPathStrInit(&self->path, self->local.path);
+            }
         }
         else if (self->remoteFasp.str == NULL && item->mane->noHttp) {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);

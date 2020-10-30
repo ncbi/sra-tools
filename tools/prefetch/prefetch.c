@@ -24,7 +24,7 @@
 *
 */
 
-/********** includes **********/
+/********************************** Includes **********************************/
 
 #include <cloud/manager.h> /* CloudMgrMake */
 
@@ -139,7 +139,8 @@ typedef struct {
     Item *i;
 } KartTreeNode;
 
-/********** String extension **********/
+/****************************** String extension ******************************/
+
 static rc_t StringRelease(const String *self) {
     free((String*)self);
     return 0;
@@ -160,7 +161,8 @@ bool _SchemeIsFasp(const String *self) {
     return _StringIsXYZ(self, NULL, fasp, sizeof fasp - 1);
 }
 
-/********** KDirectory extension ***********/
+/**************************** KDirectory extension ****************************/
+
 static rc_t _KDirectoryMkLockName(const KDirectory *self,
     const String *prefix, char *out, size_t sz)
 {
@@ -311,7 +313,37 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
     return rc;
 }
 
-/********** VResolver extension **********/
+/******************************************************************************/
+
+static rc_t ResolvedReset(Resolved * self) {
+    rc_t rc = 0;
+    uint32_t l = 0;
+    const KSrvRespObj * obj = NULL;
+    KSrvRespObjIterator * it = NULL;
+    KSrvRespFile * file = NULL;
+    assert(self);
+    self->respObjIdx = 0;
+    if (rc == 0)
+        l = KSrvResponseLength(self->response);
+    if (rc == 0 && l > 0)
+        rc = KSrvResponseGetObjByIdx(self->response, 0, &obj);
+    if (rc == 0 && l > 0)
+        rc = KSrvRespObjMakeIterator(obj, &it);
+    if (rc == 0 && l > 0) {
+        RELEASE(KSrvRespObjIterator, self->respIt);
+        self->respIt = it;
+    }
+    if (rc == 0 && l > 0) {
+        rc = KSrvRespObjIteratorNextFile(self->respIt, &file);
+        RELEASE(KSrvRespFile, self->respFile);
+        self->respFile = file;
+    }
+    RELEASE(KSrvRespObj, obj);
+    return rc;
+}
+
+/**************************** VResolver extension *****************************/
+
 static rc_t KService_ProcessId(KService * self,
     const KartItem * item, const char * id, rc_t aRc, bool * dbgap)
 {
@@ -341,6 +373,7 @@ static rc_t KService_ProcessId(KService * self,
 
     return rc;
 }
+
 static rc_t V_ResolverRemote(const VResolver *self,
     Resolved * resolved, VRemoteProtocols protocols,
     struct VPath const ** cache,
@@ -356,8 +389,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
     const char * id = item -> desc;
     KService * service = NULL;
     const KSrvRespObj * obj = NULL;
-    KSrvRespObjIterator * it = NULL;
-    KSrvRespFile * file = NULL;
+  /*KSrvRespObjIterator * it = NULL;
+    KSrvRespFile * file = NULL; */
     const char * cgi = NULL;
 
 #ifdef DBGNG
@@ -467,14 +500,15 @@ static rc_t V_ResolverRemote(const VResolver *self,
         l = KSrvResponseLength  (resolved->response );
 
     if ( rc == 0 && l > 0 )
-        rc = KSrvResponseGetObjByIdx (resolved->response, 0, & obj );
+        rc = ResolvedReset(resolved);
+        /* rc = KSrvResponseGetObjByIdx (resolved->response, 0, & obj );
     if ( rc == 0 && l > 0 )
         rc = KSrvRespObjMakeIterator ( obj, & it );
     if (rc == 0 && l > 0) {
         RELEASE(KSrvRespObjIterator, resolved->respIt);
         resolved->respIt = it;
         rc = KSrvRespObjIteratorNextFile(it, &file);
-    }
+    }*/
 
     if ( rc == 0 && l > 0 ) {
         KSrvRespFileIterator * fi = NULL;
@@ -486,10 +520,11 @@ static rc_t V_ResolverRemote(const VResolver *self,
         CONST_STRING(&http, "http");
         CONST_STRING(&https, "https");
 
-        RELEASE(KSrvRespFile, resolved->respFile);
-        resolved->respFile = file;
+/*      RELEASE(KSrvRespFile, resolved->respFile);
+        resolved->respFile = file;*/
 
-        rc = KSrvRespFileMakeIterator ( file, & fi );
+        if (rc == 0)
+            rc = KSrvRespFileMakeIterator ( resolved->respFile, & fi );
         while ( rc == 0 ) {
             const VPath * path = NULL;
             rc = KSrvRespFileIteratorNextPath ( fi, & path );
@@ -560,12 +595,12 @@ static rc_t V_ResolverRemote(const VResolver *self,
 
     if ( rc == 0 && l > 0 ) {
         if ( rc == 0 ) {
-            rc = KSrvRespFileGetCache ( file, cache );
+            rc = KSrvRespFileGetCache ( resolved->respFile, cache );
             if ( rc != 0 && NotFoundByResolver(rc) )
                 rc = 0;
         }
         if ( rc == 0 ) {
-            rc = KSrvRespFileGetLocal ( file, local );
+            rc = KSrvRespFileGetLocal ( resolved->respFile, local );
             if ( rc != 0 && NotFoundByResolver(rc) )
                 rc = 0;
         }
@@ -580,7 +615,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
     return rc;
 }
 
-/********** VPathStr **********/
+/********************************** VPathStr **********************************/
+
 static rc_t VPathStrFini(VPathStr *self) {
     rc_t rc = 0;
 
@@ -618,6 +654,9 @@ static rc_t VPathStrInit(VPathStr *self, const VPath * path) {
     else {
         String cache;
 
+        rc = VPathAddRef(path);
+        if (rc != 0)
+            return rc;
         self->path = path;
 
         rc = VPathGetPath(path, &cache);
@@ -887,7 +926,7 @@ static rc_t ResolvedFini(Resolved *self) {
     return rc != 0 ? rc : rc2;
 }
 
-static void ResolvedReset(Resolved *self, ERunType type) {
+static void ResolvedClean(Resolved *self, ERunType type) {
     assert(self);
 
     memset(self, 0, sizeof *self);
@@ -1806,7 +1845,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
         if (mane->force != eForceAll && mane->force != eForceALL &&
             PrfMainHasDownloaded(mane, cache.addr))
         {
-            STSMSG(STS_INFO, ("%s has just been downloaded", cache.addr));
+            STSMSG(STS_DBG, ("%s has already been downloaded", cache.addr));
             return 0;
         }
     }
@@ -1879,6 +1918,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                         rc = rd;
                         break;
                     }
+                    rc = VPathStrInit(&self->path, vcache);
                 }
                 rd = PrfMainDoDownload(self, item, isDependency, vremote, &pof);
             }
@@ -2022,7 +2062,57 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     return rc;
 }
 
-/********** Item **********/
+/********************************* RunTreeNode ********************************/
+
+typedef struct {
+    BSTNode n;
+    char * acc;
+    bool downloaded;
+} RunTreeNode;
+
+typedef struct { bool notDownloaded; } RunTreeData;
+
+static int64_t CC bstCmp(const void * item, const BSTNode * n) {
+    const char * acc = item;
+    const RunTreeNode * sn = (const RunTreeNode*)n;
+
+    assert(acc && sn && sn->acc);
+
+    return strcmp(acc, sn->acc);
+}
+
+static void CC bstWhack(BSTNode * n, void * ignore) {
+    RunTreeNode * sn = (RunTreeNode*)n;
+
+    assert(sn);
+
+    free(sn->acc);
+
+    memset(sn, 0, sizeof * sn);
+
+    free(sn);
+}
+
+static int64_t CC bstSort(const BSTNode* item, const BSTNode* n) {
+    const RunTreeNode * sn = (const RunTreeNode*)item;
+
+    return bstCmp(sn->acc, n);
+}
+
+static bool bstFindNotDownloaded(BSTNode * node, void * data) {
+    RunTreeNode * n = (RunTreeNode*)node;
+    bool * notDownloaded = (bool*)data;
+    assert(n && notDownloaded);
+    if (!n->downloaded) {
+        *notDownloaded = true;
+        return true;
+    }
+    else
+        return false;
+}
+
+/************************************ Item ************************************/
+
 static rc_t ItemRelease(Item *self) {
     rc_t rc = 0;
 
@@ -2888,6 +2978,112 @@ static rc_t ItemPrintSized(const Item *self, int32_t row, size_t size) {
 
 static rc_t ItemPostDownload(Item *item, int32_t row);
 
+static rc_t ItemDownloadSrvResponse(Item *self, int32_t row,
+    bool noQualSra, BSTree * runs)
+{
+    rc_t rc = 0;
+    assert(self);
+    do {
+        bool skip = false;
+        ESrvFileFormat ff = eSFFInvalid;
+        rc_t r1 = 0, rd = 0;
+        const char * acc = NULL;
+        rc = KSrvRespFileGetFormat(self->resolved.respFile, &ff);
+        if (rc == 0 && (ff == eSFFSra || ff == eSFFVdbcache)) {
+            VQuality q = eQualLast;
+            rc = KSrvRespFileGetQuality(self->resolved.respFile, &q);
+            if (rc == 0 && noQualSra && q != eQualNo)
+                skip = true;
+            if (rc == 0)
+                rc = KSrvRespFileGetAccession(self->resolved.respFile, &acc);
+        }
+
+        if (rc == 0 && !skip) {
+            rd = ItemDownload(self);
+            if (rd != 0) {
+                if (rc == 0)
+                    rc = rd;
+            }
+            else if (self->resolved.type == eRunTypeDownload
+                && !self->isDependency && !self->mane->dryRun)
+            {
+                rd = ItemPostDownload(self, row);
+                if (rd != 0 && rc == 0)
+                    rc = rd;
+            }
+        }
+
+        if (rc == 0 && runs != NULL && acc != NULL && ff == eSFFSra) {
+            RunTreeNode *sn = (RunTreeNode*)BSTreeFind(runs, acc, bstCmp);
+            if (sn == NULL) {
+                sn = calloc(1, sizeof *sn);
+                if (sn == NULL)
+                    return RC(rcExe,
+                        rcStorage, rcAllocating, rcMemory, rcExhausted);
+                sn->acc = string_dup_measure(acc, NULL);
+                if (sn->acc == NULL) {
+                    bstWhack((BSTNode*)sn, NULL);
+                    sn = NULL;
+                    return RC(rcExe,
+                        rcStorage, rcAllocating, rcMemory, rcExhausted);
+                }
+                BSTreeInsert(runs, (BSTNode*)sn, bstSort);
+            }
+            if (!skip)
+                sn->downloaded = true;
+        }
+
+        r1 = VPathStrFini(&self->resolved.local);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
+        RELEASE(String, self->resolved.cache);
+        r1 = VPathStrFini(&self->resolved.remoteHttp);
+        if (r1 != 0 && rc == 0) {
+            rc = r1;
+            break;
+        }
+        r1 = VPathStrFini(&self->resolved.remoteHttps);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
+        r1 = VPathStrFini(&self->resolved.remoteFasp);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
+        RELEASE(KFile, self->resolved.file);
+        self->resolved.remoteSz = 0;
+        self->resolved.undersized = self->resolved.oversized
+            = self->resolved.existing = /*self->resolved.downloaded =*/ false;
+        r1 = VPathStrFini(&self->resolved.path);
+        if (r1 != 0 && rc == 0)
+            rc = r1;
+        RELEASE(KSrvRespFile, self->resolved.respFile);
+        if (rc != 0)
+            break;
+
+        r1 = KSrvRespObjIteratorNextFile(self->resolved.respIt,
+            &self->resolved.respFile);
+        if (r1 != 0 && rc == 0) {
+            rc = r1;
+            break;
+        }
+        if (self->resolved.respFile == NULL) {
+            uint32_t l = KSrvResponseLength(self->resolved.response);
+            if (++self->resolved.respObjIdx < l) {
+                const KSrvRespObj * obj = NULL;
+                rc = KSrvResponseGetObjByIdx(self->resolved.response,
+                    self->resolved.respObjIdx, &obj);
+                if (rc == 0)
+                    rc = KSrvRespObjMakeIterator(
+                        obj, &self->resolved.respIt);
+                if (rc == 0)
+                    rc = KSrvRespObjIteratorNextFile(
+                        self->resolved.respIt, &self->resolved.respFile);
+                RELEASE(KSrvRespObj, obj);
+            }
+        }
+    } while (self->resolved.respFile != NULL);
+    return rc;
+}
+
 /* resolve: locate; download if not found */
 static
 rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
@@ -2912,69 +3108,29 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
         return rc;
 
     if (self->resolved.respFile != NULL) {
-        do {
-            rc_t r1 = 0;
-            rc_t rd = ItemDownload(self);
-            if (rd != 0) {
+        BSTree runs;
+        bool noQualSra = false;
+        BSTree * tree = &runs;
+        BSTreeInit(&runs);
+        assert(self->mane);
+        if (self->mane->fileType != NULL)
+            tree = NULL;
+        else {
+            VQuality q = VDBManagerGetQuality(self->mane->mgr);
+            if (q == eQualDefault)
+                noQualSra = true;
+        }
+        rc = ItemDownloadSrvResponse(self, row, noQualSra, tree);
+        if (rc == 0 && noQualSra) {
+            bool notDownloaded = false;
+            BSTreeDoUntil(&runs, false, bstFindNotDownloaded, &notDownloaded);
+            if (notDownloaded) {
+                rc = ResolvedReset(&self->resolved);
                 if (rc == 0)
-                    rc = rd;
+                    rc = ItemDownloadSrvResponse(self, row, false, NULL);
             }
-            else if (self->resolved.type == eRunTypeDownload && !self->isDependency
-                && !self->mane->dryRun)
-            {
-                rd = ItemPostDownload(self, row);
-                if (rd != 0 && rc == 0)
-                    rc = rd;
-            }
-
-            r1 = VPathStrFini(&self->resolved.local);
-            if (r1 != 0 && rc == 0)
-                rc = r1;
-            RELEASE(String, self->resolved.cache);
-            r1 = VPathStrFini(&self->resolved.remoteHttp);
-            if (r1 != 0 && rc == 0) {
-                rc = r1;
-                break;
-            }
-            r1 = VPathStrFini(&self->resolved.remoteHttps);
-            if (r1 != 0 && rc == 0)
-                rc = r1;
-            r1 = VPathStrFini(&self->resolved.remoteFasp);
-            if (r1 != 0 && rc == 0)
-                rc = r1;
-            RELEASE(KFile, self->resolved.file);
-            self->resolved.remoteSz = 0;
-            self->resolved.undersized = self->resolved.oversized
-                = self->resolved.existing = /*self->resolved.downloaded =*/ false;
-            r1 = VPathStrFini(&self->resolved.path);
-            if (r1 != 0 && rc == 0)
-                rc = r1;
-            RELEASE(KSrvRespFile, self->resolved.respFile);
-            if (rc != 0)
-                break;
-
-            r1 = KSrvRespObjIteratorNextFile(self->resolved.respIt,
-                &self->resolved.respFile);
-            if (r1 != 0 && rc == 0) {
-                rc = r1;
-                break;
-            }
-            if (self->resolved.respFile == NULL) {
-                uint32_t l = KSrvResponseLength(self->resolved.response);
-                if (++self->resolved.respObjIdx < l) {
-                    const KSrvRespObj * obj = NULL;
-                    rc = KSrvResponseGetObjByIdx(self->resolved.response,
-                        self->resolved.respObjIdx, &obj);
-                    if (rc == 0)
-                        rc = KSrvRespObjMakeIterator(
-                            obj, &self->resolved.respIt);
-                    if (rc == 0)
-                        rc = KSrvRespObjIteratorNextFile(
-                            self->resolved.respIt, &self->resolved.respFile);
-                    RELEASE(KSrvRespObj, obj);
-                }
-            }
-        } while (self->resolved.respFile != NULL);
+        }
+        BSTreeWhack(&runs, bstWhack, NULL);
     }
     else { /* resolver was not called: checking a local fiie */
         rc = ItemDownload(self);
@@ -3079,7 +3235,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
                     return RC(rcExe,
                         rcStorage, rcAllocating, rcMemory, rcExhausted);
 
-                ResolvedReset(&ditem->resolved, eRunTypeDownload);
+                ResolvedClean(&ditem->resolved, eRunTypeDownload);
 
                 rc = ItemSetDependency(ditem, deps, i);
 
@@ -3173,7 +3329,7 @@ static rc_t ItemMkDesc(const Item * self, KPathType type) {
             q = VPath_DetectQuality(self->resolved.path.path, type,
                 self->mane->mgr);
 
-        if (q < eQualLast) {
+        if (q < eQualLast && VDBManagerGetQuality(0) < eQualLast) {
             const char * s = VQualityToString(q);
             STSMSG(STS_TOP, (" description: %s quality", s));
             rc = SraDescSaveQuality(self->resolved.path.str, q);
@@ -3583,7 +3739,7 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
 #endif
                 if (!nit.skip) {
                     item->mane = self;
-                    ResolvedReset(&item->resolved, type);
+                    ResolvedClean(&item->resolved, type);
 
 #ifdef DBGNG
                     STSMSG(STS_FIN, ("%s: %d: entering ItemProcess...",

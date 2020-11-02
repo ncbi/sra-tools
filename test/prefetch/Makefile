@@ -997,6 +997,7 @@ dump-vs-prefetch:
 	@ rm -r tmp
 
 quality: std
+	@ echo Testing quality...
 	@ mkdir -p tmp
 	@ cd tmp && \
 		NCBI_SETTINGS=/ PATH=$(DIRTOTEST):$(PATH) perl ../test-quality.pl

@@ -126,7 +126,7 @@ TOOL_LIB = \
 	-lm
 
 $(BINDIR)/test-quality: $(TOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ -L$(VDB_LIBDIR) -L$(VDB_LIBDIR)/../ilib $(TOOL_LIB)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ -L$(VDB_LIBDIR) -L$(VDB_LIBDIR)/../ilib $(TOOL_LIB)
 
 announce:
 	@echo Testing $(DIRTOTEST)
@@ -996,8 +996,7 @@ dump-vs-prefetch:
 	                                 perl ../dump-vs-prefetch.pl
 	@ rm -r tmp
 
-quality:
-	@ echo Testing quality...
+quality: std
 	@ mkdir -p tmp
 	@ cd tmp && \
 		NCBI_SETTINGS=/ PATH=$(DIRTOTEST):$(PATH) perl ../test-quality.pl

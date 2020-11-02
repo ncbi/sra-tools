@@ -152,9 +152,8 @@ urls_and_accs:
 	@echo prefetch URL-2/1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	       $(DIRTOTEST)/prefetch http://intranet/ >/dev/null ; \
+	       $(DIRTOTEST)/prefetch http://intranet/ >/dev/null ; rm index.html \
 	    fi
-	@rm index.html
 
 	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

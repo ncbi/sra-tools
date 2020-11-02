@@ -23,7 +23,11 @@
 # ===========================================================================
 
 default: runtests
+runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality
+slowtests: announce vdbcache wgs lots_wgs hs37d5 ncbi1GB
+
 TOP ?= $(abspath ../..)
+MODULE = test/prefetch
 include $(TOP)/build/Makefile.env
 
 CWD = $(shell pwd)
@@ -57,8 +61,72 @@ B=$(DIRTOTEST)
 HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
 HTTPFILE=contact.shtml
 
-runtests: announce urls_and_accs out_dir_and_file s-option truncated kart resume
-slowtests: announce vdbcache wgs lots_wgs hs37d5 ncbi1GB
+INT_TOOLS = \
+
+EXT_TOOLS = \
+	test-quality
+
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
+
+#-------------------------------------------------------------------------------
+# outer targets
+#
+all std: vers-includes
+	@ $(MAKE_CMD) $(TARGDIR)/$@
+
+$(ALL_TOOLS): vers-includes
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
+
+#-------------------------------------------------------------------------------
+# std
+#
+$(TARGDIR)/std: \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# vers-includes
+#
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/vers-includes
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# TOOL_SRC
+#
+TOOL_SRC = \
+	test-quality \
+
+TOOL_OBJ = \
+	$(addsuffix .$(OBJX),$(TOOL_SRC))
+
+TOOL_LIB = \
+	-lkapp \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/test-quality: $(TOOL_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ -L$(VDB_LIBDIR) -L$(VDB_LIBDIR)/../ilib $(TOOL_LIB)
 
 announce:
 	@echo Testing $(DIRTOTEST)
@@ -70,19 +138,23 @@ urls_and_accs:
 	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
 
 	@echo prefetch URL-1 when there is no kfg
+	@rm -f wiki
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	@rm wiki
 
 	@echo prefetch URL-2/2 when there is no kfg
 	@rm -f index.html
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ >/dev/null
+	@rm index.html
 
 	@echo prefetch URL-2/1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
 	       $(DIRTOTEST)/prefetch http://intranet/ >/dev/null ; \
 	    fi
+	@rm index.html
 
 	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -123,7 +195,7 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
 	    $(DIRTOTEST)/prefetch http://intranet/ | grep "found local" >/dev/null;fi
-	@rm -f tmp2/index.html
+	@rm -f `pwd`/tmp2/index.html
 
 	@echo URL download when user repository is configured
 	@if ls `pwd`/tmp2/wiki 2> /dev/null ; then echo wiki found ; exit 1; fi
@@ -146,6 +218,7 @@ urls_and_accs:
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	  $(DIRTOTEST)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
+	@rm `pwd`/tmp2/index.html
 
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
@@ -177,7 +250,7 @@ urls_and_accs:
 	@rm -f KC702174.1
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch $(REFSEQ) > /dev/null
-	@rm KC702174.1
+	@rm KC702174.1*
 
 	@echo '$(PUBLIC)/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg
 	@echo REFSEQ HTTP download when user repository is configured
@@ -499,6 +572,7 @@ out_dir_and_file:
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ > /dev/null
 	@ ls `pwd`/tmp2/index.html > /dev/null
+	@ rm `pwd`/tmp2/index.html
 
 	@ echo PREFETCH HTTP FILE URL
 	@ if ls `pwd`/tmp2/wiki 2> /dev/null ; \
@@ -727,40 +801,40 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-      "$(DIRTOTEST)/prefetch  --ngc ../prj_phs710EA_test.ngc --cart ../3-dbGaP-0.krt -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by default (size)"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by size"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by kart"
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
-	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
-	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
-	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
 
 	@rm -frv tmp/sra
@@ -773,30 +847,30 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-      "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
-	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
-	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
-	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra*
 	@rmdir tmp/sra
 
 	@echo "Downloading kart ordered by size to user repo"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
-	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
-	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
-	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra*
 	@rmdir tmp/sra
 
 	@echo "Downloading kart ordered by kart to user repo"
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
-	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
-	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
-	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra*
 	@rmdir tmp/sra
 
 	@echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg
@@ -804,30 +878,30 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by size ignoring user repo"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by kart ignoring user repo"
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-  "$(DIRTOTEST)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
-	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
-	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
-	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
 
 	@rm -r tmp
@@ -904,7 +978,7 @@ hs37d5:
 	@ echo Verifying hs37d5
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ export NCBI_SETTINGS=k && cd tmp && PATH=$(B):$(PATH) perl ../test-hs37d5.pl
+	@ cd tmp && NCBI_SETTINGS=k PATH=$(B):$(PATH) perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 
 ad_as_dir: # turned off by default. Library test is in 
@@ -920,4 +994,11 @@ dump-vs-prefetch:
 	@ mkdir -pv tmp
 	@ cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH=$(B):$(PATH) \
 	                                 perl ../dump-vs-prefetch.pl
+	@ rm -r tmp
+
+quality:
+	@ echo Testing quality...
+	@ mkdir -p tmp
+	@ cd tmp && \
+		NCBI_SETTINGS=/ PATH=$(DIRTOTEST):$(PATH) perl ../test-quality.pl
 	@ rm -r tmp

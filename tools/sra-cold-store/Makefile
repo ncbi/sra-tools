@@ -22,67 +22,55 @@
 #
 # ===========================================================================
 
-by_default: default
 
-TOP ?= $(abspath ..)
-MODULE = tools
+default: std
 
-include $(TOP)/build/Makefile.shell
+TOP ?= $(abspath ../..)
+MODULE = tools/sra-cold-store
 
-include $(TOP)/build/Makefile.config
+INT_TOOLS = 
+
+EXT_TOOLS = \
+	sra-cold-store \
+
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
+
+include $(TOP)/build/Makefile.env
+
+#------------------------------------------------------------------------------
+# outer targets
+#
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
+
+$(ALL_TOOLS): makedirs
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
 
 #-------------------------------------------------------------------------------
-# default
+# clean
 #
-SUBDIRS =             \
-	driver-tool       \
-	util              \
-	align-cache       \
-	kar               \
-	kqsh              \
-	vdb-dump          \
-	sra-dump          \
-	sra-pileup        \
-	bam-loader        \
-	fastq-loader      \
-	srapath           \
-	sra-stat          \
-	vdb-copy          \
-	rd-filter-redact  \
-	sra-cold-store    \
-	vdb-config        \
-	align-info        \
-	qual-recalib-stat \
-	prefetch          \
-	vdb-decrypt       \
-	vdb-validate      \
-	sra-sort          \
-	cache-mgr         \
-	vcf-loader        \
-	copycat           \
-	fasterq-dump      \
-	sra-load          \
-	ccextract         \
-	pacbio-load       \
-	fuse              \
-	vdb-diff          \
-	kget              \
-	ngs-pileup        \
-	vdb-sql           \
-	cg-load           \
+clean: stdclean
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
+.PHONY: clean
 
 #-------------------------------------------------------------------------------
-# pass-through
+# align-cache
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+CS_SRC = \
+	orders \
+	sra-cold-store \
 
-.PHONY: out debug profile release GCC ICC VC++
+CS_OBJ = \
+	$(addsuffix .$(OBJX),$(CS_SRC))
+
+CS_LIB = \
+	-skapp \
+	-stk-version \
+	-sncbi-vdb \
+
+$(BINDIR)/sra-cold-store: $(CS_OBJ)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(CS_LIB)

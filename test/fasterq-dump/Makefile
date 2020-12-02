@@ -28,8 +28,18 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/fasterq-dump
 
-TEST_TOOLS = 
+TEST_TOOLS =
+
+runtests: result_code_with_and_without_arguments
+
+result_code_with_and_without_arguments:
+	@echo "testing if fasterq-dump returns zero if called with help..."
+	@fasterq-dump -h > /dev/null
+	@echo "OK"	
+	@echo "testing if fasterq-dump returns none-zero if called without parameters..."
+	@! fasterq-dump > /dev/null
+	@echo "OK"
 
 include $(TOP)/build/Makefile.env
 
-.PHONY: $(TEST_TOOLS)
+.PHONY: $(TEST_TOOLS) result_code_with_and_without_arguments

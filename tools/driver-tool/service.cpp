@@ -168,11 +168,14 @@ namespace vdb {
         throw exception(rc, "KServiceNamesExecuteExt", "",
             "Failed to call external services");
     }
-    Service::LocalInfo::FileInfo Service::Response::localInfo2(std::string const &accession, std::string const &name) const {
+    Service::LocalInfo::FileInfo Service::Response::localInfo2(  std::string const &accession
+                                                               , std::string const &name
+                                                               , std::string const &type) const
+    {
         Service::LocalInfo::FileInfo info = {};
         VPath const *vlocal = nullptr, *vcache = nullptr;
         rc_t rc1 = 0, rc2 = 0;
-        auto const rc = KSrvResponseGetLocation((KSrvResponse const *)obj, accession.c_str(), name.c_str(), &vlocal, &rc1, &vcache, &rc2);
+        auto const rc = KSrvResponseGetLocation2((KSrvResponse const *)obj, accession.c_str(), name.c_str(), type.c_str(), &vlocal, &rc1, &vcache, &rc2);
 
         if (rc == 0 && rc1 == 0 && vlocal) {
             Path local(vlocal);
@@ -183,15 +186,6 @@ namespace vdb {
                 info.cachepath = cache;
             }
         }
-        return info;
-    }
-    Service::LocalInfo Service::Response::localInfo(std::string const &accession) const {
-        Service::LocalInfo info = {};
-
-        info.rundata = localInfo2(accession, accession);
-        if (info.rundata)
-            info.vdbcache = localInfo2(accession, accession + ".vdbcache");
-
         return info;
     }
 

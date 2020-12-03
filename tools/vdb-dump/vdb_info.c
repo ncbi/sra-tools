@@ -453,25 +453,26 @@ static void get_string_cell( char * buffer, size_t buffer_size, const VTable * t
 }
 
 
-static uint64_t get_rowcount( const VTable * tab )
+static uint64_t get_rowcount( const VTable * tbl )
 {
     uint64_t res = 0;
-    col_defs *my_col_defs;
-    if ( vdcd_init( &my_col_defs, 1024 ) )
+    col_defs *col_defs;
+    if ( vdcd_init( &col_defs, 1024 ) )
     {
-        if ( vdcd_extract_from_table( my_col_defs, tab ) > 0 )
+        uint32_t invalid_columns;
+        if ( vdcd_extract_from_table( col_defs, tbl, &invalid_columns ) > 0 )
         {
             const VCursor * cur;
-            rc_t rc = VTableCreateCursorRead( tab, &cur );
+            rc_t rc = VTableCreateCursorRead( tbl, &cur );
             if ( rc == 0 )
             {
-                if ( vdcd_add_to_cursor( my_col_defs, cur ) )
+                if ( vdcd_add_to_cursor( col_defs, cur ) )
                 {
                     rc = VCursorOpen( cur );
                     if ( rc == 0 )
                     {
                         uint32_t idx;
-                        if ( vdcd_get_first_none_static_column_idx( my_col_defs, cur, &idx ) )
+                        if ( vdcd_get_first_none_static_column_idx( col_defs, cur, &idx ) )
                         {
                             int64_t first;
                             rc = VCursorIdRange( cur, idx, &first, &res );
@@ -481,7 +482,7 @@ static uint64_t get_rowcount( const VTable * tab )
                 VCursorRelease( cur );
             }
         }
-        vdcd_destroy( my_col_defs );
+        vdcd_destroy( col_defs );
     }
     return res;
 }

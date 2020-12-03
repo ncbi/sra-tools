@@ -770,3 +770,40 @@ uint32_t split_buffer( Vector * v, const String * S, const char * delim )
     res += copy_String_2_vector( v, &temp );
     return res;
 }
+
+rc_t vdh_path_to_vpath( const char * path, VPath ** vpath )
+{
+    VPath * in_path = NULL;
+    VFSManager * vfs_mgr = NULL;
+    rc_t r2;
+    rc_t rc = VFSManagerMake( &vfs_mgr );
+    if ( rc != 0 )
+        ErrMsg( "VFSManagerMake() -> %R", rc );
+    if ( rc == 0 )
+    {
+        rc = VFSManagerMakePath( vfs_mgr, &in_path, "%s", path );
+        if ( rc != 0 )
+            ErrMsg( "VFSManagerVMakePath() -> %R", rc );
+    }
+    if ( rc == 0 )
+    {
+        rc = VFSManagerResolvePath( vfs_mgr, vfsmgr_rflag_kdb_acc, in_path, vpath );
+        if ( rc != 0 )
+            ErrMsg( "VFSManagerResolvePath() -> %R", rc );
+    }
+    r2 = VPathRelease( in_path );
+    if ( r2 != 0 )
+    {
+        ErrMsg( "VPathRelease() -> %R", r2 );
+        if ( rc == 0 )
+            rc = r2;
+    }
+    r2 = VFSManagerRelease( vfs_mgr );
+    if ( r2 != 0 )
+    {
+        ErrMsg( "VFSManagerRelease() -> %R", r2 );
+        if ( rc == 0 )
+            rc = r2;
+    }
+    return rc;
+}

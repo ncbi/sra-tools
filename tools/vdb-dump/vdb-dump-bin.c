@@ -395,14 +395,18 @@ static uint32_t vdi_extract_or_parse_columns( const VTable * tab,
     uint32_t count = 0;
     if ( col_defs != NULL )
     {
+        uint32_t invalid_columns;
         bool cols_unknown = ( ( columns == NULL ) || ( string_cmp( columns, 1, "*", 1, 1 ) == 0 ) );
         if ( cols_unknown )
+        {
             /* the user does not know the column-names or wants all of them */
-            count = vdcd_extract_from_table( col_defs, tab );
+            count = vdcd_extract_from_table( col_defs, tab, &invalid_columns );
+        }
         else
+        {
             /* the user knows the names of the wanted columns... */
-            count = vdcd_parse_string( col_defs, columns, tab );
-
+            count = vdcd_parse_string( col_defs, columns, tab, &invalid_columns );
+        }
         if ( excluded_columns != NULL )
             vdcd_exclude_these_columns( col_defs, excluded_columns );
     }

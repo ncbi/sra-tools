@@ -100,6 +100,8 @@ void destroy_String_vector( Vector * v );
 uint32_t copy_String_2_vector( Vector * v, const String * S );
 uint32_t split_buffer( Vector * v, const String * S, const char * delim );
 
+rc_t vdh_path_to_vpath( const char * path, VPath ** vpath );
+
 #ifdef __cplusplus
 }
 #endif

@@ -168,9 +168,9 @@ namespace vdb {
         throw exception(rc, "KServiceNamesExecuteExt", "",
             "Failed to call external services");
     }
-    Service::LocalInfo::FileInfo Service::Response::localInfo2(  std::string const &accession
-                                                               , std::string const &name
-                                                               , std::string const &type) const
+    Service::LocalInfo::FileInfo Service::Response::localInfo(  std::string const &accession
+                                                              , std::string const &name
+                                                              , std::string const &type) const
     {
         Service::LocalInfo::FileInfo info = {};
         VPath const *vlocal = nullptr, *vcache = nullptr;

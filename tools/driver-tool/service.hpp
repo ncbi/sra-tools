@@ -87,9 +87,9 @@ public:
     public:
         std::string const &responseText() const { return text; }
 
-        Service::LocalInfo::FileInfo localInfo2(  std::string const &accession
-                                                , std::string const &name
-                                                , std::string const &type) const;
+        Service::LocalInfo::FileInfo localInfo(  std::string const &accession
+                                               , std::string const &name
+                                               , std::string const &type) const;
 
         ~Response();
 

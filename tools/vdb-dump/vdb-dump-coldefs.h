@@ -91,20 +91,20 @@ char *vdcd_make_domain_txt( const uint32_t domain );
 bool vdcd_init( col_defs** defs, const size_t str_limit );
 void vdcd_destroy( col_defs* defs );
 
-uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *my_table, uint32_t * invalid_columns );
-uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *my_table, uint32_t * invalid_columns );
-bool vdcd_table_has_column( const VTable *my_table, const char * to_find );
-bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *my_table );
-uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *my_cursor );
+uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *tbl, uint32_t * invalid_columns );
+uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *tbl, uint32_t * invalid_columns );
+bool vdcd_table_has_column( const VTable *tbl, const char * to_find );
+bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *tbl );
+uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *curs );
 void vdcd_reset_content( col_defs* defs );
-void vdcd_ins_trans_fkt( col_defs* defs, const VSchema *my_schema );
+void vdcd_ins_trans_fkt( col_defs* defs, const VSchema *schema );
 void vdcd_exclude_these_columns( col_defs* defs, const char* column_names );
-bool vdcd_get_first_none_static_column_idx( col_defs* defs, const VCursor * cur, uint32_t * idx );
+bool vdcd_get_first_none_static_column_idx( col_defs* defs, const VCursor * curs, uint32_t * idx );
 
-uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *my_table,
+uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *tbl,
                                       const size_t str_limit, uint32_t * invalid_columns );
 
-rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const VCursor * cursor );
+rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const VCursor * curs );
 
 #ifdef __cplusplus
 }

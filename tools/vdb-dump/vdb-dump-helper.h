@@ -55,7 +55,7 @@ extern "C" {
 #include "vdb-dump-context.h"
 #include "vdb-dump-coldefs.h"
 
-#define DISP_RC(rc,err) (void)((rc == 0) ? 0 : LOGERR( klogInt, rc, err ))
+#define DISP_RC(rc,err) (void)((0 == rc) ? 0 : LOGERR( klogInt, rc, err ))
 
 #define DISP_RC2(rc,err,succ) \
     (void)((rc != 0)? 0 : (succ) ? LOGMSG( klogInfo, succ ) : LOGERR( klogInt, rc, err ))

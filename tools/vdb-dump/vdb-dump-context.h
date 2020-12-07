@@ -81,15 +81,12 @@ extern "C" {
 #define OPTION_OUT_BUF_SIZE      "output-buffer-size"
 #define OPTION_NO_MULTITHREAD    "disable-multithreading"
 #define OPTION_INFO              "info"
-#define OPTION_DIFF              "diff"
 #define OPTION_SPOTGROUPS        "spotgroups"
-/*#define OPTION_SRASCHEMA         "sraschema"*/
 #define OPTION_MERGE_RANGES      "merge-ranges"
 #define OPTION_SPREAD            "spread"
 #define OPTION_APPEND            "append"
 
 #define OPTION_SLICE             "slice"
-#define OPTION_INTERACTIVE       "interactive"
 #define OPTION_LEN_SPREAD        "len-spread"
 
 #define OPTION_NGC               "ngc"
@@ -141,7 +138,6 @@ typedef enum dump_format_t
     df_fasta2,
     df_qual,
     df_qual1,
-    df_bin,
     df_sql
 } dump_format_t;
 
@@ -201,7 +197,6 @@ typedef struct dump_context
     bool disable_multithreading;
     bool print_info;
     bool table_defined;
-    bool diff;
     bool show_spotgroups;
     bool merge_ranges;
     bool show_spread;

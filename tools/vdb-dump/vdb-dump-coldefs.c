@@ -173,7 +173,7 @@ static bool vdcd_type_cmp( const VSchema *my_schema, VTypedecl * typedecl, const
 {
     VTypedecl type_to_check;
     rc_t rc = VSchemaResolveTypedecl ( my_schema, &type_to_check, "%s", to_check );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         return VTypedeclToTypedecl ( typedecl, my_schema, &type_to_check, NULL, NULL );
     }
@@ -185,8 +185,10 @@ static value_trans_fct_t vdcd_get_value_trans_fct( const VSchema *my_schema, VTy
 {
     value_trans_fct_t res = NULL;
 
-    if ( my_schema == NULL ) return res;
-    if ( typedecl == NULL ) return res;
+    if ( NULL == my_schema || NULL == typedecl )
+    {
+        return res;
+    }
 
     if ( vdcd_type_cmp( my_schema, typedecl, SRA_KEY_PLATFORM_ID ) )
     {
@@ -221,8 +223,8 @@ static char *vdcd_get_read_desc_txt( const uint8_t * src )
     memmove( &desc, src, sizeof( desc ) );
     string_printf ( res, 119, NULL,
               "seg.start=%u, seg.len=%u, type=%u, cs_key=%u, label=%s",
-              desc.seg.start, desc.seg.len, desc.type,
-              desc.cs_key, desc.label );
+              desc . seg.start, desc . seg.len, desc . type,
+              desc . cs_key, desc . label );
     return res;
 }
 
@@ -233,8 +235,8 @@ static char *vdcd_get_spot_desc_txt( const uint8_t *src )
     memmove( &desc, src, sizeof( desc ) );
     string_printf ( res, 119, NULL,
               "spot_len=%u, fixed_len=%u, signal_len=%u, clip_qual_right=%u, num_reads=%u",
-              desc.spot_len, desc.fixed_len, desc.signal_len,
-              desc.clip_qual_right, desc.num_reads );
+              desc . spot_len, desc . fixed_len, desc . signal_len,
+              desc . clip_qual_right, desc . num_reads );
     return res;
 }
 
@@ -246,8 +248,10 @@ static dim_trans_fct_t vdcd_get_dim_trans_fct( const VSchema *my_schema, VTypede
 {
     dim_trans_fct_t res = NULL;
 
-    if ( my_schema == NULL ) return res;
-    if ( typedecl == NULL ) return res;
+    if ( NULL == my_schema || NULL == typedecl )
+    {
+        return res;
+    }
 
     if ( vdcd_type_cmp( my_schema, typedecl, SRA_KEY_READ_DESC ) )
     {
@@ -257,16 +261,6 @@ static dim_trans_fct_t vdcd_get_dim_trans_fct( const VSchema *my_schema, VTypede
     {
         res = vdcd_get_spot_desc_txt;
     }
-/*
-    if ( strcmp( name, SRA_KEY_READ_DESC ) == 0 )
-    {
-        res = vdcd_get_read_desc_txt;
-    }
-    else if ( strcmp( name, SRA_KEY_SPOT_DESC ) == 0 )
-    {
-        res = vdcd_get_spot_desc_txt;
-    }
-*/
     return res;
 }
 
@@ -281,7 +275,7 @@ const char * const_s_Unknown = "unknown";
 
 char *vdcd_make_domain_txt( const uint32_t domain )
 {
-    char* res= NULL;
+    char* res = NULL;
     switch( domain )
     {
         case vtdAscii   : res = string_dup_measure( const_s_Ascii, NULL ); break;
@@ -312,50 +306,61 @@ p_col_def vdcd_init_col( const char* name, const size_t str_limit )
 
 void vdcd_destroy_col( p_col_def col_def )
 {
-    if ( col_def == NULL ) return;
-    if ( col_def->name ) free( col_def->name );
-    vds_free( &( col_def->content ) );
-    free( col_def );
+    if ( NULL != col_def )
+    {
+        if ( col_def -> name )
+        {
+            free( col_def -> name );
+        }
+        vds_free( &( col_def -> content ) );
+        free( col_def );
+    }
 }
 
 /* a vector of column-definitions */
 bool vdcd_init( col_defs** defs, const size_t str_limit )
 {
     bool res = false;
-    if ( defs == NULL ) return res;
-    (*defs) = calloc( 1, sizeof( col_defs ) );
-    if ( *defs )
+    if ( NULL != defs )
     {
-        VectorInit( &((*defs)->cols), 0, 5 );
-        (*defs)->max_colname_chars = 0;
-        res = true;
+        ( *defs ) = calloc( 1, sizeof( col_defs ) );
+        if ( NULL != *defs )
+        {
+            VectorInit( &( ( *defs ) -> cols ), 0, 5 );
+            ( *defs ) -> max_colname_chars = 0;
+            res = true;
+        }
+        ( *defs ) -> str_limit = str_limit;
     }
-    ( *defs )->str_limit = str_limit;
     return res;
 }
 
 static void CC vdcd_destroy_node( void* node, void* data )
 {
-    vdcd_destroy_col( (p_col_def)node );
+    vdcd_destroy_col( ( p_col_def ) node );
 }
 
 void vdcd_destroy( col_defs* defs )
 {
-    if ( defs == NULL ) return;
-    VectorWhack( &(defs->cols), vdcd_destroy_node, NULL );
-    free( defs );
+    if ( NULL != defs )
+    {
+        VectorWhack( &( defs -> cols ), vdcd_destroy_node, NULL );
+        free( defs );
+    }
 }
 
 static p_col_def vdcd_append_col( col_defs* defs, const char* name )
 {
-    p_col_def col = vdcd_init_col( name, defs->str_limit );
-    if ( col != NULL )
+    p_col_def col = vdcd_init_col( name, defs -> str_limit );
+    if ( NULL != col )
     {
         if ( 0 == VectorAppend( &( defs -> cols ), NULL, col ) )
         {
             int len = string_size( name );
             if ( len > defs -> max_colname_chars )
+            {
                 defs -> max_colname_chars = len;
+            }
         }
     }
     return col;
@@ -366,8 +371,11 @@ static uint32_t split_column_string( col_defs* defs, const char* src, size_t lim
     size_t i_dest = 0;
     size_t i_src = 0;
     char colname[ MAX_COL_NAME_LEN + 1 ];
-    if ( NULL == defs ) return 0;
-    if ( NULL == src ) return 0;
+
+    if ( NULL == defs || NULL == src )
+    {
+        return 0;
+    }
 
     while ( i_src < limit && src[ i_src ] )
     {
@@ -406,21 +414,21 @@ uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *tbl,
         const VCursor *probing_cursor;
         rc_t rc = VTableCreateCursorRead( tbl, &probing_cursor );
         DISP_RC( rc, "VTableCreateCursorRead() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             uint32_t idx;
             for ( idx = 0; idx < count; ++idx )
             {
-                col_def *col = ( col_def * )VectorGet( &(defs->cols), idx );
+                col_def *col = ( col_def * )VectorGet( &( defs -> cols ), idx );
                 if ( col != NULL )
                 {
-                    rc = VCursorAddColumn( probing_cursor, &(col->idx), "%s", col -> name );
+                    rc = VCursorAddColumn( probing_cursor, &( col -> idx ), "%s", col -> name );
                     DISP_RC( rc, "VCursorAddColumn() failed in vdcd_parse_string()" );
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
-                        rc = VCursorDatatype( probing_cursor, col->idx, &(col->type_decl), &(col->type_desc) );
+                        rc = VCursorDatatype( probing_cursor, col -> idx, &( col -> type_decl ), &( col -> type_desc ) );
                         DISP_RC( rc, "VCursorDatatype() failed" );
-                        if ( rc == 0 )
+                        if ( 0 == rc )
                         {
                             valid_columns++;
                             col -> valid = true;
@@ -446,35 +454,37 @@ uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *tbl,
 }
 
 
-bool vdcd_table_has_column( const VTable *my_table, const char * to_find )
+bool vdcd_table_has_column( const VTable *tbl, const char * to_find )
 {
 	bool res = false;
-	if ( my_table != NULL && to_find != NULL )
+	if ( NULL != tbl && NULL != to_find )
 	{
 		size_t to_find_len = string_size( to_find );
 		if ( to_find_len > 0 )
 		{
 			KNamelist * names;
-			rc_t rc = VTableListCol( my_table, &names );
+			rc_t rc = VTableListCol( tbl, &names );
 			DISP_RC( rc, "VTableListCol() failed" );
-			if ( rc == 0 )
+			if ( 0 == rc )
 			{
 				uint32_t n;
 				rc = KNamelistCount( names, &n );
 				DISP_RC( rc, "KNamelistCount() failed" );
-				if ( rc == 0 )
+				if ( 0 == rc )
 				{
 					uint32_t i;
-					for ( i = 0; i < n && rc == 0 && !res; ++i )
+					for ( i = 0; ( i < n ) && ( 0 == rc ) && !res; ++i )
 					{
 						const char * col_name;
 						rc = KNamelistGet( names, i, &col_name );
 						DISP_RC( rc, "KNamelistGet() failed" );
-						if ( rc == 0 )
+						if ( 0 == rc )
 						{
 							size_t col_name_len = string_size( col_name );
 							if ( col_name_len == to_find_len )
-								res = ( string_cmp( to_find, to_find_len, col_name, col_name_len, col_name_len ) == 0 );
+                            {
+								res = ( 0 == string_cmp( to_find, to_find_len, col_name, col_name_len, col_name_len ) );
+                            }
 						}
 					}
 				}
@@ -492,34 +502,34 @@ uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *tbl, uint32_t *i
     rc_t rc = VTableListCol( tbl, &names );
     DISP_RC( rc, "VTableListCol() failed" );
     if ( NULL != invalid_columns ) *invalid_columns = 0;
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         const VCursor *curs;
         rc = VTableCreateCursorRead( tbl, &curs );
         DISP_RC( rc, "VTableCreateCursorRead() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             uint32_t n;
             rc = KNamelistCount( names, &n );
             DISP_RC( rc, "KNamelistCount() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 uint32_t i;
-                for ( i = 0; i < n && rc == 0; ++i )
+                for ( i = 0; i < n && 0 == rc; ++i )
                 {
                     const char *col_name;
                     rc = KNamelistGet( names, i, &col_name );
                     DISP_RC( rc, "KNamelistGet() failed" );
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         p_col_def def = vdcd_append_col( defs, col_name );
                         rc = VCursorAddColumn( curs, &(def->idx), "%s", def -> name );
                         DISP_RC( rc, "VCursorAddColumn() failed in vdcd_extract_from_table()" );
-                        if ( rc == 0 )
+                        if ( 0 == rc )
                         {
                             rc = VCursorDatatype( curs, def->idx, &(def->type_decl), &(def->type_desc) );
                             DISP_RC( rc, "VCursorDatatype() failed" );
-                            if ( rc == 0 )
+                            if ( 0 == rc )
                             {
                                 found++;
                                 def -> valid = true;
@@ -556,26 +566,26 @@ uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *tbl, uint32_t *i
 }
 
 
-bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *my_table )
+bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *tbl )
 {
     bool col_defs_found = false;
     KNamelist *names;
-    rc_t rc = VTableListPhysColumns( my_table, &names );
+    rc_t rc = VTableListPhysColumns( tbl, &names );
     DISP_RC( rc, "VTableListPhysColumns() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         uint32_t n;
         rc = KNamelistCount( names, &n );
         DISP_RC( rc, "KNamelistCount() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             uint32_t i, found;
-            for ( i = 0, found = 0; i < n && rc == 0; ++i )
+            for ( i = 0, found = 0; i < n && 0 == rc; ++i )
             {
                 const char *col_name;
                 rc = KNamelistGet( names, i, &col_name );
                 DISP_RC( rc, "KNamelistGet() failed" );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     vdcd_append_col( defs, col_name );
                     found++;
@@ -591,7 +601,7 @@ bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *my_table )
 
 typedef struct add_2_cur_context
 {
-    const VCursor *my_cursor;
+    const VCursor *curs;
     uint32_t count;
 } add_2_cur_context;
 typedef add_2_cur_context* p_add_2_cur_context;
@@ -600,152 +610,160 @@ typedef add_2_cur_context* p_add_2_cur_context;
 static void CC vdcd_add_1_to_cursor( void *item, void *data )
 {
     rc_t rc;
-    p_col_def col_def = (p_col_def)item;
+    p_col_def col_def = ( p_col_def )item;
     p_add_2_cur_context ctx = ( p_add_2_cur_context )data;
 
-    if ( col_def == NULL ) return;
-    if ( ctx == NULL ) return;
-    if ( ctx -> my_cursor == NULL ) return;
-    if ( ! col_def -> valid ) return;
-    rc = VCursorAddColumn( ctx -> my_cursor, &(col_def -> idx), "%s", col_def->name );
+    if ( NULL == col_def || NULL == ctx )
+    {
+        return;
+    }
+    if ( NULL == ctx -> curs || ! col_def -> valid )
+    {
+        return;
+    }
+
+    rc = VCursorAddColumn( ctx -> curs, &( col_def -> idx ), "%s", col_def -> name );
     DISP_RC( rc, "VCursorAddColumn() failed in vdcd_add_1_to_cursor" );
 
     /***************************************************************************
     !!! extract type information !!!
     **************************************************************************/
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
-        rc = VCursorDatatype( ctx -> my_cursor, col_def -> idx,
+        rc = VCursorDatatype( ctx -> curs, col_def -> idx,
                               &( col_def -> type_decl ), &( col_def->type_desc ) );
         DISP_RC( rc, "VCursorDatatype() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
-            ctx->count++;
+            ctx -> count++;
             col_def -> valid = true;
         }
     }
     else
+    {
         col_def -> valid = false;
+    }
 }
 
-
-uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *my_cursor )
+uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *curs )
 {
     add_2_cur_context ctx;
-    ctx.count = 0;
-    ctx.my_cursor = my_cursor;
-    VectorForEach( &(defs->cols), false, vdcd_add_1_to_cursor, &ctx );
-    return ctx.count;
+    ctx . count = 0;
+    ctx . curs = curs;
+    VectorForEach( &( defs -> cols ), false, vdcd_add_1_to_cursor, &ctx );
+    return ctx . count;
 }
-
 
 static void CC vdcd_reset_1_content( void *item, void *data )
 {
-    rc_t rc;
-    p_col_def my_col_def = (p_col_def)item;
-    if ( my_col_def == NULL ) return;
-    rc = vds_clear( &(my_col_def->content) );
-    DISP_RC( rc, "dump_str_clear() failed" );
+    p_col_def my_col_def = ( p_col_def )item;
+    if ( NULL != my_col_def )
+    {
+        rc_t rc = vds_clear( &( my_col_def -> content ) );
+        DISP_RC( rc, "dump_str_clear() failed" );
+    }
 }
 
 void vdcd_reset_content( col_defs* defs )
 {
-    VectorForEach( &(defs->cols), false,
-                   vdcd_reset_1_content, NULL );
+    VectorForEach( &( defs -> cols), false, vdcd_reset_1_content, NULL );
 }
 
 static void CC vdcd_ins_1_trans_fkt( void *item, void *data )
 {
-    p_col_def my_col_def = ( p_col_def )item;
-    const VSchema *my_schema = ( const VSchema * )data;
+    p_col_def col_def = ( p_col_def )item;
+    const VSchema *schema = ( const VSchema * )data;
 
-    if ( my_col_def == NULL ) return;
-    if ( my_schema == NULL ) return;
-
-    /* resolves special sra-types and retrieves the addr of
-       a function that later can translate the values into plain-text
-       --- is defined in this file! */
-    my_col_def->value_trans_fct = vdcd_get_value_trans_fct( my_schema, &(my_col_def->type_decl) );
-    my_col_def->dim_trans_fct = vdcd_get_dim_trans_fct( my_schema, &(my_col_def->type_decl) );
+    if ( NULL != col_def && NULL != schema )
+    {
+        /* resolves special sra-types and retrieves the addr of
+        a function that later can translate the values into plain-text
+        --- is defined in this file! */
+        col_def -> value_trans_fct = vdcd_get_value_trans_fct( schema, &( col_def -> type_decl ) );
+        col_def -> dim_trans_fct = vdcd_get_dim_trans_fct( schema, &( col_def -> type_decl ) );
+    }
 }
 
-void vdcd_ins_trans_fkt( col_defs* defs, const VSchema *my_schema )
+void vdcd_ins_trans_fkt( col_defs* defs, const VSchema *schema )
 {
-    if ( defs == NULL ) return;
-    if ( my_schema == NULL ) return;
-    VectorForEach( &(defs->cols), false,
-                   vdcd_ins_1_trans_fkt, (void*)my_schema );
+    if ( NULL != defs && NULL != schema )
+    {
+        VectorForEach( &( defs -> cols ), false, vdcd_ins_1_trans_fkt, ( void* )schema );
+    }
 }
-
 
 static void CC vdcd_exclude_column_cb( void *item, void *data )
 {
-    const char * s = (const char *)data;
-    p_col_def my_col_def = (p_col_def)item;
-    if ( s == NULL || my_col_def == NULL ) return;
-    if ( strcmp( my_col_def->name, s ) == 0 )
-        my_col_def->excluded = true;
+    const char * s = ( const char * )data;
+    p_col_def col_def = ( p_col_def )item;
+    if ( NULL != s && NULL != col_def )
+    {
+        if ( 0 == strcmp( col_def -> name, s ) )
+            col_def -> excluded = true;
+    }
 }
-
 
 void vdcd_exclude_this_column( col_defs* defs, const char* column_name )
 {
-    VectorForEach( &(defs->cols), false, vdcd_exclude_column_cb, (void*)column_name );
+    VectorForEach( &( defs -> cols ), false, vdcd_exclude_column_cb, ( void* )column_name );
 }
-
 
 void vdcd_exclude_these_columns( col_defs* defs, const char* column_names )
 {
-    char colname[MAX_COL_NAME_LEN+1];
+    char colname[ MAX_COL_NAME_LEN + 1 ];
     size_t i_dest = 0;
-    if ( defs == NULL || column_names == NULL ) return;
-    while ( *column_names )
+    if ( NULL != defs && NULL != column_names )
     {
-        if ( *column_names == ',' )
+        while ( *column_names )
         {
-            if ( i_dest > 0 )
+            if ( *column_names == ',' )
             {
-                colname[i_dest]=0;
-                vdcd_exclude_this_column( defs, colname );
+                if ( i_dest > 0 )
+                {
+                    colname[ i_dest ] = 0;
+                    vdcd_exclude_this_column( defs, colname );
+                }
+                i_dest = 0;
             }
-            i_dest = 0;
+            else
+            {
+                if ( i_dest < MAX_COL_NAME_LEN )
+                {
+                    colname[ i_dest++ ] = *column_names;
+                }
+            }
+            column_names++;
         }
-        else
+        if ( i_dest > 0 )
         {
-            if ( i_dest < MAX_COL_NAME_LEN ) colname[i_dest++]=*column_names;
+            colname[ i_dest ] = 0;
+            vdcd_exclude_this_column( defs, colname );
         }
-        column_names++;
-    }
-    if ( i_dest > 0 )
-    {
-        colname[i_dest]=0;
-        vdcd_exclude_this_column( defs, colname );
     }
 }
 
-
-bool vdcd_get_first_none_static_column_idx( col_defs* defs, const VCursor * cur, uint32_t * idx )
+bool vdcd_get_first_none_static_column_idx( col_defs *defs, const VCursor *cur, uint32_t *idx )
 {
     bool res = false;
-    if ( defs != NULL && cur !=NULL && idx != NULL )
+    if ( NULL != defs && NULL != cur && NULL != idx )
     {
-        uint32_t len = VectorLength( &(defs->cols) );
+        uint32_t len = VectorLength( &( defs -> cols ) );
         if ( len > 0 )
         {
-            uint32_t start = VectorStart( &(defs->cols) );
+            uint32_t start = VectorStart( &( defs -> cols ) );
             uint32_t run_idx = start;
             while ( ( run_idx < ( start + len ) ) && !res )
             {
-                col_def * cd = VectorGet( &(defs->cols), run_idx );
-                if ( cd != NULL )
+                col_def * cd = VectorGet( &( defs -> cols ), run_idx );
+                if ( NULL != cd )
                 {
                     int64_t  first;
                     uint64_t count;
 
-                    rc_t rc = VCursorIdRange( cur, cd->idx, &first, &count );
-                    if ( rc == 0 && count > 0 )
+                    rc_t rc = VCursorIdRange( cur, cd -> idx, &first, &count );
+                    if ( 0 == rc && count > 0 )
                     {
-                        *idx = cd->idx;
+                        *idx = cd -> idx;
                         res = true;
                     }
                 }
@@ -797,11 +815,11 @@ static uint64_t round_to_uint64_t( double value )
 	return ( uint64_t )x;
 }
 
-static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * cd, const VCursor * cursor )
+static rc_t vdcd_collect_spread_col( const struct num_gen *row_set, col_def *cd, const VCursor * curs )
 {
-	const struct num_gen_iter * iter;
+	const struct num_gen_iter *iter;
 	rc_t rc = num_gen_iterator_make( row_set, &iter );
-	if ( rc == 0 )
+	if ( 0 == rc )
 	{
 		const void * base;
 		uint32_t row_len, elem_bits;
@@ -809,17 +827,23 @@ static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * c
 		spread s;
 		spread * sp = &s;
 		
-		s.max = s.sum = s.sum_sq = s.count = 0;
-		s.min = INT64_MAX;
+		s . max = s . sum = s . sum_sq = s . count = 0;
+		s . min = INT64_MAX;
 		
-		while ( ( rc == 0 ) && num_gen_iterator_next( iter, &row_id, &rc ) )
+		while ( ( 0 == rc ) && num_gen_iterator_next( iter, &row_id, &rc ) )
 		{
-			if ( rc == 0 )	rc = Quitting();
-			if ( rc != 0 )	break;
-			rc = VCursorCellDataDirect( cursor, row_id, cd->idx, &elem_bits, &base, NULL, &row_len );
-			if ( rc == 0 )
+			if ( 0 == rc ) 
+            {
+                rc = Quitting();
+            }
+			if ( 0 != rc )
+            {
+                break;
+            }
+			rc = VCursorCellDataDirect( curs, row_id, cd -> idx, &elem_bits, &base, NULL, &row_len );
+			if ( 0 == rc )
 			{
-				if ( cd->type_desc.domain == vtdUint )
+				if ( cd -> type_desc.domain == vtdUint )
 				{
 					/* unsigned int's */
 					switch( elem_bits )
@@ -844,44 +868,51 @@ static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * c
 			}
 		}
 
-		if ( s.count > 0 )
+		if ( s . count > 0 )
 		{
-			rc = KOutMsg( "\n[%s]\n", cd->name );
-			if ( rc == 0 )
-				rc = KOutMsg( "min    = %,ld\n", s.min );
-			if ( rc == 0 )
-				rc = KOutMsg( "max    = %,ld\n", s.max );
-			if ( rc == 0 )
-				rc = KOutMsg( "count  = %,ld\n", s.count );
-			if ( rc == 0 )
+			rc = KOutMsg( "\n[%s]\n", cd -> name );
+			if ( 0 == rc )
+            {
+				rc = KOutMsg( "min    = %,ld\n", s . min );
+            }
+			if ( 0 == rc )
+            {
+				rc = KOutMsg( "max    = %,ld\n", s . max );
+            }
+			if ( 0 == rc )
+            {
+				rc = KOutMsg( "count  = %,ld\n", s . count );
+            }
+			if ( 0 == rc )
 			{
-				double median = ( s.sum / s.count );
+				double median = ( s . sum / s . count );
 				rc = KOutMsg( "median = %,ld\n", round_to_uint64_t( median ) );
-				if ( rc == 0 )
+				if ( 0 == rc )
 				{
-					double stdev = sqrt( ( ( s.sum_sq - ( s.sum * s.sum ) / s.count ) ) / ( s.count - 1 ) );
+					double stdev = sqrt( ( ( s . sum_sq - ( s . sum * s . sum ) / s . count ) ) / ( s . count - 1 ) );
 					rc = KOutMsg( "stdev  = %,ld\n", round_to_uint64_t( stdev ) );	
 				}
 			}
 		}
-		
 		num_gen_iterator_destroy( iter );
 	}
 	return rc;
 }
 #undef COUNTVALUES
 
-rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const VCursor * cursor )
+rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const VCursor * curs )
 {
 	rc_t rc = 0;
-	uint32_t i, n = VectorLength( &cols->cols );
-	for ( i = 0; i < n && rc == 0; ++i )
+	uint32_t i, n = VectorLength( &( cols -> cols ) );
+	for ( i = 0; i < n && 0 == rc; ++i )
 	{
-		col_def * cd = VectorGet( &cols->cols, i );
-		if ( cd != NULL )
+		col_def * cd = VectorGet( &( cols -> cols ), i );
+		if ( NULL != cd )
 		{
-			if ( cd->type_desc.domain == vtdUint || cd->type_desc.domain == vtdInt )
-				rc = vdcd_collect_spread_col( row_set, cd, cursor );
+			if ( vtdUint == cd -> type_desc . domain || vtdInt == cd -> type_desc . domain )
+            {
+				rc = vdcd_collect_spread_col( row_set, cd, curs );
+            }
 		}
 	}
 	return rc;
@@ -893,41 +924,44 @@ static uint32_t same_values( const VCursor * curs, uint32_t col_idx, int64_t fir
     const void * base;
     uint32_t elem_bits, boff, row_len;
     rc_t rc = VCursorCellDataDirect( curs, first, col_idx, &elem_bits, &base, &boff, &row_len );
-    while ( rc == 0 && res < test_rows && rc == 0 )
+    while ( 0 == rc && res < test_rows && 0 == rc )
     {
         const void * base_1;
         uint32_t elem_bits_1, boff_1, row_len_1;
         rc = VCursorCellDataDirect( curs, first + res + 1, col_idx, &elem_bits_1, &base_1, &boff_1, &row_len_1 );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
-            if ( elem_bits != elem_bits_1 ) return res;
-            if ( boff != boff_1 ) return res;
-            if ( row_len != row_len_1 ) return res;
-            if ( base != base_1 ) return res;
+            if ( elem_bits != elem_bits_1 ||
+                 boff != boff_1 ||
+                 row_len != row_len_1 ||
+                 base != base_1 )
+            {
+                return res;
+            }
         }
         res += 1;
     }
     return res;
 }
 
-static bool vdcd_is_static_column1( const VTable *my_table, col_def * col, uint32_t test_rows )
+static bool vdcd_is_static_column1( const VTable *tbl, col_def *col, uint32_t test_rows )
 {
     bool res = false;
     const VCursor * curs;
-    rc_t rc = VTableCreateCursorRead( my_table, &curs );
-    if ( rc == 0 )
+    rc_t rc = VTableCreateCursorRead( tbl, &curs );
+    if ( 0 == rc )
     {
         uint32_t idx;
-        rc = VCursorAddColumn( curs, &idx, "%s", col->name );
-        if ( rc == 0 )
+        rc = VCursorAddColumn( curs, &idx, "%s", col -> name );
+        if ( 0 == rc )
         {
             rc = VCursorOpen( curs );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 int64_t first;
                 uint64_t count;
                 rc = VCursorIdRange( curs, idx, &first, &count );
-                if ( rc == 0 && count == 0 )
+                if ( 0 == rc && 0 == count )
                 {
                     res = ( same_values( curs, idx, first, test_rows ) == test_rows );
                 }
@@ -938,32 +972,10 @@ static bool vdcd_is_static_column1( const VTable *my_table, col_def * col, uint3
     return res;
 }
 
-#if 0
-static bool vdcd_is_static_column2( const VTable *my_table, col_def * col )
-{
-    bool res = false;
-    const VCursor * curs;
-    rc_t rc = VTableCreateCursorRead( my_table, &curs );
-    if ( rc == 0 )
-    {
-        uint32_t idx;
-        rc = VCursorAddColumn( curs, &idx, "%s", col->name );
-        if ( rc == 0 )
-        {
-            rc = VCursorOpen( curs );
-            if ( rc == 0 )
-                rc = VCursorIsStaticColumn( curs, idx, &res );
-        }
-        VCursorRelease( curs );
-    }
-    return res;
-}
-#endif
-
 #define TEST_ROWS 20
 
-uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *tbl,
-                                      const size_t str_limit, uint32_t * invalid_columns )
+uint32_t vdcd_extract_static_columns( col_defs *defs, const VTable *tbl,
+                                      const size_t str_limit, uint32_t *invalid_columns )
 {
     col_defs * temp_defs;
     uint32_t res = 0;
@@ -991,7 +1003,9 @@ uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *tbl,
     else
     {
         if ( NULL != invalid_columns )
+        {
             *invalid_columns = 0;
+        }
     }
     return res;
 }

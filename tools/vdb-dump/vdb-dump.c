@@ -2541,7 +2541,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                     else
                     {
                         UsageSummary ( UsageDefaultName );
-                        rc = RC( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
+                        rc = SILENT_RC( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
                     }
                 }
             }
@@ -2580,10 +2580,19 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
     return 0;
 }
 
+int main_vdb_shell_org( int argc, char **argv );    /* to be found in vdb_shell.c! */
+
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    rc_t rc;
     Args * args;
-    rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
+
+    if ( argc > 1 && ( 0 == string_cmp ( argv[ 1 ], 7, "--shell", 7, 7 ) ) )
+    {
+        return main_vdb_shell_org( argc, argv );
+    }
+
+    rc = KOutHandlerSet( write_to_FILE, stdout );
     DISP_RC( rc, "KOutHandlerSet() failed" );
     if ( 0 == rc )
     {
@@ -2612,7 +2621,10 @@ rc_t CC KMain ( int argc, char *argv [] )
                     if ( 0 == rc )
                     {
                         rc = vdm_main( ctx, args );         /* <=== code is above */
-                        release_out_redir( &redir );        /* vdb-dump-redir.c */
+                        {
+                            rc_t rc2 = release_out_redir( &redir );        /* vdb-dump-redir.c */
+                            rc = ( 0 == rc ) ? rc2 : rc;
+                        }
                     }
                 }
                 vdco_destroy( ctx );

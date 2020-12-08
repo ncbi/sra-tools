@@ -1077,7 +1077,7 @@ static rc_t vdb_fastq_tbl( const p_dump_context ctx, fastq_ctx * fctx )
         }
         {
             rc_t rc2 = VCursorRelease( fctx -> cursor );
-            DISP_RC( rc, "VCursorRelease() failed" );
+            DISP_RC( rc2, "VCursorRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -1101,7 +1101,7 @@ static rc_t vdb_fastq_table( const p_dump_context ctx,
         rc = vdb_fastq_tbl( ctx, fctx );
         {
             rc_t rc2 = VTableRelease( fctx -> tbl );
-            DISP_RC( rc, "VTableRelease() failed" );
+            DISP_RC( rc2, "VTableRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -1109,7 +1109,7 @@ static rc_t vdb_fastq_table( const p_dump_context ctx,
     if ( NULL != schema )
     {
         rc_t rc2 = VSchemaRelease( schema );
-        DISP_RC( rc, "VSchemaRelease() failed" );
+        DISP_RC( rc2, "VSchemaRelease() failed" );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
@@ -1173,14 +1173,14 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
                 rc = vdb_fastq_tbl( ctx, fctx );
                 {
                     rc_t rc2 = VTableRelease( fctx -> tbl );
-                    DISP_RC( rc, "VTableRelease() failed" );
+                    DISP_RC( rc2, "VTableRelease() failed" );
                     rc = ( 0 == rc ) ? rc2 : rc;
                 }
             }
         }
         {
             rc_t rc2 = VDatabaseRelease( db );
-            DISP_RC( rc, "VDatabaseRelease() failed" );
+            DISP_RC( rc2, "VDatabaseRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -1188,7 +1188,7 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
     if ( NULL != schema )
     {
         rc_t rc2 = VSchemaRelease( schema );
-        DISP_RC( rc, "VSchemaRelease() failed" );
+        DISP_RC( rc2, "VSchemaRelease() failed" );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
@@ -1451,13 +1451,13 @@ static rc_t vdf_len_spread_vdbtbl( const p_dump_context ctx, const VTable * tbl,
             }
             {
                 rc_t rc2 = VCursorRelease( curs );
-                DISP_RC( rc, "VCursorRelease() failed" );
+                DISP_RC( rc2, "VCursorRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
         {
             rc_t rc2 = KNamelistRelease( col_names );
-            DISP_RC( rc, "KNamelistRelease() failed" );
+            DISP_RC( rc2, "KNamelistRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -1522,21 +1522,21 @@ static rc_t vdf_len_spread_db( const p_dump_context ctx, const VDBManager * mgr,
                 rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
                 {
                     rc_t rc2 = VTableRelease( tbl );
-                    DISP_RC( rc, "VTableRelease() failed" );
+                    DISP_RC( rc2, "VTableRelease() failed" );
                     rc = ( 0 == rc ) ? rc2 : rc;
                 }
             }
         }
         {
             rc_t rc2 = VDatabaseRelease( db );
-            DISP_RC( rc, "VDatabaseRelease() failed" );
+            DISP_RC( rc2, "VDatabaseRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
     if ( schema != NULL )
     {
         rc_t rc2 = VSchemaRelease( schema );
-        DISP_RC( rc, "VSchemaRelease() failed" );
+        DISP_RC( rc2, "VSchemaRelease() failed" );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
@@ -1557,14 +1557,14 @@ static rc_t vdf_len_spread_tbl( const p_dump_context ctx, const VDBManager * mgr
         rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
         {
             rc_t rc2 = VTableRelease( tbl );
-            DISP_RC( rc, "VTableRelease() failed" );
+            DISP_RC( rc2, "VTableRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
     if ( schema != NULL )
     {
         rc_t rc2 = VSchemaRelease( schema );
-        DISP_RC( rc, "VSchemaRelease() failed" );
+        DISP_RC( rc2, "VSchemaRelease() failed" );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;

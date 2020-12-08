@@ -1763,7 +1763,6 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
     return rc;
 }
 
-
 rc_t vdb_info( Vector * schema_list, dump_format_t format, const VDBManager *mgr,
                const char * acc_or_path, struct num_gen * rows )
 {

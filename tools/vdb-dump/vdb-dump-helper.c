@@ -509,25 +509,25 @@ rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_si
                     if ( NULL != remote )
                     {
                         rc_t rc2 = VPathRelease ( remote );
-                        DISP_RC( rc, "VPathRelease() failed" );
+                        DISP_RC( rc2, "VPathRelease() failed" );
                         rc = ( 0 == rc ) ? rc2 : rc;
                     }
                 }
                 {
                     rc_t rc2 = VPathRelease ( vpath );
-                    DISP_RC( rc, "VPathRelease() failed" );
+                    DISP_RC( rc2, "VPathRelease() failed" );
                     rc = ( 0 == rc ) ? rc2 : rc;
                 }
             }
             {
                 rc_t rc2 = VResolverRelease( resolver );
-                DISP_RC( rc, "VResolverRelease() failed" );
+                DISP_RC( rc2, "VResolverRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
         {
             rc_t rc2 = VFSManagerRelease ( vfs_mgr );
-            DISP_RC( rc, "VFSManagerRelease() failed" );
+            DISP_RC( rc2, "VFSManagerRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -599,19 +599,19 @@ rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, boo
                 }
                 {
                     rc_t rc2 = VPathRelease ( vpath );
-                    DISP_RC( rc, "VPathRelease() failed" );
+                    DISP_RC( rc2, "VPathRelease() failed" );
                     rc = ( 0 == rc ) ? rc2 : rc;
                 }
             }
             {
                 rc_t rc2 = VResolverRelease( resolver );
-                DISP_RC( rc, "VResolverRelease() failed" );
+                DISP_RC( rc2, "VResolverRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
         {
             rc_t rc2 = VFSManagerRelease ( vfs_mgr );
-            DISP_RC( rc, "VFSManagerRelease() failed" );
+            DISP_RC( rc2, "VFSManagerRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -674,19 +674,19 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
                 }
                 {
                     rc_t rc2 = VPathRelease ( vpath );
-                    DISP_RC( rc, "VPathRelease() failed" );
+                    DISP_RC( rc2, "VPathRelease() failed" );
                     rc = ( 0 == rc ) ? rc2 : rc;
                 }
             }
             {
                 rc_t rc2 = VResolverRelease( resolver );
-                DISP_RC( rc, "VResolverRelease() failed" );
+                DISP_RC( rc2, "VResolverRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
         {
             rc_t rc2 = VFSManagerRelease ( vfs_mgr );
-            DISP_RC( rc, "VFSManagerRelease() failed" );
+            DISP_RC( rc2, "VFSManagerRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
@@ -735,12 +735,12 @@ rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * byt
             if ( NULL != f )
             {
                 rc_t rc2 = KFileRelease( f );
-                DISP_RC( rc, "KFileRelease() failed" );
+                DISP_RC( rc2, "KFileRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
             {
                 rc_t rc2 = KDirectoryRelease( dir );
-                DISP_RC( rc, "KDirectoryRelease() failed" );
+                DISP_RC( rc2, "KDirectoryRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
@@ -860,13 +860,13 @@ rc_t vdh_path_to_vpath( const char * path, VPath ** vpath )
             DISP_RC( rc, "VFSManagerResolvePath() failed" );
             {
                 rc_t rc2 = VPathRelease( in_path );
-                DISP_RC( rc, "VPathRelease() failed" );
+                DISP_RC( rc2, "VPathRelease() failed" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
         {
             rc_t rc2 = VFSManagerRelease( vfs_mgr );
-            DISP_RC( rc, "VFSManagerRelease() failed" );
+            DISP_RC( rc2, "VFSManagerRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }

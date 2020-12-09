@@ -50,7 +50,9 @@ struct process {
     
     /// @brief the result of wait if child did terminate in some way
     struct exit_status {
-        /// @brief does nothing; returns true
+        /// @brief does nothing; not really applicable to Windows; child processes always only exit
+        ///
+        /// @return true
         bool exited() const {
             return true;
         }
@@ -60,18 +62,27 @@ struct process {
             return value;
         }
 
-        /// @brief does nothing; returns false
+        /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
+        ///
+        /// @return false
         bool signaled() const {
             return false;
         }
-        /// @brief does nothing
+        /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return 0
         int termsig() const {
             assert(signaled());
             return 0;
         }
-        /// @brief does nothing
+        /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
+        ///
+        /// @return nullptr
+        char const *termsigname() const {
+            assert(signaled());
+            return nullptr;
+        }
+        /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return false
         bool coredump() const {
@@ -79,11 +90,11 @@ struct process {
             return false;
         }
 
-        /// @brief does nothing; always false
+        /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         bool stopped() const {
             return false;
         }
-        /// @brief does nothing
+        /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return 0
         int stopsig() const {

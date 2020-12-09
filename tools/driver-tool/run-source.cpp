@@ -310,17 +310,17 @@ struct Response2 {
                     for (auto &location : file.locations) {
                         // if the user had run prefetch and not moved the
                         // downloaded files, this should find them.
-                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
                         func(std::move(data_source(run_source)));
                     }
                 }
                 else {
                     // there is a vdbcache with this object, do the join
                     for (auto &location : file.locations) {
-                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
                         auto const &best = vcache->best_matching(location);
                         if (best != vcache->locations.end()) {
-                            auto const &cache_source = file.make_source(*best, accession, response.localInfo2(accession, vcache->name));
+                            auto const &cache_source = file.make_source(*best, accession, response.localInfo(accession, vcache->name, vcache->type));
                             func(std::move(data_source(run_source, cache_source)));
                         }
                         else {

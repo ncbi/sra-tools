@@ -131,6 +131,7 @@ rc_t SpotAssemblerWriteSoloFragments(SpotAssembler * ctx,
                                      bool no_real_output,
                                      bool hasTI,
                                      const char * QualQuantizer,
+                                     bool dropReadnames,
                                      struct SequenceWriter * seq,
                                      const struct KLoadProgressbar *progress);
 

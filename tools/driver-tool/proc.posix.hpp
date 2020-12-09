@@ -35,6 +35,7 @@
 #include <vector>
 #include <map>
 
+#include <signal.h>
 #include <sys/wait.h>
 
 #include "parse_args.hpp"
@@ -76,6 +77,48 @@ struct process {
         int termsig() const {
             assert(signaled());
             return WTERMSIG(value);
+        }
+        /// @brief the symbolic name of the signal that terminated the child
+        ///
+        /// Only available signaled() == true
+        ///
+        /// @return the symbolic name of the signal that terminated the child
+        char const *termsigname() const {
+            // list taken from https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
+            // removed entries that were not defined on CentOS Linux release 7.8.2003
+            switch (termsig()) {
+            case SIGHUP   : return "SIGHUP";
+            case SIGINT   : return "SIGINT";
+            case SIGQUIT  : return "SIGQUIT";
+            case SIGILL   : return "SIGILL";
+            case SIGTRAP  : return "SIGTRAP";
+            case SIGABRT  : return "SIGABRT";
+            case SIGBUS   : return "SIGBUS";
+            case SIGFPE   : return "SIGFPE";
+            case SIGKILL  : return "SIGKILL";
+            case SIGUSR1  : return "SIGUSR1";
+            case SIGSEGV  : return "SIGSEGV";
+            case SIGUSR2  : return "SIGUSR2";
+            case SIGPIPE  : return "SIGPIPE";
+            case SIGALRM  : return "SIGALRM";
+            case SIGTERM  : return "SIGTERM";
+            case SIGCHLD  : return "SIGCHLD";
+            case SIGCONT  : return "SIGCONT";
+            case SIGSTOP  : return "SIGSTOP";
+            case SIGTSTP  : return "SIGTSTP";
+            case SIGTTIN  : return "SIGTTIN";
+            case SIGTTOU  : return "SIGTTOU";
+            case SIGURG   : return "SIGURG";
+            case SIGXCPU  : return "SIGXCPU";
+            case SIGXFSZ  : return "SIGXFSZ";
+            case SIGVTALRM: return "SIGVTALRM";
+            case SIGPROF  : return "SIGPROF";
+            case SIGWINCH : return "SIGWINCH";
+            case SIGIO    : return "SIGIO";
+            case SIGSYS   : return "SIGSYS";
+            default:
+                return nullptr;
+            }
         }
         /// @brief a coredump was generated
         ///

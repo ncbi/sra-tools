@@ -226,6 +226,8 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 4.6.1 3 $(SRCDIR)/input/4.fastq -p SOMETHINGELSE --quality PHRED_33
 #           4.7 input file missing
 	$(SMALLRUN) 4.7 3 $(SRCDIR)/input/not_there --quality PHRED_33
+#           4.8 drop read names
+	$(SMALLRUN) 4.8 0 $(SRCDIR)/input/4.8.fastq --quality PHRED_33 --no-readnames
 #   Gzipped input
 	$(SMALLRUN) 5.0 0 $(SRCDIR)/input/5.0.fastq.gz --quality PHRED_33
 #   Misparsed quality
@@ -268,5 +270,5 @@ smalltests: $(TEST_TOOLS)
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 8.1 3 $(SRCDIR)/input/8.1.fastq --quality PHRED_33
+	$(SMALLRUN) 4.8 0 $(SRCDIR)/input/4.8.fastq --quality PHRED_33 --no-readnames
 

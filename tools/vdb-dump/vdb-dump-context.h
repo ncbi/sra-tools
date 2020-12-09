@@ -75,7 +75,6 @@ extern "C" {
 #define OPTION_CUR_CACHE         "cur-cache"
 #define OPTION_OUT_FILE          "output-file"
 #define OPTION_OUT_PATH          "output-path"
-#define OPTION_PHASE             "phase"
 #define OPTION_GZIP              "gzip"
 #define OPTION_BZIP2             "bzip2"
 #define OPTION_OUT_BUF_SIZE      "output-buffer-size"
@@ -161,7 +160,6 @@ typedef struct dump_context
     uint16_t lf_after_row;
     uint16_t max_line_len;
     uint16_t indented_line_len;
-    uint16_t phase;
     uint32_t generic_idx;
     uint32_t slice_depth;
     size_t cur_cache_size;

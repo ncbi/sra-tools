@@ -128,7 +128,6 @@ static void vdco_init_values( p_dump_context ctx )
     ctx -> print_dna_bases = false;
     ctx -> max_line_len = 0;
     ctx -> indented_line_len = 0;
-    ctx -> phase = 0;
     ctx -> slice_depth = 0;
 
     ctx -> help_requested = false;
@@ -591,7 +590,6 @@ static void vdco_evaluate_options( const Args *args, dump_context *ctx )
     ctx -> help_requested = vdco_get_bool_option( args, OPTION_HELP, false );
     ctx -> print_row_id = vdco_get_bool_option( args, OPTION_ROW_ID_ON, false );
     ctx -> lf_after_row = vdco_get_uint16_option( args, OPTION_LINE_FEED, 1 );
-    ctx -> phase = vdco_get_uint16_option( args, OPTION_PHASE, 0 );
     ctx -> print_column_names = vdco_get_bool_neg_option( args, OPTION_COLNAME_OFF, true );
     ctx -> print_in_hex = vdco_get_bool_option( args, OPTION_IN_HEX, false );
     ctx -> schema_dump_requested = vdco_get_bool_option( args, OPTION_SCHEMA_DUMP, false );

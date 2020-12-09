@@ -165,7 +165,6 @@ OptDef DumpOptions[] =
     { OPTION_CUR_CACHE,             NULL,                     NULL, cur_cache_usage,         1, true,   false },
     { OPTION_OUT_FILE,              NULL,                     NULL, out_file_usage,          1, true,   false },
     { OPTION_OUT_PATH,              NULL,                     NULL, out_path_usage,          1, true,   false },
-    { OPTION_PHASE,                 NULL,                     NULL, NULL,                   1, true,   false },
     { OPTION_GZIP,                  NULL,                     NULL, gzip_usage,              1, false,  false },
     { OPTION_BZIP2,                 NULL,                     NULL, bzip2_usage,             1, false,  false },
     { OPTION_OUT_BUF_SIZE,          NULL,                     NULL, outbuf_size_usage,       1, true,   false },
@@ -177,7 +176,7 @@ OptDef DumpOptions[] =
     { OPTION_APPEND,                ALIAS_APPEND,             NULL, append_usage,            1, false,  false },
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
-    { OPTION_NGC,                   NULL,     NULL, ngc_usage, 1, true, false },
+    { OPTION_NGC,                   NULL,                     NULL, ngc_usage,               1, true,   false }
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -260,13 +259,13 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL,                      OPTION_ENUM_PHYS,       NULL,           enum_phys_usage );
     HelpOptionLine ( NULL,                      OPTION_ENUM_READABLE,   NULL,           enum_readable_usage );
     HelpOptionLine ( NULL,                      OPTION_IDX_ENUM,        NULL,           idx_enum_usage );    
-    HelpOptionLine ( NULL,                      OPTION_IDX_RANGE,       NULL,           idx_range_usage );    
-    HelpOptionLine ( NULL,                      OPTION_CUR_CACHE,       NULL,           cur_cache_usage );    
-    HelpOptionLine ( NULL,                      OPTION_OUT_FILE,        NULL,           out_file_usage );
-    HelpOptionLine ( NULL,                      OPTION_OUT_PATH,        NULL,           out_path_usage );
+    HelpOptionLine ( NULL,                      OPTION_IDX_RANGE,       "idx-name",     idx_range_usage );    
+    HelpOptionLine ( NULL,                      OPTION_CUR_CACHE,       "size",         cur_cache_usage );    
+    HelpOptionLine ( NULL,                      OPTION_OUT_FILE,        "filename",     out_file_usage );
+    HelpOptionLine ( NULL,                      OPTION_OUT_PATH,        "path",         out_path_usage );
     HelpOptionLine ( NULL,                      OPTION_GZIP,            NULL,           gzip_usage );
     HelpOptionLine ( NULL,                      OPTION_BZIP2,           NULL,           bzip2_usage );
-    HelpOptionLine ( NULL,                      OPTION_OUT_BUF_SIZE,    NULL,           outbuf_size_usage );
+    HelpOptionLine ( NULL,                      OPTION_OUT_BUF_SIZE,    "size",         outbuf_size_usage );
     HelpOptionLine ( NULL,                      OPTION_NO_MULTITHREAD,  NULL,           disable_mt_usage );
     HelpOptionLine ( NULL,                      OPTION_INFO,            NULL,           info_usage );
     HelpOptionLine ( NULL,                      OPTION_SPOTGROUPS,      NULL,           spotgroup_usage );

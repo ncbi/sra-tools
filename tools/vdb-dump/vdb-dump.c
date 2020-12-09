@@ -87,7 +87,7 @@ static const char * schema_dump_usage[]         = { "dumps the schema",         
 static const char * table_enum_usage[]          = { "enumerates tables",                            NULL };
 static const char * column_enum_usage[]         = { "enumerates columns in extended form",          NULL };
 static const char * column_short_usage[]        = { "enumerates columns in short form",             NULL };
-static const char * dna_bases_usage[]           = { "print dna-bases",                              NULL };
+static const char * dna_bases_usage[]           = { "force dna-bases if column fits pattern",       NULL };
 static const char * max_line_len_usage[]        = { "limits line length",                           NULL };
 static const char * line_indent_usage[]         = { "indents the line",                             NULL };
 static const char * filter_usage[]              = { "filters lines",                                NULL };
@@ -228,7 +228,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_TABLE_ENUM,          OPTION_TABLE_ENUM,      NULL,           table_enum_usage );
     HelpOptionLine ( ALIAS_COLUMN_ENUM,         OPTION_COLUMN_ENUM,     NULL,           column_enum_usage );
     HelpOptionLine ( ALIAS_COLUMN_SHORT,        OPTION_COLUMN_SHORT,    NULL,           column_short_usage );
-    HelpOptionLine ( ALIAS_DNA_BASES,           OPTION_DNA_BASES,       "dna_bases",    dna_bases_usage );
+    HelpOptionLine ( ALIAS_DNA_BASES,           OPTION_DNA_BASES,       NULL,           dna_bases_usage );
     HelpOptionLine ( ALIAS_MAX_LINE_LEN,        OPTION_MAX_LINE_LEN,    "max_length",   max_line_len_usage );
     HelpOptionLine ( ALIAS_LINE_INDENT,         OPTION_LINE_INDENT,     "indent_width", line_indent_usage );
     HelpOptionLine ( ALIAS_FORMAT,              OPTION_FORMAT,          "format",       format_usage );
@@ -342,22 +342,22 @@ static void CC vdm_read_cell_data( void *item, void *data )
         bool sra_dump_format;
 
         /* initialize the element-idx ( for dimension > 1 ) */
-        src.element_idx = 0;
+        src . element_idx = 0;
 
         /* transfer context-flags (hex-print, no sra-types) */
-        src.in_hex = r_ctx -> ctx -> print_in_hex;
-        src.without_sra_types = r_ctx -> ctx -> without_sra_types;
+        src . in_hex = r_ctx -> ctx -> print_in_hex;
+        src . without_sra_types = r_ctx -> ctx -> without_sra_types;
 
         /* special treatment to suppress spaces between values */
         sra_dump_format = ( r_ctx -> ctx -> format == df_sra_dump );
 
         /* hardcoded printing of dna-bases if the column-type fits */
-        src.print_dna_bases = ( r_ctx -> ctx -> print_dna_bases &
+        src . print_dna_bases = ( r_ctx -> ctx -> print_dna_bases &
                     ( col_def -> type_desc . intrinsic_dim == 2 ) &
                     ( col_def -> type_desc . intrinsic_bits == 1 ) );
 
         /* how a boolean is displayed */
-        src.c_boolean = r_ctx -> ctx -> c_boolean;
+        src . c_boolean = r_ctx -> ctx -> c_boolean;
 
         if ( col_def -> type_desc . domain == vtdBool && src . c_boolean != 0 )
         {
@@ -385,7 +385,7 @@ static void CC vdm_read_cell_data( void *item, void *data )
             while( ( src . element_idx < src . number_of_elements )&&( r_ctx -> rc == 0 ) )
             {
                 uint32_t eidx = src . element_idx;
-                if ( ( eidx > 0 )&& ( src . print_dna_bases == false ) && print_comma )
+                if ( ( eidx > 0 )&& ( ! src . print_dna_bases ) && print_comma )
                 {
                     if ( sra_dump_format )
                     {

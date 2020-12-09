@@ -42,9 +42,13 @@
 #include <assert.h>
 #include <ctype.h>
 
+// Note: this is essentially a copy of ncbi-vdb/interfaces/loader/sequnce-writer.h,
+// with "bool dropReadnames" added to the parameters of SequenceWriteRecord (VDB-4149)
+#include "sequence-writer.h"
+//#include <loader/sequence-writer.h>
+
 #include <align/writer-sequence.h>
 
-#include <loader/sequence-writer.h>
 #include <loader/common-reader.h>
 
 /* MARK: SequenceWriter Object */
@@ -64,7 +68,8 @@ rc_t SequenceWriteRecord(SequenceWriter *self,
                          bool keepMismatchQual,
                          bool no_real_output,
                          bool hasTI,
-                         char const *QualQuantizer
+                         char const *QualQuantizer,
+                         bool dropReadnames
                          )
 {
     rc_t rc = 0;
@@ -183,11 +188,12 @@ rc_t SequenceWriteRecord(SequenceWriter *self,
     if (!no_real_output) {
         if (self->tbl == NULL) {
             int csoption = (color ? ewseq_co_ColorSpace : 0);
+            int readNameOption = (dropReadnames ? 0 : ewseq_co_SpotName);
 
             if(hasTI) csoption |= ewseq_co_TI;
 
             rc = TableWriterSeq_Make(&self->tbl, self->db,
-                                     csoption | ewseq_co_NoLabelData | ewseq_co_SpotGroup | ewseq_co_SpotName, QualQuantizer);
+                                     csoption | ewseq_co_NoLabelData | ewseq_co_SpotGroup | readNameOption, QualQuantizer);
         }
         if (rc == 0) {
             rc = TableWriterSeq_Write(self->tbl, &data, &dummyRowId);

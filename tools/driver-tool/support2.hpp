@@ -33,16 +33,15 @@
 #include <cstdarg>
 #include <assert.h>
 
-#if defined __GNUC__
-#include <sysexits.h>
-#endif
 #if WINDOWS
-//source: https://github.com/openbsd/src/blob/master/include/sysexits.h
+/// source: https://github.com/openbsd/src/blob/master/include/sysexits.h
 #define EX_USAGE	64	/* command line usage error */
 #define EX_NOINPUT	66	/* cannot open input */
 #define EX_SOFTWARE	70	/* internal software error */
 #define EX_TEMPFAIL	75	/* temp failure; user is invited to retry */
 #define EX_CONFIG	78	/* configuration error */
+#else
+#include <sysexits.h>
 #endif
 
 #include "../../shared/toolkit.vers.h"
@@ -522,8 +521,10 @@ namespace sratools2
             }
 
             if (result.signaled()) {
-                std::cerr << toolname << " was killed (signal " << result.termsig() << ")";
-                std::cerr << std::endl;
+                auto const signame = result.termsigname();
+                std::cerr << toolname << " was killed (signal " << result.termsig();
+                if (signame) std::cerr << " " << signame;
+                std::cerr << ")" << std::endl;
                 exit(3);
             }
             assert(!"reachable");

@@ -73,13 +73,16 @@ typedef struct SequenceWriter {
 
 SequenceWriter *SequenceWriterInit(SequenceWriter *self, VDatabase *db);
 
-rc_t SequenceWriteRecord(SequenceWriter *self, SequenceRecord const *rec,
-                         bool color, bool isDup, INSDC_SRA_platform_id platform,
+rc_t SequenceWriteRecord(SequenceWriter *self,
+                         SequenceRecord const *rec,
+                         bool color,
+                         bool isDup,
+                         INSDC_SRA_platform_id platform,
                          bool keepMismatchQual,
                          bool no_real_output,
                          bool hasTI,
-                         char const *QualQuantizer
-                         );
+                         char const *QualQuantizer,
+                         bool dropReadnames);
 
 rc_t SequenceDoneWriting(SequenceWriter *self);
 rc_t SequenceReadKey(const SequenceWriter *self, int64_t row, uint64_t *key);

@@ -994,8 +994,14 @@ rc_t CC KMain ( int argc, char *argv [] )
             ErrMsg( "ArgsParamCount() -> %R", rc );
         else
         {
+            /* in case we are given no or more than one accessions/files to process */
             if ( param_count == 0 || param_count > 1 )
-                rc = Usage ( args );
+            {
+                Usage ( args );
+                /* will make the caller of this function aka KMane() in man.c return
+                error code of 3 */
+                rc = 3;
+            }
             else
             {
                 tool_ctx_t tool_ctx;

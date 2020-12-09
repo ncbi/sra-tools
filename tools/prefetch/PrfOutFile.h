@@ -65,4 +65,4 @@ rc_t PrfOutFileCommitDo(PrfOutFile * self);
 rc_t PrfOutFileClose(PrfOutFile * self);
 rc_t PrfOutFileWhack(PrfOutFile * self, bool success);
 
-rc_t PrfOutFileConvert(KDirectory * dir, const char * path);
+rc_t PrfOutFileConvert(KDirectory * dir, const char * path, bool * recognized);

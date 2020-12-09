@@ -70,7 +70,6 @@ VDB_DUMP_SRC = \
 	vdb-dump-formats \
 	vdb-dump-redir \
 	vdb-dump-fastq \
-	vdb-dump-print \
 	vdb_info \
 	vdb_shell \
 	vdb-dump

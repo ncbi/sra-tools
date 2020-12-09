@@ -247,8 +247,8 @@ rc_t CC Usage ( const Args * args )
     
     HelpOptionLine ( ALIAS_ID_RANGE,            OPTION_ID_RANGE,        NULL,           id_range_usage );
     HelpOptionLine ( ALIAS_WITHOUT_SRA,         OPTION_WITHOUT_SRA,     NULL,           without_sra_usage );
-    HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS,    OPTION_EXCLUDED_COLUMNS,NULL,           excluded_columns_usage );
-    HelpOptionLine ( ALIAS_BOOLEAN,             OPTION_BOOLEAN,         NULL,           boolean_usage );
+    HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS,    OPTION_EXCLUDED_COLUMNS,"columns",      excluded_columns_usage );
+    HelpOptionLine ( ALIAS_BOOLEAN,             OPTION_BOOLEAN,         "1 or T",       boolean_usage );
     HelpOptionLine ( ALIAS_OBJVER,              OPTION_OBJVER,          NULL,           objver_usage );
     HelpOptionLine ( NULL,                      OPTION_OBJTS,           NULL,           objts_usage );
     HelpOptionLine ( ALIAS_OBJTYPE,             OPTION_OBJTYPE,         NULL,           objtype_usage );

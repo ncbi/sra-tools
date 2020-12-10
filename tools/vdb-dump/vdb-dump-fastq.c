@@ -117,7 +117,7 @@ static bool is_name_in_list( KNamelist * col_names, const char * to_find )
                 size_t col_name_len = string_size( col_name );
                 if ( col_name_len == to_find_len )
                 {
-                    res = ( 0 == string_cmp( to_find, to_find_len, col_name, col_name_len, col_name_len ) );
+                    res = ( 0 == string_cmp( to_find, to_find_len, col_name, col_name_len, ( uint32_t )col_name_len ) );
                 }
             }
         }
@@ -502,19 +502,19 @@ static rc_t print_qual( const char * qual, uint32_t count, uint32_t max_line_len
             if ( 0 == on_line )
             {
                 rc = KOutMsg( "%s", buffer );
-                on_line = num_writ;
+                on_line = ( uint32_t )num_writ;
             }
             else
             {
                 if ( ( on_line + num_writ + 1 ) < max_line_len )
                 {
                     rc = KOutMsg( " %s", buffer );
-                    on_line += ( num_writ + 1 );
+                    on_line += ( ( uint32_t )num_writ + 1 );
                 }
                 else
                 {
                     rc = KOutMsg( "\n%s", buffer );
-                    on_line = num_writ;
+                    on_line = ( uint32_t )num_writ;
                 }
             }
             i++;

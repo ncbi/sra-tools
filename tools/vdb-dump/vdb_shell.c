@@ -2353,6 +2353,7 @@ static char zHelp[] =
   ".tables ?TABLE?        List names of tables\n"
   "                         If TABLE specified, only list tables matching\n"
   "                         LIKE pattern TABLE.\n"
+#if 0
   ".testcase NAME         Begin redirecting output to 'testcase-out.txt'\n"
   ".timeout MS            Try opening locked tables for MS milliseconds\n"
   ".timer on|off          Turn SQL timer on or off\n"
@@ -2360,6 +2361,7 @@ static char zHelp[] =
   ".vfsinfo ?AUX?         Information about the top-level VFS\n"
   ".vfslist               List all available VFSes\n"
   ".vfsname ?AUX?         Print the name of the VFS stack\n"
+#endif
   ".width NUM1 NUM2 ...   Set column widths for \"column\" mode\n"
   "                         Negative values right-justify\n"
 ;

@@ -1312,7 +1312,7 @@ static rc_t vdm_show_vdb_blobs( const p_col_def col_def,
                                                 blob_first, blob_count, blob_bytes );
                                             row_id += blob_count;
                                             done = ( 0 == blob_count ||
-                                                     row_id >= ( column_first + column_count ) );
+                                                     row_id >= ( column_first + (int64_t)column_count ) );
                                         }
                                     }
                                 }

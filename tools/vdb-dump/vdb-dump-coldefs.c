@@ -483,7 +483,7 @@ bool vdcd_table_has_column( const VTable *tbl, const char * to_find )
 							size_t col_name_len = string_size( col_name );
 							if ( col_name_len == to_find_len )
                             {
-								res = ( 0 == string_cmp( to_find, to_find_len, col_name, col_name_len, col_name_len ) );
+								res = ( 0 == string_cmp( to_find, to_find_len, col_name, col_name_len, ( uint32_t )col_name_len ) );
                             }
 						}
 					}
@@ -827,7 +827,10 @@ static rc_t vdcd_collect_spread_col( const struct num_gen *row_set, col_def *cd,
 		spread s;
 		spread * sp = &s;
 		
-		s . max = s . sum = s . sum_sq = s . count = 0;
+		s . max = 0;
+        s . sum = = 0;
+        s . sum_sq = 0;
+        s . count = 0;
 		s . min = INT64_MAX;
 		
 		while ( ( 0 == rc ) && num_gen_iterator_next( iter, &row_id, &rc ) )

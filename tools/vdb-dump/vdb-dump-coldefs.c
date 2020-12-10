@@ -828,7 +828,7 @@ static rc_t vdcd_collect_spread_col( const struct num_gen *row_set, col_def *cd,
 		spread * sp = &s;
 		
 		s . max = 0;
-        s . sum = = 0;
+        s . sum = 0;
         s . sum_sq = 0;
         s . count = 0;
 		s . min = INT64_MAX;

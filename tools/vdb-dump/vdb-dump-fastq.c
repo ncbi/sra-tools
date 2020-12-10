@@ -858,7 +858,7 @@ static rc_t vdb_fasta_accumulated( const char * bases, uint32_t num_bases,
                                    int32_t * chars_left_on_line, uint32_t max_line_len )
 {
     rc_t rc = 0;
-    if ( num_bases < ( *chars_left_on_line ) )
+    if ( num_bases < (uint32_t)( *chars_left_on_line ) )
     {
         rc = KOutMsg( "%.*s", num_bases, bases );
         ( *chars_left_on_line ) -= num_bases;

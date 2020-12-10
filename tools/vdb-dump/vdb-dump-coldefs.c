@@ -356,10 +356,10 @@ static p_col_def vdcd_append_col( col_defs* defs, const char* name )
     {
         if ( 0 == VectorAppend( &( defs -> cols ), NULL, col ) )
         {
-            int len = string_size( name );
+            size_t len = string_size( name );
             if ( len > defs -> max_colname_chars )
             {
-                defs -> max_colname_chars = len;
+                defs -> max_colname_chars = ( uint16_t )len;
             }
         }
     }

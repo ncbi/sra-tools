@@ -260,7 +260,7 @@ static bool vdh_str_starts_with( const char *a, const char *b )
     size_t bsize = string_size ( b );
     if ( asize >= bsize )
     {
-        res = ( 0 == strcase_cmp ( a, bsize, b, bsize, bsize ) );
+        res = ( 0 == strcase_cmp ( a, bsize, b, bsize, (uint32_t)bsize ) );
     }
     return res;
 }

@@ -795,12 +795,12 @@ typedef struct spread
 		uint32_t i;											\
 		for ( i = 0; i < l; ++i )							\
 		{													\
-			t value = values[ i ];							\
+			t value = ( t )values[ i ];		    			\
 			if ( value != 0 )								\
 			{												\
-				double value_d = value;						\
-				if ( value < (S)->min ) (S)->min = value;	\
-				if ( value > (S)->max ) (S)->max = value;	\
+				double value_d = ( double ) value;			\
+				if ( value < ( t )(S)->min ) (S)->min = value;	\
+				if ( value > ( t )(S)->max ) (S)->max = value;	\
 				(S)->sum += value_d;						\
 				(S)->sum_sq += ( value_d * value_d );		\
 				(S)->count++;								\

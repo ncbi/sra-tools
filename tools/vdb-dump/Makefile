@@ -71,7 +71,6 @@ VDB_DUMP_SRC = \
 	vdb-dump-redir \
 	vdb-dump-fastq \
 	vdb_info \
-	vdb_shell \
 	vdb-dump
 
 VDB_DUMP_OBJ = \
@@ -81,7 +80,6 @@ VDB_DUMP_LIB = \
 	-skapp \
 	-stk-version \
 	-sncbi-vdb \
-	-svdb-sqlite \
 	-lm
 
 $(BINDIR)/vdb-dump: $(VDB_DUMP_OBJ)

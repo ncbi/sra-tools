@@ -2579,7 +2579,7 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
     return 0;
 }
 
-#ifndef WINDOWS
+#if 0
     int main_vdb_shell_org( int argc, char **argv );    /* to be found in vdb_shell.c! */
 #endif
 
@@ -2588,7 +2588,7 @@ rc_t CC KMain ( int argc, char *argv [] )
     rc_t rc;
     Args * args;
 
-#ifndef WINDOWS
+#if 0
     if ( argc > 1 && ( 0 == string_cmp ( argv[ 1 ], 7, "--shell", 7, 7 ) ) )
     {
         return main_vdb_shell_org( argc, argv );

@@ -159,7 +159,7 @@ struct FasterqParams final : CmnOptAndAccessions
 
     void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( !outfile.isEmpty() ) {
             if (accessions.size() > 1) {
@@ -182,7 +182,7 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( split_spot ) builder . add_option( "-s" );
         if ( split_files ) builder . add_option( "-S" );
         if ( split_3 ) builder . add_option( "-3" );
-        if ( concatenate_reads) builder . add_option( "concatenate-reads" );
+        if ( concatenate_reads) builder . add_option( "--concatenate-reads" );
         if ( to_stdout ) builder . add_option( "-Z" );
         if ( force ) builder . add_option( "-f" );
         if ( rowid_as_name ) builder . add_option( "-N" );

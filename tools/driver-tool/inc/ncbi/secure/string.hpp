@@ -435,7 +435,7 @@ namespace ncbi
          *=================================================*/
 
         /**
-v         * toSTLString
+         * toSTLString
          * @return a std::string object
          *
          * This cast operator does NOT return a const C++ reference

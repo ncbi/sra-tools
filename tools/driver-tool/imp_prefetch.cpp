@@ -107,9 +107,7 @@ struct PrefetchParams final : CmnOptAndAccessions
         /* switched to silent instead of removing it */
         cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
         cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
-            "Transport: one of: fasp; http; both [default]. "
-            "(fasp only; http only; first try fasp (ascp), use "
-            "http if cannot download using fasp)" );
+            "Transport: DEPRECATED AND IGNORED!" );
 
     }
 
@@ -137,7 +135,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         (void)(acc_index); (void)(accessions);
 
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( !file_type.isEmpty() ) builder . add_option( "-T", file_type );
         //if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
@@ -156,9 +154,6 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( !output_file.isEmpty() ) builder . add_option( "-o", output_file );
         if ( !output_dir.isEmpty() ) builder . add_option( "-O", output_dir );
         if ( dryrun ) builder . add_option( "--dryrun" );
-
-        // permanently pin the transport option to 'http'
-        builder . add_option( "-t", "http" );
 
         // prefetch gets location
         if (!location.isEmpty()) builder.add_option("--location", location);

@@ -429,10 +429,15 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
 static rc_t handle_accession( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
-    tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );
+    tool_ctx -> accession_short = extract_acc2( tool_ctx -> accession_path );
+
+    // in case something goes wrong with acc-extraction via VFS-manager
+    if ( tool_ctx -> accession_short == NULL )
+        tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );    
+
     if ( tool_ctx -> accession_short == NULL )
     {
-        rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );            
+        rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );
         ErrMsg( "accession '%s' invalid", tool_ctx -> accession_path );
     }
     return rc;
@@ -989,8 +994,14 @@ rc_t CC KMain ( int argc, char *argv [] )
             ErrMsg( "ArgsParamCount() -> %R", rc );
         else
         {
+            /* in case we are given no or more than one accessions/files to process */
             if ( param_count == 0 || param_count > 1 )
-                rc = Usage ( args );
+            {
+                Usage ( args );
+                /* will make the caller of this function aka KMane() in man.c return
+                error code of 3 */
+                rc = 3;
+            }
             else
             {
                 tool_ctx_t tool_ctx;
@@ -1003,6 +1014,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */
                     VDBManagerRelease( tool_ctx . vdb_mgr );
                 }
+                if ( NULL != tool_ctx . accession_short )
+                    free( ( char * )tool_ctx . accession_short );
             }
         }
     }

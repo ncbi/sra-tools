@@ -999,7 +999,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         srec.spotGroup = (char *)spotGroup;
                         srec.spotGroupLen = strlen(spotGroup);
                         rc = SequenceWriteRecord(seq, &srec, *isColorSpace, false, G->platform,
-                                                 G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer);
+                                                 G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer, G->dropReadnames);
                         if (freeFip) {
                             free(fip);
                             frag->data = NULL;
@@ -1056,7 +1056,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                 srec.spotNameLen = namelen;
 
                 rc = SequenceWriteRecord(seq, &srec, *isColorSpace, false, G->platform,
-                                         G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer);
+                                         G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer, G->dropReadnames);
                 if (rc) {
                     (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
                     goto LOOP_END;
@@ -1209,6 +1209,7 @@ rc_t CommonWriterComplete(CommonWriter* self, bool quitting, uint64_t maxDistanc
                                                  self->settings.no_real_output,
                                                  self->settings.hasTI,
                                                  self->settings.QualQuantizer,
+                                                 self->settings.dropReadnames,
                                                  self->seq,
                                                  self->progress);
             SpotAssemblerReleaseMemBank(self->ctx);

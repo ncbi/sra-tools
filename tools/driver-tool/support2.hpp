@@ -33,16 +33,15 @@
 #include <cstdarg>
 #include <assert.h>
 
-#if defined __GNUC__
-#include <sysexits.h>
-#endif
 #if WINDOWS
-//source: https://github.com/openbsd/src/blob/master/include/sysexits.h
+/// source: https://github.com/openbsd/src/blob/master/include/sysexits.h
 #define EX_USAGE	64	/* command line usage error */
 #define EX_NOINPUT	66	/* cannot open input */
 #define EX_SOFTWARE	70	/* internal software error */
 #define EX_TEMPFAIL	75	/* temp failure; user is invited to retry */
 #define EX_CONFIG	78	/* configuration error */
+#else
+#include <sysexits.h>
 #endif
 
 #include "../../shared/toolkit.vers.h"
@@ -324,12 +323,14 @@ namespace sratools2
         std::vector < ncbi::String > debugFlags;
         ncbi::String log_level;
         ncbi::String option_file;
+        ncbi::U32 verbosity;
 
         CmnOptAndAccessions(WhatImposter const &what)
         : what(what)
         , disable_multithreading( false )
         , version( false )
         , quiet( false )
+        , verbosity(0)
         {
 
         }
@@ -345,6 +346,8 @@ namespace sratools2
             cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
             cmdline . addOption ( version, "V", "version", "Display the version of the program" );
 
+            cmdline.addOption(verbosity, "v", "verbose", "Increase the verbosity of the program "
+                              "status messages. Use multiple times for more verbosity.");
             /*
             // problem: 'q' could be used by the tool already...
             cmdline . addOption ( quiet, "q", "quiet",
@@ -370,13 +373,19 @@ namespace sratools2
             if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
             if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
             if ( version ) ss << "version" << std::endl;
+            if (verbosity) ss << "verbosity: " << verbosity << std::endl;
             print_vec( ss, debugFlags, "debug modules:" );
             if ( !log_level.isEmpty() ) ss << "log-level: " << log_level << std::endl;
             if ( !option_file.isEmpty() ) ss << "option-file: " << option_file << std::endl;
             return ss;
         }
 
-        void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
+        enum VerbosityStyle {
+            standard,
+            fastq_dump
+        };
+        
+        void populate_common_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions, VerbosityStyle verbosityStyle = standard ) const
         {
             builder . add_option_list( "-+", debugFlags );
             if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
@@ -384,9 +393,20 @@ namespace sratools2
             if ( !option_file.isEmpty() ) builder . add_option( "--option-file", option_file );
             if (!ngc_file.isEmpty()) builder.add_option("--ngc", ngc_file);
 
+            if (verbosity) {
+                switch (verbosityStyle) {
+                case fastq_dump: /* fastq-dump can't handle -vvv, must repeat "-v" */
+                    for (ncbi::U32 i = 0; i < verbosity; ++i)
+                        builder.add_option("-v");
+                    break;
+                default:
+                    builder.add_option(std::string("-") + std::string(verbosity, 'v'));
+                    break;
+                }
+            }
             (void)(acc_index); (void)(accessions);
         }
-        
+
         bool check() const override
         {
             int problems = 0;
@@ -449,6 +469,31 @@ namespace sratools2
         }
     };
 
+    struct ToolExecNoSDL {
+        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
+        {
+            ArgvBuilder builder;
+
+#if WINDOWS
+            // make sure we got all hard-coded POSIX path seperators
+            assert(theirpath.find('/') == std::string::npos);
+#endif
+            builder.add_option(theirpath);
+            tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
+
+            auto argv = builder.generate_argv(accessions);
+
+            sratools::process::run_child(toolpath.c_str(), toolname, argv);
+
+            // exec returned! something went wrong
+            auto const error = std::error_code(errno, std::system_category());
+
+            builder.free_argv(argv);
+
+            throw std::system_error(error, std::string("Failed to exec ")+toolname);
+        }
+    };
+
     struct ToolExec {
     private:
         static std::vector<std::string> convert(std::vector<ncbi::String> const &other)
@@ -476,8 +521,10 @@ namespace sratools2
             }
 
             if (result.signaled()) {
-                std::cerr << toolname << " was killed (signal " << result.termsig() << ")";
-                std::cerr << std::endl;
+                auto const signame = result.termsigname();
+                std::cerr << toolname << " was killed (signal " << result.termsig();
+                if (signame) std::cerr << " " << signame;
+                std::cerr << ")" << std::endl;
                 exit(3);
             }
             assert(!"reachable");
@@ -486,6 +533,9 @@ namespace sratools2
     public:
         static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
         {
+            if (accessions.empty()) {
+                return ToolExecNoSDL::run(toolname, toolpath, theirpath, tool_options, accessions);
+            }
             auto const s_location = tool_options.location.toSTLString();
             auto const s_perm = tool_options.perm_file.toSTLString();
             auto const s_ngc = tool_options.ngc_file.toSTLString();
@@ -543,31 +593,6 @@ namespace sratools2
                 }
             }
             return 0;
-        }
-    };
-
-    struct ToolExecNoSDL {
-        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
-        {
-            ArgvBuilder builder;
-
-#if WINDOWS
-            // make sure we got all hard-coded POSIX path seperators
-            assert(theirpath.find('/') == std::string::npos);
-#endif
-            builder.add_option(theirpath);
-            tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
-
-            auto argv = builder.generate_argv(accessions);
-
-            sratools::process::run_child(toolpath.c_str(), toolname, argv);
-
-            // exec returned! something went wrong
-            auto const error = std::error_code(errno, std::system_category());
-
-            builder.free_argv(argv);
-
-            throw std::system_error(error, std::string("Failed to exec ")+toolname);
         }
     };
 

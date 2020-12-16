@@ -1,6 +1,32 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.9
+**December 16, 2020**
+
+  **align, vdb**: fixed situation where network access could drastically slow down reading references  
+  **build**: added configure option to produce build in output directory relative to sources  
+  **fasterq-dump**: better recognizes pacbio-runs  
+  **fasterq-dump**: ignore .sra-extension of input-filename in output-filename  
+  **fasterq-dump**: non-zero return-code if no arguments given  
+  **fastq-dump**: fasta parameter will complain about invalid argument  
+  **kar**: added availability to open remote files on cloud  
+  **kns, sra-tools, vdb**: added a loop to retry failed connections when fetching SRA files  
+  **latf-load**: added an option to drop read names (--no-readnames), preserve them by default  
+  **prefetch**: support of ETL - BQS runs  
+  **sra-docker**: documentation for toolkit docker  
+  **sratools**: driver tool passes all arguments to the driven tool  
+  **sratools**: fixed bug that prevented the `concatenate-reads` option from working  
+  **sratools**: fixed typo `split-e` for option `split-3`  
+  **sratools**: tools can be executed with no arguments  
+  **sratools**: transport option is now deprecated and silently ignored  
+  **sratools**: verbosity argument is passed on to driven tool  
+  **vdb-config**: added a new option to force use of full qualities   
+  **vdb**: prefetch is used for test  
+  **vfs**: allow to find local files when remote repository is disabled  
+  **vfs**: not to call names.cgi but SDL when resolving runs and reference sequences  
+
+
 ## SRA Toolkit 2.10.8
 **June 29, 2020**
 

@@ -499,7 +499,7 @@ static rc_t get_sizes(KDirectory const *dir, unsigned *nobj, size_t *namesz)
     } pb;
 
     memset(&pb, 0, sizeof(pb));
-    rc = KDirectoryVVisit(dir, true, get_sizes_cb, &pb, NULL, NULL);
+    rc = KDirectoryVisit(dir, true, get_sizes_cb, &pb, NULL);
     if (rc)
         memset(&pb, 0, sizeof(pb));
     *nobj = pb.count;

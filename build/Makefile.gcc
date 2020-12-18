@@ -56,7 +56,9 @@ ifeq (linux,$(OS))
 endif
 
 ifeq (64,$(BITS))
+ifneq (arm64,$(ARCH))
 	CARCH = -m64
+endif
 else
 ifeq (32_64,$(BITS))
     CARCH = -arch i386 -arch x86_64  

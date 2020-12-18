@@ -1113,7 +1113,7 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
         /* =================================================== */
         switch( acc_type )
         {
-            case acc_csra       : rc = fastdump_csra( tool_ctx );/* above */
+            case acc_csra       : rc = fastdump_csra( tool_ctx ); /* above */
                                   break;
 
             case acc_pacbio     : ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx -> accession_path );
@@ -1132,6 +1132,11 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
         }
         /* =================================================== */
     }
+    else
+    {
+        ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
+    }
+    
     return rc;
 }
 

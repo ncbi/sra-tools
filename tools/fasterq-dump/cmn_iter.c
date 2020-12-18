@@ -498,20 +498,26 @@ static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accessio
     acc_type_t res = acc_none;
     const VDatabase * db = NULL;
     rc_t rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", accession );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "cmn_iter.c cmn_get_db_type().VDBManagerOpenDBRead( '%s' ) -> %R\n", accession, rc );
+    }
     else
     {
         KNamelist * k_tables;
         rc = VDatabaseListTbl ( db, &k_tables );
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "cmn_iter.c cmn_get_db_type().VDatabaseListTbl( '%s' ) -> %R\n", accession, rc );
+        }
         else
         {
             VNamelist * tables;
             rc = VNamelistFromKNamelist ( &tables, k_tables );
-            if ( rc != 0 )
+            if ( 0 != rc )
+            {
                 ErrMsg( "cmn_iter.c cmn_get_db_type().VNamelistFromKNamelist( '%s' ) -> %R\n", accession, rc );
+            }
             else
             {
                 if ( contains( tables, "SEQUENCE" ) )
@@ -538,8 +544,10 @@ static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accessio
                             uint8_t pf;
                             if ( cmn_get_db_platform( db, accession, &pf ) )
                             {
-                                if ( pf == SRA_PLATFORM_PACBIO_SMRT )
+                                if ( SRA_PLATFORM_PACBIO_SMRT == pf )
+                                {
                                     res = acc_pacbio;
+                                }
                             }
                         }
                     }
@@ -556,9 +564,11 @@ rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
                        const char * accession, acc_type_t * acc_type )
 {
     rc_t rc = 0;
-    if ( acc_type != NULL )
+    if ( NULL != acc_type )
+    {
         *acc_type = acc_none;
-    if ( dir == NULL || accession == NULL || acc_type == NULL )
+    }
+    if ( NULL == dir || NULL == accession || NULL == acc_type )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ) -> %R", accession, rc );
@@ -567,13 +577,17 @@ rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
     {
         bool release_mgr = false;
         const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
-        if ( mgr == NULL )
+        if ( NULL == mgr )
         {
             rc = VDBManagerMakeRead( &mgr, dir );
-            if ( rc != 0 )
-                ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ).VDBManagerMakeRead() -> %R\n", accession, rc );
-            else
+            if ( 0 == rc )
+            {
                 release_mgr = true;
+            }
+            else
+            {
+                ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ).VDBManagerMakeRead() -> %R\n", accession, rc );
+            }
         }
         if ( rc == 0 )
         {
@@ -586,7 +600,9 @@ rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
                 case kptTable       : *acc_type = acc_sra_flat; break;
             }
             if ( release_mgr )
+            {
                 VDBManagerRelease( mgr );
+            }
         }
     }
     return rc;

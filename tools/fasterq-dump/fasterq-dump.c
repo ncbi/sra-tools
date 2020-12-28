@@ -200,6 +200,8 @@ OptDef ToolOptions[] =
     { OPTION_NGC,       NULL,            NULL, ngc_usage,        1, true,   false },
 };
 
+/* ----------------------------------------------------------------------------------- */
+
 const char UsageDefaultName[] = "fasterq-dump";
 
 rc_t CC UsageSummary( const char * progname )

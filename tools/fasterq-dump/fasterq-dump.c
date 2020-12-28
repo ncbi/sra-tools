@@ -204,6 +204,8 @@ OptDef ToolOptions[] =
 
 const char UsageDefaultName[] = "fasterq-dump";
 
+/* ----------------------------------------------------------------------------------- */
+
 rc_t CC UsageSummary( const char * progname )
 {
     return KOutMsg( "\n"

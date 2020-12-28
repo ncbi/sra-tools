@@ -165,6 +165,8 @@ static const char * append_usage[] = { "append to output-file", NULL };
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC   "ngc"
 
+/* ---------------------------------------------------------------------------------- */
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },

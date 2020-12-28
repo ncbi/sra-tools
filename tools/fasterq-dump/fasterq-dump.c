@@ -214,6 +214,8 @@ rc_t CC UsageSummary( const char * progname )
                      "\n", progname );
 }
 
+/* ----------------------------------------------------------------------------------- */
+
 rc_t CC Usage ( const Args * args )
 {
     rc_t rc;

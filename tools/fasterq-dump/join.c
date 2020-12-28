@@ -72,8 +72,9 @@ static rc_t init_join( cmn_params * cp,
                        struct join * j )
 {
     rc_t rc;
-    
-    j -> accession_path = cp -> accession;
+
+    j -> accession_path  = cp -> accession_path;
+    j -> accession_short = cp -> accession_short;
     j -> lookup = NULL;
     j -> results = results;
     j -> B1 . S . addr = NULL;
@@ -84,7 +85,9 @@ static rc_t init_join( cmn_params * cp,
     if ( index_filename != NULL )
     {
         if ( file_exists( cp -> dir, "%s", index_filename ) )
+        {
             rc = make_index_reader( cp -> dir, &j -> index, buf_size, "%s", index_filename ); /* index.c */
+        }
     }
     else
         j -> index = NULL;
@@ -782,11 +785,12 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
 
 static rc_t extract_csra_row_count( KDirectory * dir,
                                     const VDBManager * vdb_mgr,
+                                    const char * accession_short,
                                     const char * accession_path,
                                     size_t cur_cache,
                                     uint64_t * res )
 {
-    cmn_params cp = { dir, vdb_mgr, accession_path, 0, 0, cur_cache };
+    cmn_params cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
     struct fastq_csra_iter * iter;
     fastq_iter_opt opt = { false, false, false, false }; /* fastq_iter.h */
     rc_t rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
@@ -1101,7 +1105,8 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
     {
         join j;
         cmn_params cp = { jtd -> dir, jtd -> vdb_mgr,
-                          jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+                          jtd -> accession_short, jtd -> accession_path,
+                          jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
 
         rc = init_join( &cp,
                         results,
@@ -1183,11 +1188,11 @@ rc_t execute_db_join( KDirectory * dir,
         uint64_t row_count = 0;
         bool name_column_present, cmp_read_column_present;
         
-        rc = cmn_check_db_column( dir, vdb_mgr, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
         if ( rc == 0 )
-            rc = cmn_check_db_column( dir, vdb_mgr, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
+            rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
         
-        rc = extract_csra_row_count( dir, vdb_mgr, accession_path, cur_cache, &row_count );
+        rc = extract_csra_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &row_count );
         if ( rc == 0 && row_count > 0 )
         {
             Vector threads;
@@ -1262,7 +1267,7 @@ rc_t execute_db_join( KDirectory * dir,
                     }
                 }
             }
-            
+
             {
                 /* collect the threads, and add the join_stats */
                 uint32_t i, n = VectorLength( &threads );
@@ -1300,7 +1305,8 @@ rc_t check_lookup( const KDirectory * dir,
                    size_t cursor_cache,
                    const char * lookup_filename,
                    const char * index_filename,
-                   const char * accession )
+                   const char * accession_short,
+                   const char * accession_path )
 {
     struct index_reader * index;
     rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
@@ -1312,13 +1318,15 @@ rc_t check_lookup( const KDirectory * dir,
         {
             struct raw_read_iter * iter; /* raw_read_iter.h */
             cmn_params params; /* helper.h */
-            
+
             params . dir = dir;
-            params . accession = accession;
+            params . accession_short = accession_short;
+            params . accession_path  = accession_path;
+
             params . first_row = 0;
             params . row_count = 0;
             params . cursor_cache = cursor_cache;
-            
+
             rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
             if ( rc == 0 )
             {

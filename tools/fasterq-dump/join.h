@@ -76,7 +76,8 @@ rc_t check_lookup( const KDirectory * dir,
                    size_t cursor_cache,
                    const char * lookup_filename,
                    const char * index_filename,
-                   const char * accession );
+                   const char * accession_short,
+                   const char * accession_path );
 
 rc_t check_lookup_this( const KDirectory * dir,
                         size_t buf_size,

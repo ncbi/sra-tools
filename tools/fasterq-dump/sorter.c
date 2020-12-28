@@ -96,7 +96,7 @@ static rc_t init_multi_producer( lookup_producer * self,
         if ( rc == 0 )
         {
             cmn_params cp;
-            
+
             self -> iter            = NULL;
             self -> progress        = progress;
             self -> merger          = merger;
@@ -107,10 +107,11 @@ static rc_t init_multi_producer( lookup_producer * self,
             self -> mem_limit       = mem_limit;
             self -> single          = false;
             self -> processed_row_count = processed_row_count;
-            
+
             cp . dir                = cmn -> dir;
             cp . vdb_mgr            = cmn -> vdb_mgr;
-            cp . accession          = cmn -> accession;
+            cp . accession_short    = cmn -> accession_short;
+            cp . accession_path     = cmn -> accession_path;
             cp . first_row          = first_row;
             cp . row_count          = row_count;
             cp . cursor_cache       = cmn -> cursor_cache;
@@ -244,12 +245,13 @@ static uint64_t find_out_row_count( cmn_params * cmn )
     struct raw_read_iter * iter; /* raw_read_iter.c */
     cmn_params cp; /* cmn_iter.h */
     
-    cp . dir            = cmn -> dir;
-    cp . vdb_mgr        = cmn -> vdb_mgr;
-    cp . accession      = cmn -> accession;
-    cp . first_row      = 0;
-    cp . row_count      = 0;
-    cp . cursor_cache   = cmn -> cursor_cache;
+    cp . dir             = cmn -> dir;
+    cp . vdb_mgr         = cmn -> vdb_mgr;
+    cp . accession_short = cmn -> accession_short;
+    cp . accession_path  = cmn -> accession_path;
+    cp . first_row       = 0;
+    cp . row_count       = 0;
+    cp . cursor_cache    = cmn -> cursor_cache;
 
     rc = make_raw_read_iter( &cp, &iter ); /* raw_read_iter.c */
     if ( rc == 0 )
@@ -353,7 +355,8 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
 
 rc_t execute_lookup_production( KDirectory * dir,
                                 const VDBManager * vdb_mgr,
-                                const char * accession,
+                                const char * accession_short,
+                                const char * accession_path,
                                 struct background_vector_merger * merger,
                                 size_t cursor_cache,
                                 size_t buf_size,
@@ -371,7 +374,7 @@ rc_t execute_lookup_production( KDirectory * dir,
     
     if ( rc == 0 )
     {
-        cmn_params cmn = { dir, vdb_mgr, accession, 0, 0, cursor_cache };
+        cmn_params cmn = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cursor_cache };
         rc = run_producer_pool( &cmn,
                                 merger,
                                 buf_size,

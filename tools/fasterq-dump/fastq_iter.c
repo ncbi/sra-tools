@@ -167,7 +167,11 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
         {
             self -> opt = opt;
             rc = make_cmn_iter( params, "SEQUENCE", &( self -> cmn ) ); /* cmn_iter.h */
-            
+            if ( 0 != rc )
+            {
+                ErrMsg( "make_fastq_csra_iter.make_cmn_iter() -> %R", rc );
+            }
+
             if ( rc == 0 && opt . with_name )
                 rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) ); /* cmn_iter.h */
 
@@ -303,6 +307,10 @@ rc_t make_fastq_sra_iter( const cmn_params * params,
         {
             self -> opt = opt;
             rc = make_cmn_iter( params, tbl_name, &( self -> cmn ) );
+            if ( 0 != rc )
+            {
+                ErrMsg( "make_fastq_sra_iter.make_cmn_iter() -> %R", rc );
+            }
 
             if ( rc == 0 && opt . with_name )
                 rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );

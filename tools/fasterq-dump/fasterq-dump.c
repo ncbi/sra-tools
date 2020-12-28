@@ -478,12 +478,12 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
 static rc_t handle_accession( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
-    tool_ctx -> accession_short = extract_acc2( tool_ctx -> accession_path );
+    tool_ctx -> accession_short = extract_acc2( tool_ctx -> accession_path ); /* helper.c */
 
     // in case something goes wrong with acc-extraction via VFS-manager
     if ( NULL == tool_ctx -> accession_short )
     {
-        tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );    
+        tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path ); /* helper.c */
     }
 
     if ( NULL == tool_ctx -> accession_short )
@@ -808,6 +808,7 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
         rc = execute_lookup_production( tool_ctx -> dir,
                                         tool_ctx -> vdb_mgr,
                                         tool_ctx -> accession_short,
+                                        tool_ctx -> accession_path,
                                         bg_vec_merger, /* drives the bg_file_merger */
                                         tool_ctx -> cursor_cache,
                                         tool_ctx -> buf_size,
@@ -1043,8 +1044,8 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
     {
         rc = execute_tbl_join( tool_ctx -> dir,
                            tool_ctx -> vdb_mgr,
-                           tool_ctx -> accession_path,
                            tool_ctx -> accession_short,
+                           tool_ctx -> accession_path,
                            &stats,
                            tbl_name,
                            tool_ctx -> temp_dir,
@@ -1097,6 +1098,7 @@ static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx )
 {
     const char * res = tool_ctx -> seq_tbl_name;
     VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> vdb_mgr,
+                                              tool_ctx -> accession_short,
                                               tool_ctx -> accession_path ); /* cmn_iter.c */
     if ( NULL != tables )
     {
@@ -1117,7 +1119,8 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
 {
     acc_type_t acc_type; /* cmn_iter.h */
     rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> vdb_mgr,
-                                tool_ctx -> accession_path, &acc_type ); /* cmn_iter.c */
+                                tool_ctx -> accession_short, tool_ctx -> accession_path,
+                                &acc_type ); /* cmn_iter.c */
     if ( 0 == rc )
     {
         /* =================================================== */

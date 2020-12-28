@@ -58,6 +58,11 @@ rc_t make_special_iter( cmn_params * params, struct special_iter ** iter )
     else
     {
         rc = make_cmn_iter( params, "SEQUENCE", &i->cmn );
+        if ( 0 != rc )
+        {
+            ErrMsg( "make_special_iter.make_cmn_iter() -> %R", rc );
+        }
+
         if ( rc == 0 )
             rc = cmn_iter_add_column( i->cmn, "PRIMARY_ALIGNMENT_ID", &i->prim_alig_id );
         if ( rc == 0 )

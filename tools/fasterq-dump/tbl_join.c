@@ -566,8 +566,8 @@ typedef struct join_thread_data
     KDirectory * dir;
     const VDBManager * vdb_mgr;
 
-    const char * accession_path;
     const char * accession_short;
+    const char * accession_path;
     const char * tbl_name;
     struct bg_progress * progress;
     struct temp_registry * registry;
@@ -598,12 +598,13 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                 4096,
                                 jtd -> join_options -> print_read_nr,
                                 jtd -> join_options -> print_name,
-                                jtd -> join_options -> filter_bases );
+                                jtd -> join_options -> filter_bases ); /* join_results.c */
     
     if ( rc == 0 && results != NULL )
     {
         cmn_params cp = { jtd -> dir, jtd -> vdb_mgr, 
-                          jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+                          jtd -> accession_short, jtd -> accession_path,
+                          jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
         switch( jtd -> fmt )
         {
             case ft_whole_spot       : rc = perform_whole_spot_join( &cp,
@@ -643,12 +644,13 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
 
 static rc_t extract_sra_row_count( KDirectory * dir,
                                    const VDBManager * vdb_mgr,
+                                   const char * accession_short,
                                    const char * accession_path,
                                    const char * tbl_name,
                                    size_t cur_cache,
                                    uint64_t * res )
 {
-    cmn_params cp = { dir, vdb_mgr, accession_path, 0, 0, cur_cache }; /* helper.h */
+    cmn_params cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache }; /* helper.h */
     struct fastq_sra_iter * iter; 
     fastq_iter_opt opt = { false, false, false };
     rc_t rc = make_fastq_sra_iter( &cp, opt, tbl_name, &iter ); /* fastq_iter.c */
@@ -662,8 +664,8 @@ static rc_t extract_sra_row_count( KDirectory * dir,
 
 rc_t execute_tbl_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
-                    const char * accession_path,
                     const char * accession_short,
+                    const char * accession_path,
                     join_stats * stats,
                     const char * tbl_name,
                     const struct temp_dir * temp_dir,
@@ -687,15 +689,15 @@ rc_t execute_tbl_join( KDirectory * dir,
     if ( rc == 0 )
     {
         uint64_t row_count = 0;
-        rc = extract_sra_row_count( dir, vdb_mgr, accession_path, tbl_name, cur_cache, &row_count ); /* above */
+        rc = extract_sra_row_count( dir, vdb_mgr, accession_short, accession_path, tbl_name, cur_cache, &row_count ); /* above */
         if ( rc == 0 && row_count > 0 )
         {
             bool name_column_present;
 
             if ( tbl_name == NULL )
-                rc = cmn_check_tbl_column( dir, vdb_mgr, accession_path, "NAME", &name_column_present );
+                rc = cmn_check_tbl_column( dir, vdb_mgr, accession_short, accession_path, "NAME", &name_column_present );
             else
-                rc = cmn_check_db_column( dir, vdb_mgr, accession_path, tbl_name, "NAME", &name_column_present );
+                rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, tbl_name, "NAME", &name_column_present );
             
             if ( rc == 0 )
             {
@@ -736,8 +738,8 @@ rc_t execute_tbl_join( KDirectory * dir,
                     {
                         jtd -> dir              = dir;
                         jtd -> vdb_mgr          = vdb_mgr;
-                        jtd -> accession_path   = accession_path;
                         jtd -> accession_short  = accession_short;
+                        jtd -> accession_path   = accession_path;
                         jtd -> tbl_name         = tbl_name;
                         jtd -> first_row        = row;
                         jtd -> row_count        = rows_per_thread;

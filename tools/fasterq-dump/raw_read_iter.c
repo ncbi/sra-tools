@@ -50,7 +50,7 @@ void destroy_raw_read_iter( struct raw_read_iter * iter )
 
 rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
 {
-    
+
     rc_t rc = 0;
     raw_read_iter * i = calloc( 1, sizeof * i );
     if ( i == NULL )
@@ -61,6 +61,11 @@ rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
     else
     {
         rc = make_cmn_iter( params, "PRIMARY_ALIGNMENT", &i -> cmn );
+        if ( 0 != rc )
+        {
+            ErrMsg( "make_raw_read_iter.make_cmn_iter() -> %R", rc );
+        }
+
         if ( rc == 0 )
             rc = cmn_iter_add_column( i -> cmn, "SEQ_SPOT_ID", &i -> seq_spot_id );
         if ( rc == 0 )
@@ -98,14 +103,16 @@ uint64_t get_row_count_of_raw_read( struct raw_read_iter * iter )
 }
 
 rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache,
-                     const char * accession, const char * output_file )
+                     const char * accession_short, const char * accession_path,
+                     const char * output_file )
 {
     rc_t rc;
     struct raw_read_iter * iter;
     cmn_params params; /* helper.h */
     
     params . dir = dir;
-    params . accession = accession;
+    params . accession_short = accession_short;
+    params . accession_path = accession_path;
     params . first_row = 0;
     params . row_count = 0;
     params . cursor_cache = cursor_cache;

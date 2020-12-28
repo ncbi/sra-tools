@@ -51,6 +51,8 @@
 #include <os-native.h>
 #include <sysalloc.h>
 
+/* ---------------------------------------------------------------------------------- */
+
 static const char * format_usage[] = { "format (special, fastq, lookup, default=special)", NULL };
 #define OPTION_FORMAT   "format"
 #define ALIAS_FORMAT    "F"

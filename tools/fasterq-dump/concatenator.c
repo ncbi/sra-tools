@@ -351,10 +351,10 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
     }
     return rc;
 }
-                    
-                    
+
+
 /* ---------------------------------------------------------------------------------- */
-                    
+
 rc_t execute_concat( KDirectory * dir,
                     const char * output_filename,
                     const struct VNamelist * files,

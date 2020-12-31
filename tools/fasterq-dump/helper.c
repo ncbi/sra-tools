@@ -1423,7 +1423,6 @@ void locked_vector_release( locked_vector * self,
         {
             ErrMsg( "locked_vector_release().KLockRelease() -> %R", rc );
         }
-        free( ( void * ) self );
     }
 }
 
@@ -1501,35 +1500,61 @@ rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
 rc_t locked_value_init( locked_value * self, uint64_t init_value )
 {
     rc_t rc;
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_value_init() -> %R", rc );
+    }
     else
     {
         rc = KLockMake ( &( self -> lock ) );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_value_init().KLockMake() -> %R", rc );
+        }
+        else
+        {
             self -> value = init_value;
+        }
     }
     return rc;
 }
 
 void locked_value_release( locked_value * self )
 {
-    if ( self == NULL )
-        KLockRelease ( self -> lock );
+    if ( NULL != self )
+    {
+        rc_t rc = KLockRelease ( self -> lock );
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_value_init().KLockRelease() -> %R", rc );
+        }
+    }
 }
 
 rc_t locked_value_get( locked_value * self, uint64_t * value )
 {
     rc_t rc;
-    if ( self == NULL || value == NULL )
+    if ( NULL == self || NULL == value )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_value_get() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_value_get().KLockAcquire -> %R", rc );
+        }
+        else
         {
             *value = self -> value;
-            KLockUnlock ( self -> lock );
+            rc = KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_value_get().KLockUnlock -> %R", rc );
+            }
         }
     }
     return rc;
@@ -1538,15 +1563,26 @@ rc_t locked_value_get( locked_value * self, uint64_t * value )
 rc_t locked_value_set( locked_value * self, uint64_t value )
 {
     rc_t rc;
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_value_set() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_value_set().KLockAcquire -> %R", rc );
+        }
+        else
         {
             self -> value = value;
-            KLockUnlock ( self -> lock );
+            rc = KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_value_set().KLockUnlock -> %R", rc );
+            }
         }
     }
     return rc;
@@ -1567,22 +1603,27 @@ rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
     rc_t rc = 0;
     NucStrstr * nss;
     int res = NucStrstrMake ( &nss, 0, pattern, string_size ( pattern ) );
-    if ( res != 0 )
+    if ( 0 != res )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "make_Buf2NA().NucStrstrMake() -> %R", rc );
+    }
     else
     {
         uint8_t * buffer = calloc( size, sizeof * buffer );
-        if ( buffer == NULL )
+        if ( NULL == buffer )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            ErrMsg( "make_Buf2NA().calloc().1() -> %R", rc );
             NucStrstrWhack ( nss );
         }
         else
         {
             Buf2NA * res = calloc( 1, sizeof * res );
-            if ( res == NULL )
+            if ( NULL == res )
             {
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                ErrMsg( "make_Buf2NA().calloc().2() -> %R", rc );
                 NucStrstrWhack ( nss );
                 free( ( void * ) buffer );
             }

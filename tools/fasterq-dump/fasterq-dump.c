@@ -381,14 +381,14 @@ static const char * dflt_seq_tabl_name = "SEQUENCE";
 static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
 {
     bool split_spot, split_file, split_3, whole_spot;
-    
+
 #if 0
     tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
                                             get_bool_option( args, OPTION_BZIP2 ) );
 #endif
     tool_ctx -> compress = ct_none;
-    
-    tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );            
+
+    tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
     tool_ctx -> requested_temp_path = get_str_option( args, OPTION_TEMP, NULL );
@@ -405,7 +405,12 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> join_options . print_name = true;
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
+
+#if 0
     tool_ctx -> join_options . terminate_on_invalid = get_bool_option( args, OPTION_STRICT );
+#else
+    tool_ctx -> join_options . terminate_on_invalid = true;
+#endif
 
     split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );

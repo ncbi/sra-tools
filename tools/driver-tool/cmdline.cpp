@@ -51,7 +51,6 @@
 #endif
 
 #define TRACE( lvl, ... ) /* ignore */
-int dbg_trace_level = 0;
 
 namespace ncbi
 {
@@ -326,21 +325,6 @@ namespace ncbi
         {
         }
     };
-
-#if _DEBUGGING
-    struct TraceLevelOption : Cmdline :: Option
-    {
-        virtual void handleOption ( Cmdline & args ) const
-        {
-            ++ dbg_trace_level;
-        }
-
-        TraceLevelOption ( const String & _help )
-            : Cmdline :: Option ( "v", "verbose", _help, true )
-        {
-        }
-    };
-#endif
 
     struct BooleanOption : Cmdline :: Option
     {
@@ -851,10 +835,6 @@ namespace ncbi
             // add in help option if not already there
             TRACE ( TRACE_GEEK, "adding help option\n" );
             add_default_option ( * this, new HelpOption ( "print this message" ) );
-#if _DEBUGGING
-            TRACE ( TRACE_GEEK, "adding verbose option\n" );
-            add_default_option ( * this, new TraceLevelOption ( "increment verbosity" ) );
-#endif
         }
         else
         {
@@ -866,10 +846,6 @@ namespace ncbi
                 TRACE ( TRACE_GEEK, "temporarily set mode to '%s'\n", mode -> mode_name . c_str () );
                 TRACE ( TRACE_GEEK, "adding help option\n" );
                 add_default_option ( * this, new HelpOption ( "print this message" ) );
-#if _DEBUGGING
-                TRACE ( TRACE_GEEK, "adding verbose option\n" );
-                add_default_option ( * this, new TraceLevelOption ( "increment verbosity" ) );
-#endif
             }
             mode = save;
             TRACE ( TRACE_GEEK, "restoring mode to '%s'\n", mode -> mode_name . c_str () );
@@ -915,11 +891,6 @@ namespace ncbi
             mode = i -> second;
             TRACE ( TRACE_GEEK, "selected mode is '%s'\n", mode -> mode_name . c_str () );
         }
-
-#if _DEBUGGING
-        if ( pre_parse )
-            dbg_trace_level = 0;
-#endif
 
         // determine the number of parameters we have
         U32 num_formal_params = adjust_limits ( * this );
@@ -1835,13 +1806,6 @@ namespace ncbi
     {
         if ( environ != 0 )
         {
-            /*
-#if _DEBUGGING
-            add_default_param ( * this, new TypedImport < int > ( dbg_trace_fd, "dbg_trace_fd" ) );
-            add_default_param ( * this, new TypedImport < int > ( dbg_dedicated_log, "dedicated_log" ) );
-            add_default_param ( * this, new TypedImport < unsigned int > ( dbg_trace_level, "dbg_trace_level" ) );
-#endif
-            */
             const char *pfx = 0;
             size_t psz = prefix . size ();
             if ( psz != 0 )

@@ -43,8 +43,9 @@
         <get src="${sdk_url}/${jar}" dest="${workdir}\${tk_targetname}" />
 
         <echo message="version=${version}"/>
-        <echo
-message="smoke-test.bat ${workdir}\${tk_targetname}\bin ${antfile.dir}\grep.pl ${workdir}\${ngs_targetname} ${version}"/>
+        <echo message="smoke-test.bat ${workdir}\${tk_targetname}\bin ${antfile.dir}\grep.pl ${workdir}\${ngs_targetname} ${version}"/>
+
+        <echo message="/LIBS/GUID = &quot;8badf00d-1111-4444-8888-deaddeadbeef&quot;" file="${workdir}\${tk_targetname}\bin\ncbi\local.kfg" />
         <exec executable="cmd" failonerror="true" >
             <arg value="/c"/>
             <arg value="smoke-test.bat"/>
@@ -52,6 +53,7 @@ message="smoke-test.bat ${workdir}\${tk_targetname}\bin ${antfile.dir}\grep.pl $
             <arg value="${antfile.dir}\grep.pl"/>
             <arg value="${workdir}\${ngs_targetname}"/>
             <arg value="${version}"/>
+            <env key="VDB_CONFIG" path="${workdir}\${tk_targetname}\bin\ncbi" />
         </exec>
 
         <delete dir="${workdir}" failonerror="false"/>

@@ -1189,7 +1189,7 @@ rc_t CC Usage(const Args *args) {
 
         const char *param = NULL;
 
-        if (OPTIONS[i].aliases != NULL) {
+        if (alias != NULL) {
             if (strcmp(alias, FAIL_ASCP_ALIAS) == 0)
                 continue; /* debug option */
             else if (strcmp(alias, ASCP_ALIAS) == 0)
@@ -1227,6 +1227,7 @@ rc_t CC Usage(const Args *args) {
             param = "value";
         }
         else if (
+            strcmp(opt->name, CART_OPTION) == 0 ||
             strcmp(opt->name, NGC_OPTION) == 0 ||
             strcmp(opt->name, KART_OPTION) == 0
 #if _DEBUGGING

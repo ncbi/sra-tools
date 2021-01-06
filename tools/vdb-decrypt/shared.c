@@ -98,8 +98,10 @@ const char * NgcUsage[] = { "PATH to ngc file", NULL };
 const char EncExt[] = ".ncbi_enc";
 static const char TmpExt[] = ".vdb-decrypt-tmp";
 static const char TmpLockExt[] = ".vdb-decrypt-tmp.lock";
+#if 0
 static const char CacheExt[] = ".cache";
 static const char CacheLockExt[] = ".cache.lock";
+#endif
 
 /* Usage
  */

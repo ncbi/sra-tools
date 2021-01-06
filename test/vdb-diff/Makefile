@@ -32,16 +32,18 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 ifdef PYTHON
-runtests: check_exit_code \
+runtests: announce check_exit_code \
 	check_success \
 	check_failure
 
 else
-runtests: check_success\
+runtests: announce check_success\
 	check_failure;
 
 endif
@@ -52,14 +54,17 @@ endif
 
 ACCESSION = SRR000001
 
+announce:
+	@ echo Testing $(DIRTOTEST)
+
 check_exit_code:
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-diff
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/vdb-diff
 
 check_success:
-	@./test_success.sh $(BINDIR) $(ACCESSION)
+	@ ./test_success.sh $(DIRTOTEST) $(ACCESSION) > /dev/null
 
 check_failure:
-	@./test_failure.sh $(BINDIR) $(ACCESSION)
+	@ ./test_failure.sh $(DIRTOTEST) $(ACCESSION) > /dev/null
 
 .PHONY: $(TEST_TOOLS)
 

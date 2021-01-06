@@ -310,17 +310,17 @@ struct Response2 {
                     for (auto &location : file.locations) {
                         // if the user had run prefetch and not moved the
                         // downloaded files, this should find them.
-                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
                         func(std::move(data_source(run_source)));
                     }
                 }
                 else {
                     // there is a vdbcache with this object, do the join
                     for (auto &location : file.locations) {
-                        auto const &run_source = file.make_source(location, accession, response.localInfo2(accession, file.name));
+                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
                         auto const &best = vcache->best_matching(location);
                         if (best != vcache->locations.end()) {
-                            auto const &cache_source = file.make_source(*best, accession, response.localInfo2(accession, vcache->name));
+                            auto const &cache_source = file.make_source(*best, accession, response.localInfo(accession, vcache->name, vcache->type));
                             func(std::move(data_source(run_source, cache_source)));
                         }
                         else {
@@ -375,13 +375,13 @@ Dictionary data_source::get_environment() const
         result[names[env_var::REMOTE_NEED_PMT]] = "1";
 
     if (haveVdbCache) {
-        result[names[env_var::REMOTE_URL]] = vdbcache.remoteUrl;
+        result[names[env_var::REMOTE_VDBCACHE]] = vdbcache.remoteUrl;
         if (vdbcache.haveCachePath)
-            result[names[env_var::CACHE_URL]] = vdbcache.cachePath;
+            result[names[env_var::CACHE_VDBCACHE]] = vdbcache.cachePath;
         if (vdbcache.haveLocalPath)
-            result[names[env_var::LOCAL_URL]] = vdbcache.localPath;
+            result[names[env_var::LOCAL_VDBCACHE]] = vdbcache.localPath;
         if (vdbcache.haveSize)
-            result[names[env_var::SIZE_URL]] = vdbcache.fileSize;
+            result[names[env_var::SIZE_VDBCACHE]] = vdbcache.fileSize;
         if (vdbcache.needCE)
             result[names[env_var::CACHE_NEED_CE]] = "1";
         if (haveVdbCache && vdbcache.needPmt)

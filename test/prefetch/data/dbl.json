@@ -1,0 +1,28 @@
+{
+    "version": "2",
+    "result": [
+        {
+            "bundle": "SRR053325",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "srapub|SRR053325",
+                    "type": "sra",
+                    "name": "SRR053325",
+                    "size": 31838,
+                    "md5": "a5a0d77255cbf7854b6ef390dfeaa3ff",
+                    "modificationDate": "2019-07-03T22:15:50Z",
+                    "quality": "dbl",
+                    "locations": [
+                        {
+                            "service": "sra-sos",
+                            "region": "be-md",
+                            "link": "https://sra-download-internal.ncbi.nlm.nih.gov/sos2/sra-pub-run-15/SRR053325/SRR053325.4"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

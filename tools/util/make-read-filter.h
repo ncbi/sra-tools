@@ -42,11 +42,16 @@
 #include <klib/printf.h>
 #include <sra/sradb.h>
 
+#include <stdarg.h>
 #include <assert.h>
 #include <inttypes.h>
 
 #include <sysexits.h>
 #include <unistd.h>
+#include <sys/mman.h> 
+
+#define TEMP_MAIN_OBJECT_NAME "out"
+#define TEMP_CACHE_OBJECT_NAME "cache"
 
 typedef struct CellData {
     void const *data;
@@ -61,19 +66,19 @@ static uint32_t addColumn( char const *const name
                          , VCursor const *const curs);
 static void openCursor(VCursor const *const curs, char const *const name);
 static uint8_t *growFilterBuffer(uint8_t *const out_filter, size_t *const out_filter_count, size_t needed);
-static void openRow(uint64_t const row, VCursor const *const out);
+static void openRow(int64_t const row, VCursor const *const out);
 static void writeRow(int64_t const row
                     , uint32_t const reads
                     , uint8_t const *out_filter
                     , uint32_t const cid
                     , VCursor *const out);
-static void commitRow(uint64_t const row, VCursor *const out);
-static void closeRow(uint64_t const row, VCursor *const out);
+static void commitRow(int64_t const row, VCursor *const out);
+static void closeRow(int64_t const row, VCursor *const out);
 static void commitCursor(VCursor *const out);
 static VDBManager *manager();
 static Args *getArgs(int argc, char *argv[]);
 static char const *getOptArgValue(int opt, Args *const args);
-static char const *getParameter(Args *const args);
+static char const *getParameter(Args *const args, char const *);
 static int pathType(VDBManager const *mgr, char const *path);
 static VTable const *openInputTable(char const *const name
                                    , VDBManager const *const mgr
@@ -89,8 +94,8 @@ static VTable const *dbOpenTable(char const *const name
 static void tblSchemaInfo(VTable const *tbl, char const **name, VSchema *schema);
 static void dbSchemaInfo(VDatabase const *db, char const **name, VSchema *schema);
 static VTable const *openInput(char const *input, VDBManager const *mgr, bool *noDb, char const **schemaType, VSchema *schema);
-static void processTables(VTable *const output, VTable const *const input);
-static VTable *createOutput( Args *const args , VDBManager *const mgr, bool noDb, char const *schemaType, VSchema const *schema, char const **tempObjectPath);
+static void processTables(VTable *const output, VTable const *const input, bool const haveCache);
+static VTable *createOutput(Args *const args, VDBManager *const mgr, bool noDb, char const *schemaType, VSchema const *schema);
 static VSchema *makeSchema(VDBManager *mgr);
 
 static void OUT_OF_MEMORY()
@@ -127,6 +132,20 @@ static uint32_t addColumn( char const *const name
 {
     uint32_t cid = 0;
     rc_t const rc = VCursorAddColumn(curs, &cid, "(%s)%s", type, name);
+    if (rc == 0)
+        return cid;
+
+    pLogErr(klogFatal, rc, "Failed to open $(name) column", "name=%s", name);
+    exit(EX_NOINPUT);
+}
+
+static uint32_t addColumn2(  int const name_len
+                           , char const *const name
+                           , char const *const type
+                           , VCursor const *const curs)
+{
+    uint32_t cid = 0;
+    rc_t const rc = VCursorAddColumn(curs, &cid, "(%s)%.*s", type, name_len, name);
     if (rc == 0)
         return cid;
 
@@ -270,7 +289,8 @@ static VTable const *dbOpenTable(char const *const name
     VDatabase const *db = openDatabase(name, mgr);
     VTable const *in = NULL;
     rc_t const rc = VDatabaseOpenTableRead(db, &in, "%s", table);
-    dbSchemaInfo(db, schemaType, schema);
+    if (schema)
+        dbSchemaInfo(db, schemaType, schema);
     VDatabaseRelease(db);
     if (rc == 0)
         return in;
@@ -306,29 +326,39 @@ static int pathType(VDBManager const *mgr, char const *path)
     exit(EX_TEMPFAIL);
 }
 
-static void openRow(uint64_t const row, VCursor const *const out)
+static void setRow(int64_t const row, VCursor const *const out)
+{
+    rc_t const rc = VCursorSetRowId(out, row);
+    assert(rc == 0); /* This is a programmer error, it can only happen when called out of order. */
+    if (rc) {
+        pLogErr(klogFatal, rc, "Failed to set row $(row)", "row=%li", row);
+        exit(EX_SOFTWARE);
+    }
+}
+
+static void openRow(int64_t const row, VCursor const *const out)
 {
     rc_t const rc = VCursorOpenRow(out);
     if (rc) {
-        pLogErr(klogFatal, rc, "Failed to open a new row $(row)", "row=%lu", row);
+        pLogErr(klogFatal, rc, "Failed to open a new row $(row)", "row=%li", row);
         exit(EX_IOERR);
     }
 }
 
-static void commitRow(uint64_t const row, VCursor *const out)
+static void commitRow(int64_t const row, VCursor *const out)
 {
     rc_t const rc = VCursorCommitRow(out);
     if (rc) {
-        pLogErr(klogFatal, rc, "Failed to commit row $(row)", "row=%"PRIu64, row);
+        pLogErr(klogFatal, rc, "Failed to commit row $(row)", "row=%li", row);
         exit(EX_IOERR);
     }
 }
 
-static void closeRow(uint64_t const row, VCursor *const out)
+static void closeRow(int64_t const row, VCursor *const out)
 {
     rc_t const rc = VCursorCloseRow(out);
     if (rc) {
-        pLogErr(klogFatal, rc, "Failed to close row $(row)", "row=%"PRIu64, row);
+        pLogErr(klogFatal, rc, "Failed to close row $(row)", "row=%li", row);
         exit(EX_IOERR);
     }
 }
@@ -350,7 +380,19 @@ static void writeRow(int64_t const row
 {
     rc_t const rc = VCursorWrite(out, cid, 8, out_filter, 0, reads);
     if (rc) {
-        pLogErr(klogFatal, rc, "Failed to write row $(row)", "row=%"PRIu64, row);
+        pLogErr(klogFatal, rc, "Failed to write row $(row)", "row=%li", row);
+        exit(EX_IOERR);
+    }
+}
+
+static void writeCell(  int64_t const row
+                      , CellData const *data
+                      , uint32_t const cid
+                      , VCursor *const out)
+{
+    rc_t const rc = VCursorWrite(out, cid, data->elem_bits, data->data, 0, data->count);
+    if (rc) {
+        pLogErr(klogFatal, rc, "Failed to write row $(row)", "row=%li", row);
         exit(EX_IOERR);
     }
 }
@@ -366,46 +408,45 @@ static KDirectory *rootDir()
     return ndir;
 }
 
-static KDirectory *openDirUpdate(char const *const path)
+static KDirectory *openDirUpdate(char const *const path, ...)
 {
+    va_list va;
     KDirectory *ndir = rootDir();
     KDirectory *result = NULL;
-    rc_t const rc = KDirectoryOpenDirUpdate(ndir, &result, false, "%s", path);
+    rc_t rc;
+
+    va_start(va, path);
+    rc = KDirectoryVOpenDirUpdate(ndir, &result, false, path, va);
+    va_end(va);
     KDirectoryRelease(ndir);
-    if (rc) {
-        pLogErr(klogFatal, rc, "Can't get directory $(path)", "path=%s", path);
-        exit(EX_SOFTWARE);
-    }
-    return result;
+    if (rc == 0)
+        return result;
+
+    LogErr(klogFatal, rc, "Can't get directory");
+    exit(EX_SOFTWARE);
 }
 
-static KDirectory const *openDirRead(char const *const path)
+static KDirectory const *openDirRead(char const *const path, ...)
 {
+    va_list va;
     KDirectory *ndir = rootDir();
     KDirectory const *result = NULL;
-    rc_t const rc = KDirectoryOpenDirRead(ndir, &result, false, "%s", path);
+    rc_t rc;
+
+    va_start(va, path);
+    rc = KDirectoryVOpenDirRead(ndir, &result, false, path, va);
+    va_end(va);
     KDirectoryRelease(ndir);
-    if (rc) {
-        pLogErr(klogFatal, rc, "Can't get directory $(path)", "path=%s", path);
-        exit(EX_SOFTWARE);
-    }
-    return result;
+    if (rc == 0)
+        return result;
+
+    LogErr(klogFatal, rc, "Can't get directory");
+    exit(EX_SOFTWARE);
 }
 
-static rc_t copyPhysicalColumn(char const *const to, char const *const from, char const *const localPath)
+static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const path, ...)
 {
-    KDirectory const *const srcdir = openDirRead(from);
-    KDirectory *const dstdir = openDirUpdate(to);
-    rc_t const rc = KDirectoryCopy(srcdir, dstdir, true, localPath, localPath);
-
-    KDirectoryRelease(srcdir);
-    KDirectoryRelease(dstdir);
-
-    return rc;
-}
-
-static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const path)
-{
+    va_list va;
     KMetadata const *meta = NULL;
     KMDataNode const *node = NULL;
     rc_t rc = VTableOpenMetadataRead(tbl, &meta);
@@ -414,19 +455,22 @@ static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const
         LogErr(klogFatal, rc, "can't open table metadata!!!");
         exit(EX_SOFTWARE);
     }
-    
-    rc = KMetadataOpenNodeRead(meta, &node, path);
+
+    va_start(va, path);
+    rc = KMetadataVOpenNodeRead(meta, &node, path, va);
+    va_end(va);
     KMetadataRelease(meta);
     if (rc) {
-        LogErr(klogFatal, rc, "can't get table metadata!!!");
+        LogErr(klogFatal, rc, "can't get metadata node to read");
         exit(EX_SOFTWARE);
     }
     
     return node;
 }
 
-static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path)
+static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...)
 {
+    va_list va;
     KMetadata *meta = NULL;
     KMDataNode *node = NULL;
     rc_t rc = VTableOpenMetadataUpdate(tbl, &meta);
@@ -436,14 +480,27 @@ static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path)
         exit(EX_SOFTWARE);
     }
     
-    rc = KMetadataOpenNodeUpdate(meta, &node, path);
+    va_start(va, path);
+    rc = KMetadataVOpenNodeUpdate(meta, &node, path, va);
+    va_end(va);
     KMetadataRelease(meta);
     if (rc) {
-        LogErr(klogFatal, rc, "can't get table metadata!!!");
+        LogErr(klogFatal, rc, "can't get metadata node to update");
         exit(EX_DATAERR);
     }
     
     return node;
+}
+
+static KMDataNode *openChildNodeUpdate(KMDataNode *const node, char const *const name)
+{
+    KMDataNode *result = NULL;
+    rc_t const rc = KMDataNodeOpenNodeUpdate(node, &result, name);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't get metadata node to update");
+        exit(EX_DATAERR);
+    }
+    return result;
 }
 
 static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
@@ -466,56 +523,76 @@ static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
     }
 }
 
-static VTable *openUpdate(VDBManager *const mgr, char const *const name, bool const noDb)
+static void writeChildNode(KMDataNode *const node, char const *const name, size_t const size, void const *const data)
 {
-    VTable *tbl = NULL;
-
-    if (noDb) {
-        rc_t const rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name);
+    KMDataNode *child = NULL;
+    {
+        rc_t const rc = KMDataNodeOpenNodeUpdate(node, &child, "%s", name);
         if (rc) {
-            LogErr(klogFatal, rc, "can't open table for update");
+            LogErr(klogFatal, rc, "can't update metadata");
             exit(EX_DATAERR);
         }
     }
-    else {
-        VDatabase *db = NULL;
-        rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", name);
+    {
+        rc_t const rc = KMDataNodeWrite(child, data, size);
+        KMDataNodeRelease(child);
         if (rc) {
-            LogErr(klogFatal, rc, "can't open database for update");
+            LogErr(klogFatal, rc, "can't write metadata");
             exit(EX_DATAERR);
         }
-        rc = VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
-        VDatabaseRelease(db);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't open table for update");
-            exit(EX_DATAERR);
-        }
+    }
+}
+
+static VTable *openUpdateTbl(char const *const name, VDBManager *const mgr)
+{
+    VTable *tbl = NULL;
+    rc_t const rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open table for update");
+        exit(EX_DATAERR);
     }
     return tbl;
 }
 
-static VTable const *openRead(VDBManager const *const mgr, char const *const name, bool const noDb)
+static VTable *openUpdateDb(char const *const name, char const *const table, VDBManager *const mgr)
 {
+    VTable *tbl = NULL;
+    VDatabase *db = NULL;
+    rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", name);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open database for update");
+        exit(EX_DATAERR);
+    }
+    rc = VDatabaseOpenTableUpdate(db, &tbl, "%s", table);
+    VDatabaseRelease(db);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open table for update");
+        exit(EX_DATAERR);
+    }
+    return tbl;
+}
 
-    if (noDb) {
-        return openTable(name, mgr);
+static VTable const *openReadDb(char const *const name, char const *const table, VDBManager const *const mgr)
+{
+    VTable const *tbl = NULL;
+    VDatabase const *db = NULL;
+    rc_t rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open database for read");
+        exit(EX_DATAERR);
     }
-    else {
-        VTable const *tbl = NULL;
-        VDatabase const *db = NULL;
-        rc_t rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't open database for read");
-            exit(EX_DATAERR);
-        }
-        rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
-        VDatabaseRelease(db);
-        if (rc) {
-            LogErr(klogFatal, rc, "can't open table for read");
-            exit(EX_DATAERR);
-        }
-        return tbl;
+    rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
+    VDatabaseRelease(db);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open table for read");
+        exit(EX_DATAERR);
     }
+    return tbl;
+}
+
+static VTable const *openReadTbl(char const *const name, VDBManager const *const mgr)
+{
+    return openTable(name, mgr);
 }
 
 static void dropColumn(VTable *const tbl, char const *const name)
@@ -529,34 +606,19 @@ static void dropColumn(VTable *const tbl, char const *const name)
 
 static void removeTempDir(char const *const temp)
 {
-    char *dup = strdup(temp);
     KDirectory *ndir = rootDir();
     rc_t rc;
     
-    assert(dup != NULL);
-    if (dup == NULL)
-        OUT_OF_MEMORY();
-    
-    /* temp looks like /tmp/mkf.XXXXXX/out
-     * so remove last path element
-     */
-    rc = KDirectoryResolvePath(ndir, true, dup, strlen(temp), "%s/../", temp);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't get temp object directory");
-        exit(EX_DATAERR);
-    }
-    
-    rc = KDirectoryRemove(ndir, true, "%s", dup);
+    rc = KDirectoryRemove(ndir, true, "%s", temp);
     KDirectoryRelease(ndir);
     if (GetRCState(rc) == (int)rcBusy && GetRCObject(rc) == (int)rcPath) {
-        pLogErr(klogWarn, rc, "failed to delete temp object directory $(path), remove it manually", "path=%s", dup);
+        pLogErr(klogWarn, rc, "failed to delete temp object directory $(path), remove it manually", "path=%s", temp);
     }
     else if (rc) {
         LogErr(klogFatal, rc, "failed to delete temp object directory");
         exit(EX_DATAERR);
     }
     else {
-        pLogMsg(klogInfo, "Deleted temp object directory $(temp)", "temp=%s", dup);
+        pLogMsg(klogInfo, "Deleted temp object directory $(temp)", "temp=%s", temp);
     }
-    free(dup);
 }

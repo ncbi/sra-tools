@@ -53,9 +53,10 @@ runtests: test-data.kar | mkfg exe
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	$(BINDIR)/make-read-filter --temp $(TEMPDIR) $(TEMPDIR)/test-data && \
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	$(BINDIR)/vdb-dump $(TEMPDIR)/test-data >actual && \
-	rm -rf $(TEMPDIR)/test-data && \
-	diff expected actual
+	$(BINDIR)/vdb-dump $(TEMPDIR)/test-data >$(TEMPDIR)/actual && \
+	$(BINDIR)/kdbmeta -u $(TEMPDIR)/test-data -T SEQUENCE STATS READ_FILTER_CHANGES >$(TEMPDIR)/actual.stats && \
+	diff expected $(TEMPDIR)/actual && diff expected.stats $(TEMPDIR)/actual.stats && \
+	rm -rf $(TEMPDIR)/test-data
 
 .PHONY: runtests
 .INTERMEDIATE: $(TEMPDIR)/tmp.mkfg

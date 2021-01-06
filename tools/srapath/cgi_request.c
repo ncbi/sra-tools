@@ -163,7 +163,7 @@ rc_t add_cgi_request_params( struct cgi_request * request, const char * fmt, con
 
 rc_t clear_cgi_request_params( struct cgi_request * request )
 {
-    rc_t rc;
+    rc_t rc = 0;
     if ( request == NULL )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     else

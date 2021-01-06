@@ -23,7 +23,11 @@
 # ===========================================================================
 
 default: runtests
+runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality
+slowtests: announce vdbcache wgs lots_wgs hs37d5 ncbi1GB
+
 TOP ?= $(abspath ../..)
+MODULE = test/prefetch
 include $(TOP)/build/Makefile.env
 
 CWD = $(shell pwd)
@@ -40,6 +44,7 @@ REFSEQ=$(SRA)/traces/refseq/KC702174.1
 REFSEQF=$(SRAF):data/sracloud/traces/refseq/KC702174.1
 SRAC=SRR053325
 SRR=$(SRA)/sos2/sra-pub-run-15/$(SRAC)/$(SRAC).4
+SRR=$(shell NCBI_SETTINGS=/ ${BINDIR}/srapath ${SRAC})
 INT=https://sra-download-internal.ncbi.nlm.nih.gov
 DDB=https://sra-downloadb.be-md.ncbi.nlm.nih.gov
 #SRR=$(DDB)/sos/sra-pub-run-5/$(SRAC)/$(SRAC).3
@@ -48,42 +53,116 @@ SRRF=$(SRAF):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
 SRRF=$(SRAI):data/sracloud/traces/sra57/SRR/000052/$(SRAC)
 WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
-B=$(BINDIR)
+
+DIRTOTEST ?= $(BINDIR)
+SRR=$(shell SRATOOLS_FORCE_INSTALL=1 ${DIRTOTEST}/srapath ${SRAC})
+B=$(DIRTOTEST)
 
 HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
 HTTPFILE=contact.shtml
 
-runtests: urls_and_accs out_dir_and_file s-option truncated kart wgs resume
-slowtests: hs37d5 ncbi1GB
+INT_TOOLS = \
+
+EXT_TOOLS = \
+	test-quality
+
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
+
+#-------------------------------------------------------------------------------
+# outer targets
+#
+all std: vers-includes
+	@ $(MAKE_CMD) $(TARGDIR)/$@
+
+$(ALL_TOOLS): vers-includes
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
+
+#-------------------------------------------------------------------------------
+# std
+#
+$(TARGDIR)/std: \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# vers-includes
+#
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/vers-includes
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# TOOL_SRC
+#
+TOOL_SRC = \
+	test-quality \
+
+TOOL_OBJ = \
+	$(addsuffix .$(OBJX),$(TOOL_SRC))
+
+TOOL_LIB = \
+	-lkapp \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/test-quality: $(TOOL_OBJ)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ -L$(VDB_LIBDIR) -L$(VDB_LIBDIR)/../ilib $(TOOL_LIB)
+
+announce:
+	@echo Testing $(DIRTOTEST)
 
 ################################################################################
 urls_and_accs:
 	@mkdir -p tmp tmp2
 	@rm -fr tmp/* tmp2/*
-	@echo 'foo = "bar"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
 
 	@echo prefetch URL-1 when there is no kfg
+	@rm -f wiki
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	@rm wiki
 
 	@echo prefetch URL-2/2 when there is no kfg
 	@rm -f index.html
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ >/dev/null
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ >/dev/null
+	@rm index.html
 
 	@echo prefetch URL-2/1 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	       $(BINDIR)/prefetch http://intranet/ >/dev/null ; \
+	       $(DIRTOTEST)/prefetch http://intranet/ >/dev/null ; rm index.html ; \
 	    fi
 
 	@echo prefetch URL-2/3 when there is no kfg
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	     $(BINDIR)/prefetch $(HTTP_URL)  > /dev/null; \
+	     $(DIRTOTEST)/prefetch $(HTTP_URL) > /dev/null; \
 	    fi
 
-	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' >> tmp/t.kfg
 	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
 
 	@if ls `pwd`/tmp2/$(HTTPFILE) 2> /dev/null ; \
@@ -91,14 +170,14 @@ urls_and_accs:
 	@echo HTTP download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    if ping -c1 intranet > /dev/null ; then \
-	    $(BINDIR)/prefetch $(HTTP_URL) > /dev/null ; fi
+	    $(DIRTOTEST)/prefetch $(HTTP_URL) > /dev/null ; fi
 	@if ping -c1 intranet > /dev/null ; \
 	 then ls `pwd`/tmp2/$(HTTPFILE) > /dev/null ; fi
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
-	     $(BINDIR)/prefetch $(HTTP_URL) \
+	     $(DIRTOTEST)/prefetch $(HTTP_URL) \
 	        | grep "found local" > /dev/null ; fi
 
 	@rm -f $(HTTPFILE)
@@ -108,73 +187,84 @@ urls_and_accs:
 	@echo HTTP download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
-	    $(BINDIR)/prefetch http://intranet/ > /dev/null ; fi
+	    $(DIRTOTEST)/prefetch http://intranet/ > /dev/null ; fi
 	@if ping -c1 intranet>/dev/null; then ls `pwd`/tmp2/index.html > /dev/null;fi
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
-	    $(BINDIR)/prefetch http://intranet/ | grep "found local" > /dev/null ; fi
-	@rm -f tmp2/index.html
+	    $(DIRTOTEST)/prefetch http://intranet/ | grep "found local" >/dev/null;fi
+	@rm -f `pwd`/tmp2/index.html
 
 	@echo URL download when user repository is configured
 	@if ls `pwd`/tmp2/wiki 2> /dev/null ; then echo wiki found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 	@ls `pwd`/tmp2/wiki > /dev/null
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki \
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki \
 	                              | grep "found local" > /dev/null
 
 	@echo URL/ download when user repository is configured
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.html found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ > /dev/null
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ > /dev/null
 	@ls `pwd`/tmp2/index.html > /dev/null
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
+	  $(DIRTOTEST)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
+	@rm `pwd`/tmp2/index.html
 
-	@echo prefetch $(SRR) when there is no kfg
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@rm -r $(SRAC)
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+         echo prefetch $(SRR) when there is no kfg && \
+	     NCBI_VDB_RELIABLE=y NCBI_SETTINGS=/ VDB_CONFIG=`pwd`/tmp \
+	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+	     rm -r $(SRAC) ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
-	@echo SRR download when user repository is configured
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
-
-	@echo Running prefetch second time finds previous download
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRR) | grep "found local" > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+		echo SRR download when user repository is configured && \
+		NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
+		   ENV_VAR_LOG_HTTP_RETRY=1 $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+		ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null && \
+	     \
+	     echo Running prefetch second time finds previous download && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+		$(DIRTOTEST)/prefetch $(SRR) | grep "found local" > /dev/null ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@echo prefetch $(REFSEQ) when there is no kfg
 	@rm -f KC702174.1
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(REFSEQ) > /dev/null
-	@rm KC702174.1
+	    $(DIRTOTEST)/prefetch $(REFSEQ) > /dev/null
+	@rm KC702174.1*
 
 	@echo '$(PUBLIC)/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg
 	@echo REFSEQ HTTP download when user repository is configured
 	@if ls `pwd`/tmp/refseq/KC702174.1 2> /dev/null ; \
      then echo KC702174.1 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(REFSEQ) > /dev/null
+	    $(DIRTOTEST)/prefetch $(REFSEQ) > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(REFSEQ) | grep "found local" > /dev/null
+	    $(DIRTOTEST)/prefetch $(REFSEQ) | grep "found local" > /dev/null
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(KMER) > /dev/null 2>&1 ; \
+	    if $(DIRTOTEST)/prefetch $(KMER) > /dev/null 2>&1 ; \
         then echo "prefetch $(KMER) when there is no kfg should fail"; exit 1; \
 	    fi
 
@@ -183,15 +273,15 @@ urls_and_accs:
 	@if ls `pwd`/tmp/nannot/GCA_000390265.1_R 2> /dev/null ; \
      then echo GCA_000390265.1_R found ; exit 1 ; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(KMER) > /dev/null
+	    $(DIRTOTEST)/prefetch $(KMER) > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(KMER) | grep "found local" > /dev/null
+	    $(DIRTOTEST)/prefetch $(KMER) | grep "found local" > /dev/null
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(WGS) > /dev/null 2>&1 ; \
+	    if $(DIRTOTEST)/prefetch $(WGS) > /dev/null 2>&1 ; \
         then echo "prefetch $(WGS) when there is no kfg should fail" ; exit 1; \
 	    fi
 
@@ -201,7 +291,7 @@ urls_and_accs:
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
 		then echo AFVF01 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(WGS) > /dev/null
+	    $(DIRTOTEST)/prefetch $(WGS) > /dev/null
 	@echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null ;
 	@echo
@@ -211,7 +301,7 @@ urls_and_accs:
 #	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo SRR FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
+	    $(DIRTOTEST)/prefetch $(SRRF) > /dev/null ; \
 	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	 else echo download of $(SRRF) when ascp is not found is disabled ; \
 	 fi
@@ -220,7 +310,7 @@ urls_and_accs:
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo REFSEQ FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	      $(BINDIR)/prefetch $(REFSEQF) > /dev/null ; \
+	      $(DIRTOTEST)/prefetch $(REFSEQF) > /dev/null && \
 	    ls `pwd`/tmp/refseq/KC702174.1 > /dev/null ; \
 	 else echo download of $(REFSEQF) when ascp is not found is disabled ; \
 	 fi
@@ -230,7 +320,7 @@ urls_and_accs:
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo NANNOT FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	      $(BINDIR)/prefetch $(KMERF) > /dev/null ; \
+	      $(DIRTOTEST)/prefetch $(KMERF) > /dev/null ; \
 	      ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null ; \
 	 else echo download of $(KMERF) when ascp is not found is disabled ; \
 	 fi
@@ -241,7 +331,7 @@ urls_and_accs:
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then echo ; \
 	    echo WGS FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	      $(BINDIR)/prefetch $(WGSF) > /dev/null ; \
+	      $(DIRTOTEST)/prefetch $(WGSF) > /dev/null ; \
 	    echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537 ; \
 	    ls `pwd`/tmp/wgs/AFVF01 > /dev/null ; \
 	 else echo download of $(WGSF) when ascp is not found is disabled ; \
@@ -250,7 +340,7 @@ urls_and_accs:
 
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
 #	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(BINDIR)/prefetch $(SRAC) 2> /dev/null ; \
+	    if $(DIRTOTEST)/prefetch $(SRAC) 2> /dev/null ; \
         then echo "prefetch $(SRAC) when there is no kfg should fail" ; \
              exit 1; \
 	    fi
@@ -258,7 +348,7 @@ urls_and_accs:
 	@echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
 	@echo SRR accession download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) > /dev/null
+	    $(DIRTOTEST)/prefetch $(SRAC) > /dev/null
 	@ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 
 	@echo prefetch run with refseqs
@@ -266,26 +356,26 @@ urls_and_accs:
 	@rm -fv `pwd`/tmp/sra/SRR619505.sra
 	@rm -fv `pwd`/tmp/refseq/NC_000005.8
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR619505 > /dev/null
+	    $(DIRTOTEST)/prefetch SRR619505 > /dev/null
 	@ls `pwd`/tmp/sra/SRR619505.sra > /dev/null
 	@ls `pwd`/tmp/refseq/NC_000005.8 > /dev/null
 
 	@echo REFSEQ accession download
 	@rm -f `pwd`/tmp/refseq/KC702174.1
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch KC702174.1 > /dev/null
+	    $(DIRTOTEST)/prefetch KC702174.1 > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1 > /dev/null
 
 	@echo NANNOT accession download
 	@rm -f `pwd`/tmp/nannot/GCA_000390265.1_R
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch GCA_000390265.1_R > /dev/null
+	    $(DIRTOTEST)/prefetch GCA_000390265.1_R > /dev/null
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
 
 	@echo WGS accession download
 	@rm -f `pwd`/tmp/wgs/AFVF01
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch AFVF01 > /dev/null
+	    $(DIRTOTEST)/prefetch AFVF01 > /dev/null
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null
 
 	@if ls `pwd`/tmp2/100MB 2> /dev/null ; \
@@ -294,10 +384,10 @@ urls_and_accs:
 #	@if ascp -h > /dev/null ; \
      then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch $(LARGE) > /dev/null && \
+	    $(DIRTOTEST)/prefetch $(LARGE) > /dev/null && \
 	    ls `pwd`/100MB > /dev/null ; \
 	 else \
-	    if $(BINDIR)/prefetch $(LARGE) 2> /dev/null ; \
+	    if $(DIRTOTEST)/prefetch $(LARGE) 2> /dev/null ; \
         then \
             echo "prefetch <FASP URL> when ascp is not found should fail" ; \
             exit 1; \
@@ -308,7 +398,7 @@ urls_and_accs:
      then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 else \
-	    if $(BINDIR)/prefetch $(LARGE) 2> /dev/null ; \
+	    if $(DIRTOTEST)/prefetch $(LARGE) 2> /dev/null ; \
         then \
             echo "prefetch <FASP URL> when ascp is not found should fail" ; \
             exit 1; \
@@ -317,39 +407,43 @@ urls_and_accs:
 
 	@rm -f `pwd`/tmp2/100MB
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    if $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:100MB \
+	    if $(DIRTOTEST)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:100MB \
                                                              > /dev/null 2>&1; \
 	    then echo "prefetch <FASP> when FASP source is not found should fail"; \
              exit 1 ; \
 	    fi
 
-	@echo vdbcache download
-	@rm tmp/sra/*
-	@if ls `pwd`/tmp/sra/SRR6667190.sra 2> /dev/null ; \
-		then echo SRR6667190.sra found ; exit 1; fi
-	@if ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache 2> /dev/null ; \
-		then echo SRR6667190.sra.vdbcache found ; exit 1; fi
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		$(BINDIR)/prefetch SRR6667190 > /dev/null
-	@ls `pwd`/tmp/sra/SRR6667190.sra          > /dev/null
-	@ls `pwd`/tmp/sra/SRR6667190.sra.vdbcache > /dev/null
-
 	@rm -r tmp*
+
+vdbcache:
+	@ echo vdbcache download
+
+	@ rm -frv tmp
+	
+	@ mkdir -p tmp
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+		cd tmp && $(DIRTOTEST)/prefetch SRR6667190  > /dev/null
+	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra            > /dev/null
+	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra.vdbcache   > /dev/null
+
+	@ rm -r tmp
 
 ################################################################################
 
 ncbi1GB:
 	@mkdir -p tmp
 
-	@echo 'foo = "bar"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
 
 	@if ls `pwd`/tmp/1GB 2> /dev/null; \
-     then echo 1GB found ; exit 1; fi
+	     then echo 1GB found ; exit 1; fi
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	  echo FASP download: ncbi/1GB ; \
-	  export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp ; \
-	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB > /dev/null;\
+	  export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && cd tmp && \
+	    $(DIRTOTEST)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB>/dev/null&&\
 	    ls `pwd`/1GB > /dev/null ; \
 	 fi
 
@@ -364,15 +458,16 @@ out_dir_and_file:
 	@ echo '0||SRR053325||' >> tmp/k
 	@ echo '$$end'          >> tmp/k
 
-	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >  tmp/t.kfg
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
 	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 	@ echo '/repository/site/disabled = "true"'                 >> tmp/t.kfg
 
 	@ echo PREFETCH ACCESSION TO OUT-FILE
 	@ rm -f `pwd`/tmp-file*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) -o tmp-file -v > /dev/null
+	@ NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
+	    $(DIRTOTEST)/prefetch $(SRAC) -o tmp-file -v > /dev/null
 	@ ls `pwd`/tmp-file > /dev/null
 	@ rm `pwd`/tmp-file
 
@@ -380,21 +475,26 @@ out_dir_and_file:
 	@ if ls `pwd`/tmp3/dir/file 2> /dev/null ; \
       then echo file found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) -O / -o tmp3/dir/file -v > /dev/null
+	    $(DIRTOTEST)/prefetch $(SRAC) -O / -o tmp3/dir/file -v > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
 
-	@ echo PREFETCH SRR HTTP URL TO OUT-FILE
-	@ rm -f `pwd`/tmp3/dir/file
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRR) -O / -o tmp3/dir/file > /dev/null
-	@ ls `pwd`/tmp3/dir/file > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     echo PREFETCH SRR HTTP URL TO OUT-FILE && \
+	     rm -f `pwd`/tmp3/dir/file && \
+	     NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=`pwd`/tmp \
+	         $(DIRTOTEST)/prefetch $(SRR) -O / -o tmp3/dir/file > /dev/null && \
+	     ls `pwd`/tmp3/dir/file > /dev/null ; \
+       else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@ echo PREFETCH SRR FASP URL TO OUT-FILE IS DISABLED
 #	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-FILE ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRRF) -O / -o tmp3/dir/file > /dev/null ; \
+	    $(DIRTOTEST)/prefetch $(SRRF) -O / -o tmp3/dir/file > /dev/null ; \
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
@@ -404,7 +504,7 @@ out_dir_and_file:
 	@ echo PREFETCH HTTP DIRECTORY URL TO OUT-FILE
 	@ rm -f `pwd`/tmp3/dir/file
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ -O / -o tmp3/dir/file \
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ -O / -o tmp3/dir/file \
 	        > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
 #	@ echo
@@ -412,7 +512,7 @@ out_dir_and_file:
 	@ echo PREFETCH HTTP FILE URL TO OUT-FILE
 	@ rm -f `pwd`/tmp3/dir/file
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki -O / \
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki -O / \
 	                       -o tmp3/dir/file > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
 #	@ echo
@@ -421,7 +521,7 @@ out_dir_and_file:
 	    echo PREFETCH FASP URL TO OUT-FILE ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
-	    $(BINDIR)/prefetch $(REFSEQF) -O / -o tmp3/dir/file > /dev/null ; \
+	    $(DIRTOTEST)/prefetch $(REFSEQF) -O / -o tmp3/dir/file > /dev/null ; \
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
@@ -429,12 +529,12 @@ out_dir_and_file:
 	@ if [ "$(BUILD)" = "dbg" ]; then \
 	    echo PREFETCH TEXT-KART was disabled: need to have a public example of protected run or add support of public accessions; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    echo $(BINDIR)/prefetch --text-kart tmp/k > /dev/null ; \
+	    echo $(DIRTOTEST)/prefetch --text-kart tmp/k > /dev/null ; \
 	    echo ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
 	  fi
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	  if $(BINDIR)/prefetch SRR045450 $(SRAC) -o tmp/o 2> /dev/null ; \
+	  if $(DIRTOTEST)/prefetch SRR045450 $(SRAC) -o tmp/o 2> /dev/null ; \
 	  then echo unexpected success when downloading multiple items to file ; \
 	      exit 1 ; \
 	  fi ;
@@ -442,21 +542,26 @@ out_dir_and_file:
 	@ echo PREFETCH MULTIPLE ITEMS
 	@ rm -fr `pwd`/SRR0* `pwd`/tmp/sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR045450 $(SRAC) > /dev/null
+	    $(DIRTOTEST)/prefetch SRR045450 $(SRAC) > /dev/null
 	@ ls `pwd`/tmp/sra/SRR045450.sra `pwd`/tmp/sra/$(SRAC).sra > /dev/null
 
-	@ echo PREFETCH SRR HTTP URL
-	@ rm `pwd`/tmp/sra/$(SRAC).sra
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRR) > /dev/null
-	@ ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     echo PREFETCH SRR HTTP URL && \
+	     rm `pwd`/tmp/sra/$(SRAC).sra && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
+	     ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@ echo PREFETCH SRR FASP URL IS DISABLED
 #	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL ; \
 	    rm `pwd`/tmp/sra/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
+	    $(DIRTOTEST)/prefetch $(SRRF) > /dev/null ; \
 	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
@@ -464,21 +569,22 @@ out_dir_and_file:
 	@ echo PREFETCH HTTP DIRECTORY URL
 	@ if ls `pwd`/tmp2/index.html 2> /dev/null ; then exit 1; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ > /dev/null
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ > /dev/null
 	@ ls `pwd`/tmp2/index.html > /dev/null
+	@ rm `pwd`/tmp2/index.html
 
 	@ echo PREFETCH HTTP FILE URL
 	@ if ls `pwd`/tmp2/wiki 2> /dev/null ; \
       then echo wiki found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 	@ ls `pwd`/tmp2/wiki > /dev/null
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    if ls `pwd`/KC702174.1 2> /dev/null ; then exit 1; fi ; \
-	    $(BINDIR)/prefetch $(REFSEQF) > /dev/null && \
+	    $(DIRTOTEST)/prefetch $(REFSEQF) > /dev/null && \
 	    ls `pwd`/KC702174.1 > /dev/null ; \
 	  else echo download of FASP URL when ascp is not found is disabled ; \
 	  fi
@@ -486,21 +592,26 @@ out_dir_and_file:
 	@ echo PREFETCH ACCESSION TO OUT-DIR
 	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) -O tmp3/dir > /dev/null
+	    $(DIRTOTEST)/prefetch $(SRAC) -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
 
-	@ echo PREFETCH SRR HTTP URL TO OUT-DIR
-	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRR) -O tmp3/dir > /dev/null
-	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
+	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     echo PREFETCH SRR HTTP URL TO OUT-DIR && \
+	     rm -f `pwd`/tmp3/dir/$(SRAC).sra && \
+	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
+	                   $(DIRTOTEST)/prefetch $(SRR) -O tmp3/dir > /dev/null && \
+	     ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null ; \
+	  else \
+	     echo prefetch test when CE is required is skipped ; \
+	  fi
 
 	@ echo PREFETCH SRR FASP URL TO OUT-DIR IS DISABLED
 #	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-DIR ; \
 	    rm -f `pwd`/tmp3/dir/$(SRAC).sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRRF) -O tmp3/dir > /dev/null ; \
+	    $(DIRTOTEST)/prefetch $(SRRF) -O tmp3/dir > /dev/null ; \
 	    ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
@@ -511,7 +622,7 @@ out_dir_and_file:
 	@ if ls `pwd`/tmp3/dir/index.html 2> /dev/null ; \
       then echo index.html found ; exit 1 ; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ -O tmp3/dir > /dev/null
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ -O tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/index.html > /dev/null
 #	@ echo
 
@@ -520,7 +631,7 @@ out_dir_and_file:
 	@ if ls `pwd`/tmp3/dir/wiki 2> /dev/null ; \
       then echo wiki found ; exit 1 ; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki -O tmp3/dir \
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki -O tmp3/dir \
 	                       > /dev/null
 	@ ls `pwd`/tmp3/dir/wiki > /dev/null
 #	@ echo
@@ -530,7 +641,7 @@ out_dir_and_file:
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ls `pwd`/tmp3/dir/KC702174.1 2> /dev/null ; then \
         echo 100MB found ; exit 1 ; fi ; \
-	    $(BINDIR)/prefetch $(REFSEQF) -O tmp3/dir > /dev/null && \
+	    $(DIRTOTEST)/prefetch $(REFSEQF) -O tmp3/dir > /dev/null && \
 	    ls `pwd`/tmp3/dir/KC702174.1 > /dev/null ; \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
@@ -540,64 +651,65 @@ out_dir_and_file:
 
 s-option:
 	@ mkdir -p tmp
-	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
-	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
-	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
+	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
+	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 
 	@ echo Downloading KART was disabled: need to have a public example of protected run or add support of public accessions
 	@ rm -f tmp/sra/SRR0*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	#	$(BINDIR)/prefetch kart.krt > /dev/null
+	#	$(DIRTOTEST)/prefetch kart.krt > /dev/null
 
 	@ echo Downloading KART: ORDER BY SIZE / SHORT OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	#	$(BINDIR)/prefetch kart.krt -os > /dev/null
+	#	$(DIRTOTEST)/prefetch kart.krt -os > /dev/null
 
 	@ echo Downloading KART: ORDER BY KART / SHORT OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	#	$(BINDIR)/prefetch kart.krt -ok > /dev/null
+	#	$(DIRTOTEST)/prefetch kart.krt -ok > /dev/null
 
 	@ echo Downloading KART: ORDER BY SIZE / LONG OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	#	$(BINDIR)/prefetch kart.krt --order s > /dev/null
+	#	$(DIRTOTEST)/prefetch kart.krt --order s > /dev/null
 
 	@ echo Downloading KART: ORDER BY KART / LONG OPTION disabled, too
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	#	$(BINDIR)/prefetch kart.krt --order k > /dev/null
+	#	$(DIRTOTEST)/prefetch kart.krt --order k > /dev/null
 
 	@ echo Downloading ACCESSION
 	@ rm -f tmp/sra/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) > /dev/null
+	    $(DIRTOTEST)/prefetch $(SRAC) > /dev/null
 
 	@ echo Downloading ACCESSION TO FILE: SHORT OPTION
 	@ rm -f tmp/1
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) -otmp/1 > /dev/null
+	    $(DIRTOTEST)/prefetch $(SRAC) -otmp/1 > /dev/null
 #	@ echo
 
 	@ echo Downloading ACCESSION TO FILE: LONG OPTION
 	@ rm -f tmp/2
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) --output-file tmp/2 > /dev/null
+	    $(DIRTOTEST)/prefetch $(SRAC) --output-file tmp/2 > /dev/null
 
 	@ echo Downloading ACCESSIONS
 	@ rm -f tmp/sra/*
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRAC) SRR045450 > /dev/null
+	    $(DIRTOTEST)/prefetch $(SRAC) SRR045450 > /dev/null
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	  if $(BINDIR)/prefetch SRR045450 $(SRAC) -o tmp/o 2> /dev/null ; \
+	  if $(DIRTOTEST)/prefetch SRR045450 $(SRAC) -o tmp/o 2> /dev/null ; \
 	  then echo unexpected success when downloading multiple items to file ; \
 	      exit 1 ; \
 	  fi ;
 
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	  if $(BINDIR)/prefetch SRR045450 $(SRAC) -output-file tmp/o \
+	  if $(DIRTOTEST)/prefetch SRR045450 $(SRAC) -output-file tmp/o \
                                                                 2> /dev/null ; \
 	  then echo unexpected success when downloading multiple items to file ; \
 	      exit 1 ; \
@@ -614,27 +726,27 @@ s-option:
 	      echo Downloading TEXT KART && \
 	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	      $(BINDIR)/prefetch --text-kart tmp/k > /dev/null && \
+	      $(DIRTOTEST)/prefetch --text-kart tmp/k > /dev/null && \
           \
 	      echo Downloading TEXT KART: ORDER BY SIZE / SHORT OPTION && \
 	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	      $(BINDIR)/prefetch --text-kart tmp/k -os > /dev/null 2>&1 && \
+	      $(DIRTOTEST)/prefetch --text-kart tmp/k -os > /dev/null 2>&1 && \
           \
 	      echo Downloading TEXT KART: ORDER BY KART / SHORT OPTION && \
 	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	      $(BINDIR)/prefetch --text-kart tmp/k -ok > /dev/null 2>&1 && \
+	      $(DIRTOTEST)/prefetch --text-kart tmp/k -ok > /dev/null 2>&1 && \
           \
 	      echo Downloading TEXT KART: ORDER BY SIZE / LONG OPTION && \
 	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	      $(BINDIR)/prefetch --text-kart tmp/k --order s > /dev/null && \
+	      $(DIRTOTEST)/prefetch --text-kart tmp/k --order s > /dev/null && \
           \
 	      echo Downloading TEXT KART: ORDER BY KART / LONG OPTION && \
 	      rm -f tmp/sra/* && \
 	      export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-	      $(BINDIR)/prefetch --text-kart tmp/k --order k > /dev/null ; \
+	      $(DIRTOTEST)/prefetch --text-kart tmp/k --order k > /dev/null ; \
 	  fi \
 	  fi
 
@@ -645,12 +757,13 @@ truncated:
 
 #setup
 	@ mkdir -p tmp/sra
-	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' > tmp/t.kfg
-	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'        >> tmp/t.kfg
-	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                     >> tmp/t.kfg
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@ echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
+	@ echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
+	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 #	@ ls -l tmp	@ cat tmp/t.kfg
-#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/vdb-config -on
-#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/srapath $(SRAC)
+#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/vdb-config -on
+#	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/srapath $(SRAC)
 #	echo 669	perl check-size.pl 4	echo 671
 
 # create truncated run
@@ -660,7 +773,7 @@ truncated:
 	  fi
 
 # prefetch should detect truncated run and redownload it
-	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch $(SRAC) > tmp/out
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/prefetch $(SRAC) >tmp/out
 	@ if grep ": 1) '$(SRAC)' is found locally" tmp/out ; \
 	  then echo "prefetch incorrectly stopped on truncated run"; exit 1; \
 	  fi
@@ -670,7 +783,7 @@ truncated:
 	@ perl check-size.pl 4
 
 # the second run of prefetch should find local file
-	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(BINDIR)/prefetch $(SRAC) > tmp/out
+	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/prefetch $(SRAC) >tmp/out
 	@ grep -q ": 1) '$(SRAC)' is found locally" tmp/out
 	@ perl check-size.pl 4
 
@@ -680,81 +793,83 @@ truncated:
 kart: ##########################################################################
 	@rm -frv tmp/*
 	@mkdir -p tmp
-	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' > tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'   > tmp/t.kfg
+	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' >> tmp/t.kfg
 
 	@echo "Downloading --cart <kart> ordered by default (size)"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc --cart ../3-dbGaP-0.krt -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by default (size)"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by size"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by kart"
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
-	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
-	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
-	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
 
 	@rm -frv tmp/sra
-	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' > tmp/t.kfg
-	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
-	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'   > tmp/t.kfg
+	@echo 'repository/remote/main/SDL.2/resolver-cgi = "$(SDL)"' >> tmp/t.kfg
+	@echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"'           >> tmp/t.kfg
+	@echo '$(PUBLIC)/root = "$(CWD)/tmp"'                        >> tmp/t.kfg
 
 	@echo "Downloading kart ordered by default (size) to user repo"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-      "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
-	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
-	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
-	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra*
 	@rmdir tmp/sra
 
 	@echo "Downloading kart ordered by size to user repo"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
-	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
-	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
-	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra*
 	@rmdir tmp/sra
 
 	@echo "Downloading kart ordered by kart to user repo"
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
-	@rm    tmp/sra/SRR1219879_dbGaP-0.sra
-	@rm    tmp/sra/SRR1219880_dbGaP-0.sra
-	@rm    tmp/sra/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+	@rm    tmp/sra/SRR1219879_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1219880_dbGaP-0.sra*
+	@rm    tmp/sra/SRR1257493_dbGaP-0.sra*
 	@rmdir tmp/sra
 
 	@echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg
@@ -762,30 +877,30 @@ kart: ##########################################################################
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by size ignoring user repo"
 	@cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -os -Cn"
-	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra
-	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra
-	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
+	@cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
+	@cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
+	@cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
 
 	@echo "Downloading kart ordered by kart ignoring user repo"
 	@cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 	 NCBI_SETTINGS=/ VDB_CONFIG=. \
 	 perl ../check-prefetch-out.pl 0 0 \
-	  "$(BINDIR)/prefetch --ngc ../prj_phs710EA_test.ngc ../3-dbGaP-0.krt -ok -Cn"
-	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra
-	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra
-	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra
+      "$(DIRTOTEST)/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+	@rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+	@rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+	@rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
 	@cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
 
 	@rm -r tmp
@@ -797,31 +912,48 @@ wgs:
 	@mkdir  tmp
 
 	@#pwd
-	@echo '/repository/site/disabled = "true"' >  tmp/k
-	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
+
+	@cd tmp && NCBI_SETTINGS=k              $B/prefetch SRR619505  -fy > /dev/null
+	@ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
+	@rm -r tmp/S*
+
+	@echo '/repository/site/disabled = "true"'                 >> tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                 >> tmp/k
 	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
-		>> tmp/k
+		                                                       >> tmp/k
 	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
 	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
 	@#cat tmp/k
 
-	@cd tmp && NCBI_SETTINGS=/ $B/prefetch SRR619505  -fy     > /dev/null
-	@ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
-	@rm -r tmp/S*
-
-	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR619505  -fy     > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR619505  -fy > /dev/null
 	@ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null
 	@rm -r tmp/[rS]*
 
 #TODO: TO ADD AD for AAAB01 cd tmp &&                 prefetch SRR353827 -fy -+VFS
 
-	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR353827  -fy     > /dev/null
+	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR353827  -fy > /dev/null
 	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/align-info SRR353827 \
 		| grep -v 'false,remote::https:'                      > /dev/null
 	@ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null
 	@rm -r tmp/[wS]*
+	@rm -r tmp
 
+lots_wgs:
 	@echo  Verifying prefetch of run with with a lot of WGS references...
+	@rm -fr tmp
+	@mkdir  tmp
+
+	@#pwd
+	@echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'            > tmp/k
+	@echo '/repository/site/disabled = "true"'                            >> tmp/k
+	@echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                            >> tmp/k
+	@echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
+		                                                                  >> tmp/k
+	@echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
+	@printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k
+	@#cat tmp/k
+
 	@echo '      ... prefetching...'
 	@cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch   ERR3091357 -fy   > /dev/null
 	@echo '      ... align-infoing...'
@@ -836,7 +968,8 @@ resume:
 	@ echo Verifying prefetch resume
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ echo '/repository/site/disabled = "true"' >  tmp/k
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
+	@ echo '/repository/site/disabled = "true"'                 >> tmp/k
 	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-resume.pl
 	@ rm    -r  tmp
 
@@ -844,5 +977,28 @@ hs37d5:
 	@ echo Verifying hs37d5
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-hs37d5.pl
+	@ cd tmp && NCBI_SETTINGS=k PATH=$(B):$(PATH) perl ../test-hs37d5.pl
 	@ rm    -r  tmp
+
+ad_as_dir: # turned off by default. Library test is in 
+           # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
+	@ echo we can use AD as dir/...
+	@ mkdir -p tmp
+	@ export NCBI_SETTINGS=/ && export PATH=$(DIRTOTEST):$(PATH) \
+		&& cd tmp && perl ../use-AD-as-dir.pl
+	@ rm -r tmp
+
+dump-vs-prefetch:
+	@ rm -frv tmp/*
+	@ mkdir -pv tmp
+	@ cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH=$(B):$(PATH) \
+	                                 perl ../dump-vs-prefetch.pl
+	@ rm -r tmp
+
+quality: std
+	@ echo Testing quality
+	@ mkdir -p tmp
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
+	@ cd tmp && NCBI_SETTINGS=k PATH=$(DIRTOTEST):$(BINDIR):$(PATH) \
+	  				perl ../test-quality.pl
+	@ rm -r tmp

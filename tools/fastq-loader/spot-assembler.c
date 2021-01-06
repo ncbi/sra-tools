@@ -418,6 +418,7 @@ rc_t SpotAssemblerWriteSoloFragments(SpotAssembler* ctx,
                                      bool no_real_output,
                                      bool hasTI,
                                      const char * QualQuantizer,
+                                     bool dropReadnames,
                                      SequenceWriter *seq,
                                      const struct KLoadProgressbar *progress)
 {
@@ -509,7 +510,7 @@ rc_t SpotAssemblerWriteSoloFragments(SpotAssembler* ctx,
             }
             srec.spotNameLen = strlen(srec.spotName);
 
-            rc = SequenceWriteRecord(seq, &srec, isColorSpace, false, platform, keepMismatchQual, no_real_output, hasTI, QualQuantizer);
+            rc = SequenceWriteRecord(seq, &srec, isColorSpace, false, platform, keepMismatchQual, no_real_output, hasTI, QualQuantizer, dropReadnames);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
                 break;

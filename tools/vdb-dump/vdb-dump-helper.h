@@ -55,7 +55,7 @@ extern "C" {
 #include "vdb-dump-context.h"
 #include "vdb-dump-coldefs.h"
 
-#define DISP_RC(rc,err) (void)((rc == 0) ? 0 : LOGERR( klogInt, rc, err ))
+#define DISP_RC(rc,err) (void)((0 == rc) ? 0 : LOGERR( klogInt, rc, err ))
 
 #define DISP_RC2(rc,err,succ) \
     (void)((rc != 0)? 0 : (succ) ? LOGMSG( klogInfo, succ ) : LOGERR( klogInt, rc, err ))
@@ -99,6 +99,8 @@ int32_t index_of_match( const String * word, uint32_t num, ... );
 void destroy_String_vector( Vector * v );
 uint32_t copy_String_2_vector( Vector * v, const String * S );
 uint32_t split_buffer( Vector * v, const String * S, const char * delim );
+
+rc_t vdh_path_to_vpath( const char * path, VPath ** vpath );
 
 #ifdef __cplusplus
 }

@@ -234,7 +234,7 @@ struct VdbDumpParams final : CmnOptAndAccessions
 
     void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
-        CmnOptAndAccessions::populate_argv_builder( builder, acc_index, accessions );
+        populate_common_argv_builder( builder, acc_index, accessions );
 
         if ( row_id_on ) builder . add_option( "-I" );
         if ( colname_off ) builder . add_option( "-N" );

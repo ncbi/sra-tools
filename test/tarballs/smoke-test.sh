@@ -43,11 +43,15 @@ Usage()
 
 RunTool()
 {
-    #echo RunTool $*
-    eval $* >/dev/null 2>&1
-    if [ "$?" != "0" ]
+    echo RunTool $*
+    $* >/dev/null 2>&1
+    RC="$?"
+    if [ "$RC" != "0" ]
     then
+        echo Returned $RC
         FAILED="${FAILED} $* ;"
+    #else
+    #    echo Returned $RC
     fi
 }
 
@@ -102,7 +106,7 @@ do
     if [ "${tool}" = "sra-tblastn" ]    ; then VERSION_OPTION="-version"; fi
     if [ "${tool}" = "tblastn_vdb" ]    ; then VERSION_OPTION="-version"; fi
     if [ "${tool}" = "dump-ref-fasta" ] ; then VERSION_OPTION="--version"; fi
-    RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep -q ${VERSION}"
+    RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep ${VERSION}"
 
 done
 
@@ -122,82 +126,6 @@ then
 fi
 
 echo "Sratoolkit smoke test successful"
-
-echo
-
-########################### TEST GenomeAnalysisTK.jar ##########################
-
-JAR=GenomeAnalysisTK.jar
-echo "Smoke testing ${JAR} ..."
-
-LOG=-Dvdb.log=FINEST
-LOG=-Dvdb.log=WARNING
-LOG=
-
-GLOG="-l INFO"
-GLOG="-l WARN"
-#GLOG="-l ERROR"
-#GLOG="-l FATAL"
-#GLOG="-l OFF"
-
-ARGS=-Dvdb.System.loadLibrary=1
-
-java -version 2>&1 | grep -q 1.7
-if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
-    export PATH=/net/pan1.be-md/sra-test/bin/jre1.8.0_171/bin:$PATH
-fi
-
-CL=org.broadinstitute.gatk.engine.CommandLineGATK
-L="-L NC_000020.10:61000001-61001000"
-
-# execute when dll download is disabled and dll-s cannot be located: should fail
-
-ACC=SRR835775
-GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
-cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
-
-echo
-echo ${cmd}
-eval ${cmd} 2>/dev/null
-if [ "$?" = "0" ] ; then
-    FAILED="${FAILED} ${JAR} with disabled smart dll search;"
-fi
-
-# execute when dll download is enabled
-
-PWD=`pwd`
-ARGS=-Duser.home=${PWD}
-
-GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
-cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
-
-echo
-echo ${cmd}
-eval ${cmd} >/dev/null
-if [ "$?" != "0" ] ; then
-    FAILED="${FAILED} ${JAR};"
-fi
-
-# execute with "-jar GenomeAnalysisTK.jar"
-
-GARG="-T HaplotypeCaller -R ${ACC} -I ${ACC} -o SRR8179.vcf ${L}"
-cmd="java ${LOG} ${ARGS} -jar ./${JAR} ${GARG} ${GLOG}"
-echo
-echo ${cmd}
-eval ${cmd} >/dev/null
-if [ "$?" != "0" ] ; then
-    FAILED="${FAILED} -jar ${JAR};"
-fi
-
-echo
-
-if [ "${FAILED}" != "" ]
-then
-    echo "Failed: ${FAILED}"
-    exit 3
-fi
-
-echo "${JAR} smoke test successful"
 
 ########################## TEST broken symbolic links ##########################
 echo

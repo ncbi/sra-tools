@@ -753,14 +753,14 @@ rc_t execute_tbl_join( KDirectory * dir,
 
                         if ( rc == 0 )
                         {
-                            rc = KThreadMake( &jtd -> thread, cmn_thread_func, jtd );
+                            rc = helper_make_thread( &jtd -> thread, cmn_thread_func, jtd, THREAD_BIG_STACK_SIZE );
                             if ( rc != 0 )
-                                ErrMsg( "KThreadMake( fastq/special #%d ) -> %R", thread_id, rc );
+                                ErrMsg( "tbl_join.c helper_make_thread( fastq/special #%d ) -> %R", thread_id, rc );
                             else
                             {
                                 rc = VectorAppend( &threads, NULL, jtd );
                                 if ( rc != 0 )
-                                    ErrMsg( "VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                                    ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
                             }
                             row += rows_per_thread;
                         }

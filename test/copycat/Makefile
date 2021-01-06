@@ -32,6 +32,14 @@ TEST_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+TOOLTOTEST = $(DIRTOTEST)/copycat
+ifneq ("$(wildcard $(TOOLTOTEST))","")
+    BIN_EXISTS = 1
+else
+    BIN_EXISTS = 0
+endif
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -43,7 +51,11 @@ clean: stdclean
 # scripted tests
 #
 ifeq (1,$(HAVE_MAGIC))
+  ifeq (0,$(BIN_EXISTS))
+runtests: no-test
+  else
 runtests: copy
+  endif
 else
 runtests:
 	@ echo "NOTE - copycat tests are skipped:"          \
@@ -52,9 +64,14 @@ runtests:
 		"which requires 'libmagic' and its development headers."
 endif
 
+no-test:
+	@ echo $(TOOLTOTEST) does not exist. Test skipped.
+
 copy: 
-	@ echo "Starting copycat tests..."
+	@ echo "Testing $(DIRTOTEST)/copycat"
 	@ rm -rf actual
-	@ $(BINDIR)/copycat -h >/dev/null
-	@ export PATH=$(BINDIR):$$PATH; vdb-config | grep bin; copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml 
+	@ $(DIRTOTEST)/copycat -h >/dev/null
+	@ export PATH=$(DIRTOTEST):$(PATH); vdb-config | grep bin > /dev/null && \
+	 copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml\
+	    > /dev/null
 	@ rm -rf actual

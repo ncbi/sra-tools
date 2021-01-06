@@ -32,6 +32,8 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -48,7 +50,7 @@ endif
 #
 
 check_exit_code:
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-copy
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/vdb-copy
 
 .PHONY: $(TEST_TOOLS)
 

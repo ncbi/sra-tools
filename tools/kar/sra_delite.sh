@@ -23,9 +23,11 @@ ORIGINAL_CMD="$0 $@"
 IMPORT_TAG="import"
 DELITE_TAG="delite"
 EXPORT_TAG="export"
+TEST_TAG="test"
 STATUS_TAG="status"
 
 ACCESSION_TAG="--accession"
+ARCHIVE_TAG="--archive"
 TARGET_TAG="--target"
 CONFIG_TAG="--config"
 SCHEMA_TAG="--schema"
@@ -71,6 +73,7 @@ Where :
                       working directory
              $DELITE_TAG - script will perform DELITE on database content
              $EXPORT_TAG - script will create 'delited' KAR archive
+               $TEST_TAG - script will test 'exported' KAR archive
              $STATUS_TAG - script will report some status, or whatever.
 
 Options:
@@ -78,7 +81,11 @@ Options:
     -h|--help - script will show that message
 
     $ACCESSION_TAG <name> - accession
-                         String, mandatory for 'import' action only.
+                         String, for '$IMPORT_TAG' action only, there should
+                         be defined one of '$ACCESSION_TAG' or '$ARCHIVE_TAG'
+    $ARCHIVE_TAG <path>   - path to SRA archive
+                         String, for '$IMPORT_TAG' action only, there should
+                         be defined one of '$ACCESSION_TAG' or '$ARCHIVE_TAG'
     $TARGET_TAG <path>    - path to directory, where script will put it's output.
                          String, mandatory.
     $CONFIG_TAG <path>    - path to existing configuration file.
@@ -112,6 +119,8 @@ case $ACTION in
         ;;
     $EXPORT_TAG)
         ;;
+    $TEST_TAG)
+        ;;
     $STATUS_TAG)
         ;;
     *)
@@ -136,6 +145,10 @@ do
         $ACCESSION_TAG)
             TCNT=$(( $TCNT + 1 ))
             ACCESSION_VAL=${ARGS[$TCNT]}
+            ;;
+        $ARCHIVE_TAG)
+            TCNT=$(( $TCNT + 1 ))
+            ARCHIVE_VAL=${ARGS[$TCNT]}
             ;;
         $TARGET_TAG)
             TCNT=$(( $TCNT + 1 ))
@@ -163,12 +176,28 @@ do
     TCNT=$(( $TCNT + 1 ))
 done
 
+if [ -n "$ACCESSION_VAL" -a -n "$ARCHIVE_VAL" ]
+then
+    echo "ERROR: there could be defined only '$ARCHIVE_TAG' or '$ACCESSION_TAG'" >&2
+    exit 100
+fi
+
 if [ -n "$ACCESSION_VAL" ]
 then
     if [[ ! $ACCESSION_VAL =~ [S,E,D]RR[0-9][0-9]*$ ]]
     then
         echo "ERROR: invalid accession format '$ACCESSION_VAL'. Should match '[S,E,D]RR[0-9][0-9]*$'">&2
         exit 101
+    fi
+fi
+
+if [ -n "$ARCHIVE_VAL" ]
+then
+    ARCHIVE_FILE=$( readlink -e $ARCHIVE_VAL )
+    if [ $? -ne 0 ]
+    then
+        echo "ERROR: can not stat file '$ARCHIVE_VAL'" >&2
+        exit 105
     fi
 fi
 
@@ -308,12 +337,15 @@ diff-exclude CLIPPED_MISMATCH
 diff-exclude CLIPPED_READ
 diff-exclude EDIT_DISTANCE
 diff-exclude RIGHT_SOFT_CLIP
+diff-exclude TEMPLATE_LEN
 
 ### Environment definition section.
 ### Syntax: NAME=VALUE
 ### Please, do not allow spaces between parameters
 # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
 # USE_OWN_TEMPDIR=1
+### That is for docker, and please do not modify it by yourself
+# DELITE_GUID=
 
 EOF
     else
@@ -551,31 +583,38 @@ then
     dpec__ 100; err_exit missed mandatory parameter \'$TARGET_TAG\'
 fi
 
-set_resolve_set_dir_values ()
-{
-    TDVAL=$TARGET_VAL
-    if [ ! -d "$TDVAL" ]
-    then
-        TDVAL=$TARGET_VAL
-    else
-        TDVAL=`cd $TDVAL; pwd`
-    fi
+    ## Readlink -f can return non-zero result if entry
+    ## parent doesn't exist
+TDVAL=`readlink -f $TARGET_VAL`
+if [ $? -ne 0 ]
+then
+    dpec__ 105; err_exit can not resolve parameter \'$TARGET_TAG\' in \'$TARGET_VAL\'
+fi
 
-    TARGET_DIR=$TDVAL
-    DATABASE_DIR=$TARGET_DIR/orig
-    NEW_KAR_FILE=$TARGET_DIR/new.kar
-    ORIG_KAR_FILE=$TARGET_DIR/orig.kar
-    STATUS_FILE=$TARGET_DIR/.status.txt
-    VDBCFG_NAME=vdbconfig.kfg
-    VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
-}
-
-set_resolve_set_dir_values
+TARGET_DIR=$TDVAL
+DATABASE_DIR=$TARGET_DIR/work
+DATABASE_CACHE_DIR=$TARGET_DIR/work.vch
+NEW_KAR_FILE=$TARGET_DIR/out.sra
+NEW_CACHE_FILE=$TARGET_DIR/out.sra.vdbcache
+ORIG_KAR_FILE=$TARGET_DIR/in.sra
+ORIG_CACHE_FILE=$TARGET_DIR/in.sra.vdbcache
+STATUS_FILE=$TARGET_DIR/.status.txt
+VDBCFG_NAME=vdbconfig.kfg
+VDBCFG_FILE=$TARGET_DIR/$VDBCFG_NAME
 
 ## IMPORTANT NOTE:
 ## Prefetch will not work correctly without that
 export NCBI_SETTINGS=/
 export VDB_CONFIG=$VDBCFG_NAME
+
+if [ -z "$DELITE_GUID" ]
+then
+    UUIDGEN=$( which uuidgen )
+    if [ $? -eq 0 ]
+    then
+        DELITE_GUID=$( uuidgen )
+    fi
+fi
 
 ###############################################################################################
 ##  There will be description of status file, which is quite secret file
@@ -687,9 +726,9 @@ import_proc ()
 {
     ##
     ## Checking args
-    if [ -z "$ACCESSION_VAL" ]
+    if [ -z "$ACCESSION_VAL" -a -z "$ARCHIVE_VAL" ]
     then
-        dpec__ 100; err_exit missed mandatory parameter \'$ACCESSION_TAG\'
+        dpec__ 100; err_exit missed mandatory parameter \'$ACCESSION_TAG\' or \'$ARCHIVE_TAG\'
     fi
 
     check_remove_target_dir
@@ -698,9 +737,14 @@ import_proc ()
 
     dpec__ 109; exec_cmd_exit mkdir $TARGET_DIR
 
-    set_resolve_set_dir_values
-
-    log_status $INITIALIZED_TAG $ACCESSION_VAL
+    ##
+    ## Here we are checking if we should or should not call prefetch
+    if [ -n "$ACCESSION_VAL" ]
+    then
+        log_status $INITIALIZED_TAG $ACCESSION_VAL
+    else
+        log_status $INITIALIZED_TAG $ARCHIVE_FILE
+    fi
 
     cat <<EOF >$VDBCFG_FILE
 /repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"
@@ -710,29 +754,59 @@ import_proc ()
 /repository/site/main/tracearc/apps/refseq/volumes/refseq = "refseq"
 /repository/site/main/tracearc/apps/wgs/volumes/wgs2 = "wgs03:wgs01"
 /repository/site/main/tracearc/root = "/netmnt/traces04"
+/libs/cloud/report_instance_identity = "true"
+# /libs/cloud/accept_aws_charges = "true"
+# /libs/cloud/accept_gcp_charges = "true"
 /sra/quality_type = "raw_scores"
 EOF
+
+    ###
+    ##  In the case of AWS, we needed GUID for correct work
+    #
+    if [ -n "$DELITE_GUID" ]
+    then
+        echo /LIBS/GUID = \"$DELITE_GUID\" >>$VDBCFG_FILE
+    fi
 
     info_msg Changing directory to \'$TARGET_DIR\'
     cd $TARGET_DIR
 
-    dpec__ 60; exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
-
-    TOUTD=$TARGET_DIR/$ACCESSION_VAL
-    if [ ! -d "$TOUTD" ]
+    if [ -n "$ACCESSION_VAL" ]
     then
-        dpec__ 105; err_exit can not stat directory \'$TOUTD\'
+        dpec__ 60; exec_cmd_exit $PREFETCH_BIN --max-size 1000000000 $ACCESSION_VAL
+
+        TOUTD=$ACCESSION_VAL
+        if [ ! -d "$TOUTD" ]
+        then
+            dpec__ 105; err_exit can not stat directory \'$TOUTD\'
+        fi
+
+        TOUTF=$TOUTD/${ACCESSION_VAL}.sra
+        if [ ! -f "$TOUTF" ]
+        then
+            dpec__ 105; err_exit can not stat file \'$TOUTF\'
+        fi
+
+        info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TARGET_DIR/$TOUTF\'
+
+        dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
+
+        TOUTC=${TOUTF}.vdbcache
+        if [ -f "$TOUTC" ]
+        then
+            info_msg "Found .VDBCACHE file"
+            dpec__ 61; exec_cmd_exit ln -s $TOUTC $ORIG_CACHE_FILE
+        fi
+    else
+        dpec__ 61; exec_cmd_exit ln -s $ARCHIVE_FILE $ORIG_KAR_FILE
+
+        TOUTC=${ARCHIVE_FILE}.vdbcache
+        if [ -f "$TOUTC" ]
+        then
+            info_msg "Found .VDBCACHE file"
+            dpec__ 61; exec_cmd_exit ln -s $TOUTC $ORIG_CACHE_FILE
+        fi
     fi
-
-    TOUTF=$TOUTD/${ACCESSION_VAL}.sra
-    if [ ! -f "$TOUTF" ]
-    then
-        dpec__ 105; err_exit can not stat file \'$TOUTF\'
-    fi
-
-    info_msg Read `stat --format="%s" $TOUTF` bytes to \'$TOUTF\'
-
-    dpec__ 61; exec_cmd_exit ln -s $TOUTF $ORIG_KAR_FILE
 
     ICMD="$KAR_BIN "
     if [ -n "$FORCE_VAL" ]
@@ -741,6 +815,11 @@ EOF
     fi
 
     dpec__ 62; exec_cmd_exit $ICMD --extract $ORIG_KAR_FILE --directory $DATABASE_DIR
+
+    if [ -e "$ORIG_CACHE_FILE" ]
+    then
+        dpec__ 62; exec_cmd_exit $ICMD --extract $ORIG_CACHE_FILE --directory $DATABASE_CACHE_DIR
+    fi
 
     ## Checking if it is colorspace run
     check_rejected_run_exit
@@ -767,9 +846,23 @@ check_ready_for_delite ()
         dpec__ 105; err_exit can not stat directory \'$SCHEMA_VAL\'
     fi
 
+    SCHEMA_DIR=`cd $SCHEMA_VAL; pwd`
+    if [ -z "$SCHEMA_DIR" ]
+    then
+        dpec__ 105; err_exit can not resolve directory \'$SCHEMA_VAL\'
+    fi
+
     if [ ! -d "$DATABASE_DIR" ]
     then
         dpec__ 105; err_exit can not stat database \'$DATABASE_DIR\'
+    fi
+
+    if [ -e "$ORIG_CACHE_FILE" ]
+    then
+        if [ ! -d "$DATABASE_CACHE_DIR" ]
+        then
+            dpec__ 105; err_exit can not stat database VDBCACHE \'$DATABASE_CACHE_DIR\'
+        fi
     fi
 
     if [ ! -f "$STATUS_FILE" ]
@@ -963,7 +1056,7 @@ modify_object ()
     if [ -n "$NEW_SCHEMA" ]
     then
         info_msg subst $OLD_SCHEMA to $NEW_SCHEMA
-        dpec__ 63; exec_cmd_exit $KARMETA_BIN --spath $SCHEMA_VAL --updschema schema=\'$NEW_SCHEMA\' $M2D
+        dpec__ 63; exec_cmd_exit $KARMETA_BIN --spath $SCHEMA_DIR --updschema schema=\'$NEW_SCHEMA\' $M2D
     else
         warn_msg no subst found for $OLD_SCHEMA
     fi
@@ -1081,14 +1174,19 @@ delite_proc ()
     fi
 
     ## Make ReadFilter
+    if [ -d "$DATABASE_CACHE_DIR" ]
+    then
+        VCH_PARAM="--vdbcache $DATABASE_CACHE_DIR"
+    fi
+
     if [ -n "$USE_OWN_TEMPDIR" ]
     then
         TTMP_DIR=$TARGET_DIR/temp
         dpec__ 109; exec_cmd_exit mkdir $TTMP_DIR
-        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $DATABASE_DIR
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN -t $TTMP_DIR $VCH_PARAM $DATABASE_DIR
         dpec__ 107; exec_cmd_exit rm -rf $TTMP_DIR
     else
-        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN $DATABASE_DIR
+        dpec__ 64; exec_cmd_exit $MAKEREADFILTER_BIN $VCH_PARAM $DATABASE_DIR
     fi
 
     ## Dropping original quality columns
@@ -1173,44 +1271,28 @@ check_read_and_quality_len ()
         dpec__ 105; err_exit can not stat KAR file \'$K2T\'
     fi
 
+    echo "`date +%Y-%m-%d_%H:%M:%S` #### Checking READ and QUALITY array lengths"
+    $VDBDUMP_BIN $K2T -f tab '-C READ,(INSDC:quality:text:phred_33)QUALITY' -u | awk '$1 != $2 { exit (1); } ' 
+    if [ $? -ne 0 ]
+    then
+        dpec__ 88; err_exit READ and QUALITY length are different for $K2T
+    fi
 
-    TCMD="$VDBDUMP_BIN $K2T -f tab '-C READ,(INSDC:quality:text:phred_33)QUALITY' -uI"
-    echo "`date +%Y-%m-%d_%H:%M:%S` #### $TCMD"
-    TCNT=1
+    echo "`date +%Y-%m-%d_%H:%M:%S` #### DONE: array lengths are GOOD"
 
-    while read -r TILNE
-    do
-        eval "FARG=($TILNE)"
-        if [ ${FARG[1]} -ne ${FARG[2]} ]
-        then
-            dpec__ 88; err_exit READ\(${FARG[1]}\) and QUALITY\(${FARG[2]}\) length are different for record \#$TCNT
-        fi
-
-        TCNT=$(( $TCNT + 1 ))
-    done < <( eval "$TCMD" )
-
-    info_msg checked $TCNT records from KAR file \'$K2T\'
     info_msg PASSED
 }
 
 test_kar ()
 {
-    F2T=$1
-
-    if [ -n "$SKIPTEST_VAL" ]
-    then
-        warn_msg skipping tests for \'$F2T\' ...
-        return
-    fi
-
-    check_read_and_quality_len $F2T
+    check_read_and_quality_len $NEW_KAR_FILE
 
     if [ ! -f $ORIG_KAR_FILE ]
     then
-        dpec__ 105; err_exit SKIPPING DIFF TESTS for \'$F2T\', can not stat original KAR file \'$ORIG_KAR_FILE\'
+        dpec__ 105; err_exit SKIPPING DIFF TESTS for \'$NEW_KAR_FILE\', can not stat original KAR file \'$ORIG_KAR_FILE\'
     fi
 
-    exec_cmd $VDBVALIDATE_BIN -x $F2T
+    exec_cmd $VDBVALIDATE_BIN -x $NEW_KAR_FILE
     if [ $? -ne 0 ]
     then
         warn_msg vdb-validate step failed, checking original KAR file
@@ -1223,7 +1305,7 @@ test_kar ()
         fi
     fi
 
-    TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $F2T -i"
+    TCMD="$VDBDIFF_BIN $ORIG_KAR_FILE $NEW_KAR_FILE -c -i"
 
     TDC="$DIFFEXCLUDE"
 
@@ -1258,18 +1340,32 @@ test_kar ()
     dpec__ 68; exec_cmd_exit $TCMD
 }
 
-kar_new ()
+check_force_remove_old_kar ()
 {
-    if [ -f "$NEW_KAR_FILE" ]
+    F2R=$1
+    MSS=$2
+
+    if [ -z "$MSS" ]
+    then
+        MSS="KAR"
+    fi
+
+    if [ -f "$F2R" ]
     then
         if [ -n "$FORCE_VAL" ]
         then
-            info_msg forcing to remove odl KAR file \'$NEW_KAR_FILE\'
-            dpec__ 107; exec_cmd_exit rm $NEW_KAR_FILE
+            info_msg forcing to remove old $MSS file \'$F2R\'
+            dpec__ 107; exec_cmd_exit rm "$F2R"
         else
-            dpec__ 106; err_exit old KAR file found \'$NEW_KAR_FILE\'
+            dpec__ 106; err_exit old $MSS file found \'$F2R\'
         fi
     fi
+}
+
+kar_new ()
+{
+    check_force_remove_old_kar $NEW_KAR_FILE KAR
+    check_force_remove_old_kar $NEW_CACHE_FILE .VDBCACHE
 
     TCMD="$KAR_BIN"
     if [ -n "$FORCE_VAL" ]
@@ -1289,7 +1385,20 @@ kar_new ()
 
     dpec__ 62; exec_cmd_exit $TCMD
 
-    test_kar $NEW_KAR_FILE
+    if [ -d "$DATABASE_CACHE_DIR" ]
+    then
+        info_msg "Creating .VDBCACHE file"
+
+        TCMD="$KAR_BIN"
+        if [ -n "$FORCE_VAL" ]
+        then
+            TCMD="$TCMD -f"
+        fi
+
+        TCMD="$TCMD --create $NEW_CACHE_FILE --directory $DATABASE_CACHE_DIR"
+
+        dpec__ 62; exec_cmd_exit $TCMD
+    fi
 }
 
 print_stats ()
@@ -1334,8 +1443,82 @@ export_proc ()
     ## writing delited kar archive
     kar_new
 
+
+    if [ -n "$SKIPTEST_VAL" ]
+    then
+        warn_msg skipping tests for \'$NEW_KAR_FILE\' ...
+        return
+    else
+        test_kar
+    fi
+
     ## just printing stats
     print_stats
+
+    info_msg "DONE"
+}
+
+###############################################################################################
+###############################################################################################
+###<<>>### Test
+##############################################################################################
+check_ready_for_test ()
+{
+    if [ ! -f "$STATUS_FILE" ]
+    then
+        dpec__ 105; err_exit can not stat status file
+    fi
+
+    TVAR=`grep "$DELITED_TAG" $STATUS_FILE 2>/dev/null`
+    if [ -z "$TVAR" ]
+    then
+        dpec__ 86; err_exit status shows that object was not delited yet
+    fi
+
+    if [ ! -e "$ORIG_KAR_FILE" ]
+    then
+        dpec__ 105; err_exit can not stat original KAR file \'$ORIG_KAR_FILE\'
+    fi
+
+    if [ ! -f "$NEW_KAR_FILE" ]
+    then
+        dpec__ 105; err_exit can not stat delited KAR file \'$NEW_KAR_FILE\'
+    fi
+
+    TVAR=`$KARMETA_BIN --info SOFTWARE/delite $NEW_KAR_FILE 2>/dev/null`
+    if [ -z "$TVAR" ]
+    then
+        dpec__ 86; err_exit object was not delited yet
+    fi
+
+    if [ -h "$ORIG_CACHE_FILE" ]
+    then
+        if [ ! -e "$ORIG_CACHE_FILE" ]
+        then
+            dpec__ 105; err_exit can not stat .VDBCACHE for delited KAR file \'$ORIG_CACHE_FILE\'
+        fi
+
+        if [ ! -f "$NEW_CACHE_FILE" ]
+        then
+            dpec__ 105; err_exit can not stat .VDBCACHE for delited KAR file \'$NEW_CACHE_FILE\'
+        fi
+    fi
+}
+
+test_proc ()
+{
+    ## checking if it is was delited
+    check_ready_for_test
+
+    info_msg Changing directory to \'$TARGET_DIR\'
+    cd $TARGET_DIR
+
+    if [ ! -f "$VDBCFG_NAME" ]
+    then
+        dpec__ 105; err_exit can not stat file \'$VDBCFG_FILE\'
+    fi
+
+    test_kar
 
     info_msg "DONE"
 }

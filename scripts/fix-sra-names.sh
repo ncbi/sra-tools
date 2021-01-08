@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 Help () {
 echo "Usage: $0 <accession directory> [<accession directory>]..."
@@ -21,14 +21,14 @@ echo
 echo "Usage of $0:"
 echo '$ls -d SRR8639211 SRR8639212'
 echo 'SRR8639211 SRR8639212'
-echo '$sh fix-sra-names.sh SRR8639211 SRR8639212'
+echo '$bash fix-sra-names.sh SRR8639211 SRR8639212'
 echo
 echo "After $0 was executed"
 echo 'you can run SRA tools from the same current directory'
 echo 'using accession as command line argument:'
 echo '$ls SRR8639211'
 echo 'SRR8639211.1'
-echo '$sh fix-sra-names.sh SRR8639211'
+echo '$bash fix-sra-names.sh SRR8639211'
 echo '$sam-dump SRR8639211'
 echo '   # Now sam-dump will find run files located in SRR8639211 and use them.'
 echo 'N.B. Running "prefetch SRR8639211" is recommended before dumping SRR8639211.'

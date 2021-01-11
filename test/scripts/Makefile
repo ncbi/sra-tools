@@ -30,4 +30,5 @@ runtests: test-scripts
 
 test-scripts:
 	@ echo "Testing scripts"
+	@ perl test-prepare-sra-names.pl
 	@ perl test-fix-sra-names.pl

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 Help () {
 echo "Usage: $0 <accession> [<accession>]..."
@@ -17,7 +17,7 @@ echo
 echo 'Script should be executed in directory that contains SRR* files.'
 echo
 echo "Usage of $0:"
-echo "sh $0 SRR7725681 SRR7725682 SRR7725683 SRR7725684"
+echo "bash $0 SRR7725681 SRR7725682 SRR7725683 SRR7725684"
 echo
 echo 'The script will create a directory for accession'
 echo 'and move files related to this accession there.'

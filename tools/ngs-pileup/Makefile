@@ -72,11 +72,12 @@ NGS_PILEUP_OBJ = \
 
 NGS_PILEUP_LIBS = \
 	-sncbi-ngs-c++    \
-	-sncbi-vdb-static \
 	-sngs-c++         \
+	-sngs         \
+	-sncbi-vdb-static \
 	-skapp \
 	-stk-version \
-    
+
 $(BINDIR)/ngs-pileup: $(NGS_PILEUP_OBJ)
 	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(NGS_PILEUP_LIBS)
 

@@ -225,8 +225,8 @@ if ($OS eq 'linux') {
 
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
-unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
-    println "configure: error: unsupported architecture '$OSTYPE'";
+unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i || $MARCH =~ /aarch64/) {
+    println "configure: error: unsupported architecture '$OSTYPE':'$MARCH'";
     exit 1;
 }
 
@@ -316,6 +316,8 @@ if ($MARCH =~ /x86_64/i) {
     $BITS = '32_64';
 } elsif ($MARCH =~ /i?86/i) {
     $BITS = 32;
+} elsif ($MARCH =~ /aarch64/) {
+    $BITS = 64;
 } else {
     die "unrecognized Architecture '$ARCH'";
 }

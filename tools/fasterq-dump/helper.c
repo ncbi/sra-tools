@@ -881,7 +881,7 @@ const char * extract_acc2( const char * s )
         rc = VFSManagerMakePath ( mgr, &orig, "%s", s );
         if ( 0 == rc )
         {
-            VPath * acc_or_oid;
+            VPath * acc_or_oid = NULL;
             rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
             if ( 0 == rc )
             {

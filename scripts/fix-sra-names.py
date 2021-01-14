@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys, argparse, os, glob
+from argparse import RawTextHelpFormatter
 
 #---------------------------------------------------------------------------
 def str_to_int( s : str ) -> int :
@@ -68,8 +69,36 @@ def parse_cmdline() :
     desc="""
 Rename names of run files in <accession directory> to sra format
 to be recognized by SRA tools.
+
+This script is intended to fix names of sra files
+that were downloaded without prefetch to be recognized by SRA tools.
+
+Examples of directory with such files:
+$ls SRR8639211
+SRR8639211.1
+
+$ls SRR8639212
+SRR8639212.1  SRR8639212.vdbcache.1
+
+The Script should be executed
+in the directory that contains directories SRR8639211 [and SRR8639212].
+
+Usage of fix-sra-names.py:
+$ls -d SRR8639211 SRR8639212
+SRR8639211 SRR8639212
+$./fix-sra-names.py SRR8639211 SRR8639212
+
+After fix-sra-names.py was executed
+you can run SRA tools from the same current directory
+using accession as command line argument:
+$ls SRR8639211
+SRR8639211.1
+$./fix-sra-names.py SRR8639211
+$sam-dump SRR8639211'
+   # Now sam-dump will find run files located in SRR8639211 and use them.
+'N.B. Running "prefetch SRR8639211" is recommended before dumping SRR8639211.
 """
-    parser = argparse.ArgumentParser( description=desc )
+    parser = argparse.ArgumentParser( description=desc, formatter_class=RawTextHelpFormatter )
     parser.add_argument( '--verbose', '-v', action='store_true',
         dest='verbose', default=False, help='print moving of files')
     parser.add_argument( 'dirs', metavar='directory', nargs='+', help='directories to convert' )

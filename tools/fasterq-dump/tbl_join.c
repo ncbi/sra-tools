@@ -603,7 +603,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
     if ( rc == 0 && results != NULL )
     {
         cmn_params cp = { jtd -> dir, jtd -> vdb_mgr, 
-                          jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+                          jtd -> accession_path, jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
         switch( jtd -> fmt )
         {
             case ft_whole_spot       : rc = perform_whole_spot_join( &cp,
@@ -648,7 +648,7 @@ static rc_t extract_sra_row_count( KDirectory * dir,
                                    size_t cur_cache,
                                    uint64_t * res )
 {
-    cmn_params cp = { dir, vdb_mgr, accession_path, 0, 0, cur_cache }; /* helper.h */
+    cmn_params cp = { dir, vdb_mgr, accession_path, accession_path, 0, 0, cur_cache }; /* helper.h */
     struct fastq_sra_iter * iter; 
     fastq_iter_opt opt = { false, false, false };
     rc_t rc = make_fastq_sra_iter( &cp, opt, tbl_name, &iter ); /* fastq_iter.c */

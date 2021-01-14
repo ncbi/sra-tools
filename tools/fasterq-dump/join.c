@@ -786,7 +786,7 @@ static rc_t extract_csra_row_count( KDirectory * dir,
                                     size_t cur_cache,
                                     uint64_t * res )
 {
-    cmn_params cp = { dir, vdb_mgr, accession_path, 0, 0, cur_cache };
+    cmn_params cp = { dir, vdb_mgr, accession_path, NULL, 0, 0, cur_cache };
     struct fastq_csra_iter * iter;
     fastq_iter_opt opt = { false, false, false, false }; /* fastq_iter.h */
     rc_t rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
@@ -1101,7 +1101,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
     {
         join j;
         cmn_params cp = { jtd -> dir, jtd -> vdb_mgr,
-                          jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+                          jtd -> accession_path, NULL, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
 
         rc = init_join( &cp,
                         results,

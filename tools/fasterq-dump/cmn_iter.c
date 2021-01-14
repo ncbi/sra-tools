@@ -91,16 +91,20 @@ static rc_t cmn_iter_open_cursor( const VTable * tbl, size_t cursor_cache, const
 static rc_t cmn_iter_open_db( const VDBManager * mgr, VSchema * schema,
                               const cmn_params * cp, const char * tblname, const VCursor ** cur )
 {
+    rc_t rc = 0;
     const VDatabase * db = NULL;
-    rc_t rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", cp -> accession );
+    const char * path = cp -> accession;
+    if ( cp -> arg != NULL )
+        path = cp -> arg;
+    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", path );
     if ( rc != 0 )
-        ErrMsg( "cmn_iter.c cmn_iter_open_db().VDBManagerOpenDBRead( '%s' ) -> %R\n", cp -> accession, rc );
+        ErrMsg( "cmn_iter.c cmn_iter_open_db().VDBManagerOpenDBRead( '%s' ) -> %R\n", path, rc );
     else
     {
         const VTable * tbl = NULL;
         rc = VDatabaseOpenTableRead( db, &tbl, "%s", tblname );
         if ( rc != 0 )
-            ErrMsg( "cmn_iter.c cmn_iter_open_db().VDBManagerOpenDBRead( '%s', '%s' ) -> %R\n", cp -> accession, tblname, rc );
+            ErrMsg( "cmn_iter.c cmn_iter_open_db().VDBManagerOpenDBRead( '%s', '%s' ) -> %R\n", path, tblname, rc );
         else
             rc = cmn_iter_open_cursor( tbl, cp -> cursor_cache, cur );
         VDatabaseRelease( db );

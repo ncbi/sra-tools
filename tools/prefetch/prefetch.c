@@ -3594,15 +3594,15 @@ static int64_t CC bstKrtSort(const BSTNode *item, const BSTNode *n) {
 }
 
 static void CC bstKrtDownload(BSTNode *n, void *data) {
-    rc_t rc = 0;
+    rc_t * rc = data;
 
     const KartTreeNode *sn = (const KartTreeNode*) n;
-    assert(sn && sn->i);
+    assert(sn && sn->i && rc);
 
-    rc = ItemDownload(sn->i);
+    *rc = ItemDownload(sn->i);
 
-    if (rc == 0)
-        rc = ItemPostDownload(sn->i, sn->i->number);
+    if (*rc == 0)
+        *rc = ItemPostDownload(sn->i, sn->i->number);
 }
 
 /*********** Process one command line argument **********/
@@ -3813,8 +3813,11 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                     }
                 }
                 else if (type == eRunTypeGetSize) {
+                    rc_t r2 = 0;
                     OUTMSG (("\nDownloading the files...\n\n", realArg));
-                    BSTreeForEach (&trKrt, false, bstKrtDownload, NULL);
+                    BSTreeForEach (&trKrt, false, bstKrtDownload, &r2);
+                    if (rc == 0 && r2 != 0)
+                        rc = r2;
                 }
             }
         }

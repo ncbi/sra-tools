@@ -45,6 +45,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fastq-dump", "fastq-dump.vc
 		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fasterq-dump", "fasterq-dump.vcxproj", "{2182DDEE-BE67-48FB-89BA-9EF23717C128}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sff-dump", "sff-dump.vcxproj", "{11616A3B-9C1F-4760-AE77-755E06D5DFB1}"
 	ProjectSection(ProjectDependencies) = postProject
 		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}

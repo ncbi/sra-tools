@@ -39,6 +39,8 @@
 #include <vfs/manager.h>
 #include <vfs/path.h>
 
+#include <atomic32.h>
+
 rc_t ErrMsg( const char * fmt, ... )
 {
     rc_t rc;
@@ -1715,4 +1717,23 @@ rc_t helper_make_thread( KThread ** self,
 {
     rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );
     return rc;
+}
+
+/* ===================================================================================== */
+static atomic32_t quit_flag;
+
+rc_t get_quitting( void )
+{
+    rc_t rc = Quitting();
+    if ( 0 == rc )
+    {
+        if ( 0 != atomic32_read ( & quit_flag ) )
+        rc = RC ( rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled );
+    }
+    return rc;
+}
+
+void set_quitting( void )
+{
+    atomic32_inc ( & quit_flag );
 }

@@ -918,7 +918,7 @@ static rc_t perform_special_join( cmn_params * cp,
         special_rec rec;
         while ( 0 == rc && get_from_special_iter( iter, &rec, &rc ) )
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 if ( 1 == rec . num_reads )
@@ -934,6 +934,10 @@ static rc_t perform_special_join( cmn_params * cp,
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
+        }
+        if ( 0 != rc )
+        {
+            set_quitting();     /* helper.c */
         }
         destroy_special_iter( iter ); /* special_iter.c */
     }
@@ -976,7 +980,7 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
                                    jo -> filter_bases };
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 stats -> spots_read++;
@@ -998,6 +1002,7 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
                 else
                 {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
                 }
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
@@ -1032,7 +1037,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
         fastq_rec rec; /* fastq_iter.h */
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 stats -> spots_read++;
@@ -1054,6 +1059,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
                 else
                 {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
                 }
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
@@ -1099,7 +1105,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
 
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 stats -> spots_read++;
@@ -1121,6 +1127,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                 else
                 {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting();     /* helper.c */
                 }
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
@@ -1168,7 +1175,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
 
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 stats -> spots_read++;
@@ -1190,6 +1197,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 else
                 {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting();     /* helper.c */
                 }
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */

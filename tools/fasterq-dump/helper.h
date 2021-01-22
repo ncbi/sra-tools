@@ -257,6 +257,9 @@ rc_t helper_make_thread( KThread ** self,
 
 /* ===================================================================================== */
 
+rc_t get_quitting( void );
+void set_quitting( void );
+
 #ifdef __cplusplus
 }
 #endif

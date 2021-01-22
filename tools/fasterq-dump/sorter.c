@@ -204,7 +204,7 @@ static rc_t CC producer_thread_func( const KThread *self, void *data )
 
     while ( 0 == rc && get_from_raw_read_iter( producer -> iter, &rec, &rc1 ) ) /* raw_read_iter.c */
     {
-        rc_t rc2 = Quitting();
+        rc_t rc2 = get_quitting(); /* helper.c */
         if ( 0 == rc2 )
         {
             if ( 0 == rc1 )
@@ -242,6 +242,10 @@ static rc_t CC producer_thread_func( const KThread *self, void *data )
     {
         /* now we have to push out / write out what is left in the last store */
         rc = push_store_to_merger( producer, true ); /* this might block ! */
+    }
+    else
+    {
+        set_quitting(); /* helper.c */
     }
 
     if ( 0 == rc && 0 != producer -> processed_row_count )

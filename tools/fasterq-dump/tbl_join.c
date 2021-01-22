@@ -456,7 +456,7 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
             stats -> spots_read++;
             stats -> reads_read += rec . num_read_len;
 
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 rc = print_fastq_1_read( stats, results, &rec, &local_opt, 1, 1 );
@@ -466,6 +466,10 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
         if ( 0 == rc && 0 != rc_iter )
         {
             rc = rc_iter;
+        }
+        if ( 0 != rc )
+        {
+            set_quitting(); /* helper.c */
         }
         destroy_fastq_sra_iter( iter );
     }
@@ -493,7 +497,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
         fastq_rec rec;
         while ( 0 == rc && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 stats -> spots_read++;
@@ -514,6 +518,10 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
         if ( 0 == rc && 0 != rc_iter )
         {
             rc = rc_iter;
+        }
+        if ( 0 != rc )
+        {
+            set_quitting(); /* helper.c */
         }
         destroy_fastq_sra_iter( iter );
     }
@@ -545,7 +553,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
         fastq_rec rec;
         while ( 0 == rc && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 stats -> spots_read++;
@@ -565,6 +573,10 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
         if ( 0 == rc && 0 != rc_iter )
         {
             rc = rc_iter;
+        }
+        if ( 0 != rc )
+        {
+            set_quitting();     /* helper.c */
         }
         destroy_fastq_sra_iter( iter );
     }
@@ -607,7 +619,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
 
         while ( 0 == rc && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
         {
-            rc = Quitting();
+            rc = get_quitting(); /* helper.c */
             if ( 0 == rc )
             {
                 stats -> spots_read++;
@@ -627,6 +639,10 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
         if ( 0 == rc && 0 != rc_iter )
         {
             rc = rc_iter;
+        }
+        if ( 0 != rc )
+        {
+            set_quitting();     /* helper.c */
         }
         destroy_fastq_sra_iter( iter );
     }

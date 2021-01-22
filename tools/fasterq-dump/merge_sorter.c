@@ -170,8 +170,8 @@ static rc_t run_merge_sorter( merge_sorter * self )
 
     while( rc == 0 && to_write != NULL )
     {
-        rc = Quitting();
-        if ( rc == 0 )
+        rc = get_quitting();    /* helper.c */
+        if ( 0 == rc )
         {
             if ( last_key > to_write -> key )
             {
@@ -186,12 +186,17 @@ static rc_t run_merge_sorter( merge_sorter * self )
                                                     to_write -> key,
                                                     &to_write -> packed_bases . S ); /* lookup_writer.h */
                                                     
-                if ( rc == 0 )
+                if ( 0 == rc )
+                {
                     to_write -> rc = lookup_reader_get( to_write -> reader,
                                                         &to_write -> key,
                                                         &to_write -> packed_bases ); /* lookup_reader.h */
-
+                }
                 to_write = get_min_merge_src( self -> src, self -> num_src ); /* above */
+            }
+            if ( 0 != rc )
+            {
+                set_quitting();     /* helper.c */
             }
             bg_update_update( self -> gap, 1 ); /* signal to gap-update */
         }
@@ -435,8 +440,8 @@ static rc_t background_vector_merger_process_batch( background_vector_merger * s
                 bg_vec_merge_src * to_write = get_min_bg_vec_merge_src( batch, count ); /* above */
                 while( rc == 0 && to_write != NULL )
                 {
-                    rc = Quitting();
-                    if ( rc == 0 )
+                    rc = get_quitting();    /* helper.c */
+                    if ( 0 == rc )
                     {
                         rc = write_bg_vec_merge_src( to_write, writer ); /* above */
                         if ( rc == 0 )
@@ -447,6 +452,10 @@ static rc_t background_vector_merger_process_batch( background_vector_merger * s
                         else
                             to_write = NULL;
                         bg_update_update( self -> gap, 1 );
+                        if ( 0 != rc )
+                        {
+                            set_quitting();     /* helper.c */
+                        }
                     }
                 }
                 release_lookup_writer( writer ); /* lookup_writer.c */

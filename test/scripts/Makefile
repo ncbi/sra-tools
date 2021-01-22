@@ -32,3 +32,5 @@ test-scripts:
 	@ echo "Testing scripts"
 	@ perl test-prepare-sra-names.pl
 	@ perl test-fix-sra-names.pl
+	@ perl test-prepare-sra-names-py.pl
+	@ perl test-fix-sra-names-py.pl

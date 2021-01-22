@@ -139,8 +139,8 @@ urls_and_accs:
 
 	@echo prefetch URL-1 when there is no kfg
 	@rm -f wiki
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki
 	@rm wiki
 
 	@echo prefetch URL-2/2 when there is no kfg
@@ -419,10 +419,10 @@ vdbcache:
 	@ echo vdbcache download
 
 	@ rm -frv tmp
-	
+
 	@ mkdir -p tmp
 	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
-	
+
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 		cd tmp && $(DIRTOTEST)/prefetch SRR6667190  > /dev/null
 	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra            > /dev/null
@@ -980,7 +980,7 @@ hs37d5:
 	@ cd tmp && NCBI_SETTINGS=k PATH=$(B):$(PATH) perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 
-ad_as_dir: # turned off by default. Library test is in 
+ad_as_dir: # turned off by default. Library test is in
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 	@ echo we can use AD as dir/...
 	@ mkdir -p tmp

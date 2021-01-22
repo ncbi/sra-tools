@@ -44,7 +44,7 @@ def fix_names( dir : str, verbose : bool ) :
         else :
             if verbose :
                 print( "{} not found ... continue".format( sra_data_file ) )
-            sra_cache_file = "{}{}{}.vdbcache".format( dir, os.sep, dir )
+            sra_cache_file = "{}{}{}.sra.vdbcache".format( dir, os.sep, dir )
             if os.path.isfile( sra_cache_file ) :
                 if verbose :
                     print( "{} found ... stop".format( sra_cache_file ) )

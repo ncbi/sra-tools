@@ -1,3 +1,8 @@
+if ($^O =~ /darwin/) {
+    print "prepare-sra-names.sh does not work on Mac: test was scipped\n";
+    exit 0;
+}
+
 $acc = 'GSE118828';
 `rm -fr $acc` ; die if $?;
 

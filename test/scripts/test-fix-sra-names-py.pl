@@ -1,3 +1,9 @@
+`which python3`;
+if ( $? != 0 ) {
+    print "python3 not found: exiting test-fix-sra-names-py.pl\n";
+    exit 0;
+}
+
 $acc = 'SRR8639211';
 `rm -fr $acc` ; die if $?;
 

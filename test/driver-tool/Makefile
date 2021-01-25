@@ -45,7 +45,8 @@ runtests: \
 	fasta_default \
 	fasta_0 \
 	fasta_number \
-	fasta_neg_number
+	fasta_neg_number \
+	NO_SDL
 
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
@@ -77,7 +78,13 @@ announce:
 $(TEMPDIR)/tmp.mkfg:
 	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
 
+$(TEMPDIR)/tmp2.mkfg:
+	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@ ;\
+	  echo '/repository/remote/disabled = "true"' >>$@
+
 mkfg: $(TEMPDIR)/tmp.mkfg
+
+mkfg2: $(TEMPDIR)/tmp2.mkfg
 
 actual:
 	@ mkdir actual
@@ -97,6 +104,17 @@ $(GOOD): | actual mkfg
 	SRATOOLS_IMPERSONATE=$@ \
 	$(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
 	diff expected/$@.stderr actual/$@.stderr
+
+NO_SDL: | actual mkfg2
+	@# SRATOOLS_TESTING=5 and skip SDL via config, sub-tool invocation is
+	@# simulated to always succeed, but everything up to the exec call is real
+	@echo "testing expected output for dry run with no SDL" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp2.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=5 \
+	SRATOOLS_IMPERSONATE=fastq-dump \
+	$(BINDIR)/sratools SRR000001 2>actual/NO_SDL.stderr && \
+	diff expected/NO_SDL.stderr actual/NO_SDL.stderr
 
 bogus: | actual mkfg
 	@echo "testing expected output for unknown tool" ;\
@@ -186,5 +204,5 @@ fasta_neg_number: | actual mkfg
 	$(BINDIR)/sratools --fasta -75 SRR390728 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
-.PHONY: runtests bogus container good $(CONTAINER) $(GOOD) vdbcache split_3 split_e
-.INTERMEDIATE: $(TEMPDIR)/tmp.mkfg
+.PHONY: runtests bogus container good $(CONTAINER) $(GOOD) vdbcache split_3 split_e NO_SDL
+.INTERMEDIATE: $(TEMPDIR)/tmp.mkfg $(TEMPDIR)/tmp2.mkfg

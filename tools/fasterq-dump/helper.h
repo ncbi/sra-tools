@@ -124,6 +124,7 @@ typedef struct cmn_params
     const KDirectory * dir;
     const VDBManager * vdb_mgr;
     const char * accession;
+    const char * arg;
     int64_t first_row;
     uint64_t row_count;
     size_t cursor_cache;

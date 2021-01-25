@@ -50,6 +50,7 @@ extern "C" {
 rc_t execute_lookup_production( KDirectory * dir,
                                 const VDBManager * vdb_mgr,
                                 const char * accession,
+                                const char * arg,
                                 struct background_vector_merger * merger,
                                 size_t cursor_cache,
                                 size_t buf_size,

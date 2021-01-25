@@ -699,6 +699,7 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
         rc = execute_lookup_production( tool_ctx -> dir,
                                         tool_ctx -> vdb_mgr,
                                         tool_ctx -> accession_short,
+                                        tool_ctx -> accession_path,
                                         bg_vec_merger, /* drives the bg_file_merger */
                                         tool_ctx -> cursor_cache,
                                         tool_ctx -> buf_size,

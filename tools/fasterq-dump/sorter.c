@@ -96,7 +96,7 @@ static rc_t init_multi_producer( lookup_producer * self,
         if ( rc == 0 )
         {
             cmn_params cp;
-            
+
             self -> iter            = NULL;
             self -> progress        = progress;
             self -> merger          = merger;
@@ -108,9 +108,12 @@ static rc_t init_multi_producer( lookup_producer * self,
             self -> single          = false;
             self -> processed_row_count = processed_row_count;
             
+            memset(&cp, 0, sizeof cp);
+
             cp . dir                = cmn -> dir;
             cp . vdb_mgr            = cmn -> vdb_mgr;
             cp . accession          = cmn -> accession;
+            cp . arg                = cmn -> arg;
             cp . first_row          = first_row;
             cp . row_count          = row_count;
             cp . cursor_cache       = cmn -> cursor_cache;
@@ -244,9 +247,12 @@ static uint64_t find_out_row_count( cmn_params * cmn )
     struct raw_read_iter * iter; /* raw_read_iter.c */
     cmn_params cp; /* cmn_iter.h */
     
+    memset(&cp, 0, sizeof cp);
+
     cp . dir            = cmn -> dir;
     cp . vdb_mgr        = cmn -> vdb_mgr;
     cp . accession      = cmn -> accession;
+    cp . arg            = cmn -> arg;
     cp . first_row      = 0;
     cp . row_count      = 0;
     cp . cursor_cache   = cmn -> cursor_cache;
@@ -354,6 +360,7 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
 rc_t execute_lookup_production( KDirectory * dir,
                                 const VDBManager * vdb_mgr,
                                 const char * accession,
+                                const char * arg,
                                 struct background_vector_merger * merger,
                                 size_t cursor_cache,
                                 size_t buf_size,
@@ -371,7 +378,7 @@ rc_t execute_lookup_production( KDirectory * dir,
     
     if ( rc == 0 )
     {
-        cmn_params cmn = { dir, vdb_mgr, accession, 0, 0, cursor_cache };
+        cmn_params cmn = { dir, vdb_mgr, accession, arg, 0, 0, cursor_cache };
         rc = run_producer_pool( &cmn,
                                 merger,
                                 buf_size,

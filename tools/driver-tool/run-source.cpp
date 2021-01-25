@@ -362,6 +362,9 @@ Dictionary data_source::get_environment() const
     auto result = Dictionary();
     auto const names = env_var::names();
 
+    if (!haveVdbCache && run.isSimple())
+        goto RETURN_ENV_VARS;
+
     result[names[env_var::REMOTE_URL]] = run.remoteUrl;
     if (run.haveCachePath)
         result[names[env_var::CACHE_URL]] = run.cachePath;
@@ -387,6 +390,7 @@ Dictionary data_source::get_environment() const
         if (haveVdbCache && vdbcache.needPmt)
             result[names[env_var::CACHE_NEED_PMT]] = "1";
     }
+RETURN_ENV_VARS:
     return result;
 }
 

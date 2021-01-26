@@ -1003,7 +1003,7 @@ const char * extract_acc2( const char * s )
         }
         else
         {
-            VPath * acc_or_oid;
+            VPath * acc_or_oid = NULL;
             rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
             if ( 0 != rc )
             {

@@ -3594,15 +3594,19 @@ static int64_t CC bstKrtSort(const BSTNode *item, const BSTNode *n) {
 }
 
 static void CC bstKrtDownload(BSTNode *n, void *data) {
-    rc_t * rc = data;
+    rc_t rc = 0;
+    rc_t * aRc = data;
 
     const KartTreeNode *sn = (const KartTreeNode*) n;
-    assert(sn && sn->i && rc);
+    assert(sn && sn->i && aRc);
 
-    *rc = ItemDownload(sn->i);
+    rc = ItemDownload(sn->i);
 
-    if (*rc == 0)
-        *rc = ItemPostDownload(sn->i, sn->i->number);
+    if (rc == 0)
+        rc = ItemPostDownload(sn->i, sn->i->number);
+
+    if (rc != 0 && *aRc == 0)
+        *aRc = rc;
 }
 
 /*********** Process one command line argument **********/

@@ -57,6 +57,7 @@ SUBDIRS =    \
 	vdb-validate      \
 	make-read-filter  \
 	srapath           \
+	scripts           \
 
 # under construction
 #    ngs-pileup      \

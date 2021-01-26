@@ -1266,7 +1266,6 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
         cmn_params cp = { jtd -> dir, jtd -> vdb_mgr,
                           jtd -> accession_short, jtd -> accession_path,
                           jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
-
         rc = init_join( &cp,
                         results,
                         jtd -> lookup_filename,

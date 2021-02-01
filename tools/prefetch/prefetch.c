@@ -2379,7 +2379,11 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             }
         }
     }
-    else if (item->jwtCart != NULL);
+    else if (item->jwtCart != NULL) {
+        rc = VResolverAddRef(resolver);
+        if (rc == 0)
+            resolved->resolver = resolver;
+    }
     else {
         rc = KartItemProjIdNumber(item->item, &resolved->project);
         if (rc != 0) {

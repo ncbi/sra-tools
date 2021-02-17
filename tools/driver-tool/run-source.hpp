@@ -49,6 +49,11 @@ struct source {
         assert(haveAccession || haveLocalPath);
         return haveAccession ? accession : localPath;
     }
+    bool isSimple() const {
+        return (haveAccession || haveLocalPath)
+            && accession == localPath
+            && !(needCE || needPmt || haveCachePath || haveSize);
+    }
 };
 
 /// @brief Contains the source info for a run and any associated vdbcache file.

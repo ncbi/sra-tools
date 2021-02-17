@@ -362,6 +362,9 @@ Dictionary data_source::get_environment() const
     auto result = Dictionary();
     auto const names = env_var::names();
 
+    if (!haveVdbCache && run.isSimple())
+        goto RETURN_ENV_VARS;
+
     result[names[env_var::REMOTE_URL]] = run.remoteUrl;
     if (run.haveCachePath)
         result[names[env_var::CACHE_URL]] = run.cachePath;
@@ -387,6 +390,7 @@ Dictionary data_source::get_environment() const
         if (haveVdbCache && vdbcache.needPmt)
             result[names[env_var::CACHE_NEED_PMT]] = "1";
     }
+RETURN_ENV_VARS:
     return result;
 }
 
@@ -450,7 +454,7 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;
-    auto notfound = std::set<std::string>(runs.begin(), runs.end());
+    auto not_processed = std::set<std::string>(runs.begin(), runs.end());
 
     auto run_query = [&](std::vector<std::string> const &terms) {
         auto const &service = Service::make();
@@ -470,11 +474,11 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 
             for (auto &sdl_result : raw.result) {
                 auto const &query = sdl_result.query;
-                auto const localInfo = notfound.find(query);
 
                 LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
                 if (sdl_result.status == "200") {
                     unsigned added = 0;
+
                     sdl_result.process(query, response, [&](data_source &&source) {
                         if (havePerm && source.encrypted()) {
                             std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
@@ -484,11 +488,14 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
                             added += 1;
                         }
                     });
-                    notfound.erase(localInfo); // remove since we found it
                     if (added == 0) {
                         std::cerr
                         << "Accession " << query << " might be available in a different region or on a different cloud provider." << std::endl
                         << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                    }
+                    else {
+                        auto const localInfo = not_processed.find(query);
+                        not_processed.erase(localInfo); // remove since we found and processed it
                     }
                 }
                 else if (sdl_result.status == "404") {
@@ -504,40 +511,34 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
             throw SDL_unexpected_error(std::string("unexpected version ") + version);
         }
     };
-#if 0
-    auto const &split = split_by_type(runs);
-    try {
-        run_query(split.first);
-        run_query(split.second);
-    }
-#else
-    try {
-        std::set<std::string> seen;
-        for (auto && i : runs) {
-            if (!seen.insert(i).second) continue;
-            if (pathExists(i)) continue;
+    if (withSDL) {
+        try {
+            std::set<std::string> seen;
+            for (auto && i : runs) {
+                if (!seen.insert(i).second) continue;
+                if (pathExists(i)) continue;
 
-            run_query({i});
+                run_query({i});
+            }
+        }
+        catch (vdb::exception const &e) {
+            LOG(1) << "Failed to talk to SDL" << std::endl;
+            LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+
+            std::cerr << e.msg << "." << std::endl;
+            exit(EX_USAGE);
+
+        }
+        catch (SDL_unexpected_error const &e) {
+            LOG(1) << e.what() << std::endl;
+            throw std::logic_error("Error communicating with NCBI");
+        }
+        catch (...) {
+            throw std::logic_error("Error communicating with NCBI");
         }
     }
-#endif
-    catch (vdb::exception const &e) {
-        LOG(1) << "Failed to talk to SDL" << std::endl;
-        LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
-
-        std::cerr << e.msg << "." << std::endl;
-        exit(EX_USAGE);
-
-    }
-    catch (SDL_unexpected_error const &e) {
-        LOG(1) << e.what() << std::endl;
-        throw std::logic_error("Error communicating with NCBI");
-    }
-    catch (...) {
-        throw std::logic_error("Error communicating with NCBI");
-    }
-    // make "file" sources for unrecognized query elements
-    for (auto const &run : notfound) {
+    // make "file" sources for unprocessed or unrecognized query items
+    for (auto const &run : not_processed) {
         source s = {};
         s.accession = run;
         s.localPath = run;
@@ -549,7 +550,7 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 data_sources data_sources::preload(std::vector<std::string> const &runs,
                                    ParamList const &parameters)
 {
-    return logging_state::testing_level() != 2 ? data_sources(runs, true) : data_sources(runs);
+    return logging_state::testing_level() != 2 ? data_sources(runs, config->canUseSDL()) : data_sources(runs);
 }
 
 #if DEBUG || _DEBUGGING

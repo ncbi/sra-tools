@@ -779,7 +779,6 @@ rc_t execute_tbl_join( KDirectory * dir,
     if ( show_progress )
     {
         KOutHandlerSetStdErr();
-        KOutMsg( "join_options.terminate_on_invalid : %s", join_options->terminate_on_invalid ? "Y" : "N" );
         rc = KOutMsg( "join   :" );
         KOutHandlerSetStdOut();
     }

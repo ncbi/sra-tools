@@ -72,6 +72,17 @@ public:
         auto const x = get("/libs/cloud/report_instance_identity");
         return x ? x.value() == "true" : false;
     }
+
+    /// @brief true if user has disabled remote access
+    bool isRemoteAccessDisabled() const {
+        auto const x = get("/repository/remote/disabled");
+        return x ? x.value() == "true" : false;
+    }
+
+    /// @brief false if user has disabled remote access
+    bool canUseSDL() const {
+        return !isRemoteAccessDisabled();
+    }
 };
 
 }

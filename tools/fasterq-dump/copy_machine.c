@@ -61,22 +61,42 @@ typedef struct copy_machine
 static rc_t destroy_copy_machine( copy_machine * self )
 {
     uint32_t i;
-    
+
     /* first join the 2 threads... */
-    rc_t rc;
-    
-    KQueueSeal ( self -> to_write_q );
+    rc_t rc, rc2;
+
+    rc2 = KQueueSeal ( self -> to_write_q );
+    {
+        if ( 0 != rc2 )
+        {
+            ErrMsg( "copy_machine.c destroy_copy_machine.KQueueSeal() -> %R", rc2 );
+        }
+    }
     KThreadWait ( self -> thread, &rc );
     
-    if ( self -> empty_q != NULL )
-        KQueueRelease ( self -> empty_q );
-    if ( self -> to_write_q != NULL )
-        KQueueRelease ( self -> to_write_q );
+    if ( NULL != self -> empty_q )
+    {
+        rc2 = KQueueRelease ( self -> empty_q );
+        if ( 0 != rc2 )
+        {
+            ErrMsg( "copy_machine.c destroy_copy_machine.KQueueRelease().1 -> %R", rc2 );
+        }
+    }
+    if ( NULL != self -> to_write_q )
+    {
+        rc2 = KQueueRelease ( self -> to_write_q );
+        if ( 0 != rc2 )
+        {
+            ErrMsg( "copy_machine.c destroy_copy_machine.KQueueRelease().2 -> %R", rc2 );
+        }
+    }
 
     for ( i = 0; i < N_COPY_MACHINE_BLOCKS; ++i )
     {
-        if ( self -> blocks[ i ] . buffer != NULL )
+        if ( NULL != self -> blocks[ i ] . buffer )
+        {
             free( ( void * ) self -> blocks[ i ] . buffer );
+        }
     }
     return rc;
 }
@@ -89,7 +109,7 @@ static rc_t push2q( KQueue * q, const void * item, uint32_t wait_time )
     {
         struct timeout_t tm;
         rc = TimeoutInit ( &tm, wait_time );
-        if ( rc != 0 )
+        if ( 0 != rc )
         {
             ErrMsg( "copy_machine.c push2q().TimeoutInit( %u ) -> %R", wait_time, rc );
             running = false;
@@ -97,13 +117,21 @@ static rc_t push2q( KQueue * q, const void * item, uint32_t wait_time )
         else
         {
             rc = KQueuePush ( q, item, &tm );
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 running = false;
+            }
             else
             {
-                bool timed_out = ( GetRCState( rc ) != rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout );
+                bool timed_out = ( rcExhausted != GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) );
                 if ( timed_out )
-                    KSleepMs( wait_time );   
+                {
+                    rc_t rc2 = KSleepMs( wait_time );
+                    if ( 0 != rc2 )
+                    {
+                        ErrMsg( "copy_machine.c push2q().KSleepMs() -> %R", rc2 );
+                    }
+                }
                 else
                 {
                     ErrMsg( "copy_machine.c push2q().KQueuePush() -> %R", rc );
@@ -120,12 +148,12 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
     rc_t rc = 0;
     uint64_t src_pos = 0;
     size_t num_read = 1;
-    while ( rc == 0 && num_read > 0 )
+    while ( 0 == rc && num_read > 0 )
     {
         /* get a buffer out of the empty-q */
         struct timeout_t tm;
         rc = TimeoutInit ( &tm, self -> q_wait_time );
-        if ( rc != 0 )
+        if ( 0 != rc )
         {
             ErrMsg( "copy_machine.c copy_this_file().TimeoutInit( %lu ms ) -> %R", self -> q_wait_time, rc );
         }
@@ -133,12 +161,14 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
         {
             copy_machine_block * block;
             rc = KQueuePop ( self -> empty_q, ( void ** )&block, &tm );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 block -> available = 0;
                 rc = KFileRead( src, src_pos, block -> buffer, self -> buf_size, &num_read );
-                if ( rc != 0 )
+                if ( 0 != rc )
+                {
                     ErrMsg( "copy_machine.c copy_this_file().KFileRead( at %lu ) -> %R", src_pos, rc );
+                }
                 else if ( num_read > 0 )
                 {
                     /* we have data for the writer-thread */
@@ -152,13 +182,13 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
                     rc = push2q ( self -> empty_q, block, self -> q_wait_time );
                 }
             }
-            else if ( GetRCState( rc ) == rcDone && GetRCObject( rc ) == ( enum RCObject )rcData )
+            else if ( rcDone == GetRCState( rc ) && ( enum RCObject )rcData == GetRCObject( rc ) )
             {
                 /* the empty_q has been sealed, this can only happen if the writer is in trouble! */
                 rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
                 ErrMsg( "you have exhausted your space" );
             }
-            else if ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout )
+            else if ( rcExhausted == GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) )
             {
                 /* we have a timeout from KQueuePop(), that means the writer is busy,
                    all blocks are in the to_write-queue or in processing, let's try again */
@@ -178,36 +208,55 @@ static rc_t run_copy_machine( copy_machine * self )
 {
     uint32_t file_count;
     rc_t rc = VNameListCount( self -> sources, &file_count );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "copy_machine.c run_copy_machine().VNameListCount( sources ) -> %R", rc );
+    }
     else
     {
         uint32_t idx;
-        for ( idx = self -> src_list_offset; rc == 0 && idx < file_count; ++idx )
+        for ( idx = self -> src_list_offset; 0 == rc && idx < file_count; ++idx )
         {
             const char * filename = NULL;
             rc = VNameListGet( self -> sources, idx, &filename );
-            if ( rc != 0 )
-                ErrMsg( "copy_machine.c run_copy_machine().VNameListGet( %u ) -> %R", idx, rc );    
+            if ( 0 != rc )
+            {
+                ErrMsg( "copy_machine.c run_copy_machine().VNameListGet( %u ) -> %R", idx, rc );
+            }
             else
             {
                 const struct KFile * src;
                 rc = make_buffered_for_read( self -> dir, &src, filename, self -> buf_size ); /* helper.c */
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
+                    rc_t rc2;
                     rc = copy_this_file( self, src ); /* above */
-                    KFileRelease( src );
+                    rc2 = KFileRelease( src );
+                    if ( 0 != rc2 )
+                    {
+                        ErrMsg( "copy_machine.c run_copy_machine().KFileRelease()[ %u ] -> %R", idx, rc2 );
+                        rc = ( 0 == rc ) ? rc2 : rc;
+                    }
                 }
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     rc = KDirectoryRemove( self -> dir, true, "%s", filename );
-                    if ( rc != 0 )
+                    if ( 0 != rc )
+                    {
                         ErrMsg( "copy_machine.c run_copy_machine().KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                    }
                 }
             }
         }
         /* we are done ... seal the to_write_q ( the one the writer is listening at ) */
-        KQueueSeal ( self -> to_write_q );
+        {
+            rc_t rc2 = KQueueSeal ( self -> to_write_q );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "copy_machine.c run_copy_machine().KQueueSeal() -> %R", rc2 );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
+        }
     }
     return rc;
 }
@@ -217,55 +266,66 @@ static rc_t CC copy_machine_writer_thread( const KThread * thread, void *data )
     rc_t rc = 0;
     copy_machine * self = data;
     bool done = false;
-    while( rc == 0 && !done )
+    while( 0 == rc && !done )
     {
         /* as long as ther to_write_q is not sealed */
         struct timeout_t tm;
         rc = TimeoutInit ( &tm, self -> q_wait_time );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "copy_machine.c copy_machine_writer_thread().TimeoutInit() -> %R", rc );
+        }
+        else
         {
             copy_machine_block * block;
             rc = KQueuePop ( self -> to_write_q, ( void ** )&block, /*&tm*/ NULL );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 /* we got a block to write out of the to_write_q */
                 size_t num_written;
                 rc = KFileWrite( self -> dst, self -> dst_pos,
                                  block -> buffer, block -> available, &num_written );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     /* increment the write - position */
                     self -> dst_pos += num_written;
-                    
+
                     /* inform the background-process about it */
-                    bg_progress_update( self -> progress, num_written );
-                    
+                    bg_progress_update( self -> progress, num_written ); /* progress_thread.c */
+
                     /* put the block back into the empty-q */
                     block -> available = 0;
-                    rc = push2q ( self -> empty_q, block, self -> q_wait_time );
+                    rc = push2q ( self -> empty_q, block, self -> q_wait_time ); /* above */
                 }
                 else
                 {
                     /* something went wrong with writing the block into the dst-file !!!
                        possibly we are running out of space to write... */
-                    
+
                     /* put the block back into the empty-q */
                     block -> available = 0;
-                    rc = push2q ( self -> empty_q, block, self -> q_wait_time );
+                    rc = push2q ( self -> empty_q, block, self -> q_wait_time ); /* above */
     
                     /* we are done ... seal the empty_q ( that will tell the reader to stop... */
-                    KQueueSeal ( self -> empty_q );
+                    {
+                        rc_t rc2 = KQueueSeal ( self -> empty_q );
+                        if ( 0 != rc2 )
+                        {
+                            ErrMsg( "copy_machine.c copy_machine_writer_thread().KQueueSeal() -> %R", rc2 );
+                            rc = ( 0 == rc ) ? rc2 : rc;
+                        }
+                    }
                 }
             }
             else
             {
-                if ( GetRCState( rc ) == rcDone && GetRCObject( rc ) == ( enum RCObject )rcData )
+                if ( rcDone == GetRCState( rc ) && ( enum RCObject )rcData == GetRCObject( rc ) )
                 {
                     /* the to_write_q has been sealed, we are done! */
                     done = true;
                     rc = 0;
                 }
-                else if ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout )
+                else if ( rcExhausted == GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) )
                 {
                     /* the to_write_q is still active, but so far nothing to write in it */
                     rc = 0;
@@ -286,7 +346,7 @@ rc_t make_a_copy( KDirectory * dir,
                   uint32_t q_wait_time )
 {
     rc_t rc = 0;
-    if ( dst == NULL || buf_size == 0 || sources == NULL )
+    if ( NULL == dst || 0 == buf_size || NULL == sources )
     {
         rc = RC( rcExe, rcFile, rcPacking, rcParam, rcInvalid );
         ErrMsg( "copy_machine.c make_a_copy() -> %R", rc );
@@ -295,7 +355,7 @@ rc_t make_a_copy( KDirectory * dir,
     {
         copy_machine cm;
         uint32_t i;
-        
+
         cm . dir = dir;
         cm . dst = dst;
         cm . empty_q = NULL;
@@ -312,50 +372,60 @@ rc_t make_a_copy( KDirectory * dir,
             cm . blocks[ i ] . buffer = NULL;
             cm . blocks[ i ] . available = 0;
         }
-        for ( i = 0; rc == 0 && i < N_COPY_MACHINE_BLOCKS; ++i )
+        for ( i = 0; 0 == rc && i < N_COPY_MACHINE_BLOCKS; ++i )
         {
             cm . blocks[ i ] . buffer = malloc( buf_size );
-            if ( cm . blocks[ i ] . buffer == NULL )
+            if ( NULL == cm . blocks[ i ] . buffer )
             {
                 rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
                 ErrMsg( "copy_machine.c make_a_copy().malloc( %d ) -> %R", buf_size, rc );
             }
         }
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = KQueueMake ( &( cm . empty_q ), N_COPY_MACHINE_BLOCKS );
-            if ( rc != 0 )
+            if ( 0 != rc )
+            {
                 ErrMsg( "copy_machine.c make_a_copy().KQueueMake( empty_q ) -> %R", rc );
+            }
         }
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = KQueueMake ( &( cm . to_write_q ), N_COPY_MACHINE_BLOCKS );
-            if ( rc != 0 )
+            if ( 0 != rc )
+            {
                 ErrMsg( "copy_machine.c make_a_copy().KQueueMake( to_write_q ) -> %R", rc );
+            }
         }
-        for ( i = 0; rc == 0 && i < N_COPY_MACHINE_BLOCKS; ++i )
+        for ( i = 0; 0 == rc && i < N_COPY_MACHINE_BLOCKS; ++i )
         {
             rc = push2q ( cm . empty_q, &( cm . blocks[ i ] ), q_wait_time );
-            if ( rc != 0 )
+            if ( 0 != rc )
+            {
                 ErrMsg( "copy_machine.c make_a_copy().KQueuePush( empty_q ) -> %R", rc );
+            }
         }
 
         /* create a writer-thread */
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = helper_make_thread( &( cm . thread ), copy_machine_writer_thread,
                                     &cm, THREAD_DFLT_STACK_SIZE );
-            if ( rc != 0 )
+            if ( 0 != rc )
+            {
                 ErrMsg( "copy_machine.c make_a_copy().helper_make_thread( writer-thread ) -> %R", rc );
+            }
         }
-        
+
         /* read the data on the current thread */
-        if ( rc == 0 )
+        if ( 0 == rc )
+        {
             rc = run_copy_machine( &cm ); /* above */
+        }
 
         {
-            rc_t rc1 = destroy_copy_machine( &cm ); /* above */
-            if ( rc == 0 ) rc = rc1;
+            rc_t rc2 = destroy_copy_machine( &cm ); /* above */
+            rc = ( 0 == rc ) ? rc2 : rc;
         }
     }
     return rc;

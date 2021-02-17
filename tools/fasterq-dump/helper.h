@@ -123,7 +123,8 @@ typedef struct cmn_params
 {
     const KDirectory * dir;
     const VDBManager * vdb_mgr;
-    const char * accession;
+    const char * accession_short;
+    const char * accession_path;
     int64_t first_row;
     uint64_t row_count;
     size_t cursor_cache;
@@ -255,6 +256,9 @@ rc_t helper_make_thread( KThread ** self,
                          size_t stacksize );
 
 /* ===================================================================================== */
+
+rc_t get_quitting( void );
+void set_quitting( void );
 
 #ifdef __cplusplus
 }

@@ -39,9 +39,9 @@ typedef struct special_iter
 
 void destroy_special_iter( struct special_iter * iter )
 {
-    if ( iter != NULL )
+    if ( NULL != iter )
     {
-        destroy_cmn_iter( iter->cmn );
+        destroy_cmn_iter( iter -> cmn );
         free( ( void * ) iter );
     }
 }
@@ -50,27 +50,44 @@ rc_t make_special_iter( cmn_params * params, struct special_iter ** iter )
 {
     rc_t rc = 0;
     special_iter * i = calloc( 1, sizeof * i );
-    if ( i == NULL )
+    if ( NULL == i )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_special_iter.calloc( %d ) -> %R", ( sizeof * i ), rc );
     }
     else
     {
-        rc = make_cmn_iter( params, "SEQUENCE", &i->cmn );
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "PRIMARY_ALIGNMENT_ID", &i->prim_alig_id );
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "CMP_READ", &i->cmp_read_id );
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "SPOT_GROUP", &i->spot_group_id );
-        if ( rc == 0 )
-            rc = cmn_iter_range( i->cmn, i->prim_alig_id );
+        rc = make_cmn_iter( params, "SEQUENCE", &( i -> cmn ) );
+        if ( 0 != rc )
+        {
+            ErrMsg( "make_special_iter.make_cmn_iter() -> %R", rc );
+        }
 
-        if ( rc != 0 )
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_add_column( i -> cmn, "PRIMARY_ALIGNMENT_ID", &( i -> prim_alig_id ) );
+        }
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_add_column( i -> cmn, "CMP_READ", &( i -> cmp_read_id ) );
+        }
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_add_column( i -> cmn, "SPOT_GROUP", &( i -> spot_group_id ) );
+        }
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_range( i -> cmn, i -> prim_alig_id );
+        }
+        
+        if ( 0 != rc )
+        {
             destroy_special_iter( i );
+        }
         else
+        {
             *iter = i;
+        }
     }
     return rc;
 }
@@ -78,15 +95,19 @@ rc_t make_special_iter( cmn_params * params, struct special_iter ** iter )
 
 bool get_from_special_iter( struct special_iter * iter, special_rec * rec, rc_t * rc )
 {
-    bool res = cmn_iter_next( iter->cmn, rc );
+    bool res = cmn_iter_next( iter -> cmn, rc );
     if ( res )
     {
-        rec->row_id = cmn_iter_row_id( iter->cmn );
-        *rc = cmn_read_uint64_array( iter->cmn, iter->prim_alig_id, rec->prim_alig_id, 2, &rec->num_reads );
-        if ( *rc == 0 )
-            *rc = cmn_read_String( iter->cmn, iter->cmp_read_id, &rec->cmp_read );
-        if ( *rc == 0 )
-            *rc = cmn_read_String( iter->cmn, iter->spot_group_id, &rec->spot_group );
+        rec->row_id = cmn_iter_row_id( iter -> cmn );
+        *rc = cmn_read_uint64_array( iter -> cmn, iter -> prim_alig_id, rec -> prim_alig_id, 2, &( rec -> num_reads ) );
+        if ( 0 == *rc )
+        {
+            *rc = cmn_read_String( iter -> cmn, iter -> cmp_read_id, &( rec -> cmp_read ) );
+        }
+        if ( 0 == *rc )
+        {
+            *rc = cmn_read_String( iter -> cmn, iter -> spot_group_id, &( rec -> spot_group ) );
+        }
     }
     return res;
 
@@ -94,5 +115,5 @@ bool get_from_special_iter( struct special_iter * iter, special_rec * rec, rc_t 
 
 uint64_t get_row_count_of_special_iter( struct special_iter * iter )
 {
-    return cmn_iter_row_count( iter->cmn );
+    return cmn_iter_row_count( iter -> cmn );
 }

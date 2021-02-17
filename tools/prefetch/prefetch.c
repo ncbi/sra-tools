@@ -3733,15 +3733,15 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                         rc = rcq;
                     break;
                 }
+                done = !NumIteratorNext(&nit, n);
+                if (done)
+                    break;
                 rc2 = IteratorNext(&it, &item, &done);
                 if (rc2 != 0 || done) {
                     if (rc == 0 && rc2 != 0)
                         rc = rc2;
                     break;
                 }
-                done = ! NumIteratorNext(&nit, n);
-                if (done)
-                    break;
 #ifdef DBGNG
                 STSMSG(STS_FIN, ("%s: processing item %d...", __func__, n));
 #endif

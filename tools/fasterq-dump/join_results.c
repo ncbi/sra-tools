@@ -71,22 +71,31 @@ typedef struct join_results
 
 static void CC destroy_join_printer( void * item, void * data )
 {
-    if ( item != NULL )
+    if ( NULL != item )
     {
         join_printer * p = item;
-        KFileRelease( p -> f );
+        if ( NULL != p -> f )
+        {
+            rc_t rc = KFileRelease( p -> f );
+            if ( 0 != rc )
+            {
+                ErrMsg( "destroy_join_printer().KFileRelease() -> %R", rc );
+            }
+        }
         free( item );
     }
 }
 
 void destroy_join_results( join_results * self )
 {
-    if ( self != NULL )
+    if ( NULL != self )
     {
         VectorWhack ( &self -> printers, destroy_join_printer, NULL );
         release_SBuffer( &self -> print_buffer );
-        if ( self -> buf2na != NULL )
+        if ( NULL != self -> buf2na )
+        {
             release_Buf2NA( self -> buf2na );
+        }
         free( ( void * ) self );
     }
 }
@@ -186,6 +195,7 @@ static rc_t print_v1_real_name_no_frag_nr( join_results * self,
                                          const String * quality )
 {
     if ( name -> len > 0 )
+    {
         return join_results_print( self,
                                    dst_id, 
                                    fmt_fastq_v1_real_name_no_frag_nr,
@@ -197,6 +207,7 @@ static rc_t print_v1_real_name_no_frag_nr( join_results * self,
                                    self -> accession_short, row_id,
                                    name,
                                    quality -> len, quality );
+    }
 
     return join_results_print( self,
                                dst_id, 
@@ -220,6 +231,7 @@ static rc_t print_v1_real_name_frag_nr( join_results * self,
                                          const String * quality )
 {
     if ( name -> len > 0 )
+    {
         return join_results_print( self,
                                    dst_id, 
                                    fmt_fastq_v1_real_name_frag_nr,
@@ -231,6 +243,7 @@ static rc_t print_v1_real_name_frag_nr( join_results * self,
                                    self -> accession_short, row_id, read_id,
                                    name,
                                    quality -> len, quality );
+    }
 
    return join_results_print( self,
                                dst_id, 
@@ -343,6 +356,7 @@ static rc_t print_v2_real_name_no_frag_nr( join_results * self,
                                          const String * quality )
 {
     if ( name -> len > 0 )
+    {
         return join_results_print( self,
                                    dst_id, 
                                    fmt_fastq_v2_real_name_no_frag_nr,
@@ -354,6 +368,7 @@ static rc_t print_v2_real_name_no_frag_nr( join_results * self,
                                    self -> accession_short, row_id,
                                    name,
                                    quality -> len, quality );
+    }
 
     return join_results_print( self,
                                dst_id, 
@@ -378,6 +393,7 @@ static rc_t print_v2_real_name_frag_nr( join_results * self,
                                          const String * quality )
 {
     if ( name -> len > 0 )
+    {
         return join_results_print( self,
                                    dst_id, 
                                    fmt_fastq_v2_real_name_frag_nr,
@@ -389,6 +405,7 @@ static rc_t print_v2_real_name_frag_nr( join_results * self,
                                    self -> accession_short, row_id, read_id,
                                    name,
                                    quality -> len, quality );
+    }
 
     return join_results_print( self,
                                dst_id, 
@@ -417,14 +434,16 @@ rc_t make_join_results( struct KDirectory * dir,
     if ( filter_bases != NULL )
     {
         rc = make_Buf2NA( &buf2na, 512, filter_bases );
-        if ( rc != 0 )
-            ErrMsg( "error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
+        if ( 0 != rc )
+        {
+            ErrMsg( "make_join_results().error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
+        }
     }
     if ( rc == 0 )
     {
         join_results * p = calloc( 1, sizeof * p );
         *results = NULL;
-        if ( p == NULL )
+        if ( NULL == p )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             ErrMsg( "make_join_results().calloc( %d ) -> %R", ( sizeof * p ), rc );
@@ -484,31 +503,37 @@ rc_t make_join_results( struct KDirectory * dir,
             }
 
             rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size ); /* helper.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 VectorInit ( &p -> printers, 0, 4 );
                 *results = p;
             }
         }
     }
-    if ( rc != 0 && buf2na != NULL )
+    if ( 0 != rc && NULL != buf2na )
+    {
         release_Buf2NA( buf2na );
+    }
     return rc;
 }
 
 bool join_results_match( join_results * self, const String * bases )
 {
     bool res = true;
-    if ( self != NULL && bases != NULL && self -> buf2na != NULL )
+    if ( NULL != self && NULL != bases && NULL != self -> buf2na )
+    {
         res = match_Buf2NA( self -> buf2na, bases ); /* helper.c */
+    }
     return res;
 }
 
 bool join_results_match2( struct join_results * self, const String * bases1, const String * bases2 )
 {
     bool res = true;
-    if ( self != NULL && bases1 != NULL && bases2 != NULL && self -> buf2na != NULL )
+    if ( NULL != self && NULL != bases1 && NULL != bases2 && NULL != self -> buf2na )
+    {
         res = ( match_Buf2NA( self -> buf2na, bases1 ) || match_Buf2NA( self -> buf2na, bases2 ) ); /* helper.c */
+    }
     return res;
 }
 
@@ -519,33 +544,52 @@ static rc_t make_join_printer( join_results * self, uint32_t read_id, join_print
     
     rc_t rc = string_printf( filename, sizeof filename, &num_writ, "%s.%u", self -> output_base, read_id );
     *printer = NULL;
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "make_join_printer().string_vprintf() -> %R", rc );
+    }
     else
     {
         struct KFile * f;
         rc = KDirectoryCreateFile( self -> dir, &f, false, 0664, kcmInit, "%s", filename );
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "make_join_printer().KDirectoryVCreateFile() -> %R", rc );
+        }
         else
         {
             if ( self -> buffer_size > 0 )
             {
                 struct KFile * temp_file = f;
                 rc = KBufFileMakeWrite( &temp_file, f, false, self -> buffer_size );
-                KFileRelease( f );
+                if ( 0 != rc )
+                {
+                    ErrMsg( "make_join_printer().KBufFileMakeWrite() -> %R", rc );
+                }
+                {
+                    rc_t rc2 = KFileRelease( f );
+                    if ( 0 != rc2 )
+                    {
+                        ErrMsg( "make_join_printer().KFileRelease().1 -> %R", rc2 );
+                        rc = ( 0 == rc ) ? rc2 : rc;
+                    }
+                }
                 f = temp_file;
-                if ( rc != 0 )
-                    ErrMsg( "KBufFileMakeWrite() -> %R", rc );
             }
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 join_printer * p = calloc( 1, sizeof * p );
-                if ( p == NULL )
+                if ( NULL == p )
                 {
-                    KFileRelease( f );
                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
                     ErrMsg( "make_join_printer().calloc( %d ) -> %R", ( sizeof * p ), rc );
+                    {
+                        rc_t rc2 = KFileRelease( f );
+                        if ( 0 != rc2 )
+                        {
+                            ErrMsg( "make_join_printer().KFileRelease().2 -> %R", rc2 );
+                        }
+                    }
                 }
                 else
                 {
@@ -553,7 +597,13 @@ static rc_t make_join_printer( join_results * self, uint32_t read_id, join_print
                     if ( rc != 0 )
                     {
                         free( p );
-                        KFileRelease( f );
+                        {
+                            rc_t rc2 = KFileRelease( f );
+                            if ( 0 != rc2 )
+                            {
+                                ErrMsg( "make_join_printer().KFileRelease().3 -> %R", rc2 );
+                            }
+                        }
                     }
                     else
                     {
@@ -570,54 +620,75 @@ static rc_t make_join_printer( join_results * self, uint32_t read_id, join_print
 rc_t join_results_print( struct join_results * self, uint32_t read_id, const char * fmt, ... )
 {
     rc_t rc = 0;
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcSelf, rcNull );
-    else if ( fmt == NULL )
+        ErrMsg( "join_results_print() -> %R", rc );
+    }
+    else if ( NULL == fmt )
+    {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
+        ErrMsg( "join_results_print() -> %R", rc );
+    }
+    else
     {
         join_printer * p = VectorGet ( &self -> printers, read_id );
-        if ( p == NULL )
+        if ( NULL == p )
         {
             rc = make_join_printer( self, read_id, &p );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 rc = VectorSet ( &self -> printers, read_id, p );
-                if ( rc != 0 )
+                if ( 0 != rc )
+                {
                     destroy_join_printer( p, NULL );
-            }   
+                }
+            }
         }
-        
-        if ( rc == 0 && p != NULL )
+
+        if ( 0 == rc && NULL != p )
         {
             bool done = false;
-            
-            while ( rc == 0 && !done )
+            uint32_t cnt = 4;
+
+            while ( 0 == rc && !done && cnt-- > 0 )
             {
                 va_list args;
                 va_start ( args, fmt );
                 rc = print_to_SBufferV( & self -> print_buffer, fmt, args );
+                /* do not print failed rc, because it is used to increase the buffer */
                 va_end ( args );
 
-                done = ( rc == 0 );
+                done = ( 0 == rc );
                 if ( !done )
+                {
                     rc = try_to_enlarge_SBuffer( & self -> print_buffer, rc );
+                }
             }
-            
-            if ( rc == 0 )
+
+            if ( 0 != rc )
+            {
+                ErrMsg( "join_results_print().failed to enlarge buffer -> %R", rc );
+            }
+            else
             {
                 size_t num_writ, to_write;
                 to_write = self -> print_buffer . S . size;
                 const char * src = self -> print_buffer . S . addr;
                 rc = KFileWriteAll( p -> f, p -> file_pos, src, to_write, &num_writ );
-                if ( rc != 0 )
+                if ( 0 != rc )
+                {
                     ErrMsg( "join_results_print().KFileWriteAll( at %lu ) -> %R", p -> file_pos, rc );
+                }
                 else if ( num_writ != to_write )
                 {
                     rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
                     ErrMsg( "join_results_print().KFileWriteAll( at %lu ) ( %d vs %d ) -> %R", p -> file_pos, to_write, num_writ, rc );
                 }
                 else
+                {
                     p -> file_pos += num_writ;
+                }
             }
         }
     }
@@ -626,29 +697,31 @@ rc_t join_results_print( struct join_results * self, uint32_t read_id, const cha
 
 rc_t join_results_print_fastq_v1( join_results * self,
                                   int64_t row_id,
-                                  uint32_t dst_id,                                  
+                                  uint32_t dst_id,
                                   uint32_t read_id,
                                   const String * name,
                                   const String * read,
                                   const String * quality )
 {
-    if ( name == NULL )
+    if ( NULL == name )
+    {
         return self -> v1_print_name_null( self, row_id, dst_id, read_id, name, read, quality );
-    else
-        return self -> v1_print_name_not_null( self, row_id, dst_id, read_id, name, read, quality );
+    }
+    return self -> v1_print_name_not_null( self, row_id, dst_id, read_id, name, read, quality );
 }
 
 rc_t join_results_print_fastq_v2( join_results * self,
                                   int64_t row_id,
-                                  uint32_t dst_id,                                  
+                                  uint32_t dst_id,
                                   uint32_t read_id,
                                   const String * name,
                                   const String * read1,
                                   const String * read2,
                                   const String * quality )
 {
-    if ( name == NULL )
+    if ( NULL == name )
+    {
         return self -> v2_print_name_null( self, row_id, dst_id, read_id, name, read1, read2, quality );
-    else
-        return self -> v2_print_name_not_null( self, row_id, dst_id, read_id, name, read1, read2, quality );
+    }
+    return self -> v2_print_name_not_null( self, row_id, dst_id, read_id, name, read1, read2, quality );
 }

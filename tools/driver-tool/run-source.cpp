@@ -37,8 +37,7 @@
 #include <utility>
 #include <algorithm>
 
-#include <sysexits.h>
-
+#include "support2.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
 #include "debug.hpp"
@@ -248,8 +247,8 @@ struct Response2 {
                     result.localPath = fileInfo.path;
                     if ((result.haveCachePath = !fileInfo.cachepath.empty()) != false)
                         result.cachePath = fileInfo.cachepath;
-                    if ((result.haveSize = fileInfo.size != 0) != false)
-                        result.fileSize = fileInfo.size;
+                    if ((result.haveSize = (fileInfo.size != 0)) != false)
+                        result.fileSize = std::to_string(fileInfo.size);
                 }
                 result.accession = accession;
                 result.service = location.service;
@@ -305,25 +304,23 @@ struct Response2 {
                 if (file.type != "sra") continue;
                 if (ends_with(".pileup", file.name)) continue; // TODO: IS THIS CORRECT
 
-                auto const &fileInfo = response.localInfo2(accession, file.name);
                 auto const vcache = matching(file, "vdbcache");
                 if (vcache == files.end()) {
                     // there is no vdbcache with this object, nothing to join
                     for (auto &location : file.locations) {
                         // if the user had run prefetch and not moved the
                         // downloaded files, this should find them.
-                        auto const &run_source = file.make_source(location, accession, fileInfo);
+                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
                         func(std::move(data_source(run_source)));
                     }
                 }
                 else {
                     // there is a vdbcache with this object, do the join
-                    auto const &vcache_fileInfo = response.localInfo2(accession, vcache->name);
                     for (auto &location : file.locations) {
-                        auto const &run_source = file.make_source(location, accession, fileInfo);
+                        auto const &run_source = file.make_source(location, accession, response.localInfo(accession, file.name, file.type));
                         auto const &best = vcache->best_matching(location);
                         if (best != vcache->locations.end()) {
-                            auto const &cache_source = file.make_source(*best, accession, vcache_fileInfo);
+                            auto const &cache_source = file.make_source(*best, accession, response.localInfo(accession, vcache->name, vcache->type));
                             func(std::move(data_source(run_source, cache_source)));
                         }
                         else {
@@ -359,29 +356,48 @@ struct Response2 {
     }
 };
 
+/// @brief get run environment variables
+Dictionary data_source::get_environment() const
+{
+    auto result = Dictionary();
+    auto const names = env_var::names();
+
+    if (!haveVdbCache && run.isSimple())
+        goto RETURN_ENV_VARS;
+
+    result[names[env_var::REMOTE_URL]] = run.remoteUrl;
+    if (run.haveCachePath)
+        result[names[env_var::CACHE_URL]] = run.cachePath;
+    if (run.haveLocalPath)
+        result[names[env_var::LOCAL_URL]] = run.localPath;
+    if (run.haveSize)
+        result[names[env_var::SIZE_URL]] = run.fileSize;
+    if (run.needCE)
+        result[names[env_var::REMOTE_NEED_CE]] = "1";
+    if (run.needPmt)
+        result[names[env_var::REMOTE_NEED_PMT]] = "1";
+
+    if (haveVdbCache) {
+        result[names[env_var::REMOTE_VDBCACHE]] = vdbcache.remoteUrl;
+        if (vdbcache.haveCachePath)
+            result[names[env_var::CACHE_VDBCACHE]] = vdbcache.cachePath;
+        if (vdbcache.haveLocalPath)
+            result[names[env_var::LOCAL_VDBCACHE]] = vdbcache.localPath;
+        if (vdbcache.haveSize)
+            result[names[env_var::SIZE_VDBCACHE]] = vdbcache.fileSize;
+        if (vdbcache.needCE)
+            result[names[env_var::CACHE_NEED_CE]] = "1";
+        if (haveVdbCache && vdbcache.needPmt)
+            result[names[env_var::CACHE_NEED_PMT]] = "1";
+    }
+RETURN_ENV_VARS:
+    return result;
+}
+
 #define SETENV(VAR, VAL) env_var::set(env_var::VAR, VAL.c_str())
 #define SETENV_IF(EXPR, VAR, VAL) env_var::set(env_var::VAR, (EXPR) ? VAL.c_str() : NULL)
 #define SETENV_BOOL(VAR, VAL) env_var::set(env_var::VAR, (VAL) ? "1" : NULL)
 
-/// @brief set/unset run environment variables
-void data_source::set_environment() const
-{
-    SETENV(REMOTE_URL, run.remoteUrl);
-    SETENV_IF(run.haveCachePath, CACHE_URL, run.cachePath);
-    SETENV_IF(run.haveLocalPath, LOCAL_URL, run.localPath);
-    SETENV_IF(run.haveSize, SIZE_URL, run.fileSize);
-    SETENV_BOOL(REMOTE_NEED_CE, run.needCE);
-    SETENV_BOOL(REMOTE_NEED_PMT, run.needPmt);
-    
-    SETENV_IF(haveVdbCache, REMOTE_VDBCACHE, vdbcache.remoteUrl);
-    SETENV_IF(haveVdbCache && vdbcache.haveCachePath, CACHE_VDBCACHE, vdbcache.cachePath);
-    SETENV_IF(haveVdbCache && vdbcache.haveLocalPath, LOCAL_VDBCACHE, vdbcache.localPath);
-    SETENV_IF(haveVdbCache && vdbcache.haveSize, SIZE_VDBCACHE, vdbcache.fileSize);
-    SETENV_BOOL(CACHE_NEED_CE, haveVdbCache && vdbcache.needCE);
-    SETENV_BOOL(CACHE_NEED_PMT, haveVdbCache && vdbcache.needPmt);
-}
-
-    
 /// @brief set/unset CE Token environment variable
 void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
@@ -428,8 +444,8 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;
+    auto not_processed = std::set<std::string>(runs.begin(), runs.end());
 
-    auto notfound = std::set<std::string>(runs.begin(), runs.end());
     auto run_query = [&](std::vector<std::string> const &terms) {
         auto const &service = Service::make();
         auto const &response = get_SDL_response(service, terms, have_ce_token);
@@ -448,11 +464,11 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 
             for (auto &sdl_result : raw.result) {
                 auto const &query = sdl_result.query;
-                auto const localInfo = notfound.find(query);
 
                 LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
                 if (sdl_result.status == "200") {
                     unsigned added = 0;
+
                     sdl_result.process(query, response, [&](data_source &&source) {
                         if (havePerm && source.encrypted()) {
                             std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
@@ -462,11 +478,14 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
                             added += 1;
                         }
                     });
-                    notfound.erase(localInfo); // remove since we found it
                     if (added == 0) {
                         std::cerr
                         << "Accession " << query << " might be available in a different region or on a different cloud provider." << std::endl
                         << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                    }
+                    else {
+                        auto const localInfo = not_processed.find(query);
+                        not_processed.erase(localInfo); // remove since we found and processed it
                     }
                 }
                 else if (sdl_result.status == "404") {
@@ -482,33 +501,34 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
             throw SDL_unexpected_error(std::string("unexpected version ") + version);
         }
     };
-    try {
-        std::set<std::string> seen;
-        for (auto const & run : runs) {
-            auto const is_new = seen.insert(run).second;
-            if (is_new) {
-                if (!pathExists(run))
-                    run_query({run});
+    if (withSDL) {
+        try {
+            std::set<std::string> seen;
+            for (auto && i : runs) {
+                if (!seen.insert(i).second) continue;
+                if (pathExists(i)) continue;
+
+                run_query({i});
             }
         }
-    }
-    catch (vdb::exception const &e) {
-        LOG(1) << "Failed to talk to SDL" << std::endl;
-        LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+        catch (vdb::exception const &e) {
+            LOG(1) << "Failed to talk to SDL" << std::endl;
+            LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
 
-        std::cerr << e.msg << "." << std::endl;
-        exit(EX_USAGE);
+            std::cerr << e.msg << "." << std::endl;
+            exit(EX_USAGE);
 
+        }
+        catch (SDL_unexpected_error const &e) {
+            LOG(1) << e.what() << std::endl;
+            throw std::logic_error("Error communicating with NCBI");
+        }
+        catch (...) {
+            throw std::logic_error("Error communicating with NCBI");
+        }
     }
-    catch (SDL_unexpected_error const &e) {
-        LOG(1) << e.what() << std::endl;
-        throw std::logic_error("Error communicating with NCBI");
-    }
-    catch (...) {
-        throw std::logic_error("Error communicating with NCBI");
-    }
-    // make "file" sources for unrecognized query items
-    for (auto const &run : notfound) {
+    // make "file" sources for unprocessed or unrecognized query items
+    for (auto const &run : not_processed) {
         source s = {};
         s.accession = run;
         s.localPath = run;
@@ -520,7 +540,7 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 data_sources data_sources::preload(std::vector<std::string> const &runs,
                                    ParamList const &parameters)
 {
-    return logging_state::testing_level() != 2 ? data_sources(runs, true) : data_sources(runs);
+    return logging_state::testing_level() != 2 ? data_sources(runs, config->canUseSDL()) : data_sources(runs);
 }
 
 #if DEBUG || _DEBUGGING

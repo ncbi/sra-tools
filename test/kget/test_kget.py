@@ -135,6 +135,10 @@ if URL == None :
 
 print ( "'%s' is resolved into '%s'"%( ACC, URL ) )
 
+if "/sdlr/sdlr.fcgi?jwt=" in URL:
+    print ("kget test when CE is required is skipped")
+    exit (0)
+
 remote_size = kget_remote_size( URL )
 if remote_size != EXP_SIZE :
     print ( "size (%d) differs from expected size(%d)"%( remote_size, EXP_SIZE ) )

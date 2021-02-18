@@ -32,22 +32,37 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+CONFIGTOUSE ?= NCBI_SETTINGS
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: check_exit_code check_skiplist
+ifdef PYTHON
+runtests: announce check_exit_code check_skiplist
 
-slowtests: fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
+slowtests: announce fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
+
+else
+runtests: ;
+
+slowtests: ;
+
+endif
+
+announce:
+	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
 
 check_exit_code:
-	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/sra-pileup
+	@ $(CONFIGTOUSE)=/ $(PYTHON) \
+	    $(TOP)/build/check-exit-code.py $(DIRTOTEST)/sra-pileup
 
 check_skiplist:
-	@ python check_skiplist.py $(BINDIR)/sra-pileup
+	@ $(CONFIGTOUSE)=/ $(PYTHON) check_skiplist.py $(DIRTOTEST)/sra-pileup
 
 ACC = SRR3332402
 
@@ -55,13 +70,15 @@ ACC = SRR3332402
 # testing if sam-dump and fastq-dump produce the same READ/QUALITY values
 #
 fastq_dump_vs_sam_dump :
-	@ python test_diff_fastq_dump_vs_sam_dump.py -a $(ACC) -f $(BINDIR)/fastq-dump -m $(BINDIR)/sam-dump
+	@ $(CONFIGTOUSE)=/ $(PYTHON) test_diff_fastq_dump_vs_sam_dump.py \
+	    -a $(ACC) -f $(DIRTOTEST)/fastq-dump -m $(DIRTOTEST)/sam-dump
 
 #-------------------------------------------------------------------------------
 # testing if sam-dump and fastq-dump produce the same READ/QUALITY values
 #
 sam_dump_spotgroup_for_all :
-	@ python test_all_sam_dump_has_spotgroup.py -a $(ACC) -m $(BINDIR)/sam-dump
+	@ $(CONFIGTOUSE)=/ $(PYTHON) test_all_sam_dump_has_spotgroup.py \
+	  -a $(ACC) -m $(DIRTOTEST)/sam-dump
 
 .PHONY: $(TEST_TOOLS)
 

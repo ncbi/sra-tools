@@ -111,10 +111,6 @@ static const char* USAGE_FIL[] = { "print loaded files", NULL };
 static const char* USAGE_FIX[] =
 { "create default or update existing user configuration", NULL };
 
-#define ALIAS_IMP    NULL
-#define OPTION_IMP   "import"
-/* static const char* USAGE_IMP[] = { "import ngc file", NULL }; */
-
 #define ALIAS_MOD    "m"
 #define OPTION_MOD   "modules"
 static const char* USAGE_MOD[] = { "print external modules", NULL };
@@ -127,6 +123,11 @@ static const char* USAGE_OUT[] = { "output type: one of (x n), "
 #define ALIAS_PCF    "p"
 #define OPTION_PCF   "cfg"
 static const char* USAGE_PCF[] = { "print current configuration", NULL };
+
+#define ALIAS_PRTCT  NULL
+#define OPTION_PRTCT "ignore-protected-repositories"
+static const char* USAGE_PRTCT[] =
+{ "stop printing warning message when protected repository is found", NULL };
 
 #define ALIAS_CDR    NULL
 #define OPTION_CDR   "cfg-dir"
@@ -221,8 +222,7 @@ OptDef Options[] =
     , { OPTION_ENV, ALIAS_ENV, NULL, USAGE_ENV, 1, false, false, NULL }
     , { OPTION_FIL, ALIAS_FIL, NULL, USAGE_FIL, 1, false, false, NULL }
     , { OPTION_FIX, ALIAS_FIX, NULL, USAGE_FIX, 1, false, false, NULL }
-/*  , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false,
-                                                             ArgsConvFilepath}*/
+    , {OPTION_PRTCT,ALIAS_PRTCT,NULL,USAGE_PRTCT,1,false, false, NULL }
     , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false, NULL }
     , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false, NULL }
     , { OPTION_C_IN,ALIAS_C_IN,NULL, USAGE_C_IN,1, false, false, NULL }
@@ -285,6 +285,7 @@ rc_t CC Usage(const Args* args) {
     HelpOptionLine (ALIAS_CFM, OPTION_CFM, "mode", USAGE_CFM);
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_FIX, OPTION_FIX, NULL, USAGE_FIX);
+    HelpOptionLine(ALIAS_PRTCT,OPTION_PRTCT,NULL,USAGE_PRTCT);
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_OUT, OPTION_OUT, "x | n", USAGE_OUT);
     KOutMsg ("\n");
@@ -501,6 +502,7 @@ typedef struct Params {
 
     bool modeSetNode;
     bool modeConfigure;
+    bool ignoreProtected;
     EConfigMode configureMode;
     bool modeCreate;
     bool modeShowCfg;
@@ -618,24 +620,8 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 ++count;
             }
         }
-/*      {   // OPTION_IMP
-            rc = ArgsOptionCount(args, OPTION_IMP, &pcount);
-            if (rc != 0) {
-                LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
-                break;
-            }
-            if (pcount > 0) {
-                rc = ArgsOptionValue(args, OPTION_IMP, 0, (const void **)&prm->ngc);
-                if (rc != 0) {
-                    LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
-                    break;
-                }
-                else {
-                     prm->modeShowCfg = false;
-                }
-            }
-        } */
-        {   // OPTION_MOD
+        /* OPTION_MOD */
+        {
             rc = ArgsOptionCount(args, OPTION_MOD, &pcount);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_MOD "' argument");
@@ -646,20 +632,8 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 ++count;
             }
         }
-#if 0
-        {   // OPTION_NEW
-            rc = ArgsOptionCount(args, OPTION_NEW, &pcount);
-            if (rc) {
-                LOGERR(klogErr, rc, "Failure to get '" OPTION_NEW "' argument");
-                break;
-            }
-            if (pcount) {
-                prm->modeCreate = true;
-                ++count;
-            }
-        }
-#endif
-        {   // OPTION_PCF
+        /* OPTION_PCF */
+        {
             rc = ArgsOptionCount(args, OPTION_PCF, &pcount);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_PCF "' argument");
@@ -764,7 +738,19 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->configureMode = eCfgModeDefault;
             }
         }
-        {   // OPTION_CFG
+/* OPTION_PRTCT */ {
+            const char * option = OPTION_PRTCT;
+            rc = ArgsOptionCount(args, option, &pcount);
+            if (rc != 0) {
+                PLOGERR(klogErr, (klogErr, rc,
+                    "Failure to get '${opt}' argument", "opt=%s", option));
+                break;
+            }
+            if (pcount > 0)
+                prm->ignoreProtected = true;
+        }
+/* OPTION_CFG */
+        {
             rc = ArgsOptionCount(args, OPTION_CFG, &pcount);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_CFG "' argument");
@@ -798,7 +784,8 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
 #endif
             }
         }
-        {   // OPTION_CFM
+        /* OPTION_CFM */
+        {
             rc = ArgsOptionCount(args, OPTION_CFM, &pcount);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_CFM "' argument");
@@ -833,7 +820,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             }
         }
 /********************************* cloud begin ********************************/
-// OPTION_C_IN
+/* OPTION_C_IN */
         {
             rc = ArgsOptionCount(args, OPTION_C_IN, &pcount);
             if (rc) {
@@ -844,7 +831,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             if (pcount > 0)
                 prm->cloudInfo = prm->modeCloud = true;
         }
-// OPTION_C_RI
+/* OPTION_C_RI */
         {
             rc = ArgsOptionCount(args, OPTION_C_RI, &pcount);
             if (rc != 0) {
@@ -867,7 +854,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-// OPTION_GS_C
+/* OPTION_GS_C */
         {
             rc = ArgsOptionCount(args, OPTION_GS_C, &pcount);
             if (rc != 0) {
@@ -890,7 +877,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-// OPTION_GS_F
+/* OPTION_GS_F */
         {
             rc = ArgsOptionCount(args, OPTION_GS_F, &pcount);
             if (rc != 0) {
@@ -909,7 +896,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-// OPTION_S3_C
+/* OPTION_S3_C */
         {
             rc = ArgsOptionCount(args, OPTION_S3_C, &pcount);
             if (rc != 0) {
@@ -932,7 +919,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-// OPTION_S3_F
+/* OPTION_S3_F */
         {
             rc = ArgsOptionCount(args, OPTION_S3_F, &pcount);
             if (rc != 0) {
@@ -951,7 +938,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-// OPTION_S3_P
+/* OPTION_S3_P */
         {
             rc = ArgsOptionCount(args, OPTION_S3_P, &pcount);
             if (rc != 0) {
@@ -970,7 +957,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-// OPTION_P_UR
+/* OPTION_P_UR */
         {
             rc = ArgsOptionCount(args, OPTION_P_UR, &pcount);
             if (rc != 0) {
@@ -983,7 +970,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 prm->modeCloud = true;
             }
         }
-// OPTION_P_CW
+/* OPTION_P_CW */
         {
             rc = ArgsOptionCount(args, OPTION_P_CW, &pcount);
             if (rc != 0) {
@@ -997,19 +984,26 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             }
         }
 /********************************* cloud end **********************************/
-        {   // OPTION_ALL
+   /* OPTION_ALL */
+        {
             rc = ArgsOptionCount(args, OPTION_ALL, &pcount);
-            if (rc) {
+            if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_ALL "' argument");
                 break;
             }
-            if (pcount
+            if (pcount > 0
                 || ( !prm->modeConfigure
-                  && !prm->modeShowCfg && ! prm->modeShowLoadPath
-                  && !prm->modeShowEnv && !prm->modeShowFiles
-                  && !prm->modeShowModules && !prm->modeCreate
-                  && !prm->modeSetNode && !prm->modeCloud && prm->ngc == NULL
-                  && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
+                    && !prm->ignoreProtected
+                    && !prm->modeShowCfg
+                    && ! prm->modeShowLoadPath
+                    && !prm->modeShowEnv
+                    && !prm->modeShowFiles
+                    && !prm->modeShowModules
+                    && !prm->modeCreate
+                    && !prm->modeSetNode
+                    && !prm->modeCloud
+                    && prm->ngc == NULL
+                    && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
                 /* show all by default */
             {
                 prm->modeShowCfg = prm->modeShowEnv = prm->modeShowFiles = true;
@@ -1328,6 +1322,13 @@ static rc_t ShowModules(const KConfig* cfg, const Params* prm) {
     return rc;
 }
 #endif
+
+static rc_t KConfig_IgnoreProtected(KConfig * self) {
+    rc_t rc = KConfigWriteBool(self, "/repository/user/ignore-protected", true);
+    if (rc == 0)
+        rc = KConfigCommit(self);
+    return rc;
+}
 
 static rc_t SetNode(KConfig* cfg, const Params* prm) {
     rc_t rc = 0;
@@ -2227,6 +2228,12 @@ rc_t CC KMain(int argc, char* argv[]) {
 
         if (prm.modeCloud) {
             rc_t r = ProcessCloud(cfg, &prm);
+            if (rc == 0 && r != 0)
+                rc = r;
+        }
+
+        if (prm.ignoreProtected) {
+            rc_t r = KConfig_IgnoreProtected(cfg);
             if (rc == 0 && r != 0)
                 rc = r;
         }

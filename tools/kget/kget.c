@@ -392,8 +392,15 @@ static void extract_name( char ** dst, const char * url )
     char * last_slash = string_rchr ( url, string_size( url ), '/' );
     if ( last_slash == NULL )
         *dst = string_dup_measure( "out.bin", NULL );
-    else
-        *dst = string_dup_measure( last_slash + 1, NULL );
+    else {
+        size_t size = 0;
+        *dst = string_dup_measure( last_slash + 1, &size );
+        if ( *dst != NULL ) {
+            char * query = string_chr ( *dst, size, '?' );
+            if ( query != NULL )
+                *query = '\0';
+        }
+    }
 }
 
 
@@ -435,7 +442,8 @@ static rc_t make_remote_file( struct KNSManager * kns_mgr, const KFile ** src, f
         /*TODO: supply ceRequired and payRequired */
         rc = KNSManagerMakeReliableHttpFile( kns_mgr, src, NULL, 0x01010000, true, false, false, ctx->url );
     else
-        rc = KNSManagerMakeHttpFile( kns_mgr, src, NULL, 0x01010000, ctx->url );
+        rc = KNSManagerMakeHttpFile( kns_mgr, src, NULL, 0x01010000,
+            "%s", ctx->url );
     
     if ( rc != 0 )
     {
@@ -473,6 +481,8 @@ static rc_t fetch( KDirectory *dir, fetch_ctx *ctx )
         extract_name( &outfile, ctx->url );
     else
         outfile = string_dup_measure( ctx->destination, NULL );
+
+    assert(outfile);
 
     KOutMsg( "fetching: >%s<\n", ctx->url );
     KOutMsg( "into    : >%s<\n", outfile );

@@ -60,7 +60,9 @@ bool get_from_raw_read_iter( struct raw_read_iter * iter, raw_read_rec * rec, rc
 
 uint64_t get_row_count_of_raw_read( struct raw_read_iter * iter );
 
-rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache, const char * accession, const char * output_file );
+rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache,
+                     const char * accession_short, const char * accession_path,
+                     const char * output_file );
 
 #ifdef __cplusplus
 }

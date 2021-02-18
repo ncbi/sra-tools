@@ -28,6 +28,7 @@
 #include "support2.hpp"
 
 #define TOOL_NAME "fasterq-dump"
+#define TOOL_ORIGINAL_NAME TOOL_NAME "-orig"
 
 namespace sratools2
 {
@@ -102,7 +103,7 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline . addOption ( Threads, &ThreadsCount, "e", "threads", "<count>",
             "how many threads to use (dflt=6)" );
 
-        cmdline . addOption ( progress, "p", "progres", "show progress (not possible if stdout used)" );
+        cmdline . addOption ( progress, "p", "progress", "show progress (not possible if stdout used)" );
         cmdline . addOption ( details, "x", "details", "print details of all options selected" );
         cmdline . addOption ( split_spot, "s", "split-spot", "split spots into reads" );
         cmdline . addOption ( split_files, "S", "split-files", "write reads into different files" );
@@ -158,7 +159,7 @@ struct FasterqParams final : CmnOptAndAccessions
 
     void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
     {
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( !outfile.isEmpty() ) {
             if (accessions.size() > 1) {
@@ -181,7 +182,7 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( split_spot ) builder . add_option( "-s" );
         if ( split_files ) builder . add_option( "-S" );
         if ( split_3 ) builder . add_option( "-3" );
-        if ( concatenate_reads) builder . add_option( "concatenate-reads" );
+        if ( concatenate_reads) builder . add_option( "--concatenate-reads" );
         if ( to_stdout ) builder . add_option( "-Z" );
         if ( force ) builder . add_option( "-f" );
         if ( rowid_as_name ) builder . add_option( "-N" );
@@ -203,14 +204,14 @@ struct FasterqParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        auto const theirArgv0 = what.toolpath.getPathFor(TOOL_NAME).fullpath();
         {
-            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            auto const realpath = what.toolpath.getPathFor(TOOL_ORIGINAL_NAME);
             if (realpath.executable())
                 return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }
 #if DEBUG || _DEBUGGING
-        {
+        {	// look for the "official" name not the -orig; TODO: remove when Make creates symlinks
             auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
             if (realpath.executable())
                 return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);

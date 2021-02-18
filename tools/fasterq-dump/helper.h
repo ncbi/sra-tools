@@ -123,7 +123,8 @@ typedef struct cmn_params
 {
     const KDirectory * dir;
     const VDBManager * vdb_mgr;
-    const char * accession;
+    const char * accession_short;
+    const char * accession_path;
     int64_t first_row;
     uint64_t row_count;
     size_t cursor_cache;
@@ -166,6 +167,7 @@ rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse );
 bool ends_in_slash( const char * s );
 bool extract_path( const char * s, String * path );
 const char * extract_acc( const char * s );
+const char * extract_acc2( const char * s );
 
 rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
 rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
@@ -240,6 +242,23 @@ struct Buf2NA;
 rc_t make_Buf2NA( struct Buf2NA ** self, size_t size, const char * pattern );
 void release_Buf2NA( struct Buf2NA * self );
 bool match_Buf2NA( struct Buf2NA * self, const String * ascii );
+
+/* ===================================================================================== */
+
+/* common define for bigger stack-size */
+#define THREAD_BIG_STACK_SIZE ((size_t)(16u * 1024u * 1024u))
+#define THREAD_DFLT_STACK_SIZE ((size_t)(0))
+
+/* common-function to create a thread with a given thread-size */
+rc_t helper_make_thread( KThread ** self,
+                         rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                         void * data,
+                         size_t stacksize );
+
+/* ===================================================================================== */
+
+rc_t get_quitting( void );
+void set_quitting( void );
 
 #ifdef __cplusplus
 }

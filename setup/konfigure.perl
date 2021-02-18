@@ -86,6 +86,7 @@ my @options = ( 'build-prefix=s',
                 'help',
                 'prefix=s',
                 'reconfigure',
+                'relative-build-out-dir',
                 'status',
                 'with-debug',
                 'without-debug', );
@@ -136,11 +137,12 @@ EndText
 }
 
 $OPT{'local-build-out'} = $LOCAL_BUILD_OUT;
+unless ($OPT{'local-build-out'})
+{   $OPT{'local-build-out'} = $OPT{'relative-build-out-dir'} }
 my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
-if ($OPT{'local-build-out'}) {
-    my $o = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
-    $OUTDIR = $o if ($o);
-}
+my $REL_OUTDIR = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
+if ($OPT{'local-build-out'})
+{   $OUTDIR = $REL_OUTDIR if ($REL_OUTDIR) }
 
 if ($OPT{'help'}) {
     help();
@@ -223,8 +225,8 @@ if ($OS eq 'linux') {
 
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
-unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
-    println "configure: error: unsupported architecture '$OSTYPE'";
+unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i || $MARCH =~ /aarch64/) {
+    println "configure: error: unsupported architecture '$OSTYPE':'$MARCH'";
     exit 1;
 }
 
@@ -314,13 +316,15 @@ if ($MARCH =~ /x86_64/i) {
     $BITS = '32_64';
 } elsif ($MARCH =~ /i?86/i) {
     $BITS = 32;
+} elsif ($MARCH =~ /aarch64/) {
+    $BITS = 64;
 } else {
     die "unrecognized Architecture '$ARCH'";
 }
 println "$MARCH ($BITS bits) is supported" unless ($AUTORUN);
 
 # determine OS and related norms
-my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC);
+my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC, $PYTHON);
 
 print "checking for supported OS... " unless ($AUTORUN);
 if ($OSTYPE =~ /linux/i) {
@@ -332,6 +336,7 @@ if ($OSTYPE =~ /linux/i) {
     $EXEX = '';
     $OSINC = 'unix';
     $TOOLS = 'gcc' unless ($TOOLS);
+    $PYTHON = 'python';
 } elsif ($OSTYPE =~ /darwin/i) {
     $LPFX = 'lib';
     $OBJX = 'o';
@@ -341,6 +346,7 @@ if ($OSTYPE =~ /linux/i) {
     $EXEX = '';
     $OSINC = 'unix';
     $TOOLS = 'clang' unless ($TOOLS);
+    $PYTHON = 'python';
 } elsif ($OSTYPE eq 'win') {
     $TOOLS = 'vc++';
 } else {
@@ -431,6 +437,34 @@ if ($JAVAC) {
         println "configure: error: '$JAVAC' cannot be found";
         exit 1;
     }
+}
+
+print 'checking for Python 3... ' unless $AUTORUN;
+if ($PYTHON) {
+    my $p3;
+    for my $dir (File::Spec->path()) {
+        $p3 = File::Spec->join($dir, 'python3');
+        my $pX = substr($p3, 0, -1);
+        if (-x $pX && `$pX --version 2>&1` =~ /^\s*Python\s+(\d+)/i && $1 == 3) {
+            $p3 = $pX;
+            last;
+        }
+        if (-x $p3 && `$p3 --version 2>&1` =~ /^\s*Python\s+(\d+)/i && $1 == 3) {
+            last;
+        }
+        undef $p3;
+    }
+    if ($p3) {
+        $PYTHON = $p3;
+        println $PYTHON unless $AUTORUN;
+    }
+    else {
+        undef $PYTHON;
+        println 'no' unless $AUTORUN;
+    }
+}
+else {
+    println 'skipped' unless $AUTORUN;
 }
 
 my $NO_ARRAY_BOUNDS_WARNING = '';
@@ -881,6 +915,7 @@ EndText
     L($F, "ARLS          = $ARLS"         ) if ($ARLS);
     L($F, "LD            = $LD"           ) if ($LD);
     L($F, "LP            = $LP"           ) if ($LP);
+    L($F, "PYTHON        = $PYTHON"       ) if ($PYTHON);
     L($F, "JAVAC         = $JAVAC"        ) if ($JAVAC);
     L($F, "JAVAH         = $JAVAH"        ) if ($JAVAH);
     L($F, "JAR           = $JAR"          ) if ($JAR);
@@ -991,9 +1026,9 @@ EndText
         T($F, '$(CC) -o $@ $< $(PIC) $(CFLAGS)');
     }
     L($F, '$(OBJDIR)/%.$(OBJX): %.cpp');
-    T($F, '$(CP) -o $@ $< $(CFLAGS)');
+    T($F, '$(CP) -std=c++11 -o $@ $< $(CFLAGS)');
     L($F, '$(OBJDIR)/%.$(LOBX): %.cpp');
-    T($F, '$(CP) -o $@ $< $(PIC) $(CFLAGS)');
+    T($F, '$(CP) -std=c++11 -o $@ $< $(PIC) $(CFLAGS)');
     L($F);
 
     # this is part of Makefile
@@ -1894,22 +1929,24 @@ EndText
         }
 
         print <<EndText;
-  --build-prefix=DIR      generate build output into DIR directory
-                          [$OUTDIR]
+  --relative-build-out-dir generate build output into directory
+                           relative to sources [$OUTDIR]
+  --build-prefix=DIR       generate build output into DIR directory
+                           [$OUTDIR]
 
 EndText
     }
 
     println 'Miscellaneous:';
-    println '  --reconfigure           rerun `configure\'';
-    println '                          using the same command-line arguments';
+    println '  --reconfigure            rerun `configure\'';
+    println '                           using the same command-line arguments';
     if ($^O ne 'MSWin32') {
         println
-            '  --status                print current configuration information'
+            '  --status                 print current configuration information'
     }
     print <<EndText;
-  --clean                 remove all configuration results
-  --debug                 print lots of debugging information
+  --clean                  remove all configuration results
+  --debug                  print lots of debugging information
 
 If `configure' was already run running `configure' without options
 will rerun `configure' using the same command-line arguments.

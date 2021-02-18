@@ -68,7 +68,8 @@ ifeq (linux,$(BUILD_OS))
 slowtests: run-test
 
 run-test: $(TEST_BINDIR)/remote-fuser-test
-	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin
+	@echo remote-fuser was retired on 5/5/20
+#	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin
 
         else
 slowtests: no-test

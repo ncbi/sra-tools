@@ -1,5 +1,6 @@
 TOOLS_TO_COPY = \
 	abi-dump        \
+	align-cache     \
 	align-info      \
 	bam-load        \
 	cache-mgr       \
@@ -9,14 +10,18 @@ TOOLS_TO_COPY = \
 	kdbmeta         \
 	kget            \
 	latf-load       \
+	md5cp           \
 	rcexplain       \
+	read-filter-redact \
 	sff-dump        \
 	sra-sort        \
+	sra-sort-cg     \
 	sra-stat        \
 	test-sra        \
 	vdb-config      \
 	vdb-copy        \
 	vdb-decrypt     \
+	vdb-diff        \
 	vdb-encrypt     \
 	vdb-lock        \
 	vdb-passwd      \
@@ -38,6 +43,7 @@ TOOLS_TO_SYMLINK = \
 # these tools may be missing from $(BINDIR), not an error
 TOOLS_TO_COPY_OPTIONAL = \
 	abi-load        \
+	ccextract       \
 	copycat         \
 	fastq-load      \
 	helicos-load    \

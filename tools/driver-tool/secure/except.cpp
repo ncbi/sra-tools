@@ -38,11 +38,14 @@
 
 #include <cstring>
 #include <cstdarg>
+
+#ifndef WINDOWS
 #include <cxxabi.h>
+#include <execinfo.h>
+#endif
 
 #include <string.h>
 #include <errno.h>
-#include <execinfo.h>
 #include <cassert>
 
 namespace ncbi
@@ -418,7 +421,9 @@ namespace ncbi
         , rc ( status )
     {
         // capture stack
+#ifndef WINDOWS
         stack_frames = backtrace ( callstack, sizeof callstack / sizeof callstack [ 0 ] );
+#endif
 
         // eliminate random path prefix
         const UTF8 * cmn = __FILE__;
@@ -453,7 +458,7 @@ namespace ncbi
         va_end ( args );
 
         if ( status < 0 )
-            status = strlen ( strcpy ( buffer, "<BAD format() PARAMETERS>" ) );
+            status = (int)strlen ( strcpy ( buffer, "<BAD format() PARAMETERS>" ) );
 
         else if ( ( size_t ) status >= sizeof buffer )
         {
@@ -525,7 +530,11 @@ namespace ncbi
             int status;
             char save = name [ i ];
             ( ( char * ) name ) [ i ] = 0;
+#ifndef WINDOWS
             char * real_name = abi :: __cxa_demangle ( & name [ k ], 0, 0, & status );
+#else
+            char * real_name = strdup ( & name[k] );
+#endif
             ( ( char * ) name ) [ i ] = save;
 
 
@@ -616,7 +625,9 @@ namespace ncbi
     {
         if ( x . stack_frames > 0 )
         {
+#ifndef WINDOWS
             frames = backtrace_symbols ( x . callstack, x . stack_frames );
+#endif
             if ( frames != nullptr )
                 num_frames = x . stack_frames;
         }

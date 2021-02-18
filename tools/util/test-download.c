@@ -24,7 +24,7 @@
 
 #include <kapp/main.h> /* KMain */
 
-#include <kfs/file.h> /* KFileReleaseâ */
+#include <kfs/file.h> /* KFileRelease */
 
 #include <klib/log.h> /* PLOGERR */
 #include <klib/out.h> /* OUTMSG */

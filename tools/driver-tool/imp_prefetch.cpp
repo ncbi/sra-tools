@@ -28,6 +28,7 @@
 #include "support2.hpp"
 
 #define TOOL_NAME "prefetch"
+#define TOOL_ORIGINAL_NAME TOOL_NAME "-orig"
 
 namespace sratools2
 {
@@ -36,13 +37,12 @@ struct PrefetchParams final : CmnOptAndAccessions
 {
     ncbi::String file_type;
     ncbi::String transport;
-    ncbi::U32 min_size_count;
-    ncbi::U32 min_size_value;
-    ncbi::U32 max_size_count;
-    ncbi::U32 max_size_value;
+    ncbi::String min_size;
+    ncbi::String max_size;
     ncbi::String force;
-    ncbi::U32 progress_count;
-    ncbi::U32 progress_value;
+    ncbi::String resume;
+    ncbi::String validate;
+    bool progress;
     bool eliminate_quals;
     bool check_all;
     //ncbi::String ascp_path;
@@ -53,9 +53,7 @@ struct PrefetchParams final : CmnOptAndAccessions
 
     explicit PrefetchParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
-    , min_size_count( 0 ), min_size_value( 0 )
-    , max_size_count( 0 ), max_size_value( 0 )
-    , progress_count( 0 ), progress_value( 0 )
+    , progress( false )
     , eliminate_quals( false )
     , check_all( false )
     , dryrun( false )
@@ -66,19 +64,26 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         cmdline . addOption ( file_type, nullptr, "T", "type", "<file-type>",
             "Specify file type to download. Default: sra" );
-        cmdline . addOption ( min_size_value, &min_size_count, "N", "min_size", "<size>",
+        cmdline . addOption ( min_size, nullptr, "N", "min-size", "<size>",
             "Minimum file size to download in KB (inclusive)." );
-        cmdline . addOption ( max_size_value, &max_size_count, "X", "max_size", "<size>",
+        cmdline . addOption ( max_size, nullptr, "X", "max-size", "<size>",
             "Maximum file size to download in KB (exclusive). Default: 20G" );
 
-        cmdline . addOption ( force, nullptr, "f", "force", "<value>",
-            "Force object download one of: no, yes, all. no [default]: skip download if the "
-            "object if found and complete; yes: download it even if it is found and is complete; all: "
-            "ignore lock files (stale locks or it is being downloaded by another process: "
-            "use at your own risk!)" );
+        cmdline . addOption ( force, nullptr, "f", "force", "<no|yes|all|ALL>",
+            "Force object download - one of: no, yes, all, ALL. "
+            "no [default]: skip download if the object if found and complete; "
+            "yes: download it even if it is found and is complete; "
+            "all: ignore lock files (stale locks or "
+            "it is being downloaded by another process - "
+            "use at your own risk!); "
+            "ALL: ignore lock files, restart download from beginning");
 
-        cmdline . addOption ( progress_value, &progress_count, "p", "progress", "<value>",
-            "Time period in minutes to display download progress (0: no progress), default: 1" );
+        cmdline . addOption ( progress, "p", "progress", "Show progress" );
+        cmdline . addOption ( resume, nullptr, "r", "resume", "<yes|no>",
+            "Resume partial downloads - one of: no, yes [default]" );
+
+        cmdline . addOption ( validate, nullptr, "C", "verify", "<yes|no>",
+            "Verify after download - one of: no, yes [default]" );
 
         cmdline . addOption ( check_all, "c", "check-all", "Double-check all refseqs" );
 
@@ -89,10 +94,10 @@ struct PrefetchParams final : CmnOptAndAccessions
             "Arbitrary options to pass to ascp command line" );
         */
         
-        cmdline . addOption ( output_file, nullptr, "o", "output-file", "<value>",
-            "Write file to FILE when downloading single file" );
-        cmdline . addOption ( output_dir, nullptr, "O", "output-directory", "<path>",
-            "Save files to path/" );
+        cmdline . addOption ( output_file, nullptr, "o", "output-file",
+            "<file>", "Write file to <file> when downloading single file" );
+        cmdline . addOption ( output_dir, nullptr, "O", "output-directory",
+            "<directory>", "Save files to <directory>/" );
 
         CmnOptAndAccessions::add(cmdline);
 
@@ -102,8 +107,7 @@ struct PrefetchParams final : CmnOptAndAccessions
         /* switched to silent instead of removing it */
         cmdline . addOption ( eliminate_quals, "", "eliminate-quals", "Don't download QUALITY column" );
         cmdline . addOption ( transport, nullptr, "t", "transport", "<value>",
-            "Transport: one of: fasp; http; both. (fasp only; http only; first try fasp (ascp), use "
-            "http if cannot download using fasp). Default: both" );
+            "Transport: DEPRECATED AND IGNORED!" );
 
     }
 
@@ -111,10 +115,12 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         if ( !file_type.isEmpty() ) ss << "file-type: " << file_type << std::endl;
         // if ( !transport.isEmpty() ) ss << "transport: " << transport << std::endl;
-        if ( min_size_count > 0 ) ss << "min-size: " << min_size_value << std::endl;
-        if ( max_size_count > 0 ) ss << "max-size: " << max_size_value << std::endl;
+        if ( !min_size.isEmpty() ) ss << "min-size: " << min_size << std::endl;
+        if ( !max_size.isEmpty() ) ss << "max-size: " << max_size << std::endl;
         if ( !force.isEmpty() ) ss << "force: " << force << std::endl;
-        if ( progress_count > 0 ) ss << "progress: " << progress_value << std::endl;
+        if ( progress ) ss << "progress" << std::endl;
+        if ( !resume.isEmpty() ) ss << "resume: " << resume << std::endl;
+        if ( !validate.isEmpty() ) ss << "validate: " << validate << std::endl;
         if ( eliminate_quals ) ss << "eliminate-quals" << std::endl;
         if ( check_all ) ss << "check-all" << std::endl;
         //if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
@@ -129,16 +135,18 @@ struct PrefetchParams final : CmnOptAndAccessions
     {
         (void)(acc_index); (void)(accessions);
 
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( !file_type.isEmpty() ) builder . add_option( "-T", file_type );
         //if ( !transport.isEmpty() ) builder . add_option( "-t", transport );
         if ( !perm_file.isEmpty() ) builder . add_option( "--perm", perm_file );
         if ( !cart_file.isEmpty() ) builder . add_option( "--cart", cart_file );
-        if ( min_size_count > 0 ) builder . add_option( "-N", min_size_value );
-        if ( max_size_count > 0 ) builder . add_option( "-X", max_size_value );
+        if ( !min_size.isEmpty() ) builder . add_option( "-N", min_size );
+        if ( !max_size.isEmpty() ) builder . add_option( "-X", max_size );
         if ( !force.isEmpty() ) builder . add_option( "-f", force );
-        if ( progress_count > 0 ) builder . add_option( "-p", progress_value );
+        if ( progress ) builder . add_option( "-p" );
+        if ( !resume.isEmpty() ) builder . add_option( "-r", resume );
+        if ( !validate.isEmpty() ) builder . add_option( "-C", validate);
         if ( eliminate_quals ) builder . add_option( "--eliminate-quals" );
         if ( check_all ) builder . add_option( "-c" );
         //if ( !ascp_path.isEmpty() ) builder . add_option( "-a", ascp_path );
@@ -146,9 +154,6 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( !output_file.isEmpty() ) builder . add_option( "-o", output_file );
         if ( !output_dir.isEmpty() ) builder . add_option( "-O", output_dir );
         if ( dryrun ) builder . add_option( "--dryrun" );
-
-        // permanently pin the transport option to 'http'
-        builder . add_option( "-t", "http" );
 
         // prefetch gets location
         if (!location.isEmpty()) builder.add_option("--location", location);
@@ -178,15 +183,15 @@ struct PrefetchParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        auto const theirArgv0 = what.toolpath.getPathFor(TOOL_NAME).fullpath();
         {
-            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            auto const realpath = what.toolpath.getPathFor(TOOL_ORIGINAL_NAME);
             if (realpath.executable())
                 return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }
 #if DEBUG || _DEBUGGING
-        {
-            auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
+		{	// look for the "official" name not the -orig; TODO: remove when Make creates symlinks
+			auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
             if (realpath.executable())
                 return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }

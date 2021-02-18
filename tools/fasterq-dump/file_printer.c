@@ -38,9 +38,16 @@ typedef struct file_printer
 
 void destroy_file_printer( struct file_printer * printer )
 {
-    if ( printer != NULL )
+    if ( NULL != printer )
     {
-        if ( printer -> f != NULL ) KFileRelease( printer -> f );
+        if ( NULL != printer -> f )
+        {
+            rc_t rc2 = KFileRelease( printer -> f );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "destroy_file_printer.KFileRelease() -> %R", rc2 );
+            }
+        }
         release_SBuffer( &( printer -> print_buffer ) );
         free( ( void * ) printer );
     }
@@ -51,17 +58,30 @@ rc_t make_file_printer_from_file( KFile * f, struct file_printer ** printer, siz
 {
     rc_t rc;
     file_printer * p = calloc( 1, sizeof * p );
-    if ( p == NULL )
+    if ( NULL == p )
     {
-        KFileRelease( f );
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_file_printer_from_file().calloc( %d ) -> %R", ( sizeof * p ), rc );
+        {
+            rc_t rc2 = KFileRelease( f );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "make_file_printer_from_file().KFileRelease().1 -> %R", rc2 );
+            }
+        }
     }
     else
     {
         rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size );
-        if ( rc != 0 )
-            KFileRelease( f );
+        if ( 0 != rc )
+        {
+            rc_t rc2 = KFileRelease( f );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "make_file_printer_from_file().KFileRelease().2 -> %R", rc2 );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
+        }
         else
         {
             p -> f = f;
@@ -77,37 +97,50 @@ rc_t make_file_printer_from_filename( const KDirectory * dir, struct file_printe
 {
     rc_t rc;
     struct KFile * f;
-    
+
     va_list args;
     va_start ( args, fmt );
 
     rc = KDirectoryVCreateFile( ( KDirectory * )dir, &f, false, 0664, kcmInit, fmt, args );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryVCreateFile() -> %R", rc );
+    va_end ( args );
+    if ( 0 != rc )
+    {
+        ErrMsg( "make_file_printer_from_filename().KDirectoryVCreateFile() -> %R", rc );
+    }
     else
     {
         struct KFile * temp_file = f;
         if ( file_buffer_size > 0 )
         {
             rc = KBufFileMakeWrite( &temp_file, f, false, file_buffer_size );
-            KFileRelease( f );
             if ( rc != 0 )
-                ErrMsg( "KBufFileMakeWrite() -> %R", rc );
+            {
+                ErrMsg( "make_file_printer_from_filename().KBufFileMakeWrite() -> %R", rc );
+            }
+            {
+                rc_t rc2 = KFileRelease( f );
+                if ( 0 != rc2 )
+                {
+                    ErrMsg( "make_file_printer_from_filename().KFileRelease() -> %R", rc2 );
+                    rc = ( 0 == rc ) ? rc2 : rc;
+                }
+            }
         }
-        if ( rc == 0 )
+        if ( 0 == rc )
+        {
             rc = make_file_printer_from_file( temp_file, printer, print_buffer_size );
+        }
     }
-    va_end ( args );
     return rc;
 }
-        
+
 
 rc_t file_print( struct file_printer * printer, const char * fmt, ... )
 {
     rc_t rc = 0;
     bool done = false;
-    
-    while ( rc == 0 && !done )
+
+    while ( 0 == rc && !done )
     {
         va_list args;
         va_start ( args, fmt );
@@ -117,24 +150,30 @@ rc_t file_print( struct file_printer * printer, const char * fmt, ... )
 
         done = ( rc == 0 );
         if ( !done )
+        {
             rc = try_to_enlarge_SBuffer( & printer -> print_buffer, rc );
+        }
     }
-    
-    if ( rc == 0 )
+
+    if ( 0 == rc )
     {
         size_t num_writ, to_write;
         to_write = printer -> print_buffer . S . size;
         const char * src = printer -> print_buffer . S . addr;
         rc = KFileWriteAll( printer -> f, printer -> file_pos, src, to_write, &num_writ );
-        if ( rc != 0 )
-            ErrMsg( "KFileWriteAll( at %lu ) -> %R", printer -> file_pos, rc );
+        if ( 0 != rc )
+        {
+            ErrMsg( "file_print().KFileWriteAll( at %lu ) -> %R", printer -> file_pos, rc );
+        }
         else if ( num_writ != to_write )
         {
             rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
-            ErrMsg( "KFileWriteAll( at %lu ) ( %d vs %d ) -> %R", printer -> file_pos, to_write, num_writ, rc );
+            ErrMsg( "file_print().KFileWriteAll( at %lu ) ( %d vs %d ) -> %R", printer -> file_pos, to_write, num_writ, rc );
         }
         else
+        {
             printer -> file_pos += num_writ;
+        }
     }
     return rc;
 }

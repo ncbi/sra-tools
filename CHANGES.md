@@ -1,6 +1,85 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.10.9
+**December 16, 2020**
+
+  **align, vdb**: fixed situation where network access could drastically slow down reading references  
+  **build**: added configure option to produce build in output directory relative to sources  
+  **fasterq-dump**: better recognizes pacbio-runs  
+  **fasterq-dump**: ignore .sra-extension of input-filename in output-filename  
+  **fasterq-dump**: non-zero return-code if no arguments given  
+  **fastq-dump**: fasta parameter will complain about invalid argument  
+  **kar**: added availability to open remote files on cloud  
+  **kns, sra-tools, vdb**: added a loop to retry failed connections when fetching SRA files  
+  **latf-load**: added an option to drop read names (--no-readnames), preserve them by default  
+  **prefetch**: support of ETL - BQS runs  
+  **sra-docker**: documentation for toolkit docker  
+  **sratools**: driver tool passes all arguments to the driven tool  
+  **sratools**: fixed bug that prevented the `concatenate-reads` option from working  
+  **sratools**: fixed typo `split-e` for option `split-3`  
+  **sratools**: tools can be executed with no arguments  
+  **sratools**: transport option is now deprecated and silently ignored  
+  **sratools**: verbosity argument is passed on to driven tool  
+  **vdb-config**: added a new option to force use of full qualities   
+  **vdb**: prefetch is used for test  
+  **vfs**: allow to find local files when remote repository is disabled  
+  **vfs**: not to call names.cgi but SDL when resolving runs and reference sequences  
+
+
+## SRA Toolkit 2.10.8
+**June 29, 2020**
+
+  **kproc, fasterq-dump**: fixed problem with seg-faults caused by too small stack used by threads  
+  **kdbmeta**: allow to work with remote runs  
+  **kdb, vdb, vfs, sra-tools**: fixed bug preventing use of path to directory created by prefetch if it ends with '/'  
+  **vfs, sra-tools, ngs-tools**: report an error when file was encrypted for a different ngc file  
+  **prefetch**: print error message when cannot resolve reference sequence  
+  **vfs, prefetch**: download encrypted phenotype files with encrypted extension  
+  **vdb, sra-docker**: config can auto-generate LIBS/GUID when in a docker container  
+
+
+## SRA Toolkit 2.10.7
+**May 20, 2020**
+
+  **sratools**: fixed issue with some runs not working correctly and fixed typo in fasterq-dump command line  
+  **kns, sra-tools, ngs-tools**: added new header to HTTP requests to communicate VDB version
+
+
+## SRA Toolkit 2.10.6
+**MAY 18, 2020**
+
+  **align, sra-tools, ngs-tools**: fixed fetching of reference sequences from cloud  
+  **align, sra-tools, vfs**: fixed resolving of hs37d5 reference sequence  
+  **build, sra-tools**: installation script works when libmagic is not present  
+  **kar**: errors fixed in kar utility  
+  **kfg, sra-tools**: ignore configuration with invalid protected user repository having a single 'root' node  
+  **kns, sra-tools, ngs-tools**: added new header to HTTP requests to communicate SRA version  
+  **kns, sra-tools**: close socket when accessing GCP files  
+  **kns, sra-tools, ngs-tools**: introduced a additional configurable network retry loop  
+  **krypto, sra-tools, vfs**: fixed decryption when password contains # symbol  
+  **prefetch**: allow to resume interrupted download, validate downloaded file   
+  **sratools**: sra-tools are now available on Windows  
+  **sratools, vdb-dump, vfs**: fixed vdb-dump <accession of prefetched run>  
+  **sra-tools, vdb**: restored possibility to cache WGS references to user repository  
+  **sra-tools, vfs**: fixed working with runs having WGS reference sequences  
+
+
+## SRA Toolkit 2.10.5
+**April 1, 2020**
+
+  **build, sratools**: fixed a potential build problem in libutf8proc  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: all Linux builds now use g++ 7.3 (C++11 ABI)  
+  **prefetch**: improvements were made to work in environments with bad network connections  
+  **prefetch, sratools**: fixed the names of the --min-size and --max-size command line arguments when running prefetch
+
+
+## SRA Toolkit 2.10.4
+**February 26, 2020**
+
+  **kns, sra-tools:**: fixed errors when using ngc file
+
+
 ## SRA Toolkit 2.10.3
 **February 18, 2020**
 
@@ -42,6 +121,12 @@
   **vdb-dump**: fixed bug in -X ( hex ) mode  
   **vdb-dump, vfs**: addressed obscure bug preventing access to a single external reference  
   **vdb-validate**: fixed handling of empty cells affecting certain databases  
+
+
+## SRA Toolkit 2.10.1
+**December 16, 2019**
+
+  **sra-tools**: changed version to match that of _ncbi-vdb_
 
 
 ## SRA Toolkit 2.10.0

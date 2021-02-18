@@ -28,6 +28,7 @@
 #include "support2.hpp"
 
 #define TOOL_NAME "srapath"
+#define TOOL_ORIGINAL_NAME TOOL_NAME "-orig"
 
 namespace sratools2
 {
@@ -103,7 +104,7 @@ struct SrapathParams final : CmnOptAndAccessions
     {
         (void)(acc_index); (void)(accessions);
 
-        CmnOptAndAccessions::populate_argv_builder(builder, acc_index, accessions);
+        populate_common_argv_builder(builder, acc_index, accessions);
 
         if ( !function.isEmpty() ) builder . add_option( "-f", function );
         if ( timeout_count > 0 ) builder . add_option( "-t", timeout_value );
@@ -130,15 +131,15 @@ struct SrapathParams final : CmnOptAndAccessions
     }
 
     int run() const override {
-        auto const theirArgv0 = what.toolpath.path() + "/" TOOL_NAME;
+        auto const theirArgv0 = what.toolpath.getPathFor(TOOL_NAME).fullpath();
         {
-            auto const realpath = what.toolpath.getPathFor(TOOL_NAME "-orig");
+            auto const realpath = what.toolpath.getPathFor(TOOL_ORIGINAL_NAME);
             if (realpath.executable())
                 return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }
 #if DEBUG || _DEBUGGING
-        {
-            auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
+		{	// look for the "official" name not the -orig; TODO: remove when Make creates symlinks
+			auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
             if (realpath.executable())
                 return ToolExecNoSDL::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }

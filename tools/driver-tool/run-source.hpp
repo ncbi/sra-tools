@@ -49,6 +49,11 @@ struct source {
         assert(haveAccession || haveLocalPath);
         return haveAccession ? accession : localPath;
     }
+    bool isSimple() const {
+        return (haveAccession || haveLocalPath)
+            && accession == localPath
+            && !(needCE || needPmt || haveCachePath || haveSize);
+    }
 };
 
 /// @brief Contains the source info for a run and any associated vdbcache file.
@@ -76,6 +81,7 @@ public:
         return data_source(result);
     }
     void set_environment() const;
+    Dictionary get_environment() const;
     std::string const &service() const { return run.haveLocalPath ? run.localPath : run.service; }
     bool encrypted() const { return run.encrypted; }
     std::string const &accession() const { return run.accession; }

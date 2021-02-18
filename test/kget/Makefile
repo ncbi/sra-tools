@@ -32,37 +32,67 @@ TEST_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
+CONFIGTOUSE ?= NCBI_SETTINGS
+DIRTOTEST ?= $(BINDIR)
+TOOLTOTEST = $(DIRTOTEST)/kget
+ifneq ("$(wildcard $(TOOLTOTEST))","")
+    BIN_EXISTS = 1
+else
+    BIN_EXISTS = 0
+endif
+
 .PHONY: $(TEST_TOOLS)
+
+announce:
+	@ echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
 
 #-------------------------------------------------------------------------------
 # runtests: 
 #
-runtests: download
+ifdef PYTHON
+ifeq (0,$(BIN_EXISTS))
+runtests: no-test
+else
+runtests: announce download
+endif
+
+else
+runtests: ;
+
+endif
+
+no-test:
+	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
 download:
-	export PATH=$(BINDIR):$$PATH; export VDB_CONFIG=`pwd` ; \
-		NCBI_SETTINGS=/ python test_kget.py # expect rc = 0 
+	@ PATH=$(DIRTOTEST):$(PATH) VDB_CONFIG=`pwd` \
+		$(CONFIGTOUSE)=/ NCBI_VDB_RELIABLE=y $(PYTHON) test_kget.py #expect rc=0
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget
 #
 
-slowtests: diff-vs-wget
+slowtests: announce diff-vs-wget
 
 ACCESSION = SRR072810
 NAME = $(ACCESSION).4
 HOST = sra-download-internal.ncbi.nlm.nih.gov
-URL = https://$(HOST)/sos/sra-pub-run-1/$(ACCESSION)/$(NAME)
+URL=$(shell ${DIRTOTEST}/srapath ${ACCESSION})
 
 clean:
 	rm -f $(ACCESSION)*
 
 diff-vs-wget: clean
-	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat --progress
-	wget --no-check-certificate $(URL)
-	diff ./$(NAME) ./$(ACCESSION).dat
-	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
-	rm -f $(ACCESSION)*
+	@ if echo $(URL) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
+	  then \
+	     $(DIRTOTEST)/kget --reliable -c ./$(ACCESSION).cachetee \
+	                    $(URL) $(ACCESSION).dat --progress && \
+	     wget --no-check-certificate $(URL) && \
+	     diff ./$(NAME) ./$(ACCESSION).dat && \
+	     rm -f $(ACCESSION)* ; \
+	  else \
+	     echo kget test when CE is required is skipped ; \
+	  fi
 
 
 .PHONY: 

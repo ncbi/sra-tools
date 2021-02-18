@@ -56,7 +56,9 @@ ifeq (linux,$(OS))
 endif
 
 ifeq (64,$(BITS))
+ifneq (arm64,$(ARCH))
 	CARCH = -m64
+endif
 else
 ifeq (32_64,$(BITS))
     CARCH = -arch i386 -arch x86_64  
@@ -76,7 +78,7 @@ ifeq (dbg, $(BUILD))
 	# GCC seems unable to use c99 without ansi, which
 	# basically clobbers features back to c89. the options
 	# must be specified in the order shown.
-	PED = -std=gnu99 -pedantic # -fdiagnostics-show-option
+	PED = -pedantic # -fdiagnostics-show-option
 else
 
 OPT = -O3 -Wno-variadic-macros -fno-strict-aliasing -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1

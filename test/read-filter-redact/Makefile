@@ -28,35 +28,54 @@ TOP ?= $(abspath ../..)
 
 include $(TOP)/build/Makefile.env
 
-runtests: check_version
+DIRTOTEST ?= $(BINDIR)
+TOOLTOTEST = $(DIRTOTEST)/read-filter-redact
+
+ifneq ("$(wildcard $(TOOLTOTEST))","")
+    BIN_EXISTS = 1
+else
+    BIN_EXISTS = 0
+endif
+
+ifeq (0,$(BIN_EXISTS))
+runtests: no-test
+else
+runtests: announce check_version
+endif
 
 RUN=tmp-read-filter-redact-test-run
 FLT=tmp-read-filter-redact-test-in
 
+no-test:
+	@ echo $(TOOLTOTEST) does not exist. Test skipped.
+
+announce:
+	@ echo Testing $(DIRTOTEST)
+
 check_version: #/align-cache/CSRA_file
 	# remove old test files
-	@ if $(BINDIR)/vdb-unlock $(RUN) 2>/dev/null ; then echo ; fi
+	@ if $(DIRTOTEST)/vdb-unlock $(RUN) 2>/dev/null ; then echo ; fi
 	@ rm -fr tmp-read-filter-redact-test-*
 
 
 	# prepare sources
 	@ echo 1 > $(FLT)
-	@ $(BINDIR)/kar --extract ../align-cache/CSRA_file \
+	@ $(DIRTOTEST)/kar --extract ../align-cache/CSRA_file \
 		--directory $(RUN)
 
 	# make sure HISTORY meta does not exist
-	@ if $(BINDIR)/kdbmeta tmp-read-filter-redact-test-run \
+	@ if $(DIRTOTEST)/kdbmeta tmp-read-filter-redact-test-run \
 				-TSEQUENCE HISTORY 2>/dev/null; \
 		then echo "error: HISTORY found in source metadata"; exit 1; fi
 
 	# read-filter-redact
-	@ $(BINDIR)/read-filter-redact -F$(FLT) $(RUN)
+	@ $(DIRTOTEST)/read-filter-redact -F$(FLT) $(RUN) > /dev/null 2>&1
 
 	# make sure HISTORY meta was created
-	@ $(BINDIR)/kdbmeta tmp-read-filter-redact-test-run -TSEQUENCE HISTORY | \
+	@ $(DIRTOTEST)/kdbmeta tmp-read-filter-redact-test-run -TSEQUENCE HISTORY | \
 		grep '^  <EVENT_1 build="' | grep '" run="' | \
-		grep '" tool="read-filter-redact" vers="'
+		grep '" tool="read-filter-redact" vers="' > /dev/null
 
 	# remove old test files
-	@ $(BINDIR)/vdb-unlock $(RUN)
+	@ $(DIRTOTEST)/vdb-unlock $(RUN)
 	@ rm -fr tmp-read-filter-redact-test-*

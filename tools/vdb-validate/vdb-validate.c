@@ -499,7 +499,7 @@ static rc_t get_sizes(KDirectory const *dir, unsigned *nobj, size_t *namesz)
     } pb;
 
     memset(&pb, 0, sizeof(pb));
-    rc = KDirectoryVVisit(dir, true, get_sizes_cb, &pb, NULL, NULL);
+    rc = KDirectoryVisit(dir, true, get_sizes_cb, &pb, NULL);
     if (rc)
         memset(&pb, 0, sizeof(pb));
     *nobj = pb.count;
@@ -2688,6 +2688,7 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     VFSManager *mgr = NULL;
     VResolver *resolver = NULL;
     const char *path = aPath;
+    const String * ad = NULL;
     KPathType pt = kptNotFound;
 
     rc_t rc = VFSManagerMake(&mgr);
@@ -2695,6 +2696,8 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
         LOGERR(klogInt, rc, "Cannot VFSManagerMake");
         return rc;
     }
+
+    assert(pb);
 
     rc = VFSManagerGetResolver(mgr, &resolver);
     if (rc != 0) {
@@ -2744,6 +2747,26 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
         RELEASE(VPath, acc);
         RELEASE(VPath, pLocal);
     }
+    else {
+        VPath * acc = NULL;
+        const VPath * path2 = NULL;
+        rc = VFSManagerMakePath(mgr, &acc, "%s", path);
+        if (rc != 0)
+            PLOGERR(klogErr, (klogErr, rc,
+                "VPathMake($(path)) failed", PLOG_S(path), path));
+        else
+            VFSManagerCheckEnvAndAd(mgr, acc, &path2);
+        if (path2 != NULL) {
+            rc = VPathMakeString(path2, &ad);
+            if (rc == 0) {
+                assert(ad);
+                path = ad->addr;
+                pt = KDirectoryPathType(pb->wd, "%s", path);
+            }
+        }
+        RELEASE(VPath, acc);
+        RELEASE(VPath, path2);
+    }
     RELEASE(VFSManager, mgr);
     RELEASE(VResolver, resolver);
 
@@ -2787,6 +2810,7 @@ static rc_t vdb_validate(const vdb_validate_params *pb, const char *aPath) {
     }
 
     free((void*)local);
+    StringWhack(ad);
 
     if (bad) {
         PLOGMSG ( klogWarn, ( klogWarn,

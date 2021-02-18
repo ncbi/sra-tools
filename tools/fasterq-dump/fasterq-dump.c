@@ -53,15 +53,15 @@
 
 /* ---------------------------------------------------------------------------------- */
 
-static const char * format_usage[] = { "format (special, fastq, lookup, default=special)", NULL };
+static const char * format_usage[] = { "format (fastq|lookup|special, default=fastq)", NULL };
 #define OPTION_FORMAT   "format"
 #define ALIAS_FORMAT    "F"
 
-static const char * outputf_usage[] = { "output-file", NULL };
+static const char * outputf_usage[] = { "basename of output-file(s)", NULL };
 #define OPTION_OUTPUT_F "outfile"
 #define ALIAS_OUTPUT_F  "o"
 
-static const char * outputd_usage[] = { "output-dir", NULL };
+static const char * outputd_usage[] = { "path for output-files (default=curr dir)", NULL };
 #define OPTION_OUTPUT_D "outdir"
 #define ALIAS_OUTPUT_D  "O"
 
@@ -111,20 +111,6 @@ static const char * whole_spot_usage[] = { "writes whole spots into one file", N
 static const char * stdout_usage[] = { "print output to stdout", NULL };
 #define OPTION_STDOUT    "stdout"
 #define ALIAS_STDOUT     "Z"
-
-/*
-static const char * gzip_usage[] = { "compress output using gzip", NULL };
-#define OPTION_GZIP      "gzip"
-#define ALIAS_GZIP       "g"
-
-static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
-#define OPTION_BZIP2     "bzip2"
-#define ALIAS_BZIP2      "z"
-
-static const char * maxfd_usage[] = { "maximal number of file-descriptors", NULL };
-#define OPTION_MAXFD     "maxfd"
-#define ALIAS_MAXFD      "a"
-*/
 
 static const char * force_usage[] = { "force to overwrite existing file(s)", NULL };
 #define OPTION_FORCE     "force"
@@ -182,11 +168,8 @@ OptDef ToolOptions[] =
     { OPTION_SPLIT_SPOT,ALIAS_SPLIT_SPOT,NULL, split_spot_usage, 1, false,  false },
     { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },
     { OPTION_SPLIT_3,   ALIAS_SPLIT_3,   NULL, split_3_usage,    1, false,  false },
-    { OPTION_WHOLE_SPOT,    NULL,        NULL, whole_spot_usage, 1, false,  false },    
+    { OPTION_WHOLE_SPOT,NULL,            NULL, whole_spot_usage, 1, false,  false },    
     { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
-/*    { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false }, */
-/*    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
-/*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
     { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
     { OPTION_SKIP_TECH, NULL,            NULL, skip_tech_usage,  1, false,  false },
@@ -218,8 +201,7 @@ rc_t CC UsageSummary( const char * progname )
 
 rc_t CC Usage ( const Args * args )
 {
-    rc_t rc;
-    uint32_t idx, count = ( sizeof ToolOptions ) / ( sizeof ToolOptions[ 0 ] );
+    rc_t rc = 0;
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
 
@@ -240,19 +222,33 @@ rc_t CC Usage ( const Args * args )
     UsageSummary( progname );
 
     KOutMsg( "Options:\n" );
-    for ( idx = 1; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
-    {
-        const OptDef * opt = &ToolOptions[ idx ];
-        const char * param = NULL;
+    HelpOptionLine( ALIAS_FORMAT,     OPTION_FORMAT,     "FORMAT",   format_usage );
+    HelpOptionLine( ALIAS_OUTPUT_F,   OPTION_OUTPUT_F,   "BASENAME", outputf_usage );
+    HelpOptionLine( ALIAS_OUTPUT_D,   OPTION_OUTPUT_D,   "PATH",     outputd_usage );    
+    HelpOptionLine( ALIAS_BUFSIZE,    OPTION_BUFSIZE,    "SIZE",     bufsize_usage );
+    HelpOptionLine( ALIAS_CURCACHE,   OPTION_CURCACHE,   "SIZE",     curcache_usage );
+    HelpOptionLine( ALIAS_MEM,        OPTION_MEM,        "SIZE",     mem_usage );
+    HelpOptionLine( ALIAS_TEMP,       OPTION_TEMP,       "PATH",     temp_usage );
+    HelpOptionLine( ALIAS_THREADS,    OPTION_THREADS,    "NUM",      threads_usage );    
+    HelpOptionLine( ALIAS_PROGRESS,   OPTION_PROGRESS,   NULL,       progress_usage );
+    HelpOptionLine( ALIAS_DETAILS,    OPTION_DETAILS,    NULL,       detail_usage );
+    HelpOptionLine( ALIAS_SPLIT_SPOT, OPTION_SPLIT_SPOT, NULL,       split_spot_usage );
+    HelpOptionLine( ALIAS_SPLIT_FILE, OPTION_SPLIT_FILE, NULL,       split_file_usage );
+    HelpOptionLine( ALIAS_SPLIT_3,    OPTION_SPLIT_3,    NULL,       split_3_usage );
+    HelpOptionLine( NULL,             OPTION_WHOLE_SPOT, NULL,       whole_spot_usage );
+    HelpOptionLine( ALIAS_STDOUT,     OPTION_STDOUT,     NULL,       stdout_usage );
+    HelpOptionLine( ALIAS_FORCE,      OPTION_FORCE,      NULL,       force_usage );
+    HelpOptionLine( ALIAS_RIDN,       OPTION_RIDN,       NULL,       ridn_usage );
+    HelpOptionLine( NULL,             OPTION_SKIP_TECH,  NULL,       skip_tech_usage );
+    HelpOptionLine( NULL,             OPTION_INCL_TECH,  NULL,       incl_tech_usage );
+    HelpOptionLine( ALIAS_PRNR,       OPTION_PRNR,       NULL,       print_read_nr );
+    HelpOptionLine( ALIAS_MINRDLEN,   OPTION_MINRDLEN,   "LENGTH",   min_rl_usage );
+    HelpOptionLine( NULL,             OPTION_TABLE,      "TABLE",    table_usage );
+    HelpOptionLine( NULL,             OPTION_STRICT,      NULL,      strict_usage );
+    HelpOptionLine( ALIAS_BASE_FLT,   OPTION_BASE_FLT,   "BASES",    base_flt_usage );    
+    HelpOptionLine( ALIAS_APPEND,     OPTION_APPEND,     NULL,       append_usage );
+    HelpOptionLine( NULL,             OPTION_NGC,        "PATH",     ngc_usage );
 
-        assert( opt );
-        if ( 0 == strcmp( opt -> name, OPTION_NGC ) )
-        {
-            param = "PATH";
-        }
-        HelpOptionLine( opt -> aliases, opt -> name, param, opt -> help );
-    }
-    
     KOutMsg("\n");
     HelpOptionsStandard();
     HelpVersion( fullpath, KAppVersion() );
@@ -582,6 +578,7 @@ static rc_t optionally_create_paths_in_output_filename( tool_ctx_t * tool_ctx )
     return rc;
 }
 
+/* we have NO output-dir but we have a output-file */
 static rc_t adjust_output_filename( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
@@ -594,20 +591,54 @@ static rc_t adjust_output_filename( tool_ctx_t * tool_ctx )
     }
     else
     {
-        rc = optionally_create_paths_in_output_filename( tool_ctx );
+        bool ef = ends_in_fastq( tool_ctx -> output_filename ); /* helper.c */
+        if ( !ef )
+        {
+            size_t num_writ;
+            rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                                &num_writ,
+                                "%s.fastq",
+                                tool_ctx -> output_filename );
+            if ( 0 == rc )
+            {
+                tool_ctx -> output_filename = tool_ctx -> dflt_output;
+            }
+            else
+            {
+                ErrMsg( "string_printf( output-filename.fastq ) -> %R", rc );
+            }
+        }
+        if ( 0 == rc )
+        {
+            rc = optionally_create_paths_in_output_filename( tool_ctx );
+        }
     }
     return rc;
 }
 
+/* we have a output-dir and we have a output-file */
 static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx )
 {
     size_t num_writ;
+    rc_t rc;
     bool es = ends_in_slash( tool_ctx -> output_dirname ); /* helper.c */
-    rc_t rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                        &num_writ,
-                        es ? "%s%s" : "%s/%s",
-                        tool_ctx -> output_dirname,
-                        tool_ctx -> output_filename );
+    bool ef = ends_in_fastq( tool_ctx -> output_filename ); /* helper.c */
+    if ( ef )
+    {
+        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            es ? "%s%s" : "%s/%s",
+                            tool_ctx -> output_dirname,
+                            tool_ctx -> output_filename );
+    }
+    else
+    {
+        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            es ? "%s%s" : "%s/%s.fastq",
+                            tool_ctx -> output_dirname,
+                            tool_ctx -> output_filename );
+    }
     if ( 0 != rc )
     {
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
@@ -633,13 +664,13 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
         tool_ctx -> index_filename[ 0 ] = 0;
         tool_ctx -> dflt_output[ 0 ] = 0;
     
-        get_user_input( tool_ctx, args );
-        encforce_constrains( tool_ctx );
-        get_environment( tool_ctx );
+        get_user_input( tool_ctx, args ); /* above */
+        encforce_constrains( tool_ctx ); /* above */
+        get_environment( tool_ctx ); /* above */
         
         rc = make_temp_dir( &tool_ctx -> temp_dir,
                           tool_ctx -> requested_temp_path,
-                          tool_ctx -> dir );
+                          tool_ctx -> dir ); /* temp_dir.c */
     }
     
     if ( 0 == rc )
@@ -664,6 +695,7 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
     {
         if ( NULL == tool_ctx -> output_filename )
         {
+            /* the user did not give us a output-filename: use the accession */
             if ( NULL == tool_ctx -> output_dirname )
             {
                 rc = make_output_filename_from_accession( tool_ctx );
@@ -675,6 +707,7 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
         }
         else
         {
+            /* the user did give us a output-filename: use it */
             if ( NULL == tool_ctx -> output_dirname )
             {
                 rc = adjust_output_filename( tool_ctx );

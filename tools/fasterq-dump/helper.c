@@ -393,6 +393,7 @@ rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
                                 const char * filename, uint32_t idx )
 {
     rc_t rc;
+    KOutMsg( "split_filename_insert_idx( %s, %d )\n", filename, idx );
     if ( idx > 0 )
     {
         /* we have to split md -> cmn -> output_filename into name and extension
@@ -919,6 +920,25 @@ static bool ends_in_sra( const char * s )
                     ( 'r' == s[ len - 2 ] ) &&
                     ( 's' == s[ len - 3 ] ) &&
                     ( '.' == s[ len - 4 ] ) );
+        }
+    }
+    return res;
+}
+
+bool ends_in_fastq( const char * s )
+{
+    bool res = false;
+    if ( NULL != s )
+    {
+        uint32_t len = string_measure( s, NULL );
+        if ( len > 6 )
+        {
+            res = ( ( 'q' == s[ len - 1 ] ) &&
+                    ( 't' == s[ len - 2 ] ) &&
+                    ( 's' == s[ len - 3 ] ) &&
+                    ( 'a' == s[ len - 4 ] ) &&
+                    ( 'f' == s[ len - 5 ] ) &&                    
+                    ( '.' == s[ len - 6 ] ) );
         }
     }
     return res;

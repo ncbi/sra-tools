@@ -165,6 +165,7 @@ rc_t pack_read_2_4na( const String * read, SBuffer * packed );
 rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse );
 
 bool ends_in_slash( const char * s );
+bool ends_in_fastq( const char * s );
 bool extract_path( const char * s, String * path );
 const char * extract_acc( const char * s );
 const char * extract_acc2( const char * s );

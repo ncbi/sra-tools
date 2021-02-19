@@ -1,0 +1,64 @@
+
+Usage: fasterq-dump [ options ] [ accessions(s)... ]
+
+Parameters:
+
+  accessions(s)                    list of accessions to process
+
+
+Options:
+
+  -o|--outfile <path>              full path of outputfile (overrides usage
+                                     of current directory and given accession)
+  -O|--outdir <path>               path for outputfile (overrides usage of
+                                     current directory, but uses given
+                                     accession)
+  -b|--bufsize <size>              size of file-buffer (dflt=1MB, takes
+                                     number or number and unit)
+  -c|--curcache <size>             size of cursor-cache (dflt=10MB, takes
+                                     number or number and unit)
+  -m|--mem <size>                  memory limit for sorting (dflt=100MB,
+                                     takes number or number and unit)
+  -t|--temp <path>                 path to directory for temp. files
+                                     (dflt=current dir.)
+  -e|--threads <count>             how many threads to use (dflt=6)
+  -p|--progress                    show progress (not possible if stdout used)
+  -x|--details                     print details of all options selected
+  -s|--split-spot                  split spots into reads
+  -S|--split-files                 write reads into different files
+  -3|--split-3                     writes single reads into special file
+     --concatenate-reads           writes whole spots into one file
+  -Z|--stdout                      print output to stdout
+  -f|--force                       force overwrite of existing file(s)
+  -N|--rowid-as-name               use rowid as name (avoids using the name
+                                     column)
+     --skip-technical              skip technical reads
+     --include-technical           explicitly include technical reads
+  -P|--print-read-nr               include read-number in defline
+  -M|--min-read-len <count>        filter by sequence-lenght
+     --table <name>                which seq-table to use in case of pacbio
+     --strict                      terminate on invalid read
+  -B|--bases <bases>               filter output by matching against given
+                                     bases
+  -A|--append                      append to output-file, instead of
+                                     overwriting it
+     --ngc <path>                  <path> to ngc file
+     --perm <path>                 <path> to permission file
+     --location <location>         location in cloud
+     --cart <path>                 <path> to cart file
+  -V|--version                     Display the version of the program
+  -v|--verbose                     Increase the verbosity of the program
+                                     status messages. Use multiple times for
+                                     more verbosity.
+  -+|--debug <Module[-Flag]>[,...] Turn on debug output for module. All flags
+                                     if not specified.
+  -L|--log-level <level>           Logging level as number or enum string.
+                                     One of
+                                     (fatal|sys|int|err|warn|info|debug) or
+                                     (0-6) Current/default is warn
+     --option-file file            Read more options and parameters from the
+                                     file.
+  -h|--help                        print this message
+
+"fasterq-dump" version 2.10.9
+

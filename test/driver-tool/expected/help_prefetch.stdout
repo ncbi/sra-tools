@@ -1,0 +1,54 @@
+
+Usage: prefetch [ options ] [ accessions(s)... ]
+
+Parameters:
+
+  accessions(s)                    list of accessions to process
+
+
+Options:
+
+  -T|--type <file-type>            Specify file type to download. Default: sra
+  -N|--min-size <size>             Minimum file size to download in KB
+                                     (inclusive).
+  -X|--max-size <size>             Maximum file size to download in KB
+                                     (exclusive). Default: 20G
+  -f|--force <no|yes|all|ALL>      Force object download - one of: no, yes,
+                                     all, ALL. no [default]: skip download if
+                                     the object if found and complete; yes:
+                                     download it even if it is found and is
+                                     complete; all: ignore lock files (stale
+                                     locks or it is being downloaded by
+                                     another process - use at your own
+                                     risk!); ALL: ignore lock files, restart
+                                     download from beginning
+  -p|--progress                    Show progress
+  -r|--resume <yes|no>             Resume partial downloads - one of: no, yes
+                                     [default]
+  -C|--verify <yes|no>             Verify after download - one of: no, yes
+                                     [default]
+  -c|--check-all                   Double-check all refseqs
+  -o|--output-file <file>          Write file to <file> when downloading
+                                     single file
+  -O|--output-directory <directory>
+                                   Save files to <directory>/
+     --ngc <path>                  <path> to ngc file
+     --perm <path>                 <path> to permission file
+     --location <location>         location in cloud
+     --cart <path>                 <path> to cart file
+  -V|--version                     Display the version of the program
+  -v|--verbose                     Increase the verbosity of the program
+                                     status messages. Use multiple times for
+                                     more verbosity.
+  -+|--debug <Module[-Flag]>[,...] Turn on debug output for module. All flags
+                                     if not specified.
+  -L|--log-level <level>           Logging level as number or enum string.
+                                     One of
+                                     (fatal|sys|int|err|warn|info|debug) or
+                                     (0-6) Current/default is warn
+     --option-file file            Read more options and parameters from the
+                                     file.
+  -h|--help                        print this message
+
+"prefetch" version 2.10.9
+

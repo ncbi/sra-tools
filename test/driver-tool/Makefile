@@ -46,7 +46,11 @@ runtests: \
 	fasta_0 \
 	fasta_number \
 	fasta_neg_number \
-	NO_SDL
+	NO_SDL \
+	help_srapath \
+	help_prefetch \
+	help_fasterq-dump \
+	help_fastq-dump
 
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
@@ -204,5 +208,33 @@ fasta_neg_number: | actual mkfg
 	$(BINDIR)/sratools --fasta -75 SRR390728 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
-.PHONY: runtests bogus container good $(CONTAINER) $(GOOD) vdbcache split_3 split_e NO_SDL
+help_srapath: | actual
+	@echo "testing expected output for srapath --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=srapath \
+	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+help_prefetch: | actual
+	@echo "testing expected output for prefetch --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=prefetch \
+	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+help_fasterq-dump: | actual
+	@echo "testing expected output for fasterq-dump --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=fasterq-dump \
+	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+help_fastq-dump: | actual
+	@echo "testing expected output for fastq-dump --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=fastq-dump \
+	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+.PHONY: runtests bogus container good $(CONTAINER) $(GOOD)
 .INTERMEDIATE: $(TEMPDIR)/tmp.mkfg $(TEMPDIR)/tmp2.mkfg

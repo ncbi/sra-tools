@@ -319,7 +319,7 @@ namespace sratools2
         ncbi::String perm_file;
         ncbi::String location;
         ncbi::String cart_file;
-        bool disable_multithreading, version, quiet;
+        bool disable_multithreading, version, quiet, no_disable_mt;
         std::vector < ncbi::String > debugFlags;
         ncbi::String log_level;
         ncbi::String option_file;
@@ -330,9 +330,17 @@ namespace sratools2
         , disable_multithreading( false )
         , version( false )
         , quiet( false )
+        , no_disable_mt(false)
         , verbosity(0)
         {
-
+            switch (what._imposter) {
+            case Imposter::FASTERQ_DUMP:
+            case Imposter::PREFETCH:
+            case Imposter::SRAPATH:
+                no_disable_mt = true;
+            default:
+                break;
+            }
         }
         
         void add( ncbi::Cmdline &cmdline ) override
@@ -343,7 +351,8 @@ namespace sratools2
             cmdline . addOption ( location, nullptr, "", "location", "<location>", "location in cloud" );
             cmdline . addOption ( cart_file, nullptr, "", "cart", "<path>", "<path> to cart file" );
 
-            cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
+            if (!no_disable_mt)
+                cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
             cmdline . addOption ( version, "V", "version", "Display the version of the program" );
 
             cmdline.addOption(verbosity, "v", "verbose", "Increase the verbosity of the program "

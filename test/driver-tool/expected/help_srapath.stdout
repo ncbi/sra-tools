@@ -1,0 +1,47 @@
+
+Usage: srapath [ options ] [ accessions(s)... ]
+
+Parameters:
+
+  accessions(s)                    list of accessions to process
+
+
+Options:
+
+  -f|--function <function>         function to perform (resolve, names,
+                                     search) default=resolve or names if
+                                     protocol is specified
+  -t|--timeout <value>             timeout-value for request
+  -a|--protocol <protocol>         protocol (fasp; http; https; fasp,http;
+                                     ..) default=https
+  -e|--vers <version>              version-string for cgi-calls
+  -u|--url <url>                   url to be used for cgi-calls
+  -p|--param <parameter>           param to be added to cgi-call (tic=XXXXX):
+                                     raw-only
+  -r|--raw                         print the raw reply (instead of parsing it)
+  -j|--json                        print the reply in JSON
+  -d|--project> <project-id>       use numeric [dbGaP] project-id in
+                                     names-cgi-call
+  -c|--cache                       resolve cache location along with remote
+                                     when performing names function
+  -P|--path                        print path of object: names function-only
+     --ngc <path>                  <path> to ngc file
+     --perm <path>                 <path> to permission file
+     --location <location>         location in cloud
+     --cart <path>                 <path> to cart file
+  -V|--version                     Display the version of the program
+  -v|--verbose                     Increase the verbosity of the program
+                                     status messages. Use multiple times for
+                                     more verbosity.
+  -+|--debug <Module[-Flag]>[,...] Turn on debug output for module. All flags
+                                     if not specified.
+  -L|--log-level <level>           Logging level as number or enum string.
+                                     One of
+                                     (fatal|sys|int|err|warn|info|debug) or
+                                     (0-6) Current/default is warn
+     --option-file file            Read more options and parameters from the
+                                     file.
+  -h|--help                        print this message
+
+"srapath" version 2.10.9
+

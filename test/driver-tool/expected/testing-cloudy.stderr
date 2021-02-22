@@ -1,0 +1,11 @@
+--perm and --ngc are mutually exclusive. Please use only one.
+--perm foo.jwt
+File not found.
+--ngc foo.ngc
+File not found.
+--cart foo.cart
+File not found.
+DRX000001 is not a run accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=DRX000001
+Automatic expansion of container accessions is not currently available. See the above link(s) for information about the accessions.
+Problems allowed for testing purposes!
+prefetch --ngc foo.ngc --perm foo.jwt --cart foo.cart DRX000001

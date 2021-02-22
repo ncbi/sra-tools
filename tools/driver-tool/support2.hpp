@@ -435,13 +435,17 @@ namespace sratools2
                     ++problems;
                     std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
                 }
+                if (!pathExists(perm_file.toSTLString())) {
+                    ++problems;
+                    std::cerr << "--perm " << perm_file << "\nFile not found." << std::endl;
+                }
                 if (!vdb::Service::haveCloudProvider()) {
                     ++problems;
                     std::cerr << "Currently, --perm can only be used from inside a cloud computing environment.\nPlease run inside of a supported cloud computing environment, or get an ngc file from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>." << std::endl;
                 }
-                if (!pathExists(perm_file.toSTLString())) {
+                else if (!sratools::config->canSendCEToken()) {
                     ++problems;
-                    std::cerr << "--perm " << perm_file << "\nFile not found." << std::endl;
+                    std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
                 }
             }
             if (!ngc_file.isEmpty()) {
@@ -474,7 +478,14 @@ namespace sratools2
             if (containers > 0) {
                 std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the accessions." << std::endl;
             }
-            return ( problems == 0 );
+            if (problems == 0)
+                return true;
+
+            if (logging_state::is_dry_run()) {
+                std::cerr << "Problems allowed for testing purposes!" << std::endl;
+                return true;
+            }
+            return false;
         }
     };
 

@@ -57,6 +57,10 @@ struct logging_state {
         static auto const value(get_testing_value());
         return value;
     }
+    static bool is_dry_run() {
+        auto const level = testing_level();
+        return 2 <= level && level <= 4;
+    }
 private:
     logging_state() = delete;
     static bool is_falsy(char const *const str) {

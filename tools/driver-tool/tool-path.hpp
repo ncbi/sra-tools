@@ -71,7 +71,9 @@ public:
 #if WINDOWS
         return path_ + ToolPath::seperator + basename_ + ".exe";
 #else // POSIX
-        return path_ + ToolPath::seperator + basename_ + '.' + version_;
+        auto result = path_ + ToolPath::seperator + basename_;
+        if (version_.size() > 0) result += '.' + version_;
+        return result;
 #endif
     }
     bool executable() const {
@@ -92,7 +94,17 @@ public:
 
     ToolPath getPathFor(std::string const &name) const
     {
-        return ToolPath(path(), name, version());
+        auto result = ToolPath(path(), name, version());
+#if DEBUG || _DEBUGGING
+        {
+            if (result.executable())
+                return result;
+        }
+        if (ends_with("-orig", name))
+            return getPathFor(name.substr(0, name.size() - 5));
+        result = ToolPath(path(), name, "");
+#endif
+        return result;
     }
 };
 

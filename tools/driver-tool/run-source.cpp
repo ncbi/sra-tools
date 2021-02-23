@@ -148,6 +148,29 @@ static Service::Response get_SDL_response(Service const &query, std::vector<std:
     return query.response(url_string, version_string);
 }
 
+static inline std::string guess_region(opt_string const &region_, std::string const &service)
+{
+    if (region_) return region_.value();
+    if (service == "ncbi")
+        return "be-md";
+    throw std::runtime_error("no default region for service");
+}
+
+static inline std::string guess_type(opt_string const &type_, opt_string const &object)
+{
+    if (type_) return type_.value();
+    if (object) {
+        auto const &name = object.value();
+        auto const pipe_symbol_at = name.find('|');
+        if (pipe_symbol_at != std::string::npos) {
+            auto const type_from_name = name.substr(0, pipe_symbol_at);
+            if (type_from_name == "wgs")
+                return "sra";
+        }
+    }
+    throw std::runtime_error("no type");
+}
+
 /// @brief holds SDL version 2 response
 /// @Note member names generally match the corresponding member names in the SDL response JSON
 struct Response2 {
@@ -160,6 +183,7 @@ struct Response2 {
                 std::string link;           // url to data
                 std::string service;        // who is providing the data
                 std::string region;         // as defined by service
+                opt_string region_;         // as defined by service
                 opt_string expirationDate;
                 opt_string projectId;       // encryptedForProjectId
                 bool ceRequired;            // compute environment required
@@ -168,12 +192,13 @@ struct Response2 {
                 LocationEntry(ncbi::JSONObject const &obj)
                 : link(getString(obj, "link"))
                 , service(getString(obj, "service"))
-                , region(getString(obj, "region"))
+                , region_(getOptionalString(obj, "region"))
                 , expirationDate(getOptionalString(obj, "expirationDate"))
                 , projectId(getOptionalString(obj, "encryptedForProjectId"))
                 , ceRequired(getOptionalBool(obj, "ceRequired", false))
                 , payRequired(getOptionalBool(obj, "payRequired", false))
                 {
+                    region = guess_region(region_, service);
                 }
 
                 /// @brief is the data from this location readable using the encryption from other location
@@ -183,6 +208,7 @@ struct Response2 {
                 }
             };
             using Locations = std::vector<LocationEntry>;
+            opt_string type_;
             std::string type;
             std::string name;
             opt_string object;
@@ -193,7 +219,7 @@ struct Response2 {
             Locations locations;
             
             FileEntry(ncbi::JSONObject const &obj)
-            : type(getString(obj, "type"))
+            : type_(getOptionalString(obj, "type"))
             , name(getString(obj, "name"))
             , object(getOptionalString(obj, "object"))
             , size(getOptionalString(obj, "size"))
@@ -201,6 +227,7 @@ struct Response2 {
             , format(getOptionalString(obj, "format"))
             , modificationDate(getOptionalString(obj, "modificationDate"))
             {
+                type = guess_type(type_, object);
                 forEach(obj, "locations", [&](ncbi::JSONValue const &value) {
                     assert(value.isObject());
                     auto const &entry = LocationEntry(value.toObject());

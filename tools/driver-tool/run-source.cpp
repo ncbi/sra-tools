@@ -153,6 +153,7 @@ static inline std::string guess_region(opt_string const &region_, std::string co
     if (region_) return region_.value();
     if (service == "ncbi")
         return "be-md";
+    std::cerr << "No default region for service '" << service << "'" << std::endl;
     throw std::runtime_error("no default region for service");
 }
 
@@ -166,7 +167,10 @@ static inline std::string guess_type(opt_string const &type_, opt_string const &
             auto const type_from_name = name.substr(0, pipe_symbol_at);
             if (type_from_name == "wgs")
                 return "sra";
+            std::cerr << "Unknown type '" << type_from_name << "'" << std::endl;
         }
+        else
+            std::cerr << "No type for '" << name << "'" << std::endl;
     }
     throw std::runtime_error("no type");
 }
@@ -230,8 +234,13 @@ struct Response2 {
                 type = guess_type(type_, object);
                 forEach(obj, "locations", [&](ncbi::JSONValue const &value) {
                     assert(value.isObject());
-                    auto const &entry = LocationEntry(value.toObject());
-                    locations.emplace_back(entry);
+                    try {
+                        auto const &entry = LocationEntry(value.toObject());
+                        locations.emplace_back(entry);
+                    }
+                    catch (...) {
+                        std::cerr << "Invalid response from SDL: Bad location info for " << name << std::endl;
+                    }
                 });
             }
 
@@ -303,8 +312,13 @@ struct Response2 {
             
             forEach(obj, "files", [&](ncbi::JSONValue const &value) {
                 assert(value.isObject());
-                auto const &entry = FileEntry(value.toObject());
-                files.emplace_back(entry);
+                try {
+                    auto const &entry = FileEntry(value.toObject());
+                    files.emplace_back(entry);
+                }
+                catch (...) {
+                    std::cerr << "Invalid response from SDL for " << query << std::endl;
+                }
             });
         }
 

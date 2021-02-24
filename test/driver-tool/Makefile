@@ -222,28 +222,28 @@ help_srapath: | actual
 	@echo "testing expected output for srapath --help" ;\
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=srapath \
-	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	$(BINDIR)/sratools --help | sed -e'/"srapath" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
 	diff expected/$@.stdout actual/$@.stdout
 
 help_prefetch: | actual
 	@echo "testing expected output for prefetch --help" ;\
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=prefetch \
-	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	$(BINDIR)/sratools --help | sed -e'/"prefetch" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
 	diff expected/$@.stdout actual/$@.stdout
 
 help_fasterq-dump: | actual
 	@echo "testing expected output for fasterq-dump --help" ;\
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=fasterq-dump \
-	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	$(BINDIR)/sratools --help | sed -e'/"fasterq-dump" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
 	diff expected/$@.stdout actual/$@.stdout
 
 help_fastq-dump: | actual
 	@echo "testing expected output for fastq-dump --help" ;\
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=fastq-dump \
-	$(BINDIR)/sratools --help 1>actual/$@.stdout ; \
+	$(BINDIR)/sratools --help | sed -e'/"fastq-dump" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
 	diff expected/$@.stdout actual/$@.stdout
 
 .PHONY: runtests bogus container good $(CONTAINER) $(GOOD)

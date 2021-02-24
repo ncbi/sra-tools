@@ -14,11 +14,14 @@ Options:
                                      current directory, but uses given
                                      accession)
   -b|--bufsize <size>              size of file-buffer (dflt=1MB, takes
-                                     number or number and unit)
+                                     number or number and unit where unit is
+                                     one of (K|M|G) case-insensitive)
   -c|--curcache <size>             size of cursor-cache (dflt=10MB, takes
-                                     number or number and unit)
+                                     number or number and unit where unit is
+                                     one of (K|M|G) case-insensitive)
   -m|--mem <size>                  memory limit for sorting (dflt=100MB,
-                                     takes number or number and unit)
+                                     takes number or number and unit where
+                                     unit is one of (K|M|G) case-insensitive)
   -t|--temp <path>                 path to directory for temp. files
                                      (dflt=current dir.)
   -e|--threads <count>             how many threads to use (dflt=6)

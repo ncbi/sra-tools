@@ -121,6 +121,7 @@ private:
     static void test_2();
     static void test_top_error();
     static void test_inner_error();
+    static void test_WGS();
 #endif
 
 public:
@@ -156,6 +157,7 @@ public:
         test_2();
         test_top_error();
         test_inner_error();
+        test_WGS();
     }
 #endif
 };

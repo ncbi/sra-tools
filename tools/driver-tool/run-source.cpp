@@ -805,6 +805,49 @@ void data_sources::test_inner_error() {
     assert(raw.result.size() == 1);
     assert(raw.result[0].status == "404");
 }
+
+void data_sources::test_WGS() {
+auto const testJSON = R"###(
+{
+    "version": "2",
+    "result": [
+        {
+            "bundle": "AAAA00",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "wgs|AAAA00",
+                    "name": "AAAA02.11",
+                    "locations": [
+                        {
+                            "service": "ncbi",
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/WGS/AA/AA/AAAA02.11"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+})###";
+    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
+    auto const &obj = jvRef->toObject();
+    auto const &raw = Response2(obj);
+
+    assert(raw.result.size() == 1);
+
+    for (auto &file : raw.result[0].files) {
+        assert(!file.type_); // no type was sent
+        assert(file.type == "sra");
+
+        assert(file.locations.size() == 1);
+
+        auto const &location = file.locations[0];
+        assert(location.service == "ncbi");
+        assert(!location.region_); // no region was sent
+        assert(location.region == "be-md");
+    }
+}
 #endif // DEBUG || _DEBUGGING
 
 } // namespace sratools

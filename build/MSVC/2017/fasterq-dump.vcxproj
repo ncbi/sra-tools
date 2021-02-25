@@ -8,6 +8,6 @@
   </ItemDefinitionGroup>
   <Import Project="..\fasterq-dump.files" />
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{A6EC334A-E669-40A7-88F0-99FBC2C21643}</ProjectGuid>
+    <ProjectGuid>{97827B04-8AB2-498B-8971-F73D6CF8B2EC}</ProjectGuid>
   </PropertyGroup>
 </Project>

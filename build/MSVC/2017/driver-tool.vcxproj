@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Configuration">
     <TargetName>sratools</TargetName>
@@ -26,8 +26,10 @@
             echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)vdb-dump.pdb
             echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)prefetch$(TargetExt)
             echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)prefetch.pdb
-            echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)srapath.pdb
             echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)srapath$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)srapath.pdb
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)fasterq-dump$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)fasterq-dump.pdb
         </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

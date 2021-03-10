@@ -16,6 +16,28 @@ using data in the INSDC Sequence Read Archives.
 ### ANNOUNCEMENT:
 NIH has released a request for information (RFI) to solicit community feedback on new proposed Sequence Read Archive (SRA) data formats. Learn more and share your thoughts at https://go.usa.gov/xvhdr. The response deadline is July 17th, 2020. We’d encourage you all to share with your colleagues and networks, and respond if you are an SRA submitter or data user.
 
+SRA Toolkit 2.11.0 March 9, 2021
+
+  **fasterq-dump**: does not exit with 0 any more if the given path is not found  
+  **fasterq-dump**: does not exit with 0 if accession is not found  
+  **fasterq-dump**: does not fail when requested to dump a run file with non-standard name  
+  **fasterq-dump**: available on windows  
+  **kfg, prefetch, vfs**: resolve WGS reference sequences into "Accession Directory"  
+  **kfg, sra-tools, vfs**: dropped support of protected repositories  
+  **kns, sra-tools**: fixed formatting of HTTP requests for proxy  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools, vdb**: added support for 64-bit ARM (AArch64, Apple Silicon)  
+  **prefetch, vfs**: fixed download of protected non-run files  
+  **prefetch, vfs**: fixed segfault during download of JWT cart  
+  **prefetch, vfs**: respect requested version when downloading WGS files  
+  **sra-pileup**: now silent if requested slice has no alignments or reference-name does not exist  
+  **sratools**: added description and documentation of the sratools driver tool to GitHub wiki  
+  **sra-tools**: created a script to fix names of downloaded sra files  
+  **sra-tools**: created a script to move downloaded sra run files into proper directories  
+  **sratools**: disable-multithreading option removed from help text for tools that do not support it  
+  **sratools**: does not access remote repository when it is disabled  
+  **sra-tools, vfs**: recognize sra file names with version  
+  **vdb-dump**: exits with no-zero value if asked for non existing column  
+
 SRA Toolkit 2.10.8
 
 kproc, fasterq-dump: fixed problem with seg-faults caused by too small stack used by threads

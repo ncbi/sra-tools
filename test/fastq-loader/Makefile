@@ -142,6 +142,7 @@ announce:
 
 set_schema:
 	echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
+	echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-fastqloaderv\"" >> tmp.kfg
 
 SMALLRUN = @ NCBI_SETTINGS= VDB_CONFIG=$(SRCDIR) $(SRCDIR)/runtestcase.sh \
         $(DIRTOTEST) $(SRCDIR)

@@ -16,7 +16,7 @@ using data in the INSDC Sequence Read Archives.
 ### ANNOUNCEMENT:
 NIH has released a request for information (RFI) to solicit community feedback on new proposed Sequence Read Archive (SRA) data formats. Learn more and share your thoughts at https://go.usa.gov/xvhdr. The response deadline is July 17th, 2020. We’d encourage you all to share with your colleagues and networks, and respond if you are an SRA submitter or data user.
 
-SRA Toolkit 2.11.0 March 9, 2021
+SRA Toolkit 2.11.0 March 15, 2021
 
   **fasterq-dump**: does not exit with 0 any more if the given path is not found  
   **fasterq-dump**: does not exit with 0 if accession is not found  

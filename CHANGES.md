@@ -2,7 +2,7 @@
 
 
 ## SRA Toolkit 2.11.0
-**March 9, 2021**
+**March 15, 2021**
 
   **fasterq-dump**: does not exit with 0 any more if the given path is not found  
   **fasterq-dump**: does not exit with 0 if accession is not found  

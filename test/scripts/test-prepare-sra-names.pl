@@ -1,5 +1,5 @@
 if ($^O =~ /darwin/) {
-    print "prepare-sra-names.sh does not work on Mac: test was scipped\n";
+    print "prepare-sra-names.sh does not work on Mac: test was skipped\n";
     exit 0;
 }
 

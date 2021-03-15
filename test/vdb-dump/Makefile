@@ -71,10 +71,16 @@ $(TARGDIR)/std: \
 
 .PHONY: $(TEST_TOOLS)
 
-runtests: announce vdb-dump
+runtests: announce vdb-dump testing_returncode
 
 announce:
 	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
+
+testing_returncode:
+	@echo Testing returncode...
+	@$(BINDIR)/vdb-dump ./VDB-3937.kar -R1 -C READ > /dev/null
+	@! $(BINDIR)/vdb-dump ./VDB-3937.kar -L sys -R1 -C READ,BLAH > /dev/null
+	@echo Testing returncode: success
 
 #-------------------------------------------------------------------------------
 # vdb-dump-makedb

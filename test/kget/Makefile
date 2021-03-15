@@ -75,7 +75,7 @@ download:
 slowtests: announce diff-vs-wget
 
 ACCESSION = SRR072810
-NAME = $(ACCESSION).4
+NAME = $(ACCESSION).wget
 HOST = sra-download-internal.ncbi.nlm.nih.gov
 URL=$(shell ${DIRTOTEST}/srapath ${ACCESSION})
 
@@ -87,7 +87,7 @@ diff-vs-wget: clean
 	  then \
 	     $(DIRTOTEST)/kget --reliable -c ./$(ACCESSION).cachetee \
 	                    $(URL) $(ACCESSION).dat --progress && \
-	     wget --no-check-certificate $(URL) && \
+	     wget --no-check-certificate $(URL) -O ./$(NAME) && \
 	     diff ./$(NAME) ./$(ACCESSION).dat && \
 	     rm -f $(ACCESSION)* ; \
 	  else \

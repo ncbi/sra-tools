@@ -1,19 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-bin.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-coldefs.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-context.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-fastq.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-filter.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-formats.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-helper.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-print.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-redir.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-str.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-tools.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-interact.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-repo.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb_info.c" />
   </ItemGroup>

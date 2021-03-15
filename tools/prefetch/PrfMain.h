@@ -125,8 +125,8 @@ typedef struct PrfMain {
 
     BSTree downloaded;
 
-    size_t minSize;
-    size_t maxSize;
+    uint64_t minSize;
+    uint64_t maxSize;
     uint64_t heartbeat;
     bool showProgress;
 

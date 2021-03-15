@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.489
@@ -41,6 +41,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-dump", "vdb-dump.vcxpro
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fastq-dump", "fastq-dump.vcxproj", "{2182DDEE-BE67-48FB-89BA-9EF23717C128}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fasterq-dump", "fasterq-dump.vcxproj", "{97827B04-8AB2-498B-8971-F73D6CF8B2EC}"
 	ProjectSection(ProjectDependencies) = postProject
 		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
 	EndProjectSection
@@ -177,6 +182,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-diff", "vdb-diff.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "driver-tool", "driver-tool.vcxproj", "{C2C78E19-90A8-4CC5-8A15-DFC7447E3576}"
 	ProjectSection(ProjectDependencies) = postProject
+		{97827B04-8AB2-498B-8971-F73D6CF8B2EC} = {97827B04-8AB2-498B-8971-F73D6CF8B2EC}
 		{2CF4BF04-4C4D-442E-A7AD-0AE5EF87C733} = {2CF4BF04-4C4D-442E-A7AD-0AE5EF87C733}
 		{E7FAF31B-CA59-4E70-979F-E869EB45ABA0} = {E7FAF31B-CA59-4E70-979F-E869EB45ABA0}
 		{9112BE22-FE04-407B-8B3B-9D7C3731E39A} = {9112BE22-FE04-407B-8B3B-9D7C3731E39A}
@@ -227,6 +233,10 @@ Global
 		{2182DDEE-BE67-48FB-89BA-9EF23717C128}.Debug|x64.Build.0 = Debug|x64
 		{2182DDEE-BE67-48FB-89BA-9EF23717C128}.Release|x64.ActiveCfg = Release|x64
 		{2182DDEE-BE67-48FB-89BA-9EF23717C128}.Release|x64.Build.0 = Release|x64
+		{97827B04-8AB2-498B-8971-F73D6CF8B2EC}.Debug|x64.ActiveCfg = Debug|x64
+		{97827B04-8AB2-498B-8971-F73D6CF8B2EC}.Debug|x64.Build.0 = Debug|x64
+		{97827B04-8AB2-498B-8971-F73D6CF8B2EC}.Release|x64.ActiveCfg = Release|x64
+		{97827B04-8AB2-498B-8971-F73D6CF8B2EC}.Release|x64.Build.0 = Release|x64
 		{11616A3B-9C1F-4760-AE77-755E06D5DFB1}.Debug|x64.ActiveCfg = Debug|x64
 		{11616A3B-9C1F-4760-AE77-755E06D5DFB1}.Debug|x64.Build.0 = Debug|x64
 		{11616A3B-9C1F-4760-AE77-755E06D5DFB1}.Release|x64.ActiveCfg = Release|x64

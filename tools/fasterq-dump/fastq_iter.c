@@ -36,7 +36,7 @@ static void init_qual_to_ascii( char * q2a, size_t size )
     for ( idx = 0; idx < 256; idx++ )
     {
         q2a[ idx ] = idx + 33;
-        if ( q2a[ idx ] == '~' )
+        if ( '~' == q2a[ idx ] )
         {
             break;
         }
@@ -59,27 +59,33 @@ static rc_t read_bounded_quality( struct cmn_iter * cmn,
     uint8_t * qual_values = NULL;
     uint32_t num_qual = 0;
     rc_t rc = cmn_read_uint8_array( cmn, col_id, &qual_values, &num_qual );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
-        if ( num_qual > 0 && qual_values != NULL )
+        if ( num_qual > 0 && NULL != qual_values )
         { 
             if ( num_qual > qual_buffer -> elem_count )
+            {
                 rc = KDataBufferResize ( qual_buffer, num_qual );
-            if ( rc == 0 )
+            }
+            if ( 0 == rc )
             {
                 uint32_t idx;
                 uint8_t * b = qual_buffer -> base;
                 for ( idx = 0; idx < num_qual; idx++ )
+                {
                     b[ idx ] = q2a[ qual_values[ idx ] ];
+                }
                 quality -> addr = qual_buffer -> base;
                 quality -> len  = num_qual;
                 quality -> size = num_qual;
             }
         }
         else
-            clear_quality( quality );        
+        {
+            clear_quality( quality );
+        }
     }
-    if ( rc != 0 )
+    if ( 0 != rc )
     {
         clear_quality( quality );
         rc = 0;
@@ -98,22 +104,26 @@ static rc_t read_bounded_quality_fix( struct cmn_iter * cmn,
     uint32_t num_qual;
     rc_t rc = cmn_read_uint8_array( cmn, col_id, &qual_values, &num_qual );
     num_qual = fixed_len;
-    if ( rc == 0 && num_qual > 0 && qual_values != NULL )
+    if ( 0 == rc && num_qual > 0 && NULL != qual_values )
     { 
         if ( num_qual > qual_buffer -> elem_count )
+        {
             rc = KDataBufferResize ( qual_buffer, num_qual );
-        if ( rc == 0 )
+        }
+        if ( 0 == rc )
         {
             uint32_t idx;
             uint8_t * b = qual_buffer -> base;
             for ( idx = 0; idx < num_qual; idx++ )
+            {
                 b[ idx ] = q2a[ qual_values[ idx ] ];
+            }
             quality -> addr = qual_buffer -> base;
             quality -> len  = num_qual;
             quality -> size = num_qual;
         }
     }
-    if ( rc != 0 )
+    if ( 0 != rc )
     {
         quality -> addr = NULL;
         quality -> len = 0;
@@ -135,11 +145,13 @@ typedef struct fastq_csra_iter
 
 void destroy_fastq_csra_iter( struct fastq_csra_iter * self )
 {
-    if ( self != NULL )
+    if ( NULL != self )
     {
         destroy_cmn_iter( self -> cmn ); /* cmn_iter.h */
-        if ( self -> qual_buffer . base != NULL )
+        if ( NULL != self -> qual_buffer . base )
+        {
             KDataBufferWhack( &self -> qual_buffer );
+        }
         free( ( void * ) self );
     }
 }
@@ -150,7 +162,7 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
 {
     rc_t rc = 0;
     fastq_csra_iter * self = calloc( 1, sizeof * self );
-    if ( self == NULL )
+    if ( NULL == self )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_fastq_csra_iter.calloc( %d ) -> %R", ( sizeof * self ), rc );
@@ -158,7 +170,7 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
     else
     {
         rc = KDataBufferMakeBytes( &self -> qual_buffer, 4096 );
-        if ( rc != 0 )
+        if ( 0 != rc )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             ErrMsg( "make_fastq_csra_iter.KDataBufferMakeBytes() -> %R", rc );
@@ -167,87 +179,130 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
         {
             self -> opt = opt;
             rc = make_cmn_iter( params, "SEQUENCE", &( self -> cmn ) ); /* cmn_iter.h */
-            
-            if ( rc == 0 && opt . with_name )
-                rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) ); /* cmn_iter.h */
-
-            if ( rc == 0 )
-                rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) ); /* cmn_iter.h */
-
-            if ( rc == 0 )
+            if ( 0 != rc )
             {
-                if ( opt . with_cmp_read )
-                    rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> read_id ) ); /* cmn_iter.h */
-                else
-                    rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) ); /* cmn_iter.h */
+                ErrMsg( "make_fastq_csra_iter.make_cmn_iter() -> %R", rc );
             }
 
-            if ( rc == 0 )
+            if ( 0 == rc && opt . with_name )
+            {
+                rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) ); /* cmn_iter.h */
+            }
+
+            if ( 0 == rc )
+            {
+                rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) ); /* cmn_iter.h */
+            }
+
+            if ( 0 == rc )
+            {
+                if ( opt . with_cmp_read )
+                {
+                    rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> read_id ) ); /* cmn_iter.h */
+                }
+                else
+                {
+                    rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) ); /* cmn_iter.h */
+                }
+            }
+
+            if ( 0 == rc )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) ); /* cmn_iter.h */
-                
-            if ( rc == 0 && opt . with_read_len )
+            }
+
+            if ( 0 == rc && opt . with_read_len )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) ); /* cmn_iter.h */
+            }
 
-            if ( rc == 0 && opt . with_read_type )
+            if ( 0 == rc && opt . with_read_type )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) ); /* cmn_iter.h */
+            }
 
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 rc = cmn_iter_range( self -> cmn, self -> prim_alig_id ); /* cmn_iter.h */
-                
-            if ( rc == 0 )
-                init_qual_to_ascii( &( self -> qual_2_ascii[ 0 ] ), sizeof( self -> qual_2_ascii ) );
+            }
 
+            if ( 0 == rc )
+            {
+                init_qual_to_ascii( &( self -> qual_2_ascii[ 0 ] ), sizeof( self -> qual_2_ascii ) );
+            }
         }
-        if ( rc != 0 )
+
+        if ( 0 != rc )
+        {
             destroy_fastq_csra_iter( self ); /* above */
+        }
         else
+        {
             *iter = self;
+        }
     }
     return rc;
 }
 
 bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, rc_t * rc )
 {
-    bool res = cmn_iter_next( self -> cmn, rc );
-    if ( res )
+    rc_t rc2;
+    bool res = cmn_iter_next( self -> cmn, &rc2 );
+    if ( res  )
     {
         rc_t rc1;
-        
+
         rec -> row_id = cmn_iter_row_id( self -> cmn );
 
         rc1 = cmn_read_uint64_array( self -> cmn, self -> prim_alig_id, rec -> prim_alig_id, 2, &( rec -> num_alig_id ) );
 
-        if ( rc1 == 0 && self -> opt . with_name )
+        if ( 0 == rc1 && self -> opt . with_name )
+        {
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
-        
-        if ( rc1 == 0 )
+        }
+
+        if ( 0 == rc1 )
+        {
             rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
-        
-        if ( rc1 == 0 )
+        }
+
+        if ( 0 == rc1 )
+        {
             rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
                                         &( self -> qual_buffer ),
                                         &( self -> qual_2_ascii[ 0 ] ),
                                         &( rec -> quality ) );
-        
-        if ( rc1 == 0 )
-        {
-            if ( self -> opt . with_read_len )
-                rc1 = cmn_read_uint32_array( self -> cmn, self -> read_len_id, &rec -> read_len, &( rec -> num_read_len ) );
-            else
-                rec -> num_read_len = 1;
-        }
-        
-        if ( rc1 == 0 )
-        {
-            if ( self -> opt . with_read_type )
-                rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
-            else
-                rec -> num_read_type = 0;
         }
 
-        if ( rc != NULL )
+        if ( 0 == rc1 )
+        {
+            if ( self -> opt . with_read_len )
+            {
+                rc1 = cmn_read_uint32_array( self -> cmn, self -> read_len_id, &rec -> read_len, &( rec -> num_read_len ) );
+            }
+            else
+            {
+                rec -> num_read_len = 1;
+            }
+        }
+        
+        if ( 0 == rc1 )
+        {
+            if ( self -> opt . with_read_type )
+            {
+                rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
+            }
+            else
+            {
+                rec -> num_read_type = 0;
+            }
+        }
+
+        if ( NULL != rc )
+        {
             *rc = rc1;
-    }   
+        }
+    }
     return res;
 }
 
@@ -270,11 +325,13 @@ typedef struct fastq_sra_iter
 
 void destroy_fastq_sra_iter( struct fastq_sra_iter * self )
 {
-    if ( self != NULL )
+    if ( NULL != self )
     {
         destroy_cmn_iter( self -> cmn );
-        if ( self -> qual_buffer . base != NULL )
+        if ( NULL != self -> qual_buffer . base )
+        {
             KDataBufferWhack( &self -> qual_buffer );
+        }
         free( ( void * ) self );
     }
 }
@@ -286,7 +343,7 @@ rc_t make_fastq_sra_iter( const cmn_params * params,
 {
     rc_t rc = 0;
     fastq_sra_iter * self = calloc( 1, sizeof * self );
-    if ( self == NULL )
+    if ( NULL == self )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_fastq_tbl_iter.calloc( %d ) -> %R", ( sizeof * self ), rc );
@@ -294,7 +351,7 @@ rc_t make_fastq_sra_iter( const cmn_params * params,
     else
     {
         rc = KDataBufferMakeBytes( &self -> qual_buffer, 4096 );
-        if ( rc != 0 )
+        if ( 0 != rc )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             ErrMsg( "make_fastq_csra_iter.KDataBufferMakeBytes() -> %R", rc );
@@ -303,32 +360,54 @@ rc_t make_fastq_sra_iter( const cmn_params * params,
         {
             self -> opt = opt;
             rc = make_cmn_iter( params, tbl_name, &( self -> cmn ) );
+            if ( 0 != rc )
+            {
+                ErrMsg( "make_fastq_sra_iter.make_cmn_iter() -> %R", rc );
+            }
 
-            if ( rc == 0 && opt . with_name )
+            if ( 0 == rc && opt . with_name )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );
+            }
 
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) );
+            }
 
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) );
+            }
 
-            if ( rc == 0 && opt . with_read_len )
+            if ( 0 == rc && opt . with_read_len )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) );
-                
-            if ( rc == 0 && opt . with_read_type )
+            }
+
+            if ( 0 == rc && opt . with_read_type )
+            {
                 rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) );
+            }
 
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 rc = cmn_iter_range( self -> cmn, self -> read_id );
+            }
 
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 init_qual_to_ascii( &( self -> qual_2_ascii[ 0 ] ), sizeof( self -> qual_2_ascii ) );
+            }
 
-            if ( rc != 0 )
+            if ( 0 != rc )
+            {
                 destroy_fastq_sra_iter( self );
+            }
             else
+            {
                 *iter = self;
+            }
         }
     }
     return rc;
@@ -336,47 +415,64 @@ rc_t make_fastq_sra_iter( const cmn_params * params,
 
 bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_t * rc )
 {
-    bool res = cmn_iter_next( self -> cmn, rc );
+    rc_t rc2;
+    bool res = cmn_iter_next( self -> cmn, &rc2 );
     if ( res )
     {
         rc_t rc1 = 0;
-        
+
         rec -> row_id = cmn_iter_row_id( self -> cmn );
 
         if ( self -> opt . with_name )
+        {
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
+        }
 
-        if ( rc1 == 0 )
+        if ( 0 == rc1 )
+        {
             rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
-        
-        if ( rc1 == 0 )
+        }
+
+        if ( 0 == rc1 )
         {
             if ( self -> opt . with_read_len )
+            {
                 rc1 = cmn_read_uint32_array( self -> cmn, self -> read_len_id, &rec -> read_len, &( rec -> num_read_len ) );
+            }
             else
+            {
                 rec -> num_read_len = 1;
+            }
         }
-            
+
         if ( rc1 == 0 )
+        {
             rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
                                         &( self -> qual_buffer ),
                                         &( self -> qual_2_ascii[ 0 ] ),
                                         &( rec -> quality ) );
-        
-        if ( rc1 == 0 )
-        {
-            if ( self -> opt . with_read_type )
-                rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
-            else
-                rec -> num_read_type = 0;
         }
 
-        if ( rc1 == 0 && self -> opt . with_read_len )
+        if ( 0 == rc1 )
+        {
+            if ( self -> opt . with_read_type )
+            {
+                rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
+            }
+            else
+            {
+                rec -> num_read_type = 0;
+            }
+        }
+
+        if ( 0 == rc1 && self -> opt . with_read_len )
         {
             uint32_t sum_read_len = 0;
             uint32_t i;
             for ( i = 0; i < rec -> num_read_len; ++i )
+            {
                 sum_read_len += rec -> read_len[ i ];
+            }
             if ( rec -> read . len != sum_read_len )
             {
                 rec -> read . len  = sum_read_len;
@@ -390,8 +486,10 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
             }
         }
 
-        if ( rc != NULL )
+        if ( NULL != rc )
+        {
             *rc = rc1;
+        }
     }
     return res;
 }

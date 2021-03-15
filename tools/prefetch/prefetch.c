@@ -2379,7 +2379,11 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             }
         }
     }
-    else if (item->jwtCart != NULL);
+    else if (item->jwtCart != NULL) {
+        rc = VResolverAddRef(resolver);
+        if (rc == 0)
+            resolved->resolver = resolver;
+    }
     else {
         rc = KartItemProjIdNumber(item->item, &resolved->project);
         if (rc != 0) {
@@ -3595,14 +3599,18 @@ static int64_t CC bstKrtSort(const BSTNode *item, const BSTNode *n) {
 
 static void CC bstKrtDownload(BSTNode *n, void *data) {
     rc_t rc = 0;
+    rc_t * aRc = data;
 
     const KartTreeNode *sn = (const KartTreeNode*) n;
-    assert(sn && sn->i);
+    assert(sn && sn->i && aRc);
 
     rc = ItemDownload(sn->i);
 
     if (rc == 0)
         rc = ItemPostDownload(sn->i, sn->i->number);
+
+    if (rc != 0 && *aRc == 0)
+        *aRc = rc;
 }
 
 /*********** Process one command line argument **********/
@@ -3725,15 +3733,15 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                         rc = rcq;
                     break;
                 }
+                done = !NumIteratorNext(&nit, n);
+                if (done)
+                    break;
                 rc2 = IteratorNext(&it, &item, &done);
                 if (rc2 != 0 || done) {
                     if (rc == 0 && rc2 != 0)
                         rc = rc2;
                     break;
                 }
-                done = ! NumIteratorNext(&nit, n);
-                if (done)
-                    break;
 #ifdef DBGNG
                 STSMSG(STS_FIN, ("%s: processing item %d...", __func__, n));
 #endif
@@ -3813,8 +3821,11 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                     }
                 }
                 else if (type == eRunTypeGetSize) {
+                    rc_t r2 = 0;
                     OUTMSG (("\nDownloading the files...\n\n", realArg));
-                    BSTreeForEach (&trKrt, false, bstKrtDownload, NULL);
+                    BSTreeForEach (&trKrt, false, bstKrtDownload, &r2);
+                    if (rc == 0 && r2 != 0)
+                        rc = r2;
                 }
             }
         }

@@ -75,21 +75,17 @@ extern "C" {
 #define OPTION_CUR_CACHE         "cur-cache"
 #define OPTION_OUT_FILE          "output-file"
 #define OPTION_OUT_PATH          "output-path"
-#define OPTION_PHASE             "phase"
 #define OPTION_GZIP              "gzip"
 #define OPTION_BZIP2             "bzip2"
 #define OPTION_OUT_BUF_SIZE      "output-buffer-size"
 #define OPTION_NO_MULTITHREAD    "disable-multithreading"
 #define OPTION_INFO              "info"
-#define OPTION_DIFF              "diff"
 #define OPTION_SPOTGROUPS        "spotgroups"
-/*#define OPTION_SRASCHEMA         "sraschema"*/
 #define OPTION_MERGE_RANGES      "merge-ranges"
 #define OPTION_SPREAD            "spread"
 #define OPTION_APPEND            "append"
 
 #define OPTION_SLICE             "slice"
-#define OPTION_INTERACTIVE       "interactive"
 #define OPTION_LEN_SPREAD        "len-spread"
 
 #define OPTION_NGC               "ngc"
@@ -141,7 +137,6 @@ typedef enum dump_format_t
     df_fasta2,
     df_qual,
     df_qual1,
-    df_bin,
     df_sql
 } dump_format_t;
 
@@ -165,7 +160,6 @@ typedef struct dump_context
     uint16_t lf_after_row;
     uint16_t max_line_len;
     uint16_t indented_line_len;
-    uint16_t phase;
     uint32_t generic_idx;
     uint32_t slice_depth;
     size_t cur_cache_size;
@@ -201,7 +195,6 @@ typedef struct dump_context
     bool disable_multithreading;
     bool print_info;
     bool table_defined;
-    bool diff;
     bool show_spotgroups;
     bool merge_ranges;
     bool show_spread;

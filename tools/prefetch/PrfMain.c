@@ -287,8 +287,8 @@ rc_t PrfMainOutDirCheck(PrfMain * self, bool * setAndNotExists) {
     return 0;
 }
 
-static size_t _sizeFromString(const char *val) {
-    size_t s = 0;
+static uint64_t _sizeFromString(const char *val) {
+    uint64_t s = 0;
 
     for (s = 0; *val != '\0'; ++val) {
         if (*val < '0' || *val > '9') {

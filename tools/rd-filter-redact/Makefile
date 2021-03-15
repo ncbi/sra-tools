@@ -88,7 +88,7 @@ TEST_READ_WRITE_CURSOR_OBJ = \
 TEST_READ_WRITE_CURSOR_LIB = \
 	-lkapp \
 	-stk-version \
-	-lncbi-wvdb \
+	-sncbi-wvdb \
 
 $(BINDIR)/test-read-write-cursor: $(TEST_READ_WRITE_CURSOR_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TEST_READ_WRITE_CURSOR_LIB)

@@ -148,6 +148,33 @@ static Service::Response get_SDL_response(Service const &query, std::vector<std:
     return query.response(url_string, version_string);
 }
 
+static inline std::string guess_region(opt_string const &region_, std::string const &service)
+{
+    if (region_) return region_.value();
+    if (service == "ncbi")
+        return "be-md";
+    std::cerr << "No default region for service '" << service << "'" << std::endl;
+    throw std::runtime_error("no default region for service");
+}
+
+static inline std::string guess_type(opt_string const &type_, opt_string const &object)
+{
+    if (type_) return type_.value();
+    if (object) {
+        auto const &name = object.value();
+        auto const pipe_symbol_at = name.find('|');
+        if (pipe_symbol_at != std::string::npos) {
+            auto const type_from_name = name.substr(0, pipe_symbol_at);
+            if (type_from_name == "wgs")
+                return "sra";
+            std::cerr << "Unknown type '" << type_from_name << "'" << std::endl;
+        }
+        else
+            std::cerr << "No type for '" << name << "'" << std::endl;
+    }
+    throw std::runtime_error("no type");
+}
+
 /// @brief holds SDL version 2 response
 /// @Note member names generally match the corresponding member names in the SDL response JSON
 struct Response2 {
@@ -160,6 +187,7 @@ struct Response2 {
                 std::string link;           // url to data
                 std::string service;        // who is providing the data
                 std::string region;         // as defined by service
+                opt_string region_;         // as defined by service
                 opt_string expirationDate;
                 opt_string projectId;       // encryptedForProjectId
                 bool ceRequired;            // compute environment required
@@ -168,12 +196,13 @@ struct Response2 {
                 LocationEntry(ncbi::JSONObject const &obj)
                 : link(getString(obj, "link"))
                 , service(getString(obj, "service"))
-                , region(getString(obj, "region"))
+                , region_(getOptionalString(obj, "region"))
                 , expirationDate(getOptionalString(obj, "expirationDate"))
                 , projectId(getOptionalString(obj, "encryptedForProjectId"))
                 , ceRequired(getOptionalBool(obj, "ceRequired", false))
                 , payRequired(getOptionalBool(obj, "payRequired", false))
                 {
+                    region = guess_region(region_, service);
                 }
 
                 /// @brief is the data from this location readable using the encryption from other location
@@ -183,6 +212,7 @@ struct Response2 {
                 }
             };
             using Locations = std::vector<LocationEntry>;
+            opt_string type_;
             std::string type;
             std::string name;
             opt_string object;
@@ -193,7 +223,7 @@ struct Response2 {
             Locations locations;
             
             FileEntry(ncbi::JSONObject const &obj)
-            : type(getString(obj, "type"))
+            : type_(getOptionalString(obj, "type"))
             , name(getString(obj, "name"))
             , object(getOptionalString(obj, "object"))
             , size(getOptionalString(obj, "size"))
@@ -201,10 +231,16 @@ struct Response2 {
             , format(getOptionalString(obj, "format"))
             , modificationDate(getOptionalString(obj, "modificationDate"))
             {
+                type = guess_type(type_, object);
                 forEach(obj, "locations", [&](ncbi::JSONValue const &value) {
                     assert(value.isObject());
-                    auto const &entry = LocationEntry(value.toObject());
-                    locations.emplace_back(entry);
+                    try {
+                        auto const &entry = LocationEntry(value.toObject());
+                        locations.emplace_back(entry);
+                    }
+                    catch (...) {
+                        std::cerr << "Invalid response from SDL: Bad location info for " << name << std::endl;
+                    }
                 });
             }
 
@@ -276,8 +312,13 @@ struct Response2 {
             
             forEach(obj, "files", [&](ncbi::JSONValue const &value) {
                 assert(value.isObject());
-                auto const &entry = FileEntry(value.toObject());
-                files.emplace_back(entry);
+                try {
+                    auto const &entry = FileEntry(value.toObject());
+                    files.emplace_back(entry);
+                }
+                catch (...) {
+                    std::cerr << "Invalid response from SDL for " << query << std::endl;
+                }
             });
         }
 
@@ -303,7 +344,7 @@ struct Response2 {
             for (auto & file : files) {
                 if (file.type != "sra") continue;
                 if (ends_with(".pileup", file.name)) continue; // TODO: IS THIS CORRECT
-                
+
                 auto const vcache = matching(file, "vdbcache");
                 if (vcache == files.end()) {
                     // there is no vdbcache with this object, nothing to join
@@ -362,6 +403,9 @@ Dictionary data_source::get_environment() const
     auto result = Dictionary();
     auto const names = env_var::names();
 
+    if (!haveVdbCache && run.isSimple())
+        goto RETURN_ENV_VARS;
+
     result[names[env_var::REMOTE_URL]] = run.remoteUrl;
     if (run.haveCachePath)
         result[names[env_var::CACHE_URL]] = run.cachePath;
@@ -387,6 +431,7 @@ Dictionary data_source::get_environment() const
         if (haveVdbCache && vdbcache.needPmt)
             result[names[env_var::CACHE_NEED_PMT]] = "1";
     }
+RETURN_ENV_VARS:
     return result;
 }
 
@@ -433,24 +478,14 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 {
     auto const havePerm = perm != nullptr;
     auto const canSendCE = config->canSendCEToken();
-#ifndef CAN_RUN_OUTSIDE_OF_CLOUD
-    if (havePerm && !canSendCE) {
-        std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
-        exit(EX_USAGE);
-    }
-#endif
+    if (logging_state::is_dry_run()) ; else assert(!(havePerm && !canSendCE));
 
     auto const &ceToken = Service::CE_Token();
-#ifndef CAN_RUN_OUTSIDE_OF_CLOUD
-    if (havePerm && ceToken.empty()) {
-        std::cerr << "--perm requires a cloud instance identity, but a cloud instance identity could not be found." << std::endl;
-        exit(EX_USAGE);
-    }
-#endif
+    if (logging_state::is_dry_run()) ; else assert(!(havePerm && ceToken.empty()));
 
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;
-    auto notfound = std::set<std::string>(runs.begin(), runs.end());
+    auto not_processed = std::set<std::string>(runs.begin(), runs.end());
 
     auto run_query = [&](std::vector<std::string> const &terms) {
         auto const &service = Service::make();
@@ -470,11 +505,11 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 
             for (auto &sdl_result : raw.result) {
                 auto const &query = sdl_result.query;
-                auto const localInfo = notfound.find(query);
 
                 LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
                 if (sdl_result.status == "200") {
                     unsigned added = 0;
+
                     sdl_result.process(query, response, [&](data_source &&source) {
                         if (havePerm && source.encrypted()) {
                             std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
@@ -484,11 +519,14 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
                             added += 1;
                         }
                     });
-                    notfound.erase(localInfo); // remove since we found it
                     if (added == 0) {
                         std::cerr
                         << "Accession " << query << " might be available in a different region or on a different cloud provider." << std::endl
                         << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                    }
+                    else {
+                        auto const localInfo = not_processed.find(query);
+                        not_processed.erase(localInfo); // remove since we found and processed it
                     }
                 }
                 else if (sdl_result.status == "404") {
@@ -504,40 +542,34 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
             throw SDL_unexpected_error(std::string("unexpected version ") + version);
         }
     };
-#if 0
-    auto const &split = split_by_type(runs);
-    try {
-        run_query(split.first);
-        run_query(split.second);
-    }
-#else
-    try {
-        std::set<std::string> seen;
-        for (auto && i : runs) {
-            if (!seen.insert(i).second) continue;
-            if (pathExists(i)) continue;
+    if (withSDL) {
+        try {
+            std::set<std::string> seen;
+            for (auto && i : runs) {
+                if (!seen.insert(i).second) continue;
+                if (pathExists(i)) continue;
 
-            run_query({i});
+                run_query({i});
+            }
+        }
+        catch (vdb::exception const &e) {
+            LOG(1) << "Failed to talk to SDL" << std::endl;
+            LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+
+            std::cerr << e.msg << "." << std::endl;
+            exit(EX_USAGE);
+
+        }
+        catch (SDL_unexpected_error const &e) {
+            LOG(1) << e.what() << std::endl;
+            throw std::logic_error("Error communicating with NCBI");
+        }
+        catch (...) {
+            throw std::logic_error("Error communicating with NCBI");
         }
     }
-#endif
-    catch (vdb::exception const &e) {
-        LOG(1) << "Failed to talk to SDL" << std::endl;
-        LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
-
-        std::cerr << e.msg << "." << std::endl;
-        exit(EX_USAGE);
-
-    }
-    catch (SDL_unexpected_error const &e) {
-        LOG(1) << e.what() << std::endl;
-        throw std::logic_error("Error communicating with NCBI");
-    }
-    catch (...) {
-        throw std::logic_error("Error communicating with NCBI");
-    }
-    // make "file" sources for unrecognized query elements
-    for (auto const &run : notfound) {
+    // make "file" sources for unprocessed or unrecognized query items
+    for (auto const &run : not_processed) {
         source s = {};
         s.accession = run;
         s.localPath = run;
@@ -549,7 +581,7 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
 data_sources data_sources::preload(std::vector<std::string> const &runs,
                                    ParamList const &parameters)
 {
-    return logging_state::testing_level() != 2 ? data_sources(runs, true) : data_sources(runs);
+    return logging_state::testing_level() != 2 ? data_sources(runs, config->canUseSDL()) : data_sources(runs);
 }
 
 #if DEBUG || _DEBUGGING
@@ -772,6 +804,49 @@ void data_sources::test_inner_error() {
     
     assert(raw.result.size() == 1);
     assert(raw.result[0].status == "404");
+}
+
+void data_sources::test_WGS() {
+auto const testJSON = R"###(
+{
+    "version": "2",
+    "result": [
+        {
+            "bundle": "AAAA00",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "wgs|AAAA00",
+                    "name": "AAAA02.11",
+                    "locations": [
+                        {
+                            "service": "ncbi",
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/wgs03/WGS/AA/AA/AAAA02.11"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+})###";
+    auto const jvRef = ncbi::JSON::parse(ncbi::String(testJSON));
+    auto const &obj = jvRef->toObject();
+    auto const &raw = Response2(obj);
+
+    assert(raw.result.size() == 1);
+
+    for (auto &file : raw.result[0].files) {
+        assert(!file.type_); // no type was sent
+        assert(file.type == "sra");
+
+        assert(file.locations.size() == 1);
+
+        auto const &location = file.locations[0];
+        assert(location.service == "ncbi");
+        assert(!location.region_); // no region was sent
+        assert(location.region == "be-md");
+    }
 }
 #endif // DEBUG || _DEBUGGING
 

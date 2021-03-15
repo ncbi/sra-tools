@@ -45,7 +45,13 @@ runtests: \
 	fasta_default \
 	fasta_0 \
 	fasta_number \
-	fasta_neg_number
+	fasta_neg_number \
+	NO_SDL \
+	help_srapath \
+	help_prefetch \
+	help_fasterq-dump \
+	help_fastq-dump \
+	testing
 
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
@@ -77,7 +83,13 @@ announce:
 $(TEMPDIR)/tmp.mkfg:
 	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@
 
+$(TEMPDIR)/tmp2.mkfg:
+	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@ ;\
+	  echo '/repository/remote/disabled = "true"' >>$@
+
 mkfg: $(TEMPDIR)/tmp.mkfg
+
+mkfg2: $(TEMPDIR)/tmp2.mkfg
 
 actual:
 	@ mkdir actual
@@ -98,6 +110,17 @@ $(GOOD): | actual mkfg
 	$(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
 	diff expected/$@.stderr actual/$@.stderr
 
+NO_SDL: | actual mkfg2
+	@# SRATOOLS_TESTING=5 and skip SDL via config, sub-tool invocation is
+	@# simulated to always succeed, but everything up to the exec call is real
+	@echo "testing expected output for dry run with no SDL" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp2.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=5 \
+	SRATOOLS_IMPERSONATE=fastq-dump \
+	$(BINDIR)/sratools SRR000001 2>actual/NO_SDL.stderr && \
+	diff expected/NO_SDL.stderr actual/NO_SDL.stderr
+
 bogus: | actual mkfg
 	@echo "testing expected output for unknown tool" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
@@ -113,6 +136,15 @@ $(CONTAINER): | actual mkfg
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools $@ 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
+
+testing: | actual mkfg
+	@echo "testing expected output for testing modes with bad inputs" $@ ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(BINDIR):$$PATH \
+	SRATOOLS_TESTING=2 \
+	SRATOOLS_IMPERSONATE=prefetch \
+	$(BINDIR)/sratools --perm foo.jwt --cart foo.cart --ngc foo.ngc DRX000001 2>actual/testing.stderr ; \
+	diff expected/testing.stderr actual/testing.stderr || diff expected/testing-cloudy.stderr actual/testing.stderr
 
 vdbcache: | actual mkfg
 	@echo "testing expected output for run with vdbcache" ;\
@@ -186,5 +218,33 @@ fasta_neg_number: | actual mkfg
 	$(BINDIR)/sratools --fasta -75 SRR390728 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
-.PHONY: runtests bogus container good $(CONTAINER) $(GOOD) vdbcache split_3 split_e
-.INTERMEDIATE: $(TEMPDIR)/tmp.mkfg
+help_srapath: | actual
+	@echo "testing expected output for srapath --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=srapath \
+	$(BINDIR)/sratools --help | sed -e'/"srapath" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+help_prefetch: | actual
+	@echo "testing expected output for prefetch --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=prefetch \
+	$(BINDIR)/sratools --help | sed -e'/"prefetch" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+help_fasterq-dump: | actual
+	@echo "testing expected output for fasterq-dump --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=fasterq-dump \
+	$(BINDIR)/sratools --help | sed -e'/"fasterq-dump" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+help_fastq-dump: | actual
+	@echo "testing expected output for fastq-dump --help" ;\
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_IMPERSONATE=fastq-dump \
+	$(BINDIR)/sratools --help | sed -e'/"fastq-dump" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
+	diff expected/$@.stdout actual/$@.stdout
+
+.PHONY: runtests bogus container good $(CONTAINER) $(GOOD)
+.INTERMEDIATE: $(TEMPDIR)/tmp.mkfg $(TEMPDIR)/tmp2.mkfg

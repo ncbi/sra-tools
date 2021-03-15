@@ -18,6 +18,8 @@ my $VERBOSE = 0;
 
 `echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'               >  k`;
 
+`rm -r ERR2950949`;
+
 if ($ALL) {
 ########## use site repository (if exists) from default configuration ##########
 print "########################################################\n" if($VERBOSE);

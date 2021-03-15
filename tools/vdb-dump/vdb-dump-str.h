@@ -91,8 +91,6 @@ rc_t vds_escape( p_dump_str s, const char to_escape, const char escape_char );
 
 rc_t vds_path_to_sections( const char * path, char delim, VNamelist ** sections );
 
-rc_t vds_diff( const char * f1, const char * f2 );
-
 #ifdef __cplusplus
 }
 #endif

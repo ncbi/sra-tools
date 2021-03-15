@@ -191,13 +191,6 @@ struct SraPileupParams final : CmnOptAndAccessions
             if (realpath.executable())
                 return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
         }
-#if DEBUG || _DEBUGGING
-		{	// look for the "official" name not the -orig; TODO: remove when Make creates symlinks
-			auto const realpath = what.toolpath.getPathFor(TOOL_NAME);
-            if (realpath.executable())
-                return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
-        }
-#endif
         throw std::runtime_error(TOOL_NAME " was not found or is not executable.");
     }
 };

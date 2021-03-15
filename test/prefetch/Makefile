@@ -139,8 +139,8 @@ urls_and_accs:
 
 	@echo prefetch URL-1 when there is no kfg
 	@rm -f wiki
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki
 	@rm wiki
 
 	@echo prefetch URL-2/2 when there is no kfg
@@ -280,31 +280,21 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch $(KMER) | grep "found local" > /dev/null
 
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(DIRTOTEST)/prefetch $(WGS) > /dev/null 2>&1 ; \
-        then echo "prefetch $(WGS) when there is no kfg should fail" ; exit 1; \
-	    fi
+	@echo "prefetch $(WGS) when there is no kfg"
+	@NCBI_SETTINGS=/ VDB_CONFIG=`pwd`/tmp \
+	       $(DIRTOTEST)/prefetch $(WGS) > /dev/null 2>&1
+	@rm AFVF01.1 
 
 	@echo '$(PUBLIC)/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/t.kfg
 	@echo
 	@echo WGS HTTP download when user repository is configured
-	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
-		then echo AFVF01 found ; exit 1; fi
+	@if ls `pwd`/tmp/wgs/AFVF01.1 2> /dev/null ; \
+		then echo AFVF01.1 found ; exit 1; fi
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch $(WGS) > /dev/null
-	@echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537
-	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null ;
+	@ls `pwd`/tmp/wgs/AFVF01.1 > /dev/null
+	@rm `pwd`/tmp/wgs/AFVF01.1
 	@echo
-
-	@rm -f `pwd`/tmp/sra/$(SRAC).sra
-	@ echo SRR FASP download when user repository is configured IS DISABLED
-#	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
-	    echo SRR FASP download when user repository is configured ; \
-	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(SRRF) > /dev/null ; \
-	    ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
-	 else echo download of $(SRRF) when ascp is not found is disabled ; \
-	 fi
 
 	@rm -f `pwd`/tmp/refseq/KC702174.1
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
@@ -325,25 +315,19 @@ urls_and_accs:
 	 else echo download of $(KMERF) when ascp is not found is disabled ; \
 	 fi
 
-	@rm `pwd`/tmp/wgs/AFVF01
-	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
-     then echo AFVF01 found ; exit 1; fi
+	@if ls `pwd`/tmp/wgs/AFVF01.1 2> /dev/null ; \
+     then echo AFVF01.1 found ; exit 1; fi
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then echo ; \
 	    echo WGS FASP download when user repository is configured ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(DIRTOTEST)/prefetch $(WGSF) > /dev/null ; \
-	    echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537 ; \
-	    ls `pwd`/tmp/wgs/AFVF01 > /dev/null ; \
+	    ls `pwd`/tmp/wgs/AFVF01.1 > /dev/null ; \
+	    rm `pwd`/tmp/wgs/AFVF01.1 ; \
 	 else echo download of $(WGSF) when ascp is not found is disabled ; \
 	 fi
 	@echo
 
 	@rm -f `pwd`/tmp/sra/$(SRAC).sra
-#	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    if $(DIRTOTEST)/prefetch $(SRAC) 2> /dev/null ; \
-        then echo "prefetch $(SRAC) when there is no kfg should fail" ; \
-             exit 1; \
-	    fi
 
 	@echo 'repository/remote/main/CGI/resolver-cgi = "$(CGI)"' >> tmp/t.kfg
 	@echo SRR accession download
@@ -377,22 +361,11 @@ urls_and_accs:
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch AFVF01 > /dev/null
 	@ls `pwd`/tmp/wgs/AFVF01 > /dev/null
+	@rm `pwd`/tmp/wgs/AFVF01
 
 	@if ls `pwd`/tmp2/100MB 2> /dev/null ; \
      then echo 100MB found ; exit 1; fi
 	@ echo FASP download: asperasoft/100MB: turned off
-#	@if ascp -h > /dev/null ; \
-     then \
-	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(DIRTOTEST)/prefetch $(LARGE) > /dev/null && \
-	    ls `pwd`/100MB > /dev/null ; \
-	 else \
-	    if $(DIRTOTEST)/prefetch $(LARGE) 2> /dev/null ; \
-        then \
-            echo "prefetch <FASP URL> when ascp is not found should fail" ; \
-            exit 1; \
-	     fi ; \
-	 fi
 
 	@if ascp -h > /dev/null ; \
      then \
@@ -419,10 +392,10 @@ vdbcache:
 	@ echo vdbcache download
 
 	@ rm -frv tmp
-	
+
 	@ mkdir -p tmp
 	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
-	
+
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 		cd tmp && $(DIRTOTEST)/prefetch SRR6667190  > /dev/null
 	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra            > /dev/null
@@ -980,7 +953,7 @@ hs37d5:
 	@ cd tmp && NCBI_SETTINGS=k PATH=$(B):$(PATH) perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 
-ad_as_dir: # turned off by default. Library test is in 
+ad_as_dir: # turned off by default. Library test is in
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 	@ echo we can use AD as dir/...
 	@ mkdir -p tmp

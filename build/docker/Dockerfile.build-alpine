@@ -18,7 +18,6 @@ RUN ./configure ${BUILD_STYLE} && make -s -C ngs-sdk >/tmp/build.log 2>&1 || { e
 WORKDIR /sra-tools
 RUN sed -e'/execinfo.h/ s/^/\/\//' -e'/backtrace/ s/^/\/\//' -i tools/driver-tool/secure/except.cpp
 RUN sed -e'/mv -b -v/ s/mv -b/mv/' -i build/install-kfg.sh
-RUN perl -pi.orig -e'BEGIN{@l=(279,383,407,415,416,420,775,912);$i=0}if ($.==$l[$i]){++$i;s/stdout/use_stdout/g unless /use_stdout/}' tools/fasterq-dump/fasterq-dump.c && rm -f tools/fasterq-dump/fasterq-dump.c.orig
 RUN ./configure ${BUILD_STYLE} && make -s >/tmp/build.log 2>&1 || { echo "make failed"; cat /tmp/build.log; exit 1; }
 RUN make install
 RUN mkdir -p /root/.ncbi

@@ -31,7 +31,7 @@ MODULE = tools/kget
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	kget
+	vdb-get
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -58,7 +58,7 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# kget
+# vdb-get ( former kget )
 #
 TOOL_SRC = \
 	kget
@@ -72,6 +72,6 @@ TOOL_LIB = \
 	-sncbi-vdb \
 	-lm
 
-$(BINDIR)/kget: $(TOOL_OBJ)
+$(BINDIR)/vdb-get: $(TOOL_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
 

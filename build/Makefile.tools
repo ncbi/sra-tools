@@ -8,7 +8,6 @@ TOOLS_TO_COPY = \
 	illumina-dump   \
 	kar             \
 	kdbmeta         \
-	kget            \
 	latf-load       \
 	md5cp           \
 	rcexplain       \
@@ -23,6 +22,7 @@ TOOLS_TO_COPY = \
 	vdb-decrypt     \
 	vdb-diff        \
 	vdb-encrypt     \
+	vdb-get         \
 	vdb-lock        \
 	vdb-passwd      \
 	vdb-unlock      \

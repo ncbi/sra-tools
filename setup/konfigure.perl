@@ -426,6 +426,18 @@ if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
 }
 
 if ($CPP) {
+    print "checking for $TOOLS... ";
+    my $cmd = "$TOOLS --version | head -1";
+    print "\n\t\trunning $cmd\n\t" if ($OPT{'debug'});
+    my $out = `$cmd 2>&1`;
+    if ($? == 0) {
+        print "$out";
+    } else {
+        println "no";
+        println "configure: error: '$TOOLS' cannot be found";
+        exit 1;
+    }
+    
     unless (check_tool__h($CPP)) {
         println "configure: error: '$CPP' cannot be found";
         exit 1;

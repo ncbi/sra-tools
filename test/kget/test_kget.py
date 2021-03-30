@@ -43,7 +43,7 @@ def get_remote_url( acc ):
     returns the value as int or 0
 ---------------------------------------------------------------------'''
 def kget_remote_size( url ):
-    cmd = [ 'kget', url, '--show-size' ]
+    cmd = [ 'vdb-get', url, '--show-size' ]
     print ( "running: '%s'"%( cmd ) )
     try:
         process = subprocess.run( cmd, check=True, stdout=subprocess.PIPE, universal_newlines=True )
@@ -86,7 +86,7 @@ def kget_download_partial( url, acc ):
     except:
         pass
 
-    cmd = [ 'kget', url ]
+    cmd = [ 'vdb-get', url ]
     print ( "running: '%s'"%( cmd ) )
     try:
         process = subprocess.run( cmd, check=True, stdout=subprocess.PIPE, universal_newlines=True )
@@ -104,7 +104,7 @@ def kget_download_full( url, acc ):
     except:
         pass
 
-    cmd = [ 'kget', url, '--full' ]
+    cmd = [ 'vdb-get', url, '--full' ]
     print ( "running: '%s'"%( cmd ) )
     try:
         process = subprocess.run( cmd, check=True, stdout=subprocess.PIPE, universal_newlines=True )

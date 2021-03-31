@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Configuration">
     <TargetName>sratools</TargetName>
@@ -12,7 +12,7 @@
     <Link>
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <PostBuildEvent>
+    <PostBuildEvent Condition="'$(Configuration)'=='Debug'">
       <Command>
             del $(TargetDir)$(TargetName).lib
             del $(TargetDir)$(TargetName).exp
@@ -30,6 +30,19 @@
             echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)srapath.pdb
             echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)fasterq-dump$(TargetExt)
             echo f | xcopy /F /Y $(TargetDir)$(TargetName).pdb          $(TargetDir)fasterq-dump.pdb
+        </Command>
+    </PostBuildEvent>
+    <PostBuildEvent Condition="'$(Configuration)'=='Release'">
+      <Command>
+            del $(TargetDir)$(TargetName).lib
+            del $(TargetDir)$(TargetName).exp
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)fastq-dump$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)sam-dump$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)sra-pileup$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)vdb-dump$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)prefetch$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)srapath$(TargetExt)
+            echo f | xcopy /F /Y $(TargetDir)$(TargetName)$(TargetExt)  $(TargetDir)fasterq-dump$(TargetExt)
         </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

@@ -66,7 +66,7 @@ typedef struct MaxNReadsValidator_struct
 } MaxNReadsValidator;
 
 
-static rc_t MaxNReadsValidator_GetKey( const SRASplitter* cself, 
+static rc_t MaxNReadsValidator_GetKey( const SRASplitter* cself,
     const char** key, spotid_t spot, readmask_t* readmask )
 {
     rc_t rc = 0;
@@ -991,7 +991,7 @@ rc_t CC KMain ( int argc, char* argv[] )
     char P_option_buffer[4096];
     const char* accession = NULL;
     const char* table_name = NULL;
-    
+
     bool spot_group_on = false;
     bool no_mt = false;
     int spot_groups = 0;
@@ -1262,7 +1262,9 @@ rc_t CC KMain ( int argc, char* argv[] )
         KLogHandlerSetStdErr();
         ( void ) KDbgHandlerSetStdErr();
     }
-
+KStsHandlerSetStdErr();
+KStsLibHandlerSetStdErr();
+KStsLevelSet (5);
     if ( do_gzip && do_bzip2 )
     {
         rc = RC( rcApp, rcArgv, rcReading, rcParam, rcAmbiguous );
@@ -1388,7 +1390,7 @@ rc_t CC KMain ( int argc, char* argv[] )
                 rc = SRAMgrOpenAltTableRead( sraMGR, &fmt.table, table_to_open, "%s", table_path[ i ] ); /* from sradb-priv.h */
                 if ( rc != 0 )
                 {
-                    PLOGERR( klogErr, ( klogErr, rc, 
+                    PLOGERR( klogErr, ( klogErr, rc,
                         "failed to open '$(path):$(table)'", "path=%s,table=%s",
                         table_path[ i ], table_to_open ) );
                     continue;
@@ -1643,7 +1645,7 @@ rc_t CC KMain ( int argc, char* argv[] )
                 rc = SRADumper_DumpRun( fmt.table, smin, smax, fact_head, &spots_read );
                 /* ********************************************************** */
                 if ( rc == 0 )
-                { 
+                {
                     uint64_t spots_written = 0, file = 0;
 
                     SRASplitterFactory_FilerReport( &spots_written, &file );

@@ -555,7 +555,7 @@ rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, boo
         if ( 0 == rc )
         {
             VPath * vpath;
-            rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
+            rc = VFSManagerMakePath( vfs_mgr, &vpath, "%s", accession );
             DISP_RC( rc, "VFSManagerMakePath() failed" );
             if ( 0 == rc )
             {
@@ -639,7 +639,7 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
         if ( 0 == rc )
         {
             VPath * vpath;
-            rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
+            rc = VFSManagerMakePath( vfs_mgr, &vpath, "%s", accession );
             DISP_RC( rc, "VFSManagerMakePath() failed" );
             if ( 0 == rc )
             {

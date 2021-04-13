@@ -956,9 +956,8 @@ static rc_t ResolvedLocal(const Resolved *self,
 
     *isLocal = false;
 
-    if (self->local.str == NULL) {
+    if (self->local.str == NULL)
         return 0;
-    }
 
     rc = VPathReadPath(self->local.path, path, sizeof path, NULL);
     DISP_RC(rc, "VPathReadPath");
@@ -984,10 +983,15 @@ static rc_t ResolvedLocal(const Resolved *self,
     if (rc == 0 && type != kptFile) {
         if (transFile); /* ignore it: will resume */
         else if (force == eForceNo) {
-            STSMSG(STS_TOP,
-                ("%s (not a file) is found locally: consider it complete",
-                 path));
-            *isLocal = true;
+            if (type == kptDir && VPathIsAccessionOrOID(self->local.path))
+                STSMSG(STS_TOP,
+                    ("directory %s will be checked for missed files", path));
+            else {
+                STSMSG(STS_TOP,
+                    ("%s (not a file) is found locally: consider it complete",
+                        path));
+                *isLocal = true;
+            }
         }
         else {
             STSMSG(STS_TOP,

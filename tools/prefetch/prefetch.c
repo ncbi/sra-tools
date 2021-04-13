@@ -2585,9 +2585,11 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                     self->desc, self->desc) & ~kptAlias) == kptFile)
                 {
                     if (self->mane->force == eForceNo) {
+                        /*
                         local = true;
                         rc = VFSManagerMakePath((VFSManager*)1, &path,
                             "%s/%s.sra", self->desc, self->desc);
+                            */
                     }
                 }
             }

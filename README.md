@@ -14,6 +14,10 @@ The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
+
+April 19, 2021
+SRA data is stored and freely available worldwide from Amazon Web Services (AWS)'s Open Data Sponsorship Program. The data being retrieved and delivered by the SRA Toolkit comes from AWS storage and is also free for users everywhere.
+
 NIH has released a request for information (RFI) to solicit community feedback on new proposed Sequence Read Archive (SRA) data formats. Learn more and share your thoughts at https://go.usa.gov/xvhdr. The response deadline is July 17th, 2020. We’d encourage you all to share with your colleagues and networks, and respond if you are an SRA submitter or data user.
 
 SRA Toolkit 2.11.0 March 15, 2021

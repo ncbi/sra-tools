@@ -1262,9 +1262,9 @@ rc_t CC KMain ( int argc, char* argv[] )
         KLogHandlerSetStdErr();
         ( void ) KDbgHandlerSetStdErr();
     }
-KStsHandlerSetStdErr();
-KStsLibHandlerSetStdErr();
-KStsLevelSet (5);
+// KStsHandlerSetStdErr();
+// KStsLibHandlerSetStdErr();
+// KStsLevelSet (5);
     if ( do_gzip && do_bzip2 )
     {
         rc = RC( rcApp, rcArgv, rcReading, rcParam, rcAmbiguous );

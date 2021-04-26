@@ -391,17 +391,41 @@ urls_and_accs:
 vdbcache:
 	@ echo vdbcache download
 
-	@ rm -frv tmp
+	@ rm -frv SRR6667190*
 
-	@ mkdir -p tmp
-	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > SRR6667190.kfg
 
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-		cd tmp && $(DIRTOTEST)/prefetch SRR6667190  > /dev/null
-	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra            > /dev/null
-	@ ls `pwd`/tmp/SRR6667190/SRR6667190.sra.vdbcache   > /dev/null
+	@ # download sra and vdbcache
+	@ NCBI_SETTINGS=/ VDB_CONFIG=`pwd` \
+		$(DIRTOTEST)/prefetch SRR6667190    > /dev/null
+	@ ls SRR6667190/SRR6667190.sra          > /dev/null
+	@ ls SRR6667190/SRR6667190.sra.vdbcache > /dev/null
 
-	@ rm -r tmp
+	@ # second run of prefetch finds local
+	@ NCBI_SETTINGS=/ VDB_CONFIG=`pwd` \
+		$(DIRTOTEST)/prefetch SRR6667190    > /dev/null
+
+	@ # download missed sra
+	@ rm SRR6667190/SRR6667190.sra
+	@ NCBI_SETTINGS=/ VDB_CONFIG=`pwd` \
+		$(DIRTOTEST)/prefetch SRR6667190    > /dev/null
+	@ ls SRR6667190/SRR6667190.sra          > /dev/null
+
+	@ # download missed vdbcache
+	@ rm SRR6667190/SRR6667190.sra.vdbcache
+	@ NCBI_SETTINGS=/ VDB_CONFIG=`pwd` \
+		$(DIRTOTEST)/prefetch SRR6667190    > /dev/null
+	@ ls SRR6667190/SRR6667190.sra.vdbcache > /dev/null
+
+	@ # prefetch works when AD is empty
+	@ rm SRR6667190/*
+	@ NCBI_SETTINGS=/ VDB_CONFIG=`pwd` \
+		$(DIRTOTEST)/prefetch SRR6667190    > /dev/null
+	@ ls SRR6667190/SRR6667190.sra          > /dev/null
+	@ ls SRR6667190/SRR6667190.sra.vdbcache > /dev/null
+
+	@ # ls SRR6667190
+	@ rm -r SRR6667190*
 
 ################################################################################
 

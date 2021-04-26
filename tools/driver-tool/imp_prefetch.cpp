@@ -42,6 +42,7 @@ struct PrefetchParams final : CmnOptAndAccessions
     ncbi::String force;
     ncbi::String resume;
     ncbi::String validate;
+    ncbi::String check_refseqs;
     bool progress;
     bool eliminate_quals;
     bool check_all;
@@ -87,6 +88,12 @@ struct PrefetchParams final : CmnOptAndAccessions
 
         cmdline . addOption ( check_all, "c", "check-all", "Double-check all refseqs" );
 
+        cmdline . addOption ( check_refseqs, nullptr,
+            "S", "check-rs", "<yes|no|smart>",
+            "Check for refseqs in downloaded files: "
+            "one of : no, yes, smart[default]. "
+            "Smart: skip check for large encrypted non - sra files" );
+
         /*
         cmdline . addOption ( ascp_path, nullptr, "a", "ascp-path", "<ascp-binary|private-key-file>",
             "Path to ascp program and private key file (asperaweb_id_dsa.putty)" );
@@ -123,6 +130,7 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( !validate.isEmpty() ) ss << "validate: " << validate << std::endl;
         if ( eliminate_quals ) ss << "eliminate-quals" << std::endl;
         if ( check_all ) ss << "check-all" << std::endl;
+        if ( !check_refseqs.isEmpty() ) ss << "check_refseqs: " << check_refseqs << std::endl;
         //if ( !ascp_path.isEmpty() ) ss << "ascp-path: " << ascp_path << std::endl;
         //if ( !ascp_options.isEmpty() ) ss << "ascp-options: " << ascp_options << std::endl;
         if ( !output_file.isEmpty() ) ss << "output-file: " << output_file << std::endl;
@@ -149,6 +157,8 @@ struct PrefetchParams final : CmnOptAndAccessions
         if ( !validate.isEmpty() ) builder . add_option( "-C", validate);
         if ( eliminate_quals ) builder . add_option( "--eliminate-quals" );
         if ( check_all ) builder . add_option( "-c" );
+        if ( !check_refseqs.isEmpty() )
+            builder . add_option( "-S", check_refseqs );
         //if ( !ascp_path.isEmpty() ) builder . add_option( "-a", ascp_path );
         //if ( !ascp_options.isEmpty() ) builder . add_option( "--ascp_options", ascp_options );
         if ( !output_file.isEmpty() ) builder . add_option( "-o", output_file );

@@ -339,6 +339,7 @@ static rc_t ResolvedReset(Resolved * self) {
         self->respFile = file;
     }
     RELEASE(KSrvRespObj, obj);
+    RELEASE(VPath, self->remote);
     return rc;
 }
 
@@ -908,6 +909,7 @@ static rc_t ResolvedFini(Resolved *self) {
         rc = rc2;
 
     RELEASE(KFile, self->file);
+    RELEASE(VPath, self->remote);
     RELEASE(VPath, self->accession);
     RELEASE(VResolver, self->resolver);
 
@@ -954,9 +956,8 @@ static rc_t ResolvedLocal(const Resolved *self,
 
     *isLocal = false;
 
-    if (self->local.str == NULL) {
+    if (self->local.str == NULL)
         return 0;
-    }
 
     rc = VPathReadPath(self->local.path, path, sizeof path, NULL);
     DISP_RC(rc, "VPathReadPath");
@@ -982,10 +983,15 @@ static rc_t ResolvedLocal(const Resolved *self,
     if (rc == 0 && type != kptFile) {
         if (transFile); /* ignore it: will resume */
         else if (force == eForceNo) {
-            STSMSG(STS_TOP,
-                ("%s (not a file) is found locally: consider it complete",
-                 path));
-            *isLocal = true;
+            if (type == kptDir && VPathIsAccessionOrOID(self->local.path))
+                STSMSG(STS_TOP,
+                    ("directory %s will be checked for missed files", path));
+            else {
+                STSMSG(STS_TOP,
+                    ("%s (not a file) is found locally: consider it complete",
+                        path));
+                *isLocal = true;
+            }
         }
         else {
             STSMSG(STS_TOP,
@@ -1564,6 +1570,8 @@ typedef enum {
     eVskipped,
 } EValidate;
 
+static const uint64_t CRITICAL_ENC_SIZE = 0x20000000;
+
 static rc_t POFValidate(PrfOutFile * self,
     const VPath * remote, const VPath * cache, bool checkMd5,
     EValidate * vSz, EValidate * vMd5, bool * encrypted)
@@ -1642,8 +1650,9 @@ static rc_t POFValidate(PrfOutFile * self,
                 *vSz = eVno;
                 self->invalid = true;
             }
-            if (size > 0x20000000 && *encrypted) /* don't check md5 for large */
-                checkMd5 = false;       /*  encrypted files: it takes forever */
+            if (size > CRITICAL_ENC_SIZE && *encrypted)
+                /* don't check md5 for large encrypted files: */
+                checkMd5 = false;         /* it takes forever */
         }
     }
 
@@ -1918,6 +1927,11 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                         rc = rd;
                         break;
                     }
+                    rc = VPathAddRef(vremote);
+                    if (rc == 0)
+                        rc = VPathRelease(self->remote);
+                    if (rc == 0)
+                        self->remote = vremote;
                     rc = VPathStrInit(&self->path, vcache);
                 }
                 rd = PrfMainDoDownload(self, item, isDependency, vremote, &pof);
@@ -2576,9 +2590,11 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                     self->desc, self->desc) & ~kptAlias) == kptFile)
                 {
                     if (self->mane->force == eForceNo) {
+                        /*
                         local = true;
                         rc = VFSManagerMakePath((VFSManager*)1, &path,
                             "%s/%s.sra", self->desc, self->desc);
+                            */
                     }
                 }
             }
@@ -3352,7 +3368,8 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
     rc_t rc = 0;
     Resolved *resolved = NULL;
     KPathType type = kptNotFound;
-    assert(item);
+    bool skip = false;
+    assert(item && item->mane);
     resolved = &item->resolved;
     if (resolved->type == eRunTypeList)
         return rc;
@@ -3364,19 +3381,66 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
     if (resolved->path.str != NULL) {
         const char * path = NULL;
         assert(item->mane);
-        rc = _VDBManagerSetDbGapCtx(item->mane->mgr, resolved->resolver);
-        path = resolved -> path . str -> addr;
-        type = VDBManagerPathTypeUnreliable
-            ( item->mane->mgr, "%S", resolved->path.str) & ~kptAlias;
+        if (item->mane->check_refseqs == eFalse) {
+            STSMSG(STS_DBG,
+                ("will not check PathType of '%S'", resolved->path.str));
+            skip = true;
+        }
+        else if (item->mane->check_refseqs == eTrue)
+            STSMSG(STS_DBG, ("will check PathType of '%S'",
+                resolved->path.str));
+        else if (item->mane->check_refseqs == eDefault) {
+            const VPath * path = resolved->remote;
+            if (path == NULL)
+                path = resolved->remoteHttps.path;
+            if (path != NULL) {
+                /* Guess file type from SDL response;
+                skip VDBManagerPathType call for large encrypted non-sra files -
+                it takes forever */
+                if (VPathGetProjectId(path, NULL)) { /* encrypted */
+                    String type;
+                    rc_t rc = VPathGetType(path, &type);
+                    if (rc == 0) {
+                        String sra;
+                        CONST_STRING(&sra, "sra");
+                        if (!StringEqual(&sra, &type)) { /* encrypted non-sra */
+                            if (VPathGetSize(path) > CRITICAL_ENC_SIZE)
+                                skip = true;
+                        }
+                    }
+                }
+                STSMSG(STS_DBG, ("will%s check PathType of %s'%S'",
+                    skip ? " not" : "",
+                    skip ? "large encrypted non-sra " : "",
+                    resolved->path.str));
+            }
+            else
+                STSMSG(STS_DBG, ("will check PathType of local '%S'",
+                    resolved->path.str));
+        }
 
+        path = resolved -> path . str -> addr;
         assert ( path );
+
+        if (!skip) {
+            rc = _VDBManagerSetDbGapCtx(item->mane->mgr, resolved->resolver);
+            STSMSG(STS_INFO,
+                ("checking PathType of '%S'...", resolved->path.str));
+            type = VDBManagerPathTypeUnreliable
+                ( item->mane->mgr, "%S", resolved->path.str) & ~kptAlias;
+        }
 
         switch (type) {
         case kptTable: STSMSG(STS_DBG, ("...'%s' is a table", path)); break;
         case kptDatabase:
             STSMSG(STS_DBG, ("...'%s' is a database", path)); break;
-        default: STSMSG(STS_DBG, ("...'%s' is not recognized "
-            "as a database or a table", path)); return rc;
+        default:
+            if (skip)
+                STSMSG(STS_DBG, ("skipped type check for '%s'", path));
+            else
+                STSMSG(STS_DBG, ("...'%s' is not recognized "
+                    "as a database or a table", path));
+            return rc;
         }
 
         rc = ItemMkDesc(item, type);

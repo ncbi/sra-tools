@@ -76,60 +76,49 @@ quick_bases:
 	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR053325 > actual/SRR053325
 	@diff actual/SRR053325 expected/SRR053325-biological-reloaded
 
-#	@echo
 	@echo SRR600096 is a small non-cSRA DB
 	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR600096 > actual/SRR600096
 	@diff actual/SRR600096 expected/SRR600096
 
-#	@echo
 	@echo SRR618333 is a small CS_NATIVE table
 	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR618333 > actual/SRR618333
 	@diff actual/SRR618333 expected/SRR618333
 
-#	@echo
 	@echo SRR413283 is a small cSRA with local references
 	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR413283 > actual/SRR413283
 	@diff actual/SRR413283 expected/SRR413283-with-AssemblyStatistics
 
-#	@echo
 	@echo SRR619505 is a small cSRA with N-s without local references
-	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR619505 | perl -w strip-path.pl \
-	                                                > actual/SRR619505
+	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR619505 \
+	                            | perl -w strip-path-sdlr.pl > actual/SRR619505
 	@diff actual/SRR619505 expected/SRR619505
 
-#	@echo
 	@echo SRR1985136 is a small cSRA with a local reference and 0-length tech-rd
 	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR1985136 | perl -w strip-path.pl\
                                                     > actual/SRR1985136
 	@diff actual/SRR1985136 expected/SRR1985136-with-Changes
 
-#	@echo
 	@rm actual/*
 
 R=SRR8483030
 test_bases: quick_bases
-#	@echo
 	@echo ${R} is a run having first 0-lenght bio reads
 	@if perl check-run-perm.pl $(DIRTOTEST)/srapath ${R} > /dev/null 2>&1 ; \
 	 then                      $(DIRTOTEST)/sra-stat -x ${R} > /dev/null ; fi
 
-#	@echo
 	@echo SRR495844 is a cSRA with local references
-	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR495844 | perl -w strip-path.pl \
-                                                    > actual/SRR495844
+	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR495844 \
+                                | perl -w strip-path-sdlr.pl  > actual/SRR495844
 	@diff actual/SRR495844 expected/SRR495844-with-Changes
 
-#	@echo
 	@echo SRR390427 is a non-cSRA DB
 	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR390427 > actual/SRR390427
 	@diff actual/SRR390427 expected/SRR390427
 
-#	@echo
 	@echo SRR360929 is a table
 	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR360929 > actual/SRR360929
 	@diff actual/SRR360929 expected/SRR360929-biological
 
-#	@echo
 	@rm    actual/*
 	@rm -r actual
 
@@ -137,13 +126,11 @@ slow_bases:
 	@rm   -vrf actual
 	@mkdir -p actual
 
-#	@echo
 	@echo SRR586259 is a cSRA without local references
-	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR586259 | perl -w strip-path.pl \
-                                                    > actual/SRR586259
+	@NCBI_SETTINGS=/ $(DIRTOTEST)/sra-stat -x SRR586259 \
+                                | perl -w strip-path-sdlr.pl > actual/SRR586259
 	@diff actual/SRR586259 expected/SRR586259
 
-#	@echo
 	@rm    actual/*
 	@rmdir actual
 

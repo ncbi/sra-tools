@@ -34,6 +34,8 @@
 #include "cmdline.hpp"
 #include "env.hpp"
 
+#include <klib/debug.h> /* KDbgSetString */
+
 #include <iostream>
 
 #if defined __GNUC__
@@ -445,6 +447,30 @@ namespace ncbi
         U32 max;
     };
 
+    struct DebugOption : ListOption < String >
+    {
+        virtual void handleOption ( Cmdline & args ) const
+        {
+            ListOption < String > :: handleOption ( args );
+
+            U32 count ( ( U32 ) list . size () );
+            for ( U32 i = 0; i < count; ++ i )
+            {
+                String text ( list [ i ] );
+                const UTF8 * s ( text . data () );
+                KDbgSetString ( s );
+            }
+        }
+
+        DebugOption ( std :: vector < String > & _list, const char separator,
+                U32 _max,
+                const String & _short_name, const String & _long_name,
+                const String & _elem_name, const String & _help )
+            : ListOption < String > ( _list, separator, _max,
+                _short_name, _long_name, _elem_name, _help )
+        {}
+    };
+
     void Cmdline :: Command :: addArg ( const String & arg )
     {
         cmd . push_back ( arg );
@@ -681,6 +707,24 @@ namespace ncbi
             const String & elem_name, const String & help )
     {
         Option * opt = new ListOption < T > ( list, separator, max, short_name, long_name, elem_name, help );
+        try
+        {
+            addOption ( opt );
+        }
+        catch ( ... )
+        {
+            delete opt;
+            throw;
+        }
+    }
+
+    void Cmdline :: addDebugOption ( std :: vector < String > & list,
+            const char separator,
+            U32 max, const String & short_name, const String & long_name,
+            const String & elem_name, const String & help )
+    {
+        Option * opt = new DebugOption ( list, separator, max,
+            short_name, long_name, elem_name, help );
         try
         {
             addOption ( opt );

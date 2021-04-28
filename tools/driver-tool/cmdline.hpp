@@ -67,6 +67,11 @@ namespace ncbi
             U32 max, const String & short_name, const String & long_name,
             const String & elem_name, const String & help );
 
+        void addDebugOption ( std :: vector < String > & list,
+            const char separator,
+            U32 max, const String & short_name, const String & long_name,
+            const String & elem_name, const String & help );
+
         // indicate start of silent options
         void startSilentOptions ();
 

@@ -299,12 +299,15 @@ static void CC vdm_read_cell_data( void *item, void *data )
 {
     dump_src src; /* defined in vdb-dump-tools.h */
     p_col_def col_def = ( p_col_def )item;
-    p_row_context r_ctx = ( p_row_context )data;
+    p_row_context r_ctx = ( p_row_context )data; /* vdb-dump-row-context.h */
 
     if ( 0 != r_ctx -> rc ) return; /* important to stop if the last read was not successful */
     vds_clear( &( col_def -> content ) ); /* clear the destination-dump-string */
     if ( !col_def -> valid ) return;
     if ( col_def -> excluded ) return;
+
+    /* to make vdt_dump_element() aware of the output-format ( df_json, df_xml, etc ) */
+    src . output_format = r_ctx -> ctx -> format;
 
     /* read the data of a cursor-cell: buffer-addr, offset and element-count
        is stored in the dump_src-struct */
@@ -337,31 +340,22 @@ static void CC vdm_read_cell_data( void *item, void *data )
     }
     else
     {
-        bool print_comma = true;
-        bool sra_dump_format;
+        src . print_comma = !( col_def -> type_desc . domain == vtdBool && r_ctx -> ctx -> c_boolean != 0 );
 
-        /* initialize the element-idx ( for dimension > 1 ) */
-        src . element_idx = 0;
-
+        /* special treatment to suppress spaces between values */
+        src . translate_sra_values = ( r_ctx -> ctx -> format == df_sra_dump );
+        
         /* transfer context-flags (hex-print, no sra-types) */
         src . in_hex = r_ctx -> ctx -> print_in_hex;
         src . without_sra_types = r_ctx -> ctx -> without_sra_types;
 
-        /* special treatment to suppress spaces between values */
-        sra_dump_format = ( r_ctx -> ctx -> format == df_sra_dump );
-
+        /* how a boolean is displayed */
+        src . c_boolean = r_ctx -> ctx -> c_boolean;
+        
         /* hardcoded printing of dna-bases if the column-type fits */
         src . print_dna_bases = ( r_ctx -> ctx -> print_dna_bases &
                     ( col_def -> type_desc . intrinsic_dim == 2 ) &
                     ( col_def -> type_desc . intrinsic_bits == 1 ) );
-
-        /* how a boolean is displayed */
-        src . c_boolean = r_ctx -> ctx -> c_boolean;
-
-        if ( col_def -> type_desc . domain == vtdBool && src . c_boolean != 0 )
-        {
-            print_comma = false;
-        }
 
         if ( r_ctx -> ctx -> print_num_elem )
         {
@@ -380,37 +374,7 @@ static void CC vdm_read_cell_data( void *item, void *data )
         }
         else
         {
-            /* loop through the elements(dimension's) of a cell */
-            while( ( src . element_idx < src . number_of_elements )&&( r_ctx -> rc == 0 ) )
-            {
-                uint32_t eidx = src . element_idx;
-                if ( ( eidx > 0 )&& ( ! src . print_dna_bases ) && print_comma )
-                {
-                    if ( sra_dump_format )
-                    {
-                        vds_append_str( &( col_def -> content ), "," );
-                    }
-                    else
-                    {
-                        vds_append_str( &( col_def -> content ), ", " );
-                    }
-                }
-
-                /* dumps the basic data-types, implementation in vdb-dump-tools.c
-                   >>> that means it appends the element-string to
-                       col_def -> content <<<
-                   the formated output is only collected, to be printed later
-                   dump_element is also responsible for incrementing
-                   the src.element_idx by: 1...bool/int/uint/float
-                                           n...string/unicode-string */
-                r_ctx -> rc = vdt_dump_element( &src, col_def, !sra_dump_format );
-
-                /* insurance against endless loop */
-                if ( eidx == src . element_idx )
-                {
-                    src . element_idx++;
-                }
-            }
+            r_ctx -> rc = vdt_dump_cell( &src, col_def ); /* split base on output-formats is in vdb-dump-tools.c */
         }
     }
 }
@@ -460,7 +424,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
     r_ctx -> rc = vds_make( &( r_ctx -> s_col ), r_ctx -> ctx->max_line_len, 512 );
     if ( 0 != r_ctx -> rc )
     {
-        vdm_row_error( "dump_str_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id );
+        vdm_row_error( "dump_str_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id ); /* above */
     }
     else
     {
@@ -469,7 +433,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
         r_ctx -> rc = num_gen_iterator_make( r_ctx -> ctx -> rows, &iter );
         if ( 0 != r_ctx -> rc )
         {
-            vdm_row_error( "num_gen_iterator_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id );
+            vdm_row_error( "num_gen_iterator_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id ); /* above */
         }
         else
         {
@@ -485,7 +449,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
                 if ( 0 != r_ctx -> rc )
                 {
                     vdm_row_error( "VCursorSetRowId( row#$(row_nr) ) failed", 
-                                   r_ctx -> rc, r_ctx -> row_id );
+                                   r_ctx -> rc, r_ctx -> row_id ); /* above */
                 }
                 else
                 {
@@ -493,7 +457,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
                     if ( 0 != r_ctx -> rc )
                     {
                         vdm_row_error( "VCursorOpenRow( row#$(row_nr) ) failed", 
-                                       r_ctx -> rc, r_ctx -> row_id );
+                                       r_ctx -> rc, r_ctx -> row_id ); /* above */
                     }
                     else
                     {
@@ -508,11 +472,12 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
                             /* prints the collected strings, in vdb-dump-formats.c */
                             if ( !r_ctx -> ctx -> sum_num_elem )
                             {
+                                /* in vdb-dump-formats.c */
                                 r_ctx -> rc = vdfo_print_row( r_ctx );
                                 if ( 0 != r_ctx -> rc )
                                 {
                                     vdm_row_error( "vdfo_print_row( row#$(row_nr) ) failed", 
-                                           r_ctx -> rc, r_ctx -> row_id );
+                                           r_ctx -> rc, r_ctx -> row_id ); /* above */
                                 }
                             }
                         }
@@ -520,7 +485,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
                         if ( 0 != r_ctx -> rc )
                         {
                             vdm_row_error( "VCursorCloseRow( row#$(row_nr) ) failed", 
-                                           r_ctx -> rc, r_ctx -> row_id );
+                                           r_ctx -> rc, r_ctx -> row_id ); /* above */
                         }
                     }
                 }
@@ -528,17 +493,18 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
         }
         num_gen_iterator_destroy( iter );
 
+        /* in case the user selected element-sum on the commandline ( -U|--numelemsum )*/
         if ( 0 == r_ctx -> rc && r_ctx -> ctx -> sum_num_elem )
         {
             VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_print_elem_sum, r_ctx );
             if ( 0 == r_ctx -> rc )
             {
                 r_ctx -> rc = vdfo_print_row( r_ctx );
-                DISP_RC( r_ctx -> rc, "VTableOpenSchema() failed" );
+                DISP_RC( r_ctx -> rc, "vdm_dump_rows().vdfo_print_row() failed" );
             }
         }
 
-        vds_free( &( r_ctx -> s_col ) );
+        vds_free( &( r_ctx -> s_col ) ); /* vdb-dump-str.c */
     }
     return r_ctx -> rc;
 }

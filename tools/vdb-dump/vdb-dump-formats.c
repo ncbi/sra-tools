@@ -210,21 +210,24 @@ static void CC vdfo_print_col_json( void *item, void *data )
     if ( ( col_def -> type_desc . domain == vtdAscii )||
          ( col_def -> type_desc . domain == vtdUnicode ) )
     {
+        /* vdb-dump-str.c */
         rc = vds_escape( &( col_def -> content ), '"', '\\' );
         DISP_RC( rc, "dump_str_escape() failed" )
         if ( 0 == rc)
         {
+            /* vdb-dump-str.c */
             rc = vds_enclose_string( &( col_def -> content ), '"', '"' );
             DISP_RC( rc, "dump_str_enclose_string() failed" )
         }
     }
     else
     {
-        if ( col_def -> type_desc . intrinsic_dim > 1 )
-        {
+        //if ( col_def -> type_desc . intrinsic_dim > 1 )
+        //{
+            /* vdb-dump-str.c */
             rc = vds_enclose_string( &( col_def -> content ), '[', ']' );
             DISP_RC( rc, "dump_str_enclose_string() failed" )
-        }
+        //}
     }
 
     if ( 0 == rc )

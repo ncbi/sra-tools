@@ -55,7 +55,7 @@ typedef struct row_context
     const VTable* table;
     const VCursor* cursor;
     p_col_defs col_defs;
-    p_dump_context ctx;
+    p_dump_context ctx; /* vdb-dump-context.h */
     dump_str s_col;
     int64_t row_id;
     uint32_t col_nr;

@@ -36,6 +36,7 @@ extern "C" {
 #endif
 
 #include "vdb-dump-coldefs.h"
+#include "vdb-dump-context.h" /* because of dump_format_t */
 #include "vdb-dump-str.h"
 
 typedef struct dump_src
@@ -47,11 +48,17 @@ typedef struct dump_src
     bool in_hex;
     bool print_dna_bases;
     bool without_sra_types;
+    bool print_comma;
+    bool translate_sra_values; /* legacy ??? */
+    bool perform_translation; /* precomputed value for new and faster printing... */
     char c_boolean;
+    dump_format_t output_format;
 } dump_src;
 typedef dump_src* p_dump_src;
 
-rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket );
+rc_t vdt_dump_cell( const p_dump_src src, const p_col_def def );
+
+rc_t vdt_dump_cell_v2( const p_dump_src src, const p_col_def def );
 
 void vdm_clear_recorded_errors( void );
 

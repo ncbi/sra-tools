@@ -763,69 +763,76 @@ static rc_t vdt_dump_cell_bb_bool_slice( const p_dump_src src, const p_col_def d
 static rc_t vdt_dump_cell_bb_uint8_slice( const p_dump_src src, const p_col_def def, const uint8_t * data, uint32_t n )
 {
     rc_t rc = 0;
-    uint32_t i;
-    p_dump_str s = &( def -> content );
-    bool translate = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct );
-
-    if ( src -> in_hex )
+    if ( n > 0 )
     {
-        if ( 1 == n )
-        {
-            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ 0 ] );
-        }
-        else if ( n > 1 )
-        {
-            for ( i = 0; 0 == rc && i < n - 1; ++i )
-            {
-                rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X, ", data[ i ] );
-            }
-            if ( 0 == rc )
-            {
-                rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ n - 1 ] );
-            }
+        p_dump_str s = &( def -> content );
 
-        }
-    }
-    else if ( translate )
-    {
-        if ( 1 == n )
+        if ( src -> in_hex )
         {
-            const char *txt = def -> value_trans_fct( ( uint32_t )data[ 0 ] );
-            rc = vds_append_str( s, txt );
-        }
-        else if ( n > 0 )
-        {
-            for ( i = 0; 0 == rc && i < n - 1; ++i )
+            if ( 1 == n )
             {
-                const char *txt = def -> value_trans_fct( ( uint32_t )data[ i ] );
-                rc = vds_append_str( s, txt );
+                rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ 0 ] );
+            }
+            else
+            {
+                uint32_t i;
+                for ( i = 0; 0 == rc && i < n - 1; ++i )
+                {
+                    rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X, ", data[ i ] );
+                }
                 if ( 0 == rc )
                 {
-                    rc = vds_append_str( s, ", " );
+                    rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ n - 1 ] );
+                }
+
+            }
+        }
+        else
+        {
+            if ( src -> perform_translation )
+            {
+                if ( 1 == n )
+                {
+                    const char *txt = def -> value_trans_fct( ( uint32_t )data[ 0 ] );
+                    rc = vds_append_str( s, txt );
+                }
+                else
+                {
+                    uint32_t i;
+                    for ( i = 0; 0 == rc && i < n - 1; ++i )
+                    {
+                        const char *txt = def -> value_trans_fct( ( uint32_t )data[ i ] );
+                        rc = vds_append_str( s, txt );
+                        if ( 0 == rc )
+                        {
+                            rc = vds_append_str( s, ", " );
+                        }
+                    }
+                    if ( 0 == rc )
+                    {
+                        const char *txt = def -> value_trans_fct( ( uint32_t )data[ n - 1 ] );
+                        rc = vds_append_str( s, txt );
+                    }
                 }
             }
-            if ( 0 == rc )
+            else
             {
-                const char *txt = def -> value_trans_fct( ( uint32_t )data[ n - 1 ] );
-                rc = vds_append_str( s, txt );
-            }
-        }
-    }
-    else
-    {
-        if ( 1 == n )
-        {
-            rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%u", data[ 0 ] );            
-        }
-        else if ( n > 0 )
-        {
-            for ( i = 0; 0 == rc && i < n - 1; ++i )
-            {
-                rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%u, ", data[ i ] );
-            }
-            if ( 0 == rc )
-            {
-                rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%u", data[ n - 1 ] );
+                if ( 1 == n )
+                {
+                    rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%u", data[ 0 ] );            
+                }
+                else
+                {
+                    uint32_t i;                    
+                    for ( i = 0; 0 == rc && i < n - 1; ++i )
+                    {
+                        rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%u, ", data[ i ] );
+                    }
+                    if ( 0 == rc )
+                    {
+                        rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%u", data[ n - 1 ] );
+                    }
+                }
             }
         }
     }
@@ -835,10 +842,80 @@ static rc_t vdt_dump_cell_bb_uint8_slice( const p_dump_src src, const p_col_def 
 static rc_t vdt_dump_cell_bb_int8_slice( const p_dump_src src, const p_col_def def, const int8_t * data, uint32_t n )
 {
     rc_t rc = 0;
-    uint32_t i;
-    p_dump_str s = &( def -> content );
+    if ( n > 0 )
+    {
+        p_dump_str s = &( def -> content );
 
-    return 0;
+        if ( src -> in_hex )
+        {
+            if ( 1 == n )
+            {
+                rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ 0 ] );
+            }
+            else
+            {
+                uint32_t i;
+                for ( i = 0; 0 == rc && i < n - 1; ++i )
+                {
+                    rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X, ", data[ i ] );
+                }
+                if ( 0 == rc )
+                {
+                    rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ n - 1 ] );
+                }
+            }
+        }
+        else
+        {
+            if ( src -> perform_translation )
+            {
+                if ( 1 == n )
+                {
+                    const char *txt = def -> value_trans_fct( ( uint32_t )data[ 0 ] );
+                    rc = vds_append_str( s, txt );
+                }
+                else
+                {
+                    uint32_t i;
+                    for ( i = 0; 0 == rc && i < n - 1; ++i )
+                    {
+                        const char *txt = def -> value_trans_fct( ( uint32_t )data[ i ] );
+                        rc = vds_append_str( s, txt );
+                        if ( 0 == rc )
+                        {
+                            rc = vds_append_str( s, ", " );
+                        }
+                    }
+                    if ( 0 == rc )
+                    {
+                        const char *txt = def -> value_trans_fct( ( uint32_t )data[ n - 1 ] );
+                        rc = vds_append_str( s, txt );
+                    }
+                }
+            }
+            else
+            {
+                if ( 1 == n )
+                {
+                    rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%d", data[ 0 ] );
+                }
+                else
+                {
+                    uint32_t i;                    
+                    for ( i = 0; 0 == rc && i < n - 1; ++i )
+                    {
+                        rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%d, ", data[ i ] );
+                    }
+                    if ( 0 == rc )
+                    {
+                        rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%d", data[ n - 1 ] );
+                    }
+                }
+            }
+        }
+        
+    }
+    return rc;
 }
 
 static rc_t vdt_dump_cell_bb_uint16_slice( const p_dump_src src, const p_col_def def, const uint16_t * data, uint32_t n )
@@ -1139,6 +1216,10 @@ rc_t vdt_dump_cell_v2( const p_dump_src src, const p_col_def def )
          * it always seems to be...
          */
         bool on_byte_boundary = ( 0 == ofs && ( 8 == bits || 16 == bits || 32 == bits || 64 == bits ) );
+        
+        /* precompute this setting to prevent it from computed later in the detailed functions */
+        src -> perform_translation = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct );
+        
         if ( on_byte_boundary )
         {
             rc = vdt_dump_cell_bb_v2( src, def );

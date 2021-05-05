@@ -1969,6 +1969,11 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
             if (rd == 0)
                 break;
             RELEASE ( VPath, vremote );
+            if (rd != 0 && vdbcache != NULL) {
+                if (rc == 0)
+                    rc = rd;
+                break;
+            }
         }
         RELEASE(KSrvRespFileIterator, fi);
     }

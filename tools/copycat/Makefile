@@ -92,7 +92,7 @@ COPYCAT_LIB = \
 	-stk-version \
 	-sncbi-vdb \
 	-skff \
-	-smagic-static
+	-smagic
 
 
 $(BINDIR)/copycat: $(COPYCAT_OBJ)

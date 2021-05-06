@@ -176,6 +176,8 @@ OptDef DumpOptions[] =
     { OPTION_APPEND,                ALIAS_APPEND,             NULL, append_usage,            1, false,  false },
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
+    { OPTION_CELL_DEBUG,            NULL,                     NULL, NULL,                    1, false,  false },
+    { OPTION_CELL_V1,               NULL,                     NULL, NULL,                    1, false,  false },
     { OPTION_NGC,                   NULL,                     NULL, ngc_usage,               1, true,   false }
 };
 
@@ -374,7 +376,16 @@ static void CC vdm_read_cell_data( void *item, void *data )
         }
         else
         {
-            r_ctx -> rc = vdt_dump_cell( &src, col_def ); /* split base on output-formats is in vdb-dump-tools.c */
+            if ( r_ctx -> ctx -> cell_v1 )
+            {
+                /* the version1 ( legacy ) of cell-formatting ( for comparison ) in vdb-dump-tools.c */
+                r_ctx -> rc = vdt_format_cell_v1( &src, col_def, r_ctx -> ctx -> cell_debug );
+            }
+            else
+            {
+                /* the version2 of cell-formatting: faster, correct json in vdb-dump-tools.c */
+                r_ctx -> rc = vdt_format_cell_v2( &src, col_def, r_ctx -> ctx -> cell_debug );
+            }
         }
     }
 }

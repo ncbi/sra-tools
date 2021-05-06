@@ -56,9 +56,9 @@ typedef struct dump_src
 } dump_src;
 typedef dump_src* p_dump_src;
 
-rc_t vdt_dump_cell( const p_dump_src src, const p_col_def def );
+rc_t vdt_format_cell_v1( const p_dump_src src, const p_col_def def, bool cell_debug );
 
-rc_t vdt_dump_cell_v2( const p_dump_src src, const p_col_def def );
+rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_debug );
 
 void vdm_clear_recorded_errors( void );
 

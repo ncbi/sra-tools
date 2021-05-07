@@ -60,12 +60,6 @@ rc_t vdt_format_cell_v1( const p_dump_src src, const p_col_def def, bool cell_de
 
 rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_debug );
 
-void vdm_clear_recorded_errors( void );
-
-rc_t check_table_empty( const VTable * tab );
-
-rc_t open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab );
-
 #ifdef __cplusplus
 }
 #endif

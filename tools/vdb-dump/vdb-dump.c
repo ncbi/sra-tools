@@ -756,7 +756,7 @@ static rc_t vdm_dump_opened_database( const p_dump_context ctx,
                                       const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
         rc = vdm_dump_opened_table( ctx, tbl );
@@ -859,10 +859,10 @@ static rc_t vdm_show_tab_spread( const p_dump_context ctx,
 static rc_t vdm_show_db_spread( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_show_tab_spread( ctx, tbl );
+        rc = vdm_show_tab_spread( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -947,10 +947,10 @@ static rc_t vdm_dump_db_schema( const p_dump_context ctx, const VDatabase *db )
     {
         /* the user has given a database as object, but asks to inspect a given table */
         const VTable *tbl;
-        rc = open_table_by_path( db, ctx -> table, &tbl );
+        rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
         if ( 0 == rc )
         {
-            rc = vdm_dump_tab_schema( ctx, tbl );
+            rc = vdm_dump_tab_schema( ctx, tbl ); /* above */
             {
                 rc_t rc2 = VTableRelease( tbl );
                 DISP_RC( rc2, "VTableRelease() failed" );
@@ -1554,7 +1554,7 @@ db    [IN] ... open database needed for vdb-calls
 static rc_t vdm_enum_db_columns( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
         rc = vdm_enum_tab_columns( ctx, tbl );
@@ -1642,10 +1642,10 @@ db    [IN] ... open database needed for vdb-calls
 static rc_t vdm_print_db_id_range( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_print_tab_id_range( ctx, tbl );
+        rc = vdm_print_tab_id_range( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -1769,10 +1769,10 @@ static rc_t vdm_enum_tab_index( const p_dump_context ctx, const VTable *tbl )
 static rc_t vdm_enum_db_index( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_enum_tab_index( ctx, tbl );
+        rc = vdm_enum_tab_index( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -1834,10 +1834,10 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *tbl )
 static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_range_tab_index( ctx, tbl );
+        rc = vdm_range_tab_index( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -1890,7 +1890,7 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *tbl
                                 if ( 0 != rc )
                                 {
                                     ErrMsg( "KMDataNodeReadAsU64() -> %R", rc );
-                                    vdm_clear_recorded_errors();
+                                    vdh_clear_recorded_errors();
                                 }
                                 else
                                 {
@@ -1954,10 +1954,10 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *tbl
 static rc_t vdm_show_db_spotgroups( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_show_tab_spotgroups( ctx, tbl );
+        rc = vdm_show_tab_spotgroups( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -2004,7 +2004,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
             ErrMsg( "VDBManagerOpenTableReadVPath( '%R' ) -> %R", ctx->path, rc );
         else
         {
-            rc = check_table_empty( tbl );
+            rc = vdh_check_table_empty( tbl );
             if ( 0 == rc )
             {
                 rc = tab_fkt( ctx, tbl ); /* fkt-pointer is called */
@@ -2075,7 +2075,7 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *mgr )
         else if ( ctx -> table_enum_requested )
         {
             KOutMsg( "cannot enum tables of a table-object\n" );
-            vdm_clear_recorded_errors();
+            vdh_clear_recorded_errors();
             return 0;
         }
         else if ( enum_col_request( ctx ) )
@@ -2177,7 +2177,7 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
                     if not try with a sub-string */
                     String value;
                     StringInitCString( &value, ctx -> table );
-                    if ( !list_contains_value( tbl_names, &value ) )
+                    if ( !vdh_list_contains_value( tbl_names, &value ) ) /* vdb-dump-helper.c */
                     {
                         vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
                     }

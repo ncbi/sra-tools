@@ -35,27 +35,44 @@ extern "C" {
 #include <klib/defs.h>
 #endif
 
-#include <klib/out.h>
+#ifndef _h_klib_rc_
 #include <klib/rc.h>
+#endif
+
+#ifndef _h_klib_vector_
 #include <klib/vector.h>
+#endif
+
+#ifndef _h_klib_text_
 #include <klib/text.h>
+#endif
 
-#include <vfs/manager.h>
+#ifndef _h_vfs_path_
 #include <vfs/path.h>
-#include <vfs/resolver.h>
+#endif
 
+#ifndef _h_vdb_manager_
 #include <vdb/manager.h>
-#include <vdb/table.h>
-#include <vdb/cursor.h>
-#include <vdb/database.h>
-#include <vdb/schema.h>
+#endif
 
-#include <sra/sraschema.h>
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_database_
+#include <vdb/database.h>
+#endif
+
+#ifndef _h_vdb_schema_
+#include <vdb/schema.h>
+#endif
+
 
 #include "vdb-dump-context.h"
 #include "vdb-dump-coldefs.h"
 
-#define DISP_RC(rc,err) (void)((0 == rc) ? 0 : LOGERR( klogInt, rc, err ))
+#define DISP_RC(rc,err) \
+    (void)((0 == rc) ? 0 : LOGERR( klogInt, rc, err ))
 
 #define DISP_RC2(rc,err,succ) \
     (void)((rc != 0)? 0 : (succ) ? LOGMSG( klogInfo, succ ) : LOGERR( klogInt, rc, err ))
@@ -76,7 +93,7 @@ bool vdh_is_path_column( const VDBManager *my_manager, const char *path,
 bool vdh_is_path_database( const VDBManager *my_manager, const char *path,
                            Vector *schema_list );
 
-bool list_contains_value( const KNamelist * list, const String * value );
+bool vdh_list_contains_value( const KNamelist * list, const String * value );
 
 bool vdh_take_1st_table_from_db( dump_context *ctx, const KNamelist *tbl_names );
 
@@ -90,17 +107,18 @@ rc_t vdh_print_col_info( dump_context *ctx,
                          const p_col_def col_def,
                          const VSchema *my_schema );
 
-rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_size );
-rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely );
-rc_t resolve_cache( const char * accession, char * dst, size_t dst_size );
-rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache );
-
-int32_t index_of_match( const String * word, uint32_t num, ... );
-void destroy_String_vector( Vector * v );
-uint32_t copy_String_2_vector( Vector * v, const String * S );
-uint32_t split_buffer( Vector * v, const String * S, const char * delim );
+rc_t vdh_resolve_remote_accession( const char * accession, char * dst, size_t dst_size );
+rc_t vdh_resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely );
+rc_t vdh_resolve_cache( const char * accession, char * dst, size_t dst_size );
+rc_t vdh_check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache );
 
 rc_t vdh_path_to_vpath( const char * path, VPath ** vpath );
+
+void vdh_clear_recorded_errors( void );
+
+rc_t vdh_check_table_empty( const VTable * tab );
+
+rc_t vdh_open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab );
 
 #ifdef __cplusplus
 }

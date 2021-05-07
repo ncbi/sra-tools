@@ -35,9 +35,13 @@ extern "C" {
 #include <klib/defs.h>
 #endif
 
-#include "vdb-dump-coldefs.h"
+#ifndef _h_vdb_dump_coldefs_
+#include "vdb-dump-coldefs.h" /* because of p_col_def */
+#endif
+
+#ifndef _h_vdb_dump_context_
 #include "vdb-dump-context.h" /* because of dump_format_t */
-#include "vdb-dump-str.h"
+#endif
 
 typedef struct dump_src
 {

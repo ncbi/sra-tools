@@ -28,7 +28,6 @@
 #include "vdb-dump-str.h"
 #include "vdb-dump-helper.h"
 
-#include <vdb/schema.h>
 #include <klib/printf.h>
 #include <klib/rc.h>
 #include <klib/pack.h>
@@ -113,58 +112,33 @@ typedef struct bit_iter
 typedef bit_iter* p_bit_iter;
 
 #define MACRO_GET( DATA_TYPE ) \
-    DATA_TYPE res; \
+    DATA_TYPE res = 0; \
     const uint8_t * p = iter -> buf + BYTE_OFFSET( iter -> bit_offset ); \
-    bitcpy ( &res, 0, p, BIT_OFFSET( iter -> bit_offset ), sizeof res ); \
-    iter -> bit_offset += sizeof( res ); \
+    bitcpy ( &res, 0, p, BIT_OFFSET( iter -> bit_offset ), num_bits ); \
+    iter -> bit_offset += num_bits; \
     return res;
 
-static uint8_t vdt_get_u8( p_bit_iter iter )
+static uint8_t vdt_get_u8( p_bit_iter iter, uint8_t num_bits )
 {
     MACRO_GET( uint8_t )
 }
 
-static int8_t vdt_get_i8( p_bit_iter iter )
-{
-    MACRO_GET( int8_t )
-}
-
-static uint16_t vdt_get_u16( p_bit_iter iter )
-{
-    MACRO_GET( uint16_t )
-}
-
-static int16_t vdt_get_i16( p_bit_iter iter )
-{
-    MACRO_GET( int16_t )
-}
-
-static uint32_t vdt_get_u32( p_bit_iter iter )
-{
-    MACRO_GET( uint32_t )
-}
-
-static int32_t vdt_get_i32( p_bit_iter iter )
-{
-    MACRO_GET( int32_t )
-}
-
-static uint64_t vdt_get_u64( p_bit_iter iter )
+static uint64_t vdt_get_u64( p_bit_iter iter, uint8_t num_bits )
 {
     MACRO_GET( uint64_t )
 }
 
-static int64_t vdt_get_i64( p_bit_iter iter )
+static int64_t vdt_get_i64( p_bit_iter iter, uint8_t num_bits )
 {
     MACRO_GET( int64_t )
 }
 
-static float vdt_get_f32( p_bit_iter iter )
+static float vdt_get_f32( p_bit_iter iter, uint8_t num_bits )
 {
     MACRO_GET( float )
 }
 
-static double vdt_get_f64( p_bit_iter iter )
+static double vdt_get_f64( p_bit_iter iter, uint8_t num_bits )
 {
     MACRO_GET( double )
 }
@@ -743,76 +717,6 @@ rc_t vdt_format_cell_v1( const p_dump_src src, const p_col_def def, bool cell_de
 
 /* ================================================================================= */
 
-/* not on a byte-boundary: rare event! 1 dimensional array, default format */
-static rc_t vdt_format_cell_nbb_dim1_dflt_v2( const p_dump_src src, const p_col_def def )
-{
-    rc_t rc = 0;
-    
-    return rc;
-}
-
-/* not on a byte-boundary: rare event! 1 dimensional array, json format */
-static rc_t vdt_format_cell_nbb_dim1_json_v2( const p_dump_src src, const p_col_def def )
-{
-    return vdt_format_cell_nbb_dim1_dflt_v2( src, def ); /* for now... */
-}
-
-/* not on a byte-boundary: rare event! 1 dimensional array, xml format */
-static rc_t vdt_format_cell_nbb_dim1_xml_v2( const p_dump_src src, const p_col_def def )
-{
-    return vdt_format_cell_nbb_dim1_dflt_v2( src, def ); /* for now... */
-}
-
-
-/* not on a byte-boundary: rare event! 2 dimensional array, default format */
-static rc_t vdt_format_cell_nbb_dim2_dflt_v2( const p_dump_src src, const p_col_def def )
-{
-    rc_t rc = 0;
-    
-    return rc;
-}
-
-/* not on a byte-boundary: rare event! 2 dimensional array, json format */
-static rc_t vdt_format_cell_nbb_dim2_json_v2( const p_dump_src src, const p_col_def def )
-{
-    return vdt_format_cell_nbb_dim2_dflt_v2( src, def ); /* for now... */
-}
-
-/* not on a byte-boundary: rare event! 2 dimensional array, xml format */
-static rc_t vdt_format_cell_nbb_dim2_xml_v2( const p_dump_src src, const p_col_def def )
-{
-    return vdt_format_cell_nbb_dim2_dflt_v2( src, def ); /* for now... */
-}
-
-
-static rc_t vdt_format_cell_nbb_v2( const p_dump_src src, const p_col_def def )
-{
-    rc_t rc = 0;
-    if ( 1 == def -> type_desc . intrinsic_dim )
-    {
-        /* and we have a 1-dimensional array of data */
-        switch ( src -> output_format )
-        {
-            case df_json : rc = vdt_format_cell_nbb_dim1_json_v2( src, def ); break;
-            case df_xml  : rc = vdt_format_cell_nbb_dim1_xml_v2( src, def ); break;
-            default      : rc = vdt_format_cell_nbb_dim1_dflt_v2( src, def ); break;
-        }
-    }
-    else
-    {
-        /* and we have a 2-dimensional array of data ( dim is the group-size! ) */
-        switch ( src -> output_format )
-        {
-            case df_json : rc = vdt_format_cell_nbb_dim2_json_v2( src, def ); break;
-            case df_xml  : rc = vdt_format_cell_nbb_dim2_xml_v2( src, def ); break;
-            default      : rc = vdt_format_cell_nbb_dim2_dflt_v2( src, def ); break;
-        }
-    }
-    return rc;
-}
-
-/* --------------------------------------------------------------------------------- */
-
 const char * bool_true_1      = "1";
 const char * bool_false_1     = "0";
 const char * bool_true_T      = "T";
@@ -820,46 +724,314 @@ const char * bool_false_T     = "F";
 const char * bool_true_dflt   = "true";
 const char * bool_false_dflt  = "false";
 
-static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def, const uint8_t * data, uint32_t n )
+static void vdb_get_bool_strings( char c_boolean, const char ** s_true, const char ** s_false )
 {
-    rc_t rc = 0;
-    uint32_t i;
-    p_dump_str s = &( def -> content );
-    const char * bt_true  = bool_true_dflt;
-    const char * bt_false = bool_false_dflt;    
-    switch( src -> c_boolean )
+    *s_true  = bool_true_dflt;
+    *s_false = bool_false_dflt;    
+    switch( c_boolean )
     {
-        case '1' :  bt_true = bool_true_1; bt_false = bool_false_1; break;
-        case 'T' :  bt_true = bool_true_T; bt_false = bool_false_T; break;
+        case '1' :  *s_true = bool_true_1; *s_false = bool_false_1; break;
+        case 'T' :  *s_true = bool_true_T; *s_false = bool_false_T; break;
     }
-
-    for ( i = 0; 0 == rc && i < n; ++i )
-    {
-        rc = vds_append_str( s, 0 == data[ i ] ? bt_false : bt_true );
-    }
-    return rc;
 }
 
-#define MACRO_IN_HEX( FMT1, FMT2 ) \
+/* --------------------------------------------------------------------------------- */
+
+#define MACRO_IN_HEX \
+    uint64_t value; \
     if ( 1 == n ) \
     { \
-        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ 0 ] ); \
+        value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX", value ); \
     } \
     else \
     { \
         uint32_t i; \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
-            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X, ", data[ i ] ); \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX, ", value ); \
         } \
         if ( 0 == rc ) \
         { \
-            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%X", data[ n - 1 ] ); \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX", value ); \
+        } \
+    }
+
+static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
+    {
+        MACRO_IN_HEX
+    }
+    else
+    {
+        const char * bt_true;
+        const char * bt_false;    
+
+        vdb_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
+        for ( i = 0; 0 == rc && i < n; ++i )
+        {
+            uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
+            rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
+        }
+    }
+    return rc;
+}
+
+#define MACRO_TRANSLATE( DATA_TYPE, GETTER_FUNC ) \
+    if ( 1 == n ) \
+    { \
+        DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+        const char *txt = def -> value_trans_fct( ( uint32_t )value ); \
+        rc = vds_append_str( s, txt ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            const char *txt = def -> value_trans_fct( ( uint32_t )value ); \
+            rc = vds_append_str( s, txt ); \
+            if ( 0 == rc ) \
+            { \
+                rc = vds_append_str( s, ", " ); \
+            } \
+        } \
+        if ( 0 == rc ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            const char *txt = def -> value_trans_fct( ( uint32_t )value ); \
+            rc = vds_append_str( s, txt ); \
+        } \
+    }
+
+#define MACRO_PRINT( DATA_TYPE, GETTER_FUNC, FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, value ); \
+    } \
+    else \
+    { \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, value ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, value ); \
+        } \
+    }
+
+static rc_t vdt_format_slice_nbb_unsig( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
+    {
+        MACRO_IN_HEX
+    }
+    else if ( src -> perform_translation )
+    {
+        MACRO_TRANSLATE( uint64_t, vdt_get_u64 )
+    }
+    else
+    {
+        MACRO_PRINT( uint64_t, vdt_get_u64, "%lu", "%lu, " )
+    }
+    return rc;
+}
+
+static rc_t vdt_format_slice_nbb_sig( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
+    {
+        MACRO_IN_HEX
+    }
+    else if ( src -> perform_translation )
+    {
+        MACRO_TRANSLATE( uint64_t, vdt_get_u64 )
+    }
+    else
+    {
+        MACRO_PRINT( int64_t, vdt_get_i64, "%lu", "%lu, " )
+    }
+    return rc;
+}
+
+/* here the bit-size should be only 32-bit or 64-bit, but we are not on a byte-boundary */
+static rc_t vdt_format_slice_nbb_float( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
+    {
+        MACRO_IN_HEX
+    }
+    else
+    {
+        if ( 32 == def -> type_desc . intrinsic_bits )
+        {
+            MACRO_PRINT( float, vdt_get_f32, "%e", "%e, " )
+        }
+        else if ( 64 == def -> type_desc . intrinsic_bits )
+        {
+            MACRO_PRINT( double, vdt_get_f64, "%e", "%e, " )            
+        }
+        else
+        {
+            /* this should not happen... */
+        }
+    }
+    return rc;
+}
+
+/* here the bit-size should be only 8-bit, but we are not on a byte-boundary */
+static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+
+    if ( src -> in_hex )
+    {
+        MACRO_IN_HEX
+    }
+    else
+    {
+        if ( def -> type_desc . intrinsic_bits < 9 )
+        {
+            for ( i = 0; 0 == rc && i < n; ++i )
+            {
+                uint8_t value = vdt_get_u8( bi, def -> type_desc . intrinsic_bits );
+                rc = vds_append_fmt( s, 4, "%c", value );
+            }
+        }
+        else
+        {
+            /* this should not happen... */
+        }
+    }
+    return rc;
+}
+
+#undef MACRO_IN_HEX
+#undef MACRO_TRANSLATE
+#undef MACRO_PRINT
+
+static rc_t vdt_format_slice_nbb( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    switch( def -> type_desc . domain )
+    {
+        /* boolean */
+        case 1 : return vdt_format_slice_nbb_bool( src, def, bi, n ); break;
+        
+        /* unsigned integers */
+        case 2 : return vdt_format_slice_nbb_unsig( src, def, bi, n ); break;
+        
+        /* signed integers */
+        case 3 : return vdt_format_slice_nbb_sig( src, def, bi, n ); break;
+        
+        /* floats */
+        case 4 : return vdt_format_slice_nbb_float( src, def, bi, n ); break;
+
+        /* text */
+        case 5 :
+        case 6 : return vdt_format_slice_nbb_ascii( src, def, bi, n ); break;
+
+        default : /* this should not be reached - we checked before !*/ break;
+    }
+    return 0;
+}
+
+static rc_t vdt_format_cell_nbb_dim1_v2( const p_dump_src src, const p_col_def def )
+{
+    uint32_t n = src -> number_of_elements;
+    bit_iter bi = { src -> buf, src -> offset_in_bits };
+    return vdt_format_slice_nbb( src, def, &bi, n );
+}
+
+static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    uint32_t dim = def -> type_desc . intrinsic_dim;
+    uint32_t n = src -> number_of_elements;
+    bit_iter bi = { src -> buf, src -> offset_in_bits };
+    uint32_t group;
+
+    for ( group = 0; 0 == rc && group < n; ++group )
+    {
+        rc = vds_append_str( &( def -> content ), "[" );
+        if ( 0 == rc )
+        {
+            rc = vdt_format_slice_nbb( src, def, &bi, dim );
+        }
+        if ( 0 == rc )
+        {
+            rc = vds_append_str( &( def -> content ), group < n - 1 ? "], " : "]" );
+        }
+    }
+    return rc;
+}
+
+/* --------------------------------------------------------------------------------- */
+
+#define MACRO_IN_HEX( FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ 0 ] ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, data[ i ] ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ n - 1 ] ); \
         } \
     }
 
 #define MACRO_IN_HEX_SHORT MACRO_IN_HEX( "0x%X", "0x%X, " )
 #define MACRO_IN_HEX_LONG  MACRO_IN_HEX( "0x%lX", "0x%lX, " )
+
+static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def, const uint8_t * data, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+
+    if ( src -> in_hex )
+    {
+        MACRO_IN_HEX_SHORT
+    }
+    else
+    {
+        const char * bt_true;
+        const char * bt_false;    
+        vdb_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
+        for ( i = 0; 0 == rc && i < n; ++i )
+        {
+            rc = vds_append_str( s, 0 == data[ i ] ? bt_false : bt_true );
+        }
+    }
+    return rc;
+}
 
 #define MACRO_TRANSLATE \
     if ( 1 == n ) \
@@ -889,18 +1061,18 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
 #define MACRO_PRINT( RESERVE, FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
-        rc = vds_append_fmt( s, RESERVE, "%u", data[ 0 ] ); \
+        rc = vds_append_fmt( s, RESERVE, FMT1, data[ 0 ] ); \
     } \
     else \
     { \
         uint32_t i; \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
-            rc = vds_append_fmt( s, RESERVE, "%u, ", data[ i ] ); \
+            rc = vds_append_fmt( s, RESERVE, FMT2, data[ i ] ); \
         } \
         if ( 0 == rc ) \
         { \
-            rc = vds_append_fmt( s, RESERVE, "%u", data[ n - 1 ] ); \
+            rc = vds_append_fmt( s, RESERVE, FMT1, data[ n - 1 ] ); \
         } \
     }
 
@@ -1258,7 +1430,7 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             
             if ( on_byte_boundary )
             {
-                /* on a byte-boundary: the common-case */
+                /* on a byte-boundary, bit-size is 8 or 16 or 32 or 64 : the common case */
                 if ( 1 == dim )
                 {
                     /* the cell is a 1-dimensional vector of elements ... */
@@ -1272,8 +1444,17 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             }    
             else
             {
-                /* NOT on a byte-boundary: the rare-case */
-                rc = vdt_format_cell_nbb_v2( src, def );            
+                /* NOT on a byte-boundary, or bit-size is NOT 8 or 16 or 32 or 64 : the rare case */
+                if ( 1 == dim )
+                {
+                    /* the cell is a 1-dimensional vector of elements ... */
+                    rc = vdt_format_cell_nbb_dim1_v2( src, def );
+                }
+                else
+                {
+                    /* the cell is a 2-dimensional vector of elements ... */
+                    rc = vdt_format_cell_nbb_dim2_v2( src, def );
+                }
             }
         }
         else

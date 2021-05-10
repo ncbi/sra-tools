@@ -484,7 +484,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
                             if ( !r_ctx -> ctx -> sum_num_elem )
                             {
                                 /* in vdb-dump-formats.c */
-                                r_ctx -> rc = vdfo_print_row( r_ctx );
+                                r_ctx -> rc = vdfo_print_row( r_ctx, false );
                                 if ( 0 != r_ctx -> rc )
                                 {
                                     vdm_row_error( "vdfo_print_row( row#$(row_nr) ) failed", 
@@ -510,7 +510,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
             VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_print_elem_sum, r_ctx );
             if ( 0 == r_ctx -> rc )
             {
-                r_ctx -> rc = vdfo_print_row( r_ctx );
+                r_ctx -> rc = vdfo_print_row( r_ctx, true /* always the last (because the only ) row */ );
                 DISP_RC( r_ctx -> rc, "vdm_dump_rows().vdfo_print_row() failed" );
             }
         }

@@ -989,7 +989,33 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
 
 /* --------------------------------------------------------------------------------- */
 
-#define MACRO_IN_HEX( FMT1, FMT2 ) \
+#define MACRO_IN_HEX_JSON( FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ 0 ] ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        if ( brackets ) \
+        { \
+           rc = vds_append_str( s, "[" ); \
+        } \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, data[ i ] ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ n - 1 ] ); \
+        } \
+        if ( 0 == rc && brackets ) \
+        { \
+           rc = vds_append_str( s, "]" ); \
+        } \
+    }
+
+#define MACRO_IN_HEX_DFLT( FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
         rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ 0 ] ); \
@@ -1007,10 +1033,28 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
         } \
     }
 
-#define MACRO_IN_HEX_SHORT MACRO_IN_HEX( "0x%X", "0x%X, " )
-#define MACRO_IN_HEX_LONG  MACRO_IN_HEX( "0x%lX", "0x%lX, " )
+#define MACRO_IN_HEX_SHORT \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_IN_HEX_JSON( "\"0x%X\"", "\"0x%X\", " ) \
+    } \
+    else \
+    { \
+        MACRO_IN_HEX_DFLT( "0x%X", "0x%X, " ) \
+    }
 
-static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def, const uint8_t * data, uint32_t n )
+#define MACRO_IN_HEX_LONG \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_IN_HEX_JSON( "\"0x%lX\"", "\"0x%lX\", " ) \
+    } \
+    else \
+    { \
+        MACRO_IN_HEX_DFLT( "0x%lX", "0x%lX, " ) \
+    }
+
+static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
+                                      const uint8_t * data, uint32_t n, bool brackets )
 {
     rc_t rc = 0;
     uint32_t i;
@@ -1033,7 +1077,33 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
     return rc;
 }
 
-#define MACRO_TRANSLATE \
+#define MACRO_TRANSLATE_JSON \
+    if ( 1 == n ) \
+    { \
+        const char *txt = def -> value_trans_fct( ( uint32_t )data[ 0 ] ); \
+        size_t txt_len = string_size( txt ) ;\
+        rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        rc = vds_append_str( s, "[" ); \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            const char *txt = def -> value_trans_fct( ( uint32_t )data[ i ] ); \
+            size_t txt_len = string_size( txt ) ;\
+            rc = vds_append_fmt( s, txt_len + 5, "\"%s\", ", txt ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            const char *txt = def -> value_trans_fct( ( uint32_t )data[ n - 1 ] ); \
+            size_t txt_len = string_size( txt ) ;\
+            rc = vds_append_fmt( s, txt_len + 4, "\"%s\"]", txt ); \
+        } \
+    }
+
+
+#define MACRO_TRANSLATE_DFLT \
     if ( 1 == n ) \
     { \
         const char *txt = def -> value_trans_fct( ( uint32_t )data[ 0 ] ); \
@@ -1045,11 +1115,8 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             const char *txt = def -> value_trans_fct( ( uint32_t )data[ i ] ); \
-            rc = vds_append_str( s, txt ); \
-            if ( 0 == rc ) \
-            { \
-                rc = vds_append_str( s, ", " ); \
-            } \
+            size_t txt_len = string_size( txt ); \
+            rc = vds_append_fmt( s, txt_len + 3, "%s, ", txt ); \
         } \
         if ( 0 == rc ) \
         { \
@@ -1058,7 +1125,44 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         } \
     }
 
-#define MACRO_PRINT( RESERVE, FMT1, FMT2 ) \
+
+#define MACRO_TRANSLATE \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_TRANSLATE_JSON \
+    } \
+    else \
+    { \
+        MACRO_TRANSLATE_DFLT \
+    }
+
+#define MACRO_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        rc = vds_append_fmt( s, RESERVE, FMT1, data[ 0 ] ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        if ( brackets ) \
+        { \
+            rc = vds_append_str( &( def -> content ), "[" ); \
+        } \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            rc = vds_append_fmt( s, RESERVE, FMT2, data[ i ] ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_fmt( s, RESERVE, FMT1, data[ n - 1 ] ); \
+        } \
+        if ( 0 == rc && brackets ) \
+        { \
+            rc = vds_append_str( &( def -> content ), "]" ); \
+        } \
+    }
+
+#define MACRO_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
         rc = vds_append_fmt( s, RESERVE, FMT1, data[ 0 ] ); \
@@ -1074,6 +1178,16 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         { \
             rc = vds_append_fmt( s, RESERVE, FMT1, data[ n - 1 ] ); \
         } \
+    }
+
+#define MACRO_PRINT( RESERVE, FMT1, FMT2 ) \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
+    } \
+    else \
+    { \
+        MACRO_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
     }
 
 #define MACRO_PRINT_SHORT( RESERVE, FMT1, FMT2 ) \
@@ -1111,57 +1225,68 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
     return rc;
 
     
-static rc_t vdt_format_slice_bb_u8( const p_dump_src src, const p_col_def def, const uint8_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_u8( const p_dump_src src, const p_col_def def,
+                                    const uint8_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
 }
 
-static rc_t vdt_format_slice_bb_i8( const p_dump_src src, const p_col_def def, const int8_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_i8( const p_dump_src src, const p_col_def def,
+                                    const int8_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
 }
 
-static rc_t vdt_format_slice_bb_u16( const p_dump_src src, const p_col_def def, const uint16_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_u16( const p_dump_src src, const p_col_def def,
+                                     const uint16_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
 }
 
-static rc_t vdt_format_slice_bb_i16( const p_dump_src src, const p_col_def def, const int16_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_i16( const p_dump_src src, const p_col_def def,
+                                     const int16_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
 }
 
-static rc_t vdt_format_slice_bb_u32( const p_dump_src src, const p_col_def def, const uint32_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_u32( const p_dump_src src, const p_col_def def,
+                                     const uint32_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
 }
 
-static rc_t vdt_format_slice_bb_i32( const p_dump_src src, const p_col_def def, const int32_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_i32( const p_dump_src src, const p_col_def def,
+                                     const int32_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
 }
 
-static rc_t vdt_format_slice_bb_u64( const p_dump_src src, const p_col_def def, const uint64_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_u64( const p_dump_src src, const p_col_def def,
+                                     const uint64_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%lu", "%lu, " )
 }
 
-static rc_t vdt_format_slice_bb_i64( const p_dump_src src, const p_col_def def, const int64_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_i64( const p_dump_src src, const p_col_def def,
+                                     const int64_t * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%ld", "%ld, " )
 }
 
-static rc_t vdt_format_slice_bb_f32( const p_dump_src src, const p_col_def def, const float * data, uint32_t n )
+static rc_t vdt_format_slice_bb_f32( const p_dump_src src, const p_col_def def,
+                                     const float * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_SHORT( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
 }
 
-static rc_t vdt_format_slice_bb_f64( const p_dump_src src, const p_col_def def, const double * data, uint32_t n )
+static rc_t vdt_format_slice_bb_f64( const p_dump_src src, const p_col_def def,
+                                     const double * data, uint32_t n, bool brackets )
 {
     MACRO_PRINT_LONG( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
 }
 
-static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def, const uint8_t * data, uint32_t n )
+static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def,
+                                       const uint8_t * data, uint32_t n, bool brackets )
 {
     rc_t rc = 0;
     p_dump_str s = &( def -> content );
@@ -1171,7 +1296,14 @@ static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def
     }
     else
     {
-        rc = vds_append_fmt( s, n, "%.*s", n, data );
+        if ( df_json == src -> output_format )
+        {
+            rc = vds_append_fmt( s, n, "\"%.*s\"", n, data );
+        }
+        else
+        {
+            rc = vds_append_fmt( s, n, "%.*s", n, data );
+        }
     }
     return rc;
 }
@@ -1191,39 +1323,39 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
     switch( def -> type_desc . domain )
     {
         /* boolean */
-        case 1 : return vdt_format_slice_bb_bool( src, def, src -> buf, n ); break;
+        case 1 : return vdt_format_slice_bb_bool( src, def, src -> buf, n, true ); break;
         
         /* unsigned integers */
         case 2 : switch( def -> type_desc . intrinsic_bits )
                  {
-                    case  8 : return vdt_format_slice_bb_u8( src, def, src -> buf, n ); break;
-                    case 16 : return vdt_format_slice_bb_u16( src, def, src -> buf, n ); break;
-                    case 32 : return vdt_format_slice_bb_u32( src, def, src -> buf, n ); break;
-                    case 64 : return vdt_format_slice_bb_u64( src, def, src -> buf, n ); break;
+                    case  8 : return vdt_format_slice_bb_u8( src, def, src -> buf, n, true ); break;
+                    case 16 : return vdt_format_slice_bb_u16( src, def, src -> buf, n, true ); break;
+                    case 32 : return vdt_format_slice_bb_u32( src, def, src -> buf, n, true ); break;
+                    case 64 : return vdt_format_slice_bb_u64( src, def, src -> buf, n, true ); break;
                  }
                  break;
         
         /* signed integers */
         case 3 : switch( def -> type_desc . intrinsic_bits )
                  {
-                    case  8 : return vdt_format_slice_bb_i8( src, def, src -> buf, n ); break;
-                    case 16 : return vdt_format_slice_bb_i16( src, def, src -> buf, n ); break;
-                    case 32 : return vdt_format_slice_bb_i32( src, def, src -> buf, n ); break;
-                    case 64 : return vdt_format_slice_bb_i64( src, def, src -> buf, n ); break;
+                    case  8 : return vdt_format_slice_bb_i8( src, def, src -> buf, n, true ); break;
+                    case 16 : return vdt_format_slice_bb_i16( src, def, src -> buf, n, true ); break;
+                    case 32 : return vdt_format_slice_bb_i32( src, def, src -> buf, n, true ); break;
+                    case 64 : return vdt_format_slice_bb_i64( src, def, src -> buf, n, true ); break;
                  }
                  break;
         
         /* floats */
         case 4 : switch( def -> type_desc . intrinsic_bits )
                  {
-                    case 32 : return vdt_format_slice_bb_f32( src, def, src -> buf, n ); break;
-                    case 64 : return vdt_format_slice_bb_f64( src, def, src -> buf, n ); break;
+                    case 32 : return vdt_format_slice_bb_f32( src, def, src -> buf, n, true ); break;
+                    case 64 : return vdt_format_slice_bb_f64( src, def, src -> buf, n, true ); break;
                  }
                  break;
 
         /* text */
         case 5 :
-        case 6 : return vdt_format_slice_bb_ascii( src, def, src -> buf, n ); break;
+        case 6 : return vdt_format_slice_bb_ascii( src, def, src -> buf, n, true ); break;
 
         default : /* this should not be reached - we checked before !*/ break;
     }
@@ -1236,18 +1368,26 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
     uint32_t n = src -> number_of_elements; \
     uint32_t group; \
     const DATA_TYPE * data = src -> buf; \
+    if ( df_json == src -> output_format ) \
+    { \
+        rc = vds_append_str( &( def -> content ), "[" ); \
+    } \
     for ( group = 0; 0 == rc && group < n; ++group ) \
     { \
         const DATA_TYPE * slice = &( data[ group * dim ] ); \
         rc = vds_append_str( &( def -> content ), "[" ); \
         if ( 0 == rc ) \
         { \
-            rc = SLICE_FUNC( src, def, slice, dim ); \
+            rc = SLICE_FUNC( src, def, slice, dim, false ); \
         } \
         if ( 0 == rc ) \
         { \
             rc = vds_append_str( &( def -> content ), group < n - 1 ? "], " : "]" ); \
         } \
+    } \
+    if ( 0 == rc && df_json == src -> output_format ) \
+    { \
+        rc = vds_append_str( &( def -> content ), "]" ); \
     } \
     return rc;
 
@@ -1460,7 +1600,12 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
         else
         {
             /* we need format-specific handling in case of json/xml for an empty cell */
-            
+            switch ( src -> output_format )
+            {
+                case df_json : rc = vds_append_str( &( def -> content ), "\"\"" ); break;
+                case df_xml  : break;
+                default      : break; /* nothing by default */
+            }
         }
     }
     return rc;

@@ -502,16 +502,18 @@ rc_t vdt_dump_dim_trans( const p_dump_src src, const p_col_def def,
                          const int dimension )
 {
     rc_t rc = 0;
-    char *s;
     uint8_t *sbuf = ( uint8_t * )src -> buf;
+    char trans_txt[ 512 ];
+    size_t written;
+    
     sbuf += ( src -> offset_in_bits >> 3 );
-    s = def -> dim_trans_fct( sbuf );
+    rc = def -> dim_trans_fct( trans_txt, sizeof trans_txt, &written, sbuf, src -> output_format );
     src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * dimension );
-    rc = vds_append_str( &( def -> content ), s );
-    DISP_RC( rc, "dump_str_append_str() failed" );
-    /* we have to free, because dim_trans_fct()
-       makes the string dynamically */
-    free( s );
+    if ( 0 == rc )
+    {
+        rc = vds_append_str( &( def -> content ), trans_txt );
+        DISP_RC( rc, "dump_str_append_str() failed" );
+    }
     return rc;
 }
 
@@ -840,7 +842,7 @@ static rc_t vdt_format_slice_nbb_unsig( const p_dump_src src, const p_col_def de
     {
         MACRO_IN_HEX
     }
-    else if ( src -> perform_translation )
+    else if ( src -> value_trans )
     {
         MACRO_TRANSLATE( uint64_t, vdt_get_u64 )
     }
@@ -860,7 +862,7 @@ static rc_t vdt_format_slice_nbb_sig( const p_dump_src src, const p_col_def def,
     {
         MACRO_IN_HEX
     }
-    else if ( src -> perform_translation )
+    else if ( src -> value_trans )
     {
         MACRO_TRANSLATE( uint64_t, vdt_get_u64 )
     }
@@ -1197,7 +1199,7 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
     { \
         MACRO_IN_HEX_SHORT \
     } \
-    else if ( src -> perform_translation ) \
+    else if ( src -> value_trans ) \
     { \
         MACRO_TRANSLATE \
     } \
@@ -1214,7 +1216,7 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
     { \
         MACRO_IN_HEX_LONG \
     } \
-    else if ( src -> perform_translation ) \
+    else if ( src -> value_trans ) \
     { \
         MACRO_TRANSLATE \
     } \
@@ -1465,50 +1467,107 @@ static rc_t vdt_format_cell_bb_dim2_ascii( const p_dump_src src, const p_col_def
 
 #undef MACRO_DIM2
 
+static rc_t vdt_format_bb_dim_trans( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    uint32_t n = src -> number_of_elements;
+    uint32_t group;
+    uint32_t dim = def -> type_desc . intrinsic_dim;
+    const uint8_t * data = src -> buf;
+    p_dump_str s = &( def -> content );
+    char trans_txt[ 512 ];
+    size_t written;
+
+    switch ( src -> output_format )
+    {
+        case df_json :  rc = vds_append_str( s, "[" );
+                        for ( group = 0; 0 == rc && group < n; ++group )
+                        {
+                            const uint8_t * slice = &( data[ group * dim ] );
+                            rc = def -> dim_trans_fct( trans_txt, sizeof trans_txt, &written,
+                                                       slice, src -> output_format );
+                            if ( 0 == rc )
+                            {
+                                bool not_last = ( group < n - 1 );
+                                rc = vds_append_fmt( s, written + 3, not_last ? "%s," : "%s", trans_txt );
+                            }
+                        }
+                        if ( 0 == rc )
+                        {
+                            rc = vds_append_str( s, "]" );
+                        }
+                        break;
+                        
+        case df_xml : ; /* fall through for now */
+
+        default     :   for ( group = 0; 0 == rc && group < n; ++group )
+                        {
+                            const uint8_t * slice = &( data[ group * dim ] );
+                            rc = def -> dim_trans_fct( trans_txt, sizeof trans_txt, &written,
+                                                       slice, src -> output_format );
+                            if ( 0 == rc )
+                            {
+                                rc = vds_append_fmt( s, written + 3, "[%s]", trans_txt );
+                            }
+                        }
+                        break;
+    }
+    return rc;
+}
+
+
 /* on a byte-boundary, 2 dimensional array, default format */
 static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
-    switch( def -> type_desc . domain )
+    bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fct );
+    
+    if ( group_trans )
     {
-        /* boolean */        
-        case 1 : return vdt_format_cell_bb_dim2_bool( src, def ); break;
-
-        /* unsigned integers */
-        case 2 : switch( def -> type_desc . intrinsic_bits )
-                 {
-                    case  8 : return vdt_format_cell_bb_dim2_u8( src, def ); break;
-                    case 16 : return vdt_format_cell_bb_dim2_u16( src, def ); break;
-                    case 32 : return vdt_format_cell_bb_dim2_u32( src, def ); break;
-                    case 64 : return vdt_format_cell_bb_dim2_u64( src, def ); break;
-                 }
-                 break;
-
-        /* signed integers */
-        case 3 : switch( def -> type_desc . intrinsic_bits )
-                 {
-                    case  8 : return vdt_format_cell_bb_dim2_i8( src, def ); break;
-                    case 16 : return vdt_format_cell_bb_dim2_i16( src, def ); break;
-                    case 32 : return vdt_format_cell_bb_dim2_i32( src, def ); break;
-                    case 64 : return vdt_format_cell_bb_dim2_i64( src, def ); break;
-                 }
-                 break;
-        
-        /* floats */
-        case 4 : switch( def -> type_desc . intrinsic_bits )
-                 {
-                    case 32 : return vdt_format_cell_bb_dim2_f32( src, def ); break;
-                    case 64 : return vdt_format_cell_bb_dim2_f64( src, def ); break;
-                 }
-                 break;
-        
-        /* text */
-        case 5 :
-        case 6 : return vdt_format_cell_bb_dim2_ascii( src, def ); break; /* can that happen? */
-
-        default : /* this should not be reached - we checked before !*/ break;
+        rc = vdt_format_bb_dim_trans( src, def );
     }
+    else
+    {
+        switch( def -> type_desc . domain )
+        {
+            /* boolean */        
+            case 1 : return vdt_format_cell_bb_dim2_bool( src, def ); break;
 
+            /* unsigned integers */
+            case 2 : switch( def -> type_desc . intrinsic_bits )
+                    {
+                        case  8 : return vdt_format_cell_bb_dim2_u8( src, def ); break;
+                        case 16 : return vdt_format_cell_bb_dim2_u16( src, def ); break;
+                        case 32 : return vdt_format_cell_bb_dim2_u32( src, def ); break;
+                        case 64 : return vdt_format_cell_bb_dim2_u64( src, def ); break;
+                    }
+                    break;
+
+            /* signed integers */
+            case 3 : switch( def -> type_desc . intrinsic_bits )
+                    {
+                        case  8 : return vdt_format_cell_bb_dim2_i8( src, def ); break;
+                        case 16 : return vdt_format_cell_bb_dim2_i16( src, def ); break;
+                        case 32 : return vdt_format_cell_bb_dim2_i32( src, def ); break;
+                        case 64 : return vdt_format_cell_bb_dim2_i64( src, def ); break;
+                    }
+                    break;
+            
+            /* floats */
+            case 4 : switch( def -> type_desc . intrinsic_bits )
+                    {
+                        case 32 : return vdt_format_cell_bb_dim2_f32( src, def ); break;
+                        case 64 : return vdt_format_cell_bb_dim2_f64( src, def ); break;
+                    }
+                    break;
+            
+            /* text */
+            case 5 :
+            case 6 : return vdt_format_cell_bb_dim2_ascii( src, def ); break; /* can that happen? */
+
+            default : /* this should not be reached - we checked before !*/ break;
+        }
+    }
     return rc;
 }
 
@@ -1535,15 +1594,16 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
     {
         uint32_t dom  = def -> type_desc . domain;
         uint32_t dim  = def -> type_desc . intrinsic_dim;
+        p_dump_str ds = &( def -> content );
 
         if ( dom < 1 || dom > 6 )
         {
             /* insurance against unknown domains */
             switch ( src -> output_format )
             {
-                case df_json : rc = vds_append_fmt( &( def -> content ), 32, "\"unknown domain: #%u\"", dom ); break;
-                case df_xml  : rc = vds_append_fmt( &( def -> content ), 32, "unknown domain: #%u", dom ); break;
-                default      : rc = vds_append_fmt( &( def -> content ), 32, "unknown domain: #%u", dom ); break;
+                case df_json : rc = vds_append_fmt( ds, 32, "\"unknown domain: #%u\"", dom ); break;
+                case df_xml  : rc = vds_append_fmt( ds, 32, "unknown domain: #%u", dom ); break;
+                default      : rc = vds_append_fmt( ds, 32, "unknown domain: #%u", dom ); break;
             }
         }
         else if ( dim < 1 )
@@ -1551,9 +1611,9 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             /* insurance against invalid dimension */
             switch ( src -> output_format )
             {
-                case df_json : rc = vds_append_fmt( &( def -> content ), 32, "\"invalid dimension: #%u\"", dim ); break;
-                case df_xml  : rc = vds_append_fmt( &( def -> content ), 32, "invalid dimension: #%u", dim ); break;
-                default      : rc = vds_append_fmt( &( def -> content ), 32, "invalid dimension: #%u", dim ); break;
+                case df_json : rc = vds_append_fmt( ds, 32, "\"invalid dimension: #%u\"", dim ); break;
+                case df_xml  : rc = vds_append_fmt( ds, 32, "invalid dimension: #%u", dim ); break;
+                default      : rc = vds_append_fmt( ds, 32, "invalid dimension: #%u", dim ); break;
             }
         }
         else if ( src -> number_of_elements > 0 )
@@ -1566,8 +1626,9 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             bool on_byte_boundary = ( 0 == ofs && ( 8 == bits || 16 == bits || 32 == bits || 64 == bits ) );
             
             /* precompute this setting to prevent it from beeing computed later in the detailed functions */
-            src -> perform_translation = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct );
-            
+            src -> value_trans = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct );
+            src -> group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fct );
+
             if ( on_byte_boundary )
             {
                 /* on a byte-boundary, bit-size is 8 or 16 or 32 or 64 : the common case */
@@ -1602,7 +1663,7 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             /* we need format-specific handling in case of json/xml for an empty cell */
             switch ( src -> output_format )
             {
-                case df_json : rc = vds_append_str( &( def -> content ), "\"\"" ); break;
+                case df_json : rc = vds_append_str( ds, "\"\"" ); break;
                 case df_xml  : break;
                 default      : break; /* nothing by default */
             }

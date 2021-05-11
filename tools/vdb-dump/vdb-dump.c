@@ -432,74 +432,78 @@ r_ctx   [IN] ... row-context ( cursor, dump_context, col_defs ... )
 static rc_t vdm_dump_rows( p_row_context r_ctx )
 {
     /* the important row_id is a member of r_ctx ! */
+    const struct num_gen_iter * iter;
+    
     r_ctx -> rc = vds_make( &( r_ctx -> s_col ), r_ctx -> ctx->max_line_len, 512 );
-    if ( 0 != r_ctx -> rc )
+    DISP_RC( r_ctx -> rc, "vdm_dump_rows().vds_make() failed" );
+    if ( 0 == r_ctx -> rc )
     {
-        vdm_row_error( "dump_str_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id ); /* above */
-    }
-    else
-    {
-        const struct num_gen_iter * iter;
-
         r_ctx -> rc = num_gen_iterator_make( r_ctx -> ctx -> rows, &iter );
-        if ( 0 != r_ctx -> rc )
+        DISP_RC( r_ctx -> rc, "vdm_dump_rows().num_gen_iterator_make() failed" );
+        if ( 0 == r_ctx -> rc )
         {
-            vdm_row_error( "num_gen_iterator_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id ); /* above */
-        }
-        else
-        {
-            while ( ( 0 == r_ctx -> rc ) &&
-                      num_gen_iterator_next( iter, &( r_ctx -> row_id ), &( r_ctx -> rc ) ) )
+            uint64_t count;
+            r_ctx -> rc = num_gen_iterator_count( iter, &count );
+            DISP_RC( r_ctx -> rc, "vdm_dump_rows().num_gen_iterator_count() failed" );            
+            if ( 0 == r_ctx -> rc )
             {
-                if ( 0 == r_ctx -> rc )
+                uint64_t num = 0;
+                while ( ( 0 == r_ctx -> rc ) &&
+                        num_gen_iterator_next( iter, &( r_ctx -> row_id ), &( r_ctx -> rc ) ) )
                 {
-                    r_ctx -> rc = Quitting();
-                }
-                if ( 0 != r_ctx -> rc ) break;
-                r_ctx -> rc = VCursorSetRowId( r_ctx -> cursor, r_ctx -> row_id );
-                if ( 0 != r_ctx -> rc )
-                {
-                    vdm_row_error( "VCursorSetRowId( row#$(row_nr) ) failed", 
-                                   r_ctx -> rc, r_ctx -> row_id ); /* above */
-                }
-                else
-                {
-                    r_ctx -> rc = VCursorOpenRow( r_ctx -> cursor );
+                    if ( 0 == r_ctx -> rc )
+                    {
+                        r_ctx -> rc = Quitting();
+                    }
+                    if ( 0 != r_ctx -> rc ) break;
+                    
+                    r_ctx -> rc = VCursorSetRowId( r_ctx -> cursor, r_ctx -> row_id );
                     if ( 0 != r_ctx -> rc )
                     {
-                        vdm_row_error( "VCursorOpenRow( row#$(row_nr) ) failed", 
-                                       r_ctx -> rc, r_ctx -> row_id ); /* above */
+                        vdm_row_error( "vdm_dump_rows().VCursorSetRowId( row#$(row_nr) ) failed", 
+                                    r_ctx -> rc, r_ctx -> row_id ); /* above */
                     }
                     else
                     {
-                        /* first reset the string and valid-flag for every column */
-                        vdcd_reset_content( r_ctx -> col_defs );
-
-                        /* read the data of every column and create a string for it */
-                        VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_read_cell_data, r_ctx );
-
-                        if ( 0 == r_ctx -> rc )
-                        {
-                            /* prints the collected strings, in vdb-dump-formats.c */
-                            if ( !r_ctx -> ctx -> sum_num_elem )
-                            {
-                                /* in vdb-dump-formats.c */
-                                r_ctx -> rc = vdfo_print_row( r_ctx, false );
-                                if ( 0 != r_ctx -> rc )
-                                {
-                                    vdm_row_error( "vdfo_print_row( row#$(row_nr) ) failed", 
-                                           r_ctx -> rc, r_ctx -> row_id ); /* above */
-                                }
-                            }
-                        }
-                        r_ctx -> rc = VCursorCloseRow( r_ctx -> cursor );
+                        r_ctx -> rc = VCursorOpenRow( r_ctx -> cursor );
                         if ( 0 != r_ctx -> rc )
                         {
-                            vdm_row_error( "VCursorCloseRow( row#$(row_nr) ) failed", 
-                                           r_ctx -> rc, r_ctx -> row_id ); /* above */
+                            vdm_row_error( "vdm_dump_rows().VCursorOpenRow( row#$(row_nr) ) failed", 
+                                        r_ctx -> rc, r_ctx -> row_id ); /* above */
+                        }
+                        else
+                        {
+                            /* first reset the string and valid-flag for every column */
+                            vdcd_reset_content( r_ctx -> col_defs );
+
+                            /* read the data of every column and create a string for it */
+                            VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_read_cell_data, r_ctx );
+
+                            if ( 0 == r_ctx -> rc )
+                            {
+                                /* prints the collected strings, in vdb-dump-formats.c */
+                                if ( !r_ctx -> ctx -> sum_num_elem )
+                                {
+                                    bool first = ( 0 == num );
+                                    bool last  = ( num >= count - 1 );
+                                    r_ctx -> rc = vdfo_print_row( r_ctx, first, last ); /* in vdb-dump-formats.c */
+                                    if ( 0 != r_ctx -> rc )
+                                    {
+                                        vdm_row_error( "vdm_dump_rows().vdfo_print_row( row#$(row_nr) ) failed", 
+                                            r_ctx -> rc, r_ctx -> row_id ); /* above */
+                                    }
+                                }
+                            }
+                            r_ctx -> rc = VCursorCloseRow( r_ctx -> cursor );
+                            if ( 0 != r_ctx -> rc )
+                            {
+                                vdm_row_error( "vdm_dump_rows().VCursorCloseRow( row#$(row_nr) ) failed", 
+                                            r_ctx -> rc, r_ctx -> row_id ); /* above */
+                            }
                         }
                     }
-                }
+                    num += 1;
+                } /* while( ... ) */
             }
         }
         num_gen_iterator_destroy( iter );
@@ -510,7 +514,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
             VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_print_elem_sum, r_ctx );
             if ( 0 == r_ctx -> rc )
             {
-                r_ctx -> rc = vdfo_print_row( r_ctx, true /* always the last (because the only ) row */ );
+                r_ctx -> rc = vdfo_print_row( r_ctx, true, true /* always the first and last (because the only ) row */ );
                 DISP_RC( r_ctx -> rc, "vdm_dump_rows().vdfo_print_row() failed" );
             }
         }

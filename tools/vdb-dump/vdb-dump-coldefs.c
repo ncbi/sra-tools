@@ -214,30 +214,47 @@ static value_trans_fct_t vdcd_get_value_trans_fct( const VSchema *my_schema, VTy
     return res;
 }
 
+static const char READ_DESC_JSON_FMT[] = "{ \"seg.start\":%u, \"seg.len\":%u, \"type\":%u, \"cs_key\":%u, \"label\":\"%s\" }";
+static const char READ_DESC_DFLT_FMT[] = "seg.start=%u, seg.len=%u, type=%u, cs_key=%u, label=%s";
 
 /* implementation of the dimension-translation-functions */
-static char *vdcd_get_read_desc_txt( const uint8_t * src )
+static rc_t vdcd_get_read_desc_txt( char * dst, size_t dst_size, size_t * written,
+                                    const uint8_t *src, dump_format_t fmt )
 {
-    char *res = calloc( 1, 120 );
     SRAReadDesc desc;
     memmove( &desc, src, sizeof( desc ) );
-    string_printf ( res, 119, NULL,
-              "seg.start=%u, seg.len=%u, type=%u, cs_key=%u, label=%s",
-              desc . seg.start, desc . seg.len, desc . type,
-              desc . cs_key, desc . label );
-    return res;
+    const char * fmt_str = READ_DESC_DFLT_FMT;
+    if ( df_json == fmt )
+    {
+        fmt_str = READ_DESC_JSON_FMT;
+    }
+    return string_printf ( dst, dst_size, written, fmt_str,
+                            desc . seg.start,
+                            desc . seg.len,
+                            desc . type,
+                            desc . cs_key,
+                            desc . label );
 }
 
-static char *vdcd_get_spot_desc_txt( const uint8_t *src )
+static const char SPOT_DESC_JSON_FMT[] = "{ \"spot_len\":%u, \"fixed_len\":%u, \"signal_len\":%u, \"clip_qual_right\":%u, \"num_reads\":%u }";
+static const char SPOT_DESC_DFLT_FMT[] = "spot_len=%u, fixed_len=%u, signal_len=%u, clip_qual_right=%u, num_reads=%u";
+
+static rc_t vdcd_get_spot_desc_txt( char * dst, size_t dst_size, size_t * written,
+                                    const uint8_t *src, dump_format_t fmt )
 {
-    char *res = calloc( 1, 120 );
     SRASpotDesc desc;
     memmove( &desc, src, sizeof( desc ) );
-    string_printf ( res, 119, NULL,
-              "spot_len=%u, fixed_len=%u, signal_len=%u, clip_qual_right=%u, num_reads=%u",
-              desc . spot_len, desc . fixed_len, desc . signal_len,
-              desc . clip_qual_right, desc . num_reads );
-    return res;
+    const char * fmt_str = SPOT_DESC_DFLT_FMT;
+    if ( df_json == fmt )
+    {
+        fmt_str = SPOT_DESC_JSON_FMT;
+    }
+    return string_printf ( dst, dst_size, written, fmt_str,
+                            desc . spot_len,
+                            desc . fixed_len,
+                            desc . signal_len,
+                            desc . clip_qual_right,
+                            desc . num_reads );
 }
 
 /* hardcoded values taken from asm-trace/interface/sra/sradb.h */

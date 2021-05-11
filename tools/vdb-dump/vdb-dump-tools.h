@@ -54,7 +54,8 @@ typedef struct dump_src
     bool without_sra_types;
     bool print_comma;
     bool translate_sra_values; /* legacy ??? */
-    bool perform_translation; /* precomputed value for new and faster printing... */
+    bool value_trans;   /* translate each value */
+    bool group_trans;   /* translate a group of values */
     char c_boolean;
     dump_format_t output_format;
 } dump_src;

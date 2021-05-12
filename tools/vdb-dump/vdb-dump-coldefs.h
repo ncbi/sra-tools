@@ -46,14 +46,14 @@ extern "C" {
 
 
 /* returns a const pointer to a static const string */
-typedef const char* (*value_trans_fct_t)( const uint32_t id );
+typedef const char* (*value_trans_fn_t)( const uint32_t id );
 
 /* returns a return-code, writes to buffer */
 /* typedef char* (*dim_trans_fct_t)( const uint8_t *src, dump_format_t fmt ); */
 
 /* returns a return-code, writes to buffer */
-typedef rc_t (*dim_trans_fct_t)( char * dst, size_t dst_size, size_t * written,
-                                 const uint8_t *src, dump_format_t fmt );
+typedef rc_t (*dim_trans_fn_t)( char * dst, size_t dst_size, size_t * written,
+                                const uint8_t *src, dump_format_t fmt );
 
 /********************************************************************
 col-def is the definition of a single column: name/index/type
@@ -68,8 +68,9 @@ typedef struct col_def
     VTypedecl type_decl;
     VTypedesc type_desc;
     dump_str content;
-    value_trans_fct_t value_trans_fct;
-    dim_trans_fct_t dim_trans_fct;
+    value_trans_fn_t value_trans_fn;
+    dim_trans_fn_t dim_trans_fn;
+    size_t dim_trans_size;
 } col_def;
 typedef col_def* p_col_def;
 

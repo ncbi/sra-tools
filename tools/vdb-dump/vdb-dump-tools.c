@@ -145,6 +145,18 @@ static double vdt_get_f64( p_bit_iter iter, uint8_t num_bits )
 
 #undef MACRO_GET
 
+static uint8_t * vdb_get_bits( p_bit_iter iter, size_t num_bytes )
+{
+    uint8_t * res = malloc( num_bytes );
+    if ( NULL != res )
+    {
+        const uint8_t * p = iter -> buf + BYTE_OFFSET( iter -> bit_offset );
+        bitcpy ( res, 0, p, BIT_OFFSET( iter -> bit_offset ), num_bytes << 3 );
+        iter -> bit_offset += ( num_bytes << 3 );
+    }
+    return res;
+}
+    
 static void vdt_move_to_value( void* dst, const p_dump_src src, const uint32_t n_bits )
 {
     char *src_ptr = ( char* )src -> buf + BYTE_OFFSET( src -> offset_in_bits );
@@ -345,9 +357,9 @@ static rc_t vdt_dump_uint_element( p_dump_str s, const p_dump_src src,
 {
     rc_t rc = 0;
     uint64_t value = vdt_move_to_uint64( src, def -> type_desc . intrinsic_bits );
-    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct ) )
+    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn ) )
     {
-        const char *txt = def -> value_trans_fct( ( uint32_t )value );
+        const char *txt = def -> value_trans_fn( ( uint32_t )value );
         rc = vds_append_str( s, txt );
         DISP_RC( rc, "dump_str_append_str() failed" );
     }
@@ -378,9 +390,9 @@ static rc_t vdt_dump_int_element( p_dump_str s, const p_dump_src src,
 {
     rc_t rc = 0;
     int64_t value = ( int64_t )vdt_move_to_uint64( src, def -> type_desc . intrinsic_bits );
-    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct ) )
+    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn ) )
     {
-        const char *txt = def -> value_trans_fct( ( uint32_t )value );
+        const char *txt = def -> value_trans_fn( ( uint32_t )value );
         rc = vds_append_str( s, txt );
         DISP_RC( rc, "dump_str_append_str() failed" );
     }
@@ -507,7 +519,7 @@ rc_t vdt_dump_dim_trans( const p_dump_src src, const p_col_def def,
     size_t written;
     
     sbuf += ( src -> offset_in_bits >> 3 );
-    rc = def -> dim_trans_fct( trans_txt, sizeof trans_txt, &written, sbuf, src -> output_format );
+    rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written, sbuf, src -> output_format );
     src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * dimension );
     if ( 0 == rc )
     {
@@ -582,7 +594,7 @@ static rc_t vdt_dump_cell_element( const p_dump_src src, const p_col_def def, bo
         }
         else
         {
-            bool trans = ( ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fct ) );
+            bool trans = ( ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn ) );
             bool paren = ( ( src -> number_of_elements > 1 ) || ( !trans ) );
 
             if ( paren )
@@ -789,27 +801,63 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
     if ( 1 == n ) \
     { \
         DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
-        const char *txt = def -> value_trans_fct( ( uint32_t )value ); \
-        rc = vds_append_str( s, txt ); \
+        const char *txt = def -> value_trans_fn( ( uint32_t )value ); \
+        if ( NULL != txt ) \
+        { \
+            if ( df_json == src -> output_format ) \
+            { \
+                size_t txt_len = string_size( txt ); \
+                rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+            } \
+            else \
+            { \
+                rc = vds_append_str( s, txt ); \
+            }\
+        } \
     } \
     else \
     { \
-        uint32_t i; \
+        if ( df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "[" ); \
+        } \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
-            const char *txt = def -> value_trans_fct( ( uint32_t )value ); \
-            rc = vds_append_str( s, txt ); \
-            if ( 0 == rc ) \
+            const char *txt = def -> value_trans_fn( ( uint32_t )value ); \
+            if ( NULL != txt ) \
             { \
-                rc = vds_append_str( s, ", " ); \
-            } \
+                size_t txt_len = string_size( txt ); \
+                if ( df_json == src -> output_format ) \
+                { \
+                    rc = vds_append_fmt( s, txt_len + 6, "\"%s\", ", txt ); \
+                } \
+                else \
+                { \
+                    rc = vds_append_fmt( s, txt_len + 4, "%s, ", txt ); \
+                }\
+            }\
         } \
         if ( 0 == rc ) \
         { \
             DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
-            const char *txt = def -> value_trans_fct( ( uint32_t )value ); \
-            rc = vds_append_str( s, txt ); \
+            const char *txt = def -> value_trans_fn( ( uint32_t )value ); \
+            if ( NULL != txt ) \
+            { \
+                if ( df_json == src -> output_format ) \
+                { \
+                    size_t txt_len = string_size( txt ); \
+                    rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+                } \
+                else \
+                { \
+                    rc = vds_append_str( s, txt ); \
+                }\
+            } \
+        } \
+        if ( 0 == rc && df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "]" ); \
         } \
     }
 
@@ -821,6 +869,10 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
     } \
     else \
     { \
+        if ( df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "[" ); \
+        } \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
@@ -830,6 +882,10 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
         { \
             DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, value ); \
+        } \
+        if ( 0 == rc && df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "]" ); \
         } \
     }
 
@@ -916,10 +972,18 @@ static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def de
     {
         if ( def -> type_desc . intrinsic_bits < 9 )
         {
+            if ( df_json == src -> output_format )
+            {
+                rc = vds_append_str( s, "\"" );
+            }
             for ( i = 0; 0 == rc && i < n; ++i )
             {
                 uint8_t value = vdt_get_u8( bi, def -> type_desc . intrinsic_bits );
                 rc = vds_append_fmt( s, 4, "%c", value );
+            }
+            if ( 0 == rc && df_json == src -> output_format )
+            {
+                rc = vds_append_str( s, "\"" );
             }
         }
         else
@@ -966,24 +1030,104 @@ static rc_t vdt_format_cell_nbb_dim1_v2( const p_dump_src src, const p_col_def d
     return vdt_format_slice_nbb( src, def, &bi, n );
 }
 
-static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def def )
+static rc_t vdt_format_nbb_dim_trans_json( const p_dump_src src, const p_col_def def )
+{
+    bit_iter bi = { src -> buf, src -> offset_in_bits };
+    size_t num_bytes = def -> dim_trans_size;
+    uint32_t n = src -> number_of_elements;
+    uint32_t group;
+    p_dump_str ds = &( def -> content );
+
+    rc_t rc = vds_append_str( ds, "[" );
+    for ( group = 0; 0 == rc && group < n; ++group )
+    {
+        char trans_txt[ 512 ];
+        size_t written;
+        uint8_t * slice = vdb_get_bits( &bi, num_bytes );
+        if ( NULL != slice )
+        {
+            rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                        slice, src -> output_format );
+            if ( 0 == rc )
+            {
+                bool not_last = ( group < n - 1 );
+                rc = vds_append_fmt( ds, written + 3, not_last ? "%s," : "%s", trans_txt );
+            }
+            free( slice );
+        }
+    }
+    if ( 0 == rc )
+    {
+        rc = vds_append_str( ds, "]" );
+    }
+    return rc;
+}
+
+static rc_t vdt_format_nbb_dim_trans_dflt( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
-    uint32_t dim = def -> type_desc . intrinsic_dim;
-    uint32_t n = src -> number_of_elements;
     bit_iter bi = { src -> buf, src -> offset_in_bits };
+    size_t num_bytes = def -> dim_trans_size;
+    uint32_t n = src -> number_of_elements;
     uint32_t group;
 
     for ( group = 0; 0 == rc && group < n; ++group )
     {
-        rc = vds_append_str( &( def -> content ), "[" );
-        if ( 0 == rc )
+        char trans_txt[ 512 ];
+        size_t written;
+        uint8_t * slice = vdb_get_bits( &bi, num_bytes );
+        if ( NULL != slice )
+        {
+            rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                        slice, src -> output_format );
+            if ( 0 == rc )
+            {
+                rc = vds_append_fmt( &( def -> content ), written + 3, "[%s]", trans_txt );
+            }
+            free( slice );
+        }
+    }
+    return rc;
+}
+
+static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
+    
+    if ( group_trans )
+    {
+        switch ( src -> output_format )
+        {
+            case df_json : return vdt_format_nbb_dim_trans_json( src, def ); break;
+            case df_xml  : ; /* fall through for now */
+            default      : return vdt_format_nbb_dim_trans_dflt( src, def ); break;
+        }
+    }
+    else
+    {
+        bit_iter bi = { src -> buf, src -> offset_in_bits };
+        uint32_t dim = def -> type_desc . intrinsic_dim;
+        uint32_t n = src -> number_of_elements;
+        uint32_t group;
+
+        if ( df_json == src -> output_format )
+        {
+            rc = vds_append_str( &( def -> content ), "[" );
+        }
+
+        for ( group = 0; 0 == rc && group < n; ++group )
         {
             rc = vdt_format_slice_nbb( src, def, &bi, dim );
+            if ( 0 == rc && group < n - 1 )
+            {
+                rc = vds_append_str( &( def -> content ), "," );
+            }
         }
-        if ( 0 == rc )
+
+        if ( 0 == rc && df_json == src -> output_format )
         {
-            rc = vds_append_str( &( def -> content ), group < n - 1 ? "], " : "]" );
+            rc = vds_append_str( &( def -> content ), "]" );
         }
     }
     return rc;
@@ -1082,7 +1226,7 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
 #define MACRO_TRANSLATE_JSON \
     if ( 1 == n ) \
     { \
-        const char *txt = def -> value_trans_fct( ( uint32_t )data[ 0 ] ); \
+        const char *txt = def -> value_trans_fn( ( uint32_t )data[ 0 ] ); \
         size_t txt_len = string_size( txt ) ;\
         rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
     } \
@@ -1092,13 +1236,13 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         rc = vds_append_str( s, "[" ); \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
-            const char *txt = def -> value_trans_fct( ( uint32_t )data[ i ] ); \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ i ] ); \
             size_t txt_len = string_size( txt ) ;\
             rc = vds_append_fmt( s, txt_len + 5, "\"%s\", ", txt ); \
         } \
         if ( 0 == rc ) \
         { \
-            const char *txt = def -> value_trans_fct( ( uint32_t )data[ n - 1 ] ); \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ n - 1 ] ); \
             size_t txt_len = string_size( txt ) ;\
             rc = vds_append_fmt( s, txt_len + 4, "\"%s\"]", txt ); \
         } \
@@ -1108,7 +1252,7 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
 #define MACRO_TRANSLATE_DFLT \
     if ( 1 == n ) \
     { \
-        const char *txt = def -> value_trans_fct( ( uint32_t )data[ 0 ] ); \
+        const char *txt = def -> value_trans_fn( ( uint32_t )data[ 0 ] ); \
         rc = vds_append_str( s, txt ); \
     } \
     else \
@@ -1116,13 +1260,13 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         uint32_t i; \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
-            const char *txt = def -> value_trans_fct( ( uint32_t )data[ i ] ); \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ i ] ); \
             size_t txt_len = string_size( txt ); \
             rc = vds_append_fmt( s, txt_len + 3, "%s, ", txt ); \
         } \
         if ( 0 == rc ) \
         { \
-            const char *txt = def -> value_trans_fct( ( uint32_t )data[ n - 1 ] ); \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ n - 1 ] ); \
             rc = vds_append_str( s, txt ); \
         } \
     }
@@ -1467,64 +1611,70 @@ static rc_t vdt_format_cell_bb_dim2_ascii( const p_dump_src src, const p_col_def
 
 #undef MACRO_DIM2
 
-static rc_t vdt_format_bb_dim_trans( const p_dump_src src, const p_col_def def )
+static rc_t vdt_format_bb_dim_trans_json( const p_dump_src src, const p_col_def def )
 {
-    rc_t rc = 0;
     uint32_t n = src -> number_of_elements;
     uint32_t group;
-    uint32_t dim = def -> type_desc . intrinsic_dim;
-    const uint8_t * data = src -> buf;
-    p_dump_str s = &( def -> content );
-    char trans_txt[ 512 ];
-    size_t written;
+    const uint8_t * data = src -> buf;  /* this type-casts the ptr ! */
+    p_dump_str ds = &( def -> content );
 
-    switch ( src -> output_format )
+    rc_t rc = vds_append_str( ds, "[" );
+    for ( group = 0; 0 == rc && group < n; ++group )
     {
-        case df_json :  rc = vds_append_str( s, "[" );
-                        for ( group = 0; 0 == rc && group < n; ++group )
-                        {
-                            const uint8_t * slice = &( data[ group * dim ] );
-                            rc = def -> dim_trans_fct( trans_txt, sizeof trans_txt, &written,
-                                                       slice, src -> output_format );
-                            if ( 0 == rc )
-                            {
-                                bool not_last = ( group < n - 1 );
-                                rc = vds_append_fmt( s, written + 3, not_last ? "%s," : "%s", trans_txt );
-                            }
-                        }
-                        if ( 0 == rc )
-                        {
-                            rc = vds_append_str( s, "]" );
-                        }
-                        break;
-                        
-        case df_xml : ; /* fall through for now */
-
-        default     :   for ( group = 0; 0 == rc && group < n; ++group )
-                        {
-                            const uint8_t * slice = &( data[ group * dim ] );
-                            rc = def -> dim_trans_fct( trans_txt, sizeof trans_txt, &written,
-                                                       slice, src -> output_format );
-                            if ( 0 == rc )
-                            {
-                                rc = vds_append_fmt( s, written + 3, "[%s]", trans_txt );
-                            }
-                        }
-                        break;
+        char trans_txt[ 512 ];
+        size_t written;
+        const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
+        rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                    slice, src -> output_format );
+        if ( 0 == rc )
+        {
+            bool not_last = ( group < n - 1 );
+            rc = vds_append_fmt( ds, written + 3, not_last ? "%s," : "%s", trans_txt );
+        }
+    }
+    if ( 0 == rc )
+    {
+        rc = vds_append_str( ds, "]" );
     }
     return rc;
 }
 
+static rc_t vdt_format_bb_dim_trans_dflt( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    uint32_t n = src -> number_of_elements;
+    uint32_t group;
+    const uint8_t * data = src -> buf;  /* this type-casts the ptr ! */
+    
+    for ( group = 0; 0 == rc && group < n; ++group )
+    {
+        char trans_txt[ 512 ];
+        size_t written;
+        const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
+        rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                    slice, src -> output_format );
+        if ( 0 == rc )
+        {
+            rc = vds_append_fmt( &( def -> content ), written + 3, "[%s]", trans_txt );
+        }
+    }
+    return rc;
+}
 
 /* on a byte-boundary, 2 dimensional array, default format */
 static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
-    bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fct );
+    bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
     
     if ( group_trans )
     {
-        rc = vdt_format_bb_dim_trans( src, def );
+        switch ( src -> output_format )
+        {
+            case df_json : return vdt_format_bb_dim_trans_json( src, def ); break;
+            case df_xml  : ; /* fall through for now */
+            default      : return vdt_format_bb_dim_trans_dflt( src, def ); break;
+        }
     }
     else
     {
@@ -1621,13 +1771,17 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             /* we can take a simpler and faster approach if the data is on a byte-boundary! 
             * it always seems to be...
             */
+            
+            /*
             uint32_t bits = def -> type_desc . intrinsic_bits;
             uint32_t ofs  = src -> offset_in_bits;
             bool on_byte_boundary = ( 0 == ofs && ( 8 == bits || 16 == bits || 32 == bits || 64 == bits ) );
+            */
+            bool on_byte_boundary = false;
             
             /* precompute this setting to prevent it from beeing computed later in the detailed functions */
-            src -> value_trans = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct );
-            src -> group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fct );
+            src -> value_trans = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn );
+            src -> group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
 
             if ( on_byte_boundary )
             {

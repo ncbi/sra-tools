@@ -181,9 +181,9 @@ static bool vdcd_type_cmp( const VSchema *my_schema, VTypedecl * typedecl, const
 }
 
 
-static value_trans_fct_t vdcd_get_value_trans_fct( const VSchema *my_schema, VTypedecl * typedecl )
+static value_trans_fn_t vdcd_get_value_trans_fn( const VSchema *my_schema, VTypedecl * typedecl )
 {
-    value_trans_fct_t res = NULL;
+    value_trans_fn_t res = NULL;
 
     if ( NULL == my_schema || NULL == typedecl )
     {
@@ -261,9 +261,9 @@ static rc_t vdcd_get_spot_desc_txt( char * dst, size_t dst_size, size_t * writte
 #define SRA_KEY_READ_DESC "NCBI:SRA:ReadDesc"
 #define SRA_KEY_SPOT_DESC "NCBI:SRA:SpotDesc"
 
-static dim_trans_fct_t vdcd_get_dim_trans_fct( const VSchema *my_schema, VTypedecl * typedecl )
+static dim_trans_fn_t vdcd_get_dim_trans_fn( const VSchema *my_schema, VTypedecl * typedecl )
 {
-    dim_trans_fct_t res = NULL;
+    dim_trans_fn_t res = NULL;
 
     if ( NULL == my_schema || NULL == typedecl )
     {
@@ -277,6 +277,28 @@ static dim_trans_fct_t vdcd_get_dim_trans_fct( const VSchema *my_schema, VTypede
     else if ( vdcd_type_cmp( my_schema, typedecl, SRA_KEY_SPOT_DESC ) )
     {
         res = vdcd_get_spot_desc_txt;
+    }
+    return res;
+}
+
+static size_t vdcd_get_dim_trans_size( const VSchema *my_schema, VTypedecl * typedecl )
+{
+    size_t res = 0;
+
+    if ( NULL == my_schema || NULL == typedecl )
+    {
+        return res;
+    }
+
+    if ( vdcd_type_cmp( my_schema, typedecl, SRA_KEY_READ_DESC ) )
+    {
+        SRAReadDesc desc;
+        res = sizeof desc;
+    }
+    else if ( vdcd_type_cmp( my_schema, typedecl, SRA_KEY_SPOT_DESC ) )
+    {
+        SRASpotDesc desc;
+        res = sizeof desc;
     }
     return res;
 }
@@ -696,8 +718,9 @@ static void CC vdcd_ins_1_trans_fkt( void *item, void *data )
         /* resolves special sra-types and retrieves the addr of
         a function that later can translate the values into plain-text
         --- is defined in this file! */
-        col_def -> value_trans_fct = vdcd_get_value_trans_fct( schema, &( col_def -> type_decl ) );
-        col_def -> dim_trans_fct = vdcd_get_dim_trans_fct( schema, &( col_def -> type_decl ) );
+        col_def -> value_trans_fn = vdcd_get_value_trans_fn( schema, &( col_def -> type_decl ) );
+        col_def -> dim_trans_fn = vdcd_get_dim_trans_fn( schema, &( col_def -> type_decl ) );
+        col_def -> dim_trans_size = vdcd_get_dim_trans_size( schema, &( col_def -> type_decl ) );
     }
 }
 

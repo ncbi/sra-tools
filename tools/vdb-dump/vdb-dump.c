@@ -2560,7 +2560,18 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
     return 0;
 }
 
-#if 0
+/* uncomment the next line to compile vdb-dump with sqlite-support */
+/* #define WITH_VDB_SHELL */
+/*
+ * in Makefile:
+ *  - add 'vdb_shell' to VDB_DUMP_SRC
+ *  - add -sngs to VDB_DUMP_LIB
+ *  - add -svdb-sqlite to VDB_DUMP_LIB ( we need libxml2-dev to be installed for this )
+ *  - add -lreadline to VDB_DUMP_LIB ( we need libreadline-dev to be installed for this )
+ *  compile vdb_shell.c with '-DHAVE_READLINE'
+ */
+
+#ifdef WITH_VDB_SHELL
     int main_vdb_shell_org( int argc, char **argv );    /* to be found in vdb_shell.c! */
 #endif
 
@@ -2569,7 +2580,7 @@ rc_t CC KMain ( int argc, char *argv [] )
     rc_t rc;
     Args * args;
 
-#if 0
+#ifdef WITH_VDB_SHELL
     if ( argc > 1 && ( 0 == string_cmp ( argv[ 1 ], 7, "--shell", 7, 7 ) ) )
     {
         return main_vdb_shell_org( argc, argv );

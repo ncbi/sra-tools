@@ -1772,12 +1772,9 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             * it always seems to be...
             */
             
-            /*
             uint32_t bits = def -> type_desc . intrinsic_bits;
             uint32_t ofs  = src -> offset_in_bits;
             bool on_byte_boundary = ( 0 == ofs && ( 8 == bits || 16 == bits || 32 == bits || 64 == bits ) );
-            */
-            bool on_byte_boundary = false;
             
             /* precompute this setting to prevent it from beeing computed later in the detailed functions */
             src -> value_trans = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn );

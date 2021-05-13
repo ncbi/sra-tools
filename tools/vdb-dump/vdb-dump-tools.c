@@ -970,18 +970,37 @@ static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def de
     }
     else
     {
+        bool is_json = df_json == src -> output_format;
         if ( def -> type_desc . intrinsic_bits < 9 )
         {
-            if ( df_json == src -> output_format )
+            if ( is_json )
             {
                 rc = vds_append_str( s, "\"" );
             }
             for ( i = 0; 0 == rc && i < n; ++i )
             {
                 uint8_t value = vdt_get_u8( bi, def -> type_desc . intrinsic_bits );
-                rc = vds_append_fmt( s, 4, "%c", value );
+                if ( is_json )
+                {
+                    if ( value < 0x20 )
+                    {
+                        rc = vds_append_fmt( s, 8, "\\u%04x", value );
+                    }
+                    else if ( '\\' == value )
+                    {
+                        rc = vds_append_str( s, "\\\\" );
+                    }
+                    else
+                    {
+                        rc = vds_append_fmt( s, 4, "%c", value );
+                    }
+                }
+                else
+                {
+                    rc = vds_append_fmt( s, 4, "%c", value );
+                }
             }
-            if ( 0 == rc && df_json == src -> output_format )
+            if ( 0 == rc && is_json )
             {
                 rc = vds_append_str( s, "\"" );
             }
@@ -1431,6 +1450,45 @@ static rc_t vdt_format_slice_bb_f64( const p_dump_src src, const p_col_def def,
     MACRO_PRINT_LONG( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
 }
 
+static bool has_ctrl_char( const uint8_t * data, uint32_t n )
+{
+    uint32_t i;
+    for ( i = 0; i < n; ++i )
+    {
+        if ( data[ i ] < 0x20 || '\\' == data[ i ] ) return true;
+    }
+    return false;
+}
+
+static rc_t escape_ctrl_chars( p_dump_str s, const uint8_t * data, uint32_t n )
+{
+    rc_t rc = vds_append_str( s, "\"" );
+    if  ( 0 == rc )
+    {
+        uint32_t i;
+        for ( i = 0; 0 == rc && i < n; ++i )
+        {
+            if ( data[ i ] < 0x20 )
+            {
+                rc = vds_append_fmt( s, 8, "\\u%04x", data[ i ] );
+            }
+            else if ( '\\' == data[ i ] )
+            {
+                rc = vds_append_str( s, "\\\\" );
+            }
+            else
+            {
+                rc = vds_append_fmt( s, 4, "%c", data[ i ] );
+            }
+        }
+        if ( 0 == rc )
+        {
+            rc = vds_append_str( s, "\"" );
+        }
+    }
+    return rc;
+}
+
 static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def,
                                        const uint8_t * data, uint32_t n, bool brackets )
 {
@@ -1444,7 +1502,14 @@ static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def
     {
         if ( df_json == src -> output_format )
         {
-            rc = vds_append_fmt( s, n, "\"%.*s\"", n, data );
+            if ( has_ctrl_char( data, n ) )
+            {
+                rc = escape_ctrl_chars( s, data, n );
+            }
+            else
+            {
+                rc = vds_append_fmt( s, n + 3, "\"%.*s\"", n, data );
+            }
         }
         else
         {

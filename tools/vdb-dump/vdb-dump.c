@@ -433,7 +433,7 @@ static rc_t vdm_dump_rows( p_row_context r_ctx )
 {
     /* the important row_id is a member of r_ctx ! */
     const struct num_gen_iter * iter;
-    
+
     r_ctx -> rc = vds_make( &( r_ctx -> s_col ), r_ctx -> ctx->max_line_len, 512 );
     DISP_RC( r_ctx -> rc, "vdm_dump_rows().vds_make() failed" );
     if ( 0 == r_ctx -> rc )

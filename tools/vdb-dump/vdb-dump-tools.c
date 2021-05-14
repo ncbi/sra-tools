@@ -145,7 +145,7 @@ static double vdt_get_f64( p_bit_iter iter, uint8_t num_bits )
 
 #undef MACRO_GET
 
-static uint8_t * vdb_get_bits( p_bit_iter iter, size_t num_bytes )
+static uint8_t * vdt_get_bits( p_bit_iter iter, size_t num_bytes )
 {
     uint8_t * res = malloc( num_bytes );
     if ( NULL != res )
@@ -738,7 +738,7 @@ const char * bool_false_T     = "F";
 const char * bool_true_dflt   = "true";
 const char * bool_false_dflt  = "false";
 
-static void vdb_get_bool_strings( char c_boolean, const char ** s_true, const char ** s_false )
+static void vdt_get_bool_strings( char c_boolean, const char ** s_true, const char ** s_false )
 {
     *s_true  = bool_true_dflt;
     *s_false = bool_false_dflt;    
@@ -751,12 +751,45 @@ static void vdb_get_bool_strings( char c_boolean, const char ** s_true, const ch
 
 /* --------------------------------------------------------------------------------- */
 
-#define MACRO_IN_HEX \
+#define MACRO_NBB_IN_HEX_JSON \
+    uint64_t value; \
+    if ( 1 == n ) \
+    { \
+        value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "\"0x%lX\"", value ); \
+        DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        rc = vds_append_str( s, "[" ); \
+        DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_str() #2 failed" ); \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "\"0x%lX\", ", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_fmt() #3 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "\"0x%lX\"", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_fmt() #4 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_str() #5 failed" ); \
+        } \
+    }
+
+#define MACRO_NBB_IN_HEX_DFLT \
     uint64_t value; \
     if ( 1 == n ) \
     { \
         value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
         rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX", value ); \
+        DISP_RC( rc, "MACRO_NBB_IN_HEX_DFLT.vds_append_fmt() #1 failed" ); \
     } \
     else \
     { \
@@ -765,12 +798,24 @@ static void vdb_get_bool_strings( char c_boolean, const char ** s_true, const ch
         { \
             value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX, ", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_DFLT.vds_append_fmt() #2 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_DFLT.vds_append_fmt() #3 failed" ); \
         } \
+    }
+
+#define MACRO_NBB_IN_HEX \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_NBB_IN_HEX_JSON \
+    } \
+    else \
+    { \
+        MACRO_NBB_IN_HEX_DFLT \
     }
 
 static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
@@ -780,24 +825,25 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
     p_dump_str s = &( def -> content );
     if ( src -> in_hex )
     {
-        MACRO_IN_HEX
+        MACRO_NBB_IN_HEX
     }
     else
     {
         const char * bt_true;
         const char * bt_false;    
 
-        vdb_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
+        vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
         for ( i = 0; 0 == rc && i < n; ++i )
         {
             uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
             rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
+            DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" ); \
         }
     }
     return rc;
 }
 
-#define MACRO_TRANSLATE( DATA_TYPE, GETTER_FUNC ) \
+#define MACRO_NBB_TRANSLATE( DATA_TYPE, GETTER_FUNC ) \
     if ( 1 == n ) \
     { \
         DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
@@ -808,10 +854,12 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
             { \
                 size_t txt_len = string_size( txt ); \
                 rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+                DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #1 failed" ); \
             } \
             else \
             { \
                 rc = vds_append_str( s, txt ); \
+                DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #2 failed" ); \
             }\
         } \
     } \
@@ -820,6 +868,7 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
         if ( df_json == src -> output_format ) \
         { \
             rc = vds_append_str( s, "[" ); \
+            DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #3 failed" ); \
         } \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
@@ -831,10 +880,12 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
                 if ( df_json == src -> output_format ) \
                 { \
                     rc = vds_append_fmt( s, txt_len + 6, "\"%s\", ", txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #4 failed" ); \
                 } \
                 else \
                 { \
                     rc = vds_append_fmt( s, txt_len + 4, "%s, ", txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #4 failed" ); \
                 }\
             }\
         } \
@@ -848,47 +899,57 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
                 { \
                     size_t txt_len = string_size( txt ); \
                     rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #5 failed" ); \
                 } \
                 else \
                 { \
                     rc = vds_append_str( s, txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #6 failed" ); \
                 }\
             } \
         } \
         if ( 0 == rc && df_json == src -> output_format ) \
         { \
             rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #7 failed" ); \
         } \
     }
 
-#define MACRO_PRINT( DATA_TYPE, GETTER_FUNC, FMT1, FMT2 ) \
+#define MACRO_NBB_PRINT( DATA_TYPE, GETTER_FUNC, FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
         DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
         rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, value ); \
+        DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_fmt() #1 failed" ); \
     } \
     else \
     { \
         if ( df_json == src -> output_format ) \
         { \
             rc = vds_append_str( s, "[" ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_str() #2 failed" ); \
         } \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, value ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_fmt() #3 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, value ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_fmt() #4 failed" ); \
         } \
         if ( 0 == rc && df_json == src -> output_format ) \
         { \
             rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_str() #5 failed" ); \
         } \
     }
 
+/* unsigned integer values, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
 static rc_t vdt_format_slice_nbb_unsig( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
 {
     rc_t rc = 0;
@@ -896,19 +957,21 @@ static rc_t vdt_format_slice_nbb_unsig( const p_dump_src src, const p_col_def de
     p_dump_str s = &( def -> content );
     if ( src -> in_hex )
     {
-        MACRO_IN_HEX
+        MACRO_NBB_IN_HEX
     }
     else if ( src -> value_trans )
     {
-        MACRO_TRANSLATE( uint64_t, vdt_get_u64 )
+        MACRO_NBB_TRANSLATE( uint64_t, vdt_get_u64 )
     }
     else
     {
-        MACRO_PRINT( uint64_t, vdt_get_u64, "%lu", "%lu, " )
+        MACRO_NBB_PRINT( uint64_t, vdt_get_u64, "%lu", "%lu, " )
     }
     return rc;
 }
 
+/* signed integer values, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
 static rc_t vdt_format_slice_nbb_sig( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
 {
     rc_t rc = 0;
@@ -916,20 +979,21 @@ static rc_t vdt_format_slice_nbb_sig( const p_dump_src src, const p_col_def def,
     p_dump_str s = &( def -> content );
     if ( src -> in_hex )
     {
-        MACRO_IN_HEX
+        MACRO_NBB_IN_HEX
     }
     else if ( src -> value_trans )
     {
-        MACRO_TRANSLATE( uint64_t, vdt_get_u64 )
+        MACRO_NBB_TRANSLATE( uint64_t, vdt_get_u64 )
     }
     else
     {
-        MACRO_PRINT( int64_t, vdt_get_i64, "%lu", "%lu, " )
+        MACRO_NBB_PRINT( int64_t, vdt_get_i64, "%lu", "%lu, " )
     }
     return rc;
 }
 
-/* here the bit-size should be only 32-bit or 64-bit, but we are not on a byte-boundary */
+/* here the bit-size should be only 32-bit or 64-bit, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
 static rc_t vdt_format_slice_nbb_float( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
 {
     rc_t rc = 0;
@@ -937,17 +1001,17 @@ static rc_t vdt_format_slice_nbb_float( const p_dump_src src, const p_col_def de
     p_dump_str s = &( def -> content );
     if ( src -> in_hex )
     {
-        MACRO_IN_HEX
+        MACRO_NBB_IN_HEX
     }
     else
     {
         if ( 32 == def -> type_desc . intrinsic_bits )
         {
-            MACRO_PRINT( float, vdt_get_f32, "%e", "%e, " )
+            MACRO_NBB_PRINT( float, vdt_get_f32, "%e", "%e, " )
         }
         else if ( 64 == def -> type_desc . intrinsic_bits )
         {
-            MACRO_PRINT( double, vdt_get_f64, "%e", "%e, " )            
+            MACRO_NBB_PRINT( double, vdt_get_f64, "%e", "%e, " )            
         }
         else
         {
@@ -957,7 +1021,8 @@ static rc_t vdt_format_slice_nbb_float( const p_dump_src src, const p_col_def de
     return rc;
 }
 
-/* here the bit-size should be only 8-bit, but we are not on a byte-boundary */
+/* here the bit-size should be only 8-bit, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
 static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
 {
     rc_t rc = 0;
@@ -966,7 +1031,7 @@ static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def de
 
     if ( src -> in_hex )
     {
-        MACRO_IN_HEX
+        MACRO_NBB_IN_HEX
     }
     else
     {
@@ -976,33 +1041,40 @@ static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def de
             if ( is_json )
             {
                 rc = vds_append_str( s, "\"" );
+                DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_str() #1 failed" );
             }
             for ( i = 0; 0 == rc && i < n; ++i )
             {
                 uint8_t value = vdt_get_u8( bi, def -> type_desc . intrinsic_bits );
                 if ( is_json )
                 {
+                    /* here we are escaping ctrl-chars and the backslash */
                     if ( value < 0x20 )
                     {
                         rc = vds_append_fmt( s, 8, "\\u%04x", value );
+                        DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_fmt() #2 failed" );
                     }
                     else if ( '\\' == value )
                     {
                         rc = vds_append_str( s, "\\\\" );
+                        DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_str() #3 failed" );
                     }
                     else
                     {
                         rc = vds_append_fmt( s, 4, "%c", value );
+                        DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_fmt() #4 failed" );
                     }
                 }
                 else
                 {
                     rc = vds_append_fmt( s, 4, "%c", value );
+                    DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_fmt() #5 failed" );
                 }
             }
             if ( 0 == rc && is_json )
             {
                 rc = vds_append_str( s, "\"" );
+                DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_str() #6 failed" );
             }
         }
         else
@@ -1013,10 +1085,12 @@ static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def de
     return rc;
 }
 
-#undef MACRO_IN_HEX
-#undef MACRO_TRANSLATE
-#undef MACRO_PRINT
+#undef MACRO_NBB_IN_HEX
+#undef MACRO_NBB_TRANSLATE
+#undef MACRO_NBB_PRINT
 
+/* not on a byte-boundary, 1 dimensional array of values
+ called by: vdt_format_cell_nbb_dim2_v2 AND vdt_format_cell_v2 below */
 static rc_t vdt_format_slice_nbb( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
 {
     switch( def -> type_desc . domain )
@@ -1042,14 +1116,9 @@ static rc_t vdt_format_slice_nbb( const p_dump_src src, const p_col_def def, p_b
     return 0;
 }
 
-static rc_t vdt_format_cell_nbb_dim1_v2( const p_dump_src src, const p_col_def def )
-{
-    uint32_t n = src -> number_of_elements;
-    bit_iter bi = { src -> buf, src -> offset_in_bits };
-    return vdt_format_slice_nbb( src, def, &bi, n );
-}
-
-static rc_t vdt_format_nbb_dim_trans_json( const p_dump_src src, const p_col_def def )
+/* not on a byte-boundary, 2 dimensional array of values ( grouped ), translate each value, json-format
+ called by vdt_format_cell_nbb_dim2_v2 below */
+static rc_t vdt_format_nbb_dim2_trans_json( const p_dump_src src, const p_col_def def )
 {
     bit_iter bi = { src -> buf, src -> offset_in_bits };
     size_t num_bytes = def -> dim_trans_size;
@@ -1058,19 +1127,22 @@ static rc_t vdt_format_nbb_dim_trans_json( const p_dump_src src, const p_col_def
     p_dump_str ds = &( def -> content );
 
     rc_t rc = vds_append_str( ds, "[" );
+    DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().vds_append_str() #1 failed" );
     for ( group = 0; 0 == rc && group < n; ++group )
     {
         char trans_txt[ 512 ];
         size_t written;
-        uint8_t * slice = vdb_get_bits( &bi, num_bytes );
+        uint8_t * slice = vdt_get_bits( &bi, num_bytes );
         if ( NULL != slice )
         {
             rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
-                                        slice, src -> output_format );
+                                      slice, src -> output_format );
+            DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().dim_trans_fn() failed" );
             if ( 0 == rc )
             {
                 bool not_last = ( group < n - 1 );
                 rc = vds_append_fmt( ds, written + 3, not_last ? "%s," : "%s", trans_txt );
+                DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().vds_append_fmt() #2 failed" );
             }
             free( slice );
         }
@@ -1078,11 +1150,14 @@ static rc_t vdt_format_nbb_dim_trans_json( const p_dump_src src, const p_col_def
     if ( 0 == rc )
     {
         rc = vds_append_str( ds, "]" );
+        DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().vds_append_str() #3 failed" );
     }
     return rc;
 }
 
-static rc_t vdt_format_nbb_dim_trans_dflt( const p_dump_src src, const p_col_def def )
+/* not on a byte-boundary, 2 dimensional array of values ( grouped ), translate each value, dflt-format
+ called by vdt_format_cell_nbb_dim2_v2 below */
+static rc_t vdt_format_nbb_dim2_trans_dflt( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
     bit_iter bi = { src -> buf, src -> offset_in_bits };
@@ -1094,14 +1169,16 @@ static rc_t vdt_format_nbb_dim_trans_dflt( const p_dump_src src, const p_col_def
     {
         char trans_txt[ 512 ];
         size_t written;
-        uint8_t * slice = vdb_get_bits( &bi, num_bytes );
+        uint8_t * slice = vdt_get_bits( &bi, num_bytes );
         if ( NULL != slice )
         {
             rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
-                                        slice, src -> output_format );
+                                      slice, src -> output_format );
+            DISP_RC( rc, "vdt_format_nbb_dim2_trans_dflt().dim_trans_fn() failed" );
             if ( 0 == rc )
             {
                 rc = vds_append_fmt( &( def -> content ), written + 3, "[%s]", trans_txt );
+                DISP_RC( rc, "vdt_format_nbb_dim2_trans_dflt().vds_append_fmt() failed" );
             }
             free( slice );
         }
@@ -1109,6 +1186,8 @@ static rc_t vdt_format_nbb_dim_trans_dflt( const p_dump_src src, const p_col_def
     return rc;
 }
 
+/* not on a byte-boundary, 2 dimensional array of values ( grouped )
+ called by vdt_format_cell_v2 below */
 static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
@@ -1118,9 +1197,9 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
     {
         switch ( src -> output_format )
         {
-            case df_json : return vdt_format_nbb_dim_trans_json( src, def ); break;
+            case df_json : return vdt_format_nbb_dim2_trans_json( src, def ); break;
             case df_xml  : ; /* fall through for now */
-            default      : return vdt_format_nbb_dim_trans_dflt( src, def ); break;
+            default      : return vdt_format_nbb_dim2_trans_dflt( src, def ); break;
         }
     }
     else
@@ -1133,6 +1212,7 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
         if ( df_json == src -> output_format )
         {
             rc = vds_append_str( &( def -> content ), "[" );
+            DISP_RC( rc, "vdt_format_cell_nbb_dim2_v2().vds_append_str() #1 failed" );
         }
 
         for ( group = 0; 0 == rc && group < n; ++group )
@@ -1141,12 +1221,14 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
             if ( 0 == rc && group < n - 1 )
             {
                 rc = vds_append_str( &( def -> content ), "," );
+                DISP_RC( rc, "vdt_format_cell_nbb_dim2_v2().vds_append_str() #2 failed" );
             }
         }
 
         if ( 0 == rc && df_json == src -> output_format )
         {
             rc = vds_append_str( &( def -> content ), "]" );
+            DISP_RC( rc, "vdt_format_cell_nbb_dim2_v2().vds_append_str() #3 failed" );
         }
     }
     return rc;
@@ -1154,10 +1236,11 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
 
 /* --------------------------------------------------------------------------------- */
 
-#define MACRO_IN_HEX_JSON( FMT1, FMT2 ) \
+#define MACRO_BB_IN_HEX_JSON( FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
         rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ 0 ] ); \
+        DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_fmt() #1 failed" ); \
     } \
     else \
     { \
@@ -1165,25 +1248,30 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
         if ( brackets ) \
         { \
            rc = vds_append_str( s, "[" ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_str() #2 failed" ); \
         } \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_fmt() #3 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_fmt() #4 failed" ); \
         } \
         if ( 0 == rc && brackets ) \
         { \
-           rc = vds_append_str( s, "]" ); \
+            rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_str() #5 failed" ); \
         } \
     }
 
-#define MACRO_IN_HEX_DFLT( FMT1, FMT2 ) \
+#define MACRO_BB_IN_HEX_DFLT( FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
         rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ 0 ] ); \
+        DISP_RC( rc, "MACRO_BB_IN_HEX_DFLT().vds_append_fmt() #1 failed" ); \
     } \
     else \
     { \
@@ -1191,31 +1279,33 @@ static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def d
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_DFLT().vds_append_fmt() #2 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_DFLT().vds_append_fmt() #3 failed" ); \
         } \
     }
 
-#define MACRO_IN_HEX_SHORT \
+#define MACRO_BB_IN_HEX_SHORT \
     if ( df_json == src -> output_format ) \
     { \
-        MACRO_IN_HEX_JSON( "\"0x%X\"", "\"0x%X\", " ) \
+        MACRO_BB_IN_HEX_JSON( "\"0x%X\"", "\"0x%X\", " ) \
     } \
     else \
     { \
-        MACRO_IN_HEX_DFLT( "0x%X", "0x%X, " ) \
+        MACRO_BB_IN_HEX_DFLT( "0x%X", "0x%X, " ) \
     }
 
-#define MACRO_IN_HEX_LONG \
+#define MACRO_BB_IN_HEX_LONG \
     if ( df_json == src -> output_format ) \
     { \
-        MACRO_IN_HEX_JSON( "\"0x%lX\"", "\"0x%lX\", " ) \
+        MACRO_BB_IN_HEX_JSON( "\"0x%lX\"", "\"0x%lX\", " ) \
     } \
     else \
     { \
-        MACRO_IN_HEX_DFLT( "0x%lX", "0x%lX, " ) \
+        MACRO_BB_IN_HEX_DFLT( "0x%lX", "0x%lX, " ) \
     }
 
 static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
@@ -1227,52 +1317,58 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
 
     if ( src -> in_hex )
     {
-        MACRO_IN_HEX_SHORT
+        MACRO_BB_IN_HEX_SHORT
     }
     else
     {
         const char * bt_true;
         const char * bt_false;    
-        vdb_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
+        vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
         for ( i = 0; 0 == rc && i < n; ++i )
         {
             rc = vds_append_str( s, 0 == data[ i ] ? bt_false : bt_true );
+            DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
         }
     }
     return rc;
 }
 
-#define MACRO_TRANSLATE_JSON \
+#define MACRO_BB_TRANSLATE_JSON \
     if ( 1 == n ) \
     { \
         const char *txt = def -> value_trans_fn( ( uint32_t )data[ 0 ] ); \
         size_t txt_len = string_size( txt ) ;\
         rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+        DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_fmt() #1 failed" ); \
     } \
     else \
     { \
         uint32_t i; \
         rc = vds_append_str( s, "[" ); \
+        DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_str() #2 failed" ); \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             const char *txt = def -> value_trans_fn( ( uint32_t )data[ i ] ); \
             size_t txt_len = string_size( txt ) ;\
             rc = vds_append_fmt( s, txt_len + 5, "\"%s\", ", txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_fmt() #3 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             const char *txt = def -> value_trans_fn( ( uint32_t )data[ n - 1 ] ); \
             size_t txt_len = string_size( txt ) ;\
             rc = vds_append_fmt( s, txt_len + 4, "\"%s\"]", txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_fmt() #4 failed" ); \
         } \
     }
 
 
-#define MACRO_TRANSLATE_DFLT \
+#define MACRO_BB_TRANSLATE_DFLT \
     if ( 1 == n ) \
     { \
         const char *txt = def -> value_trans_fn( ( uint32_t )data[ 0 ] ); \
         rc = vds_append_str( s, txt ); \
+        DISP_RC( rc, "MACRO_BB_TRANSLATE_DFLT().vds_append_str() #1 failed" ); \
     } \
     else \
     { \
@@ -1282,29 +1378,32 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
             const char *txt = def -> value_trans_fn( ( uint32_t )data[ i ] ); \
             size_t txt_len = string_size( txt ); \
             rc = vds_append_fmt( s, txt_len + 3, "%s, ", txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_DFLT().vds_append_fmt() #2 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             const char *txt = def -> value_trans_fn( ( uint32_t )data[ n - 1 ] ); \
             rc = vds_append_str( s, txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_DFLT().vds_append_str() #3 failed" ); \
         } \
     }
 
 
-#define MACRO_TRANSLATE \
+#define MACRO_BB_TRANSLATE \
     if ( df_json == src -> output_format ) \
     { \
-        MACRO_TRANSLATE_JSON \
+        MACRO_BB_TRANSLATE_JSON \
     } \
     else \
     { \
-        MACRO_TRANSLATE_DFLT \
+        MACRO_BB_TRANSLATE_DFLT \
     }
 
-#define MACRO_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
+#define MACRO_BB_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
         rc = vds_append_fmt( s, RESERVE, FMT1, data[ 0 ] ); \
+        DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_fmt() #1 failed" ); \
     } \
     else \
     { \
@@ -1312,22 +1411,26 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         if ( brackets ) \
         { \
             rc = vds_append_str( &( def -> content ), "[" ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_str() #2 failed" ); \
         } \
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             rc = vds_append_fmt( s, RESERVE, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_fmt() #3 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             rc = vds_append_fmt( s, RESERVE, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_fmt() #4 failed" ); \
         } \
         if ( 0 == rc && brackets ) \
         { \
             rc = vds_append_str( &( def -> content ), "]" ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_str() #5 failed" ); \
         } \
     }
 
-#define MACRO_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
+#define MACRO_BB_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
     if ( 1 == n ) \
     { \
         rc = vds_append_fmt( s, RESERVE, FMT1, data[ 0 ] ); \
@@ -1338,54 +1441,56 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
         for ( i = 0; 0 == rc && i < n - 1; ++i ) \
         { \
             rc = vds_append_fmt( s, RESERVE, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_DFLT().vds_append_fmt() #1 failed" ); \
         } \
         if ( 0 == rc ) \
         { \
             rc = vds_append_fmt( s, RESERVE, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_DFLT().vds_append_fmt() #2 failed" ); \
         } \
     }
 
-#define MACRO_PRINT( RESERVE, FMT1, FMT2 ) \
+#define MACRO_BB_PRINT( RESERVE, FMT1, FMT2 ) \
     if ( df_json == src -> output_format ) \
     { \
-        MACRO_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
+        MACRO_BB_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
     } \
     else \
     { \
-        MACRO_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
+        MACRO_BB_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
     }
 
-#define MACRO_PRINT_SHORT( RESERVE, FMT1, FMT2 ) \
+#define MACRO_BB_PRINT_SHORT( RESERVE, FMT1, FMT2 ) \
     rc_t rc = 0; \
     p_dump_str s = &( def -> content ); \
     if ( src -> in_hex ) \
     { \
-        MACRO_IN_HEX_SHORT \
+        MACRO_BB_IN_HEX_SHORT \
     } \
     else if ( src -> value_trans ) \
     { \
-        MACRO_TRANSLATE \
+        MACRO_BB_TRANSLATE \
     } \
     else \
     { \
-        MACRO_PRINT( RESERVE, FMT1, FMT2 ) \
+        MACRO_BB_PRINT( RESERVE, FMT1, FMT2 ) \
     } \
     return rc;
 
-#define MACRO_PRINT_LONG( RESERVE, FMT1, FMT2 ) \
+#define MACRO_BB_PRINT_LONG( RESERVE, FMT1, FMT2 ) \
     rc_t rc = 0; \
     p_dump_str s = &( def -> content ); \
     if ( src -> in_hex ) \
     { \
-        MACRO_IN_HEX_LONG \
+        MACRO_BB_IN_HEX_LONG \
     } \
     else if ( src -> value_trans ) \
     { \
-        MACRO_TRANSLATE \
+        MACRO_BB_TRANSLATE \
     } \
     else \
     { \
-        MACRO_PRINT( RESERVE, FMT1, FMT2 ) \
+        MACRO_BB_PRINT( RESERVE, FMT1, FMT2 ) \
     } \
     return rc;
 
@@ -1393,64 +1498,64 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
 static rc_t vdt_format_slice_bb_u8( const p_dump_src src, const p_col_def def,
                                     const uint8_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
 }
 
 static rc_t vdt_format_slice_bb_i8( const p_dump_src src, const p_col_def def,
                                     const int8_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
 }
 
 static rc_t vdt_format_slice_bb_u16( const p_dump_src src, const p_col_def def,
                                      const uint16_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
 }
 
 static rc_t vdt_format_slice_bb_i16( const p_dump_src src, const p_col_def def,
                                      const int16_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
 }
 
 static rc_t vdt_format_slice_bb_u32( const p_dump_src src, const p_col_def def,
                                      const uint32_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
 }
 
 static rc_t vdt_format_slice_bb_i32( const p_dump_src src, const p_col_def def,
                                      const int32_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
 }
 
 static rc_t vdt_format_slice_bb_u64( const p_dump_src src, const p_col_def def,
                                      const uint64_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%lu", "%lu, " )
+    MACRO_BB_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%lu", "%lu, " )
 }
 
 static rc_t vdt_format_slice_bb_i64( const p_dump_src src, const p_col_def def,
                                      const int64_t * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%ld", "%ld, " )
+    MACRO_BB_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%ld", "%ld, " )
 }
 
 static rc_t vdt_format_slice_bb_f32( const p_dump_src src, const p_col_def def,
                                      const float * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_SHORT( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
 }
 
 static rc_t vdt_format_slice_bb_f64( const p_dump_src src, const p_col_def def,
                                      const double * data, uint32_t n, bool brackets )
 {
-    MACRO_PRINT_LONG( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
+    MACRO_BB_PRINT_LONG( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
 }
 
-static bool has_ctrl_char( const uint8_t * data, uint32_t n )
+static bool vdt_has_ctrl_chars( const uint8_t * data, uint32_t n )
 {
     uint32_t i;
     for ( i = 0; i < n; ++i )
@@ -1460,9 +1565,10 @@ static bool has_ctrl_char( const uint8_t * data, uint32_t n )
     return false;
 }
 
-static rc_t escape_ctrl_chars( p_dump_str s, const uint8_t * data, uint32_t n )
+static rc_t vdt_escape_ctrl_chars( p_dump_str s, const uint8_t * data, uint32_t n )
 {
     rc_t rc = vds_append_str( s, "\"" );
+    DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_str() #1 failed" );
     if  ( 0 == rc )
     {
         uint32_t i;
@@ -1471,24 +1577,29 @@ static rc_t escape_ctrl_chars( p_dump_str s, const uint8_t * data, uint32_t n )
             if ( data[ i ] < 0x20 )
             {
                 rc = vds_append_fmt( s, 8, "\\u%04x", data[ i ] );
+                DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_fmt() #2 failed" );
             }
             else if ( '\\' == data[ i ] )
             {
                 rc = vds_append_str( s, "\\\\" );
+                DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_str() #3 failed" );
             }
             else
             {
                 rc = vds_append_fmt( s, 4, "%c", data[ i ] );
+                DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_fmt() #4 failed" );
             }
         }
         if ( 0 == rc )
         {
             rc = vds_append_str( s, "\"" );
+            DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_str() #5 failed" );
         }
     }
     return rc;
 }
 
+/* on a byte-boundary, slice of ascii-test */
 static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def,
                                        const uint8_t * data, uint32_t n, bool brackets )
 {
@@ -1496,38 +1607,46 @@ static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def
     p_dump_str s = &( def -> content );
     if ( src -> in_hex )
     {
-        MACRO_IN_HEX_SHORT
+        MACRO_BB_IN_HEX_SHORT
     }
     else
     {
         if ( df_json == src -> output_format )
         {
-            if ( has_ctrl_char( data, n ) )
+            if ( vdt_has_ctrl_chars( data, n ) )
             {
-                rc = escape_ctrl_chars( s, data, n );
+                rc = vdt_escape_ctrl_chars( s, data, n );
             }
             else
             {
                 rc = vds_append_fmt( s, n + 3, "\"%.*s\"", n, data );
+                DISP_RC( rc, "vdt_format_slice_bb_ascii().vds_append_fmt() #1 failed" );
             }
         }
         else
         {
             rc = vds_append_fmt( s, n, "%.*s", n, data );
+            DISP_RC( rc, "vdt_format_slice_bb_ascii().vds_append_fmt() #2 failed" );
         }
     }
     return rc;
 }
 
-#undef MACRO_IN_HEX
-#undef MACRO_IN_HEX_SHORT
-#undef MACRO_IN_HEX_LONG
-#undef MACRO_TRANSLATE
-#undef MACRO_PRINT
-#undef MACRO_PRINT_SHORT
-#undef MACRO_PRINT_LONG
+/* just in case... */
+#undef MACRO_BB_IN_HEX_JSON
+#undef MACRO_BB_IN_HEX_DFLT
+#undef MACRO_BB_IN_HEX_SHORT
+#undef MACRO_BB_IN_HEX_LONG
+#undef MACRO_BB_TRANSLATE_JSON
+#undef MACRO_BB_TRANSLATE_DFLT
+#undef MACRO_BB_TRANSLATE
+#undef MACRO_BB_PRINT_JSON
+#undef MACRO_BB_PRINT_DFLT
+#undef MACRO_BB_PRINT
+#undef MACRO_BB_PRINT_SHORT
+#undef MACRO_BB_PRINT_LONG
 
-/* on a byte-boundary, 1 dimensional array, default format */
+/* on a byte-boundary, 1 dimensional array of values */
 static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def def )
 {
     uint32_t n = src -> number_of_elements;
@@ -1573,7 +1692,7 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
     return 0;
 }
 
-#define MACRO_DIM2( DATA_TYPE, SLICE_FUNC ) \
+#define MACRO_BB_DIM2( DATA_TYPE, SLICE_FUNC ) \
     rc_t rc = 0; \
     uint32_t dim = def -> type_desc . intrinsic_dim; \
     uint32_t n = src -> number_of_elements; \
@@ -1582,11 +1701,13 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
     if ( df_json == src -> output_format ) \
     { \
         rc = vds_append_str( &( def -> content ), "[" ); \
+        DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str([) #1 failed" ); \
     } \
     for ( group = 0; 0 == rc && group < n; ++group ) \
     { \
         const DATA_TYPE * slice = &( data[ group * dim ] ); \
         rc = vds_append_str( &( def -> content ), "[" ); \
+        DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str([) #2 failed" ); \
         if ( 0 == rc ) \
         { \
             rc = SLICE_FUNC( src, def, slice, dim, false ); \
@@ -1594,89 +1715,105 @@ static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def de
         if ( 0 == rc ) \
         { \
             rc = vds_append_str( &( def -> content ), group < n - 1 ? "], " : "]" ); \
+            DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str(]) #2 failed" ); \
         } \
     } \
     if ( 0 == rc && df_json == src -> output_format ) \
     { \
         rc = vds_append_str( &( def -> content ), "]" ); \
+        DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str(]) #1 failed" ); \
     } \
     return rc;
 
-/* on a byte-boundary, 2 dimensional array of bool ( aka 1 byte ) */
+/* on a byte-boundary, 2 dimensional array of bool ( aka 1 byte ) 
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_bool( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( uint8_t, vdt_format_slice_bb_bool )
+    MACRO_BB_DIM2( uint8_t, vdt_format_slice_bb_bool )
 }
 
-/* on a byte-boundary, 2 dimensional array of uint8 */
+/* on a byte-boundary, 2 dimensional array of uint8
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_u8( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( uint8_t, vdt_format_slice_bb_u8 )
+    MACRO_BB_DIM2( uint8_t, vdt_format_slice_bb_u8 )
 }
 
-/* on a byte-boundary, 2 dimensional array of uint16 */
+/* on a byte-boundary, 2 dimensional array of uint16
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_u16( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( uint16_t, vdt_format_slice_bb_u16 )
+    MACRO_BB_DIM2( uint16_t, vdt_format_slice_bb_u16 )
 }
 
-/* on a byte-boundary, 2 dimensional array of uint32 */
+/* on a byte-boundary, 2 dimensional array of uint32
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_u32( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( uint32_t, vdt_format_slice_bb_u32 )
+    MACRO_BB_DIM2( uint32_t, vdt_format_slice_bb_u32 )
 }
 
-/* on a byte-boundary, 2 dimensional array of uint64 */
+/* on a byte-boundary, 2 dimensional array of uint64
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_u64( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( uint64_t, vdt_format_slice_bb_u64 )
+    MACRO_BB_DIM2( uint64_t, vdt_format_slice_bb_u64 )
 }
 
-/* on a byte-boundary, 2 dimensional array of int8 */
+/* on a byte-boundary, 2 dimensional array of int8
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_i8( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( int8_t, vdt_format_slice_bb_i8 )
+    MACRO_BB_DIM2( int8_t, vdt_format_slice_bb_i8 )
 }
 
-/* on a byte-boundary, 2 dimensional array of uint16 */
+/* on a byte-boundary, 2 dimensional array of uint16
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_i16( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( int16_t, vdt_format_slice_bb_i16 )
+    MACRO_BB_DIM2( int16_t, vdt_format_slice_bb_i16 )
 }
 
-/* on a byte-boundary, 2 dimensional array of int32 */
+/* on a byte-boundary, 2 dimensional array of int32
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_i32( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( int32_t, vdt_format_slice_bb_i32 )
+    MACRO_BB_DIM2( int32_t, vdt_format_slice_bb_i32 )
 }
 
-/* on a byte-boundary, 2 dimensional array of int64 */
+/* on a byte-boundary, 2 dimensional array of int64
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_i64( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( int64_t, vdt_format_slice_bb_i64 )
+    MACRO_BB_DIM2( int64_t, vdt_format_slice_bb_i64 )
 }
 
-/* on a byte-boundary, 2 dimensional array of floats */
+/* on a byte-boundary, 2 dimensional array of floats
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_f32( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( float, vdt_format_slice_bb_f32 )
+    MACRO_BB_DIM2( float, vdt_format_slice_bb_f32 )
 }
 
-/* on a byte-boundary, 2 dimensional array of doubles */
+/* on a byte-boundary, 2 dimensional array of doubles
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_f64( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( double, vdt_format_slice_bb_f64 )
+    MACRO_BB_DIM2( double, vdt_format_slice_bb_f64 )
 }
 
-/* on a byte-boundary, 2 dimensional array of ascii-text ( 8 bit ) */
+/* on a byte-boundary, 2 dimensional array of ascii-text ( 8 bit )
+ called by vdt_format_cell_bb_dim2_v2 below */
 static rc_t vdt_format_cell_bb_dim2_ascii( const p_dump_src src, const p_col_def def )
 {
-    MACRO_DIM2( uint8_t, vdt_format_slice_bb_ascii )
+    MACRO_BB_DIM2( uint8_t, vdt_format_slice_bb_ascii )
 }
 
-#undef MACRO_DIM2
+#undef MACRO_BB_DIM2
 
-static rc_t vdt_format_bb_dim_trans_json( const p_dump_src src, const p_col_def def )
+/* on a byte-boundary, 2 dimensional array of values ( grouped ) translated to txt, jsond-format
+ called by by vdt_format_cell_bb_dim2_v2() below */
+static rc_t vdt_format_bb_dim2_trans_json( const p_dump_src src, const p_col_def def )
 {
     uint32_t n = src -> number_of_elements;
     uint32_t group;
@@ -1684,6 +1821,7 @@ static rc_t vdt_format_bb_dim_trans_json( const p_dump_src src, const p_col_def 
     p_dump_str ds = &( def -> content );
 
     rc_t rc = vds_append_str( ds, "[" );
+    DISP_RC( rc, "vdt_format_bb_dim2_trans_json().vds_append_str([) failed" );
     for ( group = 0; 0 == rc && group < n; ++group )
     {
         char trans_txt[ 512 ];
@@ -1691,20 +1829,25 @@ static rc_t vdt_format_bb_dim_trans_json( const p_dump_src src, const p_col_def 
         const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
         rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
                                     slice, src -> output_format );
+        DISP_RC( rc, "vdt_format_bb_dim2_trans_json().dim_trans_fn() failed" );
         if ( 0 == rc )
         {
             bool not_last = ( group < n - 1 );
             rc = vds_append_fmt( ds, written + 3, not_last ? "%s," : "%s", trans_txt );
+            DISP_RC( rc, "vdt_format_bb_dim2_trans_json().vds_append_fmt() failed" );
         }
     }
     if ( 0 == rc )
     {
         rc = vds_append_str( ds, "]" );
+        DISP_RC( rc, "vdt_format_bb_dim2_trans_json().vds_append_str(]) failed" );
     }
     return rc;
 }
 
-static rc_t vdt_format_bb_dim_trans_dflt( const p_dump_src src, const p_col_def def )
+/* on a byte-boundary, 2 dimensional array of values ( grouped ) translated to txt, dflt-format
+ called by vdt_format_cell_bb_dim2_v2() below */
+static rc_t vdt_format_bb_dim2_trans_dflt( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
     uint32_t n = src -> number_of_elements;
@@ -1718,15 +1861,18 @@ static rc_t vdt_format_bb_dim_trans_dflt( const p_dump_src src, const p_col_def 
         const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
         rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
                                     slice, src -> output_format );
+        DISP_RC( rc, "vdt_format_bb_dim2_trans_dflt().dim_trans_fn() failed" );
         if ( 0 == rc )
         {
             rc = vds_append_fmt( &( def -> content ), written + 3, "[%s]", trans_txt );
+            DISP_RC( rc, "vdt_format_bb_dim_2trans_dflt().vds_append_fmt() failed" );
         }
     }
     return rc;
 }
 
-/* on a byte-boundary, 2 dimensional array, default format */
+/* on a byte-boundary, 2 dimensional array of values ( grouped )
+ called by vdt_format_cell_v2 below */
 static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
@@ -1736,9 +1882,9 @@ static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def de
     {
         switch ( src -> output_format )
         {
-            case df_json : return vdt_format_bb_dim_trans_json( src, def ); break;
+            case df_json : return vdt_format_bb_dim2_trans_json( src, def ); break;
             case df_xml  : ; /* fall through for now */
-            default      : return vdt_format_bb_dim_trans_dflt( src, def ); break;
+            default      : return vdt_format_bb_dim2_trans_dflt( src, def ); break;
         }
     }
     else
@@ -1791,7 +1937,8 @@ src         [IN] ... buffer containing the data
 my_col_def  [IN] ... the definition of the column to be dumped
 
 new and improved print of a cell, takes advantage of the fact that most ( if not 
-all ) cells have offset == 0 and can be printed as a typecast to an array
+all ) cells have bit-offset == 0 and can be printed as a typecast to an array
+called by vdm_read_cell_data() in vdb-dump.c
 *************************************************************************************/
 rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_debug )
 {
@@ -1865,7 +2012,8 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
                 if ( 1 == dim )
                 {
                     /* the cell is a 1-dimensional vector of elements ... */
-                    rc = vdt_format_cell_nbb_dim1_v2( src, def );
+                    bit_iter bi = { src -> buf, src -> offset_in_bits };
+                    rc = vdt_format_slice_nbb( src, def, &bi, src -> number_of_elements );
                 }
                 else
                 {
@@ -1879,9 +2027,11 @@ rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_de
             /* we need format-specific handling in case of json/xml for an empty cell */
             switch ( src -> output_format )
             {
-                case df_json : rc = vds_append_str( ds, "\"\"" ); break;
-                case df_xml  : break;
-                default      : break; /* nothing by default */
+                case df_json  : rc = vds_append_str( ds, "\"\"" );
+                                DISP_RC( rc, "vdt_format_cell_v2().vds_append_str() failed" );
+                                break;
+                case df_xml   : ;
+                default       : break; /* nothing by default */
             }
         }
     }

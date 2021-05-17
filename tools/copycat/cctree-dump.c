@@ -335,7 +335,6 @@ rc_t MD5Print ( const uint8_t *digest, CCDumper *d )
         rc_t rc = 0;
         size_t num_writ = 0;
 /*      len += sprintf ( & buff [ len ], "%02x", digest [ i ] ); */
-        len += sprintf ( & buff [ len ], "%02x", digest [ i ] );
         rc = string_printf ( & buff [ len ], sizeof buff - len, &num_writ,
                                          "%02x", digest [ i ] );
         if ( rc != 0 )

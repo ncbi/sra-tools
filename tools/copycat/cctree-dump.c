@@ -301,13 +301,16 @@ rc_t CCNamePrintFull ( const CCName *self, CCDumper *d )
 static
 rc_t KTimePrint ( KTime_t self, CCDumper *d )
 {
-    int len;
+    rc_t rc = 0;
+    size_t len = 0;
     char buffer [ 64 ];
     time_t t = ( time_t ) self;
 
     struct tm gmt;
     gmtime_r ( & t, & gmt );
-    len = sprintf ( buffer, "%04d-%02d-%02dT%02d:%02d:%02dZ"
+/*  len = sprintf ( buffer, "%04d-%02d-%02dT%02d:%02d:%02dZ" */
+    rc = string_printf ( buffer, sizeof buffer, & len,
+                            "%04d-%02d-%02dT%02d:%02d:%02dZ"
                     , gmt . tm_year + 1900
                     , gmt . tm_mon + 1
                     , gmt . tm_mday
@@ -315,6 +318,8 @@ rc_t KTimePrint ( KTime_t self, CCDumper *d )
                     , gmt . tm_min
                     , gmt . tm_sec
         );
+    if ( rc != 0 )
+        return rc;
 
     return CCDumperWrite ( d, buffer, len );
 }
@@ -322,11 +327,21 @@ rc_t KTimePrint ( KTime_t self, CCDumper *d )
 static
 rc_t MD5Print ( const uint8_t *digest, CCDumper *d )
 {
-    int i, len;
+    int i = 0;
+    size_t len = 0;
     char buff [ 36 ];
 
-    for ( i = len = 0; i < 16; ++ i )
+    for ( i = len = 0; i < 16; ++ i ) {
+        rc_t rc = 0;
+        size_t num_writ = 0;
+/*      len += sprintf ( & buff [ len ], "%02x", digest [ i ] ); */
         len += sprintf ( & buff [ len ], "%02x", digest [ i ] );
+        rc = string_printf ( & buff [ len ], sizeof buff - len, &num_writ,
+                                         "%02x", digest [ i ] );
+        if ( rc != 0 )
+            return rc;
+        len += num_writ;
+    }
 
     return CCDumperWrite ( d, buff, 32 );
 }
@@ -339,7 +354,6 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
 
     for ( rc = 0, start = end = fmt; * end != 0; ++ end )
     {
-        int len;
         size_t size;
         char buffer [ 256 ];
 
@@ -368,20 +382,32 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
             switch ( * ( ++ end ) )
             {
             case 'd':
-                len = sprintf ( buffer, "%d", va_arg ( args, int ) );
-                rc = CCDumperWrite ( self, buffer, len );
+/*              len = sprintf ( buffer, "%d", va_arg ( args, int ) ); */
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                        "%d", va_arg ( args, int ) );
+                if ( rc == 0 )
+                    rc = CCDumperWrite ( self, buffer, size );
                 break;
             case 'u':
-                len = sprintf ( buffer, "%u", va_arg ( args, unsigned int ) );
-                rc = CCDumperWrite ( self, buffer, len );
+/*              len = sprintf ( buffer, "%u", va_arg ( args, unsigned int ) );*/
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                        "%u", va_arg ( args, unsigned int ) );
+                if ( rc == 0 )
+                    rc = CCDumperWrite ( self, buffer, size );
                 break;
             case 'x':
-                len = sprintf ( buffer, "%x", va_arg ( args, unsigned int ) );
-                rc = CCDumperWrite ( self, buffer, len );
+/*              len = sprintf ( buffer, "%x", va_arg ( args, unsigned int ) );*/
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                        "%x", va_arg ( args, unsigned int ) );
+                if ( rc == 0 )
+                    rc = CCDumperWrite ( self, buffer, size );
                 break;
             case 'f':
-                len = sprintf ( buffer, "%f", va_arg ( args, double ) );
-                rc = CCDumperWrite ( self, buffer, len );
+/*              len = sprintf ( buffer, "%f", va_arg ( args, double ) ); */
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                        "%f", va_arg ( args, double ) );
+                if ( rc == 0 )
+                    rc = CCDumperWrite ( self, buffer, size );
                 break;
             case 'l':
                 switch ( * ( ++ end ) )
@@ -399,8 +425,11 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
                 }
                 break;
             case 's':
-                len = sprintf ( buffer, "%s", va_arg ( args, const char* ) );
-                rc = CCDumperWrite ( self, buffer, len );
+/*              len = sprintf ( buffer, "%s", va_arg ( args, const char* ) ); */
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                        "%s", va_arg ( args, const char* ) );
+                if ( rc == 0 )
+                    rc = CCDumperWrite ( self, buffer, size );
                 break;
             case 'p':
                 rc = CCDumperSep ( self );
@@ -410,11 +439,16 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
                 break;
             case 'I':
 #if STORE_ID_IN_NODE
-                len = sprintf ( buffer, "%u", va_arg ( args, uint32_t ) );
+/*              len = sprintf ( buffer, "%u", va_arg ( args, uint32_t ) ); */
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                        "%u", va_arg ( args, uint32_t ) );
 #else
-                len = sprintf ( buffer, "%u", ++ self -> id );
+/*              len = sprintf ( buffer, "%u", ++ self -> id ); */
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                        "%u", ++ self -> id );
 #endif
-                rc = CCDumperWrite ( self, buffer, len );
+                if ( rc == 0 )
+                    rc = CCDumperWrite ( self, buffer, size );
                 break;
             case 'T':
                 rc = KTimePrint ( va_arg ( args, KTime_t ), self );
@@ -423,8 +457,11 @@ rc_t CCDumperVPrint ( CCDumper *self, const char *fmt, va_list args )
                 rc = MD5Print ( va_arg ( args, const uint8_t* ), self );
                 break;
             case 'C':
-                len = sprintf ( buffer, "%08x", va_arg ( args, unsigned int ) );
-                rc = CCDumperWrite ( self, buffer, len );
+/*            len = sprintf ( buffer, "%08x", va_arg ( args, unsigned int ) );*/
+                rc = string_printf ( buffer, sizeof buffer, & size,
+                                      "%08x", va_arg ( args, unsigned int ) );
+                if ( rc == 0 )
+                    rc = CCDumperWrite ( self, buffer, size );
                 break;
             case 'N':
                 rc = CCNamePrint ( va_arg ( args, const CCName* ), self );

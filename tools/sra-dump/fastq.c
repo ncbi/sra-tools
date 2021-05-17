@@ -23,9 +23,10 @@
 * ===========================================================================
 *
 */
+#include <klib/container.h>
 #include <klib/log.h>
 #include <klib/out.h>
-#include <klib/container.h>
+#include <klib/printf.h> /* string_printf */
 #include <klib/text.h>
 #include <kapp/main.h>
 
@@ -2111,7 +2112,8 @@ static rc_t FastqReadSplitter_GetKeySet( const SRASplitter* cself, const SRASpli
             }
             else
             {
-                FastqReadSplitter_key_buf = malloc( nreads_max * key_offset );
+                size_t size =                       nreads_max * key_offset;
+                FastqReadSplitter_key_buf = malloc( size );
                 if ( FastqReadSplitter_key_buf == NULL )
                 {
                     rc = RC( rcExe, rcNode, rcExecuting, rcMemory, rcExhausted );
@@ -2123,7 +2125,11 @@ static rc_t FastqReadSplitter_GetKeySet( const SRASplitter* cself, const SRASpli
                     char* p = FastqReadSplitter_key_buf;
                     for ( i = 1; rc == 0 && i <= nreads_max; i++ )
                     {
-                        if ( sprintf( p, "%4u", i ) <= 0 )
+                        size_t bsize = size - ( p - FastqReadSplitter_key_buf );
+/*                      if ( sprintf( p, "%4u", i ) <= 0 ) */
+                        rc = string_printf( p, bsize, NULL,
+                                         "%4u", i );
+                        if ( rc != 0 )
                         {
                             rc = RC( rcExe, rcNode, rcExecuting, rcTransfer, rcIncomplete );
                         }
@@ -2338,7 +2344,8 @@ static rc_t Fastq3ReadSplitter_GetKeySet( const SRASplitter* cself, const SRASpl
             }
             else
             {
-                Fastq3ReadSplitter_key_buf = malloc( nreads_max * key_offset );
+                size_t size =                        nreads_max * key_offset;
+                Fastq3ReadSplitter_key_buf = malloc( size );
                 if ( Fastq3ReadSplitter_key_buf == NULL )
                 {
                     rc = RC( rcExe, rcNode, rcExecuting, rcMemory, rcExhausted );
@@ -2350,7 +2357,11 @@ static rc_t Fastq3ReadSplitter_GetKeySet( const SRASplitter* cself, const SRASpl
                     char* p = Fastq3ReadSplitter_key_buf;
                     for ( i = 1; rc == 0 && i <= nreads_max; i++ )
                     {
-                        if ( sprintf( p, "%4u", i ) <= 0 )
+                        size_t bsize = size - ( p - Fastq3ReadSplitter_key_buf);
+/*                      if ( sprintf( p, "%4u", i ) <= 0 ) */
+                        rc = string_printf( p, bsize, NULL,
+                                         "%4u", i );
+                        if ( rc != 0 )
                         {
                             rc = RC( rcExe, rcNode, rcExecuting, rcTransfer, rcIncomplete );
                         }

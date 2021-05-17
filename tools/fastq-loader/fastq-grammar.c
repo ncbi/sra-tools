@@ -75,6 +75,8 @@
     #include <stdlib.h>
     #include <string.h>
 
+    #include <klib/printf.h> /* string_printf */
+
     #include "fastq-parse.h"
 
     #define YYSTYPE FASTQToken
@@ -2055,7 +2057,9 @@ static bool CheckQualities ( FASTQParseBlock* pb, const FASTQToken* token )
         */
         {
             char buf[200];
-            sprintf ( buf, "Invalid quality format: %d.", pb->qualityFormat );
+/*          sprintf ( buf, "Invalid quality format: %d.", pb->qualityFormat );*/
+            string_printf ( buf, sizeof buf, NULL,
+                           "Invalid quality format: %d.", pb->qualityFormat );
             pb->fatalError = true;
             yyerror(pb, buf);
             return false;
@@ -2070,7 +2074,10 @@ static bool CheckQualities ( FASTQParseBlock* pb, const FASTQToken* token )
             if (ch < floor || ch > ceiling)
             {
                 char buf[200];
-                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
+/*              sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.", */
+                string_printf ( buf, sizeof buf, NULL,
+                               "Invalid quality value ('%c'=%d, position %d): "
+                               "for %s, valid range is from %d to %d.",
                                                         ch,
                                                         ch,
                                                         i,
@@ -2123,8 +2130,11 @@ void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token)
                     else if (pb->secondaryReadNumber != readNum)
                     {
                         char buf[200];
-                        sprintf(buf,
-                                "Inconsistent secondary read number: previously used %d, now seen %d",
+/*                      sprintf(buf,
+                                "Inconsistent secondary read number: previously used %d, now seen %d", */
+                        string_printf ( buf, sizeof buf, NULL,
+                                "Inconsistent secondary read number: "
+                                "previously used %d, now seen %d",
                                 pb->secondaryReadNumber, readNum);
                         pb->fatalError = true;
                         yyerror(pb, buf);

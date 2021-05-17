@@ -564,8 +564,11 @@ rc_t parse_porams_int ( Porams *p, const Args *args )
     else {
         char BF [ 1024 ];
         const char * pos = strchr ( value, '/' );
-        sprintf ( BF, ( pos == NULL ? "./%s" : "%s" ), value );
-        rc = kar_stdp ( & ( p -> path ), BF );
+        rc = string_printf ( BF, sizeof BF, NULL,
+                      ( pos == NULL ? "./%s" : "%s" ), value );
+/*      sprintf ( BF, ( pos == NULL ? "./%s" : "%s" ), value ); */
+        if ( rc == 0 )
+            rc = kar_stdp ( & ( p -> path ), BF );
         if ( rc != 0 ) {
             LogErr ( klogFatal, rc, "Failed to allocate parameter value" );
             return rc;

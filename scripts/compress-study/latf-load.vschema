@@ -48,12 +48,12 @@ table NCBI:tbl:base_space #4
     /* physical columns
      */
 
-    physical column <INSDC:2na:packed> zstd_encoding<5, 11> .READ
+    physical column INSDC:2na:packed .READ
         = in_2na_packed
         | ( INSDC:2na:packed ) pack ( in_2na_bin )
         ;
 
-    physical column < INSDC:4na:bin > zstd_encoding<5, 11> .ALTREAD
+    physical column < INSDC:4na:bin > zip_encoding  .ALTREAD
         = < INSDC:4na:bin > trim < 0, 0 > ( in_alt_4na_bin )
         ;
 
@@ -146,7 +146,7 @@ table NCBI:tbl:phred_quality #2.0.6 = INSDC:tbl:sequence #1.0.1
 
     // physical storage
 
-    physical column < INSDC:quality:phred > zstd_encoding<5, 11> .ORIGINAL_QUALITY
+    physical column < INSDC:quality:phred > zip_encoding .ORIGINAL_QUALITY
         = in_qual_phred
         ;
 
@@ -169,7 +169,7 @@ table NCBI:align:tbl:seq #3 =
     NCBI:SRA:tbl:stats #1.2.1
 {
     // 128K
-    column default limit = 13107200;
+    column default limit = 131072;
 
     // gets primary record in alignment table (size of column is NREADS)
     // if sorted - should used special encoding
@@ -182,7 +182,7 @@ table NCBI:align:tbl:seq #3 =
     extern column < U8 > zip_encoding ALIGNMENT_COUNT;
 
     // unparsed read name
-    extern column < ascii > zstd_encoding<5, 11> RAW_NAME;
+    extern column <ascii> zstd_encoding<8, 20> RAW_NAME;
 
     // auto-generate name from row-id
     ascii out_name_fmt = .RAW_NAME | < ascii > echo < '$R' > ();

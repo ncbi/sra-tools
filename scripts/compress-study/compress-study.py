@@ -18,16 +18,17 @@ LoaderSettings = {
                 "${ENCODE-READ}" : "INSDC:2na:packed",
                 "${ENCODE-ALTREAD}" : "< INSDC:4na:bin > zip_encoding ",
                 "${ENCODE-ORIGINAL_QUALITY}" : "< INSDC:quality:phred > zip_encoding",
-                "${ENCODE-RAW_NAME}" : "< ascii > zip_encoding RAW_NAME",
+                "${ENCODE-RAW_NAME}" : "< ascii > zip_encoding",
                 "${SEQ_BLOB_SIZE}": "131072"
             }
         )
     }
 
-def TransformSchema( loader, transform ) :
+def TransformSchema( loader, transform ) -> str:
     settings = LoaderSettings[ loader ]
     if settings == None:
         raise "bad loader: " + loader
+    tag = ""
     source = settings[0]
     target = settings[1]
     transforms = settings[2]
@@ -36,11 +37,14 @@ def TransformSchema( loader, transform ) :
         for t in transforms.keys():
             override = transform.get( t )
             if override == None:
-                override = transforms[t]
+                override = transforms[ t ]
+            else :
+                tag = tag + f"{t}->{override}."
             schemaText = schemaText.replace( t, override )
 
         with open( target, 'w' ) as tgt:
             tgt.write( schemaText )
+    return tag
 
 def CreateDatabase( filename : str ) -> bool:
     try:
@@ -87,7 +91,7 @@ def RunWithTime( cmd ) -> float :
 def du(path) -> int:
     return int( subprocess.check_output(['du','-s', path]).split()[0].decode('utf-8') ) * 1024
 
-def ProcessAccession( name : str, jobsJson, db : str ) -> bool:
+def ProcessAccession( name : str, jobsJson, db : str, redo_fastq :  bool ) -> bool:
     print( f"ProcessAccession({name})")
     print( f"Jobs:({jobsJson})")
 
@@ -101,8 +105,11 @@ def ProcessAccession( name : str, jobsJson, db : str ) -> bool:
 
     # dump if required
     # TBD: split spots?
-    if not os.path.exists( os.path.join( DataDir, name+".fastq" ) ) :
-        cmd = f"fastq-dump {DataDir}/{name} --split-spot -O {DataDir}"
+    if not os.path.exists( os.path.join( DataDir, name+".fastq" ) ) or redo_fastq :
+        #fastq-dump data/SRR13340289 -X 5 --defline-seq '>$ac.$sn.$ri' --defline-qual '+$ac.$sn.$ri' --split-spot -Z
+        #cmd = f"fastq-dump {DataDir}/{name} --split-files -O {DataDir}"
+        args = f"{DataDir}/{name} -O {DataDir} --defline-seq '>$ac.$sn.$ri' --defline-qual '+$ac.$sn.$ri' --split-spot"
+        cmd = f"fastq-dump {args}"
         print( cmd )
         os.system( cmd )
     else:
@@ -110,22 +117,24 @@ def ProcessAccession( name : str, jobsJson, db : str ) -> bool:
 
     # update the schema (TBD)
     loader = jobsJson["loader"]
-    transform = jobsJson["transform"]
-    TransformSchema( loader, transform )
-    schemaUpdate = json.dumps( transform )
+    transform_array = jobsJson["transform"]
+    # now iterate over the different
+    for transform in transform_array :
+        transform_tag = TransformSchema( loader, transform )
 
-    # load, measure
-    args = f"{DataDir}/{name}.fastq --quality PHRED_33 --output {DataDir}/{name}.new"
-    cmd = f"{loader} {args}"
-    time = RunWithTime( cmd )
+        print( f"tag: {transform_tag}")
+        # load, measure
+        args = f"{DataDir}/{name}.fastq --quality PHRED_33 --output {DataDir}/{name}.new"
+        cmd = f"{loader} {args}"
+        time = RunWithTime( cmd )
 
-    oldSize = du(f'{DataDir}/{name}')
-    print( f"old size: {oldSize}")
-    print( f"load time: {time:.2f}s" )
-    newSize = du(f'{DataDir}/{name}.new')
-    print( f"new size: {newSize}")
+        oldSize = du(f'{DataDir}/{name}')
+        print( f"old size: {oldSize}")
+        print( f"load time: {time:.2f}s" )
+        newSize = du(f'{DataDir}/{name}.new')
+        print( f"new size: {newSize}")
 
-    UpdateDatabase( db, ( loader, args, schemaUpdate, name, time, newSize, ( time * 1024 * 1024 * 1024 ) / newSize ) )
+        UpdateDatabase( db, ( loader, args, transform_tag, name, time, newSize, ( time * 1024 * 1024 * 1024 ) / newSize ) )
 
     print("")
     return True
@@ -136,6 +145,7 @@ if __name__ == "__main__" :
     parser.add_argument( '--accessions', '-a', dest='accessions', default='acc.txt', help='file containing list of accessions')
     parser.add_argument( '--jobs', '-j', dest='jobs', default='jobs.json', help='Json file describing the set of jobs')
     parser.add_argument( '--output', '-o', dest='output', default='out.db', help='SQLite database to write the results to (will be created if necessary)')
+    parser.add_argument( '--redo-fastq', '-r', dest='redo_fastq', action='store_true', default=False, help='forced re-creation of fastq-file')
 
     args = parser.parse_args()
     print( f"accessions={args.accessions}" )
@@ -163,4 +173,4 @@ if __name__ == "__main__" :
     with open( args.accessions, 'r' ) as accFile:
         accs = accFile.readlines()
         for acc in accs:
-            ProcessAccession( acc.strip(), jobs, args.output )
+            ProcessAccession( acc.strip(), jobs, args.output, args.redo_fastq )

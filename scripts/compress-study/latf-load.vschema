@@ -1,0 +1,214 @@
+version 1;
+include 'align/align.vschema';
+
+table NCBI:tbl:base_space #4
+    = NCBI:tbl:base_space_common #1.0.3
+    , NCBI:tbl:dcmp_base_space #1
+{
+    /* input rules
+     */
+
+    // input text
+    INSDC:dna:text in_dnarna_text_upper
+        = < INSDC:dna:text, INSDC:dna:text > map < '.acmgrsvtwyhkdbnu','NACMGRSVTWYHKDBNU' > ( READ );
+    INSDC:dna:text in_dna_text = NCBI:SRA:setRnaFlag ( in_dnarna_text_upper ); // change U to T
+
+    // input 4na bin
+    INSDC:4na:bin in_4na_bin
+        = < INSDC:4na:bin > range_validate < 0, 15 > ( READ )
+        | ( INSDC:4na:bin ) unpack ( in_4na_packed )
+        | < INSDC:dna:text, INSDC:4na:bin > map < INSDC:4na:map:CHARSET, INSDC:4na:map:BINSET > ( in_dna_text )
+        | < INSDC:x2na:bin, INSDC:4na:bin > map < INSDC:x2na:map:BINSET, [ 1, 2, 4, 8, 15 ] > ( in_x2na_bin );
+
+    // input 4na packed
+    INSDC:4na:packed in_4na_packed = READ;
+
+    // input x2na bin
+    INSDC:x2na:bin in_x2na_bin
+        = < INSDC:x2na:bin > range_validate < 0, 4 > ( READ )
+        | < INSDC:4na:bin, INSDC:x2na:bin > map < INSDC:4na:map:BINSET, [ 4,0,1,4,2,4,4,4,3,4,4,4,4,4,4,4 ] > ( in_4na_bin );
+
+    // input 2na bin
+    INSDC:2na:bin in_2na_bin
+        = < INSDC:2na:bin > range_validate < 0, 3 > ( READ )
+        | ( INSDC:2na:bin ) unpack ( in_2na_packed )
+        | INSDC:SEQ:rand_4na_2na ( in_4na_bin );
+
+     // input 2na packed
+    INSDC:2na:packed in_2na_packed = READ;
+
+    // input 4na alt-read ( ambiguities )
+    INSDC:4na:bin in_alt_4na_bin
+        = ( INSDC:4na:bin ) < INSDC:4na:bin, INSDC:4na:bin > map < INSDC:4na:map:BINSET, [ 15,0,0,3,0,5,6,7,0,9,10,11,12,13,14,15 ] > ( in_4na_bin );
+
+    // preparing a feed into stats column
+    U8 in_stats_bin = in_2na_bin;
+
+
+    /* physical columns
+     */
+
+    physical column <INSDC:2na:packed> zstd_encoding<5, 11> .READ
+        = in_2na_packed
+        | ( INSDC:2na:packed ) pack ( in_2na_bin )
+        ;
+
+    physical column < INSDC:4na:bin > zstd_encoding<5, 11> .ALTREAD
+        = < INSDC:4na:bin > trim < 0, 0 > ( in_alt_4na_bin )
+        ;
+
+    /* output rules
+     */
+
+    // output 2na packed
+    INSDC:2na:packed out_2na_packed
+        = .READ
+        | out_dcmp_2na_packed;
+
+    // output x2na bin
+    INSDC:x2na:bin out_x2na_bin
+        = out_dcmp_x2na_bin
+        | < INSDC:4na:bin, INSDC:x2na:bin > map < INSDC:4na:map:BINSET, [ 4,0,1,4,2,4,4,4,3,4,4,4,4,4,4,4 ] > ( out_4na_bin );
+
+    // output 2na->4na bin
+    INSDC:4na:bin out_2na_4na_bin
+        = < INSDC:2na:bin, INSDC:4na:bin > map < INSDC:2na:map:BINSET, [ 1, 2, 4, 8 ] > ( out_2na_bin );
+
+    // output 4na bin
+    INSDC:4na:bin out_4na_bin
+        = < INSDC:4na:bin > bit_or < ALIGN_RIGHT > ( out_2na_4na_bin, .ALTREAD )
+        | out_dcmp_4na_bin
+        | out_2na_4na_bin;
+
+    // output text
+    INSDC:dna:text out_dnarna_text
+        = < INSDC:4na:bin, INSDC:dna:text > map < INSDC:4na:map:BINSET, INSDC:4na:map:CHARSET > ( out_4na_bin );
+    INSDC:dna:text out_dna_text
+        = NCBI:SRA:useRnaFlag ( out_dnarna_text );
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  out_signal
+	 */
+
+	/* NCBI:tbl:dcmp_base_space inherited productions
+	 *  out_dcmp_2na_bin
+	 *  out_dcmp_4na_bin
+	 *  out_dcmp_x2na_bin
+	 *  out_dcmp_2na_packed
+	 */
+};
+
+
+
+table NCBI:tbl:phred_quality #2.0.6 = INSDC:tbl:sequence #1.0.1
+{
+    // read directly quality as  phred
+    INSDC:quality:phred phys_qual_phred
+        = .ORIGINAL_QUALITY
+        | .QUALITY
+        ;
+
+    INSDC:quality:phred const_qual_phred
+        = < INSDC:quality:phred > echo < 30 > ( out_2na_bin )
+        | < INSDC:quality:phred > echo < 30 > ( out_4na_bin )
+        ;
+
+    INSDC:quality:phred raw_qual_phred
+        = < INSDC:quality:phred > is_configuration_set
+            < "/sra/quality_type", "raw_scores" > ( phys_qual_phred )
+        ;
+
+    INSDC:quality:phred syn_qual_phred
+        = NCBI:SRA:syn_quality_read < 30, 3 > ( out_read_start, out_read_len, out_read_type, out_rd_filter )
+        | NCBI:SRA:syn_quality < 30, 3 > ( out_read_len, out_spot_filter )
+        | const_qual_phred
+        ;
+
+    INSDC:quality:phred out_qual_phred
+        = raw_qual_phred
+        | syn_qual_phred
+        ;
+
+    INSDC:SRA:spot_filter in_spot_filter
+        = NCBI:SRA:make_spot_filter #1 ( in_4na_bin, in_qual_phred,
+            in_read_start, in_read_len, in_read_type, in_spot_filter_0 )
+        ;
+
+    // input rules
+    INSDC:quality:text:phred_33 in_qual_text_phred_33 = QUALITY;
+    INSDC:quality:text:phred_64 in_qual_text_phred_64 = QUALITY;
+
+    INSDC:quality:phred in_qual_phred
+        = QUALITY
+        | ( INSDC:quality:phred ) < B8 > diff < 33 > ( in_qual_text_phred_33 )
+        | ( INSDC:quality:phred ) < B8 > diff < 64 > ( in_qual_text_phred_64 )
+        ;
+
+    // physical storage
+
+    physical column < INSDC:quality:phred > zstd_encoding<5, 11> .ORIGINAL_QUALITY
+        = in_qual_phred
+        ;
+
+    trigger pull_spot_filter = < INSDC:SRA:spot_filter > compare ( in_spot_filter, out_spot_filter );
+
+    // feed to compressed statistics
+    INSDC:quality:phred in_stats_qual = in_qual_phred;
+
+	/* INSDC:tbl:sequence inherited productions
+	 *  out_qual_text_phred_33
+	 *  out_qual_text_phred_64
+	 */
+};
+
+table NCBI:align:tbl:seq #3 =
+    NCBI:tbl:base_space #4,
+    NCBI:tbl:phred_quality #2.0.6,
+    NCBI:align:tbl:cmp_base_space #1,
+    NCBI:SRA:tbl:spotdesc #1.0.2,
+    NCBI:SRA:tbl:stats #1.2.1
+{
+    // 128K
+    column default limit = 13107200;
+
+    // gets primary record in alignment table (size of column is NREADS)
+    // if sorted - should used special encoding
+    extern column <I64> izip_encoding PRIMARY_ALIGNMENT_ID;
+
+    INSDC:coord:zero trim_start = < INSDC:coord:zero > echo < 0 > ();
+    INSDC:coord:len trim_len = _spot_len;
+
+    // size is NREADS
+    extern column < U8 > zip_encoding ALIGNMENT_COUNT;
+
+    // unparsed read name
+    extern column < ascii > zstd_encoding<5, 11> RAW_NAME;
+
+    // auto-generate name from row-id
+    ascii out_name_fmt = .RAW_NAME | < ascii > echo < '$R' > ();
+
+    // temparary column
+    extern column < U64 > izip_encoding TMP_KEY_ID;
+
+    // restored  READ
+    INSDC:4na:bin out_dcmp_4na_bin
+        = NCBI:align:seq_restore_read (out_cmp_4na_bin, .PRIMARY_ALIGNMENT_ID, .READ_LEN, .READ_TYPE);
+
+    extern column < U64 > izip_encoding TI;
+
+    extern column <ascii> zip_encoding CMP_LINKAGE_GROUP;
+
+    // restored LINKAGE_GROUP
+    readonly column ascii LINKAGE_GROUP = NCBI:align:seq_restore_linkage_group(.CMP_LINKAGE_GROUP, .PRIMARY_ALIGNMENT_ID)
+                                        | .CMP_LINKAGE_GROUP;
+
+};
+
+database NCBI:align:db:alignment_sorted #3
+{
+    table NCBI:align:tbl:reference #3 REFERENCE;
+    table NCBI:align:tbl:align_sorted #1.2.1 PRIMARY_ALIGNMENT;
+    table NCBI:align:tbl:align_mate_sorted #1.1.1 SECONDARY_ALIGNMENT;
+    table NCBI:align:tbl:seq #3 SEQUENCE;
+    table NCBI:align:tbl:qstat #1.0 QUAL_STAT;
+};

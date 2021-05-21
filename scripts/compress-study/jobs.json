@@ -1,0 +1,11 @@
+{
+    "loader" : "latf-load",
+    "transform":
+    {
+        "${ENCODE-READ}" : "<INSDC:2na:packed> zstd_encoding<5, 11>",
+        "${ENCODE-ALTREAD}" : "< INSDC:4na:bin > zstd_encoding<5, 11>",
+        "${ENCODE-ORIGINAL_QUALITY}" : "< INSDC:quality:phred > zstd_encoding<5, 11>",
+        "${ENCODE-RAW_NAME}" : "< ascii > zstd_encoding<5, 11>",
+        "${SEQ_BLOB_SIZE}": "13107200"
+    }
+}

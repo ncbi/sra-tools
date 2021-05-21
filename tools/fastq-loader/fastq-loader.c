@@ -264,7 +264,8 @@ rc_t CC Usage (const Args * args)
 
 /* MARK: Definitions and Globals */
 
-#define SCHEMAFILE "align/align.vschema"
+//#define SCHEMAFILE "align/align.vschema"
+#define SCHEMAFILE "latf-load.vschema"
 
 CommonWriterSettings G;
 

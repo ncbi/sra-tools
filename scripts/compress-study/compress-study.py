@@ -9,6 +9,7 @@ import subprocess
 
 DataDir = "./data"
 
+#increased default-blob-size from 131072 ( 128k ) to 8388608 (8MB) 
 LoaderSettings = {
     "latf-load" :
         (
@@ -19,7 +20,7 @@ LoaderSettings = {
                 "${ENCODE-ALTREAD}" : "< INSDC:4na:bin > zip_encoding ",
                 "${ENCODE-ORIGINAL_QUALITY}" : "< INSDC:quality:phred > zip_encoding",
                 "${ENCODE-RAW_NAME}" : "< ascii > zip_encoding",
-                "${SEQ_BLOB_SIZE}": "131072"
+                "${SEQ_BLOB_SIZE}": "8388608"
             }
         )
     }
@@ -54,12 +55,15 @@ def CreateDatabase( filename : str ) -> bool:
             'log' (
                 'id' INTEGER PRIMARY KEY,
                 'ts' DATETIME NOT NULL DEFAULT ( datetime( 'now', 'localtime' ) ) ,
+                'tag' TEXT, /* to tag what was done */
                 'tool' TEXT, /* loader, dumper */
                 'toolargs' TEXT, /* full cmdline */
                 'schema' TEXT, /* the schema change: TBD */
                 'acc' TEXT,
                 'runtime' REAL,
+                'orgsize' INTEGER,
                 'ressize' INTEGER,
+                'improved' INTEGER,
                 'pergb' REAL ) """
         conn.execute( stmt )
         conn.close()
@@ -72,8 +76,8 @@ def UpdateDatabase( filename: str, data ) -> bool:
     try:
         conn = sqlite3.connect(filename)
         stmt="""INSERT INTO 'log'
-            ( tool, toolargs, schema, acc, runtime, ressize, pergb )
-            VALUES ( ?, ?, ?, ?, ?, ?, ? )"""
+            ( tag, tool, toolargs, schema, acc, runtime, orgsize, ressize, improved, pergb )
+            VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )"""
         conn.execute( stmt, data )
         conn.commit()
         conn.close()
@@ -91,7 +95,7 @@ def RunWithTime( cmd ) -> float :
 def du(path) -> int:
     return int( subprocess.check_output(['du','-s', path]).split()[0].decode('utf-8') ) * 1024
 
-def ProcessAccession( name : str, jobsJson, db : str, redo_fastq :  bool ) -> bool:
+def ProcessAccession( name : str, jobsJson, db : str, redo_fastq :  bool, tag : str ) -> bool:
     print( f"ProcessAccession({name})")
     print( f"Jobs:({jobsJson})")
 
@@ -122,7 +126,8 @@ def ProcessAccession( name : str, jobsJson, db : str, redo_fastq :  bool ) -> bo
     for transform in transform_array :
         transform_tag = TransformSchema( loader, transform )
 
-        print( f"tag: {transform_tag}")
+        print( f"transform: {transform_tag}")
+        print( f"tag: {tag}")
         # load, measure
         args = f"{DataDir}/{name}.fastq --quality PHRED_33 --output {DataDir}/{name}.new"
         cmd = f"{loader} {args}"
@@ -132,9 +137,10 @@ def ProcessAccession( name : str, jobsJson, db : str, redo_fastq :  bool ) -> bo
         print( f"old size: {oldSize}")
         print( f"load time: {time:.2f}s" )
         newSize = du(f'{DataDir}/{name}.new')
-        print( f"new size: {newSize}")
-
-        UpdateDatabase( db, ( loader, args, transform_tag, name, time, newSize, ( time * 1024 * 1024 * 1024 ) / newSize ) )
+        improved = ( newSize * 100 ) / oldSize
+        print( f"new size: {newSize} (changed to {improved} %)")
+        pergb = ( time * 1024 * 1024 * 1024 ) / newSize
+        UpdateDatabase( db, ( tag, loader, args, transform_tag, name, time, oldSize, newSize, improved, pergb ) )
 
     print("")
     return True
@@ -143,6 +149,7 @@ def ProcessAccession( name : str, jobsJson, db : str, redo_fastq :  bool ) -> bo
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser( description="", formatter_class=RawTextHelpFormatter )
     parser.add_argument( '--accessions', '-a', dest='accessions', default='acc.txt', help='file containing list of accessions')
+    parser.add_argument( '--tag', '-t', dest='tag', default='', help='tag the run')
     parser.add_argument( '--jobs', '-j', dest='jobs', default='jobs.json', help='Json file describing the set of jobs')
     parser.add_argument( '--output', '-o', dest='output', default='out.db', help='SQLite database to write the results to (will be created if necessary)')
     parser.add_argument( '--redo-fastq', '-r', dest='redo_fastq', action='store_true', default=False, help='forced re-creation of fastq-file')
@@ -174,4 +181,4 @@ if __name__ == "__main__" :
         accs = accFile.readlines()
         for acc in accs:
             if not acc.startswith( '#' ) :
-                ProcessAccession( acc.strip(), jobs, args.output, args.redo_fastq )
+                ProcessAccession( acc.strip(), jobs, args.output, args.redo_fastq, args.tag )

@@ -173,4 +173,5 @@ if __name__ == "__main__" :
     with open( args.accessions, 'r' ) as accFile:
         accs = accFile.readlines()
         for acc in accs:
-            ProcessAccession( acc.strip(), jobs, args.output, args.redo_fastq )
+            if not acc.startswith( '#' ) :
+                ProcessAccession( acc.strip(), jobs, args.output, args.redo_fastq )

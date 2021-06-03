@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
-import sys, argparse, os
+import sys, argparse, os, sqlite3, json, subprocess
 from argparse import RawTextHelpFormatter
-import sqlite3
-import json
 from time import perf_counter
-import subprocess
+from shutil import which
 
 #increased default-blob-size from 131072 ( 128k ) to 8388608 (8MB) 
 LoaderSettings = {
@@ -94,18 +92,27 @@ def du( path : str ) -> int:
     return int( subprocess.check_output(['du','-s', path]).split()[0].decode('utf-8') ) * 1024
 
 def is_cSRA( path : str ) -> bool :
-    return false;
+    s = []
+    a = subprocess.check_output( [ 'vdb-dump', '-E', path ] ).decode( 'utf-8' ).split( '\n' )
+    for line in a[ 1: ] :
+        d = line.split()
+        if len( d ) > 2 :
+            s.append( d[ 2 ] )
+    return 'REFERENCE' in s and 'PRIMARY_ALIGNMENT' in s and 'SEQUENCE' in s
 
-def ProcessFlat( acc : str, jobsJson, db : str, redo_fastq :  bool, tag : str, data_dir : str ) -> bool:
-    # dump if required
-    # TBD: split spots?
-    if not os.path.exists( os.path.join( data_dir, acc + ".fastq" ) ) or redo_fastq :
-        args = f"{data_dir}/{acc} -O {data_dir} --defline-seq '>$ac.$sn.$ri' --defline-qual '+$ac.$sn.$ri' --split-spot"
+def tool_available( name : str ) -> bool:
+    return which( name ) is not None
+
+def ProcessFlat( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ) -> bool:
+    print( 'fastq-extraction from flat SRA-accession' )
+    acc_location = os.path.join( data_dir, acc )
+    if not os.path.exists( f"{acc_location}.fastq" ) or redo :
+        args = f"{acc_location} -O {data_dir} --defline-seq '>$ac.$sn.$ri' --defline-qual '+$ac.$sn.$ri' --split-spot"
         cmd = f"fastq-dump {args}"
         print( cmd )
         os.system( cmd )
     else:
-        print( f"{data_dir}/{acc}.fastq exists")
+        print( f"{acc_location}.fastq exists")
 
     # update the schema (TBD)
     loader = jobsJson[ "loader" ]
@@ -117,41 +124,56 @@ def ProcessFlat( acc : str, jobsJson, db : str, redo_fastq :  bool, tag : str, d
         print( f"transform: {transform_tag}")
         print( f"tag: {tag}")
         # load, measure
-        args = f"{data_dir}/{acc}.fastq --quality PHRED_33 --output {data_dir}/{acc}.new"
+        args = f"{acc_location}.fastq --quality PHRED_33 --output {acc_location}.new"
         cmd = f"{loader} {args}"
         time = RunWithTime( cmd )
 
-        oldSize = du( f'{data_dir}/{acc}' )
+        oldSize = du( f'{acc_location}' )
         print( f"old size: {oldSize}" )
         print( f"load time: {time:.2f}s" )
-        newSize = du( f'{data_dir}/{acc}.new' )
+        newSize = du( f'{acc_location}.new' )
         improved = ( newSize * 100 ) / oldSize
         print( f"new size: {newSize} (changed to {improved} %)" )
         pergb = ( time * 1024 * 1024 * 1024 ) / newSize
         UpdateDatabase( db, ( tag, loader, args, transform_tag, name, time, oldSize, newSize, improved, pergb ) )
-
-    print("")
     return True
     
-def ProcesscSRA( acc : str, jobsJson, db : str, redo_fastq :  bool, tag : str, data_dir : str ) -> bool:
-    return false
+def ProcesscSRA( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ) -> bool:
+    print( 'sam-extraction from cSRA-accession' )
+    acc_location = os.path.join( data_dir, acc )
+    if not os.path.exists( f"{acc_location}.sam" ) or redo :
+        cmd = f"sam-dump --output-file {acc_location}.sam -u {acc_location}"
+        print( cmd )
+        os.system( cmd )
+    return True
 
-def ProcessAccession( acc : str, jobsJson, db : str, redo_fastq :  bool, tag : str, data_dir : str ) -> bool:
+def ProcessAccession( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ) -> bool:
+    print( "="*60 )
     print( f"ProcessAccession( {acc} )")
-    print( f"Jobs:( {jobsJson} )")
+    #print( f"Jobs:( {jobsJson} )")
     acc_location = os.path.join( data_dir, acc )
 
     # prefetch if required
     if not os.path.exists( acc_location ) :
-        cmd = f"prefetch {name} -o {acc_location}"
+        cmd = f"prefetch {acc} -O {data_dir}"
         print( cmd )
         os.system( cmd )
     else:
-        print( f"{acc_location} exists")
+        print( f"{acc_location} exists (already prefetched)")
 
+    # fix eventually misplaced reference-files
+    if os.path.exists( acc_location ) and os.path.exists( acc ) :
+        print( f"fixing misplaced references for {acc} ..." )
+        os.system( f"mv {acc}/* {acc_location}" )
+        os.system( f"rm -rf {acc}" )
+        
     # detect if aligned or not-aligned
-    cSRA = is_cSRA( acc_location )
-    return False
+    if is_cSRA( acc_location ) :
+        res = ProcesscSRA( acc, jobsJson, db, redo, tag, data_dir )
+    else :
+        res = ProcessFlat( acc, jobsJson, db, redo, tag, data_dir )        
+    print("")
+    return res
 
 #---------------------------------------------------------------------------
 if __name__ == "__main__" :
@@ -160,9 +182,9 @@ if __name__ == "__main__" :
     parser.add_argument( '--tag', '-t', dest='tag', default='', help='tag the run' )
     parser.add_argument( '--jobs', '-j', dest='jobs', default='jobs.json', help='Json file describing the set of jobs' )
     parser.add_argument( '--output', '-o', dest='output', default='out.db', help='SQLite database to write the results to (will be created if necessary)' )
-    parser.add_argument( '--redo-fastq', '-r', dest='redo_fastq', action='store_true', default=False, help='forced re-creation of fastq-file' )
+    parser.add_argument( '--redo', '-r', dest='redo', action='store_true', default=False, help='forced re-creation of fastq/sam-file' )
     parser.add_argument( '--data-dir', '-d', dest='data_dir', default='./data', help='data-directory' )
-    
+
     args = parser.parse_args()
     print( f"accessions={args.accessions}" )
     print( f"jobs={args.jobs}" )
@@ -179,6 +201,11 @@ if __name__ == "__main__" :
         if not CreateDatabase( args.output ):
             sys.exit( 3 )
 
+    for tool in [ 'vdb-dump', 'fastq-dump', 'latf-load', 'bam-load' ] :
+        if not tool_available( tool ) :
+            print( f"cannot find the tool '{tool}'" )
+            sys.exit( 4 )
+
     jobs = {}
     with open( args.jobs, 'r' ) as jobsFile:
         jobs = json.load( jobsFile )
@@ -191,4 +218,4 @@ if __name__ == "__main__" :
         accs = accFile.readlines()
         for acc in accs:
             if not acc.startswith( '#' ) :
-                ProcessAccession( acc.strip(), jobs, args.output, args.redo_fastq, args.tag, args.data_dir )
+                ProcessAccession( acc.strip(), jobs, args.output, args.redo, args.tag, args.data_dir )

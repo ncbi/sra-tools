@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import sys, argparse, os, sqlite3, json, subprocess
+import sys, argparse, os, sqlite3, json, subprocess, queue, threading
 from argparse import RawTextHelpFormatter
 from time import perf_counter
 from shutil import which
@@ -88,6 +88,15 @@ def RunWithTime( cmd : str ) -> float :
     os.system( cmd )
     return ( perf_counter() - t_start )
 
+def get_acc_list( filename : str ) -> list :
+    res = []
+    with open( filename, 'r' ) as f:
+        for acc in f :
+            accs = acc.strip()
+            if accs and not accs.startswith( '#' ) :
+                res.append( accs )
+    return res
+
 def du( path : str ) -> int:
     return int( subprocess.check_output(['du','-s', path]).split()[0].decode('utf-8') ) * 1024
 
@@ -103,7 +112,7 @@ def is_cSRA( path : str ) -> bool :
 def tool_available( name : str ) -> bool:
     return which( name ) is not None
 
-def ProcessFlat( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ) -> bool:
+def ProcessFlat( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
     print( 'fastq-extraction from flat SRA-accession' )
     acc_location = os.path.join( data_dir, acc )
     if not os.path.exists( f"{acc_location}.fastq" ) or redo :
@@ -136,18 +145,16 @@ def ProcessFlat( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_di
         print( f"new size: {newSize} (changed to {improved} %)" )
         pergb = ( time * 1024 * 1024 * 1024 ) / newSize
         UpdateDatabase( db, ( tag, loader, args, transform_tag, name, time, oldSize, newSize, improved, pergb ) )
-    return True
     
-def ProcesscSRA( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ) -> bool:
+def ProcesscSRA( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
     print( 'sam-extraction from cSRA-accession' )
     acc_location = os.path.join( data_dir, acc )
     if not os.path.exists( f"{acc_location}.sam" ) or redo :
-        cmd = f"sam-dump --output-file {acc_location}.sam -u {acc_location}"
+        cmd = f"cd {data_dir} && sam-dump {acc} -s -u --output-file {acc_location}.sam && cd .."
         print( cmd )
         os.system( cmd )
-    return True
 
-def ProcessAccession( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ) -> bool:
+def ProcessAccession( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
     print( "="*60 )
     print( f"ProcessAccession( {acc} )")
     #print( f"Jobs:( {jobsJson} )")
@@ -169,11 +176,30 @@ def ProcessAccession( acc : str, jobsJson, db : str, redo :  bool, tag : str, da
         
     # detect if aligned or not-aligned
     if is_cSRA( acc_location ) :
-        res = ProcesscSRA( acc, jobsJson, db, redo, tag, data_dir )
+        ProcesscSRA( acc, jobsJson, db, redo, tag, data_dir )
     else :
-        res = ProcessFlat( acc, jobsJson, db, redo, tag, data_dir )        
+        ProcessFlat( acc, jobsJson, db, redo, tag, data_dir )        
     print("")
-    return res
+
+#---------------------------------------------------------------------------
+class myThread ( threading.Thread ) :
+    def __init__( self, Q_in, jobsJson, db : str, redo : bool, tag : str, data_dir : str ) :
+        threading.Thread.__init__( self )
+        self.Q_in = Q_in
+        self.jobsJson = jobsJson
+        self.db = db
+        self.redo = redo
+        self.tag = tag
+        self.data_dir = data_dir
+
+    def run( self ):
+        running = True
+        while running :
+            try :
+                acc = self.Q_in.get_nowait()
+                ProcessAccession( acc, self.jobsJson, self.db, self.redo, self.tag, self.data_dir )
+            except :
+                running = False
 
 #---------------------------------------------------------------------------
 if __name__ == "__main__" :
@@ -184,6 +210,7 @@ if __name__ == "__main__" :
     parser.add_argument( '--output', '-o', dest='output', default='out.db', help='SQLite database to write the results to (will be created if necessary)' )
     parser.add_argument( '--redo', '-r', dest='redo', action='store_true', default=False, help='forced re-creation of fastq/sam-file' )
     parser.add_argument( '--data-dir', '-d', dest='data_dir', default='./data', help='data-directory' )
+    parser.add_argument( '--threads', dest='threads', type=int, default=1, help='how many threads' )
 
     args = parser.parse_args()
     print( f"accessions={args.accessions}" )
@@ -214,8 +241,22 @@ if __name__ == "__main__" :
     if not os.path.exists( args.data_dir ):
         os.makedirs( args.data_dir )
 
-    with open( args.accessions, 'r' ) as accFile:
-        accs = accFile.readlines()
-        for acc in accs:
-            if not acc.startswith( '#' ) :
-                ProcessAccession( acc.strip(), jobs, args.output, args.redo, args.tag, args.data_dir )
+    acc_list = get_acc_list( args.accessions )
+    if len( acc_list ) < 1 :
+        print( f"no accessions in input-file'" )
+        sys.exit( 5 )
+
+    if args.threads == 1 :
+        for acc in acc_list :
+            ProcessAccession( acc.strip(), jobs, args.output, args.redo, args.tag, args.data_dir )
+    else :
+        ToDoQueue = queue.Queue( len( acc_list ) )
+        for acc in acc_list :
+            ToDoQueue.put( acc )
+        threads = []
+        for i in range( 0, args.threads ) :
+            t = myThread( ToDoQueue, jobs, args.output, args.redo, args.tag, args.data_dir )
+            threads.append( t )
+            t.start()
+        for t in threads:
+            t.join()

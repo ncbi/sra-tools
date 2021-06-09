@@ -261,7 +261,7 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
 
     if (rc == 0 && isDb) {
         bool all = self->check_all || self->force != eForceNo;
-        rc = VDatabaseListDependencies(db, deps, !all);
+        rc = VDatabaseListDependenciesExt(db, deps, !all, self->outDir);
         DISP_RC2(rc, "VDatabaseListDependencies", resolved->name);
     }
 

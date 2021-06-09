@@ -162,13 +162,14 @@ def ProcesscSRA( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_di
         os.system( cmd )
 
     if os.path.exists( sam_file ) :
-        loader = "bam-load"
-        transform_tag = ""
         new_location = f"{acc_location}.new"
-        args = f"-L 5 -E0 -Q0 --no-verify --min-mapq 0 -d -o {new_location}"
-        cmd = f"cat {sam_file} | {loader} {args} /dev/stdin"
-        time = RunWithTime( cmd )
-        store_results_in_db( db, tag, loader, args, transform_tag, acc, acc_location, new_location, time )
+        if not os.path.exists( new_location ) or redo :
+            loader = "bam-load"
+            transform_tag = ""
+            args = f"-L 5 -E0 -Q0 --no-verify --min-mapq 0 -d -o {new_location}"
+            cmd = f"cat {sam_file} | {loader} {args} /dev/stdin"
+            time = RunWithTime( cmd )
+            store_results_in_db( db, tag, loader, args, transform_tag, acc, acc_location, new_location, time )
 
 def ProcessAccession( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
     print( "="*60 )

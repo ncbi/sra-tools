@@ -112,6 +112,18 @@ def is_cSRA( path : str ) -> bool :
 def tool_available( name : str ) -> bool:
     return which( name ) is not None
 
+def store_results_in_db( db : str, tag : str, loader : str, args : str, transform_tag : str,
+                        acc : str, acc_location : str, new_location : str, time ) :
+    oldSize = du( f"{acc_location}/{acc}.sra" )
+    print( f"old size: {oldSize}" )
+    print( f"load time: {time:.2f}s" )
+    newSize = du( new_location )
+    improved = ( newSize * 100 ) / oldSize
+    print( f"new size: {newSize} (changed to {improved} %)" )
+    pergb = ( time * 1024 * 1024 * 1024 ) / newSize
+    UpdateDatabase( db, ( tag, loader, args, transform_tag, acc, time, oldSize, newSize, improved, pergb ) )
+
+                        
 def ProcessFlat( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
     print( 'fastq-extraction from flat SRA-accession' )
     acc_location = os.path.join( data_dir, acc )
@@ -132,27 +144,31 @@ def ProcessFlat( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_di
 
         print( f"transform: {transform_tag}")
         print( f"tag: {tag}")
+        new_location = f"{acc_location}.new"
         # load, measure
-        args = f"{acc_location}.fastq --quality PHRED_33 --output {acc_location}.new"
+        args = f"{acc_location}.fastq --quality PHRED_33 --output {new_location}"
         cmd = f"{loader} {args}"
         time = RunWithTime( cmd )
-
-        oldSize = du( f'{acc_location}' )
-        print( f"old size: {oldSize}" )
-        print( f"load time: {time:.2f}s" )
-        newSize = du( f'{acc_location}.new' )
-        improved = ( newSize * 100 ) / oldSize
-        print( f"new size: {newSize} (changed to {improved} %)" )
-        pergb = ( time * 1024 * 1024 * 1024 ) / newSize
-        UpdateDatabase( db, ( tag, loader, args, transform_tag, name, time, oldSize, newSize, improved, pergb ) )
+        store_results_in_db( db, tag, loader, args, transform_tag, acc, acc_location, new_location, time )
     
 def ProcesscSRA( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
     print( 'sam-extraction from cSRA-accession' )
     acc_location = os.path.join( data_dir, acc )
-    if not os.path.exists( f"{acc_location}.sam" ) or redo :
-        cmd = f"cd {data_dir} && sam-dump {acc} -s -u --output-file {acc_location}.sam && cd .."
+    sam_file = f"{acc_location}.sam"
+    if not os.path.exists( sam_file ) or redo :
+        args = f"{acc} -s -u --output-file {acc}.sam"
+        cmd = f"cd {data_dir} && sam-dump {args} && cd .."
         print( cmd )
         os.system( cmd )
+
+    if os.path.exists( sam_file ) :
+        loader = "bam-load"
+        transform_tag = ""
+        new_location = f"{acc_location}.new"
+        args = f"-L 5 -E0 -Q0 --no-verify --min-mapq 0 -d -o {new_location}"
+        cmd = f"cat {sam_file} | {loader} {args} /dev/stdin"
+        time = RunWithTime( cmd )
+        store_results_in_db( db, tag, loader, args, transform_tag, acc, acc_location, new_location, time )
 
 def ProcessAccession( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
     print( "="*60 )

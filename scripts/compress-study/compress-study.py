@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 
-import sys, argparse, os
+import sys, argparse, os, sqlite3, json, subprocess, queue, threading
 from argparse import RawTextHelpFormatter
-import sqlite3
-import json
 from time import perf_counter
-import subprocess
-
-DataDir = "./data"
+from shutil import which
 
 #increased default-blob-size from 131072 ( 128k ) to 8388608 (8MB) 
 LoaderSettings = {
@@ -86,73 +82,152 @@ def UpdateDatabase( filename: str, data ) -> bool:
         print( f"UpdateDatabase failed: {e}", file=sys.stderr )
         return False
 
-def RunWithTime( cmd ) -> float :
+def RunWithTime( cmd : str ) -> float :
     t_start = perf_counter()
     print( cmd )
     os.system( cmd )
     return ( perf_counter() - t_start )
 
-def du(path) -> int:
+def get_acc_list( filename : str ) -> list :
+    res = []
+    with open( filename, 'r' ) as f:
+        for acc in f :
+            accs = acc.strip()
+            if accs and not accs.startswith( '#' ) :
+                res.append( accs )
+    return res
+
+def du( path : str ) -> int:
     return int( subprocess.check_output(['du','-s', path]).split()[0].decode('utf-8') ) * 1024
 
-def ProcessAccession( name : str, jobsJson, db : str, redo_fastq :  bool, tag : str ) -> bool:
-    print( f"ProcessAccession({name})")
-    print( f"Jobs:({jobsJson})")
+def is_cSRA( path : str ) -> bool :
+    s = []
+    a = subprocess.check_output( [ 'vdb-dump', '-E', path ] ).decode( 'utf-8' ).split( '\n' )
+    for line in a[ 1: ] :
+        d = line.split()
+        if len( d ) > 2 :
+            s.append( d[ 2 ] )
+    return 'REFERENCE' in s and 'PRIMARY_ALIGNMENT' in s and 'SEQUENCE' in s
 
-    # prefetch if required
-    if not os.path.exists( os.path.join( DataDir, name ) ) :
-        cmd = f"prefetch {name} -o {DataDir}/{name}"
-        print( cmd )
-        os.system( cmd )
-    else:
-        print( f"{DataDir}/{name} exists")
+def tool_available( name : str ) -> bool:
+    return which( name ) is not None
 
-    # dump if required
-    # TBD: split spots?
-    if not os.path.exists( os.path.join( DataDir, name+".fastq" ) ) or redo_fastq :
-        #fastq-dump data/SRR13340289 -X 5 --defline-seq '>$ac.$sn.$ri' --defline-qual '+$ac.$sn.$ri' --split-spot -Z
-        #cmd = f"fastq-dump {DataDir}/{name} --split-files -O {DataDir}"
-        args = f"{DataDir}/{name} -O {DataDir} --defline-seq '>$ac.$sn.$ri' --defline-qual '+$ac.$sn.$ri' --split-spot"
+def store_results_in_db( db : str, tag : str, loader : str, args : str, transform_tag : str,
+                        acc : str, acc_location : str, new_location : str, time ) :
+    oldSize = du( f"{acc_location}/{acc}.sra" )
+    print( f"old size: {oldSize}" )
+    print( f"load time: {time:.2f}s" )
+    newSize = du( new_location )
+    improved = ( newSize * 100 ) / oldSize
+    print( f"new size: {newSize} (changed to {improved} %)" )
+    pergb = ( time * 1024 * 1024 * 1024 ) / newSize
+    UpdateDatabase( db, ( tag, loader, args, transform_tag, acc, time, oldSize, newSize, improved, pergb ) )
+
+                        
+def ProcessFlat( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
+    print( 'fastq-extraction from flat SRA-accession' )
+    acc_location = os.path.join( data_dir, acc )
+    if not os.path.exists( f"{acc_location}.fastq" ) or redo :
+        args = f"{acc_location} -O {data_dir} --defline-seq '>$ac.$sn.$ri' --defline-qual '+$ac.$sn.$ri' --split-spot"
         cmd = f"fastq-dump {args}"
         print( cmd )
         os.system( cmd )
     else:
-        print( f"{DataDir}/{name}.fastq exists")
+        print( f"{acc_location}.fastq exists")
 
     # update the schema (TBD)
-    loader = jobsJson["loader"]
-    transform_array = jobsJson["transform"]
+    loader = jobsJson[ "loader" ]
+    transform_array = jobsJson[ "transform" ]
     # now iterate over the different
     for transform in transform_array :
         transform_tag = TransformSchema( loader, transform )
 
         print( f"transform: {transform_tag}")
         print( f"tag: {tag}")
+        new_location = f"{acc_location}.new"
         # load, measure
-        args = f"{DataDir}/{name}.fastq --quality PHRED_33 --output {DataDir}/{name}.new"
+        args = f"{acc_location}.fastq --quality PHRED_33 --output {new_location}"
         cmd = f"{loader} {args}"
         time = RunWithTime( cmd )
+        store_results_in_db( db, tag, loader, args, transform_tag, acc, acc_location, new_location, time )
+    
+def ProcesscSRA( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
+    print( 'sam-extraction from cSRA-accession' )
+    acc_location = os.path.join( data_dir, acc )
+    sam_file = f"{acc_location}.sam"
+    if not os.path.exists( sam_file ) or redo :
+        args = f"{acc} -s -u --output-file {acc}.sam"
+        cmd = f"cd {data_dir} && sam-dump {args} && cd .."
+        print( cmd )
+        os.system( cmd )
 
-        oldSize = du(f'{DataDir}/{name}')
-        print( f"old size: {oldSize}")
-        print( f"load time: {time:.2f}s" )
-        newSize = du(f'{DataDir}/{name}.new')
-        improved = ( newSize * 100 ) / oldSize
-        print( f"new size: {newSize} (changed to {improved} %)")
-        pergb = ( time * 1024 * 1024 * 1024 ) / newSize
-        UpdateDatabase( db, ( tag, loader, args, transform_tag, name, time, oldSize, newSize, improved, pergb ) )
+    if os.path.exists( sam_file ) :
+        new_location = f"{acc_location}.new"
+        if not os.path.exists( new_location ) or redo :
+            loader = "bam-load"
+            transform_tag = ""
+            args = f"-L 5 -E0 -Q0 --no-verify --min-mapq 0 -d -o {new_location}"
+            cmd = f"cat {sam_file} | {loader} {args} /dev/stdin"
+            time = RunWithTime( cmd )
+            store_results_in_db( db, tag, loader, args, transform_tag, acc, acc_location, new_location, time )
 
+def ProcessAccession( acc : str, jobsJson, db : str, redo :  bool, tag : str, data_dir : str ):
+    print( "="*60 )
+    print( f"ProcessAccession( {acc} )")
+    #print( f"Jobs:( {jobsJson} )")
+    acc_location = os.path.join( data_dir, acc )
+
+    # prefetch if required
+    if not os.path.exists( acc_location ) :
+        cmd = f"prefetch {acc} -O {data_dir}"
+        print( cmd )
+        os.system( cmd )
+    else:
+        print( f"{acc_location} exists (already prefetched)")
+
+    # fix eventually misplaced reference-files
+    if os.path.exists( acc_location ) and os.path.exists( acc ) :
+        print( f"fixing misplaced references for {acc} ..." )
+        os.system( f"mv {acc}/* {acc_location}" )
+        os.system( f"rm -rf {acc}" )
+        
+    # detect if aligned or not-aligned
+    if is_cSRA( acc_location ) :
+        ProcesscSRA( acc, jobsJson, db, redo, tag, data_dir )
+    else :
+        ProcessFlat( acc, jobsJson, db, redo, tag, data_dir )        
     print("")
-    return True
+
+#---------------------------------------------------------------------------
+class myThread ( threading.Thread ) :
+    def __init__( self, Q_in, jobsJson, db : str, redo : bool, tag : str, data_dir : str ) :
+        threading.Thread.__init__( self )
+        self.Q_in = Q_in
+        self.jobsJson = jobsJson
+        self.db = db
+        self.redo = redo
+        self.tag = tag
+        self.data_dir = data_dir
+
+    def run( self ):
+        running = True
+        while running :
+            try :
+                acc = self.Q_in.get_nowait()
+                ProcessAccession( acc, self.jobsJson, self.db, self.redo, self.tag, self.data_dir )
+            except :
+                running = False
 
 #---------------------------------------------------------------------------
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser( description="", formatter_class=RawTextHelpFormatter )
-    parser.add_argument( '--accessions', '-a', dest='accessions', default='acc.txt', help='file containing list of accessions')
-    parser.add_argument( '--tag', '-t', dest='tag', default='', help='tag the run')
-    parser.add_argument( '--jobs', '-j', dest='jobs', default='jobs.json', help='Json file describing the set of jobs')
-    parser.add_argument( '--output', '-o', dest='output', default='out.db', help='SQLite database to write the results to (will be created if necessary)')
-    parser.add_argument( '--redo-fastq', '-r', dest='redo_fastq', action='store_true', default=False, help='forced re-creation of fastq-file')
+    parser.add_argument( '--accessions', '-a', dest='accessions', default='acc.txt', help='file containing list of accessions' )
+    parser.add_argument( '--tag', '-t', dest='tag', default='', help='tag the run' )
+    parser.add_argument( '--jobs', '-j', dest='jobs', default='jobs.json', help='Json file describing the set of jobs' )
+    parser.add_argument( '--output', '-o', dest='output', default='out.db', help='SQLite database to write the results to (will be created if necessary)' )
+    parser.add_argument( '--redo', '-r', dest='redo', action='store_true', default=False, help='forced re-creation of fastq/sam-file' )
+    parser.add_argument( '--data-dir', '-d', dest='data_dir', default='./data', help='data-directory' )
+    parser.add_argument( '--threads', dest='threads', type=int, default=1, help='how many threads' )
 
     args = parser.parse_args()
     print( f"accessions={args.accessions}" )
@@ -170,15 +245,35 @@ if __name__ == "__main__" :
         if not CreateDatabase( args.output ):
             sys.exit( 3 )
 
+    for tool in [ 'vdb-dump', 'fastq-dump', 'latf-load', 'bam-load' ] :
+        if not tool_available( tool ) :
+            print( f"cannot find the tool '{tool}'" )
+            sys.exit( 4 )
+
     jobs = {}
     with open( args.jobs, 'r' ) as jobsFile:
         jobs = json.load( jobsFile )
 
-    if not os.path.exists( DataDir ):
-        os.makedirs( DataDir )
+    # create data-dir if it does not exist...
+    if not os.path.exists( args.data_dir ):
+        os.makedirs( args.data_dir )
 
-    with open( args.accessions, 'r' ) as accFile:
-        accs = accFile.readlines()
-        for acc in accs:
-            if not acc.startswith( '#' ) :
-                ProcessAccession( acc.strip(), jobs, args.output, args.redo_fastq, args.tag )
+    acc_list = get_acc_list( args.accessions )
+    if len( acc_list ) < 1 :
+        print( f"no accessions in input-file'" )
+        sys.exit( 5 )
+
+    if args.threads == 1 :
+        for acc in acc_list :
+            ProcessAccession( acc.strip(), jobs, args.output, args.redo, args.tag, args.data_dir )
+    else :
+        ToDoQueue = queue.Queue( len( acc_list ) )
+        for acc in acc_list :
+            ToDoQueue.put( acc )
+        threads = []
+        for i in range( 0, args.threads ) :
+            t = myThread( ToDoQueue, jobs, args.output, args.redo, args.tag, args.data_dir )
+            threads.append( t )
+            t.start()
+        for t in threads:
+            t.join()

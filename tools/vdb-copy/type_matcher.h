@@ -37,7 +37,7 @@ extern "C" {
 typedef struct matcher matcher;
 
 /* initializes the matcher */
-rc_t matcher_init( matcher** self );
+rc_t matcher_init( matcher** self, bool verbose );
 
 /* destroys the matcher */
 rc_t matcher_destroy( matcher* self );

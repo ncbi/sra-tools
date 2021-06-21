@@ -164,7 +164,7 @@ rc_t helper_get_legacy_write_schema_from_config( KConfig *cfg,
  * this will include the the given path into the search
  * for *.kfg - files
 */
-rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path );
+rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path, bool verbose );
 
 
 /*
@@ -203,7 +203,8 @@ void helper_read_redact_values( KConfig * config_mgr,
  * use the defines from definition.h
 */
 void helper_read_config_values( KConfig * config_mgr,
-                                p_config_values config );
+                                p_config_values config,
+                                bool verbose );
 
 
 /*

@@ -656,7 +656,7 @@ rc_t helper_get_legacy_write_schema_from_config( KConfig *cfg,
  * this will include the the given path into the search
  * for *.kfg - files
 */
-rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path )
+rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path, bool verbose )
 {
 #if ALLOW_EXTERNAL_CONFIG
     KDirectory *directory;
@@ -668,6 +668,10 @@ rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path )
     if ( rc == 0 )
     {
         rc = KConfigMake ( config_mgr, config_sub_dir );
+        if ( 0 == rc && verbose )
+        {
+            KOutMsg( "configuration loaded from ... %s\n", path );
+        }
         KDirectoryRelease( config_sub_dir );
     }
     KDirectoryRelease( directory );
@@ -827,7 +831,7 @@ void helper_read_redact_values( KConfig * config_mgr, redact_vals * rvals )
 }
 
 
-void helper_read_config_values( KConfig * config_mgr, p_config_values config )
+void helper_read_config_values( KConfig * config_mgr, p_config_values config, bool verbose )
 {
     /* key's and default-values in definitions.h */
 
@@ -836,22 +840,38 @@ void helper_read_config_values( KConfig * config_mgr, p_config_values config )
             READ_FILTER_COL_NAME_KEY, &(config->filter_col_name) );
     if ( config->filter_col_name == NULL )
         config->filter_col_name = string_dup_measure ( READ_FILTER_COL_NAME, NULL );
+    if ( verbose )
+    {
+        KOutMsg( "config:filter_col_name = %s\n", config->filter_col_name );
+    }
 
     /* look for the comma-separated list of meta-nodes to be ignored */
     helper_read_cfg_str( config_mgr, 
             META_IGNORE_NODES_KEY, &(config->meta_ignore_nodes) );
     if ( config->meta_ignore_nodes == NULL )
         config->meta_ignore_nodes = string_dup_measure ( META_IGNROE_NODES_DFLT, NULL );
+    if ( verbose )
+    {
+        KOutMsg( "config:meta_ignore_nodes = %s\n", config->meta_ignore_nodes );
+    }
 
     /* look for the comma-separated list of redactable types */
     helper_read_cfg_str( config_mgr, 
             REDACTABLE_TYPES_KEY, &(config->redactable_types) );
     if ( config->redactable_types == NULL )
         config->redactable_types = string_dup_measure ( REDACTABLE_TYPES, NULL );
+    if ( verbose )
+    {
+        KOutMsg( "config:redactable_types = %s\n", config->redactable_types );
+    }
 
     /* look for the comma-separated list of columns which are protected from redaction */
     helper_read_cfg_str( config_mgr, 
             DO_NOT_REDACT_KEY, &(config->do_not_redact_columns) );
+    if ( verbose )
+    {
+        KOutMsg( "config:do_not_redact_columns = %s\n", config->do_not_redact_columns );
+    }
 }
 
 

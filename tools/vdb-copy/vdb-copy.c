@@ -118,11 +118,11 @@ rc_t CC Usage ( const Args * args )
     const char * fullpath = UsageDefaultName;
     rc_t rc;
 
-    if (args == NULL)
+    if ( args == NULL )
         rc = RC (rcApp, rcArgv, rcAccessing, rcSelf, rcNull);
     else
-        rc = ArgsProgram (args, &fullpath, &progname);
-    if (rc)
+        rc = ArgsProgram ( args, &fullpath, &progname );
+    if ( rc )
         progname = fullpath = UsageDefaultName;
 
     UsageSummary (progname);
@@ -549,8 +549,13 @@ static rc_t vdb_copy_open_dest_table( const p_context ctx,
                           ctx->show_meta, is_legacy );
     if ( rc != 0 ) return rc;
 
+    if ( ctx -> verbose )
+    {
+        KOutMsg( "vdb_copy_open_dest_table()\n" );
+    }
+
     /* mark all columns which are to be found writable as to_copy */
-    rc = col_defs_mark_writable_columns( columns, dst_table, false );
+    rc = col_defs_mark_writable_columns( columns, dst_table, ctx -> verbose );
     DISP_RC( rc, "vdb_copy_open_dest_table:col_defs_mark_writable_columns() failed" );
     if ( rc != 0 ) return rc;
 
@@ -621,7 +626,7 @@ static rc_t vdb_copy_prepare_legacy_tab( const p_context ctx,
     DISP_RC( rc, "vdb_copy_prepare_legacy_tab:get_table_platform() failed" );
     if ( rc != 0 ) return rc;
 
-    rc = helper_make_config_mgr( &config_mgr, ctx->kfg_path );
+    rc = helper_make_config_mgr( &config_mgr, ctx -> kfg_path, ctx -> verbose );
     DISP_RC( rc, "vdb_copy_prepare_legacy_tab:helper_make_config_mgr() failed" );
     if ( rc != 0 ) return rc;
 
@@ -652,7 +657,8 @@ static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
                                                    const char * tablename,
                                                    col_defs * columns, 
                                                    const char * requested,
-                                                   const char * excluded )
+                                                   const char * excluded,
+                                                   bool verbose )
 {
     bool cols_requested = ( ( requested != NULL ) &&
                             ( nlt_strcmp( requested, "*" ) != 0 ) );
@@ -660,20 +666,32 @@ static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
        to later mark the columns which are requested */
     rc_t rc = col_defs_extract_from_table( columns, src_table );
     DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:col_defs_extract_from_table() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         if ( cols_requested )
+        {
             /* the user requested a specific subset of columns... */
             rc = col_defs_mark_requested_columns( columns, requested );
+        }
         else
+        {
             /* no specific subset of columns is requested --> copy what we can... */
             rc = col_defs_mark_requested_columns( columns, NULL );
+        }
         DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:col_defs_mark_requested_columns() failed" );
-        if ( rc == 0 && excluded != NULL )
+        if ( 0 == rc && NULL != excluded )
         {
             rc = col_defs_exclude_these_columns( columns, tablename, excluded );
             DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:col_defs_unmark_writable_columns() failed" );
         }
+
+#if 0
+        if ( 0 == rc && verbose )
+        {
+            KOutMsg( "columns to copy:\n" );
+            rc = col_defs_report( columns, false );
+        }
+#endif
     }
     return rc;
 }
@@ -709,6 +727,10 @@ static rc_t vdb_copy_detect_legacy( const p_context ctx,
     DISP_RC( rc, "vdb_copy_prepare_columns:helper_get_schema_tab_name() failed" );
     if ( rc == 0 )
     {
+        if ( ctx -> verbose )
+        {
+            KOutMsg( "src:schema-tab-name = %s\n", src_schema_tabname );
+        }
         rc = helper_is_tablename_legacy( vdb_mgr, src_schema_tabname, is_legacy );
         if ( rc == 0 )
         {
@@ -716,13 +738,21 @@ static rc_t vdb_copy_detect_legacy( const p_context ctx,
             {
                 PLOGMSG( klogInfo, ( klogInfo, "used legacy schema: $(schema)", "schema=%s", 
                                      src_schema_tabname ));
+                if ( ctx -> verbose )
+                {
+                    KOutMsg( "legacy schema detected: %s\n", src_schema_tabname );
+                }
                 rc = vdb_copy_prepare_legacy_tab( ctx, src_schema_tabname );
             }
             else
             {
                 PLOGMSG( klogInfo, ( klogInfo, "used schema: $(schema)", "schema=%s", 
                                      src_schema_tabname ));
-                ctx->dst_schema_tabname = string_dup_measure ( src_schema_tabname, NULL );
+                if ( ctx -> verbose )
+                {
+                    KOutMsg( "none-legacy schema detected: %s\n", src_schema_tabname );
+                }
+                ctx -> dst_schema_tabname = string_dup_measure ( src_schema_tabname, NULL );
             }
         }
         free( src_schema_tabname );
@@ -743,11 +773,16 @@ static rc_t vdb_copy_match_columns( const p_context ctx,
     rc_t rc;
     matcher_input mi;
 
+    if ( ctx -> verbose )
+    {
+        KOutMsg( "vdb_copy_match_columns()\n" );
+    }
+
     rc = KDirectoryNativeDir( &( mi.dir ) );
     DISP_RC( rc, "vdb_copy_match_columns:KDirectoryNativeDir() failed" );
     if ( rc == 0 )
     {
-        rc = helper_make_config_mgr( &(mi.cfg), ctx->kfg_path );
+        rc = helper_make_config_mgr( &(mi.cfg), ctx -> kfg_path, ctx -> verbose );
         DISP_RC( rc, "vdb_copy_match_columns:helper_make_config_mgr() failed" );
         if ( rc == 0 )
         {
@@ -755,8 +790,13 @@ static rc_t vdb_copy_match_columns( const p_context ctx,
             mi.add_schemas = ctx->src_schema_list;
 
             rc = col_defs_as_string( columns, (char**)&mi.columns, true );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
+                if ( ctx -> verbose )
+                {
+                    KOutMsg( "columns: %s\n", mi.columns );
+                }
+
                 mi.src_path         = ctx->src_path;
                 mi.dst_path         = ctx->dst_path;
                 mi.legacy_schema    = ctx->legacy_schema_file;
@@ -777,10 +817,12 @@ static rc_t vdb_copy_match_columns( const p_context ctx,
                     else
                         DISP_RC( rc, "vdb_copy_match_columns:matcher_execute() failed" );
                 }
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
-                    if ( ctx->show_matching )
+                    if ( ctx -> show_matching )
+                    {
                         matcher_report( type_matcher, true );
+                    }
                     rc = col_defs_apply_casts( columns, type_matcher );
                     DISP_RC( rc, "vdb_copy_match_columns:col_defs_apply_casts() failed" );
                 }
@@ -893,8 +935,15 @@ static rc_t vdb_copy_table( const p_context ctx,
                             const VTable * src_table,
                             const char * tablename )
 {
+    rc_t rc;
     const VSchema * src_schema;
-    rc_t rc = VTableOpenSchema ( src_table, &src_schema );
+
+    if ( ctx -> verbose )
+    {
+        KOutMsg( "vdb_copy_table()\n" );
+    }
+
+    rc = VTableOpenSchema ( src_table, &src_schema );
     DISP_RC( rc, "vdb_copy_main:VTableOpenSchema( src_schema ) failed" );
     if ( rc == 0 )
     {
@@ -904,7 +953,8 @@ static rc_t vdb_copy_table( const p_context ctx,
         if ( rc == 0 )
         {
             rc = vdb_copy_find_out_what_columns_to_use( src_table, tablename, columns,
-                                                        ctx->columns, ctx->excluded_columns );
+                                                        ctx -> columns, ctx -> excluded_columns,
+                                                        ctx -> verbose );
             if ( rc == 0 )
             {
                 const VCursor * src_cursor;
@@ -914,7 +964,7 @@ static rc_t vdb_copy_table( const p_context ctx,
                 {
                     matcher * type_matcher;
 
-                    rc = matcher_init( &type_matcher );
+                    rc = matcher_init( &type_matcher, ctx -> verbose );
                     DISP_RC( rc, "vdb_copy_table:matcher_init() failed" );
                     if ( rc == 0 )
                     {
@@ -1012,11 +1062,11 @@ static rc_t vdb_copy_tab_2_tab( const p_context ctx,
         if ( rc == 0 )
         {
             rc = vdb_copy_find_out_what_columns_to_use( src_tab, tab_name, columns, 
-                                                        NULL, ctx->excluded_columns );
+                                                        NULL, ctx -> excluded_columns, ctx -> verbose );
             if ( rc == 0 )
             {
                 matcher * type_matcher;
-                rc = matcher_init( &type_matcher );
+                rc = matcher_init( &type_matcher, ctx -> verbose );
                 if ( rc == 0 )
                 {
                     char * column_names;
@@ -1248,8 +1298,15 @@ static rc_t vdb_copy_database( const p_context ctx,
                                VDBManager * vdb_mgr,
                                const VDatabase * src_db )
 {
+    rc_t rc;
     char typespec[ TYPESPEC_BUF_LEN ];
-    rc_t rc = VDatabaseTypespec ( src_db, typespec, sizeof typespec );
+
+    if ( ctx -> verbose )
+    {
+        KOutMsg( "vdb_copy_database()\n" );
+    }
+
+    rc = VDatabaseTypespec ( src_db, typespec, sizeof typespec );
     DISP_RC( rc, "vdb_copy_database:VDatabaseTypespec( src ) failed" );
     if ( rc == 0 )
     {
@@ -1297,8 +1354,15 @@ vdb_mgr    [IN] ... contains the vdb-manger to create src/dst-objects
 static rc_t vdb_copy_perform( const p_context ctx,
                               VDBManager * vdb_mgr )
 {
+    rc_t rc = 0;
     VSchema * dflt_schema;
-    rc_t rc = helper_parse_schema( vdb_mgr, &dflt_schema, ctx->src_schema_list );
+
+    if ( ctx -> verbose )
+    {
+        KOutMsg( "vdb_copy_perform()\n" );
+    }
+
+    rc = helper_parse_schema( vdb_mgr, &dflt_schema, ctx->src_schema_list );
     DISP_RC( rc, "vdb_copy_main:helper_parse_schema(dflt) failed" );
     if ( rc == 0 )
     {
@@ -1364,10 +1428,17 @@ ctx        [IN] ... contains path, tablename, columns, row-range etc.
 ***************************************************************************/
 static rc_t vdb_copy_main( const p_context ctx )
 {
+    rc_t rc;
     KDirectory * directory;
-    rc_t rc = KDirectoryNativeDir( &directory );
+
+    if ( ctx -> verbose )
+    {
+        KOutMsg( "vdb_copy_main()\n" );
+    }
+
+    rc = KDirectoryNativeDir( &directory );
     DISP_RC( rc, "vdb_copy_main:KDirectoryNativeDir() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         KConfig * config_mgr;
 
@@ -1381,19 +1452,19 @@ static rc_t vdb_copy_main( const p_context ctx )
         }
 #endif
 
-        rc = helper_make_config_mgr( &config_mgr, ctx->kfg_path );
+        rc = helper_make_config_mgr( &config_mgr, ctx->kfg_path, ctx -> verbose ); /* helper.c */
         DISP_RC( rc, "vdb_copy_main:helper_make_config_mgr() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             VDBManager * vdb_mgr;
 
-            helper_read_config_values( config_mgr, &(ctx->config) );
-            helper_read_redact_values( config_mgr, ctx->rvals );
+            helper_read_config_values( config_mgr, &(ctx->config), ctx -> verbose ); /* helper.c */
+            helper_read_redact_values( config_mgr, ctx->rvals ); /* helper.c */
             KConfigRelease( config_mgr );
 
             rc = VDBManagerMakeUpdate ( &vdb_mgr, directory );
             DISP_RC( rc, "vdb_copy_main:VDBManagerMakeRead() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 /************************************/
                 rc = vdb_copy_perform( ctx, vdb_mgr );
@@ -1403,7 +1474,9 @@ static rc_t vdb_copy_main( const p_context ctx )
         }
         /* after that we can remove the output-path if necessary */
         if ( rc != 0 && !ctx->dont_remove_target )
+        {
             rc = helper_remove_path( directory, ctx->dst_path );
+        }
 
         /* now we can release the directory */
         KDirectoryRelease( directory );
@@ -1427,30 +1500,33 @@ rc_t CC KMain ( int argc, char *argv [] )
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
                              MyOptions, sizeof MyOptions / sizeof ( OptDef ) );
     DISP_RC( rc, "KMain:ArgsMakeAndHandle() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         context *ctx;
         KLogHandlerSetStdErr();
         rc = context_init( &ctx );
         DISP_RC( rc, "KMain:copy_context_init() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = context_capture_arguments_and_options( args, ctx );
             DISP_RC( rc, "KMain:context_capture_arguments_and_options() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
-                if ( ctx->usage_requested ) {
+                if ( ctx -> usage_requested )
+                {
                     MiniUsage( args );
                     rc = RC(rcApp, rcArgv, rcParsing, rcParam, rcInsufficient);
                 }
                 else
+                {
                     /************************/
                     rc = vdb_copy_main( ctx );
                     /************************/
+                }
             }
-            context_destroy ( ctx );
+        context_destroy ( ctx );
         }
-        ArgsWhack ( args );
+    ArgsWhack ( args );
     }
     return rc;
 }

@@ -706,26 +706,32 @@ rc_t col_defs_mark_writable_columns( col_defs* defs, VTable *tab, bool show )
     KNamelist *writables;
     rc_t rc;
 
-    if ( defs == NULL )
+    if ( NULL == defs )
         return RC( rcExe, rcNoTarg, rcResolving, rcSelf, rcNull );
-    if ( tab == NULL )
+    if ( NULL == tab )
         return RC( rcExe, rcNoTarg, rcResolving, rcParam, rcNull );
 
     rc = VTableListWritableColumns ( tab, &writables );
     if ( rc == 0 )
     {
-        uint32_t idx, count = VectorLength( &(defs->cols) );
+        uint32_t idx, count = VectorLength( &( defs -> cols ) );
         for ( idx = 0;  idx < count; ++idx )
         {
-            p_col_def col = (p_col_def) VectorGet ( &(defs->cols), idx );
+            p_col_def col = ( p_col_def ) VectorGet ( &( defs -> cols ), idx );
             if ( col != NULL )
-                if ( col->requested )
-                    if ( nlt_is_name_in_namelist( writables, col->name ) )
+            {
+                if ( col -> requested )
+                {
+                    if ( nlt_is_name_in_namelist( writables, col -> name ) )
                     {
                         if ( show )
+                        {
                             KOutMsg( "writable column: >%s<\n", col->name );
-                        col->to_copy = true;
+                        }
+                        col -> to_copy = true;
                     }
+                }
+            }
         }
         KNamelistRelease( writables );
     }
@@ -772,4 +778,36 @@ rc_t col_defs_mark_requested_columns( col_defs* defs, const char * columns )
         }
     }
     return rc;
+}
+
+rc_t col_defs_report( const col_defs* defs, const bool only_copy_columns )
+{
+    rc_t rc = 0;
+    uint32_t idx, len;
+    
+    if ( defs == NULL )
+        return RC( rcExe, rcNoTarg, rcResolving, rcSelf, rcNull );
+
+    len = VectorLength( &( defs -> cols ) );
+    for ( idx = 0;  idx < len && 0 == rc; ++idx )
+    {
+        p_col_def col = ( p_col_def ) VectorGet ( &( defs -> cols ), idx );
+        if ( NULL != col )
+        {
+            if ( only_copy_columns )
+            {
+                if ( col -> to_copy )
+                {
+                    rc = KOutMsg( "col[%u] = %s\n", idx, col -> name );
+                }
+            }
+            else
+            {
+                rc = KOutMsg( "col[%u] = %s (%s)\n", idx, col -> name,
+                    col -> to_copy ? "copy" : "no-copy" );
+            }
+        }
+    }
+    return rc;
+
 }

@@ -81,6 +81,7 @@ static void context_init_values( p_context ctx )
     ctx->md5_mode = MD5_MODE_AUTO;
     ctx->force_kcmInit = false;
     ctx->force_unlock = false;
+    ctx->verbose = false;
 
     ctx->dont_remove_target = false;
     config_values_init( &(ctx->config) );
@@ -428,6 +429,7 @@ static void context_evaluate_options( const Args *my_args, p_context ctx )
     ctx->show_meta     = context_get_bool_option( my_args, OPTION_SHOW_META, false );
     ctx->force_kcmInit = context_get_bool_option( my_args, OPTION_FORCE, false );
     ctx->force_unlock  = context_get_bool_option( my_args, OPTION_UNLOCK, false );
+    ctx->verbose       = context_get_bool_option( my_args, OPTION_VERBOSE, false );
 
     context_set_md5_mode( ctx, context_get_str_option( my_args, OPTION_MD5_MODE ) );
     context_set_blob_checksum( ctx, context_get_str_option( my_args, OPTION_BLOB_CHECKSUM ) );

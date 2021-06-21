@@ -37,6 +37,7 @@ typedef struct config_values
     char * redactable_types;
     char * do_not_redact_columns;
 } config_values;
+
 typedef config_values* p_config_values;
 
 void config_values_init( p_config_values cv );

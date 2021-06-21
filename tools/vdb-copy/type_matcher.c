@@ -87,6 +87,7 @@ typedef mcol* p_mcol;
 typedef struct matcher
 {
     Vector mcols;
+    bool verbose;
 } matcher;
 typedef matcher* p_matcher;
 
@@ -184,14 +185,15 @@ static void CC matcher_destroy_col( void* node, void* data )
 
 
 /* initializes the matcher */
-rc_t matcher_init( matcher** self )
+rc_t matcher_init( matcher** self, bool verbose )
 {
     if ( self == NULL )
         return RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
-    (*self) = calloc( 1, sizeof( matcher ) );
-    if ( *self == NULL )
+    ( *self ) = calloc( 1, sizeof( matcher ) );
+    if ( NULL == *self )
         return RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-    VectorInit( &((*self)->mcols), 0, 5 );
+    VectorInit( &( ( *self ) -> mcols ), 0, 50 );
+    ( *self ) -> verbose = verbose;
     return 0;
 }
 
@@ -644,33 +646,35 @@ static void CC matcher_measure_dist_cb( void * item, void * data )
 static void matcher_match_column( p_mcol col,
         const VSchema *schema, const KConfig *cfg )
 {
-    uint32_t pair_count = VectorLength( &(col->pairs) );
+    uint32_t pair_count = VectorLength( &( col -> pairs ) );
 
-    col->type_cast = NULL;
-    if ( col->excluded ) return;
+    col -> type_cast = NULL;
+    if ( col -> excluded ) return;
 
     /* call VTypedeclCommonAncestor for every type-pair */
-    VectorForEach ( &(col->pairs), false,
-            matcher_measure_dist_cb, (void*)schema );
+    VectorForEach ( &( col -> pairs ), false,
+            matcher_measure_dist_cb, ( void* )schema );
     /* if we have more than one pair left... */
     if ( pair_count > 1 )
     {
         /* enter the lossy-ness into the src-types... */
-        VectorForEach ( &(col->src_types), false,
-            matcher_enter_type_score_cb, (void*)cfg );
+        VectorForEach ( &( col -> src_types ), false,
+            matcher_enter_type_score_cb, ( void* )cfg );
     
         /* reorder the remaining pair's by:
            compatibility, lossy-ness, distance, default, order */
-        VectorReorder ( &(col->pairs), matcher_match_cb, NULL );
+        VectorReorder ( &( col -> pairs ), matcher_match_cb, NULL );
     }
     
     /* pick the winner = first item in the vector */
     if ( pair_count > 0 )
     {
-        col->type_cast = (p_mpair)VectorFirst ( &(col->pairs) );
+        col->type_cast = ( p_mpair )VectorFirst ( &( col -> pairs ) );
         /* if the winner is not a compatible pair, we have no cast ! */
         if ( col->type_cast->compatible != 0 )
-            col->type_cast = NULL;
+        {
+            col -> type_cast = NULL;
+        }
     }
 }
 
@@ -681,17 +685,25 @@ static rc_t matcher_match_matrix( matcher* self,
     rc_t rc = 0;
     uint32_t idx, len;
     
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         return RC( rcExe, rcNoTarg, rcResolving, rcSelf, rcNull );
-    if ( schema == NULL || cfg == NULL )
+    }
+    if ( NULL == schema || NULL == cfg )
+    {
         return RC( rcExe, rcNoTarg, rcResolving, rcParam, rcNull );
-    len = VectorLength( &(self->mcols) );
+    }
+    len = VectorLength( &( self -> mcols ) );
     for ( idx = 0;  idx < len; ++idx )
     {
-        p_mcol col = (p_mcol) VectorGet ( &(self->mcols), idx );
+        p_mcol col = ( p_mcol ) VectorGet ( &( self -> mcols ), idx );
         if ( col != NULL )
-            if ( col->to_copy )
+        {
+            if ( col -> to_copy )
+            {
                 matcher_match_column( col, schema, cfg );
+            }
+        }
     }
     return rc;
 }
@@ -749,67 +761,81 @@ rc_t matcher_execute( matcher* self, const p_matcher_input in )
     const VTable * src_table;
     rc_t rc;
 
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         return RC( rcExe, rcNoTarg, rcResolving, rcSelf, rcNull );
-    if ( in->manager == NULL || in->add_schemas == NULL || 
-         in->cfg == NULL || in->columns == NULL || 
-         in->src_path == NULL || in->dst_path == NULL ||
-         in->dst_tabname == NULL )
+    }
+    if ( NULL == in -> manager || NULL == in -> add_schemas || 
+         NULL == in -> cfg || NULL == in -> columns || 
+         NULL == in -> src_path || NULL == in -> dst_path ||
+         NULL == in -> dst_tabname )
+    {
         return RC( rcExe, rcNoTarg, rcResolving, rcParam, rcNull );
+    }
 
-    rc = matcher_build_column_vector( self, in->columns );
+    rc = matcher_build_column_vector( self, in -> columns );
     if ( rc != 0 ) return rc;
 
-    rc = matcher_exclude_columns( self, in->excluded_columns );
+    rc = matcher_exclude_columns( self, in -> excluded_columns );
     if ( rc != 0 ) return rc;
 
-    rc = helper_parse_schema( in->manager, &dflt_schema, in->add_schemas );
+    rc = helper_parse_schema( in->manager, &dflt_schema, in -> add_schemas );
     if ( rc != 0 ) return rc;
 
-    rc = VDBManagerOpenTableRead( in->manager, &src_table, dflt_schema, "%s", in->src_path );
-    if ( rc == 0 )
+    rc = VDBManagerOpenTableRead( in -> manager, &src_table, dflt_schema, "%s", in -> src_path );
+    if ( 0 == rc )
     {
         const VSchema * src_schema;
         rc = VTableOpenSchema ( src_table, &src_schema );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = matcher_read_src_types( self, src_table, src_schema );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
-                if ( in->legacy_schema != NULL )
-                    rc = VSchemaParseFile ( dflt_schema, "%s", in->legacy_schema );
-                if ( rc == 0 )
+                if ( NULL != in -> legacy_schema )
+                {
+                    rc = VSchemaParseFile ( dflt_schema, "%s", in -> legacy_schema );
+                }
+                if ( 0 == rc )
                 {
                     VTable * dst_table;
                     KCreateMode cmode = kcmParents;
                     const VSchema * dst_schema = src_schema;
 
-                    if ( in->legacy_schema != NULL )
+                    if ( NULL != in -> legacy_schema )
+                    {
                         dst_schema = dflt_schema;
+                    }
 
-                    if ( in->force_unlock )
-                        VDBManagerUnlock ( in->manager, "%s", in->dst_path );
+                    if ( in -> force_unlock )
+                    {
+                        VDBManagerUnlock ( in -> manager, "%s", in -> dst_path );
+                    }
 
-                    if ( in->force_kcmInit )
+                    if ( in -> force_kcmInit )
                         cmode |= kcmInit;
                     else
                         cmode |= kcmCreate;
 
-                    rc = VDBManagerCreateTable( in->manager, &dst_table, 
-                                                dst_schema, in->dst_tabname, cmode, "%s", in->dst_path );
+                    rc = VDBManagerCreateTable( in -> manager, &dst_table, 
+                                                dst_schema, in -> dst_tabname, cmode, "%s", in -> dst_path );
 
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         rc = matcher_read_dst_types( self, dst_table, dst_schema );
-                        if ( rc == 0 )
+                        if ( 0 == rc )
                         {
                             rc = matcher_make_type_matrix( self );
-                            if ( rc == 0 )
-                                rc = matcher_match_matrix( self, src_schema, in->cfg );
+                            if ( 0 == rc )
+                            {
+                                rc = matcher_match_matrix( self, src_schema, in -> cfg );
+                            }
                         }
                         VTableRelease( dst_table );
-                        if ( !(in->force_kcmInit) )
-                            KDirectoryRemove ( in->dir, true, "%s", in->dst_path );
+                        if ( !( in -> force_kcmInit ) )
+                        {
+                            KDirectoryRemove ( in -> dir, true, "%s", in -> dst_path );
+                        }
                     }
                 }
             }
@@ -827,7 +853,7 @@ rc_t matcher_db_execute( matcher* self, const VTable * src_tab, VTable * dst_tab
                          const char * kfg_path )
 {
     KConfig * cfg;
-    rc_t rc = helper_make_config_mgr( &cfg, kfg_path );
+    rc_t rc = helper_make_config_mgr( &cfg, kfg_path, false );
     if ( rc == 0 )
     {
         rc = matcher_build_column_vector( self, columns );

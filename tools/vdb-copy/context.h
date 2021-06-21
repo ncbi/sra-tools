@@ -72,7 +72,6 @@ extern "C" {
 #define OPTION_UNLOCK            "unlock"
 #define OPTION_BLOB_CHECKSUM     "blob_checksum"
 
-
 #define ALIAS_TABLE             "T"
 #define ALIAS_ROWS              "R"
 #define ALIAS_COLUMNS           "C"
@@ -96,7 +95,6 @@ extern "C" {
 #define ALIAS_FORCE             "f"
 #define ALIAS_UNLOCK            "u"
 #define ALIAS_BLOB_CHECKSUM     "b"
-
 
 /* *******************************************************************
 the dump context contains all informations needed to execute the dump
@@ -127,6 +125,7 @@ typedef struct context
     uint8_t blob_checksum;
     bool force_kcmInit;
     bool force_unlock;
+    bool verbose;
 
     /* set by application */
     bool dont_remove_target;

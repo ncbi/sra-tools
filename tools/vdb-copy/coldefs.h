@@ -55,7 +55,7 @@ typedef struct col_def
     uint32_t dst_idx;       /* index of this column relative to the
                                write-cursor */
 
-    bool src_valid;         /* this column was successfully addes to
+    bool src_valid;         /* this column was successfully added to
                                the read-cursor */
 
     bool requested;         /* in case of no columns given to the commandline
@@ -142,7 +142,7 @@ rc_t col_defs_clear_to_copy( col_defs* defs );
 /*
  * walks the list of column-definitions and reports on every one
 */
-rc_t col_defs_report( const col_defs* defs, const bool only_copy_columns );
+rc_t col_defs_report( const col_defs* defs, const bool only_copy_columns, const bool with_casts );
 
 
 /*

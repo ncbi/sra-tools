@@ -31,6 +31,18 @@
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_database_
+#include <vdb/database.h>
+#endif
+
 rc_t copy_table_meta ( const VTable *src_table, VTable *dst_table,
                        const char * excluded_nodes,
                        const bool show_meta, const bool schema_updated );

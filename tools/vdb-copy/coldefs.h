@@ -27,8 +27,28 @@
 #ifndef _h_vdb_coldefs_
 #define _h_vdb_coldefs_
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
+#ifndef _h_kfg_config_
+#include <kfg/config.h>
+#endif
+
+#ifndef _h_kfs_directory_
+#include <kfs/directory.h>
+#endif
+
+#ifndef _h_vdb_cursor_
+#include <vdb/cursor.h>
+#endif
+
+#ifndef _h_namelist_tools_
+#include "namelist_tools.h"
 #endif
 
 #ifndef _h_type_matcher_
@@ -239,7 +259,7 @@ rc_t col_defs_apply_casts( col_defs* defs, const matcher * m );
 
 rc_t col_defs_find_redact_vals( col_defs* defs, const redact_vals * rvals );
 
-rc_t col_defs_mark_writable_columns( col_defs* defs, VTable *tab, bool show );
+rc_t col_defs_mark_writable_columns( col_defs* defs, VTable *tab );
 
 rc_t col_defs_mark_requested_columns( col_defs* defs, const char * columns );
 

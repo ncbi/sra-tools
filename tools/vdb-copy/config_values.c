@@ -25,13 +25,13 @@
 */
 #include "config_values.h"
 
-#include <sysalloc.h>
-#include <string.h>
-#include <stdlib.h>
+#include <string.h>     /* memset */
+#include <stdlib.h>     /* NULL */
+
 
 static void config_values_destroy_str( char **s )
 {
-    if ( *s != NULL )
+    if ( NULL != *s )
     {
         free( *s );
         *s = NULL;
@@ -41,14 +41,14 @@ static void config_values_destroy_str( char **s )
 
 void config_values_init( p_config_values cv )
 {
-    memset( cv, 0, sizeof cv[0] );
+    memset( cv, 0, sizeof cv[ 0 ] );
 }
 
 
 void config_values_destroy( p_config_values cv )
 {
-    config_values_destroy_str( &cv->filter_col_name );
-    config_values_destroy_str( &cv->meta_ignore_nodes );
-    config_values_destroy_str( &cv->redactable_types );
-    config_values_destroy_str( &cv->do_not_redact_columns );
+    config_values_destroy_str( &( cv -> filter_col_name ) );
+    config_values_destroy_str( &( cv -> meta_ignore_nodes ) );
+    config_values_destroy_str( &( cv -> redactable_types ) );
+    config_values_destroy_str( &( cv -> do_not_redact_columns ) );
 }

@@ -26,12 +26,16 @@
 #ifndef _h_namelist_tools_
 #define _h_namelist_tools_
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
 #endif
 
 int nlt_strcmp( const char* s1, const char* s2 );

@@ -31,10 +31,6 @@
 extern "C" {
 #endif
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
-#endif
-
 #ifndef _h_config_values_
 #include "config_values.h"
 #endif
@@ -43,9 +39,12 @@ extern "C" {
 #include "redactval.h"
 #endif
 
-#include <klib/num-gen.h>
+#ifndef _h_namelist_tools_
+#include "namelist_tools.h"
+#endif
 
 #include <kapp/args.h>
+
 #include "definitions.h"
 
 #define OPTION_TABLE             "table"
@@ -71,6 +70,7 @@ extern "C" {
 #define OPTION_FORCE             "force"
 #define OPTION_UNLOCK            "unlock"
 #define OPTION_BLOB_CHECKSUM     "blob_checksum"
+#define OPTION_LEGACY            "legacy"
 
 #define ALIAS_TABLE             "T"
 #define ALIAS_ROWS              "R"
@@ -95,6 +95,7 @@ extern "C" {
 #define ALIAS_FORCE             "f"
 #define ALIAS_UNLOCK            "u"
 #define ALIAS_BLOB_CHECKSUM     "b"
+#define ALIAS_LEGACY            "l"
 
 /* *******************************************************************
 the dump context contains all informations needed to execute the dump
@@ -125,7 +126,7 @@ typedef struct context
     uint8_t blob_checksum;
     bool force_kcmInit;
     bool force_unlock;
-    bool verbose;
+    bool force_legacy;
 
     /* set by application */
     bool dont_remove_target;

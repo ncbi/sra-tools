@@ -24,40 +24,59 @@
 *
 */
 
-#include "vdb-copy-includes.h"
-#include "definitions.h"
-#include <klib/text.h>
+#include "copy_meta.h"
+
+#ifndef _h_namelist_tools_
+#include "namelist_tools.h"
+#endif
+
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
+#endif
+
+#ifndef _h_klib_time_
 #include <klib/time.h>
+#endif
+
+#ifndef _h_kapp_main_
 #include <kapp/main.h>      /* for KAppVersion()*/
+#endif
+
+#ifndef _h_kdb_meta_
 #include <kdb/meta.h>
+#endif
+
+#ifndef _h_kdb_namelist_
 #include <kdb/namelist.h>
-#include <sysalloc.h>
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include <assert.h>
+#endif
+
+#ifndef _h_definitions_
+#include "definitions.h"
+#endif
 
 static rc_t copy_metadata_data ( const KMDataNode *snode, KMDataNode *dnode )
 {
     char buffer [ 1024 ];
-    size_t total, bytes, remaining;
+    size_t total, bytes;
     /* copy node data unless already set */
     rc_t rc = KMDataNodeRead ( dnode, 0, buffer, 0, & bytes, & total );
     DISP_RC( rc, "copy_metadata_child:KMDataNodeRead(dst) failed" );
-    if ( rc == 0 && total == 0 )
-    do
+    if ( ( 0 == rc ) && ( 0 == total ) )
     {
-        rc = KMDataNodeRead ( snode, total, buffer, sizeof buffer, & bytes, & remaining );
-        DISP_RC( rc, "copy_metadata_child:KMDataNodeRead(src) failed" );
-        if ( rc == 0 )
+        size_t remaining;
+        do
         {
-            rc = KMDataNodeAppend ( dnode, buffer, bytes );
-            DISP_RC( rc, "copy_metadata_child:KMDataNodeAppend(dst) failed" );
-            if ( rc != 0 ) break;
-        }
-        total += bytes;
-     } while ( remaining != 0 );
+            rc = KMDataNodeRead ( snode, total, buffer, sizeof buffer, & bytes, & remaining );
+            DISP_RC( rc, "copy_metadata_child:KMDataNodeRead(src) failed" );
+            if ( 0 == rc )
+            {
+                rc = KMDataNodeAppend ( dnode, buffer, bytes );
+                DISP_RC( rc, "copy_metadata_child:KMDataNodeAppend(dst) failed" );
+                if ( 0 != rc ) break;
+            }
+            total += bytes;
+        } while ( 0 != remaining );
+    }
     return rc;
 }
 
@@ -69,25 +88,27 @@ static rc_t copy_metadata_attribs ( const KMDataNode *snode, KMDataNode *dnode,
     uint32_t i, count;
     rc_t rc = KMDataNodeListAttr ( snode, & attrs );
     DISP_RC( rc, "copy_metadata_child:KMDataNodeListAttr(src) failed" );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc ) return rc;
     rc = KNamelistCount ( attrs, & count );
-    for ( i = 0; rc == 0 && i < count; ++ i )
+    for ( i = 0; 0 == rc && i < count; ++ i )
     {
         const char *attr;
         rc = KNamelistGet ( attrs, i, & attr );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             char buffer [ 1024 ];
             size_t bytes;
             /* test for attr existence */
             rc = KMDataNodeReadAttr ( dnode, attr, buffer, sizeof buffer, & bytes );
-            if ( rc != 0 )
+            if ( 0 != rc )
             {
                 rc = KMDataNodeReadAttr ( snode, attr, buffer, sizeof buffer, & bytes );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     if ( show_meta )
+                    {
                         KOutMsg( "copy atr %s : %s\n", node_path, attr );
+                    }
                     rc = KMDataNodeWriteAttr ( dnode, attr, buffer );
                 }
             }
@@ -108,18 +129,22 @@ static rc_t copy_metadata_child ( const KMDataNode *src_root, KMDataNode *dst_ro
 
     rc_t rc = KMDataNodeOpenNodeRead ( src_root, & snode, "%s", node_path );
     DISP_RC( rc, "copy_metadata_child:KMDataNodeOpenNodeRead(src) failed" );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc ) return rc;
 
     if ( show_meta )
+    {
         KOutMsg( "copy child-node: %s\n", node_path );
+    }
 
     rc = KMDataNodeOpenNodeUpdate ( dst_root, & dnode, "%s", node_path );
     DISP_RC( rc, "copy_metadata_child:KMDataNodeOpenNodeUpdate(dst) failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = copy_metadata_data ( snode, dnode );
-        if ( rc == 0 )
+        if ( 0 == rc )
+        {
             rc = copy_metadata_attribs ( snode, dnode, node_path, show_meta );
+        }
         KMDataNodeRelease ( dnode );
     }
     else
@@ -128,11 +153,11 @@ static rc_t copy_metadata_child ( const KMDataNode *src_root, KMDataNode *dst_ro
                  "cannot open child-node(dst): $(node)", "node=%s", node_path ));
     }
 
-    if ( rc == 0 || ( GetRCState( rc ) == rcBusy ) )
+    if ( 0 == rc || ( rcBusy == GetRCState( rc ) ) )
     {
         rc = KMDataNodeListChild ( snode, & names );
         DISP_RC( rc, "copy_metadata_child:KMDataNodeListChild(src) failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             uint32_t i, count;
             char temp_path[ 1024 ];
@@ -143,11 +168,11 @@ static rc_t copy_metadata_child ( const KMDataNode *src_root, KMDataNode *dst_ro
             temp_path[ temp_len++ ] = '/';
             temp_path[ temp_len ] = 0;
             rc = KNamelistCount ( names, & count );
-            for ( i = 0; rc == 0 && i < count; ++ i )
+            for ( i = 0; 0 == rc && i < count; ++ i )
             {
                 const char *child_name;
                 rc = KNamelistGet ( names, i, & child_name );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     string_copy( temp_path + temp_len, ( sizeof temp_path ) - temp_len, child_name, string_size( child_name ) );
                     rc = copy_metadata_child ( src_root, dst_root, temp_path, show_meta );
@@ -157,7 +182,6 @@ static rc_t copy_metadata_child ( const KMDataNode *src_root, KMDataNode *dst_ro
             KNamelistRelease ( names );
         }
     }
-
     KMDataNodeRelease ( snode );
     return rc;
 }
@@ -173,33 +197,39 @@ static rc_t copy_metadata_root ( const KMDataNode *src_root, KMDataNode *dst_roo
 
     rc_t rc = KMDataNodeListChild ( src_root, & names );
     DISP_RC( rc, "copy_metadata_root:KMDataNodeListChild() failed" );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc ) return rc;
     
-    if ( excluded_nodes != NULL )
+    if ( NULL != excluded_nodes )
     {
         rc = nlt_make_namelist_from_string( &excluded_names, excluded_nodes );
         DISP_RC( rc, "copy_metadata_root:nlt_make_namelist_from_string() failed" );
-        if ( rc != 0 ) return rc;
+        if ( 0 != rc ) return rc;
     }
 
     rc = KNamelistCount ( names, & count );
-    for ( i = 0; rc == 0 && i < count; ++ i )
+    for ( i = 0; 0 == rc && i < count; ++ i )
     {
         const char *node_path;
         rc = KNamelistGet ( names, i, & node_path );
         DISP_RC( rc, "copy_metadata_root:KNamelistGet() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             bool is_excluded = false;
-            if ( excluded_names != NULL )
+            if ( NULL != excluded_names )
+            {
                 is_excluded = nlt_is_name_in_namelist( excluded_names, node_path );
+            }
             if ( !is_excluded )
+            {
                 rc = copy_metadata_child ( src_root, dst_root, node_path, show_meta );
+            }
         }
     }
 
-    if ( excluded_names != NULL )
+    if ( NULL != excluded_names )
+    {
         KNamelistRelease( excluded_names );
+    }
     KNamelistRelease ( names );
     return rc;
 }
@@ -213,12 +243,12 @@ static rc_t copy_stray_metadata ( const KMetadata *src_meta, KMetadata *dst_meta
     const KMDataNode *src_root;
     rc_t rc = KMetadataOpenNodeRead ( src_meta, & src_root, NULL );
     DISP_RC( rc, "copy_stray_metadata:KMetadataOpenNodeRead() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         KMDataNode *dst_root;
         rc = KMetadataOpenNodeUpdate ( dst_meta, & dst_root, NULL );
         DISP_RC( rc, "copy_stray_metadata:KMetadataOpenNodeUpdate() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             /* treat the root node in a special way */
             rc = copy_metadata_root ( src_root, dst_root, excluded_nodes, show_meta );
@@ -235,7 +265,7 @@ static rc_t drop_all( KMetadata *dst_meta )
     KMDataNode *dst_node;
     rc_t rc = KMetadataOpenNodeUpdate ( dst_meta, & dst_node, NULL );
     DISP_RC( rc, "drop_all:KMetadataOpenNodeUpdate() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = KMDataNodeDropAll ( dst_node );
         DISP_RC( rc, "drop_all:KMetadataDropAll() failed" );
@@ -252,29 +282,30 @@ static rc_t copy_back_revisions ( const KMetadata *src_meta, VTable *dst_table,
 
     rc_t rc = KMetadataMaxRevision ( src_meta, &max_revision );
     DISP_RC( rc, "copy_back_revisions:KMetadataMaxRevision() failed" );
-    if ( rc != 0 ) return rc;
-    if ( max_revision == 0 ) return rc;
-    for ( revision = 1; revision <= max_revision && rc == 0; ++revision )
+    if ( ( 0 != rc ) || ( 0 == max_revision ) ) return rc;
+    for ( revision = 1; revision <= max_revision && 0 == rc; ++revision )
     {
         const KMetadata *src_rev_meta;
 
         if ( show_meta )
+        {
             KOutMsg( "+++copy metadata rev. #%u:\n", revision );
+        }
         rc = KMetadataOpenRevision ( src_meta, &src_rev_meta, revision );
         DISP_RC( rc, "copy_back_revisions:KMetadataOpenRevision() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             KMetadata *dst_meta;
             rc = VTableOpenMetadataUpdate ( dst_table, & dst_meta );
             DISP_RC( rc, "copy_table_meta:VTableOpenMetadataUpdate() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 rc = copy_stray_metadata ( src_rev_meta, dst_meta, NULL, show_meta );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     rc = KMetadataCommit ( dst_meta );
                     DISP_RC( rc, "copy_back_revisions:KMetadataCommit() failed" );
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         rc = KMetadataFreeze ( dst_meta );
                         DISP_RC( rc, "copy_back_revisions:KMetadataFreeze() failed" );
@@ -301,7 +332,6 @@ static rc_t fill_timestring( char * s, size_t size )
                          tr.year, tr.month + 1, tr.day, tr.hour, tr.minute, tr.second );
 */
     rc = string_printf ( s, size, NULL, "%lT", &tr );
-
     DISP_RC( rc, "fill_timestring:string_printf( date/time ) failed" );
     return rc;
 }
@@ -310,7 +340,7 @@ static rc_t enter_time( KMDataNode *node, const char * key )
 {
     char timestring[ 160 ];
     rc_t rc = fill_timestring( timestring, sizeof timestring );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = KMDataNodeWriteAttr ( node, key, timestring );
         DISP_RC( rc, "enter_time:KMDataNodeWriteAttr( timestring ) failed" );
@@ -322,10 +352,8 @@ static rc_t enter_time( KMDataNode *node, const char * key )
 static rc_t enter_version( KMDataNode *node, const char * key )
 {
     char buff[ 32 ];
-    rc_t rc;
-
-    rc = string_printf ( buff, sizeof( buff ), NULL, "%.3V", KAppVersion() );
-    assert ( rc == 0 );
+    rc_t rc = string_printf ( buff, sizeof( buff ), NULL, "%.3V", KAppVersion() );
+    assert ( 0 == rc );
     rc = KMDataNodeWriteAttr ( node, key, buff );
     DISP_RC( rc, "enter_version:KMDataNodeWriteAttr() failed" );
     return rc;
@@ -336,15 +364,15 @@ static rc_t enter_date_name_vers( KMDataNode *node )
 {
     rc_t rc = enter_time( node, "run" );
     DISP_RC( rc, "enter_date_name_vers:enter_time() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = KMDataNodeWriteAttr ( node, "tool", "vdb-copy" );
         DISP_RC( rc, "enter_date_name_vers:KMDataNodeWriteAttr(tool=vdb-copy) failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = enter_version ( node, "vers" );
             DISP_RC( rc, "enter_date_name_vers:enter_version() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 rc = KMDataNodeWriteAttr ( node, "build", __DATE__ );
                 DISP_RC( rc, "enter_date_name_vers:KMDataNodeWriteAttr(build=_DATE_) failed" );
@@ -360,16 +388,18 @@ static rc_t enter_schema_update( KMetadata *dst_meta, const bool show_meta )
     KMDataNode *sw_node;
 
     if ( show_meta )
+    {
         KOutMsg( "--- entering schema-update\n" );
+    }
 
     rc = KMetadataOpenNodeUpdate ( dst_meta, &sw_node, "SOFTWARE" );
     DISP_RC( rc, "enter_schema_update:KMetadataOpenNodeUpdate('SOFTWARE') failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         KMDataNode *update_node;
         rc = KMDataNodeOpenNodeUpdate ( sw_node, &update_node, "update" );
         DISP_RC( rc, "enter_schema_update:KMDataNodeOpenNodeUpdate('update') failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = enter_date_name_vers( update_node );
             KMDataNodeRelease ( update_node );
@@ -386,7 +416,7 @@ static uint32_t get_child_count( KMDataNode *node )
     KNamelist *names;
     rc_t rc = KMDataNodeListChild ( node, &names );
     DISP_RC( rc, "get_child_count:KMDataNodeListChild() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = KNamelistCount ( names, &res );
         DISP_RC( rc, "get_child_count:KNamelistCount() failed" );
@@ -402,22 +432,24 @@ static rc_t enter_vdbcopy_node( KMetadata *dst_meta, const bool show_meta )
     KMDataNode *hist_node;
 
     if ( show_meta )
+    {
         KOutMsg( "--- entering Copy entry...\n" );
+    }
 
     rc = KMetadataOpenNodeUpdate ( dst_meta, &hist_node, "HISTORY" );
     DISP_RC( rc, "enter_vdbcopy_node:KMetadataOpenNodeUpdate('HISTORY') failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         char event_name[ 32 ];
         uint32_t index = get_child_count( hist_node ) + 1;
         rc = string_printf ( event_name, sizeof( event_name ), NULL, "EVENT_%u", index );
         DISP_RC( rc, "enter_vdbcopy_node:string_printf(EVENT_NR) failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             KMDataNode *event_node;
             rc = KMDataNodeOpenNodeUpdate ( hist_node, &event_node, "%s", event_name );
             DISP_RC( rc, "enter_vdbcopy_node:KMDataNodeOpenNodeUpdate('EVENT_NR') failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 rc = enter_date_name_vers( event_node );
                 KMDataNodeRelease ( event_node );
@@ -436,43 +468,52 @@ rc_t copy_table_meta ( const VTable *src_table, VTable *dst_table,
     const KMetadata *src_meta;
     rc_t rc;
 
-    if ( src_table == NULL || dst_table == NULL )
+    if ( NULL == src_table || NULL == dst_table )
+    {
         return RC( rcExe, rcNoTarg, rcCopying, rcParam, rcNull );
+    }
     /* it is OK if excluded_nodes is NULL */
     
     rc = VTableOpenMetadataRead ( src_table, & src_meta );
     DISP_RC( rc, "copy_table_meta:VTableOpenMetadataRead() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = copy_back_revisions ( src_meta, dst_table, show_meta );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             KMetadata *dst_meta;
             rc = VTableOpenMetadataUpdate ( dst_table, & dst_meta );
             DISP_RC( rc, "copy_table_meta:VTableOpenMetadataUpdate() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 if ( show_meta )
+                {
                     KOutMsg( "+++copy current metadata\n" );
+                }
 
                 rc = copy_stray_metadata ( src_meta, dst_meta, excluded_nodes,
                                            show_meta );
                 if ( show_meta )
+                {
                     KOutMsg( "+++end of copy current metadata\n" );
+                }
 
                 /* enter a attribute "vdb-copy" under '/SOFTWARE/update'
                    *if the schema was updated ! */
-                if ( rc == 0 && schema_updated )
+                if ( 0 == rc && schema_updated )
+                {
                     rc = enter_schema_update( dst_meta, show_meta );
+                }
 
                 /* enter a unconditional node under '/SOFTWARE/Copy'
                     <%TIMESTAMP%>
                         <Application date="%DATE%" name="vdb-copy" vers="%VERSION%"/>
                     </%TIMESTAMP%>
                 */
-                if ( rc == 0 )
+                if ( 0 == rc )
+                {
                     rc = enter_vdbcopy_node( dst_meta, show_meta );
-
+                }
                 KMetadataRelease ( dst_meta );
             }
         }
@@ -489,26 +530,32 @@ rc_t copy_database_meta ( const VDatabase *src_db, VDatabase *dst_db,
     const KMetadata *src_meta;
     rc_t rc;
 
-    if ( src_db == NULL || dst_db == NULL )
+    if ( NULL == src_db || NULL == dst_db )
+    {
         return RC( rcExe, rcNoTarg, rcCopying, rcParam, rcNull );
+    }
     /* it is OK if excluded_nodes is NULL */
 
     rc = VDatabaseOpenMetadataRead ( src_db, & src_meta );
     DISP_RC( rc, "copy_database_meta:VDatabaseOpenMetadataRead() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         KMetadata *dst_meta;
         rc = VDatabaseOpenMetadataUpdate ( dst_db, & dst_meta );
         DISP_RC( rc, "copy_database_meta:VDatabaseOpenMetadataUpdate() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             if ( show_meta )
+            {
                 KOutMsg( "+++copy current db-metadata\n" );
+            }
 
             rc = copy_stray_metadata ( src_meta, dst_meta, excluded_nodes,
                                        show_meta );
             if ( show_meta )
+            {
                 KOutMsg( "+++end of copy db-current metadata\n" );
+            }
 
             KMetadataRelease ( dst_meta );
         }

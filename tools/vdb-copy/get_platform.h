@@ -30,13 +30,13 @@
 extern "C" {
 #endif
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
+#ifndef _h_context_
+#include "context.h"
 #endif
 
-rc_t get_table_platform( const char * table_path, char ** dst,
+rc_t get_table_platform( const p_context ctx, const char * table_path, char ** dst,
                          const char pre_and_postfix );
-rc_t get_db_platform( const char * db_path, const char * tab_name, 
+rc_t get_db_platform( const p_context ctx, const char * db_path, const char * tab_name, 
                       char ** dst, const char pre_and_postfix );
 
 #ifdef __cplusplus

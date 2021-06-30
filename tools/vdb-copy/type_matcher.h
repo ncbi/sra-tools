@@ -34,10 +34,22 @@ extern "C" {
 #include "matcher_input.h"
 #endif
 
+#ifndef _h_vdb_schema_
+#include <vdb/schema.h>
+#endif
+
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
 typedef struct matcher matcher;
 
 /* initializes the matcher */
-rc_t matcher_init( matcher** self, bool verbose );
+rc_t matcher_init( matcher** self );
 
 /* destroys the matcher */
 rc_t matcher_destroy( matcher* self );

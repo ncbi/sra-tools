@@ -25,47 +25,61 @@
 */
 
 #include "helper.h"
-#include "definitions.h"
-#include <os-native.h>
 
-/* this is here to detect the md5-mode of the src-table */
-#include <kdb/kdb-priv.h>
+#ifndef _h_kdb_kdb_priv_
+#include <kdb/kdb-priv.h>   /* detect the md5-mode of the src-table */
+#endif
+
+#ifndef _h_kdb_table_
 #include <kdb/table.h>
+#endif
 
-#include <sysalloc.h>
+#ifndef _h_sra_sraschema_
+#include <sra/sraschema.h>
+#endif
 
-#include <bitstr.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef _h_vdb_vdb_priv_
+#include <vdb/vdb-priv.h>
+#endif
 
-#include <ctype.h>
+#ifndef _h_namelist_tools_
+#include "namelist_tools.h"
+#endif
+
+#ifndef _h_definitions_
+#include "definitions.h"
+#endif
+
+#include <bitstr.h>     /* bitcpy */
+#include <ctype.h>      /* tolower, isspace, isdigit, isalpha, toupper */
 
 int64_t strtoi64( const char* str, char** endp, uint32_t base )
 {
     int i = 0;
     int64_t ret_value = 0;
 
-    if ( str != NULL && base != 1 && base <= 36 )
+    if ( NULL != str && 1 != base && base <= 36 )
     {
         bool negate = false;
 
         for ( ; isspace( str [ i ] ); ++ i )
+        {
             ( void ) 0;
+        }
 
         switch ( str [ i ] )
         {
-        case '-':
-            negate = true;
-        case '+':
-            ++ i;
-            break;
+            case '-':  negate = true;
+            case '+':  ++ i; break;
         }
 
-        if ( base == 0 )
+        if ( 0 == base )
         {
-            if ( str [ i ] != '0' )
+            if ( '0' != str [ i ] )
+            {
                 base = 10;
-            else if ( tolower ( str [ i + 1 ] == 'x' ) )
+            }
+            else if ( tolower ( 'x' == str [ i + 1 ] ) )
             {
                 base = 16;
                 i += 2;
@@ -111,12 +125,15 @@ int64_t strtoi64( const char* str, char** endp, uint32_t base )
         }
 
         if ( negate )
+        {
             ret_value = - ret_value;
+        }
     }
 
     if ( endp != NULL )
+    {
         * endp = (char *)str + i;
-
+    }
     return ret_value;
 }
 
@@ -137,24 +154,27 @@ rc_t helper_parse_schema( const VDBManager *my_manager,
                           const KNamelist *schema_list )
 {
     rc_t rc;
-    if ( my_manager == NULL )
+    if ( NULL == my_manager )
+    {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-    if ( new_schema == NULL )
+    }
+    if ( NULL == new_schema )
+    {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-
+    }
     rc = VDBManagerMakeSRASchema( my_manager, new_schema );
     DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
 
-    if ( ( rc == 0 )&&( schema_list != NULL ) )
+    if ( ( 0 == rc )&&( NULL != schema_list ) )
     {
         uint32_t count;
         if ( KNamelistCount( schema_list, &count ) == 0 )
         {
             uint32_t idx;
-            for ( idx = 0; idx < count && rc == 0; ++idx )
+            for ( idx = 0; idx < count && 0 == rc; ++idx )
             {
                 const char *s;
-                if ( KNamelistGet( schema_list, idx, &s ) == 0 )
+                if ( 0 == KNamelistGet( schema_list, idx, &s ) )
                 {
                     rc = VSchemaParseFile( *new_schema, "%s", s );
                     DISP_RC( rc, "VSchemaParseFile() failed" );
@@ -173,20 +193,20 @@ static char *translate_accession( SRAPath *my_sra_path,
 {
     rc_t rc;
     char * res = calloc( 1, bufsize );
-    if ( res == NULL ) return NULL;
+    if ( NULL == res ) return NULL;
 
     rc = SRAPathFind( my_sra_path, accession, res, bufsize );
-    if ( GetRCState( rc ) == rcNotFound )
+    if ( rcNotFound == GetRCState( rc ) )
     {
         free( res );
         return NULL;
     }
-    else if ( GetRCState( rc ) == rcInsufficient )
+    else if ( rcInsufficient == GetRCState( rc ) )
     {
         free( res );
         return translate_accession( my_sra_path, accession, bufsize * 2 );
     }
-    else if ( rc != 0 )
+    else if ( 0 != rc )
     {
         free( res );
         return NULL;
@@ -202,25 +222,29 @@ rc_t helper_resolve_accession( const KDirectory *my_dir, char ** path )
     SRAPath *my_sra_path;
     rc_t rc = 0;
 
-    if ( strchr ( *path, '/' ) != NULL )
+    if ( NULL != strchr ( *path, '/' ) )
         return 0;
 
     rc = SRAPathMake( &my_sra_path, my_dir );
-    if ( rc != 0 )
+    if ( 0 != rc )
     {
         if ( GetRCState ( rc ) != rcNotFound || GetRCTarget ( rc ) != rcDylib )
+        {
             DISP_RC( rc, "SRAPathMake() failed" );
+        }
         else
+        {
             rc = 0;
+        }
     }
     else
     {
         if ( !SRAPathTest( my_sra_path, *path ) )
         {
             char *buf = translate_accession( my_sra_path, *path, 64 );
-            if ( buf != NULL )
+            if ( NULL != buf )
             {
-                free( (char*)(*path) );
+                free( ( void* )( *path ) );
                 *path = buf;
             }
         }
@@ -241,20 +265,25 @@ rc_t helper_get_schema_tab_name( const VTable *my_table, char ** name )
     rc_t rc;
     char *s;
     
-    if ( my_table == NULL || name == NULL )
+    if ( NULL == my_table || NULL == name )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
-
+    }
     *name = NULL;
     s = malloc( MAX_SCHEMA_TABNAME_LENGHT + 1 );
-    if ( s == NULL )
+    if ( NULL == s )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-
+    }
     rc = VTableTypespec ( my_table, s, MAX_SCHEMA_TABNAME_LENGHT );
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         *name = s;
+    }
     else
-        free( s );
-
+    {
+        free( ( void * )s );
+    }
     return rc;
 }
 
@@ -274,17 +303,19 @@ rc_t helper_read_vdb_string( const VCursor* src_cursor,
 {
     rc_t rc;
 
-    if ( dst == NULL )
+    if ( NULL == dst )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
 
     *dst = NULL;
     rc = VCursorSetRowId( src_cursor, row_idx );
     DISP_RC( rc, "helper_read_string:VCursorSetRowId() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = VCursorOpenRow( src_cursor );
         DISP_RC( rc, "helper_read_string:VCursorOpenRow() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             const void *src_buffer;
             uint32_t offset_in_bits;
@@ -294,17 +325,19 @@ rc_t helper_read_vdb_string( const VCursor* src_cursor,
             rc = VCursorCellData( src_cursor, col_idx, &element_bits,
                   &src_buffer, &offset_in_bits, &element_count );
             DISP_RC( rc, "helper_read_string:VCursorCellData() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 char *src_ptr = (char*)src_buffer + ( offset_in_bits >> 3 );
                 *dst = malloc( element_count + 1 );
-                if ( *dst != NULL )
+                if ( NULL != *dst )
                 {
                     memmove( *dst, src_ptr, element_count );
                     (*dst)[ element_count ] = 0;
                 }
                 else
+                {
                     rc = RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                }
             }
             VCursorCloseRow( src_cursor );
             DISP_RC( rc, "helper_read_string:VCursorClose() failed" );
@@ -334,9 +367,13 @@ number of bits
 static uint16_t bitlength_2_bytes( const size_t n_bits )
 {
     if ( n_bits > 64 )
+    {
         return 8;
+    }
     else
+    {
         return BitLength2Bytes[ n_bits ];
+    }
 }
 
 
@@ -357,14 +394,18 @@ rc_t helper_read_vdb_int_row_open( const VCursor* src_cursor,
     rc_t rc = VCursorCellData( src_cursor, col_idx, &element_bits,
                   &src_buffer, &offset_in_bits, &element_count );
     DISP_RC( rc, "helper_read_int_intern:VCursorCellData() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         uint64_t value = 0;
         char *src_ptr = (char*)src_buffer + ( offset_in_bits >> 3 );
-        if ( ( offset_in_bits & 7 ) == 0 )
+        if ( 0 == ( offset_in_bits & 7 ) )
+        {
             memmove( &value, src_ptr, bitlength_2_bytes( element_bits ) );
+        }
         else
+        {
             bitcpy ( &value, 0, src_ptr, offset_in_bits, element_bits );
+        }
         *dst = value;
     }
     return rc;
@@ -384,17 +425,19 @@ rc_t helper_read_vdb_int( const VCursor* src_cursor,
 {
     rc_t rc;
 
-    if ( src_cursor == NULL || dst == NULL )
+    if ( NULL == src_cursor || NULL == dst )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
 
     *dst = 0;
     rc = VCursorSetRowId( src_cursor, row_idx );
     DISP_RC( rc, "helper_read_int:VCursorSetRowId() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = VCursorOpenRow( src_cursor );
         DISP_RC( rc, "helper_read_int:VCursorOpenRow() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = helper_read_vdb_int_row_open( src_cursor, col_idx, dst );
             VCursorCloseRow( src_cursor );
@@ -417,31 +460,36 @@ rc_t helper_read_cfg_str( const KConfig *cfg, const char * key,
     const KConfigNode *node;
     rc_t rc;
     
-    if ( value == NULL )
+    if ( NULL == value )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
- 
+    }
     *value = NULL;
     rc = KConfigOpenNodeRead ( cfg, &node, "%s", key );
     /* it is OK if we do not find it, so no DISP_RC here */
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         size_t num_read, remaining;
         /* first we ask about the size to be read */
         rc = KConfigNodeRead ( node, 0, NULL, 0, &num_read, &remaining );
         DISP_RC( rc, "helper_read_config_str:KConfigNodeRead(1) failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             *value = malloc( remaining + 1 );
-            if ( *value )
+            if ( NULL != *value )
             {
                 size_t to_read = remaining;
                 rc = KConfigNodeRead ( node, 0, *value, to_read, &num_read, &remaining );
                 DISP_RC( rc, "helper_read_config_str:KConfigNodeRead(2) failed" );
-                if ( rc == 0 )
+                if ( 0 == rc )
+                {
                     (*value)[ num_read ] = 0;
+                }
             }
             else
+            {
                 rc = RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            }
         }
         KConfigNodeRelease( node );
     }
@@ -461,21 +509,24 @@ rc_t helper_read_cfg_int( const KConfig *cfg, const char * key,
     char *str_value;
     rc_t rc;
 
-    if ( value == NULL )
+    if ( NULL == value )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
     *value = 0;
     
     rc = helper_read_cfg_str( cfg, key, &str_value );
     DISP_RC( rc, "helper_read_config_int:helper_read_config_str() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         *value = strtou64( str_value, NULL, 0 );
-        free( str_value );
+        free( ( void* )str_value );
     }
     return rc;
 }
 
 
+/* --- does not work any more, because VDBManagerMakeSRASchema() is no-op now --- */
 /*
  * tries to detect if the given name of a schema-table is
  * a schema-legacy-table, it needs the vdb-manager to
@@ -489,36 +540,40 @@ rc_t helper_is_tablename_legacy( const VDBManager *my_manager,
     VSchema *schema;
     rc_t rc;
 
-    if ( flag == NULL )
+    if ( NULL == flag )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
     *flag = false;
 
-    rc = VDBManagerMakeSRASchema ( my_manager, &schema );
+    rc = VDBManagerMakeSRASchema ( my_manager, &schema );   /* !!! is a no-op now !!! */
     DISP_RC( rc, "helper_is_tablename_legacy:VDBManagerMakeSRASchema() failed" );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         KNamelist *list;
         rc = VSchemaListLegacyTables ( schema, &list );
         DISP_RC( rc, "helper_is_tablename_legacy:VSchemaListLegacyTables() failed" );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             uint32_t count;
             rc = KNamelistCount ( list, &count );
             DISP_RC( rc, "helper_is_tablename_legacy:KNamelistCoun() failed" );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 uint32_t idx = 0;
                 size_t tabname_len = string_size ( tabname );
-                while( idx < count && rc == 0 && *flag == false )
+                while( idx < count && 0 == rc && *flag == false )
                 {
                     const char * name;
                     rc = KNamelistGet ( list, idx, &name );
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         size_t len = string_size ( name );
-                        if ( string_cmp ( name, len, tabname, tabname_len,
-                             ( len < tabname_len ) ? len : tabname_len ) == 0 )
+                        if ( 0 == string_cmp ( name, len, tabname, tabname_len,
+                             ( len < tabname_len ) ? len : tabname_len ) )
+                        {
                             *flag = true;
+                        }
                     }
                     idx++;
                 }
@@ -540,8 +595,10 @@ static void helper_process_c_str( char * s )
     size_t idx, len = string_measure ( s, NULL );
     for ( idx = 0; idx < len; ++idx )
     {
-        if ( s[ idx ] == ':' || s[ idx ] == '#' )
+        if ( ( ':' == s[ idx ] ) || ( '#' == s[ idx ] ) )
+        {
             s[ idx ] = '_';
+        }
     }
 }
 
@@ -555,8 +612,10 @@ static void helper_process_cfg_key( String *s )
     uint32_t idx;
     for ( idx = 0; idx < s->len; ++idx )
     {
-        if ( s->addr[ idx ] == ':' || s->addr[ idx ] == '#' )
+        if ( ( ':' == s -> addr[ idx ] ) || ( '#' == s -> addr[ idx ] ) )
+        {
             ( (char *)(s->addr) )[ idx ] = '_';
+        }
     }
 }
 
@@ -577,12 +636,12 @@ static rc_t helper_get_legacy_node( KConfig *cfg,
 
     StringInitCString( &key_prefix, VDB_COPY_PREFIX );
     rc = StringConcat ( &temp, &key_prefix, key_sel );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc ) return rc;
     
     StringInitCString( &key_sub, s_sub );
     rc = StringConcat ( &key, temp, &key_sub );
     StringWhack ( temp );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc ) return rc;
     
     rc = helper_read_cfg_str( cfg, key->addr, dst );
     StringWhack ( key );
@@ -605,8 +664,10 @@ static rc_t helper_get_legacy_value( KConfig *cfg,
     /* first try to find the value under the src-schema-key */
     rc_t rc = helper_get_legacy_node( cfg, schema, postfix, dst );
     /* if this fails try to find it mapped to the platform */
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         rc = helper_get_legacy_node( cfg, pf, postfix, dst );
+    }
     return rc;
 }
 
@@ -637,11 +698,11 @@ rc_t helper_get_legacy_write_schema_from_config( KConfig *cfg,
 
     rc = helper_get_legacy_value( cfg, &key_pf, &key_schema, 
                 LEGACY_SCHEMA_KEY, legacy_schema_file );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc ) return rc;
     
     rc = helper_get_legacy_value( cfg, &key_pf, &key_schema,
                 LEGACY_TAB_KEY, legacy_schema_tab );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc ) return rc;
 
     /* dont_use is optional, no error if not found! */
     helper_get_legacy_value( cfg, &key_pf, &key_schema,
@@ -656,22 +717,18 @@ rc_t helper_get_legacy_write_schema_from_config( KConfig *cfg,
  * this will include the the given path into the search
  * for *.kfg - files
 */
-rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path, bool verbose )
+rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path )
 {
 #if ALLOW_EXTERNAL_CONFIG
     KDirectory *directory;
     const KDirectory *config_sub_dir;
 
     rc_t rc = KDirectoryNativeDir( &directory );
-    if ( rc != 0 ) return rc;
+    if ( 0 != rc) return rc;
     rc = KDirectoryOpenDirRead ( directory, &config_sub_dir, false, "%s", path );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = KConfigMake ( config_mgr, config_sub_dir );
-        if ( 0 == rc && verbose )
-        {
-            KOutMsg( "configuration loaded from ... %s\n", path );
-        }
         KDirectoryRelease( config_sub_dir );
     }
     KDirectoryRelease( directory );
@@ -694,26 +751,26 @@ uint32_t helper_rd_type_score( const KConfig *cfg,
                                const char *type_name )
 {
     uint32_t res = 0;
-    if ( cfg != NULL && type_name != NULL && type_name[0] != 0 )
+    if ( ( NULL != cfg ) && ( NULL != type_name ) && ( 0 != type_name[0] ) )
     {
         uint32_t prefix_len = string_measure ( TYPE_SCORE_PREFIX, NULL ) + 1;
         uint32_t len = string_measure ( type_name, NULL ) + prefix_len;
         char *s = malloc( len );
-        if ( s != NULL )
+        if ( NULL != s )
         {
             char *value;
             size_t n = string_copy_measure ( s, len, TYPE_SCORE_PREFIX );
-            string_copy_measure( &(s[n]), len, type_name );
+            string_copy_measure( &( s[ n ] ), len, type_name );
             helper_process_c_str( s );
-            if ( helper_read_cfg_str( cfg, s, &value ) == 0 )
+            if ( 0 == helper_read_cfg_str( cfg, s, &value ) )
             {
-                if ( value != NULL )
+                if ( NULL != value )
                 {
                     res = strtol( value, NULL, 0 );
-                    free( value );
+                    free( ( void* )value );
                 }
             }
-            free( s );
+            free( ( void* )s );
         }
     }
     return res;
@@ -725,7 +782,7 @@ rc_t helper_remove_path( KDirectory * directory, const char * path )
 {
     rc_t rc;
 
-    PLOGMSG( klogInfo, ( klogInfo, "removing '$(path)'", "path=%s", path ));
+    PLOGMSG( klogInfo, ( klogInfo, "removing '$(path)'", "path=%s", path ) );
     rc = KDirectoryRemove ( directory, true, "%s", path );
     DISP_RC( rc, "vdb_copy_remove_table:KDirectoryRemove() failed" );
     return rc;
@@ -739,7 +796,7 @@ bool helper_is_this_a_filesystem_path( const char * path )
     for ( i = 0; i < n && !res; ++i )
     {
         char c = path[ i ];
-        res = ( c == '.' || c == '/' || c == '\\' );
+        res = ( ( '.' == c ) || ( '/' == c ) || ( '\\' == c ) );
     }
     return res;
 }
@@ -756,30 +813,30 @@ static void helper_read_redact_value( KConfig * config_mgr, redact_vals * rvals,
     StringInitCString( &key_type, type_name );
     StringInitCString( &key_postfix, REDACTVALUE_VALUE_POSTFIX );
     rc = StringConcat ( &p1, &key_prefix, &key_type );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         const String * key;
         rc = StringConcat ( &key, p1, &key_postfix );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             char * value_str;
-            rc = helper_read_cfg_str( config_mgr, key->addr, &value_str );
+            rc = helper_read_cfg_str( config_mgr, key -> addr, &value_str );
             StringWhack ( key );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 StringInitCString( &key_postfix, REDACTVALUE_LEN_POSTFIX );
                 rc = StringConcat ( &key, p1, &key_postfix );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     uint32_t idx, l, len = 1;
                     char * endp, * len_str, * real_type;
 
-                    rc = helper_read_cfg_str( config_mgr, key->addr, &len_str );
+                    rc = helper_read_cfg_str( config_mgr, key -> addr, &len_str );
                     StringWhack ( key );
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         len = strtol( len_str, &endp, 0 );
-                        free( len_str );
+                        free( ( void* )len_str );
                     }
 
                     real_type = string_dup_measure ( type_name, NULL );
@@ -787,14 +844,18 @@ static void helper_read_redact_value( KConfig * config_mgr, redact_vals * rvals,
                         
                     /* transform the typename back into '_' ---> ':' real typename */
                     for ( idx = 0; idx < l; ++idx )
-                        if ( real_type[idx] == '_' )
-                            real_type[idx] = ':';
+                    {
+                        if ( '_' == real_type[ idx ] )
+                        {
+                            real_type[ idx ] = ':';
+                        }
+                    }
 
                     /* finally insert the redact-value-pair into the list */
                     redact_vals_add( rvals, real_type, len, value_str );
-                    free( real_type );
+                    free( ( void* )real_type );
                 }
-                free( value_str );
+                free( ( void* )value_str );
             }
         }
         StringWhack ( p1 );
@@ -811,67 +872,59 @@ void helper_read_redact_values( KConfig * config_mgr, redact_vals * rvals )
     /* first we read the list of redactable types */
     helper_read_cfg_str( config_mgr, 
             REDACTABLE_LIST_KEY, &type_list_str );
-    if ( type_list_str == NULL ) return;
+    if ( NULL == type_list_str ) return;
     rc = nlt_make_namelist_from_string( &type_list, type_list_str );
-    if ( rc == 0 && type_list != NULL )
+    if ( ( 0 == rc ) && ( NULL != type_list ) )
     {
         uint32_t idx, count;
         rc = KNamelistCount( type_list, &count );
-        if ( rc == 0 && count > 0 )
+        if ( 0 == rc && count > 0 )
             for ( idx = 0; idx < count; ++idx )
             {
                 const char *type_name;
                 rc = KNamelistGet( type_list, idx, &type_name );
-                if ( rc == 0 )
+                if ( 0 == rc )
+                {
                     helper_read_redact_value( config_mgr, rvals, type_name );
+                }
             }
         KNamelistRelease( type_list );
     }
-    free( type_list_str );
+    free( ( void* )type_list_str );
 }
 
 
-void helper_read_config_values( KConfig * config_mgr, p_config_values config, bool verbose )
+void helper_read_config_values( KConfig * config_mgr, p_config_values config )
 {
     /* key's and default-values in definitions.h */
 
     /* look for the name of the filter-column */
     helper_read_cfg_str( config_mgr, 
-            READ_FILTER_COL_NAME_KEY, &(config->filter_col_name) );
-    if ( config->filter_col_name == NULL )
-        config->filter_col_name = string_dup_measure ( READ_FILTER_COL_NAME, NULL );
-    if ( verbose )
+            READ_FILTER_COL_NAME_KEY, &( config -> filter_col_name ) );
+    if ( NULL == config -> filter_col_name )
     {
-        KOutMsg( "config:filter_col_name = %s\n", config->filter_col_name );
+        config -> filter_col_name = string_dup_measure ( READ_FILTER_COL_NAME, NULL );
     }
 
     /* look for the comma-separated list of meta-nodes to be ignored */
     helper_read_cfg_str( config_mgr, 
-            META_IGNORE_NODES_KEY, &(config->meta_ignore_nodes) );
-    if ( config->meta_ignore_nodes == NULL )
-        config->meta_ignore_nodes = string_dup_measure ( META_IGNROE_NODES_DFLT, NULL );
-    if ( verbose )
+            META_IGNORE_NODES_KEY, &( config -> meta_ignore_nodes ) );
+    if ( NULL == config -> meta_ignore_nodes )
     {
-        KOutMsg( "config:meta_ignore_nodes = %s\n", config->meta_ignore_nodes );
+        config->meta_ignore_nodes = string_dup_measure ( META_IGNROE_NODES_DFLT, NULL );
     }
 
     /* look for the comma-separated list of redactable types */
     helper_read_cfg_str( config_mgr, 
-            REDACTABLE_TYPES_KEY, &(config->redactable_types) );
-    if ( config->redactable_types == NULL )
-        config->redactable_types = string_dup_measure ( REDACTABLE_TYPES, NULL );
-    if ( verbose )
+            REDACTABLE_TYPES_KEY, &( config -> redactable_types ) );
+    if ( NULL == config -> redactable_types )
     {
-        KOutMsg( "config:redactable_types = %s\n", config->redactable_types );
+        config -> redactable_types = string_dup_measure ( REDACTABLE_TYPES, NULL );
     }
 
     /* look for the comma-separated list of columns which are protected from redaction */
     helper_read_cfg_str( config_mgr, 
-            DO_NOT_REDACT_KEY, &(config->do_not_redact_columns) );
-    if ( verbose )
-    {
-        KOutMsg( "config:do_not_redact_columns = %s\n", config->do_not_redact_columns );
-    }
+            DO_NOT_REDACT_KEY, &( config -> do_not_redact_columns ) );
 }
 
 
@@ -882,16 +935,18 @@ bool helper_detect_src_md5( const VTable * src_tab )
     bool res = false;
 
     rc = VTableOpenKTableRead ( src_tab, &ktab );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         const struct KDirectory *dir;
         rc = KTableOpenDirectoryRead ( ktab, &dir );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             /* ask for pathtype of "md5" */
             uint32_t pt = KDirectoryPathType ( dir, "md5" );
-            if ( ( pt == kptFile )||( pt == ( kptFile | kptAlias ) ) )
+            if ( ( kptFile == pt ) || ( ( kptFile | kptAlias ) == pt ) )
+            {
                 res = true;
+            }
             KDirectoryRelease( dir );
         }
         KTableRelease( ktab );
@@ -905,21 +960,25 @@ KCreateMode helper_assemble_CreateMode( const VTable * src_tab,
 {
     KCreateMode res = kcmParents;
  
-    if ( md5_mode == MD5_MODE_AUTO )
+    if ( MD5_MODE_AUTO == md5_mode )
     {
         bool src_md5_mode = helper_detect_src_md5( src_tab );
         md5_mode = ( src_md5_mode ? MD5_MODE_ON : MD5_MODE_OFF );
     }
 
     if ( force_init )
+    {
         res |= kcmInit;
+    }
     else
+    {
         res |= kcmCreate;
+    }
 
     switch( md5_mode )
     {
-    case MD5_MODE_ON :
-    case MD5_MODE_AUTO : res |= kcmMD5; break;
+        case MD5_MODE_ON :
+        case MD5_MODE_AUTO : res |= kcmMD5; break;
     }
     return res;
 }

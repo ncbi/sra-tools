@@ -25,12 +25,6 @@
 */
 #include "namelist_tools.h"
 
-#include <sysalloc.h>
-
-#include <stdlib.h>
-#include <string.h>
-
-
 int nlt_strcmp( const char* s1, const char* s2 )
 {
     size_t n1 = string_size ( s1 );
@@ -43,10 +37,10 @@ rc_t nlt_make_namelist_from_string( const KNamelist **list, const char * src )
 {
     VNamelist *v_names;
     rc_t rc = VNamelistMake ( &v_names, 5 );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         char * s = string_dup_measure ( src, NULL );
-        if ( s )
+        if ( NULL != s )
         {
             uint32_t str_begin = 0;
             uint32_t str_end = 0;
@@ -54,20 +48,20 @@ rc_t nlt_make_namelist_from_string( const KNamelist **list, const char * src )
             do
             {
                 c = s[ str_end ];
-                if ( c == ',' || c == 0 )
+                if ( ( ',' == c ) || ( 0 == c ) )
                 {
                     if ( str_begin < str_end )
                     {
                         char c_temp = c;
                         s[ str_end ] = 0;
-                        rc = VNamelistAppend ( v_names, &(s[str_begin]) );
+                        rc = VNamelistAppend ( v_names, &( s[ str_begin ] ) );
                         s[ str_end ] = c_temp;
                     }
                     str_begin = str_end + 1;
                 }
                 str_end++;
-            } while ( c != 0 && rc == 0 );
-            free( s );
+            } while ( ( 0 != c ) && ( 0 == rc ) );
+            free( ( void* )s );
         }
         rc = VNamelistToConstNamelist ( v_names, list );
         VNamelistRelease( v_names );
@@ -80,17 +74,21 @@ bool nlt_is_name_in_namelist( const KNamelist *list,
 {
     uint32_t count, idx;
     bool res = false;
-    if ( list == NULL || name_to_find == NULL )
-        return res;
-    if ( KNamelistCount( list, &count ) == 0 )
+    if ( ( NULL == list ) || ( NULL == name_to_find ) )
     {
-        for ( idx = 0; idx < count && res == false; ++idx )
+        return res;
+    }
+    if ( 0 == KNamelistCount( list, &count ) )
+    {
+        for ( idx = 0; idx < count && !res; ++idx )
         {
             const char *item_name;
-            if ( KNamelistGet( list, idx, &item_name ) == 0 )
+            if ( 0 == KNamelistGet( list, idx, &item_name ))
             {
-                if ( nlt_strcmp( item_name, name_to_find ) == 0 )
+                if ( 0 == nlt_strcmp( item_name, name_to_find ) )
+                {
                     res = true;
+                }
             }
         }
     }
@@ -106,27 +104,31 @@ bool nlt_namelist_intersect( const KNamelist *list1, const KNamelist *list2 )
 {
     uint32_t count1;
     bool res = false;
-    if ( list1 == NULL || list2 == NULL )
+    if ( ( NULL == list1 ) || ( NULL == list2 ) )
+    {
         return res;
-    if ( KNamelistCount( list1, &count1 ) == 0 )
+    }
+    if ( 0 == KNamelistCount( list1, &count1 ) )
     {
         uint32_t idx1;
-        for ( idx1 = 0; idx1 < count1 && res == false; ++idx1 )
+        for ( idx1 = 0; idx1 < count1 && !res; ++idx1 )
         {
             const char *string1;
-            if ( KNamelistGet( list1, idx1, &string1 ) == 0 )
+            if ( 0 == KNamelistGet( list1, idx1, &string1 ) )
             {
                 uint32_t count2;
-                if ( KNamelistCount( list2, &count2 ) == 0 )
+                if ( 0 == KNamelistCount( list2, &count2 ) )
                 {
                     uint32_t idx2;
-                    for ( idx2 = 0; idx2 < count2 && res == false; ++idx2 )
+                    for ( idx2 = 0; idx2 < count2 && !res; ++idx2 )
                     {
                         const char *string2;
-                        if ( KNamelistGet( list2, idx2, &string2 ) == 0 )
+                        if ( 0 == KNamelistGet( list2, idx2, &string2 ) )
                         {
-                            if ( strstr( string1, string2 ) != NULL )
+                            if ( NULL != strstr( string1, string2 ) )
+                            {
                                 res = true;
+                            }
                         }
                     }
                 }
@@ -142,25 +144,29 @@ rc_t nlt_remove_names_from_namelist( const KNamelist *source,
     rc_t rc = 0;
     uint32_t count;
     
-    if ( source == NULL || dest == NULL || to_remove == NULL )
+    if ( ( NULL == source ) || ( NULL == dest ) || ( NULL == to_remove ) )
+    {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
     *dest = NULL;
     rc = KNamelistCount( source, &count );
-    if ( rc == 0 && count > 0 )
+    if ( ( 0 == rc ) && ( count > 0 ) )
     {
         VNamelist *cleaned;
         rc = VNamelistMake ( &cleaned, count );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             uint32_t idx;
-            for ( idx = 0; idx < count && rc == 0; ++idx )
+            for ( idx = 0; idx < count && 0 == rc; ++idx )
             {
                 const char *s;
                 rc = KNamelistGet( source, idx, &s );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     if ( !nlt_is_name_in_namelist( to_remove, s ) )
+                    {
                         rc = VNamelistAppend ( cleaned, s );
+                    }
                 }
                 rc = VNamelistToConstNamelist ( cleaned, dest );
             }
@@ -175,10 +181,12 @@ rc_t nlt_remove_strings_from_namelist( const KNamelist *source,
     rc_t rc = 0;
     const KNamelist *to_remove;
     
-    if ( source == NULL || dest == NULL || items_to_remove == NULL )
+    if ( ( NULL == source ) || ( NULL == dest ) || ( NULL == items_to_remove ) )
+    {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
     rc = nlt_make_namelist_from_string( &to_remove, items_to_remove );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = nlt_remove_names_from_namelist( source, dest, to_remove );
         KNamelistRelease( to_remove );

@@ -31,8 +31,32 @@
 extern "C" {
 #endif
 
-#ifndef _h_vdb_copy_includes_
-#include "vdb-copy-includes.h"
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
+
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
+#ifndef _h_vdb_manager_
+#include <vdb/manager.h>
+#endif
+
+#ifndef _h_vdb_schema_
+#include <vdb/schema.h>
+#endif
+
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_cursor_
+#include <vdb/cursor.h>
+#endif
+
+#ifndef _h_kfg_config_
+#include <kfg/config.h>
 #endif
 
 #ifndef _h_vdb_redactval_
@@ -164,7 +188,7 @@ rc_t helper_get_legacy_write_schema_from_config( KConfig *cfg,
  * this will include the the given path into the search
  * for *.kfg - files
 */
-rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path, bool verbose );
+rc_t helper_make_config_mgr( KConfig **config_mgr, const char * path );
 
 
 /*
@@ -203,8 +227,7 @@ void helper_read_redact_values( KConfig * config_mgr,
  * use the defines from definition.h
 */
 void helper_read_config_values( KConfig * config_mgr,
-                                p_config_values config,
-                                bool verbose );
+                                p_config_values config );
 
 
 /*

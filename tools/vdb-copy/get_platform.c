@@ -24,9 +24,14 @@
 *
 */
 #include "get_platform.h"
-#include <sysalloc.h>
-#include <stdlib.h> /* for malloc */
-#include <string.h> /* for memmove */
+
+#ifndef _h_vdb_database_
+#include <vdb/database.h>
+#endif
+
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
 #define PLATFORM_COL "(ascii)PLATFORM"
 
@@ -35,20 +40,20 @@ static rc_t get_platform_from_table( const VTable *my_table, char ** dst,
 {
     const VCursor *my_cursor;
     rc_t rc = VTableCreateCursorRead( my_table, &my_cursor );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = VCursorOpen( my_cursor );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             uint32_t col_idx;
             rc = VCursorAddColumn( my_cursor, &col_idx, PLATFORM_COL );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 rc = VCursorSetRowId( my_cursor, 1 );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     rc = VCursorOpenRow( my_cursor );
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         const void *src_buffer;
                         uint32_t offset_in_bits;
@@ -56,19 +61,23 @@ static rc_t get_platform_from_table( const VTable *my_table, char ** dst,
                     
                         rc = VCursorCellData( my_cursor, col_idx, NULL,
                             &src_buffer, &offset_in_bits, &element_count );
-                        if ( rc == 0 )
+                        if ( 0 == rc )
                         {
                             char *src_ptr = (char*)src_buffer + ( offset_in_bits >> 3 );
-                            if ( pre_and_postfix != 0 )
+                            if ( 0 != pre_and_postfix )
+                            {
                                 *dst = malloc( element_count + 3 );
+                            }
                             else
+                            {
                                 *dst = malloc( element_count + 1 );
+                            }
                             if ( *dst != NULL )
                             {
-                                if ( pre_and_postfix != 0 )
+                                if ( 0 != pre_and_postfix )
                                 {
                                     (*dst)[ 0 ] = pre_and_postfix;
-                                    memmove( &(*dst)[1], src_ptr, element_count );
+                                    memmove( &(*dst)[ 1 ], src_ptr, element_count );
                                     (*dst)[ element_count + 1 ] = pre_and_postfix;
                                     (*dst)[ element_count + 2 ] = 0;
                                 }
@@ -79,7 +88,9 @@ static rc_t get_platform_from_table( const VTable *my_table, char ** dst,
                                 }
                             }
                             else
+                            {
                                 rc = RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                            }
                         }
                         VCursorCloseRow( my_cursor );
                     }
@@ -91,28 +102,31 @@ static rc_t get_platform_from_table( const VTable *my_table, char ** dst,
     return rc;
 }
 
-rc_t get_table_platform( const char * table_path, char ** dst, 
+rc_t get_table_platform( const p_context ctx, const char * table_path, char ** dst, 
                          const char pre_and_postfix )
 {
     rc_t rc;
     KDirectory *my_directory;
     
-    if ( table_path == NULL || dst == 0 )
+    if ( ( NULL == table_path ) || ( NULL == dst ) )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
     rc = KDirectoryNativeDir( &my_directory );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         VDBManager *my_manager;
         rc = VDBManagerMakeUpdate ( &my_manager, my_directory );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             VSchema *my_schema;
-            rc = VDBManagerMakeSRASchema( my_manager, &my_schema );
-            if ( rc == 0 )
+
+            rc = helper_parse_schema( my_manager, &my_schema, ctx -> src_schema_list );
+            if ( 0 == rc )
             {
                 const VTable *my_table;
                 rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", table_path );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     rc = get_platform_from_table( my_table, dst, pre_and_postfix );
                     VTableRelease( my_table );
@@ -126,32 +140,35 @@ rc_t get_table_platform( const char * table_path, char ** dst,
     return rc;
 }
 
-rc_t get_db_platform( const char * db_path, const char * tab_name, 
+rc_t get_db_platform( const p_context ctx, const char * db_path, const char * tab_name, 
                       char ** dst, const char pre_and_postfix )
 {
     rc_t rc;
     KDirectory *my_directory;
     
-    if ( db_path == NULL || tab_name == 0 || dst == 0 )
+    if ( ( NULL == db_path ) || ( NULL == tab_name ) || ( NULL == dst ) )
+    {
         return RC( rcExe, rcNoTarg, rcConstructing, rcParam, rcNull );
+    }
     rc = KDirectoryNativeDir( &my_directory );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         VDBManager *my_manager;
         rc = VDBManagerMakeUpdate ( &my_manager, my_directory );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             VSchema *my_schema;
-            rc = VDBManagerMakeSRASchema( my_manager, &my_schema );
-            if ( rc == 0 )
+
+            rc = helper_parse_schema( my_manager, &my_schema, ctx -> src_schema_list );
+            if ( 0 == rc )
             {
                 const VDatabase *my_database;
                 rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", db_path );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     const VTable *my_table;
                     rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", tab_name );
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         rc = get_platform_from_table( my_table, dst, pre_and_postfix );
                         VTableRelease( my_table );

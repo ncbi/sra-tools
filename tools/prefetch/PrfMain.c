@@ -49,9 +49,14 @@
 #include <vfs/path.h> /* VPathGetCeRequired */
 #include <vfs/resolver.h> /* VResolverRelease */
 
+#include "PrfMain.h"
+
 #include <time.h> /* time */
 
-#include "PrfMain.h"
+#include <limits.h> /* PATH_MAX */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 bool _StringIsXYZ(const String *self, const char **withoutScheme,
     const char * scheme, size_t scheme_size)
@@ -233,13 +238,11 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
 
     type = VDBManagerPathType(self->mgr, "%S", str) & ~kptAlias;
     if (type != kptDatabase) {
-        if (type == kptTable) {
+        if (type == kptTable)
             STSMSG(STS_DBG, ("...'%S' is a table", str));
-        }
-        else {
+        else
             STSMSG(STS_DBG,
                 ("...'%S' is not recognized as a database or a table", str));
-        }
         return 0;
     }
 
@@ -261,8 +264,17 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
 
     if (rc == 0 && isDb) {
         bool all = self->check_all || self->force != eForceNo;
-        rc = VDatabaseListDependenciesExt(db, deps, !all, self->outDir);
-        DISP_RC2(rc, "VDatabaseListDependencies", resolved->name);
+        char pResolvd[PATH_MAX] = "";
+        const char * outDir = self->outDir;
+        if (self->outDir != NULL) {
+            rc = KDirectoryResolvePath(
+                self->dir, true, pResolvd, sizeof pResolvd, "%s", self->outDir);
+            outDir = pResolvd;
+        }
+        if (rc == 0) {
+            rc = VDatabaseListDependenciesExt(db, deps, !all, outDir);
+            DISP_RC2(rc, "VDatabaseListDependencies", resolved->name);
+        }
     }
 
     RELEASE(VDatabase, db);

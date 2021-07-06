@@ -1010,7 +1010,7 @@ const char * extract_acc2( const char * s )
         {
             VPath * acc_or_oid = NULL;
             rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
-            if ( 0 != rc )
+            if ( 0 != rc ) /* remove trailing slash[es] and try again */
             {
                 char P_option_buffer[ PATH_MAX ] = "";
                 size_t l = string_copy_measure(

@@ -1147,7 +1147,10 @@ delite_proc ()
     check_read_quality_exit_with_message "can not process this run, there is no QUALITY"
 
     ## Unlocking db
-    dpec__ 65; exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
+    # dpec__ 65; exec_cmd_exit $VDBUNLOCK_BIN $DATABASE_DIR
+    # VDB-4482
+    find $DATABASE_DIR ! -perm -200 -exec chmod u+w {} \;
+    [ -e  $DATABASE_DIR/lock ] && rm -f $DATABASE_DIR/lock
 
     rename_quality_column
 

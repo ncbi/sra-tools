@@ -65,7 +65,7 @@ no-test:
 	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
 download:
-	@ PATH=$(DIRTOTEST):$(PATH) VDB_CONFIG=`pwd` \
+	@ PATH='$(DIRTOTEST):$(PATH)' VDB_CONFIG=`pwd` \
 		$(CONFIGTOUSE)=/ NCBI_VDB_RELIABLE=y $(PYTHON) test_kget.py #expect rc=0
 
 #-------------------------------------------------------------------------------

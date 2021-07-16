@@ -81,6 +81,7 @@ VDB_SQL_SRC = \
 VDB_SQL_LIB = \
 	-svdb-sqlite \
 	-sngs \
+	-sncbi-vdb \
 	-lm \
 	-lpthread
 
@@ -100,6 +101,7 @@ FASTCONV_LIB = \
 	-stk-version \
 	-svdb-sqlite \
 	-sngs \
+	-sncbi-vdb \
 	-lm \
 	-lpthread
 

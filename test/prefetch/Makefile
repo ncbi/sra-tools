@@ -504,7 +504,6 @@ out_dir_and_file:
 	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ -O / -o tmp3/dir/file \
 	        > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
-#	@ echo
 
 	@ echo PREFETCH HTTP FILE URL TO OUT-FILE
 	@ rm -f `pwd`/tmp3/dir/file
@@ -512,7 +511,6 @@ out_dir_and_file:
 	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki -O / \
 	                       -o tmp3/dir/file > /dev/null
 	@ ls `pwd`/tmp3/dir/file > /dev/null
-#	@ echo
 
 	@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
 	    echo PREFETCH FASP URL TO OUT-FILE ; \
@@ -541,14 +539,16 @@ out_dir_and_file:
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch SRR045450 $(SRAC) > /dev/null
 	@ ls `pwd`/tmp/sra/SRR045450.sra `pwd`/tmp/sra/$(SRAC).sra > /dev/null
+	@ rm -r `pwd`/tmp/sra
 
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
 	     echo PREFETCH SRR HTTP URL && \
-	     rm `pwd`/tmp/sra/$(SRAC).sra && \
+	     rm -f `pwd`/tmp/sra/$(SRAC).sra ; \
 	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
 	                               $(DIRTOTEST)/prefetch $(SRR) > /dev/null && \
-	     ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null ; \
+	     ls `pwd`/tmp/sra/$(SRAC).sra > /dev/null && \
+	     rm `pwd`/tmp/sra/$(SRAC).sra ; \
 	  else \
 	     echo prefetch test when CE is required is skipped ; \
 	  fi
@@ -590,6 +590,7 @@ out_dir_and_file:
 	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch $(SRAC) -O tmp3/dir > /dev/null
+	@ ls `pwd`/tmp3/dir > /dev/null
 	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
 
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \

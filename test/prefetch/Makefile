@@ -1002,4 +1002,4 @@ quality: std
 
 ad_not_cwd:
 	@ echo Testing prefetch into output directory and using results
-	@ perl test-ad-not-cwd.pl
+	@ PATH=$(DIRTOTEST):$(PATH) perl test-ad-not-cwd.pl

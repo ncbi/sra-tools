@@ -23,7 +23,7 @@
 # ===========================================================================
 
 default: runtests
-runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality
+runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality ad_not_cwd
 slowtests: announce vdbcache wgs lots_wgs hs37d5 ncbi1GB
 
 TOP ?= $(abspath ../..)
@@ -999,3 +999,7 @@ quality: std
 	@ cd tmp && NCBI_SETTINGS=k PATH=$(DIRTOTEST):$(BINDIR):$(PATH) \
 	  				perl ../test-quality.pl
 	@ rm -r tmp
+
+ad_not_cwd:
+	@ echo Testing prefetch into output directory and using results
+	@ perl test-ad-not-cwd.pl

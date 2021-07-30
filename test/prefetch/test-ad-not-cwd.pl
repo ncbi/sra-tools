@@ -12,7 +12,8 @@ mkdir 'tmp/kfg' || die;
 # site repo is always ignored
 $K = "$root/tmp/kfg";
 $k = "$K/k.kfg";
-`echo '/repository/site/disabled = "true"' > $k`; die if $?;
+`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'  > $k`; die if $?;
+`echo '/repository/site/disabled = "true"'                  >> $k`; die if $?;
 
 # no remote
 $rn = "$K/rn.mkfg";

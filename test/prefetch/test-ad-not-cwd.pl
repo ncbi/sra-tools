@@ -62,6 +62,7 @@ $a = 'SRR619505';
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
 
 # prefetch into cwd/AD
@@ -72,6 +73,7 @@ $a = 'SRR619505';
 # run in cwd/AD
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a`; die if $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2> /dev/null`; die if $?;
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a`; die if $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a`; die if $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die if $?;
@@ -82,6 +84,7 @@ $a = 'SRR619505';
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastqer-dump $a 2> /dev/null`; die unless $?;
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 | grep "can't open NC_000005.8"`; die if $?;
 
@@ -95,6 +98,7 @@ $a = 'SRR619505';
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
 
 # prefetch into out-dir
@@ -106,6 +110,7 @@ $a = 'SRR619505';
 chdir "$root/tmp/out/Q" || die;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K srapath $a`; die if $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2> /dev/null`; die if $?;
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a`; die if $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a`; die if $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die if $?;
@@ -115,6 +120,8 @@ chdir "$root/tmp" || die;
 
 # access run via path to sra file
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump -X 1 -Z out/Q/$a/$a.sra 2> /dev/null`; die if $?;
+
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump out/Q/$a/$a.sra`; die if $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD out/Q/$a/$a.sra`;
 die if $?;
@@ -128,6 +135,7 @@ die if $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD out/Q/$a/$a.sra 2>&1 | grep "can't open NC_000005.8"`; die if $?;
 
@@ -147,6 +155,7 @@ die unless $?;
 
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
+`NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
 
 # prefetch into user repo
@@ -157,6 +166,7 @@ die unless $?;
 # run in user repo
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K srapath $a`; die if $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump -X 1 -Z $a 2> /dev/null`; die if $?;
+`NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a`; die if $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump -R1 -CREAD $a`; die if $?;
 
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die if $?;
@@ -167,6 +177,7 @@ die unless $?;
 
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
+`NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 | grep "can't open NC_000005.8"`; die if $?;
 

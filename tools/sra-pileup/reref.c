@@ -322,7 +322,8 @@ static rc_t resolve_accession( VFSManager * vfs_mgr, const char * acc,
                 rc = VResolverQuery ( resolver, 0, acc_vpath,
                     &local, &remote, NULL );
                 if ( rc != 0 )
-                    (void)LOGERR( klogErr, rc, "VResolverQuery() failed" );
+                    (void)PLOGERR( klogErr, ( klogErr, rc,
+                        "VResolverQuery($(a)) failed", "a=%s", acc ) );
             }
             if (rc == 0)
             {
@@ -427,9 +428,9 @@ static rc_t report_ref_database( const VDBManager *vdb_mgr, VFSManager * vfs_mgr
         const ReferenceList * reflist;
         uint32_t options = ( ereferencelist_usePrimaryIds | ereferencelist_useSecondaryIds | ereferencelist_useEvidenceIds );
 
-        const String * ppath = NULL;
-        const String * pacc = NULL;
-        rc = VDatabaseGetAccession(db, &pacc, &ppath);
+        const String * parentPath = NULL;
+        const String * parentAcc = NULL;
+        rc = VDatabaseGetAccession(db, &parentAcc, &parentPath);
         if (rc != 0)
             (void)LOGERR(klogErr, rc, "VDatabaseGetAccession() failed");
         else {
@@ -464,7 +465,7 @@ static rc_t report_ref_database( const VDBManager *vdb_mgr, VFSManager * vfs_mgr
                         else
                         {
                             rc = report_ref_obj( vdb_mgr, vfs_mgr, path, idx,
-                                ref_obj, extended, pacc, ppath );
+                                ref_obj, extended, parentAcc, parentPath );
                             ReferenceObj_Release( ref_obj );
                         }
                     }

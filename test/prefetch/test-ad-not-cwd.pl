@@ -158,6 +158,36 @@ die unless $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
 
+`rm -rf Q`; die if $?;
+
+# cannot find run if remote repo is disabled
+$d = 'SRR341578';
+
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2> /dev/null`;
+die unless $?;
+
+# prefetch into out-dir
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q`; die if $?;
+`ls Q/$d/$d.sra` ; die 'no $d.sra' if $?;
+`ls Q/$d/$d.sra.vdbcache` ; die 'no $d.sra.vdbcache' if $?;
+`ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
+`ls Q/$d/NC_011752.1` ; die 'no NC_011752.1' if $?;
+
+# access run via path to AD
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d`; die if $?;
+
+# remove refseq: expect failures
+`rm Q/$d/NC_011748.1` ; die if $?;
+`rm Q/$d/$d.sra.vdbcache` ; die if $?;
+
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2> /dev/null`;
+die unless $?;
+
+# prefetch refseq into out-dir
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q`; die if $?;
+`ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
+`ls Q/$d/$d.sra.vdbcache` ; die 'no $d.sra.vdbcache' if $?;
+
 # prefetch into user repo
 `NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a`; die if $?;
 `ls $root/tmp/r/sra/$a.sra` ; die 'no $a.sra' if $?;

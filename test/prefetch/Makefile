@@ -55,7 +55,7 @@ WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
 DIRTOTEST ?= $(BINDIR)
-SRR=$(shell SRATOOLS_FORCE_INSTALL=1 ${DIRTOTEST}/srapath ${SRAC})
+SRR=$(shell NCBI_SETTINGS=/ SRATOOLS_FORCE_INSTALL=1 ${DIRTOTEST}/srapath ${SRAC})
 B=$(DIRTOTEST)
 
 HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml

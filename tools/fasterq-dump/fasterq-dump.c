@@ -53,7 +53,7 @@
 
 /* ---------------------------------------------------------------------------------- */
 
-static const char * format_usage[] = { "format (special, fastq, lookup, default=special)", NULL };
+static const char * format_usage[] = { "format (special, fastq, lookup, default=fastq)", NULL };
 #define OPTION_FORMAT   "format"
 #define ALIAS_FORMAT    "F"
 
@@ -162,6 +162,9 @@ static const char * append_usage[] = { "append to output-file", NULL };
 #define OPTION_APPEND   "append"
 #define ALIAS_APPEND    "A"
 
+static const char * fasta_usage[] = { "produce FASTA output", NULL };
+#define OPTION_FASTA    "fasta"
+
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC   "ngc"
 
@@ -197,6 +200,7 @@ OptDef ToolOptions[] =
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
     { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
     { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false },
+    { OPTION_FASTA,     NULL,            NULL, fasta_usage,      1, false,  false },
     { OPTION_NGC,       NULL,            NULL, ngc_usage,        1, true,   false },
 };
 
@@ -380,7 +384,7 @@ static const char * dflt_seq_tabl_name = "SEQUENCE";
 #define DFLT_NUM_THREADS 6
 static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
 {
-    bool split_spot, split_file, split_3, whole_spot;
+    bool split_spot, split_file, split_3, whole_spot, fasta;
 
 #if 0
     tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
@@ -416,9 +420,10 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );
     split_3    = get_bool_option( args, OPTION_SPLIT_3 );
     whole_spot = get_bool_option( args, OPTION_WHOLE_SPOT );
-    
+    fasta      = get_bool_option( args, OPTION_FASTA );
+
     tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
-                            split_spot, split_file, split_3, whole_spot ); /* helper.c */
+                            split_spot, split_file, split_3, whole_spot, fasta ); /* helper.c */
     if ( ft_fastq_split_3 == tool_ctx -> fmt )
     {
         tool_ctx -> join_options . skip_tech = true;
@@ -468,6 +473,7 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
             case ft_fastq_split_spot    : break;
             case ft_fastq_split_file    : tool_ctx -> use_stdout = false; break;
             case ft_fastq_split_3       : tool_ctx -> use_stdout = false; break;
+            case ft_fasta               : break;
         }
     }
     
@@ -524,16 +530,33 @@ static rc_t handle_lookup_path( tool_ctx_t * tool_ctx )
     return rc;
 }
 
+static bool fasta_requested( tool_ctx_t * tool_ctx )
+{
+    return ( tool_ctx -> fmt == ft_fasta );
+}
+
 /* we have NO output-dir and NO output-file */
 static rc_t make_output_filename_from_accession( tool_ctx_t * tool_ctx )
 {
+    rc_t rc;
     /* we DO NOT have a output-directory : build output-filename from the accession */
     /* generate the full path of the output-file, if not given */
-    size_t num_writ;        
-    rc_t rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
-                        &num_writ,
-                        "%s.fastq",
-                        tool_ctx -> accession_short );
+    size_t num_writ;
+
+    if ( fasta_requested( tool_ctx ) )
+    {
+        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            "%s.fasta",
+                            tool_ctx -> accession_short );
+    }
+    else
+    {
+        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            "%s.fastq",
+                            tool_ctx -> accession_short );
+    }
     if ( 0 != rc )
     {
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
@@ -548,13 +571,25 @@ static rc_t make_output_filename_from_accession( tool_ctx_t * tool_ctx )
 /* we have an output-dir and NO output-file */
 static rc_t make_output_filename_from_dir_and_accession( tool_ctx_t * tool_ctx )
 {
+    rc_t rc;
     size_t num_writ;
     bool es = ends_in_slash( tool_ctx -> output_dirname ); /* helper.c */
-    rc_t rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                        &num_writ,
-                        es ? "%s%s.fastq" : "%s/%s.fastq",
-                        tool_ctx -> output_dirname,
-                        tool_ctx -> accession_short );
+    if ( fasta_requested( tool_ctx ) )
+    {
+        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            es ? "%s%s.fasta" : "%s/%s.fasta",
+                            tool_ctx -> output_dirname,
+                            tool_ctx -> accession_short );
+    }
+    else
+    {
+        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            es ? "%s%s.fastq" : "%s/%s.fastq",
+                            tool_ctx -> output_dirname,
+                            tool_ctx -> accession_short );
+    }
     if ( 0 != rc )
     {
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
@@ -982,6 +1017,7 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
             case ft_fastq_split_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_file    : exists = output_exists_split( tool_ctx ); break;
             case ft_fastq_split_3       : exists = output_exists_split( tool_ctx ); break;
+            case ft_fasta               : exists = output_exists_split( tool_ctx ); break;
         }
         if ( exists )
         {

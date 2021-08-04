@@ -138,6 +138,35 @@ static rc_t print_fastq_1_read( join_stats * stats,
     return rc;
 }
 
+static rc_t print_fasta_1_read( join_stats * stats,
+                                struct join_results * results,
+                                const fastq_rec * rec,
+                                const join_options * jo,
+                                uint32_t dst_id,
+                                uint32_t read_id )
+{
+    rc_t rc = 0;
+
+    if ( filter1( stats, rec, jo ) )
+    {
+        if ( join_results_match( results, &( rec -> read ) ) )  /* join_results.c */
+        {
+            rc = join_results_print_fastq_v1( results,
+                                              rec -> row_id,
+                                              dst_id,
+                                              read_id,
+                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                              &( rec -> read ),
+                                              NULL );
+            if ( 0 == rc )
+            {
+                stats -> reads_written++;
+            }
+        }
+    }
+    return rc;
+}
+
 /* ------------------------------------------------------------------------------------------ */
 static rc_t print_fastq_n_reads_split( join_stats * stats,
                                        struct join_results * results,
@@ -430,6 +459,8 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
     opt . with_read_len = ( jo -> min_read_len > 0 );
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = false;
+    opt . with_cmp_read = false;
+    opt . with_quality = true;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 != rc )
@@ -489,6 +520,8 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = jo -> skip_tech;
+    opt . with_cmp_read = false;
+    opt . with_quality = true;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc )
@@ -545,6 +578,8 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = jo -> skip_tech;
+    opt . with_cmp_read = false;
+    opt . with_quality = true;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc )
@@ -600,6 +635,8 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
+    opt . with_cmp_read = false;
+    opt . with_quality = true;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc )
@@ -649,6 +686,67 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     else
     {
         ErrMsg( "make_fastq_iter() -> %R", rc );
+    }
+    return rc;
+}
+
+static rc_t perform_fasta_join( cmn_params * cp,
+                                join_stats * stats,
+                                const char * tbl_name,
+                                struct join_results * results,
+                                struct bg_progress * progress,
+                                const join_options * jo )
+{
+    rc_t rc;
+    struct fastq_sra_iter * iter;   /* fastq_iter.h / fastq_iter.c */
+    fastq_iter_opt opt;             /* fastq_iter.h */
+    opt . with_read_len = ( jo -> min_read_len > 0 );
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = false;
+    opt . with_cmp_read = false;
+    opt . with_quality = false;
+
+    rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "perform_fasta_join().make_fastq_iter() -> %R", rc );
+    }
+    else
+    {
+        rc_t rc_iter;
+        fastq_rec rec;
+        join_options local_opt =
+        {
+            jo -> rowid_as_name,
+            false,
+            jo -> print_read_nr,
+            jo -> print_name,
+            jo -> terminate_on_invalid,
+            jo -> min_read_len,
+            jo -> filter_bases
+        };
+
+        while ( 0 == rc && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
+        {
+            stats -> spots_read++;
+            stats -> reads_read += rec . num_read_len;
+
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                rc = print_fasta_1_read( stats, results, &rec, &local_opt, 1, 1 );
+                bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
+            }
+        }
+        if ( 0 == rc && 0 != rc_iter )
+        {
+            rc = rc_iter;
+        }
+        if ( 0 != rc )
+        {
+            set_quitting(); /* helper.c */
+        }
+        destroy_fastq_sra_iter( iter );
     }
     return rc;
 }
@@ -732,6 +830,13 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */
 
+            case ft_fasta           : rc = perform_fasta_join( &cp,
+                                            &jtd -> stats,
+                                            jtd -> tbl_name,
+                                            results,
+                                            jtd -> progress,
+                                            jtd -> join_options ); break; /* above */
+
             default : break;
         }
         destroy_join_results( results );
@@ -749,7 +854,7 @@ static rc_t extract_sra_row_count( KDirectory * dir,
 {
     cmn_params cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache }; /* helper.h */
     struct fastq_sra_iter * iter; 
-    fastq_iter_opt opt = { false, false, false };
+    fastq_iter_opt opt = { false, false, false, false };
     rc_t rc = make_fastq_sra_iter( &cp, opt, tbl_name, &iter ); /* fastq_iter.c */
     if ( 0 == rc )
     {

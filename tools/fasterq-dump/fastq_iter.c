@@ -206,7 +206,7 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
                 }
             }
 
-            if ( 0 == rc )
+            if ( 0 == rc && opt . with_quality )
             {
                 rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) ); /* cmn_iter.h */
             }
@@ -266,7 +266,7 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
             rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
         }
 
-        if ( 0 == rc1 )
+        if ( 0 == rc1 && self -> opt . with_quality )
         {
             rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
                                         &( self -> qual_buffer ),
@@ -375,7 +375,7 @@ rc_t make_fastq_sra_iter( const cmn_params * params,
                 rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) );
             }
 
-            if ( 0 == rc )
+            if ( 0 == rc && opt . with_quality )
             {
                 rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) );
             }
@@ -445,7 +445,7 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
             }
         }
 
-        if ( rc1 == 0 )
+        if ( rc1 == 0 && self -> opt . with_quality )
         {
             rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
                                         &( self -> qual_buffer ),

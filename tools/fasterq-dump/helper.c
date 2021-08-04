@@ -170,7 +170,7 @@ static format_t format_cmp( String * Format, const char * test, format_t test_fm
 }
 
 format_t get_format_t( const char * format,
-            bool split_spot, bool split_file, bool split_3, bool whole_spot )
+            bool split_spot, bool split_file, bool split_3, bool whole_spot, bool fasta )
 {
     format_t res = ft_unknown;
     if ( NULL != format && 0 != format[ 0 ] )
@@ -198,6 +198,10 @@ format_t get_format_t( const char * format,
         {
             res = format_cmp( &Format, "fastq-split-3", ft_fastq_split_3 );
         }
+        if ( ft_unknown == res )
+        {
+            res = format_cmp( &Format, "fasta", ft_fasta );
+        }
     }
     else
     {
@@ -218,6 +222,10 @@ format_t get_format_t( const char * format,
         else if ( whole_spot )
         {
             res = ft_whole_spot;
+        }
+        else if ( fasta )
+        {
+            res = ft_fasta;
         }
     }
 

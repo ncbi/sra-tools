@@ -967,28 +967,28 @@ resume:
 	@ mkdir -p  tmp
 	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
 	@ echo '/repository/site/disabled = "true"'                 >> tmp/k
-	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-resume.pl
+	cd tmp && PATH='$(B):$(PATH)' NCBI_SETTINGS=k perl ../test-resume.pl
 	@ rm    -r  tmp
 
 hs37d5:
 	@ echo Verifying hs37d5
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ cd tmp && NCBI_SETTINGS=k PATH=$(B):$(PATH) perl ../test-hs37d5.pl
+	@ cd tmp && NCBI_SETTINGS=k PATH='$(B):$(PATH)' perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 
 ad_as_dir: # turned off by default. Library test is in
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 	@ echo we can use AD as dir/...
 	@ mkdir -p tmp
-	@ export NCBI_SETTINGS=/ && export PATH=$(DIRTOTEST):$(PATH) \
+	@ export NCBI_SETTINGS=/ && export PATH='$(DIRTOTEST):$(PATH)' \
 		&& cd tmp && perl ../use-AD-as-dir.pl
 	@ rm -r tmp
 
 dump-vs-prefetch:
 	@ rm -frv tmp/*
 	@ mkdir -pv tmp
-	@ cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH=$(B):$(PATH) \
+	@ cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH='$(B):$(PATH)' \
 	                                 perl ../dump-vs-prefetch.pl
 	@ rm -r tmp
 
@@ -996,7 +996,7 @@ quality: std
 	@ echo Testing quality
 	@ mkdir -p tmp
 	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
-	@ cd tmp && NCBI_SETTINGS=k PATH=$(DIRTOTEST):$(BINDIR):$(PATH) \
+	@ cd tmp && NCBI_SETTINGS=k PATH='$(DIRTOTEST):$(BINDIR):$(PATH)' \
 	  				perl ../test-quality.pl
 	@ rm -r tmp
 

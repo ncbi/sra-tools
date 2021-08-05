@@ -115,8 +115,11 @@ typedef struct part_head
     uint32_t total, len, part, padd;
 } part_head;
 
-typedef enum format_t { ft_unknown, ft_special, ft_whole_spot,
-                        ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3, ft_fasta } format_t;
+typedef enum format_t {
+    ft_unknown, ft_special,
+    ft_fastq_whole_spot, ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3,
+    ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3
+    } format_t;
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
 typedef struct cmn_params

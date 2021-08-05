@@ -183,25 +183,29 @@ format_t get_format_t( const char * format,
 
         res = format_cmp( &Format, "special", ft_special );
         if ( ft_unknown == res )
-        {
-            res = format_cmp( &Format, "whole-spot", ft_whole_spot );
-        }
+            res = format_cmp( &Format, "fastq-whole-spot", ft_fastq_whole_spot );
+
         if ( ft_unknown == res )
-        {
             res = format_cmp( &Format, "fastq-split-spot", ft_fastq_split_spot );
-        }
+
         if ( ft_unknown == res )
-        {
             res = format_cmp( &Format, "fastq-split-file", ft_fastq_split_file );
-        }
+
         if ( ft_unknown == res )
-        {
             res = format_cmp( &Format, "fastq-split-3", ft_fastq_split_3 );
-        }
+
         if ( ft_unknown == res )
-        {
-            res = format_cmp( &Format, "fasta", ft_fasta );
-        }
+            res = format_cmp( &Format, "fasta-whole_spot", ft_fasta_whole_spot );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-split-spot", ft_fasta_split_spot );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-split-file", ft_fasta_split_file );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-split-3", ft_fasta_split_3 );
+
     }
     else
     {
@@ -209,23 +213,19 @@ format_t get_format_t( const char * format,
             have been used */
         if ( split_3 )
         {
-            res = ft_fastq_split_3;
+            res = fasta ? ft_fasta_split_3 : ft_fastq_split_3;
         }
         else if ( split_file )
         {
-            res = ft_fastq_split_file;
+            res = fasta ? ft_fasta_split_file : ft_fastq_split_file;
         }
         else if ( split_spot )
         {
-            res = ft_fastq_split_spot;
+            res = fasta ? ft_fasta_split_spot : ft_fastq_split_spot;
         }
         else if ( whole_spot )
         {
-            res = ft_whole_spot;
-        }
-        else if ( fasta )
-        {
-            res = ft_fasta;
+            res = fasta ? ft_fasta_whole_spot : ft_fastq_whole_spot;
         }
     }
 

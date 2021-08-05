@@ -349,12 +349,16 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
     {
         switch ( tool_ctx -> fmt )
         {
+            case ft_unknown             : rc = KOutMsg( "unknown format\n" ); break;
             case ft_special             : rc = KOutMsg( "SPECIAL\n" ); break;
-            case ft_whole_spot          : rc = KOutMsg( "FASTQ whole spot\n" ); break;
+            case ft_fastq_whole_spot    : rc = KOutMsg( "FASTQ whole spot\n" ); break;
             case ft_fastq_split_spot    : rc = KOutMsg( "FASTQ split spot\n" ); break;
             case ft_fastq_split_file    : rc = KOutMsg( "FASTQ split file\n" ); break;
             case ft_fastq_split_3       : rc = KOutMsg( "FASTQ split 3\n" ); break;
-            default                     : rc = KOutMsg( "unknow format\n" ); break;
+            case ft_fasta_whole_spot    : rc = KOutMsg( "FASTA whole spot\n" ); break;
+            case ft_fasta_split_spot    : rc = KOutMsg( "FASTA split spot\n" ); break;
+            case ft_fasta_split_file    : rc = KOutMsg( "FASTA split file\n" ); break;
+            case ft_fasta_split_3       : rc = KOutMsg( "FASTA split 3\n" ); break;
         }
     }
     if ( 0 == rc )
@@ -469,18 +473,22 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
         {
             case ft_unknown             : break;
             case ft_special             : break;
-            case ft_whole_spot          : break;
+
+            case ft_fastq_whole_spot    : break;
             case ft_fastq_split_spot    : break;
             case ft_fastq_split_file    : tool_ctx -> use_stdout = false; break;
             case ft_fastq_split_3       : tool_ctx -> use_stdout = false; break;
-            case ft_fasta               : break;
+
+            case ft_fasta_whole_spot    : break;
+            case ft_fasta_split_spot    : break;
+            case ft_fasta_split_file    : tool_ctx -> use_stdout = false; break;
+            case ft_fasta_split_3       : tool_ctx -> use_stdout = false; break;
         }
     }
     
     if ( tool_ctx -> use_stdout )
     {
         tool_ctx -> compress = ct_none;
-        //tool_ctx -> show_progress = false;
         tool_ctx -> force = false;
         tool_ctx -> append = false;
     }
@@ -532,7 +540,22 @@ static rc_t handle_lookup_path( tool_ctx_t * tool_ctx )
 
 static bool fasta_requested( tool_ctx_t * tool_ctx )
 {
-    return ( tool_ctx -> fmt == ft_fasta );
+    bool res = false;
+    switch( tool_ctx -> fmt )
+    {
+        case ft_unknown             : break;
+        case ft_special             : break;
+        case ft_fastq_whole_spot    : break;
+        case ft_fastq_split_spot    : break;
+        case ft_fastq_split_file    : break;
+        case ft_fastq_split_3       : break;
+
+        case ft_fasta_whole_spot    : res = true; break;
+        case ft_fasta_split_spot    : res = true; break;
+        case ft_fasta_split_file    : res = true; break;
+        case ft_fasta_split_3       : res = true; break;
+    }
+    return res;
 }
 
 /* we have NO output-dir and NO output-file */
@@ -1013,11 +1036,14 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
         {
             case ft_unknown             : break;
             case ft_special             : exists = output_exists_whole( tool_ctx ); break;
-            case ft_whole_spot          : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fastq_whole_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_file    : exists = output_exists_split( tool_ctx ); break;
             case ft_fastq_split_3       : exists = output_exists_split( tool_ctx ); break;
-            case ft_fasta               : exists = output_exists_split( tool_ctx ); break;
+            case ft_fasta_whole_spot    : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fasta_split_spot    : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fasta_split_file    : exists = output_exists_split( tool_ctx ); break;
+            case ft_fasta_split_3       : exists = output_exists_split( tool_ctx ); break;
         }
         if ( exists )
         {

@@ -23,7 +23,7 @@
 # ===========================================================================
 
 default: runtests
-runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality
+runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality ad_not_cwd
 slowtests: announce vdbcache wgs lots_wgs hs37d5 ncbi1GB
 
 TOP ?= $(abspath ../..)
@@ -55,7 +55,7 @@ WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
 DIRTOTEST ?= $(BINDIR)
-SRR=$(shell SRATOOLS_FORCE_INSTALL=1 ${DIRTOTEST}/srapath ${SRAC})
+#SRR=$(shell NCBI_SETTINGS=/ SRATOOLS_FORCE_INSTALL=1 ${DIRTOTEST}/srapath ${SRAC})
 B=$(DIRTOTEST)
 
 HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
@@ -587,18 +587,18 @@ out_dir_and_file:
 	  fi
 
 	@ echo PREFETCH ACCESSION TO OUT-DIR
-	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
+	@ rm -f `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch $(SRAC) -O tmp3/dir > /dev/null
-	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
+	@ ls `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra > /dev/null
 
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
 	     echo PREFETCH SRR HTTP URL TO OUT-DIR && \
-	     rm -f `pwd`/tmp3/dir/$(SRAC).sra && \
+	     rm -f `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra && \
 	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
 	                   $(DIRTOTEST)/prefetch $(SRR) -O tmp3/dir > /dev/null && \
-	     ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null ; \
+	     ls `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra > /dev/null ; \
 	  else \
 	     echo prefetch test when CE is required is skipped ; \
 	  fi
@@ -999,3 +999,7 @@ quality: std
 	@ cd tmp && NCBI_SETTINGS=k PATH='$(DIRTOTEST):$(BINDIR):$(PATH)' \
 	  				perl ../test-quality.pl
 	@ rm -r tmp
+
+ad_not_cwd:
+	@ echo Testing prefetch into output directory and using results
+	@ PATH=$(DIRTOTEST):$(PATH) perl test-ad-not-cwd.pl

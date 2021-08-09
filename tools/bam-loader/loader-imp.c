@@ -1513,13 +1513,15 @@ static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const
     return NULL;
 }
 
-static void getSpotGroup(BAM_Alignment const *const rec, char spotGroup[])
+static void getSpotGroup(BAM_Alignment const *const rec,
+    char *spotGroup, size_t spotGroup_size)
 {
     char const *rgname;
 
     BAM_AlignmentGetReadGroupName(rec, &rgname);
     if (rgname)
-        strcpy(spotGroup, rgname);
+/*      strcpy(spotGroup, rgname); */
+        string_copy_measure(spotGroup, spotGroup_size, rgname);
     else
         spotGroup[0] = '\0';
 }
@@ -1773,7 +1775,7 @@ MIXED_BASE_AND_COLOR:
             wasPromoted = true;
         }
 
-        getSpotGroup(rec, spotGroup);
+        getSpotGroup(rec, spotGroup, sizeof spotGroup);
         if (wasInserted) {
             if (G.mode == mode_Remap) {
                 (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),

@@ -1121,8 +1121,9 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */;
 
-            case ft_unknown : break;
-            case ft_special : break;
+            case ft_unknown : break;                /* this should not happen */
+            case ft_special : break;                /* this also should not happen */
+            case ft_fasta_us_split_spot : break;    /* and neither should this */
         }
         destroy_join_results( results ); /* join_results.c */
     }
@@ -1146,6 +1147,77 @@ static rc_t extract_sra_row_count( KDirectory * dir,
         *res = get_row_count_of_fastq_sra_iter( iter ); /* fastq_iter.c */
         destroy_fastq_sra_iter( iter ); /* fastq_iter.c */
     }
+    return rc;
+}
+
+static rc_t is_column_name_present( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    const char * tbl_name,
+                    bool * presence )
+{
+    rc_t rc;
+    if ( NULL == tbl_name )
+    {
+        rc = cmn_check_tbl_column( dir, vdb_mgr, accession_short, accession_path,
+                                    "NAME", presence ); /* cmn_iter.c */
+    }
+    else
+    {
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, tbl_name,
+                                    "NAME", presence ); /* cmn_iter.c */
+    }
+    return rc;
+}
+
+static void correct_join_options( join_options * dst, const join_options * src, bool name_column_present )
+{
+    dst -> rowid_as_name = name_column_present ? src -> rowid_as_name : true;
+    dst -> skip_tech = src -> skip_tech;
+    dst -> print_read_nr = src -> print_read_nr;
+    dst -> print_name = name_column_present;
+    dst -> min_read_len = src -> min_read_len;
+    dst -> filter_bases = src -> filter_bases;
+    dst -> terminate_on_invalid = src -> terminate_on_invalid;
+}
+
+static uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count )
+{
+    uint64_t res = row_count;
+    uint64_t limit = 100 * ( *num_threads );
+    if ( row_count < limit )
+    {
+        *num_threads = 1;
+    }
+    else
+    {
+        res = ( row_count / ( *num_threads ) ) + 1;
+    }
+    return res;
+}
+
+static rc_t join_the_threads_and_collect_status( Vector *threads, join_stats * stats )
+{
+    rc_t rc = 0;
+    uint32_t i, n = VectorLength( threads );
+    for ( i = VectorStart( threads ); i < n; ++i )
+    {
+        join_thread_data * jtd = VectorGet( threads, i );
+        if ( NULL != jtd )
+        {
+            rc_t rc_thread;
+            KThreadWait( jtd -> thread, &rc_thread );
+            if ( 0 != rc_thread )
+            {
+                rc = rc_thread;
+            }
+            KThreadRelease( jtd -> thread );
+            add_join_stats( stats, &jtd -> stats );
+            free( jtd );
+        }
+    }
+    VectorWhack ( threads, NULL, NULL );
     return rc;
 }
 
@@ -1180,18 +1252,7 @@ rc_t execute_tbl_join( KDirectory * dir,
         if ( 0 == rc && row_count > 0 )
         {
             bool name_column_present;
-
-            if ( NULL == tbl_name )
-            {
-                rc = cmn_check_tbl_column( dir, vdb_mgr, accession_short, accession_path,
-                                           "NAME", &name_column_present ); /* cmn_iter.c */
-            }
-            else
-            {
-                rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, tbl_name,
-                                          "NAME", &name_column_present ); /* cmn_iter.c */
-            }
-
+            rc = is_column_name_present( dir, vdb_mgr, accession_short, accession_path, tbl_name, &name_column_present );
             if ( 0 == rc )
             {
                 Vector threads;
@@ -1202,25 +1263,8 @@ rc_t execute_tbl_join( KDirectory * dir,
                 struct join_options corrected_join_options; /* helper.h */
 
                 VectorInit( &threads, 0, num_threads );
-
-                corrected_join_options . rowid_as_name = name_column_present ? join_options -> rowid_as_name : true;
-                corrected_join_options . skip_tech = join_options -> skip_tech;
-                corrected_join_options . print_read_nr = join_options -> print_read_nr;
-                corrected_join_options . print_name = name_column_present;
-                corrected_join_options . min_read_len = join_options -> min_read_len;
-                corrected_join_options . filter_bases = join_options -> filter_bases;
-                corrected_join_options . terminate_on_invalid = join_options -> terminate_on_invalid;
-
-                if ( row_count < ( num_threads * 100 ) )
-                {
-                    num_threads = 1;
-                    rows_per_thread = row_count;
-                }
-                else
-                {
-                    rows_per_thread = ( row_count / num_threads ) + 1;
-                }
-
+                correct_join_options( &corrected_join_options, join_options, name_column_present );
+                rows_per_thread = calculate_rows_per_thread( &num_threads, row_count );
                 if ( show_progress )
                 {
                     rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
@@ -1268,34 +1312,118 @@ rc_t execute_tbl_join( KDirectory * dir,
                         }
                     }
                 }
-
-                {
-                    /* collect the threads, and add the join_stats */
-                    uint32_t i, n = VectorLength( &threads );
-                    for ( i = VectorStart( &threads ); i < n; ++i )
-                    {
-                        join_thread_data * jtd = VectorGet( &threads, i );
-                        if ( NULL != jtd )
-                        {
-                            rc_t rc_thread;
-                            KThreadWait( jtd -> thread, &rc_thread );
-                            if ( 0 != rc_thread )
-                            {
-                                rc = rc_thread;
-                            }
-
-                            KThreadRelease( jtd -> thread );
-
-                            add_join_stats( stats, &jtd -> stats );
-
-                            free( jtd );
-                        }
-                    }
-                    VectorWhack ( &threads, NULL, NULL );
-                }
-                bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
+                rc = join_the_threads_and_collect_status( &threads, stats );
+                bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
             }
         }
     }
     return rc;
 }
+
+static rc_t CC fast_thread_func( const KThread *self, void *data )
+{
+    rc_t rc = 0;
+    join_thread_data * jtd = data;
+    /* insert fasta-split-spot reading and printing only */
+    return rc;
+}
+
+rc_t execute_fast_tbl_join( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    join_stats * stats,
+                    const char * tbl_name,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    bool show_progress,
+                    const join_options * join_options )
+{
+    rc_t rc = 0;
+
+    if ( show_progress )
+    {
+        KOutHandlerSetStdErr();
+        rc = KOutMsg( "read :" );
+        KOutHandlerSetStdOut();
+    }
+
+    if ( 0 == rc )
+    {
+        uint64_t row_count = 0;
+        rc = extract_sra_row_count( dir, vdb_mgr, accession_short, accession_path, tbl_name, cur_cache, &row_count ); /* above */
+        if ( 0 == rc && row_count > 0 )
+        {
+            bool name_column_present;
+            rc = is_column_name_present( dir, vdb_mgr, accession_short, accession_path, tbl_name, &name_column_present );
+            if ( 0 == rc )
+            {
+                Vector threads;
+                int64_t row = 1;
+                uint32_t thread_id;
+                uint64_t rows_per_thread;
+                struct bg_progress * progress = NULL;
+                struct join_options corrected_join_options; /* helper.h */
+
+                VectorInit( &threads, 0, num_threads );
+                correct_join_options( &corrected_join_options, join_options, name_column_present );
+                rows_per_thread = calculate_rows_per_thread( &num_threads, row_count );
+                if ( show_progress )
+                {
+                    rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
+                }
+
+                /* big difference her : we create one instance of common-join-results,
+                   and use it for all threads! */
+
+                for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
+                {
+                    join_thread_data * jtd = calloc( 1, sizeof * jtd );
+                    if ( NULL != jtd )
+                    {
+                        jtd -> dir              = dir;
+                        jtd -> vdb_mgr          = vdb_mgr;
+                        jtd -> accession_short  = accession_short;
+                        jtd -> accession_path   = accession_path;
+                        jtd -> tbl_name         = tbl_name;
+                        jtd -> first_row        = row;
+                        jtd -> row_count        = rows_per_thread;
+                        jtd -> cur_cache        = cur_cache;
+                        jtd -> buf_size         = buf_size;
+                        jtd -> progress         = progress;
+                        jtd -> registry         = NULL;
+                        jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
+                        jtd -> join_options     = &corrected_join_options;
+                        jtd -> part_file[ 0 ]   = 0;    /* we are not using a part-file */
+
+                        if ( 0 == rc )
+                        {
+                            /* thread executes cmn_thread_func() located above */
+                            rc = helper_make_thread( &jtd -> thread, fast_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                            if ( 0 != rc )
+                            {
+                                ErrMsg( "tbl_join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
+                            }
+                            else
+                            {
+                                rc = VectorAppend( &threads, NULL, jtd );
+                                if ( 0 != rc )
+                                {
+                                    ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                                }
+                            }
+                            row += rows_per_thread;
+                        }
+                    }
+                }
+
+                rc = join_the_threads_and_collect_status( &threads, stats );
+                bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
+            }
+        }
+    }
+
+    return rc;
+}
+

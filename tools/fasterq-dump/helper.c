@@ -175,7 +175,8 @@ static format_t format_cmp( String * Format, const char * test, format_t test_fm
 }
 
 format_t get_format_t( const char * format,
-            bool split_spot, bool split_file, bool split_3, bool whole_spot, bool fasta )
+            bool split_spot, bool split_file, bool split_3, bool whole_spot,
+            bool fasta, bool fasta_us )
 {
     format_t res = ft_unknown;
     if ( NULL != format && 0 != format[ 0 ] )
@@ -200,7 +201,7 @@ format_t get_format_t( const char * format,
             res = format_cmp( &Format, "fastq-split-3", ft_fastq_split_3 );
 
         if ( ft_unknown == res )
-            res = format_cmp( &Format, "fasta-whole_spot", ft_fasta_whole_spot );
+            res = format_cmp( &Format, "fasta-whole-spot", ft_fasta_whole_spot );
 
         if ( ft_unknown == res )
             res = format_cmp( &Format, "fasta-split-spot", ft_fasta_split_spot );
@@ -211,6 +212,8 @@ format_t get_format_t( const char * format,
         if ( ft_unknown == res )
             res = format_cmp( &Format, "fasta-split-3", ft_fasta_split_3 );
 
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-us-split-spot", ft_fasta_us_split_spot );
     }
     else
     {
@@ -218,26 +221,52 @@ format_t get_format_t( const char * format,
             have been used */
         if ( split_3 )
         {
-            res = fasta ? ft_fasta_split_3 : ft_fastq_split_3;
+            res = ( fasta || fasta_us ) ? ft_fasta_split_3 : ft_fastq_split_3;
+            /* split-file, split-spot and whole-spot are ignored! */
         }
         else if ( split_file )
         {
-            res = fasta ? ft_fasta_split_file : ft_fastq_split_file;
+            res = ( fasta || fasta_us ) ? ft_fasta_split_file : ft_fastq_split_file;
+            /* split-3, split-spot and whole-spot are ignored! */
         }
         else if ( split_spot )
         {
-            res = fasta ? ft_fasta_split_spot : ft_fastq_split_spot;
+            /* split-3, split-file and whole-spot are ignored! */
+            if ( fasta_us )
+            {
+                res = ft_fasta_us_split_spot;
+            }
+            else if ( fasta )
+            {
+                res = ft_fasta_split_spot;
+            }
+            else
+            {
+                res = ft_fastq_split_spot;
+            }
         }
         else if ( whole_spot )
         {
-            res = fasta ? ft_fasta_whole_spot : ft_fastq_whole_spot;
+            /* split-3, split-file and split-spot are ignored! */
+            res = ( fasta || fasta_us ) ? ft_fasta_whole_spot : ft_fastq_whole_spot;
         }
     }
 
     /* default to split_3 if no format has been given at all */
     if ( ft_unknown == res )
     {
-        res = ft_fastq_split_3;
+        if ( fasta_us )
+        {
+            res = ft_fasta_us_split_spot;
+        }
+        else if ( fasta )
+        {
+            res = ft_fasta_split_spot;
+        }
+        else
+        {
+            res = ft_fastq_split_3;
+        }
     }
     return res;
 }

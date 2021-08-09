@@ -118,7 +118,8 @@ typedef struct part_head
 typedef enum format_t {
     ft_unknown, ft_special,
     ft_fastq_whole_spot, ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3,
-    ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3
+    ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3,
+    ft_fasta_us_split_spot
     } format_t;
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
@@ -150,7 +151,8 @@ rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
                                 const char * filename, uint32_t idx );
 
 format_t get_format_t( const char * format,
-        bool split_spot, bool split_file, bool split_3, bool whole_spot, bool fasta );
+        bool split_spot, bool split_file, bool split_3, bool whole_spot,
+        bool fasta, bool fasta_us );
 
 compress_t get_compress_t( bool gzip, bool bzip2 );
 

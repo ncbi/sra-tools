@@ -165,6 +165,9 @@ static const char * append_usage[] = { "append to output-file", NULL };
 static const char * fasta_usage[] = { "produce FASTA output", NULL };
 #define OPTION_FASTA    "fasta"
 
+static const char * fasta_us_usage[] = { "produce FASTA output, unsorted", NULL };
+#define OPTION_FASTA_US    "fasta-unsorted"
+
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC   "ngc"
 
@@ -201,6 +204,7 @@ OptDef ToolOptions[] =
     { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
     { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false },
     { OPTION_FASTA,     NULL,            NULL, fasta_usage,      1, false,  false },
+    { OPTION_FASTA_US,  NULL,            NULL, fasta_us_usage,   1, false,  false },
     { OPTION_NGC,       NULL,            NULL, ngc_usage,        1, true,   false },
 };
 
@@ -357,6 +361,7 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
             case ft_fastq_split_3       : rc = KOutMsg( "FASTQ split 3\n" ); break;
             case ft_fasta_whole_spot    : rc = KOutMsg( "FASTA whole spot\n" ); break;
             case ft_fasta_split_spot    : rc = KOutMsg( "FASTA split spot\n" ); break;
+            case ft_fasta_us_split_spot : rc = KOutMsg( "FASTA-unsorted split spot\n" ); break;
             case ft_fasta_split_file    : rc = KOutMsg( "FASTA split file\n" ); break;
             case ft_fasta_split_3       : rc = KOutMsg( "FASTA split 3\n" ); break;
         }
@@ -386,9 +391,10 @@ static const char * dflt_seq_tabl_name = "SEQUENCE";
 #define DFLT_BUF_SIZE ( 1024 * 1024 )
 #define DFLT_MEM_LIMIT ( 1024L * 1024 * 50 )
 #define DFLT_NUM_THREADS 6
-static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
+static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args )
 {
-    bool split_spot, split_file, split_3, whole_spot, fasta;
+    rc_t rc = 0;
+    bool split_spot, split_file, split_3, whole_spot, fasta, fasta_us;
 
 #if 0
     tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
@@ -425,9 +431,15 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     split_3    = get_bool_option( args, OPTION_SPLIT_3 );
     whole_spot = get_bool_option( args, OPTION_WHOLE_SPOT );
     fasta      = get_bool_option( args, OPTION_FASTA );
+    fasta_us   = get_bool_option( args, OPTION_FASTA_US );
+
+    if ( split_spot && split_file )    if ( 0 != rc )
+    {
+        ErrMsg( "split-spot and split-file exclude each other -> %R", rc );
+    }
 
     tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
-                            split_spot, split_file, split_3, whole_spot, fasta ); /* helper.c */
+                    split_spot, split_file, split_3, whole_spot, fasta, fasta_us ); /* helper.c */
     if ( ft_fastq_split_3 == tool_ctx -> fmt )
     {
         tool_ctx -> join_options . skip_tech = true;
@@ -444,6 +456,7 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
             KConfigSetNgcFile( ngc );
         }
     }
+    return rc;
 }
 
 #define DFLT_MAX_FD 32
@@ -481,6 +494,7 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
 
             case ft_fasta_whole_spot    : break;
             case ft_fasta_split_spot    : break;
+            case ft_fasta_us_split_spot : break;
             case ft_fasta_split_file    : tool_ctx -> use_stdout = false; break;
             case ft_fasta_split_3       : tool_ctx -> use_stdout = false; break;
         }
@@ -552,6 +566,7 @@ static bool fasta_requested( tool_ctx_t * tool_ctx )
 
         case ft_fasta_whole_spot    : res = true; break;
         case ft_fasta_split_spot    : res = true; break;
+        case ft_fasta_us_split_spot : res = true; break;
         case ft_fasta_split_file    : res = true; break;
         case ft_fasta_split_3       : res = true; break;
     }
@@ -685,19 +700,25 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
     {
         ErrMsg( "ArgsParamValue() -> %R", rc );
     }
-    else
+
+    if ( 0 == rc )
     {
         tool_ctx -> lookup_filename[ 0 ] = 0;
         tool_ctx -> index_filename[ 0 ] = 0;
         tool_ctx -> dflt_output[ 0 ] = 0;
-    
-        get_user_input( tool_ctx, args );
-        encforce_constrains( tool_ctx );
-        get_environment( tool_ctx );
-        
-        rc = make_temp_dir( &tool_ctx -> temp_dir,
-                          tool_ctx -> requested_temp_path,
-                          tool_ctx -> dir );
+
+        rc = get_user_input( tool_ctx, args );
+        if ( 0 == rc )
+        {
+            encforce_constrains( tool_ctx );
+            rc = get_environment( tool_ctx );
+        }
+        if ( 0 == rc )
+        {
+            rc = make_temp_dir( &tool_ctx -> temp_dir,
+                            tool_ctx -> requested_temp_path,
+                            tool_ctx -> dir );
+        }
     }
     
     if ( 0 == rc )
@@ -1042,6 +1063,7 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
             case ft_fastq_split_3       : exists = output_exists_split( tool_ctx ); break;
             case ft_fasta_whole_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fasta_split_spot    : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fasta_us_split_spot : exists = output_exists_whole( tool_ctx ); break;
             case ft_fasta_split_file    : exists = output_exists_split( tool_ctx ); break;
             case ft_fasta_split_3       : exists = output_exists_split( tool_ctx ); break;
         }
@@ -1051,6 +1073,26 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
             ErrMsg( "fasterq-dump.c fastdump_csra() checking ouput-file '%s' -> %R",
                      tool_ctx -> output_filename, rc );
         }
+    }
+    return rc;
+}
+
+static rc_t fastdump_csra_us( tool_ctx_t * tool_ctx ) /* unsorted ! */
+{
+    rc_t rc = 0;
+    join_stats stats;
+
+    clear_join_stats( &stats ); /* helper.c */
+
+    if ( 0 == rc )
+    {
+        /* special FAST unsorted output for csra ( only for split-spot AND fasta ! ): */
+
+        /* iterate over the ALIGNMENT-table ( in multiple threads )and produce spots as we go: */
+
+        /* iterate over the SEQUENCE-table ( in multiple threads ) and produce spots as we go: */
+
+        print_stats( &stats ); /* above */
     }
     return rc;
 }
@@ -1069,25 +1111,35 @@ static rc_t fastdump_csra( tool_ctx_t * tool_ctx )
         rc = check_output_exits( tool_ctx ); /* above */
     }
 
-    if ( 0 == rc )
+    if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot )
     {
-        rc = produce_lookup_files( tool_ctx ); /* above */
+        fastdump_csra_us( tool_ctx );
     }
-
-    if ( 0 == rc )
+    else
     {
-        rc = produce_final_db_output( tool_ctx ); /* above */
+        if ( 0 == rc )
+        {
+            rc = produce_lookup_files( tool_ctx ); /* above */
+        }
+
+        if ( 0 == rc )
+        {
+            rc = produce_final_db_output( tool_ctx ); /* above */
+        }
     }
     return rc;
 }
 
 
 /* -------------------------------------------------------------------------------------------- */
+static rc_t fastdump_table_us( tool_ctx_t * tool_ctx, const char * tbl_name ) /* unsorted ! */
+{
+    return 0;
+}
 
 static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 {
     rc_t rc = 0;
-    struct temp_registry * registry = NULL;
     join_stats stats;
     
     clear_join_stats( &stats ); /* helper.c */
@@ -1102,53 +1154,61 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
         rc = check_output_exits( tool_ctx ); /* above */
     }
 
-    if ( 0 == rc )
+    if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot )
     {
-        rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
+        rc = fastdump_table_us( tool_ctx, tbl_name );
     }
-
-    if ( 0 == rc )
+    else
     {
-        rc = execute_tbl_join( tool_ctx -> dir,
-                           tool_ctx -> vdb_mgr,
-                           tool_ctx -> accession_short,
-                           tool_ctx -> accession_path,
-                           &stats,
-                           tbl_name,
-                           tool_ctx -> temp_dir,
-                           registry,
-                           tool_ctx -> cursor_cache,
-                           tool_ctx -> buf_size,
-                           tool_ctx -> num_threads,
-                           tool_ctx -> show_progress,
-                           tool_ctx -> fmt,
-                           & tool_ctx -> join_options ); /* tbl_join.c */
-    }
-
-    if ( 0 == rc )
-    {
-        if ( tool_ctx -> use_stdout )
+        struct temp_registry * registry = NULL;
+        if ( 0 == rc )
         {
-            rc = temp_registry_to_stdout( registry,
-                                          tool_ctx -> dir,
-                                          tool_ctx -> buf_size ); /* temp_registry.c */
+            rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
         }
-        else
+
+        if ( 0 == rc )
         {
-            rc = temp_registry_merge( registry,
-                              tool_ctx -> dir,
-                              tool_ctx -> output_filename,
-                              tool_ctx -> buf_size,
-                              tool_ctx -> show_progress,
-                              tool_ctx -> force,
-                              tool_ctx -> compress,
-                              tool_ctx -> append ); /* temp_registry.c */
+            rc = execute_tbl_join( tool_ctx -> dir,
+                            tool_ctx -> vdb_mgr,
+                            tool_ctx -> accession_short,
+                            tool_ctx -> accession_path,
+                            &stats,
+                            tbl_name,
+                            tool_ctx -> temp_dir,
+                            registry,
+                            tool_ctx -> cursor_cache,
+                            tool_ctx -> buf_size,
+                            tool_ctx -> num_threads,
+                            tool_ctx -> show_progress,
+                            tool_ctx -> fmt,
+                            & tool_ctx -> join_options ); /* tbl_join.c */
         }
-    }
-    
-    if ( NULL != registry )
-    {
-        destroy_temp_registry( registry ); /* temp_registry.c */
+
+        if ( 0 == rc )
+        {
+            if ( tool_ctx -> use_stdout )
+            {
+                rc = temp_registry_to_stdout( registry,
+                                            tool_ctx -> dir,
+                                            tool_ctx -> buf_size ); /* temp_registry.c */
+            }
+            else
+            {
+                rc = temp_registry_merge( registry,
+                                tool_ctx -> dir,
+                                tool_ctx -> output_filename,
+                                tool_ctx -> buf_size,
+                                tool_ctx -> show_progress,
+                                tool_ctx -> force,
+                                tool_ctx -> compress,
+                                tool_ctx -> append ); /* temp_registry.c */
+            }
+        }
+        
+        if ( NULL != registry )
+        {
+            destroy_temp_registry( registry ); /* temp_registry.c */
+        }
     }
 
     if ( 0 == rc )

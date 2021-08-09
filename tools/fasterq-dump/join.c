@@ -1915,7 +1915,8 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
                                                         jtd -> progress,
                                                         jtd -> join_options ); break;
 
-                case ft_unknown : break;
+                case ft_unknown : break;                /* this should never happen */
+                case ft_fasta_us_split_spot : break;    /* nether should this */
             }
             release_join_ctx( &j );
         }

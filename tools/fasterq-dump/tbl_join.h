@@ -80,7 +80,8 @@ rc_t execute_fast_tbl_join( KDirectory * dir,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
-                    const join_options * join_options ); /* helper.h */
+                    const char * output_filename, /* NULL for stdout! */
+                    const join_options * join_options );
 
 #ifdef __cplusplus
 }

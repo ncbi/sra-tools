@@ -62,8 +62,8 @@ rc_t make_join_results( struct KDirectory * dir,
                         const char * filter_bases );
 
 /* test if the filter-bases match... */
-bool join_results_match( struct join_results * self, const String * bases );
-bool join_results_match2( struct join_results * self, const String * bases1, const String * bases2 );
+bool join_results_filter( struct join_results * self, const String * bases );
+bool join_results_filter2( struct join_results * self, const String * bases1, const String * bases2 );
 
 rc_t join_results_print( struct join_results * self, uint32_t read_id, const char * fmt, ... );
 
@@ -91,13 +91,12 @@ void destroy_common_join_results( struct common_join_results * self );
 
 rc_t make_common_join_results( struct KDirectory * dir,
                         struct common_join_results ** results,
-                        const char * output_base,
-                        const char * accession_short,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
-                        bool print_frag_nr,
-                        bool print_name,
-                        const char * filter_bases );
+                        const char * filter_bases,
+                        const char * output_filename );
+
+rc_t common_join_results_print( struct common_join_results * self, const char * fmt, ... );
 
 #ifdef __cplusplus
 }

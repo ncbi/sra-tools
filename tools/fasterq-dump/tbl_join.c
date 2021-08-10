@@ -111,7 +111,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
 
     if ( filter1( stats, rec, jo ) ) /* above */
     {
-        if ( join_results_match( results, &( rec -> read ) ) ) /* join_results.c */
+        if ( join_results_filter( results, &( rec -> read ) ) ) /* join_results.c */
         {
             rc = join_results_print_fastq_v1( results,
                                               rec -> row_id,
@@ -137,7 +137,7 @@ static rc_t print_fasta_1_read( join_stats * stats,
 
     if ( filter1( stats, rec, jo ) )
     {
-        if ( join_results_match( results, &( rec -> read ) ) )  /* join_results.c */
+        if ( join_results_filter( results, &( rec -> read ) ) )  /* join_results.c */
         {
             rc = join_results_print_fastq_v1( results,
                                               rec -> row_id,
@@ -201,13 +201,13 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                if ( join_results_match( results, &R ) ) /* join_results.c */
+                if ( join_results_filter( results, &R ) ) /* join_results.c */
                 {
                     Q . addr = &rec -> quality . addr[ offset ];
                     Q . size = rec -> read_len[ read_id_0 ];
                     Q . len  = ( uint32_t )Q . size;
 
-                    if ( join_results_match( results, &( rec -> read ) ) ) /* join_results.c */
+                    if ( join_results_filter( results, &( rec -> read ) ) ) /* join_results.c */
                     {
                         rc = join_results_print_fastq_v1( results,
                                                         rec -> row_id,
@@ -255,7 +255,6 @@ static rc_t print_fasta_n_reads_split( join_stats * stats,
     }
 
     read_id_0 = 0;
-
     while ( 0 == rc && read_id_0 < rec -> num_read_len )
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
@@ -266,9 +265,9 @@ static rc_t print_fasta_n_reads_split( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                if ( join_results_match( results, &R ) ) /* join_results.c */
+                if ( join_results_filter( results, &R ) ) /* join_results.c */
                 {
-                    if ( join_results_match( results, &( rec -> read ) ) )
+                    if ( join_results_filter( results, &( rec -> read ) ) )
                     {
                         rc = join_results_print_fastq_v1( results,
                                                         rec -> row_id,
@@ -339,7 +338,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                if ( join_results_match( results, &R ) ) /* join_results.c */
+                if ( join_results_filter( results, &R ) ) /* join_results.c */
                 {
                     Q . addr = &rec -> quality . addr[ offset ];
                     Q . size = rec -> read_len[ read_id_0 ];
@@ -403,7 +402,7 @@ static rc_t print_fasta_n_reads_split_file( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                if ( join_results_match( results, &R ) )
+                if ( join_results_filter( results, &R ) )
                 {
                     rc = join_results_print_fastq_v1( results,
                                                       rec -> row_id,
@@ -490,7 +489,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                if ( join_results_match( results, &R ) )
+                if ( join_results_filter( results, &R ) )
                 {
                     Q . addr = &rec -> quality . addr[ offset ];
                     Q . size = rec -> read_len[ read_id_0 ];
@@ -573,7 +572,7 @@ static rc_t print_fasta_n_reads_split_3( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                if ( join_results_match( results, &R ) )
+                if ( join_results_filter( results, &R ) )
                 {
                     if ( valid_bio_reads < 2 ) { write_id_1 = 0; }
                     rc = join_results_print_fastq_v1( results,
@@ -1324,7 +1323,92 @@ static rc_t CC fast_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
     join_thread_data * jtd = data;
-    /* insert fasta-split-spot reading and printing only */
+    struct fastq_sra_iter * iter;
+    /* we open an interator on the selected table, and iterate over it */
+    cmn_params cp = { jtd -> dir, jtd -> vdb_mgr, 
+                    jtd -> accession_short, jtd -> accession_path,
+                    jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    fastq_iter_opt opt;
+    const join_options * jo = jtd -> join_options;
+    struct common_join_results * results = ( struct common_join_results * ) jtd -> registry;
+    join_stats * stats = &( jtd -> stats );
+    bool skip_tech = jtd -> join_options -> skip_tech;
+    const char * acc = jtd -> accession_short;
+    opt . with_read_len = true;
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = skip_tech;
+    opt . with_cmp_read = false;
+    opt . with_quality = false;
+
+    rc = make_fastq_sra_iter( &cp, opt, jtd -> tbl_name, &iter ); /* fastq-iter.c */
+    if ( 0 == rc )
+    {
+        rc_t rc_iter;
+        fastq_rec rec;
+        while ( 0 == rc && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                uint32_t read_id_0 = 0;
+                uint32_t read_len_sum = 0;
+                uint32_t offset = 0;
+
+                /* check if the READ-columns has as many bases as the READ_LEN-column 'asks' for */
+                while ( read_id_0 < rec . num_read_len ) { read_len_sum += rec . read_len[ read_id_0++ ]; }
+                if ( rec . read . len != read_len_sum )
+                {
+                    ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u) (C)\n", rec . row_id, rec . read . len, read_len_sum );
+                    stats -> reads_invalid++;
+                    if ( jo -> terminate_on_invalid )
+                    {
+                        return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+                    }
+                }
+
+                /* iterate over the fragments of the SPOT */
+                read_id_0 = 0;
+                while ( 0 == rc && read_id_0 < rec . num_read_len )
+                {
+                    if ( rec . read_len[ read_id_0 ] > 0 )
+                    {
+                        if ( filter( stats, &rec, jo, read_id_0 ) )
+                        {
+                            String R;
+                            R . addr = &rec . read . addr[ offset ];
+                            R . size = rec . read_len[ read_id_0 ];
+                            R . len  = ( uint32_t )R . size;
+
+                            if ( jo -> rowid_as_name )
+                            {
+                                rc = common_join_results_print( results, ">%s.%lu %lu length=%u\n%S\n",
+                                    acc, rec . row_id, rec . row_id, R . len, &R );
+                            }
+                            else
+                            {
+                                rc = common_join_results_print( results, ">%s.%lu %S length=%u\n%S\n",
+                                    acc, rec . row_id, &( rec . name ), R . len, &R );
+
+                            }
+                            if ( 0 == rc ) { stats -> reads_written++; }
+                        }
+                        offset += rec . read_len[ read_id_0 ];
+                    }
+                    else { stats -> reads_zero_length++; }
+                    read_id_0++;
+                }
+
+                stats -> spots_read++;
+                stats -> reads_read += rec . num_read_len;
+
+                bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+            }
+        }
+        if ( 0 == rc && 0 != rc_iter ) { rc = rc_iter; }
+        if ( 0 != rc ) { set_quitting(); /* helper.c */ }
+        destroy_fastq_sra_iter( iter );
+    }
+    else { ErrMsg( "make_fastq_iter() -> %R", rc ); }
     return rc;
 }
 
@@ -1338,6 +1422,7 @@ rc_t execute_fast_tbl_join( KDirectory * dir,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
+                    const char * output_filename, /* NULL for stdout! */
                     const join_options * join_options )
 {
     rc_t rc = 0;
@@ -1359,67 +1444,70 @@ rc_t execute_fast_tbl_join( KDirectory * dir,
             rc = is_column_name_present( dir, vdb_mgr, accession_short, accession_path, tbl_name, &name_column_present );
             if ( 0 == rc )
             {
-                Vector threads;
-                int64_t row = 1;
-                uint32_t thread_id;
-                uint64_t rows_per_thread;
-                struct bg_progress * progress = NULL;
-                struct join_options corrected_join_options; /* helper.h */
-
-                VectorInit( &threads, 0, num_threads );
-                correct_join_options( &corrected_join_options, join_options, name_column_present );
-                rows_per_thread = calculate_rows_per_thread( &num_threads, row_count );
-                if ( show_progress )
+                struct common_join_results * results = NULL;
+                rc = make_common_join_results( dir,
+                                        &results,
+                                        buf_size,
+                                        4096,
+                                        join_options -> filter_bases,
+                                        output_filename );
+                if ( 0 == rc )
                 {
-                    rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
-                }
+                    Vector threads;
+                    int64_t row = 1;
+                    uint32_t thread_id;
+                    uint64_t rows_per_thread;
+                    struct bg_progress * progress = NULL;
+                    struct join_options corrected_join_options; /* helper.h */
 
-                /* big difference her : we create one instance of common-join-results,
-                   and use it for all threads! */
+                    VectorInit( &threads, 0, num_threads );
+                    correct_join_options( &corrected_join_options, join_options, name_column_present );
+                    rows_per_thread = calculate_rows_per_thread( &num_threads, row_count );
+                    if ( show_progress ) { rc = bg_progress_make( &progress, row_count, 0, 0 ); } /* progress_thread.c */
 
-                for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
-                {
-                    join_thread_data * jtd = calloc( 1, sizeof * jtd );
-                    if ( NULL != jtd )
+                    for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
                     {
-                        jtd -> dir              = dir;
-                        jtd -> vdb_mgr          = vdb_mgr;
-                        jtd -> accession_short  = accession_short;
-                        jtd -> accession_path   = accession_path;
-                        jtd -> tbl_name         = tbl_name;
-                        jtd -> first_row        = row;
-                        jtd -> row_count        = rows_per_thread;
-                        jtd -> cur_cache        = cur_cache;
-                        jtd -> buf_size         = buf_size;
-                        jtd -> progress         = progress;
-                        jtd -> registry         = NULL;
-                        jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
-                        jtd -> join_options     = &corrected_join_options;
-                        jtd -> part_file[ 0 ]   = 0;    /* we are not using a part-file */
-
-                        if ( 0 == rc )
+                        join_thread_data * jtd = calloc( 1, sizeof * jtd );
+                        if ( NULL != jtd )
                         {
-                            /* thread executes cmn_thread_func() located above */
-                            rc = helper_make_thread( &jtd -> thread, fast_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
-                            if ( 0 != rc )
+                            jtd -> dir              = dir;
+                            jtd -> vdb_mgr          = vdb_mgr;
+                            jtd -> accession_short  = accession_short;
+                            jtd -> accession_path   = accession_path;
+                            jtd -> tbl_name         = tbl_name;
+                            jtd -> first_row        = row;
+                            jtd -> row_count        = rows_per_thread;
+                            jtd -> cur_cache        = cur_cache;
+                            jtd -> buf_size         = buf_size;
+                            jtd -> progress         = progress;
+                            jtd -> registry         = ( void * )results;  /* double-used for common-results in this case... */
+                            jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
+                            jtd -> join_options     = &corrected_join_options;
+                            jtd -> part_file[ 0 ]   = 0;    /* we are not using a part-file */
+
+                            if ( 0 == rc )
                             {
-                                ErrMsg( "tbl_join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
-                            }
-                            else
-                            {
-                                rc = VectorAppend( &threads, NULL, jtd );
+                                rc = helper_make_thread( &jtd -> thread, fast_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
                                 if ( 0 != rc )
                                 {
-                                    ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                                    ErrMsg( "tbl_join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
                                 }
+                                else
+                                {
+                                    rc = VectorAppend( &threads, NULL, jtd );
+                                    if ( 0 != rc )
+                                    {
+                                        ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                                    }
+                                }
+                                row += rows_per_thread;
                             }
-                            row += rows_per_thread;
                         }
                     }
+                    rc = join_the_threads_and_collect_status( &threads, stats );
+                    bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
+                    destroy_common_join_results( results );
                 }
-
-                rc = join_the_threads_and_collect_status( &threads, stats );
-                bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
             }
         }
     }

@@ -247,7 +247,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
     if ( 0 == rec -> prim_alig_id[ 0 ] )
     {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+        if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
         {
             if ( rec -> read . len != rec -> quality . len )
             {
@@ -280,7 +280,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
         rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
         if ( 0 == rc )
         {
-            if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
+            if ( join_results_filter( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
             {
                 if ( j -> B1 . S . len != rec -> quality . len )
                 {
@@ -324,7 +324,7 @@ static rc_t print_fasta_1_read( join_stats * stats,
     if ( 0 == rec -> prim_alig_id[ 0 ] )
     {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+        if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
         {
             if ( rec -> read . len > 0 )
             {
@@ -346,7 +346,7 @@ static rc_t print_fasta_1_read( join_stats * stats,
         rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
         if ( 0 == rc )
         {
-            if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
+            if ( join_results_filter( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
             {
                 if ( j -> B1 . S . len > 0 )
                 {
@@ -381,7 +381,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             /* both unaligned, print what is in row->read (no lookup)*/        
-            if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+            if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
             {
                 if ( rec -> read . len != rec -> quality . len )
                 {
@@ -411,7 +411,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     if ( j -> B2 . S. len + rec -> read . len != rec -> quality . len )
                     {
@@ -446,7 +446,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
                 {
                     uint32_t rl = j -> B1 . S . len + rec -> read . len;
                     if ( rl != rec -> quality . len )
@@ -484,7 +484,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             }
             if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     uint32_t rl = j -> B1 . S . len + j -> B2 . S . len;
                     if ( rl != rec -> quality . len )
@@ -528,7 +528,7 @@ static rc_t print_fasta_2_reads( join_stats * stats,
         if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             /* both unaligned, print what is in row->read (no lookup)*/        
-            if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+            if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
             {
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
@@ -547,7 +547,7 @@ static rc_t print_fasta_2_reads( join_stats * stats,
             rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
@@ -571,7 +571,7 @@ static rc_t print_fasta_2_reads( join_stats * stats,
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
@@ -597,7 +597,7 @@ static rc_t print_fasta_2_reads( join_stats * stats,
             }
             if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
@@ -698,7 +698,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
             if ( process_0 )
             {
-                if ( join_results_match( j -> results, &READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, &READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -717,7 +717,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, &READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, &READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -773,7 +773,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -788,7 +788,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             }
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -848,7 +848,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -863,7 +863,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             }
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -926,7 +926,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -941,7 +941,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             }
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1002,7 +1002,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
             /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
             if ( process_0 )
             {
-                if ( join_results_match( j -> results, &READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, &READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1021,7 +1021,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, &READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, &READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1056,7 +1056,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1071,7 +1071,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
             }
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1109,7 +1109,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1124,7 +1124,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
             }
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1169,7 +1169,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
 
             if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -1184,7 +1184,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
             }
             if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,

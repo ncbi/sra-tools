@@ -1132,10 +1132,6 @@ static rc_t fastdump_csra( tool_ctx_t * tool_ctx )
 
 
 /* -------------------------------------------------------------------------------------------- */
-static rc_t fastdump_table_us( tool_ctx_t * tool_ctx, const char * tbl_name ) /* unsorted ! */
-{
-    return 0;
-}
 
 static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 {
@@ -1143,20 +1139,23 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
     join_stats stats;
     
     clear_join_stats( &stats ); /* helper.c */
-    
-    if ( tool_ctx -> show_details )
-    {
-        rc = show_details( tool_ctx ); /* above */
-    }
-
-    if ( 0 == rc )
-    {
-        rc = check_output_exits( tool_ctx ); /* above */
-    }
+    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); /* above */ }
+    if ( 0 == rc ) { rc = check_output_exits( tool_ctx ); /* above */ }
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot )
     {
-        rc = fastdump_table_us( tool_ctx, tbl_name );
+        rc = execute_fast_tbl_join( tool_ctx -> dir, /* tbl_join.c */
+                        tool_ctx -> vdb_mgr,
+                        tool_ctx -> accession_short,
+                        tool_ctx -> accession_path,
+                        &stats,
+                        tbl_name,
+                        tool_ctx -> cursor_cache,
+                        tool_ctx -> buf_size,
+                        tool_ctx -> num_threads,
+                        tool_ctx -> show_progress,
+                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
+                        & tool_ctx -> join_options ); /* helper.h */
     }
     else
     {
@@ -1210,12 +1209,7 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
             destroy_temp_registry( registry ); /* temp_registry.c */
         }
     }
-
-    if ( 0 == rc )
-    {
-        print_stats( &stats ); /* above */
-    }
-
+    if ( 0 == rc ) { print_stats( &stats ); /* above */ }
     return rc;
 }
 

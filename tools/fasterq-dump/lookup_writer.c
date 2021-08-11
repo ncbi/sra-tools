@@ -30,16 +30,16 @@
 #include <kfs/file.h>
 #include <kfs/buffile.h>
 
-typedef struct lookup_writer
+typedef struct lookup_writer_t
 {
     struct KFile * f;
-    struct index_writer * idx;
-    SBuffer buf;
+    struct index_writer_t * idx;
+    SBuffer_t buf;
     uint64_t pos;
-} lookup_writer;
+} lookup_writer_t;
 
 
-void release_lookup_writer( struct lookup_writer * writer )
+void release_lookup_writer( struct lookup_writer_t * writer )
 {
     if ( NULL != writer )
     {
@@ -56,12 +56,12 @@ void release_lookup_writer( struct lookup_writer * writer )
     }
 }
 
-static rc_t make_lookup_writer_obj( struct lookup_writer ** writer,
-                             struct index_writer * idx,
+static rc_t make_lookup_writer_obj( struct lookup_writer_t ** writer,
+                             struct index_writer_t * idx,
                              struct KFile * f )
 {
     rc_t rc = 0;
-    lookup_writer * w = calloc( 1, sizeof * w );
+    lookup_writer_t * w = calloc( 1, sizeof * w );
     if ( NULL == w )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -84,8 +84,8 @@ static rc_t make_lookup_writer_obj( struct lookup_writer ** writer,
     return rc;
 }
 
-rc_t make_lookup_writer( KDirectory *dir, struct index_writer * idx,
-                         struct lookup_writer ** writer, size_t buf_size,
+rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx,
+                         struct lookup_writer_t ** writer, size_t buf_size,
                          const char * fmt, ... )
 {
     rc_t rc;
@@ -138,7 +138,7 @@ rc_t make_lookup_writer( KDirectory *dir, struct index_writer * idx,
 }
 
 
-rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
+rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
                                     uint64_t key,
                                     const String * bases_as_packed_4na )
 {
@@ -186,7 +186,7 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
     return rc;
 }
 
-rc_t write_unpacked_to_lookup_writer( struct lookup_writer * writer,
+rc_t write_unpacked_to_lookup_writer( struct lookup_writer_t * writer,
                                       int64_t seq_spot_id,
                                       uint32_t seq_read_id,
                                       const String * bases_as_unpacked_4na )

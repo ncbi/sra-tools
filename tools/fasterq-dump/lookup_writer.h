@@ -47,17 +47,17 @@ extern "C" {
 #include "index.h"
 #endif
 
-struct lookup_writer;
+struct lookup_writer_t;
 
-void release_lookup_writer( struct lookup_writer * writer );
+void release_lookup_writer( struct lookup_writer_t * writer );
 
-rc_t make_lookup_writer( KDirectory *dir, struct index_writer * idx, struct lookup_writer ** writer,
+rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx, struct lookup_writer_t ** writer,
                          size_t buf_size, const char * fmt, ... );
 
-rc_t write_unpacked_to_lookup_writer( struct lookup_writer * writer,
+rc_t write_unpacked_to_lookup_writer( struct lookup_writer_t * writer,
             int64_t seq_spot_id, uint32_t seq_read_id, const String * bases_as_unpacked_4na );
 
-rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
+rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
             uint64_t key, const String * bases_as_packed_4na );
 
 #ifdef __cplusplus

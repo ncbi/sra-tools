@@ -42,17 +42,17 @@ typedef struct join
 {
     const char * accession_path;
     const char * accession_short;
-    struct lookup_reader * lookup;  /* lookup_reader.h */
-    struct index_reader * index;    /* index.h */
-    struct join_results * results;  /* join_results.h */
-    SBuffer B1, B2;                 /* helper.h */
-    uint64_t loop_nr;               /* in which loop of this partial join are we? */
-    uint32_t thread_id;             /* in which thread are we? */
-    bool cmp_read_present;          /* do we have a cmp-read column? */
-} join;
+    struct lookup_reader_t * lookup;  /* lookup_reader.h */
+    struct index_reader_t * index;    /* index.h */
+    struct join_results_t * results;  /* join_results.h */
+    SBuffer_t B1, B2;                 /* helper.h */
+    uint64_t loop_nr;                 /* in which loop of this partial join are we? */
+    uint32_t thread_id;               /* in which thread are we? */
+    bool cmp_read_present;            /* do we have a cmp-read column? */
+} join_t;
 
 
-static void release_join_ctx( join * j )
+static void release_join_ctx( join_t* j )
 {
     if ( NULL != j )
     {
@@ -63,13 +63,13 @@ static void release_join_ctx( join * j )
     }
 }
 
-static rc_t init_join( cmn_params * cp,
-                       struct join_results * results,
+static rc_t init_join( cmn_iter_params_t * cp,
+                       struct join_results_t * results,
                        const char * lookup_filename,
                        const char * index_filename,
                        size_t buf_size,
                        bool cmp_read_present,
-                       struct join * j )
+                       join_t * j )
 {
     rc_t rc;
 
@@ -123,7 +123,7 @@ static rc_t init_join( cmn_params * cp,
 
 /* ------------------------------------------------------------------------------------------ */
 
-static rc_t print_special_1_read( special_rec * rec, join * j )
+static rc_t print_special_1_read( special_rec_t * rec, join_t * j )
 {
     rc_t rc;
     int64_t row_id = rec -> row_id;
@@ -146,7 +146,7 @@ static rc_t print_special_1_read( special_rec * rec, join * j )
 }
 
 
-static rc_t print_special_2_reads( special_rec * rec, join * j )
+static rc_t print_special_2_reads( special_rec_t * rec, join_t * j )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -204,7 +204,7 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
     return rc;
 }
 
-static bool is_reverse( const fastq_rec * rec, uint32_t read_id_0 )
+static bool is_reverse( const fastq_rec_t * rec, uint32_t read_id_0 )
 {
     bool res = false;
     if ( rec -> num_read_type > read_id_0 )
@@ -214,9 +214,9 @@ static bool is_reverse( const fastq_rec * rec, uint32_t read_id_0 )
     return res;
 }
 
-static bool filter( join_stats * stats,
-                    const fastq_rec * rec,
-                    const join_options * jo,
+static bool filter( join_stats_t * stats,
+                    const fastq_rec_t * rec,
+                    const join_options_t * jo,
                     uint32_t read_id_0 )
 {
     bool process = true;
@@ -233,10 +233,10 @@ static bool filter( join_stats * stats,
     return process;
 }
 
-static rc_t print_fastq_1_read( join_stats * stats,
-                                const fastq_rec * rec,
-                                join * j,
-                                const join_options * jo )
+static rc_t print_fastq_1_read( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -310,10 +310,10 @@ static rc_t print_fastq_1_read( join_stats * stats,
     return rc;
 }
 
-static rc_t print_fasta_1_read( join_stats * stats,
-                                const fastq_rec * rec,
-                                join * j,
-                                const join_options * jo )
+static rc_t print_fasta_1_read( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -367,10 +367,10 @@ static rc_t print_fasta_1_read( join_stats * stats,
 
 /* ------------------------------------------------------------------------------------------ */
 
-static rc_t print_fastq_2_reads( join_stats * stats,
-                                 const fastq_rec * rec,
-                                 join * j,
-                                 const join_options * jo )
+static rc_t print_fastq_2_reads( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -514,10 +514,10 @@ static rc_t print_fastq_2_reads( join_stats * stats,
     return rc;
 }
 
-static rc_t print_fasta_2_reads( join_stats * stats,
-                                 const fastq_rec * rec,
-                                 join * j,
-                                 const join_options * jo )
+static rc_t print_fasta_2_reads( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -618,11 +618,11 @@ static rc_t print_fasta_2_reads( join_stats * stats,
 /* ------------------------------------------------------------------------------------------ */
 
 /* FASTQ SPLIT */
-static rc_t print_fastq_2_reads_splitted( join_stats * stats,
-                                          const fastq_rec * rec,
-                                          join * j,
+static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
+                                          const fastq_rec_t * rec,
+                                          join_t * j,
                                           bool split_file,
-                                          const join_options * jo )
+                                          const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -958,11 +958,11 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
     return rc;
 }
 
-static rc_t print_fasta_2_reads_splitted( join_stats * stats,
-                                          const fastq_rec * rec,
-                                          join * j,
+static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
+                                          const fastq_rec_t * rec,
+                                          join_t * j,
                                           bool split_file,
-                                          const join_options * jo )
+                                          const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -1201,16 +1201,16 @@ static rc_t print_fasta_2_reads_splitted( join_stats * stats,
     return rc;
 }
 
-static rc_t extract_csra_row_count( KDirectory * dir,
-                                    const VDBManager * vdb_mgr,
-                                    const char * accession_short,
-                                    const char * accession_path,
-                                    size_t cur_cache,
-                                    uint64_t * res )
+static rc_t extract_seq_row_count( KDirectory * dir,
+                                   const VDBManager * vdb_mgr,
+                                   const char * accession_short,
+                                   const char * accession_path,
+                                   size_t cur_cache,
+                                   uint64_t * res )
 {
-    cmn_params cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt = { false, false, false, false, false }; /* fastq_iter.h */
+    cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt = { false, false, false, false, false }; /* fastq_iter.h */
     rc_t rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
     if ( 0 == rc )
     {
@@ -1220,15 +1220,33 @@ static rc_t extract_csra_row_count( KDirectory * dir,
     return rc;
 }
 
-static rc_t perform_special_join( cmn_params * cp,
-                                  join * j,
-                                  struct bg_progress * progress )
+static rc_t extract_align_row_count( KDirectory * dir,
+                                   const VDBManager * vdb_mgr,
+                                   const char * accession_short,
+                                   const char * accession_path,
+                                   size_t cur_cache,
+                                   uint64_t * res )
 {
-    struct special_iter * iter;
+    cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
+    struct align_iter_t * iter;
+    rc_t rc = make_align_iter( &cp, &iter ); /* fastq_iter.c */
+    if ( 0 == rc )
+    {
+        *res = get_row_count_of_align_iter( iter );
+        destroy_align_iter( iter );
+    }
+    return rc;
+}
+
+static rc_t perform_special_join( cmn_iter_params_t * cp,
+                                  join_t * j,
+                                  struct bg_progress_t * progress )
+{
+    struct special_iter_t * iter;
     rc_t rc = make_special_iter( cp, &iter ); /* special_iter.c */
     if ( 0 == rc )
     {
-        special_rec rec;
+        special_rec_t rec;
         while ( 0 == rc && get_from_special_iter( iter, &rec, &rc ) )
         {
             rc = get_quitting(); /* helper.c */
@@ -1261,15 +1279,15 @@ static rc_t perform_special_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fastq_whole_spot_join( cmn_params * cp,
-                                     join_stats * stats,
-                                     join * j,
-                                     struct bg_progress * progress,
-                                     const join_options * jo )
+static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
+                                     join_stats_t * stats,
+                                     join_t * j,
+                                     struct bg_progress_t * progress,
+                                     const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = false;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1283,8 +1301,8 @@ static rc_t perform_fastq_whole_spot_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt = { jo -> rowid_as_name,
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt = { jo -> rowid_as_name,
                                    false, 
                                    jo -> print_read_nr,
                                    jo -> print_name,
@@ -1326,15 +1344,15 @@ static rc_t perform_fastq_whole_spot_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fastq_split_spot_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1348,7 +1366,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
+        fastq_rec_t rec; /* fastq_iter.h */
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = get_quitting(); /* helper.c */
@@ -1384,15 +1402,15 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fastq_split_file_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1406,8 +1424,8 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt =
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt =
             { 
                 jo -> rowid_as_name,
                 false,
@@ -1453,15 +1471,15 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fastq_split_3_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1475,10 +1493,10 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
+        fastq_rec_t rec; /* fastq_iter.h */
         rc_t rc_iter = 0;
         
-        join_options local_opt =
+        join_options_t local_opt =
             {
                 jo -> rowid_as_name,
                 false,
@@ -1529,15 +1547,15 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fasta_whole_spot_join( cmn_params * cp,
-                                join_stats * stats,
-                                join * j,
-                                struct bg_progress * progress,
-                                const join_options * jo )
+static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
+                                join_stats_t * stats,
+                                join_t * j,
+                                struct bg_progress_t * progress,
+                                const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = false;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1551,8 +1569,8 @@ static rc_t perform_fasta_whole_spot_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt = { jo -> rowid_as_name,
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt = { jo -> rowid_as_name,
                                    false, 
                                    jo -> print_read_nr,
                                    jo -> print_name,
@@ -1594,15 +1612,15 @@ static rc_t perform_fasta_whole_spot_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fasta_split_spot_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1616,7 +1634,7 @@ static rc_t perform_fasta_split_spot_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
+        fastq_rec_t rec; /* fastq_iter.h */
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = get_quitting(); /* helper.c */
@@ -1652,15 +1670,15 @@ static rc_t perform_fasta_split_spot_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fasta_split_file_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1674,8 +1692,8 @@ static rc_t perform_fasta_split_file_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt =
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt =
             { 
                 jo -> rowid_as_name,
                 false,
@@ -1721,15 +1739,15 @@ static rc_t perform_fasta_split_file_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fasta_split_3_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
@@ -1743,10 +1761,10 @@ static rc_t perform_fasta_split_3_join( cmn_params * cp,
     }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
+        fastq_rec_t rec; /* fastq_iter.h */
         rc_t rc_iter = 0;
         
-        join_options local_opt =
+        join_options_t local_opt =
             {
                 jo -> rowid_as_name,
                 false,
@@ -1803,7 +1821,7 @@ typedef struct join_thread_data
 {
     char part_file[ 4096 ];
 
-    join_stats stats; /* helper.h */
+    join_stats_t stats; /* helper.h */
     
     KDirectory * dir;
     const VDBManager * vdb_mgr;
@@ -1812,8 +1830,8 @@ typedef struct join_thread_data
     const char * accession_short;
     const char * lookup_filename;
     const char * index_filename;
-    struct bg_progress * progress;
-    struct temp_registry * registry;
+    struct bg_progress_t * progress;
+    struct temp_registry_t * registry;
     KThread * thread;
     
     int64_t first_row;
@@ -1824,14 +1842,14 @@ typedef struct join_thread_data
     uint32_t thread_id;
     bool cmp_read_present;
 
-    const join_options * join_options;
+    const join_options_t * join_options;
     
-} join_thread_data;
+} join_thread_data_t;
 
 static rc_t CC cmn_thread_func( const KThread * self, void * data )
 {
-    join_thread_data * jtd = data;
-    struct join_results * results = NULL;
+    join_thread_data_t * jtd = data;
+    struct join_results_t * results = NULL;
 
     rc_t rc = make_join_results( jtd -> dir,
                                 &results,
@@ -1846,8 +1864,8 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
 
     if ( 0 == rc && NULL != results )
     {
-        join j;
-        cmn_params cp = { jtd -> dir, jtd -> vdb_mgr,
+        join_t j;
+        cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
                           jtd -> accession_short, jtd -> accession_path,
                           jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
         rc = init_join( &cp,
@@ -1929,17 +1947,17 @@ rc_t execute_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_path,
                     const char * accession_short,
-                    join_stats * stats,
+                    join_stats_t * stats,
                     const char * lookup_filename,
                     const char * index_filename,
                     const struct temp_dir * temp_dir,
-                    struct temp_registry * registry,
+                    struct temp_registry_t * registry,
                     size_t cur_cache,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
                     format_t fmt,
-                    const join_options * join_options )
+                    const join_options_t * join_options )
 {
     rc_t rc = 0;
 
@@ -1952,7 +1970,7 @@ rc_t execute_db_join( KDirectory * dir,
 
     if ( rc == 0 )
     {
-        uint64_t row_count = 0;
+        uint64_t seq_row_count = 0;
         bool name_column_present, cmp_read_column_present;
 
         rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
@@ -1961,44 +1979,28 @@ rc_t execute_db_join( KDirectory * dir,
             rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
         }
 
-        rc = extract_csra_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &row_count );
-        if ( 0 == rc && row_count > 0 )
+        rc = extract_seq_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &seq_row_count ); /* above */
+        if ( 0 == rc && seq_row_count > 0 )
         {
             Vector threads;
             int64_t row = 1;
             uint32_t thread_id;
             uint64_t rows_per_thread;
-            struct bg_progress * progress = NULL;
-            struct join_options corrected_join_options;
+            struct bg_progress_t * progress = NULL;
+            join_options_t corrected_join_options;
 
+            correct_join_options( &corrected_join_options, join_options, name_column_present ); /* helper.c */
             VectorInit( &threads, 0, num_threads );
+            rows_per_thread = calculate_rows_per_thread( &num_threads, seq_row_count ); /* helper.c */
 
-            corrected_join_options . rowid_as_name = name_column_present ? join_options -> rowid_as_name : true;
-            corrected_join_options . skip_tech = join_options -> skip_tech;
-            corrected_join_options . print_read_nr = join_options -> print_read_nr;
-            corrected_join_options . print_name = join_options -> print_name;
-            corrected_join_options . min_read_len = join_options -> min_read_len;
-            corrected_join_options . filter_bases = join_options -> filter_bases;
-            corrected_join_options . terminate_on_invalid = join_options -> terminate_on_invalid;
-
-            if ( row_count < ( num_threads * 100 ) )
-            {
-                num_threads = 1;
-                rows_per_thread = row_count;
-            }
-            else
-            {
-                rows_per_thread = ( row_count / num_threads ) + 1;
-            }
-
-            if ( show_progress )
-            {
-                rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
+            /* we need the row-count for that... */
+            if ( show_progress ) {
+                rc = bg_progress_make( &progress, seq_row_count, 0, 0 ); /* progress_thread.c */
             }
 
             for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
             {
-                join_thread_data * jtd = calloc( 1, sizeof * jtd );
+                join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
                 if ( NULL == jtd )
                 {
                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -2050,7 +2052,7 @@ rc_t execute_db_join( KDirectory * dir,
                 uint32_t i, n = VectorLength( &threads );
                 for ( i = VectorStart( &threads ); i < n; ++i )
                 {
-                    join_thread_data * jtd = VectorGet( &threads, i );
+                    join_thread_data_t * jtd = VectorGet( &threads, i );
                     if ( NULL != jtd )
                     {
                         rc_t rc_thread;
@@ -2086,16 +2088,16 @@ rc_t check_lookup( const KDirectory * dir,
                    const char * accession_short,
                    const char * accession_path )
 {
-    struct index_reader * index;
+    struct index_reader_t * index;
     rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
     if ( 0 == rc )
     {
-        struct lookup_reader * lookup;  /* lookup_reader.h */
+        struct lookup_reader_t * lookup;  /* lookup_reader.h */
         rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
         if ( 0 == rc )
         {
             struct raw_read_iter * iter; /* raw_read_iter.h */
-            cmn_params params; /* helper.h */
+            cmn_iter_params_t params; /* helper.h */
 
             params . dir = dir;
             params . accession_short = accession_short;
@@ -2108,7 +2110,7 @@ rc_t check_lookup( const KDirectory * dir,
             rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
             if ( 0 == rc )
             {
-                SBuffer buffer;
+                SBuffer_t buffer;
                 rc = make_SBuffer( &buffer, 4096 );
                 if ( 0 == rc )
                 {
@@ -2151,15 +2153,15 @@ rc_t check_lookup_this( const KDirectory * dir,
                         uint64_t seq_spot_id,
                         uint32_t seq_read_id )
 {
-    struct index_reader * index;
+    struct index_reader_t * index;
     rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
     if ( 0 == rc )
     {
-        struct lookup_reader * lookup;  /* lookup_reader.h */
+        struct lookup_reader_t * lookup;  /* lookup_reader.h */
         rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
         if ( 0 == rc )
         {
-            SBuffer buffer;
+            SBuffer_t buffer;
             rc = make_SBuffer( &buffer, 4096 );
             if ( 0 == rc )
             {
@@ -2173,6 +2175,78 @@ rc_t check_lookup_this( const KDirectory * dir,
             release_lookup_reader( lookup ); /* lookup_reader.c */
         }
         release_index_reader( index );
+    }
+    return rc;
+}
+
+
+rc_t execute_fast_join( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    join_stats_t * stats,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    bool show_progress,
+                    const char * output_filename, /* NULL for stdout! */
+                    const join_options_t * join_options,
+                    bool force )
+{
+    rc_t rc = 0;
+    if ( show_progress )
+    {
+        KOutHandlerSetStdErr();
+        rc = KOutMsg( "read :" );
+        KOutHandlerSetStdOut();
+    }
+
+    if ( 0 == rc )
+    {
+        /* for the SEQUENCE-table */
+        uint64_t seq_row_count = 0;
+        uint64_t align_row_count = 0;
+        bool name_column_present, cmp_read_column_present;
+
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
+        if ( 0 == rc ) {
+            rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
+        }
+
+        if ( 0 == rc ) {
+            rc = extract_seq_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &seq_row_count ); /* above */
+        }
+        if ( 0 == rc ) {
+            rc = extract_align_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &align_row_count ); /* above */
+        }
+
+        if ( 0 == rc && seq_row_count > 0 )
+        {
+            struct bg_progress_t * progress = NULL;
+
+            /* we need the row-count for that... ( that is why we first detected the row-count ) */
+            if ( show_progress ) {
+                rc = bg_progress_make( &progress, seq_row_count + align_row_count, 0, 0 ); /* progress_thread.c */
+            }
+
+
+            struct common_join_results_t * results = NULL;
+            rc = make_common_join_results( dir,
+                                    &results,
+                                    buf_size,
+                                    4096,
+                                    join_options -> filter_bases,
+                                    output_filename,
+                                    force );
+            if ( 0 == rc )
+            {
+                KOutMsg( "we have %lu seq-rows and %lu align-rows\n", seq_row_count, align_row_count );
+
+
+                destroy_common_join_results( results );
+            }
+            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
+        }
     }
     return rc;
 }

@@ -51,50 +51,50 @@ extern "C" {
 #include "progress_thread.h"
 #endif
 
-struct background_vector_merger;
-struct background_file_merger;
+struct background_vector_merger_t;
+struct background_file_merger_t;
 
 /* ================================================================================= */
 
-rc_t make_background_vector_merger( struct background_vector_merger ** merger,
+rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
                              KDirectory * dir,
                              const struct temp_dir * temp_dir,
-                             struct KFastDumpCleanupTask * cleanup_task,                             
-                             struct background_file_merger * file_merger,
+                             struct KFastDumpCleanupTask_t * cleanup_task,                             
+                             struct background_file_merger_t * file_merger,
                              uint32_t batch_size,
                              uint32_t q_wait_time,
                              size_t buf_size,
-                             struct bg_update * gap );
+                             struct bg_update_t * gap );
 
-void tell_total_rowcount_to_vector_merger( struct background_vector_merger * self, uint64_t value );
+void tell_total_rowcount_to_vector_merger( struct background_vector_merger_t * self, uint64_t value );
 
-rc_t push_to_background_vector_merger( struct background_vector_merger * self, KVector * store );
+rc_t push_to_background_vector_merger( struct background_vector_merger_t * self, KVector * store );
 
-rc_t seal_background_vector_merger( struct background_vector_merger * self );
+rc_t seal_background_vector_merger( struct background_vector_merger_t * self );
 
-rc_t wait_for_and_release_background_vector_merger( struct background_vector_merger * self );
+rc_t wait_for_and_release_background_vector_merger( struct background_vector_merger_t * self );
 
 
 /* ================================================================================= */
 
-rc_t make_background_file_merger( struct background_file_merger ** merger,
+rc_t make_background_file_merger( struct background_file_merger_t ** merger,
                                 KDirectory * dir,
                                 const struct temp_dir * temp_dir,
-                                struct KFastDumpCleanupTask * cleanup_task,                                
+                                struct KFastDumpCleanupTask_t * cleanup_task,                                
                                 const char * lookup_filename,
                                 const char * index_filename,
                                 uint32_t batch_size,
                                 uint32_t wait_time,
                                 size_t buf_size,
-                                struct bg_update * gap );
+                                struct bg_update_t * gap );
 
-void tell_total_rowcount_to_file_merger( struct background_file_merger * self, uint64_t value );
+void tell_total_rowcount_to_file_merger( struct background_file_merger_t * self, uint64_t value );
 
-rc_t push_to_background_file_merger( struct background_file_merger * self, const char * filename );
+rc_t push_to_background_file_merger( struct background_file_merger_t * self, const char * filename );
 
-rc_t seal_background_file_merger( struct background_file_merger * self );
+rc_t seal_background_file_merger( struct background_file_merger_t * self );
 
-rc_t wait_for_and_release_background_file_merger( struct background_file_merger * self );
+rc_t wait_for_and_release_background_file_merger( struct background_file_merger_t * self );
 
 
 #ifdef __cplusplus

@@ -289,7 +289,7 @@ typedef struct tool_ctx_t
     char index_filename[ DFLT_PATH_LEN ];
     char dflt_output[ DFLT_PATH_LEN ];
     
-    struct KFastDumpCleanupTask * cleanup_task; /* cleanup_task.h */
+    struct KFastDumpCleanupTask_t * cleanup_task; /* cleanup_task.h */
     
     size_t cursor_cache, buf_size, mem_limit;
 
@@ -302,7 +302,7 @@ typedef struct tool_ctx_t
 
     bool force, show_progress, show_details, append, use_stdout;
     
-    join_options join_options; /* helper.h */
+    join_options_t join_options; /* helper.h */
 } tool_ctx_t;
 
 /* taken form libs/kapp/main-priv.h */
@@ -787,7 +787,7 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
     return rc;
 }
 
-static rc_t print_stats( const join_stats * stats )
+static rc_t print_stats( const join_stats_t * stats )
 {
     KOutHandlerSetStdErr();
     rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
@@ -833,9 +833,9 @@ static const uint32_t queue_timeout = 200;  /* ms */
 static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
-    struct bg_update * gap = NULL;
-    struct background_file_merger * bg_file_merger;
-    struct background_vector_merger * bg_vec_merger;
+    struct bg_update_t * gap = NULL;
+    struct background_file_merger_t * bg_file_merger;
+    struct background_vector_merger_t * bg_vec_merger;
     
     if ( tool_ctx -> show_progress )
     {
@@ -928,8 +928,8 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
 
 static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
 {
-    struct temp_registry * registry = NULL;
-    join_stats stats;
+    struct temp_registry_t * registry = NULL;
+    join_stats_t stats;
     
     rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
     
@@ -1021,7 +1021,7 @@ static bool output_exists_whole( tool_ctx_t * tool_ctx )
 static bool output_exists_idx( tool_ctx_t * tool_ctx, uint32_t idx )
 {
     bool res = false;
-    SBuffer s_filename;
+    SBuffer_t s_filename;
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             tool_ctx -> output_filename, idx ); /* helper.c */
     if ( 0 == rc )
@@ -1080,18 +1080,30 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
 static rc_t fastdump_csra_us( tool_ctx_t * tool_ctx ) /* unsorted ! */
 {
     rc_t rc = 0;
-    join_stats stats;
+    join_stats_t stats;
 
     clear_join_stats( &stats ); /* helper.c */
 
     if ( 0 == rc )
     {
-        /* special FAST unsorted output for csra ( only for split-spot AND fasta ! ): */
-
-        /* iterate over the ALIGNMENT-table ( in multiple threads )and produce spots as we go: */
-
-        /* iterate over the SEQUENCE-table ( in multiple threads ) and produce spots as we go: */
-
+        /*
+        this is the 'special' unsorted FASTA for cSRAs
+        at the same time:
+            iterate over the ALIGNMENT-table ( in multiple threads )and produce spots as we go:
+            iterate over the SEQUENCE-table ( in multiple threads ) and produce spots as we go:
+        */
+        rc = execute_fast_join( tool_ctx -> dir, /* join.c */
+                        tool_ctx -> vdb_mgr,
+                        tool_ctx -> accession_short,
+                        tool_ctx -> accession_path,
+                        &stats,
+                        tool_ctx -> cursor_cache,
+                        tool_ctx -> buf_size,
+                        tool_ctx -> num_threads,
+                        tool_ctx -> show_progress,
+                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
+                        & tool_ctx -> join_options,
+                        tool_ctx -> force ); /* helper.h */
         print_stats( &stats ); /* above */
     }
     return rc;
@@ -1101,31 +1113,19 @@ static rc_t fastdump_csra( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     
-    if ( tool_ctx -> show_details )
-    {
-        rc = show_details( tool_ctx ); /* above */
-    }
-
-    if ( 0 == rc )
-    {
-        rc = check_output_exits( tool_ctx ); /* above */
-    }
+    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); } /* above */
+    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot )
     {
+        /* the special case of fasta-unsorted and split-spot : */
         fastdump_csra_us( tool_ctx );
     }
     else
     {
-        if ( 0 == rc )
-        {
-            rc = produce_lookup_files( tool_ctx ); /* above */
-        }
-
-        if ( 0 == rc )
-        {
-            rc = produce_final_db_output( tool_ctx ); /* above */
-        }
+        /* the common case the other cominations of FASTA/FASTQ : */
+        if ( 0 == rc ) { rc = produce_lookup_files( tool_ctx ); } /* above */
+        if ( 0 == rc ) { rc = produce_final_db_output( tool_ctx ); } /* above */
     }
     return rc;
 }
@@ -1136,14 +1136,15 @@ static rc_t fastdump_csra( tool_ctx_t * tool_ctx )
 static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 {
     rc_t rc = 0;
-    join_stats stats;
+    join_stats_t stats;
     
     clear_join_stats( &stats ); /* helper.c */
     if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); /* above */ }
-    if ( 0 == rc ) { rc = check_output_exits( tool_ctx ); /* above */ }
+    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot )
     {
+        /* this is the 'special' unsorted FASTA for flat tables */
         rc = execute_fast_tbl_join( tool_ctx -> dir, /* tbl_join.c */
                         tool_ctx -> vdb_mgr,
                         tool_ctx -> accession_short,
@@ -1155,11 +1156,14 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
                         tool_ctx -> num_threads,
                         tool_ctx -> show_progress,
                         tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
-                        & tool_ctx -> join_options ); /* helper.h */
+                        & tool_ctx -> join_options,
+                        tool_ctx -> force ); /* helper.h */
     }
     else
     {
-        struct temp_registry * registry = NULL;
+        /* this is for 'sorted' SPECIAL/FASTQ/FASTA x whole-spot/split-spot/split-file/split-3
+           sorted means in the order of the SEQUENCE-table */
+        struct temp_registry_t * registry = NULL;
         if ( 0 == rc )
         {
             rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */

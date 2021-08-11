@@ -35,9 +35,9 @@ typedef struct join_printer
 {
     struct KFile * f;
     uint64_t file_pos;
-} join_printer;
+} join_printer_t;
 
-typedef rc_t ( * print_v1 )( struct join_results * self,
+typedef rc_t ( * print_v1 )( struct join_results_t * self,
                              int64_t row_id,
                              uint32_t dst_id,
                              uint32_t read_id,
@@ -45,7 +45,7 @@ typedef rc_t ( * print_v1 )( struct join_results * self,
                              const String * read,
                              const String * quality );
 
-typedef rc_t ( * print_v2 )( struct join_results * self,
+typedef rc_t ( * print_v2 )( struct join_results_t * self,
                              int64_t row_id,
                              uint32_t dst_id,
                              uint32_t read_id,
@@ -54,28 +54,28 @@ typedef rc_t ( * print_v2 )( struct join_results * self,
                              const String * read_2,
                              const String * quality );
 
-typedef struct join_results
+typedef struct join_results_t
 {
     KDirectory * dir;
-    struct temp_registry * registry;
+    struct temp_registry_t * registry;
     const char * output_base;
     const char * accession_short;
-    struct Buf2NA * filter_buf2na;
+    struct Buf2NA_t * filter_buf2na;
     print_v1 v1_print_name_null;
     print_v1 v1_print_name_not_null;
     print_v2 v2_print_name_null;
     print_v2 v2_print_name_not_null;    
-    SBuffer print_buffer;            /* we have only one print_buffer... */
+    SBuffer_t print_buffer;            /* we have only one print_buffer... */
     Vector printers;                 /* a vector of join-printers, used by regular join-results */
     size_t buffer_size;
     bool print_frag_nr, print_name;
-} join_results;
+} join_results_t;
 
 static void CC destroy_join_printer( void * item, void * data )
 {
     if ( NULL != item )
     {
-        join_printer * p = item;
+        join_printer_t * p = item;
         if ( NULL != p -> f )
         {
             rc_t rc = KFileRelease( p -> f );
@@ -88,7 +88,7 @@ static void CC destroy_join_printer( void * item, void * data )
     }
 }
 
-static rc_t make_join_printer( join_results * self, uint32_t read_id, join_printer ** printer )
+static rc_t make_join_printer( join_results_t * self, uint32_t read_id, join_printer_t ** printer )
 {
     char filename[ 4096 ];
     size_t num_writ;
@@ -129,7 +129,7 @@ static rc_t make_join_printer( join_results * self, uint32_t read_id, join_print
             }
             if ( 0 == rc )
             {
-                join_printer * p = calloc( 1, sizeof * p );
+                join_printer_t * p = calloc( 1, sizeof * p );
                 if ( NULL == p )
                 {
                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -168,7 +168,7 @@ static rc_t make_join_printer( join_results * self, uint32_t read_id, join_print
     return rc;
 }
 
-void destroy_join_results( join_results * self )
+void destroy_join_results( join_results_t * self )
 {
     if ( NULL != self )
     {
@@ -184,7 +184,7 @@ void destroy_join_results( join_results * self )
 
 static const char * fmt_fastq_v1_no_name_no_frag_nr = "@%s.%ld length=%u\n%S\n+%s.%ld length=%u\n%S\n";
 static const char * fmt_fasta_v1_no_name_no_frag_nr = ">%s.%ld length=%u\n%S\n";
-static rc_t print_v1_no_name_no_frag_nr( join_results * self,
+static rc_t print_v1_no_name_no_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -212,7 +212,7 @@ static rc_t print_v1_no_name_no_frag_nr( join_results * self,
 
 static const char * fmt_fastq_v1_no_name_frag_nr = "@%s.%ld/%u length=%u\n%S\n+%s.%ld/%u length=%u\n%S\n";
 static const char * fmt_fasta_v1_no_name_frag_nr = ">%s.%ld/%u length=%u\n%S\n";
-static rc_t print_v1_no_name_frag_nr( join_results * self,
+static rc_t print_v1_no_name_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -240,7 +240,7 @@ static rc_t print_v1_no_name_frag_nr( join_results * self,
 
 static const char * fmt_fastq_v1_syn_name_no_frag_nr = "@%s.%ld %ld length=%u\n%S\n+%s.%ld %ld length=%u\n%S\n";
 static const char * fmt_fasta_v1_syn_name_no_frag_nr = ">%s.%ld %ld length=%u\n%S\n";
-static rc_t print_v1_syn_name_no_frag_nr( join_results * self,
+static rc_t print_v1_syn_name_no_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -271,7 +271,7 @@ static rc_t print_v1_syn_name_no_frag_nr( join_results * self,
 
 static const char * fmt_fastq_v1_syn_name_frag_nr = "@%s.%ld/%u %ld length=%u\n%S\n+%s.%ld/%u %ld length=%u\n%S\n";
 static const char * fmt_fasta_v1_syn_name_frag_nr = ">%s.%ld/%u %ld length=%u\n%S\n";
-static rc_t print_v1_syn_name_frag_nr( join_results * self,
+static rc_t print_v1_syn_name_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -304,7 +304,7 @@ static const char * fmt_fastq_v1_real_name_no_frag_nr  = "@%s.%ld %S length=%u\n
 static const char * fmt_fastq_v1_empty_name_no_frag_nr = "@%s.%ld length=%u\n%S\n+%s.%ld length=%u\n%S\n";
 static const char * fmt_fasta_v1_real_name_no_frag_nr  = ">%s.%ld %S length=%u\n%S\n";
 static const char * fmt_fasta_v1_empty_name_no_frag_nr = ">%s.%ld length=%u\n%S\n";
-static rc_t print_v1_real_name_no_frag_nr( join_results * self,
+static rc_t print_v1_real_name_no_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -356,7 +356,7 @@ static const char * fmt_fastq_v1_real_name_frag_nr  = "@%s.%ld/%u %S length=%u\n
 static const char * fmt_fastq_v1_empty_name_frag_nr = "@%s.%ld/%u length=%u\n%S\n+%s.%ld/%u length=%u\n%S\n";
 static const char * fmt_fasta_v1_real_name_frag_nr  = ">%s.%ld/%u %S length=%u\n%S\n";
 static const char * fmt_fasta_v1_empty_name_frag_nr = ">%s.%ld/%u length=%u\n%S\n";
-static rc_t print_v1_real_name_frag_nr( join_results * self,
+static rc_t print_v1_real_name_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -406,7 +406,7 @@ static rc_t print_v1_real_name_frag_nr( join_results * self,
 
 static const char * fmt_fastq_v2_no_name_no_frag_nr = "@%s.%ld length=%u\n%S%S\n+%s.%ld length=%u\n%S\n";
 static const char * fmt_fasta_v2_no_name_no_frag_nr = ">%s.%ld length=%u\n%S%S\n";
-static rc_t print_v2_no_name_no_frag_nr( join_results * self,
+static rc_t print_v2_no_name_no_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -435,7 +435,7 @@ static rc_t print_v2_no_name_no_frag_nr( join_results * self,
 
 static const char * fmt_fastq_v2_no_name_frag_nr    = "@%s.%ld/%u length=%u\n%S%S\n+%s.%ld/%u %length=%u\n%S\n";
 static const char * fmt_fasta_v2_no_name_frag_nr    = ">%s.%ld/%u length=%u\n%S%S\n";
-static rc_t print_v2_no_name_frag_nr( join_results * self,
+static rc_t print_v2_no_name_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -464,7 +464,7 @@ static rc_t print_v2_no_name_frag_nr( join_results * self,
 
 static const char * fmt_fastq_v2_syn_name_no_frag_nr = "@%s.%ld %ld length=%u\n%S%S\n+%s.%ld %ld length=%u\n%S\n";
 static const char * fmt_fasta_v2_syn_name_no_frag_nr = ">%s.%ld %ld length=%u\n%S%S\n";
-static rc_t print_v2_syn_name_no_frag_nr( join_results * self,
+static rc_t print_v2_syn_name_no_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -496,7 +496,7 @@ static rc_t print_v2_syn_name_no_frag_nr( join_results * self,
 
 static const char * fmt_fastq_v2_syn_name_frag_nr = "@%s.%ld/%u %ld length=%u\n%S%S\n+%s.%ld/%u %ld length=%u\n%S\n";
 static const char * fmt_fasta_v2_syn_name_frag_nr = ">%s.%ld/%u %ld length=%u\n%S%S\n";
-static rc_t print_v2_syn_name_frag_nr( join_results * self,
+static rc_t print_v2_syn_name_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -530,7 +530,7 @@ static const char * fmt_fastq_v2_real_name_no_frag_nr  = "@%s.%ld %S length=%u\n
 static const char * fmt_fastq_v2_empty_name_no_frag_nr = "@%s.%ld length=%u\n%S%S\n+%s.%ld length=%u\n%S\n";
 static const char * fmt_fasta_v2_real_name_no_frag_nr  = ">%s.%ld %S length=%u\n%S%S\n";
 static const char * fmt_fasta_v2_empty_name_no_frag_nr = ">%s.%ld length=%u\n%S%S\n";
-static rc_t print_v2_real_name_no_frag_nr( join_results * self,
+static rc_t print_v2_real_name_no_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -583,7 +583,7 @@ static const char * fmt_fastq_v2_real_name_frag_nr  = "@%s.%ld/%u %S length=%u\n
 static const char * fmt_fastq_v2_empty_name_frag_nr = "@%s.%ld/%u length=%u\n%S%S\n+%s.%ld/%u length=%u\n%S\n";
 static const char * fmt_fasta_v2_real_name_frag_nr  = ">%s.%ld/%u %S length=%u\n%S%S\n";
 static const char * fmt_fasta_v2_empty_name_frag_nr = ">%s.%ld/%u length=%u\n%S%S\n";
-static rc_t print_v2_real_name_frag_nr( join_results * self,
+static rc_t print_v2_real_name_frag_nr( join_results_t * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
                                          uint32_t read_id,
@@ -633,8 +633,8 @@ static rc_t print_v2_real_name_frag_nr( join_results * self,
 }
 
 rc_t make_join_results( struct KDirectory * dir,
-                        join_results ** results,
-                        struct temp_registry * registry,
+                        join_results_t ** results,
+                        struct temp_registry_t * registry,
                         const char * output_base,
                         const char * accession_short,
                         size_t file_buffer_size,
@@ -644,7 +644,7 @@ rc_t make_join_results( struct KDirectory * dir,
                         const char * filter_bases )
 {
     rc_t rc = 0;
-    struct Buf2NA * filter_buf2na = NULL;
+    struct Buf2NA_t * filter_buf2na = NULL;
     if ( filter_bases != NULL )
     {
         rc = make_Buf2NA( &filter_buf2na, 512, filter_bases );
@@ -655,7 +655,7 @@ rc_t make_join_results( struct KDirectory * dir,
     }
     if ( rc == 0 )
     {
-        join_results * p = calloc( 1, sizeof * p );
+        join_results_t * p = calloc( 1, sizeof * p );
         *results = NULL;
         if ( NULL == p )
         {
@@ -731,7 +731,7 @@ rc_t make_join_results( struct KDirectory * dir,
     return rc;
 }
 
-bool join_results_filter( join_results * self, const String * bases )
+bool join_results_filter( join_results_t * self, const String * bases )
 {
     bool res = true;
     if ( NULL != self && NULL != bases && NULL != self -> filter_buf2na )
@@ -741,7 +741,7 @@ bool join_results_filter( join_results * self, const String * bases )
     return res;
 }
 
-bool join_results_filter2( struct join_results * self, const String * bases1, const String * bases2 )
+bool join_results_filter2( struct join_results_t * self, const String * bases1, const String * bases2 )
 {
     bool res = true;
     if ( NULL != self && NULL != bases1 && NULL != bases2 && NULL != self -> filter_buf2na )
@@ -751,7 +751,7 @@ bool join_results_filter2( struct join_results * self, const String * bases1, co
     return res;
 }
 
-rc_t join_results_print( struct join_results * self, uint32_t read_id, const char * fmt, ... )
+rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const char * fmt, ... )
 {
     rc_t rc = 0;
     if ( NULL == self )
@@ -766,7 +766,7 @@ rc_t join_results_print( struct join_results * self, uint32_t read_id, const cha
     }
     else
     {
-        join_printer * p = VectorGet ( &self -> printers, read_id );
+        join_printer_t * p = VectorGet ( &self -> printers, read_id );
         if ( NULL == p )
         {
             rc = make_join_printer( self, read_id, &p );
@@ -829,7 +829,7 @@ rc_t join_results_print( struct join_results * self, uint32_t read_id, const cha
     return rc;
 }
 
-rc_t join_results_print_fastq_v1( join_results * self,
+rc_t join_results_print_fastq_v1( join_results_t * self,
                                   int64_t row_id,
                                   uint32_t dst_id,
                                   uint32_t read_id,
@@ -844,7 +844,7 @@ rc_t join_results_print_fastq_v1( join_results * self,
     return self -> v1_print_name_not_null( self, row_id, dst_id, read_id, name, read, quality );
 }
 
-rc_t join_results_print_fastq_v2( join_results * self,
+rc_t join_results_print_fastq_v2( join_results_t * self,
                                   int64_t row_id,
                                   uint32_t dst_id,
                                   uint32_t read_id,
@@ -862,18 +862,18 @@ rc_t join_results_print_fastq_v2( join_results * self,
 
 /* ----------------------------------------------------------------------------------------------------- */
 
-typedef struct common_join_results
+typedef struct common_join_results_t
 {
     KDirectory * dir;
-    struct Buf2NA * filter_buf2na;
-    SBuffer print_buffer;   /* we have only one print_buffer... */
+    struct Buf2NA_t * filter_buf2na;
+    SBuffer_t print_buffer;   /* we have only one print_buffer... */
     size_t buffer_size;
     struct KFile * f;
     struct KLock * lock;
     uint64_t file_pos;
-} common_join_results;
+} common_join_results_t;
 
-void destroy_common_join_results( struct common_join_results * self )
+void destroy_common_join_results( struct common_join_results_t * self )
 {
     if ( NULL != self )
     {
@@ -899,10 +899,11 @@ void destroy_common_join_results( struct common_join_results * self )
     }
 }
 
-static rc_t make_common_file( common_join_results * self, const char * output_filename )
+static rc_t make_common_file( common_join_results_t * self, const char * output_filename, bool force )
 {
     struct KFile * f;
-    rc_t rc = KDirectoryCreateFile( self -> dir, &f, false, 0664, kcmInit, "%s", output_filename );
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateFile( self -> dir, &f, false, 0664, create_mode, "%s", output_filename );
     if ( 0 != rc )
     {
         ErrMsg( "make_common_file().KDirectoryVCreateFile() -> %R", rc );
@@ -947,14 +948,15 @@ static rc_t make_common_file( common_join_results * self, const char * output_fi
 }
 
 rc_t make_common_join_results( struct KDirectory * dir,
-                        struct common_join_results ** results,
+                        struct common_join_results_t ** results,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
                         const char * filter_bases,
-                        const char * output_filename )
+                        const char * output_filename,
+                        bool force )
 {
     rc_t rc = 0;
-    struct Buf2NA * filter_buf2na = NULL;
+    struct Buf2NA_t * filter_buf2na = NULL;
     if ( filter_bases != NULL )
     {
         rc = make_Buf2NA( &filter_buf2na, 512, filter_bases );
@@ -965,7 +967,7 @@ rc_t make_common_join_results( struct KDirectory * dir,
     }
     if ( rc == 0 )
     {
-        common_join_results * p = calloc( 1, sizeof * p );
+        common_join_results_t * p = calloc( 1, sizeof * p );
         *results = NULL;
         if ( NULL == p )
         {
@@ -981,7 +983,7 @@ rc_t make_common_join_results( struct KDirectory * dir,
             rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size ); /* helper.c */
             if ( 0 == rc )
             {
-                if ( NULL != output_filename ) { rc = make_common_file( p, output_filename ); }
+                if ( NULL != output_filename ) { rc = make_common_file( p, output_filename, force ); }
                 if ( 0 == rc )
                 {
                     *results = p;
@@ -993,7 +995,7 @@ rc_t make_common_join_results( struct KDirectory * dir,
     return rc;
 }
 
-bool common_join_results_filter( struct common_join_results * self, const String * bases )
+bool common_join_results_filter( struct common_join_results_t * self, const String * bases )
 {
     bool res = true;
     if ( NULL != self && NULL != bases && NULL != self -> filter_buf2na )
@@ -1003,7 +1005,7 @@ bool common_join_results_filter( struct common_join_results * self, const String
     return res;
 }
 
-rc_t common_join_results_print( struct common_join_results * self, const char * fmt, ... )
+rc_t common_join_results_print( struct common_join_results_t * self, const char * fmt, ... )
 {
     rc_t rc = 0;
     if ( NULL == self )

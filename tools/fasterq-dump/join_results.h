@@ -46,13 +46,13 @@ extern "C" {
 #include "temp_registry.h"
 #endif
 
-struct join_results;
+struct join_results_t;
 
-void destroy_join_results( struct join_results * self );
+void destroy_join_results( struct join_results_t * self );
 
 rc_t make_join_results( struct KDirectory * dir,
-                        struct join_results ** results,
-                        struct temp_registry * registry,
+                        struct join_results_t ** results,
+                        struct temp_registry_t * registry,
                         const char * output_base,
                         const char * accession_short,
                         size_t file_buffer_size,
@@ -62,12 +62,12 @@ rc_t make_join_results( struct KDirectory * dir,
                         const char * filter_bases );
 
 /* test if the filter-bases match... */
-bool join_results_filter( struct join_results * self, const String * bases );
-bool join_results_filter2( struct join_results * self, const String * bases1, const String * bases2 );
+bool join_results_filter( struct join_results_t * self, const String * bases );
+bool join_results_filter2( struct join_results_t * self, const String * bases1, const String * bases2 );
 
-rc_t join_results_print( struct join_results * self, uint32_t read_id, const char * fmt, ... );
+rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const char * fmt, ... );
 
-rc_t join_results_print_fastq_v1( struct join_results * self,
+rc_t join_results_print_fastq_v1( struct join_results_t * self,
                                   int64_t row_id,
                                   uint32_t dst_id,
                                   uint32_t read_id,
@@ -75,7 +75,7 @@ rc_t join_results_print_fastq_v1( struct join_results * self,
                                   const String * read,
                                   const String * quality );
 
-rc_t join_results_print_fastq_v2( struct join_results * self,
+rc_t join_results_print_fastq_v2( struct join_results_t * self,
                                   int64_t row_id,
                                   uint32_t dst_id,
                                   uint32_t read_id,
@@ -85,18 +85,19 @@ rc_t join_results_print_fastq_v2( struct join_results * self,
                                   const String * quality );
 
 /* --------------------------------------------------------------------------------------------------- */
-struct common_join_results;
+struct common_join_results_t;
 
-void destroy_common_join_results( struct common_join_results * self );
+void destroy_common_join_results( struct common_join_results_t * self );
 
 rc_t make_common_join_results( struct KDirectory * dir,
-                        struct common_join_results ** results,
+                        struct common_join_results_t ** results,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
                         const char * filter_bases,
-                        const char * output_filename );
+                        const char * output_filename,
+                        bool force );
 
-rc_t common_join_results_print( struct common_join_results * self, const char * fmt, ... );
+rc_t common_join_results_print( struct common_join_results_t * self, const char * fmt, ... );
 
 #ifdef __cplusplus
 }

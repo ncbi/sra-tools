@@ -271,7 +271,7 @@ format_t get_format_t( const char * format,
     return res;
 }
 
-rc_t make_SBuffer( SBuffer * buffer, size_t len )
+rc_t make_SBuffer( SBuffer_t * buffer, size_t len )
 {
     rc_t rc = 0;
     String * S = &buffer -> S;
@@ -291,7 +291,7 @@ rc_t make_SBuffer( SBuffer * buffer, size_t len )
     return rc;
 }
 
-void release_SBuffer( SBuffer * self )
+void release_SBuffer( SBuffer_t * self )
 {
     if ( NULL != self )
     {
@@ -303,7 +303,7 @@ void release_SBuffer( SBuffer * self )
     }
 }
 
-rc_t increase_SBuffer( SBuffer * self, size_t by )
+rc_t increase_SBuffer( SBuffer_t * self, size_t by )
 {
     rc_t rc;
     if ( NULL == self )
@@ -319,7 +319,7 @@ rc_t increase_SBuffer( SBuffer * self, size_t by )
     return rc;
 }
 
-rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
+rc_t print_to_SBufferV( SBuffer_t * self, const char * fmt, va_list args )
 {
     rc_t rc = 0;
     if ( NULL == self )
@@ -341,7 +341,7 @@ rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
     return rc;
 }
 
-rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err )
+rc_t try_to_enlarge_SBuffer( SBuffer_t * self, rc_t rc_err )
 {
     rc_t rc = rc_err;
     if ( ( GetRCObject( rc ) == ( enum RCObject )rcBuffer ) && ( GetRCState( rc ) == rcInsufficient ) )
@@ -355,7 +355,7 @@ rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err )
     return rc;
 }
 
-rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... )
+rc_t print_to_SBuffer( SBuffer_t * self, const char * fmt, ... )
 {
     rc_t rc = 0;
     bool done = false;
@@ -377,7 +377,7 @@ rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... )
 }
 
 
-rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... )
+rc_t make_and_print_to_SBuffer( SBuffer_t * self, size_t len, const char * fmt, ... )
 {
     rc_t rc = make_SBuffer( self, len );
     if ( 0 == rc )
@@ -431,7 +431,7 @@ rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch )
     return rc;
 }
 
-rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
+rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
                                 const char * filename, uint32_t idx )
 {
     rc_t rc;
@@ -492,7 +492,7 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id )
     return key;
 }
 
-rc_t pack_4na( const String * unpacked, SBuffer * packed )
+rc_t pack_4na( const String * unpacked, SBuffer_t * packed )
 {
     rc_t rc = 0;
     if ( unpacked -> len < 1 )
@@ -592,7 +592,7 @@ static const char xASCII_to_4na[ 256 ] =
        0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
-rc_t pack_read_2_4na( const String * read, SBuffer * packed )
+rc_t pack_read_2_4na( const String * read, SBuffer_t * packed )
 {
     rc_t rc = 0;
     if ( read -> len < 1 )
@@ -651,7 +651,7 @@ static const char x4na_to_ASCII_rev[ 16 ] =
        'N', 'T', 'G', 'N', 'C', 'N', 'N', 'N', 'A', 'N', 'N', 'N', 'N', 'N', 'N', 'N'
 };
 
-rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
+rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool reverse )
 {
     rc_t rc = 0;
     uint8_t * src = ( uint8_t * )packed -> addr;
@@ -765,7 +765,7 @@ rc_t join_and_release_threads( Vector * threads )
 }
 
 
-void clear_join_stats( join_stats * stats )
+void clear_join_stats( join_stats_t * stats )
 {
     if ( stats != NULL )
     {
@@ -779,7 +779,7 @@ void clear_join_stats( join_stats * stats )
     }
 }
 
-void add_join_stats( join_stats * stats, const join_stats * to_add )
+void add_join_stats( join_stats_t * stats, const join_stats_t * to_add )
 {
     if ( NULL != stats && NULL != to_add )
     {
@@ -1208,7 +1208,7 @@ rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
 
 /* ===================================================================================== */
 
-rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize )
+rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize )
 {
     rc_t rc;
     if ( NULL == self || 0 == alloc_blocksize )
@@ -1235,7 +1235,7 @@ rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize )
     return rc;
 }
 
-rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir )
+rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir )
 {
     rc_t rc = 0;
     /* tolerates to be called with self == NULL */
@@ -1265,7 +1265,7 @@ rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir )
     return rc;
 }
 
-static rc_t locked_file_list_unlock( const locked_file_list * self, const char * function, rc_t rc )
+static rc_t locked_file_list_unlock( const locked_file_list_t * self, const char * function, rc_t rc )
 {
     rc_t rc2 = KLockUnlock ( self -> lock );
     if ( 0 != rc2 )
@@ -1276,7 +1276,7 @@ static rc_t locked_file_list_unlock( const locked_file_list * self, const char *
     return rc;
 }
 
-rc_t locked_file_list_append( const locked_file_list * self, const char * filename )
+rc_t locked_file_list_append( const locked_file_list_t * self, const char * filename )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == filename )
@@ -1304,7 +1304,7 @@ rc_t locked_file_list_append( const locked_file_list * self, const char * filena
     return rc;
 }
 
-rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list * self )
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == dir )
@@ -1332,7 +1332,7 @@ rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list * self )
     return rc;
 }
 
-rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list * self )
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == dir )
@@ -1360,7 +1360,7 @@ rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list * self )
     return rc;
 }
 
-rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count )
+rc_t locked_file_list_count( const locked_file_list_t * self, uint32_t * count )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == count )
@@ -1388,7 +1388,7 @@ rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count )
     return rc;
 }
 
-rc_t locked_file_list_pop( locked_file_list * self, const String ** item )
+rc_t locked_file_list_pop( locked_file_list_t * self, const String ** item )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == item )
@@ -1438,7 +1438,7 @@ rc_t locked_file_list_pop( locked_file_list * self, const String ** item )
 
 /* ===================================================================================== */
 
-rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize )
+rc_t locked_vector_init( locked_vector_t * self, uint32_t alloc_blocksize )
 {
     rc_t rc;
     if ( NULL == self || 0 == alloc_blocksize )
@@ -1462,7 +1462,7 @@ rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize )
     return rc;
 }
 
-static rc_t locked_vector_unlock( const locked_vector * self, const char * function, rc_t rc )
+static rc_t locked_vector_unlock( const locked_vector_t * self, const char * function, rc_t rc )
 {
     rc_t rc2 = KLockUnlock ( self -> lock );
     if ( 0 != rc2 )
@@ -1473,7 +1473,7 @@ static rc_t locked_vector_unlock( const locked_vector * self, const char * funct
     return rc;
 }
 
-void locked_vector_release( locked_vector * self,
+void locked_vector_release( locked_vector_t * self,
                             void ( CC * whack ) ( void *item, void *data ), void *data )
 {
     if ( NULL == self )
@@ -1496,7 +1496,7 @@ void locked_vector_release( locked_vector * self,
     }
 }
 
-rc_t locked_vector_push( locked_vector * self, const void * item, bool seal )
+rc_t locked_vector_push( locked_vector_t * self, const void * item, bool seal )
 {
     rc_t rc;
     if ( NULL == self || NULL == item )
@@ -1528,7 +1528,7 @@ rc_t locked_vector_push( locked_vector * self, const void * item, bool seal )
     return rc;
 }
 
-rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
+rc_t locked_vector_pop( locked_vector_t * self, void ** item, bool * sealed )
 {
     rc_t rc;
     if ( NULL == self || NULL == item || NULL == sealed )
@@ -1567,7 +1567,7 @@ rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
 }
 
 /* ===================================================================================== */
-rc_t locked_value_init( locked_value * self, uint64_t init_value )
+rc_t locked_value_init( locked_value_t * self, uint64_t init_value )
 {
     rc_t rc;
     if ( NULL == self )
@@ -1590,7 +1590,7 @@ rc_t locked_value_init( locked_value * self, uint64_t init_value )
     return rc;
 }
 
-void locked_value_release( locked_value * self )
+void locked_value_release( locked_value_t * self )
 {
     if ( NULL != self )
     {
@@ -1602,7 +1602,7 @@ void locked_value_release( locked_value * self )
     }
 }
 
-rc_t locked_value_get( locked_value * self, uint64_t * value )
+rc_t locked_value_get( locked_value_t * self, uint64_t * value )
 {
     rc_t rc;
     if ( NULL == self || NULL == value )
@@ -1630,7 +1630,7 @@ rc_t locked_value_get( locked_value * self, uint64_t * value )
     return rc;
 }
 
-rc_t locked_value_set( locked_value * self, uint64_t value )
+rc_t locked_value_set( locked_value_t * self, uint64_t value )
 {
     rc_t rc;
     if ( NULL == self )
@@ -1659,16 +1659,16 @@ rc_t locked_value_set( locked_value * self, uint64_t value )
 }
 
 /* ===================================================================================== */
-typedef struct Buf2NA
+typedef struct Buf2NA_t
 {
     unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
     size_t shiftLeft[ 4 ];
     NucStrstr * nss;
     uint8_t * buffer;
     size_t allocated;
-} Buf2NA;
+} Buf2NA_t;
 
-rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
+rc_t make_Buf2NA( Buf2NA_t ** self, size_t size, const char * pattern )
 {
     rc_t rc = 0;
     NucStrstr * nss;
@@ -1689,7 +1689,7 @@ rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
         }
         else
         {
-            Buf2NA * res = calloc( 1, sizeof * res );
+            Buf2NA_t * res = calloc( 1, sizeof * res );
             if ( NULL == res )
             {
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -1717,7 +1717,7 @@ rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
     return rc;
 }
 
-void release_Buf2NA( Buf2NA * self )
+void release_Buf2NA( Buf2NA_t * self )
 {
     if ( self != NULL )
     {
@@ -1729,7 +1729,7 @@ void release_Buf2NA( Buf2NA * self )
     }
 }
 
-bool match_Buf2NA( Buf2NA * self, const String * ascii )
+bool match_Buf2NA( Buf2NA_t * self, const String * ascii )
 {
     bool res = false;
     if ( self != NULL && ascii != NULL )
@@ -1804,4 +1804,32 @@ rc_t get_quitting( void )
 void set_quitting( void )
 {
     atomic32_inc ( & quit_flag );
+}
+
+/* ===================================================================================== */
+
+uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count )
+{
+    uint64_t res = row_count;
+    uint64_t limit = 100 * ( *num_threads );
+    if ( row_count < limit )
+    {
+        *num_threads = 1;
+    }
+    else
+    {
+        res = ( row_count / ( *num_threads ) ) + 1;
+    }
+    return res;
+}
+
+void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present )
+{
+    dst -> rowid_as_name = name_column_present ? src -> rowid_as_name : true;
+    dst -> skip_tech = src -> skip_tech;
+    dst -> print_read_nr = src -> print_read_nr;
+    dst -> print_name = src -> print_name;
+    dst -> min_read_len = src -> min_read_len;
+    dst -> filter_bases = src -> filter_bases;
+    dst -> terminate_on_invalid = src -> terminate_on_invalid;
 }

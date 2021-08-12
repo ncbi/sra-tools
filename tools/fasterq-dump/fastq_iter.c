@@ -535,7 +535,7 @@ rc_t make_align_iter( const cmn_iter_params_t * params, struct align_iter_t ** i
         }
         if ( 0 == rc )
         {
-            rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "RAW_READ", &( self -> read_id ) );
         }
         if ( 0 == rc )
         {

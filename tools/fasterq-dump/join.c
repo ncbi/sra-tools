@@ -1943,6 +1943,33 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
     return rc;
 }
 
+static rc_t join_threads_collect_stats( Vector * threads, join_stats_t * stats )
+{
+    rc_t rc = 0;
+    /* collect the threads, and add the join_stats */
+    uint32_t i, n = VectorLength( threads );
+    for ( i = VectorStart( threads ); i < n; ++i )
+    {
+        join_thread_data_t * jtd = VectorGet( threads, i );
+        if ( NULL != jtd )
+        {
+            rc_t rc_thread;
+            KThreadWait( jtd -> thread, &rc_thread );
+            if ( 0 != rc_thread )
+            {
+                rc = rc_thread;
+            }
+            KThreadRelease( jtd -> thread );
+
+            add_join_stats( stats, &jtd -> stats ); /* helper.c */
+
+            free( jtd );
+        }
+    }
+    VectorWhack ( threads, NULL, NULL );
+    return rc;
+}
+
 rc_t execute_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_path,
@@ -2047,29 +2074,7 @@ rc_t execute_db_join( KDirectory * dir,
                 }
             }
 
-            {
-                /* collect the threads, and add the join_stats */
-                uint32_t i, n = VectorLength( &threads );
-                for ( i = VectorStart( &threads ); i < n; ++i )
-                {
-                    join_thread_data_t * jtd = VectorGet( &threads, i );
-                    if ( NULL != jtd )
-                    {
-                        rc_t rc_thread;
-                        KThreadWait( jtd -> thread, &rc_thread );
-                        if ( 0 != rc_thread )
-                        {
-                            rc = rc_thread;
-                        }
-                        KThreadRelease( jtd -> thread );
-
-                        add_join_stats( stats, &jtd -> stats ); /* helper.c */
-
-                        free( jtd );
-                    }
-                }
-                VectorWhack ( &threads, NULL, NULL );
-            }
+            rc = join_threads_collect_stats( &threads, stats ); /* above */
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }
@@ -2179,6 +2184,269 @@ rc_t check_lookup_this( const KDirectory * dir,
     return rc;
 }
 
+/* ---------------------------------------------------------------------------------------------------- */
+
+/* iterate over the ALIGN-table, using the align-iter from fastq_iter.c */
+static rc_t CC fast_align_thread_func( const KThread * self, void * data )
+{
+    rc_t rc = 0;
+    join_thread_data_t * jtd = data;
+    struct common_join_results_t * results = ( struct common_join_results_t * ) jtd -> registry;
+    join_stats_t * stats = &( jtd -> stats );
+    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
+                        jtd -> accession_short, jtd -> accession_path,
+                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    const char * acc = jtd -> accession_short;
+    struct align_iter_t * iter;
+    uint64_t loop_nr = 0;
+
+    rc = make_align_iter( &cp, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
+    }
+    else
+    {
+        align_rec_t rec; /* fastq_iter.h */
+        while ( 0 == rc && get_from_align_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                if ( rec . read . len > 0 )
+                {
+
+                    stats -> reads_read += 1;
+
+                    rc = common_join_results_print( results, ">%s.%lu %lu length=%u\n%S\n",
+                        acc, rec . spot_id, rec . spot_id, rec . read . len, &( rec . read ) );
+
+                    if ( 0 == rc ) { stats -> reads_written++; }
+
+                }
+                else { stats -> reads_zero_length++; }
+
+                if ( 0 == rc ) {
+                    loop_nr ++;
+                    bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                }
+                else {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
+                }
+            }
+        }
+        destroy_align_iter( iter ); /* fastq-iter.c */
+    }
+    return rc;
+}
+
+static rc_t start_fast_join_align( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    const join_options_t * join_options,
+                    uint64_t row_count,
+                    struct bg_progress_t * progress,
+                    struct common_join_results_t * results,
+                    Vector * threads )
+{
+    rc_t rc = 0;
+    int64_t row = 1;
+    uint32_t thread_id;
+    uint64_t rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
+    join_options_t corrected_join_options; /* helper.h */
+    correct_join_options( &corrected_join_options, join_options, false );
+
+    for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
+    {
+        join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
+        if ( NULL != jtd )
+        {
+            jtd -> dir              = dir;
+            jtd -> vdb_mgr          = vdb_mgr;
+            jtd -> accession_path   = accession_path;
+            jtd -> accession_short  = accession_short;
+            jtd -> lookup_filename  = NULL;
+            jtd -> index_filename   = NULL;
+            jtd -> first_row        = row;
+            jtd -> row_count        = rows_per_thread;
+            jtd -> cur_cache        = cur_cache;
+            jtd -> buf_size         = buf_size;
+            jtd -> progress         = progress;
+            jtd -> registry         = ( void * )results;    /* use the common-output here */
+            jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
+            jtd -> join_options     = &corrected_join_options;
+            jtd -> thread_id        = thread_id;
+            jtd -> cmp_read_present = true;
+
+            if ( 0 == rc )
+            {
+                rc = helper_make_thread( &jtd -> thread, fast_align_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                if ( 0 != rc )
+                {
+                    ErrMsg( "join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
+                }
+                else
+                {
+                    rc = VectorAppend( threads, NULL, jtd );
+                    if ( 0 != rc )
+                    {
+                        ErrMsg( "join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                    }
+                }
+                row += rows_per_thread;
+            }
+        }
+    }
+    return rc;
+}
+
+/* iterate over the SEQ-table, but only use what is half/fully unaligned... */
+static rc_t CC fast_seq_thread_func( const KThread * self, void * data )
+{
+    rc_t rc = 0;
+    join_thread_data_t * jtd = data;
+    struct common_join_results_t * results = ( struct common_join_results_t * ) jtd -> registry;
+    join_stats_t * stats = &( jtd -> stats );
+    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
+                        jtd -> accession_short, jtd -> accession_path,
+                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    const char * acc = jtd -> accession_short;
+    struct fastq_csra_iter_t * iter;
+    uint64_t loop_nr = 0;
+    fastq_iter_opt_t opt;
+    opt . with_read_len = true;
+    opt . with_name = false;
+    opt . with_read_type = true;
+    opt . with_cmp_read = jtd -> cmp_read_present;
+    opt . with_quality = false;
+
+    rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
+    }
+    else
+    {
+        fastq_rec_t rec; /* fastq_iter.h */
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                uint32_t read_id_0 = 0;
+                uint32_t offset = 0;
+                stats -> spots_read++;
+                while ( 0 == rc && read_id_0 < rec . num_read_len )
+                {
+                    if ( rec . read_len[ read_id_0 ] > 0 )
+                    {
+                        if ( 0 == rec . prim_alig_id[ read_id_0 ] )
+                        {
+                            String R;
+
+                            stats -> reads_read += 1;
+
+                            R . addr = &rec . read . addr[ offset ];
+                            R . size = rec . read_len[ read_id_0 ];
+                            R . len  = ( uint32_t )R . size;
+
+                            rc = common_join_results_print( results, ">%s.%lu %lu length=%u\n%S\n",
+                                acc, rec . row_id, rec . row_id, R . len, &R );
+
+                            if ( 0 == rc ) { stats -> reads_written++; }
+                            offset += rec . read_len[ read_id_0 ];
+                        }
+                    }
+                    else { stats -> reads_zero_length++; }
+                    read_id_0++;
+                }
+
+                if ( 0 == rc ) {
+                    loop_nr ++;
+                    bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                }
+                else {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
+                }
+            }
+        }
+        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+    }
+
+    return rc;
+}
+
+static rc_t start_fast_join_seq( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    const join_options_t * join_options,
+                    uint64_t seq_row_count,
+                    bool cmp_read_column_present,
+                    struct bg_progress_t * progress,
+                    struct common_join_results_t * results,
+                    Vector * threads )
+{
+    rc_t rc = 0;
+    int64_t row = 1;
+    uint32_t thread_id;
+    uint64_t rows_per_thread = calculate_rows_per_thread( &num_threads, seq_row_count ); /* helper.c */
+    join_options_t corrected_join_options; /* helper.h */
+    correct_join_options( &corrected_join_options, join_options, false );
+
+    for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
+    {
+        join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
+        if ( NULL != jtd )
+        {
+            jtd -> dir              = dir;
+            jtd -> vdb_mgr          = vdb_mgr;
+            jtd -> accession_path   = accession_path;
+            jtd -> accession_short  = accession_short;
+            jtd -> lookup_filename  = NULL;
+            jtd -> index_filename   = NULL;
+            jtd -> first_row        = row;
+            jtd -> row_count        = rows_per_thread;
+            jtd -> cur_cache        = cur_cache;
+            jtd -> buf_size         = buf_size;
+            jtd -> progress         = progress;
+            jtd -> registry         = ( void * )results;    /* use the common-output here */
+            jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
+            jtd -> join_options     = &corrected_join_options;
+            jtd -> thread_id        = thread_id;
+            jtd -> cmp_read_present = cmp_read_column_present;
+
+            if ( 0 == rc )
+            {
+                rc = helper_make_thread( &jtd -> thread, fast_seq_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                if ( 0 != rc )
+                {
+                    ErrMsg( "join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
+                }
+                else
+                {
+                    rc = VectorAppend( threads, NULL, jtd );
+                    if ( 0 != rc )
+                    {
+                        ErrMsg( "join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                    }
+                }
+                row += rows_per_thread;
+            }
+        }
+    }
+    return rc;
+}
+
 
 rc_t execute_fast_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
@@ -2206,12 +2474,9 @@ rc_t execute_fast_join( KDirectory * dir,
         /* for the SEQUENCE-table */
         uint64_t seq_row_count = 0;
         uint64_t align_row_count = 0;
-        bool name_column_present, cmp_read_column_present;
+        bool cmp_read_column_present;
 
-        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
-        if ( 0 == rc ) {
-            rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
-        }
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
 
         if ( 0 == rc ) {
             rc = extract_seq_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &seq_row_count ); /* above */
@@ -2229,7 +2494,6 @@ rc_t execute_fast_join( KDirectory * dir,
                 rc = bg_progress_make( &progress, seq_row_count + align_row_count, 0, 0 ); /* progress_thread.c */
             }
 
-
             struct common_join_results_t * results = NULL;
             rc = make_common_join_results( dir,
                                     &results,
@@ -2237,15 +2501,58 @@ rc_t execute_fast_join( KDirectory * dir,
                                     4096,
                                     join_options -> filter_bases,
                                     output_filename,
-                                    force );
+                                    force ); /* join_results.c */
             if ( 0 == rc )
             {
-                KOutMsg( "we have %lu seq-rows and %lu align-rows\n", seq_row_count, align_row_count );
+                /* we now have:
+                    - row-count for SEQ- and ALIGN table
+                    - know if the CMP_READ-column exists in the SEQ-table
+                    - the common-output-results, ready to beeing used via common_join_results_print()
+                    - optionally a progress-bar ( set to the sum of the row-counts in the SEQ- and ALIGN-table )
+                */
+                Vector seq_threads;
+                VectorInit( &seq_threads, 0, num_threads );
 
+                rc = start_fast_join_seq( dir,
+                                          vdb_mgr,
+                                          accession_short,
+                                          accession_path,
+                                          cur_cache,
+                                          buf_size,
+                                          num_threads,
+                                          join_options,
+                                          seq_row_count,
+                                          cmp_read_column_present,
+                                          progress,
+                                          results,
+                                          &seq_threads );
+                if ( 0 == rc )
+                {
+                    Vector align_threads;
+                    VectorInit( &align_threads, 0, num_threads );
 
+                    rc = start_fast_join_align( dir,
+                                        vdb_mgr,
+                                        accession_short,
+                                        accession_path,
+                                        cur_cache,
+                                        buf_size,
+                                        num_threads,
+                                        join_options,
+                                        align_row_count,
+                                        progress,
+                                        results,
+                                        &align_threads );
+                    if ( 0 == rc ) {
+                        rc = join_threads_collect_stats( &align_threads, stats ); /* above */
+                    }
+                    if ( 0 == rc ) {
+                        rc = join_threads_collect_stats( &seq_threads, stats ); /* above */
+                    }
+                }
                 destroy_common_join_results( results );
             }
-            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
+            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
         }
     }
     return rc;

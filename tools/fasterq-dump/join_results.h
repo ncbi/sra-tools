@@ -97,6 +97,8 @@ rc_t make_common_join_results( struct KDirectory * dir,
                         const char * output_filename,
                         bool force );
 
+bool common_join_results_filter( struct common_join_results_t * self, const String * bases );
+
 rc_t common_join_results_print( struct common_join_results_t * self, const char * fmt, ... );
 
 #ifdef __cplusplus

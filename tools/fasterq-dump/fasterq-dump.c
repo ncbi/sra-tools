@@ -283,7 +283,7 @@ typedef struct tool_ctx_t
     const char * output_dirname;
     const char * seq_tbl_name;
     
-    struct temp_dir * temp_dir; /* temp_dir.h */
+    struct temp_dir_t * temp_dir; /* temp_dir.h */
     
     char lookup_filename[ DFLT_PATH_LEN ];
     char index_filename[ DFLT_PATH_LEN ];
@@ -713,7 +713,7 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
             encforce_constrains( tool_ctx );
             rc = get_environment( tool_ctx );
         }
-        if ( 0 == rc )
+        if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot )
         {
             rc = make_temp_dir( &tool_ctx -> temp_dir,
                             tool_ctx -> requested_temp_path,
@@ -726,7 +726,7 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
         rc = handle_accession( tool_ctx );
     }
 
-    if ( 0 == rc )
+    if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot )
     {
         rc = handle_lookup_path( tool_ctx );
     }
@@ -765,17 +765,18 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
         }
     }
     
-    if ( 0 == rc )
+    if ( tool_ctx -> fmt != ft_fasta_us_split_spot )
     {
-        rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */
+        if ( 0 == rc ) {
+            rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */
+        }
+
+        if ( 0 == rc ) {
+            rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
+                    get_temp_dir( tool_ctx -> temp_dir ) );
+        }
     }
 
-    if ( 0 == rc )
-    {
-        rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
-                get_temp_dir( tool_ctx -> temp_dir ) );
-    }
-           
     if ( 0 == rc )
     {
         rc = VDBManagerMakeRead( &( tool_ctx -> vdb_mgr ), tool_ctx -> dir );

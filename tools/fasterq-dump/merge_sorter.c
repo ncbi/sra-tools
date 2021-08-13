@@ -232,7 +232,7 @@ static rc_t run_merge_sorter( merge_sorter_t * self )
 typedef struct background_vector_merger_t
 {
     KDirectory * dir;               /* needed to perform the merge-sort */
-    const struct temp_dir * temp_dir; /* needed to create temp. files */
+    const struct temp_dir_t * temp_dir; /* needed to create temp. files */
     KQueue * job_q;                 /* the KVector objects arrive here from the lookup-producer */
     KThread * thread;               /* the thread that performs the merge-sort */
     struct background_file_merger_t * file_merger;    /* below */
@@ -564,7 +564,7 @@ static rc_t CC background_vector_merger_thread_func( const KThread * thread, voi
 
 rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
                              KDirectory * dir,
-                             const struct temp_dir * temp_dir,
+                             const struct temp_dir_t * temp_dir,
                              struct KFastDumpCleanupTask_t * cleanup_task,                             
                              struct background_file_merger_t * file_merger,
                              uint32_t batch_size,
@@ -688,7 +688,7 @@ rc_t push_to_background_vector_merger( background_vector_merger_t * self, KVecto
 typedef struct background_file_merger_t
 {
     KDirectory * dir;               /* needed to perform the merge-sort */
-    const struct temp_dir * temp_dir;      /* needed to create temp. files */
+    const struct temp_dir_t * temp_dir;      /* needed to create temp. files */
     const char * lookup_filename;
     const char * index_filename;
     locked_file_list_t files;        /* a locked file-list */
@@ -943,7 +943,7 @@ static rc_t CC background_file_merger_thread_func( const KThread * thread, void 
 
 rc_t make_background_file_merger( background_file_merger_t ** merger,
                                 KDirectory * dir,
-                                const struct temp_dir * temp_dir,
+                                const struct temp_dir_t * temp_dir,
                                 struct KFastDumpCleanupTask_t * cleanup_task,
                                 const char * lookup_filename,
                                 const char * index_filename,

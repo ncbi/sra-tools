@@ -1,6 +1,26 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.11.1
+**August 17, 2021**
+
+  **align, axf, sra-pileup, vdb, vfs**: resolve reference sequences within output directory  
+  **cloud, kns, sra-tools**: do not acquire CE more often than necessary  
+  **kget**: renamed to vdb-get  
+  **kns, sra-tools**: improved reporting of peer certificate information  
+  **kns, sra-tools**: improved timeout management in CacheTeeFile  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: configure prints the version of compiler  
+  **prefetch**: better control of reference sequences  
+  **prefetch**: fixed failure when protected repository exists  
+  **prefetch, vdb, vfs**: prefetch with "-O" will now correctly place references in output directory  
+  **prefetch, vfs**: fixed error message 'multiple response SRR URLs for the same service...' when downloading  
+  **prefetch**: will download any missed dependencies  
+  **prefetch**: will not hang when failing to download dependencies  
+  **sratools**: allow driver tool to handle debug output for modules  
+  **vdb-dump**: using --info with URLs now works correctly  
+  **vfs, sra-tools**: updated interaction with SRA Data Locator  
+
+
 ## SRA Toolkit 2.11.0
 **March 15, 2021**
 

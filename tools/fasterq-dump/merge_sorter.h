@@ -58,7 +58,7 @@ struct background_file_merger_t;
 
 rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
                              KDirectory * dir,
-                             const struct temp_dir * temp_dir,
+                             const struct temp_dir_t * temp_dir,
                              struct KFastDumpCleanupTask_t * cleanup_task,                             
                              struct background_file_merger_t * file_merger,
                              uint32_t batch_size,
@@ -79,7 +79,7 @@ rc_t wait_for_and_release_background_vector_merger( struct background_vector_mer
 
 rc_t make_background_file_merger( struct background_file_merger_t ** merger,
                                 KDirectory * dir,
-                                const struct temp_dir * temp_dir,
+                                const struct temp_dir_t * temp_dir,
                                 struct KFastDumpCleanupTask_t * cleanup_task,                                
                                 const char * lookup_filename,
                                 const char * index_filename,

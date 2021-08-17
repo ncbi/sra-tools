@@ -106,8 +106,8 @@ echo Current version: "${VERSION}"
 
 ################################## smoke-test ##################################
 
-echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" >./${TK_PACKAGE}/bin/ncbi/local.kfg
-VDB_CONFIG_FILE=`pwd`/${TK_PACKAGE}/bin/ncbi
+echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" >./${TK_PACKAGE}bin/ncbi/local.kfg
+VDB_CONFIG_FILE=`pwd`/${TK_PACKAGE}bin/ncbi
 echo VDB_CONFIG=${VDB_CONFIG_FILE} $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
 #ls `pwd`/${TK_PACKAGE}/bin/ncbi
      VDB_CONFIG=${VDB_CONFIG_FILE} $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
@@ -157,10 +157,10 @@ then
 
 ################################## smoke-test ##################################
 
-    echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" >./${TK_PACKAGE}/bin/ncbi/local.kfg
-    echo VDB_CONFIG=`pwd`/${TK_PACKAGE}/bin/ncbi $HOMEDIR/smoke-test-ngs.sh ./${TK_PACKAGE} ${VERSION}
-    #ls `pwd`/${TK_PACKAGE}/bin/ncbi
-         VDB_CONFIG=`pwd`/${TK_PACKAGE}/bin/ncbi $HOMEDIR/smoke-test-ngs.sh ./${TK_PACKAGE} ${VERSION}
+    echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" > ./${TK_PACKAGE}bin/ncbi/local.kfg
+    echo VDB_CONFIG=`pwd`/${TK_PACKAGE}bin/ncbi $HOMEDIR/smoke-test-ngs.sh ./${TK_PACKAGE} ${VERSION}
+    #ls `pwd`/${TK_PACKAGE}bin/ncbi
+         VDB_CONFIG=`pwd`/${TK_PACKAGE}bin/ncbi $HOMEDIR/smoke-test-ngs.sh ./${TK_PACKAGE} ${VERSION}
     RC=$?
 
     if [ "${RC}" != "0" ]

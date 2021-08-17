@@ -49,6 +49,8 @@ typedef struct {
     VPathStr      remoteHttps;
     VPathStr      remoteFasp;
 
+    const struct VPath * remote;
+
     const struct KFile *file;
     uint64_t remoteSz;
 
@@ -92,9 +94,16 @@ typedef enum {
     eForceALL, /* force download; ignore locks and transaction file */
 } EForce;
 
+typedef enum {
+    eDefault,
+    eFalse,
+    eTrue,
+} ETernary;
+
 typedef struct PrfMain {
     struct Args *args;
     bool check_all;
+    ETernary check_refseqs;
 
     bool list_kart;
     bool list_kart_numbered;

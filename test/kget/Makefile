@@ -34,7 +34,7 @@ include $(TOP)/build/Makefile.env
 
 CONFIGTOUSE ?= NCBI_SETTINGS
 DIRTOTEST ?= $(BINDIR)
-TOOLTOTEST = $(DIRTOTEST)/kget
+TOOLTOTEST = $(DIRTOTEST)/vdb-get
 ifneq ("$(wildcard $(TOOLTOTEST))","")
     BIN_EXISTS = 1
 else
@@ -65,7 +65,7 @@ no-test:
 	@ echo $(TOOLTOTEST) does not exist. Test skipped.
 
 download:
-	@ PATH=$(DIRTOTEST):$(PATH) VDB_CONFIG=`pwd` \
+	@ PATH='$(DIRTOTEST):$(PATH)' VDB_CONFIG=`pwd` \
 		$(CONFIGTOUSE)=/ NCBI_VDB_RELIABLE=y $(PYTHON) test_kget.py #expect rc=0
 
 #-------------------------------------------------------------------------------
@@ -85,7 +85,7 @@ clean:
 diff-vs-wget: clean
 	@ if echo $(URL) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
-	     $(DIRTOTEST)/kget --reliable -c ./$(ACCESSION).cachetee \
+	     $(DIRTOTEST)/vdb-get --reliable -c ./$(ACCESSION).cachetee \
 	                    $(URL) $(ACCESSION).dat --progress && \
 	     wget --no-check-certificate $(URL) -O ./$(NAME) && \
 	     diff ./$(NAME) ./$(ACCESSION).dat && \

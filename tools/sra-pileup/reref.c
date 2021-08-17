@@ -33,6 +33,7 @@
 
 #include <vfs/manager.h>
 #include <vfs/path.h>
+#include <vfs/path-priv.h> /* VPathSetAccOfParentDb */
 #include <vfs/resolver.h>
 
 #include <align/reference.h>
@@ -291,55 +292,64 @@ static rc_t resolve_accession( VFSManager * vfs_mgr, const char * accession, con
 }
 */
 
-static rc_t resolve_accession( VFSManager * vfs_mgr, const char * acc, const String ** resolved )
+static rc_t resolve_accession( VFSManager * vfs_mgr, const char * acc,
+    const String ** resolved, const String * prntAcc, const String * prntPath )
 {
-	VResolver * resolver;
-	rc_t rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-	if ( rc != 0 )
-	{
-		(void)LOGERR( klogErr, rc, "VFSManagerGetResolver() failed" );
-	}
-	else
-	{
-		VPath * acc_vpath;
-		rc = VFSManagerMakePath( vfs_mgr, &acc_vpath, "ncbi-acc:%s", acc );
-		if ( rc != 0 )
-		{
-			(void)LOGERR( klogErr, rc, "VFSManagerMakePath() failed" );
-		}
-		else
-		{
-			const VPath * local = NULL;
-			const VPath * remote = NULL;
-			rc = VResolverQuery ( resolver, 0, acc_vpath, &local, &remote, NULL );
-			if ( rc != 0 )
-			{
-				(void)LOGERR( klogErr, rc, "VResolverQuery() failed" );
-			}
-			else
-			{
-				if ( local != NULL )
-					rc = VPathMakeString( local, resolved );
-				else if ( remote != NULL )
-					rc = VPathMakeString( remote, resolved );
-				else
-					rc = KOutMsg( "cannot resolve '%s'\n", acc );					
+    VResolver * resolver;
+    rc_t rc = VFSManagerGetResolver( vfs_mgr, &resolver );
+    if ( rc != 0 )
+    {
+        (void)LOGERR( klogErr, rc, "VFSManagerGetResolver() failed" );
+    }
+    else
+    {
+        VPath * acc_vpath;
+        rc = VFSManagerMakePath( vfs_mgr, &acc_vpath, "ncbi-acc:%s", acc );
+        if ( rc != 0 )
+        {
+            (void)LOGERR( klogErr, rc, "VFSManagerMakePath() failed" );
+        }
+        else
+        {
+            const VPath * local = NULL;
+            const VPath * remote = NULL;
+            if (prntAcc != NULL || prntPath != NULL) {
+                rc = VPathSetAccOfParentDb(acc_vpath, prntAcc, prntPath);
+                if (rc != 0)
+                    (void)LOGERR(klogErr, rc, "VPathSetAccOfParentDb() failed");
+            }
+            if (rc == 0) {
+                rc = VResolverQuery ( resolver, 0, acc_vpath,
+                    &local, &remote, NULL );
+                if ( rc != 0 )
+                    (void)PLOGERR( klogErr, ( klogErr, rc,
+                        "VResolverQuery($(a)) failed", "a=%s", acc ) );
+            }
+            if (rc == 0)
+            {
+                if ( local != NULL )
+                    rc = VPathMakeString( local, resolved );
+                else if ( remote != NULL )
+                    rc = VPathMakeString( remote, resolved );
+                else
+                    rc = KOutMsg( "cannot resolve '%s'\n", acc );					
 
-				if ( local != NULL ) VPathRelease ( local );
-				if ( remote != NULL ) VPathRelease ( remote );
-			}
-			VPathRelease ( acc_vpath );
-		}
-		VResolverRelease( resolver );
-	}
+                if ( local != NULL ) VPathRelease ( local );
+                if ( remote != NULL ) VPathRelease ( remote );
+            }
+            VPathRelease ( acc_vpath );
+        }
+        VResolverRelease( resolver );
+    }
     return rc;
 }
 
 
-static rc_t report_ref_loc( const VDBManager *vdb_mgr, VFSManager * vfs_mgr, const char * seq_id )
+static rc_t report_ref_loc( const VDBManager *vdb_mgr, VFSManager * vfs_mgr,
+    const char * seq_id, const String * pacc, const String * ppath )
 {
     const String * path;
-    rc_t rc = resolve_accession( vfs_mgr, seq_id, &path );
+    rc_t rc = resolve_accession( vfs_mgr, seq_id, &path, pacc, ppath );
     if ( rc == 0 )
     {
         rc = KOutMsg( "location:\t%S\n", path );
@@ -356,7 +366,8 @@ static rc_t report_ref_loc( const VDBManager *vdb_mgr, VFSManager * vfs_mgr, con
 
 
 static rc_t report_ref_obj( const VDBManager *vdb_mgr, VFSManager * vfs_mgr, const char * path, uint32_t idx,
-                            const ReferenceObj* ref_obj, bool extended )
+                            const ReferenceObj* ref_obj, bool extended,
+                            const String * pacc, const String * ppath )
 {
     const char * s;
     const char * seq_id;
@@ -394,7 +405,7 @@ static rc_t report_ref_obj( const VDBManager *vdb_mgr, VFSManager * vfs_mgr, con
         rc = KOutMsg( "REF[%u].Extern   = %s\n", idx, external ? "yes" : "no" );
     if ( rc == 0 && external )
     {
-        rc = report_ref_loc( vdb_mgr, vfs_mgr, seq_id );
+        rc = report_ref_loc( vdb_mgr, vfs_mgr, seq_id, pacc, ppath );
     }
 
     if ( rc == 0 && extended )
@@ -406,87 +417,97 @@ static rc_t report_ref_obj( const VDBManager *vdb_mgr, VFSManager * vfs_mgr, con
 
 static rc_t report_ref_database( const VDBManager *vdb_mgr, VFSManager * vfs_mgr, const char * path, bool extended )
 {
-	const VDatabase *db;
-	rc_t rc = VDBManagerOpenDBRead ( vdb_mgr, &db, NULL, "%s", path );
+    const VDatabase *db;
+    rc_t rc = VDBManagerOpenDBRead ( vdb_mgr, &db, NULL, "%s", path );
     if ( rc != 0 )
     {
         (void)LOGERR( klogErr, rc, "VDBManagerOpenDBRead() failed" );
     }
-	else
-	{
-		const ReferenceList * reflist;
-		uint32_t options = ( ereferencelist_usePrimaryIds | ereferencelist_useSecondaryIds | ereferencelist_useEvidenceIds );
-		rc = ReferenceList_MakeDatabase( &reflist, db, options, 0, NULL, 0 );
-		if ( rc != 0 )
-		{
-			(void)LOGERR( klogErr, rc, "ReferenceList_MakeDatabase() failed" );
-		}
-		else
-		{
-			uint32_t count;
-			rc = ReferenceList_Count( reflist, &count );
-			if ( rc != 0 )
-			{
-				(void)LOGERR( klogErr, rc, "ReferenceList_Count() failed" );
-			}
-			else
-			{
-				rc = KOutMsg( "this object uses %u references\n", count );
-				if ( rc == 0 )
-				{
-					uint32_t idx;
-					for ( idx = 0; idx < count && rc == 0; ++idx )
-					{
-						const ReferenceObj* ref_obj;
-						rc = ReferenceList_Get( reflist, &ref_obj, idx );
-						if ( rc != 0 )
-						{
-							(void)LOGERR( klogErr, rc, "ReferenceList_Get() failed" );
-						}
-						else
-						{
-							rc = report_ref_obj( vdb_mgr, vfs_mgr, path, idx, ref_obj, extended );
-							ReferenceObj_Release( ref_obj );
-						}
-					}
-				}
-			}
-			ReferenceList_Release( reflist );
-		}
-		VDatabaseRelease( db );
+    else
+    {
+        const ReferenceList * reflist;
+        uint32_t options = ( ereferencelist_usePrimaryIds | ereferencelist_useSecondaryIds | ereferencelist_useEvidenceIds );
+
+        const String * parentPath = NULL;
+        const String * parentAcc = NULL;
+        rc = VDatabaseGetAccession(db, &parentAcc, &parentPath);
+        if (rc != 0)
+            (void)LOGERR(klogErr, rc, "VDatabaseGetAccession() failed");
+        else {
+            rc = ReferenceList_MakeDatabase(
+                &reflist, db, options, 0, NULL, 0 );
+            if (rc != 0)
+                (void)LOGERR(klogErr, rc,
+                    "ReferenceList_MakeDatabase() failed");
+        }
+        if ( rc == 0 )
+        {
+            uint32_t count;
+            rc = ReferenceList_Count( reflist, &count );
+            if ( rc != 0 )
+            {
+                (void)LOGERR( klogErr, rc, "ReferenceList_Count() failed" );
+            }
+            else
+            {
+                rc = KOutMsg( "this object uses %u references\n", count );
+                if ( rc == 0 )
+                {
+                    uint32_t idx;
+                    for ( idx = 0; idx < count && rc == 0; ++idx )
+                    {
+                        const ReferenceObj* ref_obj;
+                        rc = ReferenceList_Get( reflist, &ref_obj, idx );
+                        if ( rc != 0 )
+                        {
+                            (void)LOGERR( klogErr, rc, "ReferenceList_Get() failed" );
+                        }
+                        else
+                        {
+                            rc = report_ref_obj( vdb_mgr, vfs_mgr, path, idx,
+                                ref_obj, extended, parentAcc, parentPath );
+                            ReferenceObj_Release( ref_obj );
+                        }
+                    }
+                }
+            }
+            ReferenceList_Release( reflist );
+        }
+        VDatabaseRelease( db );
     }
     return rc;
 }
 
 static rc_t report_references( const VDBManager *vdb_mgr, VFSManager * vfs_mgr,
-							   const char * spec, bool extended )
+                               const char * spec, bool extended,
+                               const String * pacc, const String * ppath )
 {
-	const String * resolved = NULL;
-	rc_t rc = resolve_accession( vfs_mgr, spec, &resolved );
-	if ( rc == 0 && resolved != NULL )
-	{
-		rc = KOutMsg( "resolved into '%S'\n", resolved );
-		if ( rc == 0 )
-		{
-			int path_type = ( VDBManagerPathType ( vdb_mgr, "%s", spec ) & ~ kptAlias );
-			switch( path_type )
-			{
-				case kptDatabase : rc = report_ref_database( vdb_mgr, vfs_mgr, spec, extended );
-								   break;
+    const String * resolved = NULL;
+    rc_t rc = resolve_accession( vfs_mgr, spec, &resolved, pacc, ppath );
+    if ( rc == 0 && resolved != NULL )
+    {
+        rc = KOutMsg( "resolved into '%S'\n", resolved );
+        if ( rc == 0 )
+        {
+            int path_type = ( VDBManagerPathType ( vdb_mgr, "%s", spec ) & ~ kptAlias );
+            switch( path_type )
+            {
+                case kptDatabase : rc = report_ref_database( vdb_mgr, vfs_mgr, spec, extended );
+                                   break;
 
-				case kptTable    : KOutMsg( "cannot report references on a table-object\n" );
-									rc = RC ( rcApp, rcNoTarg, rcAccessing, rcParam, rcInvalid );
-									(void)LOGERR( klogErr, rc, "cannot report references on a table-object" );
-								   break;
+                case kptTable    : KOutMsg( "cannot report references on a table-object\n" );
+                                    rc = RC ( rcApp, rcNoTarg, rcAccessing, rcParam, rcInvalid );
+                                    (void)LOGERR( klogErr, rc, "cannot report references on a table-object" );
+                                   break;
 
-				default          : KOutMsg( "the given object is not a vdb-database\n" );
-									rc = RC ( rcApp, rcNoTarg, rcAccessing, rcParam, rcInvalid );
-									(void)LOGERR( klogErr, rc, "the given object is not a vdb-database" );
-								   break;
-			}
-		}
-		StringWhack ( resolved );
-	}
+                default          : KOutMsg( "the given object is not a vdb-database\n" );
+                                    rc = RC ( rcApp, rcNoTarg, rcAccessing, rcParam, rcInvalid );
+                                    (void)LOGERR( klogErr, rc, "the given object is not a vdb-database" );
+                                   break;
+            }
+        }
+        StringWhack ( resolved );
+    }
     return rc;
 }
 
@@ -536,7 +557,8 @@ rc_t report_on_reference( Args * args, bool extended )
                         }
                         else
                         {
-                            rc = report_references( vdb_mgr, vfs_mgr, param, extended );
+                            rc = report_references( vdb_mgr, vfs_mgr, param,
+                                extended, NULL, NULL );
                         }
                     }
                     VFSManagerRelease ( vfs_mgr );

@@ -49,9 +49,14 @@
 #include <vfs/path.h> /* VPathGetCeRequired */
 #include <vfs/resolver.h> /* VResolverRelease */
 
+#include "PrfMain.h"
+
 #include <time.h> /* time */
 
-#include "PrfMain.h"
+#include <limits.h> /* PATH_MAX */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 bool _StringIsXYZ(const String *self, const char **withoutScheme,
     const char * scheme, size_t scheme_size)
@@ -233,13 +238,11 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
 
     type = VDBManagerPathType(self->mgr, "%S", str) & ~kptAlias;
     if (type != kptDatabase) {
-        if (type == kptTable) {
+        if (type == kptTable)
             STSMSG(STS_DBG, ("...'%S' is a table", str));
-        }
-        else {
+        else
             STSMSG(STS_DBG,
                 ("...'%S' is not recognized as a database or a table", str));
-        }
         return 0;
     }
 
@@ -261,8 +264,17 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
 
     if (rc == 0 && isDb) {
         bool all = self->check_all || self->force != eForceNo;
-        rc = VDatabaseListDependencies(db, deps, !all);
-        DISP_RC2(rc, "VDatabaseListDependencies", resolved->name);
+        char pResolvd[PATH_MAX] = "";
+        const char * outDir = self->outDir;
+        if (self->outDir != NULL) {
+            rc = KDirectoryResolvePath(
+                self->dir, true, pResolvd, sizeof pResolvd, "%s", self->outDir);
+            outDir = pResolvd;
+        }
+        if (rc == 0) {
+            rc = VDatabaseListDependenciesExt(db, deps, !all, outDir);
+            DISP_RC2(rc, "VDatabaseListDependencies", resolved->name);
+        }
     }
 
     RELEASE(VDatabase, db);
@@ -336,10 +348,17 @@ static const char* ASCP_PAR_USAGE[] =
 #define CHECK_ALL_ALIAS  "c"
 static const char* CHECK_ALL_USAGE[] = { "Double-check all refseqs.", NULL };
 
+#define CHECK_NEW_OPTION "check-rs"
+#define CHECK_NEW_ALIAS  "S"
+static const char* CHECK_NEW_USAGE[] = {
+    "Check for refseqs in downloaded files: "
+    "one of: no, yes, smart [default]. "
+    "Smart: skip check for large encrypted non-sra files.", NULL };
+
 #define VALIDATE_OPTION "verify"
 #define VALIDATE_ALIAS  "C"
 static const char* VALIDATE_USAGE[] = {
-    "Verify after download - one of: no, yes [default].", NULL };
+    "Verify after download: one of: no, yes [default].", NULL };
 
 #define DRY_RUN_OPTION "dryrun"
 static const char* DRY_RUN_USAGE[] = {
@@ -473,6 +492,7 @@ static OptDef OPTIONS[] = {
 ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
 ,{ ELIM_QUALS_OPTION  , NULL             ,NULL,ELIM_QUALS_USAGE,1, false,false }
 ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   ,NULL,CHECK_ALL_USAGE,1, false,false }
+,{ CHECK_NEW_OPTION   , CHECK_NEW_ALIAS   ,NULL,CHECK_NEW_USAGE,1, true ,false }
 /*
 ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
 ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
@@ -570,6 +590,55 @@ static rc_t PrfMainProcessArgs(PrfMain *self, int argc, char *argv[]) {
         }
         if (pcount > 0 || self->force != eForceNo)
             self->check_all = true;
+
+option_name = CHECK_NEW_OPTION;
+{
+    self->check_refseqs = eDefault; /* smart check by default */
+    rc = ArgsOptionCount(self->args, option_name, &pcount);
+    if (rc != 0) {
+        PLOGERR(klogInt, (klogInt, rc,
+            "Failure to get '$(opt)' argument", "opt=%s", option_name));
+        break;
+    }
+
+    if (pcount > 0) {
+        const char *val = NULL;
+        rc = ArgsOptionValue(
+            self->args, option_name, 0, (const void **)&val);
+        if (rc != 0) {
+            PLOGERR(klogInt, (klogInt, rc, "Failure to get "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        if (val == NULL || val[0] == '\0') {
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            PLOGERR(klogInt, (klogInt, rc, "Unrecognized "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        switch (val[0]) {
+        case 'n':
+        case 'N':
+            self->check_refseqs = eFalse;
+            break;
+        case 's':
+        case 'S':
+            self->check_refseqs = eDefault;
+            break;
+        case 'y':
+        case 'Y':
+            self->check_refseqs = eTrue;
+            break;
+        default:
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            PLOGERR(klogInt, (klogInt, rc, "Unrecognized "
+                "'$(opt)' argument value", "opt=%s", option_name));
+            break;
+        }
+        if (rc != 0)
+            break;
+    }
+}
 
 option_name = RESUME_OPTION;
 {
@@ -1194,12 +1263,14 @@ rc_t CC Usage(const Args *args) {
                 continue; /* debug option */
             else if (strcmp(alias, ASCP_ALIAS) == 0)
                 param = "ascp-binary|private-key-file";
+            else if (strcmp(alias, CHECK_NEW_ALIAS) == 0)
+                param = "yes|no|smart";
+            else if (strcmp(alias, FORCE_ALIAS) == 0)
+                param = "yes|no|all|ALL";
             else if (strcmp(alias, ORDR_ALIAS) == 0)
                 param = "kart|size";
             else if (strcmp(alias, TRASN_ALIAS) == 0)
                 param = "http|fasp|both";
-            else if (strcmp(alias, FORCE_ALIAS) == 0)
-                param = "yes|no|all|ALL";
             else if (
                 strcmp(alias, RESUME_ALIAS) == 0 ||
                 strcmp(alias, VALIDATE_ALIAS) == 0)

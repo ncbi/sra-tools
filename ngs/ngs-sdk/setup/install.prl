@@ -1,0 +1,7 @@
+sub PACKAGE_NAME { 'NGS-SDK' }
+sub HAVE        { ( EXAMPLES => 1, LIBS => 1, USR_INCLUDES => 1, ) }
+sub CONFIG_OUT  {  '.' }
+sub INCLUDES    {  'ngs' }
+sub INCLUDES_OUT{  'ngs' }
+sub LIBS {( 'ngs-sdk' => 'SHL', 'ngs-c++' => 'LIB', 'ngs-adapt-c++' => 'LIB' )}
+1

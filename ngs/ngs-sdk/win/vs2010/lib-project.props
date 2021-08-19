@@ -1,0 +1,20 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">  
+
+    <Import Project="ngs-common.props" />
+  
+    <PropertyGroup Label="Configuration">
+        <ConfigurationType>StaticLibrary</ConfigurationType>
+        <TargetExt>.lib</TargetExt>
+        <OutDir>$(NGS_TARGET)\lib\</OutDir>
+    </PropertyGroup>
+    
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+    <ImportGroup Label="ExtensionTargets" />
+    <ItemDefinitionGroup>
+        <ClCompile>
+            <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+        </ClCompile>
+    </ItemDefinitionGroup>
+    
+</Project>

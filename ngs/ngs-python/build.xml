@@ -1,0 +1,89 @@
+<project>
+
+    <!-- This file is currently for use on Windows; Linux/Mac builds are run via gmake -->
+    <property environment="env"/>
+    <property name="Platform"   value="x64" />
+    <property name="Configuration"      value="Debug" />
+    <property name="Output"     value="${basedir}\..\..\OUTDIR" />
+    <property name="MSVS"            value="2017" />
+    <property name="PlatformToolset" value="v141" />
+
+    <property name="vdb.dir"        value="${Output}\ncbi-vdb\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+    <property name="ngs.dir"        value="${Output}\ngs-sdk\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+
+    <!-- Set this to full path to Python if not in PATH already -->
+    <property name="python.exe"     value="python" />
+    <property name="PYTHONUSERBASE" value="${Output}\tmp\ngs"/>
+
+    <target name="install">
+        <exec executable="${python.exe}" failonerror="true" >
+            <env key="PYTHONUSERBASE" value="${PYTHONUSERBASE}"/>
+            <arg value="setup.py" />
+            <arg value="install" />
+            <arg value="--user" />
+        </exec>
+    </target>
+
+    <macrodef name="run-example">
+        <attribute name="class" />
+        <element name="args" optional="yes" />
+        <sequential>
+            <exec executable="${python.exe}" failonerror="true">
+                <env key="PYTHONUSERBASE" value="${PYTHONUSERBASE}"/>
+                <env key="PATH" value="${vdb.dir};${ngs.dir};${env.PATH}"/>
+                <env key="NGS_PY_DOWNLOAD_LIBRARY" value="0"/>
+                <env key="NGS_PY_LIBRARY_PATH" path="${vdb.dir};${ngs.dir}"/>
+                <arg value="examples/@{class}.py"/>
+                <args />
+            </exec>
+            <!-- TODO: use fc to diff output against expected -->
+        </sequential>
+    </macrodef>
+
+    <target name="run" depends="install">
+        <run-example class="FragTest">
+            <args>
+                <arg value="ERR225922" />
+                <arg value="10000" />
+                <arg value="2" />
+            </args>
+        </run-example>
+
+        <run-example class="AlignTest">
+            <args>
+                <arg value="ERR225922"/>
+                <arg value="1000"/>
+                <arg value="2"/>
+            </args>
+        </run-example>
+
+        <run-example class="AlignSliceTest">
+            <args>
+                <arg value="SRR1121656"/>
+                <arg value="1"/>
+                <arg value="1"/>
+                <arg value="9999"/>
+            </args>
+        </run-example>
+
+        <run-example class="PileupTest">
+            <args>
+                <arg value="SRR1121656"/>
+                <arg value="1"/>
+                <arg value="9999"/>
+                <arg value="10003"/>
+            </args>
+        </run-example>
+
+        <run-example class="RefTest">
+            <args>
+                <arg value="SRR1121656"/>
+            </args>
+        </run-example>
+
+    </target>
+
+    <target name="clean" />
+    <target name="build" />
+
+</project>

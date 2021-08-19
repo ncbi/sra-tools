@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\AlignmentItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\defs.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ErrorMsg.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\FragmentItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\PileupEventItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\PileupItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReadCollectionItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReadGroupItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReadItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\Refcount.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReferenceItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReferenceSequenceItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\StatisticsItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\StringItf.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\AlignmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ErrBlock.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ErrorMsg.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\FragmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\PileupEventItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\PileupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReadCollectionItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReadGroupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReadItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\Refcount.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReferenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReferenceSequenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\StatisticsItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\StringItf.cpp" />
+  </ItemGroup>
+</Project>

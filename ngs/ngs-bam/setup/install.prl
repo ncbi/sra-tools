@@ -1,0 +1,8 @@
+sub PACKAGE_NAME {  'NGS-BAM' }
+sub HAVE        { ( #EXAMPLES => 1,
+                    LIBS => 1, USR_INCLUDES => 1, ) }
+sub CONFIG_OUT  {   '.' }
+sub INCLUDES    {   'ngs-bam/ngs-bam.hpp' }
+sub INCLUDES_OUT{   'ngs-bam' }
+sub LIBS        { ( 'ngs-bam' => 'SHL', 'ngs-bam-c++' => 'LIB', ) }
+1

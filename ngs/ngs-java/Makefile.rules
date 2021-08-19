@@ -1,0 +1,76 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+TOP ?= $(CURDIR)
+export TOP
+
+subdirs: $(SUBDIRS)
+
+$(SUBDIRS): Makefile.config
+	@ $(MAKE) -C $@
+
+subtargs: Makefile.config $(SUBTARGS)
+
+# rules for "make clean"
+SUBDIRS_CLN = \
+	$(addsuffix _cln,$(SUBDIRS))
+
+$(SUBDIRS_CLN): Makefile.config
+	@ $(MAKE) -s -C $(subst _cln,,$@) clean
+
+SUBTARGS_CLN = \
+	$(addsuffix _cln,$(SUBTARGS))
+
+clean: Makefile.config $(SUBTARGS_CLN)
+
+# rules for "make install"
+SUBDIRS_INST = \
+	$(addsuffix _inst,$(SUBDIRS))
+
+$(SUBDIRS_INST): Makefile.config
+	@ echo "Checking make status of ngs-java/$(subst _inst,,$@)..."
+	@ $(MAKE) -s --no-print-directory -C $(subst _inst,,$@) install
+
+SUBTARGS_INST = \
+	$(addsuffix _inst,$(SUBTARGS))
+
+install: Makefile.config $(SUBTARGS_INST)
+
+uninstall: Makefile.config
+	@ $(MAKE) -s --no-print-directory -f Makefile.java $@
+
+# rule to run tests
+test runtests: Makefile.config
+#	@ $(MAKE) -C test runtests
+
+# rule to run configuration
+Makefile.config: Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl) setup/konfigure.perl
+
+Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl):
+	@echo "*** File '$@' is missing. Please run ./configure"
+	@false
+
+# not real targets
+.PHONY: default subdirs subtargs install clean test runtests \
+	$(SUBTARGS) $(SUBTARGS_INST) $(SUBTARGS_CLN)

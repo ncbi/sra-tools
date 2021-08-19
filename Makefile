@@ -36,6 +36,7 @@ include $(TOP)/build/Makefile.shell
 SUBDIRS = \
 	shared \
 	tools \
+	ngs \
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets

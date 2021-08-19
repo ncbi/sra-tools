@@ -1,0 +1,244 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ngs-disp-sources">
+      <UniqueIdentifier>{a7faf64f-c98f-4335-914f-4b5a5b55c299}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ngs-bind-c++ sources">
+      <UniqueIdentifier>{514f37fa-57ab-43fb-b59c-fa261430dfde}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ngs-bind-java sources">
+      <UniqueIdentifier>{577b60af-a77c-4f5e-b720-42439623c791}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ngs-bind-python sources">
+      <UniqueIdentifier>{577b60af-a77c-4f5e-b720-42439623c792}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\language\c++\Alignment.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\AlignmentIterator.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\Fragment.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\FragmentIterator.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\Pileup.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\PileupEvent.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\PileupEventIterator.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\PileupIterator.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\Read.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\ReadCollection.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\ReadGroup.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\ReadGroupIterator.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\ReadIterator.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\Reference.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\ReferenceIterator.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\ReferenceSequence.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\Statistics.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\c++\StringRef.cpp">
+      <Filter>ngs-bind-c++ sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\AlignmentItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\VTable.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\ErrBlock.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\ErrorMsg.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\FragmentItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\PackageItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\PileupEventItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\PileupItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\ReadCollectionItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\ReadGroupItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\ReadItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\Refcount.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\ReferenceItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\ReferenceSequenceItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\StatisticsItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dispatch\StringItf.cpp">
+      <Filter>ngs-disp-sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_AlignmentIteratorItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_String.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_AlignmentItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ErrorMsg.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_FragmentItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_Package.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_PileupEventIteratorItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_PileupEventItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_PileupIteratorItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_PileupItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReadCollectionItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReadGroupIteratorItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReadGroupItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReadIteratorItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReadItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_Refcount.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReferenceIteratorItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReferenceItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_ReferenceSequenceItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\java\jni_StatisticsItf.cpp">
+      <Filter>ngs-bind-java sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_AlignmentIteratorItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_AlignmentItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ErrorMsg.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_FragmentIteratorItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_FragmentItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_PackageItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_PileupEventIteratorItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_PileupEventItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_PileupIteratorItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_PileupItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReadCollectionItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReadGroupIteratorItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReadGroupItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReadIteratorItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReadItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_Refcount.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReferenceIteratorItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReferenceItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_ReferenceSequenceItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_StatisticsItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\language\python\py_StringItf.cpp">
+      <Filter>ngs-bind-python sources</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

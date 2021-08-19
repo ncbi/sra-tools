@@ -1,0 +1,4 @@
+sub PACKAGE_NAME { 'NGS-PYTHON' }
+sub HAVE        { ( DLLS => 1, EXAMPLES => 1, PYTHON => 1, ) }
+sub CONFIG_OUT  {   '.' }
+1

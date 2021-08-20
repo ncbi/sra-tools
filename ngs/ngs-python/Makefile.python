@@ -28,7 +28,7 @@ default: std
 TOP ?= $(CURDIR)
 MODPATH =
 
-include $(TOP)/Makefile.config
+include $(TOP)/build/Makefile.config
 
 INTLIBS = \
 
@@ -41,9 +41,9 @@ all std: $(TARGETS)
 clean:
 
 copyexamples:
-	@ echo "Installing examples to $(INST_SHAREDIR)/examples-python"
-	@ mkdir -p $(INST_SHAREDIR)/examples-python
-	@ cp $(TOP)/examples/*.py $(TOP)/examples/Makefile $(INST_SHAREDIR)/examples-python
+	# @ echo "Installing examples to $(INST_SHAREDIR)/examples-python"
+	# @ mkdir -p $(INST_SHAREDIR)/examples-python
+	# @ cp $(TOP)/examples/*.py $(TOP)/examples/Makefile $(INST_SHAREDIR)/examples-python
 
 
 #-------------------------------------------------------------------------------
@@ -56,11 +56,11 @@ $(INST_PYTHONDIR):
 install: $(TARGETS) $(INST_PYTHONDIR) copyexamples
 ifeq (0, $(shell id -u))
 	@ echo "Installing ngs-python package..."
-	@ python setup.py -q install
+	@ $(PYTHON) setup.py -q install
  
 else
 	@ echo "Installing ngs-python package..."
-	@ python setup.py -q install --user
+	@ $(PYTHON) setup.py -q install --user
 endif
 endif
 
@@ -81,28 +81,25 @@ $(INST_PYTHONDIR):
 install: $(TARGETS) $(INST_PYTHONDIR) copyexamples
 ifeq (0, $(shell id -u))
 	@ echo "Installing ngs-python package..."
-	@ python setup.py -q install
+	@ $(PYTHON) setup.py -q install
    
 else
 	@ echo "Installing ngs-python package to the current user..."
 	  echo '$$ python -m site --user-base'
-	  python -m site --user-base
+	  $(PYTHON) -m site --user-base
 	  echo '$$ python -m site --user-site'
-	  python -m site --user-site
-	  python setup.py  -q install --user
+	  $(PYTHON) -m site --user-site
+	  $(PYTHON) setup.py  -q install --user
 	@ echo "... installed"
 endif
 
-ifneq (, $(NGS_LIBDIR))
+ifneq (, $(LIBDIR))
 ifneq (, $(VDB_LIBDIR))
-	@ echo "Please add $(NGS_LIBDIR):$(VDB_LIBDIR) to your LD_LIBRARY_PATH, e.g.:"
-	@ echo "      export LD_LIBRARY_PATH=$(NGS_LIBDIR):$(VDB_LIBDIR):\$$LD_LIBRARY_PATH"
+	@ echo "Please add $(LIBDIR):$(VDB_LIBDIR) to your LD_LIBRARY_PATH, e.g.:"
+	@ echo "      export LD_LIBRARY_PATH=$(LIBDIR):$(VDB_LIBDIR):\$$LD_LIBRARY_PATH"
 endif
 endif
 
-ifeq (, $(NGS_LIBDIR))
-	@ echo "You will need to install ngs-sdk library in order to run ngs-python."
-endif
 ifeq (, $(VDB_LIBDIR))
 	@ echo "You will need to install ncbi-vdb library in order to run ngs-python."
 endif

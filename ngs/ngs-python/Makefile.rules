@@ -22,50 +22,46 @@
 #
 # ===========================================================================
 
-TOP ?= $(CURDIR)
+TOP ?= $(abspath ../..)
 export TOP
 
 subdirs: $(SUBDIRS)
 
-$(SUBDIRS): Makefile.config
+$(SUBDIRS): $(TOP)/build/Makefile.config
 	@ $(MAKE) -C $@
 
-subtargs: Makefile.config $(SUBTARGS)
+subtargs: $(TOP)/build/Makefile.config $(SUBTARGS)
 
 # rules for "make clean"
 SUBDIRS_CLN = \
 	$(addsuffix _cln,$(SUBDIRS))
 
-$(SUBDIRS_CLN): Makefile.config
+$(SUBDIRS_CLN): $(TOP)/build/Makefile.config
 	@ $(MAKE) -s -C $(subst _cln,,$@) clean
 
 SUBTARGS_CLN = \
 	$(addsuffix _cln,$(SUBTARGS))
 
-clean: Makefile.config $(SUBTARGS_CLN)
+clean: $(TOP)/build/Makefile.config $(SUBTARGS_CLN)
 
 # rules for "make install"
 SUBDIRS_INST = \
 	$(addsuffix _inst,$(SUBDIRS))
 
-$(SUBDIRS_INST): Makefile.config
+$(SUBDIRS_INST): $(TOP)/build/Makefile.config
 	@ $(MAKE) -s -C $(subst _inst,,$@) install
 
 SUBTARGS_INST = \
 	$(addsuffix _inst,$(SUBTARGS))
 
-install: Makefile.config $(SUBTARGS_INST)
+install: $(TOP)/build/Makefile.config $(SUBTARGS_INST)
 
 # rule to run tests
-test runtests: Makefile.config
+test runtests: $(TOP)/build/Makefile.config
 #	@ $(MAKE) -C test runtests
 
 # rule to run configuration
-Makefile.config: Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl) setup/konfigure.perl
-
-Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl):
-	@echo "*** File '$@' is missing. Please run ./configure"
-	@false
+# $(TOP)/build/Makefile.config: $(TOP)/build/Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl) setup/konfigure.perl
 
 # not real targets
 .PHONY: default subdirs subtargs install clean test runtests \

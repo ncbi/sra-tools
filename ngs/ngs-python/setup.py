@@ -17,7 +17,7 @@ setup(name='ngs',
       author='sra-tools',
       author_email='sra-tools@ncbi.nlm.nih.gov',
       packages=['ngs'],
-      include_package_data=True,
+      #include_package_data=True,
       #scripts=[],
       #test_suite="tests",
       )

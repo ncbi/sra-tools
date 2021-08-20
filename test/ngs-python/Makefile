@@ -22,26 +22,33 @@
 #
 # ===========================================================================
 
-# default response to "make"
-default: std
+default: runtests
 
 TOP ?= $(abspath ../..)
 
-std: subtargs
+MODULE = test/ngs-python
 
-# the sub-targets
-SUBTARGS =  \
-	dummy
+ALL_TARGS = \
 
-# standard rules and phony targets
-include $(CURDIR)/Makefile.rules
+include $(TOP)/build/Makefile.env
 
-# rules for making python code
-install: $(TOP)/build/Makefile.config
-	@ $(MAKE) -s --no-print-directory -f Makefile.python install
+#-------------------------------------------------------------------------------
+# runtests
+#
+ifdef PYTHON
+runtests: pytest
 
-dummy:
-	@ echo "make complete for python"
+else
+runtests: 
 
-dummy_cln dummy_inst:
-	@ true
+endif
+
+pytest:
+	$(PYTHON) -c "from ngs import NGS" \
+		&& export VDB_CONFIG=$(VDB_CONFIG) ; export NGS_PY_DOWNLOAD_LIBRARY=0; \
+			unset NGS_PY_LIBRARY_PATH; \
+			export LD_LIBRARY_PATH=$(LIBDIR):$(VDB_LIBDIR):$$LD_LIBRARY_PATH; \
+			NCBI_SETTINGS=/ $(PYTHON) tests.py \
+		|| echo "NGS Python tests are not run since ngs module does not appear to be installed"
+
+.PHONY: pytest

@@ -1279,6 +1279,13 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
     return rc;
 }
 
+
+void test_printf( void )
+{
+    var_desc_list_test();
+    var_fmt_test();
+}
+
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -1304,6 +1311,8 @@ rc_t CC KMain ( int argc, char *argv [] )
             /* in case we are given no or more than one accessions/files to process */
             if ( param_count == 0 || param_count > 1 )
             {
+                /* test_printf(); */
+                
                 Usage ( args );
                 /* will make the caller of this function aka KMane() in man.c return
                 error code of 3 */

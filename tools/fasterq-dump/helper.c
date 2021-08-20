@@ -1833,3 +1833,405 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
     dst -> filter_bases = src -> filter_bases;
     dst -> terminate_on_invalid = src -> terminate_on_invalid;
 }
+
+/* ===================================================================================== */
+typedef enum var_fmt_type_t { vft_literal, vft_str, vft_int } var_fmt_type_t;
+
+/* private: the format-elements = literal, String, uin64_t */
+typedef struct var_desc_t {
+    var_fmt_type_t type;    /* which one of the options is it? ( vft_literal not used ) */
+    const String * name;    /* this one is owned by this struct! */
+    uint32_t idx;           /* which idx to use */
+} var_desc_t;
+
+/* create a var-name-element, makes a copy of the given string and owns that copy */
+static var_desc_t * var_desc_create( const char * src, var_fmt_type_t t, uint32_t idx ) {
+    var_desc_t * res = calloc( 1, sizeof * res );
+    if ( NULL != res ) {
+        rc_t rc;
+        String S;
+        StringInitCString( &S, src );
+        rc = StringCopy( &( res -> name ), &S );
+        if ( 0 == rc ) {
+            res -> type = t;
+            res -> idx = idx;
+        }
+        else {
+            free( ( void * ) res );
+            res = NULL;
+        }
+    }
+    return res;
+}
+
+static void destroy_var_desc( void * self, void * data ) {
+    if ( NULL != self ) {
+        var_desc_t * desc = ( var_desc_t * )self;
+        StringWhack ( desc -> name );
+        free( self );
+    }
+}
+
+static int64_t var_desc_cmp( const void *key, const void *n ) {
+    const String * s_key = ( String * ) key;
+    var_desc_t * item = ( var_desc_t * ) n;
+    if ( s_key -> len < item -> name -> len ) {
+        return -1;
+    }
+    else {
+        uint32_t item_len = item -> name -> len;
+        int32_t offset = s_key -> len - item_len;
+        String s_key2;
+        StringInit( &s_key2, s_key -> addr + offset, item_len, item_len );
+        return StringOrder( &s_key2, item -> name );
+    }
+}
+
+
+typedef struct var_desc_list_t {
+    Vector descriptions;        /* pointers to var_desc_t - structs */
+} var_desc_list_t;
+
+struct var_desc_list_t * create_var_desc_list( void ) {
+    var_desc_list_t * res = calloc( 1, sizeof * res );
+    if ( NULL != res ) {
+        VectorInit ( &( res -> descriptions ), 0, 12 );
+    }
+    return res;
+}
+
+void release_var_desc_list( var_desc_list_t * self ) {
+    if ( NULL != self ) {
+        VectorWhack ( &( self -> descriptions ), destroy_var_desc, NULL );
+        free( ( void * ) self );
+    }
+}
+
+static void var_desc_list_add( var_desc_list_t * self, var_desc_t * desc ) {
+    if ( NULL != desc ) {
+        rc_t rc = VectorAppend ( &( self -> descriptions ), NULL, desc );
+        if ( 0 != rc ) {
+            destroy_var_desc( desc, NULL );
+        }
+    }
+}
+
+void var_desc_list_add_str( var_desc_list_t * self, const char * name, uint32_t idx ) {
+    if ( NULL != self && NULL != name ) {
+        var_desc_list_add( self, var_desc_create( name, vft_str, idx ) );
+    }
+}
+
+void var_desc_list_add_int( var_desc_list_t * self, const char * name, uint32_t idx ) {
+    if ( NULL != self && NULL != name ) {
+        var_desc_list_add( self, var_desc_create( name, vft_int, idx ) );
+    }
+}
+
+static var_desc_t * var_desc_list_find( const var_desc_list_t * self, const String * to_find ) {
+    if ( NULL == self || NULL == to_find ) { return NULL; }
+    return ( var_desc_t * ) VectorFind ( &( self -> descriptions ), to_find, NULL, var_desc_cmp );
+}
+
+static void var_desc_test_find( var_desc_list_t * self, char * to_find ) {
+    String S1;
+    StringInitCString( &S1, to_find );
+    var_desc_t * desc = var_desc_list_find( self, &S1 );
+
+    KOutMsg( "found( '%s' ) = %p\n", to_find, desc );
+    if ( NULL != desc ) {
+        KOutMsg( "\tname = %S, idx = %u, type = %u\n", desc -> name, desc -> idx, desc -> type );
+    }
+}
+
+void var_desc_list_test( void ) {
+    var_desc_list_t * lst = NULL;
+    
+    KOutMsg( "var-desc-list-test\n" );
+    lst = create_var_desc_list();
+    if ( NULL != lst ) {
+        var_desc_list_add_str( lst, "$ac", 0 );
+        var_desc_list_add_str( lst, "$sg", 1 );
+        var_desc_list_add_int( lst, "$si", 0 );
+        var_desc_list_add_int( lst, "$sl", 1 );
+
+        var_desc_test_find( lst, "test" );
+        var_desc_test_find( lst, "$ac" );
+        var_desc_test_find( lst, "$sg" );
+        var_desc_test_find( lst, "$si" );
+        var_desc_test_find( lst, "$sl" );
+        var_desc_test_find( lst, "xyz$ac" );
+        var_desc_test_find( lst, "xyz$ac2" );
+
+        release_var_desc_list( lst );
+    }
+}
+
+/* private: the format-elements = literal, String, uin64_t */
+typedef struct var_fmt_entry_t {
+    var_fmt_type_t type;    /* which one of the options is it? */
+    const String * literal; /* this one is owned by this struct! */
+    uint32_t idx;           /* which str/int-arg to use here */
+} var_fmt_entry_t;
+
+/* create a literal format-element, makes a copy of the given string and owns that copy */
+static var_fmt_entry_t * var_fmt_entry_create_literal( const char * src, size_t len ) {
+    if ( 0 == len ) {
+        return NULL;
+    }
+    else {
+        var_fmt_entry_t * res = calloc( 1, sizeof * res );
+        if ( NULL != res ) {
+            rc_t rc;
+            String S;
+            StringInit( &S, src, len, len );
+            rc = StringCopy( &( res -> literal ), &S );
+            if ( 0 == rc ) {
+                res -> type = vft_literal;
+            }
+            else {
+                free( ( void * ) res );
+                res = NULL;
+            }
+        }
+        return res;
+    }
+}
+
+/* create a string format-element, stores the index of the string to use */
+static var_fmt_entry_t * var_fmt_entry_create( uint32_t idx, var_fmt_type_t t ) {
+    var_fmt_entry_t * res = calloc( 1, sizeof * res );
+    if ( NULL != res ) {
+        res -> type = t;
+        res -> idx = idx;
+    }
+    return res;
+}
+
+static void var_fmt_String_to_buffer( char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const String * src ) {
+    uint32_t i = 0;
+    while ( i < src -> len && *written < buffer_size )
+    {
+        buffer[ *written ] = src -> addr[ i++ ];
+        *written += 1;
+    }
+}
+
+static void var_fmt_entry_literal_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written ) {
+    var_fmt_String_to_buffer( buffer, buffer_size, written, self -> literal );
+}
+
+static void var_fmt_entry_str_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const String ** args, size_t args_len ) {
+    if ( NULL != args && self -> idx < args_len )
+    {
+        var_fmt_String_to_buffer( buffer, buffer_size, written, args[ self -> idx ] );
+    }
+}
+
+static void var_fmt_entry_int_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const uint64_t * args, size_t args_len ) {
+    if ( NULL != args && self -> idx < args_len )
+    {
+        char temp[ 16 ];
+        size_t temp_written;
+        uint64_t value = args[ self -> idx ];
+        rc_t rc = string_printf ( temp, sizeof temp, &temp_written, "%lu", value );
+        if ( 0 == rc ) {
+            String S;
+            StringInitCString( &S, temp );
+            var_fmt_String_to_buffer( buffer, buffer_size, written, &S );
+        }
+    }
+}
+
+static void var_fmt_entry_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+    if ( NULL == self || *written >= buffer_size ) {
+        return;
+    }
+    switch ( self -> type ) {
+        case vft_literal : var_fmt_entry_literal_to_buffer( self, buffer, buffer_size, written ); break;
+        case vft_str : var_fmt_entry_str_to_buffer( self, buffer, buffer_size, written, str_args, str_args_len ); break;
+        case vft_int : var_fmt_entry_int_to_buffer( self, buffer, buffer_size, written, int_args, int_args_len ); break;
+    }
+}
+
+/* releases an element, data-pointer to match VectorWhack-callback */
+static void destroy_var_fmt_entry( void * self, void * data ) {
+    if ( NULL != self ) {
+        var_fmt_entry_t * vft = ( var_fmt_entry_t * )self;
+        if ( vft_literal == vft -> type ) { StringWhack ( vft -> literal ); }
+        free( self );
+    }
+}
+
+typedef struct var_fmt_t {
+    Vector elements;        /* the elements are pointers to var_fmt_entry_t - structs */
+    uint32_t max_str_idx;   /* what is the largest idx into the str-arguments */
+    uint32_t max_int_idx;   /* what is the largest idx into the int-arguments */
+} var_fmt_t;
+
+static void var_fmt_add( var_fmt_t * self, var_fmt_entry_t * entry ) {
+    if ( NULL == self || NULL == entry ) { return; }
+    rc_t rc = VectorAppend ( &( self -> elements ), NULL, entry );
+    if ( 0 != rc ) {
+        destroy_var_fmt_entry( entry, NULL );
+    }
+    else {
+        switch ( entry -> type ) {
+            case vft_str : if ( entry -> idx > self -> max_str_idx ) { self -> max_str_idx = entry -> idx; }; break;
+            case vft_int : if ( entry -> idx > self -> max_int_idx ) { self -> max_int_idx = entry -> idx; }; break;
+            default : break;
+        }
+    }
+}
+
+static bool var_fmt_find_and_add( var_fmt_t * self, const String * T, const struct var_desc_list_t * vars ) {
+    // do we have so far a match against any variable-name at the end of T ?
+    var_desc_t * found = var_desc_list_find( vars, T );
+    if ( NULL != found ) {
+        // yes it does! - the key is at the end of T
+        // T -> len cannot be shorter than item -> name -> len
+        // because otherwise the key would not be found by var_name_find()
+        uint32_t literal_len = ( T -> len ) - ( found -> name -> len ); 
+        if ( literal_len > 0 ) {
+            var_fmt_add( self, var_fmt_entry_create_literal( T -> addr, literal_len ) );
+        }
+        // we always have a non-literal,
+        // because otherwise the key would not have been found
+        var_fmt_add( self, var_fmt_entry_create( found -> idx, found -> type ) );
+    }
+    return NULL != found;
+}
+
+/* create a var-print struct and fill it with var_fmt_t - elements */
+struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars ) {
+    if ( NULL == fmt || NULL == vars ) {
+        return NULL;
+    }
+    else {
+        var_fmt_t * self = calloc( 1, sizeof * self );
+        if ( NULL != self ) {
+            uint32_t i;
+            String T = { fmt -> addr, 0, 0 };
+            
+            VectorInit ( &( self -> elements ), 0, 12 );
+            for ( i = 0; i < fmt -> len; ++i ) {
+                if ( var_fmt_find_and_add( self, &T, vars ) ) {
+                    // advance T to restart searching...
+                    T . addr += T . len;
+                    T . len = 1;
+                }
+                else {
+                    T . len++;
+                }
+            }
+            // handle what is left in T
+            if ( !var_fmt_find_and_add( self, &T, vars ) ) {
+                var_fmt_add( self, var_fmt_entry_create_literal( T . addr, T . len ) );
+            }
+        }
+        return self;
+    }
+}
+
+
+/* release a var-print struct and call destructors on its elements */
+void release_var_fmt( struct var_fmt_t * self ) {
+    if ( NULL != self ) {
+        VectorWhack ( &( self -> elements ), destroy_var_fmt_entry, NULL );
+        free( ( void * ) self );
+    }
+}
+
+
+/* apply the var-fmt-struct to the given arguments, write result to buffer */
+void var_fmt_to_buffer( const struct var_fmt_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * num_written,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+    if ( NULL != num_written ) { *num_written = 0; }
+    if ( NULL != self && NULL != buffer && buffer_size > 0 )
+    {
+        uint32_t i, l = VectorLength( &( self -> elements ) );
+        size_t written = 0;
+        for ( i = VectorStart( &( self -> elements ) ); i < l; ++i ) {
+            var_fmt_entry_to_buffer( VectorGet ( &( self -> elements ), i ),
+                    buffer, buffer_size, &written, str_args, str_args_len, int_args, int_args_len );
+        }
+        if ( NULL != num_written ) { *num_written = written; }
+    }
+}
+
+/* apply the var-fmt-struct to the given arguments, print the result to stdout */
+void var_fmt_print( const struct var_fmt_t * self,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+
+}
+
+/* apply the var-fmt-struct to the given arguments, print the result to file */
+void var_fmt_write( const struct var_fmt_t * self,
+                    KFile * f,
+                    uint64_t * pos,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+
+}
+
+static void var_fmt_test_display( void * item, void * data ) {
+    var_fmt_entry_t * entry = item;
+    switch( entry -> type ) {
+        case vft_str        : KOutMsg( "str.%u\n", entry -> idx ); break;
+        case vft_int        : KOutMsg( "int.%u\n", entry -> idx ); break;
+        case vft_literal    : KOutMsg( "literal='%S'\n", entry -> literal ); break;
+    }
+}
+
+void var_fmt_test( void ) {
+    var_fmt_t * fmt = NULL;
+    var_desc_list_t * lst = NULL;
+    
+    KOutMsg( "var-fmt-test\n" );
+
+    lst = create_var_desc_list();
+    if ( NULL != lst ) {
+        const char * test_format = "$acthis $ac is a test $si$sl format";        
+        String S_test_format;        
+
+        var_desc_list_add_str( lst, "$ac", 0 );
+        var_desc_list_add_str( lst, "$sg", 1 );
+        var_desc_list_add_int( lst, "$si", 0 );
+        var_desc_list_add_int( lst, "$sl", 1 );
+
+        StringInitCString( &S_test_format, test_format );
+        fmt = create_var_fmt( &S_test_format, lst );
+
+        release_var_desc_list( lst );
+    }
+    if ( NULL != fmt ) {
+        KOutMsg( "fmt created\n" );
+        VectorForEach( &( fmt -> elements ), false, var_fmt_test_display, NULL );
+
+        release_var_fmt( fmt );
+    }
+}

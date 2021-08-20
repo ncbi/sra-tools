@@ -257,6 +257,42 @@ void set_quitting( void );
 uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
 void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
 
+
+/* ===================================================================================== */
+
+struct var_desc_list_t;
+
+struct var_desc_list_t * create_var_names( void );
+void release_var_desc_list( struct var_desc_list_t * self );
+void var_desc_list_add_str( struct var_desc_list_t * self, const char * name, uint32_t idx );
+void var_desc_list_add_int( struct var_desc_list_t * self, const char * name, uint32_t idx );
+
+void var_desc_list_test( void );
+
+struct var_fmt_t;
+
+struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars );
+void release_var_fmt( struct var_fmt_t * self );
+
+void var_fmt_to_buffer( const struct var_fmt_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * num_written,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len );
+
+void var_fmt_print( const struct var_fmt_t * self,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len );
+
+void var_fmt_write( const struct var_fmt_t * self,
+                    KFile * f,
+                    uint64_t * pos,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len );
+
+void var_fmt_test( void );
+
 #ifdef __cplusplus
 }
 #endif

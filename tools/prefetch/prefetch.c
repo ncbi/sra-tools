@@ -485,6 +485,9 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 "ngc=%s", item->mane->ngc));
     }
 
+    if (rc == 0 && item->mane->force != eForceNo)
+        rc = KServiceResolve(service, true, true);
+
     if ( rc == 0 ) {
 #ifdef DBGNG
         STSMSG(STS_FIN, ("%s: entering KServiceNamesQueryExt...", __func__));

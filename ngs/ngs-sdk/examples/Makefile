@@ -36,9 +36,7 @@ TOP ?= $(abspath ../../..)
 # NCBI_VDB_LIBDIR and NGS_LIBDIR
 include $(CURDIR)/Makefile.config
 #$(warning CPPFLAGS=$(CPPFLAGS))
-$(info $$INCDIRS BEFORE is [${INCDIRS}])
 INCDIRS += -I$(TOP)/ngs/ngs-sdk
-$(info $$INCDIRS AFTER is [${INCDIRS}])
 
 TARGETS =               \
 	AlignSliceTest      \

@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	ngs-java        \
 	kdbmeta            \
 	read-filter-redact \
 	prefetch        \

@@ -25,6 +25,9 @@
 
 default: std
 
+TOP ?= $(abspath ../../..)
+include $(TOP)/build/Makefile.env
+
 #DEBUGGING = -d
 
 TARGETS =             \
@@ -36,6 +39,9 @@ clean:
 	rm -f $(TARGETS) examples/*.class
 
 .PHONY: default std $(TARGETS)
+
+INCPATHS = ../gov/nih/nlm/ncbi/ngs:..
+SRCINC  = -sourcepath $(INCPATHS)
 
 NGS_EXAMPLES = \
 	AlignSliceTest \
@@ -52,7 +58,7 @@ NGS_EXAMPLES_PATH = \
 NGS_CLASS_PATH = ..
 
 NGS-JavaTest.jar: $(NGS_EXAMPLES_PATH)
-	javac $(DEBUGGING) $^ -d .
+	javac $(DEBUGGING) $^ -d . $(SRCINC)
 	( jar cf $@ `find examples -name "*.class"`; chmod -x,o-w $@ ) || ( rm -f $@ && false )
 
 # ===========================================================================
@@ -64,7 +70,7 @@ JAVAFLAGS = -classpath $(CLASSPATH):$(NGS_CLASS_PATH):.
 # Expect libngs-sdk.so and libncbi-vdb.so somewhere inside $LD_LIBRARY_PATH;
 #   if the libraries are not found, error out.
 # Comment out to rely on "smart load" instead (may download libraries from NCBI):
-JAVAFLAGS += -Djava.library.path=$(LD_LIBRARY_PATH) -Dvdb.System.loadLibrary=1
+JAVAFLAGS += -Djava.library.path=$(LIBDIR):$(VDB_LIBDIR) -Dvdb.System.loadLibrary=1
 
 # uncomment to see detailed log"
 #JAVAFLAGS += -Dvdb.log=FINEST

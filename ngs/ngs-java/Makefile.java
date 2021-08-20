@@ -28,7 +28,12 @@ default: std
 #TOP ?= $(CURDIR)
 TOP ?= $(abspath ../..)
 MODPATH =
-include $(TOP)/Makefile.config
+MODULE = ngs/ngs-java
+include $(TOP)/build/Makefile.env
+#include $(TOP)/build/Makefile.config
+
+INCPATHS = $(SRCDIR):$(SRCDIR)/gov/nih/nlm/ncbi/ngs
+SRCINC  = -sourcepath $(INCPATHS)
 
 INTLIBS = \
 
@@ -145,7 +150,7 @@ clean:
 #-------------------------------------------------------------------------------
 # JAVA NGS
 #
-ngs-java: $(LIBDIR) $(CLSDIR) $(LIBDIR)/ngs-java.jar $(LIBDIR)/ngs-src.jar $(LIBDIR)/ngs-doc.jar
+ngs-java: makejdirs $(LIBDIR) $(CLSDIR) $(LIBDIR)/ngs-java.jar $(LIBDIR)/ngs-src.jar $(LIBDIR)/ngs-doc.jar
 
 # java API
 NGS_SRC =                  \
@@ -254,7 +259,7 @@ NGS_EXAMPLES =     \
 	ReadGroupTest  \
 
 NGS_EXAMPLES_PATH = \
-	$(addprefix $(SRCDIR)examples/examples/,$(addsuffix .java,$(NGS_EXAMPLES)))
+	$(addprefix $(SRCDIR)/examples/examples/,$(addsuffix .java,$(NGS_EXAMPLES)))
 
 $(CLSDIR)/ngs-examples: $(NGS_EXAMPLES_PATH)
 	$(JAVAC) $(DBG) $^ -d $(CLSDIR) $(CLSPATH) $(SRCINC) && touch $@

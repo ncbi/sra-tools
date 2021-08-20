@@ -118,17 +118,6 @@ NGS_SRC =                 \
     NGS_ReferenceBlobIterator   \
     VByteBlob               \
 
-$(info $$NGS_OBJ is [${NGS_OBJ}])
-$(info $$NGS_LIB is [${NGS_LIB}])
-$(info $$ILIBDIR is [${ILIBDIR}])
-$(info $$MAKE_CMD is [${MAKE_CMD}])
-$(info $$OBJFILES is [${OBJFILES}])
-$(info $$TARGDIR is [${TARGDIR}])
-$(info $$TOP is [${TOP}])
-$(info $$SRCDIR is [${SRCDIR}])
-$(info $$OBJDIR is [${OBJDIR}])
-	
-	
 NGS_OBJ = \
 	$(addsuffix .$(LOBX),$(NGS_SRC))
 

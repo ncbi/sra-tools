@@ -25,6 +25,8 @@
 # default response to "make"
 default: std
 
+TOP ?= $(abspath ../..)
+
 std: subtargs
 
 # the sub-targets
@@ -36,13 +38,13 @@ include $(CURDIR)/Makefile.rules
 
 # rules for making java code
 # Java is given special rules because javac defies makefiles
-java: Makefile.config
+java: $(TOP)/build/Makefile.config
 	@ $(MAKE) -f Makefile.java
 
-java_cln: Makefile.config
+java_cln: $(TOP)/build/Makefile.config
 	@ $(MAKE) -f Makefile.java clean
 
-java_inst: Makefile.config
+java_inst: $(TOP)/build/Makefile.config
 	@ echo "Checking make status of jars..."
 	@ $(MAKE) -s --no-print-directory -f Makefile.java
 	@ $(MAKE) -s --no-print-directory -f Makefile.java install

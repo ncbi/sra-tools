@@ -821,6 +821,18 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                 value->unmated = !mated;
             }
             else {
+                if ( ! G->allowDuplicateReadNames )
+                {   // VDB-4524
+                    if ( ! mated && value -> unmated )
+                    {   // same read name, no frag# in either
+                        rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
+                        PLOGERR(klogErr, (klogErr, rc,
+                            "Duplicate read name '$(name)'",
+                            "name=%s", name));
+                        goto LOOP_END;
+                    }
+                }
+
                 if (mated && value->unmated) {
                     (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                              "Spot '$(name)', which was first seen without mate info, now has mate info",
@@ -910,7 +922,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         }
                     }
 
-                    /* save the read, to be used whan mate shows up, or in SpotAssemblerWriteSoloFragments() */
+                    /* save the read, to be used when mate shows up, or in SpotAssemblerWriteSoloFragments() */
                     rc = Id2Name_Add ( & ctx->id2name, keyId, name );
                 }
                 else {
@@ -945,8 +957,20 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                             goto LOOP_END;
                         }
                     }
-                    if (readNo != fip->otherReadNo) {
-                        /* mate found */
+                    if (readNo == fip->otherReadNo)
+                    {   // VDB-4524
+                        if ( ! G->allowDuplicateReadNames )
+                        {
+                            rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
+                            PLOGERR(klogErr, (klogErr, rc,
+                                "Duplicate read name '$(name)'",
+                                "name=%s", name));
+                            free( frag->data );
+                            goto LOOP_END;
+                        }
+                    }
+                    else
+                    {   /* mate found */
                         unsigned readLen[2];
                         unsigned read1 = 0;
                         unsigned read2 = 1;

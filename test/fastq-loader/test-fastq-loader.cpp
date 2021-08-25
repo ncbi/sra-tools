@@ -46,9 +46,9 @@
 
 extern "C" {
 #include <loader/common-reader.h>
-#include <loader/common-writer.h>
 #include <loader/sequence-writer.h>
 #include <loader/alignment-writer.h>
+#include "../../tools/fastq-loader/common-writer.h"
 #include "../../tools/fastq-loader/fastq-reader.h"
 #include "../../tools/fastq-loader/fastq-parse.h"
 }
@@ -71,35 +71,39 @@ public:
     static const string DbType;
 
 public:
-    TempFileFixture() 
+    TempFileFixture()
     :   wd(0), rf(0)
     {
         if ( KDirectoryNativeDir ( & wd ) != 0 )
             FAIL("KDirectoryNativeDir failed");
-            
+
         if ( VDBManagerMakeUpdate ( & mgr, wd ) != 0)
             FAIL("VDBManagerMakeUpdate failed");
-            
+
         if ( VDBManagerMakeSchema ( mgr, & schema ) != 0 )
             FAIL("VDBManagerMakeSchema failed");
         if ( VSchemaParseFile( schema, SchemaPath.c_str() ) != 0 )
             FAIL("VSchemaParseFile failed");
-        
-        if ( KDirectoryCreateDir_v1 ( wd, 0775, kcmOpen | kcmInit | kcmCreate, TempDir.c_str() ) != 0 )        
+
+        if ( KDirectoryCreateDir_v1 ( wd, 0775, kcmOpen | kcmInit | kcmCreate, TempDir.c_str() ) != 0 )
             FAIL("KDirectoryOpenDirUpdate_v1 failed");
+
+        memset(&settings, 0, sizeof(settings));
+        settings.numfiles = 1;
+        settings.tmpfs = TempDir.c_str();
     }
-    ~TempFileFixture() 
+    ~TempFileFixture()
     {
         if ( rf != 0 && ReaderFileRelease( rf ) != 0)
             FAIL("ReaderFileRelease failed");
-     
+
         if ( schema && VSchemaRelease(schema) != 0 )
-            FAIL("VSchemaRelease failed");            
+            FAIL("VSchemaRelease failed");
         if ( db && VDatabaseRelease(db) != 0 )
             FAIL("VDatabaseRelease failed");
         if ( mgr && VDBManagerRelease(mgr) != 0 )
             FAIL("VDBManagerRelease failed");
-            
+
         if ( wd && ! filename.empty() && KDirectoryRemove(wd, true, filename.c_str()) != 0 )
             FAIL("KDirectoryRemove on input failed");
 
@@ -111,7 +115,7 @@ public:
         {   // sometimes it takes several attempts to remove a non-empty dir
             while (KDirectoryRemove(wd, true, TempDir.c_str()) != 0);
         }
-             
+
         if ( wd && KDirectoryRelease ( wd ) != 0 )
             FAIL("KDirectoryRelease failed");
     }
@@ -137,6 +141,25 @@ public:
         return FastqReaderFileMake(&rf, wd, p_filename, FASTQphred33, 0, false);
     }
 
+    rc_t Load( const char* p_filename, const char* p_contents )
+    {
+        CreateFile( p_filename, p_contents );
+
+        dbName = string(p_filename)+".db";
+        KDirectoryRemove(wd, true, dbName.c_str());
+        THROW_ON_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
+
+        CommonWriter cw;
+        THROW_ON_RC(CommonWriterInit( &cw, mgr, db, &settings ));
+
+        rc_t ret = (CommonWriterArchive( &cw, rf ));
+        THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
+
+        THROW_ON_RC(CommonWriterWhack( &cw ));
+
+        return ret;
+    }
+
     KDirectory* wd;
     string filename;
     const ReaderFile* rf;
@@ -144,39 +167,73 @@ public:
     VSchema *schema;
     VDatabase* db;
     string dbName;
+    CommonWriterSettings settings;
 };
 const string TempFileFixture::TempDir = "./tmp";
 const string TempFileFixture::SchemaPath = "align/align.vschema";
 const string TempFileFixture::DbType = "NCBI:align:db:alignment_unsorted";
 
-///////////////////////////////////////////////// FASTQ-based tests for CommonWriter 
+///////////////////////////////////////////////// FASTQ-based tests for CommonWriter
 FIXTURE_TEST_CASE(CommonWriterOneFile, TempFileFixture)
 {   // source: SRR006565
-    CreateFile(GetName(), 
-                "@G15-D_3_1_903_603_0.81\n"
-                "GATTGTAGGGAGTAGGGTACAATACAGTCTGGTCTC\n"
-                "+G15-D_3_1_903_603_0.81\n"
-                "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n");
-
-    dbName = string(GetName())+".db";
-    KDirectoryRemove(wd, true, dbName.c_str());
-    REQUIRE_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
-
-    CommonWriterSettings settings;
-    memset(&settings, 0, sizeof(settings));
-    settings.numfiles = 1;
-    settings.tmpfs = TempDir.c_str();
-    
-    CommonWriter cw;
-    REQUIRE_RC(CommonWriterInit( &cw, mgr, db, &settings ));
-     
-    REQUIRE_RC(CommonWriterArchive( &cw, rf ));
-    REQUIRE_RC(CommonWriterComplete( &cw, false, 0 ));
-
-    REQUIRE_RC(CommonWriterWhack( &cw ));
-    
-    //TODO: open and validate database 
+    REQUIRE_RC( Load(GetName(),
+         "@G15-D_3_1_903_603_0.81\nGATT\n"
+         "+G15-D_3_1_903_603_0.81\nIIII\n"
+    ) );
+    //TODO: open and validate database
 }
+
+FIXTURE_TEST_CASE(CommonWriterDuplicateReadnames_Error, TempFileFixture)
+{   // VDB-4524; reported as error
+    REQUIRE_RC_FAIL( Load(GetName(),
+        "@HWUSI-EAS499:1:3:9:1822\nACTT\n"
+        "@HWUSI-EAS499:1:3:9:1822\nACCA\n"
+    ) );
+}
+
+FIXTURE_TEST_CASE(CommonWriterDuplicateReadnames_Allowed, TempFileFixture)
+{   // VDB-4524; allowed with an option
+    settings.allowDuplicateReadNames = true;
+    REQUIRE_RC( Load(GetName(),
+        "@HWUSI-EAS499:1:3:9:1822\nACTT\n"
+        "@HWUSI-EAS499:1:3:9:1822\nACCA\n"
+    ) );
+    //TODO: open and validate database
+}
+
+FIXTURE_TEST_CASE(CommonWriterDuplicateReadnames_SameFragment, TempFileFixture)
+{   // VDB-4524; reported as error
+    REQUIRE_RC_FAIL( Load(GetName(),
+        "@HWUSI-EAS499:1:3:9:1822/1\nACTT\n"
+        "@HWUSI-EAS499:1:3:9:1822/1\nACCA\n"
+    ) );
+}
+FIXTURE_TEST_CASE(CommonWriterDuplicateReadnames_DiffFragment, TempFileFixture)
+{   // normal spot assembly
+    REQUIRE_RC( Load(GetName(),
+        "@HWUSI-EAS499:1:3:9:1822/1\nACTT\n"
+        "@HWUSI-EAS499:1:3:9:1822/2\nACCA\n"
+    ) );
+    //TODO: open and validate database
+}
+
+FIXTURE_TEST_CASE(CommonWriterDuplicateReadnames_MatedThenUnmated, TempFileFixture)
+{   // error
+    REQUIRE_RC_FAIL( Load(GetName(),
+        "@HWUSI-EAS499:1:3:9:1822/1\nACTT\n"
+        "@HWUSI-EAS499:1:3:9:1822\nACCA\n"
+    ) );
+}
+
+FIXTURE_TEST_CASE(CommonWriterDuplicateReadnames_UnmatedThenMated, TempFileFixture)
+{   // error
+    REQUIRE_RC_FAIL( Load(GetName(),
+        "@HWUSI-EAS499:1:3:9:1822\nACTT\n"
+        "@HWUSI-EAS499:1:3:9:1822/2\nACCA\n"
+    ) );
+}
+
+//TODO: 3d fragment after assembly
 
 //////////////////////////////////////////// Main
 #include <kapp/args.h>
@@ -206,10 +263,10 @@ rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
 
-    KDirectory * native = NULL;	
+    KDirectory * native = NULL;
     rc_t rc = KDirectoryNativeDir( &native);
 
-    const KDirectory * dir = NULL;	
+    const KDirectory * dir = NULL;
     if (rc == 0)
         rc = KDirectoryOpenDirRead ( native, &dir, false, "." );
     KConfig * cfg = NULL;

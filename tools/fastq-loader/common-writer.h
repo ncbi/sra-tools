@@ -102,6 +102,7 @@ typedef struct CommonWriterSettings
     bool compressQuality;
     uint64_t maxMateDistance;
     bool dropReadnames;
+    bool allowDuplicateReadNames;
 } CommonWriterSettings;
 
 /*--------------------------------------------------------------------------

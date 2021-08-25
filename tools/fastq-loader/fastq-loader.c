@@ -397,6 +397,7 @@ rc_t CC KMain (int argc, char * argv[])
     G.acceptNoMatch = true;
     G.minMatchCount = 0;
     G.QualQuantizer="0";
+    G.allowDuplicateReadNames = false;
 
     set_pid();
 

@@ -156,7 +156,7 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 1.1 0 $(SRCDIR)/input/1.1.fastq --quality PHRED_33
 #           1.2 phred 64
 	$(SMALLRUN) 1.2 0 $(SRCDIR)/input/1.2.fastq --quality PHRED_64
-#           1.3 phred 33, decimal qualities
+#           1.3 phred 33, decimal qualities, no longer supported
 	$(SMALLRUN) 1.3 3 $(SRCDIR)/input/1.3.fastq --quality PHRED_33
 #           1.4 logodds 64
 	$(SMALLRUN) 1.4 0 $(SRCDIR)/input/1.4.fastq --quality LOGODDS

@@ -1,7 +1,7 @@
 # Make file for building SRA Toolkit docker image
 
 ifndef VERSION
-$(error VERSION needs to be set, e.g. VERSION=2.11.1)
+$(error VERSION needs to be set, e.g. make VERSION=2.11.1 build)
 endif
 
 BRANCH?=${VERSION}rc

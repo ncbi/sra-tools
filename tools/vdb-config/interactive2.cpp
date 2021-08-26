@@ -667,6 +667,7 @@ class vdbconf_view2 : public Dlg
 
             y += 2;
             PopulateCheckbox( use_repo_rect( r, y ), resize, MAIN_FULL_QUALITY, "Prefer Zero To Full-&Quality",
+//            "Prefer no &Quality scores (-BQS) if available",
                               model.get_full_quality(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
 

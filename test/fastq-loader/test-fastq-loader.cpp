@@ -136,28 +136,32 @@ public:
             {
                 KFileRelease(file);
             }
-            file=0;
         }
-        return FastqReaderFileMake(&rf, wd, p_filename, FASTQphred33, 0, false);
+        if ( rc == 0 )
+        {
+            rc = FastqReaderFileMake(&rf, wd, p_filename, FASTQphred33, 0, false);
+        }
+        return rc;
     }
 
     rc_t Load( const char* p_filename, const char* p_contents )
     {
-        CreateFile( p_filename, p_contents );
+        rc_t rc = CreateFile( p_filename, p_contents );
+        if ( rc == 0 )
+        {
+            dbName = string(p_filename)+".db";
+            KDirectoryRemove(wd, true, dbName.c_str());
+            THROW_ON_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
 
-        dbName = string(p_filename)+".db";
-        KDirectoryRemove(wd, true, dbName.c_str());
-        THROW_ON_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
+            CommonWriter cw;
+            THROW_ON_RC(CommonWriterInit( &cw, mgr, db, &settings ));
 
-        CommonWriter cw;
-        THROW_ON_RC(CommonWriterInit( &cw, mgr, db, &settings ));
+            rc = (CommonWriterArchive( &cw, rf ));
+            THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
 
-        rc_t ret = (CommonWriterArchive( &cw, rf ));
-        THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
-
-        THROW_ON_RC(CommonWriterWhack( &cw ));
-
-        return ret;
+            THROW_ON_RC(CommonWriterWhack( &cw ));
+        }
+        return rc;
     }
 
     KDirectory* wd;

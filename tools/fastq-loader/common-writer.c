@@ -965,7 +965,6 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                             PLOGERR(klogErr, (klogErr, rc,
                                 "Duplicate read name '$(name)'",
                                 "name=%s", name));
-                            free( frag->data );
                             goto LOOP_END;
                         }
                     }

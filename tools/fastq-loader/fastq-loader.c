@@ -68,6 +68,7 @@ static char const option_quality[] = "quality";
 static char const option_max_err_pct[] = "max-err-pct";
 static char const option_ignore_illumina_tags[] = "ignore-illumina-tags";
 static char const option_no_readnames[] = "no-readnames";
+static char const option_allow_duplicates[] = "allow_duplicates";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -82,6 +83,8 @@ static char const option_no_readnames[] = "no-readnames";
 #define OPTION_MAX_ERR_PCT option_max_err_pct
 #define OPTION_IGNORE_ILLUMINA_TAGS option_ignore_illumina_tags
 #define OPTION_NO_READNAMES option_no_readnames
+#define OPTION_ALLOW_DUPLICATES option_allow_duplicates
+
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -92,6 +95,7 @@ static char const option_no_readnames[] = "no-readnames";
 #define ALIAS_READ "r"
 /* this alias is deprecated (conflicts with -q for --quiet): */
 #define ALIAS_QUALITY "q"
+#define ALIAS_DUPLICATES "a"
 
 static
 char const * output_usage[] =
@@ -177,6 +181,13 @@ char const * use_no_readnames[] =
     NULL
 };
 
+static
+char const * use_allow_duplicates[] =
+{
+    "allow duplicate read names in the same file",
+    NULL
+};
+
 OptDef Options[] =
 {
     /* order here is same as in param array below!!! */                                 /* max#,  needs param, required */
@@ -191,6 +202,7 @@ OptDef Options[] =
     { OPTION_MAX_ERR_PCT,           NULL,                   NULL, use_max_err_pct,          1,  true,        false },
     { OPTION_IGNORE_ILLUMINA_TAGS,  NULL,                   NULL, use_ignore_illumina_tags, 1,  false,       false },
     { OPTION_NO_READNAMES,          NULL,                   NULL, use_no_readnames,         1,  false,       false },
+    { OPTION_ALLOW_DUPLICATES,      ALIAS_DUPLICATES,       NULL, use_allow_duplicates,     1,  false,       false },
 /*    { OPTION_READ,          ALIAS_READ,             NULL, use_read,         0,  true,        false },*/
 };
 
@@ -567,6 +579,11 @@ rc_t CC KMain (int argc, char * argv[])
         if (rc)
             break;
         G.dropReadnames = pcount > 0;
+
+        rc = ArgsOptionCount (args, OPTION_ALLOW_DUPLICATES, &pcount);
+        if (rc)
+            break;
+        G.allowDuplicateReadNames = pcount > 0;
 
         rc = ArgsParamCount (args, &pcount);
         if (rc) break;

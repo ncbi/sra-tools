@@ -71,6 +71,8 @@ $(TEST_BINDIR)/wb-test-fastq-parse: $(FASTQ_PARSE_OBJ)
 parse: wb-test-fastq-parse
 	$(TEST_BINDIR)/wb-test-fastq-parse  2>&1
 
+.PHONY: parse
+
 #-------------------------------------------------------------------------------
 # id2name
 #
@@ -91,6 +93,8 @@ $(TEST_BINDIR)/test-id2name: $(ID2NAME_TEST_OBJ)
 
 id: test-id2name
 	$(TEST_BINDIR)/test-id2name  2>&1
+
+.PHONY: id
 
 #-------------------------------------------------------------------------------
 # white-box test
@@ -114,6 +118,8 @@ $(TEST_BINDIR)/wb-test-fastq: $(FASTQ_TEST_OBJ)
 wb: wb-test-fastq
 	$(TEST_BINDIR)/wb-test-fastq  2>&1
 
+.PHONY: wb
+
 #-------------------------------------------------------------------------------
 # test-fastqtest-loader
 #
@@ -130,25 +136,21 @@ tfl:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile test-fastq-loader
 	$(TEST_BINDIR)/test-fastq-loader
 
-.PHONY: test-fastq-loader
+.PHONY: tfl
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-runtests: announce wb parse set_schema smalltests
-
-announce:
-	@ echo Testing $(DIRTOTEST)
-
-set_schema:
-	echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
-	echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-fastqloaderv\"" >> tmp.kfg
+runtests: smalltests
 
 SMALLRUN = @ NCBI_SETTINGS= VDB_CONFIG=$(SRCDIR) $(SRCDIR)/runtestcase.sh \
         $(DIRTOTEST) $(SRCDIR)
 
-smalltests: $(TEST_TOOLS)
+smalltests:
 	-rm -rf $(SRCDIR)/actual
+	@ echo Testing $(DIRTOTEST)
+	echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
+	echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-fastqloaderv\"" >> tmp.kfg
 #   Small tests
 #   Input:
 #       Quality encoding: phred/logodds, ascii/decimal
@@ -176,8 +178,10 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 2.5 0 $(SRCDIR)/input/2.5.fastq --quality PHRED_33
 #           2.6 spot assembly
 	$(SMALLRUN) 2.6 0 $(SRCDIR)/input/2.6.fastq --quality PHRED_33
-#           2.7 spot assembly, read numbers not specified
-	$(SMALLRUN) 2.7 0 $(SRCDIR)/input/2.7.fastq --quality PHRED_33
+#           2.7 duplicate read names, fragments not specified - error
+	$(SMALLRUN) 2.7 3 $(SRCDIR)/input/2.7.fastq --quality PHRED_33
+#           2.7.1 duplicate read names, fragments not specified - allowed with an option
+	$(SMALLRUN) 2.7.1 0 $(SRCDIR)/input/2.7.fastq --quality PHRED_33 --allow_duplicates
 #           2.8 handling of N in reads, ALTREAD is a static column
 #           TODO; investigate intermittent failure (FIXED_SPOT_LEN == 0, not 3)
 	@#-$(SMALLRUN) 2.8 0 $(SRCDIR)/input/2.8.fastq --quality PHRED_33
@@ -260,7 +264,7 @@ smalltests: $(TEST_TOOLS)
     # Consume our own dog food (13.1.fastq created by fastq-dump -F )
 	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
-	$(SMALLRUN) 14.0 0 $(SRCDIR)/input/14.0.fasta $(SRCDIR)/input/14.0.fasta --quality PHRED_33
+	$(SMALLRUN) 14.0 0 $(SRCDIR)/input/14.0.fasta --quality PHRED_33
     # VDB-3154: buffer insufficient
 	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33
     # VDB-3413: multi-line reads and qualities
@@ -269,7 +273,10 @@ smalltests: $(TEST_TOOLS)
 	#
 	#rm -rf $(SRCDIR)/actual
 
+.PHONY: smalltests
+
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 4.8 0 $(SRCDIR)/input/4.8.fastq --quality PHRED_33 --no-readnames
+	$(SMALLRUN) 2.7.1 0 $(SRCDIR)/input/2.7.fastq --quality PHRED_33 --allow_duplicates
 
+.PHONY: onetest

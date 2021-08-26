@@ -12,7 +12,7 @@ Target | Explanation
 ------ | -----------
 build | Builds `Dockerfile.build-alpine` and tags the image
 test | After building the image, runs `fastq-dump` inside the image
-scan | Runs vulnerability scan
+scan | Runs vulnerability scan (requires user credentials)
 push | Pushes the image to dockerhub (requires user credentials and permissions)
 clean | Removes the image from your docker image cache
 

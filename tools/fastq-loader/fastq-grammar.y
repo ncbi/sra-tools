@@ -60,11 +60,12 @@
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 %}
 
-%pure-parser
+%define api.pure
+%define parse.error verbose
+%define api.prefix {FASTQ_}
+
 %parse-param {FASTQParseBlock* pb }
 %lex-param {FASTQParseBlock* pb }
-%error-verbose
-%name-prefix "FASTQ_"
 
 %token fqRUNDOTSPOT
 %token fqSPOTGROUP
@@ -213,15 +214,27 @@ name
 
 readNumber
     : '/'
-        {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
-            if (IS_PACBIO(pb)) pb->spotNameDone = false;
-            ExpandSpotName(pb, &$1);
+        {
+            /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
+            if ( IS_PACBIO(pb) )
+            {
+                ExpandSpotName(pb, &$1);
+            }
+            else
+            {
+                StopSpotName(pb);
+            }
         }
       fqNUMBER
         {
-            if (!IS_PACBIO(pb)) SetReadNumber(pb, &$3);
-            ExpandSpotName(pb, &$3);
-            StopSpotName(pb);
+            if ( IS_PACBIO(pb) )
+            {
+                ExpandSpotName(pb, &$3);
+            }
+            else
+            {
+                SetReadNumber(pb, &$3);
+            }
         }
 
     | readNumber '/'

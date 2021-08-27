@@ -335,6 +335,25 @@ FIXTURE_TEST_CASE(BufferBreakInMultilineQuality, ParserFixture)
                  string ( ( const char *) ( pb . record -> source . base ) + pb . qualityOffset, pb . qualityLength ) );
 }
 
+FIXTURE_TEST_CASE(ReadNumberNotSeparated, ParserFixture)
+{   // VDB-4531
+    char buf[] = "@V/2\nC\n+\nF\nA\n";
+    AddBuffer ( buf );
+    REQUIRE(Parse());
+    REQUIRE_EQ(2, (int)pb.record->seq.readnumber);
+    REQUIRE_EQ(string( "V" ) , string( buf + pb.spotNameOffset, pb.spotNameLength ) );
+}
+
+FIXTURE_TEST_CASE(ReadNumberNotSeparated_Variation, ParserFixture)
+{   // VDB-4531; extra whitespace after the read #
+    char buf[] = "@V/2 \nC\n+\nF\nA\n";
+    AddBuffer ( buf );
+    REQUIRE(Parse());
+    REQUIRE_EQ(2, (int)pb.record->seq.readnumber);
+    REQUIRE_EQ(string( "V" ) , string( buf + pb.spotNameOffset, pb.spotNameLength ) );
+}
+
+
 //////////////////////////////////////////// Main
 extern "C"
 {

@@ -99,8 +99,7 @@ public:
 
         if ( schema && VSchemaRelease(schema) != 0 )
             FAIL("VSchemaRelease failed");
-        if ( db && VDatabaseRelease(db) != 0 )
-            FAIL("VDatabaseRelease failed");
+
         if ( mgr && VDBManagerRelease(mgr) != 0 )
             FAIL("VDBManagerRelease failed");
 
@@ -160,8 +159,28 @@ public:
             THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
 
             THROW_ON_RC(CommonWriterWhack( &cw ));
+
+            // close database so that it can be reopened for inspection
+            if ( db && VDatabaseRelease(db) != 0 )
+            {
+                FAIL("VDatabaseRelease failed");
+                db = NULL;
+            }
         }
         return rc;
+    }
+
+    const VCursor * OpenDatabase()
+    {
+        const VDatabase * db;
+        THROW_ON_RC ( VDBManagerOpenDBRead ( mgr, &db, NULL, "%s", dbName.c_str() ) );
+        const VTable * tbl;
+        THROW_ON_RC ( VDatabaseOpenTableRead ( db, & tbl, "SEQUENCE" ) );
+        const VCursor * ret;
+        THROW_ON_RC ( VTableCreateCursorRead ( tbl, & ret ) );
+        THROW_ON_RC ( VTableRelease ( tbl ) );
+        THROW_ON_RC ( VDatabaseRelease ( db ) );
+        return ret;
     }
 
     KDirectory* wd;
@@ -239,6 +258,23 @@ FIXTURE_TEST_CASE(CommonWriterDuplicateReadnames_UnmatedThenMated, TempFileFixtu
 
 //TODO: 3d fragment after assembly
 
+FIXTURE_TEST_CASE(NoSpotAssemply, TempFileFixture)
+{   // VDB-4531
+    REQUIRE_RC( Load(GetName(),
+                "@V300047012L3C001R0010000001/1\nC\n+\nF\n"
+                "@V300047012L3C001R0010000001/2\nA\n+\nF\n"
+    ) );
+    const VCursor * cur = OpenDatabase();
+    uint32_t  columnIdx;
+    REQUIRE_RC ( VCursorAddColumn ( cur, & columnIdx, "READ" ) );
+    REQUIRE_RC ( VCursorOpen ( cur ) );
+    char buf[1024];
+    uint32_t row_len;
+    REQUIRE_RC ( VCursorReadDirect ( cur, 1, columnIdx, 8, buf, sizeof ( buf ), & row_len ) );
+    REQUIRE_EQ( string( "CA" ), string( buf, row_len ) );
+    VCursorRelease ( cur );
+}
+
 //////////////////////////////////////////// Main
 #include <kapp/args.h>
 #include <kfg/config.h>
@@ -287,4 +323,3 @@ rc_t CC KMain ( int argc, char *argv [] )
 }
 
 }
-

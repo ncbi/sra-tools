@@ -982,6 +982,7 @@ FIXTURE_TEST_CASE(DecimalQualityRejected, LoaderFixture)
 ////////////////// detecting alternative formats
 FIXTURE_TEST_CASE(PacbioRaw, LoaderFixture)
 {
+    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(),
         "@m121205_055009_42163_c100416332550000001523041801151327_s1_p0/19\n"
         "AGAGTTTGAT\n"
@@ -1019,6 +1020,7 @@ FIXTURE_TEST_CASE(PacbioNoReadNumbers, LoaderFixture)
 
 FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
 {
+    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(),
         "@m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
         "AGAGTTTGAT\n"

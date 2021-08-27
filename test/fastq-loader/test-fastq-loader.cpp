@@ -103,20 +103,25 @@ public:
         if ( mgr && VDBManagerRelease(mgr) != 0 )
             FAIL("VDBManagerRelease failed");
 
-        if ( wd && ! filename.empty() && KDirectoryRemove(wd, true, filename.c_str()) != 0 )
-            FAIL("KDirectoryRemove on input failed");
-
-        if ( wd && ! dbName.empty() )
-        {   // sometimes it takes several attempts to remove a non-empty dir
-            while (KDirectoryRemove(wd, true, dbName.c_str()) != 0);
-        }
         if ( wd )
-        {   // sometimes it takes several attempts to remove a non-empty dir
-            while (KDirectoryRemove(wd, true, TempDir.c_str()) != 0);
+        {
+            if ( ! filename.empty() )
+            {
+               KDirectoryRemove(wd, true, filename.c_str());
+            }
+            if ( ! dbName.empty() )
+            {   
+               KDirectoryRemove(wd, true, dbName.c_str());
+            }
+            if ( ! TempDir.empty() )
+            {
+               KDirectoryRemove(wd, true, TempDir.c_str());
+            }
+            if ( KDirectoryRelease ( wd ) != 0 )
+            {
+               FAIL("KDirectoryRelease failed");
+            }
         }
-
-        if ( wd && KDirectoryRelease ( wd ) != 0 )
-            FAIL("KDirectoryRelease failed");
     }
     rc_t CreateFile(const char* p_filename, const char* contents)
     {   // create and open for read
@@ -150,6 +155,8 @@ public:
         {
             dbName = string(p_filename)+".db";
             KDirectoryRemove(wd, true, dbName.c_str());
+
+            VDatabase* db;
             THROW_ON_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
 
             CommonWriter cw;
@@ -161,11 +168,7 @@ public:
             THROW_ON_RC(CommonWriterWhack( &cw ));
 
             // close database so that it can be reopened for inspection
-            if ( db && VDatabaseRelease(db) != 0 )
-            {
-                FAIL("VDatabaseRelease failed");
-                db = NULL;
-            }
+            THROW_ON_RC( VDatabaseRelease(db) );
         }
         return rc;
     }
@@ -188,7 +191,6 @@ public:
     const ReaderFile* rf;
     VDBManager* mgr;
     VSchema *schema;
-    VDatabase* db;
     string dbName;
     CommonWriterSettings settings;
 };

@@ -485,7 +485,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 "ngc=%s", item->mane->ngc));
     }
 
-    if (rc == 0 && item->mane->force != eForceNo)
+    if (rc == 0)// && item->mane->force != eForceNo)
         rc = KServiceResolve(service, true, true);
 
     if ( rc == 0 ) {
@@ -3144,9 +3144,9 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
         if (self->mane->fileType != NULL)
             tree = NULL;
         else {
-            VQuality q = VDBManagerGetQuality(self->mane->mgr);
+            /*VQuality q = VDBManagerGetQuality(self->mane->mgr);
             if (q == eQualDefault)
-                noQualSra = true;
+                noQualSra = true;*/
         }
         rc = ItemDownloadSrvResponse(self, row, noQualSra, tree);
         if (rc == 0 && noQualSra) {
@@ -3279,7 +3279,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
     return rc;
 }
-
+#if 0
 static VQuality VPath_DetectQuality(const VPath * self, KPathType type,
     const VDBManager * vdb)
 {
@@ -3325,7 +3325,7 @@ static VQuality VPath_DetectQuality(const VPath * self, KPathType type,
 
     return q;
 }
-
+#endif
 static const char * VQualityToString(VQuality self) {
     switch (self) {
     case eQualDefault: return "double";
@@ -3348,7 +3348,7 @@ static rc_t ItemMkDesc(const Item * self, KPathType type) {
         const char * s = VQualityToString(q);
         STSMSG(STS_TOP, (" loaded description: %s quality", s));
     }
-    else {
+    /*else {
         rc = 0;
         
         q = VPathGetQuality(self->resolved.path.path);
@@ -3362,7 +3362,7 @@ static rc_t ItemMkDesc(const Item * self, KPathType type) {
             STSMSG(STS_TOP, (" description: %s quality", s));
             rc = SraDescSaveQuality(self->resolved.path.str, q);
         }
-    }
+    }*/
 
     return rc;
 }

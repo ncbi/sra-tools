@@ -155,16 +155,23 @@ tagLine
 
     | nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
 
-    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); }
+    | nameSpotGroup readNumber fqWS fqNUMBER { FASTQScan_skip_to_eol(pb); } opt_fqWS
+    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); } opt_fqWS
     | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); }
 
     | nameSpotGroup fqWS  { ExpandSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
     | nameSpotGroup fqWS  { ExpandSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
-    | runSpotRead fqWS  { FASTQScan_skip_to_eol(pb); }
-    | runSpotRead       { FASTQScan_skip_to_eol(pb); }
+
+    | runSpotRead { FASTQScan_skip_to_eol(pb); } opt_fqWS
+
     | name readNumber
     | name readNumber fqWS  { FASTQScan_skip_to_eol(pb); }
     | name
+    ;
+
+opt_fqWS
+    : fqWS
+    |
     ;
 
 nameSpotGroup

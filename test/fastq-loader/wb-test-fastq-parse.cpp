@@ -272,10 +272,7 @@ public:
             FAIL("ParserFixture::ParserFixture: malloc failed");
         KDataBufferMakeBytes ( & pb.record->source, 0 );
 
-        if ( traceBison )
-        {
-            FASTQ_debug = 1;
-        }
+        FASTQ_debug = traceBison ? 1 : 0;
         FASTQ_ParseBlockInit ( &pb );
         return FASTQ_parse( &pb ) == 1 && pb.record->rej == 0;
     }

@@ -110,7 +110,7 @@ public:
                KDirectoryRemove(wd, true, filename.c_str());
             }
             if ( ! dbName.empty() )
-            {   
+            {
                KDirectoryRemove(wd, true, dbName.c_str());
             }
             if ( ! TempDir.empty() )
@@ -185,6 +185,22 @@ public:
         THROW_ON_RC ( VDatabaseRelease ( db ) );
         return ret;
     }
+
+    string GetRead()
+    {
+        int64_t row = 1;
+
+        const VCursor * cur = OpenDatabase();
+        uint32_t  columnIdx;
+        THROW_ON_RC ( VCursorAddColumn ( cur, & columnIdx, "READ" ) );
+        THROW_ON_RC ( VCursorOpen ( cur ) );
+        char buf[1024];
+        uint32_t row_len;
+        THROW_ON_RC ( VCursorReadDirect ( cur, row, columnIdx, 8, buf, sizeof ( buf ), & row_len ) );
+        return string( buf, row_len );
+        VCursorRelease ( cur );
+    }
+
 
     KDirectory* wd;
     string filename;
@@ -266,15 +282,16 @@ FIXTURE_TEST_CASE(NoSpotAssemply, TempFileFixture)
                 "@V300047012L3C001R0010000001/1\nC\n+\nF\n"
                 "@V300047012L3C001R0010000001/2\nA\n+\nF\n"
     ) );
-    const VCursor * cur = OpenDatabase();
-    uint32_t  columnIdx;
-    REQUIRE_RC ( VCursorAddColumn ( cur, & columnIdx, "READ" ) );
-    REQUIRE_RC ( VCursorOpen ( cur ) );
-    char buf[1024];
-    uint32_t row_len;
-    REQUIRE_RC ( VCursorReadDirect ( cur, 1, columnIdx, 8, buf, sizeof ( buf ), & row_len ) );
-    REQUIRE_EQ( string( "CA" ), string( buf, row_len ) );
-    VCursorRelease ( cur );
+    REQUIRE_EQ( string( "CA" ), GetRead() );
+}
+
+FIXTURE_TEST_CASE(NoSpotAssemply_case2, TempFileFixture)
+{   // VDB-4532
+    REQUIRE_RC( Load(GetName(),
+                "@CL100050407L1C001R001_1#224_1078_917/1 1 1\nC\n+\nF\n"
+                "@CL100050407L1C001R001_1#224_1078_917/2 1 1\nA\n+\nF\n"
+    ) );
+    REQUIRE_EQ( string( "CA" ), GetRead() );
 }
 
 //////////////////////////////////////////// Main

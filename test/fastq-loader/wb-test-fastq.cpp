@@ -704,9 +704,10 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroupUnderscore, LoaderFixture)
     REQUIRE(SequenceIsFirst(seq));
 }
 
-FIXTURE_TEST_CASE(BarcodeAsSpotGroup, LoaderFixture)
+FIXTURE_TEST_CASE(HashStyleBarcodeAndReadNumbersAndJunk, LoaderFixture)
 {   // VDB-4532
-    REQUIRE(CreateFileGetSequence(GetName(), "@CL100050407L1C001R001_1#224_1078_917/1 1       1/1\nATCG\n"));
+    //BisonDebugOn();
+    REQUIRE(CreateFileGetSequence(GetName(), "@CL100050407L1C001R001_1#224_1078_917/1 1       1/2\nATCG\n"));
     REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
     REQUIRE_EQ(string("224_1078_917"), string(name, length));
     REQUIRE(!SequenceIsSecond(seq));
@@ -1085,7 +1086,6 @@ FIXTURE_TEST_CASE(NoColonAtTheEnd_Error, LoaderFixture)
 
 FIXTURE_TEST_CASE ( MissingRead, LoaderFixture )
 { // source: SRR529889
-    BisonDebugOn();
     REQUIRE(CreateFileGetSequence(GetName(),
         "@GG3IVWD03HIDOA length=3 xy=2962_2600 region=3 run=R_2010_05_11_11_15_22_\n"
         "AACA\n+\n$.%0\n"

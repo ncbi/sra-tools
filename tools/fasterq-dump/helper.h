@@ -125,6 +125,7 @@ rc_t ErrMsg( const char * fmt, ... );
 rc_t make_SBuffer( SBuffer_t * self, size_t len );
 void release_SBuffer( SBuffer_t * self );
 rc_t increase_SBuffer( SBuffer_t * self, size_t by );
+rc_t increase_SBuffer_to( SBuffer_t * self, size_t new_size );
 rc_t print_to_SBufferV( SBuffer_t * self, const char * fmt, va_list args );
 rc_t print_to_SBuffer( SBuffer_t * self, const char * fmt, ... );
 rc_t try_to_enlarge_SBuffer( SBuffer_t * self, rc_t rc_err );
@@ -260,6 +261,11 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
 
 /* ===================================================================================== */
 
+/* 
+    This object describes at which position in the str-args/int-args a variable can be found.
+    Its purpose is the be created as a lookup: name->idx,
+    to be used by the the var_fmt_.... functions
+   */
 struct var_desc_list_t;
 
 struct var_desc_list_t * create_var_names( void );
@@ -269,15 +275,20 @@ void var_desc_list_add_int( struct var_desc_list_t * self, const char * name, ui
 
 void var_desc_list_test( void );
 
+/* 
+    This object describes a format,
+    to be used by the the var_fmt_.... functions
+   */
+
 struct var_fmt_t;
 
 struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars );
 void release_var_fmt( struct var_fmt_t * self );
 
-void var_fmt_to_buffer( const struct var_fmt_t * self,
-                    char * buffer,
-                    size_t buffer_size,
-                    size_t * num_written,
+size_t var_fmt_buffer_size( const struct var_fmt_t * self,
+                    const String ** str_args, size_t str_args_len );
+
+SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
                     const String ** str_args, size_t str_args_len,
                     const uint64_t * int_args, size_t int_args_len );
 

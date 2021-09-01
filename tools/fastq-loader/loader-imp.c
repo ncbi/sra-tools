@@ -81,9 +81,9 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
     for (i = 0; i < seqFiles; ++i) {
         const ReaderFile *reader;
         if (G->platform == SRA_PLATFORM_PACBIO_SMRT)
-            rc = FastqReaderFileMake(&reader, dir, seqFile[i], FASTQphred33, -1, ignoreSpotGroups);
+            rc = FastqReaderFileMake(&reader, dir, seqFile[i], FASTQphred33, -1, ignoreSpotGroups, false);
         else
-            rc = FastqReaderFileMake(&reader, dir, seqFile[i], qualityFormat, defaultReadNumbers[i], ignoreSpotGroups);
+            rc = FastqReaderFileMake(&reader, dir, seqFile[i], qualityFormat, defaultReadNumbers[i], ignoreSpotGroups, false);
 
         if (rc == 0)
         {

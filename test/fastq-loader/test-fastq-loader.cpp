@@ -143,7 +143,7 @@ public:
         }
         if ( rc == 0 )
         {
-            rc = FastqReaderFileMake(&rf, wd, p_filename, FASTQphred33, 0, false);
+            rc = FastqReaderFileMake(&rf, wd, p_filename, FASTQphred33, 0, false, false);
         }
         return rc;
     }

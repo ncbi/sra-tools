@@ -58,7 +58,8 @@ public:
         errorText(0), errorLine(0), column(0),
         quality(0), qualityAsciiOffset(0), qualityType(-1),
         qualityFormat(FASTQphred33), defaultReadNumber(0),
-        ignoreSpotGroups(false)
+        ignoreSpotGroups(false),
+        flexDebug(false)
     {
         if ( KDirectoryNativeDir ( & wd ) != 0 )
             FAIL("KDirectoryNativeDir failed");
@@ -106,7 +107,7 @@ public:
             }
             file=0;
         }
-        return FastqReaderFileMake(&rf, wd, p_filename, qualityFormat, defaultReadNumber, ignoreSpotGroups);
+        return FastqReaderFileMake(&rf, wd, p_filename, qualityFormat, defaultReadNumber, ignoreSpotGroups, flexDebug);
     }
     void CreateFileGetRecord(const char* fileName, const char* contents)
     {
@@ -184,6 +185,11 @@ public:
         FASTQ_debug = 1;
     }
 
+    void FlexDebugOn()
+    {   // call before CreateFile()
+        flexDebug = true;
+    }
+
     KDirectory* wd;
     string filename;
     const ReaderFile* rf;
@@ -210,6 +216,8 @@ public:
     enum FASTQQualityFormat qualityFormat;
     int8_t defaultReadNumber;
     bool ignoreSpotGroups;
+
+    bool flexDebug;
 };
 
 ///////////////////////////////////////////////// FASTQ test cases
@@ -691,6 +699,17 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode, LoaderFixture)
     REQUIRE(CreateFileGetSequence(GetName(), "@HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG\nATCG\n"));
     REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
     REQUIRE_EQ(string("ATCACG"), string(name, length));
+    REQUIRE(!SequenceIsSecond(seq));
+    REQUIRE(SequenceIsFirst(seq));
+}
+
+FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode_WithPluses, LoaderFixture)
+{   // VDB-4533
+    // BisonDebugOn();
+    // FlexDebugOn();
+    REQUIRE(CreateFileGetSequence(GetName(), "@A00197:49:HCYYGDMXX:1:1101:10004:10175 1:N:0:ATTACTCG+AGGCGAAGCGCTCATT+TAATCTTA\nATCG\n"));
+    REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
+    REQUIRE_EQ(string("ATTACTCG+AGGCGAAGCGCTCATT+TAATCTTA"), string(name, length));
     REQUIRE(!SequenceIsSecond(seq));
     REQUIRE(SequenceIsFirst(seq));
 }

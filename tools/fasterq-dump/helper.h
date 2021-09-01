@@ -292,11 +292,11 @@ SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
                     const String ** str_args, size_t str_args_len,
                     const uint64_t * int_args, size_t int_args_len );
 
-void var_fmt_print( const struct var_fmt_t * self,
+rc_t var_fmt_print( struct var_fmt_t * self,
                     const String ** str_args, size_t str_args_len,
                     const uint64_t * int_args, size_t int_args_len );
 
-void var_fmt_write( const struct var_fmt_t * self,
+rc_t var_fmt_write( struct var_fmt_t * self,
                     KFile * f,
                     uint64_t * pos,
                     const String ** str_args, size_t str_args_len,

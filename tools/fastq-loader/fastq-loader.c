@@ -55,7 +55,7 @@ extern rc_t run(char const argv0[],
                 bool ignoreSpotGroups);
 
 /* MARK: Arguments and Usage */
-static char const option_input[] = "input";
+//static char const option_input[] = "input";
 static char const option_output[] = "output";
 static char const option_tmpfs[] = "tmpfs";
 static char const option_qual_compress[] = "qual-quant";
@@ -64,9 +64,10 @@ static char const option_max_err_count[] = "max-err-count";
 static char const option_max_rec_count[] = "max-rec-count";
 static char const option_platform[] = "platform";
 static char const option_quality[] = "quality";
-static char const option_read[] = "read";
+//static char const option_read[] = "read";
 static char const option_max_err_pct[] = "max-err-pct";
 static char const option_ignore_illumina_tags[] = "ignore-illumina-tags";
+static char const option_no_readnames[] = "no-readnames";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -80,6 +81,7 @@ static char const option_ignore_illumina_tags[] = "ignore-illumina-tags";
 #define OPTION_READ option_read
 #define OPTION_MAX_ERR_PCT option_max_err_pct
 #define OPTION_IGNORE_ILLUMINA_TAGS option_ignore_illumina_tags
+#define OPTION_NO_READNAMES option_no_readnames
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -168,6 +170,13 @@ char const * use_ignore_illumina_tags[] =
     NULL
 };
 
+static
+char const * use_no_readnames[] =
+{
+    "drop original read names",
+    NULL
+};
+
 OptDef Options[] =
 {
     /* order here is same as in param array below!!! */                                 /* max#,  needs param, required */
@@ -181,6 +190,7 @@ OptDef Options[] =
     { OPTION_QUALITY,               ALIAS_QUALITY,          NULL, use_quality,              1,  true,        true },
     { OPTION_MAX_ERR_PCT,           NULL,                   NULL, use_max_err_pct,          1,  true,        false },
     { OPTION_IGNORE_ILLUMINA_TAGS,  NULL,                   NULL, use_ignore_illumina_tags, 1,  false,       false },
+    { OPTION_NO_READNAMES,          NULL,                   NULL, use_no_readnames,         1,  false,       false },
 /*    { OPTION_READ,          ALIAS_READ,             NULL, use_read,         0,  true,        false },*/
 };
 
@@ -193,6 +203,7 @@ const char* OptHelpParam[] =
     "mbytes",
     "count",
     "count",
+    NULL,
     NULL,
     NULL,
     NULL,
@@ -550,6 +561,11 @@ rc_t CC KMain (int argc, char * argv[])
         if (rc)
             break;
         ignoreSpotGroups = pcount > 0;
+
+        rc = ArgsOptionCount (args, OPTION_NO_READNAMES, &pcount);
+        if (rc)
+            break;
+        G.dropReadnames = pcount > 0;
 
         rc = ArgsParamCount (args, &pcount);
         if (rc) break;

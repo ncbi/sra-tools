@@ -32,7 +32,17 @@
 #include <sstream>
 #include <cstdarg>
 #include <assert.h>
+
+#if WINDOWS
+/// source: https://github.com/openbsd/src/blob/master/include/sysexits.h
+#define EX_USAGE	64	/* command line usage error */
+#define EX_NOINPUT	66	/* cannot open input */
+#define EX_SOFTWARE	70	/* internal software error */
+#define EX_TEMPFAIL	75	/* temp failure; user is invited to retry */
+#define EX_CONFIG	78	/* configuration error */
+#else
 #include <sysexits.h>
+#endif
 
 #include "../../shared/toolkit.vers.h"
 #include "cmdline.hpp"
@@ -49,12 +59,12 @@ namespace sratools2
     struct Args
     {
         int const argc;
-        char **const argv;
-        char *const orig_argv0;
+        char const **const argv;
+        char const *const orig_argv0;
 
-        Args ( int argc_, char * argv_ [], char * test_imp )
+        Args ( int argc_, char * argv_ [], char const * test_imp )
         : argc( argc_ )
-        , argv( argv_ )
+        , argv( (char const **)(&argv_[0]))
         , orig_argv0( argv_[0] )
         {
             if (test_imp && test_imp[0]) {
@@ -123,9 +133,9 @@ namespace sratools2
             return res;
         }
 
-        char ** generate_argv( int &argc, std::vector< ncbi::String > const &args )
+        char const **generate_argv(std::vector< ncbi::String > const &args )
         {
-            argc = 0;
+            auto argc = 0;
             auto cnt = options.size() + args.size() + 1;
             char ** res = ( char ** )malloc( cnt * ( sizeof * res ) );
             if ( res != nullptr )
@@ -136,20 +146,16 @@ namespace sratools2
                     res[ argc++ ] = add_string( value );
                 res[ argc ] = nullptr;
             }
-            return res;
+            return (char const **)res;
         }
 
-        void free_argv( int argc, char ** argv )
+        void free_argv(char const **argv)
         {
-            if ( argv != nullptr )
-            {
-                for ( int i = 0; i < argc; ++i )
-                {
-                    if ( argv[ i ] != nullptr )
-                        free( argv[ i ] );
-                }
-                free( argv );
+            auto p = (void **)argv;
+            while (*p) {
+                free(*p++);
             }
+            free((void *)argv);
         }
     };
 
@@ -175,8 +181,14 @@ namespace sratools2
 
         private :
 
-            Imposter detect_imposter( const std::string &src )
+            Imposter detect_imposter( const std::string &source )
             {
+#if WINDOWS
+                const std::string ext = ".exe";
+                const std::string src = ends_with(ext, source) ? source.substr( 0, source.size() - ext.size() ) : source;
+#else
+                const std::string & src = source;
+#endif
                 if ( src.compare( "srapath" ) == 0 ) return Imposter::SRAPATH;
                 else if ( src.compare( "prefetch" ) == 0 ) return Imposter::PREFETCH;
                 else if ( src.compare( "fastq-dump" ) == 0 ) return Imposter::FASTQ_DUMP;
@@ -307,19 +319,31 @@ namespace sratools2
         ncbi::String perm_file;
         ncbi::String location;
         ncbi::String cart_file;
-        bool disable_multithreading, version, quiet;
+        bool disable_multithreading, version, quiet, no_disable_mt;
         std::vector < ncbi::String > debugFlags;
         ncbi::String log_level;
         ncbi::String option_file;
+        ncbi::U32 verbosity;
 
         CmnOptAndAccessions(WhatImposter const &what)
         : what(what)
         , disable_multithreading( false )
         , version( false )
         , quiet( false )
+        , no_disable_mt(false)
+        , verbosity(0)
         {
-
+            switch (what._imposter) {
+            case Imposter::FASTERQ_DUMP:
+            case Imposter::PREFETCH:
+            case Imposter::SRAPATH:
+                no_disable_mt = true;
+            default:
+                break;
+            }
         }
+
+        virtual bool preferNoQual() const { return false; }
         
         void add( ncbi::Cmdline &cmdline ) override
         {
@@ -329,16 +353,20 @@ namespace sratools2
             cmdline . addOption ( location, nullptr, "", "location", "<location>", "location in cloud" );
             cmdline . addOption ( cart_file, nullptr, "", "cart", "<path>", "<path> to cart file" );
 
-            cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
+            if (!no_disable_mt)
+                cmdline . addOption ( disable_multithreading, "", "disable-multithreading", "disable multithreading" );
             cmdline . addOption ( version, "V", "version", "Display the version of the program" );
 
+            cmdline.addOption(verbosity, "v", "verbose", "Increase the verbosity of the program "
+                              "status messages. Use multiple times for more verbosity.");
             /*
             // problem: 'q' could be used by the tool already...
             cmdline . addOption ( quiet, "q", "quiet",
                 "Turn off all status messages for the program. Negated by verbose." );
             */
 #if _DEBUGGING || DEBUG
-            cmdline . addListOption( debugFlags, ',', 255, "+", "debug", "<Module[-Flag]>",
+            cmdline . addDebugOption( debugFlags, ',', 255,
+                "+", "debug", "<Module[-Flag]>",
                 "Turn on debug output for module. All flags if not specified." );
 #endif
             cmdline . addOption ( log_level, nullptr, "L", "log-level", "<level>",
@@ -357,13 +385,19 @@ namespace sratools2
             if ( !location.isEmpty() )  ss << "location : " << location << std::endl;
             if ( disable_multithreading ) ss << "disable multithreading" << std::endl;
             if ( version ) ss << "version" << std::endl;
+            if (verbosity) ss << "verbosity: " << verbosity << std::endl;
             print_vec( ss, debugFlags, "debug modules:" );
             if ( !log_level.isEmpty() ) ss << "log-level: " << log_level << std::endl;
             if ( !option_file.isEmpty() ) ss << "option-file: " << option_file << std::endl;
             return ss;
         }
 
-        void populate_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions ) const override
+        enum VerbosityStyle {
+            standard,
+            fastq_dump
+        };
+        
+        void populate_common_argv_builder( ArgvBuilder & builder, int acc_index, std::vector<ncbi::String> const &accessions, VerbosityStyle verbosityStyle = standard ) const
         {
             builder . add_option_list( "-+", debugFlags );
             if ( disable_multithreading ) builder . add_option( "--disable-multithreading" );
@@ -371,9 +405,20 @@ namespace sratools2
             if ( !option_file.isEmpty() ) builder . add_option( "--option-file", option_file );
             if (!ngc_file.isEmpty()) builder.add_option("--ngc", ngc_file);
 
+            if (verbosity) {
+                switch (verbosityStyle) {
+                case fastq_dump: /* fastq-dump can't handle -vvv, must repeat "-v" */
+                    for (ncbi::U32 i = 0; i < verbosity; ++i)
+                        builder.add_option("-v");
+                    break;
+                default:
+                    builder.add_option(std::string("-") + std::string(verbosity, 'v'));
+                    break;
+                }
+            }
             (void)(acc_index); (void)(accessions);
         }
-        
+
         bool check() const override
         {
             int problems = 0;
@@ -393,13 +438,17 @@ namespace sratools2
                     ++problems;
                     std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
                 }
+                if (!pathExists(perm_file.toSTLString())) {
+                    ++problems;
+                    std::cerr << "--perm " << perm_file << "\nFile not found." << std::endl;
+                }
                 if (!vdb::Service::haveCloudProvider()) {
                     ++problems;
                     std::cerr << "Currently, --perm can only be used from inside a cloud computing environment.\nPlease run inside of a supported cloud computing environment, or get an ngc file from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>." << std::endl;
                 }
-                if (!pathExists(perm_file.toSTLString())) {
+                else if (!sratools::config->canSendCEToken()) {
                     ++problems;
-                    std::cerr << "--perm " << perm_file << "\nFile not found." << std::endl;
+                    std::cerr << "--perm requires a cloud instance identity, please run vdb-config --interactive and enable the option to report cloud instance identity." << std::endl;
                 }
             }
             if (!ngc_file.isEmpty()) {
@@ -432,7 +481,39 @@ namespace sratools2
             if (containers > 0) {
                 std::cerr << "Automatic expansion of container accessions is not currently available. See the above link(s) for information about the accessions." << std::endl;
             }
-            return ( problems == 0 );
+            if (problems == 0)
+                return true;
+
+            if (logging_state::is_dry_run()) {
+                std::cerr << "Problems allowed for testing purposes!" << std::endl;
+                return true;
+            }
+            return false;
+        }
+    };
+
+    struct ToolExecNoSDL {
+        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
+        {
+            ArgvBuilder builder;
+
+#if WINDOWS
+            // make sure we got all hard-coded POSIX path seperators
+            assert(theirpath.find('/') == std::string::npos);
+#endif
+            builder.add_option(theirpath);
+            tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
+
+            auto argv = builder.generate_argv(accessions);
+
+            sratools::process::run_child(toolpath.c_str(), toolname, argv);
+
+            // exec returned! something went wrong
+            auto const error = std::error_code(errno, std::system_category());
+
+            builder.free_argv(argv);
+
+            throw std::system_error(error, std::string("Failed to exec ")+toolname);
         }
     };
 
@@ -447,13 +528,9 @@ namespace sratools2
             }
             return result;
         }
-        static bool exec_wait(char const *toolpath, char const *toolname, char **argv, sratools::data_source const &src)
+        static bool exec_wait(char const *toolpath, char const *toolname, char const **argv, sratools::data_source const &src)
         {
-            auto const child = sratools::process::run_child([&]() {
-                src.set_environment();
-                sratools::exec(toolpath, toolname, argv);
-            });
-            auto const result = child.wait();
+            auto const result = sratools::process::run_child_and_wait(toolpath, toolname, argv, src.get_environment());
             if (result.exited()) {
                 if (result.exit_code() == 0) { // success, process next run
                     return true;
@@ -462,13 +539,15 @@ namespace sratools2
                 if (result.exit_code() == EX_TEMPFAIL)
                     return false; // try next source
 
-                std::cerr << toolname << " (PID " << child.get_pid() << ") quit with error code " << result.exit_code() << std::endl;
+                std::cerr << toolname << " quit with error code " << result.exit_code() << std::endl;
                 exit(result.exit_code());
             }
 
             if (result.signaled()) {
-                std::cerr << toolname << " (PID " << child.get_pid() << ") was killed (signal " << result.termsig() << ")";
-                std::cerr << std::endl;
+                auto const signame = result.termsigname();
+                std::cerr << toolname << " was killed (signal " << result.termsig();
+                if (signame) std::cerr << " " << signame;
+                std::cerr << ")" << std::endl;
                 exit(3);
             }
             assert(!"reachable");
@@ -477,6 +556,9 @@ namespace sratools2
     public:
         static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
         {
+            if (accessions.empty()) {
+                return ToolExecNoSDL::run(toolname, toolpath, theirpath, tool_options, accessions);
+            }
             auto const s_location = tool_options.location.toSTLString();
             auto const s_perm = tool_options.perm_file.toSTLString();
             auto const s_ngc = tool_options.ngc_file.toSTLString();
@@ -484,6 +566,9 @@ namespace sratools2
             sratools::location = s_location.empty() ? nullptr : &s_location;
             sratools::perm = s_perm.empty() ? nullptr : &s_perm;
             sratools::ngc = s_ngc.empty() ? nullptr : &s_ngc;
+
+            if (tool_options.preferNoQual())
+                sratools::data_sources::preferNoQual();
 
             // talk to SDL
             auto all_sources = sratools::data_sources::preload(convert(accessions));
@@ -493,6 +578,10 @@ namespace sratools2
             sratools::ngc = nullptr;
 
             all_sources.set_ce_token_env_var();
+#if WINDOWS
+            // make sure we got all hard-coded POSIX path seperators
+            assert(theirpath.find('/') == std::string::npos);
+#endif
 
             int i = 0;
             for (auto const &acc : accessions) {
@@ -505,8 +594,7 @@ namespace sratools2
                 builder.add_option(theirpath);
                 tool_options . populate_argv_builder( builder, i++, accessions );
 
-                int argc = 0;
-                char **argv = builder.generate_argv(argc, { acc });
+                auto const argv = builder.generate_argv({ acc });
                 auto success = false;
 
                 for (auto &src : sources) {
@@ -519,7 +607,7 @@ namespace sratools2
                     LOG(1) << "Failed to get data for " << acc << " from " << src.service() << std::endl;
                 }
 
-                builder.free_argv(argc, argv);
+                builder.free_argv(argv);
 
                 if (!success) {
                     std::cerr << "Could not get any data for " << acc << ", tried to get data from:" << std::endl;
@@ -531,28 +619,6 @@ namespace sratools2
                 }
             }
             return 0;
-        }
-    };
-
-    struct ToolExecNoSDL {
-        static int run(char const *toolname, std::string const &toolpath, std::string const &theirpath, CmnOptAndAccessions const &tool_options, std::vector<ncbi::String> const &accessions)
-        {
-            ArgvBuilder builder;
-
-            builder.add_option(theirpath);
-            tool_options . populate_argv_builder( builder, (int)accessions.size(), accessions );
-
-            int argc = 0;
-            char **argv = builder.generate_argv(argc, accessions);
-
-            sratools::exec(toolpath.c_str(), toolname, argv);
-
-            // exec returned! something went wrong
-            auto const error = std::error_code(errno, std::system_category());
-
-            builder.free_argv(argc, argv);
-
-            throw std::system_error(error, std::string("Failed to exec ")+toolname);
         }
     };
 

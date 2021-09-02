@@ -67,6 +67,11 @@ namespace ncbi
             U32 max, const String & short_name, const String & long_name,
             const String & elem_name, const String & help );
 
+        void addDebugOption ( std :: vector < String > & list,
+            const char separator,
+            U32 max, const String & short_name, const String & long_name,
+            const String & elem_name, const String & help );
+
         // indicate start of silent options
         void startSilentOptions ();
 
@@ -90,8 +95,8 @@ namespace ncbi
         void longHelp ( const char * short_name );
         void version ();
 
-        Cmdline ( int argc, char * argv [] );
-        Cmdline ( int argc, char * argv [], const String & vers );
+        Cmdline ( int argc, char const * argv [] );
+        Cmdline ( int argc, char const * argv [], const String & vers );
         ~ Cmdline ();
 
         struct Param

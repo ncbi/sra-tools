@@ -95,7 +95,8 @@ namespace ncbi
         memset ( & new_buff [ cap ], 0, amt + 1 );
 
         // copy from old
-        memmove ( new_buff, buff, sz );
+        // only "sz" bytes have content, but cap-sz bytes have been cleared
+        memmove ( new_buff, buff, cap );
 
         // douse the old one
         delete [] buff;

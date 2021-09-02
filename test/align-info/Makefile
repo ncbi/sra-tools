@@ -32,6 +32,8 @@ TEST_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -44,5 +46,5 @@ clean: stdclean
 runtests: cmdline
 
 cmdline:
-	# make sure -h does not crash
-	$(BINDIR)/align-info -h 
+	# make sure align-info -h does not crash
+	@ $(DIRTOTEST)/align-info -h > /dev/null

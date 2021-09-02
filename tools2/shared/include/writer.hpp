@@ -413,17 +413,17 @@ public:
     , nextColumn(0)
     {
     }
-    void addTable(char const *name, std::initializer_list<ColumnDefinition> list)
+    void addTable(char const *name, std::initializer_list<ColumnDefinition> const &list)
     {
         decltype(tables.begin()->second.second) columns;
-        auto tno = ++nextTable;
-        this->openTable(tno, name);
+        auto const tableNo = ++nextTable;
+        openTable(tableNo, name);
         for (auto && i : list) {
-            auto cno = ++nextColumn;
-            this->openColumn(cno, tno, i.elemSize * 8, i.name);
-            columns[i.name] = cno;
+            auto const columnNo = ++nextColumn;
+            openColumn(columnNo, tableNo, i.elemSize * 8, i.name);
+            columns[i.name] = columnNo;
         }
-        tables[name] = std::make_pair(tno, columns);
+        tables[name] = std::make_pair(tableNo, columns);
     }
     bool setValue(ColumnID columnNumber, unsigned count, unsigned elsize, void const *data) const {
         return value(columnNumber, count, elsize, data);

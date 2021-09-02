@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup Label="Globals">
+        <ProjectGuid>{72BD3AEE-0CE1-D9EC-C75A-4DCD5ED3184F}</ProjectGuid>
+    </PropertyGroup>
+    <Import Project=".\test-project.props" />
+    <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
+        <Exec Command="$(SRATOOLS_TARGET)\bin\align-info.exe -h" WorkingDirectory="$(ProjectDir)"/>
+    </Target>
+</Project>

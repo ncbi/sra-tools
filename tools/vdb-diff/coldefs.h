@@ -41,21 +41,12 @@ extern "C" {
 #endif
 
 /********************************************************************
-col-def is the definition of a single column: index/type
-********************************************************************/
-typedef struct col_def
-{
-    uint32_t idx;       	/* index of this column in curosr */
-} col_def;
-
-
-/********************************************************************
 col-pair is the definition of pair of columns with same name
 ********************************************************************/
 typedef struct col_pair
 {
     char * name;
-	col_def	pair[ 2 ];		/* a pair of sub-col-defs */
+	uint32_t idx[ 2 ];		/* a pair of sub-col-defs */
 } col_pair;
 
 

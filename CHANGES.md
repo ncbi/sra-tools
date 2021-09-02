@@ -1,5 +1,135 @@
 # NCBI External Developer Release:
 
+
+## SRA Toolkit 2.11.1
+**August 17, 2021**
+
+  **align, axf, sra-pileup, vdb, vfs**: resolve reference sequences within output directory  
+  **cloud, kns, sra-tools**: do not acquire CE more often than necessary  
+  **kget**: renamed to vdb-get  
+  **kns, sra-tools**: improved reporting of peer certificate information  
+  **kns, sra-tools**: improved timeout management in CacheTeeFile  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: configure prints the version of compiler  
+  **prefetch**: better control of reference sequences  
+  **prefetch**: fixed failure when protected repository exists  
+  **prefetch, vdb, vfs**: prefetch with "-O" will now correctly place references in output directory  
+  **prefetch, vfs**: fixed error message 'multiple response SRR URLs for the same service...' when downloading  
+  **prefetch**: will download any missed dependencies  
+  **prefetch**: will not hang when failing to download dependencies  
+  **sratools**: allow driver tool to handle debug output for modules  
+  **vdb-dump**: using --info with URLs now works correctly  
+  **vfs, sra-tools**: updated interaction with SRA Data Locator  
+
+
+## SRA Toolkit 2.11.0
+**March 15, 2021**
+
+  **fasterq-dump**: does not exit with 0 any more if the given path is not found  
+  **fasterq-dump**: does not exit with 0 if accession is not found  
+  **fasterq-dump**: does not fail when requested to dump a run file with non-standard name  
+  **fasterq-dump**: available on windows  
+  **kfg, prefetch, vfs**: resolve WGS reference sequences into "Accession Directory"  
+  **kfg, sra-tools, vfs**: dropped support of protected repositories  
+  **kns, sra-tools**: fixed formatting of HTTP requests for proxy  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools, vdb**: added support for 64-bit ARM (AArch64, Apple Silicon)  
+  **prefetch, vfs**: fixed download of protected non-run files  
+  **prefetch, vfs**: fixed segfault during download of JWT cart  
+  **prefetch, vfs**: respect requested version when downloading WGS files  
+  **sra-pileup**: now silent if requested slice has no alignments or reference-name does not exist  
+  **sratools**: added description and documentation of the sratools driver tool to GitHub wiki  
+  **sra-tools**: created a script to fix names of downloaded sra files  
+  **sra-tools**: created a script to move downloaded sra run files into proper directories  
+  **sratools**: disable-multithreading option removed from help text for tools that do not support it  
+  **sratools**: does not access remote repository when it is disabled  
+  **sra-tools, vfs**: recognize sra file names with version  
+  **vdb-dump**: exits with no-zero value if asked for non existing column  
+
+
+## SRA Toolkit 2.10.9
+**December 16, 2020**
+
+  **align, vdb**: fixed situation where network access could drastically slow down reading references  
+  **build**: added configure option to produce build in output directory relative to sources  
+  **fasterq-dump**: better recognizes pacbio-runs  
+  **fasterq-dump**: ignore .sra-extension of input-filename in output-filename  
+  **fasterq-dump**: non-zero return-code if no arguments given  
+  **fastq-dump**: fasta parameter will complain about invalid argument  
+  **kar**: added availability to open remote files on cloud  
+  **kns, sra-tools, vdb**: added a loop to retry failed connections when fetching SRA files  
+  **latf-load**: added an option to drop read names (--no-readnames), preserve them by default  
+  **prefetch**: support of ETL - BQS runs  
+  **sra-docker**: documentation for toolkit docker  
+  **sratools**: driver tool passes all arguments to the driven tool  
+  **sratools**: fixed bug that prevented the `concatenate-reads` option from working  
+  **sratools**: fixed typo `split-e` for option `split-3`  
+  **sratools**: tools can be executed with no arguments  
+  **sratools**: transport option is now deprecated and silently ignored  
+  **sratools**: verbosity argument is passed on to driven tool  
+  **vdb-config**: added a new option to force use of full qualities   
+  **vdb**: prefetch is used for test  
+  **vfs**: allow to find local files when remote repository is disabled  
+  **vfs**: not to call names.cgi but SDL when resolving runs and reference sequences  
+
+
+## SRA Toolkit 2.10.8
+**June 29, 2020**
+
+  **kproc, fasterq-dump**: fixed problem with seg-faults caused by too small stack used by threads  
+  **kdbmeta**: allow to work with remote runs  
+  **kdb, vdb, vfs, sra-tools**: fixed bug preventing use of path to directory created by prefetch if it ends with '/'  
+  **vfs, sra-tools, ngs-tools**: report an error when file was encrypted for a different ngc file  
+  **prefetch**: print error message when cannot resolve reference sequence  
+  **vfs, prefetch**: download encrypted phenotype files with encrypted extension  
+  **vdb, sra-docker**: config can auto-generate LIBS/GUID when in a docker container  
+
+
+## SRA Toolkit 2.10.7
+**May 20, 2020**
+
+  **sratools**: fixed issue with some runs not working correctly and fixed typo in fasterq-dump command line  
+  **kns, sra-tools, ngs-tools**: added new header to HTTP requests to communicate VDB version
+
+
+## SRA Toolkit 2.10.6
+**MAY 18, 2020**
+
+  **align, sra-tools, ngs-tools**: fixed fetching of reference sequences from cloud  
+  **align, sra-tools, vfs**: fixed resolving of hs37d5 reference sequence  
+  **build, sra-tools**: installation script works when libmagic is not present  
+  **kar**: errors fixed in kar utility  
+  **kfg, sra-tools**: ignore configuration with invalid protected user repository having a single 'root' node  
+  **kns, sra-tools, ngs-tools**: added new header to HTTP requests to communicate SRA version  
+  **kns, sra-tools**: close socket when accessing GCP files  
+  **kns, sra-tools, ngs-tools**: introduced a additional configurable network retry loop  
+  **krypto, sra-tools, vfs**: fixed decryption when password contains # symbol  
+  **prefetch**: allow to resume interrupted download, validate downloaded file   
+  **sratools**: sra-tools are now available on Windows  
+  **sratools, vdb-dump, vfs**: fixed vdb-dump <accession of prefetched run>  
+  **sra-tools, vdb**: restored possibility to cache WGS references to user repository  
+  **sra-tools, vfs**: fixed working with runs having WGS reference sequences  
+
+
+## SRA Toolkit 2.10.5
+**April 1, 2020**
+
+  **build, sratools**: fixed a potential build problem in libutf8proc  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: all Linux builds now use g++ 7.3 (C++11 ABI)  
+  **prefetch**: improvements were made to work in environments with bad network connections  
+  **prefetch, sratools**: fixed the names of the --min-size and --max-size command line arguments when running prefetch
+
+
+## SRA Toolkit 2.10.4
+**February 26, 2020**
+
+  **kns, sra-tools:**: fixed errors when using ngc file
+
+
+## SRA Toolkit 2.10.3
+**February 18, 2020**
+
+  **sraxf, fasterq-dump, fastq-dump, sam-dump**: fixed a problem resulting in a segmentation fault 
+
+
 ## SRA Toolkit 2.10.2
 **January 15, 2020**
 
@@ -12,7 +142,7 @@
   **prefetch**: accepts JWT cart command line argument plus accession filter  
   **prefetch**: fixed crash when run with --output-file option  
   **prefetch**: make sure to accept old style kart file; added --cart command line option  
-  **prefetch**: the download transport has been limited to https and the eliminate-quals option has been temporarily disabled.  
+  **prefetch**: the download transport has been limited to https and the eliminate-quals option has been temporarily disabled  
   **prefetch, vfs**: allow to specify file type to resolve  
   **prefetch, vfs**: allow to use "prefetch --type all" to request download of all file types  
   **sra-pileup**: printing bases inbetween slices when user-defined ref-name given fixed  
@@ -35,6 +165,12 @@
   **vdb-dump**: fixed bug in -X ( hex ) mode  
   **vdb-dump, vfs**: addressed obscure bug preventing access to a single external reference  
   **vdb-validate**: fixed handling of empty cells affecting certain databases  
+
+
+## SRA Toolkit 2.10.1
+**December 16, 2019**
+
+  **sra-tools**: changed version to match that of _ncbi-vdb_
 
 
 ## SRA Toolkit 2.10.0

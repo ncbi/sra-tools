@@ -59,24 +59,25 @@ rc_t execute_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_path,
                     const char * accession_short,
-                    join_stats * stats,
+                    join_stats_t * stats,
                     const char * lookup_filename,
                     const char * index_filename,
-                    const struct temp_dir * temp_dir,
-                    struct temp_registry * registry,
+                    const struct temp_dir_t * temp_dir,
+                    struct temp_registry_t * registry,
                     size_t cur_cache,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
                     format_t fmt,
-                    const join_options * join_options );
+                    const join_options_t * join_options );
 
 rc_t check_lookup( const KDirectory * dir,
                    size_t buf_size,
                    size_t cursor_cache,
                    const char * lookup_filename,
                    const char * index_filename,
-                   const char * accession );
+                   const char * accession_short,
+                   const char * accession_path );
 
 rc_t check_lookup_this( const KDirectory * dir,
                         size_t buf_size,
@@ -85,6 +86,19 @@ rc_t check_lookup_this( const KDirectory * dir,
                         const char * index_filename,
                         uint64_t seq_spot_id,
                         uint32_t seq_read_id );
+
+rc_t execute_fast_join( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    join_stats_t * stats,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    bool show_progress,
+                    const char * output_filename, /* NULL for stdout! */
+                    const join_options_t * join_options,
+                    bool force );
 
 #ifdef __cplusplus
 }

@@ -39,6 +39,11 @@
 namespace sratools {
 
 struct ToolPath {
+#if WINDOWS
+    static char constexpr seperator = '\\';
+#else
+    static char constexpr seperator = '/';
+#endif
 private:
     std::string path_;
     std::string basename_;
@@ -46,7 +51,7 @@ private:
 
     static std::string get_path(std::string const &pathname)
     {
-        auto const sep = pathname.find_last_of('/');
+        auto const sep = pathname.find_last_of(ToolPath::seperator);
         return (sep == std::string::npos) ? std::string() : pathname.substr(0, sep);
     }
 
@@ -62,9 +67,21 @@ public:
     std::string const &path() const { return path_; }
     std::string const &basename() const { return basename_; }
     std::string const &version() const { return version_; }
-    std::string fullpath() const { return path_ + '/' + basename_ + '.' + version_; }
+    std::string fullpath() const {
+#if WINDOWS
+        return path_ + ToolPath::seperator + basename_ + ".exe";
+#else // POSIX
+        auto result = path_ + ToolPath::seperator + basename_;
+        if (version_.size() > 0) result += '.' + version_;
+        return result;
+#endif
+    }
     bool executable() const {
+#if WINDOWS
+        return true; ///< yeah Windows really doesn't know!!!
+#else // POSIX
         return access(fullpath().c_str(), X_OK) == 0;
+#endif
     }
 
     static std::string toolkit_version( void )
@@ -77,7 +94,17 @@ public:
 
     ToolPath getPathFor(std::string const &name) const
     {
-        return ToolPath(path(), name, version());
+        auto result = ToolPath(path(), name, version());
+#if DEBUG || _DEBUGGING
+        {
+            if (result.executable())
+                return result;
+        }
+        if (ends_with("-orig", name))
+            return getPathFor(name.substr(0, name.size() - 5));
+        result = ToolPath(path(), name, "");
+#endif
+        return result;
     }
 };
 

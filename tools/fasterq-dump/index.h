@@ -45,22 +45,22 @@ extern "C" {
 
 #define DFLT_INDEX_FREQUENCY 20000
 
-struct index_writer;
+struct index_writer_t;
 
-void release_index_writer( struct index_writer * writer );
-rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
+void release_index_writer( struct index_writer_t * writer );
+rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
                         size_t buf_size, uint64_t frequency, const char * fmt, ... );
-rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset );
+rc_t write_key( struct index_writer_t * writer, uint64_t key, uint64_t offset );
 
-struct index_reader;
+struct index_reader_t;
 
-void release_index_reader( struct index_reader * reader );
-rc_t make_index_reader( const KDirectory * dir, struct index_reader ** reader,
+void release_index_reader( struct index_reader_t * reader );
+rc_t make_index_reader( const KDirectory * dir, struct index_reader_t ** reader,
                         size_t buf_size, const char * fmt, ... );
-rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_find,
+rc_t get_nearest_offset( const struct index_reader_t * reader, uint64_t key_to_find,
                    uint64_t * key_found, uint64_t * offset );
 
-rc_t get_max_key( const struct index_reader * reader, uint64_t * max_key );
+rc_t get_max_key( const struct index_reader_t * reader, uint64_t * max_key );
 
 #ifdef __cplusplus
 }

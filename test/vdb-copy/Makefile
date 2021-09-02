@@ -32,17 +32,25 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
+ifdef PYTHON
 runtests: check_exit_code
+
+else
+runtests: ;
+
+endif
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
 
 check_exit_code:
-	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-copy
+	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/vdb-copy
 
 .PHONY: $(TEST_TOOLS)
 

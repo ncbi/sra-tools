@@ -62,10 +62,10 @@ $(SUBDIRS_STD):
 #-------------------------------------------------------------------------------
 # install
 #
-install: 
+install install-delite:
 	@ echo "Checking make status of tools..."
 	@ $(MAKE) -s --no-print-directory TOP=$(CURDIR) std
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install install
+	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install $@
 
 uninstall:    
 	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install uninstall

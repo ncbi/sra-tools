@@ -1138,6 +1138,14 @@ static rc_t make_cursor_ids( Vector *cursor_id_vector, pileup_col_ids ** cursor_
     return rc;
 }
 
+static bool row_not_found_while_reading_column( rc_t rc )
+{
+    return ( rcVDB == GetRCModule( rc ) &&
+             rcColumn == GetRCTarget( rc ) &&
+             rcReading == GetRCContext( rc ) &&
+             rcRow == GetRCObject( rc ) &&
+             rcNotFound == GetRCState( rc ) );
+}
 
 static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_range * range )
 {
@@ -1208,8 +1216,10 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
                                                           ctx->spot_group,      /* what read-group */
                                                           ctx->prim_cur_ids     /* placement-context */
                                                          );
-                    if ( rc1 != 0 )
+                    if ( rc1 != 0 && !row_not_found_while_reading_column( rc1 ) )
                     {
+                        /* row_not_found_while_reading column within VDB happens if the
+                         requested reference-slice is empty, let's silence that */
                         LOGERR( klogInt, rc1, "ReferenceIteratorAddPlacements(prim) failed" );
                     }
                 }
@@ -1242,8 +1252,10 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
                                                           ctx->spot_group,      /* what read-group */
                                                           ctx->sec_cur_ids      /* placement-context */
                                                          );
-                    if ( rc2 != 0 )
+                    if ( rc2 != 0 && !row_not_found_while_reading_column( rc2 ) )
                     {
+                        /* row_not_found_while_reading column within VDB happens if the
+                         requested reference-slice is empty, let's silence that */
                         LOGERR( klogInt, rc2, "ReferenceIteratorAddPlacements(sec) failed" );
                     }
                 }
@@ -1276,8 +1288,10 @@ static rc_t CC prepare_section_cb( prepare_ctx * ctx, const struct reference_ran
                                                           ctx->spot_group,      /* what read-group */
                                                           ctx->ev_cur_ids       /* placement-context */
                                                          );
-                    if ( rc3 != 0 )
+                    if ( rc3 != 0 && !row_not_found_while_reading_column( rc3 ) )
                     {
+                        /* row_not_found_while_reading column within VDB happens if the
+                         requested reference-slice is empty, let's silence that */
                         LOGERR( klogInt, rc3, "ReferenceIteratorAddPlacements(evidence) failed" );
                     }
                 }

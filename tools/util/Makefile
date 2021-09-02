@@ -29,19 +29,17 @@ TOP ?= $(abspath ../..)
 MODULE = tools/util
 
 INT_TOOLS = \
-    crc32sum \
-    test-download \
-    kdb-index \
-    pacbio-correct \
-    schema-replace \
-    sortreadtest \
-    rowwritetest \
-    samview \
-    testld \
-    txt2kdb \
-    validate-names4 \
-#   pseudo-aligner \
-
+	crc32sum \
+	test-download \
+	kdb-index \
+	pacbio-correct \
+	schema-replace \
+	sortreadtest \
+	rowwritetest \
+	samview \
+	testld \
+	txt2kdb \
+	validate-names4
 
 EXT_TOOLS = \
 	rcexplain \
@@ -51,6 +49,7 @@ EXT_TOOLS = \
 	vdb-unlock \
 	test-sra \
 	vdb-passwd \
+	make-read-filter
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -418,3 +417,23 @@ KDBINDEX_LIB = \
 
 $(BINDIR)/kdb-index: $(KDBINDEX_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KDBINDEX_LIB)
+
+
+#-------------------------------------------------------------------------------
+# make-read-filter
+#  Make RD_FILTER column for delite process
+#
+M_R_F_SRC = \
+	make-read-filter
+
+M_R_F_OBJ = \
+	$(addsuffix .$(OBJX),$(M_R_F_SRC))
+
+M_R_F_LIB = \
+	-skapp \
+	-stk-version \
+	-sncbi-wvdb \
+	-lm
+
+$(BINDIR)/make-read-filter: $(M_R_F_OBJ)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(M_R_F_LIB)

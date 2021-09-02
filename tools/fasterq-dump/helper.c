@@ -36,6 +36,15 @@
 
 #include <kdb/manager.h>
 #include <vdb/manager.h>
+#include <vfs/manager.h>
+#include <vfs/path.h>
+
+#include <atomic32.h>
+
+#include <limits.h> /* PATH_MAX */
+#ifndef PATH_MAX
+    #define PATH_MAX 4096
+#endif
 
 rc_t ErrMsg( const char * fmt, ... )
 {
@@ -46,8 +55,10 @@ rc_t ErrMsg( const char * fmt, ... )
     va_list list;
     va_start( list, fmt );
     rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
+    }
     va_end( list );
     return rc;
 } 
@@ -60,10 +71,13 @@ const char * get_str_option( const struct Args *args, const char *name, const ch
     const char* res = dflt;
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, name, &count );
-    if ( rc == 0 && count > 0 )
+    if ( 0 == rc && count > 0 )
     {
         rc = ArgsOptionValue( args, name, 0, (const void**)&res );
-        if ( rc != 0 ) res = dflt;
+        if ( 0 != rc )
+        {
+            res = dflt;
+        }
     }
     return res;
 }
@@ -72,7 +86,7 @@ bool get_bool_option( const struct Args *args, const char *name )
 {
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, name, &count );
-    return ( rc == 0 && count > 0 );
+    return ( 0 == rc && count > 0 );
 }
 
 
@@ -80,7 +94,7 @@ uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64
 {
     uint64_t res = dflt;
     const char * s = get_str_option( args, name, NULL );
-    if ( s != NULL )
+    if ( NULL != s )
     {
         size_t l = string_size( s );
         if ( l > 0 )
@@ -96,7 +110,7 @@ uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32
 {
     uint32_t res = dflt;
     const char * s = get_str_option( args, name, NULL );
-    if ( s != NULL )
+    if ( NULL != s )
     {
         size_t l = string_size( s );
         if ( l > 0 )
@@ -113,7 +127,7 @@ size_t get_size_t_option( const struct Args * args, const char *name, size_t dfl
 {
     size_t res = dflt;
     const char * s = get_str_option( args, name, NULL );
-    if ( s != NULL )
+    if ( NULL != s )
     {
         size_t l = string_size( s );
         if ( l > 0 )
@@ -128,11 +142,11 @@ size_t get_size_t_option( const struct Args * args, const char *name, size_t dfl
                 case 'g' :
                 case 'G' : multipl = 1024 * 1024 * 1024; break;
             }
-            
+
             if ( multipl > 1 )
             {
                 char * src = string_dup( s, l - 1 );
-                if ( src != NULL )
+                if ( NULL != src )
                 {
                     char * endptr;
                     res = strtol( src, &endptr, 0 ) * multipl;
@@ -154,63 +168,119 @@ static format_t format_cmp( String * Format, const char * test, format_t test_fm
     String TestFormat;
     StringInitCString( &TestFormat, test );
     if ( 0 == StringCaseCompare ( Format, &TestFormat ) )
+    {
         return test_fmt;
+    }
     return ft_unknown;
 }
 
 format_t get_format_t( const char * format,
-            bool split_spot, bool split_file, bool split_3, bool whole_spot )
+            bool split_spot, bool split_file, bool split_3, bool whole_spot,
+            bool fasta, bool fasta_us )
 {
     format_t res = ft_unknown;
-    if ( format != NULL && format[ 0 ] != 0 )
+    if ( NULL != format && 0 != format[ 0 ] )
     {
         /* the format option has been used, try to recognize one of the options,
            the legacy options will be ignored now */
 
         String Format;
         StringInitCString( &Format, format );
-        
+
         res = format_cmp( &Format, "special", ft_special );
-        if ( res == ft_unknown )
-            res = format_cmp( &Format, "whole-spot", ft_whole_spot );
-        if ( res == ft_unknown )
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fastq-whole-spot", ft_fastq_whole_spot );
+
+        if ( ft_unknown == res )
             res = format_cmp( &Format, "fastq-split-spot", ft_fastq_split_spot );
-        if ( res == ft_unknown )
+
+        if ( ft_unknown == res )
             res = format_cmp( &Format, "fastq-split-file", ft_fastq_split_file );
-        if ( res == ft_unknown )
+
+        if ( ft_unknown == res )
             res = format_cmp( &Format, "fastq-split-3", ft_fastq_split_3 );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-whole-spot", ft_fasta_whole_spot );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-split-spot", ft_fasta_split_spot );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-split-file", ft_fasta_split_file );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-split-3", ft_fasta_split_3 );
+
+        if ( ft_unknown == res )
+            res = format_cmp( &Format, "fasta-us-split-spot", ft_fasta_us_split_spot );
     }
     else
     {
         /* the format option has not been used, let us see if some of the legacy-options
             have been used */
         if ( split_3 )
-            res = ft_fastq_split_3;
+        {
+            res = ( fasta || fasta_us ) ? ft_fasta_split_3 : ft_fastq_split_3;
+            /* split-file, split-spot and whole-spot are ignored! */
+        }
         else if ( split_file )
-            res = ft_fastq_split_file;
+        {
+            res = ( fasta || fasta_us ) ? ft_fasta_split_file : ft_fastq_split_file;
+            /* split-3, split-spot and whole-spot are ignored! */
+        }
         else if ( split_spot )
-            res = ft_fastq_split_spot;
+        {
+            /* split-3, split-file and whole-spot are ignored! */
+            if ( fasta_us )
+            {
+                res = ft_fasta_us_split_spot;
+            }
+            else if ( fasta )
+            {
+                res = ft_fasta_split_spot;
+            }
+            else
+            {
+                res = ft_fastq_split_spot;
+            }
+        }
         else if ( whole_spot )
-            res = ft_whole_spot;
+        {
+            /* split-3, split-file and split-spot are ignored! */
+            res = ( fasta || fasta_us ) ? ft_fasta_whole_spot : ft_fastq_whole_spot;
+        }
     }
-    
-    /* default to split_3 if no format has been given at all */
-    if ( res == ft_unknown )
-        res = ft_fastq_split_3;
 
+    /* default to split_3 if no format has been given at all */
+    if ( ft_unknown == res )
+    {
+        if ( fasta_us )
+        {
+            res = ft_fasta_us_split_spot;
+        }
+        else if ( fasta )
+        {
+            res = ft_fasta_split_spot;
+        }
+        else
+        {
+            res = ft_fastq_split_3;
+        }
+    }
     return res;
 }
 
-rc_t make_SBuffer( SBuffer * buffer, size_t len )
+rc_t make_SBuffer( SBuffer_t * buffer, size_t len )
 {
     rc_t rc = 0;
     String * S = &buffer -> S;
     S -> addr = malloc( len );
-    if ( S -> addr == NULL )
+    if ( NULL == S -> addr )
     {
         S -> size = S -> len = 0;
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "malloc( %d ) -> %R", ( len ), rc );
+        ErrMsg( "make_SBuffer().malloc( %d ) -> %R", ( len ), rc );
     }
     else
     {
@@ -221,21 +291,25 @@ rc_t make_SBuffer( SBuffer * buffer, size_t len )
     return rc;
 }
 
-void release_SBuffer( SBuffer * self )
+void release_SBuffer( SBuffer_t * self )
 {
-    if ( self != NULL )
+    if ( NULL != self )
     {
         String * S = &self -> S;
-        if ( S -> addr != NULL )
+        if ( NULL != S -> addr )
+        {
             free( ( void * ) S -> addr );
+        }
     }
 }
 
-rc_t increase_SBuffer( SBuffer * self, size_t by )
+rc_t increase_SBuffer( SBuffer_t * self, size_t by )
 {
     rc_t rc;
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    }
     else
     {
         size_t new_size = self -> buffer_size + by;
@@ -245,18 +319,20 @@ rc_t increase_SBuffer( SBuffer * self, size_t by )
     return rc;
 }
 
-rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
+rc_t print_to_SBufferV( SBuffer_t * self, const char * fmt, va_list args )
 {
     rc_t rc = 0;
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    }
     else
     {
         char * dst = ( char * )( self -> S . addr );
         size_t num_writ = 0;
-            
+
         rc = string_vprintf( dst, self -> buffer_size, &num_writ, fmt, args );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             self -> S . size = num_writ;
             self -> S . len = ( uint32_t )self -> S . size;
@@ -265,42 +341,46 @@ rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
     return rc;
 }
 
-rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err )
+rc_t try_to_enlarge_SBuffer( SBuffer_t * self, rc_t rc_err )
 {
     rc_t rc = rc_err;
     if ( ( GetRCObject( rc ) == ( enum RCObject )rcBuffer ) && ( GetRCState( rc ) == rcInsufficient ) )
     {
         rc = increase_SBuffer( self, self -> buffer_size ); /* double it's size */
-        if ( rc != 0 )
-            ErrMsg( "increase_SBuffer() -> %R", rc );
+        if ( 0 != rc )
+        {
+            ErrMsg( "try_to_enlarge_SBuffer().increase_SBuffer() -> %R", rc );
+        }
     }
     return rc;
 }
 
-rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... )
+rc_t print_to_SBuffer( SBuffer_t * self, const char * fmt, ... )
 {
     rc_t rc = 0;
     bool done = false;
-    while ( rc == 0 && !done )
+    while ( 0 == rc && !done )
     {
         va_list args;
-        
+
         va_start( args, fmt );
         rc = print_to_SBufferV( self, fmt, args );
         va_end( args );
-        
-        done = ( rc == 0 );
+
+        done = ( 0 == rc );
         if ( !done )
+        {
             rc = try_to_enlarge_SBuffer( self, rc );
+        }
     }
     return rc;
 }
 
 
-rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... )
+rc_t make_and_print_to_SBuffer( SBuffer_t * self, size_t len, const char * fmt, ... )
 {
     rc_t rc = make_SBuffer( self, len );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         va_list args;
 
@@ -315,8 +395,10 @@ rc_t split_string( String * in, String * p0, String * p1, uint32_t ch )
 {
     rc_t rc = 0;
     char * ch_ptr = string_chr( in -> addr, in -> size, ch );
-    if ( ch_ptr == NULL )
+    if ( NULL == ch_ptr )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
+    }
     else
     {
         p0 -> addr = in -> addr;
@@ -333,8 +415,10 @@ rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch )
 {
     rc_t rc = 0;
     char * ch_ptr = string_rchr( in -> addr, in -> size, ch );
-    if ( ch_ptr == NULL )
+    if ( NULL == ch_ptr )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
+    }
     else
     {
         p0 -> addr = in -> addr;
@@ -347,7 +431,7 @@ rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch )
     return rc;
 }
 
-rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
+rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
                                 const char * filename, uint32_t idx )
 {
     rc_t rc;
@@ -358,7 +442,7 @@ rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
         String S_in, S_name, S_ext;
         StringInitCString( &S_in, filename );
         rc = split_string_r( &S_in, &S_name, &S_ext, '.' ); /* helper.c */
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             /* we found a dot to split the filename! */
             rc = make_and_print_to_SBuffer( dst, dst_size, "%S_%u.%S",
@@ -372,21 +456,31 @@ rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
         }
     }
     else
+    {
         rc = make_and_print_to_SBuffer( dst, dst_size, "%s", filename ); /* helper.c */
-    
-    if ( rc != 0 )
+    }
+
+    if ( 0 != rc )
+    {
         release_SBuffer( dst );
+    }
     return rc;
 }
 
 compress_t get_compress_t( bool gzip, bool bzip2 )
 {
     if ( gzip && bzip2 )
+    {
         return ct_bzip2;
+    }
     else if ( gzip )
+    {
         return ct_gzip;
+    }
     else if ( bzip2 )
+    {
         return ct_bzip2;
+    }
     return ct_none;
 }
 
@@ -394,19 +488,23 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id )
 {
     uint64_t key = seq_spot_id;
     key <<= 1;
-    key |= ( seq_read_id == 2 ) ? 1 : 0;
+    key |= ( 2 == seq_read_id ) ? 1 : 0;
     return key;
 }
 
-rc_t pack_4na( const String * unpacked, SBuffer * packed )
+rc_t pack_4na( const String * unpacked, SBuffer_t * packed )
 {
     rc_t rc = 0;
     if ( unpacked -> len < 1 )
+    {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    }
     else
     {
         if ( unpacked -> len > 0xFFFF )
+        {
             rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        }
         else
         {
             uint32_t i;
@@ -422,13 +520,19 @@ rc_t pack_4na( const String * unpacked, SBuffer * packed )
                 {
                     uint8_t base = ( src[ i ] & 0x0F );
                     if ( 0 == ( i & 0x01 ) )
+                    {
                         dst[ len ] = ( base << 4 );
+                    }
                     else
+                    {
                         dst[ len++ ] |= base;
+                    }
                 }
             }
             if ( unpacked -> len & 0x01 )
+            {
                 len++;
+            }
             packed -> S . size = packed -> S . len = len;
         }
     }
@@ -488,15 +592,19 @@ static const char xASCII_to_4na[ 256 ] =
        0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
 };
 
-rc_t pack_read_2_4na( const String * read, SBuffer * packed )
+rc_t pack_read_2_4na( const String * read, SBuffer_t * packed )
 {
     rc_t rc = 0;
     if ( read -> len < 1 )
+    {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    }
     else
     {
         if ( read -> len > 0xFFFF )
+        {
             rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        }
         else
         {
             uint32_t i;
@@ -512,13 +620,19 @@ rc_t pack_read_2_4na( const String * read, SBuffer * packed )
                 {
                     uint8_t base = ( xASCII_to_4na[ src[ i ] ] & 0x0F );
                     if ( 0 == ( i & 0x01 ) )
+                    {
                         dst[ len ] = ( base << 4 );
+                    }
                     else
+                    {
                         dst[ len++ ] |= base;
+                    }
                 }
             }
             if ( read -> len & 0x01 )
+            {
                 len++;
+            }
             packed -> S . size = packed -> S . len = len;
         }
     }
@@ -537,7 +651,7 @@ static const char x4na_to_ASCII_rev[ 16 ] =
        'N', 'T', 'G', 'N', 'C', 'N', 'N', 'N', 'A', 'N', 'N', 'N', 'N', 'N', 'N', 'N'
 };
 
-rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
+rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool reverse )
 {
     rc_t rc = 0;
     uint8_t * src = ( uint8_t * )packed -> addr;
@@ -549,30 +663,32 @@ rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
     dna_len |= src[ 1 ];
 
     if ( dna_len > unpacked -> buffer_size )
+    {
         rc = increase_SBuffer( unpacked, dna_len - unpacked -> buffer_size );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
     {
         uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
         uint32_t dst_idx;
         uint32_t i;
-        
+
         /* use the complement-lookup-table in case of reverse */
         const char * lookup = reverse ? x4na_to_ASCII_rev : x4na_to_ASCII_fwd;
-        
+
         dst_idx = reverse ? dna_len - 1 : 0;
-            
+
         for ( i = 2; i < packed -> len; ++i )
         {
             /* get the packed byte out of the packed input */
             uint8_t packed_byte = src[ i ];
-            
+
             /* write the first unpacked byte */
             if ( dst_idx < unpacked -> buffer_size )
             {
                 dst[ dst_idx ] = lookup[ ( packed_byte >> 4 ) & 0x0F ];
                 dst_idx += reverse ? -1 : 1;
             }
-            
+
             /* write the second unpacked byte */
             if ( dst_idx < unpacked -> buffer_size )
             {
@@ -580,11 +696,11 @@ rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
                 dst_idx += reverse ? -1 : 1;
             }
         }
-        
+
         /* set the dna-length in the output-string */
         unpacked -> S . size = dna_len;
         unpacked -> S . len = ( uint32_t )unpacked -> S . size;
-        
+
         /* terminated the output-string, just in case */
         dst[ dna_len ] = 0;
     }
@@ -598,7 +714,7 @@ bool check_expected( const KDirectory * dir, uint32_t expected, const char * fmt
     size_t num_writ;
     
     rc_t rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, args );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         uint32_t pt = KDirectoryPathType( dir, "%s", buffer );
         res = ( pt == expected );
@@ -633,12 +749,14 @@ rc_t join_and_release_threads( Vector * threads )
     for ( i = VectorStart( threads ); i < n; ++i )
     {
         KThread * thread = VectorGet( threads, i );
-        if ( thread != NULL )
+        if ( NULL != thread )
         {
             rc_t rc1;
             KThreadWait( thread, &rc1 );
-            if ( rc == 0 && rc1 != 0 )
+            if ( 0 == rc && rc1 != 0 )
+            {
                 rc = rc1;
+            }
             KThreadRelease( thread );
         }
     }
@@ -647,7 +765,7 @@ rc_t join_and_release_threads( Vector * threads )
 }
 
 
-void clear_join_stats( join_stats * stats )
+void clear_join_stats( join_stats_t * stats )
 {
     if ( stats != NULL )
     {
@@ -661,9 +779,9 @@ void clear_join_stats( join_stats * stats )
     }
 }
 
-void add_join_stats( join_stats * stats, const join_stats * to_add )
+void add_join_stats( join_stats_t * stats, const join_stats_t * to_add )
 {
-    if ( stats != NULL && to_add != NULL )
+    if ( NULL != stats && NULL != to_add )
     {
         stats -> spots_read += to_add -> spots_read;
         stats -> reads_read += to_add -> reads_read;
@@ -679,24 +797,30 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files )
 {
     uint32_t count;
     rc_t rc = VNameListCount( files, &count );
-    if ( rc != 0 )
-        ErrMsg( "VNameListCount() -> %R", rc );
+    if ( 0 != rc )
+    {
+        ErrMsg( "delete_files().VNameListCount() -> %R", rc );
+    }
     else
     {
         uint32_t idx;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        for ( idx = 0; 0 == rc && idx < count; ++idx )
         {
             const char * filename;
             rc = VNameListGet( files, idx, &filename );
-            if ( rc != 0 )
-                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
+            if ( 0 != rc )
+            {
+                ErrMsg( "delete_files.VNameListGet( #%d ) -> %R", idx, rc );
+            }
             else
             {
                 if ( file_exists( dir, "%s", filename ) )
                 {
                     rc = KDirectoryRemove( dir, true, "%s", filename );
-                    if ( rc != 0 )
-                        ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                    if ( 0 != rc )
+                    {
+                        ErrMsg( "delete_files.KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                    }
                 }
             }
         }
@@ -708,22 +832,36 @@ rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs )
 {
     uint32_t count;
     rc_t rc = VNameListCount( dirs, &count );
-    if ( rc != 0 )
-        ErrMsg( "VNameListCount() -> %R", rc );
+    if ( 0 != rc )
+    {
+        ErrMsg( "delete_dirs().VNameListCount() -> %R", rc );
+    }
     else
     {
         uint32_t idx;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        for ( idx = 0; 0 == rc && idx < count; ++idx )
         {
             const char * dirname;
             rc = VNameListGet( dirs, idx, &dirname );
-            if ( rc != 0 )
-                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
+            if ( 0 != rc )
+            {
+                ErrMsg( "delete_dirs().VNameListGet( #%d ) -> %R", idx, rc );
+            }
             else if ( dir_exists( dir, "%s", dirname ) )
             {
                 rc = KDirectoryClearDir ( dir, true, "%s", dirname );
-                if ( rc == 0 )
+                if ( 0 != rc )
+                {
+                    ErrMsg( "delete_dirs().KDirectoryClearDir( %s ) -> %R", dirname, rc );
+                }
+                else
+                {
                     rc = KDirectoryRemove ( dir, true, "%s", dirname );
+                    if ( 0 != rc )
+                    {
+                        ErrMsg( "delete_dirs().KDirectoryRemove( %s ) -> %R", dirname, rc );
+                    }
+                }
             }
         }
     }
@@ -733,20 +871,37 @@ rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs )
 uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files )
 {
     uint64_t res = 0;
-    if ( dir != NULL && files != NULL )
+    if ( NULL != dir && NULL != files )
     {
         uint32_t idx, count;
         rc_t rc = VNameListCount( files, &count );
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        if ( 0 != rc )
         {
-            const char * filename;
-            rc = VNameListGet( files, idx, &filename );
-            if ( rc == 0 )
+            ErrMsg( "total_size_of_files_in_list().VNameListCount() -> %R", rc );
+        }
+        else
+        {
+            for ( idx = 0; 0 == rc && idx < count; ++idx )
             {
-                uint64_t size;
-                rc_t rc1 = KDirectoryFileSize( dir, &size, "%s", filename );
-                if ( rc1 == 0 )
-                    res += size;
+                const char * filename;
+                rc = VNameListGet( files, idx, &filename );
+                if ( 0 != rc )
+                {
+                    ErrMsg( "total_size_of_files_in_list().VNameListGet( #%d ) -> %R", idx, rc );
+                }
+                else
+                {
+                    uint64_t size;
+                    rc_t rc1 = KDirectoryFileSize( dir, &size, "%s", filename );
+                    if ( 0 != rc1 )
+                    {
+                        ErrMsg( "total_size_of_files_in_list().KDirectoryFileSize( %s ) -> %R", filename, rc );
+                    }
+                    else
+                    {
+                        res += size;
+                    }
+                }
             }
         }
     }
@@ -783,11 +938,30 @@ int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char *
 bool ends_in_slash( const char * s )
 {
     bool res = false;
-    if ( s != NULL )
+    if ( NULL != s )
     {
         uint32_t len = string_measure( s, NULL );
         if ( len > 0 )
-            res = ( s[ len - 1 ] == '/' );
+        {
+            res = ( '/' == s[ len - 1 ] );
+        }
+    }
+    return res;
+}
+
+static bool ends_in_sra( const char * s )
+{
+    bool res = false;
+    if ( NULL != s )
+    {
+        uint32_t len = string_measure( s, NULL );
+        if ( len > 4 )
+        {
+            res = ( ( 'a' == s[ len - 1 ] ) &&
+                    ( 'r' == s[ len - 2 ] ) &&
+                    ( 's' == s[ len - 3 ] ) &&
+                    ( '.' == s[ len - 4 ] ) );
+        }
     }
     return res;
 }
@@ -795,17 +969,19 @@ bool ends_in_slash( const char * s )
 bool extract_path( const char * s, String * path )
 {
     bool res = false;
-    if ( s != NULL && path != NULL )
+    if ( NULL != s && NULL != path )
     {
         path -> addr = s;
         res = ends_in_slash( s );
         if ( res )
+        {
             path -> len = string_measure( s, & path -> size );
+        }
         else
         {
             size_t size = string_size ( s );
             char * slash = string_rchr ( s, size, '/' );
-            res = ( slash != NULL );
+            res = ( NULL != slash );
             if ( res )
             {
                 path -> len = ( slash - s );
@@ -819,16 +995,120 @@ bool extract_path( const char * s, String * path )
 const char * extract_acc( const char * s )
 {
     const char * res = NULL;
-    if ( s != NULL )
+    if ( ( NULL != s ) && ( !ends_in_slash( s ) ) )
     {
-        if ( !ends_in_slash( s ) )
+        size_t size = string_size ( s );
+        char * slash = string_rchr ( s, size, '/' );
+        if ( NULL == slash )
         {
-            size_t size = string_size ( s );
-            char * slash = string_rchr ( s, size, '/' );
-            if ( slash == NULL )
-                res = s;
+            if ( ends_in_sra( s ) )
+            {
+                res = string_dup ( s, size - 4 );
+            }
             else
-                res = slash + 1;
+            {
+                res = string_dup ( s, size );
+            }
+        }
+        else
+        {
+            char * tmp = slash + 1;
+            if ( ends_in_sra( tmp ) )
+            {
+                res = string_dup ( tmp, string_size ( tmp ) - 4 );
+            }
+            else
+            {
+                res = string_dup ( tmp, string_size ( tmp ) );
+            }
+        }
+    }
+    return res;
+}
+
+const char * extract_acc2( const char * s )
+{
+    const char * res = NULL;
+    VFSManager * mgr;
+    rc_t rc = VFSManagerMake ( &mgr );
+    if ( 0 != rc )
+    {
+        ErrMsg( "extract_acc2( '%s' ).VFSManagerMake() -> %R", s, rc );
+    }
+    else
+    {
+        VPath * orig;
+        rc = VFSManagerMakePath ( mgr, &orig, "%s", s );
+        if ( 0 != rc )
+        {
+            ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R", s, rc );
+        }
+        else
+        {
+            VPath * acc_or_oid = NULL;
+            rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
+            if ( 0 != rc ) /* remove trailing slash[es] and try again */
+            {
+                char P_option_buffer[ PATH_MAX ] = "";
+                size_t l = string_copy_measure(
+                    P_option_buffer, sizeof P_option_buffer, s );
+                char * basename = P_option_buffer;
+                while ( l > 0 && strchr( "\\/", basename[ l - 1 ]) != NULL )
+                    basename[ --l ] = '\0';
+                VPath * orig = NULL;
+                rc = VFSManagerMakePath ( mgr, &orig, "%s", P_option_buffer );
+                if ( 0 != rc )
+                    ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R",
+                        P_option_buffer, rc );
+                else {
+                    rc = VFSManagerExtractAccessionOrOID(
+                        mgr, &acc_or_oid, orig );
+                    if ( 0 != rc )
+                        ErrMsg( "extract_acc2( '%s' )."
+                            "VFSManagerExtractAccessionOrOID() -> %R", s, rc );
+                    {
+                        rc_t r2 = VPathRelease ( orig );
+                        if ( 0 != r2 ) {
+                            ErrMsg( "extract_acc2( '%s' )."
+                                "VPathRelease().2 -> %R", P_option_buffer, rc );
+                            if ( 0 == rc )
+                                rc = r2;
+                        }
+                    }
+                }
+            }
+            if ( 0 == rc )
+            {
+                char buffer[ 1024 ];
+                size_t num_read;
+                rc = VPathReadPath ( acc_or_oid, buffer, sizeof buffer, &num_read );
+                if ( 0 != rc )
+                {
+                    ErrMsg( "extract_acc2( '%s' ).VPathReadPath() -> %R", s, rc );
+                }
+                else
+                {
+                    res = string_dup ( buffer, num_read );
+                }
+
+                rc = VPathRelease ( acc_or_oid );
+                if ( 0 != rc )
+                {
+                    ErrMsg( "extract_acc2( '%s' ).VPathRelease().1 -> %R", s, rc );
+                }
+            }
+
+            rc = VPathRelease ( orig );
+            if ( 0 != rc )
+            {
+                ErrMsg( "extract_acc2( '%s' ).VPathRelease().2 -> %R", s, rc );
+            }
+        }
+
+        rc = VFSManagerRelease ( mgr );
+        if ( 0 != rc )
+        {
+            ErrMsg( "extract_acc2( '%s' ).VFSManagerRelease() -> %R", s, rc );
         }
     }
     return res;
@@ -839,10 +1119,19 @@ rc_t create_this_file( KDirectory * dir, const char * filename, bool force )
     struct KFile * f;
     KCreateMode create_mode = force ? kcmInit : kcmCreate;
     rc_t rc = KDirectoryCreateFile( dir, &f, false, 0664, create_mode | kcmParents, "%s", filename );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+    if ( 0 != rc )
+    {
+        ErrMsg( "create_this_file().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+    }
     else
-        KFileRelease( f );
+    {
+        rc_t rc2 = KFileRelease( f );
+        if ( 0 != rc2 )
+        {
+            ErrMsg( "create_this_file( '%s' ).KFileRelease() -> %R", filename, rc2 );
+            rc = ( 0 == rc ) ? rc2 : rc;
+        }
+    }
     return rc;
 }
 
@@ -850,8 +1139,10 @@ rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force )
 {
     KCreateMode create_mode = force ? kcmInit : kcmCreate;
     rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%.*s", dir_name -> len, dir_name -> addr );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
+    if ( 0 != rc )
+    {
+        ErrMsg( "create_this_dir().KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
+    }
     return rc;
 }
 
@@ -859,8 +1150,10 @@ rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force )
 {
     KCreateMode create_mode = force ? kcmInit : kcmCreate;
     rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%s", dir_name );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryCreateDir( '%s' ) -> %R", dir_name, rc );
+    if ( 0 != rc )
+    {
+        ErrMsg( "create_this_dir_2().KDirectoryCreateDir( '%s' ) -> %R", dir_name, rc );
+    }
     return rc;
 }
 
@@ -869,145 +1162,275 @@ rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
 {
     const struct KFile * fr;
     rc_t rc = KDirectoryOpenFileRead( dir, &fr, "%s", filename );
-    if ( rc == 0 )
+    if ( 0 != rc )
+    {
+        ErrMsg( "make_buffered_for_read().KDirectoryOpenFileRead( '%s' ) -> %R", filename, rc );
+    }
+    else
     {
         if ( buf_size > 0 )
         {
             const struct KFile * fb;
             rc = KBufFileMakeRead( &fb, fr, buf_size );
-            if ( rc == 0 )
+            if ( 0 != rc )
             {
-                KFileRelease( fr );
-                fr = fb;
+                ErrMsg( "make_buffered_for_read( '%s' ).KBufFileMakeRead() -> %R", filename, rc );
+            }
+            else
+            {
+                rc = KFileRelease( fr );
+                if ( 0 != rc )
+                {
+                    ErrMsg( "make_buffered_for_read( '%s' ).KFileRelease().1 -> %R", filename, rc );
+                }
+                else
+                {
+                    fr = fb;
+                }
             }
         }
-        if ( rc == 0 )
+
+        if ( 0 == rc )
+        {
             *f = fr;
+        }
         else
-            KFileRelease( fr );
+        {
+            rc_t rc2 = KFileRelease( fr );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "make_buffered_for_read( '%s' ).KFileRelease().2 -> %R", filename, rc2 );
+            }
+        }
     }
     return rc;
 }
 
 /* ===================================================================================== */
 
-rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize )
+rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize )
 {
     rc_t rc;
-    if ( self == NULL || alloc_blocksize == 0 )
+    if ( NULL == self || 0 == alloc_blocksize )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_file_list_init() -> %R", rc );
+    }
     else
     {
         rc = KLockMake ( &( self -> lock ) );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_file_list_init().KLockMake() -> %R", rc );
+        }
+        else
+        {
             rc = VNamelistMake ( & self -> files, alloc_blocksize );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_file_list_init().VNamelistMake() -> %R", rc );
+            }
+        }
     }
     return rc;
 }
 
-rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir )
+rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir )
 {
     rc_t rc = 0;
-    if ( self != NULL )
+    /* tolerates to be called with self == NULL */
+    if ( NULL != self )
     {
-        KLockRelease ( self -> lock );
-        if ( dir != NULL )
-            rc = delete_files( dir, self -> files );
-        VNamelistRelease ( self -> files );
+        rc = KLockRelease ( self -> lock );
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_file_list_release().KLockRelease() -> %R", rc );
+        }
+        else
+        {
+            /* tolerates to be called with dir == NULL */
+            if ( NULL != dir )
+            {
+                rc = delete_files( dir, self -> files );
+            }
+        }
+        {
+            rc_t rc2 = VNamelistRelease ( self -> files );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "locked_file_list_release().VNamelistRelease() -> %R", rc );
+            }
+        }
     }
     return rc;
 }
 
-rc_t locked_file_list_append( const locked_file_list * self, const char * filename )
+static rc_t locked_file_list_unlock( const locked_file_list_t * self, const char * function, rc_t rc )
+{
+    rc_t rc2 = KLockUnlock ( self -> lock );
+    if ( 0 != rc2 )
+    {
+        ErrMsg( "%s().KLockUnlock() -> %R", function, rc2 );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
+rc_t locked_file_list_append( const locked_file_list_t * self, const char * filename )
 {
     rc_t rc = 0;
-    if ( self == NULL || filename == NULL )
+    if ( NULL == self || NULL == filename )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_file_list_append() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_file_list_append( '%s' ).KLockAcquire() -> %R", filename, rc );
+        }
+        else
         {
             rc = VNamelistAppend ( self -> files, filename );
-            KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_file_list_append( '%s' ).VNamelistAppend() -> %R", filename, rc );
+            }
+            rc = locked_file_list_unlock( self, "locked_file_list_append", rc );
         }
     }
     return rc;
 }
 
-rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list * self )
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self )
 {
     rc_t rc = 0;
-    if ( self == NULL || dir == NULL )
+    if ( NULL == self || NULL == dir )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_file_list_delete_files() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_file_list_delete_files().KLockAcquire() -> %R", rc );
+        }
+        else
         {
             rc = delete_files( dir, self -> files );
-            KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_file_list_delete_files().delete_files() -> %R", rc );
+            }
+            rc = locked_file_list_unlock( self, "locked_file_list_delete_files", rc );
         }
     }
     return rc;
 }
 
-rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list * self )
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self )
 {
     rc_t rc = 0;
-    if ( self == NULL || dir == NULL )
+    if ( NULL == self || NULL == dir )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_file_list_delete_dirs() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_file_list_delete_dirs().KLockAcquire() -> %R", rc );
+        }
+        else
         {
             rc = delete_dirs( dir, self -> files );
-            KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_file_list_delete_dirs().delete_dirs() -> %R", rc );
+            }
+            rc = locked_file_list_unlock( self, "locked_file_list_delete_dirs", rc );
         }
     }
     return rc;
 }
 
-rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count )
+rc_t locked_file_list_count( const locked_file_list_t * self, uint32_t * count )
 {
     rc_t rc = 0;
-    if ( self == NULL || count == NULL )
+    if ( NULL == self || NULL == count )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_file_list_delete_dirs() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_file_list_count().KLockAcquire() -> %R", rc );
+        }
+        else
         {
             rc = VNameListCount( self -> files, count );
-            KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_file_list_count().VNameListCount() -> %R", rc );
+            }
+            rc = locked_file_list_unlock( self, "locked_file_list_count", rc );
         }
     }
     return rc;
 }
 
-rc_t locked_file_list_pop( locked_file_list * self, const String ** item )
+rc_t locked_file_list_pop( locked_file_list_t * self, const String ** item )
 {
     rc_t rc = 0;
-    if ( self == NULL || item == NULL )
+    if ( NULL == self || NULL == item )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_file_list_pop() -> %R", rc );
+    }
     else
     {
         *item = NULL;
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_file_list_pop().KLockAcquire() -> %R", rc );
+        }
+        else
         {
             const char * s;
             rc = VNameListGet ( self -> files, 0, &s );
-            if ( rc == 0 )
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_file_list_pop().VNameListGet() -> %R", rc );
+            }
+            else
             {
                 String S;
                 StringInitCString( &S, s );
                 rc = StringCopy ( item, &S );
-                if ( rc == 0 )
+                if ( 0 != rc )
+                {
+                    ErrMsg( "locked_file_list_pop().StringCopy() -> %R", rc );
+                }
+                else
+                {
                     rc = VNamelistRemoveIdx( self -> files, 0 );
+                    if ( 0 != rc )
+                    {
+                        ErrMsg( "locked_file_list_pop().VNamelistRemoveIdx() -> %R", rc );
+                    }
+                }
             }
-            KLockUnlock ( self -> lock );
+            rc = locked_file_list_unlock( self, "locked_file_list_pop", rc );
         }
     }
     return rc;
@@ -1015,15 +1438,22 @@ rc_t locked_file_list_pop( locked_file_list * self, const String ** item )
 
 /* ===================================================================================== */
 
-rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize )
+rc_t locked_vector_init( locked_vector_t * self, uint32_t alloc_blocksize )
 {
     rc_t rc;
-    if ( self == NULL || alloc_blocksize == 0 )
+    if ( NULL == self || 0 == alloc_blocksize )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_vector_init() -> %R", rc );
+    }
     else
     {
         rc = KLockMake ( &( self -> lock ) );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_vector_init().KLockMake() -> %R", rc );
+        }
+        else
         {
             VectorInit ( &( self -> vector ), 0, alloc_blocksize );
             self -> sealed = false;
@@ -1032,51 +1462,90 @@ rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize )
     return rc;
 }
 
-void locked_vector_release( locked_vector * self,
+static rc_t locked_vector_unlock( const locked_vector_t * self, const char * function, rc_t rc )
+{
+    rc_t rc2 = KLockUnlock ( self -> lock );
+    if ( 0 != rc2 )
+    {
+        ErrMsg( "%s().KLockUnlock() -> %R", function, rc2 );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
+void locked_vector_release( locked_vector_t * self,
                             void ( CC * whack ) ( void *item, void *data ), void *data )
 {
-    if ( self == NULL )
+    if ( NULL == self )
     {
         rc_t rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_vector_release().KLockAcquire() -> %R", rc );
+        }
+        else
         {
             VectorWhack ( &( self -> vector ), whack, data );
-            KLockUnlock ( self -> lock );    
+            rc = locked_vector_unlock( self, "locked_vector_release", rc );
         }
-        KLockRelease ( self -> lock );
+        rc = KLockRelease ( self -> lock );
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_vector_release().KLockRelease() -> %R", rc );
+        }
     }
 }
 
-rc_t locked_vector_push( locked_vector * self, const void * item, bool seal )
+rc_t locked_vector_push( locked_vector_t * self, const void * item, bool seal )
 {
     rc_t rc;
-    if ( self == NULL || item == NULL )
+    if ( NULL == self || NULL == item )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_vector_push() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_vector_push().KLockAcquire -> %R", rc );
+        }
+        else
         {
             rc = VectorAppend ( &( self -> vector ), NULL, item );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_vector_push().VectorAppend -> %R", rc );
+            }
             if ( seal )
+            {
                 self -> sealed = true;
-            KLockUnlock ( self -> lock );
+            }
+            rc = locked_vector_unlock( self, "locked_vector_push", rc );
         }
     }
     return rc;
 }
 
-rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
+rc_t locked_vector_pop( locked_vector_t * self, void ** item, bool * sealed )
 {
     rc_t rc;
-    if ( self == NULL || item == NULL || sealed == NULL )
+    if ( NULL == self || NULL == item || NULL == sealed )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_vector_pop() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
         {
-            if ( VectorLength( &( self -> vector ) ) == 0 )
+            ErrMsg( "locked_vector_pop().KLockAcquire -> %R", rc );
+        }
+        else
+        {
+            if ( 0 == VectorLength( &( self -> vector ) ) )
             {
                 rc = 0;
                 *sealed = self -> sealed;
@@ -1086,99 +1555,145 @@ rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
             {
                 *sealed = false;
                 rc = VectorRemove ( &( self -> vector ), 0, item );
+                if ( 0 != rc )
+                {
+                    ErrMsg( "locked_vector_pop().VectorRemove -> %R", rc );
+                }
             }
-            KLockUnlock ( self -> lock );
+            rc = locked_vector_unlock( self, "locked_vector_pop", rc );
         }
     }
     return rc;
 }
 
 /* ===================================================================================== */
-rc_t locked_value_init( locked_value * self, uint64_t init_value )
+rc_t locked_value_init( locked_value_t * self, uint64_t init_value )
 {
     rc_t rc;
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_value_init() -> %R", rc );
+    }
     else
     {
         rc = KLockMake ( &( self -> lock ) );
-        if ( rc == 0 )
-            self -> value = init_value;
-    }
-    return rc;
-}
-
-void locked_value_release( locked_value * self )
-{
-    if ( self == NULL )
-        KLockRelease ( self -> lock );
-}
-
-rc_t locked_value_get( locked_value * self, uint64_t * value )
-{
-    rc_t rc;
-    if ( self == NULL || value == NULL )
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-    else
-    {
-        rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
         {
-            *value = self -> value;
-            KLockUnlock ( self -> lock );
+            ErrMsg( "locked_value_init().KLockMake() -> %R", rc );
+        }
+        else
+        {
+            self -> value = init_value;
         }
     }
     return rc;
 }
 
-rc_t locked_value_set( locked_value * self, uint64_t value )
+void locked_value_release( locked_value_t * self )
+{
+    if ( NULL != self )
+    {
+        rc_t rc = KLockRelease ( self -> lock );
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_value_init().KLockRelease() -> %R", rc );
+        }
+    }
+}
+
+rc_t locked_value_get( locked_value_t * self, uint64_t * value )
 {
     rc_t rc;
-    if ( self == NULL )
+    if ( NULL == self || NULL == value )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_value_get() -> %R", rc );
+    }
     else
     {
         rc = KLockAcquire ( self -> lock );
-        if ( rc == 0 )
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_value_get().KLockAcquire -> %R", rc );
+        }
+        else
+        {
+            *value = self -> value;
+            rc = KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_value_get().KLockUnlock -> %R", rc );
+            }
+        }
+    }
+    return rc;
+}
+
+rc_t locked_value_set( locked_value_t * self, uint64_t value )
+{
+    rc_t rc;
+    if ( NULL == self )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "locked_value_set() -> %R", rc );
+    }
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( 0 != rc )
+        {
+            ErrMsg( "locked_value_set().KLockAcquire -> %R", rc );
+        }
+        else
         {
             self -> value = value;
-            KLockUnlock ( self -> lock );
+            rc = KLockUnlock ( self -> lock );
+            if ( 0 != rc )
+            {
+                ErrMsg( "locked_value_set().KLockUnlock -> %R", rc );
+            }
         }
     }
     return rc;
 }
 
 /* ===================================================================================== */
-typedef struct Buf2NA
+typedef struct Buf2NA_t
 {
     unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
     size_t shiftLeft[ 4 ];
     NucStrstr * nss;
     uint8_t * buffer;
     size_t allocated;
-} Buf2NA;
+} Buf2NA_t;
 
-rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
+rc_t make_Buf2NA( Buf2NA_t ** self, size_t size, const char * pattern )
 {
     rc_t rc = 0;
     NucStrstr * nss;
     int res = NucStrstrMake ( &nss, 0, pattern, string_size ( pattern ) );
-    if ( res != 0 )
+    if ( 0 != res )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "make_Buf2NA().NucStrstrMake() -> %R", rc );
+    }
     else
     {
         uint8_t * buffer = calloc( size, sizeof * buffer );
-        if ( buffer == NULL )
+        if ( NULL == buffer )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            ErrMsg( "make_Buf2NA().calloc().1() -> %R", rc );
             NucStrstrWhack ( nss );
         }
         else
         {
-            Buf2NA * res = calloc( 1, sizeof * res );
-            if ( res == NULL )
+            Buf2NA_t * res = calloc( 1, sizeof * res );
+            if ( NULL == res )
             {
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                ErrMsg( "make_Buf2NA().calloc().2() -> %R", rc );
                 NucStrstrWhack ( nss );
                 free( ( void * ) buffer );
             }
@@ -1202,7 +1717,7 @@ rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
     return rc;
 }
 
-void release_Buf2NA( Buf2NA * self )
+void release_Buf2NA( Buf2NA_t * self )
 {
     if ( self != NULL )
     {
@@ -1214,7 +1729,7 @@ void release_Buf2NA( Buf2NA * self )
     }
 }
 
-bool match_Buf2NA( Buf2NA * self, const String * ascii )
+bool match_Buf2NA( Buf2NA_t * self, const String * ascii )
 {
     bool res = false;
     if ( self != NULL && ascii != NULL )
@@ -1261,4 +1776,462 @@ bool match_Buf2NA( Buf2NA * self, const String * ascii )
         }
     }
     return res;
+}
+
+rc_t helper_make_thread( KThread ** self,
+                         rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                         void * data,
+                         size_t stacksize )
+{
+    rc_t rc = KThreadMakeStackSize( self, run_thread, data, stacksize );
+    return rc;
+}
+
+/* ===================================================================================== */
+static atomic32_t quit_flag;
+
+rc_t get_quitting( void )
+{
+    rc_t rc = Quitting();
+    if ( 0 == rc )
+    {
+        if ( 0 != atomic32_read ( & quit_flag ) )
+        rc = RC ( rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled );
+    }
+    return rc;
+}
+
+void set_quitting( void )
+{
+    atomic32_inc ( & quit_flag );
+}
+
+/* ===================================================================================== */
+
+uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count )
+{
+    uint64_t res = row_count;
+    uint64_t limit = 100 * ( *num_threads );
+    if ( row_count < limit )
+    {
+        *num_threads = 1;
+    }
+    else
+    {
+        res = ( row_count / ( *num_threads ) ) + 1;
+    }
+    return res;
+}
+
+void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present )
+{
+    dst -> rowid_as_name = name_column_present ? src -> rowid_as_name : true;
+    dst -> skip_tech = src -> skip_tech;
+    dst -> print_read_nr = src -> print_read_nr;
+    dst -> print_name = src -> print_name;
+    dst -> min_read_len = src -> min_read_len;
+    dst -> filter_bases = src -> filter_bases;
+    dst -> terminate_on_invalid = src -> terminate_on_invalid;
+}
+
+/* ===================================================================================== */
+typedef enum var_fmt_type_t { vft_literal, vft_str, vft_int } var_fmt_type_t;
+
+/* private: the format-elements = literal, String, uin64_t */
+typedef struct var_desc_t {
+    var_fmt_type_t type;    /* which one of the options is it? ( vft_literal not used ) */
+    const String * name;    /* this one is owned by this struct! */
+    uint32_t idx;           /* which idx to use */
+} var_desc_t;
+
+/* create a var-name-element, makes a copy of the given string and owns that copy */
+static var_desc_t * var_desc_create( const char * src, var_fmt_type_t t, uint32_t idx ) {
+    var_desc_t * res = calloc( 1, sizeof * res );
+    if ( NULL != res ) {
+        rc_t rc;
+        String S;
+        StringInitCString( &S, src );
+        rc = StringCopy( &( res -> name ), &S );
+        if ( 0 == rc ) {
+            res -> type = t;
+            res -> idx = idx;
+        }
+        else {
+            free( ( void * ) res );
+            res = NULL;
+        }
+    }
+    return res;
+}
+
+static void destroy_var_desc( void * self, void * data ) {
+    if ( NULL != self ) {
+        var_desc_t * desc = ( var_desc_t * )self;
+        StringWhack ( desc -> name );
+        free( self );
+    }
+}
+
+static int64_t var_desc_cmp( const void *key, const void *n ) {
+    const String * s_key = ( String * ) key;
+    var_desc_t * item = ( var_desc_t * ) n;
+    if ( s_key -> len < item -> name -> len ) {
+        return -1;
+    }
+    else {
+        uint32_t item_len = item -> name -> len;
+        int32_t offset = s_key -> len - item_len;
+        String s_key2;
+        StringInit( &s_key2, s_key -> addr + offset, item_len, item_len );
+        return StringOrder( &s_key2, item -> name );
+    }
+}
+
+
+typedef struct var_desc_list_t {
+    Vector descriptions;        /* pointers to var_desc_t - structs */
+} var_desc_list_t;
+
+struct var_desc_list_t * create_var_desc_list( void ) {
+    var_desc_list_t * res = calloc( 1, sizeof * res );
+    if ( NULL != res ) {
+        VectorInit ( &( res -> descriptions ), 0, 12 );
+    }
+    return res;
+}
+
+void release_var_desc_list( var_desc_list_t * self ) {
+    if ( NULL != self ) {
+        VectorWhack ( &( self -> descriptions ), destroy_var_desc, NULL );
+        free( ( void * ) self );
+    }
+}
+
+static void var_desc_list_add( var_desc_list_t * self, var_desc_t * desc ) {
+    if ( NULL != desc ) {
+        rc_t rc = VectorAppend ( &( self -> descriptions ), NULL, desc );
+        if ( 0 != rc ) {
+            destroy_var_desc( desc, NULL );
+        }
+    }
+}
+
+void var_desc_list_add_str( var_desc_list_t * self, const char * name, uint32_t idx ) {
+    if ( NULL != self && NULL != name ) {
+        var_desc_list_add( self, var_desc_create( name, vft_str, idx ) );
+    }
+}
+
+void var_desc_list_add_int( var_desc_list_t * self, const char * name, uint32_t idx ) {
+    if ( NULL != self && NULL != name ) {
+        var_desc_list_add( self, var_desc_create( name, vft_int, idx ) );
+    }
+}
+
+static var_desc_t * var_desc_list_find( const var_desc_list_t * self, const String * to_find ) {
+    if ( NULL == self || NULL == to_find ) { return NULL; }
+    return ( var_desc_t * ) VectorFind ( &( self -> descriptions ), to_find, NULL, var_desc_cmp );
+}
+
+static void var_desc_test_find( var_desc_list_t * self, char * to_find ) {
+    String S1;
+    StringInitCString( &S1, to_find );
+    var_desc_t * desc = var_desc_list_find( self, &S1 );
+
+    KOutMsg( "found( '%s' ) = %p\n", to_find, desc );
+    if ( NULL != desc ) {
+        KOutMsg( "\tname = %S, idx = %u, type = %u\n", desc -> name, desc -> idx, desc -> type );
+    }
+}
+
+void var_desc_list_test( void ) {
+    var_desc_list_t * lst = NULL;
+    
+    KOutMsg( "var-desc-list-test\n" );
+    lst = create_var_desc_list();
+    if ( NULL != lst ) {
+        var_desc_list_add_str( lst, "$ac", 0 );
+        var_desc_list_add_str( lst, "$sg", 1 );
+        var_desc_list_add_int( lst, "$si", 0 );
+        var_desc_list_add_int( lst, "$sl", 1 );
+
+        var_desc_test_find( lst, "test" );
+        var_desc_test_find( lst, "$ac" );
+        var_desc_test_find( lst, "$sg" );
+        var_desc_test_find( lst, "$si" );
+        var_desc_test_find( lst, "$sl" );
+        var_desc_test_find( lst, "xyz$ac" );
+        var_desc_test_find( lst, "xyz$ac2" );
+
+        release_var_desc_list( lst );
+    }
+}
+
+/* private: the format-elements = literal, String, uin64_t */
+typedef struct var_fmt_entry_t {
+    var_fmt_type_t type;    /* which one of the options is it? */
+    const String * literal; /* this one is owned by this struct! */
+    uint32_t idx;           /* which str/int-arg to use here */
+} var_fmt_entry_t;
+
+/* create a literal format-element, makes a copy of the given string and owns that copy */
+static var_fmt_entry_t * var_fmt_entry_create_literal( const char * src, size_t len ) {
+    if ( 0 == len ) {
+        return NULL;
+    }
+    else {
+        var_fmt_entry_t * res = calloc( 1, sizeof * res );
+        if ( NULL != res ) {
+            rc_t rc;
+            String S;
+            StringInit( &S, src, len, len );
+            rc = StringCopy( &( res -> literal ), &S );
+            if ( 0 == rc ) {
+                res -> type = vft_literal;
+            }
+            else {
+                free( ( void * ) res );
+                res = NULL;
+            }
+        }
+        return res;
+    }
+}
+
+/* create a string format-element, stores the index of the string to use */
+static var_fmt_entry_t * var_fmt_entry_create( uint32_t idx, var_fmt_type_t t ) {
+    var_fmt_entry_t * res = calloc( 1, sizeof * res );
+    if ( NULL != res ) {
+        res -> type = t;
+        res -> idx = idx;
+    }
+    return res;
+}
+
+static void var_fmt_String_to_buffer( char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const String * src ) {
+    uint32_t i = 0;
+    while ( i < src -> len && *written < buffer_size )
+    {
+        buffer[ *written ] = src -> addr[ i++ ];
+        *written += 1;
+    }
+}
+
+static void var_fmt_entry_literal_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written ) {
+    var_fmt_String_to_buffer( buffer, buffer_size, written, self -> literal );
+}
+
+static void var_fmt_entry_str_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const String ** args, size_t args_len ) {
+    if ( NULL != args && self -> idx < args_len )
+    {
+        var_fmt_String_to_buffer( buffer, buffer_size, written, args[ self -> idx ] );
+    }
+}
+
+static void var_fmt_entry_int_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const uint64_t * args, size_t args_len ) {
+    if ( NULL != args && self -> idx < args_len )
+    {
+        char temp[ 16 ];
+        size_t temp_written;
+        uint64_t value = args[ self -> idx ];
+        rc_t rc = string_printf ( temp, sizeof temp, &temp_written, "%lu", value );
+        if ( 0 == rc ) {
+            String S;
+            StringInitCString( &S, temp );
+            var_fmt_String_to_buffer( buffer, buffer_size, written, &S );
+        }
+    }
+}
+
+static void var_fmt_entry_to_buffer( const var_fmt_entry_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * written,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+    if ( NULL == self || *written >= buffer_size ) {
+        return;
+    }
+    switch ( self -> type ) {
+        case vft_literal : var_fmt_entry_literal_to_buffer( self, buffer, buffer_size, written ); break;
+        case vft_str : var_fmt_entry_str_to_buffer( self, buffer, buffer_size, written, str_args, str_args_len ); break;
+        case vft_int : var_fmt_entry_int_to_buffer( self, buffer, buffer_size, written, int_args, int_args_len ); break;
+    }
+}
+
+/* releases an element, data-pointer to match VectorWhack-callback */
+static void destroy_var_fmt_entry( void * self, void * data ) {
+    if ( NULL != self ) {
+        var_fmt_entry_t * vft = ( var_fmt_entry_t * )self;
+        if ( vft_literal == vft -> type ) { StringWhack ( vft -> literal ); }
+        free( self );
+    }
+}
+
+typedef struct var_fmt_t {
+    Vector elements;        /* the elements are pointers to var_fmt_entry_t - structs */
+    uint32_t max_str_idx;   /* what is the largest idx into the str-arguments */
+    uint32_t max_int_idx;   /* what is the largest idx into the int-arguments */
+} var_fmt_t;
+
+static void var_fmt_add( var_fmt_t * self, var_fmt_entry_t * entry ) {
+    if ( NULL == self || NULL == entry ) { return; }
+    rc_t rc = VectorAppend ( &( self -> elements ), NULL, entry );
+    if ( 0 != rc ) {
+        destroy_var_fmt_entry( entry, NULL );
+    }
+    else {
+        switch ( entry -> type ) {
+            case vft_str : if ( entry -> idx > self -> max_str_idx ) { self -> max_str_idx = entry -> idx; }; break;
+            case vft_int : if ( entry -> idx > self -> max_int_idx ) { self -> max_int_idx = entry -> idx; }; break;
+            default : break;
+        }
+    }
+}
+
+static bool var_fmt_find_and_add( var_fmt_t * self, const String * T, const struct var_desc_list_t * vars ) {
+    // do we have so far a match against any variable-name at the end of T ?
+    var_desc_t * found = var_desc_list_find( vars, T );
+    if ( NULL != found ) {
+        // yes it does! - the key is at the end of T
+        // T -> len cannot be shorter than item -> name -> len
+        // because otherwise the key would not be found by var_name_find()
+        uint32_t literal_len = ( T -> len ) - ( found -> name -> len ); 
+        if ( literal_len > 0 ) {
+            var_fmt_add( self, var_fmt_entry_create_literal( T -> addr, literal_len ) );
+        }
+        // we always have a non-literal,
+        // because otherwise the key would not have been found
+        var_fmt_add( self, var_fmt_entry_create( found -> idx, found -> type ) );
+    }
+    return NULL != found;
+}
+
+/* create a var-print struct and fill it with var_fmt_t - elements */
+struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars ) {
+    if ( NULL == fmt || NULL == vars ) {
+        return NULL;
+    }
+    else {
+        var_fmt_t * self = calloc( 1, sizeof * self );
+        if ( NULL != self ) {
+            uint32_t i;
+            String T = { fmt -> addr, 0, 0 };
+            
+            VectorInit ( &( self -> elements ), 0, 12 );
+            for ( i = 0; i < fmt -> len; ++i ) {
+                if ( var_fmt_find_and_add( self, &T, vars ) ) {
+                    // advance T to restart searching...
+                    T . addr += T . len;
+                    T . len = 1;
+                }
+                else {
+                    T . len++;
+                }
+            }
+            // handle what is left in T
+            if ( !var_fmt_find_and_add( self, &T, vars ) ) {
+                var_fmt_add( self, var_fmt_entry_create_literal( T . addr, T . len ) );
+            }
+        }
+        return self;
+    }
+}
+
+
+/* release a var-print struct and call destructors on its elements */
+void release_var_fmt( struct var_fmt_t * self ) {
+    if ( NULL != self ) {
+        VectorWhack ( &( self -> elements ), destroy_var_fmt_entry, NULL );
+        free( ( void * ) self );
+    }
+}
+
+
+/* apply the var-fmt-struct to the given arguments, write result to buffer */
+void var_fmt_to_buffer( const struct var_fmt_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * num_written,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+    if ( NULL != num_written ) { *num_written = 0; }
+    if ( NULL != self && NULL != buffer && buffer_size > 0 )
+    {
+        uint32_t i, l = VectorLength( &( self -> elements ) );
+        size_t written = 0;
+        for ( i = VectorStart( &( self -> elements ) ); i < l; ++i ) {
+            var_fmt_entry_to_buffer( VectorGet ( &( self -> elements ), i ),
+                    buffer, buffer_size, &written, str_args, str_args_len, int_args, int_args_len );
+        }
+        if ( NULL != num_written ) { *num_written = written; }
+    }
+}
+
+/* apply the var-fmt-struct to the given arguments, print the result to stdout */
+void var_fmt_print( const struct var_fmt_t * self,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+
+}
+
+/* apply the var-fmt-struct to the given arguments, print the result to file */
+void var_fmt_write( const struct var_fmt_t * self,
+                    KFile * f,
+                    uint64_t * pos,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len ) {
+
+}
+
+static void var_fmt_test_display( void * item, void * data ) {
+    var_fmt_entry_t * entry = item;
+    switch( entry -> type ) {
+        case vft_str        : KOutMsg( "str.%u\n", entry -> idx ); break;
+        case vft_int        : KOutMsg( "int.%u\n", entry -> idx ); break;
+        case vft_literal    : KOutMsg( "literal='%S'\n", entry -> literal ); break;
+    }
+}
+
+void var_fmt_test( void ) {
+    var_fmt_t * fmt = NULL;
+    var_desc_list_t * lst = NULL;
+    
+    KOutMsg( "var-fmt-test\n" );
+
+    lst = create_var_desc_list();
+    if ( NULL != lst ) {
+        const char * test_format = "$acthis $ac is a test $si$sl format";        
+        String S_test_format;        
+
+        var_desc_list_add_str( lst, "$ac", 0 );
+        var_desc_list_add_str( lst, "$sg", 1 );
+        var_desc_list_add_int( lst, "$si", 0 );
+        var_desc_list_add_int( lst, "$sl", 1 );
+
+        StringInitCString( &S_test_format, test_format );
+        fmt = create_var_fmt( &S_test_format, lst );
+
+        release_var_desc_list( lst );
+    }
+    if ( NULL != fmt ) {
+        KOutMsg( "fmt created\n" );
+        VectorForEach( &( fmt -> elements ), false, var_fmt_test_display, NULL );
+
+        release_var_fmt( fmt );
+    }
 }

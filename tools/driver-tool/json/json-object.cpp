@@ -182,7 +182,7 @@ namespace ncbi
     unsigned long int JSONObject :: count () const
     {
         SLocker lock ( busy );
-        return members . size ();
+        return (unsigned long int)members . size ();
     }
         
     // return names/keys

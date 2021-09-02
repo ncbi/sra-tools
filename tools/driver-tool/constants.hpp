@@ -40,6 +40,7 @@
 #include <cstdlib>
 
 #include "env_vars.h"
+#include "util.hpp"
 
 namespace constants {
 
@@ -178,6 +179,7 @@ struct env_var {
         REMOTE_VDBCACHE,
         SIZE_URL,
         SIZE_VDBCACHE,
+        QUALITY_PREFERENCE,
         END_ENUM
     };
     
@@ -196,9 +198,14 @@ struct env_var {
             ENV_VAR_REMOTE_URL,
             ENV_VAR_REMOTE_VDBCACHE,
             ENV_VAR_SIZE_URL,
-            ENV_VAR_SIZE_VDBCACHE
+            ENV_VAR_SIZE_VDBCACHE,
+            ENV_VAR_QUALITY_PREFERENCE,
         };
         return value;
+    }
+
+    static void preferNoQual() {
+        set(QUALITY_PREFERENCE, ENV_VAL_NO_QUAL_PREFERRED);
     }
     
     /// @brief convert id to string
@@ -240,7 +247,13 @@ struct env_var {
     ///
     /// @param iid the variable to unset
     static void unset(int const iid) {
+#if WINDOWS
+        std::string n = name(iid);
+        n += "=";
+        _putenv(n.c_str());
+#else
         unsetenv(name(iid));
+#endif
     }
 
     /// @brief set (or unset) environment variable by symbolic id
@@ -248,12 +261,9 @@ struct env_var {
     /// @param iid the variable to set
     /// @param value the new value, unset if null
     /// @param overwrite overwrite the value if it is already there, default is to overwrite
-    static void set(int const iid, char const *value, bool overwrite = true) {
+    static void set(int const iid, char const *const value, bool const overwrite = true) {
         auto const envar = name(iid);
-        if (value)
-            setenv(envar, value, overwrite ? 1 : 0);
-        else
-            unsetenv(envar);
+        EnvironmentVariables::set(envar, value ? EnvironmentVariables::Value(value) : EnvironmentVariables::Value());
     }
 };
 

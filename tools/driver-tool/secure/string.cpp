@@ -47,6 +47,27 @@
 #include <byteswap.h>
 #endif
 
+#ifdef WINDOWS
+#include <Windows.h>
+#include <intrin.h>
+
+uint32_t __inline __builtin_clz(uint32_t value)
+{
+    DWORD leading_zero = 0;
+
+    if (_BitScanReverse(&leading_zero, value))
+    {
+        return 31 - leading_zero;
+    }
+    else
+    {
+        // Same remarks as above
+        return 32;
+    }
+}
+
+#endif
+
 namespace ncbi
 {
 

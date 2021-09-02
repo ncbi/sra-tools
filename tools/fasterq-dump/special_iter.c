@@ -30,69 +30,90 @@
 #include <os-native.h>
 #include <sysalloc.h>
 
-typedef struct special_iter
+typedef struct special_iter_t
 {
-    struct cmn_iter * cmn;
+    struct cmn_iter_t * cmn;
     uint32_t prim_alig_id, cmp_read_id, spot_group_id;
-} special_iter;
+} special_iter_t;
 
 
-void destroy_special_iter( struct special_iter * iter )
+void destroy_special_iter( struct special_iter_t * iter )
 {
-    if ( iter != NULL )
+    if ( NULL != iter )
     {
-        destroy_cmn_iter( iter->cmn );
+        destroy_cmn_iter( iter -> cmn );
         free( ( void * ) iter );
     }
 }
 
-rc_t make_special_iter( cmn_params * params, struct special_iter ** iter )
+rc_t make_special_iter( cmn_iter_params_t * params, struct special_iter_t ** iter )
 {
     rc_t rc = 0;
-    special_iter * i = calloc( 1, sizeof * i );
-    if ( i == NULL )
+    special_iter_t * i = calloc( 1, sizeof * i );
+    if ( NULL == i )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_special_iter.calloc( %d ) -> %R", ( sizeof * i ), rc );
     }
     else
     {
-        rc = make_cmn_iter( params, "SEQUENCE", &i->cmn );
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "PRIMARY_ALIGNMENT_ID", &i->prim_alig_id );
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "CMP_READ", &i->cmp_read_id );
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "SPOT_GROUP", &i->spot_group_id );
-        if ( rc == 0 )
-            rc = cmn_iter_range( i->cmn, i->prim_alig_id );
+        rc = make_cmn_iter( params, "SEQUENCE", &( i -> cmn ) );
+        if ( 0 != rc )
+        {
+            ErrMsg( "make_special_iter.make_cmn_iter() -> %R", rc );
+        }
 
-        if ( rc != 0 )
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_add_column( i -> cmn, "PRIMARY_ALIGNMENT_ID", &( i -> prim_alig_id ) );
+        }
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_add_column( i -> cmn, "CMP_READ", &( i -> cmp_read_id ) );
+        }
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_add_column( i -> cmn, "SPOT_GROUP", &( i -> spot_group_id ) );
+        }
+        if ( 0 == rc )
+        {
+            rc = cmn_iter_range( i -> cmn, i -> prim_alig_id );
+        }
+        
+        if ( 0 != rc )
+        {
             destroy_special_iter( i );
+        }
         else
+        {
             *iter = i;
+        }
     }
     return rc;
 }
 
 
-bool get_from_special_iter( struct special_iter * iter, special_rec * rec, rc_t * rc )
+bool get_from_special_iter( struct special_iter_t * iter, special_rec_t * rec, rc_t * rc )
 {
-    bool res = cmn_iter_next( iter->cmn, rc );
+    bool res = cmn_iter_next( iter -> cmn, rc );
     if ( res )
     {
-        rec->row_id = cmn_iter_row_id( iter->cmn );
-        *rc = cmn_read_uint64_array( iter->cmn, iter->prim_alig_id, rec->prim_alig_id, 2, &rec->num_reads );
-        if ( *rc == 0 )
-            *rc = cmn_read_String( iter->cmn, iter->cmp_read_id, &rec->cmp_read );
-        if ( *rc == 0 )
-            *rc = cmn_read_String( iter->cmn, iter->spot_group_id, &rec->spot_group );
+        rec -> row_id = cmn_iter_row_id( iter -> cmn );
+        *rc = cmn_read_uint64_array( iter -> cmn, iter -> prim_alig_id, rec -> prim_alig_id, 2, &( rec -> num_reads ) );
+        if ( 0 == *rc )
+        {
+            *rc = cmn_read_String( iter -> cmn, iter -> cmp_read_id, &( rec -> cmp_read ) );
+        }
+        if ( 0 == *rc )
+        {
+            *rc = cmn_read_String( iter -> cmn, iter -> spot_group_id, &( rec -> spot_group ) );
+        }
     }
     return res;
 
 }
 
-uint64_t get_row_count_of_special_iter( struct special_iter * iter )
+uint64_t get_row_count_of_special_iter( struct special_iter_t * iter )
 {
-    return cmn_iter_row_count( iter->cmn );
+    return cmn_iter_row_count( iter -> cmn );
 }

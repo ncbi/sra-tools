@@ -67,14 +67,9 @@ VDB_DUMP_SRC = \
 	vdb-dump-tools \
 	vdb-dump-str \
 	vdb-dump-helper \
-	vdb-dump-filter \
 	vdb-dump-formats \
 	vdb-dump-redir \
 	vdb-dump-fastq \
-	vdb-dump-bin \
-	vdb-dump-interact \
-	vdb-dump-repo \
-	vdb-dump-print \
 	vdb_info \
 	vdb-dump
 

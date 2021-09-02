@@ -54,7 +54,6 @@ static void CC col_defs_destroy_pair( void * node, void * data )
 			free( pair -> name );
 			pair -> name = NULL;
 		}
-	
         free( pair );
     }
 }
@@ -204,7 +203,7 @@ rc_t col_defs_add_to_cursor( col_defs * defs, const VCursor * cur, int idx )
 		{
 			col_pair * pair = VectorGet( &( defs -> cols ), i );
 			if ( pair != NULL )
-				rc = VCursorAddColumn( cur, &( pair -> pair[ idx ].idx ), "%s", pair -> name );
+				rc = VCursorAddColumn( cur, &( pair -> idx[ idx ] ), "%s", pair -> name );
 		}
 	}
 	return rc;

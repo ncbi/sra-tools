@@ -51,7 +51,9 @@
 #include <os-native.h>
 #include <sysalloc.h>
 
-static const char * format_usage[] = { "format (special, fastq, lookup, default=special)", NULL };
+/* ---------------------------------------------------------------------------------- */
+
+static const char * format_usage[] = { "format (special, fastq, lookup, default=fastq)", NULL };
 #define OPTION_FORMAT   "format"
 #define ALIAS_FORMAT    "F"
 
@@ -160,8 +162,16 @@ static const char * append_usage[] = { "append to output-file", NULL };
 #define OPTION_APPEND   "append"
 #define ALIAS_APPEND    "A"
 
+static const char * fasta_usage[] = { "produce FASTA output", NULL };
+#define OPTION_FASTA    "fasta"
+
+static const char * fasta_us_usage[] = { "produce FASTA output, unsorted", NULL };
+#define OPTION_FASTA_US    "fasta-unsorted"
+
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC   "ngc"
+
+/* ---------------------------------------------------------------------------------- */
 
 OptDef ToolOptions[] =
 {
@@ -193,10 +203,16 @@ OptDef ToolOptions[] =
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
     { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
     { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false },
-    { OPTION_NGC,       NULL,            NULL, ngc_usage, 1, true,  false },
+    { OPTION_FASTA,     NULL,            NULL, fasta_usage,      1, false,  false },
+    { OPTION_FASTA_US,  NULL,            NULL, fasta_us_usage,   1, false,  false },
+    { OPTION_NGC,       NULL,            NULL, ngc_usage,        1, true,   false },
 };
 
+/* ----------------------------------------------------------------------------------- */
+
 const char UsageDefaultName[] = "fasterq-dump";
+
+/* ----------------------------------------------------------------------------------- */
 
 rc_t CC UsageSummary( const char * progname )
 {
@@ -206,6 +222,8 @@ rc_t CC UsageSummary( const char * progname )
                      "\n", progname );
 }
 
+/* ----------------------------------------------------------------------------------- */
+
 rc_t CC Usage ( const Args * args )
 {
     rc_t rc;
@@ -213,28 +231,34 @@ rc_t CC Usage ( const Args * args )
     const char * progname = UsageDefaultName;
     const char * fullpath = UsageDefaultName;
 
-    if ( args == NULL )
+    if ( NULL == args )
+    {
         rc = RC( rcApp, rcArgv, rcAccessing, rcSelf, rcNull );
+    }
     else
+    {
         rc = ArgsProgram( args, &fullpath, &progname );
+    }
 
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         progname = fullpath = UsageDefaultName;
+    }
 
     UsageSummary( progname );
 
     KOutMsg( "Options:\n" );
     for ( idx = 1; idx < count; ++idx ) /* start with 1, do not advertize row-range-option*/
     {
-        const OptDef * opt = &ToolOptions[idx];
-
+        const OptDef * opt = &ToolOptions[ idx ];
         const char * param = NULL;
 
-        assert(opt);
-        if (strcmp(opt->name, OPTION_NGC) == 0)
+        assert( opt );
+        if ( 0 == strcmp( opt -> name, OPTION_NGC ) )
+        {
             param = "PATH";
-
-        HelpOptionLine(opt->aliases, opt->name, param, opt->help);
+        }
+        HelpOptionLine( opt -> aliases, opt -> name, param, opt -> help );
     }
     
     KOutMsg("\n");
@@ -259,13 +283,13 @@ typedef struct tool_ctx_t
     const char * output_dirname;
     const char * seq_tbl_name;
     
-    struct temp_dir * temp_dir; /* temp_dir.h */
+    struct temp_dir_t * temp_dir; /* temp_dir.h */
     
     char lookup_filename[ DFLT_PATH_LEN ];
     char index_filename[ DFLT_PATH_LEN ];
     char dflt_output[ DFLT_PATH_LEN ];
     
-    struct KFastDumpCleanupTask * cleanup_task; /* cleanup_task.h */
+    struct KFastDumpCleanupTask_t * cleanup_task; /* cleanup_task.h */
     
     size_t cursor_cache, buf_size, mem_limit;
 
@@ -276,9 +300,9 @@ typedef struct tool_ctx_t
 
     compress_t compress; /* helper.h */ 
 
-    bool force, show_progress, show_details, append, stdout;
+    bool force, show_progress, show_details, append, use_stdout;
     
-    join_options join_options; /* helper.h */
+    join_options_t join_options; /* helper.h */
 } tool_ctx_t;
 
 /* taken form libs/kapp/main-priv.h */
@@ -287,13 +311,17 @@ rc_t KAppGetTotalRam ( uint64_t * totalRam );
 static rc_t get_environment( tool_ctx_t * tool_ctx )
 {
     rc_t rc = KAppGetTotalRam ( &( tool_ctx -> total_ram ) );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "KAppGetTotalRam() -> %R", rc );
-    if ( rc == 0 )
+    }
+    else
     {
         rc = KDirectoryNativeDir( &( tool_ctx -> dir ) );
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+        }
     }
     return rc;
 }
@@ -301,36 +329,59 @@ static rc_t get_environment( tool_ctx_t * tool_ctx )
 static rc_t show_details( tool_ctx_t * tool_ctx )
 {
     rc_t rc = KOutMsg( "cursor-cache : %,ld bytes\n", tool_ctx -> cursor_cache );
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "buf-size     : %,ld bytes\n", tool_ctx -> buf_size );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "mem-limit    : %,ld bytes\n", tool_ctx -> mem_limit );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "scratch-path : '%s'\n", get_temp_dir( tool_ctx -> temp_dir ) );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "output-format: " );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
     {
         switch ( tool_ctx -> fmt )
         {
+            case ft_unknown             : rc = KOutMsg( "unknown format\n" ); break;
             case ft_special             : rc = KOutMsg( "SPECIAL\n" ); break;
-            case ft_whole_spot          : rc = KOutMsg( "FASTQ whole spot\n" ); break;
+            case ft_fastq_whole_spot    : rc = KOutMsg( "FASTQ whole spot\n" ); break;
             case ft_fastq_split_spot    : rc = KOutMsg( "FASTQ split spot\n" ); break;
             case ft_fastq_split_file    : rc = KOutMsg( "FASTQ split file\n" ); break;
             case ft_fastq_split_3       : rc = KOutMsg( "FASTQ split 3\n" ); break;
-            default                     : rc = KOutMsg( "unknow format\n" ); break;
+            case ft_fasta_whole_spot    : rc = KOutMsg( "FASTA whole spot\n" ); break;
+            case ft_fasta_split_spot    : rc = KOutMsg( "FASTA split spot\n" ); break;
+            case ft_fasta_us_split_spot : rc = KOutMsg( "FASTA-unsorted split spot\n" ); break;
+            case ft_fasta_split_file    : rc = KOutMsg( "FASTA split file\n" ); break;
+            case ft_fasta_split_3       : rc = KOutMsg( "FASTA split 3\n" ); break;
         }
     }
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "output-file  : '%s'\n", tool_ctx -> output_filename );
-    if ( rc == 0 )    
+    }
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "output-dir   : '%s'\n", tool_ctx -> output_dirname );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
+    {
         rc = KOutMsg( "stdout-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
+    }
     return rc;
 }
 
@@ -340,16 +391,18 @@ static const char * dflt_seq_tabl_name = "SEQUENCE";
 #define DFLT_BUF_SIZE ( 1024 * 1024 )
 #define DFLT_MEM_LIMIT ( 1024L * 1024 * 50 )
 #define DFLT_NUM_THREADS 6
-static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
+static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args )
 {
-    bool split_spot, split_file, split_3, whole_spot;
-    
-    /*
+    rc_t rc = 0;
+    bool split_spot, split_file, split_3, whole_spot, fasta, fasta_us;
+
+#if 0
     tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
-                                            get_bool_option( args, OPTION_BZIP2 ) ); helper.c */
+                                            get_bool_option( args, OPTION_BZIP2 ) );
+#endif
     tool_ctx -> compress = ct_none;
-    
-    tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );            
+
+    tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
     tool_ctx -> requested_temp_path = get_str_option( args, OPTION_TEMP, NULL );
@@ -366,27 +419,44 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> join_options . print_name = true;
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
+
+#if 0
     tool_ctx -> join_options . terminate_on_invalid = get_bool_option( args, OPTION_STRICT );
+#else
+    tool_ctx -> join_options . terminate_on_invalid = true;
+#endif
 
     split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );
     split_3    = get_bool_option( args, OPTION_SPLIT_3 );
     whole_spot = get_bool_option( args, OPTION_WHOLE_SPOT );
-    
+    fasta      = get_bool_option( args, OPTION_FASTA );
+    fasta_us   = get_bool_option( args, OPTION_FASTA_US );
+
+    if ( split_spot && split_file )    if ( 0 != rc )
+    {
+        ErrMsg( "split-spot and split-file exclude each other -> %R", rc );
+    }
+
     tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
-                            split_spot, split_file, split_3, whole_spot ); /* helper.c */
-    if ( tool_ctx -> fmt == ft_fastq_split_3 )
+                    split_spot, split_file, split_3, whole_spot, fasta, fasta_us ); /* helper.c */
+    if ( ft_fastq_split_3 == tool_ctx -> fmt )
+    {
         tool_ctx -> join_options . skip_tech = true;
+    }
 
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
-    tool_ctx -> stdout = get_bool_option( args, OPTION_STDOUT );
+    tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
 
     {
-        const char * ngc = get_str_option(args, OPTION_NGC, NULL);
-        if (ngc != NULL)
-            KConfigSetNgcFile(ngc);
+        const char * ngc = get_str_option( args, OPTION_NGC, NULL );
+        if ( NULL != ngc )
+        {
+            KConfigSetNgcFile( ngc );
+        }
     }
+    return rc;
 }
 
 #define DFLT_MAX_FD 32
@@ -396,31 +466,43 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
 static void encforce_constrains( tool_ctx_t * tool_ctx )
 {
     if ( tool_ctx -> num_threads < MIN_NUM_THREADS )
+    {
         tool_ctx -> num_threads = MIN_NUM_THREADS;
-        
+    }
+
     if ( tool_ctx -> mem_limit < MIN_MEM_LIMIT )
+    {
         tool_ctx -> mem_limit = MIN_MEM_LIMIT;
+    }
 
     if ( tool_ctx -> buf_size > MAX_BUF_SIZE )
+    {
         tool_ctx -> buf_size = MAX_BUF_SIZE;
-    
-    if ( tool_ctx -> stdout )
+    }
+
+    if ( tool_ctx -> use_stdout )
     {
         switch( tool_ctx -> fmt )
         {
             case ft_unknown             : break;
             case ft_special             : break;
-            case ft_whole_spot          : break;
+
+            case ft_fastq_whole_spot    : break;
             case ft_fastq_split_spot    : break;
-            case ft_fastq_split_file    : tool_ctx -> stdout = false; break;
-            case ft_fastq_split_3       : tool_ctx -> stdout = false; break;
+            case ft_fastq_split_file    : tool_ctx -> use_stdout = false; break;
+            case ft_fastq_split_3       : tool_ctx -> use_stdout = false; break;
+
+            case ft_fasta_whole_spot    : break;
+            case ft_fasta_split_spot    : break;
+            case ft_fasta_us_split_spot : break;
+            case ft_fasta_split_file    : tool_ctx -> use_stdout = false; break;
+            case ft_fasta_split_3       : tool_ctx -> use_stdout = false; break;
         }
     }
     
-    if ( tool_ctx -> stdout )
+    if ( tool_ctx -> use_stdout )
     {
         tool_ctx -> compress = ct_none;
-        //tool_ctx -> show_progress = false;
         tool_ctx -> force = false;
         tool_ctx -> append = false;
     }
@@ -429,10 +511,17 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
 static rc_t handle_accession( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
-    tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );
-    if ( tool_ctx -> accession_short == NULL )
+    tool_ctx -> accession_short = extract_acc2( tool_ctx -> accession_path ); /* helper.c */
+
+    // in case something goes wrong with acc-extraction via VFS-manager
+    if ( NULL == tool_ctx -> accession_short )
     {
-        rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );            
+        tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path ); /* helper.c */
+    }
+
+    if ( NULL == tool_ctx -> accession_short )
+    {
+        rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );
         ErrMsg( "accession '%s' invalid", tool_ctx -> accession_path );
     }
     return rc;
@@ -443,8 +532,10 @@ static rc_t handle_lookup_path( tool_ctx_t * tool_ctx )
     rc_t rc = generate_lookup_filename( tool_ctx -> temp_dir,
                                         &tool_ctx -> lookup_filename[ 0 ],
                                         sizeof tool_ctx -> lookup_filename );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "fasterq-dump.c handle_lookup_path( lookup_filename ) -> %R", rc );
+    }
     else
     {
         size_t num_writ;
@@ -453,43 +544,98 @@ static rc_t handle_lookup_path( tool_ctx_t * tool_ctx )
                             &num_writ,
                             "%s.idx",
                             &tool_ctx -> lookup_filename[ 0 ] );
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "fasterq-dump.c handle_lookup_path( index_filename ) -> %R", rc );
+        }
     }
     return rc;
+}
+
+static bool fasta_requested( tool_ctx_t * tool_ctx )
+{
+    bool res = false;
+    switch( tool_ctx -> fmt )
+    {
+        case ft_unknown             : break;
+        case ft_special             : break;
+        case ft_fastq_whole_spot    : break;
+        case ft_fastq_split_spot    : break;
+        case ft_fastq_split_file    : break;
+        case ft_fastq_split_3       : break;
+
+        case ft_fasta_whole_spot    : res = true; break;
+        case ft_fasta_split_spot    : res = true; break;
+        case ft_fasta_us_split_spot : res = true; break;
+        case ft_fasta_split_file    : res = true; break;
+        case ft_fasta_split_3       : res = true; break;
+    }
+    return res;
 }
 
 /* we have NO output-dir and NO output-file */
 static rc_t make_output_filename_from_accession( tool_ctx_t * tool_ctx )
 {
+    rc_t rc;
     /* we DO NOT have a output-directory : build output-filename from the accession */
     /* generate the full path of the output-file, if not given */
-    size_t num_writ;        
-    rc_t rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
-                        &num_writ,
-                        "%s.fastq",
-                        tool_ctx -> accession_short );
-    if ( rc != 0 )
-        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    size_t num_writ;
+
+    if ( fasta_requested( tool_ctx ) )
+    {
+        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            "%s.fasta",
+                            tool_ctx -> accession_short );
+    }
     else
+    {
+        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            "%s.fastq",
+                            tool_ctx -> accession_short );
+    }
+    if ( 0 != rc )
+    {
+        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    }
+    else
+    {
         tool_ctx -> output_filename = tool_ctx -> dflt_output;
+    }
     return rc;
 }
 
 /* we have an output-dir and NO output-file */
 static rc_t make_output_filename_from_dir_and_accession( tool_ctx_t * tool_ctx )
 {
+    rc_t rc;
     size_t num_writ;
     bool es = ends_in_slash( tool_ctx -> output_dirname ); /* helper.c */
-    rc_t rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                        &num_writ,
-                        es ? "%s%s.fastq" : "%s/%s.fastq",
-                        tool_ctx -> output_dirname,
-                        tool_ctx -> accession_short );
-    if ( rc != 0 )
-        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    if ( fasta_requested( tool_ctx ) )
+    {
+        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            es ? "%s%s.fasta" : "%s/%s.fasta",
+                            tool_ctx -> output_dirname,
+                            tool_ctx -> accession_short );
+    }
     else
+    {
+        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            es ? "%s%s.fastq" : "%s/%s.fastq",
+                            tool_ctx -> output_dirname,
+                            tool_ctx -> accession_short );
+    }
+    if ( 0 != rc )
+    {
+        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    }
+    else
+    {
         tool_ctx -> output_filename = tool_ctx -> dflt_output;
+    }
     return rc;
 }
 
@@ -520,7 +666,9 @@ static rc_t adjust_output_filename( tool_ctx_t * tool_ctx )
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
     }
     else
+    {
         rc = optionally_create_paths_in_output_filename( tool_ctx );
+    }
     return rc;
 }
 
@@ -533,8 +681,10 @@ static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx )
                         es ? "%s%s" : "%s/%s",
                         tool_ctx -> output_dirname,
                         tool_ctx -> output_filename );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    }
     else
     {
         tool_ctx -> output_filename = tool_ctx -> dflt_output;
@@ -546,84 +696,126 @@ static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx )
 static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
 {
     rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> accession_path ) );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "ArgsParamValue() -> %R", rc );
-    else
+    }
+
+    if ( 0 == rc )
     {
         tool_ctx -> lookup_filename[ 0 ] = 0;
         tool_ctx -> index_filename[ 0 ] = 0;
         tool_ctx -> dflt_output[ 0 ] = 0;
-    
-        get_user_input( tool_ctx, args );
-        encforce_constrains( tool_ctx );
-        get_environment( tool_ctx );
-        
-        rc = make_temp_dir( &tool_ctx -> temp_dir,
-                          tool_ctx -> requested_temp_path,
-                          tool_ctx -> dir );
+
+        rc = get_user_input( tool_ctx, args );
+        if ( 0 == rc )
+        {
+            encforce_constrains( tool_ctx );
+            rc = get_environment( tool_ctx );
+        }
+        if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot )
+        {
+            rc = make_temp_dir( &tool_ctx -> temp_dir,
+                            tool_ctx -> requested_temp_path,
+                            tool_ctx -> dir );
+        }
     }
     
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         rc = handle_accession( tool_ctx );
-    
-    if ( rc == 0 )
+    }
+
+    if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot )
+    {
         rc = handle_lookup_path( tool_ctx );
-    
-    if ( rc == 0 && tool_ctx -> output_dirname != NULL )
+    }
+
+    if ( 0 == rc && NULL != tool_ctx -> output_dirname )
     {
         if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) )
+        {
             rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true );
+        }
     }
     
     if ( rc == 0 )
     {
-        if ( tool_ctx -> output_filename == NULL )
+        if ( NULL == tool_ctx -> output_filename )
         {
-            if ( tool_ctx -> output_dirname == NULL )
+            if ( NULL == tool_ctx -> output_dirname )
+            {
                 rc = make_output_filename_from_accession( tool_ctx );
+            }
             else
+            {
                 rc = make_output_filename_from_dir_and_accession( tool_ctx );
+            }
         }
         else
         {
-            if ( tool_ctx -> output_dirname == NULL )
+            if ( NULL == tool_ctx -> output_dirname )
+            {
                 rc = adjust_output_filename( tool_ctx );
+            }
             else
+            {
                 rc = adjust_output_filename_by_dir( tool_ctx );
+            }
         }
     }
     
-    if ( rc == 0 )
-        rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */
-    if ( rc == 0 )
-        rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
-                get_temp_dir( tool_ctx -> temp_dir ) );
-                
-    if ( rc == 0 )
+    if ( tool_ctx -> fmt != ft_fasta_us_split_spot )
+    {
+        if ( 0 == rc ) {
+            rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */
+        }
+
+        if ( 0 == rc ) {
+            rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
+                    get_temp_dir( tool_ctx -> temp_dir ) );
+        }
+    }
+
+    if ( 0 == rc )
     {
         rc = VDBManagerMakeRead( &( tool_ctx -> vdb_mgr ), tool_ctx -> dir );
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "fasterq-dump.c populate_tool_ctx().VDBManagerMakeRead() -> %R\n", rc );
+        }
     }
     return rc;
 }
 
-static rc_t print_stats( const join_stats * stats )
+static rc_t print_stats( const join_stats_t * stats )
 {
     KOutHandlerSetStdErr();
     rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
          rc = KOutMsg( "reads read      : %,lu\n", stats -> reads_read );
-    if ( rc == 0 )
+    }
+    if ( 0 == rc )
+    {
          rc = KOutMsg( "reads written   : %,lu\n", stats -> reads_written );
-    if ( rc == 0 && stats -> reads_zero_length > 0 )
+    }
+    if ( 0 == rc && stats -> reads_zero_length > 0 )
+    {
          rc = KOutMsg( "reads 0-length  : %,lu\n", stats -> reads_zero_length );
-    if ( rc == 0 && stats -> reads_technical > 0 )
+    }
+    if ( 0 == rc && stats -> reads_technical > 0 )
+    {
          rc = KOutMsg( "technical reads : %,lu\n", stats -> reads_technical );
-    if ( rc == 0 && stats -> reads_too_short > 0 )
+    }
+    if ( 0 == rc && stats -> reads_too_short > 0 )
+    {
          rc = KOutMsg( "reads too short : %,lu\n", stats -> reads_too_short );
-    if ( rc == 0 && stats -> reads_invalid > 0 )
+    }
+    if ( 0 == rc && stats -> reads_invalid > 0 )
+    {
          rc = KOutMsg( "reads invalid   : %,lu\n", stats -> reads_invalid );
+    }
     KOutHandlerSetStdOut();
     return rc;
 }
@@ -642,16 +834,19 @@ static const uint32_t queue_timeout = 200;  /* ms */
 static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
-    struct bg_update * gap = NULL;
-    struct background_file_merger * bg_file_merger;
-    struct background_vector_merger * bg_vec_merger;
+    struct bg_update_t * gap = NULL;
+    struct background_file_merger_t * bg_file_merger;
+    struct background_vector_merger_t * bg_vec_merger;
     
     if ( tool_ctx -> show_progress )
+    {
         rc = bg_update_make( &gap, 0 );
-        
+    }
+   
     /* the background-file-merger catches the files produced by
         the background-vector-merger */
-    if ( rc == 0 )            
+    if ( 0 == rc )
+    {
         rc = make_background_file_merger( &bg_file_merger,
                                 tool_ctx -> dir,
                                 tool_ctx -> temp_dir,
@@ -662,10 +857,12 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
                                 queue_timeout,
                                 tool_ctx -> buf_size,
                                 gap ); /* merge_sorter.c */
+    }
 
     /* the background-vector-merger catches the KVectors produced by
        the lookup-produceer */
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         rc = make_background_vector_merger( &bg_vec_merger,
                  tool_ctx -> dir,
                  tool_ctx -> temp_dir,
@@ -675,7 +872,8 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
                  queue_timeout,
                  tool_ctx -> buf_size,
                  gap ); /* merge_sorter.c */
-        
+    }
+   
 /* --------------------------------------------------------------------------------------------
     produce the lookup-table by iterating over the PRIMARY_ALIGNMENT - table:
    -------------------------------------------------------------------------------------------- 
@@ -690,30 +888,38 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
     RAW_READ... 16-bit binary-chunk-lenght, followed by n bytes of packed 4na
 -------------------------------------------------------------------------------------------- */
     /* the lookup-producer is the source of the chain */
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         rc = execute_lookup_production( tool_ctx -> dir,
                                         tool_ctx -> vdb_mgr,
                                         tool_ctx -> accession_short,
+                                        tool_ctx -> accession_path,
                                         bg_vec_merger, /* drives the bg_file_merger */
                                         tool_ctx -> cursor_cache,
                                         tool_ctx -> buf_size,
                                         tool_ctx -> mem_limit,
                                         tool_ctx -> num_threads,
                                         tool_ctx -> show_progress ); /* sorter.c */
-
+    }
     bg_update_start( gap, "merge  : " ); /* progress_thread.c ...start showing the activity... */
             
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         rc = wait_for_and_release_background_vector_merger( bg_vec_merger ); /* merge_sorter.c */
-            
-    if ( rc == 0 )
+    }
+
+    if ( 0 == rc )
+    {
         rc = wait_for_and_release_background_file_merger( bg_file_merger ); /* merge_sorter.c */
+    }
 
     bg_update_release( gap );
 
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "fasterq-dump.c produce_lookup_files() -> %R", rc );
-        
+    }
+   
     return rc;
 }
 
@@ -723,8 +929,8 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
 
 static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
 {
-    struct temp_registry * registry = NULL;
-    join_stats stats;
+    struct temp_registry_t * registry = NULL;
+    join_stats_t stats;
     
     rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
     
@@ -741,6 +947,7 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
 -------------------------------------------------------------------------------------------- */
     
     if ( rc == 0 )
+    {
         rc = execute_db_join( tool_ctx -> dir,
                            tool_ctx -> vdb_mgr,
                            tool_ctx -> accession_path,
@@ -756,22 +963,30 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
                            tool_ctx -> show_progress,
                            tool_ctx -> fmt,
                            & tool_ctx -> join_options ); /* join.c */
+    }
 
     /* from now on we do not need the lookup-file and it's index any more... */
-    if ( tool_ctx -> lookup_filename[ 0 ] != 0 )
+    if ( 0 != tool_ctx -> lookup_filename[ 0 ] )
+    {
         KDirectoryRemove( tool_ctx -> dir, true, "%s", &tool_ctx -> lookup_filename[ 0 ] );
+    }
 
-    if ( tool_ctx -> index_filename[ 0 ] != 0 )
+    if ( 0 != tool_ctx -> index_filename[ 0 ] )
+    {
         KDirectoryRemove( tool_ctx -> dir, true, "%s", &tool_ctx -> index_filename[ 0 ] );
+    }
 
     /* STEP 4 : concatenate output-chunks */
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
-        if ( tool_ctx -> stdout )
+        if ( tool_ctx -> use_stdout )
+        {
             rc = temp_registry_to_stdout( registry,
                                           tool_ctx -> dir,
                                           tool_ctx -> buf_size ); /* temp_registry.c */
+        }
         else
+        {
             rc = temp_registry_merge( registry,
                               tool_ctx -> dir,
                               tool_ctx -> output_filename,
@@ -780,14 +995,19 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
                               tool_ctx -> force,
                               tool_ctx -> compress,
                               tool_ctx -> append ); /* temp_registry.c */
+        }
     }
 
     /* in case some of the partial results have not been deleted be the concatenator */
-    if ( registry != NULL )
+    if ( NULL != registry )
+    {
         destroy_temp_registry( registry ); /* temp_registry.c */
+    }
 
-    if ( rc == 0 )
+    if ( 0 == rc )
+    {
         print_stats( &stats ); /* above */
+    }
 
     return rc;
 }
@@ -802,10 +1022,10 @@ static bool output_exists_whole( tool_ctx_t * tool_ctx )
 static bool output_exists_idx( tool_ctx_t * tool_ctx, uint32_t idx )
 {
     bool res = false;
-    SBuffer s_filename;
+    SBuffer_t s_filename;
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             tool_ctx -> output_filename, idx ); /* helper.c */
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         res = file_exists( tool_ctx -> dir, "%S", &( s_filename . S ) ); /* helper.c */
         release_SBuffer( &s_filename ); /* helper.c */
@@ -816,8 +1036,14 @@ static bool output_exists_idx( tool_ctx_t * tool_ctx, uint32_t idx )
 static bool output_exists_split( tool_ctx_t * tool_ctx )
 {
     bool res = output_exists_whole( tool_ctx );
-    if ( !res ) res = output_exists_idx( tool_ctx, 1 );
-    if ( !res ) res = output_exists_idx( tool_ctx, 2 );    
+    if ( !res )
+    {
+        res = output_exists_idx( tool_ctx, 1 );
+    }
+    if ( !res )
+    {
+        res = output_exists_idx( tool_ctx, 2 );
+    }
     return res;
 }
 
@@ -832,10 +1058,15 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
         {
             case ft_unknown             : break;
             case ft_special             : exists = output_exists_whole( tool_ctx ); break;
-            case ft_whole_spot          : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fastq_whole_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_file    : exists = output_exists_split( tool_ctx ); break;
             case ft_fastq_split_3       : exists = output_exists_split( tool_ctx ); break;
+            case ft_fasta_whole_spot    : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fasta_split_spot    : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fasta_us_split_spot : exists = output_exists_whole( tool_ctx ); break;
+            case ft_fasta_split_file    : exists = output_exists_split( tool_ctx ); break;
+            case ft_fasta_split_3       : exists = output_exists_split( tool_ctx ); break;
         }
         if ( exists )
         {
@@ -847,22 +1078,56 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx )
     return rc;
 }
 
+static rc_t fastdump_csra_us( tool_ctx_t * tool_ctx ) /* unsorted ! */
+{
+    rc_t rc = 0;
+    join_stats_t stats;
+
+    clear_join_stats( &stats ); /* helper.c */
+
+    if ( 0 == rc )
+    {
+        /*
+        this is the 'special' unsorted FASTA for cSRAs
+        at the same time:
+            iterate over the ALIGNMENT-table ( in multiple threads )and produce spots as we go:
+            iterate over the SEQUENCE-table ( in multiple threads ) and produce spots as we go:
+        */
+        rc = execute_fast_join( tool_ctx -> dir, /* join.c */
+                        tool_ctx -> vdb_mgr,
+                        tool_ctx -> accession_short,
+                        tool_ctx -> accession_path,
+                        &stats,
+                        tool_ctx -> cursor_cache,
+                        tool_ctx -> buf_size,
+                        tool_ctx -> num_threads,
+                        tool_ctx -> show_progress,
+                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
+                        & tool_ctx -> join_options,
+                        tool_ctx -> force ); /* helper.h */
+        print_stats( &stats ); /* above */
+    }
+    return rc;
+}
+
 static rc_t fastdump_csra( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     
-    if ( tool_ctx -> show_details )
-        rc = show_details( tool_ctx ); /* above */
+    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); } /* above */
+    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
 
-    if ( rc == 0 )
-        rc = check_output_exits( tool_ctx ); /* above */
-    
-    if ( rc == 0 )
-        rc = produce_lookup_files( tool_ctx ); /* above */
-
-    if ( rc == 0 )
-        rc = produce_final_db_output( tool_ctx ); /* above */
-
+    if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot )
+    {
+        /* the special case of fasta-unsorted and split-spot : */
+        fastdump_csra_us( tool_ctx );
+    }
+    else
+    {
+        /* the common case the other cominations of FASTA/FASTQ : */
+        if ( 0 == rc ) { rc = produce_lookup_files( tool_ctx ); } /* above */
+        if ( 0 == rc ) { rc = produce_final_db_output( tool_ctx ); } /* above */
+    }
     return rc;
 }
 
@@ -872,59 +1137,84 @@ static rc_t fastdump_csra( tool_ctx_t * tool_ctx )
 static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 {
     rc_t rc = 0;
-    struct temp_registry * registry = NULL;
-    join_stats stats;
+    join_stats_t stats;
     
     clear_join_stats( &stats ); /* helper.c */
-    
-    if ( tool_ctx -> show_details )
-        rc = show_details( tool_ctx ); /* above */
+    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); /* above */ }
+    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
 
-    if ( rc == 0 )
-        rc = check_output_exits( tool_ctx ); /* above */
-
-    if ( rc == 0 )
-        rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
-
-    if ( rc == 0 )
-        rc = execute_tbl_join( tool_ctx -> dir,
-                           tool_ctx -> vdb_mgr,
-                           tool_ctx -> accession_path,
-                           tool_ctx -> accession_short,
-                           &stats,
-                           tbl_name,
-                           tool_ctx -> temp_dir,
-                           registry,
-                           tool_ctx -> cursor_cache,
-                           tool_ctx -> buf_size,
-                           tool_ctx -> num_threads,
-                           tool_ctx -> show_progress,
-                           tool_ctx -> fmt,
-                           & tool_ctx -> join_options ); /* tbl_join.c */
-
-    if ( rc == 0 )
+    if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot )
     {
-        if ( tool_ctx -> stdout )
-            rc = temp_registry_to_stdout( registry,
-                                          tool_ctx -> dir,
-                                          tool_ctx -> buf_size ); /* temp_registry.c */
-        else
-            rc = temp_registry_merge( registry,
-                              tool_ctx -> dir,
-                              tool_ctx -> output_filename,
-                              tool_ctx -> buf_size,
-                              tool_ctx -> show_progress,
-                              tool_ctx -> force,
-                              tool_ctx -> compress,
-                              tool_ctx -> append ); /* temp_registry.c */
+        /* this is the 'special' unsorted FASTA for flat tables */
+        rc = execute_fast_tbl_join( tool_ctx -> dir, /* tbl_join.c */
+                        tool_ctx -> vdb_mgr,
+                        tool_ctx -> accession_short,
+                        tool_ctx -> accession_path,
+                        &stats,
+                        tbl_name,
+                        tool_ctx -> cursor_cache,
+                        tool_ctx -> buf_size,
+                        tool_ctx -> num_threads,
+                        tool_ctx -> show_progress,
+                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
+                        & tool_ctx -> join_options,
+                        tool_ctx -> force ); /* helper.h */
     }
-    
-    if ( registry != NULL )
-        destroy_temp_registry( registry ); /* temp_registry.c */
+    else
+    {
+        /* this is for 'sorted' SPECIAL/FASTQ/FASTA x whole-spot/split-spot/split-file/split-3
+           sorted means in the order of the SEQUENCE-table */
+        struct temp_registry_t * registry = NULL;
+        if ( 0 == rc )
+        {
+            rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
+        }
 
-    if ( rc == 0 )
-        print_stats( &stats ); /* above */
+        if ( 0 == rc )
+        {
+            rc = execute_tbl_join( tool_ctx -> dir,
+                            tool_ctx -> vdb_mgr,
+                            tool_ctx -> accession_short,
+                            tool_ctx -> accession_path,
+                            &stats,
+                            tbl_name,
+                            tool_ctx -> temp_dir,
+                            registry,
+                            tool_ctx -> cursor_cache,
+                            tool_ctx -> buf_size,
+                            tool_ctx -> num_threads,
+                            tool_ctx -> show_progress,
+                            tool_ctx -> fmt,
+                            & tool_ctx -> join_options ); /* tbl_join.c */
+        }
 
+        if ( 0 == rc )
+        {
+            if ( tool_ctx -> use_stdout )
+            {
+                rc = temp_registry_to_stdout( registry,
+                                            tool_ctx -> dir,
+                                            tool_ctx -> buf_size ); /* temp_registry.c */
+            }
+            else
+            {
+                rc = temp_registry_merge( registry,
+                                tool_ctx -> dir,
+                                tool_ctx -> output_filename,
+                                tool_ctx -> buf_size,
+                                tool_ctx -> show_progress,
+                                tool_ctx -> force,
+                                tool_ctx -> compress,
+                                tool_ctx -> append ); /* temp_registry.c */
+            }
+        }
+        
+        if ( NULL != registry )
+        {
+            destroy_temp_registry( registry ); /* temp_registry.c */
+        }
+    }
+    if ( 0 == rc ) { print_stats( &stats ); /* above */ }
     return rc;
 }
 
@@ -934,13 +1224,16 @@ static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx )
 {
     const char * res = tool_ctx -> seq_tbl_name;
     VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> vdb_mgr,
+                                              tool_ctx -> accession_short,
                                               tool_ctx -> accession_path ); /* cmn_iter.c */
-    if ( tables != NULL )
+    if ( NULL != tables )
     {
         int32_t idx;
         rc_t rc = VNamelistContainsStr( tables, consensus_table, &idx );
-        if ( rc == 0 && idx > -1 )
+        if ( 0 == rc && idx > -1 )
+        {
             res = consensus_table;
+        }
         VNamelistRelease ( tables );
     }
     return res;
@@ -952,23 +1245,45 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
 {
     acc_type_t acc_type; /* cmn_iter.h */
     rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> vdb_mgr,
-                                tool_ctx -> accession_path, &acc_type ); /* cmn_iter.c */
-    if ( rc == 0 )
+                                tool_ctx -> accession_short, tool_ctx -> accession_path,
+                                &acc_type ); /* cmn_iter.c */
+    if ( 0 == rc )
     {
         /* =================================================== */
         switch( acc_type )
         {
-            case acc_csra       : rc = fastdump_csra( tool_ctx ); break; /* above */
-            case acc_pacbio     : ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx -> accession_path ); break;
-            case acc_sra_flat   : rc = fastdump_table( tool_ctx, NULL ); break; /* above */
-            case acc_sra_db     : rc = fastdump_table( tool_ctx, get_db_seq_tbl_name( tool_ctx ) ); break; /* above */
-            default : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
+            case acc_csra       : rc = fastdump_csra( tool_ctx ); /* above */
+                                  break;
+
+            case acc_pacbio     : ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx -> accession_path );
+                                  rc = 3; /* signal to main() that the accession is not-processed */
+                                  break;
+
+            case acc_sra_flat   : rc = fastdump_table( tool_ctx, NULL ); /* above */
+                                  break;
+
+            case acc_sra_db     : rc = fastdump_table( tool_ctx, get_db_seq_tbl_name( tool_ctx ) ); /* above */
+                                  break;
+
+            default             : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
+                                  rc = 3; /* signal to main() that the accession is not-found/invalid */
+                                  break;
         }
         /* =================================================== */
-        
-        /* remove_temp_dir( tool_ctx -> temp_dir, tool_ctx -> dir ); */ /* temp_dir.c */
     }
+    else
+    {
+        ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
+    }
+    
     return rc;
+}
+
+
+void test_printf( void )
+{
+    var_desc_list_test();
+    var_fmt_test();
 }
 
 /* -------------------------------------------------------------------------------------------- */
@@ -979,29 +1294,59 @@ rc_t CC KMain ( int argc, char *argv [] )
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
 
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
-    if ( rc == 0 )
+    }
+    else
     {
         uint32_t param_count;
         rc = ArgsParamCount( args, &param_count );
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "ArgsParamCount() -> %R", rc );
+        }
         else
         {
+            /* in case we are given no or more than one accessions/files to process */
             if ( param_count == 0 || param_count > 1 )
-                rc = Usage ( args );
+            {
+                /* test_printf(); */
+                
+                Usage ( args );
+                /* will make the caller of this function aka KMane() in man.c return
+                error code of 3 */
+                rc = 3;
+            }
             else
             {
                 tool_ctx_t tool_ctx;
                 rc = populate_tool_ctx( &tool_ctx, args ); /* above */
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     rc = perform_tool( &tool_ctx );     /* above */
 
-                    KDirectoryRelease( tool_ctx . dir );
+                    {
+                        rc_t rc2 = KDirectoryRelease( tool_ctx . dir );
+                        if ( 0 != rc2 )
+                        {
+                            ErrMsg( "KDirectoryRelease() -> %R", rc2 );
+                            rc = ( 0 == rc ) ? rc2 : rc;
+                        }
+                    }
                     destroy_temp_dir( tool_ctx . temp_dir ); /* temp_dir.c */
-                    VDBManagerRelease( tool_ctx . vdb_mgr );
+                    {
+                        rc_t rc2 = VDBManagerRelease( tool_ctx . vdb_mgr );
+                        if ( 0 != rc2 )
+                        {
+                            ErrMsg( "VDBManagerRelease() -> %R", rc2 );
+                            rc = ( 0 == rc ) ? rc2 : rc;
+                        }
+                    }
+                }
+                if ( NULL != tool_ctx . accession_short )
+                {
+                    free( ( char * )tool_ctx . accession_short );
                 }
             }
         }

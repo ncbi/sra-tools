@@ -34,45 +34,65 @@
 
 #if __cplusplus < 201703L
 #include <cassert>
-// std::optional is not available; cook one up
+/**
+ @brief minimally compatible with std::optional
+ */
 class opt_string {
+    /// @brief the value, if one was set
     std::string maybe_value;
+
+    /// @brief true if a value was set
     bool is_set;
 public:
+    /// @brief without the value set
     opt_string()
     : is_set(false)
     {}
     
+    /// @brief with the value set
     opt_string(std::string const &other)
     : maybe_value(other)
     , is_set(true)
     {}
-    
+
+    /// @brief copied
     opt_string(opt_string const &other)
     : maybe_value(other.maybe_value) // safe for std::string
     , is_set(other.is_set)
     {}
-    
+
+    /// @brief assigned
     opt_string &operator =(opt_string const &other)
     {
         is_set = other.is_set;
         maybe_value = other.maybe_value;
         return *this;
     }
+
+    /// @brief is the value set
     bool has_value() const {
         return is_set;
     }
+
+    /// @brief is the value set
     operator bool() const {
         return has_value();
     }
+
+    /// @brief get the value; undefined if no value was set
     operator std::string() const {
         assert(is_set);
         return maybe_value;
     }
+
+    /// @brief get the value; undefined if no value was set
     std::string const &value() const {
         assert(is_set);
         return maybe_value;
     }
+
+    /// @brief get the value or the alternate value
+    /// @param alt the alternate value if not set
     std::string const &value_or(std::string const &alt) const {
         return is_set ? maybe_value : alt;
     }

@@ -64,6 +64,10 @@ clean: stdclean
 VDB_DIFF_SRC = \
 	namelist_tools \
 	coldefs \
+	vdb-diff-context \
+	cmn \
+	row_by_row \
+	col_by_col \
 	vdb-diff
 
 VDB_DIFF_OBJ = \

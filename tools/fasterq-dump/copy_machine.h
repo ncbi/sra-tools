@@ -54,7 +54,7 @@ extern "C" {
 rc_t make_a_copy( KDirectory * dir,
                   KFile * dst,
                   const struct VNamelist * sources,
-                  struct bg_progress * progress,
+                  struct bg_progress_t * progress,
                   uint64_t dst_offset,
                   size_t buf_size,
                   uint32_t src_list_offset,

@@ -155,12 +155,12 @@ Rules (whichever is present in order of importance):
 3.	Experiment.xml: /EXPERIMENT/DESIGN/SAMPLE_DESCRIPTOR/POOL elements MEMBER. Match subsequences to determine SPOT_GROUP value.
 4.	No SPOT_GROUP column
 
-Than <RUN_ATTRIBUTE> with <TAG> case-insensitive value of ‘read_name_barcode_proc_directive’ comes in with case-insensitive <VALUE> values:
+Than <RUN_ATTRIBUTE> with <TAG> case-insensitive value of read_name_barcode_proc_directive comes in with case-insensitive <VALUE> values:
 
-1.	RUN_ATTRIBUTE not present at all – use rules above.
-2.	'interpret_as_spotgroup' (use_file_spot_name) – use data from file’s spot names. Force rule #2. (new addition)
-3.	‘use_table_in_experiment’ – use POOL table from experiment.xml. Force rule #3.
-4.	‘ignore’ – do not write anything to SPOT_GROUP column. Force rule #4
+1.	RUN_ATTRIBUTE not present at all  use rules above.
+2.	'interpret_as_spotgroup' (use_file_spot_name)  use data from files spot names. Force rule #2. (new addition)
+3.	use_table_in_experiment  use POOL table from experiment.xml. Force rule #3.
+4.	ignore  do not write anything to SPOT_GROUP column. Force rule #4
 
 */
 

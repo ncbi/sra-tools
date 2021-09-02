@@ -42,19 +42,19 @@ typedef struct join
 {
     const char * accession_path;
     const char * accession_short;
-    struct lookup_reader * lookup;  /* lookup_reader.h */
-    struct index_reader * index;    /* index.h */
-    struct join_results * results;  /* join_results.h */
-    SBuffer B1, B2;                 /* helper.h */
-    uint64_t loop_nr;               /* in which loop of this partial join are we? */
-    uint32_t thread_id;             /* in which thread are we? */
-    bool cmp_read_present;          /* do we have a cmp-read column? */
-} join;
+    struct lookup_reader_t * lookup;  /* lookup_reader.h */
+    struct index_reader_t * index;    /* index.h */
+    struct join_results_t * results;  /* join_results.h */
+    SBuffer_t B1, B2;                 /* helper.h */
+    uint64_t loop_nr;                 /* in which loop of this partial join are we? */
+    uint32_t thread_id;               /* in which thread are we? */
+    bool cmp_read_present;            /* do we have a cmp-read column? */
+} join_t;
 
 
-static void release_join_ctx( join * j )
+static void release_join_ctx( join_t* j )
 {
-    if ( j != NULL )
+    if ( NULL != j )
     {
         release_index_reader( j-> index );
         release_lookup_reader( j -> lookup );     /* lookup_reader.c */
@@ -63,17 +63,18 @@ static void release_join_ctx( join * j )
     }
 }
 
-static rc_t init_join( cmn_params * cp,
-                       struct join_results * results,
+static rc_t init_join( cmn_iter_params_t * cp,
+                       struct join_results_t * results,
                        const char * lookup_filename,
                        const char * index_filename,
                        size_t buf_size,
                        bool cmp_read_present,
-                       struct join * j )
+                       join_t * j )
 {
     rc_t rc;
-    
-    j -> accession_path = cp -> accession;
+
+    j -> accession_path  = cp -> accession_path;
+    j -> accession_short = cp -> accession_short;
     j -> lookup = NULL;
     j -> results = results;
     j -> B1 . S . addr = NULL;
@@ -81,46 +82,53 @@ static rc_t init_join( cmn_params * cp,
     j -> loop_nr = 0;
     j -> cmp_read_present = cmp_read_present;
     
-    if ( index_filename != NULL )
+    if ( NULL != index_filename )
     {
         if ( file_exists( cp -> dir, "%s", index_filename ) )
+        {
             rc = make_index_reader( cp -> dir, &j -> index, buf_size, "%s", index_filename ); /* index.c */
+        }
     }
     else
+    {
         j -> index = NULL;
-    
+    }
+
     rc = make_lookup_reader( cp -> dir, j -> index, &( j -> lookup ), buf_size,
                              "%s", lookup_filename ); /* lookup_reader.c */
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = make_SBuffer( &( j -> B1 ), 4096 );  /* helper.c */
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "init_join().make_SBuffer( B1 ) -> %R", rc );
+        }
     }
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         rc = make_SBuffer( &( j -> B2 ), 4096 );  /* helper.c */
-        if ( rc != 0 )
+        if ( 0 != rc )
+        {
             ErrMsg( "init_join().make_SBuffer( B2 ) -> %R", rc );
+        }
     }
 
     /* we do not seek any more at the beginning of the begin of a join-slice
        the call to lookup_bases will perform an internal seek now if it is not pointed
        to the right location */
 
-    if ( rc != 0 )
-        release_join_ctx( j ); /* above! */
+    if ( 0 != rc ) { release_join_ctx( j ); /* above! */ }
     return rc;
 }
 
 /* ------------------------------------------------------------------------------------------ */
 
-static rc_t print_special_1_read( special_rec * rec, join * j )
+static rc_t print_special_1_read( special_rec_t * rec, join_t * j )
 {
-    rc_t rc = 0;
+    rc_t rc;
     int64_t row_id = rec -> row_id;
-    
-    if ( rec -> prim_alig_id[ 0 ] == 0 )
+
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
     {
         /* read is unaligned, print what is in row->cmp_read ( !!! no lookup !!! ) */
         rc = join_results_print( j -> results, 0, "%ld\t%S\t%S\n",
@@ -131,22 +139,21 @@ static rc_t print_special_1_read( special_rec * rec, join * j )
         /* read is aligned ( 1 lookup ) */
         bool reverse = false;
         rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
-        if ( rc == 0 )
-            rc = join_results_print( j -> results, 0, "%ld\t%S\t%S\n",
-                             row_id, &( j -> B1.S ), &( rec -> spot_group ) ); /* join_results.c */
+        rc = join_results_print( j -> results, 0, "%ld\t%S\t%S\n",
+                            row_id, &( j -> B1.S ), &( rec -> spot_group ) ); /* join_results.c */
     }
     return rc;
 }
 
 
-static rc_t print_special_2_reads( special_rec * rec, join * j )
+static rc_t print_special_2_reads( special_rec_t * rec, join_t * j )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
-    
-    if ( rec -> prim_alig_id[ 0 ] == 0 )
+
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
     {
-        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             /* both unaligned, print what is in row->cmp_read ( !!! no lookup !!! )*/
             rc = join_results_print( j -> results, 0, "%ld\t%S\t%S\n",
@@ -157,21 +164,25 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
             /* A0 is unaligned / A1 is aligned (lookup) */
             bool reverse = false;
             rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &( rec -> cmp_read ), &( j -> B2 . S ), &( rec -> spot_group ) ); /* join_results.c */
+            }
         }
     }
     else
     {
-        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
             bool reverse = false;
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &j->B1.S, &rec->cmp_read, &rec->spot_group ); /* join_results.c */
+            }
         }
         else
         {
@@ -179,61 +190,64 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
             bool reverse1 = false;
             bool reverse2 = false;
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse1 ); /* lookup_reader.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
+            {
                 rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
-            if ( rc == 0 )
+            }
+            if ( 0 == rc )
+            {
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &( j -> B1 . S ), &( j -> B2 . S ), &( rec -> spot_group ) ); /* join_results.c */
+            }
         }
     }
     return rc;
 }
 
-static bool is_reverse( const fastq_rec * rec, uint32_t read_id_0 )
+static bool is_reverse( const fastq_rec_t * rec, uint32_t read_id_0 )
 {
     bool res = false;
     if ( rec -> num_read_type > read_id_0 )
+    {
         res = ( ( rec -> read_type[ read_id_0 ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
+    }
     return res;
 }
 
-static bool filter( join_stats * stats,
-                    const fastq_rec * rec,
-                    const join_options * jo,
+static bool filter( join_stats_t * stats,
+                    const fastq_rec_t * rec,
+                    const join_options_t * jo,
                     uint32_t read_id_0 )
 {
     bool process = true;
     if ( jo -> skip_tech && rec -> num_read_type > read_id_0 )
     {
-        process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
-        if ( !process )
-            stats -> reads_technical++;
+        process = READ_TYPE_BIOLOGICAL == ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL );
+        if ( !process ) { stats -> reads_technical++; }
     }
     if ( process && jo -> min_read_len > 0 )
     {
         process = ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len );
-        if ( !process )
-            stats -> reads_too_short++;
+        if ( !process ) { stats -> reads_too_short++; }
     }
     return process;
 }
 
-static rc_t print_fastq_1_read( join_stats * stats,
-                                const fastq_rec * rec,
-                                join * j,
-                                const join_options * jo )
+static rc_t print_fastq_1_read( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
     
     bool process = filter( stats, rec, jo, 0 );
-    if ( !process )
-            return rc;
+    if ( !process ) { return rc; }
 
-    if ( rec -> prim_alig_id[ 0 ] == 0 )
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
     {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+        if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
         {
             if ( rec -> read . len != rec -> quality . len )
             {
@@ -241,7 +255,9 @@ static rc_t print_fastq_1_read( join_stats * stats,
                         rec -> read . len, rec -> quality . len );
                 stats -> reads_invalid++;
                 if ( jo -> terminate_on_invalid )
+                {
                     return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                }
             }
         
             if ( rec -> read . len > 0 )
@@ -253,8 +269,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                                   jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                   &( rec -> read ),
                                                   &( rec -> quality ) ); /* join_results.c */
-                if ( rc == 0 )
-                    stats -> reads_written++;
+                if ( 0 == rc ) { stats -> reads_written++; }
             }
         }
     }
@@ -263,9 +278,9 @@ static rc_t print_fastq_1_read( join_stats * stats,
         /* read is aligned, ( 1 lookup ) */    
         bool reverse = is_reverse( rec, 0 );
         rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
-            if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
+            if ( join_results_filter( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
             {
                 if ( j -> B1 . S . len != rec -> quality . len )
                 {
@@ -273,7 +288,9 @@ static rc_t print_fastq_1_read( join_stats * stats,
                              j -> B1 . S . len, rec -> quality . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
+                    {
                         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
                 }
 
                 if ( j -> B1 . S . len > 0 )
@@ -285,8 +302,62 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       &( j -> B1 . S ),
                                                       &( rec -> quality ) ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written++;
+                    if ( 0 == rc ) { stats -> reads_written++; }
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+static rc_t print_fasta_1_read( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo )
+{
+    rc_t rc = 0;
+    int64_t row_id = rec -> row_id;
+    
+    bool process = filter( stats, rec, jo, 0 );
+    if ( !process ) { return rc; }
+
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
+    {
+        /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
+        if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
+        {
+            if ( rec -> read . len > 0 )
+            {
+                rc = join_results_print_fastq_v1( j -> results,
+                                                  row_id,
+                                                  0, /* dst_id ( into which file to write ) */
+                                                  1, /* read_id for tag-line */
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &( rec -> read ),
+                                                  NULL ); /* join_results.c */
+                if ( 0 == rc ) { stats -> reads_written++; }
+            }
+        }
+    }
+    else
+    {
+        /* read is aligned, ( 1 lookup ) */    
+        bool reverse = is_reverse( rec, 0 );
+        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
+        if ( 0 == rc )
+        {
+            if ( join_results_filter( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
+            {
+                if ( j -> B1 . S . len > 0 )
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      0, /* dst_id ( into which file to write ) */
+                                                      1, /* read_id for tag-line */
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &( j -> B1 . S ),
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
         }
@@ -296,21 +367,21 @@ static rc_t print_fastq_1_read( join_stats * stats,
 
 /* ------------------------------------------------------------------------------------------ */
 
-static rc_t print_fastq_2_reads( join_stats * stats,
-                                 const fastq_rec * rec,
-                                 join * j,
-                                 const join_options * jo )
+static rc_t print_fastq_2_reads( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
     uint32_t dst_id = 1;
     
-    if ( rec -> prim_alig_id[ 0 ] == 0 )
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
     {
-        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             /* both unaligned, print what is in row->read (no lookup)*/        
-            if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+            if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
             {
                 if ( rec -> read . len != rec -> quality . len )
                 {
@@ -318,9 +389,11 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                             rec -> read . len, rec -> quality . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
+                    {
                         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
                 }
-            
+
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
                                                   dst_id,
@@ -328,8 +401,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                                   jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                   &( rec -> read ),
                                                   &( rec -> quality ) ); /* join_results.c */
-                if ( rc == 0 )
-                    stats -> reads_written += 2;
+                if ( 0 == rc ) { stats -> reads_written += 2; }
             }
         }
         else
@@ -337,9 +409,9 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             /* A0 is unaligned / A1 is aligned (lookup) */
             bool reverse = is_reverse( rec, 1 );
             rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     if ( j -> B2 . S. len + rec -> read . len != rec -> quality . len )
                     {
@@ -347,9 +419,11 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                 j -> B2 . S. len, rec -> quality . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
+                        {
                             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        }
                     }
-                
+
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -358,22 +432,21 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                       &( rec -> read ),
                                       &( j -> B2 . S ),
                                       &( rec -> quality ) ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written += 2;
+                    if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
         }
     }
     else
     {
-        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
             bool reverse = is_reverse( rec, 0 );
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
                 {
                     uint32_t rl = j -> B1 . S . len + rec -> read . len;
                     if ( rl != rec -> quality . len )
@@ -382,9 +455,11 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                 rl, rec -> quality . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
+                        {
                             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        }
                     }
-                    
+
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -393,8 +468,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                       &( j -> B1 . S ),
                                       &( rec -> read ),
                                       &( rec -> quality ) ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written += 2;
+                    if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
         }
@@ -404,11 +478,13 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             bool reverse1 = is_reverse( rec, 0 );
             bool reverse2 = is_reverse( rec, 1 );
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse1 ); /* lookup_reader.c */
-            if ( rc == 0 )
-                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
+                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
+            }
+            if ( 0 == rc )
+            {
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     uint32_t rl = j -> B1 . S . len + j -> B2 . S . len;
                     if ( rl != rec -> quality . len )
@@ -417,9 +493,11 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                 rl, rec -> quality . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
+                        {
                             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        }
                     }
-                
+
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -428,8 +506,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                       &( j -> B1 . S ),
                                       &( j -> B2 . S ),
                                       &( rec -> quality ) ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written += 2;
+                    if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
         }
@@ -437,12 +514,115 @@ static rc_t print_fastq_2_reads( join_stats * stats,
     return rc;
 }
 
+static rc_t print_fasta_2_reads( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo )
+{
+    rc_t rc = 0;
+    int64_t row_id = rec -> row_id;
+    uint32_t dst_id = 1;
+    
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
+    {
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
+        {
+            /* both unaligned, print what is in row->read (no lookup)*/        
+            if ( join_results_filter( j -> results, &( rec -> read ) ) ) /* join-results.c */
+            {
+                rc = join_results_print_fastq_v1( j -> results,
+                                                  row_id,
+                                                  dst_id,
+                                                  dst_id,
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &( rec -> read ),
+                                                  NULL ); /* join_results.c */
+                if ( 0 == rc ) { stats -> reads_written += 2; }
+            }
+        }
+        else
+        {
+            /* A0 is unaligned / A1 is aligned (lookup) */
+            bool reverse = is_reverse( rec, 1 );
+            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
+            if ( 0 == rc )
+            {
+                if ( join_results_filter2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v2( j -> results,
+                                      row_id,
+                                      dst_id,
+                                      dst_id,
+                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                      &( rec -> read ),
+                                      &( j -> B2 . S ),
+                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written += 2; }
+                }
+            }
+        }
+    }
+    else
+    {
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
+        {
+            /* A0 is aligned (lookup) / A1 is unaligned */
+            bool reverse = is_reverse( rec, 0 );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
+            if ( 0 == rc )
+            {
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v2( j -> results,
+                                      row_id,
+                                      dst_id,
+                                      dst_id,
+                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                      &( j -> B1 . S ),
+                                      &( rec -> read ),
+                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written += 2; }
+                }
+            }
+        }
+        else
+        {
+            /* A0 and A1 are aligned (2 lookups)*/
+            bool reverse1 = is_reverse( rec, 0 );
+            bool reverse2 = is_reverse( rec, 1 );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse1 ); /* lookup_reader.c */
+            if ( 0 == rc )
+            {
+                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
+            }
+            if ( 0 == rc )
+            {
+                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v2( j -> results,
+                                      row_id,
+                                      dst_id,
+                                      dst_id,
+                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                      &( j -> B1 . S ),
+                                      &( j -> B2 . S ),
+                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written += 2; }
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+
 /* FASTQ SPLIT */
-static rc_t print_fastq_2_reads_splitted( join_stats * stats,
-                                          const fastq_rec * rec,
-                                          join * j,
+static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
+                                          const fastq_rec_t * rec,
+                                          join_t * j,
                                           bool split_file,
-                                          const join_options * jo )
+                                          const join_options_t * jo )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -456,7 +636,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
         process_0 = filter( stats, rec, jo, 0 ); /* above */
         process_1 = filter( stats, rec, jo, 1 ); /* above */
     }
-    
+
     Q1 . addr = rec -> quality . addr;
     Q1 . size = rec -> read_len[ 0 ];
     Q1 . len  = ( uint32_t )Q1 . size;
@@ -469,12 +649,14 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
         ErrMsg( "row #%ld : Q[1].len(%u) + Q[2].len(%u) != Q.len(%u)\n", row_id, Q1 . len, Q2 . len, rec -> quality . len );
         stats -> reads_invalid++;
         if ( jo -> terminate_on_invalid )
+        {
             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
     }
-    
-    if ( rec -> prim_alig_id[ 0 ] == 0 )
+
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
     {
-        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             String READ1, READ2;
             if ( process_0 )
@@ -487,12 +669,13 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 . len, Q1 . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
+                    {
                         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
                 }
                 process_0 = ( READ1 . len > 0 );
             }
-            if ( !process_0 )
-                dst_id = 0;
+            if ( !process_0 ) { dst_id = 0; }
 
             if ( process_1 )
             {
@@ -504,17 +687,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 . len, Q2 . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
+                    {
                         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
                 }
                 process_1 = ( READ2 . len > 0 );
             }
-            if ( !process_1 )
-                dst_id = 0;
+            if ( !process_1 ) { dst_id = 0; }
 
             /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
             if ( process_0 )
             {
-                if ( join_results_match( j -> results, &READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, &READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -523,18 +707,17 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       &READ1,
                                                       &Q1 ); /* join_results.c */
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
                         stats -> reads_written ++;
-                        if ( split_file && dst_id > 0 )
-                            dst_id++;
+                        if ( split_file && dst_id > 0 ) { dst_id++; }
                     }
                 }
             }
 
-            if ( rc == 0 && process_1 )
+            if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, &READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, &READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -543,8 +726,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       &READ2,
                                                       &Q2 ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written ++;
+                    if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
         }
@@ -560,18 +742,19 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
+                    {
                         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
                 }
                 process_0 = ( READ1 -> len > 0 );
             }
-            if ( !process_0 )
-                dst_id = 0;
+            if ( !process_0 ) { dst_id = 0; }
 
             if ( process_1 )
             {
                 bool reverse = is_reverse( rec, 1 );
                 rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     READ2 = &( j -> B2 . S );
                     if ( READ2 -> len != Q2 . len )
@@ -579,17 +762,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
+                        {
                             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        }
                     }
                     process_1 = ( READ2 -> len > 0 );
                 }
             }
-            if ( !process_1 )
-                dst_id = 0;
+            if ( !process_1 ) { dst_id = 0; }
 
-            if ( rc == 0 && process_0 )
+            if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -598,15 +782,13 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       READ1,
                                                       &Q1 ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written ++;
-                    if ( split_file && dst_id > 0 )
-                        dst_id++;
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                    if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
             }
-            if ( rc == 0 && process_1 )
+            if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -615,25 +797,24 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       READ2,
                                                       &Q2 ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written ++;
+                    if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
         }
     }
     else
     {
-        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
             String * READ1 = NULL;
             const String * READ2 = &( rec -> read );
-            
+
             if ( process_0 )
             {
                 bool reverse = is_reverse( rec, 0 );
                 rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     READ1 = &j -> B1 . S;
                     if ( READ1 -> len != Q1 . len )
@@ -641,13 +822,14 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
+                        {
                             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        }
                     }
                     process_0 = ( READ1 -> len > 0 );
                 }
             }
-            if ( !process_0 )
-                dst_id = 0;
+            if ( !process_0 ) { dst_id = 0; }
 
             if ( process_1 )
             {
@@ -656,16 +838,17 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
                     stats -> reads_invalid++;
                     if ( jo -> terminate_on_invalid )
+                    {
                         return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
                 }
                 process_1 = ( READ2 -> len > 0 );
             }
-            if ( !process_1 )
-                dst_id = 0;
-           
-            if ( rc == 0 && process_0 )
+            if ( !process_1 ) { dst_id = 0; }
+
+            if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -674,15 +857,13 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       READ1,
                                                       &Q1 ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written ++;
-                    if ( split_file && dst_id > 0 )
-                        dst_id++;
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                    if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
             }
-            if ( rc == 0 && process_1 )
+            if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -691,8 +872,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       READ2,
                                                       &Q2 ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written ++;
+                    if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
         }
@@ -706,7 +886,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             {
                 bool reverse = is_reverse( rec, 0 );
                 rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     READ1 = &j -> B1 . S;
                     if ( READ1 -> len != Q1 . len )
@@ -714,19 +894,20 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
+                        {
                             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        }
                     }
                     process_0 = ( READ1 -> len > 0 );
                 }
             }
-            if ( !process_0 )
-                dst_id = 0;
+            if ( !process_0 ) { dst_id = 0; }
 
-            if ( rc == 0 && process_1 )
+            if ( 0 == rc && process_1 )
             {
                 bool reverse = is_reverse( rec, 1 );
                 rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     READ2 = &j -> B2 . S;
                     if ( READ2 -> len != Q2 . len )
@@ -734,17 +915,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
                         stats -> reads_invalid++;
                         if ( jo -> terminate_on_invalid )
+                        {
                             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        }
                     }
                     process_1 =( READ2 -> len > 0 );
                 }
             }
-            if ( !process_1 )
-                dst_id = 0;
-                
-            if ( rc == 0 && process_0 )
+            if ( !process_1 ) { dst_id = 0; }
+
+            if ( 0 == rc && process_0 )
             {
-                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -753,15 +935,13 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       READ1,
                                                       &Q1 ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written ++;
-                    if ( split_file && dst_id > 0 )
-                        dst_id++;
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                    if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
             }
-            if ( rc == 0 && process_1 )
+            if ( 0 == rc && process_1 )
             {
-                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -770,8 +950,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                       READ2,
                                                       &Q2 ); /* join_results.c */
-                    if ( rc == 0 )
-                        stats -> reads_written ++;
+                    if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
         }
@@ -779,18 +958,261 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
     return rc;
 }
 
-
-static rc_t extract_csra_row_count( KDirectory * dir,
-                                    const VDBManager * vdb_mgr,
-                                    const char * accession_path,
-                                    size_t cur_cache,
-                                    uint64_t * res )
+static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
+                                          const fastq_rec_t * rec,
+                                          join_t * j,
+                                          bool split_file,
+                                          const join_options_t * jo )
 {
-    cmn_params cp = { dir, vdb_mgr, accession_path, 0, 0, cur_cache };
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt = { false, false, false, false }; /* fastq_iter.h */
+    rc_t rc = 0;
+    int64_t row_id = rec -> row_id;
+    uint32_t dst_id = 1;
+    bool process_0 = true;
+    bool process_1 = true;
+    
+    if ( !split_file && jo -> skip_tech )
+    {
+        process_0 = filter( stats, rec, jo, 0 ); /* above */
+        process_1 = filter( stats, rec, jo, 1 ); /* above */
+    }
+
+    if ( 0 == rec -> prim_alig_id[ 0 ] )
+    {
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
+        {
+            String READ1, READ2;
+            if ( process_0 )
+            {
+                READ1 . addr = rec -> read . addr;
+                READ1 . size = rec -> read_len[ 0 ];
+                READ1 . len = ( uint32_t )READ1 . size;
+                process_0 = ( READ1 . len > 0 );
+            }
+            if ( !process_0 ) { dst_id = 0; }
+
+            if ( process_1 )
+            {
+                READ2 . addr = &rec -> read . addr[ rec -> read_len[ 0 ] ];
+                READ2 . size = rec -> read_len[ 1 ];
+                READ2 . len = ( uint32_t )READ2 . size;
+                process_1 = ( READ2 . len > 0 );
+            }
+            if ( !process_1 ) { dst_id = 0; }
+
+            /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
+            if ( process_0 )
+            {
+                if ( join_results_filter( j -> results, &READ1 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &READ1,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc )
+                    {
+                        stats -> reads_written ++;
+                        if ( split_file && dst_id > 0 ) { dst_id++; }
+                    }
+                }
+            }
+
+            if ( 0 == rc && process_1 )
+            {
+                if ( join_results_filter( j -> results, &READ2 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &READ2,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                }
+            }
+        }
+        else
+        {
+            /* A0 is unaligned / A1 is aligned (lookup) */
+            const String * READ1 = &( rec -> read );
+            String * READ2 = NULL;
+            if ( process_0 ) { process_0 = ( READ1 -> len > 0 ); }
+            if ( !process_0 ) { dst_id = 0; }
+
+            if ( process_1 )
+            {
+                bool reverse = is_reverse( rec, 1 );
+                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
+                if ( 0 == rc )
+                {
+                    READ2 = &( j -> B2 . S );
+                    process_1 = ( READ2 -> len > 0 );
+                }
+            }
+            if ( !process_1 ) { dst_id = 0; }
+
+            if ( 0 == rc && process_0 )
+            {
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ1,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written++; }
+                    if ( split_file && dst_id > 0 ) { dst_id++; }
+                }
+            }
+            if ( 0 == rc && process_1 )
+            {
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ2,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                }
+            }
+        }
+    }
+    else
+    {
+        if ( 0 == rec -> prim_alig_id[ 1 ] )
+        {
+            /* A0 is aligned (lookup) / A1 is unaligned */
+            String * READ1 = NULL;
+            const String * READ2 = &( rec -> read );
+
+            if ( process_0 )
+            {
+                bool reverse = is_reverse( rec, 0 );
+                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
+                if ( 0 == rc )
+                {
+                    READ1 = &j -> B1 . S;
+                    process_0 = ( READ1 -> len > 0 );
+                }
+            }
+            if ( !process_0 ) { dst_id = 0; }
+            if ( process_1 ) { process_1 = ( READ2 -> len > 0 ); }
+            if ( !process_1 ) { dst_id = 0; }
+
+            if ( 0 == rc && process_0 )
+            {
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ1,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                    if ( split_file && dst_id > 0 ) { dst_id++; }
+                }
+            }
+            if ( 0 == rc && process_1 )
+            {
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ2,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                }
+            }
+        }
+        else
+        {
+            /* A0 and A1 are aligned (2 lookups)*/
+            String * READ1 = NULL;
+            String * READ2 = NULL;
+
+            if ( process_0 )
+            {
+                bool reverse = is_reverse( rec, 0 );
+                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
+                if ( 0 == rc )
+                {
+                    READ1 = &j -> B1 . S;
+                    process_0 = ( READ1 -> len > 0 );
+                }
+            }
+            if ( !process_0 ) { dst_id = 0; }
+
+            if ( 0 == rc && process_1 )
+            {
+                bool reverse = is_reverse( rec, 1 );
+                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
+                if ( 0 == rc )
+                {
+                    READ2 = &j -> B2 . S;
+                    process_1 =( READ2 -> len > 0 );
+                }
+            }
+            if ( !process_1 ) { dst_id = 0; }
+
+            if ( 0 == rc && process_0 )
+            {
+                if ( join_results_filter( j -> results, READ1 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ1,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                    if ( split_file && dst_id > 0 ) { dst_id++; }
+                }
+            }
+            if ( 0 == rc && process_1 )
+            {
+                if ( join_results_filter( j -> results, READ2 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ2,
+                                                      NULL ); /* join_results.c */
+                    if ( 0 == rc ) { stats -> reads_written ++; }
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+static rc_t extract_seq_row_count( KDirectory * dir,
+                                   const VDBManager * vdb_mgr,
+                                   const char * accession_short,
+                                   const char * accession_path,
+                                   size_t cur_cache,
+                                   uint64_t * res )
+{
+    cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt = { false, false, false, false, false }; /* fastq_iter.h */
     rc_t rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
         *res = get_row_count_of_fastq_csra_iter( iter );
         destroy_fastq_csra_iter( iter );
@@ -798,83 +1220,122 @@ static rc_t extract_csra_row_count( KDirectory * dir,
     return rc;
 }
 
-static rc_t perform_special_join( cmn_params * cp,
-                                  join * j,
-                                  struct bg_progress * progress )
+static rc_t extract_align_row_count( KDirectory * dir,
+                                   const VDBManager * vdb_mgr,
+                                   const char * accession_short,
+                                   const char * accession_path,
+                                   size_t cur_cache,
+                                   uint64_t * res )
 {
-    struct special_iter * iter;
-    rc_t rc = make_special_iter( cp, &iter ); /* special_iter.c */
-    if ( rc == 0 )
+    cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache };
+    struct align_iter_t * iter;
+    rc_t rc = make_align_iter( &cp, &iter ); /* fastq_iter.c */
+    if ( 0 == rc )
     {
-        special_rec rec;
-        while ( rc == 0 && get_from_special_iter( iter, &rec, &rc ) )
+        *res = get_row_count_of_align_iter( iter );
+        destroy_align_iter( iter );
+    }
+    return rc;
+}
+
+static rc_t perform_special_join( cmn_iter_params_t * cp,
+                                  join_t * j,
+                                  struct bg_progress_t * progress )
+{
+    struct special_iter_t * iter;
+    rc_t rc = make_special_iter( cp, &iter ); /* special_iter.c */
+    if ( 0 == rc )
+    {
+        special_rec_t rec;
+        while ( 0 == rc && get_from_special_iter( iter, &rec, &rc ) )
         {
-            rc = Quitting();
-            if ( rc == 0 )
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
             {
-                if ( rec . num_reads == 1 )
+                if ( 1 == rec . num_reads )
+                {
                     rc = print_special_1_read( &rec, j ); /* above */
+                }
                 else
+                {
                     rc = print_special_2_reads( &rec, j ); /* above */
+                }
 
                 j -> loop_nr ++;
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
+        if ( 0 != rc )
+        {
+            set_quitting();     /* helper.c */
+        }
         destroy_special_iter( iter ); /* special_iter.c */
     }
     else
-        ErrMsg( "make_special_iter() -> %R", rc );
+    {
+        ErrMsg( "perform_special_join().make_special_iter() -> %R", rc );
+    }
     return rc;
 }
 
-
-static rc_t perform_whole_spot_join( cmn_params * cp,
-                                     join_stats * stats,
-                                     join * j,
-                                     struct bg_progress * progress,
-                                     const join_options * jo )
+static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
+                                     join_stats_t * stats,
+                                     join_t * j,
+                                     struct bg_progress_t * progress,
+                                     const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = false;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
+    opt . with_quality = true;
     
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "perform_fastq_join().make_fastq_csra_iter() -> %R", rc );
+    }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt = { jo -> rowid_as_name,
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt = { jo -> rowid_as_name,
                                    false, 
                                    jo -> print_read_nr,
                                    jo -> print_name,
                                    jo -> terminate_on_invalid,
                                    jo -> min_read_len,
                                    jo -> filter_bases };
-        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
-            rc = Quitting();
-            if ( rc == 0 )
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
             {
                 stats -> spots_read++;
                 stats -> reads_read += rec . num_alig_id;
-            
-                if ( rec . num_alig_id == 1 )
+
+                if ( 1 == rec . num_alig_id )
+                {
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt ); /* above */
+                }
                 else
+                {
                     rc = print_fastq_2_reads( stats, &rec, j, &local_opt ); /* above */
+                }
 
-                if ( rc == 0 )
+                if ( 0 == rc )
+                {
                     j -> loop_nr ++;
+                }
                 else
+                {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    
+                    set_quitting(); /* helper.c */
+                }
+
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
@@ -883,44 +1344,56 @@ static rc_t perform_whole_spot_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fastq_split_spot_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
-    
+    opt . with_quality = true;
+
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "perform_fastq_split_spot_join().make_fastq_csra_iter() -> %R", rc );
+    }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
-        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        fastq_rec_t rec; /* fastq_iter.h */
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
-            rc = Quitting();
-            if ( rc == 0 )
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
             {
                 stats -> spots_read++;
                 stats -> reads_read += rec . num_alig_id;
-            
-                if ( rec . num_alig_id == 1 )
-                    rc = print_fastq_1_read( stats, &rec, j, jo ); /* above */
-                else
-                    rc = print_fastq_2_reads_splitted( stats, &rec, j, false, jo ); /* above */
 
-                if ( rc == 0 )
-                    j -> loop_nr ++;
+                if ( 1 == rec . num_alig_id )
+                {
+                    rc = print_fastq_1_read( stats, &rec, j, jo ); /* above */
+                }
                 else
+                {
+                    rc = print_fastq_2_reads_splitted( stats, &rec, j, false, jo ); /* above */
+                }
+
+                if ( 0 == rc )
+                {
+                    j -> loop_nr ++;
+                }
+                else
+                {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                    
+                    set_quitting(); /* helper.c */
+                }
+
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
@@ -929,27 +1402,30 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fastq_split_file_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
-    
+    opt . with_quality = true;
+
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "perform_fastq_split_file_join().make_fastq_csra_iter() -> %R", rc );
+    }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
-        join_options local_opt =
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt =
             { 
                 jo -> rowid_as_name,
                 false,
@@ -959,24 +1435,33 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
-            
-        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
-            rc = Quitting();
-            if ( rc == 0 )
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
             {
                 stats -> spots_read++;
                 stats -> reads_read += rec . num_alig_id;
-            
-                if ( rec . num_alig_id == 1 )
-                    rc = print_fastq_1_read( stats, &rec, j, &local_opt );
-                else
-                    rc = print_fastq_2_reads_splitted( stats, &rec, j, true, &local_opt );
 
-                if ( rc == 0 )
-                    j -> loop_nr ++;
+                if ( 1 == rec . num_alig_id )
+                {
+                    rc = print_fastq_1_read( stats, &rec, j, &local_opt );
+                }
                 else
+                {
+                    rc = print_fastq_2_reads_splitted( stats, &rec, j, true, &local_opt );
+                }
+
+                if ( 0 == rc )
+                {
+                    j -> loop_nr ++;
+                }
+                else
+                {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting();     /* helper.c */
+                }
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -986,29 +1471,32 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     return rc;
 }
 
-static rc_t perform_fastq_split_3_join( cmn_params * cp,
-                                      join_stats * stats,
-                                      join * j,
-                                      struct bg_progress * progress,
-                                      const join_options * jo )
+static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
 {
     rc_t rc;
-    struct fastq_csra_iter * iter;
-    fastq_iter_opt opt;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
-    
+    opt . with_quality = true;
+
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "perform_fastq_split_3_join().make_fastq_csra_iter() -> %R", rc );
+    }
     else
     {
-        fastq_rec rec; /* fastq_iter.h */
+        fastq_rec_t rec; /* fastq_iter.h */
         rc_t rc_iter = 0;
         
-        join_options local_opt =
+        join_options_t local_opt =
             {
                 jo -> rowid_as_name,
                 false,
@@ -1019,31 +1507,310 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 jo -> filter_bases
             };
 
-        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
         {
-            rc = Quitting();
-            if ( rc == 0 )
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
             {
                 stats -> spots_read++;
                 stats -> reads_read += rec . num_alig_id;
 
-                if ( rec . num_alig_id == 1 )
+                if ( 1 == rec . num_alig_id )
+                {
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt );
+                }
                 else
+                {
                     rc = print_fastq_2_reads_splitted( stats, &rec, j, true, &local_opt );
+                }
 
-                if ( rc == 0 )
+                if ( 0 == rc )
+                {
                     j -> loop_nr ++;
+                }
                 else
+                {
                     ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
-                
+                    set_quitting();     /* helper.c */
+                }
+
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
         destroy_fastq_csra_iter( iter );
-        
-        if ( rc == 0 && rc_iter != 0 )
+
+        if ( 0 == rc && 0 != rc_iter )
+        {
             rc = rc_iter;
+        }
+    }
+    return rc;
+}
+
+static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
+                                join_stats_t * stats,
+                                join_t * j,
+                                struct bg_progress_t * progress,
+                                const join_options_t * jo )
+{
+    rc_t rc;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
+    opt . with_read_len = false;
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = true;
+    opt . with_cmp_read = j -> cmp_read_present;
+    opt . with_quality = false;
+    
+    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "perform_fastq_join().make_fastq_csra_iter() -> %R", rc );
+    }
+    else
+    {
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt = { jo -> rowid_as_name,
+                                   false, 
+                                   jo -> print_read_nr,
+                                   jo -> print_name,
+                                   jo -> terminate_on_invalid,
+                                   jo -> min_read_len,
+                                   jo -> filter_bases };
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                stats -> spots_read++;
+                stats -> reads_read += rec . num_alig_id;
+
+                if ( 1 == rec . num_alig_id )
+                {
+                    rc = print_fasta_1_read( stats, &rec, j, &local_opt ); /* above */
+                }
+                else
+                {
+                    rc = print_fasta_2_reads( stats, &rec, j, &local_opt ); /* above */
+                }
+
+                if ( 0 == rc )
+                {
+                    j -> loop_nr ++;
+                }
+                else
+                {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
+                }
+
+                bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
+            }
+        }
+        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+    }
+    return rc;
+}
+
+static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
+{
+    rc_t rc;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
+    opt . with_read_len = true;
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = true;
+    opt . with_cmp_read = j -> cmp_read_present;
+    opt . with_quality = false;
+
+    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "perform_fastq_split_spot_join().make_fastq_csra_iter() -> %R", rc );
+    }
+    else
+    {
+        fastq_rec_t rec; /* fastq_iter.h */
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                stats -> spots_read++;
+                stats -> reads_read += rec . num_alig_id;
+
+                if ( 1 == rec . num_alig_id )
+                {
+                    rc = print_fasta_1_read( stats, &rec, j, jo ); /* above */
+                }
+                else
+                {
+                    rc = print_fasta_2_reads_splitted( stats, &rec, j, false, jo ); /* above */
+                }
+
+                if ( 0 == rc )
+                {
+                    j -> loop_nr ++;
+                }
+                else
+                {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
+                }
+
+                bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
+            }
+        }
+        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+    }
+    return rc;
+}
+
+static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
+{
+    rc_t rc;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
+    opt . with_read_len = true;
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = true;
+    opt . with_cmp_read = j -> cmp_read_present;
+    opt . with_quality = false;
+
+    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "perform_fastq_split_file_join().make_fastq_csra_iter() -> %R", rc );
+    }
+    else
+    {
+        fastq_rec_t rec; /* fastq_iter.h */
+        join_options_t local_opt =
+            { 
+                jo -> rowid_as_name,
+                false,
+                jo -> print_read_nr,
+                jo -> print_name,
+                jo -> terminate_on_invalid,
+                jo -> min_read_len,
+                jo -> filter_bases
+            };
+
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                stats -> spots_read++;
+                stats -> reads_read += rec . num_alig_id;
+
+                if ( 1 == rec . num_alig_id )
+                {
+                    rc = print_fasta_1_read( stats, &rec, j, &local_opt );
+                }
+                else
+                {
+                    rc = print_fasta_2_reads_splitted( stats, &rec, j, true, &local_opt );
+                }
+
+                if ( 0 == rc )
+                {
+                    j -> loop_nr ++;
+                }
+                else
+                {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting();     /* helper.c */
+                }
+
+                bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
+            }
+        }
+        destroy_fastq_csra_iter( iter );
+    }
+    return rc;
+}
+
+static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
+                                      join_stats_t * stats,
+                                      join_t * j,
+                                      struct bg_progress_t * progress,
+                                      const join_options_t * jo )
+{
+    rc_t rc;
+    struct fastq_csra_iter_t * iter;
+    fastq_iter_opt_t opt;
+    opt . with_read_len = true;
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = true;
+    opt . with_cmp_read = j -> cmp_read_present;
+    opt . with_quality = false;
+
+    rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "perform_fasta_split_3_join().make_fastq_csra_iter() -> %R", rc );
+    }
+    else
+    {
+        fastq_rec_t rec; /* fastq_iter.h */
+        rc_t rc_iter = 0;
+        
+        join_options_t local_opt =
+            {
+                jo -> rowid_as_name,
+                false,
+                jo -> print_read_nr,
+                jo -> print_name,
+                jo -> terminate_on_invalid,
+                jo -> min_read_len,
+                jo -> filter_bases
+            };
+
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && 0 == rc_iter ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                stats -> spots_read++;
+                stats -> reads_read += rec . num_alig_id;
+
+                if ( 1 == rec . num_alig_id )
+                {
+                    rc = print_fasta_1_read( stats, &rec, j, &local_opt );
+                }
+                else
+                {
+                    rc = print_fasta_2_reads_splitted( stats, &rec, j, true, &local_opt );
+                }
+
+                if ( 0 == rc )
+                {
+                    j -> loop_nr ++;
+                }
+                else
+                {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    set_quitting();     /* helper.c */
+                }
+
+                bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
+            }
+        }
+        destroy_fastq_csra_iter( iter );
+
+        if ( 0 == rc && 0 != rc_iter )
+        {
+            rc = rc_iter;
+        }
     }
     return rc;
 }
@@ -1054,7 +1821,7 @@ typedef struct join_thread_data
 {
     char part_file[ 4096 ];
 
-    join_stats stats; /* helper.h */
+    join_stats_t stats; /* helper.h */
     
     KDirectory * dir;
     const VDBManager * vdb_mgr;
@@ -1063,8 +1830,8 @@ typedef struct join_thread_data
     const char * accession_short;
     const char * lookup_filename;
     const char * index_filename;
-    struct bg_progress * progress;
-    struct temp_registry * registry;
+    struct bg_progress_t * progress;
+    struct temp_registry_t * registry;
     KThread * thread;
     
     int64_t first_row;
@@ -1075,18 +1842,16 @@ typedef struct join_thread_data
     uint32_t thread_id;
     bool cmp_read_present;
 
-    const join_options * join_options;
+    const join_options_t * join_options;
     
-} join_thread_data;
+} join_thread_data_t;
 
 static rc_t CC cmn_thread_func( const KThread * self, void * data )
 {
-    rc_t rc = 0;
-    join_thread_data * jtd = data;
-    struct join_results * results = NULL;
-    
-    if ( rc == 0 )
-        rc = make_join_results( jtd -> dir,
+    join_thread_data_t * jtd = data;
+    struct join_results_t * results = NULL;
+
+    rc_t rc = make_join_results( jtd -> dir,
                                 &results,
                                 jtd -> registry,
                                 jtd -> part_file,
@@ -1096,13 +1861,13 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
                                 jtd -> join_options -> print_read_nr,
                                 jtd -> join_options -> print_name,
                                 jtd -> join_options -> filter_bases );
-    
-    if ( rc == 0 && results != NULL )
-    {
-        join j;
-        cmn_params cp = { jtd -> dir, jtd -> vdb_mgr,
-                          jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
 
+    if ( 0 == rc && NULL != results )
+    {
+        join_t j;
+        cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
+                          jtd -> accession_short, jtd -> accession_path,
+                          jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
         rc = init_join( &cp,
                         results,
                         jtd -> lookup_filename,
@@ -1110,7 +1875,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
                         jtd -> buf_size,
                         jtd -> cmp_read_present,
                         &j ); /* above */
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             j . thread_id = jtd -> thread_id;
 
@@ -1120,7 +1885,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
                                                         &j,
                                                         jtd -> progress ); break;
 
-                case ft_whole_spot          : rc = perform_whole_spot_join( &cp,
+                case ft_fastq_whole_spot    : rc = perform_fastq_whole_spot_join( &cp,
                                                         &jtd -> stats,
                                                         &j,
                                                         jtd -> progress,
@@ -1144,7 +1909,32 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
                                                         jtd -> progress,
                                                         jtd -> join_options ); break;
 
-                default : break;
+                case ft_fasta_whole_spot    : rc = perform_fasta_whole_spot_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j,
+                                                        jtd -> progress,
+                                                        jtd -> join_options ); break;
+
+                case ft_fasta_split_spot    : rc = perform_fasta_split_spot_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j,
+                                                        jtd -> progress,
+                                                        jtd -> join_options ); break;
+
+                case ft_fasta_split_file    : rc = perform_fasta_split_file_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j,
+                                                        jtd -> progress,
+                                                        jtd -> join_options ); break;
+
+                case ft_fasta_split_3       : rc = perform_fasta_split_3_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j,
+                                                        jtd -> progress,
+                                                        jtd -> join_options ); break;
+
+                case ft_unknown : break;                /* this should never happen */
+                case ft_fasta_us_split_spot : break;    /* nether should this */
             }
             release_join_ctx( &j );
         }
@@ -1153,78 +1943,95 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
     return rc;
 }
 
+static rc_t join_threads_collect_stats( Vector * threads, join_stats_t * stats )
+{
+    rc_t rc = 0;
+    /* collect the threads, and add the join_stats */
+    uint32_t i, n = VectorLength( threads );
+    for ( i = VectorStart( threads ); i < n; ++i )
+    {
+        join_thread_data_t * jtd = VectorGet( threads, i );
+        if ( NULL != jtd )
+        {
+            rc_t rc_thread;
+            KThreadWait( jtd -> thread, &rc_thread );
+            if ( 0 != rc_thread )
+            {
+                rc = rc_thread;
+            }
+            KThreadRelease( jtd -> thread );
+
+            add_join_stats( stats, &jtd -> stats ); /* helper.c */
+
+            free( jtd );
+        }
+    }
+    VectorWhack ( threads, NULL, NULL );
+    return rc;
+}
+
 rc_t execute_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_path,
                     const char * accession_short,
-                    join_stats * stats,
+                    join_stats_t * stats,
                     const char * lookup_filename,
                     const char * index_filename,
-                    const struct temp_dir * temp_dir,
-                    struct temp_registry * registry,
+                    const struct temp_dir_t * temp_dir,
+                    struct temp_registry_t * registry,
                     size_t cur_cache,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
                     format_t fmt,
-                    const join_options * join_options )
+                    const join_options_t * join_options )
 {
     rc_t rc = 0;
-    
+
     if ( show_progress )
     {
         KOutHandlerSetStdErr();
         rc = KOutMsg( "join   :" );
         KOutHandlerSetStdOut();
     }
-    
+
     if ( rc == 0 )
     {
-        uint64_t row_count = 0;
+        uint64_t seq_row_count = 0;
         bool name_column_present, cmp_read_column_present;
-        
-        rc = cmn_check_db_column( dir, vdb_mgr, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
-        if ( rc == 0 )
-            rc = cmn_check_db_column( dir, vdb_mgr, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
-        
-        rc = extract_csra_row_count( dir, vdb_mgr, accession_path, cur_cache, &row_count );
-        if ( rc == 0 && row_count > 0 )
+
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
+        if ( 0 == rc )
+        {
+            rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
+        }
+
+        rc = extract_seq_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &seq_row_count ); /* above */
+        if ( 0 == rc && seq_row_count > 0 )
         {
             Vector threads;
             int64_t row = 1;
             uint32_t thread_id;
             uint64_t rows_per_thread;
-            struct bg_progress * progress = NULL;
-            struct join_options corrected_join_options;
-            
+            struct bg_progress_t * progress = NULL;
+            join_options_t corrected_join_options;
+
+            correct_join_options( &corrected_join_options, join_options, name_column_present ); /* helper.c */
             VectorInit( &threads, 0, num_threads );
+            rows_per_thread = calculate_rows_per_thread( &num_threads, seq_row_count ); /* helper.c */
 
-            corrected_join_options . rowid_as_name = name_column_present ? join_options -> rowid_as_name : true;
-            corrected_join_options . skip_tech = join_options -> skip_tech;
-            corrected_join_options . print_read_nr = join_options -> print_read_nr;
-            corrected_join_options . print_name = join_options -> print_name;
-            corrected_join_options . min_read_len = join_options -> min_read_len;
-            corrected_join_options . filter_bases = join_options -> filter_bases;
-            corrected_join_options . terminate_on_invalid = join_options -> terminate_on_invalid;
-            
-            if ( row_count < ( num_threads * 100 ) )
-            {
-                num_threads = 1;
-                rows_per_thread = row_count;
-            }
-            else
-            {
-                rows_per_thread = ( row_count / num_threads ) + 1;
+            /* we need the row-count for that... */
+            if ( show_progress ) {
+                rc = bg_progress_make( &progress, seq_row_count, 0, 0 ); /* progress_thread.c */
             }
 
-            if ( show_progress )
-                rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
-            
-            for ( thread_id = 0; rc == 0 && thread_id < num_threads; ++thread_id )
+            for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
             {
-                join_thread_data * jtd = calloc( 1, sizeof * jtd );
-                if ( jtd == NULL )
+                join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
+                if ( NULL == jtd )
+                {
                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                }
                 else
                 {
                     jtd -> dir              = dir;
@@ -1247,44 +2054,27 @@ rc_t execute_db_join( KDirectory * dir,
                     rc = make_joined_filename( temp_dir, jtd -> part_file, sizeof jtd -> part_file,
                                                accession_short, thread_id ); /* temp_dir.c */
 
-                    if ( rc == 0 )
+                    if ( 0 == rc )
                     {
-                        rc = KThreadMake( &jtd -> thread, cmn_thread_func, jtd );
-                        if ( rc != 0 )
-                            ErrMsg( "KThreadMake( fastq/special #%d ) -> %R", thread_id, rc );
+                        rc = helper_make_thread( &jtd -> thread, cmn_thread_func, jtd, THREAD_BIG_STACK_SIZE );
+                        if ( 0 != rc )
+                        {
+                            ErrMsg( "join.c helper_make_thread( fastq/special #%d ) -> %R", thread_id, rc );
+                        }
                         else
                         {
                             rc = VectorAppend( &threads, NULL, jtd );
-                            if ( rc != 0 )
-                                ErrMsg( "VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                            if ( 0 != rc )
+                            {
+                                ErrMsg( "join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                            }
                         }
                         row += rows_per_thread;
                     }
                 }
             }
-            
-            {
-                /* collect the threads, and add the join_stats */
-                uint32_t i, n = VectorLength( &threads );
-                for ( i = VectorStart( &threads ); i < n; ++i )
-                {
-                    join_thread_data * jtd = VectorGet( &threads, i );
-                    if ( jtd != NULL )
-                    {
-                        rc_t rc_thread;
-                        KThreadWait( jtd -> thread, &rc_thread );
-                        if ( rc_thread != 0 )
-                            rc = rc_thread;
 
-                        KThreadRelease( jtd -> thread );
-
-                        add_join_stats( stats, &jtd -> stats ); /* helper.c */
-
-                        free( jtd );
-                    }
-                }
-                VectorWhack ( &threads, NULL, NULL );
-            }
+            rc = join_threads_collect_stats( &threads, stats ); /* above */
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }
@@ -1300,45 +2090,52 @@ rc_t check_lookup( const KDirectory * dir,
                    size_t cursor_cache,
                    const char * lookup_filename,
                    const char * index_filename,
-                   const char * accession )
+                   const char * accession_short,
+                   const char * accession_path )
 {
-    struct index_reader * index;
+    struct index_reader_t * index;
     rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
-        struct lookup_reader * lookup;  /* lookup_reader.h */
+        struct lookup_reader_t * lookup;  /* lookup_reader.h */
         rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             struct raw_read_iter * iter; /* raw_read_iter.h */
-            cmn_params params; /* helper.h */
-            
+            cmn_iter_params_t params; /* helper.h */
+
             params . dir = dir;
-            params . accession = accession;
+            params . accession_short = accession_short;
+            params . accession_path  = accession_path;
+
             params . first_row = 0;
             params . row_count = 0;
             params . cursor_cache = cursor_cache;
-            
+
             rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
-                SBuffer buffer;
+                SBuffer_t buffer;
                 rc = make_SBuffer( &buffer, 4096 );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     raw_read_rec rec; /* raw_read_iter.h */
                     uint64_t loop = 0;
                     bool running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
-                    while( rc == 0 && running )
+                    while( 0 == rc && running )
                     {
                         rc = lookup_bases( lookup, rec . seq_spot_id, rec . seq_read_id, &buffer, false );
-                        if ( rc != 0 )
+                        if ( 0 != rc )
+                        {
                             KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", rec . seq_spot_id, rec . seq_read_id, rc );
+                        }
                         else
                         {
                             running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
                             if ( 0 == loop % 1000 )
+                            {
                                 KOutMsg( "[loop #%lu] ", loop / 1000 );
+                            }
                             loop++;
                         }
                     }
@@ -1361,26 +2158,402 @@ rc_t check_lookup_this( const KDirectory * dir,
                         uint64_t seq_spot_id,
                         uint32_t seq_read_id )
 {
-    struct index_reader * index;
+    struct index_reader_t * index;
     rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
-    if ( rc == 0 )
+    if ( 0 == rc )
     {
-        struct lookup_reader * lookup;  /* lookup_reader.h */
+        struct lookup_reader_t * lookup;  /* lookup_reader.h */
         rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
-            SBuffer buffer;
+            SBuffer_t buffer;
             rc = make_SBuffer( &buffer, 4096 );
-            if ( rc == 0 )
+            if ( 0 == rc )
             {
                 rc = lookup_bases( lookup, seq_spot_id, seq_read_id, &buffer, false );
-                if ( rc != 0 )
+                if ( 0 != rc )
+                {
                     KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", seq_spot_id, seq_read_id, rc );
-                release_SBuffer( &buffer );                
+                }
+                release_SBuffer( &buffer );
             }
             release_lookup_reader( lookup ); /* lookup_reader.c */
         }
         release_index_reader( index );
+    }
+    return rc;
+}
+
+/* ---------------------------------------------------------------------------------------------------- */
+
+/* iterate over the ALIGN-table, using the align-iter from fastq_iter.c */
+static rc_t CC fast_align_thread_func( const KThread * self, void * data )
+{
+    rc_t rc = 0;
+    join_thread_data_t * jtd = data;
+    struct common_join_results_t * results = ( struct common_join_results_t * ) jtd -> registry;
+    join_stats_t * stats = &( jtd -> stats );
+    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
+                        jtd -> accession_short, jtd -> accession_path,
+                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    const char * acc = jtd -> accession_short;
+    struct align_iter_t * iter;
+    uint64_t loop_nr = 0;
+
+    rc = make_align_iter( &cp, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
+    }
+    else
+    {
+        align_rec_t rec; /* fastq_iter.h */
+        while ( 0 == rc && get_from_align_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                if ( rec . read . len > 0 )
+                {
+
+                    stats -> reads_read += 1;
+
+                    rc = common_join_results_print( results, ">%s.%lu %lu length=%u\n%S\n",
+                        acc, rec . spot_id, rec . spot_id, rec . read . len, &( rec . read ) );
+
+                    if ( 0 == rc ) { stats -> reads_written++; }
+
+                }
+                else { stats -> reads_zero_length++; }
+
+                if ( 0 == rc ) {
+                    loop_nr ++;
+                    bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                }
+                else {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
+                }
+            }
+        }
+        destroy_align_iter( iter ); /* fastq-iter.c */
+    }
+    return rc;
+}
+
+static rc_t start_fast_join_align( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    const join_options_t * join_options,
+                    uint64_t row_count,
+                    struct bg_progress_t * progress,
+                    struct common_join_results_t * results,
+                    Vector * threads )
+{
+    rc_t rc = 0;
+    int64_t row = 1;
+    uint32_t thread_id;
+    uint64_t rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
+    join_options_t corrected_join_options; /* helper.h */
+    correct_join_options( &corrected_join_options, join_options, false );
+
+    for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
+    {
+        join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
+        if ( NULL != jtd )
+        {
+            jtd -> dir              = dir;
+            jtd -> vdb_mgr          = vdb_mgr;
+            jtd -> accession_path   = accession_path;
+            jtd -> accession_short  = accession_short;
+            jtd -> lookup_filename  = NULL;
+            jtd -> index_filename   = NULL;
+            jtd -> first_row        = row;
+            jtd -> row_count        = rows_per_thread;
+            jtd -> cur_cache        = cur_cache;
+            jtd -> buf_size         = buf_size;
+            jtd -> progress         = progress;
+            jtd -> registry         = ( void * )results;    /* use the common-output here */
+            jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
+            jtd -> join_options     = &corrected_join_options;
+            jtd -> thread_id        = thread_id;
+            jtd -> cmp_read_present = true;
+
+            if ( 0 == rc )
+            {
+                rc = helper_make_thread( &jtd -> thread, fast_align_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                if ( 0 != rc )
+                {
+                    ErrMsg( "join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
+                }
+                else
+                {
+                    rc = VectorAppend( threads, NULL, jtd );
+                    if ( 0 != rc )
+                    {
+                        ErrMsg( "join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                    }
+                }
+                row += rows_per_thread;
+            }
+        }
+    }
+    return rc;
+}
+
+/* iterate over the SEQ-table, but only use what is half/fully unaligned... */
+static rc_t CC fast_seq_thread_func( const KThread * self, void * data )
+{
+    rc_t rc = 0;
+    join_thread_data_t * jtd = data;
+    struct common_join_results_t * results = ( struct common_join_results_t * ) jtd -> registry;
+    join_stats_t * stats = &( jtd -> stats );
+    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
+                        jtd -> accession_short, jtd -> accession_path,
+                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    const char * acc = jtd -> accession_short;
+    struct fastq_csra_iter_t * iter;
+    uint64_t loop_nr = 0;
+    fastq_iter_opt_t opt;
+    opt . with_read_len = true;
+    opt . with_name = false;
+    opt . with_read_type = true;
+    opt . with_cmp_read = jtd -> cmp_read_present;
+    opt . with_quality = false;
+
+    rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq-iter.c */
+    if ( 0 != rc )
+    {
+        ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
+    }
+    else
+    {
+        fastq_rec_t rec; /* fastq_iter.h */
+        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        {
+            rc = get_quitting(); /* helper.c */
+            if ( 0 == rc )
+            {
+                uint32_t read_id_0 = 0;
+                uint32_t offset = 0;
+                stats -> spots_read++;
+                while ( 0 == rc && read_id_0 < rec . num_read_len )
+                {
+                    if ( rec . read_len[ read_id_0 ] > 0 )
+                    {
+                        if ( 0 == rec . prim_alig_id[ read_id_0 ] )
+                        {
+                            String R;
+
+                            stats -> reads_read += 1;
+
+                            R . addr = &rec . read . addr[ offset ];
+                            R . size = rec . read_len[ read_id_0 ];
+                            R . len  = ( uint32_t )R . size;
+
+                            rc = common_join_results_print( results, ">%s.%lu %lu length=%u\n%S\n",
+                                acc, rec . row_id, rec . row_id, R . len, &R );
+
+                            if ( 0 == rc ) { stats -> reads_written++; }
+                            offset += rec . read_len[ read_id_0 ];
+                        }
+                    }
+                    else { stats -> reads_zero_length++; }
+                    read_id_0++;
+                }
+
+                if ( 0 == rc ) {
+                    loop_nr ++;
+                    bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                }
+                else {
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+                    set_quitting(); /* helper.c */
+                }
+            }
+        }
+        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+    }
+
+    return rc;
+}
+
+static rc_t start_fast_join_seq( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    const join_options_t * join_options,
+                    uint64_t seq_row_count,
+                    bool cmp_read_column_present,
+                    struct bg_progress_t * progress,
+                    struct common_join_results_t * results,
+                    Vector * threads )
+{
+    rc_t rc = 0;
+    int64_t row = 1;
+    uint32_t thread_id;
+    uint64_t rows_per_thread = calculate_rows_per_thread( &num_threads, seq_row_count ); /* helper.c */
+    join_options_t corrected_join_options; /* helper.h */
+    correct_join_options( &corrected_join_options, join_options, false );
+
+    for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id )
+    {
+        join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
+        if ( NULL != jtd )
+        {
+            jtd -> dir              = dir;
+            jtd -> vdb_mgr          = vdb_mgr;
+            jtd -> accession_path   = accession_path;
+            jtd -> accession_short  = accession_short;
+            jtd -> lookup_filename  = NULL;
+            jtd -> index_filename   = NULL;
+            jtd -> first_row        = row;
+            jtd -> row_count        = rows_per_thread;
+            jtd -> cur_cache        = cur_cache;
+            jtd -> buf_size         = buf_size;
+            jtd -> progress         = progress;
+            jtd -> registry         = ( void * )results;    /* use the common-output here */
+            jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
+            jtd -> join_options     = &corrected_join_options;
+            jtd -> thread_id        = thread_id;
+            jtd -> cmp_read_present = cmp_read_column_present;
+
+            if ( 0 == rc )
+            {
+                rc = helper_make_thread( &jtd -> thread, fast_seq_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                if ( 0 != rc )
+                {
+                    ErrMsg( "join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
+                }
+                else
+                {
+                    rc = VectorAppend( threads, NULL, jtd );
+                    if ( 0 != rc )
+                    {
+                        ErrMsg( "join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
+                    }
+                }
+                row += rows_per_thread;
+            }
+        }
+    }
+    return rc;
+}
+
+
+rc_t execute_fast_join( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    join_stats_t * stats,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    bool show_progress,
+                    const char * output_filename, /* NULL for stdout! */
+                    const join_options_t * join_options,
+                    bool force )
+{
+    rc_t rc = 0;
+    if ( show_progress )
+    {
+        KOutHandlerSetStdErr();
+        rc = KOutMsg( "read :" );
+        KOutHandlerSetStdOut();
+    }
+
+    if ( 0 == rc )
+    {
+        /* for the SEQUENCE-table */
+        uint64_t seq_row_count = 0;
+        uint64_t align_row_count = 0;
+        bool cmp_read_column_present;
+
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
+
+        if ( 0 == rc ) {
+            rc = extract_seq_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &seq_row_count ); /* above */
+        }
+        if ( 0 == rc ) {
+            rc = extract_align_row_count( dir, vdb_mgr, accession_short, accession_path, cur_cache, &align_row_count ); /* above */
+        }
+
+        if ( 0 == rc && seq_row_count > 0 )
+        {
+            struct bg_progress_t * progress = NULL;
+
+            /* we need the row-count for that... ( that is why we first detected the row-count ) */
+            if ( show_progress ) {
+                rc = bg_progress_make( &progress, seq_row_count + align_row_count, 0, 0 ); /* progress_thread.c */
+            }
+
+            struct common_join_results_t * results = NULL;
+            rc = make_common_join_results( dir,
+                                    &results,
+                                    buf_size,
+                                    4096,
+                                    join_options -> filter_bases,
+                                    output_filename,
+                                    force ); /* join_results.c */
+            if ( 0 == rc )
+            {
+                /* we now have:
+                    - row-count for SEQ- and ALIGN table
+                    - know if the CMP_READ-column exists in the SEQ-table
+                    - the common-output-results, ready to beeing used via common_join_results_print()
+                    - optionally a progress-bar ( set to the sum of the row-counts in the SEQ- and ALIGN-table )
+                */
+                Vector seq_threads;
+                VectorInit( &seq_threads, 0, num_threads );
+
+                rc = start_fast_join_seq( dir,
+                                          vdb_mgr,
+                                          accession_short,
+                                          accession_path,
+                                          cur_cache,
+                                          buf_size,
+                                          num_threads,
+                                          join_options,
+                                          seq_row_count,
+                                          cmp_read_column_present,
+                                          progress,
+                                          results,
+                                          &seq_threads );
+                if ( 0 == rc )
+                {
+                    Vector align_threads;
+                    VectorInit( &align_threads, 0, num_threads );
+
+                    rc = start_fast_join_align( dir,
+                                        vdb_mgr,
+                                        accession_short,
+                                        accession_path,
+                                        cur_cache,
+                                        buf_size,
+                                        num_threads,
+                                        join_options,
+                                        align_row_count,
+                                        progress,
+                                        results,
+                                        &align_threads );
+                    if ( 0 == rc ) {
+                        rc = join_threads_collect_stats( &align_threads, stats ); /* above */
+                    }
+                    if ( 0 == rc ) {
+                        rc = join_threads_collect_stats( &seq_threads, stats ); /* above */
+                    }
+                }
+                destroy_common_join_results( results );
+            }
+            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
+        }
     }
     return rc;
 }

@@ -30,6 +30,8 @@
  *
  */
 
+#pragma once
+
 #include <string>
 #include <vector>
 #include <exception>
@@ -55,7 +57,7 @@ public:
     : std::runtime_error(what)
     , from(from)
     , rc(rc)
-        , msg(message)
+    , msg(message)
     {}
 };
 
@@ -72,10 +74,6 @@ public:
             operator bool() const { return have; }
         } rundata, vdbcache;
     };
-#if 0
-    LocalInfo localInfo(std::string const &accession) const;
-    LocalInfo::FileInfo localInfo2(std::string const &accession, std::string const &name) const;
-#endif
 
     class Response {
         void *obj;
@@ -89,8 +87,9 @@ public:
     public:
         std::string const &responseText() const { return text; }
 
-        Service::LocalInfo localInfo(std::string const &accession) const;
-        Service::LocalInfo::FileInfo localInfo2(std::string const &accession, std::string const &name) const;
+        Service::LocalInfo::FileInfo localInfo(  std::string const &accession
+                                               , std::string const &name
+                                               , std::string const &type) const;
 
         ~Response();
 
@@ -104,11 +103,8 @@ public:
     void setLocation(std::string const &value) const;
     void setPermissionsFile(std::string const &path) const;
     void setNGCFile(std::string const &path) const;
-#if 0
-    std::string response(std::string const &url, std::string const &version) const;
-#else
+
     Response response(std::string const &url, std::string const &version) const;
-#endif
 
     static bool haveCloudProvider();
     static std::string CE_Token();

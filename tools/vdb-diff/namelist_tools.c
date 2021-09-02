@@ -25,6 +25,9 @@
 */
 #include "namelist_tools.h"
 
+#include <klib/log.h>
+#include <klib/out.h>
+
 #include <sysalloc.h>
 #include <stdlib.h>
 #include <string.h>
@@ -296,4 +299,103 @@ bool nlt_namelist_is_sub_set_in_full_set( const KNamelist * sub_set, const KName
 		res = ( rc == 0 && count == found );
 	}
 	return res;
+}
+
+rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2, const KNamelist ** cols_to_diff, bool intersect )
+{
+	uint32_t count_1;
+	rc_t rc = KNamelistCount( cols_1, &count_1 );
+	if ( rc != 0 )
+	{
+		LOGERR ( klogInt, rc, "KNamelistCount() failed" );
+	}
+	else
+	{
+		uint32_t count_2;
+		rc = KNamelistCount( cols_2, &count_2 );
+		if ( rc != 0 )
+		{
+			LOGERR ( klogInt, rc, "KNamelistCount() failed" );
+		}
+		else if ( count_1 != count_2 )
+		{
+			if ( intersect )
+			{
+				rc = nlt_build_intersect( cols_1, cols_2, cols_to_diff );
+				if ( rc != 0 )
+				{
+					LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );	
+				}
+			}
+			else
+			{
+				rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+				PLOGERR( klogInt, ( klogInt, rc,
+						 "the accessions have not the same number of columns! ( $(count1) != $(count2) )\n",
+						 "count1=%u,count2=%u", count_1, count_2 ) );
+				*cols_to_diff = NULL;
+			}
+		}
+		else
+		{
+			uint32_t found_in_both;
+			bool equal = nlt_compare_namelists( cols_1, cols_2, &found_in_both );
+			if ( equal )
+			{
+				rc = nlt_copy_namelist( cols_1, cols_to_diff );
+				if ( rc != 0 )
+				{
+					LOGERR ( klogInt, rc, "nlt_copy_namelist() failed" );
+				}
+			}
+			else
+			{
+				if ( intersect )
+				{
+					rc = nlt_build_intersect( cols_1, cols_2, cols_to_diff );
+					if ( rc != 0 )
+					{
+						LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );	
+					}
+				}
+				else
+				{
+					rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+					KOutMsg( "the 2 accessions have not the same set of columns! ( %u found in both )\n", found_in_both );
+				}
+			}
+		}
+	}
+	return rc;
+}
+
+rc_t extract_columns_from_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2, const char * sub_set,
+											  const KNamelist ** cols_to_diff )
+{
+	rc_t rc = nlt_make_namelist_from_string( cols_to_diff, sub_set );
+	if ( rc != 0 )
+	{
+		LOGERR ( klogInt, rc, "cannot parse set of requested columns" );
+	}
+	else
+	{
+		if ( nlt_namelist_is_sub_set_in_full_set( *cols_to_diff, cols_1 ) )
+		{
+			if ( nlt_namelist_is_sub_set_in_full_set( *cols_to_diff, cols_2 ) )
+			{
+				rc = 0;
+			}
+			else
+			{
+				rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+				LOGERR ( klogInt, rc, "accession #2 is missing some of the requested columns" );
+			}
+		}
+		else
+		{
+			rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+			LOGERR ( klogInt, rc, "accession #1 is missing some of the requested columns" );
+		}
+	}
+	return rc;
 }

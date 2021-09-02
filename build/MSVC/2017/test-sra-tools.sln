@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.489
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wb-test-fastq", "wb-test-fastq.vcxproj", "{1B17BDD6-7AF4-B010-E4FF-FE3C02B52D6D}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-align-info", "test-align-info.vcxproj", "{72BD3AEE-0CE1-D9EC-C75A-4DCD5ED3184F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-sra", "test-sra.vcxproj", "{11C2E25B-2CD2-4826-A574-637AD10BAAC3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1B17BDD6-7AF4-B010-E4FF-FE3C02B52D6D}.Debug|x64.ActiveCfg = Debug|x64
+		{1B17BDD6-7AF4-B010-E4FF-FE3C02B52D6D}.Debug|x64.Build.0 = Debug|x64
+		{1B17BDD6-7AF4-B010-E4FF-FE3C02B52D6D}.Release|x64.ActiveCfg = Release|x64
+		{1B17BDD6-7AF4-B010-E4FF-FE3C02B52D6D}.Release|x64.Build.0 = Release|x64
+		{72BD3AEE-0CE1-D9EC-C75A-4DCD5ED3184F}.Debug|x64.ActiveCfg = Debug|x64
+		{72BD3AEE-0CE1-D9EC-C75A-4DCD5ED3184F}.Debug|x64.Build.0 = Debug|x64
+		{72BD3AEE-0CE1-D9EC-C75A-4DCD5ED3184F}.Release|x64.ActiveCfg = Release|x64
+		{72BD3AEE-0CE1-D9EC-C75A-4DCD5ED3184F}.Release|x64.Build.0 = Release|x64
+		{11C2E25B-2CD2-4826-A574-637AD10BAAC3}.Debug|x64.ActiveCfg = Debug|x64
+		{11C2E25B-2CD2-4826-A574-637AD10BAAC3}.Debug|x64.Build.0 = Debug|x64
+		{11C2E25B-2CD2-4826-A574-637AD10BAAC3}.Release|x64.ActiveCfg = Release|x64
+		{11C2E25B-2CD2-4826-A574-637AD10BAAC3}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BCABC39A-BB30-4F62-AE9D-B73D33E61580}
+	EndGlobalSection
+EndGlobal

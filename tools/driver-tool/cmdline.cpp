@@ -34,9 +34,14 @@
 #include "cmdline.hpp"
 #include "env.hpp"
 
+#include <klib/debug.h> /* KDbgSetString */
+
 #include <iostream>
 
+#if defined __GNUC__
 #include <unistd.h>
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -48,7 +53,6 @@
 #endif
 
 #define TRACE( lvl, ... ) /* ignore */
-int dbg_trace_level = 0;
 
 namespace ncbi
 {
@@ -218,7 +222,7 @@ namespace ncbi
                 << "'"
                 );
         }
-#pragma message "TBD - check for NaN, INF, etc."
+#pragma message ( "TBD - check for NaN, INF, etc." )
     }
 
     template < >
@@ -323,21 +327,6 @@ namespace ncbi
         {
         }
     };
-
-#if _DEBUGGING
-    struct TraceLevelOption : Cmdline :: Option
-    {
-        virtual void handleOption ( Cmdline & args ) const
-        {
-            ++ dbg_trace_level;
-        }
-
-        TraceLevelOption ( const String & _help )
-            : Cmdline :: Option ( "v", "verbose", _help, true )
-        {
-        }
-    };
-#endif
 
     struct BooleanOption : Cmdline :: Option
     {
@@ -456,6 +445,30 @@ namespace ncbi
 
         std :: vector < T > & list;
         U32 max;
+    };
+
+    struct DebugOption : ListOption < String >
+    {
+        virtual void handleOption ( Cmdline & args ) const
+        {
+            ListOption < String > :: handleOption ( args );
+
+            U32 count ( ( U32 ) list . size () );
+            for ( U32 i = 0; i < count; ++ i )
+            {
+                String text ( list [ i ] );
+                const UTF8 * s ( text . data () );
+                KDbgSetString ( s );
+            }
+        }
+
+        DebugOption ( std :: vector < String > & _list, const char separator,
+                U32 _max,
+                const String & _short_name, const String & _long_name,
+                const String & _elem_name, const String & _help )
+            : ListOption < String > ( _list, separator, _max,
+                _short_name, _long_name, _elem_name, _help )
+        {}
     };
 
     void Cmdline :: Command :: addArg ( const String & arg )
@@ -705,6 +718,24 @@ namespace ncbi
         }
     }
 
+    void Cmdline :: addDebugOption ( std :: vector < String > & list,
+            const char separator,
+            U32 max, const String & short_name, const String & long_name,
+            const String & elem_name, const String & help )
+    {
+        Option * opt = new DebugOption ( list, separator, max,
+            short_name, long_name, elem_name, help );
+        try
+        {
+            addOption ( opt );
+        }
+        catch ( ... )
+        {
+            delete opt;
+            throw;
+        }
+    }
+
     template void Cmdline :: addListOption < bool > ( std :: vector < bool > &, const char, U32,
         const String &, const String &, const String &, const String & );
     template void Cmdline :: addListOption < I32 > ( std :: vector < I32 > &, const char, U32,
@@ -848,10 +879,6 @@ namespace ncbi
             // add in help option if not already there
             TRACE ( TRACE_GEEK, "adding help option\n" );
             add_default_option ( * this, new HelpOption ( "print this message" ) );
-#if _DEBUGGING
-            TRACE ( TRACE_GEEK, "adding verbose option\n" );
-            add_default_option ( * this, new TraceLevelOption ( "increment verbosity" ) );
-#endif
         }
         else
         {
@@ -863,10 +890,6 @@ namespace ncbi
                 TRACE ( TRACE_GEEK, "temporarily set mode to '%s'\n", mode -> mode_name . c_str () );
                 TRACE ( TRACE_GEEK, "adding help option\n" );
                 add_default_option ( * this, new HelpOption ( "print this message" ) );
-#if _DEBUGGING
-                TRACE ( TRACE_GEEK, "adding verbose option\n" );
-                add_default_option ( * this, new TraceLevelOption ( "increment verbosity" ) );
-#endif
             }
             mode = save;
             TRACE ( TRACE_GEEK, "restoring mode to '%s'\n", mode -> mode_name . c_str () );
@@ -912,11 +935,6 @@ namespace ncbi
             mode = i -> second;
             TRACE ( TRACE_GEEK, "selected mode is '%s'\n", mode -> mode_name . c_str () );
         }
-
-#if _DEBUGGING
-        if ( pre_parse )
-            dbg_trace_level = 0;
-#endif
 
         // determine the number of parameters we have
         U32 num_formal_params = adjust_limits ( * this );
@@ -1505,7 +1523,7 @@ namespace ncbi
             ;
     }
 
-    Cmdline :: Cmdline ( int _argc, char * _argv [] )
+    Cmdline :: Cmdline ( int _argc, char const * _argv [] )
         : mode ( new Mode )
         , argv ( ( const char ** ) _argv )
         , arg ( "" )
@@ -1526,7 +1544,7 @@ namespace ncbi
             throw InvalidArgument ( XP ( XLOC, rc_param_err ) << "null argument vector" );
     }
 
-    Cmdline :: Cmdline ( int _argc, char * _argv [], const String & _vers )
+    Cmdline :: Cmdline ( int _argc, char const * _argv [], const String & _vers )
         : mode ( new Mode )
         , vers ( _vers )
         , argv ( ( const char ** ) _argv )
@@ -1832,13 +1850,6 @@ namespace ncbi
     {
         if ( environ != 0 )
         {
-            /*
-#if _DEBUGGING
-            add_default_param ( * this, new TypedImport < int > ( dbg_trace_fd, "dbg_trace_fd" ) );
-            add_default_param ( * this, new TypedImport < int > ( dbg_dedicated_log, "dedicated_log" ) );
-            add_default_param ( * this, new TypedImport < unsigned int > ( dbg_trace_level, "dbg_trace_level" ) );
-#endif
-            */
             const char *pfx = 0;
             size_t psz = prefix . size ();
             if ( psz != 0 )

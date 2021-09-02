@@ -27,6 +27,7 @@ fi
 OPT="--tempdir $DSTDIR --mmapdir $DSTDIR --map-file-bsize 80000000000 --max-ref-idx-ids 4000000000 --max-idx-ids 4000000000 --max-large-idx-ids 800000000"
 SRC=$TEST_DATA/SRR5318091-sra-sort-md
 CMD="$SORT -f -v -L6 $OPT $SRC $DST"
+CMD="$SORT -f -v     $OPT $SRC $DST"
 echo $ $CMD
 
 $CMD

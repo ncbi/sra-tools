@@ -162,7 +162,7 @@ namespace ncbi
         /**
          * Exception
          * @brief constructor
-         * @param XP with all parameters
+         * @param params XP with all parameters
          */
         explicit Exception ( const XP & params );
 
@@ -413,6 +413,7 @@ namespace ncbi
     //!< support for XBackTrace and std::ostream
     std :: ostream & operator << ( std :: ostream & o, const XBackTrace & bt );
 
+#if defined(__GNUC__)
     /**
      * format
      * @param fmt a printf-compatible NUL-terminated constant format string
@@ -422,7 +423,7 @@ namespace ncbi
      */
     inline std :: string format ( const UTF8 * fmt, ... )
         __attribute__ ( ( format ( printf, 1, 2 ) ) );
-
+#endif
 
     /**
      * @def DECLARE_SEC_MSG_EXCEPTION

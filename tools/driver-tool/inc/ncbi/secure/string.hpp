@@ -277,7 +277,6 @@ namespace ncbi
          * findFirstOf
          * @overload find the first occurrence of any character in a set, stored as a C++ NUL-terminated string.
          * @param zcset a pointer to a C++ NUL-terminated string representing the set
-         * @param cset the set of characters being sought
          * @param left the left index of substring to search
          * @param len the length of substring to search
          * @return the index of the first matched character or npos if not found
@@ -298,7 +297,6 @@ namespace ncbi
          * findLastOf
          * @overload find the first occurrence of any character in a set, stored as a C++ NUL-terminated string.
          * @param zcset a pointer to a C++ NUL-terminated string representing the set
-         * @param cset the set of characters being sought
          * @param xright the exclusive right index of substring to search
          * @param len the length of substring to search
          * @return the index of the first matched character or npos if not found
@@ -437,7 +435,7 @@ namespace ncbi
          *=================================================*/
 
         /**
-v         * toSTLString
+         * toSTLString
          * @return a std::string object
          *
          * This cast operator does NOT return a const C++ reference
@@ -1381,7 +1379,6 @@ v         * toSTLString
          * findFirstOf
          * @overload find the first occurrence of any character in a set, stored as a C++ NUL-terminated string.
          * @param zcset a pointer to a C++ NUL-terminated string representing the set
-         * @param cset the set of characters being sought
          * @param left the left index of substring to search
          * @param len the length of substring to search
          * @return the index of the first matched character or npos if not found
@@ -1402,7 +1399,6 @@ v         * toSTLString
          * findLastOf
          * @overload find the first occurrence of any character in a set, stored as a C++ NUL-terminated string.
          * @param zcset a pointer to a C++ NUL-terminated string representing the set
-         * @param cset the set of characters being sought
          * @param xright the exclusive right index of substring to search
          * @param len the length of substring to search
          * @return the index of the first matched character or npos if not found

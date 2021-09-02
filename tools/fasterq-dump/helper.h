@@ -82,7 +82,7 @@ typedef struct join_stats
     uint64_t reads_technical;
     uint64_t reads_too_short;
     uint64_t reads_invalid;
-} join_stats;
+} join_stats_t;
 
 typedef struct join_options
 {
@@ -93,60 +93,52 @@ typedef struct join_options
     bool terminate_on_invalid;
     uint32_t min_read_len;
     const char * filter_bases;
-} join_options;
-
-typedef struct tmp_id
-{
-    const char * temp_path_base;
-    const char * hostname;
-    uint32_t pid;
-    bool temp_path_ends_in_slash;
-} tmp_id;
+} join_options_t;
 
 typedef struct SBuffer
 {
     String S;
     size_t buffer_size;
-} SBuffer;
+} SBuffer_t;
 
-typedef struct part_head
-{
-    uint64_t row_id;
-    uint32_t total, len, part, padd;
-} part_head;
-
-typedef enum format_t { ft_unknown, ft_special, ft_whole_spot,
-                        ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3 } format_t;
+typedef enum format_t {
+    ft_unknown, ft_special,
+    ft_fastq_whole_spot, ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3,
+    ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3,
+    ft_fasta_us_split_spot
+    } format_t;
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
-typedef struct cmn_params
+typedef struct cmn_iter_params
 {
     const KDirectory * dir;
     const VDBManager * vdb_mgr;
-    const char * accession;
+    const char * accession_short;
+    const char * accession_path;
     int64_t first_row;
     uint64_t row_count;
     size_t cursor_cache;
-} cmn_params;
+} cmn_iter_params_t;
 
 rc_t ErrMsg( const char * fmt, ... );
 
-rc_t make_SBuffer( SBuffer * self, size_t len );
-void release_SBuffer( SBuffer * self );
-rc_t increase_SBuffer( SBuffer * self, size_t by );
-rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args );
-rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... );
-rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err );
-rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... );
+rc_t make_SBuffer( SBuffer_t * self, size_t len );
+void release_SBuffer( SBuffer_t * self );
+rc_t increase_SBuffer( SBuffer_t * self, size_t by );
+rc_t print_to_SBufferV( SBuffer_t * self, const char * fmt, va_list args );
+rc_t print_to_SBuffer( SBuffer_t * self, const char * fmt, ... );
+rc_t try_to_enlarge_SBuffer( SBuffer_t * self, rc_t rc_err );
+rc_t make_and_print_to_SBuffer( SBuffer_t * self, size_t len, const char * fmt, ... );
 
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
 rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
 
-rc_t split_filename_insert_idx( SBuffer * dst, size_t dst_size,
+rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
                                 const char * filename, uint32_t idx );
 
 format_t get_format_t( const char * format,
-        bool split_spot, bool split_file, bool split_3, bool whole_spot );
+        bool split_spot, bool split_file, bool split_3, bool whole_spot,
+        bool fasta, bool fasta_us );
 
 compress_t get_compress_t( bool gzip, bool bzip2 );
 
@@ -159,13 +151,14 @@ uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32
 
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 
-rc_t pack_4na( const String * unpacked, SBuffer * packed );
-rc_t pack_read_2_4na( const String * read, SBuffer * packed );
-rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse );
+rc_t pack_4na( const String * unpacked, SBuffer_t * packed );
+rc_t pack_read_2_4na( const String * read, SBuffer_t * packed );
+rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool reverse );
 
 bool ends_in_slash( const char * s );
 bool extract_path( const char * s, String * path );
 const char * extract_acc( const char * s );
+const char * extract_acc2( const char * s );
 
 rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
 rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
@@ -183,8 +176,8 @@ uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files 
 int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession );
 */
 
-void clear_join_stats( join_stats * stats );
-void add_join_stats( join_stats * stats, const join_stats * to_add );
+void clear_join_stats( join_stats_t * stats );
+void add_join_stats( join_stats_t * stats, const join_stats_t * to_add );
 
 rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
                              const char * filename, size_t buf_size );
@@ -195,15 +188,15 @@ typedef struct locked_file_list
 {
     KLock * lock;
     VNamelist * files;
-} locked_file_list;
+} locked_file_list_t;
 
-rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize );
-rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir );
-rc_t locked_file_list_append( const locked_file_list * self, const char * filename );
-rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list * self );
-rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list * self );
-rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count );
-rc_t locked_file_list_pop( locked_file_list * self, const String ** item );
+rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize );
+rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir );
+rc_t locked_file_list_append( const locked_file_list_t * self, const char * filename );
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self );
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self );
+rc_t locked_file_list_count( const locked_file_list_t * self, uint32_t * count );
+rc_t locked_file_list_pop( locked_file_list_t * self, const String ** item );
 
 /* ===================================================================================== */
 
@@ -212,13 +205,14 @@ typedef struct locked_vector
     KLock * lock;
     Vector vector;
     bool sealed;
-} locked_vector;
+} locked_vector_t;
 
-rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize );
-void locked_vector_release( locked_vector * self,
+rc_t locked_vector_init( locked_vector_t * self, uint32_t alloc_blocksize );
+void locked_vector_release( locked_vector_t * self,
                             void ( CC * whack ) ( void *item, void *data ), void *data );
-rc_t locked_vector_push( locked_vector * self, const void * item, bool seal );
-rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed );
+rc_t locked_vector_push( locked_vector_t * self, const void * item, bool seal );
+rc_t locked_vector_pop( locked_vector_t * self, void ** item, bool * sealed );
+
 
 /* ===================================================================================== */
 
@@ -226,20 +220,78 @@ typedef struct locked_value
 {
     KLock * lock;
     uint64_t value;
-} locked_value;
+} locked_value_t;
 
-rc_t locked_value_init( locked_value * self, uint64_t init_value );
-void locked_value_release( locked_value * self );
-rc_t locked_value_get( locked_value * self, uint64_t * value );
-rc_t locked_value_set( locked_value * self, uint64_t value );
+rc_t locked_value_init( locked_value_t * self, uint64_t init_value );
+void locked_value_release( locked_value_t * self );
+rc_t locked_value_get( locked_value_t * self, uint64_t * value );
+rc_t locked_value_set( locked_value_t * self, uint64_t value );
 
 /* ===================================================================================== */
 
-struct Buf2NA;
+struct Buf2NA_t;
 
-rc_t make_Buf2NA( struct Buf2NA ** self, size_t size, const char * pattern );
-void release_Buf2NA( struct Buf2NA * self );
-bool match_Buf2NA( struct Buf2NA * self, const String * ascii );
+rc_t make_Buf2NA( struct Buf2NA_t ** self, size_t size, const char * pattern );
+void release_Buf2NA( struct Buf2NA_t * self );
+bool match_Buf2NA( struct Buf2NA_t * self, const String * ascii );
+
+/* ===================================================================================== */
+
+/* common define for bigger stack-size */
+#define THREAD_BIG_STACK_SIZE ((size_t)(16u * 1024u * 1024u))
+#define THREAD_DFLT_STACK_SIZE ((size_t)(0))
+
+/* common-function to create a thread with a given thread-size */
+rc_t helper_make_thread( KThread ** self,
+                         rc_t ( CC * run_thread ) ( const KThread * self, void * data ),
+                         void * data,
+                         size_t stacksize );
+
+/* ===================================================================================== */
+
+rc_t get_quitting( void );
+void set_quitting( void );
+
+/* ===================================================================================== */
+
+uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
+void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
+
+
+/* ===================================================================================== */
+
+struct var_desc_list_t;
+
+struct var_desc_list_t * create_var_names( void );
+void release_var_desc_list( struct var_desc_list_t * self );
+void var_desc_list_add_str( struct var_desc_list_t * self, const char * name, uint32_t idx );
+void var_desc_list_add_int( struct var_desc_list_t * self, const char * name, uint32_t idx );
+
+void var_desc_list_test( void );
+
+struct var_fmt_t;
+
+struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars );
+void release_var_fmt( struct var_fmt_t * self );
+
+void var_fmt_to_buffer( const struct var_fmt_t * self,
+                    char * buffer,
+                    size_t buffer_size,
+                    size_t * num_written,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len );
+
+void var_fmt_print( const struct var_fmt_t * self,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len );
+
+void var_fmt_write( const struct var_fmt_t * self,
+                    KFile * f,
+                    uint64_t * pos,
+                    const String ** str_args, size_t str_args_len,
+                    const uint64_t * int_args, size_t int_args_len );
+
+void var_fmt_test( void );
 
 #ifdef __cplusplus
 }

@@ -59,7 +59,9 @@
 #include <klib/out.h>
 #endif
 
-typedef struct bg_progress
+#include "helper.h"
+
+typedef struct bg_progress_t
 {
     KThread * thread;
     struct progressbar * progressbar;
@@ -69,7 +71,7 @@ typedef struct bg_progress
     uint32_t sleep_time;
     uint32_t digits;
     uint32_t cur;
-} bg_progress;
+} bg_progress_t;
 
 static uint32_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
 {
@@ -81,11 +83,13 @@ static uint32_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
         default : res *= 100; break;
     }
     if ( max > 0 )
+    {
         res /= max;
+    }
     return ( uint32_t )res;
 }
 
-static void bg_progress_steps( bg_progress * self )
+static void bg_progress_steps( bg_progress_t * self )
 {
     uint64_t max_value = atomic64_read( &self -> max_value );
     uint64_t value = atomic64_read( &self -> value );
@@ -94,7 +98,9 @@ static void bg_progress_steps( bg_progress * self )
     {
         uint32_t i;
         for ( i = self -> cur + 1; i <= percent; ++i )
+        {
             update_progressbar( self -> progressbar, i );
+        }
         self -> cur = percent;
     }
 }
@@ -102,15 +108,15 @@ static void bg_progress_steps( bg_progress * self )
 static rc_t CC bg_progress_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
-    bg_progress * bgp = data;
+    bg_progress_t * bgp = data;
     if ( bgp != NULL )
     {
         rc = make_progressbar_stderr( & bgp -> progressbar, bgp -> digits );
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             bgp -> cur = 0;
             update_progressbar( bgp -> progressbar, bgp -> cur );
-            while ( atomic_read( &bgp -> done ) == 0 )
+            while ( 0 == atomic_read( &bgp -> done ) )
             {
                 bg_progress_steps( bgp );
                 KSleepMs( bgp -> sleep_time );
@@ -123,55 +129,68 @@ static rc_t CC bg_progress_thread_func( const KThread *self, void *data )
     return rc;
 }
 
-rc_t bg_progress_make( bg_progress ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits )
+rc_t bg_progress_make( bg_progress_t ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits )
 {
     rc_t rc = 0;
-    bg_progress * p = calloc( 1, sizeof *p );
-    if ( p == NULL )
+    bg_progress_t * p = calloc( 1, sizeof *p );
+    if ( NULL == p )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+    }
     else
     {
         atomic64_set( &p -> max_value, max_value );
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
         p -> digits = digits == 0 ? 2 : digits;
-        rc = KThreadMake( & p -> thread, bg_progress_thread_func, p );
-        if ( rc == 0 )
-            *bgp = p;
-        else
+        rc = helper_make_thread( & p -> thread, bg_progress_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        if ( 0 != rc )
+        {
+            ErrMsg( "progress_thread.c helper_make_thread( bg-progress-thread ) -> %R", rc );
             free( p );
+        }
+        else
+        {
+            *bgp = p;
+        }
     }
     return rc;
 }
 
-void bg_progress_update( bg_progress * self, uint64_t by )
+void bg_progress_update( bg_progress_t * self, uint64_t by )
 {
-    if ( self != NULL )
+    if ( NULL != self )
+    {
         atomic64_read_and_add( &self -> value, by );
+    }
 }
 
-void bg_progress_inc( bg_progress * self )
+void bg_progress_inc( bg_progress_t * self )
 {
-    if ( self != NULL )
+    if ( NULL != self )
+    {
         atomic64_inc( &self -> value );
+    }
 }
 
-void bg_progress_set_max( bg_progress * self, uint64_t value )
+void bg_progress_set_max( bg_progress_t * self, uint64_t value )
 {
-    if ( self != NULL )
+    if ( NULL != self )
+    {
         atomic64_set( &self -> max_value, value );
+    }
 }
 
-void bg_progress_get( bg_progress * self, uint64_t * value )
+void bg_progress_get( bg_progress_t * self, uint64_t * value )
 {
-    if ( self != NULL && value != NULL )
+    if ( NULL != self && NULL != value )
     {
         *value = atomic64_read( &self -> value );
     }
 }
 
-void bg_progress_release( bg_progress * self )
+void bg_progress_release( bg_progress_t * self )
 {
-    if ( self != NULL )
+    if ( NULL != self )
     {
         atomic_set( &self -> done, 1 );
         KThreadWait( self -> thread, NULL );
@@ -181,7 +200,7 @@ void bg_progress_release( bg_progress * self )
 }
 
 
-typedef struct bg_update
+typedef struct bg_update_t
 {
     KThread * thread;
     atomic_t done;
@@ -190,22 +209,22 @@ typedef struct bg_update
     uint64_t prev_value;
     size_t digits_printed;
     uint32_t sleep_time;    
-} bg_update;
+} bg_update_t;
 
 
 static rc_t CC bg_update_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
-    bg_update * bga = data;
-    if ( bga != NULL )
+    bg_update_t * bga = data;
+    if ( NULL != bga )
     {
         /* wait to be activated */
-        while ( atomic_read( &bga -> active ) == 0 )
+        while ( 0 == atomic_read( &bga -> active ) )
         {
             KSleepMs( bga -> sleep_time );
         }
         /* loop until we are done */
-        while ( rc == 0 && atomic_read( &bga -> done ) == 0 )
+        while ( 0 == rc && 0 == atomic_read( &bga -> done ) )
         {
             uint64_t value = atomic64_read( &bga -> value );
             if ( value > 0 && value != bga -> prev_value )
@@ -214,14 +233,16 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data )
                 size_t num_writ;
                 uint32_t i;                
                 for ( i = 0; i < ( bga -> digits_printed ); i++ )
+                {
                     buffer[ i ] = '\b';
+                }
 
                 rc = string_printf( &buffer[ bga -> digits_printed ],
                                     ( sizeof buffer )- ( bga -> digits_printed ),
                                     &num_writ,
                                     "%lu",
                                     value );
-                if ( rc == 0 )
+                if ( 0 == rc )
                 {
                     KOutHandlerSetStdErr();
                     rc = KOutMsg( buffer );
@@ -232,7 +253,7 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data )
             }
             KSleepMs( bga -> sleep_time );
         }
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             KOutHandlerSetStdErr();
             rc = KOutMsg( "\n" );
@@ -242,25 +263,32 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data )
     return rc;
 }
 
-rc_t bg_update_make( bg_update ** bga, uint32_t sleep_time )
+rc_t bg_update_make( bg_update_t ** bga, uint32_t sleep_time )
 {
     rc_t rc = 0;
-    bg_update * p = calloc( 1, sizeof *p );
-    if ( p == NULL )
+    bg_update_t * p = calloc( 1, sizeof *p );
+    if ( NULL == p )
+    {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+    }
     else
     {
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
-        rc = KThreadMake( & p -> thread, bg_update_thread_func, p );
-        if ( rc == 0 )
-            *bga = p;
-        else
+        rc = helper_make_thread( & p -> thread, bg_update_thread_func, p, THREAD_DFLT_STACK_SIZE );
+        if ( 0 != rc )
+        {
+            ErrMsg( "progress_thread.c helper_make_thread( bg-update-thread ) -> %R", rc );
             free( p );
+        }
+        else
+        {
+            *bga = p;
+        }
     }
     return rc;
 }
 
-void bg_update_start( bg_update * self, const char * caption )
+void bg_update_start( bg_update_t * self, const char * caption )
 {
     if ( self != NULL )
     {
@@ -271,23 +299,27 @@ void bg_update_start( bg_update * self, const char * caption )
             rc = KOutMsg( caption );
             KOutHandlerSetStdOut();
         }
-        if ( rc == 0 )
+        if ( 0 == rc )
+        {
             atomic_set( &self -> active, 1 );
+        }
     }
 }
 
-void bg_update_update( bg_update * self, uint64_t by )
+void bg_update_update( bg_update_t * self, uint64_t by )
 {
-    if ( self != NULL )
+    if ( NULL != self )
     {
         if ( atomic_read( &self -> active ) > 0 )
+        {
             atomic64_read_and_add( &self -> value, by );
+        }
     }
 }
 
-void bg_update_release( bg_update * self )
+void bg_update_release( bg_update_t * self )
 {
-    if ( self != NULL )
+    if ( NULL != self )
     {
         atomic_set( &self -> done, 1 );
         KThreadWait( self -> thread, NULL );

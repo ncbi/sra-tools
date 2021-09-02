@@ -36,6 +36,8 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env # BINDIR
 
+DIRTOTEST ?= $(BINDIR)
+
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
@@ -87,8 +89,8 @@ clean: stdclean
 runtests: test-vdb-config model
 
 test-vdb-config:
-	@ printf "Testing exit code vdb-config of vdb-config... "
-	@ PATH=$(BINDIR):"$(PATH)" ; ./test-vdb-config.pl
+	@ printf "Testing exit code of $(DIRTOTEST)/vdb-config... "
+	@ PATH=$(DIRTOTEST):"$(PATH)" && ./test-vdb-config.pl
 	@ echo OK
 
 #-------------------------------------------------------------------------------

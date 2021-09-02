@@ -49,6 +49,11 @@ struct source {
         assert(haveAccession || haveLocalPath);
         return haveAccession ? accession : localPath;
     }
+    bool isSimple() const {
+        return (haveAccession || haveLocalPath)
+            && accession == localPath
+            && !(needCE || needPmt || haveCachePath || haveSize);
+    }
 };
 
 /// @brief Contains the source info for a run and any associated vdbcache file.
@@ -76,6 +81,7 @@ public:
         return data_source(result);
     }
     void set_environment() const;
+    Dictionary get_environment() const;
     std::string const &service() const { return run.haveLocalPath ? run.localPath : run.service; }
     bool encrypted() const { return run.encrypted; }
     std::string const &accession() const { return run.accession; }
@@ -115,6 +121,7 @@ private:
     static void test_2();
     static void test_top_error();
     static void test_inner_error();
+    static void test_WGS();
 #endif
 
 public:
@@ -130,6 +137,8 @@ public:
     
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
+
+    static void preferNoQual();
 
     /// @brief the data sources for an accession
     container const &sourcesFor(std::string const &accession) const
@@ -150,6 +159,7 @@ public:
         test_2();
         test_top_error();
         test_inner_error();
+        test_WGS();
     }
 #endif
 };

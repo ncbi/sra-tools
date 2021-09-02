@@ -24,8 +24,8 @@
 *
 */
 
-struct KFastDumpCleanupTask;
-#define KTASK_IMPL struct KFastDumpCleanupTask
+struct KFastDumpCleanupTask_t;
+#define KTASK_IMPL struct KFastDumpCleanupTask_t
 #include <kproc/impl.h>
 
 #include <klib/rc.h>
@@ -34,16 +34,16 @@ struct KFastDumpCleanupTask;
 
 #include "helper.h"
 
-typedef struct KFastDumpCleanupTask
+typedef struct KFastDumpCleanupTask_t
 {
     KTask dad;
-    locked_file_list files_to_clean;
-    locked_file_list dirs_to_clean;    
+    locked_file_list_t files_to_clean;
+    locked_file_list_t dirs_to_clean;    
     KTaskTicket ticket;
-} KFastDumpCleanupTask;
+} KFastDumpCleanupTask_t;
 
 
-static rc_t KFastDumpCleanupTask_Destroy( KFastDumpCleanupTask * self )
+static rc_t KFastDumpCleanupTask_Destroy( KFastDumpCleanupTask_t * self )
 {
     locked_file_list_release( & ( self -> files_to_clean ), NULL ); /* helper.c */
     locked_file_list_release( & ( self -> dirs_to_clean ), NULL ); /* helper.c */
@@ -51,18 +51,29 @@ static rc_t KFastDumpCleanupTask_Destroy( KFastDumpCleanupTask * self )
     return 0;
 }
 
-static rc_t KFastDumpCleanupTask_Execute( KFastDumpCleanupTask * self )
+static rc_t KFastDumpCleanupTask_Execute( KFastDumpCleanupTask_t * self )
 {
     KDirectory * dir;
     rc_t rc = KDirectoryNativeDir( &dir );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "cleanup_task.c KFastDumpCleanupTask_Execute().KDirectoryNativeDir() -> %R", rc );
+    }
     else
     {
         rc = locked_file_list_delete_files( dir, &self -> files_to_clean ); /* helper.c */
-        if ( rc == 0 )
+        if ( 0 == rc )
+        {
             rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean ); /* helper.c */
-        KDirectoryRelease( dir );
+        }
+        {
+            rc_t rc2 = KDirectoryRelease( dir );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "cleanup_task.c KFastDumpCleanupTask_Execute().KDirectoryRelease() -> %R", rc );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
+        }
     }
     return rc;
 }
@@ -78,94 +89,153 @@ static KTask_vt_v1 vtKFastDumpCleanupTask =
     /* end minor version 0 methods */
 };
 
-static rc_t add_to_proc_mgr_cleanup( KFastDumpCleanupTask * task )
+static rc_t add_to_proc_mgr_cleanup( KFastDumpCleanupTask_t * task )
 {
     struct KProcMgr * proc_mgr;
     rc_t rc = KProcMgrMakeSingleton ( &proc_mgr );
-    if ( rc != 0 )
+    if ( 0 != rc )
+    {
         ErrMsg( "cleanup_task.c add_to_proc_mgr_cleanup(): cannot access process-manager" );
+    }
     else
     {
         rc = KProcMgrAddCleanupTask ( proc_mgr, &( task -> ticket ), ( KTask * )task );
-        if ( rc != 0 )
-            KTaskRelease ( ( KTask * ) task );
-        KProcMgrRelease ( proc_mgr );
+        if ( 0 != rc )
+        {
+            rc_t rc2 = KTaskRelease ( ( KTask * ) task );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "cleanup_task.c add_to_proc_mgr_cleanup().KTaskRelease() -> %R", rc2 );
+            }
+        }
+        {
+            rc_t rc2 = KProcMgrRelease ( proc_mgr );
+            if ( 0 != rc2 )
+            {
+                ErrMsg( "cleanup_task.c add_to_proc_mgr_cleanup().KProcMgrRelease() -> %R", rc2 );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
+        }
     }
     return rc;
 }
 
-rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask **task )
+rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task )
 {
     rc_t rc = 0;
-    KFastDumpCleanupTask * t = malloc ( sizeof * t );
-    if ( t == NULL )
+    KFastDumpCleanupTask_t * t = malloc ( sizeof * t );
+    if ( NULL == t )
+    {
         rc = RC ( rcPS, rcMgr, rcInitializing, rcMemory, rcExhausted );
+    }
     else
     {
         rc = locked_file_list_init( &( t -> files_to_clean ), 25 ); /* helper.c */
-        if ( rc == 0 )
+        if ( 0 == rc )
+        {
             rc = locked_file_list_init( &( t -> dirs_to_clean ), 5 ); /* helper.c */
+        }
 
-        if ( rc == 0 )
+        if ( 0 == rc )
         {
             rc = KTaskInit ( &t -> dad,
                             (const union KTask_vt *)&vtKFastDumpCleanupTask,
                             "KFastDumpCleanupTask",
                             "KFastDumpCleanupTask" );
-            if ( rc == 0 )
-                *task = ( KFastDumpCleanupTask * ) &t -> dad;
+            if ( 0 == rc )
+            {
+                *task = ( KFastDumpCleanupTask_t * ) &t -> dad;
+            }
+            else
+            {
+                ErrMsg( "cleanup_task.c Make_FastDump_Cleanup_Task().KTaskInit() -> %R", rc );
+            }
         }
         
-        if ( rc != 0 )
+        if ( 0 != rc )
         {
             locked_file_list_release( &( t -> files_to_clean ), NULL ); /* helper.c */
             locked_file_list_release( &( t -> dirs_to_clean ), NULL ); /* helper.c */            
             free( ( void * ) t );
         }
         else
+        {
             rc = add_to_proc_mgr_cleanup( *task ); /* above */
+        }
     }
     return rc;
 }
 
-rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * filename )
+rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask_t * self, const char * filename )
 {
     rc_t rc = 0;
-    if ( self == NULL && filename == NULL )
+    if ( NULL == self || NULL == filename )
+    {
         rc = RC ( rcPS, rcMgr, rcInitializing, rcParam, rcInvalid );
+        ErrMsg( "cleanup_task.c Add_File_to_Cleanup_Task() : %R", rc );
+    }
     else
+    {
         rc = locked_file_list_append( &( self -> files_to_clean ), filename ); /* helper.c */
+    }
     return rc;
 }
 
-rc_t Add_Directory_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * dirname )
+rc_t Add_Directory_to_Cleanup_Task ( struct KFastDumpCleanupTask_t * self, const char * dirname )
 {
     rc_t rc = 0;
-    if ( self == NULL && dirname == NULL )
+    if ( self == NULL || dirname == NULL )
+    {
         rc = RC ( rcPS, rcMgr, rcInitializing, rcParam, rcInvalid );
+        ErrMsg( "cleanup_task.c Add_Directory_to_Cleanup_Task() : %R", rc );
+    }
     else
+    {
         rc = locked_file_list_append( &( self -> dirs_to_clean ), dirname ); /* helper.c */
+    }
     return rc;
 }
 
-rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask * self )
+rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask_t * self )
 {
     rc_t rc = 0;
-    if ( self == NULL )
+    if ( NULL == self )
+    {
         rc = RC ( rcPS, rcMgr, rcInitializing, rcParam, rcInvalid );
+        ErrMsg( "cleanup_task.c Terminate_Cleanup_Task() : %R", rc );
+    }
     else
     {
         struct KProcMgr * proc_mgr;
         rc = KProcMgrMakeSingleton ( &proc_mgr );
         if ( rc != 0 )
+        {
             ErrMsg( "cleanup_task.c Terminate_Cleanup_Task(): cannot access process-manager" );
+        }
         else
         {
             rc = KProcMgrRemoveCleanupTask ( proc_mgr, &( self -> ticket ) );
-            KProcMgrRelease ( proc_mgr );
+            if ( 0 != rc )
+            {
+                ErrMsg( "cleanup_task.c Terminate_Cleanup_Task().KProcMgrRemoveCleanupTask() -> %R", rc );
+            }
+            {
+                rc_t rc2 = KProcMgrRelease ( proc_mgr );
+                if ( 0 != rc2 )
+                {
+                    ErrMsg( "cleanup_task.c Terminate_Cleanup_Task().KProcMgrRelease() -> %R", rc2 );
+                    rc = ( 0 == rc ) ? rc2 : rc;
+                }
+            }
         }
     }
-    if ( rc == 0 )
-        KTaskRelease ( ( KTask * )self );
+    if ( 0 == rc )
+    {
+        rc = KTaskRelease ( ( KTask * )self );
+        if ( 0 != rc )
+        {
+            ErrMsg( "cleanup_task.c Terminate_Cleanup_Task().KTaskRelease() -> %R", rc );
+        }
+    }
     return rc;
 }

@@ -45,6 +45,8 @@ Options:
                                      bases
   -A|--append                      append to output-file, instead of
                                      overwriting it
+     --fasta                       produce FASTA output
+     --fasta-unsorted              produce FASTA output, unsorted
      --ngc <path>                  <path> to ngc file
      --perm <path>                 <path> to permission file
      --location <location>         location in cloud

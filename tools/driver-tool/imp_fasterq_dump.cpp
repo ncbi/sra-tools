@@ -132,8 +132,8 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline . addOption ( bases, nullptr, "B", "bases", "<bases>", "filter output by matching against given bases" );
         cmdline . addOption ( append, "A", "append", "append to output-file, instead of overwriting it" );
 
-        cmdline.addOption(fasta, nullptr, "fasta", "produce FASTA output");
-        cmdline.addOption(fastaUnsorted, nullptr, "fasta-unsorted", "produce FASTA output, unsorted");
+        cmdline.addOption(fasta, "", "fasta", "produce FASTA output");
+        cmdline.addOption(fastaUnsorted, "", "fasta-unsorted", "produce FASTA output, unsorted");
 
         CmnOptAndAccessions::add(cmdline);
     }

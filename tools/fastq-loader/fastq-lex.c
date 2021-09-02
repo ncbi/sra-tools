@@ -1357,7 +1357,7 @@ YY_RULE_SETUP
 	YY_BREAK
 
 
-
+/* this mode is used for inline reads and barcodes; barcodes may include '+' (VDB-4533) */
 case 18:
 YY_RULE_SETUP
 { BEGIN 0; return fqBASESEQ; }

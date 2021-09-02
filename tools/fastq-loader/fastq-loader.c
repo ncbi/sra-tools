@@ -46,13 +46,14 @@
 
 #include "fastq-parse.h"
 
-extern rc_t run(char const argv0[],
-                struct CommonWriterSettings* G,
-                unsigned countReads,
-                const char* reads[],
-                enum FASTQQualityFormat qualityFormat,
-                const int8_t defaultReadNumbers[],
-                bool ignoreSpotGroups);
+extern rc_t run ( char const progName[],
+           CommonWriterSettings* G,
+           unsigned seqFiles,
+           const char *seqFile[],
+           uint8_t qualityOffset,
+           bool ignoreSpotGroups,
+           const char* read1file,
+           const char* read2file);
 
 /* MARK: Arguments and Usage */
 //static char const option_input[] = "input";
@@ -64,11 +65,12 @@ static char const option_max_err_count[] = "max-err-count";
 static char const option_max_rec_count[] = "max-rec-count";
 static char const option_platform[] = "platform";
 static char const option_quality[] = "quality";
-//static char const option_read[] = "read";
 static char const option_max_err_pct[] = "max-err-pct";
 static char const option_ignore_illumina_tags[] = "ignore-illumina-tags";
 static char const option_no_readnames[] = "no-readnames";
 static char const option_allow_duplicates[] = "allow_duplicates";
+static char const option_read1[] = "read1PairFiles";
+static char const option_read2[] = "read2PairFiles";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -79,11 +81,12 @@ static char const option_allow_duplicates[] = "allow_duplicates";
 #define OPTION_MAX_REC_COUNT option_max_rec_count
 #define OPTION_PLATFORM option_platform
 #define OPTION_QUALITY option_quality
-#define OPTION_READ option_read
 #define OPTION_MAX_ERR_PCT option_max_err_pct
 #define OPTION_IGNORE_ILLUMINA_TAGS option_ignore_illumina_tags
 #define OPTION_NO_READNAMES option_no_readnames
 #define OPTION_ALLOW_DUPLICATES option_allow_duplicates
+#define OPTION_READ1 option_read1
+#define OPTION_READ2 option_read2
 
 
 #define ALIAS_INPUT  "i"
@@ -96,6 +99,8 @@ static char const option_allow_duplicates[] = "allow_duplicates";
 /* this alias is deprecated (conflicts with -q for --quiet): */
 #define ALIAS_QUALITY "q"
 #define ALIAS_DUPLICATES "a"
+#define ALIAS_READ1 "1"
+#define ALIAS_READ2 "2"
 
 static
 char const * output_usage[] =
@@ -153,12 +158,17 @@ char const * use_quality[] =
     NULL
 };
 
-/*static
-char const * use_read[] =
+char const * use_read1[] =
 {
-    "Default read number (1 or 2)",
+    "Default read number for this file is 1. Processing will be interleaved with the file specified in --read2PairFile|-r2",
     NULL
-};*/
+};
+
+char const * use_read2[] =
+{
+    "Default read number for this file is 2. Processing will be interleaved with the file specified in --read1PairFile|-r1",
+    NULL
+};
 
 static
 char const * use_max_err_pct[] =
@@ -203,7 +213,8 @@ OptDef Options[] =
     { OPTION_IGNORE_ILLUMINA_TAGS,  NULL,                   NULL, use_ignore_illumina_tags, 1,  false,       false },
     { OPTION_NO_READNAMES,          NULL,                   NULL, use_no_readnames,         1,  false,       false },
     { OPTION_ALLOW_DUPLICATES,      ALIAS_DUPLICATES,       NULL, use_allow_duplicates,     1,  false,       false },
-/*    { OPTION_READ,          ALIAS_READ,             NULL, use_read,         0,  true,        false },*/
+    { OPTION_READ1,                 ALIAS_READ1,            NULL, use_read1,                1,  true,        false },
+    { OPTION_READ2,                 ALIAS_READ2,            NULL, use_read2,                1,  true,        false },
 };
 
 const char* OptHelpParam[] =
@@ -220,6 +231,9 @@ const char* OptHelpParam[] =
     NULL,
     NULL,
     NULL,
+    NULL,
+    "path-to-file",
+    "path-to-file"
 };
 
 rc_t UsageSummary (char const * progname)
@@ -381,7 +395,6 @@ rc_t CC KMain (int argc, char * argv[])
     Args * args;
     rc_t rc;
     char *files[256];
-    int8_t defaultReadNumbers[256];
     char *name_buffer = NULL;
     size_t next_name = 0;
     size_t nbsz = 0;
@@ -390,6 +403,8 @@ rc_t CC KMain (int argc, char * argv[])
     const XMLLogger* xml_logger = NULL;
     enum FASTQQualityFormat qualityFormat;
     bool ignoreSpotGroups;
+    const char * read1file = NULL;
+    const char * read2file = NULL;
 
     memset(&G, 0, sizeof(G));
 
@@ -585,9 +600,29 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         G.allowDuplicateReadNames = pcount > 0;
 
+        rc = ArgsOptionCount (args, OPTION_READ1, &pcount);
+        if (rc)
+            break;
+        if (pcount == 1)
+        {
+            rc = ArgsOptionValue (args, OPTION_READ1, 0, (const void **) & read1file);
+            if (rc)
+                break;
+        }
+
+        rc = ArgsOptionCount (args, OPTION_READ2, &pcount);
+        if (rc)
+            break;
+        if (pcount == 1)
+        {
+            rc = ArgsOptionValue (args, OPTION_READ2, 0, (const void **) & read2file);
+            if (rc)
+                break;
+        }
+
         rc = ArgsParamCount (args, &pcount);
         if (rc) break;
-        if (pcount == 0)
+        if (pcount == 0 && read1file == NULL && read2file == NULL)
         {
             rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcInsufficient);
             MiniUsage (args);
@@ -625,7 +660,6 @@ rc_t CC KMain (int argc, char * argv[])
                 rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
 
-                defaultReadNumbers[i] = 0;
                 files[i] = name_buffer + next_name;
                 rc = PathWithBasePath(name_buffer + next_name, nbsz - next_name, value, G.inpath);
                 if (rc) break;
@@ -635,7 +669,7 @@ rc_t CC KMain (int argc, char * argv[])
         else
             break;
 
-        rc = run(argv[0], &G, pcount, (char const **)files, qualityFormat, defaultReadNumbers, ignoreSpotGroups);
+        rc = run(argv[0], &G, pcount, (char const **)files, qualityFormat, ignoreSpotGroups, read1file, read2file);
         break;
     }
     free(name_buffer);

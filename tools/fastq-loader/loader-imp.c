@@ -59,8 +59,9 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
                 unsigned seqFiles,
                 char const *seqFile[],
                 enum FASTQQualityFormat qualityFormat,
-                const int8_t defaultReadNumbers[],
-                bool ignoreSpotGroups)
+                bool ignoreSpotGroups,
+                const char* read1file,
+                const char* read2file)
 {
     rc_t rc = 0;
     unsigned i;
@@ -78,16 +79,60 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
         return rc;
     }
 
-    for (i = 0; i < seqFiles; ++i) {
-        const ReaderFile *reader;
-        if (G->platform == SRA_PLATFORM_PACBIO_SMRT)
-            rc = FastqReaderFileMake(&reader, dir, seqFile[i], FASTQphred33, -1, ignoreSpotGroups, false);
-        else
-            rc = FastqReaderFileMake(&reader, dir, seqFile[i], qualityFormat, defaultReadNumbers[i], ignoreSpotGroups, false);
+    // interleave processing of read1file and read2file, if specified
+    if ( read1file != NULL || read2file != NULL )
+    {
+        const ReaderFile *reader1 = NULL;
+        const ReaderFile *reader2 = NULL;
+        if ( read1file != NULL )
+        {
+            rc = FastqReaderFileMake(&reader1, dir, read1file, qualityFormat, 1, ignoreSpotGroups, false);
+        }
+        if ( rc == 0 && read2file != NULL )
+        {
+            rc = FastqReaderFileMake(&reader2, dir, read2file, qualityFormat, 2, ignoreSpotGroups, false);
+        }
 
         if (rc == 0)
         {
-            rc = CommonWriterArchive( &cw, reader );
+            rc = CommonWriterArchive( &cw, reader1, reader2 );
+        }
+        if ( reader1 != NULL )
+        {
+            rc_t rc2 = ReaderFileRelease(reader1);
+            if (rc == 0)
+                rc = rc2;
+        }
+        if ( reader2 != NULL )
+        {
+            rc_t rc2 = ReaderFileRelease(reader2);
+            if (rc == 0)
+                rc = rc2;
+        }
+    }
+
+    // go through non-interleaved input files, skipping the ones just interleaved
+    for (i = 0; i < seqFiles; ++i) {
+        int8_t defaultReadNumber = 0;
+        size_t maxSize = string_size( seqFile[ i ] );
+        if ( read1file != NULL && string_cmp( read1file, string_size( read1file ), seqFile[ i ], maxSize, maxSize) == 0 )
+        {
+            continue; // already processed
+        }
+        else if ( read2file != NULL && string_cmp( read2file, string_size( read2file ), seqFile[ i ], maxSize, maxSize) == 0 )
+        {
+            continue; // already processed
+        }
+        else if (G->platform == SRA_PLATFORM_PACBIO_SMRT)
+        {
+            defaultReadNumber = -1;
+        }
+
+        const ReaderFile *reader;
+        rc = FastqReaderFileMake(&reader, dir, seqFile[i], qualityFormat, defaultReadNumber, ignoreSpotGroups, false);
+        if (rc == 0)
+        {
+            rc = CommonWriterArchive( &cw, reader, NULL );
             if (rc != 0)
                 ReaderFileRelease(reader);
             else
@@ -96,7 +141,8 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
         if (rc != 0)
             break;
     }
-    if (rc == 0) {
+    if (rc == 0)
+    {
         bool const quitting = (Quitting() != 0);
         rc = CommonWriterComplete(&cw, quitting, 0);
     }
@@ -105,17 +151,20 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
 
     G->errCount = cw.err_count;
 
-    if (rc == 0)
-        rc = CommonWriterWhack( &cw );
-    else
-        CommonWriterWhack( &cw );
+    {
+        rc_t rc2 = CommonWriterWhack( &cw );
+        if (rc == 0)
+            rc = rc2;
+    }
+
+    {
+        rc_t rc2 = KDirectoryRelease(dir);
+        if (rc == 0)
+            rc = rc2;
+    }
 
     if (rc == 0)
-        rc = KDirectoryRelease(dir);
-    else
-        KDirectoryRelease(dir);
-
-    if (rc == 0) {
+    {
         (void)LOGMSG(klogInfo, "Successfully loaded all files");
     }
     return rc;
@@ -173,8 +222,9 @@ rc_t run ( char const progName[],
            unsigned seqFiles,
            const char *seqFile[],
            uint8_t qualityOffset,
-           const int8_t defaultReadNumbers[],
-           bool ignoreSpotGroups )
+           bool ignoreSpotGroups,
+           const char* read1file,
+           const char* read2file)
 {
     VDBManager *mgr;
     rc_t rc;
@@ -209,7 +259,7 @@ rc_t run ( char const progName[],
                 if (rc == 0)
                     rc = rc2;
                 if (rc == 0) {
-                    rc = ArchiveFASTQ(G, mgr, db, seqFiles, seqFile, qualityOffset, defaultReadNumbers, ignoreSpotGroups);
+                    rc = ArchiveFASTQ(G, mgr, db, seqFiles, seqFile, qualityOffset, ignoreSpotGroups, read1file, read2file);
                 }
 
                 if (rc == 0) {

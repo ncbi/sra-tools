@@ -122,7 +122,7 @@ typedef struct CommonWriter {
 
 rc_t CommonWriterInit(CommonWriter* self, struct VDBManager *mgr, struct VDatabase *db, const CommonWriterSettings* settings);
 
-rc_t CommonWriterArchive(CommonWriter* self, const struct ReaderFile *);
+rc_t CommonWriterArchive( CommonWriter* self, const struct ReaderFile * reader1, const struct ReaderFile * reader2_opt );
 rc_t CommonWriterComplete(CommonWriter* self, bool quitting, uint64_t maxDistance);
 
 rc_t CommonWriterWhack(CommonWriter* self);

@@ -34,6 +34,7 @@
 #include <ktst/unit_test.hpp>
 
 #include <klib/out.h>
+#include <klib/log.h>
 
 #include <kapp/args.h>
 
@@ -72,16 +73,18 @@ public:
 
 public:
     TempFileFixture()
-    :   wd(0), rf(0)
+    :   wd( nullptr ),
+        cur( nullptr )
     {
         if ( KDirectoryNativeDir ( & wd ) != 0 )
             FAIL("KDirectoryNativeDir failed");
 
-        if ( VDBManagerMakeUpdate ( & mgr, wd ) != 0)
+        if ( VDBManagerMakeUpdate ( & mgr, wd ) != 0 )
             FAIL("VDBManagerMakeUpdate failed");
 
         if ( VDBManagerMakeSchema ( mgr, & schema ) != 0 )
             FAIL("VDBManagerMakeSchema failed");
+
         if ( VSchemaParseFile( schema, SchemaPath.c_str() ) != 0 )
             FAIL("VSchemaParseFile failed");
 
@@ -94,20 +97,19 @@ public:
     }
     ~TempFileFixture()
     {
-        if ( rf != 0 && ReaderFileRelease( rf ) != 0)
-            FAIL("ReaderFileRelease failed");
+        VCursorRelease( cur );
+        VSchemaRelease(schema);
+        VDBManagerRelease(mgr);
 
-        if ( schema && VSchemaRelease(schema) != 0 )
-            FAIL("VSchemaRelease failed");
-
-        if ( mgr && VDBManagerRelease(mgr) != 0 )
-            FAIL("VDBManagerRelease failed");
-
-        if ( wd )
+        if ( wd != nullptr )
         {
-            if ( ! filename.empty() )
+            if ( ! filename1.empty() )
             {
-               KDirectoryRemove(wd, true, filename.c_str());
+               KDirectoryRemove(wd, true, filename1.c_str());
+            }
+            if ( ! filename2.empty() )
+            {
+               KDirectoryRemove(wd, true, filename2.c_str());
             }
             if ( ! dbName.empty() )
             {
@@ -117,98 +119,117 @@ public:
             {
                KDirectoryRemove(wd, true, TempDir.c_str());
             }
-            if ( KDirectoryRelease ( wd ) != 0 )
-            {
-               FAIL("KDirectoryRelease failed");
-            }
+            KDirectoryRelease( wd );
         }
     }
-    rc_t CreateFile(const char* p_filename, const char* contents)
+
+    const ReaderFile* CreateFile( const string & p_filename,
+                                  const string & p_contents,
+                                  int8_t defaultReadNum = 0 )
     {   // create and open for read
-        KFile* file;
-        filename=p_filename;
-        rc_t rc=KDirectoryCreateFile(wd, &file, true, 0664, kcmInit, p_filename);
-        if (rc == 0)
         {
+            KFile* file;
+            THROW_ON_RC( KDirectoryCreateFile( wd, &file, true, 0664, kcmInit, p_filename.c_str() ) );
             size_t num_writ=0;
-            rc=KFileWrite(file, 0, contents, strlen(contents), &num_writ);
-            if (rc == 0)
-            {
-                rc=KFileRelease(file);
-            }
-            else
-            {
-                KFileRelease(file);
-            }
+            THROW_ON_RC( KFileWrite( file, 0, p_contents.c_str(), p_contents.size(), &num_writ ) );
+            THROW_ON_RC( KFileRelease(file) );
         }
-        if ( rc == 0 )
-        {
-            rc = FastqReaderFileMake(&rf, wd, p_filename, FASTQphred33, 0, false, false);
-        }
-        return rc;
+
+        const ReaderFile* ret = nullptr;
+        THROW_ON_RC( FastqReaderFileMake( &ret, wd, p_filename.c_str(), FASTQphred33, defaultReadNum, false, false ) );
+        return ret;
     }
 
-    rc_t Load( const char* p_filename, const char* p_contents )
+    rc_t Load( const string & p_filename, const string & p_contents )
     {
-        rc_t rc = CreateFile( p_filename, p_contents );
-        if ( rc == 0 )
-        {
-            dbName = string(p_filename)+".db";
-            KDirectoryRemove(wd, true, dbName.c_str());
+        filename1 = p_filename;
+        const ReaderFile* rf = CreateFile( filename1, p_contents );
+        dbName = p_filename+".db";
+        KDirectoryRemove(wd, true, dbName.c_str());
 
-            VDatabase* db;
-            THROW_ON_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
+        VDatabase* db;
+        THROW_ON_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
 
-            CommonWriter cw;
-            THROW_ON_RC(CommonWriterInit( &cw, mgr, db, &settings ));
+        CommonWriter cw;
+        THROW_ON_RC(CommonWriterInit( &cw, mgr, db, &settings ));
 
-            rc = (CommonWriterArchive( &cw, rf ));
-            THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
+        rc_t ret = (CommonWriterArchive( &cw, rf, nullptr ));
 
-            THROW_ON_RC(CommonWriterWhack( &cw ));
+        THROW_ON_RC(CommonWriterComplete( &cw, false, 0 ));
+        THROW_ON_RC(CommonWriterWhack( &cw ));
 
-            // close database so that it can be reopened for inspection
-            THROW_ON_RC( VDatabaseRelease(db) );
-        }
-        return rc;
+        // close database so that it can be reopened for inspection
+        THROW_ON_RC( VDatabaseRelease(db) );
+        return ret;
     }
 
-    const VCursor * OpenDatabase()
+    rc_t LoadInterleaved( const string & p_filename1, const string & p_contents1,
+                          const string & p_filename2, const string & p_contents2 )
     {
+        filename1 = p_filename1;
+        const ReaderFile* rf1 = CreateFile( p_filename1, p_contents1, 1 );
+        filename2 = p_filename2;
+        const ReaderFile* rf2 = CreateFile( p_filename2, p_contents2, 2 );
+
+        dbName = p_filename1+".db";
+        KDirectoryRemove(wd, true, dbName.c_str());
+
+        VDatabase* db;
+        THROW_ON_RC( VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()) );
+
+        CommonWriter cw;
+        THROW_ON_RC( CommonWriterInit( &cw, mgr, db, &settings ) );
+
+        rc_t ret = CommonWriterArchive( &cw, rf1, rf2 );
+
+        THROW_ON_RC( CommonWriterComplete( &cw, false, 0 ) );
+
+        THROW_ON_RC( CommonWriterWhack( &cw ) );
+
+        // close database so that it can be reopened for inspection
+        THROW_ON_RC( VDatabaseRelease(db) );
+
+        THROW_ON_RC( ReaderFileRelease( rf1 ) );
+        THROW_ON_RC( ReaderFileRelease( rf2 ) );
+
+        return ret;
+    }
+
+    void OpenReadCursor()
+    {   // read cursor with 1 column, READ
         const VDatabase * db;
         THROW_ON_RC ( VDBManagerOpenDBRead ( mgr, &db, NULL, "%s", dbName.c_str() ) );
         const VTable * tbl;
         THROW_ON_RC ( VDatabaseOpenTableRead ( db, & tbl, "SEQUENCE" ) );
-        const VCursor * ret;
-        THROW_ON_RC ( VTableCreateCursorRead ( tbl, & ret ) );
-        THROW_ON_RC ( VTableRelease ( tbl ) );
-        THROW_ON_RC ( VDatabaseRelease ( db ) );
-        return ret;
-    }
 
-    string GetRead()
-    {
-        int64_t row = 1;
-
-        const VCursor * cur = OpenDatabase();
-        uint32_t  columnIdx;
+        THROW_ON_RC ( VTableCreateCursorRead ( tbl, & cur ) );
         THROW_ON_RC ( VCursorAddColumn ( cur, & columnIdx, "READ" ) );
         THROW_ON_RC ( VCursorOpen ( cur ) );
+
+        THROW_ON_RC ( VTableRelease ( tbl ) );
+        THROW_ON_RC ( VDatabaseRelease ( db ) );
+    }
+
+    string GetRead( int64_t row = 1 )
+    {
         char buf[1024];
         uint32_t row_len;
         THROW_ON_RC ( VCursorReadDirect ( cur, row, columnIdx, 8, buf, sizeof ( buf ), & row_len ) );
         return string( buf, row_len );
-        VCursorRelease ( cur );
     }
 
-
     KDirectory* wd;
-    string filename;
-    const ReaderFile* rf;
+
+    string filename1;
+    string filename2;
+
     VDBManager* mgr;
     VSchema *schema;
     string dbName;
     CommonWriterSettings settings;
+
+    const VCursor * cur;
+    uint32_t  columnIdx;
 };
 const string TempFileFixture::TempDir = "./tmp";
 const string TempFileFixture::SchemaPath = "align/align.vschema";
@@ -282,6 +303,7 @@ FIXTURE_TEST_CASE(NoSpotAssemply, TempFileFixture)
                 "@V300047012L3C001R0010000001/1\nC\n+\nF\n"
                 "@V300047012L3C001R0010000001/2\nA\n+\nF\n"
     ) );
+    OpenReadCursor();
     REQUIRE_EQ( string( "CA" ), GetRead() );
 }
 
@@ -291,7 +313,72 @@ FIXTURE_TEST_CASE(NoSpotAssemply_case2, TempFileFixture)
                 "@CL100050407L1C001R001_1#224_1078_917/1 1 1\nC\n+\nF\n"
                 "@CL100050407L1C001R001_1#224_1078_917/2 1 1\nA\n+\nF\n"
     ) );
+    OpenReadCursor();
     REQUIRE_EQ( string( "CA" ), GetRead() );
+}
+
+// VDB-4530 Interleaving input files
+
+FIXTURE_TEST_CASE(Interleaved_OneRead, TempFileFixture)
+{
+    REQUIRE_RC( LoadInterleaved(
+                string( GetName() ) + ".1", "@READ1\nC\n+\nF\n",
+                string( GetName() ) + ".2", "@READ1\nA\n+\nF\n"
+    ) );
+    OpenReadCursor();
+    REQUIRE_EQ( string( "CA" ), GetRead() );
+}
+
+FIXTURE_TEST_CASE(Interleaved_MultipleReads, TempFileFixture)
+{
+    //KLogLevelSet ( klogDebug );
+    REQUIRE_RC( LoadInterleaved(
+                string( GetName() ) + ".1",
+                "@READ1\nA\n+\nF\n"
+                "@READ2\nC\n+\nF\n"
+                "@READ3\nG\n+\nF\n"
+                ,
+                string( GetName() ) + ".2",
+                "@READ3\nA\n+\nF\n"
+                "@READ2\nG\n+\nF\n"
+                "@READ1\nT\n+\nF\n"
+    ) );
+    OpenReadCursor();
+    REQUIRE_EQ( string( "CG" ), GetRead( 1 ) ); // READ2 pairs first
+    REQUIRE_EQ( string( "GA" ), GetRead( 2 ) ); // READ3 next
+    REQUIRE_EQ( string( "AT" ), GetRead( 3 ) ); // READ1 last
+}
+
+FIXTURE_TEST_CASE(Interleaved_NoMatch, TempFileFixture)
+{   // VDB-4530
+    REQUIRE_RC( LoadInterleaved(
+                string( GetName() ) + ".1", "@READ1\nC\n+\nF\n",
+                string( GetName() ) + ".2", "@READ2\nA\n+\nF\n"
+    ) );
+    OpenReadCursor();
+    REQUIRE_EQ( string( "C" ), GetRead( 1 ) );
+    REQUIRE_EQ( string( "A" ), GetRead( 2 ) );
+}
+
+FIXTURE_TEST_CASE(Interleaved_1_longer, TempFileFixture)
+{   // VDB-4530
+    REQUIRE_RC( LoadInterleaved(
+                string( GetName() ) + ".1", "@READ1\nC\n+\nF\n@READ2\nT\n+\nF\n",
+                string( GetName() ) + ".2", "@READ2\nA\n+\nF\n"
+    ) );
+    OpenReadCursor();
+    REQUIRE_EQ( string( "TA" ), GetRead( 1 ) );
+    REQUIRE_EQ( string( "C" ), GetRead( 2 ) );
+}
+FIXTURE_TEST_CASE(Interleaved_2_longer, TempFileFixture)
+{   // VDB-4530
+    REQUIRE_RC( LoadInterleaved(
+                string( GetName() ) + ".1", "@READ1\nA\n+\nF\n",
+                string( GetName() ) + ".2", "@READ2\nG\n+\nF\n@READ1\nT\n+\nF\n"
+    ) );
+    OpenReadCursor();
+    REQUIRE_EQ( string( "AT" ), GetRead( 1 ) );
+    REQUIRE_EQ( string( "G" ), GetRead( 2 ) );
 }
 
 //////////////////////////////////////////// Main

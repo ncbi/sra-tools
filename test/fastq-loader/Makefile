@@ -199,8 +199,8 @@ smalltests:
 	@#-$(SMALLRUN) 3.2 0 $(SRCDIR)/input/3.2a.fastq $(SRCDIR)/input/3.2b.fastq --quality PHRED_33
 #           3.3 qualities separately from reads, qualities file comes first (reject?)
 	@#-$(SMALLRUN) 3.3 0 $(SRCDIR)/input/3.3a.fastq $(SRCDIR)/input/3.3b.fastq --quality PHRED_33
-#           3.4 default read number
-#	$(SMALLRUN) 3.4 0 -r 1 $(SRCDIR)/input/3.4a.fastq -r 2 $(SRCDIR)/input/3.4b.fastq --quality PHRED_33
+#           3.4 interleaved i/o and spot assembly (VDB-4530)
+	$(SMALLRUN) 3.4 0 -1 $(SRCDIR)/input/3.4a.fastq -2 $(SRCDIR)/input/3.4b.fastq --quality PHRED_33
 #
 #   Command line options:
 #           4.1 --tmpfs             temporary files created at the specified location
@@ -277,6 +277,6 @@ smalltests:
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 2.7.1 0 $(SRCDIR)/input/2.7.fastq --quality PHRED_33 --allow_duplicates
+	$(SMALLRUN) 3.4 0 --read1PairFiles $(SRCDIR)/input/3.4a.fastq -2 $(SRCDIR)/input/3.4b.fastq --quality PHRED_33
 
 .PHONY: onetest

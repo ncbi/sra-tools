@@ -729,6 +729,7 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             DISP_RC2(rc, "StringCopy(VResolverCache)", name);
         }
     
+        /* resolved->path is initialized with cache location */
         if (rc == 0)
             rc = VPathStrInit(&resolved->path, vcache);
     }
@@ -1079,10 +1080,21 @@ static rc_t ResolvedLocal(const Resolved *self,
                         path, sLocal));
                 }
             }
-            else
-                STSMSG(STS_TOP, (
-                    "%s (%,lu) is incomplete. Expected size is %,lu. "
-                    "It will be re-downloaded", path, sLocal, sRemote));
+            else {
+                /* resolved->path is initialized with cache location */
+                VQuality qCache = VPathGetQuality(self->path.path);
+
+                VQuality qLocal = VPathGetQuality(self->local.path);
+                
+                if (qCache != eQualDefault && qCache == qLocal)
+                    STSMSG(STS_TOP, (
+                        "%s (%,lu) is incomplete. Expected size is %,lu. "
+                        "It will be re-downloaded", path, sLocal, sRemote));
+                else
+                    STSMSG(STS_INFO, (
+                        "%s (%,lu) is found locally with different quality. "
+                        "Ignored", path, sLocal));
+            }
         }
     }
 

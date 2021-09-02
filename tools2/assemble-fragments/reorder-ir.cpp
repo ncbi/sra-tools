@@ -436,8 +436,9 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
         }
         return true;
     }
-    static std::initializer_list<char const *> columns() {
-        return { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION" };
+    static std::initializer_list<char const *> const &columns() {
+        static auto const result = std::initializer_list<char const *>({ "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION" });
+        return result;
     }
     friend bool operator <(RawRecord const &a, RawRecord const &b) {
         auto const agroup = a.data->asString();

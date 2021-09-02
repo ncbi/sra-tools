@@ -23,7 +23,7 @@
 # ===========================================================================
 
 default: runtests
-runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality
+runtests: std announce urls_and_accs out_dir_and_file s-option truncated kart resume quality ad_not_cwd
 slowtests: announce vdbcache wgs lots_wgs hs37d5 ncbi1GB
 
 TOP ?= $(abspath ../..)
@@ -55,7 +55,7 @@ WGS=$(SRA)/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=$(SRAF):data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
 DIRTOTEST ?= $(BINDIR)
-SRR=$(shell SRATOOLS_FORCE_INSTALL=1 ${DIRTOTEST}/srapath ${SRAC})
+#SRR=$(shell NCBI_SETTINGS=/ SRATOOLS_FORCE_INSTALL=1 ${DIRTOTEST}/srapath ${SRAC})
 B=$(DIRTOTEST)
 
 HTTP_URL=https://test.ncbi.nlm.nih.gov/home/about/contact.shtml
@@ -587,18 +587,18 @@ out_dir_and_file:
 	  fi
 
 	@ echo PREFETCH ACCESSION TO OUT-DIR
-	@ rm -f `pwd`/tmp3/dir/$(SRAC).sra
+	@ rm -f `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(DIRTOTEST)/prefetch $(SRAC) -O tmp3/dir > /dev/null
-	@ ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null
+	@ ls `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra > /dev/null
 
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
 	  then \
 	     echo PREFETCH SRR HTTP URL TO OUT-DIR && \
-	     rm -f `pwd`/tmp3/dir/$(SRAC).sra && \
+	     rm -f `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra && \
 	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
 	                   $(DIRTOTEST)/prefetch $(SRR) -O tmp3/dir > /dev/null && \
-	     ls `pwd`/tmp3/dir/$(SRAC).sra > /dev/null ; \
+	     ls `pwd`/tmp3/dir/$(SRAC)/$(SRAC).sra > /dev/null ; \
 	  else \
 	     echo prefetch test when CE is required is skipped ; \
 	  fi
@@ -967,28 +967,28 @@ resume:
 	@ mkdir -p  tmp
 	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
 	@ echo '/repository/site/disabled = "true"'                 >> tmp/k
-	@ cd tmp && PATH=$(B):$(PATH) NCBI_SETTINGS=k perl ../test-resume.pl
+	cd tmp && PATH='$(B):$(PATH)' NCBI_SETTINGS=k perl ../test-resume.pl
 	@ rm    -r  tmp
 
 hs37d5:
 	@ echo Verifying hs37d5
 	@ rm   -frv tmp/*
 	@ mkdir -p  tmp
-	@ cd tmp && NCBI_SETTINGS=k PATH=$(B):$(PATH) perl ../test-hs37d5.pl
+	@ cd tmp && NCBI_SETTINGS=k PATH='$(B):$(PATH)' perl ../test-hs37d5.pl
 	@ rm    -r  tmp
 
 ad_as_dir: # turned off by default. Library test is in
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 	@ echo we can use AD as dir/...
 	@ mkdir -p tmp
-	@ export NCBI_SETTINGS=/ && export PATH=$(DIRTOTEST):$(PATH) \
+	@ export NCBI_SETTINGS=/ && export PATH='$(DIRTOTEST):$(PATH)' \
 		&& cd tmp && perl ../use-AD-as-dir.pl
 	@ rm -r tmp
 
 dump-vs-prefetch:
 	@ rm -frv tmp/*
 	@ mkdir -pv tmp
-	@ cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH=$(B):$(PATH) \
+	@ cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH='$(B):$(PATH)' \
 	                                 perl ../dump-vs-prefetch.pl
 	@ rm -r tmp
 
@@ -996,6 +996,10 @@ quality: std
 	@ echo Testing quality
 	@ mkdir -p tmp
 	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
-	@ cd tmp && NCBI_SETTINGS=k PATH=$(DIRTOTEST):$(BINDIR):$(PATH) \
+#	@ cd tmp && NCBI_SETTINGS=k PATH='$(DIRTOTEST):$(BINDIR):$(PATH)' \
 	  				perl ../test-quality.pl
 	@ rm -r tmp
+
+ad_not_cwd:
+	@ echo Testing prefetch into output directory and using results
+	@ PATH=$(DIRTOTEST):$(PATH) perl test-ad-not-cwd.pl

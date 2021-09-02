@@ -41,6 +41,11 @@
 
 #include <atomic32.h>
 
+#include <limits.h> /* PATH_MAX */
+#ifndef PATH_MAX
+    #define PATH_MAX 4096
+#endif
+
 rc_t ErrMsg( const char * fmt, ... )
 {
     rc_t rc;
@@ -1005,11 +1010,37 @@ const char * extract_acc2( const char * s )
         {
             VPath * acc_or_oid = NULL;
             rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
-            if ( 0 != rc )
+            if ( 0 != rc ) /* remove trailing slash[es] and try again */
             {
-                ErrMsg( "extract_acc2( '%s' ).VFSManagerExtractAccessionOrOID() -> %R", s, rc );
+                char P_option_buffer[ PATH_MAX ] = "";
+                size_t l = string_copy_measure(
+                    P_option_buffer, sizeof P_option_buffer, s );
+                char * basename = P_option_buffer;
+                while ( l > 0 && strchr( "\\/", basename[ l - 1 ]) != NULL )
+                    basename[ --l ] = '\0';
+                VPath * orig = NULL;
+                rc = VFSManagerMakePath ( mgr, &orig, "%s", P_option_buffer );
+                if ( 0 != rc )
+                    ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R",
+                        P_option_buffer, rc );
+                else {
+                    rc = VFSManagerExtractAccessionOrOID(
+                        mgr, &acc_or_oid, orig );
+                    if ( 0 != rc )
+                        ErrMsg( "extract_acc2( '%s' )."
+                            "VFSManagerExtractAccessionOrOID() -> %R", s, rc );
+                    {
+                        rc_t r2 = VPathRelease ( orig );
+                        if ( 0 != r2 ) {
+                            ErrMsg( "extract_acc2( '%s' )."
+                                "VPathRelease().2 -> %R", P_option_buffer, rc );
+                            if ( 0 == rc )
+                                rc = r2;
+                        }
+                    }
+                }
             }
-            else
+            if ( 0 == rc )
             {
                 char buffer[ 1024 ];
                 size_t num_read;

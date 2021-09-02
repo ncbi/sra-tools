@@ -138,6 +138,8 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
+    static void preferNoQual();
+
     /// @brief the data sources for an accession
     container const &sourcesFor(std::string const &accession) const
     {

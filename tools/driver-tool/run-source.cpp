@@ -444,6 +444,10 @@ void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
 }
 
+void data_sources::preferNoQual() {
+    env_var::preferNoQual();
+}
+
 std::pair<std::vector<std::string>, std::vector<std::string>> split_by_type(std::vector<std::string> const &runs)
 {
     std::vector<std::string> sra, nonsra;

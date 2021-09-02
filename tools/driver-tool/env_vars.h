@@ -80,3 +80,7 @@
 
 /* Payment is required for remote .vdbcache file if set to '1' */
 #define ENV_VAR_CACHE_NEED_PMT "VDB_CACHE_NEED_PMT"
+
+#define ENV_VAR_QUALITY_PREFERENCE "NCBI_VDB_QUALITY"
+#define ENV_VAL_NO_QUAL_PREFERRED "ZR"
+

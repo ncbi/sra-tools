@@ -31,10 +31,94 @@
 #include <kfs/buffile.h>
 #include <kproc/lock.h>
 
-typedef struct join_printer {
+typedef struct join_printer_t {
     struct KFile * f;
     uint64_t file_pos;
 } join_printer_t;
+
+typedef struct join_printer_args_t {
+    KDirectory * dir;
+    struct temp_registry_t * registry;
+    const char * output_base;
+    size_t buffer_size;
+} join_printer_args_t;
+
+static void set_join_printer_args( join_printer_args_t * self,
+                            KDirectory * dir,
+                            struct temp_registry_t * registry,
+                            const char * output_base,
+                            size_t buffer_size ) {
+    self -> dir = dir;
+    self -> registry = registry;
+    self -> output_base = output_base;
+    self -> buffer_size = buffer_size;
+}
+
+static rc_t release_file( struct KFile * f ) {
+    rc_t rc = KFileRelease( f );
+    if ( 0 != rc ) {
+        ErrMsg( "release_file().KFileRelease() -> %R", rc );
+    }
+    return rc;
+}
+
+static void CC destroy_join_printer( void * item, void * data ) {
+    if ( NULL != item ) {
+        join_printer_t * p = item;
+        if ( NULL != p -> f ) { release_file( p -> f ); }
+        free( item );
+    }
+}
+
+static rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size ) {
+    struct KFile * temp_file = *f;
+    rc_t rc = KBufFileMakeWrite( &temp_file, *f, false, buffer_size );
+    if ( 0 != rc ) {
+        ErrMsg( "wrap_file_in_buffer().KBufFileMakeWrite() -> %R", rc );
+    } else {
+        rc = release_file( *f );
+        if ( 0 == rc ) { *f = temp_file; }
+    }
+    return rc;
+}
+
+static join_printer_t * make_join_printer( join_printer_args_t * args, uint32_t read_id ) {
+    join_printer_t * res = NULL;
+    if ( NULL != args ) {
+        res = calloc( 1, sizeof * res );
+        if ( NULL != res ) {
+            char filename[ 4096 ];
+            size_t num_writ;
+
+            rc_t rc = string_printf( filename, sizeof filename, &num_writ, "%s.%u", args -> output_base, read_id );
+            if ( 0 != rc ) {
+                ErrMsg( "make_join_printer().string_printf() -> %R", rc );
+            } else {
+                struct KFile * f;
+                rc = KDirectoryCreateFile( args -> dir, &f, false, 0664, kcmInit, "%s", filename );
+                if ( 0 != rc ) {
+                    ErrMsg( "make_join_printer().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+                } else {
+                    if ( args -> buffer_size > 0 ) {
+                        rc = wrap_file_in_buffer( &f, args -> buffer_size );
+                        if ( 0 != rc ) { release_file( f ); }
+                    }
+                    if ( 0 == rc ) {
+                        rc = register_temp_file( args -> registry, read_id, filename );
+                        if ( 0 == rc ) { res -> f = f; }  /* pos is already 0, because calloc() */
+                    }
+                }
+            }
+            if ( 0 != rc ) {
+                free( ( void * )res );
+                res = NULL;
+            }
+        }
+    }
+    return res;
+}
+
+/* ----------------------------------------------------------------------------------------------------- */
 
 typedef rc_t ( * print_v1 )( struct join_results_t * self,
                              int64_t row_id,
@@ -54,94 +138,17 @@ typedef rc_t ( * print_v2 )( struct join_results_t * self,
                              const String * quality );
 
 typedef struct join_results_t {
-    KDirectory * dir;
-    struct temp_registry_t * registry;
-    const char * output_base;
-    const char * accession_short;
+    join_printer_args_t join_printer_args;
     struct Buf2NA_t * filter_buf2na;
+    const char * accession_short;
     print_v1 v1_print_name_null;
     print_v1 v1_print_name_not_null;
     print_v2 v2_print_name_null;
     print_v2 v2_print_name_not_null;    
     SBuffer_t print_buffer;            /* we have only one print_buffer... */
     Vector printers;                 /* a vector of join-printers, used by regular join-results */
-    size_t buffer_size;
     bool print_frag_nr, print_name;
 } join_results_t;
-
-static void CC destroy_join_printer( void * item, void * data ) {
-    if ( NULL != item ) {
-        join_printer_t * p = item;
-        if ( NULL != p -> f ) {
-            rc_t rc = KFileRelease( p -> f );
-            if ( 0 != rc ) {
-                ErrMsg( "destroy_join_printer().KFileRelease() -> %R", rc );
-            }
-        }
-        free( item );
-    }
-}
-
-static rc_t make_join_printer( join_results_t * self, uint32_t read_id, join_printer_t ** printer ) {
-    char filename[ 4096 ];
-    size_t num_writ;
-    
-    rc_t rc = string_printf( filename, sizeof filename, &num_writ, "%s.%u", self -> output_base, read_id );
-    *printer = NULL;
-    if ( 0 != rc ) {
-        ErrMsg( "make_join_printer().string_vprintf() -> %R", rc );
-    } else {
-        struct KFile * f;
-        rc = KDirectoryCreateFile( self -> dir, &f, false, 0664, kcmInit, "%s", filename );
-        if ( 0 != rc ) {
-            ErrMsg( "make_join_printer().KDirectoryVCreateFile() -> %R", rc );
-        } else {
-            if ( self -> buffer_size > 0 ) {
-                struct KFile * temp_file = f;
-                rc = KBufFileMakeWrite( &temp_file, f, false, self -> buffer_size );
-                if ( 0 != rc ) {
-                    ErrMsg( "make_join_printer().KBufFileMakeWrite() -> %R", rc );
-                }
-                {
-                    rc_t rc2 = KFileRelease( f );
-                    if ( 0 != rc2 ) {
-                        ErrMsg( "make_join_printer().KFileRelease().1 -> %R", rc2 );
-                        rc = ( 0 == rc ) ? rc2 : rc;
-                    }
-                }
-                f = temp_file;
-            }
-            if ( 0 == rc ) {
-                join_printer_t * p = calloc( 1, sizeof * p );
-                if ( NULL == p ) {
-                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                    ErrMsg( "make_join_printer().calloc( %d ) -> %R", ( sizeof * p ), rc );
-                    {
-                        rc_t rc2 = KFileRelease( f );
-                        if ( 0 != rc2 ) {
-                            ErrMsg( "make_join_printer().KFileRelease().2 -> %R", rc2 );
-                        }
-                    }
-                } else {
-                    rc = register_temp_file( self -> registry, read_id, filename );
-                    if ( rc != 0 ) {
-                        free( p );
-                        {
-                            rc_t rc2 = KFileRelease( f );
-                            if ( 0 != rc2 ) {
-                                ErrMsg( "make_join_printer().KFileRelease().3 -> %R", rc2 );
-                            }
-                        }
-                    } else {
-                        p -> f = f;
-                        *printer = p;
-                    }
-                }
-            }
-        }
-    }
-    return rc;
-}
 
 void destroy_join_results( join_results_t * self ) {
     if ( NULL != self ) {
@@ -604,12 +611,12 @@ static rc_t print_v2_real_name_frag_nr( join_results_t * self,
                             read1 -> len + read2 -> len, read1, read2 );
 }
 
-rc_t make_join_results( struct KDirectory * dir,
+rc_t make_join_results( struct KDirectory * dir, /* for join-printer */
                         join_results_t ** results,
-                        struct temp_registry_t * registry,
-                        const char * output_base,
+                        struct temp_registry_t * registry, /* for join-printer */
+                        const char * output_base, /* for join-printer */
                         const char * accession_short,
-                        size_t file_buffer_size,
+                        size_t file_buffer_size, /* for join-printer */
                         size_t print_buffer_size,
                         bool print_frag_nr,
                         bool print_name,
@@ -629,11 +636,9 @@ rc_t make_join_results( struct KDirectory * dir,
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             ErrMsg( "make_join_results().calloc( %d ) -> %R", ( sizeof * p ), rc );
         } else {
-            p -> dir = dir;
-            p -> output_base = output_base;
+            set_join_printer_args( &( p -> join_printer_args ), dir, registry, output_base, file_buffer_size );
+
             p -> accession_short = accession_short;
-            p -> buffer_size = file_buffer_size;
-            p -> registry = registry;
             p -> print_frag_nr = print_frag_nr;
             p -> print_name = print_name;
             p -> filter_buf2na = filter_buf2na;
@@ -710,14 +715,17 @@ rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const c
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
         ErrMsg( "join_results_print() -> %R", rc );
     } else {
+        /* create or get the printer, based on the read_id */
         join_printer_t * p = VectorGet ( &self -> printers, read_id );
         if ( NULL == p ) {
-            rc = make_join_printer( self, read_id, &p );
-            if ( 0 == rc ) {
+            p = make_join_printer( &( self -> join_printer_args ), read_id );
+            if ( NULL != p ) {
                 rc = VectorSet ( &self -> printers, read_id, p );
                 if ( 0 != rc ) {
                     destroy_join_printer( p, NULL );
                 }
+            } else {
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             }
         }
 
@@ -725,6 +733,7 @@ rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const c
             bool done = false;
             uint32_t cnt = 4;
 
+            /* produce the line to be printed in self->print_buffer*/
             while ( 0 == rc && !done && cnt-- > 0 ) {
                 va_list args;
                 va_start ( args, fmt );
@@ -741,6 +750,7 @@ rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const c
             if ( 0 != rc ) {
                 ErrMsg( "join_results_print().failed to enlarge buffer -> %R", rc );
             } else {
+                /* write it to the file-handle in the printer */
                 size_t num_writ, to_write;
                 to_write = self -> print_buffer . S . size;
                 const char * src = self -> print_buffer . S . addr;
@@ -957,4 +967,29 @@ rc_t common_join_results_print( struct common_join_results_t * self, const char 
         }
     }
     return rc;
+}
+
+/* ----------------------------------------------------------------------------------------------------- */
+
+/* the output is parameterized via var_fmt_t from helper.c */
+
+typedef struct flex_printer_t {
+    join_printer_args_t join_printer_args;
+    const char * accession_short;
+    struct Buf2NA_t * filter_buf2na;
+    Vector printers;                        /* a vector of join-printers */
+} flex_printer_t;
+
+struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
+                        struct temp_registry_t * registry,
+                        const char * output_base,
+                        size_t file_buffer_size,
+                        const char * accession_short,
+                        const char * filter_bases ) {
+    flex_printer_t * self = calloc( 1, sizeof * self );
+    if ( NULL == self ) {
+        set_join_printer_args( &( self -> join_printer_args ), dir, registry, output_base, file_buffer_size );
+
+    }
+    return self;
 }

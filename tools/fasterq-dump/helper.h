@@ -282,7 +282,13 @@ void var_desc_list_test( void );
 
 struct var_fmt_t;
 
+struct var_fmt_t * create_empty_var_fmt( size_t buffer_size );
 struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars );
+struct var_fmt_t * create_var_fmt_str( const char * fmt, const struct var_desc_list_t * vars );
+void var_fmt_append( struct var_fmt_t * self,  const String * fmt, const struct var_desc_list_t * vars );
+void var_fmt_append_str( struct var_fmt_t * self,  const char * fmt, const struct var_desc_list_t * vars );
+struct var_fmt_t * var_fmt_clone( const struct var_fmt_t * src );
+
 void release_var_fmt( struct var_fmt_t * self );
 
 size_t var_fmt_buffer_size( const struct var_fmt_t * self,

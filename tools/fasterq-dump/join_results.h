@@ -85,6 +85,7 @@ rc_t join_results_print_fastq_v2( struct join_results_t * self,
                                   const String * quality );
 
 /* --------------------------------------------------------------------------------------------------- */
+
 struct common_join_results_t;
 
 void destroy_common_join_results( struct common_join_results_t * self );
@@ -100,6 +101,18 @@ rc_t make_common_join_results( struct KDirectory * dir,
 bool common_join_results_filter( struct common_join_results_t * self, const String * bases );
 
 rc_t common_join_results_print( struct common_join_results_t * self, const char * fmt, ... );
+
+/* --------------------------------------------------------------------------------------------------- */
+
+struct flex_printer_t;
+
+struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
+                        struct temp_registry_t * registry,
+                        const char * output_base,
+                        size_t file_buffer_size,
+                        const char * accession_short,
+                        const char * filter_bases );
+
 
 #ifdef __cplusplus
 }

@@ -1598,7 +1598,7 @@ typedef struct var_fmt_entry_t {
 
 /* create a literal format-element, makes a copy of the given string and owns that copy */
 static var_fmt_entry_t * var_fmt_entry_create_literal( const char * src, size_t len ) {
-    if ( 0 == len ) {
+    if ( 0 == len || NULL == src ) {
         return NULL;
     }
     else {
@@ -1610,8 +1610,7 @@ static var_fmt_entry_t * var_fmt_entry_create_literal( const char * src, size_t 
             rc = StringCopy( &( res -> literal ), &S );
             if ( 0 == rc ) {
                 res -> type = vft_literal;
-            }
-            else {
+            } else {
                 free( ( void * ) res );
                 res = NULL;
             }
@@ -1630,6 +1629,23 @@ static var_fmt_entry_t * var_fmt_entry_create( uint32_t idx, var_fmt_type_t t ) 
     return res;
 }
 
+static var_fmt_entry_t * clone_var_fmt_entry( const var_fmt_entry_t * src ) {
+    var_fmt_entry_t * res = NULL;
+    if ( NULL != src ) {
+        res = var_fmt_entry_create( src -> idx, src -> type );
+        if ( NULL != res ) {
+            if ( vft_literal == res -> type ) {
+                rc_t rc = StringCopy( &( res -> literal ), src -> literal );
+                if ( 0 != rc ) {
+                    free( ( void * ) res );
+                    res = NULL;
+                }
+            }
+        }
+    }
+    return res;
+}
+
 static void var_fmt_String_to_buffer( SBuffer_t *buffer, const String * src ) {
     uint32_t i = 0;
     String * dst = &( buffer -> S );
@@ -1637,13 +1653,6 @@ static void var_fmt_String_to_buffer( SBuffer_t *buffer, const String * src ) {
     while ( i < src -> len && dst -> len < buffer -> buffer_size ) {
         dst_addr [ dst -> len ] = src -> addr[ i++ ];
         dst -> len += 1;
-    }
-}
-
-static void var_fmt_entry_str_to_buffer( const var_fmt_entry_t * self, SBuffer_t *buffer,
-                    const String ** args, size_t args_len ) {
-    if ( NULL != args && self -> idx < args_len ) {
-        var_fmt_String_to_buffer( buffer, args[ self -> idx ] );
     }
 }
 
@@ -1674,25 +1683,16 @@ static void destroy_var_fmt_entry( void * self, void * data ) {
 /* ============================================================================================================= */
 typedef struct var_fmt_t {
     Vector elements;        /* the elements are pointers to var_fmt_entry_t - structs */
-    uint32_t max_str_idx;   /* what is the largest idx into the str-arguments */
-    uint32_t max_int_idx;   /* what is the largest idx into the int-arguments */
     size_t fixed_len;       /* sum of all literal elements + sum of dflt-len of int-elements */
     SBuffer_t buffer;       /* internal buffer to print into */
 } var_fmt_t;
 /* ============================================================================================================= */
 
-static void var_fmt_add( var_fmt_t * self, var_fmt_entry_t * entry ) {
+static void var_fmt_add_entry( var_fmt_t * self, var_fmt_entry_t * entry ) {
     if ( NULL == self || NULL == entry ) { return; }
     rc_t rc = VectorAppend ( &( self -> elements ), NULL, entry );
     if ( 0 != rc ) {
         destroy_var_fmt_entry( entry, NULL );
-    }
-    else {
-        switch ( entry -> type ) {
-            case vft_str : if ( entry -> idx > self -> max_str_idx ) { self -> max_str_idx = entry -> idx; }; break;
-            case vft_int : if ( entry -> idx > self -> max_int_idx ) { self -> max_int_idx = entry -> idx; }; break;
-            default : break;
-        }
     }
 }
 
@@ -1700,16 +1700,16 @@ static bool var_fmt_find_and_add( var_fmt_t * self, const String * T, const stru
     // do we have so far a match against any variable-name at the end of T ?
     var_desc_t * found = var_desc_list_find( vars, T );
     if ( NULL != found ) {
-        // yes it does! - the key is at the end of T
-        // T -> len cannot be shorter than item -> name -> len
-        // because otherwise the key would not be found by var_name_find()
+        /* yes it does! - the key is at the end of T
+           T -> len cannot be shorter than item -> name -> len
+           because otherwise the key would not be found by var_name_find() */
         uint32_t literal_len = ( T -> len ) - ( found -> name -> len ); 
         if ( literal_len > 0 ) {
-            var_fmt_add( self, var_fmt_entry_create_literal( T -> addr, literal_len ) );
+            var_fmt_add_entry( self, var_fmt_entry_create_literal( T -> addr, literal_len ) );
         }
-        // we always have a non-literal,
-        // because otherwise the key would not have been found
-        var_fmt_add( self, var_fmt_entry_create( found -> idx, found -> type ) );
+        /* we always have a non-literal,
+           because otherwise the key would not have been found */
+        var_fmt_add_entry( self, var_fmt_entry_create( found -> idx, found -> type ) );
     }
     return NULL != found;
 }
@@ -1728,42 +1728,80 @@ static size_t var_fmt_calc_fixed_len( Vector * v ) {
     return res;
 }
 
-/* create a var-print struct and fill it with var_fmt_t - elements */
-struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars ) {
-    if ( NULL == fmt || NULL == vars ) {
-        return NULL;
+/* create an empty var-print struct, to be added into later */
+struct var_fmt_t * create_empty_var_fmt( size_t buffer_size ) {
+    var_fmt_t * self = calloc( 1, sizeof * self );
+    if ( NULL != self ) {
+        VectorInit ( &( self -> elements ), 0, 12 );
+        make_SBuffer( &( self -> buffer ), buffer_size );
     }
-    else {
-        var_fmt_t * self = calloc( 1, sizeof * self );
-        if ( NULL != self ) {
-            uint32_t i;
-            String T = { fmt -> addr, 0, 0 };
-            
-            VectorInit ( &( self -> elements ), 0, 12 );
-            for ( i = 0; i < fmt -> len; ++i ) {
-                if ( var_fmt_find_and_add( self, &T, vars ) ) {
-                    // advance T to restart searching...
-                    T . addr += T . len;
-                    T . len = 1;
-                }
-                else {
-                    T . len++;
-                }
-            }
-            // handle what is left in T
-            if ( !var_fmt_find_and_add( self, &T, vars ) ) {
-                var_fmt_add( self, var_fmt_entry_create_literal( T . addr, T . len ) );
-            }
+    return self;
+}
 
-            /* how big is the fixed part of the print-out */
-            self -> fixed_len = var_fmt_calc_fixed_len( &( self -> elements ) );
-
-            make_SBuffer( &( self -> buffer ), ( self -> fixed_len ) * 4 );
+void var_fmt_append( struct var_fmt_t * self,  const String * fmt, const struct var_desc_list_t * vars ) {
+    if ( NULL != self && NULL != fmt ) {
+        uint32_t i;
+        String temp = { fmt -> addr, 0, 0 };
+        for ( i = 0; i < fmt -> len; ++i ) {
+            if ( var_fmt_find_and_add( self, &temp, vars ) ) {
+                /* advance T to restart searching... */
+                temp . addr += temp . len;
+                temp . len = 1;
+            } else {
+                temp . len++;
+            }
         }
-        return self;
+        /* handle what is left in T */
+        if ( !var_fmt_find_and_add( self, &temp, vars ) ) {
+            var_fmt_add_entry( self, var_fmt_entry_create_literal( temp . addr, temp . len ) );
+        }
+        /* calculate new fixed-len, and adjust print-buffer */
+        self -> fixed_len = var_fmt_calc_fixed_len( &( self -> elements ) );
+        increase_SBuffer_to( &( self -> buffer ), ( self -> fixed_len * 4 ) );
     }
 }
 
+void var_fmt_append_str( struct var_fmt_t * self,  const char * fmt, const struct var_desc_list_t * vars ) {
+    if ( NULL != self && NULL != fmt ) {
+        String FMT;
+        StringInitCString( &FMT, fmt );
+        var_fmt_append( self, &FMT, vars );
+    }
+}
+
+/* create a var-print struct and fill it with var_fmt_t - elements */
+struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars ) {
+    var_fmt_t * self = create_empty_var_fmt( 2048 );
+    if ( NULL != self ) {
+        var_fmt_append( self, fmt, vars );
+    }
+    return self;    
+}
+
+struct var_fmt_t * create_var_fmt_str( const char * fmt, const struct var_desc_list_t * vars ) {
+    var_fmt_t * self = create_empty_var_fmt( 2048 );
+    if ( NULL != self ) {
+        var_fmt_append_str( self, fmt, vars );
+    }
+    return self;    
+}
+
+struct var_fmt_t * var_fmt_clone( const struct var_fmt_t * src ) {
+    var_fmt_t * self = NULL;
+    if ( NULL != src ) {
+        self = create_empty_var_fmt( src -> buffer . buffer_size );
+        if ( NULL != self ) {
+            const Vector * v = &( src -> elements );
+            uint32_t i, l = VectorLength( v );
+            for ( i = VectorStart( v ); i < l; ++i ) {
+                var_fmt_add_entry( self, clone_var_fmt_entry(  VectorGet( v, i ) ) );
+            }
+            self -> fixed_len = var_fmt_calc_fixed_len( &( self -> elements ) );
+            increase_SBuffer_to( &( self -> buffer ), ( self -> fixed_len * 4 ) );
+        }
+    }
+    return self;
+}
 
 /* release a var-print struct and call destructors on its elements */
 void release_var_fmt( struct var_fmt_t * self ) {
@@ -1821,8 +1859,14 @@ SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
                     const var_fmt_entry_t * entry = VectorGet( v, i );
                     if ( NULL != entry ) {
                         switch ( entry -> type ) {
-                            case vft_literal : var_fmt_String_to_buffer( dst, entry -> literal ); break;
-                            case vft_str : var_fmt_entry_str_to_buffer( entry, dst, str_args, str_args_len ); break;
+                            case vft_literal :  var_fmt_String_to_buffer( dst, entry -> literal );
+                                                break;
+
+                            case vft_str :      if ( NULL != str_args && entry -> idx < str_args_len ) {
+                                                    var_fmt_String_to_buffer( dst, str_args[ entry -> idx ] );
+                                                }
+                                                break;
+
                             case vft_int : var_fmt_entry_int_to_buffer( entry, dst, int_args, int_args_len ); break;
                         }
                     }
@@ -1877,16 +1921,12 @@ void var_fmt_test( void ) {
 
     desc_lst = create_var_desc_list();
     if ( NULL != desc_lst ) {
-        const char * test_format = "$acthis $ac/$sg is a test $si-$sl format\n";        
-        String S_test_format;        
-
         var_desc_list_add_str( desc_lst, "$ac", 0 );
         var_desc_list_add_str( desc_lst, "$sg", 1 );
         var_desc_list_add_int( desc_lst, "$si", 0 );
         var_desc_list_add_int( desc_lst, "$sl", 1 );
 
-        StringInitCString( &S_test_format, test_format );
-        fmt = create_var_fmt( &S_test_format, desc_lst );
+        fmt = create_var_fmt_str( "$acthis $ac/$sg is a test $si-$sl format", desc_lst );
         release_var_desc_list( desc_lst );
     }
 
@@ -1911,8 +1951,9 @@ void var_fmt_test( void ) {
         }
 
         {
-            SBuffer_t * res = var_fmt_to_buffer( fmt, strings, 2, ints, 2 );
-            KOutMsg( ">%S<\n", &( res -> S ) );
+            var_fmt_t * cloned = var_fmt_clone( fmt );
+            var_fmt_append_str( cloned, " and this!\n", NULL );
+            var_fmt_print( cloned, strings, 2, ints, 2 );
         }
     }
     release_var_fmt( fmt );

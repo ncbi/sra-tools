@@ -65,8 +65,10 @@ rc_t make_join_results( struct KDirectory * dir,
 bool join_results_filter( struct join_results_t * self, const String * bases );
 bool join_results_filter2( struct join_results_t * self, const String * bases1, const String * bases2 );
 
+/* used by join.c, tbl_join.c and internally by join_results.c */
 rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const char * fmt, ... );
 
+/* used by join.c and tbl_join.c */
 rc_t join_results_print_fastq_v1( struct join_results_t * self,
                                   int64_t row_id,
                                   uint32_t dst_id,
@@ -75,6 +77,7 @@ rc_t join_results_print_fastq_v1( struct join_results_t * self,
                                   const String * read,
                                   const String * quality );
 
+/* used by join.c */
 rc_t join_results_print_fastq_v2( struct join_results_t * self,
                                   int64_t row_id,
                                   uint32_t dst_id,
@@ -106,13 +109,26 @@ rc_t common_join_results_print( struct common_join_results_t * self, const char 
 
 struct flex_printer_t;
 
+typedef struct flex_printer_data_t {
+    int64_t row_id;
+    int64_t read_id;
+    const String * name;
+    const String * spotgroup;
+    const String * read1;
+    const String * read2;
+    const String * quality;
+} flex_printer_data_t;
+
 struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
                         struct temp_registry_t * registry,
                         const char * output_base,
                         size_t file_buffer_size,
                         const char * accession_short,
-                        const char * filter_bases );
+                        const char * filter_bases,
+                        const char * seq_defline,
+                        const char * qual_defline );
 
+void release_flex_printer( struct flex_printer_t * self );
 
 #ifdef __cplusplus
 }

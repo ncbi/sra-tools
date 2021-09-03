@@ -977,18 +977,44 @@ typedef struct flex_printer_t {
     join_printer_args_t join_printer_args;
     const char * accession_short;
     struct Buf2NA_t * filter_buf2na;
-    Vector printers;                        /* a vector of join-printers */
+    Vector printers;
 } flex_printer_t;
+
+
+void release_flex_printer( struct flex_printer_t * self ) {
+    if ( NULL != self ) {
+        VectorWhack ( &self -> printers, destroy_join_printer, NULL );
+        if ( NULL != self -> filter_buf2na ) {
+            release_Buf2NA( self -> filter_buf2na );
+        }
+        free( ( void * )self );
+    }
+}
 
 struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
                         struct temp_registry_t * registry,
                         const char * output_base,
                         size_t file_buffer_size,
                         const char * accession_short,
-                        const char * filter_bases ) {
+                        const char * filter_bases,
+                        const char * seq_defline,
+                        const char * qual_defline ) {
     flex_printer_t * self = calloc( 1, sizeof * self );
-    if ( NULL == self ) {
+    if ( NULL != self ) {
         set_join_printer_args( &( self -> join_printer_args ), dir, registry, output_base, file_buffer_size );
+        self -> accession_short = accession_short;
+        if ( filter_bases != NULL ) {
+            rc_t rc = make_Buf2NA( &( self -> filter_buf2na ), 512, filter_bases ); /* helper.c */
+            if ( 0 != rc ) {
+                ErrMsg( "make_join_results().error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
+                free( ( void * )self );
+                self = NULL;
+            }
+        }
+    }
+    if ( NULL != self ) {
+        VectorInit ( &( self -> printers ), 0, 4 );
+        /* construct the 2 flex-formats ( one with 1xREAD/1xQUAL, one with 2xREAD/2xQUAL ) */
 
     }
     return self;

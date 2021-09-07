@@ -143,6 +143,11 @@ static const char* USAGE_PRD[] = { "enable/disable using HTTP proxy", NULL };
 static const char* USAGE_PRX[]
     = { "set HTTP proxy server configuration", NULL };
 
+#define ALIAS_QUAL   "Q"
+#define OPTION_QUAL  "no-quality"
+static const char* USAGE_QUAL[]
+    = { "prefer no quality scores (-BQS) if available", NULL };
+
 #define ALIAS_ROOT   NULL
 #define OPTION_ROOT  "root"
 static const char* USAGE_ROOT[] =

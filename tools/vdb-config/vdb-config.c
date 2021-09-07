@@ -82,6 +82,11 @@
 #define OPTION_ALL   "all"
 static const char* USAGE_ALL[] = { "print all information [default]", NULL };
 
+#define ALIAS_CDR    NULL
+#define OPTION_CDR   "cfg-dir"
+static const char* USAGE_CDR[]
+    = { "set directory to load configuration", NULL };
+
 #define ALIAS_CFG    "i"
 #define OPTION_CFG   "interactive"
 static const char* USAGE_CFG[] = {
@@ -128,11 +133,6 @@ static const char* USAGE_PCF[] = { "print current configuration", NULL };
 #define OPTION_PRTCT "ignore-protected-repositories"
 static const char* USAGE_PRTCT[] =
 { "stop printing warning message when protected repository is found", NULL };
-
-#define ALIAS_CDR    NULL
-#define OPTION_CDR   "cfg-dir"
-static const char* USAGE_CDR[]
-    = { "set directory to load configuration", NULL };
 
 #define ALIAS_PRD    NULL
 #define OPTION_PRD   "proxy-disable"

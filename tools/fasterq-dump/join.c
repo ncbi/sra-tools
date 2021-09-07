@@ -44,6 +44,7 @@ typedef struct join {
     struct lookup_reader_t * lookup;  /* lookup_reader.h */
     struct index_reader_t * index;    /* index.h */
     struct join_results_t * results;  /* join_results.h */
+    struct filter_2na_t * filter;     /* joint_reslts.h */
     SBuffer_t B1, B2;                 /* helper.h */
     uint64_t loop_nr;                 /* in which loop of this partial join are we? */
     uint32_t thread_id;               /* in which thread are we? */
@@ -62,6 +63,7 @@ static void release_join_ctx( join_t* j ) {
 
 static rc_t init_join( cmn_iter_params_t * cp,
                        struct join_results_t * results,
+                       struct filter_2na_t * filter,
                        const char * lookup_filename,
                        const char * index_filename,
                        size_t buf_size,
@@ -73,6 +75,7 @@ static rc_t init_join( cmn_iter_params_t * cp,
     j -> accession_short = cp -> accession_short;
     j -> lookup = NULL;
     j -> results = results;
+    j -> filter = filter;
     j -> B1 . S . addr = NULL;
     j -> B2 . S . addr = NULL;
     j -> loop_nr = 0;
@@ -210,7 +213,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
 
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( join_results_filter( j -> results, &( rec -> read ) ) ) { /* join-results.c */
+        if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
             if ( rec -> read . len != rec -> quality . len ) {
                 ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", row_id,
                         rec -> read . len, rec -> quality . len );
@@ -235,7 +238,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
         bool reverse = is_reverse( rec, 0 );
         rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
         if ( 0 == rc ) {
-            if ( join_results_filter( j -> results, &( j -> B1 . S ) ) ) {/* join-results.c */
+            if ( filter_2na_1( j -> filter, &( j -> B1 . S ) ) ) {/* join-results.c */
                 if ( j -> B1 . S . len != rec -> quality . len ) {
                     ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", row_id,
                              j -> B1 . S . len, rec -> quality . len );
@@ -272,7 +275,7 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
 
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( join_results_filter( j -> results, &( rec -> read ) ) ) { /* join-results.c */
+        if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
             if ( rec -> read . len > 0 ) {
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
@@ -289,7 +292,7 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
         bool reverse = is_reverse( rec, 0 );
         rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
         if ( 0 == rc ) {
-            if ( join_results_filter( j -> results, &( j -> B1 . S ) ) ) { /* join-results.c */
+            if ( filter_2na_1( j -> filter, &( j -> B1 . S ) ) ) { /* join-results.c */
                 if ( j -> B1 . S . len > 0 ) {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -319,7 +322,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
             /* both unaligned, print what is in row->read (no lookup)*/        
-            if ( join_results_filter( j -> results, &( rec -> read ) ) ) { /* join-results.c */
+            if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
                 if ( rec -> read . len != rec -> quality . len ) {
                     ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", row_id,
                             rec -> read . len, rec -> quality . len );
@@ -342,7 +345,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
             bool reverse = is_reverse( rec, 1 );
             rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc ) {
-                if ( join_results_filter2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) { /* join-results.c */
+                if ( filter_2na_2( j -> filter, &( rec -> read ), &( j -> B2 . S ) ) ) { /* join-results.c */
                     if ( j -> B2 . S. len + rec -> read . len != rec -> quality . len ) {
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", row_id,
                                 j -> B2 . S. len, rec -> quality . len );
@@ -369,7 +372,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
             bool reverse = is_reverse( rec, 0 );
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc ) {
-                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) { /* join-results.c */
+                if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( rec -> read ) ) ) { /* join-results.c */
                     uint32_t rl = j -> B1 . S . len + rec -> read . len;
                     if ( rl != rec -> quality . len ) {
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (E)\n", row_id,
@@ -399,7 +402,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                 rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
             }
             if ( 0 == rc ) {
-                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) {/* join-results.c */
+                if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( j -> B2 . S ) ) ) {/* join-results.c */
                     uint32_t rl = j -> B1 . S . len + j -> B2 . S . len;
                     if ( rl != rec -> quality . len ) {
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (F)\n", row_id,
@@ -436,7 +439,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
             /* both unaligned, print what is in row->read (no lookup)*/        
-            if ( join_results_filter( j -> results, &( rec -> read ) ) ) { /* join-results.c */
+            if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
                                                   dst_id,
@@ -451,7 +454,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
             bool reverse = is_reverse( rec, 1 );
             rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc ) {
-                if ( join_results_filter2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) { /* join-results.c */
+                if ( filter_2na_2( j -> filter, &( rec -> read ), &( j -> B2 . S ) ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -470,7 +473,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
             bool reverse = is_reverse( rec, 0 );
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
             if ( 0 == rc ) {
-                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) { /* join-results.c */
+                if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( rec -> read ) ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -491,7 +494,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
                 rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
             }
             if ( 0 == rc ) {
-                if ( join_results_filter2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) { /* join-results.c */
+                if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( j -> B2 . S ) ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -578,7 +581,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
 
             /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
             if ( process_0 ) {
-                if ( join_results_filter( j -> results, &READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, &READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -594,7 +597,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
             }
 
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, &READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, &READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -639,7 +642,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
             if ( !process_1 ) { dst_id = 0; }
 
             if ( 0 == rc && process_0 ) {
-                if ( join_results_filter( j -> results, READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -652,7 +655,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                 }
             }
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -700,7 +703,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
             if ( !process_1 ) { dst_id = 0; }
 
             if ( 0 == rc && process_0 ) {
-                if ( join_results_filter( j -> results, READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -713,7 +716,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                 }
             }
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -764,7 +767,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
             if ( !process_1 ) { dst_id = 0; }
 
             if ( 0 == rc && process_0 ) {
-                if ( join_results_filter( j -> results, READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -777,7 +780,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                 }
             }
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -830,7 +833,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
 
             /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
             if ( process_0 ) {
-                if ( join_results_filter( j -> results, &READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, &READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -846,7 +849,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
             }
 
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, &READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, &READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -875,7 +878,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
             if ( !process_1 ) { dst_id = 0; }
 
             if ( 0 == rc && process_0 ) {
-                if ( join_results_filter( j -> results, READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -888,7 +891,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                 }
             }
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -919,7 +922,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
             if ( !process_1 ) { dst_id = 0; }
 
             if ( 0 == rc && process_0 ) {
-                if ( join_results_filter( j -> results, READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -932,7 +935,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                 }
             }
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -969,7 +972,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
             if ( !process_1 ) { dst_id = 0; }
 
             if ( 0 == rc && process_0 ) {
-                if ( join_results_filter( j -> results, READ1 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ1 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -982,7 +985,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                 }
             }
             if ( 0 == rc && process_1 ) {
-                if ( join_results_filter( j -> results, READ2 ) ) { /* join-results.c */
+                if ( filter_2na_1( j -> filter, READ2 ) ) { /* join-results.c */
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
@@ -1495,6 +1498,8 @@ typedef struct join_thread_data {
     const char * index_filename;
     struct bg_progress_t * progress;
     struct temp_registry_t * registry;
+    struct filter_2na_t * filter;
+
     KThread * thread;
     
     int64_t first_row;
@@ -1511,6 +1516,7 @@ typedef struct join_thread_data {
 
 static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
     join_thread_data_t * jtd = data;
+    struct filter_2na_t * filter = make_2na_filter( jtd -> join_options -> filter_bases ); /* join_results.c */
     struct join_results_t * results = NULL;
 
     rc_t rc = make_join_results( jtd -> dir,
@@ -1521,8 +1527,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
                                 jtd -> buf_size,
                                 4096,
                                 jtd -> join_options -> print_read_nr,
-                                jtd -> join_options -> print_name,
-                                jtd -> join_options -> filter_bases );
+                                jtd -> join_options -> print_name ); /* join_results.c */
 
     if ( 0 == rc && NULL != results ) {
         join_t j;
@@ -1531,6 +1536,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
                           jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
         rc = init_join( &cp,
                         results,
+                        filter,
                         jtd -> lookup_filename,
                         jtd -> index_filename,
                         jtd -> buf_size,
@@ -1597,8 +1603,9 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
             }
             release_join_ctx( &j );
         }
-        destroy_join_results( results );
+        destroy_join_results( results ); /* join_results.c */
     }
+    release_2na_filter( filter );   /* join_results.c */
     return rc;
 }
 
@@ -1862,6 +1869,7 @@ static rc_t start_fast_join_align( KDirectory * dir,
                     uint64_t row_count,
                     struct bg_progress_t * progress,
                     struct common_join_results_t * results,
+                    struct filter_2na_t * filter,
                     Vector * threads ) {
     rc_t rc = 0;
     int64_t row = 1;
@@ -1889,6 +1897,7 @@ static rc_t start_fast_join_align( KDirectory * dir,
             jtd -> join_options     = &corrected_join_options;
             jtd -> thread_id        = thread_id;
             jtd -> cmp_read_present = true;
+            jtd -> filter           = filter;
 
             if ( 0 == rc ) {
                 rc = helper_make_thread( &jtd -> thread, fast_align_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
@@ -1985,6 +1994,7 @@ static rc_t start_fast_join_seq( KDirectory * dir,
                     bool cmp_read_column_present,
                     struct bg_progress_t * progress,
                     struct common_join_results_t * results,
+                    struct filter_2na_t * filter,
                     Vector * threads ) {
     rc_t rc = 0;
     int64_t row = 1;
@@ -2012,6 +2022,7 @@ static rc_t start_fast_join_seq( KDirectory * dir,
             jtd -> join_options     = &corrected_join_options;
             jtd -> thread_id        = thread_id;
             jtd -> cmp_read_present = cmp_read_column_present;
+            jtd -> filter           = filter;
 
             if ( 0 == rc ) {
                 rc = helper_make_thread( &jtd -> thread, fast_seq_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
@@ -2066,18 +2077,18 @@ rc_t execute_fast_join( KDirectory * dir,
 
         if ( 0 == rc && seq_row_count > 0 ) {
             struct bg_progress_t * progress = NULL;
+            struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */
+            struct common_join_results_t * results = NULL;
 
             /* we need the row-count for that... ( that is why we first detected the row-count ) */
             if ( show_progress ) {
                 rc = bg_progress_make( &progress, seq_row_count + align_row_count, 0, 0 ); /* progress_thread.c */
             }
 
-            struct common_join_results_t * results = NULL;
             rc = make_common_join_results( dir,
                                     &results,
                                     buf_size,
                                     4096,
-                                    join_options -> filter_bases,
                                     output_filename,
                                     force ); /* join_results.c */
             if ( 0 == rc ) {
@@ -2102,6 +2113,7 @@ rc_t execute_fast_join( KDirectory * dir,
                                           cmp_read_column_present,
                                           progress,
                                           results,
+                                          filter,
                                           &seq_threads );
                 if ( 0 == rc ) {
                     Vector align_threads;
@@ -2118,6 +2130,7 @@ rc_t execute_fast_join( KDirectory * dir,
                                         align_row_count,
                                         progress,
                                         results,
+                                        filter,
                                         &align_threads );
                     if ( 0 == rc ) {
                         rc = join_threads_collect_stats( &align_threads, stats ); /* above */
@@ -2128,6 +2141,8 @@ rc_t execute_fast_join( KDirectory * dir,
                 }
                 destroy_common_join_results( results );
             }
+
+            release_2na_filter( filter ); /* join_results.c */
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
         }
     }

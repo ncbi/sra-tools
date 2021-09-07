@@ -58,12 +58,7 @@ rc_t make_join_results( struct KDirectory * dir,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
                         bool print_frag_nr,
-                        bool print_name,
-                        const char * filter_bases );
-
-/* test if the filter-bases match... */
-bool join_results_filter( struct join_results_t * self, const String * bases );
-bool join_results_filter2( struct join_results_t * self, const String * bases1, const String * bases2 );
+                        bool print_name );
 
 /* used by join.c, tbl_join.c and internally by join_results.c */
 rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const char * fmt, ... );
@@ -97,13 +92,21 @@ rc_t make_common_join_results( struct KDirectory * dir,
                         struct common_join_results_t ** results,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
-                        const char * filter_bases,
                         const char * output_filename,
                         bool force );
 
-bool common_join_results_filter( struct common_join_results_t * self, const String * bases );
-
 rc_t common_join_results_print( struct common_join_results_t * self, const char * fmt, ... );
+
+/* --------------------------------------------------------------------------------------------------- */
+
+struct filter_2na_t;
+
+struct filter_2na_t * make_2na_filter( const char * filter_bases );
+void release_2na_filter( struct filter_2na_t * self );
+
+/* return true if no filter set, or filter matches the bases */
+bool filter_2na_1( struct filter_2na_t * self, const String * bases );
+bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const String * bases2 );
 
 /* --------------------------------------------------------------------------------------------------- */
 
@@ -112,23 +115,29 @@ struct flex_printer_t;
 typedef struct flex_printer_data_t {
     int64_t row_id;
     int64_t read_id;
-    const String * name;
+    const String * spotname;
     const String * spotgroup;
     const String * read1;
     const String * read2;
     const String * quality;
 } flex_printer_data_t;
 
+/* if qual-defline is NULL --> FASTA, else FASTQ */
 struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
                         struct temp_registry_t * registry,
                         const char * output_base,
                         size_t file_buffer_size,
                         const char * accession_short,
-                        const char * filter_bases,
                         const char * seq_defline,
                         const char * qual_defline );
 
 void release_flex_printer( struct flex_printer_t * self );
+
+/* depending on the data:
+    quality == NULL ... fasta / fastq
+    read2 == NULL ... 1 spot / 2 spots
+ */
+rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_data_t * data );
 
 #ifdef __cplusplus
 }

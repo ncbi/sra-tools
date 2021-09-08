@@ -289,6 +289,8 @@ void var_fmt_append( struct var_fmt_t * self,  const String * fmt, const struct 
 void var_fmt_append_str( struct var_fmt_t * self,  const char * fmt, const struct var_desc_list_t * vars );
 struct var_fmt_t * var_fmt_clone( const struct var_fmt_t * src );
 
+void var_fmt_debug( const struct var_fmt_t * self );
+
 void release_var_fmt( struct var_fmt_t * self );
 
 size_t var_fmt_buffer_size( const struct var_fmt_t * self,

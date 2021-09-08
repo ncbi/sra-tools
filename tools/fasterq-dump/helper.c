@@ -1547,15 +1547,27 @@ void var_desc_list_add_int( var_desc_list_t * self, const char * name, uint32_t 
     }
 }
 
-static var_desc_t * var_desc_list_find( const var_desc_list_t * self, const String * to_find ) {
-    if ( NULL == self || NULL == to_find ) { return NULL; }
-    return ( var_desc_t * ) VectorFind ( &( self -> descriptions ), to_find, NULL, var_desc_cmp );
+static const var_desc_t * var_desc_list_find( const var_desc_list_t * self, const String * to_find ) {
+    const var_desc_t * res = NULL;
+    if ( NULL != self && NULL != to_find ) {
+        const Vector * v =  &( self -> descriptions );
+        uint32_t i, l = VectorLength( v );
+        for ( i = VectorStart( v ); i < l && NULL == res; ++i ) {
+            const var_desc_t * desc = VectorGet ( v, i );
+            if ( NULL != desc ) {
+                int64_t cmp = var_desc_cmp( to_find, desc );
+                if ( 0 == cmp ) { res = desc; }
+            }
+        }
+    }
+    /* return ( var_desc_t * ) VectorFind ( &( self -> descriptions ), to_find, NULL, var_desc_cmp ); */
+    return res;
 }
 
 static void var_desc_test_find( var_desc_list_t * self, char * to_find ) {
     String S1;
     StringInitCString( &S1, to_find );
-    var_desc_t * desc = var_desc_list_find( self, &S1 );
+    const var_desc_t * desc = var_desc_list_find( self, &S1 );
 
     KOutMsg( "found( '%s' ) = %p\n", to_find, desc );
     if ( NULL != desc ) {
@@ -1698,7 +1710,7 @@ static void var_fmt_add_entry( var_fmt_t * self, var_fmt_entry_t * entry ) {
 
 static bool var_fmt_find_and_add( var_fmt_t * self, const String * T, const struct var_desc_list_t * vars ) {
     // do we have so far a match against any variable-name at the end of T ?
-    var_desc_t * found = var_desc_list_find( vars, T );
+    const var_desc_t * found = var_desc_list_find( vars, T );
     if ( NULL != found ) {
         /* yes it does! - the key is at the end of T
            T -> len cannot be shorter than item -> name -> len
@@ -1711,7 +1723,7 @@ static bool var_fmt_find_and_add( var_fmt_t * self, const String * T, const stru
            because otherwise the key would not have been found */
         var_fmt_add_entry( self, var_fmt_entry_create( found -> idx, found -> type ) );
     }
-    return NULL != found;
+    return ( NULL != found );
 }
 
 static size_t var_fmt_calc_fixed_len( Vector * v ) {
@@ -1747,8 +1759,10 @@ void var_fmt_append( struct var_fmt_t * self,  const String * fmt, const struct 
                 /* advance T to restart searching... */
                 temp . addr += temp . len;
                 temp . len = 1;
+                temp . size = 1;
             } else {
                 temp . len++;
+                temp . size++;
             }
         }
         /* handle what is left in T */
@@ -1834,6 +1848,26 @@ size_t var_fmt_buffer_size( const struct var_fmt_t * self,
         }
     }
     return res;
+}
+
+void var_fmt_debug( const struct var_fmt_t * self ) {
+    if ( NULL != self ) {
+        const Vector * v = &( self -> elements );
+        uint32_t i, l = VectorLength( v );
+        KOutMsg( "\nvar-fmt:" );
+        for ( i = VectorStart( v ); i < l; ++i ) {
+            const var_fmt_entry_t * entry = VectorGet( v, i );
+            if ( NULL != entry ) {
+                switch ( entry -> type ) {
+                    case vft_literal : KOutMsg( "\nliteral: '%S'", entry -> literal  ); break;
+                    case vft_str     : KOutMsg( "\nstr: #%u", entry -> idx  ); break;
+                    case vft_int     : KOutMsg( "\nint: #%u", entry -> idx  ); break;
+                    default          : KOutMsg( "\nunknown entry-type" ); break;
+                }
+            }
+        }
+        KOutMsg( "\ndone\n" );
+    }
 }
 
 /* apply the var-fmt-struct to the given arguments, write result to buffer */
@@ -1926,7 +1960,7 @@ void var_fmt_test( void ) {
         var_desc_list_add_int( desc_lst, "$si", 0 );
         var_desc_list_add_int( desc_lst, "$sl", 1 );
 
-        fmt = create_var_fmt_str( "$acthis $ac/$sg is a test $si-$sl format", desc_lst );
+        fmt = create_var_fmt_str( ">$ac.$si/$sl this $ac/$sg is a test $si-$sl format", desc_lst );
         release_var_desc_list( desc_lst );
     }
 
@@ -1937,6 +1971,8 @@ void var_fmt_test( void ) {
         String S_grp;
         const String * strings[ 2 ];
         uint64_t ints[ 2 ];
+
+        var_fmt_debug( fmt );
 
         StringInitCString( &S_acc, s_acc );
         StringInitCString( &S_grp, s_grp );

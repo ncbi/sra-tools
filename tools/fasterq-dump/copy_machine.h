@@ -60,6 +60,19 @@ rc_t make_a_copy( KDirectory * dir,
                   uint32_t src_list_offset,
                   uint32_t q_wait_time );
 
+/* ------------------------------------------------------- */
+struct multi_writer_t;
+
+struct multi_writer_t * create_multi_writer( KDirectory * dir,
+                    const char * filename,
+                    size_t buf_size,
+                    uint32_t q_wait_time );
+
+void release_multi_writer( struct multi_writer_t * self );
+
+rc_t multi_writer_write( struct multi_writer_t * self,
+                         const char * src,
+                         size_t size );
 
 #ifdef __cplusplus
 }

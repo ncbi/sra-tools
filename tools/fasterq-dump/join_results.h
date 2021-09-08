@@ -110,11 +110,17 @@ bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const Stri
 
 /* --------------------------------------------------------------------------------------------------- */
 
+typedef enum flex_printer_name_mode_t { fpnm_use_name, fpnm_syn_name, fpnm_no_name } flex_printer_name_mode_t;
+
+const char * dflt_seq_defline( bool fasta, flex_printer_name_mode_t name_mode );
+const char * dflt_qual_defline( flex_printer_name_mode_t name_mode );
+
 struct flex_printer_t;
 
 typedef struct flex_printer_data_t {
     int64_t row_id;
-    int64_t read_id;
+    uint32_t read_id;    /* to be printed */
+    uint32_t dst_id;     /* into which file to print */
     const String * spotname;
     const String * spotgroup;
     const String * read1;
@@ -122,14 +128,22 @@ typedef struct flex_printer_data_t {
     const String * quality;
 } flex_printer_data_t;
 
-/* if qual-defline is NULL --> FASTA, else FASTQ */
+/*
+    if qual-defline is NULL --> FASTA, else FASTQ
+    if registry is NULL --> do not create printers per dst_id, print to common file!
+    if output_base is NULL --> print to stdout
+    if registry is not NULL, there also has to be a none NULL output_base
+    if seq_defile/qual_defline is NULL -> use internal default defline
+    has_name is only used to pick the right default-defline(s)
+*/
 struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
                         struct temp_registry_t * registry,
                         const char * output_base,
                         size_t file_buffer_size,
                         const char * accession_short,
                         const char * seq_defline,
-                        const char * qual_defline );
+                        const char * qual_defline,
+                        flex_printer_name_mode_t name_mode );
 
 void release_flex_printer( struct flex_printer_t * self );
 

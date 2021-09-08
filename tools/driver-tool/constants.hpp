@@ -204,8 +204,8 @@ struct env_var {
         return value;
     }
 
-    static void preferNoQual() {
-        set(QUALITY_PREFERENCE, ENV_VAL_NO_QUAL_PREFERRED);
+    static void preferNoQual(const char * v) {
+        set(QUALITY_PREFERENCE, v);
     }
     
     /// @brief convert id to string

@@ -141,9 +141,11 @@ static const char* USAGE_PRX[]
     = { "Set HTTP proxy server configuration.", NULL };
 
 #define ALIAS_QUAL   "Q"
-#define OPTION_QUAL  "no-quality"
-static const char* USAGE_QUAL[]
-    = { "Prefer no quality scores (-BQS) if available. Default: no.", NULL };
+#define OPTION_QUAL  "quality-scores"
+static const char* USAGE_QUAL[] = {
+    "yes: prefer full quality scores (+BQS) if available. "
+    "no: prefer no quality scores(-BQS) if available. "
+    "Default: yes.", NULL };
 
 #define ALIAS_ROOT   NULL
 #define OPTION_ROOT  "root"
@@ -705,7 +707,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                         "Failure to get '" OPTION_QUAL "' argument");
                     break;
                 }
-                if (strncasecmp(dummy, "y", 1) == 0)
+                if (strncasecmp(dummy, "n", 1) == 0)
                     prm->preferNoQuality = eTrue;
                 else
                     prm->preferNoQuality = eFalse;

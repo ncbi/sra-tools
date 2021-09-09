@@ -47,6 +47,8 @@ add_subdirectory( shared )
 add_subdirectory( ngs )
 add_subdirectory( tools )
 
+add_subdirectory( test )
+
 set ( CPACK_PACKAGE_NAME sra-tools )
 set ( CPACK_PACKAGE_VERSION 0.1 )
 set ( CPACK_PACKAGE_CONTACT "sra-tools@ncbi.nlm.nih.gov" )

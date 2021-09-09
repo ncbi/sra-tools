@@ -146,6 +146,10 @@ message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" 
 # include directories for C/C++ compilation
 #
 
+if( NOT VDB_SRCDIR )
+    set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+endif()
+
 include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces ) # TODO: introduce a variable pointing to interfaces
 
 #include_directories(interfaces/os)

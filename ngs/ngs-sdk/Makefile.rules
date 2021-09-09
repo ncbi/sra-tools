@@ -27,7 +27,7 @@ export TOP
 
 subdirs: $(SUBDIRS)
 
-$(SUBDIRS): Makefile.config
+$(SUBDIRS): $(TOP)/build/Makefile.config
 	@ $(MAKE) -C $@
 
 subtargs: $(SUBTARGS)
@@ -36,38 +36,38 @@ subtargs: $(SUBTARGS)
 SUBDIRS_CLN = \
 	$(addsuffix _cln,$(SUBDIRS) test)
 
-$(SUBDIRS_CLN): Makefile.config
+$(SUBDIRS_CLN): $(TOP)/build/Makefile.config
 	@ $(MAKE) -s -C $(subst _cln,,$@) clean
 
 SUBTARGS_CLN = \
 	$(addsuffix _cln,$(SUBTARGS) test)
 
-clean: Makefile.config $(SUBTARGS_CLN)
+clean: $(TOP)/build/Makefile.config $(SUBTARGS_CLN)
 
 # rules for "make install"
 SUBDIRS_INST = \
 	$(addsuffix _inst,$(SUBDIRS))
 
-$(SUBDIRS_INST): Makefile.config
+$(SUBDIRS_INST): $(TOP)/build/Makefile.config
 	@ echo "Checking make status of ngs-sdk/$(subst _inst,,$@)..."
 	@ $(MAKE) -s --no-print-directory -C $(subst _inst,,$@)
 
 SUBTARGS_INST = \
 	$(addsuffix _inst,$(SUBTARGS))
 
-install: Makefile.config $(SUBTARGS_INST)
+install: $(TOP)/build/Makefile.config $(SUBTARGS_INST)
 
-uninstall: Makefile.config
+uninstall: $(TOP)/build/Makefile.config
 	@ $(MAKE) -s --no-print-directory -f Makefile.install $@
 
 # rule to run tests
-test runtests: Makefile.config default
+test runtests: $(TOP)/build/Makefile.config default
 	@ $(MAKE) -C test runtests
 
 # rule to run configuration
-Makefile.config: Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl) setup/konfigure.perl
+$(TOP)/build/Makefile.config: $(TOP)/build/Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl) setup/konfigure.perl
 
-Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl):
+$(TOP)/build/Makefile.config.$(shell perl $(TOP)/setup/os-arch.perl):
 	@echo "*** File '$@' is missing. Please run ./configure"
 	@false
 

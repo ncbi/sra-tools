@@ -29,6 +29,7 @@ default: std
 TOP ?= $(abspath ../..)
 MODPATH =
 MODULE = ngs/ngs-java
+JAVAC ?= javac
 include $(TOP)/build/Makefile.env
 #include $(TOP)/build/Makefile.config
 

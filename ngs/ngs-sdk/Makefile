@@ -41,13 +41,13 @@ SUBTARGS =     \
 
 include $(CURDIR)/Makefile.rules
 
-sdk-libs: $(SUBDIRS) Makefile.config
+sdk-libs: $(SUBDIRS) $(TOP)/build/Makefile.config
 	@ $(MAKE) -f Makefile.libs
 
-sdk-libs_cln: Makefile.config
+sdk-libs_cln: $(TOP)/build/Makefile.config
 	@ $(MAKE) -f Makefile.libs clean
 
-sdk-libs_inst: Makefile.config 
+sdk-libs_inst: $(TOP)/build/Makefile.config
 	@ echo "Checking make status of object libraries..."
 	@ $(MAKE) -s --no-print-directory sdk-libs
 	@ $(MAKE) -s --no-print-directory -f Makefile.install install

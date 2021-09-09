@@ -1,5 +1,3 @@
-set( TARGET_NAME libngs )
-
 set( SRC
 	NCBI-NGS
 	CSRA1_PileupEvent
@@ -39,7 +37,8 @@ set( SRC
 	VByteBlob
 )
 
-add_library( ${TARGET_NAME} ${SRC} )
-target_include_directories( ${TARGET_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/vdb ) # libs/vdb is not needed, #include in the cpp source file goes to ../
+include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/vdb ) # libs/vdb is not needed, #include in the cpp source file goes to ../
+
+GenerateStaticLibs( ngs "${SRC}" )
 
 add_compile_definitions (__mod__="ngs/ncbi/ngs")

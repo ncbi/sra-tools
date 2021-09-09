@@ -50,6 +50,9 @@ struct Caps;
 #define FILE_ENTRY( __file_name__ ) /* already defined */
 #endif
 
+#ifndef __file__
+    #define __file__ __FILE__
+#endif
 
 /*--------------------------------------------------------------------------
  * ctx_info_t

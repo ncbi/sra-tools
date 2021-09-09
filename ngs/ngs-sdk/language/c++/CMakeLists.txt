@@ -1,5 +1,3 @@
-set( TARGET_NAME ngs-bind-c++ )
-
 set( SRC
 	ReadCollection
 	ReferenceSequence
@@ -21,4 +19,4 @@ set( SRC
 	StringRef
 )
 
-add_library( ${TARGET_NAME} ${SRC} )
+GenerateStaticLibs( ngs-bind-c++ "${SRC}" )

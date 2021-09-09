@@ -40,10 +40,12 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
     "${CMAKE_CURRENT_SOURCE_DIR}/build"
 )
+
 include( build/env.cmake NO_POLICY_SCOPE )
 
+add_subdirectory( shared )
 add_subdirectory( ngs )
-#add_subdirectory( tools )
+add_subdirectory( tools )
 
 set ( CPACK_PACKAGE_NAME sra-tools )
 set ( CPACK_PACKAGE_VERSION 0.1 )

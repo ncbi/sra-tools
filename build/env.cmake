@@ -146,7 +146,8 @@ message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" 
 # include directories for C/C++ compilation
 #
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces )
+include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces ) # TODO: introduce a variable pointing to interfaces
+
 #include_directories(interfaces/os)
 #include_directories(interfaces/ext)
 
@@ -171,6 +172,7 @@ elseif( "windows" STREQUAL ${OS} )
     include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/os/win)
 endif()
 
+# TODO: should not be needed
 if( NGS_INCDIR )
     include_directories( ${NGS_INCDIR} )
 else ()
@@ -178,6 +180,21 @@ else ()
     #TODO: if not found, checkout and build
 endif ()
 
+# TODO: properly initialize those directories somewhere on the top level
+if( VDB_LIBDIR )
+	message( "VDB_LIBDIR: ${VDB_LIBDIR}" )
+	set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
+	set( NCBI_VDB_ILIBDIR ${VDB_LIBDIR}/../ilib )
+else()
+	set( NCBI_VDB_LIBDIR "~/ncbi-outdir/ncbi-vdb/linux/gcc/x86_64/dbg/lib" )
+	set( NCBI_VDB_ILIBDIR "~/ncbi-outdir/ncbi-vdb/linux/gcc/x86_64/dbg/ilib" )
+endif()
+# set( NGS_LIBDIR "~/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/lib" )
+# set( NGS_ILIBDIR "~/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/ilib" )
+link_directories( ${NCBI_VDB_LIBDIR} )
+link_directories( ${NCBI_VDB_ILIBDIR} )
+# link_directories( ${NGS_LIBDIR} )
+# link_directories( ${NGS_ILIBDIR} )
 
 #/////////////////////// Cache variables, may be overridden at config time:
 
@@ -470,4 +487,144 @@ endif ()
 # endfunction(links_and_install)
 
 enable_testing()
+
+function(SetAndCreate var path )
+    if( NOT DEFINED ${var} )
+        set( ${var} ${path} PARENT_SCOPE )
+    endif()
+    file(MAKE_DIRECTORY ${path} )
+endfunction()
+
+if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
+     ${CMAKE_GENERATOR} STREQUAL "Xcode" )
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/ilib )
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/ilib )
+    SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/lib )
+    SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/lib )
+    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/bin )
+    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/bin )
+
+    set( SINGLE_CONFIG false )
+else() # assume a single-config generator
+    SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
+    set( SINGLE_CONFIG true )
+endif()
+
+
+function( MSVS_StaticRuntime name )
+    if( WIN32 )
+        set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
+endfunction()
+
+function( MSVS_DLLRuntime name )
+    if( WIN32 )
+        set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    endif()
+endfunction()
+
+function( GenerateStaticLibsWithDefs target_name sources compile_defs )
+    add_library( ${target_name} STATIC ${sources} )
+    if( NOT "" STREQUAL "${compile_defs}" )
+        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
+    endif()
+    if( WIN32 )
+        MSVS_StaticRuntime( ${target_name} )
+        add_library( ${target_name}-md STATIC ${sources} )
+        if(NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( ${target_name}-md PRIVATE ${compile_defs} )
+        endif()
+        MSVS_DLLRuntime( ${target_name}-md )
+    endif()
+endfunction()
+
+function( GenerateStaticLibs target_name sources )
+   GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" )
+endfunction()
+
+function( ExportStatic name install )
+    # the output goes to .../lib
+    if( SINGLE_CONFIG )
+        # make the output name versioned, create all symlinks
+        set_target_properties( ${name} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} )
+        add_custom_command(TARGET ${name}
+            POST_BUILD
+            COMMAND rm -f lib${name}.a.${VERSION}
+            COMMAND mv lib${name}.a lib${name}.a.${VERSION}
+            COMMAND ln -f -s lib${name}.a.${VERSION} lib${name}.a.${MAJVERS}
+            COMMAND ln -f -s lib${name}.a.${MAJVERS} lib${name}.a
+            COMMAND ln -f -s lib${name}.a lib${name}-static.a
+            WORKING_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        )
+        if ( ${install} )
+            install( FILES  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${VERSION}
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${MAJVERS}
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}-static.a
+                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+            )
+         endif()
+    else()
+        set_target_properties( ${name} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
+        set_target_properties( ${name} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
+    endif()
+endfunction()
+
+
+#
+# create versioned names and symlinks for a shared library
+#
+function(MakeLinksShared target name install)
+    if( SINGLE_CONFIG )
+        add_custom_command(TARGET ${target}
+            POST_BUILD
+            COMMAND rm -f lib${name}.${SHLX}.${VERSION}
+            COMMAND mv lib${name}.${SHLX} lib${name}.${SHLX}.${VERSION}
+            COMMAND ln -f -s lib${name}.${SHLX}.${VERSION} lib${name}.${SHLX}.${MAJVERS}
+            COMMAND ln -f -s lib${name}.${SHLX}.${MAJVERS} lib${name}.${SHLX}
+            WORKING_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        )
+        if ( ${install} )
+            install( FILES  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${VERSION}
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${MAJVERS}
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
+                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+        )
+        endif()
+    endif()
+endfunction()
+
+#
+# for a static library target, create a public shared target with the same base name and contents
+#
+function(ExportShared lib install)
+    get_target_property( src ${lib} SOURCES )
+    add_library( ${lib}-shared SHARED ${src} )
+    MSVS_StaticRuntime( ${lib}-shared )
+    set_target_properties( ${lib}-shared PROPERTIES OUTPUT_NAME ${lib} )
+    MakeLinksShared( ${lib}-shared ${lib} ${install} )
+
+    if( WIN32 )
+        add_library( ${lib}-shared-md SHARED ${src} )
+        MSVS_DLLRuntime( ${lib}-shared-md )
+        set_target_properties( ${lib}-shared-md PROPERTIES OUTPUT_NAME ${lib}-md )
+    endif()
+endfunction()
+
+set( CMAKE_POSITION_INDEPENDENT_CODE True )
+
+message( "CMAKE_LIBRARY_OUTPUT_DIRECTORY: ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" )
+
+set( COMMON_LINK_LIBRARIES kapp tk-version )
+if( WIN32 )
+    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+    set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
+else()
+    # link_libraries( ${COMMON_LINK_LIBRARIES} )
+    # set( COMMON_LIBS_READ   ncbi-vdb  dl pthread )
+    # set( COMMON_LIBS_WRITE  ncbi-wvdb dl pthread )
+endif()
 

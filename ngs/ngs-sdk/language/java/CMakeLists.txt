@@ -1,7 +1,5 @@
 #add_compile_definitions( _ARCH_BITS=${BITS} )
 
-set( TARGET_NAME ngs-bind-java )
-
 set( SRC
 	jni_ReadCollectionItf
 	jni_ReferenceIteratorItf
@@ -25,5 +23,6 @@ set( SRC
 	jni_ErrorMsg
 )
 
-add_library( ${TARGET_NAME} ${SRC} )
-target_include_directories( ${TARGET_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-jni )
+include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-jni )
+
+GenerateStaticLibs( ngs-bind-java "${SRC}" )

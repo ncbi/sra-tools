@@ -1,5 +1,3 @@
-set( TARGET_NAME ngs-bind-python )
-
 set( SRC
 	py_AlignmentItf
 	py_AlignmentIteratorItf
@@ -23,5 +21,6 @@ set( SRC
 	py_StringItf
 )
 
-add_library( ${TARGET_NAME} ${SRC} )
-target_include_directories( ${TARGET_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-py )
+include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-py )
+
+GenerateStaticLibs( ngs-bind-python "${SRC}" )

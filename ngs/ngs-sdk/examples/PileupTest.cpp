@@ -24,7 +24,7 @@
 *
 */
 
-#include <ncbi-vdb/NGS.hpp>
+#include <ncbi/NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/Reference.hpp>

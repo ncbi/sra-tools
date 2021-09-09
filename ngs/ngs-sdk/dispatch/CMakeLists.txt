@@ -1,5 +1,3 @@
-set( TARGET_NAME ngs-disp )
-
 set( SRC
 	ReadCollectionItf
 	ReferenceItf
@@ -19,4 +17,4 @@ set( SRC
 	ErrorMsg
 )
 
-add_library( ${TARGET_NAME} ${SRC} )
+GenerateStaticLibs( ngs-disp "${SRC}" )

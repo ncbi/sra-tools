@@ -32,7 +32,7 @@
 
 #include <ngs/itf/ReadCollectionItf.h>
 #include <ngs/itf/ReferenceSequenceItf.h>
-#include "NCBI-NGS.h"
+#include <NCBI-NGS.h>
 #include "../klib/release-vers.h"
 
 namespace ncbi

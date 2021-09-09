@@ -238,6 +238,7 @@ $(CLSDIR)/ngs-java-ncbi: $(CLSDIR)/ngs-java-itf $(NCBI_SRC_PATH)
 	$(JAVAC) $(DBG) $(NCBI_SRC_PATH) -d $(CLSDIR) $(CLSPATH) $(SRCINC) && touch $@
 
 # rule to produce the jar
+JAR=jar cf
 $(LIBDIR)/ngs-java.jar: $(CLSDIR)/ngs-java-api $(CLSDIR)/ngs-java-itf $(CLSDIR)/ngs-java-ncbi
 	( cd $(CLSDIR); $(JAR) $@ `find . -name "*.class"`; chmod -x,o-w,g+w $@ ) || ( rm -f $@ && false )
 

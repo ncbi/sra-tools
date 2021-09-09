@@ -1,5 +1,3 @@
-set( TARGET_NAME ngs-adapt-c++ )
-
 set( SRC
 	ReadCollectionItf
 	PileupItf
@@ -17,4 +15,4 @@ set( SRC
 	ErrBlock
 )
 
-add_library( ${TARGET_NAME} ${SRC} )
+GenerateStaticLibs( ngs-adapt-c++ "${SRC}" )

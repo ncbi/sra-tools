@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_fastq_iter_
-#define _h_fastq_iter_
+#ifndef _h_copy_machine_
+#define _h_copy_machine_
 
 #ifdef __cplusplus
 extern "C" {

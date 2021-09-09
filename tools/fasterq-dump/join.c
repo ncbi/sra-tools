@@ -33,6 +33,7 @@
 #include "cleanup_task.h"
 #include "join_results.h"
 #include "progress_thread.h"
+#include "copy_machine.h"
 
 #include <klib/out.h>
 #include <kproc/thread.h>
@@ -1511,7 +1512,7 @@ typedef struct join_thread_data {
     bool cmp_read_present;
 
     const join_options_t * join_options;
-    
+    struct multi_writer_t * multi_writer;
 } join_thread_data_t;
 
 static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
@@ -1818,42 +1819,70 @@ static rc_t CC fast_align_thread_func( const KThread * self, void * data )
 {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
-    struct common_join_results_t * results = ( struct common_join_results_t * ) jtd -> registry;
     join_stats_t * stats = &( jtd -> stats );
     cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
                         jtd -> accession_short, jtd -> accession_path,
                         jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
-    const char * acc = jtd -> accession_short;
     struct align_iter_t * iter;
     uint64_t loop_nr = 0;
+    struct flex_printer_t * flex_printer = NULL;
+    flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
-    rc = make_align_iter( &cp, &iter ); /* fastq-iter.c */
-    if ( 0 != rc ) {
-        ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
-    } else {
-        align_rec_t rec; /* fastq_iter.h */
-        while ( 0 == rc && get_from_align_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
-            rc = get_quitting(); /* helper.c */
-            if ( 0 == rc ) {
-                if ( rec . read . len > 0 ) {
-                    stats -> reads_read += 1;
-                    rc = common_join_results_print( results, ">%s.%lu %lu length=%u\n%S\n",
-                        acc, rec . spot_id, rec . spot_id, rec . read . len, &( rec . read ) );
-                    if ( 0 == rc ) { stats -> reads_written++; }
-                } else { 
-                    stats -> reads_zero_length++;
-                }
-
+    flex_printer = make_flex_printer( jtd -> dir,                   /* unused if multi_writer is set */
+                                      NULL,                         /* registry is NULL, that means create common file */
+                                      NULL,                         /* output-base ( not used if multi_writer is set ) */
+                                      jtd -> multi_writer,          /* passed in multi-writer */
+                                      jtd -> buf_size,              /* buffer-size ( unused if multi-writer is set ) */
+                                      jtd -> accession_short,       /* the accession to be printed */
+                                      NULL,                         /* seq-defline is NULL, use default */
+                                      NULL,                         /* qual-defline is NULL, use defautl */
+                                      name_mode ); /* join_results.c */
+    if ( NULL == flex_printer ) {
+        return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+    }
+    else {
+        rc = make_align_iter( &cp, &iter ); /* fastq-iter.c */
+        if ( 0 != rc ) {
+            ErrMsg( "fast_align_thread_func().make_align_iter() -> %R", rc );
+        } else {
+            align_rec_t rec; /* fastq_iter.h */
+            while ( 0 == rc && get_from_align_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+                rc = get_quitting(); /* helper.c */
                 if ( 0 == rc ) {
-                    loop_nr ++;
-                    bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
-                } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
-                    set_quitting(); /* helper.c */
+                    if ( rec . read . len > 0 ) {
+                        flex_printer_data_t data;
+                        stats -> reads_read += 1;
+
+                        /* fill out the data-record for the flex-printer */
+                        data . row_id = rec . spot_id;
+                        data . read_id = 0;         /* not picked up by format in this case*/
+                        data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
+
+                        data . spotname = NULL;     /* we do not have the spot-name in the align-table*/
+                        data . spotgroup = NULL;
+                        data . read1 = &( rec . read );
+                        data . read2 = NULL;
+                        data . quality = NULL;
+
+                        /* finally print it out */
+                        rc = join_result_flex_print( flex_printer, &data );
+                        if ( 0 == rc ) { stats -> reads_written++; }
+                    } else { 
+                        stats -> reads_zero_length++;
+                    }
+
+                    if ( 0 == rc ) {
+                        loop_nr ++;
+                        bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                    } else {
+                        ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+                        set_quitting(); /* helper.c */
+                    }
                 }
             }
+            destroy_align_iter( iter ); /* fastq-iter.c */
         }
-        destroy_align_iter( iter ); /* fastq-iter.c */
+        release_flex_printer( flex_printer );
     }
     return rc;
 }
@@ -1868,7 +1897,7 @@ static rc_t start_fast_join_align( KDirectory * dir,
                     const join_options_t * join_options,
                     uint64_t row_count,
                     struct bg_progress_t * progress,
-                    struct common_join_results_t * results,
+                    struct multi_writer_t * multi_writer,
                     struct filter_2na_t * filter,
                     Vector * threads ) {
     rc_t rc = 0;
@@ -1892,7 +1921,8 @@ static rc_t start_fast_join_align( KDirectory * dir,
             jtd -> cur_cache        = cur_cache;
             jtd -> buf_size         = buf_size;
             jtd -> progress         = progress;
-            jtd -> registry         = ( void * )results;    /* use the common-output here */
+            jtd -> registry         = NULL;    /* use the common-output here */
+            jtd -> multi_writer     = multi_writer;
             jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
             jtd -> join_options     = &corrected_join_options;
             jtd -> thread_id        = thread_id;
@@ -1920,64 +1950,91 @@ static rc_t start_fast_join_align( KDirectory * dir,
 static rc_t CC fast_seq_thread_func( const KThread * self, void * data ) {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
-    struct common_join_results_t * results = ( struct common_join_results_t * ) jtd -> registry;
     join_stats_t * stats = &( jtd -> stats );
     cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
                         jtd -> accession_short, jtd -> accession_path,
                         jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
-    const char * acc = jtd -> accession_short;
     struct fastq_csra_iter_t * iter;
     uint64_t loop_nr = 0;
     fastq_iter_opt_t opt;
+    struct flex_printer_t * flex_printer = NULL;
+    flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
+
     opt . with_read_len = true;
     opt . with_name = false;
     opt . with_read_type = true;
     opt . with_cmp_read = jtd -> cmp_read_present;
     opt . with_quality = false;
 
-    rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq-iter.c */
-    if ( 0 != rc ) {
-        ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
-    } else {
-        fastq_rec_t rec; /* fastq_iter.h */
-        while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
-            rc = get_quitting(); /* helper.c */
-            if ( 0 == rc ) {
-                uint32_t read_id_0 = 0;
-                uint32_t offset = 0;
-                stats -> spots_read++;
-                while ( 0 == rc && read_id_0 < rec . num_read_len ) {
-                    if ( rec . read_len[ read_id_0 ] > 0 ) {
-                        if ( 0 == rec . prim_alig_id[ read_id_0 ] ) {
-                            String R;
-
-                            stats -> reads_read += 1;
-
-                            R . addr = &rec . read . addr[ offset ];
-                            R . size = rec . read_len[ read_id_0 ];
-                            R . len  = ( uint32_t )R . size;
-
-                            rc = common_join_results_print( results, ">%s.%lu %lu length=%u\n%S\n",
-                                acc, rec . row_id, rec . row_id, R . len, &R );
-
-                            if ( 0 == rc ) { stats -> reads_written++; }
-                            offset += rec . read_len[ read_id_0 ];
-                        }
-                    }
-                    else { stats -> reads_zero_length++; }
-                    read_id_0++;
-                }
-
+    flex_printer = make_flex_printer( jtd -> dir,                   /* unused if multi_writer is set */
+                                      NULL,                         /* registry is NULL, that means create common file */
+                                      NULL,                         /* output-base ( not used if multi_writer is set ) */
+                                      jtd -> multi_writer,          /* passed in multi-writer */
+                                      jtd -> buf_size,              /* buffer-size ( unused if multi-writer is set ) */
+                                      jtd -> accession_short,       /* the accession to be printed */
+                                      NULL,                         /* seq-defline is NULL, use default */
+                                      NULL,                         /* qual-defline is NULL, use defautl */
+                                      name_mode ); /* join_results.c */
+    if ( NULL == flex_printer ) {
+        return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+    }
+    else {
+        rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq-iter.c */
+        if ( 0 != rc ) {
+            ErrMsg( "fast_seq_thread_func().make_fastq_csra_iter() -> %R", rc );
+        } else {
+            fastq_rec_t rec; /* fastq_iter.h */
+            while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
+                rc = get_quitting(); /* helper.c */
                 if ( 0 == rc ) {
-                    loop_nr ++;
-                    bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
-                } else {
-                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
-                    set_quitting(); /* helper.c */
+                    uint32_t read_id_0 = 0;
+                    uint32_t offset = 0;
+                    stats -> spots_read++;
+                    while ( 0 == rc && read_id_0 < rec . num_read_len ) {
+                        if ( rec . read_len[ read_id_0 ] > 0 ) {
+                            if ( 0 == rec . prim_alig_id[ read_id_0 ] ) {
+                                String R;
+                                flex_printer_data_t data;
+
+                                stats -> reads_read += 1;
+
+                                R . addr = &rec . read . addr[ offset ];
+                                R . size = rec . read_len[ read_id_0 ];
+                                R . len  = ( uint32_t )R . size;
+
+                                /* fill out the data-record for the flex-printer */
+                                data . row_id = rec . row_id;
+                                data . read_id = read_id_0 + 1;
+                                data . dst_id = 0;  /* not used, because registry=NULL - output to common final file */
+
+                                data . spotname = NULL;     /* no spot-name ( yet )*/
+                                data . spotgroup = NULL;
+                                data . read1 = &R;
+                                data . read2 = NULL;
+                                data . quality = NULL;
+
+                                /* finally print it out */
+                                rc = join_result_flex_print( flex_printer, &data );
+                                if ( 0 == rc ) { stats -> reads_written++; }
+                                offset += rec . read_len[ read_id_0 ];
+                            }
+                        }
+                        else { stats -> reads_zero_length++; }
+                        read_id_0++;
+                    }
+
+                    if ( 0 == rc ) {
+                        loop_nr ++;
+                        bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */
+                    } else {
+                        ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", jtd -> thread_id, loop_nr, rec . row_id );
+                        set_quitting(); /* helper.c */
+                    }
                 }
             }
+            destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
         }
-        destroy_fastq_csra_iter( iter ); /* fastq-iter.c */
+        release_flex_printer( flex_printer );
     }
     return rc;
 }
@@ -1993,7 +2050,7 @@ static rc_t start_fast_join_seq( KDirectory * dir,
                     uint64_t seq_row_count,
                     bool cmp_read_column_present,
                     struct bg_progress_t * progress,
-                    struct common_join_results_t * results,
+                    struct multi_writer_t * multi_writer,
                     struct filter_2na_t * filter,
                     Vector * threads ) {
     rc_t rc = 0;
@@ -2017,7 +2074,8 @@ static rc_t start_fast_join_seq( KDirectory * dir,
             jtd -> cur_cache        = cur_cache;
             jtd -> buf_size         = buf_size;
             jtd -> progress         = progress;
-            jtd -> registry         = ( void * )results;    /* use the common-output here */
+            jtd -> registry         = NULL;    /* use the common-output here */
+            jtd -> multi_writer     = multi_writer;
             jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
             jtd -> join_options     = &corrected_join_options;
             jtd -> thread_id        = thread_id;
@@ -2076,22 +2134,16 @@ rc_t execute_fast_join( KDirectory * dir,
         }
 
         if ( 0 == rc && seq_row_count > 0 ) {
-            struct bg_progress_t * progress = NULL;
-            struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */
-            struct common_join_results_t * results = NULL;
+            struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 200 );
+            if ( NULL != multi_writer ) {
+                struct bg_progress_t * progress = NULL;
+                struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */
 
-            /* we need the row-count for that... ( that is why we first detected the row-count ) */
-            if ( show_progress ) {
-                rc = bg_progress_make( &progress, seq_row_count + align_row_count, 0, 0 ); /* progress_thread.c */
-            }
+                /* we need the row-count for that... ( that is why we first detected the row-count ) */
+                if ( show_progress ) {
+                    rc = bg_progress_make( &progress, seq_row_count + align_row_count, 0, 0 ); /* progress_thread.c */
+                }
 
-            rc = make_common_join_results( dir,
-                                    &results,
-                                    buf_size,
-                                    4096,
-                                    output_filename,
-                                    force ); /* join_results.c */
-            if ( 0 == rc ) {
                 /* we now have:
                     - row-count for SEQ- and ALIGN table
                     - know if the CMP_READ-column exists in the SEQ-table
@@ -2102,19 +2154,19 @@ rc_t execute_fast_join( KDirectory * dir,
                 VectorInit( &seq_threads, 0, num_threads );
 
                 rc = start_fast_join_seq( dir,
-                                          vdb_mgr,
-                                          accession_short,
-                                          accession_path,
-                                          cur_cache,
-                                          buf_size,
-                                          num_threads,
-                                          join_options,
-                                          seq_row_count,
-                                          cmp_read_column_present,
-                                          progress,
-                                          results,
-                                          filter,
-                                          &seq_threads );
+                                        vdb_mgr,
+                                        accession_short,
+                                        accession_path,
+                                        cur_cache,
+                                        buf_size,
+                                        num_threads,
+                                        join_options,
+                                        seq_row_count,
+                                        cmp_read_column_present,
+                                        progress,
+                                        multi_writer,
+                                        filter,
+                                        &seq_threads );
                 if ( 0 == rc ) {
                     Vector align_threads;
                     VectorInit( &align_threads, 0, num_threads );
@@ -2129,7 +2181,7 @@ rc_t execute_fast_join( KDirectory * dir,
                                         join_options,
                                         align_row_count,
                                         progress,
-                                        results,
+                                        multi_writer,
                                         filter,
                                         &align_threads );
                     if ( 0 == rc ) {
@@ -2139,12 +2191,13 @@ rc_t execute_fast_join( KDirectory * dir,
                         rc = join_threads_collect_stats( &seq_threads, stats ); /* above */
                     }
                 }
-                destroy_common_join_results( results );
-            }
 
-            release_2na_filter( filter ); /* join_results.c */
-            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
-        }
+                release_2na_filter( filter ); /* join_results.c */
+                bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
+                release_multi_writer( multi_writer ); /* ( ignores NULL ) */ 
+
+            } /* if ( NULL != multi-writer )*/
+        } /*  if ( 0 == rc ) && seq_req_count > 0 ) */
     }
     return rc;
 }

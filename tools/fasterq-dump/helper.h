@@ -258,6 +258,10 @@ void set_quitting( void );
 uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
 void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
 
+/* ===================================================================================== */
+
+rc_t release_file( struct KFile * f, const char * err_msg );
+rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
 
 /* ===================================================================================== */
 
@@ -296,15 +300,18 @@ void release_var_fmt( struct var_fmt_t * self );
 size_t var_fmt_buffer_size( const struct var_fmt_t * self,
                     const String ** str_args, size_t str_args_len );
 
+/* print to buffer */
 SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
                     const String ** str_args, size_t str_args_len,
                     const uint64_t * int_args, size_t int_args_len );
 
-rc_t var_fmt_print( struct var_fmt_t * self,
+/* print to stdout */
+rc_t var_fmt_to_stdout( struct var_fmt_t * self,
                     const String ** str_args, size_t str_args_len,
                     const uint64_t * int_args, size_t int_args_len );
 
-rc_t var_fmt_write( struct var_fmt_t * self,
+/* print to file */
+rc_t var_fmt_to_file( struct var_fmt_t * self,
                     KFile * f,
                     uint64_t * pos,
                     const String ** str_args, size_t str_args_len,

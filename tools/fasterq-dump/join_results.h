@@ -46,6 +46,10 @@ extern "C" {
 #include "temp_registry.h"
 #endif
 
+#ifndef _h_copy_machine_
+#include "copy_machine.h"
+#endif
+
 struct join_results_t;
 
 void destroy_join_results( struct join_results_t * self );
@@ -139,6 +143,7 @@ typedef struct flex_printer_data_t {
 struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
                         struct temp_registry_t * registry,
                         const char * output_base,
+                        struct multi_writer_t * multi_writer,           /* if used: dir,registry,output_base,buffer_size are unused */
                         size_t file_buffer_size,
                         const char * accession_short,
                         const char * seq_defline,

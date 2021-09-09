@@ -1450,6 +1450,28 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
     dst -> terminate_on_invalid = src -> terminate_on_invalid;
 }
 
+/* ===================================================================================== */
+
+rc_t release_file( struct KFile * f, const char * err_msg ) {
+    rc_t rc = KFileRelease( f );
+    if ( 0 != rc ) {
+        ErrMsg( "%s release_file() -> %R", err_msg, rc );
+    }
+    return rc;
+}
+
+rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg ) {
+    struct KFile * temp_file = *f;
+    rc_t rc = KBufFileMakeWrite( &temp_file, *f, false, buffer_size );
+    if ( 0 != rc ) {
+        ErrMsg( "%s KBufFileMakeWrite() -> %R", err_msg, rc );
+    } else {
+        rc = release_file( *f, err_msg );
+        if ( 0 == rc ) { *f = temp_file; }
+    }
+    return rc;
+}
+
 /* ============================================================================================================= */
 typedef enum var_fmt_type_t { vft_literal, vft_str, vft_int } var_fmt_type_t;
 /* ============================================================================================================= */
@@ -1914,7 +1936,7 @@ SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
 }
 
 /* apply the var-fmt-struct to the given arguments, print the result to stdout */
-rc_t var_fmt_print( struct var_fmt_t * self,
+rc_t var_fmt_to_stdout( struct var_fmt_t * self,
                     const String ** str_args, size_t str_args_len,
                     const uint64_t * int_args, size_t int_args_len ) {
     rc_t rc;
@@ -1928,21 +1950,25 @@ rc_t var_fmt_print( struct var_fmt_t * self,
 }
 
 /* apply the var-fmt-struct to the given arguments, print the result to file */
-rc_t var_fmt_write( struct var_fmt_t * self,
+rc_t var_fmt_to_file( struct var_fmt_t * self,
                     KFile * f,
                     uint64_t * pos,
                     const String ** str_args, size_t str_args_len,
                     const uint64_t * int_args, size_t int_args_len ) {
     rc_t rc;
-    SBuffer_t * t = var_fmt_to_buffer( self, str_args, str_args_len, int_args, int_args_len );
-    if ( NULL != t ) {
-        size_t num_writ;
-        rc = KFileWrite( f, *pos, t -> S . addr, t -> S . len, &num_writ );
-        if ( 0 == rc ) {
-            *pos += num_writ;
-        }
-    } else {
+    if ( NULL == self || NULL == f || NULL == pos ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+    } else {
+        SBuffer_t * t = var_fmt_to_buffer( self, str_args, str_args_len, int_args, int_args_len );
+        if ( NULL != t ) {
+            size_t num_writ;
+            rc = KFileWrite( f, *pos, t -> S . addr, t -> S . len, &num_writ );
+            if ( 0 == rc ) {
+                *pos += num_writ;
+            }
+        } else {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        }
     }
     return rc;
 }
@@ -1989,7 +2015,7 @@ void var_fmt_test( void ) {
         {
             var_fmt_t * cloned = var_fmt_clone( fmt );
             var_fmt_append_str( cloned, " and this!\n", NULL );
-            var_fmt_print( cloned, strings, 2, ints, 2 );
+            var_fmt_to_stdout( cloned, strings, 2, ints, 2 );
         }
     }
     release_var_fmt( fmt );

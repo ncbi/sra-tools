@@ -54,32 +54,12 @@ static void set_join_printer_args( join_printer_args_t * self,
     self -> buffer_size = buffer_size;
 }
 
-static rc_t release_file( struct KFile * f ) {
-    rc_t rc = KFileRelease( f );
-    if ( 0 != rc ) {
-        ErrMsg( "release_file().KFileRelease() -> %R", rc );
-    }
-    return rc;
-}
-
 static void CC destroy_join_printer( void * item, void * data ) {
     if ( NULL != item ) {
         join_printer_t * p = item;
-        if ( NULL != p -> f ) { release_file( p -> f ); }
+        if ( NULL != p -> f ) { release_file( p -> f, "join_results.c destroy_join_printer()" ); }
         free( item );
     }
-}
-
-static rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size ) {
-    struct KFile * temp_file = *f;
-    rc_t rc = KBufFileMakeWrite( &temp_file, *f, false, buffer_size );
-    if ( 0 != rc ) {
-        ErrMsg( "wrap_file_in_buffer().KBufFileMakeWrite() -> %R", rc );
-    } else {
-        rc = release_file( *f );
-        if ( 0 == rc ) { *f = temp_file; }
-    }
-    return rc;
 }
 
 static join_printer_t * make_join_printer_from_filename( KDirectory * dir, const char * filename, size_t buffer_size ) {
@@ -91,8 +71,8 @@ static join_printer_t * make_join_printer_from_filename( KDirectory * dir, const
             ErrMsg( "make_join_printer_from_filename().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
         } else {
             if ( buffer_size > 0 ) {
-                rc = wrap_file_in_buffer( &f, buffer_size );
-                if ( 0 != rc ) { release_file( f ); }
+                rc = wrap_file_in_buffer( &f, buffer_size, "join_results.c make_join_printer_from_filename()" );
+                if ( 0 != rc ) { release_file( f, "join_results.c make_join_printer_from_filename()" ); }
             }
             res -> f = f;
         }
@@ -975,7 +955,7 @@ typedef struct flex_printer_t {
     const String * string_data[ 8 ];        /* vector of strings, idx has to match var_desc_list */
     uint64_t int_data[ 4 ];                 /* vector of ints, idx has to match var_desc_list */
     Vector printers;                        /* container for printers, one for each read-id ( used if registry is not NULL ) */
-    join_printer_t * common_printer;        /* common printer ( used if registry is NULL ) */
+    struct multi_writer_t * multi_writer;   /* from copy-machine, multi-threaded common-file writer */
 } flex_printer_t;
 
 typedef enum string_data_index_t { sdi_acc = 0, sdi_sn = 1, sdi_sg = 2, sdi_rd1 = 3, sdi_rd2 = 4, sdi_qa = 5 } string_data_index_t;
@@ -987,7 +967,6 @@ void release_flex_printer( struct flex_printer_t * self ) {
              NULL != self -> join_printer_args . output_base ) {
             VectorWhack ( &self -> printers, destroy_join_printer, NULL );
         }
-        if ( NULL != self -> common_printer ) { destroy_join_printer( self -> common_printer, NULL ); }
         if ( NULL != self -> string_data[ sdi_acc ] ) StringWhack( self -> string_data[ 0 ] );
         if ( NULL != self -> fmt_v1 ) { release_var_fmt( self -> fmt_v1 ); }
         if ( NULL != self -> fmt_v2 ) { release_var_fmt( self -> fmt_v2 ); }
@@ -1111,29 +1090,29 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
 struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
                         struct temp_registry_t * registry,
                         const char * output_base,
+                        struct multi_writer_t * multi_writer,
                         size_t file_buffer_size,
                         const char * accession_short,
                         const char * seq_defline,
                         const char * qual_defline,
                         flex_printer_name_mode_t name_mode ) {
-    if ( NULL != registry && NULL == output_base ) {
+    if ( NULL != registry && NULL == output_base && NULL == multi_writer ) {
         return NULL;
     }
     flex_printer_t * self = calloc( 1, sizeof * self );
     if ( NULL != self ) {
-        /* setup the join-printer-args to later on request, create printers for specific read-ids */
+        /* setup the join-printer-args to later on request, create printers for specific read-ids
+           only used if multi_writer is NULL */
         set_join_printer_args( &( self -> join_printer_args ), dir, registry, output_base, file_buffer_size );
 
         /* pre-set the accession-variable in the string-data, this one does not change during the
            lifetime of the flex-printer */
         self -> string_data[ sdi_acc ] = make_string_copy( accession_short );
+        self -> multi_writer = multi_writer; /* may be NULL */
 
         if ( NULL != registry && NULL != output_base ) {
             /* initialize the printer-list, in case we need it ( registry and output_base both not NULL ) */
             VectorInit ( &( self -> printers ), 0, 4 );
-        } else {
-            /* otherwise create a single printer, for the verbatim output_base */
-            self -> common_printer = make_join_printer_from_filename( dir, output_base, file_buffer_size );
         }
 
         /* construct the 2 flex-formats ( one with 1xREAD/1xQUAL, one with 2xREAD/2xQUAL ) */
@@ -1182,6 +1161,24 @@ static uint64_t calc_read_length( const flex_printer_data_t * data ) {
     return res;
 }
 
+static struct var_fmt_t * flex_printer_prepare_data( struct flex_printer_t * self, const flex_printer_data_t * data ) {
+    /* pick the right format, depending if data-read2 is NULL or not */
+    struct var_fmt_t * fmt = ( NULL == data -> read2 ) ? self -> fmt_v1 : self -> fmt_v2;
+
+    /* prepare string-data, common between FASTA and FASTQ ( accession aka #0 is set by constructor ) */
+    self -> string_data[ sdi_sn ] = ( NULL != data -> spotname ) ? data -> spotname : NULL;
+    self -> string_data[ sdi_sg ] = ( NULL != data -> spotgroup ) ? data -> spotgroup : NULL;
+    self -> string_data[ sdi_rd1 ] = ( NULL != data -> read1 ) ? data -> read1 : NULL;
+    self -> string_data[ sdi_rd2 ] = ( NULL != data -> read1 ) ? data -> read1 : NULL;
+    self -> string_data[ sdi_qa ] = ( NULL != data -> quality ) ? data -> quality : NULL;
+    /* prepare int-data, common between FASTA and FASTQ */
+    self -> int_data[ idi_si ] = ( uint64_t )data -> row_id;
+    self -> int_data[ idi_ri ] = ( uint64_t )data -> read_id;
+    self -> int_data[ idi_rl ] = calc_read_length( data );
+
+    return fmt;
+}
+
 rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_data_t * data ) {
     rc_t rc = 0;
     if ( NULL == self || data == NULL ) {
@@ -1189,39 +1186,42 @@ rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_da
         ErrMsg( "join_results.c join_result_flex_print() -> %R", rc );
     } else {
         /* pick the right format, depending if data-read2 is NULL or not */
-        struct var_fmt_t * fmt = ( NULL == data -> read2 ) ? self -> fmt_v1 : self -> fmt_v2;
+        struct var_fmt_t * fmt = flex_printer_prepare_data( self, data );
 
-        /* prepare string-data, common between FASTA and FASTQ ( accession aka #0 is set by constructor ) */
-        self -> string_data[ sdi_sn ] = ( NULL != data -> spotname ) ? data -> spotname : NULL;
-        self -> string_data[ sdi_sg ] = ( NULL != data -> spotgroup ) ? data -> spotgroup : NULL;
-        self -> string_data[ sdi_rd1 ] = ( NULL != data -> read1 ) ? data -> read1 : NULL;
-        self -> string_data[ sdi_rd2 ] = ( NULL != data -> read1 ) ? data -> read1 : NULL;
-        self -> string_data[ sdi_qa ] = ( NULL != data -> quality ) ? data -> quality : NULL;
-        /* prepare int-data, common between FASTA and FASTQ */
-        self -> int_data[ idi_si ] = ( uint64_t )data -> row_id;
-        self -> int_data[ idi_ri ] = ( uint64_t )data -> read_id;
-        self -> int_data[ idi_rl ] = calc_read_length( data );
-
-        if ( NULL == self -> join_printer_args . output_base ) {
+        /* we have 3 output-options:
+            A ... stdout ( output-base, registry and multi_printer are all NULL )
+            B ... multi-printer ( multi_printer is not NULL )
+            C ... printer per read-id
+        */
+        if ( NULL == self -> join_printer_args . output_base &&
+             NULL == self -> join_printer_args . registry &&
+             NULL == self -> multi_writer ) {
             /* in case we have no output-base, print to stdout */
-            rc = var_fmt_print( fmt,
+            rc = var_fmt_to_stdout( fmt,
                                 self -> string_data, sdi_qa + 1,
                                 self -> int_data, idi_rl + 1 );
 
-        } else {
-            join_printer_t * printer = self -> common_printer;
-            if ( NULL == printer ) {
-                printer = get_or_make_join_printer( &( self -> printers ), 
-                            data -> dst_id, &( self -> join_printer_args ) );
+        } else if ( NULL != self -> multi_writer ) {
+            SBuffer_t * t = var_fmt_to_buffer( fmt, 
+                                               self -> string_data, sdi_qa + 1,
+                                               self -> int_data, idi_rl + 1 );
+            if ( NULL != t ) {
+                rc = multi_writer_write( self -> multi_writer, t -> S . addr, t -> S . len );
             }
+        } else if ( NULL != self -> join_printer_args . output_base &&
+                    NULL != self -> join_printer_args . registry ) {
+            join_printer_t * printer = get_or_make_join_printer( &( self -> printers ), 
+                            data -> dst_id, &( self -> join_printer_args ) );
             if ( NULL != printer ) {
-                rc = var_fmt_write( fmt,
+                rc = var_fmt_to_file( fmt,
                                     printer -> f, &( printer -> file_pos ),
                                     self -> string_data, sdi_qa + 1,
                                     self -> int_data, idi_rl + 1 );
             } else {
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             }
+        } else {
+             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         }
     }
     return rc;

@@ -29,6 +29,8 @@
 
 #include <kfs/buffile.h>
 #include <klib/time.h>
+#include <klib/time.h>
+#include <klib/out.h>
 
 #include <kproc/thread.h>
 #include <kproc/queue.h>
@@ -367,6 +369,7 @@ static multi_writer_block_t * create_multi_writer_block( size_t size ) {
         res -> data = calloc( 1, size );
         if ( NULL != res -> data ) {
             res -> available = size;
+            res -> len = 0;
         }
         else {
             free( ( void * ) res );
@@ -386,13 +389,14 @@ static void release_multi_writer_block( multi_writer_block_t * self ) {
 static bool multi_writer_block_write( multi_writer_block_t * self, const char * data, size_t size ) {
     bool res = false;
     if ( NULL != self && NULL != data && size > 0 ) {
-        res = ( size >= self -> available );
-        if ( !res ) {
+        if ( size > self -> available ) {
             /* we have to make the block bigger */
             free( ( void * )( self -> data ) );
             self -> data = calloc( 1, size );
             res = ( NULL != self -> data );
             if ( res ) { self -> available = size; }
+        } else {
+            res = true;
         }
         if ( res ) {
             memmove( ( void * )self -> data, data, size );
@@ -402,19 +406,37 @@ static bool multi_writer_block_write( multi_writer_block_t * self, const char * 
     return res;
 }
 
-static rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size ) {
-    struct KFile * temp_file = *f;
-    rc_t rc = KBufFileMakeWrite( &temp_file, *f, false, buffer_size );
-    if ( 0 != rc ) {
-        ErrMsg( "wrap_file_in_buffer().KBufFileMakeWrite() -> %R", rc );
-    } else {
-        rc = KFileRelease( *f );
-        if ( 0 == rc ) { *f = temp_file; }
+static rc_t multi_writer_push( KQueue * q, const void * item, uint32_t wait_time ) {
+    rc_t rc;
+    bool running = true;
+    while ( running ) {
+        struct timeout_t tm;
+        rc = TimeoutInit ( &tm, wait_time );
+        if ( 0 != rc ) {
+            ErrMsg( "copy_machine.c multi_writer_push().TimeoutInit( %u ) -> %R", wait_time, rc );
+            running = false;
+        } else {
+            rc = KQueuePush ( q, item, &tm );
+            if ( 0 == rc ) {
+                running = false;
+            } else {
+                bool timed_out = ( rcExhausted != GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) );
+                if ( timed_out ) {
+                    rc_t rc2 = KSleepMs( wait_time );
+                    if ( 0 != rc2 ) {
+                        ErrMsg( "copy_machine.c multi_writer_push().KSleepMs() -> %R", rc2 );
+                    }
+                } else {
+                    ErrMsg( "copy_machine.c multi_writer_push().KQueuePush() -> %R", rc );
+                    running = false;
+                }
+            }
+        }
     }
     return rc;
 }
 
-#define N_MULTI_WRITER_BLOCKS 16
+#define N_MULTI_WRITER_BLOCKS 64
 #define MULTI_WRITER_BLOCK_SIZE 4096
 
 typedef struct multi_writer_t {
@@ -427,50 +449,65 @@ typedef struct multi_writer_t {
 } multi_writer_t;
 
 static rc_t get_block( KQueue * q, uint32_t timeout, multi_writer_block_t ** block ) {
-    struct timeout_t tm;
-    rc_t rc = TimeoutInit ( &tm, timeout );
+    rc_t rc = 0;
+    bool running = true;
     *block = NULL;
-    if ( 0 != rc ) {
-        ErrMsg( "copy_machine.c get_block().TimeoutInit( %lu ms ) -> %R", timeout, rc );
-    } else {
-        rc = KQueuePop ( q, ( void ** )block, &tm );
-        if ( 0 == rc ) {
-        }
-        else if ( rcDone == GetRCState( rc ) && ( enum RCObject )rcData == GetRCObject( rc ) ) {
-            /* the q has been sealed, this can only happen if the writer is in trouble! */
-            rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
-            ErrMsg( "get-block() called on a sealed queue" );
-        } else if ( rcExhausted == GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) ) {
-            /* the queue is still empty after the timeout has elapsed */
-            rc = 0;
-        }
-        else {
-            /* something else is wrong with the empty-q */
-            ErrMsg( "copy_machine.c get_block, KQueuePop() -> %R", rc );
+    while ( 0 == rc && running ) {
+        struct timeout_t tm;
+        rc = TimeoutInit ( &tm, timeout );
+        if ( 0 != rc ) {
+            ErrMsg( "copy_machine.c get_block().TimeoutInit( %lu ms ) -> %R", timeout, rc );
+        } else {
+            rc = KQueuePop ( q, ( void ** )block, &tm );
+            if ( 0 == rc ) {
+                /* nothing to do, we got a block */
+                running = false;
+            }
+            else if ( rcDone == GetRCState( rc ) && ( enum RCObject )rcData == GetRCObject( rc ) ) {
+                /* the q has been sealed, this can only happen if the writer is in trouble! */
+                rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
+                ErrMsg( "get-block() called on a sealed queue" );
+            } else if ( rcExhausted == GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) ) {
+                /* the queue is still empty after the timeout has elapsed, try again */
+                rc = 0;
+            }
+            else {
+                /* something else is wrong with the empty-q */
+                ErrMsg( "copy_machine.c get_block, KQueuePop() -> %R", rc );
+            }
         }
     }
     return rc;
 }
 
-static rc_t empty_a_queue( KQueue * q ) {
+static rc_t empty_a_queue( KQueue * q, uint32_t timeout ) {
     rc_t rc = 0;
     bool done = false;
     while( 0 == rc && !done ) {
         /* as long as ther to_write_q is not sealed */
         multi_writer_block_t * block;
-        rc = KQueuePop ( q, ( void ** )&block, NULL );
-        if ( 0 == rc ) {
-            /* we can now release the data-block */
-            release_multi_writer_block( block );
+        struct timeout_t tm;
+        rc = TimeoutInit ( &tm, timeout );
+        if ( 0 != rc ) {
+            ErrMsg( "copy_machine.c get_block().TimeoutInit( %lu ms ) -> %R", timeout, rc );
+            done = true;
         } else {
-            if ( rcDone == GetRCState( rc ) && ( enum RCObject )rcData == GetRCObject( rc ) ) {
-                /* the q has been sealed, we are done! */
-                done = true;
-                rc = 0;
-            } else if ( rcExhausted == GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) ) {
-                /* the q is still active, but so far nothing in it */
-                done = true;
-                rc = 0;
+            rc = KQueuePop ( q, ( void ** )&block, &tm );
+            if ( 0 == rc ) {
+                /* we can now release the data-block */
+                release_multi_writer_block( block );
+            } else {
+                if ( rcDone == GetRCState( rc ) && ( enum RCObject )rcData == GetRCObject( rc ) ) {
+                    /* the q has been sealed, we are done! */
+                    done = true;
+                    rc = 0;
+                } else if ( rcExhausted == GetRCState( rc ) && ( enum RCObject )rcTimeout == GetRCObject( rc ) ) {
+                    /* the q is still active, but so far nothing in it */
+                    done = true;
+                    rc = 0;
+                } else {
+                    ErrMsg( "copy_machine.c empty_a_queue().KQueuePop() -> %R", rc );
+                }
             }
         }
     }
@@ -482,7 +519,6 @@ void release_multi_writer( struct multi_writer_t * self ) {
         rc_t rc;
         /* first we have to wait for the thread to finish */
         if ( NULL != self -> thread ) {
-            rc_t rc;
             if ( NULL != self -> write_q ) {
                 rc = KQueueSeal ( self -> write_q );
                 if ( 0 != rc ) {
@@ -494,7 +530,7 @@ void release_multi_writer( struct multi_writer_t * self ) {
 
         if ( NULL != self -> empty_q ) {
             /* before we can release this queue, we have to empty it... */
-            empty_a_queue( self -> empty_q );
+            empty_a_queue( self -> empty_q, self -> q_wait_time );
             rc = KQueueRelease ( self -> empty_q );
             if ( 0 != rc ) {
                 ErrMsg( "copy_machine.c release_multi_writer.KQueueRelease().1 -> %R", rc );
@@ -502,7 +538,7 @@ void release_multi_writer( struct multi_writer_t * self ) {
         }
         if ( NULL != self -> write_q ) {
             /* this queue should not have anything in it, because we waited before for the thread to finish... */
-            empty_a_queue( self -> write_q );
+            empty_a_queue( self -> write_q, self -> q_wait_time );
             rc = KQueueRelease ( self -> write_q );
             if ( 0 != rc ) {
                 ErrMsg( "copy_machine.c release_multi_writer.KQueueRelease().2 -> %R", rc );
@@ -516,7 +552,7 @@ void release_multi_writer( struct multi_writer_t * self ) {
 
 static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
     rc_t rc = 0;
-     multi_writer_t * self = data;
+    multi_writer_t * self = data;
     bool done = false;
     while( 0 == rc && !done ) {
         /* as long as the to_write_q is not sealed */
@@ -535,15 +571,14 @@ static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
                 if ( 0 == rc ) {
                     /* increment the write - position */
                     self -> pos += num_written;
-
                     /* put the block back into the empty-q */
-                    rc = push2q ( self -> empty_q, block, self -> q_wait_time ); /* above */
+                    rc = multi_writer_push ( self -> empty_q, block, self -> q_wait_time ); /* above */
                 } else {
                     /* something went wrong with writing the block into the dst-file !!!
                        possibly we are running out of space to write... */
 
                     /* put the block back into the empty-q */
-                    rc = push2q ( self -> empty_q, block, self -> q_wait_time ); /* above */
+                    rc = multi_writer_push ( self -> empty_q, block, self -> q_wait_time ); /* above */
     
                     /* we are done ... seal the empty_q ( that will tell the reader to stop... */
                     {
@@ -581,34 +616,41 @@ struct multi_writer_t * create_multi_writer( KDirectory * dir,
             release_multi_writer( res );
             res = NULL;
         } else {
-            /* create the empty queue */
-            rc = KQueueMake( &( res -> empty_q ), N_MULTI_WRITER_BLOCKS );
+            rc = wrap_file_in_buffer( &( res -> f ), buf_size, "copy_machine.c create_multi_writer()"  );
             if ( 0 != rc ) {
-                ErrMsg( "create_multi_writer().KQueueMake( '%s' ) -> %R", filename, rc );
+                ErrMsg( "create_multi_writer().wrap_file_in_buffer( '%s' ) -> %R", filename, rc );
                 release_multi_writer( res );
                 res = NULL;
             } else {
-                /* fill it with blocks.. */
-                uint32_t i;
-                for ( i = 0; 0 == rc && i < N_MULTI_WRITER_BLOCKS; ++i ) {
-                    multi_writer_block_t * block = create_multi_writer_block( MULTI_WRITER_BLOCK_SIZE );
-                    if ( NULL != block ) {
-                        rc = push2q( res -> empty_q, block, q_wait_time );
-                    }
-                }
-                if ( 0 == rc ) {
-                    rc = KQueueMake( &( res -> write_q ), N_MULTI_WRITER_BLOCKS );
-                }
+                /* create the empty queue */
+                rc = KQueueMake( &( res -> empty_q ), N_MULTI_WRITER_BLOCKS );
                 if ( 0 != rc ) {
+                    ErrMsg( "create_multi_writer().KQueueMake( '%s' ) -> %R", filename, rc );
                     release_multi_writer( res );
                     res = NULL;
-                }
-                if ( 0 == rc ) {
-                    rc = helper_make_thread( &( res -> thread ), multi_writer_thread, &res, THREAD_DFLT_STACK_SIZE );
+                } else {
+                    /* fill it with blocks.. */
+                    uint32_t i;
+                    for ( i = 0; 0 == rc && i < N_MULTI_WRITER_BLOCKS; ++i ) {
+                        multi_writer_block_t * block = create_multi_writer_block( MULTI_WRITER_BLOCK_SIZE );
+                        if ( NULL != block ) {
+                            rc = multi_writer_push( res -> empty_q, block, q_wait_time );
+                        }
+                    }
+                    if ( 0 == rc ) {
+                        rc = KQueueMake( &( res -> write_q ), N_MULTI_WRITER_BLOCKS );
+                    }
                     if ( 0 != rc ) {
-                        ErrMsg( "create_multi_writer().helper_make_thread( writer-thread ) -> %R", rc );
                         release_multi_writer( res );
                         res = NULL;
+                    }
+                    if ( 0 == rc ) {
+                        rc = helper_make_thread( &( res -> thread ), multi_writer_thread, res, THREAD_DFLT_STACK_SIZE );
+                        if ( 0 != rc ) {
+                            ErrMsg( "create_multi_writer().helper_make_thread( writer-thread ) -> %R", rc );
+                            release_multi_writer( res );
+                            res = NULL;
+                        }
                     }
                 }
             }
@@ -629,16 +671,16 @@ rc_t multi_writer_write( struct multi_writer_t * self,
         multi_writer_block_t * block;
         rc = get_block( self -> empty_q, self -> q_wait_time, &block );
         if ( 0 == rc ) {
-            if ( NULL == block ) {
-                block = create_multi_writer_block( size );
-            }
             if ( NULL != block ) {
                 if ( multi_writer_block_write( block, src, size ) ) {
-                    rc = push2q( self -> write_q, block, self -> q_wait_time );
+                    
+                    rc =  multi_writer_push( self -> write_q, block, self -> q_wait_time );
                 } else {
                     /* cannot write into block... */
                 }
+            } else {
             }
+        } else {
         }
     }
     return rc;

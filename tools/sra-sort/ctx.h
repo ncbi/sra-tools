@@ -37,7 +37,6 @@
  */
 struct Caps;
 
-
 /*--------------------------------------------------------------------------
  * file entry
  *  modified from vdb-3 to not place requirements on Makefile
@@ -48,7 +47,7 @@ struct Caps;
         static const char __file__ [] = STRINGIZE_DEFINE ( __file_name__ )
 #elif ! defined __mod__
     #define FILE_ENTRY( __file_name__ )                                     \
-        static const char __mod__ [] = "tools/sra-sort";                    \
+        static const char __mod__ [] = "tools/sra-sort";
 #elif ! defined __file__
     #define FILE_ENTRY( __file_name__ )                                     \
         static const char __file__ [] = STRINGIZE_DEFINE ( __file_name__ )

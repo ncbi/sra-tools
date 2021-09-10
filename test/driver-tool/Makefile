@@ -112,7 +112,7 @@ $(GOOD): | actual mkfg
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=$@ \
 	$(BINDIR)/sratools SRR000001 ERR000001 DRR000001 2>actual/$@.stderr && \
-	diff expected/$@.stderr actual/$@.stderr || (cat actual/$@.stderr && exit 1)
+	diff expected/$@.stderr actual/$@.stderr
 
 NO_SDL: | actual mkfg2
 	@# SRATOOLS_TESTING=5 and skip SDL via config, sub-tool invocation is

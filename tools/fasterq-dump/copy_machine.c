@@ -386,21 +386,44 @@ static void release_multi_writer_block( multi_writer_block_t * self ) {
     }
 }
 
+bool multi_writer_block_expand( multi_writer_block_t * self, size_t size ) {
+    bool res = false;
+    if ( NULL != self && size > self -> available ) {
+        free( ( void * )( self -> data ) );
+        self -> data = calloc( 1, size );
+        res = ( NULL != self -> data );
+        self -> available = ( res ) ? size : 0;
+    }
+    return res;
+}
+
 static bool multi_writer_block_write( multi_writer_block_t * self, const char * data, size_t size ) {
     bool res = false;
     if ( NULL != self && NULL != data && size > 0 ) {
         if ( size > self -> available ) {
             /* we have to make the block bigger */
-            free( ( void * )( self -> data ) );
-            self -> data = calloc( 1, size );
-            res = ( NULL != self -> data );
-            if ( res ) { self -> available = size; }
+            res = multi_writer_block_expand( self, size );
         } else {
             res = true;
         }
         if ( res ) {
             memmove( ( void * )self -> data, data, size );
             self -> len = size;
+        }
+    }
+    return res;
+}
+
+bool multi_writer_block_append( multi_writer_block_t * self, const char * data, size_t size ) {
+    bool res = false;
+    if ( NULL != self && NULL != data && size > 0 ) {
+        res = ( ( self -> len + size ) < self -> available );
+        if ( res ) {
+            /* it will fit ... */
+            char * dst = self -> data;
+            dst += self -> len;
+            memmove( ( void * )dst, data, size );
+            self -> len += size;
         }
     }
     return res;
@@ -562,12 +585,20 @@ static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
             rc = KQueuePop ( self -> write_q, ( void ** )&block, &tm );
             if ( 0 == rc ) {
                 /* we got a block to write out of the to_write_q */
-                size_t num_written;
-                rc = KFileWrite( self -> f, self -> pos,
-                                 block -> data, block -> len, &num_written );
+
+                if ( NULL != self -> f ) {
+                    /* we have a file to write to... */
+                    if ( NULL != block -> data && block -> len > 0 ) {
+                        size_t num_written;
+                        rc = KFileWrite( self -> f, self -> pos,
+                                        block -> data, block -> len, &num_written );
+                        if ( 0 == rc ) { self -> pos += num_written;  }
+                    }
+                } else {
+                    /* no file to print into, write to stdout! */
+                    rc = KOutMsg( "%.*s", block -> len, block -> data );
+                }
                 if ( 0 == rc ) {
-                    /* increment the write - position */
-                    self -> pos += num_written;
                     /* put the block back into the empty-q */
                     rc = multi_writer_push ( self -> empty_q, block, self -> q_wait_time ); /* above */
                 } else {
@@ -601,63 +632,98 @@ static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
     return rc;
 }
 
-#define N_MULTI_WRITER_BLOCKS 8000
-#define MULTI_WRITER_BLOCK_SIZE 512
+#define N_MULTI_WRITER_BLOCKS 512
+#define MULTI_WRITER_BLOCK_SIZE ( 1024 * 1024 )
 #define MULTI_WRITER_WAIT 5
+
+static rc_t create_multi_writer_file( multi_writer_t * self, KDirectory * dir, const char * filename, size_t buf_size ) {
+    rc_t rc = KDirectoryCreateFile( dir, &( self -> f ), false, 0664, kcmInit, "%s", filename );
+    if ( 0 != rc ) {
+        ErrMsg( "create_multi_writer().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+    } else {
+        rc = wrap_file_in_buffer( &( self -> f ), buf_size, "copy_machine.c create_multi_writer()"  );
+        if ( 0 != rc ) {
+            ErrMsg( "create_multi_writer().wrap_file_in_buffer( '%s' ) -> %R", filename, rc );
+        }
+    }
+    return rc;
+}
 
 struct multi_writer_t * create_multi_writer( KDirectory * dir,
                     const char * filename,
                     size_t buf_size,
-                    uint32_t q_wait_time ){
+                    uint32_t q_wait_time,
+                    uint32_t q_num_blocks,
+                    size_t q_block_size  ){
     uint32_t wait_time = ( 0 == q_wait_time ) ? MULTI_WRITER_WAIT : q_wait_time;
+    uint32_t num_blocks = ( 0 == q_num_blocks ) ? N_MULTI_WRITER_BLOCKS : q_num_blocks;
+    uint32_t block_size = ( 0 == q_block_size ) ? MULTI_WRITER_BLOCK_SIZE : q_block_size;
     multi_writer_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
-        rc_t rc = KDirectoryCreateFile( dir, &( res -> f ), false, 0664, kcmInit, "%s", filename );
-        if ( 0 != rc ) {
-            ErrMsg( "create_multi_writer().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
-            release_multi_writer( res );
-            res = NULL;
-        } else {
-            res -> q_wait_time = wait_time;
-            rc = wrap_file_in_buffer( &( res -> f ), buf_size, "copy_machine.c create_multi_writer()"  );
+        rc_t rc = 0;
+        if ( NULL != filename ) {
+            rc = create_multi_writer_file( res, dir, filename, buf_size );
             if ( 0 != rc ) {
-                ErrMsg( "create_multi_writer().wrap_file_in_buffer( '%s' ) -> %R", filename, rc );
+                release_multi_writer( res );
+                res = NULL;
+            }
+        }
+        if ( 0 == rc ) {
+            /* create the empty queue */
+            res -> q_wait_time = wait_time;
+            rc = KQueueMake( &( res -> empty_q ), num_blocks );
+            if ( 0 != rc ) {
+                ErrMsg( "create_multi_writer().KQueueMake( '%s' ) -> %R", filename, rc );
                 release_multi_writer( res );
                 res = NULL;
             } else {
-                /* create the empty queue */
-                rc = KQueueMake( &( res -> empty_q ), N_MULTI_WRITER_BLOCKS );
+                /* fill it with blocks.. */
+                uint32_t i;
+                for ( i = 0; 0 == rc && i < num_blocks; ++i ) {
+                    multi_writer_block_t * block = create_multi_writer_block( block_size );
+                    if ( NULL != block ) {
+                        rc = multi_writer_push( res -> empty_q, block, wait_time );
+                    }
+                }
+                if ( 0 == rc ) {
+                    rc = KQueueMake( &( res -> write_q ), num_blocks );
+                }
                 if ( 0 != rc ) {
-                    ErrMsg( "create_multi_writer().KQueueMake( '%s' ) -> %R", filename, rc );
                     release_multi_writer( res );
                     res = NULL;
-                } else {
-                    /* fill it with blocks.. */
-                    uint32_t i;
-                    for ( i = 0; 0 == rc && i < N_MULTI_WRITER_BLOCKS; ++i ) {
-                        multi_writer_block_t * block = create_multi_writer_block( MULTI_WRITER_BLOCK_SIZE );
-                        if ( NULL != block ) {
-                            rc = multi_writer_push( res -> empty_q, block, wait_time );
-                        }
-                    }
-                    if ( 0 == rc ) {
-                        rc = KQueueMake( &( res -> write_q ), N_MULTI_WRITER_BLOCKS );
-                    }
+                }
+                if ( 0 == rc ) {
+                    rc = helper_make_thread( &( res -> thread ), multi_writer_thread, res, THREAD_DFLT_STACK_SIZE );
                     if ( 0 != rc ) {
+                        ErrMsg( "create_multi_writer().helper_make_thread( writer-thread ) -> %R", rc );
                         release_multi_writer( res );
                         res = NULL;
-                    }
-                    if ( 0 == rc ) {
-                        rc = helper_make_thread( &( res -> thread ), multi_writer_thread, res, THREAD_DFLT_STACK_SIZE );
-                        if ( 0 != rc ) {
-                            ErrMsg( "create_multi_writer().helper_make_thread( writer-thread ) -> %R", rc );
-                            release_multi_writer( res );
-                            res = NULL;
-                        }
                     }
                 }
             }
         }
+    }
+    return res;
+}
+
+struct multi_writer_block_t * multi_writer_get_empty_block( struct multi_writer_t * self ) {
+    struct multi_writer_block_t * block = NULL;
+    if ( NULL != self ) {
+        rc_t rc = get_block( self -> empty_q, self -> q_wait_time, &block );
+        if ( 0 == rc ) {
+            block -> len = 0;
+        } else {
+            block = NULL;
+        }
+    }
+    return block;
+}
+
+bool multi_writer_submit_block( struct multi_writer_t * self, struct multi_writer_block_t * block ) {
+    bool res = false;
+    if ( NULL != self && NULL != block ) {
+        rc_t rc =  multi_writer_push( self -> write_q, block, self -> q_wait_time );
+        res = ( 0 == rc );
     }
     return res;
 }
@@ -676,14 +742,15 @@ rc_t multi_writer_write( struct multi_writer_t * self,
         if ( 0 == rc ) {
             if ( NULL != block ) {
                 if ( multi_writer_block_write( block, src, size ) ) {
-                    
                     rc =  multi_writer_push( self -> write_q, block, self -> q_wait_time );
                 } else {
-                    /* cannot write into block... */
+                    /* TBD: error... */
                 }
             } else {
+                /* TBD: error... */
             }
         } else {
+            /* TBD: error... */
         }
     }
     return rc;

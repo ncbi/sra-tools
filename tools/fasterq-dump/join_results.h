@@ -88,23 +88,6 @@ rc_t join_results_print_fastq_v2( struct join_results_t * self,
 
 /* --------------------------------------------------------------------------------------------------- */
 
-/*
-struct common_join_results_t;
-
-void destroy_common_join_results( struct common_join_results_t * self );
-
-rc_t make_common_join_results( struct KDirectory * dir,
-                        struct common_join_results_t ** results,
-                        size_t file_buffer_size,
-                        size_t print_buffer_size,
-                        const char * output_filename,
-                        bool force );
-
-rc_t common_join_results_print( struct common_join_results_t * self, const char * fmt, ... );
-*/
-
-/* --------------------------------------------------------------------------------------------------- */
-
 struct filter_2na_t;
 
 struct filter_2na_t * make_2na_filter( const char * filter_bases );
@@ -116,7 +99,7 @@ bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const Stri
 
 /* --------------------------------------------------------------------------------------------------- */
 
-typedef enum flex_printer_name_mode_t { fpnm_use_name, fpnm_syn_name, fpnm_no_name } flex_printer_name_mode_t;
+typedef enum flex_printer_name_mode_t { fpnm_use_name = 1, fpnm_syn_name, fpnm_no_name } flex_printer_name_mode_t;
 
 const char * dflt_seq_defline( bool fasta, flex_printer_name_mode_t name_mode );
 const char * dflt_qual_defline( flex_printer_name_mode_t name_mode );
@@ -134,23 +117,41 @@ typedef struct flex_printer_data_t {
     const String * quality;
 } flex_printer_data_t;
 
-/*
-    if qual-defline is NULL --> FASTA, else FASTQ
-    if registry is NULL --> do not create printers per dst_id, print to common file!
-    if output_base is NULL --> print to stdout
-    if registry is not NULL, there also has to be a none NULL output_base
-    if seq_defile/qual_defline is NULL -> use internal default defline
-    has_name is only used to pick the right default-defline(s)
-*/
-struct flex_printer_t * make_flex_printer( struct KDirectory * dir,
-                        struct temp_registry_t * registry,
-                        const char * output_base,
+typedef struct file_printer_args_t {
+    KDirectory * dir;
+    struct temp_registry_t * registry;
+    const char * output_base;
+    size_t buffer_size;
+} file_printer_args_t;
+
+void set_file_printer_args( file_printer_args_t * self,
+                            KDirectory * dir,
+                            struct temp_registry_t * registry,
+                            const char * output_base,
+                            size_t buffer_size );
+
+/* ---------------------------------------------------------------------------------------------------
+    there are 2 modes for the flex-printer: file-per-read-id-mode / multi-writer-mode
+        file_args   multi_writer
+        ------------------------
+        NULL        NULL            ... invalid
+        ptr         NULL            ... file-per-read-id-mode
+        NULL        ptr             ... multi-writer-mode
+        ptr         ptr             ... invalid
+
+    accession       ... used in both modes for filling into the flexible defline
+    seq_defline     ... user supplied sequence-defline ( if NULL, pick internal default based on fasta and name-mode  )
+    qual_defline    ... user supplied quality-defline  ( if NULL, pick internal default based on name-mode, ignored for fasta )
+    name_mode       ... flag used to pick a default-defline
+    fasta           ... flag used to pick a default-defline
+ --------------------------------------------------------------------------------------------------- */
+struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,     /* used in file-per-read-id-mode */
                         struct multi_writer_t * multi_writer,           /* if used: dir,registry,output_base,buffer_size are unused */
-                        size_t file_buffer_size,
-                        const char * accession_short,
-                        const char * seq_defline,
-                        const char * qual_defline,
-                        flex_printer_name_mode_t name_mode );
+                        const char * accession,                         /* used in both modes */
+                        const char * seq_defline,                       /* if NULL -> pick default based on fasta/name-mode */
+                        const char * qual_defline,                      /* if NULL -> pick default based on fasta/name-mode */
+                        flex_printer_name_mode_t name_mode,
+                        bool fasta );
 
 void release_flex_printer( struct flex_printer_t * self );
 

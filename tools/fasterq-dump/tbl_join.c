@@ -909,6 +909,7 @@ typedef struct join_thread_data_t {
     struct temp_registry_t * registry;
     KThread * thread;
 
+    uint32_t thread_id;
     int64_t first_row;
     uint64_t row_count;
     size_t cur_cache;
@@ -918,12 +919,16 @@ typedef struct join_thread_data_t {
 
 } join_thread_data_t;
 
-static rc_t CC cmn_thread_func( const KThread *self, void *data ) {
+static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data ) {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     struct filter_2na_t * filter = make_2na_filter( jtd -> join_options -> filter_bases ); /* join_results.c */
-    struct join_results_t * results = NULL;
+    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr, 
+                        jtd -> accession_short, jtd -> accession_path,
+                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
 
+
+    struct join_results_t * results = NULL;
     rc = make_join_results( jtd -> dir,
                             &results,
                             jtd -> registry,
@@ -934,10 +939,20 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data ) {
                             jtd -> join_options -> print_read_nr,
                             jtd -> join_options -> print_name ); /* join_results.c */
 
+#if 0
+    flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
+    struct flex_printer_t * flex_printer = make_flex_printer( jtd -> dir,
+                        jtd -> registry,
+                        jtd -> part_file,
+                        NULL,                           /* no multi-writer here, each thread writes into it's own files! */
+                        jtd -> buf_size,
+                        jtd -> accession_short,         /* we need that for the flexible defline! */
+                        NULL,                           /* the seq-defline */
+                        NULL,                           /* the qual-defline */
+                        flex_printer_name_mode_t name_mode ) {
+#endif
+
     if ( 0 == rc && NULL != results ) {
-        cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr, 
-                          jtd -> accession_short, jtd -> accession_path,
-                          jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
         switch( jtd -> fmt )
         {
             case ft_fastq_whole_spot : rc = perform_fastq_whole_spot_join( &cp,
@@ -1111,12 +1126,14 @@ rc_t execute_tbl_join( KDirectory * dir,
                         jtd -> registry         = registry;
                         jtd -> fmt              = fmt;
                         jtd -> join_options     = &corrected_join_options;
+                        jtd -> thread_id        = thread_id;
 
                         rc = make_joined_filename( temp_dir, jtd -> part_file, sizeof jtd -> part_file,
                                     accession_short, thread_id ); /* temp_dir.c */
                         if ( 0 == rc ) {
                             /* thread executes cmn_thread_func() located above */
-                            rc = helper_make_thread( &jtd -> thread, cmn_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                            rc = helper_make_thread( &jtd -> thread, sorted_fastq_fasta_thread_func,
+                                                     jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
                             if ( 0 != rc ) {
                                 ErrMsg( "tbl_join.c helper_make_thread( fastq/special #%d ) -> %R", thread_id, rc );
                             } else {
@@ -1154,7 +1171,6 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     join_stats_t * stats = &( jtd -> stats );
     bool skip_tech = jtd -> join_options -> skip_tech;
     struct flex_printer_t * flex_printer = NULL;
-    flex_printer_name_mode_t name_mode = ( jo -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
@@ -1162,15 +1178,13 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     opt . with_cmp_read = false;
     opt . with_quality = false;
 
-    flex_printer = make_flex_printer( jtd -> dir,                   /* unused if multi_writer is set */
-                                      NULL,                         /* registry is NULL, that means create common file */
-                                      NULL,                         /* output-base ( not used if multi_writer is set ) */
+    flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
                                       jtd -> multi_writer,          /* passed in multi-writer */
-                                      jtd -> buf_size,              /* buffer-size ( unused if multi-writer is set ) */
                                       jtd -> accession_short,       /* the accession to be printed */
                                       NULL,                         /* seq-defline is NULL, use default */
-                                      NULL,                         /* qual-defline is NULL, use defautl */
-                                      name_mode ); /* join_results.c */
+                                      NULL,                         /* qual-defline is NULL, use default */
+                                      ( jo -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name,
+                                      true ); /* join_results.c */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
@@ -1270,7 +1284,7 @@ rc_t execute_unsorted_fasta_tbl_join( KDirectory * dir,
             bool name_column_present;
             rc = is_column_name_present( dir, vdb_mgr, accession_short, accession_path, tbl_name, &name_column_present );
             if ( 0 == rc ) {
-                struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 0 );
+                struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 0, 0, 0 );
                 if ( NULL != multi_writer ) {
                     /* create a 2na-base-filter ( if filterbases were given, by default not ) */
                     struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */

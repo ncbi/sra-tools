@@ -1827,18 +1827,16 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
                         jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
     struct align_iter_t * iter;
     uint64_t loop_nr = 0;
-    struct flex_printer_t * flex_printer = NULL;
+    struct flex_printer_t * flex_printer;
     flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
-    flex_printer = make_flex_printer( jtd -> dir,                   /* unused if multi_writer is set */
-                                      NULL,                         /* registry is NULL, that means create common file */
-                                      NULL,                         /* output-base ( not used if multi_writer is set ) */
+    flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
                                       jtd -> multi_writer,          /* passed in multi-writer */
-                                      jtd -> buf_size,              /* buffer-size ( unused if multi-writer is set ) */
                                       jtd -> accession_short,       /* the accession to be printed */
                                       NULL,                         /* seq-defline is NULL, use default */
-                                      NULL,                         /* qual-defline is NULL, use defautl */
-                                      name_mode ); /* join_results.c */
+                                      NULL,                         /* qual-defline is NULL, use default */
+                                      name_mode,
+                                      true ); /* join_results.c */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
@@ -1968,15 +1966,13 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
     opt . with_cmp_read = jtd -> cmp_read_present;
     opt . with_quality = false;
 
-    flex_printer = make_flex_printer( jtd -> dir,                   /* unused if multi_writer is set */
-                                      NULL,                         /* registry is NULL, that means create common file */
-                                      NULL,                         /* output-base ( not used if multi_writer is set ) */
+    flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
                                       jtd -> multi_writer,          /* passed in multi-writer */
-                                      jtd -> buf_size,              /* buffer-size ( unused if multi-writer is set ) */
                                       jtd -> accession_short,       /* the accession to be printed */
                                       NULL,                         /* seq-defline is NULL, use default */
-                                      NULL,                         /* qual-defline is NULL, use defautl */
-                                      name_mode ); /* join_results.c */
+                                      NULL,                         /* qual-defline is NULL, use default */
+                                      name_mode,
+                                      true ); /* join_results.c */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
@@ -2136,7 +2132,7 @@ rc_t execute_unsorted_fasta_db_join( KDirectory * dir,
         }
 
         if ( 0 == rc && seq_row_count > 0 ) {
-            struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 0 );
+            struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 0, 0, 0 );
             if ( NULL != multi_writer ) {
                 struct bg_progress_t * progress = NULL;
                 struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */
@@ -2190,9 +2186,6 @@ rc_t execute_unsorted_fasta_db_join( KDirectory * dir,
                                         &align_threads );
                     if ( 0 == rc ) {
                         rc = join_threads_collect_stats( &align_threads, stats ); /* above */
-                    }
-                    if ( 0 == rc ) {
-                        rc = join_threads_collect_stats( &seq_threads, stats ); /* above */
                     }
                 }
 

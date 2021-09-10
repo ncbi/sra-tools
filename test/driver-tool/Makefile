@@ -30,7 +30,12 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-DIRTOTEST ?= $(BINDIR)
+ifeq (rel,$(BUILD))
+
+# The tests use dry run modes that are only available in debug builds. Skipping in the release mode.
+runtests:
+
+else
 
 runtests: \
 	announce \
@@ -57,6 +62,9 @@ runtests: \
 	no_fasta_er_env \
 	fasta_er_env
 
+endif
+
+DIRTOTEST ?= $(BINDIR)
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
 

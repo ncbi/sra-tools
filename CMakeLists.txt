@@ -45,6 +45,7 @@ include( build/env.cmake NO_POLICY_SCOPE )
 
 add_subdirectory( shared )
 add_subdirectory( ngs )
+add_subdirectory( libs )
 add_subdirectory( tools )
 
 add_subdirectory( test )

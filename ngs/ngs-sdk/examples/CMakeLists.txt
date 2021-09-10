@@ -60,4 +60,4 @@ get_target_property( TEST_BINARY_DIRECTORY FragTest RUNTIME_OUTPUT_DIRECTORY)
 message("CMAKE_RUNTIME_OUTPUT_DIRECTORY: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 # TODO: remove hardcoding for ngs/ngs/examples directory
-add_test( NAME Test_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${CMAKE_BINARY_DIR}/ngs/ngs-sdk/examples WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+add_test( NAME SlowTest_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${CMAKE_BINARY_DIR}/ngs/ngs-sdk/examples WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

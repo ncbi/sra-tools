@@ -1,3 +1,5 @@
+#!/bin/bash
+
 VDB_INCDIR=$1
 DIRTOTEST=$2
 

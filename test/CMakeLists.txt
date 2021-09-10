@@ -24,19 +24,16 @@ add_subdirectory(align-cache)
 add_subdirectory(align-info)
 add_subdirectory(copycat) # fails
 #add_subdirectory(driver-tool)
-# add_subdirectory(dump-test)
-# add_subdirectory(fasterq-dump)
-# add_subdirectory(fastq-loader)
-# add_subdirectory(fuse)
-# add_subdirectory(kar)
-# add_subdirectory(kdbmeta)
-# add_subdirectory(kget)
-# add_subdirectory(make-read-filter)
-# # add_subdirectory(network-test) # broken now
-# add_subdirectory(ngs-java)
-# add_subdirectory(ngs-pileup)
-# add_subdirectory(ngs-python)
-# # add_subdirectory(pileup-stats) # moved to ngs-tools, delete
+add_subdirectory(fasterq-dump)
+# add_subdirectory(fastq-loader) # project not yet converted
+# add_subdirectory(fuse) # retired
+add_subdirectory(kar)
+# add_subdirectory(kdbmeta) # project not yet converted
+add_subdirectory(kget)
+# add_subdirectory(make-read-filter) # project not yet converted
+# add_subdirectory(ngs-java) # project not yet converted
+# add_subdirectory(ngs-pileup) # project not yet converted
+# add_subdirectory(ngs-python) # project not yet converted
 # add_subdirectory(prefetch)
 # add_subdirectory(qual-recalib-stat)
 # add_subdirectory(read-filter-redact)
@@ -54,3 +51,7 @@ add_subdirectory(copycat) # fails
 # add_subdirectory(vdb-diff) # was not included in runtests
 # add_subdirectory(vdb-dump)
 # add_subdirectory(vdb-validate)
+
+# add_subdirectory(network-test) # broken now
+# add_subdirectory(dump-test) # abandoned
+# add_subdirectory(pileup-stats) # moved to ngs-tools, delete

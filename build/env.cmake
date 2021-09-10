@@ -176,6 +176,16 @@ elseif( "windows" STREQUAL ${OS} )
     include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/os/win)
 endif()
 
+# ===========================================================================
+# 3d party packages
+
+if ( PYTHON_PATH )
+    set( Python3_EXECUTABLE ${PYTHON_PATH} )
+endif()
+find_package( Python3 COMPONENTS Interpreter )
+
+# ===========================================================================
+
 # TODO: should not be needed
 if( NGS_INCDIR )
     include_directories( ${NGS_INCDIR} )
@@ -631,4 +641,3 @@ else()
     # set( COMMON_LIBS_READ   ncbi-vdb  dl pthread )
     # set( COMMON_LIBS_WRITE  ncbi-wvdb dl pthread )
 endif()
-

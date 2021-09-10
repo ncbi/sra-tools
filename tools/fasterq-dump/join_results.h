@@ -88,6 +88,7 @@ rc_t join_results_print_fastq_v2( struct join_results_t * self,
 
 /* --------------------------------------------------------------------------------------------------- */
 
+/*
 struct common_join_results_t;
 
 void destroy_common_join_results( struct common_join_results_t * self );
@@ -100,6 +101,7 @@ rc_t make_common_join_results( struct KDirectory * dir,
                         bool force );
 
 rc_t common_join_results_print( struct common_join_results_t * self, const char * fmt, ... );
+*/
 
 /* --------------------------------------------------------------------------------------------------- */
 

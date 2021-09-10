@@ -945,20 +945,18 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-static rc_t fastdump_csra_us( tool_ctx_t * tool_ctx ) { /* unsorted ! */
+static rc_t fastdump_csra( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
-    join_stats_t stats;
+    
+    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); } /* above */
+    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
 
-    clear_join_stats( &stats ); /* helper.c */
+    if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
+        /* the special case of fasta-unsorted and split-spot : */
+        join_stats_t stats;
+        clear_join_stats( &stats ); /* helper.c */
 
-    if ( 0 == rc ) {
-        /*
-        this is the 'special' unsorted FASTA for cSRAs
-        at the same time:
-            iterate over the ALIGNMENT-table ( in multiple threads )and produce spots as we go:
-            iterate over the SEQUENCE-table ( in multiple threads ) and produce spots as we go:
-        */
-        rc = execute_fast_join( tool_ctx -> dir, /* join.c */
+        rc = execute_unsorted_fasta_db_join( tool_ctx -> dir, /* join.c */
                         tool_ctx -> vdb_mgr,
                         tool_ctx -> accession_short,
                         tool_ctx -> accession_path,
@@ -971,19 +969,7 @@ static rc_t fastdump_csra_us( tool_ctx_t * tool_ctx ) { /* unsorted ! */
                         & tool_ctx -> join_options,
                         tool_ctx -> force ); /* helper.h */
         print_stats( &stats ); /* above */
-    }
-    return rc;
-}
 
-static rc_t fastdump_csra( tool_ctx_t * tool_ctx ) {
-    rc_t rc = 0;
-    
-    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); } /* above */
-    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
-
-    if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
-        /* the special case of fasta-unsorted and split-spot : */
-        fastdump_csra_us( tool_ctx );
     } else {
         /* the common case the other cominations of FASTA/FASTQ : */
         if ( 0 == rc ) { rc = produce_lookup_files( tool_ctx ); } /* above */
@@ -1005,7 +991,7 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* this is the 'special' unsorted FASTA for flat tables */
-        rc = execute_fast_tbl_join( tool_ctx -> dir, /* tbl_join.c */
+        rc = execute_unsorted_fasta_tbl_join( tool_ctx -> dir, /* tbl_join.c */
                         tool_ctx -> vdb_mgr,
                         tool_ctx -> accession_short,
                         tool_ctx -> accession_path,

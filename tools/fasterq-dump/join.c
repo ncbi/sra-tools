@@ -1812,10 +1812,12 @@ rc_t check_lookup_this( const KDirectory * dir,
     return rc;
 }
 
-/* ---------------------------------------------------------------------------------------------------- */
+/* ======================================================================================================================
+    the unsorted FASTA approach for cSRA databases ...
+   ====================================================================================================================== */
 
 /* iterate over the ALIGN-table, using the align-iter from fastq_iter.c */
-static rc_t CC fast_align_thread_func( const KThread * self, void * data )
+static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * data )
 {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
@@ -1887,7 +1889,7 @@ static rc_t CC fast_align_thread_func( const KThread * self, void * data )
     return rc;
 }
 
-static rc_t start_fast_join_align( KDirectory * dir,
+static rc_t start_unsorted_fasta_db_join_align( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,
@@ -1930,7 +1932,7 @@ static rc_t start_fast_join_align( KDirectory * dir,
             jtd -> filter           = filter;
 
             if ( 0 == rc ) {
-                rc = helper_make_thread( &jtd -> thread, fast_align_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                rc = helper_make_thread( &jtd -> thread, unsorted_fasta_align_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
                 if ( 0 != rc ) {
                     ErrMsg( "join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
                 } else {
@@ -1947,7 +1949,7 @@ static rc_t start_fast_join_align( KDirectory * dir,
 }
 
 /* iterate over the SEQ-table, but only use what is half/fully unaligned... */
-static rc_t CC fast_seq_thread_func( const KThread * self, void * data ) {
+static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data ) {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     join_stats_t * stats = &( jtd -> stats );
@@ -2039,7 +2041,7 @@ static rc_t CC fast_seq_thread_func( const KThread * self, void * data ) {
     return rc;
 }
 
-static rc_t start_fast_join_seq( KDirectory * dir,
+static rc_t start_unsorted_fasta_db_join_seq( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,
@@ -2083,7 +2085,7 @@ static rc_t start_fast_join_seq( KDirectory * dir,
             jtd -> filter           = filter;
 
             if ( 0 == rc ) {
-                rc = helper_make_thread( &jtd -> thread, fast_seq_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                rc = helper_make_thread( &jtd -> thread, unsorted_fasta_seq_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
                 if ( 0 != rc ) {
                     ErrMsg( "join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
                 } else {
@@ -2099,7 +2101,7 @@ static rc_t start_fast_join_seq( KDirectory * dir,
     return rc;
 }
 
-rc_t execute_fast_join( KDirectory * dir,
+rc_t execute_unsorted_fasta_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,
@@ -2134,11 +2136,13 @@ rc_t execute_fast_join( KDirectory * dir,
         }
 
         if ( 0 == rc && seq_row_count > 0 ) {
-            struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 200 );
+            struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 0 );
             if ( NULL != multi_writer ) {
                 struct bg_progress_t * progress = NULL;
                 struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */
+                uint32_t num_threads2 = num_threads >> 1;
 
+                if ( 1 == ( num_threads & 0x01 ) ) { num_threads2 += 1; }
                 /* we need the row-count for that... ( that is why we first detected the row-count ) */
                 if ( show_progress ) {
                     rc = bg_progress_make( &progress, seq_row_count + align_row_count, 0, 0 ); /* progress_thread.c */
@@ -2153,13 +2157,13 @@ rc_t execute_fast_join( KDirectory * dir,
                 Vector seq_threads;
                 VectorInit( &seq_threads, 0, num_threads );
 
-                rc = start_fast_join_seq( dir,
+                rc = start_unsorted_fasta_db_join_seq( dir,
                                         vdb_mgr,
                                         accession_short,
                                         accession_path,
                                         cur_cache,
                                         buf_size,
-                                        num_threads,
+                                        num_threads2,
                                         join_options,
                                         seq_row_count,
                                         cmp_read_column_present,
@@ -2171,13 +2175,13 @@ rc_t execute_fast_join( KDirectory * dir,
                     Vector align_threads;
                     VectorInit( &align_threads, 0, num_threads );
 
-                    rc = start_fast_join_align( dir,
+                    rc = start_unsorted_fasta_db_join_align( dir,
                                         vdb_mgr,
                                         accession_short,
                                         accession_path,
                                         cur_cache,
                                         buf_size,
-                                        num_threads,
+                                        num_threads2,
                                         join_options,
                                         align_row_count,
                                         progress,

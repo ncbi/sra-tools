@@ -70,7 +70,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     format_t fmt,
                     const join_options_t * join_options ); /* helper.h */
 
-rc_t execute_fast_tbl_join( KDirectory * dir,
+rc_t execute_unsorted_fasta_tbl_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,

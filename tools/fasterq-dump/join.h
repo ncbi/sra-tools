@@ -87,7 +87,7 @@ rc_t check_lookup_this( const KDirectory * dir,
                         uint64_t seq_spot_id,
                         uint32_t seq_read_id );
 
-rc_t execute_fast_join( KDirectory * dir,
+rc_t execute_unsorted_fasta_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,

@@ -436,9 +436,6 @@ static rc_t multi_writer_push( KQueue * q, const void * item, uint32_t wait_time
     return rc;
 }
 
-#define N_MULTI_WRITER_BLOCKS 64
-#define MULTI_WRITER_BLOCK_SIZE 4096
-
 typedef struct multi_writer_t {
     KFile * f;                          /* the file we are writing into, used by the writer-thread */
     uint64_t pos;                       /* the file-position for the writer-thread */
@@ -562,7 +559,7 @@ static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
             ErrMsg( "copy_machine.c multi_writer_thread().TimeoutInit() -> %R", rc );
         } else {
             multi_writer_block_t * block;
-            rc = KQueuePop ( self -> write_q, ( void ** )&block, NULL );
+            rc = KQueuePop ( self -> write_q, ( void ** )&block, &tm );
             if ( 0 == rc ) {
                 /* we got a block to write out of the to_write_q */
                 size_t num_written;
@@ -604,10 +601,15 @@ static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
     return rc;
 }
 
+#define N_MULTI_WRITER_BLOCKS 8000
+#define MULTI_WRITER_BLOCK_SIZE 512
+#define MULTI_WRITER_WAIT 5
+
 struct multi_writer_t * create_multi_writer( KDirectory * dir,
                     const char * filename,
                     size_t buf_size,
                     uint32_t q_wait_time ){
+    uint32_t wait_time = ( 0 == q_wait_time ) ? MULTI_WRITER_WAIT : q_wait_time;
     multi_writer_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
         rc_t rc = KDirectoryCreateFile( dir, &( res -> f ), false, 0664, kcmInit, "%s", filename );
@@ -616,6 +618,7 @@ struct multi_writer_t * create_multi_writer( KDirectory * dir,
             release_multi_writer( res );
             res = NULL;
         } else {
+            res -> q_wait_time = wait_time;
             rc = wrap_file_in_buffer( &( res -> f ), buf_size, "copy_machine.c create_multi_writer()"  );
             if ( 0 != rc ) {
                 ErrMsg( "create_multi_writer().wrap_file_in_buffer( '%s' ) -> %R", filename, rc );
@@ -634,7 +637,7 @@ struct multi_writer_t * create_multi_writer( KDirectory * dir,
                     for ( i = 0; 0 == rc && i < N_MULTI_WRITER_BLOCKS; ++i ) {
                         multi_writer_block_t * block = create_multi_writer_block( MULTI_WRITER_BLOCK_SIZE );
                         if ( NULL != block ) {
-                            rc = multi_writer_push( res -> empty_q, block, q_wait_time );
+                            rc = multi_writer_push( res -> empty_q, block, wait_time );
                         }
                     }
                     if ( 0 == rc ) {

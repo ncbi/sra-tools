@@ -1137,7 +1137,11 @@ rc_t execute_tbl_join( KDirectory * dir,
     return rc;
 }
 
-static rc_t CC fast_thread_func( const KThread *self, void *data ) {
+/* ======================================================================================================================
+    the unsorted FASTA approach for flat tables ...
+   ====================================================================================================================== */
+
+static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     struct fastq_sra_iter_t * iter;
@@ -1239,7 +1243,7 @@ static rc_t CC fast_thread_func( const KThread *self, void *data ) {
     return rc;
 }
 
-rc_t execute_fast_tbl_join( KDirectory * dir,
+rc_t execute_unsorted_fasta_tbl_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,
@@ -1266,7 +1270,7 @@ rc_t execute_fast_tbl_join( KDirectory * dir,
             bool name_column_present;
             rc = is_column_name_present( dir, vdb_mgr, accession_short, accession_path, tbl_name, &name_column_present );
             if ( 0 == rc ) {
-                struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 200 );
+                struct multi_writer_t * multi_writer = create_multi_writer( dir, output_filename, buf_size, 0 );
                 if ( NULL != multi_writer ) {
                     /* create a 2na-base-filter ( if filterbases were given, by default not ) */
                     struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */
@@ -1301,7 +1305,7 @@ rc_t execute_fast_tbl_join( KDirectory * dir,
                             jtd -> part_file[ 0 ]   = 0; /* we are not using a part-file */
                             jtd -> multi_writer     = multi_writer;
 
-                            rc = helper_make_thread( &( jtd -> thread ), fast_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                            rc = helper_make_thread( &( jtd -> thread ), unsorted_fasta_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
                             if ( 0 != rc ) {
                                 ErrMsg( "tbl_join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
                             } else {

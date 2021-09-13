@@ -159,52 +159,65 @@ static const char * strict_usage[] = { "terminate on invalid read", NULL };
 #define OPTION_STRICT   "strict"
 
 static const char * append_usage[] = { "append to output-file", NULL };
-#define OPTION_APPEND   "append"
-#define ALIAS_APPEND    "A"
+#define OPTION_APPEND           "append"
+#define ALIAS_APPEND            "A"
 
 static const char * fasta_usage[] = { "produce FASTA output", NULL };
-#define OPTION_FASTA    "fasta"
+#define OPTION_FASTA            "fasta"
 
 static const char * fasta_us_usage[] = { "produce FASTA output, unsorted", NULL };
-#define OPTION_FASTA_US    "fasta-unsorted"
+#define OPTION_FASTA_US         "fasta-unsorted"
+
+static const char * seq_defline_usage[] = { "custom defline for sequence", NULL };
+#define OPTION_SEQ_DEFLINE      "seq-defline"
+
+static const char * qual_defline_usage[] = { "custom defline for qualities", NULL };
+#define OPTION_QUAL_DEFLINE     "qual-defline"
+
+static const char * only_un_usage[] = { "process only unaligned reads", NULL };
+#define OPTION_ONLY_UN          "only-unaligned"
+#define ALIAS_ONLY_UN           "U"
 
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
-#define OPTION_NGC   "ngc"
+#define OPTION_NGC              "ngc"
 
 /* ---------------------------------------------------------------------------------- */
 
 OptDef ToolOptions[] = {
-    { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
-    { OPTION_OUTPUT_F,  ALIAS_OUTPUT_F,  NULL, outputf_usage,    1, true,   false },
-    { OPTION_OUTPUT_D,  ALIAS_OUTPUT_D,  NULL, outputd_usage,    1, true,   false },
-    { OPTION_BUFSIZE,   ALIAS_BUFSIZE,   NULL, bufsize_usage,    1, true,   false },
-    { OPTION_CURCACHE,  ALIAS_CURCACHE,  NULL, curcache_usage,   1, true,   false },
-    { OPTION_MEM,       ALIAS_MEM,       NULL, mem_usage,        1, true,   false },
-    { OPTION_TEMP,      ALIAS_TEMP,      NULL, temp_usage,       1, true,   false },
-    { OPTION_THREADS,   ALIAS_THREADS,   NULL, threads_usage,    1, true,   false },
-    { OPTION_PROGRESS,  ALIAS_PROGRESS,  NULL, progress_usage,   1, false,  false },
-    { OPTION_DETAILS,   ALIAS_DETAILS,   NULL, detail_usage,     1, false,  false },
-    { OPTION_SPLIT_SPOT,ALIAS_SPLIT_SPOT,NULL, split_spot_usage, 1, false,  false },
-    { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },
-    { OPTION_SPLIT_3,   ALIAS_SPLIT_3,   NULL, split_3_usage,    1, false,  false },
-    { OPTION_WHOLE_SPOT,    NULL,        NULL, whole_spot_usage, 1, false,  false },    
-    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
+    { OPTION_FORMAT,        ALIAS_FORMAT,       NULL, format_usage,         1, true,   false },
+    { OPTION_OUTPUT_F,      ALIAS_OUTPUT_F,     NULL, outputf_usage,        1, true,   false },
+    { OPTION_OUTPUT_D,      ALIAS_OUTPUT_D,     NULL, outputd_usage,        1, true,   false },
+    { OPTION_BUFSIZE,       ALIAS_BUFSIZE,      NULL, bufsize_usage,        1, true,   false },
+    { OPTION_CURCACHE,      ALIAS_CURCACHE,     NULL, curcache_usage,       1, true,   false },
+    { OPTION_MEM,           ALIAS_MEM,          NULL, mem_usage,            1, true,   false },
+    { OPTION_TEMP,          ALIAS_TEMP,         NULL, temp_usage,           1, true,   false },
+    { OPTION_THREADS,       ALIAS_THREADS,      NULL, threads_usage,        1, true,   false },
+    { OPTION_PROGRESS,      ALIAS_PROGRESS,     NULL, progress_usage,       1, false,  false },
+    { OPTION_DETAILS,       ALIAS_DETAILS,      NULL, detail_usage,         1, false,  false },
+    { OPTION_SPLIT_SPOT,    ALIAS_SPLIT_SPOT,   NULL, split_spot_usage,     1, false,  false },
+    { OPTION_SPLIT_FILE,    ALIAS_SPLIT_FILE,   NULL, split_file_usage,     1, false,  false },
+    { OPTION_SPLIT_3,       ALIAS_SPLIT_3,      NULL, split_3_usage,        1, false,  false },
+    { OPTION_WHOLE_SPOT,    NULL,               NULL, whole_spot_usage,     1, false,  false },    
+    { OPTION_STDOUT,        ALIAS_STDOUT,       NULL, stdout_usage,         1, false,  false },
 /*    { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false }, */
 /*    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
 /*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
-    { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
-    { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
-    { OPTION_SKIP_TECH, NULL,            NULL, skip_tech_usage,  1, false,  false },
-    { OPTION_INCL_TECH, NULL,            NULL, incl_tech_usage,  1, false,  false },
-    { OPTION_PRNR,      ALIAS_PRNR,      NULL, print_read_nr,    1, false,  false },
-    { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false },
-    { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
-    { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
-    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false },
-    { OPTION_APPEND,    ALIAS_APPEND,    NULL, append_usage,     1, false,  false },
-    { OPTION_FASTA,     NULL,            NULL, fasta_usage,      1, false,  false },
-    { OPTION_FASTA_US,  NULL,            NULL, fasta_us_usage,   1, false,  false },
-    { OPTION_NGC,       NULL,            NULL, ngc_usage,        1, true,   false },
+    { OPTION_FORCE,         ALIAS_FORCE,        NULL, force_usage,          1, false,  false },
+    { OPTION_RIDN,          ALIAS_RIDN,         NULL, ridn_usage,           1, false,  false },
+    { OPTION_SKIP_TECH,     NULL,               NULL, skip_tech_usage,      1, false,  false },
+    { OPTION_INCL_TECH,     NULL,               NULL, incl_tech_usage,      1, false,  false },
+    { OPTION_PRNR,          ALIAS_PRNR,         NULL, print_read_nr,        1, false,  false },
+    { OPTION_MINRDLEN,      ALIAS_MINRDLEN,     NULL, min_rl_usage,         1, true,   false },
+    { OPTION_TABLE,         NULL,               NULL, table_usage,          1, true,   false },
+    { OPTION_STRICT,        NULL,               NULL, strict_usage,         1, false,  false },
+    { OPTION_BASE_FLT,      ALIAS_BASE_FLT,     NULL, base_flt_usage,       10, true,  false },
+    { OPTION_APPEND,        ALIAS_APPEND,       NULL, append_usage,         1, false,  false },
+    { OPTION_FASTA,         NULL,               NULL, fasta_usage,          1, false,  false },
+    { OPTION_FASTA_US,      NULL,               NULL, fasta_us_usage,       1, false,  false },
+    { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,  false },
+    { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,  false },
+    { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
+    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
 };
 
 /* ----------------------------------------------------------------------------------- */
@@ -270,7 +283,9 @@ typedef struct tool_ctx_t {
     const char * output_filename;
     const char * output_dirname;
     const char * seq_tbl_name;
-    
+    const char * seq_defline;
+    const char * qual_defline;
+
     struct temp_dir_t * temp_dir; /* temp_dir.h */
     
     char lookup_filename[ DFLT_PATH_LEN ];
@@ -288,7 +303,7 @@ typedef struct tool_ctx_t {
 
     compress_t compress; /* helper.h */ 
 
-    bool force, show_progress, show_details, append, use_stdout;
+    bool force, show_progress, show_details, append, use_stdout, only_unaligned;
     
     join_options_t join_options; /* helper.h */
 } tool_ctx_t;
@@ -342,16 +357,29 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
         }
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "output-file  : '%s'\n", tool_ctx -> output_filename );
+        rc = KOutMsg( "output-file  : '%s'\n",
+                    NULL != tool_ctx -> output_filename ? tool_ctx -> output_filename : "-" );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "output-dir   : '%s'\n", tool_ctx -> output_dirname );
+        rc = KOutMsg( "output-dir   : '%s'\n", 
+                    NULL != tool_ctx -> output_dirname ? tool_ctx -> output_dirname : "-" );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "stdout-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "seq-defline  : '%s'\n",
+                    NULL != tool_ctx -> seq_defline ? tool_ctx -> seq_defline : "-" );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "qual-defline  : '%s'\n",
+                    NULL != tool_ctx -> qual_defline ? tool_ctx -> qual_defline : "-" );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "only-unaligned : '%s'\n", tool_ctx -> only_unaligned ? "YES" : "NO" );
     }
     return rc;
 }
@@ -416,6 +444,10 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
+
+    tool_ctx -> seq_defline = get_str_option( args, OPTION_SEQ_DEFLINE, NULL );
+    tool_ctx -> qual_defline = get_str_option( args, OPTION_QUAL_DEFLINE, NULL );    
+    tool_ctx -> only_unaligned = get_bool_option( args, OPTION_ONLY_UN );
 
     {
         const char * ngc = get_str_option( args, OPTION_NGC, NULL );
@@ -837,17 +869,19 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
                            tool_ctx -> vdb_mgr,
                            tool_ctx -> accession_path,
                            tool_ctx -> accession_short,
+                           tool_ctx -> seq_defline,
+                           tool_ctx -> qual_defline,
+                           &( tool_ctx -> lookup_filename[ 0 ] ),
+                           &( tool_ctx -> index_filename[ 0 ] ),
                            &stats,
-                           &tool_ctx -> lookup_filename[ 0 ],
-                           &tool_ctx -> index_filename[ 0 ],
+                           &( tool_ctx -> join_options ),
                            tool_ctx -> temp_dir,
                            registry,
                            tool_ctx -> cursor_cache,
                            tool_ctx -> buf_size,
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
-                           tool_ctx -> fmt,
-                           & tool_ctx -> join_options ); /* join.c */
+                           tool_ctx -> fmt ); /* join.c */
     }
 
     /* from now on we do not need the lookup-file and it's index any more... */
@@ -945,7 +979,7 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-static rc_t fastdump_csra( tool_ctx_t * tool_ctx ) {
+static rc_t process_csra( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     
     if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); } /* above */
@@ -960,14 +994,16 @@ static rc_t fastdump_csra( tool_ctx_t * tool_ctx ) {
                         tool_ctx -> vdb_mgr,
                         tool_ctx -> accession_short,
                         tool_ctx -> accession_path,
+                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
+                        tool_ctx -> seq_defline,
                         &stats,
+                        &( tool_ctx -> join_options ),
                         tool_ctx -> cursor_cache,
                         tool_ctx -> buf_size,
                         tool_ctx -> num_threads,
                         tool_ctx -> show_progress,
-                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
-                        & tool_ctx -> join_options,
-                        tool_ctx -> force ); /* helper.h */
+                        tool_ctx -> force,
+                        tool_ctx -> only_unaligned ); /* helper.h */
         print_stats( &stats ); /* above */
 
     } else {
@@ -981,7 +1017,7 @@ static rc_t fastdump_csra( tool_ctx_t * tool_ctx ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
+static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
     rc_t rc = 0;
     join_stats_t stats;
     
@@ -995,15 +1031,17 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
                         tool_ctx -> vdb_mgr,
                         tool_ctx -> accession_short,
                         tool_ctx -> accession_path,
-                        &stats,
+                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
+                        tool_ctx -> seq_defline,
+                        tool_ctx -> qual_defline,
                         tbl_name,
+                        &stats,
+                        &( tool_ctx -> join_options ),
                         tool_ctx -> cursor_cache,
                         tool_ctx -> buf_size,
                         tool_ctx -> num_threads,
                         tool_ctx -> show_progress,
-                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
-                        & tool_ctx -> join_options,
-                        tool_ctx -> force ); /* helper.h */
+                        tool_ctx -> force );
     } else {
         /* this is for 'sorted' SPECIAL/FASTQ/FASTA x whole-spot/split-spot/split-file/split-3
            sorted means in the order of the SEQUENCE-table */
@@ -1017,16 +1055,18 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
                             tool_ctx -> vdb_mgr,
                             tool_ctx -> accession_short,
                             tool_ctx -> accession_path,
-                            &stats,
+                            tool_ctx -> seq_defline,
+                            tool_ctx -> qual_defline,
                             tbl_name,
+                            &stats,
+                            &( tool_ctx -> join_options ),
                             tool_ctx -> temp_dir,
                             registry,
                             tool_ctx -> cursor_cache,
                             tool_ctx -> buf_size,
                             tool_ctx -> num_threads,
                             tool_ctx -> show_progress,
-                            tool_ctx -> fmt,
-                            & tool_ctx -> join_options ); /* tbl_join.c */
+                            tool_ctx -> fmt ); /* tbl_join.c */
         }
 
         if ( 0 == rc ) {
@@ -1082,17 +1122,17 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         /* =================================================== */
         switch( acc_type ) {
-            case acc_csra       : rc = fastdump_csra( tool_ctx ); /* above */
+            case acc_csra       : rc = process_csra( tool_ctx ); /* above */
                                   break;
 
             case acc_pacbio     : ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx -> accession_path );
                                   rc = 3; /* signal to main() that the accession is not-processed */
                                   break;
 
-            case acc_sra_flat   : rc = fastdump_table( tool_ctx, NULL ); /* above */
+            case acc_sra_flat   : rc = process_table( tool_ctx, NULL ); /* above */
                                   break;
 
-            case acc_sra_db     : rc = fastdump_table( tool_ctx, get_db_seq_tbl_name( tool_ctx ) ); /* above */
+            case acc_sra_db     : rc = process_table( tool_ctx, get_db_seq_tbl_name( tool_ctx ) ); /* above */
                                   break;
 
             default             : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
@@ -1103,7 +1143,6 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
     } else {
         ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
     }
-    
     return rc;
 }
 
@@ -1130,9 +1169,9 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         } else {
             /* in case we are given no or more than one accessions/files to process */
             if ( param_count == 0 || param_count > 1 ) {
-                test_printf();
-                
-                /* Usage ( args ); */
+                /* test_printf(); */
+
+                Usage ( args );
                 /* will make the caller of this function aka KMane() in man.c return
                 error code of 3 */
                 rc = 3;

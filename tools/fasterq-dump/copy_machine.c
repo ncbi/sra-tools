@@ -632,8 +632,8 @@ static rc_t CC multi_writer_thread( const KThread * thread, void *data ) {
     return rc;
 }
 
-#define N_MULTI_WRITER_BLOCKS 512
-#define MULTI_WRITER_BLOCK_SIZE ( 1024 * 1024 )
+#define N_MULTI_WRITER_BLOCKS 16
+#define MULTI_WRITER_BLOCK_SIZE ( 4 * 1024 * 1024 )
 #define MULTI_WRITER_WAIT 5
 
 static rc_t create_multi_writer_file( multi_writer_t * self, KDirectory * dir, const char * filename, size_t buf_size ) {

@@ -59,17 +59,19 @@ rc_t execute_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_path,
                     const char * accession_short,
-                    join_stats_t * stats,
+                    const char * seq_defline,           /* NULL for default */
+                    const char * qual_defline,          /* NULL for default */
                     const char * lookup_filename,
                     const char * index_filename,
+                    join_stats_t * stats,
+                    const join_options_t * join_options,
                     const struct temp_dir_t * temp_dir,
                     struct temp_registry_t * registry,
                     size_t cur_cache,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
-                    format_t fmt,
-                    const join_options_t * join_options );
+                    format_t fmt );
 
 rc_t check_lookup( const KDirectory * dir,
                    size_t buf_size,
@@ -91,14 +93,16 @@ rc_t execute_unsorted_fasta_db_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,
+                    const char * output_filename,       /* NULL for stdout! */
+                    const char * seq_defline,           /* NULL for default, we need only seq-defline here ( FASTA!) */
                     join_stats_t * stats,
+                    const join_options_t * join_options,
                     size_t cur_cache,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
-                    const char * output_filename, /* NULL for stdout! */
-                    const join_options_t * join_options,
-                    bool force );
+                    bool force,
+                    bool only_unaligned );
 
 #ifdef __cplusplus
 }

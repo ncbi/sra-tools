@@ -181,6 +181,7 @@ nameSpotGroup
     | nameWS nameWithCoords                                                     /* nameWS ignored */
     | nameWS nameWithCoords fqSPOTGROUP         { SetSpotGroup(pb, &$3); }      /* nameWS ignored */
     | nameWS fqALPHANUM '='  { RevertSpotName(pb); FASTQScan_skip_to_eol(pb); }
+    | nameWS name { RevertSpotName(pb); FASTQScan_skip_to_eol(pb); }
     ;
 
 nameWS

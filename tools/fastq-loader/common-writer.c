@@ -792,8 +792,8 @@ HandleSequence( const struct ReadResult * rr,
     {
         uint64_t const keyId = rr -> u.sequence.id;
         bool const wasInserted = !!rr -> u.sequence.inserted;
-        bool const mated = !!rr -> u.sequence.mated;
-        unsigned const readNo = rr -> u.sequence.readNo;
+        bool mated = !!rr -> u.sequence.mated;
+        unsigned readNo = rr -> u.sequence.readNo;
         char const *const seqDNA = rr -> u.sequence.seqDNA;
         uint8_t const *const qual = rr -> u.sequence.quality;
         unsigned const readlen = rr -> u.sequence.readLen;
@@ -816,9 +816,12 @@ HandleSequence( const struct ReadResult * rr,
         if (wasInserted) {
             memset(value, 0, sizeof(*value));
             value->fragmentOffset = -1;
+mated = true;
+readNo = 1;
             value->unmated = !mated;
         }
         else {
+readNo = 2; mated = true; value->unmated = !mated;
             if ( ! G->allowDuplicateReadNames )
             {   // VDB-4524
                 if ( ! mated && value -> unmated )

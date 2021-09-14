@@ -1,7 +1,6 @@
 # Purpose
 
-To provide a central location for converting user-input accessions to
-location-appropriate URLs that can then be used directly by sra-toolkit.
+To provide a central location for converting user-input accessions to location-appropriate URLs that can then be used directly by sra-toolkit.
 
 ## Description:
 
@@ -23,8 +22,9 @@ If the tool is not found, a message is printed.
 
 ## Environment variables for logging and debugging:
 
-1. `SRATOOLS_TRACE` - setting to 1 (or anything perl consider to be true) turns on TRACE printing to STDERR (not fully implemented). E.g. `SRATOOLS_TRACE=1 sratools info SRA000001`
-2. `SRATOOLS_DEBUG` - setting to 1 (or anything perl consider to be true) turns on DEBUG printing to STDERR, less verbose than TRACE (not fully implemented). E.g. `SRATOOLS_DEBUG=1 sratools info SRA000001`
-3. `SRATOOLS_VERBOSE=<1-5>` - turns on VERBOSE logging, 1 is less verbose than 5. E.g. `SRATOOLS_VERBOSE=1 sratools info SRA000001`
-4. `SRATOOLS_IMPERSONATE=<path>` - force $0 to be this. Particularly useful for running the driver tool in its uninstalled state. E.g. this would cause the tool to run srapath: `SRATOOLS_IMPERSONATE=${HOME}/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/bin/srapath perl sratools.pl SRA000001`
-5. `SRATOOLS_DRY_RUN` - setting to 1 will cause the tool to print out the commands it would have executed. Setting `SRATOOLS_VERBOSE=1` will also cause it to print out the environment it would have set for each command.
+1. `SRATOOLS_TRACE` - setting to 1 (or anything not falsy) turns on TRACE printing to STDERR (not fully implemented).
+2. `SRATOOLS_DEBUG` - setting to 1 (or anything not falsy) turns on DEBUG printing to STDERR, less verbose than TRACE (not fully implemented).
+3. `SRATOOLS_VERBOSE=[1-9]` - turns on VERBOSE logging, 1 is less verbose than 9.
+4. `SRATOOLS_IMPERSONATE=<path>` - force $0 to be this. Particularly useful for running the driver tool in its uninstalled state. E.g. this would cause the tool to run srapath: `SRATOOLS_IMPERSONATE=srapath sratools SRR000001`
+5. `SRATOOLS_DRY_RUN` - setting to 1 (or anything not falsy) will cause the tool to print out the commands it would have executed.
+6. `SRATOOLS_TESTING=[1-9]` - setting various values with invoke various testing modes. 1: Run internal tests and quit. 2-4: various dry run modes.

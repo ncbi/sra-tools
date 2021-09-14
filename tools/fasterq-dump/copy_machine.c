@@ -38,7 +38,7 @@ typedef struct copy_machine_block
 {
     char * buffer;
     size_t available;
-} copy_machine_block;
+} copy_machine_block_t;
 
 #define N_COPY_MACHINE_BLOCKS 4
 
@@ -46,19 +46,19 @@ typedef struct copy_machine
 {
     KDirectory * dir;
     KFile * dst;
-    struct bg_progress * progress;
+    struct bg_progress_t * progress;
     KThread * thread;
     KQueue * empty_q;
     KQueue * to_write_q;
     const struct VNamelist * sources;
-    copy_machine_block blocks[ N_COPY_MACHINE_BLOCKS ];
+    copy_machine_block_t blocks[ N_COPY_MACHINE_BLOCKS ];
     uint64_t dst_pos;
     size_t buf_size;
     uint32_t src_list_offset;
     uint32_t q_wait_time;
-} copy_machine;
+} copy_machine_t;
 
-static rc_t destroy_copy_machine( copy_machine * self )
+static rc_t destroy_copy_machine( copy_machine_t * self )
 {
     uint32_t i;
 
@@ -143,7 +143,7 @@ static rc_t push2q( KQueue * q, const void * item, uint32_t wait_time )
     return rc;
 }
 
-static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
+static rc_t copy_this_file( copy_machine_t * self, const struct KFile * src )
 {
     rc_t rc = 0;
     uint64_t src_pos = 0;
@@ -159,7 +159,7 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
         }
         else
         {
-            copy_machine_block * block;
+            copy_machine_block_t * block;
             rc = KQueuePop ( self -> empty_q, ( void ** )&block, &tm );
             if ( 0 == rc )
             {
@@ -204,7 +204,7 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
     return rc;
 }
 
-static rc_t run_copy_machine( copy_machine * self )
+static rc_t run_copy_machine( copy_machine_t * self )
 {
     uint32_t file_count;
     rc_t rc = VNameListCount( self -> sources, &file_count );
@@ -264,7 +264,7 @@ static rc_t run_copy_machine( copy_machine * self )
 static rc_t CC copy_machine_writer_thread( const KThread * thread, void *data )
 {
     rc_t rc = 0;
-    copy_machine * self = data;
+    copy_machine_t * self = data;
     bool done = false;
     while( 0 == rc && !done )
     {
@@ -277,7 +277,7 @@ static rc_t CC copy_machine_writer_thread( const KThread * thread, void *data )
         }
         else
         {
-            copy_machine_block * block;
+            copy_machine_block_t * block;
             rc = KQueuePop ( self -> to_write_q, ( void ** )&block, /*&tm*/ NULL );
             if ( 0 == rc )
             {
@@ -339,7 +339,7 @@ static rc_t CC copy_machine_writer_thread( const KThread * thread, void *data )
 rc_t make_a_copy( KDirectory * dir,
                   KFile * dst,
                   const struct VNamelist * sources,
-                  struct bg_progress * progress,
+                  struct bg_progress_t * progress,
                   uint64_t dst_offset,
                   size_t buf_size,
                   uint32_t src_list_offset,
@@ -353,7 +353,7 @@ rc_t make_a_copy( KDirectory * dir,
     }
     else
     {
-        copy_machine cm;
+        copy_machine_t cm;
         uint32_t i;
 
         cm . dir = dir;

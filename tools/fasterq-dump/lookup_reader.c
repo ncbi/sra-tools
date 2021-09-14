@@ -35,16 +35,16 @@
 #include <string.h>
 #include <stdio.h>
 
-typedef struct lookup_reader
+typedef struct lookup_reader_t
 {
     const struct KFile * f;
-    const struct index_reader * index;
-    SBuffer buf;
+    const struct index_reader_t * index;
+    SBuffer_t buf;
     uint64_t pos, f_size, max_key;
-} lookup_reader;
+} lookup_reader_t;
 
 
-void release_lookup_reader( struct lookup_reader * self )
+void release_lookup_reader( struct lookup_reader_t * self )
 {
     if ( NULL != self )
     {
@@ -61,12 +61,12 @@ void release_lookup_reader( struct lookup_reader * self )
     }
 }
 
-static rc_t make_lookup_reader_obj( struct lookup_reader ** reader,
-                                    const struct index_reader * index,
+static rc_t make_lookup_reader_obj( struct lookup_reader_t ** reader,
+                                    const struct index_reader_t * index,
                                     const struct KFile * f )
 {
     rc_t rc = 0;
-    lookup_reader * r = calloc( 1, sizeof * r );
+    lookup_reader_t * r = calloc( 1, sizeof * r );
     if ( NULL == r )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -103,8 +103,8 @@ static rc_t make_lookup_reader_obj( struct lookup_reader ** reader,
     return rc;
 }
 
-rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * index,
-                         struct lookup_reader ** reader, size_t buf_size, const char * fmt, ... )
+rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader_t * index,
+                         struct lookup_reader_t ** reader, size_t buf_size, const char * fmt, ... )
 {
     rc_t rc;
     const struct KFile * f = NULL;
@@ -151,7 +151,7 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
 }
 
 
-static rc_t read_key_and_len( struct lookup_reader * self, uint64_t pos, uint64_t *key, size_t *len )
+static rc_t read_key_and_len( struct lookup_reader_t * self, uint64_t pos, uint64_t *key, size_t *len )
 {
     size_t num_read;
     uint8_t buffer[ 10 ];
@@ -196,7 +196,7 @@ static bool keys_equal( uint64_t key1, uint64_t key2 )
     return res;
 }
 
-static rc_t loop_until_key_found( struct lookup_reader * self, uint64_t key_to_find,
+static rc_t loop_until_key_found( struct lookup_reader_t * self, uint64_t key_to_find,
         uint64_t *key_found , uint64_t *offset )
 {
     rc_t rc = 0;
@@ -225,7 +225,7 @@ static rc_t loop_until_key_found( struct lookup_reader * self, uint64_t key_to_f
 }
 
 
-static rc_t full_table_seek( struct lookup_reader * self, uint64_t key_to_find, uint64_t * key_found )
+static rc_t full_table_seek( struct lookup_reader_t * self, uint64_t key_to_find, uint64_t * key_found )
 {
     /* we have no index! search the whole thing... */
     uint64_t offset = 0;
@@ -246,7 +246,7 @@ static rc_t full_table_seek( struct lookup_reader * self, uint64_t key_to_find, 
 }
 
 
-static rc_t indexed_seek( struct lookup_reader * self, uint64_t key_to_find, uint64_t * key_found, bool exactly )
+static rc_t indexed_seek( struct lookup_reader_t * self, uint64_t key_to_find, uint64_t * key_found, bool exactly )
 {
     /* we have a index! find set pos to the found offset */
     rc_t rc;
@@ -298,7 +298,7 @@ static rc_t indexed_seek( struct lookup_reader * self, uint64_t key_to_find, uin
 }
 
 
-rc_t seek_lookup_reader( struct lookup_reader * self, uint64_t key_to_find, uint64_t * key_found, bool exactly )
+rc_t seek_lookup_reader( struct lookup_reader_t * self, uint64_t key_to_find, uint64_t * key_found, bool exactly )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == key_found )
@@ -325,7 +325,7 @@ rc_t seek_lookup_reader( struct lookup_reader * self, uint64_t key_to_find, uint
 }
 
 
-rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * packed_bases )
+rc_t lookup_reader_get( struct lookup_reader_t * self, uint64_t * key, SBuffer_t * packed_bases )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == key || NULL == packed_bases )
@@ -422,7 +422,7 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
     return rc;
 }
 
-rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id, SBuffer * B, bool reverse )
+rc_t lookup_bases( struct lookup_reader_t * self, int64_t row_id, uint32_t read_id, SBuffer_t * B, bool reverse )
 {
     int64_t found_row_id;
     uint32_t found_read_id;
@@ -491,7 +491,7 @@ rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id
 }
 
 
-rc_t lookup_check( struct lookup_reader * self )
+rc_t lookup_check( struct lookup_reader_t * self )
 {
     rc_t rc = 0;
     int64_t last_key = 0;
@@ -521,7 +521,7 @@ rc_t lookup_check( struct lookup_reader * self )
 
 rc_t lookup_check_file( const KDirectory *dir, size_t buf_size, const char * filename )
 {
-    lookup_reader * reader;
+    lookup_reader_t * reader;
     rc_t rc = make_lookup_reader( dir, NULL, &reader, buf_size, "%s", filename );
     if ( 0 == rc )
     {
@@ -532,7 +532,7 @@ rc_t lookup_check_file( const KDirectory *dir, size_t buf_size, const char * fil
 }
 
 
-rc_t lookup_count( struct lookup_reader * self, uint32_t * count )
+rc_t lookup_count( struct lookup_reader_t * self, uint32_t * count )
 {
     rc_t rc = 0;
     int32_t n = 0;
@@ -556,7 +556,7 @@ rc_t lookup_count( struct lookup_reader * self, uint32_t * count )
 
 rc_t lookup_count_file( const KDirectory *dir, size_t buf_size, const char * filename, uint32_t * count )
 {
-    lookup_reader * reader;
+    lookup_reader_t * reader;
     rc_t rc = make_lookup_reader( dir, NULL, &reader, buf_size, "%s", filename );
     if ( 0 == rc )
     {
@@ -569,11 +569,11 @@ rc_t lookup_count_file( const KDirectory *dir, size_t buf_size, const char * fil
 
 rc_t write_out_lookup( const KDirectory *dir, size_t buf_size, const char * lookup_file, const char * output_file )
 {
-    lookup_reader * reader;
+    lookup_reader_t * reader;
     rc_t rc = make_lookup_reader( dir, NULL, &reader, buf_size, "%s", lookup_file );
     if ( 0 == rc )
     {
-        struct file_printer * printer;
+        struct file_printer_t * printer;
         rc = make_file_printer_from_filename( dir, &printer, buf_size, 1024, "%s", output_file );
         if ( 0 == rc )
         {

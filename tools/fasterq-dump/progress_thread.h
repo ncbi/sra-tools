@@ -35,21 +35,21 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-struct bg_progress;
+struct bg_progress_t;
 
-rc_t bg_progress_make( struct bg_progress ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits );
-void bg_progress_update( struct bg_progress * self, uint64_t by );
-void bg_progress_inc( struct bg_progress * self );
-void bg_progress_get( struct bg_progress * self, uint64_t * value );
-void bg_progress_set_max( struct bg_progress * self, uint64_t value );
-void bg_progress_release( struct bg_progress * self );
+rc_t bg_progress_make( struct bg_progress_t ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits );
+void bg_progress_update( struct bg_progress_t * self, uint64_t by );
+void bg_progress_inc( struct bg_progress_t * self );
+void bg_progress_get( struct bg_progress_t * self, uint64_t * value );
+void bg_progress_set_max( struct bg_progress_t * self, uint64_t value );
+void bg_progress_release( struct bg_progress_t * self );
 
-struct bg_update;
+struct bg_update_t;
 
-rc_t bg_update_make( struct bg_update ** bga, uint32_t sleep_time );
-void bg_update_start( struct bg_update * self, const char * caption );
-void bg_update_update( struct bg_update * self, uint64_t by );
-void bg_update_release( struct bg_update * self );
+rc_t bg_update_make( struct bg_update_t ** bga, uint32_t sleep_time );
+void bg_update_start( struct bg_update_t * self, const char * caption );
+void bg_update_update( struct bg_update_t * self, uint64_t by );
+void bg_update_release( struct bg_update_t * self );
 
 #ifdef __cplusplus
 }

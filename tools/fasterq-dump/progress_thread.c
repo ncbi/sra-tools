@@ -61,7 +61,7 @@
 
 #include "helper.h"
 
-typedef struct bg_progress
+typedef struct bg_progress_t
 {
     KThread * thread;
     struct progressbar * progressbar;
@@ -71,7 +71,7 @@ typedef struct bg_progress
     uint32_t sleep_time;
     uint32_t digits;
     uint32_t cur;
-} bg_progress;
+} bg_progress_t;
 
 static uint32_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
 {
@@ -89,7 +89,7 @@ static uint32_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
     return ( uint32_t )res;
 }
 
-static void bg_progress_steps( bg_progress * self )
+static void bg_progress_steps( bg_progress_t * self )
 {
     uint64_t max_value = atomic64_read( &self -> max_value );
     uint64_t value = atomic64_read( &self -> value );
@@ -108,7 +108,7 @@ static void bg_progress_steps( bg_progress * self )
 static rc_t CC bg_progress_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
-    bg_progress * bgp = data;
+    bg_progress_t * bgp = data;
     if ( bgp != NULL )
     {
         rc = make_progressbar_stderr( & bgp -> progressbar, bgp -> digits );
@@ -129,10 +129,10 @@ static rc_t CC bg_progress_thread_func( const KThread *self, void *data )
     return rc;
 }
 
-rc_t bg_progress_make( bg_progress ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits )
+rc_t bg_progress_make( bg_progress_t ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits )
 {
     rc_t rc = 0;
-    bg_progress * p = calloc( 1, sizeof *p );
+    bg_progress_t * p = calloc( 1, sizeof *p );
     if ( NULL == p )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -156,7 +156,7 @@ rc_t bg_progress_make( bg_progress ** bgp, uint64_t max_value, uint32_t sleep_ti
     return rc;
 }
 
-void bg_progress_update( bg_progress * self, uint64_t by )
+void bg_progress_update( bg_progress_t * self, uint64_t by )
 {
     if ( NULL != self )
     {
@@ -164,7 +164,7 @@ void bg_progress_update( bg_progress * self, uint64_t by )
     }
 }
 
-void bg_progress_inc( bg_progress * self )
+void bg_progress_inc( bg_progress_t * self )
 {
     if ( NULL != self )
     {
@@ -172,7 +172,7 @@ void bg_progress_inc( bg_progress * self )
     }
 }
 
-void bg_progress_set_max( bg_progress * self, uint64_t value )
+void bg_progress_set_max( bg_progress_t * self, uint64_t value )
 {
     if ( NULL != self )
     {
@@ -180,7 +180,7 @@ void bg_progress_set_max( bg_progress * self, uint64_t value )
     }
 }
 
-void bg_progress_get( bg_progress * self, uint64_t * value )
+void bg_progress_get( bg_progress_t * self, uint64_t * value )
 {
     if ( NULL != self && NULL != value )
     {
@@ -188,7 +188,7 @@ void bg_progress_get( bg_progress * self, uint64_t * value )
     }
 }
 
-void bg_progress_release( bg_progress * self )
+void bg_progress_release( bg_progress_t * self )
 {
     if ( NULL != self )
     {
@@ -200,7 +200,7 @@ void bg_progress_release( bg_progress * self )
 }
 
 
-typedef struct bg_update
+typedef struct bg_update_t
 {
     KThread * thread;
     atomic_t done;
@@ -209,13 +209,13 @@ typedef struct bg_update
     uint64_t prev_value;
     size_t digits_printed;
     uint32_t sleep_time;    
-} bg_update;
+} bg_update_t;
 
 
 static rc_t CC bg_update_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
-    bg_update * bga = data;
+    bg_update_t * bga = data;
     if ( NULL != bga )
     {
         /* wait to be activated */
@@ -263,10 +263,10 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data )
     return rc;
 }
 
-rc_t bg_update_make( bg_update ** bga, uint32_t sleep_time )
+rc_t bg_update_make( bg_update_t ** bga, uint32_t sleep_time )
 {
     rc_t rc = 0;
-    bg_update * p = calloc( 1, sizeof *p );
+    bg_update_t * p = calloc( 1, sizeof *p );
     if ( NULL == p )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -288,7 +288,7 @@ rc_t bg_update_make( bg_update ** bga, uint32_t sleep_time )
     return rc;
 }
 
-void bg_update_start( bg_update * self, const char * caption )
+void bg_update_start( bg_update_t * self, const char * caption )
 {
     if ( self != NULL )
     {
@@ -306,7 +306,7 @@ void bg_update_start( bg_update * self, const char * caption )
     }
 }
 
-void bg_update_update( bg_update * self, uint64_t by )
+void bg_update_update( bg_update_t * self, uint64_t by )
 {
     if ( NULL != self )
     {
@@ -317,7 +317,7 @@ void bg_update_update( bg_update * self, uint64_t by )
     }
 }
 
-void bg_update_release( bg_update * self )
+void bg_update_release( bg_update_t * self )
 {
     if ( NULL != self )
     {

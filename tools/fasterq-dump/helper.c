@@ -47,17 +47,20 @@
 #endif
 
 bool is_format_split( format_t fmt ) {
-    bool res;
+    bool res = false;
+    /* to produce the same output as fastq-dump, we do not include the read-id anywhere! */
+    /*
     switch( fmt ) {
-        /* case ft_fastq_split_spot : res = true; break; */
+        case ft_fastq_split_spot : res = true; break;
         case ft_fastq_split_file : res = true; break;
         case ft_fastq_split_3    : res = true; break;
-        /* case ft_fasta_split_spot : res = true; break; */
+        case ft_fasta_split_spot : res = true; break;
         case ft_fasta_split_file : res = true; break;
         case ft_fasta_split_3    : res = true; break;
         case ft_fasta_us_split_spot : res = true; break;
         default : res = false; break;
     }
+    */
     return res;
 }
 

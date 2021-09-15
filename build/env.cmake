@@ -179,6 +179,12 @@ endif()
 # ===========================================================================
 # 3d party packages
 
+# Flex/Bison
+find_package( FLEX 2.6 )
+find_package( BISON 3 )
+
+find_package( LibXml2 )
+
 if ( PYTHON_PATH )
     set( Python3_EXECUTABLE ${PYTHON_PATH} )
 endif()

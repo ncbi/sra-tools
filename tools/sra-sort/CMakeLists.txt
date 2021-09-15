@@ -12,7 +12,8 @@ if( NOT WIN32 )
 endif()
 
 # External
-add_executable( sra-sort
+
+set( SRA_SORT_SRC
 	caps
 	mem
 	membank
@@ -43,10 +44,12 @@ add_executable( sra-sort
 	csra-tbl
 	csra-pair
 )
+
+add_executable( sra-sort ${SRA_SORT_SRC} )
 target_link_libraries( sra-sort ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
 MSVS_StaticRuntime( sra-sort )
 
-# add_executable( sra-sort-cg
-# )
-# target_link_libraries( sra-sort-cg ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-# MSVS_StaticRuntime( sra-sort-cg )
+add_executable( sra-sort-cg ${SRA_SORT_SRC} )
+target_link_libraries( sra-sort-cg ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
+MSVS_StaticRuntime( sra-sort-cg )
+target_compile_definitions( sra-sort-cg PUBLIC SEQUENCE_BEFORE_SECONDARY=0 )

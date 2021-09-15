@@ -8,20 +8,33 @@ add_subdirectory( driver-tool )
 add_subdirectory( util )
 add_subdirectory( align-cache )
 add_subdirectory( align-info )
+add_subdirectory( bam-loader )
 add_subdirectory( rd-filter-redact )
 add_subdirectory( prefetch )
-add_subdirectory( vdb-config ) # TODO: fix DEBUG
-# add_subdirectory( vcf-config ) # TODO: lex
+add_subdirectory( vdb-config )
+add_subdirectory( vcf-loader )
 add_subdirectory( kar )
 add_subdirectory( copycat )
-add_subdirectory( sra-sort ) # TODO: __file__ in ctx.h; sra-sort-cg
-add_subdirectory( sra-pileup ) # TODO: ifdef NCBI
-add_subdirectory( fuse ) # TODO: ifdef NCBI, xml
-# add_subdirectory( fastq-loader ) # TODO: bison
+add_subdirectory( sra-dump )
+add_subdirectory( sra-sort )
+add_subdirectory( sra-pileup )
+add_subdirectory( fastq-loader )
 add_subdirectory( fasterq-dump )
 add_subdirectory( kget )
 add_subdirectory( vdb-dump )
-add_subdirectory( vdb-copy ) # TODO: vdb-copy.kfg
+add_subdirectory( vdb-copy )
 add_subdirectory( qual-recalib-stat )
 add_subdirectory( vdb-validate )
+add_subdirectory( vdb-decrypt )
 add_subdirectory( srapath )
+add_subdirectory( sra-stat )
+add_subdirectory( cache-mgr )
+add_subdirectory( sra-load )
+add_subdirectory( ccextract )
+add_subdirectory( pacbio-load )
+add_subdirectory( vdb-diff )
+add_subdirectory( ngs-pileup )
+add_subdirectory( vdb-sql )
+add_subdirectory( cg-load )
+# add_subdirectory( kqsh ) # can be dropped
+# add_subdirectory( fuse ) # TODO: https://jira.ncbi.nlm.nih.gov/browse/VDB-4233

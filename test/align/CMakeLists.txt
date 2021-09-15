@@ -1,5 +1,7 @@
 add_compile_definitions( __mod__="test/align" )
 
+include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
+
 # add_executable( test-load-index indextest )
 # MSVS_StaticRuntime( test-load-index )
 # target_link_libraries( test-load-index ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )

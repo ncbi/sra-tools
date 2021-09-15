@@ -49,9 +49,9 @@ add_executable( rowwritetest rowwritetest )
 target_link_libraries( rowwritetest ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
 MSVS_StaticRuntime( rowwritetest )
 
-add_executable( samview samview )
-target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( samview )
+add_executable( samview-util samview )
+target_link_libraries( samview-util ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+MSVS_StaticRuntime( samview-util )
 
 add_executable( testld testld )
 target_link_libraries( testld ${COMMON_LINK_LIBRARIES} ncbi-vdb )

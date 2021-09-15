@@ -667,8 +667,8 @@ class vdbconf_view2 : public Dlg
             }
 
             y += 2;
-            PopulateCheckbox( zero_qual_rect( r, y ), resize, MAIN_FULL_QUALITY, 
-            "Prefer no &Quality scores (-BQS) if available",
+            PopulateCheckbox( zero_qual_rect( r, y ), resize, MAIN_FULL_QUALITY,
+            "Prefer SRA Lite records with binned base &Quality scores",
                               model.get_full_quality(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
 

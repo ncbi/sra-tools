@@ -90,6 +90,7 @@ typedef struct join_options
     bool skip_tech;
     bool print_read_nr;
     bool print_name;
+    bool print_spotgroup;
     bool terminate_on_invalid;
     uint32_t min_read_len;
     const char * filter_bases;
@@ -102,11 +103,15 @@ typedef struct SBuffer
 } SBuffer_t;
 
 typedef enum format_t {
-    ft_unknown, ft_special,
+    ft_unknown,
     ft_fastq_whole_spot, ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3,
     ft_fasta_whole_spot, ft_fasta_split_spot, ft_fasta_split_file, ft_fasta_split_3,
     ft_fasta_us_split_spot
     } format_t;
+
+bool is_format_split( format_t fmt );
+bool is_format_fasta( format_t fmt );
+
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
 typedef struct cmn_iter_params

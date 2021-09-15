@@ -99,10 +99,12 @@ bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const Stri
 
 /* --------------------------------------------------------------------------------------------------- */
 
+bool spot_group_requested( const char * seq_defline, const char * qual_defline );
+
 typedef enum flex_printer_name_mode_t { fpnm_use_name = 1, fpnm_syn_name, fpnm_no_name } flex_printer_name_mode_t;
 
-const char * dflt_seq_defline( bool fasta, flex_printer_name_mode_t name_mode );
-const char * dflt_qual_defline( flex_printer_name_mode_t name_mode );
+const char * dflt_seq_defline( flex_printer_name_mode_t name_mode, bool use_read_id, bool fasta );
+const char * dflt_qual_defline( flex_printer_name_mode_t name_mode, bool use_read_id );
 
 struct flex_printer_t;
 
@@ -150,7 +152,8 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,     
                         const char * accession,                         /* used in both modes */
                         const char * seq_defline,                       /* if NULL -> pick default based on fasta/name-mode */
                         const char * qual_defline,                      /* if NULL -> pick default based on fasta/name-mode */
-                        flex_printer_name_mode_t name_mode,
+                        flex_printer_name_mode_t name_mode,             /* needed for picking a default */
+                        bool use_read_id,                               /* needed for picking a default, split...true, whole...false */
                         bool fasta );
 
 void release_flex_printer( struct flex_printer_t * self );

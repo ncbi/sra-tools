@@ -111,7 +111,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
             data . read_id = read_id;
             data . dst_id = dst_id;
             data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-            data . spotgroup = NULL;
+            data . spotgroup = &( rec -> spotgroup );
             data . read1 = &( rec -> read );
             data . read2 = NULL;
             data . quality = &( rec -> quality );
@@ -151,7 +151,7 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
             data . read_id = read_id;
             data . dst_id = dst_id;
             data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-            data . spotgroup = NULL;
+            data . spotgroup = &( rec -> spotgroup );
             data . read1 = &( rec -> read );
             data . read2 = NULL;
             data . quality = NULL;
@@ -231,7 +231,7 @@ static rc_t print_fastq_n_reads_split( join_stats_t * stats,
                         data . read_id = read_id_0 + 1;
                         data . dst_id = 0;
                         data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                        data . spotgroup = NULL;
+                        data . spotgroup = &( rec -> spotgroup );
                         data . read1 = &R;
                         data . read2 = NULL;
                         data . quality = &Q;
@@ -300,7 +300,7 @@ static rc_t print_fasta_n_reads_split( join_stats_t * stats,
                         data . read_id = read_id_0 + 1;
                         data . dst_id = 0;
                         data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                        data . spotgroup = NULL;
+                        data . spotgroup = &( rec -> spotgroup );
                         data . read1 = &R;
                         data . read2 = NULL;
                         data . quality = NULL;
@@ -381,7 +381,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
                     data . read_id = read_id_0 + 1;
                     data . dst_id = write_id_1;
                     data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = NULL;
+                    data . spotgroup = &( rec -> spotgroup );
                     data . read1 = &R;
                     data . read2 = NULL;
                     data . quality = &Q;
@@ -452,7 +452,7 @@ static rc_t print_fasta_n_reads_split_file( join_stats_t * stats,
                     data . read_id = read_id_0 + 1;
                     data . dst_id = write_id_1;
                     data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = NULL;
+                    data . spotgroup = &( rec -> spotgroup );
                     data . read1 = &R;
                     data . read2 = NULL;
                     data . quality = NULL;
@@ -549,7 +549,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
                     data . read_id = read_id_0 + 1;
                     data . dst_id = write_id_1;
                     data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = NULL;
+                    data . spotgroup = &( rec -> spotgroup );
                     data . read1 = &R;
                     data . read2 = NULL;
                     data . quality = &Q;
@@ -634,7 +634,7 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
                     data . read_id = read_id_0 + 1;
                     data . dst_id = write_id_1;
                     data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = NULL;
+                    data . spotgroup = &( rec -> spotgroup );
                     data . read1 = &R;
                     data . read2 = NULL;
                     data . quality = NULL;
@@ -673,6 +673,7 @@ static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
     opt . with_read_type = false;
     opt . with_cmp_read = false;
     opt . with_quality = true;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 != rc ) {
@@ -686,6 +687,7 @@ static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
             false,
             jo -> print_read_nr,
             jo -> print_name,
+            jo -> print_spotgroup,
             jo -> terminate_on_invalid,
             jo -> min_read_len,
             jo -> filter_bases
@@ -737,6 +739,7 @@ static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
     opt . with_read_type = jo -> skip_tech;
     opt . with_cmp_read = false;
     opt . with_quality = true;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc ) {
@@ -801,6 +804,7 @@ static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
     opt . with_read_type = jo -> skip_tech;
     opt . with_cmp_read = false;
     opt . with_quality = true;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc ) {
@@ -865,6 +869,7 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
     opt . with_read_type = true;
     opt . with_cmp_read = false;
     opt . with_quality = true;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc ) {
@@ -875,6 +880,7 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
             true,
             jo -> print_read_nr,
             jo -> print_name,
+            jo -> print_spotgroup,
             jo -> terminate_on_invalid,
             jo -> min_read_len,
             jo -> filter_bases
@@ -941,6 +947,7 @@ static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
     opt . with_read_type = false;
     opt . with_cmp_read = false;
     opt . with_quality = false;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 != rc ) {
@@ -953,6 +960,7 @@ static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
             false,
             jo -> print_read_nr,
             jo -> print_name,
+            jo -> print_spotgroup,
             jo -> terminate_on_invalid,
             jo -> min_read_len,
             jo -> filter_bases
@@ -1004,6 +1012,7 @@ static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
     opt . with_read_type = jo -> skip_tech;
     opt . with_cmp_read = false;
     opt . with_quality = false;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc ) {
@@ -1068,6 +1077,7 @@ static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
     opt . with_read_type = jo -> skip_tech;
     opt . with_cmp_read = false;
     opt . with_quality = false;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc ) {
@@ -1132,6 +1142,7 @@ static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
     opt . with_read_type = true;
     opt . with_cmp_read = false;
     opt . with_quality = false;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( 0 == rc ) {
@@ -1142,6 +1153,7 @@ static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
             true,
             jo -> print_read_nr,
             jo -> print_name,
+            jo -> print_spotgroup,
             jo -> terminate_on_invalid,
             jo -> min_read_len,
             jo -> filter_bases
@@ -1217,19 +1229,6 @@ typedef struct join_thread_data_t {
 
 } join_thread_data_t;
 
-static bool is_fasta( format_t fmt ) {
-    bool res;
-    switch( fmt ) {
-        case ft_fasta_whole_spot : res = true; break;
-        case ft_fasta_split_spot : res = true; break;
-        case ft_fasta_split_file : res = true; break;
-        case ft_fasta_split_3    : res = true; break;
-        case ft_fasta_us_split_spot : res = true; break;
-        default : res = false; break;
-    }
-    return res;
-}
-
 static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data ) {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
@@ -1257,13 +1256,15 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
                             jtd -> registry,
                             jtd -> part_file,
                             jtd -> buf_size );
+    /* make_flex_printer() is in join_results.c */
     struct flex_printer_t * flex_printer = make_flex_printer( &file_args,
                         NULL,                           /* no multi-writer here, each thread writes into it's own files! */
                         jtd -> accession_short,         /* we need that for the flexible defline! */
                         jtd -> seq_defline,             /* the seq-defline */
                         jtd -> qual_defline,            /* the qual-defline */
-                        name_mode,
-                        is_fasta( jtd -> fmt ) );
+                        name_mode,                      /* use-name, syn-name or no-name */
+                        is_format_split( jtd -> fmt ),         /* use read-id */
+                        is_format_fasta( jtd -> fmt ) );       /* fasta-mode */
 #endif
 
 #ifdef USE_JOIN_RESULTS
@@ -1370,7 +1371,6 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
                                             jtd -> join_options ); break; /* above */;
 
             case ft_unknown : break;                /* this should not happen */
-            case ft_special : break;                /* this also should not happen */
             case ft_fasta_us_split_spot : break;    /* and neither should this */
         }
 #ifdef USE_JOIN_RESULTS
@@ -1392,7 +1392,7 @@ static rc_t extract_sra_row_count( KDirectory * dir,
                                    uint64_t * res ) {
     cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache }; /* helper.h */
     struct fastq_sra_iter_t * iter; 
-    fastq_iter_opt_t opt = { false, false, false, false };
+    fastq_iter_opt_t opt = { false, false, false, false, false };
     rc_t rc = make_fastq_sra_iter( &cp, opt, tbl_name, &iter ); /* fastq_iter.c */
     if ( 0 == rc ) {
         *res = get_row_count_of_fastq_sra_iter( iter ); /* fastq_iter.c */
@@ -1461,6 +1461,7 @@ rc_t execute_tbl_join( KDirectory * dir,
 
                 VectorInit( &threads, 0, num_threads );
                 correct_join_options( &corrected_join_options, join_options, name_column_present ); /* helper.c */
+                corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, qual_defline ); /* join_results.c */
                 rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
                 if ( show_progress ) {
                     rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
@@ -1529,20 +1530,24 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     join_stats_t * stats = &( jtd -> stats );
     bool skip_tech = jtd -> join_options -> skip_tech;
     struct flex_printer_t * flex_printer = NULL;
+    flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = skip_tech;
     opt . with_cmp_read = false;
     opt . with_quality = false;
+    opt . with_spotgroup = jo -> print_spotgroup;
 
+    /* is in join_results.c */
     flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
                                       jtd -> multi_writer,          /* passed in multi-writer */
                                       jtd -> accession_short,       /* the accession to be printed */
                                       jtd -> seq_defline,           /* if seq-defline is NULL, use default */
                                       jtd -> qual_defline,          /* if qual-defline is NULL, use default */
-                                      ( jo -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name,
-                                      true ); /* join_results.c */
+                                      name_mode,                    /* use-name, syn-name or no-name */
+                                      true,                         /* use read-id */
+                                      true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
@@ -1585,7 +1590,7 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
                             data . dst_id = 0;          /* not used, because registry=NULL - output to common final file */
 
                             data . spotname = ( jo -> rowid_as_name ) ? NULL : &( rec . name );
-                            data . spotgroup = NULL;
+                            data . spotgroup = &( rec . spotgroup );
                             data . read1 = &R;
                             data . read2 = NULL;
                             data . quality = NULL;
@@ -1662,6 +1667,7 @@ rc_t execute_unsorted_fasta_tbl_join( KDirectory * dir,
 
                     VectorInit( &threads, 0, num_threads );
                     correct_join_options( &corrected_join_options, join_options, name_column_present ); /* helper.c */
+                    corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, qual_defline ); /* join_results.c */
                     rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
                     if ( show_progress ) { rc = bg_progress_make( &progress, row_count, 0, 0 ); } /* progress_thread.c */
 

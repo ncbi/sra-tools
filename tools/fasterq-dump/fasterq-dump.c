@@ -344,7 +344,6 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         switch ( tool_ctx -> fmt ) {
             case ft_unknown             : rc = KOutMsg( "unknown format\n" ); break;
-            case ft_special             : rc = KOutMsg( "SPECIAL\n" ); break;
             case ft_fastq_whole_spot    : rc = KOutMsg( "FASTQ whole spot\n" ); break;
             case ft_fastq_split_spot    : rc = KOutMsg( "FASTQ split spot\n" ); break;
             case ft_fastq_split_file    : rc = KOutMsg( "FASTQ split file\n" ); break;
@@ -476,7 +475,6 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
     if ( tool_ctx -> use_stdout ) {
         switch( tool_ctx -> fmt ) {
             case ft_unknown             : break;
-            case ft_special             : break;
 
             case ft_fastq_whole_spot    : break;
             case ft_fastq_split_spot    : break;
@@ -537,7 +535,6 @@ static bool fasta_requested( tool_ctx_t * tool_ctx ) {
     bool res = false;
     switch( tool_ctx -> fmt ) {
         case ft_unknown             : break;
-        case ft_special             : break;
         case ft_fastq_whole_spot    : break;
         case ft_fastq_split_spot    : break;
         case ft_fastq_split_file    : break;
@@ -959,7 +956,6 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx ) {
         bool exists = false;
         switch( tool_ctx -> fmt ) {
             case ft_unknown             : break;
-            case ft_special             : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_whole_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_spot    : exists = output_exists_whole( tool_ctx ); break;
             case ft_fastq_split_file    : exists = output_exists_split( tool_ctx ); break;

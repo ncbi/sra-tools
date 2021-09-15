@@ -118,7 +118,7 @@ typedef struct fastq_csra_iter_t {
     struct cmn_iter_t * cmn; /* cmn_iter.h */
     KDataBuffer qual_buffer;  /* klib/databuffer.h */
     fastq_iter_opt_t opt; /* fastq_iter.h */
-    uint32_t name_id, prim_alig_id, read_id, quality_id, read_len_id, read_type_id;
+    uint32_t name_id, prim_alig_id, read_id, quality_id, read_len_id, read_type_id, spotgroup_id;
     char qual_2_ascii[ 256 ];
 } fastq_csra_iter_t;
 
@@ -181,6 +181,10 @@ rc_t make_fastq_csra_iter( const cmn_iter_params_t * params,
                 rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) ); /* cmn_iter.h */
             }
 
+            if ( 0 == rc && opt . with_spotgroup ) {
+                rc = cmn_iter_add_column( self -> cmn, "SPOT_GROUP", &( self -> spotgroup_id ) ); /* cmn_iter.h */
+            }
+
             if ( 0 == rc ) {
                 rc = cmn_iter_range( self -> cmn, self -> prim_alig_id ); /* cmn_iter.h */
             }
@@ -211,6 +215,10 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter_t * self, fastq_rec_t * re
 
         if ( 0 == rc1 && self -> opt . with_name ) {
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
+        } else {
+            rec -> name . len = 0;
+            rec -> name . size = 0;
+            rec -> name . addr = NULL;
         }
 
         if ( 0 == rc1 ) {
@@ -222,22 +230,30 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter_t * self, fastq_rec_t * re
                                         &( self -> qual_buffer ),
                                         &( self -> qual_2_ascii[ 0 ] ),
                                         &( rec -> quality ) );
+        } else {
+            rec -> quality . len = 0;
+            rec -> quality . size = 0;
+            rec -> quality . addr = NULL;
         }
 
-        if ( 0 == rc1 ) {
-            if ( self -> opt . with_read_len ) {
-                rc1 = cmn_read_uint32_array( self -> cmn, self -> read_len_id, &rec -> read_len, &( rec -> num_read_len ) );
-            } else {
-                rec -> num_read_len = 1;
-            }
+        if ( 0 == rc1 && self -> opt . with_read_len ) {
+            rc1 = cmn_read_uint32_array( self -> cmn, self -> read_len_id, &rec -> read_len, &( rec -> num_read_len ) );
+        } else {
+            rec -> num_read_len = 1;
         }
         
-        if ( 0 == rc1 ) {
-            if ( self -> opt . with_read_type ) {
-                rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
-            } else {
-                rec -> num_read_type = 0;
-            }
+        if ( 0 == rc1 && self -> opt . with_read_type ) {
+            rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
+        } else {
+            rec -> num_read_type = 0;
+        }
+
+        if ( 0 == rc1 && self -> opt . with_spotgroup ) {
+                rc1 = cmn_read_String( self -> cmn, self -> spotgroup_id, &( rec -> spotgroup ) );
+        } else {
+            rec -> spotgroup . len = 0;
+            rec -> spotgroup . size = 0;
+            rec -> spotgroup . addr = NULL;
         }
 
         if ( NULL != rc ) { *rc = rc1; }

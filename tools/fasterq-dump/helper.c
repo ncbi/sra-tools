@@ -46,6 +46,34 @@
     #define PATH_MAX 4096
 #endif
 
+bool is_format_split( format_t fmt ) {
+    bool res;
+    switch( fmt ) {
+        /* case ft_fastq_split_spot : res = true; break; */
+        case ft_fastq_split_file : res = true; break;
+        case ft_fastq_split_3    : res = true; break;
+        /* case ft_fasta_split_spot : res = true; break; */
+        case ft_fasta_split_file : res = true; break;
+        case ft_fasta_split_3    : res = true; break;
+        case ft_fasta_us_split_spot : res = true; break;
+        default : res = false; break;
+    }
+    return res;
+}
+
+bool is_format_fasta( format_t fmt ){
+    bool res;
+    switch( fmt ) {
+        case ft_fasta_whole_spot : res = true; break;
+        case ft_fasta_split_spot : res = true; break;
+        case ft_fasta_split_file : res = true; break;
+        case ft_fasta_split_3    : res = true; break;
+        case ft_fasta_us_split_spot : res = true; break;
+        default : res = false; break;
+    }
+    return res;
+}
+
 rc_t ErrMsg( const char * fmt, ... ) {
     rc_t rc;
     char buffer[ 4096 ];
@@ -158,10 +186,7 @@ format_t get_format_t( const char * format,
         String Format;
         StringInitCString( &Format, format );
 
-        res = format_cmp( &Format, "special", ft_special );
-        if ( ft_unknown == res ) {
-            res = format_cmp( &Format, "fastq-whole-spot", ft_fastq_whole_spot );
-        }
+        res = format_cmp( &Format, "fastq-whole-spot", ft_fastq_whole_spot );
         if ( ft_unknown == res ) {
             res = format_cmp( &Format, "fastq-split-spot", ft_fastq_split_spot );
         }
@@ -1445,6 +1470,7 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
     dst -> skip_tech = src -> skip_tech;
     dst -> print_read_nr = src -> print_read_nr;
     dst -> print_name = src -> print_name;
+    dst -> print_spotgroup = src -> print_spotgroup;
     dst -> min_read_len = src -> min_read_len;
     dst -> filter_bases = src -> filter_bases;
     dst -> terminate_on_invalid = src -> terminate_on_invalid;

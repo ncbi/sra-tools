@@ -781,6 +781,18 @@ bool filter_2na_2( filter_2na_t * self, const String * bases1, const String * ba
 
 /* the output is parameterized via var_fmt_t from helper.c */
 
+static bool spot_group_requested_1( const char * defline ) {
+    if ( NULL == defline ) {
+        return false;
+    } else {
+        return ( NULL != strstr( defline, "$sg" ) );
+    }
+}
+
+bool spot_group_requested( const char * seq_defline, const char * qual_defline ) {
+    return ( spot_group_requested_1( seq_defline ) || spot_group_requested_1( qual_defline ) );
+}
+
 typedef struct flex_printer_t {
     file_printer_args_t * file_args;        /* dir, registry, output-base, buffer_size */
     Vector printers;                        /* container for printers, one for each read-id ( used if registry is not NULL ) */
@@ -841,39 +853,74 @@ static const String * make_string_copy( const char * src )
     return res;
 }
 
-static const char * dflt_seq_defline_fastq_use_name = "@$ac.$si/$ri $sn length=$rl";
-static const char * dflt_seq_defline_fastq_syn_name = "@$ac.$si/$ri $si length=$rl";
-static const char * dflt_seq_defline_fastq_no_name = "@$ac.$si/$ri length=$rl";
-static const char * dflt_seq_defline_fasta_use_name = ">$ac.$si/$ri $sn length=$rl";
-static const char * dflt_seq_defline_fasta_syn_name = ">$ac.$si/$ri $si length=$rl";
-static const char * dflt_seq_defline_fasta_no_name = ">$ac.$si/$ri length=$rl";
+static const char * dflt_seq_defline_fastq_use_name_ri = "@$ac.$si/$ri $sn length=$rl";
+static const char * dflt_seq_defline_fastq_syn_name_ri = "@$ac.$si/$ri $si length=$rl";
+static const char * dflt_seq_defline_fastq_no_name_ri = "@$ac.$si/$ri length=$rl";
+static const char * dflt_seq_defline_fasta_use_name_ri = ">$ac.$si/$ri $sn length=$rl";
+static const char * dflt_seq_defline_fasta_syn_name_ri = ">$ac.$si/$ri $si length=$rl";
+static const char * dflt_seq_defline_fasta_no_name_ri = ">$ac.$si/$ri length=$rl";
 
-const char * dflt_seq_defline( bool fasta, flex_printer_name_mode_t name_mode ) {
-    if ( fasta ) {
-        switch ( name_mode ) {
-            case fpnm_use_name : return dflt_seq_defline_fasta_use_name; break;
-            case fpnm_syn_name : return dflt_seq_defline_fasta_syn_name; break;
-            case fpnm_no_name  : return dflt_seq_defline_fasta_no_name; break;
+static const char * dflt_seq_defline_fastq_use_name = "@$ac.$si $sn length=$rl";
+static const char * dflt_seq_defline_fastq_syn_name = "@$ac.$si $si length=$rl";
+static const char * dflt_seq_defline_fastq_no_name = "@$ac.$si length=$rl";
+static const char * dflt_seq_defline_fasta_use_name = ">$ac.$si $sn length=$rl";
+static const char * dflt_seq_defline_fasta_syn_name = ">$ac.$si $si length=$rl";
+static const char * dflt_seq_defline_fasta_no_name = ">$ac.$si length=$rl";
+
+const char * dflt_seq_defline( flex_printer_name_mode_t name_mode, bool use_read_id, bool fasta ) {
+    if ( use_read_id ) {
+        if ( fasta ) {
+            switch ( name_mode ) {
+                case fpnm_use_name : return dflt_seq_defline_fasta_use_name_ri; break;
+                case fpnm_syn_name : return dflt_seq_defline_fasta_syn_name_ri; break;
+                case fpnm_no_name  : return dflt_seq_defline_fasta_no_name_ri; break;
+            }
+        } else {
+            switch ( name_mode ) {
+                case fpnm_use_name : return dflt_seq_defline_fastq_use_name_ri; break;
+                case fpnm_syn_name : return dflt_seq_defline_fastq_syn_name_ri; break;
+                case fpnm_no_name  : return dflt_seq_defline_fastq_no_name_ri; break;
+            }
         }
     } else {
-        switch ( name_mode ) {
-            case fpnm_use_name : return dflt_seq_defline_fastq_use_name; break;
-            case fpnm_syn_name : return dflt_seq_defline_fastq_syn_name; break;
-            case fpnm_no_name  : return dflt_seq_defline_fastq_no_name; break;
+        if ( fasta ) {
+            switch ( name_mode ) {
+                case fpnm_use_name : return dflt_seq_defline_fasta_use_name; break;
+                case fpnm_syn_name : return dflt_seq_defline_fasta_syn_name; break;
+                case fpnm_no_name  : return dflt_seq_defline_fasta_no_name; break;
+            }
+        } else {
+            switch ( name_mode ) {
+                case fpnm_use_name : return dflt_seq_defline_fastq_use_name; break;
+                case fpnm_syn_name : return dflt_seq_defline_fastq_syn_name; break;
+                case fpnm_no_name  : return dflt_seq_defline_fastq_no_name; break;
+            }
         }
     }
     return NULL;
 }
 
-static const char * dflt_qual_defline_use_name = "+$acc.$si/$ri $sn length=$rl";
-static const char * dflt_qual_defline_syn_name = "+$acc.$si/$ri $si length=$rl";
-static const char * dflt_qual_defline_no_name = "+$acc.$si/$ri length=$rl";
+static const char * dflt_qual_defline_use_name_ri = "+$ac.$si/$ri $sn length=$rl";
+static const char * dflt_qual_defline_syn_name_ri = "+$ac.$si/$ri $si length=$rl";
+static const char * dflt_qual_defline_no_name_ri = "+$ac.$si/$ri length=$rl";
 
-const char * dflt_qual_defline( flex_printer_name_mode_t name_mode ) {
-    switch ( name_mode ) {
-        case fpnm_use_name : return dflt_qual_defline_use_name; break;
-        case fpnm_syn_name : return dflt_qual_defline_syn_name; break;
-        case fpnm_no_name  : return dflt_qual_defline_no_name; break;
+static const char * dflt_qual_defline_use_name = "+$ac.$si $sn length=$rl";
+static const char * dflt_qual_defline_syn_name = "+$ac.$si $si length=$rl";
+static const char * dflt_qual_defline_no_name = "+$ac.$si length=$rl";
+
+const char * dflt_qual_defline( flex_printer_name_mode_t name_mode, bool use_read_id ) {
+    if ( use_read_id ) {
+        switch ( name_mode ) {
+            case fpnm_use_name : return dflt_qual_defline_use_name_ri; break;
+            case fpnm_syn_name : return dflt_qual_defline_syn_name_ri; break;
+            case fpnm_no_name  : return dflt_qual_defline_no_name_ri; break;
+        }
+    } else {
+        switch ( name_mode ) {
+            case fpnm_use_name : return dflt_qual_defline_use_name; break;
+            case fpnm_syn_name : return dflt_qual_defline_syn_name; break;
+            case fpnm_no_name  : return dflt_qual_defline_no_name; break;
+        }
     }
     return NULL;
 }
@@ -886,6 +933,7 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
                                                  const char * qual_defline,
                                                  size_t num_reads,
                                                  flex_printer_name_mode_t name_mode,
+                                                 bool use_read_id,
                                                  bool fasta ){
     const String * res = NULL;
     char buffer[ 4096 ];
@@ -894,7 +942,7 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
     if ( fasta ) {   
         /* ===== FASTA ===== */
         const char * a_seq_defline = seq_defline;
-        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( true, name_mode ); }
+        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( name_mode, use_read_id, fasta ); }
         if ( NULL == a_seq_defline ) { /* TBD: rc = RC() */  }
         if ( 1 == num_reads ) {
             /* seq_defline + '\n' + read1 + '\n' */
@@ -909,8 +957,8 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
         /* ===== FASTQ ===== */
         const char * a_seq_defline = seq_defline;
         const char * a_qual_defline = qual_defline;
-        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( false, name_mode ); }
-        if ( NULL == a_qual_defline ) { a_qual_defline = dflt_qual_defline( name_mode ); }
+        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( name_mode, use_read_id, fasta ); }
+        if ( NULL == a_qual_defline ) { a_qual_defline = dflt_qual_defline( name_mode, use_read_id ); }
         if ( NULL == a_seq_defline ) { /* TBD: rc = RC() */  }
         if ( NULL == a_qual_defline ) { /* TBD: rc = RC() */  }
         if ( 1 == num_reads ) {
@@ -946,6 +994,7 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,
                         const char * seq_defline,
                         const char * qual_defline,
                         flex_printer_name_mode_t name_mode,
+                        bool use_read_id, /* needed for picking a default, split...true, whole...false */
                         bool fasta ) {
     if ( !flex_printer_args_valid( file_args, multi_writer ) ) {
         return NULL;
@@ -972,8 +1021,8 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,
             self = NULL;
         } else {
             /* join seq_defline and qual_defline into one format-definition, describing a whole spot or read */
-            const String * flex_fmt1 = make_flex_printer_format_string( seq_defline, qual_defline, 1, name_mode, fasta );
-            const String * flex_fmt2 = make_flex_printer_format_string( seq_defline, qual_defline, 2, name_mode, fasta );
+            const String * flex_fmt1 = make_flex_printer_format_string( seq_defline, qual_defline, 1, name_mode, use_read_id, fasta );
+            const String * flex_fmt2 = make_flex_printer_format_string( seq_defline, qual_defline, 2, name_mode, use_read_id, fasta );
             if ( NULL == flex_fmt1 || NULL == flex_fmt2 ) {
                 release_flex_printer( self );
                 self = NULL;
@@ -1018,7 +1067,7 @@ static struct var_fmt_t * flex_printer_prepare_data( struct flex_printer_t * sel
     self -> string_data[ sdi_sn ] = ( NULL != data -> spotname ) ? data -> spotname : NULL;
     self -> string_data[ sdi_sg ] = ( NULL != data -> spotgroup ) ? data -> spotgroup : NULL;
     self -> string_data[ sdi_rd1 ] = ( NULL != data -> read1 ) ? data -> read1 : NULL;
-    self -> string_data[ sdi_rd2 ] = ( NULL != data -> read1 ) ? data -> read1 : NULL;
+    self -> string_data[ sdi_rd2 ] = ( NULL != data -> read2 ) ? data -> read2 : NULL;
     self -> string_data[ sdi_qa ] = ( NULL != data -> quality ) ? data -> quality : NULL;
     /* prepare int-data, common between FASTA and FASTQ */
     self -> int_data[ idi_si ] = ( uint64_t )data -> row_id;

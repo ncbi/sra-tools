@@ -143,9 +143,9 @@ static const char* USAGE_PRX[]
 #define ALIAS_QUAL   "Q"
 #define OPTION_QUAL  "quality-scores"
 static const char* USAGE_QUAL[] = {
-    "yes: prefer full quality scores (+BQS) if available. "
-    "no: prefer no quality scores(-BQS) if available. "
-    "Default: yes.", NULL };
+"yes: Prefer SRA normalized records with full base quality scores if available."
+" no: Prefer SRA Lite records with binned base quality scores if available. "
+ "Default: yes.", NULL };
 
 #define ALIAS_ROOT   NULL
 #define OPTION_ROOT  "root"

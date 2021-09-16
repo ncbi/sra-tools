@@ -1,12 +1,9 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 
 import sys
 import os
-#import stat
-#from itertools import izip
 
 def perform( fn ) :
-    print( "converting {} into 1-line-fasta".format( fn ) )
     ln = 0
     A = [ "", "" ]
     with open( fn ) as f :

@@ -185,6 +185,8 @@ find_package( BISON 3 )
 
 find_package( LibXml2 )
 
+find_package(Java COMPONENTS Development)
+
 if ( PYTHON_PATH )
     set( Python3_EXECUTABLE ${PYTHON_PATH} )
 endif()

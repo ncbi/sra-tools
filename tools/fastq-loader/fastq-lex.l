@@ -32,7 +32,7 @@
     #include <klib/log.h>
 
     #include "fastq-parse.h"
-    #include "fastq-tokens.h"
+    #include "fastq-grammar.h"
 
     #define YYSTYPE FASTQToken
 

@@ -1,5 +1,3 @@
-find_package(Java COMPONENTS Development)
-
 if ( Java_FOUND )
 
     include(UseJava)
@@ -77,15 +75,24 @@ if ( Java_FOUND )
         gov/nih/nlm/ncbi/ngs/error/cause/UnsupportedArchCause.java
     )
 
+    find_package(JNI)
+
     add_jar( ngs-java
         SOURCES ${NGS_SRC} ${ITF_SRC} ${NCBI_SRC}
         OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        GENERATE_NATIVE_HEADERS ngs-jni-headers DESTINATION ./jni
     )
 
     ########################################
-    # ngs-examples
+    # examples
     add_subdirectory( examples )
 
-    #TODO: ngs-jni
+    ########################################
+    # javadoc
+    create_javadoc( ngs-doc
+        PACKAGES gov.nih.nlm.ncbi.ngs ngs
+    )
+
+    # NOTE: JNI headers are generated in ngs/ncbi/ngs-jni
 
 endif()

@@ -121,9 +121,9 @@ endif
 copyexamples:
 	@ echo "Installing examples to $(INST_SHAREDIR)/examples-java..."
 	@ mkdir -p $(INST_SHAREDIR)/examples-java
-	@ cp $(TOP)/examples/Makefile $(INST_SHAREDIR)/examples-java
+	@ cp $(TOP)/ngs/ngs-java/examples/Makefile $(INST_SHAREDIR)/examples-java
 	@ $(SED) "s/NGS_CLASS_PATH = ../NGS_CLASS_PATH = $(subst /,\\/,$(INST_JARDIR)/ngs-java.jar)/" $(INST_SHAREDIR)/examples-java/Makefile
-	@ cp -r $(TOP)/examples/examples $(INST_SHAREDIR)/examples-java
+	@ cp -r $(TOP)/ngs/ngs-java//examples $(INST_SHAREDIR)/examples-java
 
 copydocs:
 	@ echo "Copying html docs to $(DOC_TARGET)..."
@@ -261,7 +261,7 @@ NGS_EXAMPLES =     \
 	ReadGroupTest  \
 
 NGS_EXAMPLES_PATH = \
-	$(addprefix $(SRCDIR)/examples/examples/,$(addsuffix .java,$(NGS_EXAMPLES)))
+	$(addprefix $(SRCDIR)/examples/,$(addsuffix .java,$(NGS_EXAMPLES)))
 
 $(CLSDIR)/ngs-examples: $(NGS_EXAMPLES_PATH)
 	$(JAVAC) $(DBG) $^ -d $(CLSDIR) $(CLSPATH) $(SRCINC) && touch $@

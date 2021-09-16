@@ -38,9 +38,8 @@ ALL_LIBS = \
 
 include $(TOP)/build/Makefile.env
 INCDIRS += -I$(VDB_SRCDIR)/libs/klib
-
-INCDIRS += \
-	-I$(SRCDIR)/../ngs
+INCDIRS += -I$(SRCDIR)/../ngs
+INCDIRS += -I$(TOP)
 
 #-------------------------------------------------------------------------------
 # outer targets

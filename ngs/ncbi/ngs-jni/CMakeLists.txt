@@ -9,7 +9,6 @@ set( SRC
 include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/klib )
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-jni )
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs )
+include_directories( ${CMAKE_SOURCE_DIR} )
 
 GenerateStaticLibs( ngs-jni "${SRC}" )
-
-# TODO: java stuff, headers

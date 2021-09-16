@@ -17,9 +17,9 @@ if ( Java_FOUND )
 
     macro( RunAndDiff TestName TestParams )
         add_test(
-            NAME Test_NGSExamples_${TestName}
+            NAME Test_NgsJavaExamples_${TestName}
             COMMAND bash -c
-                "${Java_JAVA_EXECUTABLE} -cp ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngs-java.jar examples.${TestName} ${TestParams} > actual/${TestName}.actual && diff expected/${TestName}.expected actual/${TestName}.actual"
+                "${Java_JAVA_EXECUTABLE} -cp ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngs-java.jar examples.${TestName} ${TestParams} > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endmacro()
 

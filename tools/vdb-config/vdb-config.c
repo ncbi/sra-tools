@@ -142,9 +142,9 @@ static const char* USAGE_PRX[]
 
 #define ALIAS_QUAL   "Q"
 #define OPTION_QUAL  "quality-scores"
-static const char* USAGE_QUAL[] = {
-"yes: Prefer SRA normalized records with full base quality scores if available."
-" no: Prefer SRA Lite records with binned base quality scores if available. "
+static const char* USAGE_QUAL[] = { "yes: "
+"Prefer SRA Normalized Format files with full base quality scores if available."
+" no: Prefer SRA Lite files with simplified base quality scores if available. "
  "Default: yes.", NULL };
 
 #define ALIAS_ROOT   NULL

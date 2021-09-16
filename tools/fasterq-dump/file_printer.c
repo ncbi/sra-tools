@@ -28,15 +28,15 @@
 
 #include <kfs/buffile.h>
 
-typedef struct file_printer
+typedef struct file_printer_t
 {
     struct KFile * f;
-    SBuffer print_buffer;
+    SBuffer_t print_buffer;
     uint64_t file_pos;
-} file_printer;
+} file_printer_t;
 
 
-void destroy_file_printer( struct file_printer * printer )
+void destroy_file_printer( struct file_printer_t * printer )
 {
     if ( NULL != printer )
     {
@@ -54,10 +54,10 @@ void destroy_file_printer( struct file_printer * printer )
 }
 
 
-rc_t make_file_printer_from_file( KFile * f, struct file_printer ** printer, size_t print_buffer_size )
+rc_t make_file_printer_from_file( KFile * f, struct file_printer_t ** printer, size_t print_buffer_size )
 {
     rc_t rc;
-    file_printer * p = calloc( 1, sizeof * p );
+    file_printer_t * p = calloc( 1, sizeof * p );
     if ( NULL == p )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -92,7 +92,7 @@ rc_t make_file_printer_from_file( KFile * f, struct file_printer ** printer, siz
 }
 
 
-rc_t make_file_printer_from_filename( const KDirectory * dir, struct file_printer ** printer,
+rc_t make_file_printer_from_filename( const KDirectory * dir, struct file_printer_t ** printer,
         size_t file_buffer_size, size_t print_buffer_size, const char * fmt, ... )
 {
     rc_t rc;
@@ -135,7 +135,7 @@ rc_t make_file_printer_from_filename( const KDirectory * dir, struct file_printe
 }
 
 
-rc_t file_print( struct file_printer * printer, const char * fmt, ... )
+rc_t file_print( struct file_printer_t * printer, const char * fmt, ... )
 {
     rc_t rc = 0;
     bool done = false;

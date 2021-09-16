@@ -32,16 +32,16 @@
 #define ITER_DONE 0x01
 #define ITER_EOF  0x02
 
-typedef struct line_iter
+typedef struct line_iter_t
 {
     const struct KFile * f;
     String buffer, content, line;
     uint64_t pos_in_file;
     uint32_t state;
-} line_iter;
+} line_iter_t;
 
 
-void release_line_iter( struct line_iter * iter )
+void release_line_iter( struct line_iter_t * iter )
 {
     if ( NULL != iter )
     {
@@ -62,7 +62,7 @@ void release_line_iter( struct line_iter * iter )
 }
 
 
-static void read_line_iter( struct line_iter * iter )
+static void read_line_iter( struct line_iter_t * iter )
 {
     if ( iter->content.size > 0 )
     {
@@ -92,7 +92,7 @@ static void read_line_iter( struct line_iter * iter )
 }
 
 
-static bool slice_iter_content( struct line_iter * iter, size_t by )
+static bool slice_iter_content( struct line_iter_t * iter, size_t by )
 {
     size_t l;
     iter -> line . addr = iter -> content . addr;
@@ -112,7 +112,7 @@ static bool slice_iter_content( struct line_iter * iter, size_t by )
 }
 
 
-bool advance_line_iter( struct line_iter * iter )
+bool advance_line_iter( struct line_iter_t * iter )
 {
     bool res = ( 0 == ( iter -> state & ITER_DONE ) );
     if ( res )
@@ -151,7 +151,7 @@ bool advance_line_iter( struct line_iter * iter )
 }
 
 
-String * get_line_iter( struct line_iter * iter )
+String * get_line_iter( struct line_iter_t * iter )
 {
     String * res = NULL;
     if ( NULL != iter )
@@ -165,7 +165,7 @@ String * get_line_iter( struct line_iter * iter )
 }
 
 
-bool is_line_iter_done( const struct line_iter * iter )
+bool is_line_iter_done( const struct line_iter_t * iter )
 {
     if ( NULL != iter )
     {
@@ -175,7 +175,7 @@ bool is_line_iter_done( const struct line_iter * iter )
 }
 
 
-rc_t make_line_iter( const KDirectory *dir, line_iter ** iter,
+rc_t make_line_iter( const KDirectory *dir, line_iter_t ** iter,
                      const char * filename, size_t buffer_size )
 {
     const struct KFile * f;
@@ -186,7 +186,7 @@ rc_t make_line_iter( const KDirectory *dir, line_iter ** iter,
     }
     else
     {
-        line_iter * l = calloc( 1, sizeof * l );
+        line_iter_t * l = calloc( 1, sizeof * l );
         if ( NULL == l )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );

@@ -34,7 +34,7 @@
 
 typedef struct raw_read_iter
 {
-    struct cmn_iter * cmn;
+    struct cmn_iter_t * cmn;
     uint32_t seq_spot_id, seq_read_id, read_id;
 } raw_read_iter;
 
@@ -48,7 +48,7 @@ void destroy_raw_read_iter( struct raw_read_iter * iter )
     }
 }
 
-rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
+rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter ** iter )
 {
 
     rc_t rc = 0;
@@ -123,7 +123,7 @@ rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache
 {
     rc_t rc;
     struct raw_read_iter * iter;
-    cmn_params params; /* helper.h */
+    cmn_iter_params_t params; /* helper.h */
     
     params . dir = dir;
     params . accession_short = accession_short;
@@ -135,7 +135,7 @@ rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache
     rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
     if ( 0 == rc )
     {
-        struct file_printer * printer;
+        struct file_printer_t * printer;
         rc = make_file_printer_from_filename( dir, &printer, buf_size, 1024, "%s", output_file );
         if ( 0 == rc )
         {

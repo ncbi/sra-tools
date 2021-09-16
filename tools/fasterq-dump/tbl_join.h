@@ -59,16 +59,30 @@ rc_t execute_tbl_join( KDirectory * dir,
                     const VDBManager * vdb_mgr,
                     const char * accession_short,
                     const char * accession_path,
-                    join_stats * stats,
+                    join_stats_t * stats,
                     const char * tbl_name,
-                    const struct temp_dir * temp_dir,
-                    struct temp_registry * registry,
+                    const struct temp_dir_t * temp_dir,
+                    struct temp_registry_t * registry,
                     size_t cur_cache,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
                     format_t fmt,
-                    const join_options * join_options ); /* helper.h */
+                    const join_options_t * join_options ); /* helper.h */
+
+rc_t execute_fast_tbl_join( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    join_stats_t * stats,
+                    const char * tbl_name,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    bool show_progress,
+                    const char * output_filename, /* NULL for stdout! */
+                    const join_options_t * join_options,
+                    bool force );
 
 #ifdef __cplusplus
 }

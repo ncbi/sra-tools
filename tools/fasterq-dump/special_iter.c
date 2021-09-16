@@ -30,14 +30,14 @@
 #include <os-native.h>
 #include <sysalloc.h>
 
-typedef struct special_iter
+typedef struct special_iter_t
 {
-    struct cmn_iter * cmn;
+    struct cmn_iter_t * cmn;
     uint32_t prim_alig_id, cmp_read_id, spot_group_id;
-} special_iter;
+} special_iter_t;
 
 
-void destroy_special_iter( struct special_iter * iter )
+void destroy_special_iter( struct special_iter_t * iter )
 {
     if ( NULL != iter )
     {
@@ -46,10 +46,10 @@ void destroy_special_iter( struct special_iter * iter )
     }
 }
 
-rc_t make_special_iter( cmn_params * params, struct special_iter ** iter )
+rc_t make_special_iter( cmn_iter_params_t * params, struct special_iter_t ** iter )
 {
     rc_t rc = 0;
-    special_iter * i = calloc( 1, sizeof * i );
+    special_iter_t * i = calloc( 1, sizeof * i );
     if ( NULL == i )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -93,12 +93,12 @@ rc_t make_special_iter( cmn_params * params, struct special_iter ** iter )
 }
 
 
-bool get_from_special_iter( struct special_iter * iter, special_rec * rec, rc_t * rc )
+bool get_from_special_iter( struct special_iter_t * iter, special_rec_t * rec, rc_t * rc )
 {
     bool res = cmn_iter_next( iter -> cmn, rc );
     if ( res )
     {
-        rec->row_id = cmn_iter_row_id( iter -> cmn );
+        rec -> row_id = cmn_iter_row_id( iter -> cmn );
         *rc = cmn_read_uint64_array( iter -> cmn, iter -> prim_alig_id, rec -> prim_alig_id, 2, &( rec -> num_reads ) );
         if ( 0 == *rc )
         {
@@ -113,7 +113,7 @@ bool get_from_special_iter( struct special_iter * iter, special_rec * rec, rc_t 
 
 }
 
-uint64_t get_row_count_of_special_iter( struct special_iter * iter )
+uint64_t get_row_count_of_special_iter( struct special_iter_t * iter )
 {
     return cmn_iter_row_count( iter -> cmn );
 }

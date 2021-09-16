@@ -30,7 +30,12 @@ MODULE = test/driver-tool
 
 include $(TOP)/build/Makefile.env
 
-DIRTOTEST ?= $(BINDIR)
+ifeq (rel,$(BUILD))
+
+# The tests use dry run modes that are only available in debug builds. Skipping in the release mode.
+runtests:
+
+else
 
 runtests: \
 	announce \
@@ -51,8 +56,15 @@ runtests: \
 	help_prefetch \
 	help_fasterq-dump \
 	help_fastq-dump \
-	testing
+	testing \
+	no_fasta_env \
+	fasta_env \
+	no_fasta_er_env \
+	fasta_er_env
 
+endif
+
+DIRTOTEST ?= $(BINDIR)
 TMPDIR ?= /tmp
 TEMPDIR ?= $(TMPDIR)
 
@@ -138,7 +150,7 @@ $(CONTAINER): | actual mkfg
 	diff expected/$@.stderr actual/$@.stderr
 
 testing: | actual mkfg
-	@echo "testing expected output for testing modes with bad inputs" $@ ;\
+	@echo "testing expected output for testing modes with bad inputs" ;\
 	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	PATH=$(BINDIR):$$PATH \
 	SRATOOLS_TESTING=2 \
@@ -218,8 +230,45 @@ fasta_neg_number: | actual mkfg
 	$(BINDIR)/sratools --fasta -75 SRR390728 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
+no_fasta_env: | actual mkfg
+	@echo "testing expected environment variables for fastq-dump <run>" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=5 \
+	SRATOOLS_IMPERSONATE=fastq-dump \
+	$(BINDIR)/sratools SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+fasta_env: | actual mkfg
+	@echo "testing expected environment variables for fastq-dump --fasta default <run>" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=5 \
+	SRATOOLS_IMPERSONATE=fastq-dump \
+	$(BINDIR)/sratools --fasta default SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+no_fasta_er_env: | actual mkfg
+	@echo "testing expected environment variables for fasterq-dump <run>" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=5 \
+	SRATOOLS_IMPERSONATE=fasterq-dump \
+	$(BINDIR)/sratools SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+fasta_er_env: | actual mkfg
+	@echo "testing expected environment variables for fasterq-dump --fasta <run>" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=5 \
+	SRATOOLS_IMPERSONATE=fasterq-dump \
+	$(BINDIR)/sratools --fasta SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
 help_srapath: | actual
 	@echo "testing expected output for srapath --help" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=srapath \
 	$(BINDIR)/sratools --help | sed -e'/"srapath" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
@@ -227,6 +276,7 @@ help_srapath: | actual
 
 help_prefetch: | actual
 	@echo "testing expected output for prefetch --help" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=prefetch \
 	$(BINDIR)/sratools --help | sed -e'/"prefetch" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
@@ -234,6 +284,7 @@ help_prefetch: | actual
 
 help_fasterq-dump: | actual
 	@echo "testing expected output for fasterq-dump --help" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=fasterq-dump \
 	$(BINDIR)/sratools --help | sed -e'/"fasterq-dump" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \
@@ -241,6 +292,7 @@ help_fasterq-dump: | actual
 
 help_fastq-dump: | actual
 	@echo "testing expected output for fastq-dump --help" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
 	PATH=$(DIRTOTEST):$$PATH \
 	SRATOOLS_IMPERSONATE=fastq-dump \
 	$(BINDIR)/sratools --help | sed -e'/"fastq-dump" version/ s/version.*/version <deleted>/' >actual/$@.stdout ; \

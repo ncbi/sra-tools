@@ -38,14 +38,14 @@
 #define DFLT_HOST_NAME "host"
 #define DFLT_PATH_LEN 4096
 
-typedef struct temp_dir
+typedef struct temp_dir_t
 {
     char hostname[ HOSTNAMELEN ];
     char path[ DFLT_PATH_LEN ];
     uint32_t pid;
-} temp_dir;
+} temp_dir_t;
 
-void destroy_temp_dir( struct temp_dir * self )
+void destroy_temp_dir( struct temp_dir_t * self )
 {
     if ( NULL != self )
     {
@@ -53,7 +53,7 @@ void destroy_temp_dir( struct temp_dir * self )
     }
 }
 
-static rc_t get_pid_and_hostname( temp_dir * self )
+static rc_t get_pid_and_hostname( temp_dir_t * self )
 {
     struct KProcMgr * proc_mgr;
     rc_t rc = KProcMgrMakeSingleton ( &proc_mgr );
@@ -78,14 +78,14 @@ static rc_t get_pid_and_hostname( temp_dir * self )
     return rc;
 }
 
-static rc_t generate_dflt_path( temp_dir * self )
+static rc_t generate_dflt_path( temp_dir_t * self )
 {
     size_t num_writ;
     return string_printf( self -> path, sizeof self -> path, &num_writ,
                          "fasterq.tmp.%s.%u/", self -> hostname, self -> pid );
 }
 
-static rc_t generate_sub_path( temp_dir * self, const char * requested )
+static rc_t generate_sub_path( temp_dir_t * self, const char * requested )
 {
     rc_t rc;
     size_t num_writ;
@@ -103,7 +103,7 @@ static rc_t generate_sub_path( temp_dir * self, const char * requested )
     return rc;
 }
 
-rc_t make_temp_dir( struct temp_dir ** obj, const char * requested, KDirectory * dir )
+rc_t make_temp_dir( struct temp_dir_t ** obj, const char * requested, KDirectory * dir )
 {
     rc_t rc = 0;
     if ( NULL == obj || NULL == dir )
@@ -113,7 +113,7 @@ rc_t make_temp_dir( struct temp_dir ** obj, const char * requested, KDirectory *
     }
     else
     {
-        temp_dir * o = calloc( 1, sizeof * o );
+        temp_dir_t * o = calloc( 1, sizeof * o );
         if ( NULL == o )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -160,7 +160,7 @@ rc_t make_temp_dir( struct temp_dir ** obj, const char * requested, KDirectory *
     return rc;
 }
 
-const char * get_temp_dir( struct temp_dir * self )
+const char * get_temp_dir( struct temp_dir_t * self )
 {
     if ( NULL != self )
     {
@@ -169,7 +169,7 @@ const char * get_temp_dir( struct temp_dir * self )
     return "unknown";
 }
 
-rc_t generate_lookup_filename( const struct temp_dir * self, char * dst, size_t dst_size )
+rc_t generate_lookup_filename( const struct temp_dir_t * self, char * dst, size_t dst_size )
 {
     rc_t rc;
     if ( NULL == self || NULL == dst || 0 == dst_size )
@@ -191,7 +191,7 @@ rc_t generate_lookup_filename( const struct temp_dir * self, char * dst, size_t 
     return rc;
 }
 
-rc_t generate_bg_sub_filename( const struct temp_dir * self, char * dst, size_t dst_size, uint32_t product_id )
+rc_t generate_bg_sub_filename( const struct temp_dir_t * self, char * dst, size_t dst_size, uint32_t product_id )
 {
     rc_t rc;
     if ( NULL == self || NULL == dst || 0 == dst_size )
@@ -201,7 +201,7 @@ rc_t generate_bg_sub_filename( const struct temp_dir * self, char * dst, size_t 
     }
     else
     {
-        size_t num_writ;        
+        size_t num_writ;
         rc = string_printf( dst, dst_size, &num_writ,
                 "%sbg_sub_%s_%u_%u.dat",
                 self -> path, self -> hostname, self -> pid, product_id );
@@ -213,7 +213,7 @@ rc_t generate_bg_sub_filename( const struct temp_dir * self, char * dst, size_t 
     return rc;
 }
 
-rc_t generate_bg_merge_filename( const struct temp_dir * self, char * dst, size_t dst_size, uint32_t product_id )
+rc_t generate_bg_merge_filename( const struct temp_dir_t * self, char * dst, size_t dst_size, uint32_t product_id )
 {
     rc_t rc;
     if ( NULL == self || NULL == dst || 0 == dst_size )
@@ -223,7 +223,7 @@ rc_t generate_bg_merge_filename( const struct temp_dir * self, char * dst, size_
     }
     else
     {
-        size_t num_writ;        
+        size_t num_writ;
         rc = string_printf( dst, dst_size, &num_writ,
                 "%sbg_merge_%s_%u_%u.dat",
                 self -> path, self -> hostname, self -> pid, product_id );
@@ -236,7 +236,7 @@ rc_t generate_bg_merge_filename( const struct temp_dir * self, char * dst, size_
 }
 
 
-rc_t make_joined_filename( const struct temp_dir * self, char * dst, size_t dst_size,
+rc_t make_joined_filename( const struct temp_dir_t * self, char * dst, size_t dst_size,
                            const char * accession, uint32_t id )
 {
     rc_t rc;
@@ -262,7 +262,7 @@ rc_t make_joined_filename( const struct temp_dir * self, char * dst, size_t dst_
     return rc;
 }
 
-rc_t remove_temp_dir( const struct temp_dir * self, KDirectory * dir )
+rc_t remove_temp_dir( const struct temp_dir_t * self, KDirectory * dir )
 {
     rc_t rc;
     if ( NULL == self || NULL == dir )

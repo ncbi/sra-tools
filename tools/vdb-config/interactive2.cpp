@@ -577,6 +577,7 @@ class vdbconf_view2 : public Dlg
         Tui_Rect lbl1_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , r.get_w() - 2, 1 ); }
         Tui_Rect choose_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 12, 1 ); }
         Tui_Rect use_repo_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , 34, 1 ); }
+        Tui_Rect zero_qual_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +1, r.get_y() + y , r.get_w() - 2, 1 ); }
         Tui_Rect file_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x() +14, r.get_y() + y , r.get_w() -15, 1 ); }
         Tui_Rect prof_lbl_rect( Tui_Rect const &r, tui_coord y ) { return Tui_Rect( r.get_x(), r.get_y() + y , 10, 1 ); }
         Tui_Rect CACHE_RADIO_rect( Tui_Rect const &r ) { return Tui_Rect( r.get_x() + 1, r.get_y() +2 , 24, 3 ); }
@@ -664,12 +665,13 @@ class vdbconf_view2 : public Dlg
                               model.is_site_enabled(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
             }
-            /*
+
             y += 2;
-            PopulateCheckbox( use_repo_rect( r, y ), resize, MAIN_FULL_QUALITY, "Use Full &Qualities",
+            PopulateCheckbox( zero_qual_rect( r, y ), resize, MAIN_FULL_QUALITY, 
+            "Prefer no &Quality scores (-BQS) if available",
                               model.get_full_quality(), // model-connection
                               CB_COLOR_BG, CB_COLOR_FG, page_id );
-            */
+
             /* the GUID-label at the bottom */
             std::stringstream ss;
             ss << "GUID: " << model.get_guid();

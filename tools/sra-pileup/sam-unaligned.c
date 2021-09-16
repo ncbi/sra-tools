@@ -859,7 +859,7 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
             {
                 if ( ptx == NULL || !mate_available )
                 {
-                    rc = KOutMsg( "0\t0\t" );   /* no way to get that without PRIM_ALIGN-table */
+                    rc = KOutMsg( "*\t0\t" );   /* no way to get that without PRIM_ALIGN-table */
                 }
                 else
                 {

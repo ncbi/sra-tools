@@ -48,22 +48,22 @@
  */
 #include <atomic.h>
 
-typedef struct lookup_producer
+typedef struct lookup_producer_t
 {
     struct raw_read_iter * iter; /* raw_read_iter.h */
     KVector * store;
-    struct bg_progress * progress; /* progress_thread.h */
-    struct background_vector_merger * merger; /* merge_sorter.h */
-    SBuffer buf; /* helper.h */
+    struct bg_progress_t * progress; /* progress_thread.h */
+    struct background_vector_merger_t * merger; /* merge_sorter.h */
+    SBuffer_t buf; /* helper.h */
     uint64_t bytes_in_store;
     atomic64_t * processed_row_count;
     uint32_t chunk_id, sub_file_id;
     size_t buf_size, mem_limit;
     bool single;
-} lookup_producer;
+} lookup_producer_t;
 
 
-static void release_producer( lookup_producer * self )
+static void release_producer( lookup_producer_t * self )
 {
     if ( NULL != self )
     {
@@ -80,12 +80,12 @@ static void release_producer( lookup_producer * self )
     }
 }
 
-static rc_t init_multi_producer( lookup_producer * self,
-                                 cmn_params * cmn, /* helper.h */
-                                 struct background_vector_merger * merger, /* merge_sorter.h */
+static rc_t init_multi_producer( lookup_producer_t * self,
+                                 cmn_iter_params_t * cmn, /* helper.h */
+                                 struct background_vector_merger_t * merger, /* merge_sorter.h */
                                  size_t buf_size,
                                  size_t mem_limit,
-                                 struct bg_progress * progress, /* progress_thread.h */
+                                 struct bg_progress_t * progress, /* progress_thread.h */
                                  uint32_t chunk_id,
                                  int64_t first_row,
                                  uint64_t row_count,
@@ -101,7 +101,7 @@ static rc_t init_multi_producer( lookup_producer * self,
         rc = make_SBuffer( &( self -> buf ), 4096 ); /* helper.c */
         if ( 0 == rc )
         {
-            cmn_params cp;
+            cmn_iter_params_t cp;
 
             self -> iter            = NULL;
             self -> progress        = progress;
@@ -128,7 +128,7 @@ static rc_t init_multi_producer( lookup_producer * self,
     return rc;
 }
 
-static rc_t push_store_to_merger( lookup_producer * self, bool last )
+static rc_t push_store_to_merger( lookup_producer_t * self, bool last )
 {
     rc_t rc = 0;
     if ( self -> bytes_in_store > 0 )
@@ -151,7 +151,7 @@ static rc_t push_store_to_merger( lookup_producer * self, bool last )
     return rc;
 }
 
-static rc_t write_to_store( lookup_producer * self,
+static rc_t write_to_store( lookup_producer_t * self,
                             uint64_t key,
                             const String * read )
 {
@@ -197,10 +197,10 @@ static rc_t CC producer_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
     rc_t rc1;
-    lookup_producer * producer = data;
+    lookup_producer_t * producer = data;
     raw_read_rec rec;
     uint64_t row_count = 0;
-    struct bg_progress * progress = producer -> progress;
+    struct bg_progress_t * progress = producer -> progress;
 
     while ( 0 == rc && get_from_raw_read_iter( producer -> iter, &rec, &rc1 ) ) /* raw_read_iter.c */
     {
@@ -259,12 +259,12 @@ static rc_t CC producer_thread_func( const KThread *self, void *data )
 
 /* -------------------------------------------------------------------------------------------- */
 
-static uint64_t find_out_row_count( cmn_params * cmn )
+static uint64_t find_out_row_count( cmn_iter_params_t * cmn )
 {
     rc_t rc;
     uint64_t res = 0;
     struct raw_read_iter * iter; /* raw_read_iter.c */
-    cmn_params cp; /* cmn_iter.h */
+    cmn_iter_params_t cp; /* cmn_iter.h */
     
     cp . dir             = cmn -> dir;
     cp . vdb_mgr         = cmn -> vdb_mgr;
@@ -283,8 +283,8 @@ static uint64_t find_out_row_count( cmn_params * cmn )
     return res;
 }
 
-static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
-                               struct background_vector_merger * merger, /* merge_sorter.h */
+static rc_t run_producer_pool( cmn_iter_params_t * cmn, /* helper.h */
+                               struct background_vector_merger_t * merger, /* merge_sorter.h */
                                size_t buf_size,
                                size_t mem_limit,
                                uint32_t num_threads,
@@ -303,7 +303,7 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
         uint32_t chunk_id = 1;
         int64_t row = 1;
         uint64_t rows_per_thread = ( total_row_count / num_threads ) + 1;
-        struct bg_progress * progress = NULL;
+        struct bg_progress_t * progress = NULL;
         atomic64_t processed_row_count;
 
         tell_total_rowcount_to_vector_merger( merger, total_row_count ); /* merge_sorter.h */
@@ -316,7 +316,7 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
 
         while ( 0 == rc && ( row < ( int64_t )total_row_count ) )
         {
-            lookup_producer * producer = calloc( 1, sizeof *producer );
+            lookup_producer_t * producer = calloc( 1, sizeof *producer );
             if ( NULL != producer )
             {
                 rc = init_multi_producer( producer,
@@ -390,7 +390,7 @@ rc_t execute_lookup_production( KDirectory * dir,
                                 const VDBManager * vdb_mgr,
                                 const char * accession_short,
                                 const char * accession_path,
-                                struct background_vector_merger * merger,
+                                struct background_vector_merger_t * merger,
                                 size_t cursor_cache,
                                 size_t buf_size,
                                 size_t mem_limit,
@@ -407,7 +407,7 @@ rc_t execute_lookup_production( KDirectory * dir,
     
     if ( rc == 0 )
     {
-        cmn_params cmn = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cursor_cache };
+        cmn_iter_params_t cmn = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cursor_cache };
         rc = run_producer_pool( &cmn,
                                 merger,
                                 buf_size,

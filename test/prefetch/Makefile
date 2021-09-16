@@ -996,7 +996,7 @@ quality: std
 	@ echo Testing quality
 	@ mkdir -p tmp
 	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
-	@ cd tmp && NCBI_SETTINGS=k PATH='$(DIRTOTEST):$(BINDIR):$(PATH)' \
+#	@ cd tmp && NCBI_SETTINGS=k PATH='$(DIRTOTEST):$(BINDIR):$(PATH)' \
 	  				perl ../test-quality.pl
 	@ rm -r tmp
 

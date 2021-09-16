@@ -6,9 +6,10 @@ set( SRC
 	jni_ErrorMsg
 )
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/klib )
+include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/klib ) #TODO: remove
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-jni )
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs )
 include_directories( ${CMAKE_SOURCE_DIR} )
 
 GenerateStaticLibs( ngs-jni "${SRC}" )
+add_dependencies( ngs-jni ngs-jni-headers )

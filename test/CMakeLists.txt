@@ -25,7 +25,7 @@ add_subdirectory(align-info)
 add_subdirectory(copycat) # fails
 #add_subdirectory(driver-tool)
 add_subdirectory(fasterq-dump)
-# add_subdirectory(fastq-loader) # project not yet converted
+add_subdirectory(fastq-loader)
 # add_subdirectory(fuse) # retired
 add_subdirectory(kar)
 # add_subdirectory(kdbmeta) # project not yet converted

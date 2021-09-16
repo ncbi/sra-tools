@@ -36,28 +36,27 @@ include $(TOP)/build/Makefile.config
 #
 SUBDIRS =    \
 	kdbmeta            \
-	read-filter-redact \
+	kar             \
+	kget            \
+	copycat         \
+	vdb-config      \
+	vdb-validate      \
+	vdb-dump        \
+	driver-tool     \
+	srapath           \
 	prefetch        \
 	dump-test       \
-	vdb-config      \
-	vcf-loader      \
-	align-info      \
-	align-cache     \
-	kar             \
-	copycat         \
 	sra-stat        \
 	sra-sort        \
 	sra-pileup      \
-	fuse            \
 	fastq-loader    \
-	kget            \
-	vdb-dump        \
 	vdb-copy        \
-	qual-recalib-stat \
-	vdb-validate      \
-	make-read-filter  \
-	srapath           \
+	vcf-loader      \
 	scripts           \
+	align-info      \
+	align-cache     \
+	read-filter-redact \
+	make-read-filter
 
 # under construction
 #    ngs-pileup      \

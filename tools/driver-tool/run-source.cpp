@@ -53,6 +53,9 @@ using Service = vdb::Service;
 
 using namespace constants;
 
+#include <vdb/manager.h> // VDBManagerPreferZeroQuality
+#include <vdb/vdb-priv.h> // VDBManagerGetQualityString
+
 namespace sratools {
 
 static std::string config_or_default(char const *const config_node, char const *const default_value)
@@ -442,6 +445,19 @@ RETURN_ENV_VARS:
 /// @brief set/unset CE Token environment variable
 void data_sources::set_ce_token_env_var() const {
     SETENV_IF(have_ce_token, CE_TOKEN, ce_token_);
+}
+
+void data_sources::preferNoQual() {
+    VDBManager * v = NULL;
+    const char * quality(NULL);
+    rc_t rc = VDBManagerPreferZeroQuality(v);
+    if (rc == 0)
+        rc = VDBManagerGetQualityString(v, &quality);
+    if (rc == 0) {
+        assert(quality);
+        env_var::preferNoQual(quality);
+    }
+    VDBManagerRelease(v);
 }
 
 std::pair<std::vector<std::string>, std::vector<std::string>> split_by_type(std::vector<std::string> const &runs)

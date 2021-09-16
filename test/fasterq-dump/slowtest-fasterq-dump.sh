@@ -239,6 +239,26 @@ function test_split_3_fasta {
 }
 
 #------------------------------------------------------------------------------------------
+#    FASTA unsorted ( 
+#------------------------------------------------------------------------------------------
+function test_unsorted_fasta {
+    echo "" && echo "testing: UNSORTED ( SPLIT-SPOT ) / FASTA for $1"
+    MD5REFERENCE="./ref_md5/$1.unsorted_fasta.reference.md5"
+    if [ ! -f "$MD5REFERENCE" ]; then
+        echo "" && echo "producing reference-md5-sum for UNSORTED / FASTA for $1"
+        time $REFTOOL $1 --split-spot --skip-technical --fasta 0
+        ./fasta_2_line.py $1.fasta | sort > $1.fasta.sorted
+        rm -f $1.fasta
+        md5sum "$1.fasta.sorted" | cut -d ' ' -f 1 > "$MD5REFERENCE"
+        rm -f "$1.fasta.sorted"
+    fi
+    time "$TOOL" "$1" --fasta-unsorted -pf -o $1.faster.fasta --seq-defline '>$ac.$si $sn length=$rl'
+    ./fasta_2_line.py $1.faster.fasta | sort > $1.faster.fasta.sorted
+    produce_md5_and_compare "$1.faster.fasta.sorted" "$MD5REFERENCE"
+    rm -f "$1.faster.fasta.sorted"
+}
+
+#------------------------------------------------------------------------------------------
 
 TOOL_LOC=`which $TOOL`
 if [ ! -f $TOOL_LOC ]; then
@@ -273,7 +293,7 @@ fi
 mkdir -p ref_md5
 
 #------------------------------------------------------------------------------------------
-ACC1="SRR000001"
+#ACC1="SRR000001"
 ACC2="SRR341578"
 #------------------------------------------------------------------------------------------
 
@@ -281,19 +301,21 @@ ACCESSIONS="$ACC1 $ACC2"
 
 for acc in $ACCESSIONS
 do
-    prefetch -p $acc
+#    prefetch -p $acc
 
-    test_whole_spot_fastq $acc
-    test_whole_spot_fasta $acc
+#    test_whole_spot_fastq $acc
+#    test_whole_spot_fasta $acc
 
-    test_split_spot_fastq $acc
-    test_split_spot_fasta $acc
+#    test_split_spot_fastq $acc
+#    test_split_spot_fasta $acc
 
-    test_split_files_fastq $acc
-    test_split_files_fasta $acc
+#    test_split_files_fastq $acc
+#    test_split_files_fasta $acc
 
-    test_split_3_fastq $acc
-    test_split_3_fasta $acc
-    
+#    test_split_3_fastq $acc
+#    test_split_3_fasta $acc
+
+    test_unsorted_fasta $acc
+
     rm -rf $acc
 done

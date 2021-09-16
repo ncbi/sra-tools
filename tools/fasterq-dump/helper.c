@@ -1510,12 +1510,13 @@ typedef enum var_fmt_type_t { vft_literal, vft_str, vft_int } var_fmt_type_t;
 typedef struct var_desc_t {
     var_fmt_type_t type;    /* which one of the options is it? ( vft_literal not used ) */
     const String * name;    /* this one is owned by this struct! */
-    uint32_t idx;           /* which idx to use */
+    uint8_t idx;            /* which idx to use ( for vft_str, vft_int ) */
+    uint8_t idx2;           /* alternative idx ( for vft_str, if NULL-ptr given by client ) */
 } var_desc_t;
 /* ============================================================================================================= */
 
 /* create a var-name-element, makes a copy of the given string and owns that copy */
-static var_desc_t * var_desc_create( const char * src, var_fmt_type_t t, uint32_t idx ) {
+static var_desc_t * var_desc_create( const char * src, var_fmt_type_t t, uint8_t idx, uint8_t idx2 ) {
     var_desc_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
         rc_t rc;
@@ -1525,6 +1526,7 @@ static var_desc_t * var_desc_create( const char * src, var_fmt_type_t t, uint32_
         if ( 0 == rc ) {
             res -> type = t;
             res -> idx = idx;
+            res -> idx2 = idx2;
         }
         else {
             free( ( void * ) res );
@@ -1557,7 +1559,6 @@ static int64_t var_desc_cmp( const void *key, const void *n ) {
     }
 }
 
-
 typedef struct var_desc_list_t {
     Vector descriptions;        /* pointers to var_desc_t - structs */
 } var_desc_list_t;
@@ -1586,15 +1587,15 @@ static void var_desc_list_add( var_desc_list_t * self, var_desc_t * desc ) {
     }
 }
 
-void var_desc_list_add_str( var_desc_list_t * self, const char * name, uint32_t idx ) {
+void var_desc_list_add_str( var_desc_list_t * self, const char * name, uint32_t idx, uint32_t idx2 ) {
     if ( NULL != self && NULL != name ) {
-        var_desc_list_add( self, var_desc_create( name, vft_str, idx ) );
+        var_desc_list_add( self, var_desc_create( name, vft_str, idx, idx2 ) );
     }
 }
 
 void var_desc_list_add_int( var_desc_list_t * self, const char * name, uint32_t idx ) {
     if ( NULL != self && NULL != name ) {
-        var_desc_list_add( self, var_desc_create( name, vft_int, idx ) );
+        var_desc_list_add( self, var_desc_create( name, vft_int, idx, 0xFF ) );
     }
 }
 
@@ -1611,7 +1612,6 @@ static const var_desc_t * var_desc_list_find( const var_desc_list_t * self, cons
             }
         }
     }
-    /* return ( var_desc_t * ) VectorFind ( &( self -> descriptions ), to_find, NULL, var_desc_cmp ); */
     return res;
 }
 
@@ -1632,8 +1632,8 @@ void var_desc_list_test( void ) {
     KOutMsg( "var-desc-list-test\n" );
     lst = create_var_desc_list();
     if ( NULL != lst ) {
-        var_desc_list_add_str( lst, "$ac", 0 );
-        var_desc_list_add_str( lst, "$sg", 1 );
+        var_desc_list_add_str( lst, "$ac", 0, 0xFF );
+        var_desc_list_add_str( lst, "$sg", 1, 0xFF );
         var_desc_list_add_int( lst, "$si", 0 );
         var_desc_list_add_int( lst, "$sl", 1 );
 
@@ -1654,7 +1654,8 @@ void var_desc_list_test( void ) {
 typedef struct var_fmt_entry_t {
     var_fmt_type_t type;    /* which one of the options is it? */
     const String * literal; /* this one is owned by this struct! */
-    uint32_t idx;           /* which str/int-arg to use here */
+    uint8_t idx;            /* which str/int-arg to use here */
+    uint8_t idx2;           /* the alternative idx, for vft_str and client gives a NULL */
 } var_fmt_entry_t;
 /* ============================================================================================================= */
 
@@ -1683,11 +1684,12 @@ static var_fmt_entry_t * var_fmt_entry_create_literal( const char * src, size_t 
 }
 
 /* create a string format-element, stores the index of the string to use */
-static var_fmt_entry_t * var_fmt_entry_create( uint32_t idx, var_fmt_type_t t ) {
+static var_fmt_entry_t * var_fmt_entry_create( var_fmt_type_t t, uint8_t idx, uint8_t idx2 ) {
     var_fmt_entry_t * res = calloc( 1, sizeof * res );
     if ( NULL != res ) {
         res -> type = t;
         res -> idx = idx;
+        res -> idx2 = idx2;
     }
     return res;
 }
@@ -1695,7 +1697,7 @@ static var_fmt_entry_t * var_fmt_entry_create( uint32_t idx, var_fmt_type_t t ) 
 static var_fmt_entry_t * clone_var_fmt_entry( const var_fmt_entry_t * src ) {
     var_fmt_entry_t * res = NULL;
     if ( NULL != src ) {
-        res = var_fmt_entry_create( src -> idx, src -> type );
+        res = var_fmt_entry_create( src -> type, src -> idx, src -> idx2 );
         if ( NULL != res ) {
             if ( vft_literal == res -> type ) {
                 rc_t rc = StringCopy( &( res -> literal ), src -> literal );
@@ -1710,30 +1712,53 @@ static var_fmt_entry_t * clone_var_fmt_entry( const var_fmt_entry_t * src ) {
 }
 
 static void var_fmt_String_to_buffer( SBuffer_t *buffer, const String * src ) {
-    uint32_t i = 0;
-    String * dst = &( buffer -> S );
-    char * dst_addr = ( char * )( dst -> addr );
-    while ( i < src -> len && dst -> len < buffer -> buffer_size ) {
-        dst_addr [ dst -> len ] = src -> addr[ i++ ];
-        dst -> len += 1;
-    }
-}
-
-static void var_fmt_entry_int_to_buffer( const var_fmt_entry_t * self, SBuffer_t *buffer,
-                                        const uint64_t * args, size_t args_len ) {
-    if ( NULL != args && self -> idx < args_len ) {
-        char temp[ 21 ];
-        size_t temp_written;
-        uint64_t value = args[ self -> idx ];
-        rc_t rc = string_printf ( temp, sizeof temp, &temp_written, "%lu", value );
-        if ( 0 == rc ) {
-            String S;
-            StringInitCString( &S, temp );
-            var_fmt_String_to_buffer( buffer, &S );
+    if ( NULL != src && NULL != buffer ) {
+        uint32_t i = 0;
+        String * dst = &( buffer -> S );
+        char * dst_addr = ( char * )( dst -> addr );
+        while ( i < src -> len && dst -> len < buffer -> buffer_size ) {
+            dst_addr [ dst -> len ] = src -> addr[ i++ ];
+            dst -> len += 1;
         }
     }
 }
 
+static void var_fmt_entry_int_value_to_buffer( SBuffer_t *buffer, uint64_t value ) {
+    char temp[ 21 ];
+    size_t temp_written;
+    rc_t rc = string_printf ( temp, sizeof temp, &temp_written, "%lu", value );
+    if ( 0 == rc ) {
+        String S;
+        StringInitCString( &S, temp );
+        var_fmt_String_to_buffer( buffer, &S );
+    }
+}
+
+static void var_fmt_entry_int_to_buffer( const var_fmt_entry_t * self, SBuffer_t *buffer,
+                                         const uint64_t * args, size_t args_len ) {
+    if ( NULL != args && self -> idx < args_len ) {
+        var_fmt_entry_int_value_to_buffer( buffer, args[ self -> idx ] );
+    }
+}
+
+/*we need both: str-args AND int-args, because of the alternative idx-usage */
+static void var_fmt_entry_str_to_buffer( const var_fmt_entry_t * self, SBuffer_t *buffer,
+                                         const String ** str_args, size_t str_args_len,
+                                         const uint64_t * int_args, size_t int_args_len ) {
+    if ( NULL != str_args && self -> idx < str_args_len ) {
+        const String * src = str_args[ self -> idx ];
+        if ( NULL != src ) {
+            /* we have a string to use */
+            var_fmt_String_to_buffer( buffer, src );
+        } else if ( NULL != int_args && self -> idx2 < int_args_len ) {
+            /* we have an alternative to use */
+            var_fmt_entry_int_value_to_buffer( buffer, int_args[ self -> idx2 ] );
+        }
+    } else if ( NULL != int_args && self -> idx2 < int_args_len ) {
+        var_fmt_entry_int_value_to_buffer( buffer, int_args[ self -> idx2 ] );
+    }
+}
+    
 /* releases an element, data-pointer to match VectorWhack-callback */
 static void destroy_var_fmt_entry( void * self, void * data ) {
     if ( NULL != self ) {
@@ -1759,7 +1784,9 @@ static void var_fmt_add_entry( var_fmt_t * self, var_fmt_entry_t * entry ) {
     }
 }
 
-static bool var_fmt_find_and_add( var_fmt_t * self, const String * T, const struct var_desc_list_t * vars ) {
+static bool var_fmt_find_and_add( var_fmt_t * self,
+                                  const String * T,
+                                  const struct var_desc_list_t * vars ) {
     // do we have so far a match against any variable-name at the end of T ?
     const var_desc_t * found = var_desc_list_find( vars, T );
     if ( NULL != found ) {
@@ -1772,7 +1799,7 @@ static bool var_fmt_find_and_add( var_fmt_t * self, const String * T, const stru
         }
         /* we always have a non-literal,
            because otherwise the key would not have been found */
-        var_fmt_add_entry( self, var_fmt_entry_create( found -> idx, found -> type ) );
+        var_fmt_add_entry( self, var_fmt_entry_create( found -> type, found -> idx, found -> idx2 ) );
     }
     return ( NULL != found );
 }
@@ -1944,15 +1971,19 @@ SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
                     const var_fmt_entry_t * entry = VectorGet( v, i );
                     if ( NULL != entry ) {
                         switch ( entry -> type ) {
-                            case vft_literal :  var_fmt_String_to_buffer( dst, entry -> literal );
-                                                break;
+                            /* we enter a string literal */
+                            case vft_literal : var_fmt_String_to_buffer( dst,
+                                                                         entry -> literal );
+                                               break;
 
-                            case vft_str :      if ( NULL != str_args && entry -> idx < str_args_len ) {
-                                                    var_fmt_String_to_buffer( dst, str_args[ entry -> idx ] );
-                                                }
-                                                break;
+                            /* we enter a string argument ( supply the int-vector too, because of the alternative! ) */
+                            case vft_str    : var_fmt_entry_str_to_buffer( entry, dst,
+                                                                           str_args, str_args_len,
+                                                                           int_args, int_args_len );
+                                              break;
 
-                            case vft_int : var_fmt_entry_int_to_buffer( entry, dst, int_args, int_args_len ); break;
+                            /* we enter a int argument */
+                            case vft_int    : var_fmt_entry_int_to_buffer( entry, dst, int_args, int_args_len ); break;
                         }
                     }
                 }
@@ -2010,8 +2041,8 @@ void var_fmt_test( void ) {
 
     desc_lst = create_var_desc_list();
     if ( NULL != desc_lst ) {
-        var_desc_list_add_str( desc_lst, "$ac", 0 );
-        var_desc_list_add_str( desc_lst, "$sg", 1 );
+        var_desc_list_add_str( desc_lst, "$ac", 0, 0xFF );
+        var_desc_list_add_str( desc_lst, "$sg", 1, 0xFF );
         var_desc_list_add_int( desc_lst, "$si", 0 );
         var_desc_list_add_int( desc_lst, "$sl", 1 );
 

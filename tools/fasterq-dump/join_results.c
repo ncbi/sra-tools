@@ -827,12 +827,12 @@ void release_flex_printer( struct flex_printer_t * self ) {
 static struct var_desc_list_t * make_flex_printer_vars( void ) {
     struct var_desc_list_t * res = create_var_desc_list();
     if ( NULL != res ) {
-        var_desc_list_add_str( res, "$ac",  sdi_acc );    /* accession  at #0 in the string-list */
-        var_desc_list_add_str( res, "$sn",  sdi_sn  );    /* spot-name  at #1 in the string-list */
-        var_desc_list_add_str( res, "$sg",  sdi_sg  );    /* spot-group at #2 in the string-list */
-        var_desc_list_add_str( res, "$RD1", sdi_rd1 );    /* READ#1     at #3 in the string-list */
-        var_desc_list_add_str( res, "$RD2", sdi_rd2 );    /* READ#2     at #4 in the string-list */
-        var_desc_list_add_str( res, "$QA",  sdi_qa  );    /* QUALITY    at #5 in the string-list */
+        var_desc_list_add_str( res, "$ac",  sdi_acc, 0xFF );    /* accession  at #0 in the string-list */
+        var_desc_list_add_str( res, "$sn",  sdi_sn,  idi_si );  /* spot-name  at #1 in the string-list ( has idi_si as alternative! ) */
+        var_desc_list_add_str( res, "$sg",  sdi_sg,  0xFF );    /* spot-group at #2 in the string-list */
+        var_desc_list_add_str( res, "$RD1", sdi_rd1, 0xFF );    /* READ#1     at #3 in the string-list */
+        var_desc_list_add_str( res, "$RD2", sdi_rd2, 0xFF );    /* READ#2     at #4 in the string-list */
+        var_desc_list_add_str( res, "$QA",  sdi_qa,  0xFF );    /* QUALITY    at #5 in the string-list */
 
         var_desc_list_add_int( res, "$si",  idi_si );    /* spot-id/row-nr at #0 in the int-list */
         var_desc_list_add_int( res, "$ri",  idi_ri );    /* read-nr     at #1 in the int-list */

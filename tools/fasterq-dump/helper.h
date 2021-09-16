@@ -279,7 +279,7 @@ struct var_desc_list_t;
 
 struct var_desc_list_t * create_var_desc_list( void );
 void release_var_desc_list( struct var_desc_list_t * self );
-void var_desc_list_add_str( struct var_desc_list_t * self, const char * name, uint32_t idx );
+void var_desc_list_add_str( struct var_desc_list_t * self, const char * name, uint32_t idx, uint32_t idx2 );
 void var_desc_list_add_int( struct var_desc_list_t * self, const char * name, uint32_t idx );
 
 void var_desc_list_test( void );

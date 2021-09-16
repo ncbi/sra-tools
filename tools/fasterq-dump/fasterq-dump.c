@@ -1027,9 +1027,9 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
                         tool_ctx -> vdb_mgr,
                         tool_ctx -> accession_short,
                         tool_ctx -> accession_path,
-                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
                         tool_ctx -> seq_defline,
                         tool_ctx -> qual_defline,
+                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
                         tbl_name,
                         &stats,
                         &( tool_ctx -> join_options ),
@@ -1037,7 +1037,7 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
                         tool_ctx -> buf_size,
                         tool_ctx -> num_threads,
                         tool_ctx -> show_progress,
-                        tool_ctx -> force );
+                        tool_ctx -> force ); /* tbl_join.c */
     } else {
         /* this is for 'sorted' SPECIAL/FASTQ/FASTA x whole-spot/split-spot/split-file/split-3
            sorted means in the order of the SEQUENCE-table */

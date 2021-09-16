@@ -17,7 +17,7 @@ ExportShared( vdb-sqlite false )
 
 add_compile_definitions (__mod__="libs/vdb-sqlite")
 
-target_link_libraries( vdb-sqlite-shared ncbi-vdb ncbi-ngs ${ADDITIONAL_LIBS} )
+target_link_libraries( vdb-sqlite-shared ncbi-vdb ncbi-ngs ${ADDITIONAL_LIBS} ngs )
 if( WIN32)
-    target_link_libraries( vdb-sqlite-shared-md ncbi-vdb ncbi-ngs ${ADDITIONAL_LIBS} )
+    target_link_libraries( vdb-sqlite-shared-md ncbi-vdb-md ncbi-ngs-md ${ADDITIONAL_LIBS} ngs )
 endif()

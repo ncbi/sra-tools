@@ -32,8 +32,12 @@ set( CGLOAD_LIB
 	tk-version
 	load
 	ncbi-wvdb
-	m
 )
+if( WIN32 )
+	list( APPEND CGLOAD_LIB Ws2_32 Crypt32 )
+else()
+	list( APPEND CGLOAD_LIB m )
+endif()
 
 target_link_libraries( cg-load ${CGLOAD_LIB} )
 MSVS_StaticRuntime( cg-load )

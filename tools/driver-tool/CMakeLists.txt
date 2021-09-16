@@ -38,7 +38,7 @@ target_link_libraries( sratools ncbi-vdb json secure utf8proc ${ADDITIONAL_LIBS}
 if( WIN32 )
 	add_executable( sratools-md "${SRATOOLS_SRC}" )
 	MSVS_DLLRuntime( sratools-md )
-	target_link_libraries( sratools-md ncbi-vdb json secure utf8proc ${ADDITIONAL_LIBS} )
+	target_link_libraries( sratools-md ncbi-vdb-md json-md secure-md utf8proc-md ${ADDITIONAL_LIBS} )
 endif()
 
 #if ((MSVC) AND (MSVC_VERSION GREATER_EQUAL 1914))

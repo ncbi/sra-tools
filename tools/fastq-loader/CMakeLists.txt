@@ -26,14 +26,16 @@ set( FASTQ_SRC
 
 # Internal
 # libfastqloader
-add_library( fastqloader ${FASTQ_SRC} )
-MSVS_StaticRuntime( fastqloader )
+if( NOT WIN32 ) # sys/mman.h
+	add_library( fastqloader ${FASTQ_SRC} )
+	MSVS_StaticRuntime( fastqloader )
 
 # External
-add_executable( latf-load
-	${FASTQ_SRC}
-	fastq-loader
-	loader-imp
-)
-target_link_libraries( latf-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb )
-MSVS_StaticRuntime( latf-load )
+	add_executable( latf-load
+		${FASTQ_SRC}
+		fastq-loader
+		loader-imp
+	)
+	target_link_libraries( latf-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb )
+	MSVS_StaticRuntime( latf-load )
+endif()

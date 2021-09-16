@@ -7,10 +7,12 @@ set( VDB_SQL_LIB
 	vdb-sqlite
 	ngs
 	ncbi-vdb
-	m
-	pthread
-	dl
 )
+if( WIN32 )
+	list( APPEND VDB_SQL_LIB Ws2_32 Crypt32 )
+else()
+	list( APPEND VDB_SQL_LIB m pthread dl )
+endif()
 
 target_link_libraries( vdb-sql ${VDB_SQL_LIB} )
 MSVS_StaticRuntime( vdb-sql )

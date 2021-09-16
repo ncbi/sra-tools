@@ -48,7 +48,9 @@ add_library( ngs-sdk-shared SHARED
 set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
 MakeLinksShared( ngs-sdk-shared ngs-sdk true )
 
-#link_libraries( ncbi-vdb ngs )
+if( WIN32 )
+	link_libraries( ncbi-vdb Ws2_32 Crypt32 )
+endif()
 
 add_library( ncbi-ngs STATIC
     $<TARGET_OBJECTS:ngs>

@@ -317,6 +317,22 @@ FIXTURE_TEST_CASE(NoSpotAssemply_case2, TempFileFixture)
     REQUIRE_EQ( string( "CA" ), GetRead() );
 }
 
+FIXTURE_TEST_CASE(SpotAssemply, TempFileFixture)
+{
+    REQUIRE_RC( Load(GetName(),
+"@CL100159005L1C001R001_2 2:N:0:0\n"
+"TTTCATGA\n"
+"+\n"
+"AAAAFJ7F\n"
+"@CL100159005L1C001R001_2 1:N:0:0\n"
+"CTNCGAGTCGCTTGAACCTGCTTTGGAG\n"
+"+\n"
+"ED!CDCBDDACC<B<CBDEBEC<BD>BD\n"
+    ) );
+    OpenReadCursor();
+    REQUIRE_EQ( string( "TTTCATGACTNCGAGTCGCTTGAACCTGCTTTGGAG" ), GetRead() );
+}
+
 // VDB-4530 Interleaving input files
 
 FIXTURE_TEST_CASE(Interleaved_OneRead, TempFileFixture)

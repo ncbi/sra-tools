@@ -1,11 +1,4 @@
 
-TOOLNAME="fasterq-dump"
-DBG_BUILD="dbg"
-REL_BUILD="rel"
-BUILD="$REL_BUILD"
-TOOLPATH="/home/user/ncbi-outdir/sra-tools/linux/gcc/x86_64/$BUILD/bin/"
-#TOOL="$TOOLPATH/$TOOLNAME"
-
 TOOL="fasterq-dump"
 REFTOOL="fastq-dump"
 

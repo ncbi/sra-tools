@@ -16,10 +16,16 @@ add_test( NAME Test_FastqLoader_WbFastqLoader COMMAND test-fastq-loader WORKING_
 
 if( NOT WIN32 )
 
+    # specify the location of schema files in a local .kfg file
+    add_test(NAME Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     macro(LatfTest TestName Result TestParams)
         add_test( NAME Test_FastqLoader_${TestName}
-            COMMAND "./runtestcase.sh" "${CMAKE_BINARY_DIR}/bin" "." "${TestName}" "${Result}" "${TestParams}"
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                "./runtestcase.sh" "${CMAKE_BINARY_DIR}/bin" "." "${TestName}" "${Result}" "${TestParams}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
     endmacro()
 
     macro(LatfTest_OneInput TestName Result TestParams)
@@ -50,10 +56,77 @@ if( NOT WIN32 )
     LatfTest_OneInputPhred33( 2.9 3 ) # mismatching length of sequence and quality (qualities shorter)
     LatfTest_OneInputPhred33( 2.9.1 3 ) # mismatching length of sequence and quality (qualities longer)
 
-#       Multiple files
+    #       Multiple files
     LatfTest( 3.1 0 "input/3.1a.fastq input/3.1b.fastq --quality PHRED_33") # reads+qualities together
 #    LatfTest( 3.2 0 "input/3.2a.fastq input/3.2b.fastq --quality PHRED_33") # qualities separately from reads, reads file comes first
 #    LatfTest( 3.3 0 "input/3.3a.fastq input/3.3b.fastq --quality PHRED_33" ) # qualities separately from reads, qualities file comes first (reject?)
 #    LatfTest( 3.4 0 "-1 input/3.4a.fastq -2 input/3.4b.fastq --quality PHRED_33" ) # default read number TODO: uncomment when VDB-4530 merges
+
+    #   Command line options:
+    #           4.1 --tmpfs          temporary files created at the specified location
+    add_test( NAME Test_FastqLoader_4.1
+        COMMAND
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+            bash -c "${CMAKE_BINARY_DIR}/bin/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 | grep \"Path for scratch files: ./actual/key2id\""
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    #           4.2 --qual-quant        quality values are quantized as specified
+    LatfTest( 4.2 0 "input/4.fastq --qual-quant 1:10,10:20,20:30,30:- --quality PHRED_33" )
+    #           4.3.1 --cache-size      rejected if invalid
+    LatfTest( 4.3.1 3 "input/4.fastq --cache-size BIG --quality PHRED_33" )
+    #           4.4 --max-rec-count     stops at the specified record #
+#    LatfTest( 4.4 0 "input/4.4.fastq --max-rec-count 3 --quality PHRED_33" ) TODO: update for the new schema,
+    #           4.5 --max-err-count     stops after the specified # of errors
+    LatfTest( 4.5 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.fastq --max-err-count 2 --quality PHRED_33" )
+    #           4.5.1 --max-err-pct     fails if % of error records is too high
+#    LatfTest( 4.5.1 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.1.fastq --quality PHRED_33 --max-err-count 10 --max-err-pct 20" ) TODO: adjust for extra output on stderr
+    #           4.6 --platform          saves correct value in the PLATFORM column
+    LatfTest( 4.6 0 "input/4.fastq -p LS454 --quality PHRED_33" )
+    #           4.6.1 --platform        rejects invalid values
+    LatfTest( 4.6.1 3 "input/4.fastq -p SOMETHINGELSE --quality PHRED_33" )
+    #           4.7 input file missing
+    LatfTest( 4.7 3 "input/not_there --quality PHRED_33" )
+    #           4.8 drop read names
+    LatfTest( 4.8 0 "input/4.8.fastq --quality PHRED_33 --no-readnames" )
+    #   Gzipped input
+    LatfTest( 5.0 0 "input/5.0.fastq.gz --quality PHRED_33" )
+    #   Misparsed quality
+    LatfTest( 6.0 0 "input/6.0.fastq --quality PHRED_33" )
+
+    #   PACBIO fastq
+    LatfTest_OneInput( 7.1 0 "--platform=PACBIO --quality PHRED_33")
+    LatfTest_OneInput( 7.2 0 "--platform=PACBIO --quality PHRED_33")
+    LatfTest_OneInput( 7.3 0 "--platform=PACBIO --quality PHRED_33")
+    #   secondary read numbers other than 3
+    LatfTest_OneInputPhred33( 8.0 0 )
+    #   reject inconsistent secondary read numbers
+    LatfTest_OneInputPhred33( 8.1 3 )
+    #   newest Illumina tag line variation ("_" instead of " /")
+    LatfTest_OneInputPhred33( 9.0 0 )
+    #   accepting ascii quality values up to 126
+    LatfTest_OneInputPhred33( 10.0 0 )
+    # 2-file fasta, tag line Run.Spot.Read
+    LatfTest( 11.0 0 "input/11.0.1.fasta input/11.0.2.fasta --quality PHRED_33" )
+    # 2-file fastq, tag line Run.Spot.Read
+    LatfTest( 11.1 0 "input/11.1.1.fastq input/11.1.2.fastq --quality PHRED_33" )
+
+    # Illumina, ignore barcodes
+    LatfTest_OneInput( 12.0 0 "--quality PHRED_33 --ignore-illumina-tags" )
+    # Illumina, use barcodes as spotgroups
+    LatfTest_OneInputPhred33( 12.1 0 )
+    # Illumina, use barcodes as spotgroups, alternative format
+    LatfTest_OneInputPhred33( 12.2 0 )
+
+    # Consume our own dog food (13.0.fastq created by fastq-dump )
+    LatfTest_OneInputPhred33( 13.0 0 )
+    # Consume our own dog food (13.1.fastq created by fastq-dump -F )
+    LatfTest_OneInputPhred33( 13.1 0 )
+    # SRA-2932: 30 is the preferred value for qualities when reading FASTA
+    LatfTest( 14.0 0 "input/14.0.fasta input/14.0.fasta --quality PHRED_33" )
+    # VDB-3154: buffer insufficient
+    LatfTest_OneInputPhred33( 15.0 0 )
+     # VDB-3413: multi-line reads and qualities
+    LatfTest( 16.0 0 "input/16.0.fasta --quality PHRED_33 --platform=PACBIO" )
+    LatfTest( 16.1 0 "input/16.1.fastq --quality PHRED_33 --platform=PACBIO" )
 
 endif()

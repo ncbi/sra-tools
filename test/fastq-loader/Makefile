@@ -271,5 +271,4 @@ smalltests: $(TEST_TOOLS)
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 4.8 0 $(SRCDIR)/input/4.8.fastq --quality PHRED_33 --no-readnames
-
+	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33

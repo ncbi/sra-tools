@@ -35,6 +35,7 @@
     #include "fastq-grammar.h"
 
     #define YYSTYPE FASTQToken
+    #define YY_BUF_SIZE 16777216
 
     /* code to populate token with internal values */
 	static void ConsumeToken(FASTQToken* token, FASTQParseBlock* pb);

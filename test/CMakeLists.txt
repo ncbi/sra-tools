@@ -23,7 +23,7 @@ add_subdirectory(align)
 add_subdirectory(align-cache)
 add_subdirectory(align-info)
 add_subdirectory(copycat) # fails
-#add_subdirectory(driver-tool)
+add_subdirectory(driver-tool)
 add_subdirectory(fasterq-dump)
 add_subdirectory(fastq-loader)
 # add_subdirectory(fuse) # retired

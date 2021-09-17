@@ -5,9 +5,6 @@ bin_dir=$2
 
 echo "testing expected output for dry run of" ${tool}
 
-echo ${bin_dir}
-
-
 TEMPDIR=.
 
 mkdir -p actual

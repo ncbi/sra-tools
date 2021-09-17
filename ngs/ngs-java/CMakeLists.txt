@@ -93,6 +93,4 @@ if ( Java_FOUND )
         PACKAGES gov.nih.nlm.ncbi.ngs ngs
     )
 
-    # NOTE: JNI headers are generated in ngs/ncbi/ngs-jni
-
 endif()

@@ -9,7 +9,6 @@ include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
 
 if( NOT WIN32 )
     add_executable( test-samextract test-samextract )
-    MSVS_StaticRuntime( test-samextract )
     include_directories( ${VDB_SRCDIR}/libs/align )
     target_link_libraries( test-samextract sam-extract ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
     add_test( NAME Test_Align_samextract COMMAND test-samextract WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

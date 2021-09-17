@@ -8,6 +8,6 @@ echo "vdb/schema/paths = \"${VDB_INCDIR}\"" > tmp.kfg
 VDB_CONFIG=`pwd` ${DIRTOTEST}/align-cache \
  	                          -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
 ${DIRTOTEST}/vdb-validate CSRA_file.cache/ 2>&1 \
-| grep --quiet "is consistent"
+| grep --quiet "is consistent" || exit 1
 rm tmp.kfg
 rm -rf CSRA_file.cache

@@ -26,11 +26,10 @@ add_subdirectory(copycat) # fails
 add_subdirectory(driver-tool)
 add_subdirectory(fasterq-dump)
 add_subdirectory(fastq-loader)
-# add_subdirectory(fuse) # retired
 add_subdirectory(kar)
-# add_subdirectory(kdbmeta) # project not yet converted
+add_subdirectory(kdbmeta) # project not yet converted
 add_subdirectory(kget)
-# add_subdirectory(make-read-filter) # project not yet converted
+add_subdirectory(make-read-filter) # project not yet converted
 # add_subdirectory(ngs-java) # project not yet converted
 # add_subdirectory(ngs-pileup) # project not yet converted
 # add_subdirectory(ngs-python) # project not yet converted
@@ -52,6 +51,7 @@ add_subdirectory(kget)
 # add_subdirectory(vdb-dump)
 # add_subdirectory(vdb-validate)
 
+# add_subdirectory(fuse) # retired
 # add_subdirectory(network-test) # broken now
-# add_subdirectory(dump-test) # abandoned
+# add_subdirectory(dump-test) # tools/fastq-dump is abandoned
 # add_subdirectory(pileup-stats) # moved to ngs-tools, delete

@@ -85,42 +85,26 @@ endif()
 # TODO: check if we need anything besides BITS in the if-else below
 if ("armv7l" STREQUAL ${ARCH})
 	set( BITS 32 )
-    add_compile_definitions( RPI )
-	add_compile_options( -mcpu=cortex-a53 -mfpu=neon-vfpv4 -Wno-psabi )
-	set ( Z128SRC z128 )
-	set ( Z128LSRC z128.nopt )
+	add_compile_options( -Wno-psabi )
 elseif ("aarch64" STREQUAL ${ARCH} )
 	set ( BITS 64 )
-	add_compile_definitions( HAVE_Z128 )
 elseif ("x86_64" STREQUAL ${ARCH} )
     set ( BITS 64 )
-    add_compile_definitions( LONG_DOUBLE_IS_NOT_R128 )
-    if( NOT WIN32 )
-        add_compile_definitions( HAVE_Z128 )
-    endif()
 endif()
 
 # now any unique combinations of OS and ARCH
 # TODO: check if this is needed
 if     ( "mac-x86_84" STREQUAL ${OS}-${ARCH})
 elseif ( "linux-x86_64" STREQUAL ${OS}-${ARCH})
-    add_compile_definitions( HAVE_R128 )
 elseif ( "linux-armv7l" STREQUAL ${OS}-${ARCH})
 elseif ( "linux-aarch64" STREQUAL ${OS}-${ARCH})
-    add_compile_definitions( HAVE_R128 __float128=_Float128 )
+    add_compile_definitions( __float128=_Float128 )
 endif()
 
 # combinations of OS and COMP
 if ( ${OS}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-GNU"  )
     add_definitions( -rdynamic )
     add_compile_definitions( _GNU_SOURCE )
-endif()
-
-# combinations of OS, ARCH and COMP
-if ( ${OS}-${ARCH}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-x86_64-GNU"  )
-    add_compile_definitions( HAVE_QUADMATH )
-	set ( LQUADMATH -lquadmath )
-elseif ( ${OS}-${ARCH}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-x86_64-Clang"  )
 endif()
 
 add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
@@ -143,38 +127,56 @@ endif()
 
 message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
 
-# include directories for C/C++ compilation
-#
+# ===========================================================================
+# ncbi-vdb sources
 
 if( NOT VDB_SRCDIR )
     set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+    if ( NOT EXISTS ${VDB_SRCDIR} )
+        message( FATAL_ERROR "Please specify the location of ncbi-vdb sources in Cmake variable VDB_SRCDIR")
+    endif()
+	message( "VDB_SRCDIR: ${VDB_SRCDIR}" )
 endif()
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces ) # TODO: introduce a variable pointing to interfaces
-
-#include_directories(interfaces/os)
-#include_directories(interfaces/ext)
+include_directories( ${VDB_SRCDIR}/interfaces ) # TODO: introduce a variable pointing to interfaces
 
 if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/cc/gcc)
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/cc/gcc/${ARCH})
+    include_directories(${VDB_SRCDIR}/interfaces/cc/gcc)
+    include_directories(${VDB_SRCDIR}/interfaces/cc/gcc/${ARCH})
 elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/cc/clang)
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/cc/clang/${ARCH})
+    include_directories(${VDB_SRCDIR}/interfaces/cc/clang)
+    include_directories(${VDB_SRCDIR}/interfaces/cc/clang/${ARCH})
 elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/cc/vc++)
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/cc/vc++/${ARCH})
+    include_directories(${VDB_SRCDIR}/interfaces/cc/vc++)
+    include_directories(${VDB_SRCDIR}/interfaces/cc/vc++/${ARCH})
 endif()
 
 if ( "mac" STREQUAL ${OS} )
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/os/mac)
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/os/unix)
+    include_directories(${VDB_SRCDIR}/interfaces/os/mac)
+    include_directories(${VDB_SRCDIR}/interfaces/os/unix)
 elseif( "linux" STREQUAL ${OS} )
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/os/linux)
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/os/unix)
+    include_directories(${VDB_SRCDIR}/interfaces/os/linux)
+    include_directories(${VDB_SRCDIR}/interfaces/os/unix)
 elseif( "windows" STREQUAL ${OS} )
-    include_directories(${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/os/win)
+    include_directories(${VDB_SRCDIR}/interfaces/os/win)
 endif()
+
+# ===========================================================================
+# ncbi-vdb binaries
+
+if( VDB_LIBDIR )
+	set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
+else()
+    #TODO try to guess the location?
+    message( FATAL_ERROR "Please specify the location of ncbi-vdb libraries in Cmake variable VDB_LIBDIR")
+endif()
+
+if ( NOT NCBI_VDB_ILIBDIR )
+    set( NCBI_VDB_ILIBDIR ${VDB_LIBDIR}/../ilib )
+endif()
+
+link_directories( ${NCBI_VDB_LIBDIR} )
+link_directories( ${NCBI_VDB_ILIBDIR} )
 
 # ===========================================================================
 # 3d party packages
@@ -193,30 +195,6 @@ endif()
 find_package( Python3 COMPONENTS Interpreter )
 
 # ===========================================================================
-
-# TODO: should not be needed
-if( NGS_INCDIR )
-    include_directories( ${NGS_INCDIR} )
-else ()
-    include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/ngs/ngs-sdk )
-    #TODO: if not found, checkout and build
-endif ()
-
-# TODO: properly initialize those directories somewhere on the top level
-if( VDB_LIBDIR )
-	message( "VDB_LIBDIR: ${VDB_LIBDIR}" )
-	set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
-	set( NCBI_VDB_ILIBDIR ${VDB_LIBDIR}/../ilib )
-else()
-	set( NCBI_VDB_LIBDIR "~/ncbi-outdir/ncbi-vdb/linux/gcc/x86_64/dbg/lib" )
-	set( NCBI_VDB_ILIBDIR "~/ncbi-outdir/ncbi-vdb/linux/gcc/x86_64/dbg/ilib" )
-endif()
-# set( NGS_LIBDIR "~/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/lib" )
-# set( NGS_ILIBDIR "~/ncbi-outdir/sra-tools/linux/gcc/x86_64/dbg/ilib" )
-link_directories( ${NCBI_VDB_LIBDIR} )
-link_directories( ${NCBI_VDB_ILIBDIR} )
-# link_directories( ${NGS_LIBDIR} )
-# link_directories( ${NGS_ILIBDIR} )
 
 #/////////////////////// Cache variables, may be overridden at config time:
 
@@ -248,9 +226,8 @@ link_directories( ${NCBI_VDB_ILIBDIR} )
         # set ( BUILD rel )
     # endif ()
 
-    # set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "sra-tools ngs library directory" )
     # set ( NGS_JAVADIR  ${OUTDIR}/sra-tools/ngs-java/                                                  CACHE PATH "ngs Java directory" )
-    # set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                           CACHE PATH "ncbi-vdb include directory" )
+    # set ( VDB_INCDIR  ${VDB_SRCDIR}/interfaces/                           CACHE PATH "ncbi-vdb include directory" )
     # set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
     # set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
     # set ( SRATOOLS_BINDIR ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/bin    CACHE PATH "sra-tools executables directory" )
@@ -272,10 +249,7 @@ link_directories( ${NCBI_VDB_ILIBDIR} )
     # endif()
 
     # # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
-    # set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                   CACHE PATH "ngs include directory" )
-    # set ( NGS_LIBDIR  ${OUTDIR}/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
-    # set ( NGS_JAVADIR  ${OUTDIR}/ngs-java/                                                                  CACHE PATH "ngs Java directory" )
-    # set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                           CACHE PATH "ncbi-vdb include directory" )
+    # set ( VDB_INCDIR  ${VDB_SRCDIR}/interfaces/                                           CACHE PATH "ncbi-vdb include directory" )
     # set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
     # set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
     # set ( SRATOOLS_BINDIR ${OUTDIR}/sra-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/bin    CACHE PATH "sra-tools executables directory" )
@@ -339,8 +313,6 @@ link_directories( ${NCBI_VDB_ILIBDIR} )
     # SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Debug/ilib)
     # SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Release/ilib)
 
-    # include_directories ("${NGS_INCDIR}/win")
-
     # # use miltiple processors
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
@@ -353,8 +325,6 @@ link_directories( ${NCBI_VDB_ILIBDIR} )
     # set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT" )
     # set ( CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   /MTd" )
 
-    # string(REPLACE "$(Configuration)" "Debug"   NGS_LIBDIR_DEBUG ${NGS_LIBDIR})
-    # string(REPLACE "$(Configuration)" "Release" NGS_LIBDIR_RELEASE ${NGS_LIBDIR})
     # string(REPLACE "$(Configuration)" "Debug"   VDB_LIBDIR_DEBUG ${VDB_LIBDIR})
     # string(REPLACE "$(Configuration)" "Release" VDB_LIBDIR_RELEASE ${VDB_LIBDIR})
 
@@ -384,51 +354,10 @@ link_directories( ${NCBI_VDB_ILIBDIR} )
 # if ( NOT DEFINED ENV{JAVA_HOME} )
     # message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
 # endif ()
-# set ( NGSJAR "${NGS_JAVADIR}/jar/ngs-java.jar" )
 # set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
 # # look for dependencies
 
-# if (NOT EXISTS ${NGS_INCDIR})
-    # message( FATAL_ERROR "NGS includes are not found in ${NGS_INCDIR}." )
-# else()
-    # message( STATUS "Found NGS includes in ${NGS_INCDIR}. Looking for NGS libraries..." )
-
-    # if (UNIX)
-        # find_library ( NGS_LIBRARY ngs-c++ PATHS ${NGS_LIBDIR} NO_DEFAULT_PATH )
-		# if ( NGS_LIBRARY )
-			# get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
-			# message ( STATUS "Found NGS libraries in ${NGS_LIBDIR}" )
-		# else ()
-			# message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR}." )
-		# endif()
-    # else()
-
-		# # on Windows, require both debug and release libraries
-        # if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Debug.*")
-            # find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_DEBUG} NO_DEFAULT_PATH )
-			# if ( NGS_LIBRARY )
-				# get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
-				# message ( STATUS "Found Debug NGS libraries in ${NGS_LIBDIR_DEBUG}" )
-			# else ()
-				# message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR_DEBUG}." )
-			# endif()
-        # endif()
-
-        # if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Release.*")
-            # find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_RELEASE} NO_DEFAULT_PATH )
-			# if ( NGS_LIBRARY )
-				# get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
-				# message ( STATUS "Found Release NGS libraries in ${NGS_LIBRARY_DIR}" )
-			# else ()
-				# message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR_RELEASE}." )
-			# endif()
-        # endif()
-
-    # endif()
-
-    # unset ( NGS_LIBRARY )
-# endif()
 
 # if (NOT EXISTS ${VDB_INCDIR})
     # message( FATAL_ERROR "NCBI-VDB includes are not found in ${VDB_INCDIR}" )
@@ -470,9 +399,8 @@ link_directories( ${NCBI_VDB_ILIBDIR} )
 # include_directories ("${VDB_INCDIR}/cc/${COMPILER}/${PLATFORM}")
 # include_directories ("${VDB_INCDIR}/cc/${COMPILER}")
 # include_directories ("${VDB_INCDIR}/os/${OS}")
-# include_directories ("${NGS_INCDIR}")
 
-# link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
+# link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR}
 
 # #/////////////////////////////////////////////////
 # # versioned names, symbolic links and installation for the tools

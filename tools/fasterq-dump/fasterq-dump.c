@@ -168,10 +168,16 @@ static const char * fasta_usage[] = { "produce FASTA output", NULL };
 static const char * fasta_us_usage[] = { "produce FASTA output, unsorted", NULL };
 #define OPTION_FASTA_US         "fasta-unsorted"
 
-static const char * seq_defline_usage[] = { "custom defline for sequence", NULL };
+static const char * seq_defline_usage[] = { "custom defline for sequence: ",
+                                            "$ac=accession, $sn=spot-name, ",
+                                            "$sg=spot-group, $si=spot-id, ",
+                                            "$ri=read-id, $rl=read-length",                                            
+                                            NULL };
 #define OPTION_SEQ_DEFLINE      "seq-defline"
 
-static const char * qual_defline_usage[] = { "custom defline for qualities", NULL };
+static const char * qual_defline_usage[] = { "custom defline for qualities: ",
+                                             "same as seq-defline",
+                                             NULL };
 #define OPTION_QUAL_DEFLINE     "qual-defline"
 
 static const char * only_un_usage[] = { "process only unaligned reads", NULL };
@@ -263,9 +269,15 @@ rc_t CC Usage ( const Args * args ) {
         HelpOptionLine( opt -> aliases, opt -> name, param, opt -> help );
     }
     
-    KOutMsg("\n");
+    KOutMsg( "\n" );
     HelpOptionsStandard();
+
+    KOutMsg( "for more information visit:\n" );
+    KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/HowTo:-fasterq-dump\n" );
+    KOutMsg( "   https://github.com/ncbi/sra-tools/wiki/08.-prefetch-and-fasterq-dump\n" );
+
     HelpVersion( fullpath, KAppVersion() );
+
     return rc;
 }
 

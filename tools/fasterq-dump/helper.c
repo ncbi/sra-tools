@@ -1749,12 +1749,24 @@ static void var_fmt_entry_str_to_buffer( const var_fmt_entry_t * self, SBuffer_t
         const String * src = str_args[ self -> idx ];
         if ( NULL != src ) {
             /* we have a string to use */
-            var_fmt_String_to_buffer( buffer, src );
+            if ( self -> idx2 == 0xFF ) {
+                /* there is no alternative -> print the string even if len == 0 */
+                var_fmt_String_to_buffer( buffer, src );
+            } else {
+                if ( src -> len > 0 ) {
+                    /* there is an alternative, but we have a valid string to print */
+                    var_fmt_String_to_buffer( buffer, src );
+                } else if ( NULL != int_args && self -> idx2 < int_args_len ) {
+                    /* there is an alternative - and we have an empty string -  */
+                    var_fmt_entry_int_value_to_buffer( buffer, int_args[ self -> idx2 ] );
+                }
+            }
         } else if ( NULL != int_args && self -> idx2 < int_args_len ) {
-            /* we have an alternative to use */
+            /* the string-source is NULL, and we have an alternative to use */
             var_fmt_entry_int_value_to_buffer( buffer, int_args[ self -> idx2 ] );
         }
     } else if ( NULL != int_args && self -> idx2 < int_args_len ) {
+        /* there is not even a array of strings, and we have an alternative to use */
         var_fmt_entry_int_value_to_buffer( buffer, int_args[ self -> idx2 ] );
     }
 }

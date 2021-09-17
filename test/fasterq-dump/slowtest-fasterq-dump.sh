@@ -120,7 +120,6 @@ function test_split_files_fastq {
         if [ -f "$1.faster_$num.fastq" ]; then
             MD5REFERENCE="./ref_md5/$1.split_files.fastq_$num.reference.md5"
             produce_md5_and_compare "$1.faster_$num.fastq" "$MD5REFERENCE"
-            rm -f "$1.faster_$num.fastq"
         fi
     done
 }
@@ -151,7 +150,6 @@ function test_split_files_fasta {
         if [ -f "$1.faster_$num.fasta" ]; then
             MD5REFERENCE="./ref_md5/$1.split_files.fasta_$num.reference.md5"
             produce_md5_and_compare "$1.faster_$num.fasta" "$MD5REFERENCE"
-            rm -f "$1.faster_$num.fasta"
         fi
     done
 }
@@ -189,13 +187,11 @@ function test_split_3_fastq {
         if [ -f "$1.faster_$num.fastq" ]; then
             MD5REFERENCE="./ref_md5/$1.split_3.fastq_$num.reference.md5"
             produce_md5_and_compare "$1.faster_$num.fastq" "$MD5REFERENCE"
-            rm -f "$1.faster_$num.fastq"
         fi
     done
     if [ -f "$1.faster.fastq" ]; then
         MD5REFERENCE="./ref_md5/$1.split_3.fastq.reference.md5"
         produce_md5_and_compare "$1.faster.fastq" "$MD5REFERENCE"
-        rm -f "$1.faster.fastq"
     fi
 }
 
@@ -228,18 +224,16 @@ function test_split_3_fasta {
         if [ -f "$1.faster_$num.fasta" ]; then
             MD5REFERENCE="./ref_md5/$1.split_3.fasta_$num.reference.md5"
             produce_md5_and_compare "$1.faster_$num.fasta" "$MD5REFERENCE"
-            rm -f "$1.faster_$num.fasta"
         fi
     done
     if [ -f "$1.faster.fasta" ]; then
         MD5REFERENCE="./ref_md5/$1.split_3.fasta.reference.md5"
         produce_md5_and_compare "$1.faster.fasta" "$MD5REFERENCE"
-        rm -f "$1.faster.fasta"
     fi
 }
 
 #------------------------------------------------------------------------------------------
-#    FASTA unsorted ( 
+#    FASTA unsorted
 #------------------------------------------------------------------------------------------
 function test_unsorted_fasta {
     echo "" && echo "testing: UNSORTED ( SPLIT-SPOT ) / FASTA for $1"
@@ -255,7 +249,6 @@ function test_unsorted_fasta {
     time "$TOOL" "$1" --fasta-unsorted -pf -o $1.faster.fasta --seq-defline '>$ac.$si $sn length=$rl'
     ./fasta_2_line.py $1.faster.fasta | sort > $1.faster.fasta.sorted
     produce_md5_and_compare "$1.faster.fasta.sorted" "$MD5REFERENCE"
-    rm -f "$1.faster.fasta.sorted"
 }
 
 #------------------------------------------------------------------------------------------
@@ -293,7 +286,7 @@ fi
 mkdir -p ref_md5
 
 #------------------------------------------------------------------------------------------
-#ACC1="SRR000001"
+ACC1="SRR000001"
 ACC2="SRR341578"
 #------------------------------------------------------------------------------------------
 
@@ -301,19 +294,19 @@ ACCESSIONS="$ACC1 $ACC2"
 
 for acc in $ACCESSIONS
 do
-#    prefetch -p $acc
+    prefetch -p $acc
 
-#    test_whole_spot_fastq $acc
-#    test_whole_spot_fasta $acc
+    test_whole_spot_fastq $acc
+    test_whole_spot_fasta $acc
 
-#    test_split_spot_fastq $acc
-#    test_split_spot_fasta $acc
+    test_split_spot_fastq $acc
+    test_split_spot_fasta $acc
 
-#    test_split_files_fastq $acc
-#    test_split_files_fasta $acc
+    test_split_files_fastq $acc
+    test_split_files_fasta $acc
 
-#    test_split_3_fastq $acc
-#    test_split_3_fasta $acc
+    test_split_3_fastq $acc
+    test_split_3_fasta $acc
 
     test_unsorted_fasta $acc
 

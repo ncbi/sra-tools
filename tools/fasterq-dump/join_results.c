@@ -1140,7 +1140,7 @@ rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_da
                 /* TBD error */
             }
         } else if ( NULL != self -> multi_writer ) {
-           /* we are in multi-writer-mode */
+            /* we are in multi-writer-mode */
             SBuffer_t * t = var_fmt_to_buffer( fmt, 
                                                self -> string_data, sdi_qa + 1,
                                                self -> int_data, idi_rl + 1 );

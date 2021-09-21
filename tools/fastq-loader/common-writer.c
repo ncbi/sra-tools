@@ -625,6 +625,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 self->cur_reader,
                 &self->reccount
             );
+        bool done = rr->type == rr_fileDone;
 
         while ( Quitting() == 0 )
         {
@@ -655,7 +656,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 break;
             }
         }
-        else if (rr->type == rr_fileDone)
+        else if (done)
         {
             /* normal exit from an end of file */
             (void)LOGMSG(klogDebug, "readThread: end of file");
@@ -687,7 +688,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
             }
         }
 
-        if ( rr->type == rr_fileDone )
+        if ( done )
         {   // if no more readers left, signal to the caller that we are done
             if ( ! self->reader1_active && ! self->reader2_active )
             {
@@ -818,10 +819,12 @@ HandleSequence( const struct ReadResult * rr,
             value->fragmentOffset = -1;
 mated = true;
 readNo = 1;
-            value->unmated = !mated;
+value->unmated = false;
         }
         else {
-readNo = 2; mated = true; value->unmated = !mated;
+readNo = 2; 
+mated = true; 
+value->unmated = false;
             if ( ! G->allowDuplicateReadNames )
             {   // VDB-4524
                 if ( ! mated && value -> unmated )
@@ -845,7 +848,7 @@ readNo = 2; mated = true; value->unmated = !mated;
 
         if (mated) {
             if (value->written) {
-                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id", "name=%s", name));
+                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id (1)", "name=%s", name));
             }
             else if (!value->has_a_read) {
                 /* new mated fragment - do spot assembly */
@@ -1037,7 +1040,7 @@ readNo = 2; mated = true; value->unmated = !mated;
             }
         }
         else if (value->written) {
-            (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id", "name=%s", name));
+            (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id (2)", "name=%s", name));
         }
         else if (value->has_a_read)
         {

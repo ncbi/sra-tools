@@ -4,3 +4,25 @@
    fun:calloc
    fun:_ZN3ngs7Resolve*
 }
+{
+   KNSManager_singleton_calloc
+   Memcheck:Leak
+   fun:calloc
+   ...
+   fun:KNSManagerMakeSingleton
+}
+{
+   KNSManager_singleton_malloc
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:KNSManagerMakeSingleton
+}
+{
+   KRsrcGlobalInit_malloc
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:KRsrcGlobalInit
+}
+

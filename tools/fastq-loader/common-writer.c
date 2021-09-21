@@ -625,7 +625,26 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 self->cur_reader,
                 &self->reccount
             );
-        bool done = rr->type == rr_fileDone;
+        if( rr->type == rr_fileDone )
+        {
+            /* normal exit from an end of file */
+            (void)LOGMSG(klogDebug, "readThread: end of file");
+            /* do not use this reader anymore */
+            if ( self->cur_reader == self -> reader1 )
+            {
+                self->reader1_active = false;
+            }
+            else
+            {
+                assert( self->cur_reader == self -> reader2 );
+                self->reader2_active = false;
+            }
+            // if no more readers left, signal to the caller that we are done
+            if ( ! self->reader1_active && ! self->reader2_active )
+            {
+                rr->type = rr_done;
+            }
+        }
 
         while ( Quitting() == 0 )
         {
@@ -656,21 +675,6 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 break;
             }
         }
-        else if (done)
-        {
-            /* normal exit from an end of file */
-            (void)LOGMSG(klogDebug, "readThread: end of file");
-            /* do not use this reader anymore */
-            if ( self->cur_reader == self -> reader1 )
-            {
-                self->reader1_active = false;
-            }
-            else
-            {
-                assert( self->cur_reader == self -> reader2 );
-                self->reader2_active = false;
-            }
-        }
 
         // switch to the other reader if necessary
         if ( self->cur_reader == self -> reader1 )
@@ -685,19 +689,6 @@ static rc_t readThread(KThread const *const th, void *const ctx)
             if ( self->reader1_active )
             {
                 self->cur_reader = self -> reader1;
-            }
-        }
-
-        if ( done )
-        {   // if no more readers left, signal to the caller that we are done
-            if ( ! self->reader1_active && ! self->reader2_active )
-            {
-                rr->type = rr_done;
-                break;
-            }
-            else
-            {   // proceed with the remaining reader
-                continue;
             }
         }
     }
@@ -817,14 +808,8 @@ HandleSequence( const struct ReadResult * rr,
         if (wasInserted) {
             memset(value, 0, sizeof(*value));
             value->fragmentOffset = -1;
-mated = true;
-readNo = 1;
-value->unmated = false;
         }
         else {
-readNo = 2; 
-mated = true; 
-value->unmated = false;
             if ( ! G->allowDuplicateReadNames )
             {   // VDB-4524
                 if ( ! mated && value -> unmated )

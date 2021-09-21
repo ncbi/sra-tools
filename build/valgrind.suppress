@@ -24,5 +24,9 @@
    fun:malloc
    ...
    fun:KRsrcGlobalInit
+<<<<<<< HEAD
 }
 
+=======
+}
+>>>>>>> 8cedb55334a36d6e20f8f04660879e64550e4456

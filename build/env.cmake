@@ -161,6 +161,8 @@ elseif( "windows" STREQUAL ${OS} )
     include_directories(${VDB_SRCDIR}/interfaces/os/win)
 endif()
 
+include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
+
 # ===========================================================================
 # ncbi-vdb binaries
 

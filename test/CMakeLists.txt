@@ -40,16 +40,16 @@ add_subdirectory(make-read-filter) # project not yet converted
 # add_subdirectory(scripts)
 # add_subdirectory(sra-pileup)
 # add_subdirectory(sra-sort)
-# add_subdirectory(sra-stat)
-# add_subdirectory(srapath)
+add_subdirectory(sra-stat)
+add_subdirectory(srapath) # TODO: some variables have no effect on the test
 # # add_subdirectory(tarballs) # called directly from TeamCity, do not invoke from CMake?
 # # add_subdirectory(tui-example) # command line demos
-# add_subdirectory(vcf-loader)
-# add_subdirectory(vdb-config)
-# add_subdirectory(vdb-copy)
-# add_subdirectory(vdb-diff) # was not included in runtests
-# add_subdirectory(vdb-dump)
-# add_subdirectory(vdb-validate)
+add_subdirectory(vcf-loader) # TODO: for some reason it works even without setting config and env
+add_subdirectory(vdb-config)
+add_subdirectory(vdb-copy)
+add_subdirectory(vdb-diff) # was not included in runtests
+# add_subdirectory(vdb-dump) # TODO - ??
+add_subdirectory(vdb-validate)
 
 # add_subdirectory(fuse) # retired
 # add_subdirectory(network-test) # broken now

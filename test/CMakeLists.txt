@@ -29,8 +29,8 @@ add_subdirectory(fastq-loader)
 add_subdirectory(kar)
 add_subdirectory(kdbmeta)
 add_subdirectory(kget)
-add_subdirectory(make-read-filter) # project not yet converted
-# add_subdirectory(ngs-java) # project not yet converted
+add_subdirectory(make-read-filter)
+add_subdirectory(ngs-java)
 # add_subdirectory(ngs-pileup) # project not yet converted
 # add_subdirectory(ngs-python) # project not yet converted
 # add_subdirectory(prefetch)

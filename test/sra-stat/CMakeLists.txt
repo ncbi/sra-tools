@@ -8,7 +8,7 @@ if ( NOT WIN32 )
 		COMMAND test-sra-stat.sh ${CMAKE_BINARY_DIR}/bin
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-	add_test( NAME SlowTest_Sra-stat
+	add_test( NAME SlowTest_Sra_stat
 		COMMAND test-sra-stat-slow.sh ${CMAKE_BINARY_DIR}/bin
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

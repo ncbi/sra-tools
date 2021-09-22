@@ -29,14 +29,14 @@
 #include <kfs/file.h>
 #include <kfs/buffile.h>
 
-typedef struct index_writer
+typedef struct index_writer_t
 {
     struct KFile * f;
     uint64_t frequency, pos, last_key;
-} index_writer;
+} index_writer_t;
 
 
-void release_index_writer( struct index_writer * writer )
+void release_index_writer( struct index_writer_t * writer )
 {
     if ( NULL != writer )
     {
@@ -53,7 +53,7 @@ void release_index_writer( struct index_writer * writer )
 }
 
 
-static rc_t write_value( index_writer * writer, uint64_t value )
+static rc_t write_value( index_writer_t * writer, uint64_t value )
 {
     rc_t rc = KFileWriteExactly( writer -> f, writer -> pos, &value, sizeof value );
     if ( 0 != rc )
@@ -68,7 +68,7 @@ static rc_t write_value( index_writer * writer, uint64_t value )
 }
 
 
-static rc_t write_key_and_offset( index_writer * writer, uint64_t key, uint64_t offset )
+static rc_t write_key_and_offset( index_writer_t * writer, uint64_t key, uint64_t offset )
 {
     rc_t rc = write_value( writer, key );
     if ( 0 == rc )
@@ -79,7 +79,7 @@ static rc_t write_key_and_offset( index_writer * writer, uint64_t key, uint64_t 
 }
 
 
-rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset )
+rc_t write_key( struct index_writer_t * writer, uint64_t key, uint64_t offset )
 {
     rc_t rc = 0;
     if ( NULL == writer )
@@ -101,12 +101,12 @@ rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset )
     return rc;
 }
 
-static rc_t make_index_writer_obj( struct index_writer ** writer,
+static rc_t make_index_writer_obj( struct index_writer_t ** writer,
                                    uint64_t frequency,
                                    struct KFile * f )
 {
     rc_t rc = 0;
-    index_writer * w = calloc( 1, sizeof * w );
+    index_writer_t * w = calloc( 1, sizeof * w );
     if ( NULL == w )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -134,7 +134,7 @@ static rc_t make_index_writer_obj( struct index_writer ** writer,
     return rc;
 }
 
-rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
+rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
                         size_t buf_size, uint64_t frequency, const char * fmt, ... )
 {
     rc_t rc;
@@ -192,14 +192,14 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
 
 /* ----------------------------------------------------------------------- */
 
-typedef struct index_reader
+typedef struct index_reader_t
 {
     const struct KFile * f;
     uint64_t frequency, file_size, max_key;
-} index_reader;
+} index_reader_t;
 
 
-void release_index_reader( index_reader * reader )
+void release_index_reader( index_reader_t * reader )
 {
     if ( NULL != reader )
     {
@@ -215,7 +215,7 @@ void release_index_reader( index_reader * reader )
     }
 }
 
-static rc_t read_value( index_reader * reader, uint64_t pos, uint64_t * value )
+static rc_t read_value( index_reader_t * reader, uint64_t pos, uint64_t * value )
 {
     rc_t rc = KFileReadExactly( reader -> f, pos, ( void * )value, sizeof *value );
     if ( 0 != rc )
@@ -225,11 +225,11 @@ static rc_t read_value( index_reader * reader, uint64_t pos, uint64_t * value )
     return rc;
 }
 
-static rc_t make_index_reader_obj( index_reader ** reader,
+static rc_t make_index_reader_obj( index_reader_t ** reader,
                                    const struct KFile * f )
 {
     rc_t rc = 0;
-    index_reader * r = calloc( 1, sizeof * r );
+    index_reader_t * r = calloc( 1, sizeof * r );
     if ( NULL == r )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -261,7 +261,7 @@ static rc_t make_index_reader_obj( index_reader ** reader,
     return rc;
 }
 
-rc_t make_index_reader( const KDirectory * dir, index_reader ** reader,
+rc_t make_index_reader( const KDirectory * dir, index_reader_t ** reader,
                         size_t buf_size, const char * fmt, ... )
 {
     rc_t rc;
@@ -306,13 +306,13 @@ rc_t make_index_reader( const KDirectory * dir, index_reader ** reader,
 }
 
 
-static uint64_t key_to_pos_guess( const index_reader * self, uint64_t key )
+static uint64_t key_to_pos_guess( const index_reader_t * self, uint64_t key )
 {
     uint64_t chunk_id = ( key / self -> frequency );
     return ( ( sizeof self -> frequency ) + ( chunk_id * ( 2 * ( sizeof self -> frequency ) ) ) );
 }
 
-rc_t get_nearest_offset( const index_reader * self,
+rc_t get_nearest_offset( const index_reader_t * self,
                          uint64_t key_to_find,
                          uint64_t * key_found,
                          uint64_t * offset )
@@ -415,7 +415,7 @@ rc_t get_nearest_offset( const index_reader * self,
     return rc;
 }
 
-rc_t get_max_key( const index_reader * self, uint64_t * max_key )
+rc_t get_max_key( const index_reader_t * self, uint64_t * max_key )
 {
     rc_t rc = 0;
     if ( NULL == self || NULL == max_key )

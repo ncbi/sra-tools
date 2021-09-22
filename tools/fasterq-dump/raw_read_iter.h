@@ -54,7 +54,7 @@ typedef struct raw_read_rec
 
 void destroy_raw_read_iter( struct raw_read_iter * iter );
 
-rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter );
+rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter ** iter );
 
 bool get_from_raw_read_iter( struct raw_read_iter * iter, raw_read_rec * rec, rc_t * rc );
 

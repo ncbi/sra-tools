@@ -48,14 +48,14 @@
 #include <os-native.h>
 #include <sysalloc.h>
 
-typedef struct cmn_iter
+typedef struct cmn_iter_t
 {
     const VCursor * cursor;
     struct num_gen * ranges;
     const struct num_gen_iter * row_iter;
     uint64_t row_count;
     int64_t first_row, row_id;
-} cmn_iter;
+} cmn_iter_t;
 
 /* ------------------------------------------------------------------------------------------------------- */
 static rc_t cmn_iter_path_to_vpath( const char * path, VPath ** vpath )
@@ -200,7 +200,7 @@ static rc_t cmn_release_curs( const VCursor * curs, rc_t rc, const char * functi
 
 /* ------------------------------------------------------------------------------------------------------- */
 
-void destroy_cmn_iter( cmn_iter * self )
+void destroy_cmn_iter( cmn_iter_t * self )
 {
     if ( NULL != self )
     {
@@ -244,7 +244,7 @@ static rc_t cmn_iter_open_cursor( const VTable * tbl, size_t cursor_cache, const
 }
 
 static rc_t cmn_iter_open_db( const VDBManager * mgr, VSchema * schema,
-                              const cmn_params * cp, const char * tblname, const VCursor ** cur )
+                              const cmn_iter_params_t * cp, const char * tblname, const VCursor ** cur )
 {
     const VDatabase * db = NULL;
     rc_t rc = cmn_open_db( mgr, schema, cp -> accession_path, &db );
@@ -267,7 +267,7 @@ static rc_t cmn_iter_open_db( const VDBManager * mgr, VSchema * schema,
 }
 
 static rc_t cmn_iter_open_tbl( const VDBManager * mgr, VSchema * schema,
-                               const cmn_params * cp, const VCursor ** cur )
+                               const cmn_iter_params_t * cp, const VCursor ** cur )
 {
     const VTable * tbl = NULL;
     rc_t rc = cmn_open_tbl( mgr, schema, cp -> accession_path, &tbl );
@@ -278,7 +278,7 @@ static rc_t cmn_iter_open_tbl( const VDBManager * mgr, VSchema * schema,
     return rc;
 }
 
-rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, cmn_iter ** iter )
+rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, cmn_iter_t ** iter )
 {
     rc_t rc = 0;
     if ( NULL == cp || NULL == cp -> dir || NULL == cp -> accession_short || 
@@ -324,7 +324,7 @@ rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, cmn_iter ** ite
                 }
                 if ( 0 == rc )
                 {
-                    cmn_iter * i = calloc( 1, sizeof * i );
+                    cmn_iter_t * i = calloc( 1, sizeof * i );
                     if ( NULL == i )
                     {
                         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -361,7 +361,7 @@ rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, cmn_iter ** ite
 }
 
 
-rc_t cmn_iter_add_column( struct cmn_iter * self, const char * name, uint32_t * id )
+rc_t cmn_iter_add_column( struct cmn_iter_t * self, const char * name, uint32_t * id )
 {
     rc_t rc;
     if ( NULL == self )
@@ -381,13 +381,13 @@ rc_t cmn_iter_add_column( struct cmn_iter * self, const char * name, uint32_t * 
 }
 
 
-int64_t cmn_iter_row_id( const struct cmn_iter * self )
+int64_t cmn_iter_row_id( const struct cmn_iter_t * self )
 {
     return ( NULL == self ) ? 0 : self -> row_id;
 }
 
 
-uint64_t cmn_iter_row_count( struct cmn_iter * self )
+uint64_t cmn_iter_row_count( struct cmn_iter_t * self )
 {
     uint64_t res = 0;
     rc_t rc;
@@ -408,7 +408,7 @@ uint64_t cmn_iter_row_count( struct cmn_iter * self )
 }
 
 
-bool cmn_iter_next( struct cmn_iter * self, rc_t * rc )
+bool cmn_iter_next( struct cmn_iter_t * self, rc_t * rc )
 {
     if ( NULL == self )
     {
@@ -445,7 +445,7 @@ static rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t coun
     return rc;
 }
 
-rc_t cmn_iter_range( struct cmn_iter * self, uint32_t col_id )
+rc_t cmn_iter_range( struct cmn_iter_t * self, uint32_t col_id )
 {
     rc_t rc;
     if ( NULL == self )
@@ -498,7 +498,7 @@ rc_t cmn_iter_range( struct cmn_iter * self, uint32_t col_id )
 }
 
 
-rc_t cmn_read_uint64( struct cmn_iter * self, uint32_t col_id, uint64_t *value )
+rc_t cmn_read_uint64( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value )
 {
     uint32_t elem_bits, boff, row_len;
     const uint64_t * value_ptr;
@@ -528,7 +528,7 @@ rc_t cmn_read_uint64( struct cmn_iter * self, uint32_t col_id, uint64_t *value )
 }
 
 
-rc_t cmn_read_uint64_array( struct cmn_iter * self, uint32_t col_id, uint64_t *value,
+rc_t cmn_read_uint64_array( struct cmn_iter_t * self, uint32_t col_id, uint64_t *value,
                             uint32_t num_values, uint32_t * values_read )
 {
     uint32_t elem_bits, boff, row_len;
@@ -563,7 +563,7 @@ rc_t cmn_read_uint64_array( struct cmn_iter * self, uint32_t col_id, uint64_t *v
 }
 
 
-rc_t cmn_read_uint32( struct cmn_iter * self, uint32_t col_id, uint32_t *value )
+rc_t cmn_read_uint32( struct cmn_iter_t * self, uint32_t col_id, uint32_t *value )
 {
     uint32_t elem_bits, boff, row_len;
     const uint32_t * value_ptr;
@@ -592,7 +592,7 @@ rc_t cmn_read_uint32( struct cmn_iter * self, uint32_t col_id, uint32_t *value )
     return rc;
 }
 
-rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t ** values,
+rc_t cmn_read_uint32_array( struct cmn_iter_t * self, uint32_t col_id, uint32_t ** values,
                             uint32_t * values_read )
 {
     uint32_t elem_bits, boff, row_len;
@@ -617,7 +617,7 @@ rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t **
     return rc;
 }
 
-rc_t cmn_read_uint8_array( struct cmn_iter * self, uint32_t col_id, uint8_t ** values,
+rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t ** values,
                             uint32_t * values_read )
 {
     uint32_t elem_bits, boff, row_len;
@@ -642,7 +642,7 @@ rc_t cmn_read_uint8_array( struct cmn_iter * self, uint32_t col_id, uint8_t ** v
     return rc;
 }
 
-rc_t cmn_read_String( struct cmn_iter * self, uint32_t col_id, String * value )
+rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String * value )
 {
     uint32_t elem_bits, boff;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
@@ -1082,4 +1082,25 @@ VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
         }
     }
     return res;
+}
+
+rc_t is_column_name_present( KDirectory * dir,
+                    const VDBManager * vdb_mgr,
+                    const char * accession_short,
+                    const char * accession_path,
+                    const char * tbl_name,
+                    bool * presence )
+{
+    rc_t rc;
+    if ( NULL == tbl_name )
+    {
+        rc = cmn_check_tbl_column( dir, vdb_mgr, accession_short, accession_path,
+                                    "NAME", presence ); /* cmn_iter.c */
+    }
+    else
+    {
+        rc = cmn_check_db_column( dir, vdb_mgr, accession_short, accession_path, tbl_name,
+                                    "NAME", presence ); /* cmn_iter.c */
+    }
+    return rc;
 }

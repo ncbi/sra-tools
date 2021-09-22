@@ -34,15 +34,15 @@
 extern "C" {
 #endif
 
-struct KFastDumpCleanupTask;
+struct KFastDumpCleanupTask_t;
 
-rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask **task );
+rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task );
 
-rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * filename );
+rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask_t * self, const char * filename );
 
-rc_t Add_Directory_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * dirname );
+rc_t Add_Directory_to_Cleanup_Task ( struct KFastDumpCleanupTask_t * self, const char * dirname );
 
-rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask * self );
+rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask_t * self );
     
 #ifdef __cplusplus
 }

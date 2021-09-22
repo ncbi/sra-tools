@@ -342,6 +342,8 @@ namespace sratools2
                 break;
             }
         }
+
+        virtual bool preferNoQual() const { return false; }
         
         void add( ncbi::Cmdline &cmdline ) override
         {
@@ -564,6 +566,9 @@ namespace sratools2
             sratools::location = s_location.empty() ? nullptr : &s_location;
             sratools::perm = s_perm.empty() ? nullptr : &s_perm;
             sratools::ngc = s_ngc.empty() ? nullptr : &s_ngc;
+
+            if (tool_options.preferNoQual())
+                sratools::data_sources::preferNoQual();
 
             // talk to SDL
             auto all_sources = sratools::data_sources::preload(convert(accessions));

@@ -43,14 +43,14 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
-struct line_iter;
+struct line_iter_t;
 
-void release_line_iter( struct line_iter * iter );
-bool advance_line_iter( struct line_iter * iter );
-String * get_line_iter( struct line_iter * iter );
-bool is_line_iter_done( const struct line_iter * iter );
+void release_line_iter( struct line_iter_t * iter );
+bool advance_line_iter( struct line_iter_t * iter );
+String * get_line_iter( struct line_iter_t * iter );
+bool is_line_iter_done( const struct line_iter_t * iter );
 
-rc_t make_line_iter( const KDirectory *dir, struct line_iter ** iter,
+rc_t make_line_iter( const KDirectory *dir, struct line_iter_t ** iter,
                      const char * filename, size_t buffer_size );
 
 #ifdef __cplusplus

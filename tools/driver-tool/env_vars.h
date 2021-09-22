@@ -30,13 +30,16 @@
  *
  */
 
+
+#include <klib/strings.h>
+
+
 /* Tool Session ID */
-/*   Also defined in ncbi-vdb/libs/kns/manager.c */
-#define ENV_VAR_SESSION_ID "VDB_SESSION_ID"
+/*   Defined in klib/strings.h
+#define ENV_VAR_SESSION_ID */
 
 /* Compute Environment Token (aka CE Token) */
-/*   Also defined in ncbi-vdb/interfaces/klib/strings.h */
-#define ENV_VAR_CE_TOKEN "VDB_CE_TOKEN"
+#define ENV_VAR_CE_TOKEN ENV_MAGIC_CE_TOKEN
 
 
 /* MARK: .sra file */
@@ -54,10 +57,10 @@
 #define ENV_VAR_SIZE_URL "VDB_SIZE_URL"
 
 /* CE Token is required for .sra file if set to '1' */
-#define ENV_VAR_REMOTE_NEED_CE "VDB_REMOTE_NEED_CE"
+#define ENV_VAR_REMOTE_NEED_CE ENV_MAGIC_REMOTE_NEED_CE
 
 /* Payment is required for remote .sra file if set to '1' */
-#define ENV_VAR_REMOTE_NEED_PMT "VDB_REMOTE_NEED_PMT"
+#define ENV_VAR_REMOTE_NEED_PMT ENV_MAGIC_REMOTE_NEED_PMT
 
 
 /* MARK: .vdbcache file */
@@ -76,7 +79,11 @@
 #define ENV_VAR_SIZE_VDBCACHE "VDB_SIZE_VDBCACHE"
 
 /* CE Token is required for remote .vdbcache file if set to '1' */
-#define ENV_VAR_CACHE_NEED_CE "VDB_CACHE_NEED_CE"
+#define ENV_VAR_CACHE_NEED_CE ENV_MAGIC_CACHE_NEED_CE
 
 /* Payment is required for remote .vdbcache file if set to '1' */
-#define ENV_VAR_CACHE_NEED_PMT "VDB_CACHE_NEED_PMT"
+#define ENV_VAR_CACHE_NEED_PMT ENV_MAGIC_CACHE_NEED_PMT
+
+/* Defined in ncbi-vdb/interfaces/klib/strings.h
+#define ENV_VAR_QUALITY_PREFERENCE */
+

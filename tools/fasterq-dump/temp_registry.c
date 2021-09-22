@@ -33,13 +33,13 @@
 #include <kproc/lock.h>
 #include <kfs/filetools.h>
 
-typedef struct temp_registry
+typedef struct temp_registry_t
 {
-    struct KFastDumpCleanupTask * cleanup_task;
+    struct KFastDumpCleanupTask_t * cleanup_task;
     KLock * lock;
     size_t buf_size;
     Vector lists;
-} temp_registry;
+} temp_registry_t;
 
 
 static void CC destroy_list( void * item, void * data )
@@ -50,7 +50,7 @@ static void CC destroy_list( void * item, void * data )
     }
 }
 
-void destroy_temp_registry( temp_registry * self )
+void destroy_temp_registry( temp_registry_t * self )
 {
     if ( NULL != self )
     {
@@ -60,13 +60,13 @@ void destroy_temp_registry( temp_registry * self )
     }
 }
 
-rc_t make_temp_registry( temp_registry ** registry, struct KFastDumpCleanupTask * cleanup_task )
+rc_t make_temp_registry( temp_registry_t ** registry, struct KFastDumpCleanupTask_t * cleanup_task )
 {
     KLock * lock;
     rc_t rc = KLockMake ( &lock );
     if ( 0 == rc )
     {
-        temp_registry * p = calloc( 1, sizeof * p );
+        temp_registry_t * p = calloc( 1, sizeof * p );
         if ( NULL == p )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
@@ -84,7 +84,7 @@ rc_t make_temp_registry( temp_registry ** registry, struct KFastDumpCleanupTask 
     return rc;
 }
 
-rc_t register_temp_file( temp_registry * self, uint32_t read_id, const char * filename )
+rc_t register_temp_file( temp_registry_t * self, uint32_t read_id, const char * filename )
 {
     rc_t rc = 0;
     if ( NULL == self )
@@ -186,7 +186,7 @@ typedef struct cmn_merge
     KDirectory * dir;
     const char * output_filename;
     size_t buf_size;
-    struct bg_progress * progress;
+    struct bg_progress_t * progress;
     bool force;
     bool append;
     compress_t compress;
@@ -202,7 +202,7 @@ typedef struct merge_data
 static rc_t CC merge_thread_func( const KThread *self, void *data )
 {
     merge_data * md = data;
-    SBuffer s_filename;
+    SBuffer_t s_filename;
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             md -> cmn -> output_filename, md -> idx ); /* helper.c */
     if ( 0 == rc)
@@ -263,7 +263,7 @@ static void CC on_merge( void *item, void *data )
 }
 
 /* -------------------------------------------------------------------- */
-rc_t temp_registry_merge( temp_registry * self,
+rc_t temp_registry_merge( temp_registry_t * self,
                           KDirectory * dir,
                           const char * output_filename,
                           size_t buf_size,
@@ -283,7 +283,7 @@ rc_t temp_registry_merge( temp_registry * self,
     }
     else
     {
-        struct bg_progress * progress = NULL;
+        struct bg_progress_t * progress = NULL;
         
         if ( show_progress )
         {
@@ -393,7 +393,7 @@ static void CC on_print_to_stdout( void * item, void * data )
     }
 }
 
-rc_t temp_registry_to_stdout( temp_registry * self,
+rc_t temp_registry_to_stdout( temp_registry_t * self,
                               KDirectory * dir,
                               size_t buf_size )
 {

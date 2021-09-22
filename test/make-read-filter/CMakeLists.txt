@@ -7,15 +7,29 @@ if( NOT WIN32 )
         set( TEMPDIR ${TMPDIR} )
     endif()
 
-    # add_test( NAME Test_MakeReadFilter
-    #     COMMAND
-    #     ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
-    #     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
-    #     ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
-    #     "bash" "-c" "echo '/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"' > ${TEMPDIR}/tmp.mkfg; echo '/sra/quality_type = \"raw_scores\"' >>${TEMPDIR}/tmp.mkfg; ${Python3_EXECUTABLE} generate-test-data.py ${TEMPDIR}/test-data &&
-    #     ${CMAKE_BINARY_DIR}/bin/kar -d ${TEMPDIR}/test-data -fc test-data.kar && rm -rf ${TEMPDIR}/test-data expected"
-    #     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    # )
+    ADD_CUSTOM_COMMAND(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
+        COMMAND
+            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
+            ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
+            ./gendata.sh ${CMAKE_BINARY_DIR}/bin ${Python3_EXECUTABLE} ${TEMPDIR} ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
+        DEPENDS generate-test-data.py
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    # To regenerate test-data, run 'make GenerateTestData' in the cmake build directory for this sub-project. This will re-create 'test-data.kar' and remove 'expected', thus breaking the test (Test_MakeReadFilter). To make the test pass again, copy /tmp/actual and /tmp/actual.stats to the source directory.
+    ADD_CUSTOM_TARGET(GenerateTestData ALL
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
+    )
+
+    add_test( NAME Test_MakeReadFilter
+        COMMAND
+        ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
+        ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
+        ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
+        ./runtest.sh ${CMAKE_BINARY_DIR}/bin ${VDB_LIBDIR} ${TEMPDIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 else()
 #TODO: make work on Windows
 endif()

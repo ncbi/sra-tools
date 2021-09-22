@@ -27,7 +27,7 @@ add_subdirectory(driver-tool)
 add_subdirectory(fasterq-dump)
 add_subdirectory(fastq-loader)
 add_subdirectory(kar)
-add_subdirectory(kdbmeta) # project not yet converted
+add_subdirectory(kdbmeta)
 add_subdirectory(kget)
 add_subdirectory(make-read-filter) # project not yet converted
 # add_subdirectory(ngs-java) # project not yet converted

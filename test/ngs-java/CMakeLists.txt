@@ -1,76 +1,42 @@
-# if ( Java_FOUND )
+if ( Java_FOUND )
 
-#     include(UseJava)
+    include(UseJava)
 
-#     set( NGS_SRC
-# 	        ngs_test_lib_load.java
-# 	        ngs_test_CSRA1.java
-#     )
+    set( NGS_SRC
+	        ngs_test_lib_load.java
+	        ngs_test_CSRA1.java
+    )
 
-#     # java language bindings
-#     set( ITF_SRC
-#         ngs/itf/Refcount.java
-#         ngs/itf/StatisticsItf.java
-#         ngs/itf/FragmentItf.java
-#         ngs/itf/FragmentIteratorItf.java
-#         ngs/itf/ReadItf.java
-#         ngs/itf/ReadIteratorItf.java
-#         ngs/itf/ReadGroupItf.java
-#         ngs/itf/ReadGroupIteratorItf.java
-#         ngs/itf/AlignmentItf.java
-#         ngs/itf/AlignmentIteratorItf.java
-#         ngs/itf/PileupEventItf.java
-#         ngs/itf/PileupEventIteratorItf.java
-#         ngs/itf/PileupItf.java
-#         ngs/itf/PileupIteratorItf.java
-#         ngs/itf/ReferenceItf.java
-#         ngs/itf/ReferenceIteratorItf.java
-#         ngs/itf/ReadCollectionItf.java
-#     )
+    set( NGS_JAVA_JAR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngs-java.jar )
+    set( JUNIT_JAR ${CMAKE_CURRENT_SOURCE_DIR}/junit-4.11.jar )
+    set( CMAKE_JAVA_INCLUDE_PATH ${NGS_JAVA_JAR} ${JUNIT_JAR} )
 
-#     # NCBI engine bindings
-#     set( NCBI_SRC
-#         gov/nih/nlm/ncbi/ngs/DownloadManager.java
-#         gov/nih/nlm/ncbi/ngs/FileCreator.java
-#         gov/nih/nlm/ncbi/ngs/HttpManager.java
-#         gov/nih/nlm/ncbi/ngs/LibDependencies.java
-#         gov/nih/nlm/ncbi/ngs/LibManager.java
-#         gov/nih/nlm/ncbi/ngs/LibPathIterator.java
-#         gov/nih/nlm/ncbi/ngs/LibVersionChecker.java
-#         gov/nih/nlm/ncbi/ngs/LMProperties.java
-#         gov/nih/nlm/ncbi/ngs/Logger.java
-#         gov/nih/nlm/ncbi/ngs/Manager.java
-#         gov/nih/nlm/ncbi/ngs/NGS.java
-#         gov/nih/nlm/ncbi/ngs/Version.java
-#         gov/nih/nlm/ncbi/ngs/error/LibraryLoadError.java
-#         gov/nih/nlm/ncbi/ngs/error/LibraryNotFoundError.java
-#         gov/nih/nlm/ncbi/ngs/error/LibraryIncompatibleVersionError.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/ConnectionProblemCause.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/DownloadDisabledCause.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/InvalidLibraryCause.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/JvmErrorCause.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/LibraryLoadCause.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/OutdatedJarCause.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/PrereleaseReqLibCause.java
-#         gov/nih/nlm/ncbi/ngs/error/cause/UnsupportedArchCause.java
-#     )
+    add_jar( test-ngs-java
+        SOURCES ${NGS_SRC}
+        OUTPUT_DIR ${CMAKE_TEST_OUTPUT_DIRECTORY}
+    )
 
-#     find_package(JNI)
+    # use standard java System.loadLibrary
+    set( VARS -Dvdb.System.loadLibrary=1 )
 
-#     add_jar( ngs-java
-#         SOURCES ${NGS_SRC} ${ITF_SRC} ${NCBI_SRC}
-#         OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-#         GENERATE_NATIVE_HEADERS ngs-jni-headers DESTINATION ./jni
-#     )
+    # remove all found JNI DLL-s
+    #set( VARS ${VARS} -Dvdb.deleteLibraries=1 )
 
-#     ########################################
-#     # examples
-#     add_subdirectory( examples )
+    # custom load library search
+    #set( VARS ${VARS} -Dvdb.loadLibraryLocations=W )
 
-#     ########################################
-#     # javadoc
-#     create_javadoc( ngs-doc
-#         PACKAGES gov.nih.nlm.ncbi.ngs ngs
-#     )
+    set( VARS ${VARS} -Dvdb.log=FINEST )
 
-# endif()
+    set( JAVA_CMD ${Java_JAVA_EXECUTABLE} -cp ${CMAKE_TEST_OUTPUT_DIRECTORY}/test-ngs-java.jar:${NGS_JAVA_JAR}:${JUNIT_JAR} -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} ${VARS} org.junit.runner.JUnitCore )
+
+    add_test( NAME Test_NgsJava_lib_load
+        COMMAND ${JAVA_CMD} gov.nih.nlm.ncbi.ngs.ngs_test_lib_load
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    add_test( NAME Test_NgsJava_CSRA1
+        COMMAND ${JAVA_CMD} ngs_test_CSRA1
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+endif()

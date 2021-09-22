@@ -165,7 +165,7 @@ class LibVersionChecker {
 
     static String getLoadedVersion(String libname) {
         try {
-            if (libname.equals("ncbi-vdb")) {
+            if (libname.equals("ncbi-ngs")) { // sra-tools wrapper around libncbi-vdb
                 return Manager.getPackageVersion();
             } else if (libname.equals("ngs-sdk")) {
                 return ngs.Package.getPackageVersion();

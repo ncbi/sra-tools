@@ -449,8 +449,8 @@ endfunction()
 
 if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
-    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/ilib )
-    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/ilib )
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/lib )
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/lib )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/lib )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/lib )
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/bin )
@@ -458,6 +458,7 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 
     set( SINGLE_CONFIG false )
 else() # assume a single-config generator
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
     set( SINGLE_CONFIG true )
 endif()

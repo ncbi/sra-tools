@@ -1,7 +1,7 @@
 if( WIN32 )
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
-	
+
 	message( "CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG}" )
 	message( "CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE}" )
 
@@ -49,9 +49,11 @@ set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
 MakeLinksShared( ngs-sdk-shared ngs-sdk true )
 
 if( WIN32 )
-	link_libraries( ncbi-vdb Ws2_32 Crypt32 )
+    link_libraries( Ws2_32 Crypt32 )
 endif()
 
+##################################################################################
+# C++/Jni/Py wrappers for libncbi-vdb as a static library
 add_library( ncbi-ngs STATIC
     $<TARGET_OBJECTS:ngs>
     $<TARGET_OBJECTS:ngs-jni>
@@ -59,10 +61,16 @@ add_library( ncbi-ngs STATIC
 )
 ExportStatic( ncbi-ngs true )
 
+##################################################################################
+# libncbi-ngs is a shared library that includes libncbi-vdb and its C++/Jni/Py wrappers
+#
+# NGS-based C++/Java/Python apps will now link against this library instead of libncbi-vdb
+#
 add_library( ncbi-ngs-shared SHARED
     $<TARGET_OBJECTS:ngs>
     $<TARGET_OBJECTS:ngs-jni>
     $<TARGET_OBJECTS:ngs-py>
 )
+target_link_libraries( ncbi-ngs-shared ncbi-vdb-static )
 set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
 MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )

@@ -54,6 +54,8 @@
 #include "tool-path.hpp"
 #include "sratools.hpp"
 
+#include <klib/status.h> /* KStsLevelSet */
+
 namespace sratools2
 {
     struct Args
@@ -569,6 +571,9 @@ namespace sratools2
 
             if (tool_options.preferNoQual())
                 sratools::data_sources::preferNoQual();
+
+            // set the verbosity of the program status messages
+            KStsLevelSet(tool_options.verbosity);
 
             // talk to SDL
             auto all_sources = sratools::data_sources::preload(convert(accessions));

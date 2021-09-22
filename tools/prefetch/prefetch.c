@@ -509,12 +509,12 @@ static rc_t V_ResolverRemote(const VResolver *self,
             const char * msg = NULL;
             switch (quality[0]) {
             case 'Z':
-                msg = "Current preference is set to retrieve "
-                    "SRA Lite records with binned quality scores.";
+                msg = "Current preference is set to retrieve SRA "
+                      "Lite files with simplified base quality scores.";
                 break;
             case 'R':
-                msg = "Current preference is set to retrieve "
-                    "SRA Normalized records with full quality scores.";
+                msg = "Current preference is set to retrieve SRA "
+                      "Normalized Format files with full base quality scores.";
                 break;
             }
             if (msg != NULL)

@@ -1,0 +1,13 @@
+add_compile_definitions( __mod__="test/read-filter-redact" )
+
+if( Python3_EXECUTABLE )
+	add_test( NAME Test_Read_filter_redact_Check_exit_code
+		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${CMAKE_BINARY_DIR}/bin/vdb-unlock
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endif()
+
+if ( NOT WIN32 )
+	add_test( NAME Test_Read_filter_redact
+		COMMAND runtests.sh ${CMAKE_BINARY_DIR}/bin
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endif()

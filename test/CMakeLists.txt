@@ -35,11 +35,11 @@ add_subdirectory(ngs-pileup)
 # add_subdirectory(ngs-python) # project not yet converted
 # add_subdirectory(prefetch)
 # add_subdirectory(qual-recalib-stat)
-# add_subdirectory(read-filter-redact)
+add_subdirectory(read-filter-redact)
 # # add_subdirectory(samline) # command line tool; needs arguments to become a test?
-# add_subdirectory(scripts)
-# add_subdirectory(sra-pileup)
-# add_subdirectory(sra-sort)
+add_subdirectory(scripts)
+add_subdirectory(sra-pileup)
+add_subdirectory(sra-sort) # TODO: it's not clear if the test itself was running, now it's not.
 add_subdirectory(sra-stat)
 add_subdirectory(srapath) # TODO: some variables have no effect on the test
 # # add_subdirectory(tarballs) # called directly from TeamCity, do not invoke from CMake?

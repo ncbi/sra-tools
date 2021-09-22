@@ -4,7 +4,7 @@ if ( NOT WIN32 )
 	add_executable( testAssemblyStatistics testAssemblyStatistics )
 	target_link_libraries( testAssemblyStatistics ${COMMON_LINK_LIBRARIES} ncbi-vdb )
 
-	add_test( NAME Test_Sra-stat
+	add_test( NAME Test_Sra_stat
 		COMMAND test-sra-stat.sh ${CMAKE_BINARY_DIR}/bin
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 

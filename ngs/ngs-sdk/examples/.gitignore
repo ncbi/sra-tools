@@ -1,7 +1,1 @@
-AlignSliceTest
-AlignTest
-FragTest
-RefTest
-FastqTableDump
-PileupTest
-DumpReferenceFASTA
+actual.txt

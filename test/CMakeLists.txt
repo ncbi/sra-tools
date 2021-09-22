@@ -32,7 +32,7 @@ add_subdirectory(kget)
 add_subdirectory(make-read-filter)
 add_subdirectory(ngs-java)
 add_subdirectory(ngs-pileup)
-# add_subdirectory(ngs-python) # project not yet converted
+add_subdirectory(ngs-python)
 # add_subdirectory(prefetch)
 # add_subdirectory(qual-recalib-stat)
 add_subdirectory(read-filter-redact)

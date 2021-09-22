@@ -34,7 +34,7 @@ if ( Java_FOUND )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-    add_test( NAME Test_NgsJava_CSRA1
+    add_test( NAME SlowTest_NgsJava_CSRA1
         COMMAND ${JAVA_CMD} ngs_test_CSRA1
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )

@@ -37,7 +37,7 @@ add_test( NAME Test_Ngs_Pileup_4
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 # ABSOLID REF_ROWS=36172
-add_test( NAME Test_Ngs_Pileup_5
+add_test( NAME SlowTest_Ngs_Pileup_5
           COMMAND ./runtestcase.sh ${CMAKE_BINARY_DIR}/bin ${CMAKE_CURRENT_SOURCE_DIR} 5.0 SRR619510
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 

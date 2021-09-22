@@ -184,6 +184,10 @@ static const char * only_un_usage[] = { "process only unaligned reads", NULL };
 #define OPTION_ONLY_UN          "only-unaligned"
 #define ALIAS_ONLY_UN           "U"
 
+static const char * only_a_usage[] = { "process only aligned reads", NULL };
+#define OPTION_ONLY_ALIG        "only-aligned"
+#define ALIAS_ONLY_ALIG         "a"
+
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
 
@@ -223,6 +227,7 @@ OptDef ToolOptions[] = {
     { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,  false },
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,  false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
+    { OPTION_ONLY_ALIG,     ALIAS_ONLY_ALIG,    NULL, only_a_usage,        1, false,  false },
     { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
 };
 
@@ -315,7 +320,7 @@ typedef struct tool_ctx_t {
 
     compress_t compress; /* helper.h */ 
 
-    bool force, show_progress, show_details, append, use_stdout, only_unaligned;
+    bool force, show_progress, show_details, append, use_stdout, only_unaligned, only_aligned;
     
     join_options_t join_options; /* helper.h */
 } tool_ctx_t;
@@ -392,6 +397,9 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "only-unaligned : '%s'\n", tool_ctx -> only_unaligned ? "YES" : "NO" );
     }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "only-aligned  : '%s'\n", tool_ctx -> only_aligned ? "YES" : "NO" );
+    }
     return rc;
 }
 
@@ -459,7 +467,8 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> seq_defline = get_str_option( args, OPTION_SEQ_DEFLINE, NULL );
     tool_ctx -> qual_defline = get_str_option( args, OPTION_QUAL_DEFLINE, NULL );    
     tool_ctx -> only_unaligned = get_bool_option( args, OPTION_ONLY_UN );
-
+    tool_ctx -> only_aligned = get_bool_option( args, OPTION_ONLY_ALIG );
+    
     {
         const char * ngc = get_str_option( args, OPTION_NGC, NULL );
         if ( NULL != ngc ) {
@@ -504,6 +513,10 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
         tool_ctx -> compress = ct_none;
         tool_ctx -> force = false;
         tool_ctx -> append = false;
+    }
+    if ( tool_ctx -> only_aligned && tool_ctx -> only_unaligned ) {
+        tool_ctx -> only_aligned = false;
+        tool_ctx -> only_unaligned = false;
     }
 }
 
@@ -858,7 +871,8 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx ) {
 static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
     struct temp_registry_t * registry = NULL;
     join_stats_t stats;
-    
+    execute_db_join_args_t args;
+
     rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
     
     clear_join_stats( &stats ); /* helper.c */
@@ -872,25 +886,27 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
    for each SPOT it may look up an entry in the lookup-table to get the READ
    if it is not stored in the SEQ-tbl
 -------------------------------------------------------------------------------------------- */
-    
+
+    args . dir = tool_ctx -> dir;
+    args . vdb_mgr = tool_ctx -> vdb_mgr;
+    args . accession_path = tool_ctx -> accession_path;
+    args . accession_short = tool_ctx -> accession_short;
+    args . seq_defline = tool_ctx -> seq_defline;
+    args . qual_defline = tool_ctx -> qual_defline;
+    args . lookup_filename = &( tool_ctx -> lookup_filename[ 0 ] );
+    args . index_filename = &( tool_ctx -> index_filename[ 0 ] );
+    args . stats = &stats;
+    args . join_options = &( tool_ctx -> join_options );
+    args . temp_dir = tool_ctx -> temp_dir;
+    args . registry= registry;
+    args . cursor_cache = tool_ctx -> cursor_cache;
+    args . buf_size = tool_ctx -> buf_size;
+    args . num_threads = tool_ctx -> num_threads;
+    args . show_progress = tool_ctx -> show_progress;
+    args . fmt = tool_ctx -> fmt;
+
     if ( rc == 0 ) {
-        rc = execute_db_join( tool_ctx -> dir,
-                           tool_ctx -> vdb_mgr,
-                           tool_ctx -> accession_path,
-                           tool_ctx -> accession_short,
-                           tool_ctx -> seq_defline,
-                           tool_ctx -> qual_defline,
-                           &( tool_ctx -> lookup_filename[ 0 ] ),
-                           &( tool_ctx -> index_filename[ 0 ] ),
-                           &stats,
-                           &( tool_ctx -> join_options ),
-                           tool_ctx -> temp_dir,
-                           registry,
-                           tool_ctx -> cursor_cache,
-                           tool_ctx -> buf_size,
-                           tool_ctx -> num_threads,
-                           tool_ctx -> show_progress,
-                           tool_ctx -> fmt ); /* join.c */
+        rc = execute_db_join( &args ); /* join.c */
     }
 
     /* from now on we do not need the lookup-file and it's index any more... */
@@ -996,22 +1012,28 @@ static rc_t process_csra( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* the special case of fasta-unsorted and split-spot : */
         join_stats_t stats;
+        execute_unsorted_fasta_db_join_args_t args;
+
         clear_join_stats( &stats ); /* helper.c */
 
-        rc = execute_unsorted_fasta_db_join( tool_ctx -> dir, /* join.c */
-                        tool_ctx -> vdb_mgr,
-                        tool_ctx -> accession_short,
-                        tool_ctx -> accession_path,
-                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
-                        tool_ctx -> seq_defline,
-                        &stats,
-                        &( tool_ctx -> join_options ),
-                        tool_ctx -> cursor_cache,
-                        tool_ctx -> buf_size,
-                        tool_ctx -> num_threads,
-                        tool_ctx -> show_progress,
-                        tool_ctx -> force,
-                        tool_ctx -> only_unaligned ); /* helper.h */
+        args . dir = tool_ctx -> dir;
+        args . vdb_mgr = tool_ctx -> vdb_mgr;
+        args . accession_short = tool_ctx -> accession_short;
+        args . accession_path = tool_ctx -> accession_path;
+        args . output_filename = tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename;
+        args . seq_defline = tool_ctx -> seq_defline;
+        args . stats = &stats;
+        args . join_options = &( tool_ctx -> join_options );
+        args . cur_cache = tool_ctx -> cursor_cache;
+        args . buf_size = tool_ctx -> buf_size;
+        args . num_threads = tool_ctx -> num_threads;
+        args . show_progress = tool_ctx -> show_progress;
+        args . force = tool_ctx -> force;
+        args . only_unaligned = tool_ctx -> only_unaligned;
+        args . only_aligned = tool_ctx -> only_aligned;
+
+        rc = execute_unsorted_fasta_db_join( &args ); /* join.c */
+
         print_stats( &stats ); /* above */
 
     } else {
@@ -1154,12 +1176,6 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-
-void test_printf( void ) {
-    var_desc_list_test();   /* in helper.c */
-    var_fmt_test();         /* in helper.c */
-}
-
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] ) {
@@ -1177,8 +1193,6 @@ rc_t CC KMain ( int argc, char *argv [] ) {
         } else {
             /* in case we are given no or more than one accessions/files to process */
             if ( param_count == 0 || param_count > 1 ) {
-                /* test_printf(); */
-
                 Usage ( args );
                 /* will make the caller of this function aka KMane() in man.c return
                 error code of 3 */

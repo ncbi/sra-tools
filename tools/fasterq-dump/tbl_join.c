@@ -34,8 +34,6 @@
 #include <kproc/thread.h>
 #include <insdc/insdc.h>
 
-//#define USE_JOIN_RESULTS 1
-
 static bool filter1( join_stats_t * stats,
                      const fastq_rec_t * rec,
                      const join_options_t * jo ) {
@@ -77,11 +75,7 @@ static bool filter( join_stats_t * stats,
 }
 
 static rc_t print_fastq_1_read( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                struct join_results_t * results,
-#else
                                 struct flex_printer_t * flex_printer,
-#endif
                                 struct filter_2na_t * filter,
                                 const fastq_rec_t * rec,
                                 const join_options_t * jo,
@@ -97,15 +91,6 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
     }
     if ( filter1( stats, rec, jo ) ) { /* above */
         if ( filter_2na_1( filter, &( rec -> read ) ) ) { /* join_results.c */
-#ifdef USE_JOIN_RESULTS
-            rc = join_results_print_fastq_v1( results,
-                                              rec -> row_id,
-                                              dst_id,
-                                              read_id,
-                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                              &( rec -> read ),
-                                              &( rec -> quality ) ); /* join_results.c */
-#else
             flex_printer_data_t data;
             data . row_id = rec -> row_id;
             data . read_id = read_id;
@@ -116,7 +101,6 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
             data . read2 = NULL;
             data . quality = &( rec -> quality );
             rc = join_result_flex_print( flex_printer, &data );
-#endif
             if ( 0 == rc ) { stats -> reads_written++; }
         }
     }
@@ -124,11 +108,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
 }
 
 static rc_t print_fasta_1_read( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                struct join_results_t * results,
-#else
                                 struct flex_printer_t * flex_printer,
-#endif
                                 struct filter_2na_t * filter,
                                 const fastq_rec_t * rec,
                                 const join_options_t * jo,
@@ -137,15 +117,6 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
     rc_t rc = 0;
     if ( filter1( stats, rec, jo ) ) {
         if ( filter_2na_1( filter, &( rec -> read ) ) ) { /* join_results.c */
-#ifdef USE_JOIN_RESULTS
-            rc = join_results_print_fastq_v1( results,
-                                              rec -> row_id,
-                                              dst_id,
-                                              read_id,
-                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                              &( rec -> read ),
-                                              NULL ); /* join_results.c */
-#else
             flex_printer_data_t data;
             data . row_id = rec -> row_id;
             data . read_id = read_id;
@@ -156,7 +127,6 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
             data . read2 = NULL;
             data . quality = NULL;
             rc = join_result_flex_print( flex_printer, &data );
-#endif
             if ( 0 == rc ) { stats -> reads_written++; }
         }
     }
@@ -165,11 +135,7 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
 
 /* ------------------------------------------------------------------------------------------ */
 static rc_t print_fastq_n_reads_split( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                       struct join_results_t * results,
-#else
                                        struct flex_printer_t * flex_printer,
-#endif
                                        struct filter_2na_t * basefilter,
                                        const fastq_rec_t * rec,
                                        const join_options_t * jo ) {
@@ -213,19 +179,6 @@ static rc_t print_fastq_n_reads_split( join_stats_t * stats,
                     Q . len  = ( uint32_t )Q . size;
 
                     if ( filter_2na_1( basefilter, &( rec -> read ) ) ) { /* join_results.c */
-                        /*
-                            fill out a flex_printer_data_t ( defined in join_results.h ) 
-                            call join_result_flex_print()
-                        */
-#ifdef USE_JOIN_RESULTS
-                        rc = join_results_print_fastq_v1( results,
-                                                        rec -> row_id,
-                                                        0,
-                                                        read_id_0 + 1,
-                                                        jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                        &R,
-                                                        &Q ); /* join_results.c */
-#else
                         flex_printer_data_t data;
                         data . row_id = rec -> row_id;
                         data . read_id = read_id_0 + 1;
@@ -236,7 +189,6 @@ static rc_t print_fastq_n_reads_split( join_stats_t * stats,
                         data . read2 = NULL;
                         data . quality = &Q;
                         rc = join_result_flex_print( flex_printer, &data );
-#endif
                     }
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
@@ -250,11 +202,7 @@ static rc_t print_fastq_n_reads_split( join_stats_t * stats,
 }
 
 static rc_t print_fasta_n_reads_split( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                       struct join_results_t * results,
-#else
                                        struct flex_printer_t * flex_printer,
-#endif
                                        struct filter_2na_t * basefilter,
                                        const fastq_rec_t * rec,
                                        const join_options_t * jo ) {
@@ -286,15 +234,6 @@ static rc_t print_fasta_n_reads_split( join_stats_t * stats,
 
                 if ( filter_2na_1( basefilter, &R ) ) { /* join_results.c */
                     if ( filter_2na_1( basefilter, &( rec -> read ) ) ) {
-#ifdef USE_JOIN_RESULTS
-                        rc = join_results_print_fastq_v1( results,
-                                                        rec -> row_id,
-                                                        0,
-                                                        read_id_0 + 1,
-                                                        jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                        &R,
-                                                        NULL ); /* join_results.c */
-#else
                         flex_printer_data_t data;
                         data . row_id = rec -> row_id;
                         data . read_id = read_id_0 + 1;
@@ -305,7 +244,6 @@ static rc_t print_fasta_n_reads_split( join_stats_t * stats,
                         data . read2 = NULL;
                         data . quality = NULL;
                         rc = join_result_flex_print( flex_printer, &data );
-#endif
                     }
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
@@ -319,11 +257,7 @@ static rc_t print_fasta_n_reads_split( join_stats_t * stats,
 }
 
 static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                            struct join_results_t * results,
-#else
                                             struct flex_printer_t * flex_printer,
-#endif
                                             struct filter_2na_t * basefilter,
                                             const fastq_rec_t * rec,
                                             const join_options_t * jo ) {
@@ -364,19 +298,12 @@ static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
                 R . len  = ( uint32_t )R . size;
 
                 if ( filter_2na_1( basefilter, &R ) ) { /* join_results.c */
+                    flex_printer_data_t data;
+
                     Q . addr = &rec -> quality . addr[ offset ];
                     Q . size = rec -> read_len[ read_id_0 ];
                     Q . len  = ( uint32_t )Q . size;
-#ifdef USE_JOIN_RESULTS
-                    rc = join_results_print_fastq_v1( results,
-                                                      rec -> row_id,
-                                                      write_id_1,
-                                                      read_id_0 + 1,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &R,
-                                                      &Q ); /* join_results.c */
-#else
-                    flex_printer_data_t data;
+
                     data . row_id = rec -> row_id;
                     data . read_id = read_id_0 + 1;
                     data . dst_id = write_id_1;
@@ -386,7 +313,6 @@ static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
                     data . read2 = NULL;
                     data . quality = &Q;
                     rc = join_result_flex_print( flex_printer, &data );
-#endif
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
@@ -401,11 +327,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats_t * stats,
 }
 
 static rc_t print_fasta_n_reads_split_file( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                            struct join_results_t * results,
-#else
                                             struct flex_printer_t * flex_printer,
-#endif
                                             struct filter_2na_t * basefilter,
                                             const fastq_rec_t * rec,
                                             const join_options_t * jo ) {
@@ -438,15 +360,6 @@ static rc_t print_fasta_n_reads_split_file( join_stats_t * stats,
                 R . len  = ( uint32_t )R . size;
 
                 if ( filter_2na_1( basefilter, &R ) ) {
-#ifdef USE_JOIN_RESULTS
-                    rc = join_results_print_fastq_v1( results,
-                                                      rec -> row_id,
-                                                      write_id_1,
-                                                      read_id_0 + 1,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &R,
-                                                      NULL );
-#else
                     flex_printer_data_t data;
                     data . row_id = rec -> row_id;
                     data . read_id = read_id_0 + 1;
@@ -457,7 +370,6 @@ static rc_t print_fasta_n_reads_split_file( join_stats_t * stats,
                     data . read2 = NULL;
                     data . quality = NULL;
                     rc = join_result_flex_print( flex_printer, &data );
-#endif
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
@@ -471,11 +383,7 @@ static rc_t print_fasta_n_reads_split_file( join_stats_t * stats,
 }
 
 static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                         struct join_results_t * results,
-#else
                                          struct flex_printer_t * flex_printer,
-#endif
                                          struct filter_2na_t * basefilter,
                                          const fastq_rec_t * rec,
                                          const join_options_t * jo ) {
@@ -530,21 +438,14 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
                 R . len  = ( uint32_t )R . size;
 
                 if ( filter_2na_1( basefilter, &R ) ) {
+                    flex_printer_data_t data;
+
                     Q . addr = &rec -> quality . addr[ offset ];
                     Q . size = rec -> read_len[ read_id_0 ];
                     Q . len  = ( uint32_t )Q . size;
 
                     if ( valid_bio_reads < 2 ) { write_id_1 = 0; }
-#ifdef USE_JOIN_RESULTS
-                    rc = join_results_print_fastq_v1( results,
-                                                      rec -> row_id,
-                                                      write_id_1,
-                                                      read_id_0 + 1,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &R,
-                                                      &Q );
-#else
-                    flex_printer_data_t data;
+
                     data . row_id = rec -> row_id;
                     data . read_id = read_id_0 + 1;
                     data . dst_id = write_id_1;
@@ -554,7 +455,6 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
                     data . read2 = NULL;
                     data . quality = &Q;
                     rc = join_result_flex_print( flex_printer, &data );
-#endif
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
                 if ( write_id_1 > 0 ) { write_id_1++; }
@@ -568,11 +468,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats_t * stats,
 }
 
 static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
-#ifdef USE_JOIN_RESULTS
-                                         struct join_results_t * results,
-#else
                                          struct flex_printer_t * flex_printer,
-#endif
                                          struct filter_2na_t * basefilter,
                                          const fastq_rec_t * rec,
                                          const join_options_t * jo ) {
@@ -620,15 +516,6 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
 
                 if ( filter_2na_1( basefilter, &R ) ) {
                     if ( valid_bio_reads < 2 ) { write_id_1 = 0; }
-#ifdef USE_JOIN_RESULTS
-                    rc = join_results_print_fastq_v1( results,
-                                                      rec -> row_id,
-                                                      write_id_1,
-                                                      read_id_0 + 1,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &R,
-                                                      NULL );
-#else
                     flex_printer_data_t data;
                     data . row_id = rec -> row_id;
                     data . read_id = read_id_0 + 1;
@@ -639,7 +526,6 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
                     data . read2 = NULL;
                     data . quality = NULL;
                     rc = join_result_flex_print( flex_printer, &data );
-#endif
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
                 if ( write_id_1 > 0 ) { write_id_1++; }
@@ -657,11 +543,7 @@ static rc_t print_fasta_n_reads_split_3( join_stats_t * stats,
 static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
                                 join_stats_t * stats,
                                 const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                struct join_results_t * results,
-#else
                                 struct flex_printer_t * flex_printer,
-#endif
                                 struct filter_2na_t * filter,
                                 struct bg_progress_t * progress,
                                 const join_options_t * jo ) {
@@ -700,11 +582,7 @@ static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
             rc = get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 rc = print_fastq_1_read( stats, 
-#ifdef USE_JOIN_RESULTS
-                                         results,
-#else
                                          flex_printer,
-#endif
                                          filter,
                                          &rec,
                                          &local_opt,
@@ -723,11 +601,7 @@ static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
 static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
                                       join_stats_t * stats,
                                       const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                      struct join_results_t * results,
-#else
                                       struct flex_printer_t * flex_printer,
-#endif
                                       struct filter_2na_t * filter,
                                       struct bg_progress_t * progress,
                                       const join_options_t * jo ) {
@@ -753,11 +627,7 @@ static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
 
                 if ( 1 == rec . num_read_len ) {
                     rc = print_fastq_1_read( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             jo,
@@ -765,11 +635,7 @@ static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
                                             1 ); /* above */
                 } else {
                     rc = print_fastq_n_reads_split( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             jo ); /* above */
@@ -788,11 +654,7 @@ static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
 static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
                                       join_stats_t * stats,
                                       const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                      struct join_results_t * results,
-#else
                                       struct flex_printer_t * flex_printer,
-#endif
                                       struct filter_2na_t * filter,
                                       struct bg_progress_t * progress,
                                       const join_options_t * jo ) {
@@ -818,11 +680,7 @@ static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
 
                 if ( 1 == rec . num_read_len ) {
                     rc = print_fastq_1_read( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             jo,
@@ -830,11 +688,7 @@ static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
                                             1 ); /* above */
                 } else {
                     rc = print_fastq_n_reads_split_file( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             jo ); /* above */
@@ -853,11 +707,7 @@ static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
 static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
                                       join_stats_t * stats,
                                       const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                      struct join_results_t * results,
-#else
                                       struct flex_printer_t * flex_printer,
-#endif
                                       struct filter_2na_t * filter,
                                       struct bg_progress_t * progress,
                                       const join_options_t * jo ) {
@@ -895,11 +745,7 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
 
                 if ( 1 == rec . num_read_len ) {
                     rc = print_fastq_1_read( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             &local_opt,
@@ -907,11 +753,7 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
                                             1 ); /* above */
                 } else {
                     rc = print_fastq_n_reads_split_3( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             &local_opt ); /* above */
@@ -931,11 +773,7 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
 static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
                                 join_stats_t * stats,
                                 const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                struct join_results_t * results,
-#else
                                 struct flex_printer_t * flex_printer,
-#endif
                                 struct filter_2na_t * filter,
                                 struct bg_progress_t * progress,
                                 const join_options_t * jo ) {
@@ -973,11 +811,7 @@ static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
             rc = get_quitting(); /* helper.c */
             if ( 0 == rc ) {
                 rc = print_fasta_1_read( stats,
-#ifdef USE_JOIN_RESULTS
-                                        results,
-#else
                                         flex_printer,
-#endif
                                         filter,
                                         &rec,
                                         &local_opt,
@@ -996,11 +830,7 @@ static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
 static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
                                       join_stats_t * stats,
                                       const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                      struct join_results_t * results,
-#else
                                       struct flex_printer_t * flex_printer,
-#endif
                                       struct filter_2na_t * filter,
                                       struct bg_progress_t * progress,
                                       const join_options_t * jo ) {
@@ -1026,11 +856,7 @@ static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
 
                 if ( 1 == rec . num_read_len ) {
                     rc = print_fasta_1_read( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             jo,
@@ -1038,11 +864,7 @@ static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
                                             1 ); /* above */
                 } else {
                     rc = print_fasta_n_reads_split( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             jo ); /* above */
@@ -1061,11 +883,7 @@ static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
 static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
                                       join_stats_t * stats,
                                       const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                      struct join_results_t * results,
-#else
                                       struct flex_printer_t * flex_printer,
-#endif
                                       struct filter_2na_t * filter,
                                       struct bg_progress_t * progress,
                                       const join_options_t * jo ) {
@@ -1091,11 +909,7 @@ static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
 
                 if ( 1 == rec . num_read_len ) {
                     rc = print_fasta_1_read( stats,
-#ifdef USE_JOIN_RESULTS
-                                        results,
-#else
                                         flex_printer,
-#endif
                                         filter,
                                         &rec,
                                         jo,
@@ -1103,11 +917,7 @@ static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
                                         1 ); /* above */
                 } else {
                     rc = print_fasta_n_reads_split_file( stats,
-#ifdef USE_JOIN_RESULTS
-                                        results,
-#else
                                         flex_printer,
-#endif
                                         filter,
                                         &rec,
                                         jo ); /* above */
@@ -1126,11 +936,7 @@ static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
 static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
                                       join_stats_t * stats,
                                       const char * tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                      struct join_results_t * results,
-#else
                                       struct flex_printer_t * flex_printer,
-#endif
                                       struct filter_2na_t * filter,
                                       struct bg_progress_t * progress,
                                       const join_options_t * jo ) {
@@ -1167,11 +973,7 @@ static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
 
                 if ( 1 == rec . num_read_len ) {
                     rc = print_fasta_1_read( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             &local_opt,
@@ -1179,11 +981,7 @@ static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
                                             1 ); /* above */
                 } else {
                     rc = print_fasta_n_reads_split_3( stats,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             &rec,
                                             &local_opt ); /* above */
@@ -1236,19 +1034,6 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
     cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr, 
                         jtd -> accession_short, jtd -> accession_path,
                         jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
-
-#ifdef USE_JOIN_RESULTS
-    struct join_results_t * results = NULL;
-    rc = make_join_results( jtd -> dir,
-                            &results,
-                            jtd -> registry,
-                            jtd -> part_file,
-                            jtd -> accession_short,
-                            jtd -> buf_size,
-                            4096,
-                            jtd -> join_options -> print_read_nr,
-                            jtd -> join_options -> print_name ); /* join_results.c */
-#else
     file_printer_args_t file_args;
     flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
     set_file_printer_args( &file_args,
@@ -1265,23 +1050,14 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
                         name_mode,                      /* use-name, syn-name or no-name */
                         is_format_split( jtd -> fmt ),         /* use read-id */
                         is_format_fasta( jtd -> fmt ) );       /* fasta-mode */
-#endif
 
-#ifdef USE_JOIN_RESULTS
-    if ( 0 == rc && NULL != results ) {
-#else
     if ( 0 == rc && NULL != flex_printer ) {
-#endif
         switch( jtd -> fmt )
         {
             case ft_fastq_whole_spot : rc = perform_fastq_whole_spot_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */
@@ -1289,11 +1065,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_fastq_split_spot : rc = perform_fastq_split_spot_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */
@@ -1301,11 +1073,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_fastq_split_file : rc = perform_fastq_split_file_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */
@@ -1313,11 +1081,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_fastq_split_3   : rc = perform_fastq_split_3_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */
@@ -1325,11 +1089,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_fasta_whole_spot : rc = perform_fasta_whole_spot_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */
@@ -1337,11 +1097,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_fasta_split_spot :  rc = perform_fasta_split_spot_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */
@@ -1349,11 +1105,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_fasta_split_file : rc = perform_fasta_split_file_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */;
@@ -1361,11 +1113,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_fasta_split_3 :  rc = perform_fasta_split_3_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
-#ifdef USE_JOIN_RESULTS
-                                            results,
-#else
                                             flex_printer,
-#endif
                                             filter,
                                             jtd -> progress,
                                             jtd -> join_options ); break; /* above */;
@@ -1373,11 +1121,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
             case ft_unknown : break;                /* this should not happen */
             case ft_fasta_us_split_spot : break;    /* and neither should this */
         }
-#ifdef USE_JOIN_RESULTS
-        destroy_join_results( results ); /* join_results.c */
-#else
         release_flex_printer( flex_printer );
-#endif
     }
     release_2na_filter( filter );   /* join_results.c */
     return rc;

@@ -55,24 +55,29 @@ extern "C" {
 #include "temp_registry.h"
 #endif
 
-rc_t execute_db_join( KDirectory * dir,
-                    const VDBManager * vdb_mgr,
-                    const char * accession_path,
-                    const char * accession_short,
-                    const char * seq_defline,           /* NULL for default */
-                    const char * qual_defline,          /* NULL for default */
-                    const char * lookup_filename,
-                    const char * index_filename,
-                    join_stats_t * stats,
-                    const join_options_t * join_options,
-                    const struct temp_dir_t * temp_dir,
-                    struct temp_registry_t * registry,
-                    size_t cur_cache,
-                    size_t buf_size,
-                    uint32_t num_threads,
-                    bool show_progress,
-                    format_t fmt );
+typedef struct execute_db_join_args_t {
+    KDirectory * dir;
+    const VDBManager * vdb_mgr;
+    const char * accession_path;
+    const char * accession_short;
+    const char * seq_defline;           /* NULL for default */
+    const char * qual_defline;          /* NULL for default */
+    const char * lookup_filename;
+    const char * index_filename;
+    join_stats_t * stats;                   /* helper.h */
+    const join_options_t * join_options;    /* helper.h */
+    const struct temp_dir_t * temp_dir;
+    struct temp_registry_t * registry;
+    size_t cursor_cache;
+    size_t buf_size;
+    uint32_t num_threads;
+    bool show_progress;
+    format_t fmt;
+} execute_db_join_args_t;
 
+rc_t execute_db_join( const execute_db_join_args_t * args );
+
+/*
 rc_t check_lookup( const KDirectory * dir,
                    size_t buf_size,
                    size_t cursor_cache,
@@ -88,21 +93,27 @@ rc_t check_lookup_this( const KDirectory * dir,
                         const char * index_filename,
                         uint64_t seq_spot_id,
                         uint32_t seq_read_id );
+*/
 
-rc_t execute_unsorted_fasta_db_join( KDirectory * dir,
-                    const VDBManager * vdb_mgr,
-                    const char * accession_short,
-                    const char * accession_path,
-                    const char * output_filename,       /* NULL for stdout! */
-                    const char * seq_defline,           /* NULL for default, we need only seq-defline here ( FASTA!) */
-                    join_stats_t * stats,
-                    const join_options_t * join_options,
-                    size_t cur_cache,
-                    size_t buf_size,
-                    uint32_t num_threads,
-                    bool show_progress,
-                    bool force,
-                    bool only_unaligned );
+typedef struct execute_unsorted_fasta_db_join_args_t {
+    KDirectory * dir;
+    const VDBManager * vdb_mgr;
+    const char * accession_short;           /* accession-name to be used for output-file/error-reports */
+    const char * accession_path;            /* full path to accession for opening it */
+    const char * output_filename;           /* NULL for stdout! */
+    const char * seq_defline;               /* NULL for default, we need only seq-defline here ( FASTA!) */
+    join_stats_t * stats;                   /* helper.h */
+    const join_options_t * join_options;    /* helper.h */
+    size_t cur_cache;                       /* size of cursor-cache for vdb-cursor */
+    size_t buf_size;                        /* size of buffer-file for output-writing */
+    uint32_t num_threads;                   /* how many threads to use */
+    bool show_progress;                     /* display progressbar */
+    bool force;                             /* overwrite output-file if it exists */
+    bool only_unaligned;                    /* process only un-aligned reads */
+    bool only_aligned;                      /* process only aligned reads */
+} execute_unsorted_fasta_db_join_args_t;
+
+rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t * args );
 
 #ifdef __cplusplus
 }

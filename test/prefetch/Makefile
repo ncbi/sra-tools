@@ -177,7 +177,7 @@ urls_and_accs:
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
-	     $(DIRTOTEST)/prefetch $(HTTP_URL) \
+	     $(DIRTOTEST)/prefetch $(HTTP_URL) 2>&1 \
 	        | grep "found local" > /dev/null ; fi
 
 	@rm -f $(HTTPFILE)
@@ -193,7 +193,8 @@ urls_and_accs:
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	 if ping -c1 intranet > /dev/null ; then \
-	    $(DIRTOTEST)/prefetch http://intranet/ | grep "found local" >/dev/null;fi
+	    $(DIRTOTEST)/prefetch http://intranet/ 2>&1 \
+			| grep "found local" >/dev/null ; fi
 	@rm -f `pwd`/tmp2/index.html
 
 	@echo URL download when user repository is configured
@@ -204,7 +205,7 @@ urls_and_accs:
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki \
+	    $(DIRTOTEST)/prefetch https://github.com/ncbi/ngs/wiki 2>&1 \
 	                              | grep "found local" > /dev/null
 
 	@echo URL/ download when user repository is configured
@@ -216,7 +217,8 @@ urls_and_accs:
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	  $(DIRTOTEST)/prefetch https://github.com/ncbi/|grep "found local">/dev/null
+	  $(DIRTOTEST)/prefetch https://github.com/ncbi/ 2>&1 | \
+		grep "found local" > /dev/null
 	@rm `pwd`/tmp2/index.html
 
 	@ if echo $(SRR) | grep -vq /sdlr/sdlr.fcgi?jwt= ; \
@@ -240,7 +242,7 @@ urls_and_accs:
 	     \
 	     echo Running prefetch second time finds previous download && \
 	     export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && \
-		$(DIRTOTEST)/prefetch $(SRR) | grep "found local" > /dev/null ; \
+		$(DIRTOTEST)/prefetch $(SRR) 2>&1 | grep "found local" > /dev/null ; \
 	  else \
 	     echo prefetch test when CE is required is skipped ; \
 	  fi
@@ -261,7 +263,7 @@ urls_and_accs:
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(REFSEQ) | grep "found local" > /dev/null
+	    $(DIRTOTEST)/prefetch $(REFSEQ) 2>&1 | grep "found local" > /dev/null
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(DIRTOTEST)/prefetch $(KMER) > /dev/null 2>&1 ; \
@@ -278,7 +280,7 @@ urls_and_accs:
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch $(KMER) | grep "found local" > /dev/null
+	    $(DIRTOTEST)/prefetch $(KMER) 2>&1 | grep "found local" > /dev/null
 
 	@echo "prefetch $(WGS) when there is no kfg"
 	@NCBI_SETTINGS=/ VDB_CONFIG=`pwd`/tmp \
@@ -770,7 +772,7 @@ truncated:
 	  fi
 
 # prefetch should detect truncated run and redownload it
-	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/prefetch $(SRAC) >tmp/out
+	@VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/prefetch $(SRAC) 2>tmp/out
 	@ if grep ": 1) '$(SRAC)' is found locally" tmp/out ; \
 	  then echo "prefetch incorrectly stopped on truncated run"; exit 1; \
 	  fi
@@ -780,7 +782,7 @@ truncated:
 	@ perl check-size.pl 4
 
 # the second run of prefetch should find local file
-	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/prefetch $(SRAC) >tmp/out
+	@VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ $(DIRTOTEST)/prefetch $(SRAC) 2>tmp/out
 	@ grep -q ": 1) '$(SRAC)' is found locally" tmp/out
 	@ perl check-size.pl 4
 

@@ -236,7 +236,7 @@ static rc_t KSrvRun_Print(const KSrvRun * self) {
         VQuality q = VPathGetQuality(path);
         if (q < eQualLast) {
             if (q == eQualNo || q == eQualFull) {
-                char msg[128] = "";
+                char msg[256] = "";
                 string_printf(msg, sizeof msg, NULL,
                     "SRA %s file was retrieved, if this is different from your"
                     " preference, it may be due to current file availability:",

@@ -33,16 +33,20 @@
 #include <vfs/path.h>
 #include <vfs/resolver-priv.h> /* VResolverGetProject */
 #include <vfs/services.h> /* KServiceMake */
+#include <vfs/services-priv.h> /* KServiceGetQuality */
 
 #include <kfs/directory.h>
 #include <kapp/main.h>
 #include <kapp/args.h>
-#include <klib/text.h>
+
 #include <klib/log.h>
 #include <klib/out.h>
-#include <klib/status.h> /* STSMSG */
+#include <klib/printf.h> /* string_printf */
 #include <klib/rc.h>
+#include <klib/status.h> /* STSMSG */
+#include <klib/text.h>
 #include <klib/vector.h>
+
 #include <sysalloc.h>
 
 
@@ -229,6 +233,17 @@ static rc_t KSrvRun_Print(const KSrvRun * self) {
     }*/
 
     if (path != NULL) {
+        VQuality q = VPathGetQuality(path);
+        if (q < eQualLast) {
+            if (q == eQualNo || q == eQualFull) {
+                char msg[128] = "";
+                string_printf(msg, sizeof msg, NULL,
+                    "SRA %s file was retrieved, if this is different from your"
+                    " preference, it may be due to current file availability:",
+                    q == eQualNo ? "Lite" : "Normalized Format");
+                STSMSG(1, (msg));
+            }
+        }
         rc = VPathMakeString(path, &tmp);
         if (rc == 0) {
             OUTMSG(("%S\n", tmp));
@@ -311,6 +326,31 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
             VRemoteProtocols protocol = eProtocolHttps;
             const KSrvResponse * response = NULL;
             rc = KServiceNamesQuery ( service, protocol, & response );
+
+            {
+                const char * quality = NULL;
+                rc_t r2 = KServiceGetQuality(service, &quality);
+                if (r2 != 0) {
+                    if (rc == 0)
+                        rc = r2;
+                }
+                else if (quality != NULL) {
+                    const char * msg = NULL;
+                    switch (quality[0]) {
+                    case 'Z':
+                        msg = "Current preference is set to retrieve SRA "
+                            "Lite files with simplified base quality scores.";
+                        break;
+                    case 'R':
+                        msg = "Current preference is set to retrieve SRA "
+                            "Normalized Format files with full base quality scores.";
+                        break;
+                    }
+                    if (msg != NULL)
+                        STSMSG(1, (msg));
+                }
+            }
+
             if ( rc == 0 ) {
                 KSrvRunIterator * ri = NULL;
                 const KSrvRun * run = NULL;

@@ -489,6 +489,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
         rc = KServiceResolve(service, true, true);
 
     if ( rc == 0 ) {
+        rc_t r2 = 0;
+        const char * quality = NULL;
 #ifdef DBGNG
         STSMSG(STS_FIN, ("%s: entering KServiceNamesQueryExt...", __func__));
 #endif
@@ -498,6 +500,26 @@ static rc_t V_ResolverRemote(const VResolver *self,
         STSMSG(STS_FIN, ("%s: ...KServiceNamesQueryExt done with %R", __func__,
             rc));
 #endif
+        r2 = KServiceGetQuality(service, &quality);
+        if (r2 != 0) {
+            if (rc == 0)
+                rc = r2;
+        }
+        else if (quality != NULL) {
+            const char * msg = NULL;
+            switch (quality[0]) {
+            case 'Z':
+                msg = "Current preference is set to retrieve SRA "
+                      "Lite files with simplified base quality scores.";
+                break;
+            case 'R':
+                msg = "Current preference is set to retrieve SRA "
+                      "Normalized Format files with full base quality scores.";
+                break;
+            }
+            if (msg != NULL)
+                STSMSG(STS_TOP, (msg));
+        }
     }
 
     if ( rc == 0 )

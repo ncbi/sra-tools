@@ -36,7 +36,9 @@
 #include "debug.hpp"
 #include "service.hpp"
 
+    #include <klib/status.h> /* STSMSG */
     #include <klib/text.h>
+
     #include <vfs/services.h>
     #include <vfs/services-priv.h>
     #include <cloud/cloud.h>
@@ -160,14 +162,40 @@ namespace vdb {
 
     Service::Response Service::response(std::string const &url, std::string const &version) const {
         KSrvResponse const *resp = nullptr;
-        auto const rc = KServiceNamesExecuteExt((KService *)obj, 0, url.c_str(), version.c_str(), &resp);
+        KService * service = static_cast <KService*> (obj);
+
+        auto const rc = KServiceNamesExecuteExt(service, 0,
+            url.c_str(), version.c_str(), &resp);
         if (rc == 0) {
-            auto const cstr = KServiceGetResponseCStr((KService *)obj);
+            {
+                const char * quality = NULL;
+                KServiceGetQuality(service, &quality);
+                if (quality != NULL) {
+                    const char * msg = NULL;
+                    switch (quality[0]) {
+                    case 'Z':
+                        msg = "Current preference is set to retrieve SRA "
+                            "Lite files with simplified base quality scores.";
+                        break;
+                    case 'R':
+                        msg = "Current preference is set to retrieve SRA "
+                            "Normalized Format files with full "
+                            "base quality scores.";
+                        break;
+                    }
+                    if (msg != NULL)
+                        STSMSG(1, (msg));
+                }
+            }
+
+            auto const cstr = KServiceGetResponseCStr(service);
             return Response((void *)resp, cstr);
         }
+
         throw exception(rc, "KServiceNamesExecuteExt", "",
             "Failed to call external services");
     }
+
     Service::LocalInfo::FileInfo Service::Response::localInfo(  std::string const &accession
                                                               , std::string const &name
                                                               , std::string const &type) const

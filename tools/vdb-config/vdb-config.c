@@ -80,120 +80,125 @@
 
 #define ALIAS_ALL    "a"
 #define OPTION_ALL   "all"
-static const char* USAGE_ALL[] = { "print all information [default]", NULL };
-
-#define ALIAS_CFG    "i"
-#define OPTION_CFG   "interactive"
-static const char* USAGE_CFG[] = {
-    "create/update configuration",
-    NULL };
-
-#define ALIAS_CFM    NULL
-#define OPTION_CFM   "interactive-mode"
-static const char* USAGE_CFM[] = {
-    "interactive mode: 'textual' or 'graphical' (default)",
-    NULL };
-
-#define ALIAS_DIR    "d"
-#define OPTION_DIR   "load-path"
-static const char* USAGE_DIR[] = { "print load path", NULL };
-
-#define ALIAS_ENV    "e"
-#define OPTION_ENV   "env"
-static const char* USAGE_ENV[] = { "print shell variables", NULL };
-
-#define ALIAS_FIL    "f"
-#define OPTION_FIL   "files"
-static const char* USAGE_FIL[] = { "print loaded files", NULL };
-
-#define ALIAS_FIX    NULL
-#define OPTION_FIX   "restore-defaults"
-static const char* USAGE_FIX[] =
-{ "create default or update existing user configuration", NULL };
-
-#define ALIAS_MOD    "m"
-#define OPTION_MOD   "modules"
-static const char* USAGE_MOD[] = { "print external modules", NULL };
-
-#define ALIAS_OUT    "o"
-#define OPTION_OUT   "output"
-static const char* USAGE_OUT[] = { "output type: one of (x n), "
-    "where 'x' is xml (default), 'n' is native", NULL };
-
-#define ALIAS_PCF    "p"
-#define OPTION_PCF   "cfg"
-static const char* USAGE_PCF[] = { "print current configuration", NULL };
-
-#define ALIAS_PRTCT  NULL
-#define OPTION_PRTCT "ignore-protected-repositories"
-static const char* USAGE_PRTCT[] =
-{ "stop printing warning message when protected repository is found", NULL };
+static const char* USAGE_ALL[] = { "Print all information [default].", NULL };
 
 #define ALIAS_CDR    NULL
 #define OPTION_CDR   "cfg-dir"
 static const char* USAGE_CDR[]
-    = { "set directory to load configuration", NULL };
+    = { "Set directory to load configuration.", NULL };
+
+#define ALIAS_CFG    "i"
+#define OPTION_CFG   "interactive"
+static const char* USAGE_CFG[] = { "Create/update configuration.", NULL };
+
+#define ALIAS_CFM    NULL
+#define OPTION_CFM   "interactive-mode"
+static const char* USAGE_CFM[] = {
+    "Interactive mode: 'textual' or 'graphical' (default).", NULL };
+
+#define ALIAS_DIR    "d"
+#define OPTION_DIR   "load-path"
+static const char* USAGE_DIR[] = { "Print load path.", NULL };
+
+#define ALIAS_ENV    "e"
+#define OPTION_ENV   "env"
+static const char* USAGE_ENV[] = { "Print shell variables.", NULL };
+
+#define ALIAS_FIL    "f"
+#define OPTION_FIL   "files"
+static const char* USAGE_FIL[] = { "Print loaded files.", NULL };
+
+#define ALIAS_FIX    NULL
+#define OPTION_FIX   "restore-defaults"
+static const char* USAGE_FIX[] =
+{ "Create default or update existing user configuration.", NULL };
+
+#define ALIAS_MOD    "m"
+#define OPTION_MOD   "modules"
+static const char* USAGE_MOD[] = { "Print external modules.", NULL };
+
+#define ALIAS_OUT    "o"
+#define OPTION_OUT   "output"
+static const char* USAGE_OUT[] = { "Output type: one of (x n), "
+    "where 'x' is xml (default), 'n' is native.", NULL };
+
+#define ALIAS_PCF    "p"
+#define OPTION_PCF   "cfg"
+static const char* USAGE_PCF[] = { "Print current configuration.", NULL };
+
+#define ALIAS_PRTCT  NULL
+#define OPTION_PRTCT "ignore-protected-repositories"
+static const char* USAGE_PRTCT[] =
+{ "Stop printing warning message when protected repository is found.", NULL };
 
 #define ALIAS_PRD    NULL
 #define OPTION_PRD   "proxy-disable"
-static const char* USAGE_PRD[] = { "enable/disable using HTTP proxy", NULL };
+static const char* USAGE_PRD[] = { "Enable/disable using HTTP proxy.", NULL };
 
 #define ALIAS_PRX    NULL
 #define OPTION_PRX   "proxy"
 static const char* USAGE_PRX[]
-    = { "set HTTP proxy server configuration", NULL };
+    = { "Set HTTP proxy server configuration.", NULL };
+
+#define ALIAS_QUAL   "Q"
+#define OPTION_QUAL  "simplified-quality-scores"
+static const char* USAGE_QUAL[] = {
+"yes: Prefer SRA Lite files with simplified base quality scores if available. "
+"no: "
+"Prefer SRA Normalized Format files with full base quality scores if available."
+" Default: no.", NULL };
 
 #define ALIAS_ROOT   NULL
 #define OPTION_ROOT  "root"
 static const char* USAGE_ROOT[] =
-    { "enforce configuration update while being run by superuser", NULL };
+    { "Enforce configuration update while being run by superuser.", NULL };
 
 #define ALIAS_SET    "s"
 #define OPTION_SET   "set"
-static const char* USAGE_SET[] = { "set configuration node value", NULL };
+static const char* USAGE_SET[] = { "Set configuration node value.", NULL };
 
 #define ALIAS_C_IN  "C"
 #define OPTION_C_IN "cloud-info"
 static const char* USAGE_C_IN[]
-    = { "display cloud-releated information", NULL };
+    = { "Display cloud-releated information.", NULL };
 
 #define ALIAS_C_RI  NULL
 #define OPTION_C_RI "report-cloud-identity"
 static const char* USAGE_C_RI[]
-    = { "give permission to report cloud instance identity", NULL };
+    = { "Give permission to report cloud instance identity.", NULL };
 
 #define ALIAS_S3_C  NULL
 #define OPTION_S3_C "accept-aws-charges"
 static const char* USAGE_S3_C[]
-    = { "agree to accept charges for AWS usage", NULL };
+    = { "Agree to accept charges for AWS usage.", NULL };
 
 #define ALIAS_S3_F  NULL
 #define OPTION_S3_F "set-aws-credentials"
-static const char* USAGE_S3_F[] = { "select file with AWS credentials", NULL };
+static const char* USAGE_S3_F[] = { "Select file with AWS credentials.", NULL };
 
 #define ALIAS_S3_P  NULL
 #define OPTION_S3_P "set-aws-profile"
-static const char* USAGE_S3_P[] = { "set AWS profile", NULL };
+static const char* USAGE_S3_P[] = { "Set AWS profile.", NULL };
 
 #define ALIAS_GS_C  NULL
 #define OPTION_GS_C "accept-gcp-charges"
 static const char* USAGE_GS_C[]
-= { "agree to accept charges for GCP usage", NULL };
+= { "Agree to accept charges for GCP usage.", NULL };
 
 #define ALIAS_GS_F  NULL
 #define OPTION_GS_F "set-gcp-credentials"
-static const char* USAGE_GS_F[] = { "select file with GCP credentials", NULL };
+static const char* USAGE_GS_F[] = { "Select file with GCP credentials.", NULL };
 
 #define ALIAS_P_CW  NULL
 #define OPTION_P_CW "prefetch-to-cwd"
-static const char* USAGE_P_CW[] = { "prefetch downloads to "
-    "current directory when public user repository is set (default: false)",
+static const char* USAGE_P_CW[] = { "Prefetch downloads to "
+    "current directory when public user repository is set (default: false).",
     NULL };
 
 #define ALIAS_P_UR NULL
 #define OPTION_P_UR "prefetch-to-user-repo"
-static const char* USAGE_P_UR[] = { "prefetch downloads to "
-    "public user repository when it is set (default)", NULL };
+static const char* USAGE_P_UR[] = { "Prefetch downloads to "
+    "public user repository when it is set (default).", NULL };
 
 rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
 {
@@ -218,27 +223,28 @@ OptDef Options[] =
     , { OPTION_CDR, ALIAS_CDR, NULL, USAGE_CDR, 1, true , false, NULL }
     , { OPTION_CFG, ALIAS_CFG, NULL, USAGE_CFG, 1, false, false, NULL }
     , { OPTION_CFM, ALIAS_CFM, NULL, USAGE_CFM, 1, true , false, NULL }
+    , { OPTION_C_IN,ALIAS_C_IN,NULL, USAGE_C_IN,1, false, false, NULL }
+    , { OPTION_C_RI,ALIAS_C_RI,NULL, USAGE_C_RI,1, true , false, NULL }
     , { OPTION_DIR, ALIAS_DIR, NULL, USAGE_DIR, 1, false, false, NULL }
     , { OPTION_ENV, ALIAS_ENV, NULL, USAGE_ENV, 1, false, false, NULL }
     , { OPTION_FIL, ALIAS_FIL, NULL, USAGE_FIL, 1, false, false, NULL }
     , { OPTION_FIX, ALIAS_FIX, NULL, USAGE_FIX, 1, false, false, NULL }
-    , {OPTION_PRTCT,ALIAS_PRTCT,NULL,USAGE_PRTCT,1,false, false, NULL }
+    , { OPTION_GS_F,ALIAS_GS_F,NULL, USAGE_GS_F,1, true , false, NULL }
+    , { OPTION_GS_C,ALIAS_GS_C,NULL, USAGE_GS_C,1, true , false, NULL }
     , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false, NULL }
     , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false, NULL }
-    , { OPTION_C_IN,ALIAS_C_IN,NULL, USAGE_C_IN,1, false, false, NULL }
-    , { OPTION_C_RI,ALIAS_C_RI,NULL, USAGE_C_RI,1, true , false, NULL }
+    , { OPTION_PCF, ALIAS_PCF, NULL, USAGE_PCF, 1, false, false, NULL }
+    , { OPTION_PRD, ALIAS_PRD, NULL, USAGE_PRD, 1, true , false, NULL }
+    , {OPTION_PRTCT,ALIAS_PRTCT,NULL,USAGE_PRTCT,1,false, false, NULL }
+    , { OPTION_PRX, ALIAS_PRX, NULL, USAGE_PRX, 1, true , false, NULL }
+    , { OPTION_P_CW,ALIAS_P_CW,NULL, USAGE_P_CW,1, false, false, NULL }
+    , { OPTION_P_UR,ALIAS_P_UR,NULL, USAGE_P_UR,1, false, false, NULL }
+    , { OPTION_QUAL,ALIAS_QUAL,NULL, USAGE_QUAL,1, true , false, NULL }
+    , { OPTION_ROOT,ALIAS_ROOT,NULL, USAGE_ROOT,1, false, false, NULL }
+    , { OPTION_SET, ALIAS_SET, NULL, USAGE_SET, 1, true , false, NULL }
     , { OPTION_S3_C,ALIAS_S3_C,NULL, USAGE_S3_C,1, true , false, NULL }
     , { OPTION_S3_F,ALIAS_S3_F,NULL, USAGE_S3_F,1, true , false, NULL }
     , { OPTION_S3_P,ALIAS_S3_P,NULL, USAGE_S3_P,1, true , false, NULL }
-    , { OPTION_GS_F,ALIAS_GS_F,NULL, USAGE_GS_F,1, true , false, NULL }
-    , { OPTION_GS_C,ALIAS_GS_C,NULL, USAGE_GS_C,1, true , false, NULL }
-    , { OPTION_P_CW,ALIAS_P_CW,NULL, USAGE_P_CW,1, false, false, NULL }
-    , { OPTION_P_UR,ALIAS_P_UR,NULL, USAGE_P_UR,1, false, false, NULL }
-    , { OPTION_PCF, ALIAS_PCF, NULL, USAGE_PCF, 1, false, false, NULL }
-    , { OPTION_PRD, ALIAS_PRD, NULL, USAGE_PRD, 1, true , false, NULL }
-    , { OPTION_PRX, ALIAS_PRX, NULL, USAGE_PRX, 1, true , false, NULL }
-    , { OPTION_SET, ALIAS_SET, NULL, USAGE_SET, 1, true , false, NULL }
-    , { OPTION_ROOT,ALIAS_ROOT,NULL, USAGE_ROOT,1, false, false, NULL }
 };
 
 ParamDef Parameters[] =
@@ -288,6 +294,8 @@ rc_t CC Usage(const Args* args) {
     HelpOptionLine(ALIAS_PRTCT,OPTION_PRTCT,NULL,USAGE_PRTCT);
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_OUT, OPTION_OUT, "x | n", USAGE_OUT);
+    KOutMsg ("\n");
+    HelpOptionLine(ALIAS_QUAL, OPTION_QUAL, "yes | no", USAGE_QUAL);
     KOutMsg ("\n");
     HelpOptionLine(ALIAS_C_IN, OPTION_C_IN, NULL, USAGE_C_IN);
     HelpOptionLine(ALIAS_C_RI, OPTION_C_RI, "yes | no", USAGE_C_RI);
@@ -529,7 +537,9 @@ typedef struct Params {
     const char * s3Profile;
     EState gsAcceptCharges;
     const char * gsCredentials;
+
     EState prefetchToCwd;
+    EState preferNoQuality;
 } Params;
 
 static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
@@ -550,7 +560,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
 
         prm->args = args;
         rc = ArgsParamCount(args, &prm->argsParamCnt);
-        if (rc) {
+        if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get query parameter[s]");
             break;
         }
@@ -562,19 +572,20 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
         {   // OPTION_OUT
             prm->xml = true;
             rc = ArgsOptionCount(args, OPTION_OUT, &pcount);
-            if (rc) {
+            if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
                 break;
             }
-            if (pcount) {
-                rc = ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
-                if (rc) {
-                    LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_OUT, 0,
+                    (const void **)&dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_OUT "' argument");
                     break;
                 }
-                if (!strcmp(dummy, "n")) {
+                if (!strcmp(dummy, "n"))
                     prm->xml = false;
-                }
                 else if (strcmp(dummy, "x")) {
                     rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
                     LOGERR(klogErr, rc, "Bad " OPTION_OUT " value");
@@ -674,11 +685,33 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 break;
             }
             if (pcount > 0) {
-                rc = ArgsOptionValue(args, OPTION_PRX, 0, (const void **)&prm->proxy);
-                if (rc) {
-                    LOGERR(klogErr, rc, "Failure to get '" OPTION_PRX "' argument");
+                rc = ArgsOptionValue(args, OPTION_PRX, 0,
+                    (const void **)&prm->proxy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_PRX "' argument");
                     break;
                 }
+            }
+        }
+        {   // OPTION_QUAL
+            rc = ArgsOptionCount(args, OPTION_QUAL, &pcount);
+            if (rc != 0) {
+               LOGERR(klogErr, rc, "Failure to get '" OPTION_QUAL "' argument");
+               break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_QUAL, 0,
+                    (const void **)&dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_QUAL "' argument");
+                    break;
+                }
+                if (strncasecmp(dummy, "y", 1) == 0)
+                    prm->preferNoQuality = eTrue;
+                else
+                    prm->preferNoQuality = eFalse;
             }
         }
         {   // OPTION_DIR
@@ -687,7 +720,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_DIR "' argument");
                 break;
             }
-            if (pcount) {
+            if (pcount > 0) {
                 prm->modeShowLoadPath = true;
                 ++count;
             }
@@ -708,8 +741,9 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_SET "' argument");
                 break;
             }
-            if (pcount) {
-                rc = ArgsOptionValue(args, OPTION_SET, 0, (const void **)&prm->setValue);
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_SET, 0,
+                    (const void **)&prm->setValue);
                 if (rc == 0) {
                     const char* p = strchr(prm->setValue, '=');
                     if (p == NULL || *(p + 1) == '\0') {
@@ -727,11 +761,11 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
         }
         {   // OPTION_FIX
             rc = ArgsOptionCount(args, OPTION_FIX, &pcount);
-            if (rc) {
+            if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_FIX "' argument");
                 break;
             }
-            if (pcount) {
+            if (pcount > 0) {
                 prm->modeConfigure = true;
                 prm->modeShowCfg = false;
                 count = 1;
@@ -992,16 +1026,17 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
                 break;
             }
             if (pcount > 0
-                || ( !prm->modeConfigure
-                    && !prm->ignoreProtected
+                || (   !prm->ignoreProtected
+                    && !prm->modeCloud
+                    && !prm->modeConfigure
+                    && !prm->modeCreate
                     && !prm->modeShowCfg
-                    && ! prm->modeShowLoadPath
                     && !prm->modeShowEnv
                     && !prm->modeShowFiles
+                    && !prm->modeShowLoadPath
                     && !prm->modeShowModules
-                    && !prm->modeCreate
                     && !prm->modeSetNode
-                    && !prm->modeCloud
+                    && !prm->preferNoQuality
                     && prm->ngc == NULL
                     && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
                 /* show all by default */
@@ -1975,12 +2010,32 @@ rc_t SetPrefetchDownload(KConfig * cfg, EState value, bool * set)
     return rc;
 }
 
-static rc_t CloudInfo(const KConfig * cfg, const Params * prm) {
+static rc_t KConfig_SetPreferNoQuality(KConfig * self, EState value) {
+    rc_t rc = 0;
+
+    if (value == eNotSet)
+        return rc;
+
+    rc = KConfig_Set_PreferNoToFullQuality(self, value == eTrue);
+
+    if (rc == 0)
+        rc = KConfigCommit(self);
+
+    if (rc == 0)
+        OUTMSG(("Updated: prefer %s quality scores(%cBQS) if available\n",
+            value == eTrue ? "no" : "full", value == eTrue ? '-' : '+'));
+    else
+        LOGERR(klogErr, rc, "Failure to set quality preferences");
+
+    return rc;
+}
+
+static rc_t KConfig_CloudInfo(const KConfig * self, const Params * prm) {
     bool value = false;
     char buff[PATH_MAX] = "";
 
     CloudMgr * mgr = NULL;
-    rc_t rc = CloudMgrMake(&mgr, cfg, NULL);
+    rc_t rc = CloudMgrMake(&mgr, self, NULL);
 
     CloudProviderId cloud_provider = cloud_provider_none;
     rc = CloudMgrCurrentProvider(mgr, &cloud_provider);
@@ -1995,7 +2050,7 @@ static rc_t CloudInfo(const KConfig * cfg, const Params * prm) {
         OUTMSG(("Cloud Settings:\n\n"));
 
     if (rc == 0 && cloud_provider != cloud_provider_none) {
-        rc = KConfig_Get_Report_Cloud_Instance_Identity(cfg, &value);
+        rc = KConfig_Get_Report_Cloud_Instance_Identity(self, &value);
         if (rc == 0)
             OUTMSG(("Report Cloud Instance Identity: %s\n",
                 value ? "yes" : "no"));
@@ -2005,14 +2060,14 @@ static rc_t CloudInfo(const KConfig * cfg, const Params * prm) {
         OUTMSG(("AWS:\n"));
 
     if (rc == 0) {
-        rc = KConfig_Get_User_Accept_Aws_Charges(cfg, &value);
+        rc = KConfig_Get_User_Accept_Aws_Charges(self, &value);
         if (rc == 0)
             OUTMSG(("  Accept Charges for AWS Usage: %s\n",
                 value ? "yes" : "no"));
     }
 
     if (rc == 0) {
-        rc = KConfig_Get_Aws_Credential_File(cfg, buff, sizeof buff, NULL);
+        rc = KConfig_Get_Aws_Credential_File(self, buff, sizeof buff, NULL);
         if (rc == 0 && buff[0] != '\0')
             OUTMSG(("  AWS Credentials File: '%s'\n", buff));
         else if (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
@@ -2020,7 +2075,7 @@ static rc_t CloudInfo(const KConfig * cfg, const Params * prm) {
     }
 
     if (rc == 0) {
-        rc = KConfig_Get_Aws_Profile(cfg, buff, sizeof buff, NULL);
+        rc = KConfig_Get_Aws_Profile(self, buff, sizeof buff, NULL);
         if (rc == 0)
             OUTMSG(("  AWS Profile: '%s'\n", buff));
     }
@@ -2029,14 +2084,14 @@ static rc_t CloudInfo(const KConfig * cfg, const Params * prm) {
         OUTMSG(("\nGCP:\n"));
 
     if (rc == 0) {
-        rc = KConfig_Get_User_Accept_Gcp_Charges(cfg, &value);
+        rc = KConfig_Get_User_Accept_Gcp_Charges(self, &value);
         if (rc == 0)
             OUTMSG(("  Accept Charges for CGP Usage: %s\n",
                 value ? "yes" : "no"));
     }
 
     if (rc == 0) {
-        rc = KConfig_Get_Gcp_Credential_File(cfg, buff, sizeof buff, NULL);
+        rc = KConfig_Get_Gcp_Credential_File(self, buff, sizeof buff, NULL);
         if (rc == 0 && buff[0] != '\0')
             OUTMSG(("  GCP Credentials File: '%s'\n", buff));
         else if (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
@@ -2045,7 +2100,7 @@ static rc_t CloudInfo(const KConfig * cfg, const Params * prm) {
 
     if (rc == 0) {
         OUTMSG(("\n\nTools:\n"));
-        rc = KConfig_Get_Prefetch_Download_To_Cache(cfg, &value);
+        rc = KConfig_Get_Prefetch_Download_To_Cache(self, &value);
         if (rc == 0)
             OUTMSG(("  Prefetch downloads to %s\n",
                 value
@@ -2114,7 +2169,7 @@ static rc_t ProcessCloud(KConfig * cfg, const Params * prm) {
         rc = KConfigCommit(cfg);
 
     if (rc == 0 && prm->cloudInfo)
-        rc = CloudInfo(cfg, prm);
+        rc = KConfig_CloudInfo(cfg, prm);
 
     return rc;
 }
@@ -2237,21 +2292,24 @@ rc_t CC KMain(int argc, char* argv[]) {
             if (rc == 0 && r != 0)
                 rc = r;
         }
+
+        if (prm.preferNoQuality) {
+            rc_t r = KConfig_SetPreferNoQuality(cfg, prm.preferNoQuality);
+            if (rc == 0 && r != 0)
+                rc = r;
+        }
     }
 
-    if (prm.modeShowEnv) {
+    if (prm.modeShowEnv)
         ShowEnv(&prm);
-    }
 
-    if (rc == 0 && prm.showMultiple && prm.xml) {
+    if (rc == 0 && prm.showMultiple && prm.xml)
         OUTMSG(("</VdbConfig>\n"));
-    }
 
     RELEASE(KConfig, cfg);
 
-    if (rc == 0 && prm.modeCreate) {
+    if (rc == 0 && prm.modeCreate)
         rc = CreateConfig(argv[0]);
-    }
 
     ParamsDestruct(&prm);
     return rc;

@@ -13,6 +13,7 @@ if ( Java_FOUND )
 
     add_jar( test-ngs-java
         SOURCES ${NGS_SRC}
+        INCLUDE_JARS ${NGS_JAVA_JAR}
         OUTPUT_DIR ${CMAKE_TEST_OUTPUT_DIRECTORY}
     )
 

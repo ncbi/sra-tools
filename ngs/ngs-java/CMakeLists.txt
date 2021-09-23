@@ -77,9 +77,10 @@ if ( Java_FOUND )
 
     find_package(JNI)
 
-    add_jar( ngs-java
+    #$<$<CONFIG:Debug>:${CMAKE_JAR_OUTPUT_DIRECTORY_DEBUG}> $<$<CONFIG:Release>:${CMAKE_JAR_OUTPUT_DIRECTORY_RELEASE}> ) 
+     add_jar( ngs-java
         SOURCES ${NGS_SRC} ${ITF_SRC} ${NCBI_SRC}
-        OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        OUTPUT_DIR ${CMAKE_JAR_OUTPUT_DIRECTORY} 
         GENERATE_NATIVE_HEADERS ngs-jni-headers DESTINATION ./jni
     )
 

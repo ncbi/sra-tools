@@ -71,6 +71,6 @@ add_library( ncbi-ngs-shared SHARED
     $<TARGET_OBJECTS:ngs-jni>
     $<TARGET_OBJECTS:ngs-py>
 )
-target_link_libraries( ncbi-ngs-shared ncbi-vdb-static )
+target_link_libraries( ncbi-ngs-shared ncbi-vdb )
 set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
 MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )

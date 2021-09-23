@@ -1,20 +1,20 @@
-add_executable( test-id2name test-id2name.cpp )
-target_link_libraries( test-id2name fastqloader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-add_test( NAME SlowTest_FastqLoader_id2name COMMAND test-id2name WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+if( NOT WIN32 ) 
 
-add_executable( wb-test-fastq wb-test-fastq.cpp )
-target_link_libraries( wb-test-fastq fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-add_test( NAME Test_FastqLoader_WbFastq COMMAND wb-test-fastq WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_executable( test-id2name test-id2name.cpp )
+    target_link_libraries( test-id2name fastqloader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+    add_test( NAME SlowTest_FastqLoader_id2name COMMAND test-id2name WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-add_executable( wb-test-fastq-parse wb-test-fastq-parse.cpp )
-target_link_libraries( wb-test-fastq-parse fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-add_test( NAME Test_FastqLoader_WbFastqParse COMMAND wb-test-fastq-parse WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_executable( wb-test-fastq wb-test-fastq.cpp )
+    target_link_libraries( wb-test-fastq fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+    add_test( NAME Test_FastqLoader_WbFastq COMMAND wb-test-fastq WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-add_executable( test-fastq-loader test-fastq-loader.cpp )
-target_link_libraries( test-fastq-loader fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-add_test( NAME Test_FastqLoader_WbFastqLoader COMMAND test-fastq-loader WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_executable( wb-test-fastq-parse wb-test-fastq-parse.cpp )
+    target_link_libraries( wb-test-fastq-parse fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+    add_test( NAME Test_FastqLoader_WbFastqParse COMMAND wb-test-fastq-parse WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-if( NOT WIN32 )
+    add_executable( test-fastq-loader test-fastq-loader.cpp )
+    target_link_libraries( test-fastq-loader fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+    add_test( NAME Test_FastqLoader_WbFastqLoader COMMAND test-fastq-loader WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     # specify the location of schema files in a local .kfg file
     add_test(NAME Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

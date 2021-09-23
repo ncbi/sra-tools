@@ -24,6 +24,8 @@
 *
 */
 
+#include <cmath>
+
 #include "ngs-pileup.hpp"
 
 #include <ngs/ErrorMsg.hpp>

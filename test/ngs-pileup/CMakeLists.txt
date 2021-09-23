@@ -1,17 +1,23 @@
 
 add_executable( test-ngs-pileup test-ngs-pileup.cpp )
+MSVS_StaticRuntime( test-ngs-pileup )
 
 include_directories( ${CMAKE_SOURCE_DIR} )
+
+if( WIN32 )
+	set( ADDITIONAL_LIBS Ws2_32 Crypt32 )
+else()
+	set( ADDITIONAL_LIBS )
+endif()
 
 target_link_libraries( test-ngs-pileup
     ncbi-ngs-c++
     ngs-c++
     ngs
-    ncbi-vdb-static
+    ncbi-vdb
     kapp
     ktst
-    dl
-    pthread
+    ${ADDITIONAL_LIBS}
 )
 
 add_test( NAME Test_Ngs_Pileup

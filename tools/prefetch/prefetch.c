@@ -489,6 +489,8 @@ static rc_t V_ResolverRemote(const VResolver *self,
         rc = KServiceResolve(service, true, true);
 
     if ( rc == 0 ) {
+        rc_t r2 = 0;
+        const char * quality = NULL;
 #ifdef DBGNG
         STSMSG(STS_FIN, ("%s: entering KServiceNamesQueryExt...", __func__));
 #endif
@@ -498,6 +500,26 @@ static rc_t V_ResolverRemote(const VResolver *self,
         STSMSG(STS_FIN, ("%s: ...KServiceNamesQueryExt done with %R", __func__,
             rc));
 #endif
+        r2 = KServiceGetQuality(service, &quality);
+        if (r2 != 0) {
+            if (rc == 0)
+                rc = r2;
+        }
+        else if (quality != NULL) {
+            const char * msg = NULL;
+            switch (quality[0]) {
+            case 'Z':
+                msg = "Current preference is set to retrieve SRA "
+                      "Lite files with simplified base quality scores.";
+                break;
+            case 'R':
+                msg = "Current preference is set to retrieve SRA "
+                      "Normalized Format files with full base quality scores.";
+                break;
+            }
+            if (msg != NULL)
+                STSMSG(STS_TOP, (msg));
+        }
     }
 
     if ( rc == 0 )
@@ -1266,7 +1288,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     const VPathStr * remote = NULL;
 
-    KStsLevel lvl = STS_INFO;
+    KStsLevel lvl = STAT_PWR;
 
     char spath[PATH_MAX] = "";
     size_t len = 0;
@@ -1452,7 +1474,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     destroy_progressbar(pb);
 
     if (rc == 0 && !mane->dryRun)
-        STSMSG(STS_INFO, ("%s (%ld)", pof->tmpName, pof->pos));
+        STSMSG(STAT_PWR, ("%s (%ld)", pof->tmpName, pof->pos));
 
     RELEASE(KFile, in);
 
@@ -1948,6 +1970,26 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                     if (rc == 0)
                         self->remote = vremote;
                     rc = VPathStrInit(&self->path, vcache);
+                    if (rc == 0) {
+                        String type;
+                        rc = VPathGetType(vremote, &type);
+                        if (rc == 0 && type.size == 3 && type.addr != NULL &&
+                            type.addr[0] == 's' && type.addr[1] == 'r' &&
+                            type.addr[2] == 'a')
+                        {
+                            VQuality q = VPathGetQuality(vremote);
+                            if (q < eQualLast) {
+                                if (q == eQualNo || q == eQualFull) {
+                                    char msg[256] = "";
+                                    string_printf(msg, sizeof msg, NULL,
+                "SRA %s file is being retrieved, if this is different from your"
+                " preference, it may be due to current file availability.",
+                                   q == eQualNo ? "Lite" : "Normalized Format");
+                                    STSMSG(1, (msg));
+                                }
+                            }
+                        }
+                    }
                 }
                 rd = PrfMainDoDownload(self, item, isDependency, vremote, &pof);
             }
@@ -3439,7 +3481,7 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
 
         if (!skip) {
             rc = _VDBManagerSetDbGapCtx(item->mane->mgr, resolved->resolver);
-            STSMSG(STS_INFO,
+            STSMSG(STAT_PWR,
                 ("checking PathType of '%S'...", resolved->path.str));
             type = VDBManagerPathTypeUnreliable
                 ( item->mane->mgr, "%S", resolved->path.str) & ~kptAlias;

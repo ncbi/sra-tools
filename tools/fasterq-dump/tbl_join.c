@@ -1165,25 +1165,10 @@ static rc_t join_the_threads_and_collect_status( Vector *threads, join_stats_t *
     return rc;
 }
 
-rc_t execute_tbl_join( KDirectory * dir,
-                    const VDBManager * vdb_mgr,
-                    const char * accession_short,
-                    const char * accession_path,
-                    const char * seq_defline,               /* NULL for default */
-                    const char * qual_defline,              /* NULL for default */
-                    const char * tbl_name,
-                    join_stats_t * stats,
-                    const join_options_t * join_options,
-                    const struct temp_dir_t * temp_dir,
-                    struct temp_registry_t * registry,
-                    size_t cur_cache,
-                    size_t buf_size,
-                    uint32_t num_threads,
-                    bool show_progress,
-                    format_t fmt ) {                        /* helper.h split-modes */
+rc_t execute_tbl_join( const execute_tbl_join_args_t * args ) {
     rc_t rc = 0;
 
-    if ( show_progress ) {
+    if ( args -> show_progress ) {
         KOutHandlerSetStdErr();
         rc = KOutMsg( "join   :" );
         KOutHandlerSetStdOut();
@@ -1191,48 +1176,51 @@ rc_t execute_tbl_join( KDirectory * dir,
 
     if ( 0 == rc ) {
         uint64_t row_count = 0;
-        rc = extract_sra_row_count( dir, vdb_mgr, accession_short, accession_path, tbl_name, cur_cache, &row_count ); /* above */
+        rc = extract_sra_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
+                                    args -> tbl_name, args -> cursor_cache, &row_count ); /* above */
         if ( 0 == rc && row_count > 0 ) {
             bool name_column_present;
-            rc = is_column_name_present( dir, vdb_mgr, accession_short, accession_path, tbl_name, &name_column_present ); /* cmn_iter.c */
+            rc = is_column_name_present( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
+                                         args -> tbl_name, &name_column_present ); /* cmn_iter.c */
             if ( 0 == rc ) {
                 Vector threads;
                 int64_t row = 1;
                 uint32_t thread_id;
+                uint32_t num_threads = args -> num_threads;
                 uint64_t rows_per_thread;
                 struct bg_progress_t * progress = NULL;
                 join_options_t corrected_join_options; /* helper.h */
 
                 VectorInit( &threads, 0, num_threads );
-                correct_join_options( &corrected_join_options, join_options, name_column_present ); /* helper.c */
-                corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, qual_defline ); /* join_results.c */
+                correct_join_options( &corrected_join_options, args -> join_options, name_column_present ); /* helper.c */
+                corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, args -> qual_defline ); /* join_results.c */
                 rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
-                if ( show_progress ) {
+                if ( args -> show_progress ) {
                     rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
                 }
 
                 for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
                     join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
                     if ( NULL != jtd ) {
-                        jtd -> dir              = dir;
-                        jtd -> vdb_mgr          = vdb_mgr;
-                        jtd -> accession_short  = accession_short;
-                        jtd -> accession_path   = accession_path;
-                        jtd -> seq_defline      = seq_defline;
-                        jtd -> qual_defline     = qual_defline;
-                        jtd -> tbl_name         = tbl_name;
+                        jtd -> dir              = args -> dir;
+                        jtd -> vdb_mgr          = args -> vdb_mgr;
+                        jtd -> accession_short  = args -> accession_short;
+                        jtd -> accession_path   = args -> accession_path;
+                        jtd -> seq_defline      = args -> seq_defline;
+                        jtd -> qual_defline     = args -> qual_defline;
+                        jtd -> tbl_name         = args -> tbl_name;
                         jtd -> first_row        = row;
                         jtd -> row_count        = rows_per_thread;
-                        jtd -> cur_cache        = cur_cache;
-                        jtd -> buf_size         = buf_size;
+                        jtd -> cur_cache        = args -> cursor_cache;
+                        jtd -> buf_size         = args -> buf_size;
                         jtd -> progress         = progress;
-                        jtd -> registry         = registry;
-                        jtd -> fmt              = fmt;
+                        jtd -> registry         = args -> registry;
+                        jtd -> fmt              = args -> fmt;
                         jtd -> join_options     = &corrected_join_options;
                         jtd -> thread_id        = thread_id;
 
-                        rc = make_joined_filename( temp_dir, jtd -> part_file, sizeof jtd -> part_file,
-                                    accession_short, thread_id ); /* temp_dir.c */
+                        rc = make_joined_filename( args -> temp_dir, jtd -> part_file, sizeof jtd -> part_file,
+                                    args -> accession_short, thread_id ); /* temp_dir.c */
                         if ( 0 == rc ) {
                             /* thread executes cmn_thread_func() located above */
                             rc = helper_make_thread( &jtd -> thread, sorted_fastq_fasta_thread_func,
@@ -1249,7 +1237,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                         }
                     }
                 }
-                rc = join_the_threads_and_collect_status( &threads, stats );
+                rc = join_the_threads_and_collect_status( &threads, args -> stats );
                 bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
             }
         }
@@ -1288,7 +1276,7 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
                                       jtd -> multi_writer,          /* passed in multi-writer */
                                       jtd -> accession_short,       /* the accession to be printed */
                                       jtd -> seq_defline,           /* if seq-defline is NULL, use default */
-                                      jtd -> qual_defline,          /* if qual-defline is NULL, use default */
+                                      NULL,                         /* FASTA: not qual-defline! */
                                       name_mode,                    /* use-name, syn-name or no-name */
                                       true,                         /* use read-id */
                                       true );                       /* fasta-mode */
@@ -1364,73 +1352,60 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     return rc;
 }
 
-rc_t execute_unsorted_fasta_tbl_join( KDirectory * dir,
-                    const VDBManager * vdb_mgr,
-                    const char * accession_short,
-                    const char * accession_path,
-                    const char * seq_defline,
-                    const char * qual_defline,
-                    const char * output_filename,           /* NULL for stdout! */
-                    const char * tbl_name,
-                    join_stats_t * stats,                   /* helper.h */
-                    const join_options_t * join_options,    /* helper.h */
-                    size_t cur_cache,
-                    size_t buf_size,
-                    uint32_t num_threads,
-                    bool show_progress,
-                    bool force ) {
+rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args ) {
     rc_t rc = 0;
 
-    if ( show_progress ) {
+    if ( args -> show_progress ) {
         KOutHandlerSetStdErr();
         rc = KOutMsg( "read :" );
         KOutHandlerSetStdOut();
     }
     if ( 0 == rc ) {
         uint64_t row_count = 0;
-        rc = extract_sra_row_count( dir, vdb_mgr, accession_short, accession_path, tbl_name, cur_cache, &row_count ); /* above */
+        rc = extract_sra_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
+                                    args -> tbl_name, args -> cursor_cache, &row_count ); /* above */
         if ( 0 == rc && row_count > 0 ) {
             bool name_column_present;
-            rc = is_column_name_present( dir, vdb_mgr, accession_short, accession_path, tbl_name, &name_column_present );
+            rc = is_column_name_present( args -> dir, args -> vdb_mgr, args -> accession_short,
+                                         args -> accession_path, args -> tbl_name, &name_column_present );
             if ( 0 == rc ) {
-                struct multi_writer_t * multi_writer = create_multi_writer( dir,
-                        output_filename,
-                        buf_size,
-                        0,                      /* q_wait_time, if 0 --> use default = 5 ms */
-                        num_threads * 3,        /* q_num_blocks, if 0 use default = 8 */
-                        0 );                    /* q_block_size, if 0 use default = 4 MB */
+                struct multi_writer_t * multi_writer = create_multi_writer( args -> dir,
+                        args -> output_filename,
+                        args -> buf_size,
+                        0,                          /* q_wait_time, if 0 --> use default = 5 ms */
+                        args -> num_threads * 3,    /* q_num_blocks, if 0 use default = 8 */
+                        0 );                        /* q_block_size, if 0 use default = 4 MB */
                 if ( NULL != multi_writer ) {
                     /* create a 2na-base-filter ( if filterbases were given, by default not ) */
-                    struct filter_2na_t * filter = make_2na_filter( join_options -> filter_bases ); /* join_results.c */
+                    struct filter_2na_t * filter = make_2na_filter( args -> join_options -> filter_bases ); /* join_results.c */
                     Vector threads;
                     int64_t row = 1;
                     uint32_t thread_id;
+                    uint32_t num_threads = args -> num_threads;
                     uint64_t rows_per_thread;
                     struct bg_progress_t * progress = NULL;
                     join_options_t corrected_join_options; /* helper.h */
 
                     VectorInit( &threads, 0, num_threads );
-                    correct_join_options( &corrected_join_options, join_options, name_column_present ); /* helper.c */
-                    corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, qual_defline ); /* join_results.c */
+                    correct_join_options( &corrected_join_options, args -> join_options, name_column_present ); /* helper.c */
+                    corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, NULL ); /* join_results.c */
                     rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
-                    if ( show_progress ) { rc = bg_progress_make( &progress, row_count, 0, 0 ); } /* progress_thread.c */
+                    if ( args -> show_progress ) { rc = bg_progress_make( &progress, row_count, 0, 0 ); } /* progress_thread.c */
 
                    for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
                         join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
                         if ( NULL != jtd ) {
-                            jtd -> dir              = dir;
-                            jtd -> vdb_mgr          = vdb_mgr;
-                            jtd -> accession_short  = accession_short;
-                            jtd -> accession_path   = accession_path;
-                            jtd -> seq_defline      = seq_defline;
-                            jtd -> qual_defline     = qual_defline;
-                            jtd -> tbl_name         = tbl_name;
+                            jtd -> dir              = args -> dir;
+                            jtd -> vdb_mgr          = args -> vdb_mgr;
+                            jtd -> accession_short  = args -> accession_short;
+                            jtd -> accession_path   = args -> accession_path;
+                            jtd -> seq_defline      = args -> seq_defline;
+                            jtd -> tbl_name         = args -> tbl_name;
                             jtd -> first_row        = row;
                             jtd -> row_count        = rows_per_thread;
-                            jtd -> cur_cache        = cur_cache;
-                            jtd -> buf_size         = buf_size;
+                            jtd -> cur_cache        = args -> cursor_cache;
+                            jtd -> buf_size         = args -> buf_size;
                             jtd -> progress         = progress;
-                            jtd -> registry         = NULL;
                             jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
                             jtd -> join_options     = &corrected_join_options;
                             jtd -> part_file[ 0 ]   = 0; /* we are not using a part-file */
@@ -1449,7 +1424,7 @@ rc_t execute_unsorted_fasta_tbl_join( KDirectory * dir,
 
                         } /* if ( NULL != jtd ) */
                     } /* for( thread_id... ) */
-                    rc = join_the_threads_and_collect_status( &threads, stats ); /* releases jtd! */
+                    rc = join_the_threads_and_collect_status( &threads, args -> stats ); /* releases jtd! */
                     bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
                     release_2na_filter( filter ); /* join_results.c ( ignores NULL ) */
                     release_multi_writer( multi_writer ); /* ( ignores NULL ) */ 

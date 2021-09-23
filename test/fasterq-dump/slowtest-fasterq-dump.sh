@@ -246,6 +246,29 @@ function test_unsorted_fasta {
 }
 
 #------------------------------------------------------------------------------------------
+#    FASTA unsorted + only-aligned + only-unaligned
+#------------------------------------------------------------------------------------------
+function test_unsorted_fasta_parts {
+    echo "" && echo "testing: UNSORTED FASTA ( only aligned/unaligned ) for $1"
+    MD5REFERENCE="./ref_md5/$1.unsorted_fasta.reference.md5"
+    if [ ! -f "$MD5REFERENCE" ]; then
+        echo "" && echo "producing reference-md5-sum for UNSORTED / FASTA for $1"
+        time $REFTOOL $1 --split-spot --skip-technical --fasta 0
+        ./fasta_2_line.py $1.fasta | sort > $1.fasta.sorted
+        rm -f $1.fasta
+        md5sum "$1.fasta.sorted" | cut -d ' ' -f 1 > "$MD5REFERENCE"
+        rm -f "$1.fasta.sorted"
+    fi
+    time "$TOOL" "$1" --fasta-unsorted -pf -o $1.only_aligned --only-aligned --seq-defline '>$ac.$si $sn length=$rl'
+    time "$TOOL" "$1" --fasta-unsorted -pf -o $1.only_unaligned --only-unaligned --seq-defline '>$ac.$si $sn length=$rl'
+    cat $1.only_aligned $1.only_unaligned > $1.faster.fasta
+    rm -f $1.only_aligned $1.only_unaligned
+    ./fasta_2_line.py $1.faster.fasta | sort > $1.faster.fasta.sorted
+    rm $1.faster.fasta
+    produce_md5_and_compare "$1.faster.fasta.sorted" "$MD5REFERENCE"
+}
+
+#------------------------------------------------------------------------------------------
 
 TOOL_LOC=`which $TOOL`
 if [ ! -f $TOOL_LOC ]; then
@@ -281,7 +304,7 @@ mkdir -p ref_md5
 
 #------------------------------------------------------------------------------------------
 ACC1="SRR000001"
-#ACC2="SRR341578"
+ACC2="SRR341578"
 #------------------------------------------------------------------------------------------
 
 ACCESSIONS="$ACC1 $ACC2"
@@ -303,6 +326,7 @@ do
     test_split_3_fasta $acc
 
     test_unsorted_fasta $acc
+    #test_unsorted_fasta_parts $acc
 
     rm -rf $acc
 done

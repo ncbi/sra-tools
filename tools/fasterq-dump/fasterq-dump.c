@@ -1051,27 +1051,30 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
     rc_t rc = 0;
     join_stats_t stats;
     
+    if ( tool_ctx -> only_aligned ) { return rc; }
+
     clear_join_stats( &stats ); /* helper.c */
     if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); /* above */ }
     if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* this is the 'special' unsorted FASTA for flat tables */
-        rc = execute_unsorted_fasta_tbl_join( tool_ctx -> dir, /* tbl_join.c */
-                        tool_ctx -> vdb_mgr,
-                        tool_ctx -> accession_short,
-                        tool_ctx -> accession_path,
-                        tool_ctx -> seq_defline,
-                        tool_ctx -> qual_defline,
-                        tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename,
-                        tbl_name,
-                        &stats,
-                        &( tool_ctx -> join_options ),
-                        tool_ctx -> cursor_cache,
-                        tool_ctx -> buf_size,
-                        tool_ctx -> num_threads,
-                        tool_ctx -> show_progress,
-                        tool_ctx -> force ); /* tbl_join.c */
+        execute_fasta_tbl_join_args_t args;
+        args . dir = tool_ctx -> dir;
+        args . vdb_mgr = tool_ctx -> vdb_mgr;
+        args . accession_short = tool_ctx -> accession_short;
+        args . accession_path = tool_ctx -> accession_path;
+        args . output_filename = tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename;
+        args . seq_defline = tool_ctx -> seq_defline;
+        args . tbl_name = tbl_name;
+        args . stats = &stats;
+        args . join_options = &( tool_ctx -> join_options );
+        args . cursor_cache = tool_ctx -> cursor_cache;
+        args . buf_size = tool_ctx -> buf_size;
+        args . num_threads = tool_ctx -> num_threads;
+        args . show_progress = tool_ctx -> show_progress;
+        args . force = tool_ctx -> force;
+        rc = execute_unsorted_fasta_tbl_join( &args ); /* tbl_join.c */
     } else {
         /* this is for 'sorted' SPECIAL/FASTQ/FASTA x whole-spot/split-spot/split-file/split-3
            sorted means in the order of the SEQUENCE-table */
@@ -1081,22 +1084,24 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
         }
 
         if ( 0 == rc ) {
-            rc = execute_tbl_join( tool_ctx -> dir,
-                            tool_ctx -> vdb_mgr,
-                            tool_ctx -> accession_short,
-                            tool_ctx -> accession_path,
-                            tool_ctx -> seq_defline,
-                            tool_ctx -> qual_defline,
-                            tbl_name,
-                            &stats,
-                            &( tool_ctx -> join_options ),
-                            tool_ctx -> temp_dir,
-                            registry,
-                            tool_ctx -> cursor_cache,
-                            tool_ctx -> buf_size,
-                            tool_ctx -> num_threads,
-                            tool_ctx -> show_progress,
-                            tool_ctx -> fmt ); /* tbl_join.c */
+            execute_tbl_join_args_t args; /* tbl_join.h */
+            args . dir = tool_ctx -> dir;
+            args . vdb_mgr = tool_ctx -> vdb_mgr;
+            args . accession_short = tool_ctx -> accession_short;
+            args . accession_path = tool_ctx -> accession_path;
+            args . seq_defline = tool_ctx -> seq_defline;
+            args . qual_defline = tool_ctx -> qual_defline;
+            args . tbl_name = tbl_name;
+            args . stats = &stats;
+            args . join_options = &( tool_ctx -> join_options );
+            args . temp_dir = tool_ctx -> temp_dir;
+            args . registry = registry;
+            args . cursor_cache = tool_ctx -> cursor_cache;
+            args . buf_size = tool_ctx -> buf_size;
+            args . num_threads = tool_ctx -> num_threads;
+            args . show_progress = tool_ctx -> show_progress;
+            args . fmt = tool_ctx -> fmt;
+            rc = execute_tbl_join( &args ); /* tbl_join.c */
         }
 
         if ( 0 == rc ) {

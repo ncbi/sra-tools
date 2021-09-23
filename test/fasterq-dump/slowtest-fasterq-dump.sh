@@ -241,6 +241,7 @@ function test_unsorted_fasta {
     fi
     time "$TOOL" "$1" --fasta-unsorted -pf -o $1.faster.fasta --seq-defline '>$ac.$si $sn length=$rl'
     ./fasta_2_line.py $1.faster.fasta | sort > $1.faster.fasta.sorted
+    rm $1.faster.fasta
     produce_md5_and_compare "$1.faster.fasta.sorted" "$MD5REFERENCE"
 }
 
@@ -280,7 +281,7 @@ mkdir -p ref_md5
 
 #------------------------------------------------------------------------------------------
 ACC1="SRR000001"
-ACC2="SRR341578"
+#ACC2="SRR341578"
 #------------------------------------------------------------------------------------------
 
 ACCESSIONS="$ACC1 $ACC2"

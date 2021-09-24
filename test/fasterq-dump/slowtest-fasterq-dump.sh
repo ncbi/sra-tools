@@ -326,7 +326,7 @@ do
     test_split_3_fasta $acc
 
     test_unsorted_fasta $acc
-    #test_unsorted_fasta_parts $acc
+    test_unsorted_fasta_parts $acc
 
     rm -rf $acc
 done

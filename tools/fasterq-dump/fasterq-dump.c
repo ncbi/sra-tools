@@ -227,7 +227,7 @@ OptDef ToolOptions[] = {
     { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,  false },
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,  false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
-    { OPTION_ONLY_ALIG,     ALIAS_ONLY_ALIG,    NULL, only_a_usage,        1, false,  false },
+    { OPTION_ONLY_ALIG,     ALIAS_ONLY_ALIG,    NULL, only_a_usage,         1, false,  false },
     { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
 };
 

@@ -2123,8 +2123,8 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
             rc = extract_align_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
                                           args -> cur_cache, &align_row_count ); /* above */
         }
-
-        if ( 0 == rc && seq_row_count > 0 ) {
+        
+        if ( 0 == rc && ( seq_row_count > 0 || align_row_count > 0 ) ) {
             struct multi_writer_t * multi_writer = create_multi_writer( args -> dir,
                     args -> output_filename,
                     args -> buf_size,

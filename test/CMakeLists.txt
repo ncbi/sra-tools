@@ -33,8 +33,8 @@ add_subdirectory(make-read-filter)
 add_subdirectory(ngs-java)
 add_subdirectory(ngs-pileup)
 add_subdirectory(ngs-python)
-# add_subdirectory(prefetch)
-# add_subdirectory(qual-recalib-stat)
+add_subdirectory(prefetch) # TODO ascp ?
+add_subdirectory(qual-recalib-stat)
 add_subdirectory(read-filter-redact)
 # # add_subdirectory(samline) # command line tool; needs arguments to become a test?
 add_subdirectory(scripts)
@@ -48,7 +48,7 @@ add_subdirectory(vcf-loader) # TODO: for some reason it works even without setti
 add_subdirectory(vdb-config)
 add_subdirectory(vdb-copy)
 add_subdirectory(vdb-diff) # was not included in runtests
-# add_subdirectory(vdb-dump) # TODO - ??
+add_subdirectory(vdb-dump)
 add_subdirectory(vdb-validate)
 
 # add_subdirectory(fuse) # retired

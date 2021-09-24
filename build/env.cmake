@@ -164,23 +164,6 @@ endif()
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
 
 # ===========================================================================
-# ncbi-vdb binaries
-
-if( VDB_LIBDIR )
-	set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
-else()
-    #TODO try to guess the location?
-    message( FATAL_ERROR "Please specify the location of ncbi-vdb libraries in Cmake variable VDB_LIBDIR")
-endif()
-
-if ( NOT NCBI_VDB_ILIBDIR )
-    set( NCBI_VDB_ILIBDIR ${VDB_LIBDIR}/../ilib )
-endif()
-
-link_directories( ${NCBI_VDB_LIBDIR} )
-link_directories( ${NCBI_VDB_ILIBDIR} )
-
-# ===========================================================================
 # 3d party packages
 
 # Flex/Bison
@@ -200,6 +183,9 @@ find_package( Python3 COMPONENTS Interpreter )
 
 enable_testing()
 
+# ===========================================================================
+# singfle vs. multitarget generators, ncbi-vdb binaries
+
 function(SetAndCreate var path )
     if( NOT DEFINED ${var} )
         set( ${var} ${path} PARENT_SCOPE )
@@ -209,25 +195,51 @@ endfunction()
 
 if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
+    set( SINGLE_CONFIG false )
+
+    if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
+        message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain one or both subdirectories Debug/ and Release/, with bin/, lib/ and ilib/ underneath each.")
+    endif()
+
+    set( NCBI_VDB_BINDIR_DEBUG ${VDB_BINDIR}/Debug/bin )
+    set( NCBI_VDB_BINDIR_RELEASE ${VDB_BINDIR}/Release/bin )
+
+    set( NCBI_VDB_LIBDIR_DEBUG ${VDB_BINDIR}/Debug/lib )
+    set( NCBI_VDB_LIBDIR_RELEASE ${VDB_BINDIR}/Release/lib )
+
+    set( NCBI_VDB_ILIBDIR_DEBUG ${VDB_BINDIR}/Debug/ilib )
+    set( NCBI_VDB_ILIBDIR_RELEASE ${VDB_BINDIR}/Release/ilib )
+
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/bin )
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/bin )
     SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/lib )
     SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/lib )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG            ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE          ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE} )
-    set( CMAKE_JAR_OUTPUT_DIRECTORY_DEBUG                ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} )
-    set( CMAKE_JAR_OUTPUT_DIRECTORY_RELEASE              ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE} )
+    set( CMAKE_JAR_OUTPUT_DIRECTORY                      ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} ) # both Debug and Release share this
 
-    set( SINGLE_CONFIG false )
+    link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
+    link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_ILIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_ILIBDIR_RELEASE}> )
+
 else() # assume a single-config generator
+    set( SINGLE_CONFIG true )
+
+    if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
+        message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
+    endif()
+
+    set( NCBI_VDB_BINDIR ${VDB_BINDIR}/bin )
+    set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
+    set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
+
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
     SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY          ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
     set( CMAKE_JAR_OUTPUT_DIRECTORY              ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 
-    set( SINGLE_CONFIG true )
+    link_directories( ${NCBI_VDB_LIBDIR} )
+    link_directories( ${NCBI_VDB_ILIBDIR} )
 endif()
-
 
 function( MSVS_StaticRuntime name )
     if( WIN32 )
@@ -333,8 +345,6 @@ function(ExportShared lib install)
 endfunction()
 
 set( CMAKE_POSITION_INDEPENDENT_CODE True )
-
-message( "CMAKE_LIBRARY_OUTPUT_DIRECTORY: ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" )
 
 set( COMMON_LINK_LIBRARIES kapp tk-version )
 if( WIN32 )

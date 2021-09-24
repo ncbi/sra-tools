@@ -1,18 +1,3 @@
-if( WIN32 )
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
-
-	message( "CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG}" )
-	message( "CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE: ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE}" )
-
-    #include( CMakeLists.win.txt )
-elseif( SINGLE_CONFIG )
-    #include( CMakeLists.posix.txt )
-else() # XCode
-    #include( CMakeLists.xcode.txt )
-endif()
-
-
 add_subdirectory( adapter )
 add_subdirectory( dispatch )
 add_subdirectory( language )

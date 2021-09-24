@@ -7,14 +7,14 @@ if ( Java_FOUND )
 	        ngs_test_CSRA1.java
     )
 
-    set( NGS_JAVA_JAR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngs-java.jar )
+    set( NGS_JAVA_JAR ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-java.jar )
     set( JUNIT_JAR ${CMAKE_CURRENT_SOURCE_DIR}/junit-4.11.jar )
     set( CMAKE_JAVA_INCLUDE_PATH ${NGS_JAVA_JAR} ${JUNIT_JAR} )
 
     add_jar( test-ngs-java
         SOURCES ${NGS_SRC}
-        INCLUDE_JARS ${NGS_JAVA_JAR}
-        OUTPUT_DIR ${CMAKE_TEST_OUTPUT_DIRECTORY}
+        INCLUDE_JARS ngs-java ${JUNIT_JAR}
+        OUTPUT_DIR ${CMAKE_JAR_OUTPUT_DIRECTORY}
     )
 
     # use standard java System.loadLibrary
@@ -28,15 +28,27 @@ if ( Java_FOUND )
 
     set( VARS ${VARS} -Dvdb.log=FINEST )
 
-    set( JAVA_CMD ${Java_JAVA_EXECUTABLE} -cp ${CMAKE_TEST_OUTPUT_DIRECTORY}/test-ngs-java.jar:${NGS_JAVA_JAR}:${JUNIT_JAR} -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} ${VARS} org.junit.runner.JUnitCore )
+    set( classpaths "${CMAKE_JAR_OUTPUT_DIRECTORY}/test-ngs-java.jar" "${NGS_JAVA_JAR}" "${JUNIT_JAR}" )
+    cmake_path( CONVERT "${classpaths}" TO_NATIVE_PATH_LIST CLASSPATH )
+
+    set( libpaths
+            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+            "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>"
+            "$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>"
+
+            "${NCBI_VDB_LIBDIR}"
+            "$<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>"
+            "$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>"
+    )
+    cmake_path( CONVERT "${libpaths}" TO_NATIVE_PATH_LIST LIBPATH )
 
     add_test( NAME Test_NgsJava_lib_load
-        COMMAND ${JAVA_CMD} gov.nih.nlm.ncbi.ngs.ngs_test_lib_load
+        COMMAND ${Java_JAVA_EXECUTABLE} -cp "${CLASSPATH}" ${VARS} org.junit.runner.JUnitCore gov.nih.nlm.ncbi.ngs.ngs_test_lib_load
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
     add_test( NAME SlowTest_NgsJava_CSRA1
-        COMMAND ${JAVA_CMD} ngs_test_CSRA1
+        COMMAND ${Java_JAVA_EXECUTABLE} -cp "${CLASSPATH}" "-Djava.library.path=${LIBPATH}" ${VARS} org.junit.runner.JUnitCore ngs_test_CSRA1
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 

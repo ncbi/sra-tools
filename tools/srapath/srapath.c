@@ -230,12 +230,12 @@ static rc_t KSrvRun_Print(
             if (q == eQualNo || q == eQualFull) {
                 char msg[256] = "";
                 string_printf(msg, sizeof msg, NULL,
-                    "'%s' is an SRA %s file:%s",
+                    "'%s' is an SRA %s file%s:",
                     arg,
                     q == eQualNo ? "Lite" : "Normalized Format",
                     preferred == q ? "" :
-                     ", if this is different from your"
-                     " preference, it may be due to current file availability");
+                     ", if this is different from your "
+                     "preference, it may be due to current file availability");
                 STSMSG(1, (msg));
             }
         }

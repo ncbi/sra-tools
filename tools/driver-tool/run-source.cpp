@@ -223,6 +223,7 @@ struct Response2 {
             opt_string md5;
             opt_string format;
             opt_string modificationDate;
+            bool noqual;
             Locations locations;
             
             FileEntry(ncbi::JSONObject const &obj)
@@ -233,6 +234,7 @@ struct Response2 {
             , md5(getOptionalString(obj, "md5"))
             , format(getOptionalString(obj, "format"))
             , modificationDate(getOptionalString(obj, "modificationDate"))
+            , noqual(getOptionalBool(obj, "noqual", false))
             {
                 type = guess_type(type_, object);
                 forEach(obj, "locations", [&](ncbi::JSONValue const &value) {
@@ -279,7 +281,7 @@ struct Response2 {
             }
 
             /// @brief This is part of the interface to the rest of the program
-            source make_source(LocationEntry const &location, std::string const &accession, Service::LocalInfo::FileInfo const &fileInfo) const {
+            source make_source(LocationEntry const &location, std::string const &accession, Service::FileInfo const &fileInfo) const {
                 auto result = source();
                 
                 if ((result.haveLocalPath = fileInfo.have) != false) {
@@ -297,6 +299,8 @@ struct Response2 {
                 result.encrypted = location.projectId;
                 result.projectId = result.encrypted ? location.projectId.value() : std::string();
                 result.haveAccession = true;
+                result.fullQuality = !noqual;
+                result.haveQualityType = true;
                 
                 return result;
             }
@@ -460,22 +464,6 @@ void data_sources::preferNoQual() {
     VDBManagerRelease(v);
 }
 
-std::pair<std::vector<std::string>, std::vector<std::string>> split_by_type(std::vector<std::string> const &runs)
-{
-    std::vector<std::string> sra, nonsra;
-    std::set<std::string> seen;
-
-    for (auto && i : runs) {
-        if (!seen.insert(i).second) continue;
-
-        if (isSRAPattern(i))
-            sra.push_back(i);
-        else
-            nonsra.push_back(i);
-    }
-    return {sra, nonsra};
-}
-
 data_sources::data_sources(std::vector<std::string> const &runs)
 {
     have_ce_token = false;
@@ -488,6 +476,20 @@ data_sources::data_sources(std::vector<std::string> const &runs)
         s.haveLocalPath = true;
         addSource(data_source(s));
     }
+}
+
+data_sources::QualityPreference data_sources::qualityPreference() {
+    QualityPreference result = {};
+
+    switch (Service::preferredQualityType()) {
+    case vdb::Service::full:
+        result.isFullQuality = true;
+    case vdb::Service::none:
+        result.isSet = true;
+    default:
+        break;
+    }
+    return result;
 }
 
 data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
@@ -503,8 +505,8 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
     if (have_ce_token) ce_token_ = ceToken;
     auto not_processed = std::set<std::string>(runs.begin(), runs.end());
 
+    auto const service = Service::make();
     auto run_query = [&](std::vector<std::string> const &terms) {
-        auto const &service = Service::make();
         auto const &response = get_SDL_response(service, terms, have_ce_token);
         LOG(8) << "SDL response:\n" << response << std::endl;
 
@@ -586,10 +588,19 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
     }
     // make "file" sources for unprocessed or unrecognized query items
     for (auto const &run : not_processed) {
-        source s = {};
+        auto const fi = service.localInfo(run);
+        auto s = source();
+
         s.accession = run;
-        s.localPath = run;
-        s.haveLocalPath = true;
+        if ((s.haveLocalPath = fi.have) != false)
+            s.localPath = fi.path;
+        if ((s.haveCachePath = !fi.cachepath.empty()) != false)
+            s.cachePath = fi.cachepath;
+        if ((s.haveSize = fi.size != 0) != false)
+            s.fileSize = fi.size;
+        s.haveQualityType = fi.qualityType != vdb::Service::unknown;
+        s.fullQuality = fi.qualityType == vdb::Service::full;
+
         addSource(data_source(s));
     }
 }

@@ -33,16 +33,20 @@
 #include <vfs/path.h>
 #include <vfs/resolver-priv.h> /* VResolverGetProject */
 #include <vfs/services.h> /* KServiceMake */
+#include <vfs/services-priv.h> /* KServiceGetQuality */
 
 #include <kfs/directory.h>
 #include <kapp/main.h>
 #include <kapp/args.h>
-#include <klib/text.h>
+
 #include <klib/log.h>
 #include <klib/out.h>
-#include <klib/status.h> /* STSMSG */
+#include <klib/printf.h> /* string_printf */
 #include <klib/rc.h>
+#include <klib/status.h> /* STSMSG */
+#include <klib/text.h>
 #include <klib/vector.h>
+
 #include <sysalloc.h>
 
 
@@ -204,11 +208,12 @@ rc_t CC Usage( const Args *args )
     return rc;
 }
 
-static rc_t KSrvRun_Print(const KSrvRun * self) {
+static rc_t KSrvRun_Print(
+    const KSrvRun * self, const char * arg, VQuality preferred)
+{
     const VPath * local = NULL;
     const VPath * remote = NULL;
     const VPath * path = NULL;
-/*  const VPath * vdbcache = NULL; */
     const String * tmp = NULL;
 
     rc_t rc = KSrvRunQuery(self, &local, &remote, NULL, NULL);
@@ -219,16 +224,21 @@ static rc_t KSrvRun_Print(const KSrvRun * self) {
             path = remote;
     }
 
-    /*rc_t rc = KSrvRespFileGetLocal(self, &path);
-    if (rc != 0) {
-        KSrvRespFileIterator * fi = NULL;
-        rc = KSrvRespFileMakeIterator(self, &fi);
-        if (rc == 0)
-            rc = KSrvRespFileIteratorNextPath(fi, &path);
-        RELEASE(KSrvRespFileIterator, fi);
-    }*/
-
     if (path != NULL) {
+        VQuality q = VPathGetQuality(path);
+        if (q < eQualLast) {
+            if (q == eQualNo || q == eQualFull) {
+                char msg[256] = "";
+                string_printf(msg, sizeof msg, NULL,
+                    "'%s' is an SRA %s file:%s",
+                    arg,
+                    q == eQualNo ? "Lite" : "Normalized Format",
+                    preferred == q ? "" :
+                     ", if this is different from your"
+                     " preference, it may be due to current file availability");
+                STSMSG(1, (msg));
+            }
+        }
         rc = VPathMakeString(path, &tmp);
         if (rc == 0) {
             OUTMSG(("%S\n", tmp));
@@ -308,9 +318,37 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
         }
 
         if ( rc == 0 ) {
+            VQuality q = eQualLast;
             VRemoteProtocols protocol = eProtocolHttps;
             const KSrvResponse * response = NULL;
             rc = KServiceNamesQuery ( service, protocol, & response );
+
+            {
+                const char * quality = NULL;
+                rc_t r2 = KServiceGetQuality(service, &quality);
+                if (r2 != 0) {
+                    if (rc == 0)
+                        rc = r2;
+                }
+                else if (quality != NULL) {
+                    const char * msg = NULL;
+                    switch (quality[0]) {
+                    case 'Z':
+                        q = eQualNo;
+                        msg = "Current preference is set to retrieve SRA "
+                            "Lite files with simplified base quality scores.";
+                        break;
+                    case 'R':
+                        q = eQualFull;
+                        msg = "Current preference is set to retrieve SRA "
+                            "Normalized Format files with full base quality scores.";
+                        break;
+                    }
+                    if (msg != NULL)
+                        STSMSG(1, (msg));
+                }
+            }
+
             if ( rc == 0 ) {
                 KSrvRunIterator * ri = NULL;
                 const KSrvRun * run = NULL;
@@ -320,7 +358,7 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver,
                 if ( rc == 0 ) {
                     rc = KSrvRunIteratorNextRun ( ri, & run );
                     if ( rc == 0 && run != NULL ) {
-                        rc = KSrvRun_Print ( run );
+                        rc = KSrvRun_Print ( run, pc, q );
                         found = true;
                     }
                     for ( i = 0; !found && i < l && rc == 0; ++ i ) {

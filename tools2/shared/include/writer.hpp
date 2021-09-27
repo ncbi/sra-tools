@@ -34,8 +34,6 @@
 #include <algorithm>
 #include <cstdio>
 
-#include "vdb.hpp"
-
 namespace VDB {
     class Writer {
         enum EventCode {
@@ -65,7 +63,17 @@ namespace VDB {
             
             dbMeta,
             tableMeta,
-            columnMeta
+            columnMeta,
+
+            dbMeta2,
+            tableMeta2,
+            columnMeta2,
+
+            addMbrDb, // ???
+            addMbrTbl, // ???
+
+            logMesg,
+            progressMesg
         };
         FILE *stream;
         
@@ -113,9 +121,9 @@ namespace VDB {
                     && fwrite(&zero, 1, padding, stream) == padding;
             }
         public:
-            String1Event(EventCode const code, unsigned const id, std::string const &str_)
+            String1Event(EventCode const code, unsigned const id, std::string const &str)
             : eid((code << 24) + id)
-            , str(str_)
+            , str(str)
             {}
         };
         
@@ -210,6 +218,16 @@ namespace VDB {
         : stream(stream_)
         {
             StreamHeader().write(stream);
+        }
+
+        bool logMessage(std::string const &message) const
+        {
+            return String1Event(logMesg, 0, message).write(stream);
+        }
+
+        bool progressMessage(std::string const &message) const
+        {
+            return String1Event(progressMesg, 0, message).write(stream);
         }
 
         bool errorMessage(std::string const &message) const
@@ -329,10 +347,20 @@ public:
     using VDB::Writer::setMetadata;
     using VDB::Writer::endWriting;
     using VDB::Writer::flush;
+    using VDB::Writer::errorMessage;
+    using VDB::Writer::logMessage;
+    using VDB::Writer::progressMessage;
 
     struct ColumnDefinition {
         char const *name;
+        char const *expr;
         int elemSize;
+
+        ColumnDefinition(char const *const name, int const elemSize, char const *expr = nullptr)
+        : name(name)
+        , expr(expr == nullptr ? name : expr)
+        , elemSize(elemSize)
+        {}
     };
     
     class Column;
@@ -364,12 +392,14 @@ public:
         Writer2 const &parent;
         Column(Writer2 const &p, Writer2::ColumnID n) : parent(p), columnNumber(n) {}
     public:
+#if __VDB_HPP_INCLUDED__
         bool setValue(VDB::Cursor::Data const *data) const {
             return setValue(data->elements, data->elem_bits >> 3, data->data());
         }
         bool setValue(VDB::Cursor::DataList const *data) const {
             return setValue(static_cast<VDB::Cursor::Data const *>(data));
         }
+#endif
         template <typename T>
         bool setValue(T const &data) const {
             return parent.value(columnNumber, data);
@@ -420,7 +450,7 @@ public:
         openTable(tableNo, name);
         for (auto && i : list) {
             auto const columnNo = ++nextColumn;
-            openColumn(columnNo, tableNo, i.elemSize * 8, i.name);
+            openColumn(columnNo, tableNo, i.elemSize * 8, i.expr);
             columns[i.name] = columnNo;
         }
         tables[name] = std::make_pair(tableNo, columns);
@@ -428,9 +458,11 @@ public:
     bool setValue(ColumnID columnNumber, unsigned count, unsigned elsize, void const *data) const {
         return value(columnNumber, count, elsize, data);
     }
+#if __VDB_HPP_INCLUDED__
     bool setValue(ColumnID columnNumber, VDB::Cursor::Data const *data) const {
         return setValue(columnNumber, data->elements, data->elem_bits >> 3, data->data());
     }
+#endif
 };
 
 

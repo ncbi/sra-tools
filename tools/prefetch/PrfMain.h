@@ -196,7 +196,6 @@ rc_t PrfMainFini(PrfMain *self);
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
-#define STS_TOP  0
 #define STS_INFO 1
 #define STS_DBG  2
 #define STS_FIN  3

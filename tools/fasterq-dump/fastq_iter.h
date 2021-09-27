@@ -50,6 +50,7 @@ typedef struct fastq_iter_opt
    bool with_read_type;
    bool with_cmp_read;
    bool with_quality;
+   bool with_spotgroup;
 } fastq_iter_opt_t;
 
 typedef struct fastq_rec_t
@@ -64,6 +65,7 @@ typedef struct fastq_rec_t
     String name;
     String read;
     String quality;
+    String spotgroup;
 } fastq_rec_t;
 
 struct fastq_csra_iter_t;

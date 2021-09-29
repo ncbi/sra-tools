@@ -10,7 +10,6 @@ add_executable( samview
 )
 if( WIN32 )
 	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-	MSVS_StaticRuntime( samview )
 else()
 	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb m )
 endif()
@@ -29,5 +28,4 @@ if( NOT WIN32)
 		low-match-count
 	)
 	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb )
-	MSVS_StaticRuntime( bam-load )
 endif()

@@ -9,8 +9,6 @@ endif()
 # External
 add_executable( vdb-validate vdb-validate )
 target_link_libraries( vdb-validate ${COMMON_LINK_LIBRARIES} ncbi-vdb ${ADDITIONAL_LIBS} )
-MSVS_StaticRuntime( vdb-validate )
 
 add_executable( check-corrupt check-corrupt )
 target_link_libraries( check-corrupt ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( check-corrupt )

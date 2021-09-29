@@ -7,7 +7,6 @@ add_executable( kar
 	kar
 )
 target_link_libraries( kar ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( kar )
 
 add_executable( kar+
 	kar-path
@@ -17,16 +16,13 @@ add_executable( kar+
 	kar+
 )
 target_link_libraries( kar+ ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( kar+ )
 
 add_executable( kar+meta
 	kar+util
 	kar+meta
 )
 target_link_libraries( kar+meta ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
-MSVS_StaticRuntime( kar+meta )
 
 # # ?
 # add_executable( sra-kar sra-kar )
 # target_link_libraries( sra-kar ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
-# MSVS_StaticRuntime( sra-kar )

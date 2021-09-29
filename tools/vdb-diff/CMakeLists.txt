@@ -11,4 +11,3 @@ add_executable( vdb-diff
 	vdb-diff
 )
 target_link_libraries( vdb-diff ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( vdb-diff )

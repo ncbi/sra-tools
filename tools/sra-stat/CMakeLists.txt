@@ -13,4 +13,3 @@ add_executable( sra-stat
 	sra-stat
 )
 target_link_libraries( sra-stat ${COMMON_LINK_LIBRARIES} load ncbi-vdb ${ADDITIONAL_LIBRARIES} )
-MSVS_StaticRuntime( sra-stat )

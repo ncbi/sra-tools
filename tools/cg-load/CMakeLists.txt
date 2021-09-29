@@ -28,16 +28,12 @@ set( CGLOAD_SRC
 add_executable( cg-load ${CGLOAD_SRC} )
 
 set( CGLOAD_LIB
-	kapp
-	tk-version
 	load
 	ncbi-wvdb
+    ${COMMON_LINK_LIBRARIES}
 )
-if( WIN32 )
-	list( APPEND CGLOAD_LIB Ws2_32 Crypt32 )
-else()
+if( NOT WIN32 )
 	list( APPEND CGLOAD_LIB m )
 endif()
 
 target_link_libraries( cg-load ${CGLOAD_LIB} )
-MSVS_StaticRuntime( cg-load )

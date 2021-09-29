@@ -74,11 +74,14 @@ endif ()
 # create variables based entirely upon OS
 if ( "mac" STREQUAL ${OS} )
     add_compile_definitions( MAC BSD UNIX )
+    set( EXE "" )
 elseif( "linux" STREQUAL ${OS} )
     add_compile_definitions( LINUX UNIX )
     set( LMCHECK -lmcheck )
+    set( EXE "" )
 elseif( "windows" STREQUAL ${OS} )
     add_compile_definitions( WINDOWS _WIN32_WINNT=0x0502 )
+    set( EXE ".exe" )
 endif()
 
 # create variables based entirely upon ARCH
@@ -218,6 +221,10 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE          ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE} )
     set( CMAKE_JAR_OUTPUT_DIRECTORY                      ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} ) # both Debug and Release share this
 
+    # to be used in add-test() as the location of executables.
+    # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
+    set( BINDIR "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
+
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_ILIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_ILIBDIR_RELEASE}> )
 
@@ -237,39 +244,23 @@ else() # assume a single-config generator
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY          ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
     set( CMAKE_JAR_OUTPUT_DIRECTORY              ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 
+    # to be used in add-test() as the location of executables.
+    # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
+    set( BINDIR "${CMAKE_BINARY_DIR}/bin" )
+
     link_directories( ${NCBI_VDB_LIBDIR} )
     link_directories( ${NCBI_VDB_ILIBDIR} )
 endif()
-
-function( MSVS_StaticRuntime name )
-    if( WIN32 )
-        set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    endif()
-endfunction()
-
-function( MSVS_DLLRuntime name )
-    if( WIN32 )
-        set_property(TARGET ${name} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-    endif()
-endfunction()
 
 function( GenerateStaticLibsWithDefs target_name sources compile_defs )
     add_library( ${target_name} STATIC ${sources} )
     if( NOT "" STREQUAL "${compile_defs}" )
         target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
     endif()
-    if( WIN32 )
-        MSVS_StaticRuntime( ${target_name} )
-        add_library( ${target_name}-md STATIC ${sources} )
-        if(NOT "" STREQUAL "${compile_defs}" )
-            target_compile_definitions( ${target_name}-md PRIVATE ${compile_defs} )
-        endif()
-        MSVS_DLLRuntime( ${target_name}-md )
-    endif()
 endfunction()
 
 function( GenerateStaticLibs target_name sources )
-   GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" )
+    GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" )
 endfunction()
 
 function( ExportStatic name install )
@@ -331,27 +322,19 @@ endfunction()
 # for a static library target, create a public shared target with the same base name and contents
 #
 function(ExportShared lib install)
-    get_target_property( src ${lib} SOURCES )
-    add_library( ${lib}-shared SHARED ${src} )
-    MSVS_StaticRuntime( ${lib}-shared )
-    set_target_properties( ${lib}-shared PROPERTIES OUTPUT_NAME ${lib} )
-    MakeLinksShared( ${lib}-shared ${lib} ${install} )
-
-    if( WIN32 )
-        add_library( ${lib}-shared-md SHARED ${src} )
-        MSVS_DLLRuntime( ${lib}-shared-md )
-        set_target_properties( ${lib}-shared-md PROPERTIES OUTPUT_NAME ${lib}-md )
+    if ( NOT WIN32 )
+        get_target_property( src ${lib} SOURCES )
+        add_library( ${lib}-shared SHARED ${src} )
+        set_target_properties( ${lib}-shared PROPERTIES OUTPUT_NAME ${lib} )
+        MakeLinksShared( ${lib}-shared ${lib} ${install} )
     endif()
 endfunction()
 
-set( CMAKE_POSITION_INDEPENDENT_CODE True )
-
 set( COMMON_LINK_LIBRARIES kapp tk-version )
+
 if( WIN32 )
-    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+    set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
-else()
-    # link_libraries( ${COMMON_LINK_LIBRARIES} )
-    # set( COMMON_LIBS_READ   ncbi-vdb  dl pthread )
-    # set( COMMON_LIBS_WRITE  ncbi-wvdb dl pthread )
+    # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries
+    # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  /INCREMENTAL:NO" )
 endif()

@@ -7,4 +7,3 @@ set( SRC
 
 add_executable( align-cache ${SRC} )
 target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ncbi-wvdb load )
-MSVS_StaticRuntime( align-cache )

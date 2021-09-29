@@ -8,17 +8,11 @@ set( VDB_SQL_LIB
 	ngs
 	ncbi-vdb
 )
-if( WIN32 )
-	list( APPEND VDB_SQL_LIB Ws2_32 Crypt32 )
-else()
+if( NOT WIN32 )
 	list( APPEND VDB_SQL_LIB m pthread dl )
 endif()
 
-target_link_libraries( vdb-sql ${VDB_SQL_LIB} )
-MSVS_StaticRuntime( vdb-sql )
-
+target_link_libraries( vdb-sql ${VDB_SQL_LIB} ${COMMON_LINK_LIBRARIES} )
 
 add_executable( fastconv fastconv )
-
 target_link_libraries( fastconv ${COMMON_LINK_LIBRARIES} ${VDB_SQL_LIB} )
-MSVS_StaticRuntime( fastconv )

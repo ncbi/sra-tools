@@ -12,7 +12,7 @@ if( NOT WIN32 )
         COMMAND
             ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
             ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
-            ./gendata.sh ${CMAKE_BINARY_DIR}/bin ${Python3_EXECUTABLE} ${TEMPDIR} ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
+            ./gendata.sh ${BINDIR} ${Python3_EXECUTABLE} ${TEMPDIR} ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
         DEPENDS generate-test-data.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
@@ -27,7 +27,7 @@ if( NOT WIN32 )
         ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
         ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
         ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
-        ./runtest.sh ${CMAKE_BINARY_DIR}/bin ${VDB_LIBDIR} ${TEMPDIR}
+        ./runtest.sh ${BINDIR} ${VDB_LIBDIR} ${TEMPDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 else()

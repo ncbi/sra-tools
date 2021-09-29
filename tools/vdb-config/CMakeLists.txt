@@ -10,4 +10,3 @@ add_executable( vdb-config
 	vdb-config-model
 )
 target_link_libraries ( vdb-config tui_cpp tui ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( vdb-config )

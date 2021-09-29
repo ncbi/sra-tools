@@ -10,4 +10,3 @@ add_executable( srapath
 	srapath
 )
 target_link_libraries( srapath ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( srapath )

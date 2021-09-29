@@ -16,7 +16,7 @@ if( HDF5_FOUND )
 		pl-progress
 		pacbio-load
 	)
-	
+
 	set( PACBIO_LOAD_LIB
 		kapp
 		tk-version
@@ -26,7 +26,6 @@ if( HDF5_FOUND )
 		ncbi-wvdb
 		m
 	)
-	
+
 	target_link_libraries( pacbio-load ${PACBIO_LOAD_LIB} )
-	MSVS_StaticRuntime( pacbio-load )
 endif()

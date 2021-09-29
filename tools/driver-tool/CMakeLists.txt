@@ -24,24 +24,15 @@ set( SRATOOLS_SRC
 	service
 )
 
-if( WIN32 )
-	set( ADDITIONAL_LIBS Ws2_32 Crypt32 )
-else()
+if( NOT WIN32 )
 	set( ADDITIONAL_LIBS m )
 endif()
 
-#GenerateStaticLibs( sratools "${SRATOOLS_SRC}" )
-add_executable( sratools "${SRATOOLS_SRC}" )
-MSVS_StaticRuntime( sratools )
-target_link_libraries( sratools ncbi-vdb json secure utf8proc ${ADDITIONAL_LIBS} )
-
-if( WIN32 )
-	add_executable( sratools-md "${SRATOOLS_SRC}" )
-	MSVS_DLLRuntime( sratools-md )
-	target_link_libraries( sratools-md ncbi-vdb-md json-md secure-md utf8proc-md ${ADDITIONAL_LIBS} )
-endif()
-
+#TODO: relevant?
 #if ((MSVC) AND (MSVC_VERSION GREATER_EQUAL 1914))
-#	target_compile_options(sratools INTERFACE "/Zc:__cplusplus")
+#      target_compile_options(sratools INTERFACE "/Zc:__cplusplus")
 #endif()
 #add_compile_definitions( __cplusplus=201103 )
+
+add_executable( sratools "${SRATOOLS_SRC}" )
+target_link_libraries( sratools ${COMMON_LINK_LIBRARIES} ncbi-vdb json secure utf8proc ${ADDITIONAL_LIBS} )

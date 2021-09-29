@@ -1,8 +1,6 @@
 add_compile_definitions( __mod__="tools/vdb-dump" )
 
-if( WIN32 )
-	set( ADDITIONAL_LIBS "" )
-else()
+if( NOT WIN32 )
 	set( ADDITIONAL_LIBS "m" )
 endif()
 
@@ -19,4 +17,3 @@ add_executable( vdb-dump
 	vdb-dump
 )
 target_link_libraries( vdb-dump ${COMMON_LINK_LIBRARIES} ncbi-vdb ${ADDITIONAL_LIBS} )
-MSVS_StaticRuntime( vdb-dump )

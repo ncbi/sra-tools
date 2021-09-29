@@ -13,7 +13,6 @@ add_executable( vdb-copy
 	vdb-copy
 )
 target_link_libraries( vdb-copy ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
-MSVS_StaticRuntime( vdb-copy )
 
 add_custom_command( TARGET vdb-copy POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/vdb-copy.kfg ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ncbi/vdb-copy.kfg

@@ -1,4 +1,4 @@
-if( NOT WIN32 ) 
+if( NOT WIN32 )
 
     add_executable( test-id2name test-id2name.cpp )
     target_link_libraries( test-id2name fastqloader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
@@ -23,7 +23,7 @@ if( NOT WIN32 )
         add_test( NAME Test_FastqLoader_${TestName}
             COMMAND
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                "./runtestcase.sh" "${CMAKE_BINARY_DIR}/bin" "." "${TestName}" "${Result}" "${TestParams}"
+                "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endmacro()
@@ -67,7 +67,7 @@ if( NOT WIN32 )
     add_test( NAME Test_FastqLoader_4.1
         COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            bash -c "${CMAKE_BINARY_DIR}/bin/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 | grep \"Path for scratch files: ./actual/key2id\""
+            bash -c "${BINDIR}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 | grep \"Path for scratch files: ./actual/key2id\""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     #           4.2 --qual-quant        quality values are quantized as specified

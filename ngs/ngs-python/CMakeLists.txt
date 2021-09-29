@@ -4,4 +4,10 @@ if( Python3_EXECUTABLE )
 
     #TODO: install
 
+    add_test(
+        NAME Test_NGS_Python_install
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py  -q install --user
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
 endif()

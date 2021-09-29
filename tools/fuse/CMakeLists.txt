@@ -41,7 +41,6 @@ if( LibXml2_FOUND  )
 		${OS_SPECIFIC_SRC}
 	)
 	target_link_libraries( sra-fuser ${COMMON_LINK_LIBRARIES} ncbi-vdb xml2 )
-	MSVS_StaticRuntime( sra-fuser )
 
 	add_executable( remote-fuser
 		log
@@ -57,5 +56,4 @@ if( LibXml2_FOUND  )
 		${OS_SPECIFIC_SRC}
 	)
 	target_link_libraries( remote-fuser ${COMMON_LINK_LIBRARIES} ncbi-wvdb srareader xml2 )
-	MSVS_StaticRuntime( remote-fuser )
 endif()

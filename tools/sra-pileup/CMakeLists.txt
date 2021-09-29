@@ -23,7 +23,6 @@ add_executable( sra-pileup
 	sra-pileup
 )
 target_link_libraries( sra-pileup ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( sra-pileup )
 
 add_executable( sam-dump
 	inputfiles
@@ -43,4 +42,3 @@ add_executable( sam-dump
 	sam-dump3
 )
 target_link_libraries( sam-dump ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-MSVS_StaticRuntime( sam-dump )

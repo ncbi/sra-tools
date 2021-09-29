@@ -22,7 +22,7 @@
 #
 # ===========================================================================
 
-cmake_minimum_required (VERSION 3.16)
+cmake_minimum_required (VERSION 3.20)
 if (WIN32)
 	set (CMAKE_SYSTEM_VERSION 10.0 CACHE STRING INTERNAL FORCE)
 endif()

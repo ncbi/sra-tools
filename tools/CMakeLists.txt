@@ -1,8 +1,8 @@
-if( WIN32 )
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
-endif()
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINDIR} )
 
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
+if( WIN32 )
+    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmain" )
+endif()
 
 add_subdirectory( driver-tool )
 add_subdirectory( util )

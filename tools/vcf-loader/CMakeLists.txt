@@ -21,4 +21,3 @@ add_library( vcfloader
 	vcf-reader
 	vcf-database
 )
-MSVS_StaticRuntime( vcfloader )

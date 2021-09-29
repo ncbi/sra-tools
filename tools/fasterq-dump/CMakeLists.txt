@@ -32,4 +32,3 @@ endif()
 
 add_executable( fasterq-dump "${TOOLS_SRC}" )
 target_link_libraries( fasterq-dump ${COMMON_LINK_LIBRARIES} ncbi-vdb ${ADDITIONAL_LIBS} )
-MSVS_StaticRuntime( fasterq-dump )

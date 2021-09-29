@@ -12,6 +12,3 @@ set( SRC
 
 GenerateStaticLibs( secure "${SRC}" )
 target_compile_definitions(secure PUBLIC "UTF8PROC_STATIC")
-if( WIN32 )
-	target_compile_definitions(secure-md PUBLIC "UTF8PROC_STATIC")
-endif()

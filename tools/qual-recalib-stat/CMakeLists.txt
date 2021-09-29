@@ -13,4 +13,3 @@ add_executable( qual-recalib-stat
 	qual-recalib-stat
 )
 target_link_libraries( qual-recalib-stat ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
-MSVS_StaticRuntime( qual-recalib-stat )

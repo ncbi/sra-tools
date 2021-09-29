@@ -6,15 +6,15 @@ endif()
 # to access tools themselves, use ${CMAKE_BINARY_DIR}/bin
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_TEST_OUTPUT_DIRECTORY} )
 
-set( COMMON_LINK_LIBRARIES ktst kapp )
+set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
+link_libraries( ${COMMON_LINK_LIBRARIES} )
 
 # for the tests that link against libncbi-[w]vdb
 if( WIN32 )
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
-    set( COMMON_LIBS_READ  ${COMMON_LINK_LIBRARIES} ncbi-vdb Ws2_32 Crypt32 )
-    set( COMMON_LIBS_WRITE ${COMMON_LINK_LIBRARIES} ncbi-wvdb Ws2_32 Crypt32 )
+    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmain" )
+    set( COMMON_LIBS_READ  ncbi-vdb)
+    set( COMMON_LIBS_WRITE ncbi-wvdb)
 else()
-    link_libraries( ${COMMON_LINK_LIBRARIES} )
     set( COMMON_LIBS_READ   ncbi-vdb  dl pthread )
     set( COMMON_LIBS_WRITE  ncbi-wvdb dl pthread )
 endif()

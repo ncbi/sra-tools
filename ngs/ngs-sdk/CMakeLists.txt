@@ -33,10 +33,6 @@ add_library( ngs-sdk-shared SHARED
 set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
 MakeLinksShared( ngs-sdk-shared ngs-sdk true )
 
-if( WIN32 )
-    link_libraries( Ws2_32 Crypt32 )
-endif()
-
 ##################################################################################
 # C++/Jni/Py wrappers for libncbi-vdb as a static library
 add_library( ncbi-ngs STATIC
@@ -56,6 +52,6 @@ add_library( ncbi-ngs-shared SHARED
     $<TARGET_OBJECTS:ngs-jni>
     $<TARGET_OBJECTS:ngs-py>
 )
-target_link_libraries( ncbi-ngs-shared ncbi-vdb )
+target_link_libraries( ncbi-ngs-shared ncbi-vdb ${COMMON_LINK_LIBRARIES} )
 set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
 MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )

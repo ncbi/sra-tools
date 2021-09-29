@@ -33,6 +33,8 @@
 #include <cstdint>
 #include <algorithm>
 #include <cstdio>
+#include <ctime>
+#include <unistd.h>
 
 namespace VDB {
     class Writer {
@@ -76,6 +78,24 @@ namespace VDB {
             progressMesg
         };
         FILE *stream;
+
+        class Version {
+            int major = 0;
+            int minor = 0;
+            int revision = 0;
+        public:
+            Version() {}
+            Version(std::string const &version) {
+                sscanf(version.c_str(), "%d.%d.%d", &major, &minor, &revision);
+            }
+            operator uint32_t() const {
+                return uint32_t(major & 0xFF) << 24
+                     | uint32_t(minor & 0xFF) << 16
+                     | uint32_t(revision & 0xFFFF);
+            }
+        };
+        mutable Version version;
+        mutable std::string name;
         
         class StreamHeader {
             friend Writer;
@@ -181,6 +201,54 @@ namespace VDB {
             {}
         };
 
+        class ProgressEvent {
+            friend Writer;
+            uint32_t eid;
+            uint32_t version;
+            uint32_t timestamp;
+            uint32_t pid;
+            uint32_t percent;
+            std::string const &message;
+
+            bool write(FILE *const stream) const {
+                uint32_t const zero = 0;
+                auto const size = (uint32_t)message.size();
+                auto const padding = (4 - (size & 3)) & 3;
+                return fwrite(&eid, sizeof(eid), 1, stream) == 1
+                    && fwrite(&version, sizeof(version), 1, stream) == 1
+                    && fwrite(&timestamp, sizeof(timestamp), 1, stream) == 1
+                    && fwrite(&pid, sizeof(pid), 1, stream) == 1
+                    && fwrite(&size, sizeof(size), 1, stream) == 1
+                    && fwrite(&percent, sizeof(percent), 1, stream) == 1
+                    && fwrite(message.data(), 1, size, stream) == size
+                    && fwrite(&zero, 1, padding, stream) == padding;
+            }
+            static uint32_t now() {
+                auto tm = time(nullptr);
+                return uint32_t(tm);
+            }
+            static uint32_t procId() {
+                return uint32_t(::getpid());
+            }
+        public:
+            ProgressEvent(unsigned const percent, uint32_t const timestamp, std::string const &message, Version const &version, uint32_t const pid)
+            : eid((progressMesg << 24) + 0)
+            , version(version)
+            , timestamp(timestamp)
+            , pid(pid)
+            , percent(percent)
+            , message(message)
+            {}
+            ProgressEvent(unsigned const percent, std::string const &message, Version const &version)
+            : eid((progressMesg << 24) + 0)
+            , version(version)
+            , timestamp(now())
+            , pid(procId())
+            , percent(percent)
+            , message(message)
+            {}
+        };
+
         bool write(EventCode const code, unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
         {
             uint32_t const eid = (code << 24) + cid;
@@ -225,9 +293,9 @@ namespace VDB {
             return String1Event(logMesg, 0, message).write(stream);
         }
 
-        bool progressMessage(std::string const &message) const
+        bool progressMessage(unsigned const percent) const
         {
-            return String1Event(progressMesg, 0, message).write(stream);
+            return ProgressEvent(percent, name, version).write(stream);
         }
 
         bool errorMessage(std::string const &message) const
@@ -247,6 +315,8 @@ namespace VDB {
         
         bool info(std::string const &name, std::string const &version) const
         {
+            this->name = name;
+            this->version = Version(version);
             return String2Event(writerName, 0, name, version).write(stream);
         }
         
@@ -384,6 +454,9 @@ public:
         bool closeRow() const {
             return parent.closeRow(table);
         }
+        bool setMetadata(std::string const &name, std::string const &value) const {
+            return parent.setMetadata(VDB::Writer::table, table, name, value);
+        }
     };
 
     class Column {
@@ -428,6 +501,9 @@ public:
         bool setDefaultEmpty() const {
             return parent.defaultValue(columnNumber, 0, "");
         }
+        bool setMetadata(std::string const &name, std::string const &value) const {
+            return parent.setMetadata(VDB::Writer::column, columnNumber, name, value);
+        }
     };
 
     Table table(std::string const &table) const {
@@ -457,6 +533,9 @@ public:
     }
     bool setValue(ColumnID columnNumber, unsigned count, unsigned elsize, void const *data) const {
         return value(columnNumber, count, elsize, data);
+    }
+    bool setDatabaseMetadata(std::string const &name, std::string const &value) const {
+        return setMetadata(VDB::Writer::database, 0, name, value);
     }
 #if __VDB_HPP_INCLUDED__
     bool setValue(ColumnID columnNumber, VDB::Cursor::Data const *data) const {

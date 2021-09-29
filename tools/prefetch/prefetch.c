@@ -485,7 +485,12 @@ static rc_t V_ResolverRemote(const VResolver *self,
                 "ngc=%s", item->mane->ngc));
     }
 
+    if (rc == 0)// && item->mane->force != eForceNo)
+        rc = KServiceResolve(service, true, true);
+
     if ( rc == 0 ) {
+        rc_t r2 = 0;
+        const char * quality = NULL;
 #ifdef DBGNG
         STSMSG(STS_FIN, ("%s: entering KServiceNamesQueryExt...", __func__));
 #endif
@@ -495,6 +500,26 @@ static rc_t V_ResolverRemote(const VResolver *self,
         STSMSG(STS_FIN, ("%s: ...KServiceNamesQueryExt done with %R", __func__,
             rc));
 #endif
+        r2 = KServiceGetQuality(service, &quality);
+        if (r2 != 0) {
+            if (rc == 0)
+                rc = r2;
+        }
+        else if (quality != NULL) {
+            const char * msg = NULL;
+            switch (quality[0]) {
+            case 'Z':
+                msg = "Current preference is set to retrieve SRA "
+                      "Lite files with simplified base quality scores.";
+                break;
+            case 'R':
+                msg = "Current preference is set to retrieve SRA "
+                      "Normalized Format files with full base quality scores.";
+                break;
+            }
+            if (msg != NULL)
+                STSMSG(STAT_ALWAYS, (msg));
+        }
     }
 
     if ( rc == 0 )
@@ -726,6 +751,7 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             DISP_RC2(rc, "StringCopy(VResolverCache)", name);
         }
     
+        /* resolved->path is initialized with cache location */
         if (rc == 0)
             rc = VPathStrInit(&resolved->path, vcache);
     }
@@ -984,17 +1010,17 @@ static rc_t ResolvedLocal(const Resolved *self,
         if (transFile); /* ignore it: will resume */
         else if (force == eForceNo) {
             if (type == kptDir && VPathIsAccessionOrOID(self->local.path))
-                STSMSG(STS_TOP,
+                STSMSG(STAT_ALWAYS,
                     ("directory %s will be checked for missed files", path));
             else {
-                STSMSG(STS_TOP,
+                STSMSG(STAT_ALWAYS,
                     ("%s (not a file) is found locally: consider it complete",
                         path));
                 *isLocal = true;
             }
         }
         else {
-            STSMSG(STS_TOP,
+            STSMSG(STAT_ALWAYS,
                 ("%s (not a file) is found locally and will be redownloaded",
                  path));
         }
@@ -1076,10 +1102,21 @@ static rc_t ResolvedLocal(const Resolved *self,
                         path, sLocal));
                 }
             }
-            else
-                STSMSG(STS_TOP, (
-                    "%s (%,lu) is incomplete. Expected size is %,lu. "
-                    "It will be re-downloaded", path, sLocal, sRemote));
+            else {
+                /* resolved->path is initialized with cache location */
+                VQuality qCache = VPathGetQuality(self->path.path);
+
+                VQuality qLocal = VPathGetQuality(self->local.path);
+                
+                if (qCache != eQualDefault && qCache == qLocal)
+                    STSMSG(STAT_ALWAYS, (
+                        "%s (%,lu) is incomplete. Expected size is %,lu. "
+                        "It will be re-downloaded", path, sLocal, sRemote));
+                else
+                    STSMSG(STS_INFO, (
+                        "%s (%,lu) is found locally with different quality. "
+                        "Ignored", path, sLocal));
+            }
         }
     }
 
@@ -1251,7 +1288,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
 
     const VPathStr * remote = NULL;
 
-    KStsLevel lvl = STS_INFO;
+    KStsLevel lvl = STAT_PWR;
 
     char spath[PATH_MAX] = "";
     size_t len = 0;
@@ -1437,7 +1474,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
     destroy_progressbar(pb);
 
     if (rc == 0 && !mane->dryRun)
-        STSMSG(STS_INFO, ("%s (%ld)", pof->tmpName, pof->pos));
+        STSMSG(STAT_PWR, ("%s (%ld)", pof->tmpName, pof->pos));
 
     RELEASE(KFile, in);
 
@@ -1595,7 +1632,7 @@ static rc_t POFValidate(PrfOutFile * self,
     {
         KStsLevel lvl = STS_DBG;
         if (self->pos > 20 * 1024 * 1024 * 1024L)
-            lvl = STS_TOP;
+            lvl = STAT_ALWAYS;
         else if (self->pos > 1024 * 1024 * 1024L)
             lvl = STS_INFO;
         else
@@ -1719,7 +1756,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
           bool ascp = _SchemeIsFasp(&scheme);
           if (!mane->noAscp) {
             if (ascp) {
-                STSMSG(STS_TOP, (" Downloading via fasp..."));
+                STSMSG(STAT_ALWAYS, (" Downloading via fasp..."));
                 if (mane->forceAscpFail)
                     rc = 1;
                 else if (mane->eliminateQuals) {
@@ -1735,13 +1772,13 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                 else
                     rd = PrfMainDownloadAscp(self, mane, pof->tmpName, path);
                 if (rd == 0)
-                    STSMSG(STS_TOP, (" FASP download succeed"));
+                    STSMSG(STAT_ALWAYS, (" FASP download succeed"));
                 else {
                     rc_t rc = Quitting();
                     if (rc != 0)
                         canceled = true;
                     else
-                        STSMSG(STS_TOP, (" FASP download failed"));
+                        STSMSG(STAT_ALWAYS, (" FASP download failed"));
                 }
             }
           }
@@ -1751,7 +1788,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
             bool https = true;
             if (scheme.size == 4)
                 https = false;
-            STSMSG(STS_TOP,
+            STSMSG(STAT_ALWAYS,
                 (" Downloading via %s...", https ? "HTTPS" : "HTTP"));
             if (mane->eliminateQuals)
                 rd = PrfMainDownloadCacheFile(self, mane,
@@ -1759,7 +1796,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
             else
                 rd = PrfMainDownloadHttpFile(self, mane, path, pof);
             if (rd == 0) {
-                STSMSG(STS_TOP, (" %s download succeed",
+                STSMSG(STAT_ALWAYS, (" %s download succeed",
                     https ? "HTTPS" : "HTTP"));
             }
             else {
@@ -1767,7 +1804,7 @@ static rc_t PrfMainDoDownload(Resolved *self, const Item * item,
                 if (rc != 0)
                     canceled = true;
                 else
-                    STSMSG(STS_TOP, (" %s download failed",
+                    STSMSG(STAT_ALWAYS, (" %s download failed",
                         https ? "HTTPS" : "HTTP"));
             }
           }
@@ -1933,6 +1970,26 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                     if (rc == 0)
                         self->remote = vremote;
                     rc = VPathStrInit(&self->path, vcache);
+                    if (rc == 0) {
+                        String type;
+                        rc = VPathGetType(vremote, &type);
+                        if (rc == 0 && type.size == 3 && type.addr != NULL &&
+                            type.addr[0] == 's' && type.addr[1] == 'r' &&
+                            type.addr[2] == 'a')
+                        {
+                            VQuality q = VPathGetQuality(vremote);
+                            if (q < eQualLast) {
+                                if (q == eQualNo || q == eQualFull) {
+                                    char msg[256] = "";
+                                    string_printf(msg, sizeof msg, NULL,
+                "SRA %s file is being retrieved, if this is different from your"
+                " preference, it may be due to current file availability.",
+                                   q == eQualNo ? "Lite" : "Normalized Format");
+                                    STSMSG(STAT_ALWAYS, (msg));
+                                }
+                            }
+                        }
+                    }
                 }
                 rd = PrfMainDoDownload(self, item, isDependency, vremote, &pof);
             }
@@ -1951,16 +2008,16 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
                 rc_t rc = VPathGetVdbcache(vremote, & vdbcache, NULL);
                 if (rc == 0 && vdbcache != NULL) {
                     rc_t r2 = 0;
-                    STSMSG(STS_TOP, ("%d.2) Downloading '%s.vdbcache'...",
+                    STSMSG(STAT_ALWAYS, ("%d.2) Downloading '%s.vdbcache'...",
                         item->number, name));
                     r2 = PrfMainDownload(self, item, isDependency, vdbcache);
                     if (r2 == 0) {
-                        STSMSG(STS_TOP, (
+                        STSMSG(STAT_ALWAYS, (
                             "%d.2) '%s.vdbcache' was downloaded successfully",
                             item->number, name));
                     }
                     else
-                        STSMSG(STS_TOP, (
+                        STSMSG(STAT_ALWAYS, (
                             "%d) failed to download '%s.vdbcache': %R",
                             item->number, name, r2));
                     RELEASE(VPath, vdbcache);
@@ -2035,19 +2092,19 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
             LOGERR(klogInt, rc, "failed to verify");
         else {
             if (size == eVyes && md5 == eVyes)
-                STSMSG(STS_TOP, (" '%s%s' is valid",
+                STSMSG(STAT_ALWAYS, (" '%s%s' is valid",
                     name, vdbcache == NULL ? "" : ".vdbcache"));
             else if (size == eVyes && encrypted)
-                STSMSG(STS_TOP, (" size of '%s%s' is correct",
+                STSMSG(STAT_ALWAYS, (" size of '%s%s' is correct",
                     name, vdbcache == NULL ? "" : ".vdbcache"));
             else {
                 if (size == eVno) {
-                    STSMSG(STS_TOP, (" '%s%s': size does not match",
+                    STSMSG(STAT_ALWAYS, (" '%s%s': size does not match",
                         name, vdbcache == NULL ? "" : ".vdbcache"));
                     rv = RC(rcExe, rcFile, rcValidating, rcSize, rcUnequal);
                 }
                 if (md5 == eVno) {
-                    STSMSG(STS_TOP, (" '%s%s': md5 does not match",
+                    STSMSG(STAT_ALWAYS, (" '%s%s': md5 does not match",
                         name, vdbcache == NULL ? "" : ".vdbcache"));
                     rv = RC(rcExe, rcFile, rcValidating, rcChecksum, rcUnequal);
                 }
@@ -2617,7 +2674,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
                     RELEASE(KFile, f);
                 }
                 else
-                    STSMSG(STS_TOP,
+                    STSMSG(STAT_ALWAYS,
                         ("'%s' is a local non-kart file", self->desc));
 
                 return 0;
@@ -2751,7 +2808,7 @@ static void logMaxSize(size_t maxSize) {
 
 static void logBigFile(int n, const char *name, size_t size) {
     if (size / 1024 < 10) {
-        STSMSG(STS_TOP,
+        STSMSG(STAT_ALWAYS,
             ("%d) '%s' (%,zuB) is larger than maximum allowed: skipped\n",
                 n, name, size));
         return;
@@ -2759,7 +2816,7 @@ static void logBigFile(int n, const char *name, size_t size) {
 
     size /= 1024;
     if (size / 1024 < 10) {
-        STSMSG(STS_TOP,
+        STSMSG(STAT_ALWAYS,
             ("%d) '%s' (%,zuKB) is larger than maximum allowed: skipped\n",
                 n, name, size));
         return;
@@ -2767,7 +2824,7 @@ static void logBigFile(int n, const char *name, size_t size) {
 
     size /= 1024;
     if (size / 1024 < 10) {
-        STSMSG(STS_TOP,
+        STSMSG(STAT_ALWAYS,
             ("%d) '%s' (%,zuMB) is larger than maximum allowed: skipped\n",
                 n, name, size));
         return;
@@ -2775,14 +2832,14 @@ static void logBigFile(int n, const char *name, size_t size) {
 
     size /= 1024;
     if (size / 1024 < 10) {
-        STSMSG(STS_TOP,
+        STSMSG(STAT_ALWAYS,
             ("%d) '%s' (%,zuGB) is larger than maximum allowed: skipped\n",
                 n, name, size));
         return;
     }
 
     size /= 1024;
-    STSMSG(STS_TOP,
+    STSMSG(STAT_ALWAYS,
         ("%d) '%s' (%,zuTB) is larger than maximum allowed: skipped\n",
             n, name, size));
 }
@@ -2839,7 +2896,7 @@ static rc_t ItemDownload(Item *item) {
             return rc;
         }
         if (undersized) {
-            STSMSG(STS_TOP,
+            STSMSG(STAT_ALWAYS,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
                 n, name, sz / 1024));
             skip = true;
@@ -2879,11 +2936,11 @@ static rc_t ItemDownload(Item *item) {
                 const char * sep = string_rchr ( start, size, '/' );
                 if ( sep != NULL )
                     start = sep + 1;
-                STSMSG(STS_TOP, ("%d) '%s' is found locally (%.*s)",
+                STSMSG(STAT_ALWAYS, ("%d) '%s' is found locally (%.*s)",
                     n, name, ( uint32_t ) ( end - start ), start));
             }
             else
-                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, name));
+                STSMSG(STAT_ALWAYS, ("%d) '%s' is found locally", n, name));
             if (self->local.str != NULL) {
                 rc = VPathAddRef(self->local.path);
                 if (rc == 0)
@@ -2905,7 +2962,7 @@ static rc_t ItemDownload(Item *item) {
                 if (r2 == 0 && acc != NULL)
                     name = acc;
             }
-            STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, name));
+            STSMSG(STAT_ALWAYS, ("%d) Downloading '%s'...", n, name));
             notFound =
                 KDirectoryPathType(item->mane->dir, "%s", name) == kptNotFound;
             rc = PrfMainDownload(self, item, item->isDependency, NULL);
@@ -2933,18 +2990,18 @@ static rc_t ItemDownload(Item *item) {
                     if ( sep != NULL )
                         start = sep + 1;
                     if ( item->mane->outDir != NULL )
-                        STSMSG(STS_TOP,
+                        STSMSG(STAT_ALWAYS,
                             ("%d) '%s' was downloaded successfully (%s/%.*s)",
                             n, name, item->mane->outDir,
                             ( uint32_t ) ( end - start ), start));
                     else
-                        STSMSG(STS_TOP,
+                        STSMSG(STAT_ALWAYS,
                             ("%d) '%s' was downloaded successfully (%.*s)",
                             n, name,
                             ( uint32_t ) ( end - start ), start));
                 }
                 else
-                    STSMSG(STS_TOP, ("%d) '%s' was downloaded successfully",
+                    STSMSG(STAT_ALWAYS, ("%d) '%s' was downloaded successfully",
                                        n, name));
                 /*if (self->cache != NULL) {
                     VPathStrFini(&self->path);
@@ -2954,13 +3011,13 @@ static rc_t ItemDownload(Item *item) {
             else if (rc != SILENT_RC(rcExe,
                 rcProcess, rcExecuting, rcProcess, rcCanceled))
             {
-                STSMSG(STS_TOP,
+                STSMSG(STAT_ALWAYS,
                     ("%d) failed to download '%s': %R", n, name, rc));
             }
         }
     }
     else
-        STSMSG(STS_TOP, ("%d) cannot locate '%s'", n, self->name));
+        STSMSG(STAT_ALWAYS, ("%d) cannot locate '%s'", n, self->name));
 
     return rc;
 }
@@ -3141,9 +3198,9 @@ rc_t ItemResolveResolvedAndDownloadOrProcess(Item *self, int32_t row)
         if (self->mane->fileType != NULL)
             tree = NULL;
         else {
-            VQuality q = VDBManagerGetQuality(self->mane->mgr);
+            /*VQuality q = VDBManagerGetQuality(self->mane->mgr);
             if (q == eQualDefault)
-                noQualSra = true;
+                noQualSra = true;*/
         }
         rc = ItemDownloadSrvResponse(self, row, noQualSra, tree);
         if (rc == 0 && noQualSra) {
@@ -3204,7 +3261,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
     if (rc == 0 && deps != NULL) {
         rc = VDBDependenciesCount(deps, &count);
         if (rc == 0) {
-            STSMSG(STS_TOP, ("'%s' has %d%s dependenc%s", resolved->name,
+            STSMSG(STAT_ALWAYS, ("'%s' has %d%s dependenc%s", resolved->name,
                 count, item->mane->check_all ? "" : " unresolved",
                 count == 1 ? "y" : "ies"));
         }
@@ -3276,7 +3333,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
     return rc;
 }
-
+#if 0
 static VQuality VPath_DetectQuality(const VPath * self, KPathType type,
     const VDBManager * vdb)
 {
@@ -3322,7 +3379,7 @@ static VQuality VPath_DetectQuality(const VPath * self, KPathType type,
 
     return q;
 }
-
+#endif
 static const char * VQualityToString(VQuality self) {
     switch (self) {
     case eQualDefault: return "double";
@@ -3343,11 +3400,11 @@ static rc_t ItemMkDesc(const Item * self, KPathType type) {
 
     if (rc == 0 && q < eQualLast) {
         const char * s = VQualityToString(q);
-        STSMSG(STS_TOP, (" loaded description: %s quality", s));
+        STSMSG(STAT_ALWAYS, (" loaded description: %s quality", s));
     }
-    else {
+    /*else {
         rc = 0;
-        
+
         q = VPathGetQuality(self->resolved.path.path);
         
         if (q >= eQualLast)
@@ -3359,7 +3416,7 @@ static rc_t ItemMkDesc(const Item * self, KPathType type) {
             STSMSG(STS_TOP, (" description: %s quality", s));
             rc = SraDescSaveQuality(self->resolved.path.str, q);
         }
-    }
+    }*/
 
     return rc;
 }
@@ -3424,7 +3481,7 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
 
         if (!skip) {
             rc = _VDBManagerSetDbGapCtx(item->mane->mgr, resolved->resolver);
-            STSMSG(STS_INFO,
+            STSMSG(STAT_PWR,
                 ("checking PathType of '%S'...", resolved->path.str));
             type = VDBManagerPathTypeUnreliable
                 ( item->mane->mgr, "%S", resolved->path.str) & ~kptAlias;
@@ -3835,7 +3892,7 @@ static rc_t PrfMainRun ( PrfMain * self, const char * arg, const char * realArg,
                         if (item->resolved.undersized &&
                             type == eRunTypeGetSize)
                         {
-                            STSMSG(STS_TOP,
+                            STSMSG(STAT_ALWAYS,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
                 n, item->resolved.name, item->resolved.remoteSz / 1024));
                         }

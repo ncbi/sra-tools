@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_fastq_iter_
-#define _h_fastq_iter_
+#ifndef _h_copy_machine_
+#define _h_copy_machine_
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,12 +54,37 @@ extern "C" {
 rc_t make_a_copy( KDirectory * dir,
                   KFile * dst,
                   const struct VNamelist * sources,
-                  struct bg_progress * progress,
+                  struct bg_progress_t * progress,
                   uint64_t dst_offset,
                   size_t buf_size,
                   uint32_t src_list_offset,
                   uint32_t q_wait_time );
 
+/* ------------------------------------------------------- */
+struct multi_writer_block_t;
+
+bool multi_writer_block_append( struct multi_writer_block_t * self,
+                                const char * data,
+                                size_t len );
+bool multi_writer_block_expand( struct multi_writer_block_t * self, size_t size );
+
+struct multi_writer_t;
+
+struct multi_writer_t * create_multi_writer( KDirectory * dir,
+                    const char * filename,
+                    size_t buf_size,
+                    uint32_t q_wait_time,
+                    uint32_t q_num_blocks,
+                    size_t q_block_size  );
+
+void release_multi_writer( struct multi_writer_t * self );
+
+struct multi_writer_block_t * multi_writer_get_empty_block( struct multi_writer_t * self );
+bool multi_writer_submit_block( struct multi_writer_t * self, struct multi_writer_block_t * block );
+
+rc_t multi_writer_write( struct multi_writer_t * self,
+                         const char * src,
+                         size_t size );
 
 #ifdef __cplusplus
 }

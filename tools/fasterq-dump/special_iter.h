@@ -43,24 +43,24 @@ extern "C" {
 #include "cmn_iter.h"
 #endif
 
-struct special_iter;
+struct special_iter_t;
 
-typedef struct special_rec
+typedef struct special_rec_t
 {
     int64_t row_id;
     uint64_t prim_alig_id[ 2 ];
     uint32_t num_reads;
     String cmp_read;
     String spot_group;
-} special_rec;
+} special_rec_t;
 
-void destroy_special_iter( struct special_iter * iter );
+void destroy_special_iter( struct special_iter_t * iter );
 
-rc_t make_special_iter( cmn_params * params, struct special_iter ** iter );
+rc_t make_special_iter( cmn_iter_params_t * params, struct special_iter_t ** iter );
 
-bool get_from_special_iter( struct special_iter * iter, special_rec * rec, rc_t * rc );
+bool get_from_special_iter( struct special_iter_t * iter, special_rec_t * rec, rc_t * rc );
 
-uint64_t get_row_count_of_special_iter( struct special_iter * iter );
+uint64_t get_row_count_of_special_iter( struct special_iter_t * iter );
 
 #ifdef __cplusplus
 }

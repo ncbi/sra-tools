@@ -44,6 +44,8 @@ struct source {
     bool needCE = false, needPmt = false;
     bool haveLocalPath = false, haveCachePath = false, haveSize = false, haveAccession = false;
     bool encrypted;
+    bool fullQuality = true;
+    bool haveQualityType = false;
     
     std::string const &key() const {
         assert(haveAccession || haveLocalPath);
@@ -73,6 +75,7 @@ public:
     
     static data_source local_file(std::string const &file, std::string const &cache = "") {
         source result = {};
+        result.accession = file;
         result.localPath = file;
         result.haveLocalPath = true;
         result.cachePath = cache;
@@ -86,6 +89,9 @@ public:
     bool encrypted() const { return run.encrypted; }
     std::string const &accession() const { return run.accession; }
     std::string const &projectId() const { return run.projectId; }
+    bool haveQualityType() const { return run.haveQualityType; }
+    bool haveFullQuality() const { return run.haveQualityType && run.fullQuality; }
+    bool haveZeroQuality() const { return run.haveQualityType && !run.fullQuality; }
 };
 
 /// @brief Contains the response from SDL and/or local file info.
@@ -138,6 +144,8 @@ public:
     /// @brief set/unset CE Token environment variable
     void set_ce_token_env_var() const;
 
+    static void preferNoQual();
+
     /// @brief the data sources for an accession
     container const &sourcesFor(std::string const &accession) const
     {
@@ -146,9 +154,16 @@ public:
         return (iter != sources.end()) ? iter->second : empty;
     }
 
+    struct QualityPreference {
+        bool isSet;
+        bool isFullQuality;
+    };
+    static QualityPreference qualityPreference();
+
     /// @brief Call SDL with accesion/query list and process the results.
     /// Can use local file info if no response from SDL.
-    static data_sources preload(std::vector<std::string> const &runs, ParamList const &parameters = {});
+    static data_sources preload(std::vector<std::string> const &runs
+                                , ParamList const &parameters = {});
     
 #if DEBUG || _DEBUGGING
     static void test() {

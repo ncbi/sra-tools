@@ -48,19 +48,19 @@ extern "C" {
 #include "index.h"
 #endif
 
-struct lookup_reader;
+struct lookup_reader_t;
 
-void release_lookup_reader( struct lookup_reader * self );
+void release_lookup_reader( struct lookup_reader_t * self );
 
-rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * index,
-                         struct lookup_reader ** reader, size_t buf_size, const char * fmt, ... );
+rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader_t * index,
+                         struct lookup_reader_t ** reader, size_t buf_size, const char * fmt, ... );
 
-rc_t seek_lookup_reader( struct lookup_reader * self, uint64_t key, uint64_t * key_found, bool exactly );
+rc_t seek_lookup_reader( struct lookup_reader_t * self, uint64_t key, uint64_t * key_found, bool exactly );
 
-rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * packed_bases );
-rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id, SBuffer * B, bool reverse );
+rc_t lookup_reader_get( struct lookup_reader_t * self, uint64_t * key, SBuffer_t * packed_bases );
+rc_t lookup_bases( struct lookup_reader_t * self, int64_t row_id, uint32_t read_id, SBuffer_t * B, bool reverse );
 
-rc_t lookup_check( struct lookup_reader * self );
+rc_t lookup_check( struct lookup_reader_t * self );
 rc_t lookup_check_file( const KDirectory *dir, size_t buf_size, const char * filename );
 
 rc_t lookup_count_file( const KDirectory *dir, size_t buf_size, const char * filename, uint32_t * count );

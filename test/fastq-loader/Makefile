@@ -203,7 +203,7 @@ smalltests: $(TEST_TOOLS)
 	@echo "running 4.1"; export NCBI_SETTINGS=/; export VDB_CONFIG=`pwd`; \
 	 export LD_LIBRARY_PATH=$(LIBDIR);$(DIRTOTEST)/latf-load \
 	 $(SRCDIR)/input/4.fastq --tmpfs $(SRCDIR)/actual/ -v \
-	 -o actual/4.1.obj --quality PHRED_33 \
+	 -o actual/4.1.obj --quality PHRED_33 2>&1 \
 	 | grep "Path for scratch files: $(SRCDIR)/actual/" >/dev/null
 #           4.2 --qual-quant        quality values are quantized as specified
 	$(SMALLRUN) 4.2 0 $(SRCDIR)/input/4.fastq --qual-quant 1:10,10:20,20:30,30:- --quality PHRED_33
@@ -211,7 +211,7 @@ smalltests: $(TEST_TOOLS)
 	@echo "running 4.3"; export NCBI_SETTINGS=/; export VDB_CONFIG=`pwd`; \
 	 export LD_LIBRARY_PATH=$(LIBDIR); \
 	 $(DIRTOTEST)/latf-load $(SRCDIR)/input/4.fastq --cache-size 10 -v \
-     -o actual/4.1.obj --quality PHRED_33 \
+     -o actual/4.1.obj --quality PHRED_33 2>&1 \
      | grep "Cache size: 10M" >/dev/null
 #           4.3.1 --cache-size      rejected if invalid
 	$(SMALLRUN) 4.3.1 3 $(SRCDIR)/input/4.fastq --cache-size BIG --quality PHRED_33

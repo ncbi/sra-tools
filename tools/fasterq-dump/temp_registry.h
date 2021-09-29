@@ -46,15 +46,15 @@ extern "C" {
 #include "cleanup_task.h"
 #endif
 
-struct temp_registry;
+struct temp_registry_t;
 
-void destroy_temp_registry( struct temp_registry * self );
+void destroy_temp_registry( struct temp_registry_t * self );
 
-rc_t make_temp_registry( struct temp_registry ** registry, struct KFastDumpCleanupTask * cleanup_task );
+rc_t make_temp_registry( struct temp_registry_t ** registry, struct KFastDumpCleanupTask_t * cleanup_task );
 
-rc_t register_temp_file( struct temp_registry * self, uint32_t read_id, const char * filename );
+rc_t register_temp_file( struct temp_registry_t * self, uint32_t read_id, const char * filename );
 
-rc_t temp_registry_merge( struct temp_registry * self,
+rc_t temp_registry_merge( struct temp_registry_t * self,
                           KDirectory * dir,
                           const char * output_filename,
                           size_t buf_size,
@@ -63,7 +63,7 @@ rc_t temp_registry_merge( struct temp_registry * self,
                           compress_t compress,
                           bool append );
 
-rc_t temp_registry_to_stdout( struct temp_registry * self,
+rc_t temp_registry_to_stdout( struct temp_registry_t * self,
                               KDirectory * dir,
                               size_t buf_size );
 

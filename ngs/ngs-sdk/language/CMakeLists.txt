@@ -1,3 +1,5 @@
 add_subdirectory( c++ )
-add_subdirectory( java )
+if ( Java_FOUND )
+	add_subdirectory( java )
+endif()
 add_subdirectory( python )

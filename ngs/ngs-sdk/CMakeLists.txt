@@ -3,7 +3,6 @@ add_subdirectory( dispatch )
 add_subdirectory( language )
 add_subdirectory( examples )
 
-
 add_library( ngs-c++ STATIC
     $<TARGET_OBJECTS:ngs-bind-c++>
     $<TARGET_OBJECTS:ngs-disp>

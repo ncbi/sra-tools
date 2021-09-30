@@ -1,4 +1,0 @@
-/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"
-repository/remote/main/CGI/resolver-cgi = "https://trace.ncbi.nlm.nih.gov/Traces/names/names.fcgi"
-/repository/user/main/public/apps/sra/volumes/sraFlat = sra
-/repository/user/main/public/root = "/mnt/e/workspace/ncbi/sra-tools/test/prefetch/tmp"

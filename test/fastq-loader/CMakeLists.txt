@@ -67,7 +67,7 @@ if( NOT WIN32 )
     add_test( NAME Test_FastqLoader_4.1
         COMMAND
             ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            bash -c "${BINDIR}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 | grep \"Path for scratch files: ./actual/key2id\""
+            bash -c "${BINDIR}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     #           4.2 --qual-quant        quality values are quantized as specified

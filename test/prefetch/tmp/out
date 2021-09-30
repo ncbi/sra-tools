@@ -1,3 +1,0 @@
-2021-09-24T04:20:18 prefetch.2.11.2 err: /mnt/e/workspace/ncbi/sra-tools/test/prefetch/tmp/t.kfg:3:57: error: token='sra', msg='syntax error'
-2021-09-24T04:20:19 prefetch.2.11.2: Current preference is set to retrieve SRA Normalized Format files with full base quality scores.
-2021-09-24T04:20:19 prefetch.2.11.2: 1) 'SRR053325' is found locally

@@ -333,6 +333,8 @@ endfunction()
 set( COMMON_LINK_LIBRARIES kapp tk-version )
 
 if( WIN32 )
+    add_compile_definitions( UNICODE _UNICODE )
+    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
     # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries

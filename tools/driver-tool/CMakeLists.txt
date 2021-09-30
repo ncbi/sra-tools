@@ -24,15 +24,17 @@ set( SRATOOLS_SRC
 	service
 )
 
-if( NOT WIN32 )
+if( WIN32 )
+    set( ADDITIONAL_LIBS
+            libcmt$<$<CONFIG:Debug>:d>
+            libcpmt$<$<CONFIG:Debug>:d>
+            libucrt$<$<CONFIG:Debug>:d>
+            libvcruntime$<$<CONFIG:Debug>:d>
+    )
+else()
 	set( ADDITIONAL_LIBS m )
 endif()
 
-#TODO: relevant?
-#if ((MSVC) AND (MSVC_VERSION GREATER_EQUAL 1914))
-#      target_compile_options(sratools INTERFACE "/Zc:__cplusplus")
-#endif()
-#add_compile_definitions( __cplusplus=201103 )
-
 add_executable( sratools "${SRATOOLS_SRC}" )
 target_link_libraries( sratools ${COMMON_LINK_LIBRARIES} ncbi-vdb json secure utf8proc ${ADDITIONAL_LIBS} )
+

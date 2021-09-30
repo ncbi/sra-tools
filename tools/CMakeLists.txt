@@ -1,9 +1,5 @@
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINDIR} )
 
-if( WIN32 )
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmain" )
-endif()
-
 add_subdirectory( driver-tool )
 add_subdirectory( util )
 add_subdirectory( align-cache )

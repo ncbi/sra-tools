@@ -11,7 +11,6 @@ link_libraries( ${COMMON_LINK_LIBRARIES} )
 
 # for the tests that link against libncbi-[w]vdb
 if( WIN32 )
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmain" )
     set( COMMON_LIBS_READ  ncbi-vdb)
     set( COMMON_LIBS_WRITE ncbi-wvdb)
 else()

@@ -8,7 +8,15 @@ set( VDB_SQL_LIB
 	ngs
 	ncbi-vdb
 )
-if( NOT WIN32 )
+if( WIN32 )
+	list( APPEND VDB_SQL_LIB
+        libcmt$<$<CONFIG:Debug>:d>
+        libcpmt$<$<CONFIG:Debug>:d>
+        libucrt$<$<CONFIG:Debug>:d>
+        libvcruntime$<$<CONFIG:Debug>:d>
+    )
+
+else()
 	list( APPEND VDB_SQL_LIB m pthread dl )
 endif()
 

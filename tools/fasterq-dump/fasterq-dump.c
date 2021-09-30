@@ -671,6 +671,7 @@ static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
 }
 
 static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args ) {
+    const char * tmp_dir = NULL;
     rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> accession_path ) );
     if ( 0 != rc ) {
         ErrMsg( "ArgsParamValue() -> %R", rc );
@@ -681,59 +682,70 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args ) {
         tool_ctx -> index_filename[ 0 ] = 0;
         tool_ctx -> dflt_output[ 0 ] = 0;
 
-        rc = get_user_input( tool_ctx, args );
+        rc = get_user_input( tool_ctx, args );  /* above */
         if ( 0 == rc ) {
-            encforce_constrains( tool_ctx );
-            rc = get_environment( tool_ctx );
+            encforce_constrains( tool_ctx );    /* above */
+            rc = get_environment( tool_ctx );   /* above */
         }
         if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
             rc = make_temp_dir( &tool_ctx -> temp_dir,
                             tool_ctx -> requested_temp_path,
-                            tool_ctx -> dir );
+                            tool_ctx -> dir );  /* temp_dir.c */
+            if ( 0 == rc ) {
+                tmp_dir = get_temp_dir( tool_ctx -> temp_dir );   /* temp_dir.c */
+            }
         }
     }
     
     if ( 0 == rc ) {
-        rc = handle_accession( tool_ctx );
+        rc = handle_accession( tool_ctx );  /* above */
     }
 
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        rc = handle_lookup_path( tool_ctx );
+        rc = handle_lookup_path( tool_ctx );    /* above */
     }
 
     if ( 0 == rc && NULL != tool_ctx -> output_dirname ) {
-        if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) {
-            rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true );
+        if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) {   /* helper.c */
+            rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true ); /* helper.c */
         }
     }
     
     if ( rc == 0 ) {
         if ( NULL == tool_ctx -> output_filename ) {
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = make_output_filename_from_accession( tool_ctx );
+                rc = make_output_filename_from_accession( tool_ctx ); /* above */
             } else {
-                rc = make_output_filename_from_dir_and_accession( tool_ctx );
+                rc = make_output_filename_from_dir_and_accession( tool_ctx );   /* above */
             }
         } else {
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = adjust_output_filename( tool_ctx );
+                rc = adjust_output_filename( tool_ctx ); /* above */
             } else {
-                rc = adjust_output_filename_by_dir( tool_ctx );
+                rc = adjust_output_filename_by_dir( tool_ctx ); /* above */
             }
         }
     }
     
+    /* setup of the cleanup-task */
     if ( tool_ctx -> fmt != ft_fasta_us_split_spot ) {
         if ( 0 == rc ) {
             rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */
         }
 
         if ( 0 == rc ) {
-            rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
-                    get_temp_dir( tool_ctx -> temp_dir ) );
+            rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, tmp_dir ); /* cleanup_task.c */
         }
     }
 
+
+    /* optionally communicate the */
+    if ( 0 == rc && NULL != tool_ctx -> requested_temp_path ) {
+#ifndef WINDOWS
+        setenv( "NCBI_TMP_CACHE", tmp_dir, 1 );
+#endif
+    }
+    
     if ( 0 == rc ) {
         rc = VDBManagerMakeRead( &( tool_ctx -> vdb_mgr ), tool_ctx -> dir );
         if ( 0 != rc ) {

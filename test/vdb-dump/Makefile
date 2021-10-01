@@ -108,24 +108,25 @@ ifdef PYTHON
 vdb-dump: makedb
 	@ rm -rf actual
 	@ mkdir -p actual
+	@ echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-vdb-dump-vdb"' > actual/k
 	@ echo "testing vdb-dump..."
 	@ # output format
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab \
+	@ NCBI_SETTINGS=actual/k $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab \
 	    >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab -I \
+	@ NCBI_SETTINGS=actual/k $(DIRTOTEST)/vdb-dump SRR056386 -R 1 -C READ -f tab -I \
 	    >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
 	@ # nested databases
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -E data/NestedDatabase \
+	@ NCBI_SETTINGS=actual/k $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -E data/NestedDatabase \
 	    >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 \
+	@ NCBI_SETTINGS=actual/k $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 \
 	       data/NestedDatabase >actual/2.1.stdout \
 	    && diff expected/2.1.stdout actual/2.1.stdout
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 \
+	@ NCBI_SETTINGS=actual/k $(DIRTOTEST)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 \
 	       data/NestedDatabase >actual/2.2.stdout \
 	    && diff expected/2.2.stdout actual/2.2.stdout
-	@ rm -rf actual
 	@ rm -rf data
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/vdb-dump
+	@ NCBI_SETTINGS=actual/k $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/vdb-dump
+	@ rm -rf actual
 	@ ./test_buffer_insufficient.sh $(DIRTOTEST)/vdb-dump VDB-3937.kar
 	@ echo "...all tests passed"
 

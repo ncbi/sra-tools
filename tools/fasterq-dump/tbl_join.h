@@ -55,34 +55,45 @@ extern "C" {
 #include "temp_registry.h"
 #endif
 
-rc_t execute_tbl_join( KDirectory * dir,
-                    const VDBManager * vdb_mgr,
-                    const char * accession_short,
-                    const char * accession_path,
-                    join_stats_t * stats,
-                    const char * tbl_name,
-                    const struct temp_dir_t * temp_dir,
-                    struct temp_registry_t * registry,
-                    size_t cur_cache,
-                    size_t buf_size,
-                    uint32_t num_threads,
-                    bool show_progress,
-                    format_t fmt,
-                    const join_options_t * join_options ); /* helper.h */
+typedef struct execute_tbl_join_args_t {
+    KDirectory * dir;
+    const VDBManager * vdb_mgr;
+    const char * accession_path;
+    const char * accession_short;
+    const char * seq_defline;           /* NULL for default */
+    const char * qual_defline;          /* NULL for default */
+    const char * tbl_name;
+    join_stats_t * stats;                   /* helper.h */
+    const join_options_t * join_options;    /* helper.h */
+    const struct temp_dir_t * temp_dir;     /* temp_dir.h */
+    struct temp_registry_t * registry;      /* temp_registry.h */
+    size_t cursor_cache;
+    size_t buf_size;
+    uint32_t num_threads;
+    bool show_progress;
+    format_t fmt;                       /* helper.h */
+} execute_tbl_join_args_t;
 
-rc_t execute_fast_tbl_join( KDirectory * dir,
-                    const VDBManager * vdb_mgr,
-                    const char * accession_short,
-                    const char * accession_path,
-                    join_stats_t * stats,
-                    const char * tbl_name,
-                    size_t cur_cache,
-                    size_t buf_size,
-                    uint32_t num_threads,
-                    bool show_progress,
-                    const char * output_filename, /* NULL for stdout! */
-                    const join_options_t * join_options,
-                    bool force );
+rc_t execute_tbl_join( const execute_tbl_join_args_t * args );
+
+typedef struct execute_fasta_tbl_join_args_t {
+    KDirectory * dir;
+    const VDBManager * vdb_mgr;
+    const char * accession_path;
+    const char * accession_short;
+    const char * output_filename;
+    const char * seq_defline;           /* NULL for default */
+    const char * tbl_name;
+    join_stats_t * stats;                   /* helper.h */
+    const join_options_t * join_options;    /* helper.h */
+    size_t cursor_cache;
+    size_t buf_size;
+    uint32_t num_threads;
+    bool show_progress;
+    bool force;
+} execute_fasta_tbl_join_args_t;
+
+rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args );
 
 #ifdef __cplusplus
 }

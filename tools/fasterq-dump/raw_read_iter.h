@@ -43,22 +43,21 @@ extern "C" {
 #include "cmn_iter.h"
 #endif
 
-struct raw_read_iter;
+struct raw_read_iter_t;
 
-typedef struct raw_read_rec
-{
+typedef struct raw_read_rec_t {
     uint64_t seq_spot_id;
     uint32_t seq_read_id;
     String read;
-} raw_read_rec;
+} raw_read_rec_t;
 
-void destroy_raw_read_iter( struct raw_read_iter * iter );
+void destroy_raw_read_iter( struct raw_read_iter_t * iter );
 
-rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter ** iter );
+rc_t make_raw_read_iter( cmn_iter_params_t * params, struct raw_read_iter_t ** iter );
 
-bool get_from_raw_read_iter( struct raw_read_iter * iter, raw_read_rec * rec, rc_t * rc );
+bool get_from_raw_read_iter( struct raw_read_iter_t * iter, raw_read_rec_t * rec, rc_t * rc );
 
-uint64_t get_row_count_of_raw_read( struct raw_read_iter * iter );
+uint64_t get_row_count_of_raw_read( struct raw_read_iter_t * iter );
 
 rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache,
                      const char * accession_short, const char * accession_path,

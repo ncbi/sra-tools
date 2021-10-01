@@ -2022,8 +2022,11 @@ static rc_t KConfig_SetPreferNoQuality(KConfig * self, EState value) {
         rc = KConfigCommit(self);
 
     if (rc == 0)
-        OUTMSG(("Updated: prefer %s quality scores(%cBQS) if available\n",
-            value == eTrue ? "no" : "full", value == eTrue ? '-' : '+'));
+        OUTMSG(("Preference setting is: "
+            "Prefer SRA %s base quality scores if available.\n",
+            value == eTrue
+                ? "Lite files with simplified"
+                : "Normalized Format files with full"));
     else
         LOGERR(klogErr, rc, "Failure to set quality preferences");
 

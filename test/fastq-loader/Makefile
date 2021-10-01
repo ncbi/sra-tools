@@ -126,8 +126,7 @@ FASTQTEST_LOADER_OBJ = \
 $(TEST_BINDIR)/test-fastq-loader: $(FASTQTEST_LOADER_OBJ)
 	$(LP) --exe -o $@ $^ $(FASTQ_TEST_LIB)
 
-tfl:
-	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile test-fastq-loader
+tfl: test-fastq-loader
 	$(TEST_BINDIR)/test-fastq-loader
 
 .PHONY: test-fastq-loader

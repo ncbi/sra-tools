@@ -30,24 +30,18 @@
 #include <kfs/file.h>
 #include <kfs/buffile.h>
 
-typedef struct lookup_writer_t
-{
+typedef struct lookup_writer_t {
     struct KFile * f;
     struct index_writer_t * idx;
     SBuffer_t buf;
     uint64_t pos;
 } lookup_writer_t;
 
-
-void release_lookup_writer( struct lookup_writer_t * writer )
-{
-    if ( NULL != writer )
-    {
-        if ( NULL != writer -> f )
-        {
+void release_lookup_writer( struct lookup_writer_t * writer ) {
+    if ( NULL != writer ) {
+        if ( NULL != writer -> f ) {
             rc_t rc = KFileRelease( writer -> f );
-            if ( 0 != rc )
-            {
+            if ( 0 != rc ) {
                 ErrMsg( "release_lookup_writer().KFileRelease() -> %R", rc );                
             }
         }
@@ -58,26 +52,19 @@ void release_lookup_writer( struct lookup_writer_t * writer )
 
 static rc_t make_lookup_writer_obj( struct lookup_writer_t ** writer,
                              struct index_writer_t * idx,
-                             struct KFile * f )
-{
+                             struct KFile * f ) {
     rc_t rc = 0;
     lookup_writer_t * w = calloc( 1, sizeof * w );
-    if ( NULL == w )
-    {
+    if ( NULL == w ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "release_lookup_writer().calloc( %d ) -> %R", ( sizeof * w ), rc );
-    }
-    else
-    {
+    } else {
         w -> f = f;
         w -> idx = idx;
         rc = make_SBuffer( &( w -> buf ), 4096 );
-        if ( 0 == rc )
-        {
+        if ( 0 == rc ) {
             *writer = w;
-        }
-        else
-        {
+        } else {
             release_lookup_writer( w );
         }
     }
@@ -86,8 +73,7 @@ static rc_t make_lookup_writer_obj( struct lookup_writer_t ** writer,
 
 rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx,
                          struct lookup_writer_t ** writer, size_t buf_size,
-                         const char * fmt, ... )
-{
+                         const char * fmt, ... ) {
     rc_t rc;
     struct KFile * f;
     
@@ -95,39 +81,27 @@ rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx,
     va_start ( args, fmt );
 
     rc = KDirectoryVCreateFile( dir, &f, false, 0664, kcmInit, fmt, args );
-    if ( 0 != rc )
-    {
+    if ( 0 != rc ) {
         ErrMsg( "make_lookup_writer().KDirectoryVCreateFile() -> %R", rc );
-    }
-    else
-    {
-        if ( buf_size > 0 )
-        {
+    } else {
+        if ( buf_size > 0 ) {
             struct KFile * temp_file;
             rc = KBufFileMakeWrite( &temp_file, f, false, buf_size );
-            if ( 0 != rc )
-            {
+            if ( 0 != rc ) {
                 ErrMsg( "make_lookup_writer().KBufFileMakeWrite() -> %R", rc );
-            }
-            else
-            {
+            } else {
                 rc_t rc1 = KFileRelease( f );
-                if ( 0 != rc1 )
-                {
+                if ( 0 != rc1 ) {
                     ErrMsg( "make_lookup_writer().KFileRelease().1 -> %R", rc );
                 }
                 f = temp_file;
             }
         }
-
-        if ( 0 == rc )
-        {
+        if ( 0 == rc ) {
             rc = make_lookup_writer_obj( writer, idx, f );
-            if ( 0 != rc )
-            {
+            if ( 0 != rc ) {
                 rc_t rc1 = KFileRelease( f );
-                if ( 0 != rc1 )
-                {
+                if ( 0 != rc1 ) {
                     ErrMsg( "make_lookup_writer().KFileRelease().2 -> %R", rc );
                 }
             }
@@ -137,25 +111,19 @@ rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx,
     return rc;
 }
 
-
 rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
                                     uint64_t key,
-                                    const String * bases_as_packed_4na )
-{
+                                    const String * bases_as_packed_4na ) {
     size_t num_writ;
     /* first write the key ( combination of seq-id and read-id ) */
     rc_t rc = KFileWriteAll( writer -> f, writer -> pos, &key, sizeof key, &num_writ );
-    if ( 0 != rc )
-    {
+    if ( 0 != rc ) {
         ErrMsg( "write_packed_to_lookup_writer().KFileWriteAll( key ) -> %R", rc );
     }
-    else if ( num_writ != sizeof key )
-    {
+    else if ( num_writ != sizeof key ) {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
         ErrMsg( "write_packed_to_lookup_writer().KFileWriteAll( key ) -> %R", rc );
-    }
-    else
-    {
+    } else {
         uint64_t start_pos = writer -> pos; /* store the pos to be written later to the index... */
             
         writer -> pos += num_writ;
@@ -165,19 +133,13 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
                             bases_as_packed_4na -> addr,
                             bases_as_packed_4na -> size,
                             &num_writ );
-        if ( 0 != rc )
-        {
+        if ( 0 != rc ) {
             ErrMsg( "write_packed_to_lookup_writer().KFileWriteAll( bases ) -> %R", rc );
-        }
-        else if ( num_writ != bases_as_packed_4na -> size )
-        {
+        } else if ( num_writ != bases_as_packed_4na -> size ) {
             rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
             ErrMsg( "write_packed_to_lookup_writer().KFileWriteAll( bases ) -> %R", rc );
-        }
-        else
-        {
-            if ( NULL != writer -> idx )
-            {
+        } else {
+            if ( NULL != writer -> idx ) {
                 rc = write_key( writer -> idx, key, start_pos );
             }
             writer -> pos += num_writ;
@@ -189,16 +151,12 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
 rc_t write_unpacked_to_lookup_writer( struct lookup_writer_t * writer,
                                       int64_t seq_spot_id,
                                       uint32_t seq_read_id,
-                                      const String * bases_as_unpacked_4na )
-{
+                                      const String * bases_as_unpacked_4na ) {
     uint64_t key = make_key( seq_spot_id, seq_read_id ); /* helper.c */
     rc_t rc = pack_4na( bases_as_unpacked_4na, &writer -> buf ); /* helper.c */
-    if ( 0 != rc )
-    {
+    if ( 0 != rc ) {
         ErrMsg( "write_unpacked_to_lookup_writer().pack4na -> %R", rc );
-    }
-    else
-    {
+    } else {
         rc = write_packed_to_lookup_writer( writer, key, &writer -> buf . S );
     }
     return rc;

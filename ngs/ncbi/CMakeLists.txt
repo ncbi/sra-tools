@@ -1,4 +1,6 @@
 add_subdirectory( ngs )
 add_subdirectory( ngs-c++ )
-add_subdirectory( ngs-jni )
+if ( Java_FOUND )
+	add_subdirectory( ngs-jni )
+endif()
 add_subdirectory( ngs-py )

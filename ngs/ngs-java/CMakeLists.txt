@@ -89,8 +89,10 @@ if ( Java_FOUND )
 
     ########################################
     # javadoc
-    create_javadoc( ngs-doc
-        PACKAGES gov.nih.nlm.ncbi.ngs ngs
-    )
+    if ( Java_JAVADOC_EXECUTABLE )
+        create_javadoc( ngs-doc
+            PACKAGES gov.nih.nlm.ncbi.ngs ngs
+        )
+    endif()
 
 endif()

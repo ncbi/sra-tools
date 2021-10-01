@@ -22,6 +22,7 @@ set( SRATOOLS_SRC
 	run-source
 	uuid
 	service
+    support2
 )
 
 if( NOT WIN32 )

@@ -58,11 +58,11 @@ announce:
 #
 
 check_exit_code:
-	@ $(CONFIGTOUSE)=/ $(PYTHON) \
+	@ NCBI_SETTINGS=../LIBS-GUID.mkfg $(PYTHON) \
 	    $(TOP)/build/check-exit-code.py $(DIRTOTEST)/sra-pileup
 
 check_skiplist:
-	@ $(CONFIGTOUSE)=/ $(PYTHON) check_skiplist.py $(DIRTOTEST)/sra-pileup
+	@ NCBI_SETTINGS=../LIBS-GUID.mkfg $(PYTHON) check_skiplist.py $(DIRTOTEST)/sra-pileup
 
 ACC = SRR3332402
 

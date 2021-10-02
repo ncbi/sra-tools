@@ -66,7 +66,7 @@ no-test:
 
 download:
 	@ PATH='$(DIRTOTEST):$(PATH)' VDB_CONFIG=`pwd` \
-		$(CONFIGTOUSE)=/ NCBI_VDB_RELIABLE=y $(PYTHON) test_kget.py #expect rc=0
+		NCBI_SETTINGS=../LIBS-GUID.mkfg NCBI_VDB_RELIABLE=y $(PYTHON) test_kget.py #expect rc=0
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget
@@ -77,7 +77,7 @@ slowtests: announce diff-vs-wget
 ACCESSION = SRR072810
 NAME = $(ACCESSION).wget
 HOST = sra-download-internal.ncbi.nlm.nih.gov
-URL=$(shell ${DIRTOTEST}/srapath ${ACCESSION})
+URL=$(shell ${BINDIR}/srapath ${ACCESSION})
 
 clean:
 	rm -f $(ACCESSION)*

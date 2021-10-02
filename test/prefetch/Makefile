@@ -1004,4 +1004,4 @@ quality: std
 
 ad_not_cwd:
 	@ echo Testing prefetch into output directory and using results
-	@ PATH=$(DIRTOTEST):$(PATH) perl test-ad-not-cwd.pl
+	@ NCBI_SETTINGS=../LIBS-GUID.mkfg PATH=$(DIRTOTEST):$(PATH) perl test-ad-not-cwd.pl

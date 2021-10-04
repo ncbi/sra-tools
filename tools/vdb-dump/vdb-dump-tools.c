@@ -1811,6 +1811,8 @@ static rc_t vdt_format_cell_bb_dim2_ascii( const p_dump_src src, const p_col_def
 
 #undef MACRO_BB_DIM2
 
+#define TRANS_TXT_SIZE 1024
+
 /* on a byte-boundary, 2 dimensional array of values ( grouped ) translated to txt, jsond-format
  called by by vdt_format_cell_bb_dim2_v2() below */
 static rc_t vdt_format_bb_dim2_trans_json( const p_dump_src src, const p_col_def def )
@@ -1819,13 +1821,13 @@ static rc_t vdt_format_bb_dim2_trans_json( const p_dump_src src, const p_col_def
     uint32_t group;
     const uint8_t * data = src -> buf;  /* this type-casts the ptr ! */
     p_dump_str ds = &( def -> content );
+    char trans_txt[ TRANS_TXT_SIZE ];
+    size_t written;
 
     rc_t rc = vds_append_str( ds, "[" );
     DISP_RC( rc, "vdt_format_bb_dim2_trans_json().vds_append_str([) failed" );
     for ( group = 0; 0 == rc && group < n; ++group )
     {
-        char trans_txt[ 512 ];
-        size_t written;
         const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
         rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
                                     slice, src -> output_format );
@@ -1850,22 +1852,31 @@ static rc_t vdt_format_bb_dim2_trans_json( const p_dump_src src, const p_col_def
 static rc_t vdt_format_bb_dim2_trans_dflt( const p_dump_src src, const p_col_def def )
 {
     rc_t rc = 0;
-    uint32_t n = src -> number_of_elements;
-    uint32_t group;
+    uint32_t group_count = src -> number_of_elements;
     const uint8_t * data = src -> buf;  /* this type-casts the ptr ! */
+    char trans_txt[ TRANS_TXT_SIZE ];
+    size_t written;
     
-    for ( group = 0; 0 == rc && group < n; ++group )
-    {
-        char trans_txt[ 512 ];
-        size_t written;
-        const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
+    if ( 1 == group_count ) {
         rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
-                                    slice, src -> output_format );
+                                  data, src -> output_format );
         DISP_RC( rc, "vdt_format_bb_dim2_trans_dflt().dim_trans_fn() failed" );
-        if ( 0 == rc )
-        {
-            rc = vds_append_fmt( &( def -> content ), written + 3, "[%s]", trans_txt );
+        if ( 0 == rc ) {
+            rc = vds_append_fmt( &( def -> content ), written + 3, "%s", trans_txt );
             DISP_RC( rc, "vdt_format_bb_dim_2trans_dflt().vds_append_fmt() failed" );
+        }
+    } else {
+        uint32_t group;
+        for ( group = 0; 0 == rc && group < group_count; ++group ) {
+            const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
+            rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                        slice, src -> output_format );
+            DISP_RC( rc, "vdt_format_bb_dim2_trans_dflt().dim_trans_fn() failed" );
+            if ( 0 == rc ) {
+                rc = vds_append_fmt( &( def -> content ), written + 5,
+                                     group < ( group_count - 1 ) ? "[%s], " : "[%s]", trans_txt );
+                DISP_RC( rc, "vdt_format_bb_dim_2trans_dflt().vds_append_fmt() failed" );
+            }
         }
     }
     return rc;

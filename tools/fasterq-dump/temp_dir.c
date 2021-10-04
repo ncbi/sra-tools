@@ -193,7 +193,7 @@ rc_t make_joined_filename( const struct temp_dir_t * self, char * dst, size_t ds
         ErrMsg( "temp_dir.c make_joined_filename() -> %R", rc );
     } else {
         size_t num_writ;
-        rc = string_printf( dst, dst_size, &num_writ, "%s%s.%s.%u.%u",
+        rc = string_printf( dst, dst_size, &num_writ, "%s%s.%s.%u.%.04u",
                                  self -> path,
                                  accession,
                                  self -> hostname,

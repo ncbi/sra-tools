@@ -54,14 +54,14 @@ announce:
 #
 
 check_exit_code:
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/srapath
+	@ NCBI_SETTINGS=../LIBS-GUID.mkfg $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/srapath
 
 SRP:
 # TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/srapath SRR000001 -fnames > /dev/null
+	@ NCBI_SETTINGS=../LIBS-GUID.mkfg $(DIRTOTEST)/srapath SRR000001 -fnames > /dev/null
 
 vdbcache: #; print "<$_>"
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/srapath SRR1557953 \
+	@ NCBI_SETTINGS=../LIBS-GUID.mkfg $(DIRTOTEST)/srapath SRR1557953 \
 	                                                 | wc -l | perl check-cnt.pl
 
 .PHONY: $(TEST_TOOLS)

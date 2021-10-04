@@ -62,7 +62,7 @@ class fastq_reader
 //  ============================================================================
 {
 public:    
-    fastq_reader(const string& file_name, istream* _stream = nullptr, char read_type = ' ') 
+    fastq_reader(const string& file_name, istream* _stream = nullptr, char read_type = 'B') 
         : m_file_name(file_name)
         , m_stream(_stream)
         , m_read_type(read_type)
@@ -89,7 +89,7 @@ private:
     CDefLineParser      m_defline_parser;       ///< Defline parser 
     string              m_file_name;            ///< Corresponding file name
     shared_ptr<istream> m_stream;               ///< reader's stream
-    char                m_read_type = ' ';      ///< Reader's readType (T|B)
+    char                m_read_type = 'B';      ///< Reader's readType (T|B|A), A - illumina, set based on read length
     size_t              m_line_number = 0;      ///< Line number counter (1-based)
     string              m_buffered_defline;     ///< Defline already read from the stream but not placed in a read
     vector<CFastqRead>  m_buffered_spot;        ///< Spot already read from the stream but no returned to the consumer
@@ -468,7 +468,7 @@ void fastq_parser<TWriter>::parse()
                 spot_names_bi = assembled_spot.front().Spot();
 #ifdef LOCALDEBUG
                 ++spotCount;
-                if (currCount >= 1e6) {
+                if (currCount >= 10e6) {
                     //m_writer->progressMessage(fmt::format("spots: {:L}, reads: {:L}", spotCount, readCount));
                     spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
                     currCount = 0;
@@ -479,13 +479,17 @@ void fastq_parser<TWriter>::parse()
         if (has_spots == false)
             break;
         if (check_readers) {
+            vector<int> reader_idx;
             for (int i = 0; i < num_readers; ++i) {
                 const auto& reader = m_readers[i];
-                if (reader.eof()) {
-                    throw fastq_error(180, "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", 
-                        reader.file_name(), reader.line_number());
-                }
+                if (reader.eof()) 
+                    reader_idx.push_back(i);
             }
+            if ((int)reader_idx.size() == num_readers) // all readers are at EOF
+                break;
+            if (!reader_idx.empty() && reader_idx.size() < num_readers) 
+                throw fastq_error(180, "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", 
+                        m_readers[reader_idx.front()].file_name(), m_readers[reader_idx.front()].line_number());
         }
 
     } while (true);
@@ -663,7 +667,7 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
     }
     size_t idx = 0;
     for (const auto& fn  : files) {
-        m_readers.emplace_back(fn, s_OpenStream(fn).release(), (idx < read_types.size()) ? read_types[idx] : ' ');
+        m_readers.emplace_back(fn, s_OpenStream(fn).release(), (idx < read_types.size()) ? read_types[idx] : 'A');
         const qual_score_params& params = reader_qual_params[fn];
         auto& reader = m_readers.back();
         reader.set_qual_validator(params.space_delimited == false, params.min_score, params.max_score);

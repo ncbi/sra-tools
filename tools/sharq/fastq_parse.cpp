@@ -188,38 +188,63 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
 void CFastqParseApp::xCheckInputFiles()
 {
+    assert(mInputBatches.empty() == false);
     for (auto& files : mInputBatches) {
         for (auto& f : files) {
-            if (f == "-") continue;
-            if(!fs::exists(f)) {
-                bool not_found = true;
-                auto ext = fs::path(f).extension();
-                if (ext != ".gz" && ext != ".bz2") {
-                    if (fs::exists(f + ".gz")) {
-                        spdlog::info("File '{}': .gz extension added", f);
-                        f += ".gz";
-                        not_found = false;
-                    } else if (fs::exists(f + ".bz2")) {
-                        spdlog::info("File '{}': .bz2 extension added", f);
-                        f += ".bz2";
-                        not_found = false;
-                    } 
-                } else if (ext == ".gz" || ext == ".bz2") {
-                    auto new_fn = f.substr(0, f.size() - ext.string().size());
-                    if (fs::exists(new_fn)) {
-                        spdlog::info("File '{}': {} extension ignored", f, ext.string());
-                        f = new_fn;
-                        not_found = false;
-                    }
-
+            if (f == "-" || fs::exists(f)) continue;
+            bool not_found = true;
+            auto ext = fs::path(f).extension();
+            if (ext != ".gz" && ext != ".bz2") {
+                if (fs::exists(f + ".gz")) {
+                    spdlog::info("File '{}': .gz extension added", f);
+                    f += ".gz";
+                    not_found = false;
+                } else if (fs::exists(f + ".bz2")) {
+                    spdlog::info("File '{}': .bz2 extension added", f);
+                    f += ".bz2";
+                    not_found = false;
+                } 
+            } else if (ext == ".gz" || ext == ".bz2") {
+                auto new_fn = f.substr(0, f.size() - ext.string().size());
+                if (fs::exists(new_fn)) {
+                    spdlog::info("File '{}': {} extension ignored", f, ext.string());
+                    f = new_fn;
+                    not_found = false;
                 }
-                if (not_found) {
-                    throw fastq_error(40, "File '{}' does not exist", f);
+
+            }
+            if (not_found) 
+                throw fastq_error(40, "File '{}' does not exist", f);
+        }
+    }
+    // Set automatic readTypes for 10X files 
+    if (mReadTypes.empty()) {
+        int num_files = mInputBatches.front().size();
+        if (num_files < 3) {
+            mReadTypes.resize(num_files, 'B');
+        } else {
+            re2::RE2 re("_[I|R]\\d+[\\._]");
+            assert(re.ok());
+            // 10x is three or more files matching _I1[._], _I2[._], _R1[._], _R2[._], or _R3[._]
+            int x_submission_cnt = 0;
+            for (auto& f : mInputBatches.front()) {
+               if (re2::RE2::PartialMatch(f, re)) 
+                   ++x_submission_cnt; 
+            }
+            if (x_submission_cnt == 0) 
+                throw fastq_error(20); // "No readTypes provided");
+            if (num_files != x_submission_cnt) 
+                throw fastq_error(80);// "Inconsistent submission: 10x submissions are mixed with different types.");
+            mReadTypes.resize(num_files, 'A');
+            auto it = mInputBatches.begin() + 1;
+            for (; it != mInputBatches.end(); ++it) {
+                for (auto& f : *it) {
+                    if (!re2::RE2::PartialMatch(f, re)) 
+                        throw fastq_error(80); //, "Inconsistent submission: 10x submissions are mixed with different types.");
                 }
             }
         }
     }
-
 }
 
 

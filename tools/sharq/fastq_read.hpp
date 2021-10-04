@@ -52,7 +52,7 @@ public:
             case 'B':
                 mReadType = SRA_READ_TYPE_BIOLOGICAL;
                 break;
-            case ' ':
+            case 'A':
                  mReadType = Sequence().size() < 40 ? SRA_READ_TYPE_TECHNICAL: SRA_READ_TYPE_BIOLOGICAL;   
                 break;
             default:

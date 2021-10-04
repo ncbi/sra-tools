@@ -21,7 +21,6 @@ public:
 
     void Reset();
 
-
 #if (__cplusplus >= 201703L) 
     void AddSequenceLine(const string_view& sequence);
     void AddQualityLine(const string_view& quality);
@@ -38,6 +37,7 @@ public:
 
     size_t LineNumber() const { return mLineNumber;}
     const string& Spot() const { return mSpot; }
+    const string& Suffix() const { return mSuffix; }
     const string& ReadNum() const { return mReadNum; }
     const string& SpotGroup() const { return mSpotGroup; }
     const uint8_t ReadFilter() const { return mReadFilter; }
@@ -69,6 +69,9 @@ public:
     void SetReadNum(const string& readNum) { mReadNum = readNum; }
     void SetReadNum(const re2::StringPiece& readNum) { readNum.CopyToString(&mReadNum); }
 
+    void SetSuffix(const string& suffix) { mSuffix = suffix; }
+    void SetSuffix(const re2::StringPiece& suffix) { suffix.CopyToString(&mSuffix); }
+
     void SetSpotGroup(const string& spotGroup) { 
         if (spotGroup == "0")
             mSpotGroup.clear();
@@ -84,8 +87,6 @@ public:
 
     void SetReadFilter(uint8_t readFilter) { mReadFilter = readFilter; }
 
-    void FormatData(ostream& os) const;
-
 private:
     friend class fastq_reader;
     size_t mLineNumber{0};
@@ -94,7 +95,7 @@ private:
     string mSpotGroup;
     uint8_t mReadFilter{0};
     uint8_t mReadType{0};
-    //string mSuffix;
+    string mSuffix;
     string mSequence;
     string mQuality;
 };
@@ -108,23 +109,13 @@ CFastqRead::CFastqRead()
 void CFastqRead::Reset() 
 {
     mSpot.clear();
+    mSuffix.clear();
     mReadNum.clear();
     mSpotGroup.clear();
     mReadFilter = 0;
     mSequence.clear();
     mQuality.clear();
     mLineNumber = 0;
-    //mSequenceSize = mQualitySize = 0;
-}
-
-void CFastqRead::FormatData(ostream& os) const 
-{
-    os << "Spot    : " << Spot() << '\n';
-    os << "Read    : " << ReadNum() << '\n';
-    os << "Sequence: " << Sequence() << '\n';
-    os << "Quality : " << Quality() << '\n';
-    os << '\n';
-
 }
 
 void CFastqRead::AddSequenceLine(const string_view& sequence) {

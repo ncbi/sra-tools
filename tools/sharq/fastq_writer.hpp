@@ -128,7 +128,9 @@ public:
         if (reads.empty())
             return;
         const auto& first_read = reads.front();
-        cout << "Spot: " << first_read.Spot() << "\nreads " << reads.size() <<":\n";
+        string spot_name = first_read.Spot();
+        spot_name += first_read.Suffix();
+        cout << "Spot: " << spot_name << "\nreads " << reads.size() <<":\n";
         for (const auto& read : reads) {
             //auto sz = read.Sequence().size();
             cout << "num:" << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")" << "\n";
@@ -269,7 +271,9 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
         return;
     //auto table = m_writer->table("SEQUENCE");
     const auto& first_read = reads.front();
-    c_NAME.setValue(first_read.Spot());
+    string spot_name = first_read.Spot();
+    spot_name += first_read.Suffix();
+    c_NAME.setValue(spot_name);
     c_SPOT_GROUP.setValue(first_read.SpotGroup());
     c_PLATFORM.setValue(m_platform);
     string sequence;

@@ -53,7 +53,7 @@ public:
     {
         return re2::RE2::PartialMatchN(defline, *re, &args[0], (int)args.size());
     }
-
+    const string& Defline() const { return mDefLineName;}
     virtual void GetMatch(CFastqRead& read) = 0;
     virtual uint8_t GetPlatform() const = 0;
 
@@ -102,14 +102,6 @@ public:
         const string& displayName,
         const string& pattern): CDefLineMatcher(displayName, pattern, 14)
     {
-        static const int IlluminaSuffixGroups = 6;
-        suffix_argv.resize(IlluminaSuffixGroups);
-        suffix_args.resize(IlluminaSuffixGroups);
-        suffix_match.resize(IlluminaSuffixGroups);
-        for (int i = 0; i < IlluminaSuffixGroups; ++i) {  
-            args[i] = &argv[i];  
-            argv[i] = &match[i];
-        }
     }
 
     uint8_t GetPlatform() const override {
@@ -137,21 +129,8 @@ public:
         read.SetReadFilter(match[11] == "Y" ? 1 : 0);
 
         read.SetSpotGroup(match[13]);
-/*
-        if (match[9].size() > 2) {
-            if (re2::RE2::PartialMatchN(match[9], mIlluminaSuffixPattern, &suffix_argv[0], (int)suffix_args.size())) {
-                data.SetSuffix(suffix_match[3]); 
-            }
-        }
-*/        
     }
 private:
-    //CRegexp mIlluminaSuffixMatcher{"(#[!-~]*?|)(/[12345]|\\[12345])?([!-~]*?)(#[!-~]*?|)(/[12345]|\\[12345])?([:_|]?)(\\s+|$)"};
-    re2::RE2 mIlluminaSuffixPattern{"(#[!-~]*?|)(/[12345]|\\[12345])?([!-~]*?)(#[!-~]*?|)(/[12345]|\\[12345])?([:_|]?)(\\s+|$)"};
-    
-    vector<re2::RE2::Arg> suffix_argv;
-    vector<re2::RE2::Arg*> suffix_args;
-    vector<re2::StringPiece> suffix_match; 
 
 };
 
@@ -183,16 +162,42 @@ public:
 };
 
 
+// IlluminaNewWithSuffix aka IlluminaNewWithJunk in fastq-load.py 
 //  ============================================================================
-class CDefLineMatcherIlluminaNewWithJunk : public CDefLineMatcherIlluminaNewBase
+class CDefLineMatcherIlluminaNewWithSuffix : public CDefLineMatcherIlluminaNewBase
 //  ============================================================================
 {
 public:
-    CDefLineMatcherIlluminaNewWithJunk() :
+    CDefLineMatcherIlluminaNewWithSuffix() :
         CDefLineMatcherIlluminaNewBase(
-            "illuminaNewWithJunk",
+            "illuminaNewWithSuffix",
             "^[@>+]([!-~]+)([:_])(\\d+)([:_])(\\d+)([:_])(-?\\d+\\.?\\d*)([:_])(-?\\d+\\.\\d+|\\d+)([!-~]+?\\s+|[!-~]+?[:_|-])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)")
-    {}
+    {
+        assert(mSuffixPattern.ok());
+        static const int IlluminaSuffixGroups = 6;
+        mSuffixArgv.resize(IlluminaSuffixGroups);
+        mSuffixArgs.resize(IlluminaSuffixGroups);
+        mSuffixMatch.resize(IlluminaSuffixGroups);
+        for (int i = 0; i < IlluminaSuffixGroups; ++i) {  
+            mSuffixArgs[i] = &mSuffixArgv[i];  
+            mSuffixArgv[i] = &mSuffixMatch[i];
+        }
+    }
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        CDefLineMatcherIlluminaNewBase::GetMatch(read);
+        if (match[9].size() > 2) {
+            if (re2::RE2::PartialMatchN(match[9], mSuffixPattern, &mSuffixArgs[0], (int)mSuffixArgs.size())) {
+                read.SetSuffix(mSuffixMatch[2]); 
+            }
+        }
+    }
+
+private:    
+    re2::RE2 mSuffixPattern{"(#[!-~]*?|)(/[12345]|\\[12345])?([!-~]*?)(#[!-~]*?|)(/[12345]|\\[12345])?([:_|]?)(\\s+|$)"};
+    vector<re2::RE2::Arg> mSuffixArgv;
+    vector<re2::RE2::Arg*> mSuffixArgs;
+    vector<re2::StringPiece> mSuffixMatch; 
 };
 
 

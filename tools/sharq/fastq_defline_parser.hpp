@@ -34,7 +34,7 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew());
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNew());
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewNoPrefix());
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithJunk());
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithSuffix());
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods());
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores());
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);

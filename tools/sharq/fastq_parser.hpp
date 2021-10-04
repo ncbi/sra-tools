@@ -487,7 +487,7 @@ void fastq_parser<TWriter>::parse()
             }
             if ((int)reader_idx.size() == num_readers) // all readers are at EOF
                 break;
-            if (!reader_idx.empty() && reader_idx.size() < num_readers) 
+            if (!reader_idx.empty() && (int)reader_idx.size() < num_readers) 
                 throw fastq_error(180, "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", 
                         m_readers[reader_idx.front()].file_name(), m_readers[reader_idx.front()].line_number());
         }

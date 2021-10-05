@@ -1,6 +1,5 @@
 from distutils.core import setup
 import sys
-import os
 #import version
 
 #ver = version.get_git_version()
@@ -11,7 +10,7 @@ min_version = 26
 if decimal_ver < min_version:
     print ("At least python " + str(min_version/10.) + " is required to automatically install ngs package, and you're using " + str(decimal_ver/10.))
     exit(1)
-print("PYTHONUSERBASE=" + os.environ['PYTHONUSERBASE'] )
+
 setup(name='ngs',
       #version=ver,
       version = "1.0",

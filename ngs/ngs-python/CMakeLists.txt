@@ -9,5 +9,8 @@ if( Python3_EXECUTABLE )
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py  -q install --user
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    set_tests_properties( SlowTest_NgsPython
+        PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${BINDIR}\\tmp\\ngs"
+    )
 
 endif()

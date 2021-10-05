@@ -4,7 +4,6 @@ vdb_dump_makedb=$1
 bin_dir=$2
 
 echo vdb-dump-makedb: ${vdb_dump_makedb}
-echo cmake_source_dir: ${cmake_source_dir}
 
 echo "testing vdb_dump"
 

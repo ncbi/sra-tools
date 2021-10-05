@@ -11,6 +11,6 @@ if ( NOT WIN32 )
 	target_link_libraries( vdb-dump-makedb ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
 
 	add_test( NAME Test_Vdb_dump
-		COMMAND vdb_dump.sh "${CMAKE_BINARY_DIR}/test-bin/vdb-dump-makedb" "${BINDIR}"
+		COMMAND vdb_dump.sh "${TESTBINDIR}/vdb-dump-makedb" "${BINDIR}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

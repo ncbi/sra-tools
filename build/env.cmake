@@ -196,6 +196,10 @@ function(SetAndCreate var path )
     file(MAKE_DIRECTORY ${path} )
 endfunction()
 
+if( NOT TARGDIR )
+    set( TARGDIR ${CMAKE_BINARY_DIR} )
+endif()
+
 if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
     set( SINGLE_CONFIG false )
@@ -213,10 +217,12 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( NCBI_VDB_ILIBDIR_DEBUG ${VDB_BINDIR}/Debug/ilib )
     set( NCBI_VDB_ILIBDIR_RELEASE ${VDB_BINDIR}/Release/ilib )
 
-    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/bin )
-    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/bin )
-    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${CMAKE_BINARY_DIR}/Debug/lib )
-    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/Release/lib )
+    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${TARGDIR}/Debug/bin )
+    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TARGDIR}/Release/bin )
+    SetAndCreate( TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${TARGDIR}/Debug/test-bin )
+    SetAndCreate( TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TARGDIR}/Release/test-bin )
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${TARGDIR}/Debug/lib )
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${TARGDIR}/Release/lib )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG            ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE          ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE} )
     set( CMAKE_JAR_OUTPUT_DIRECTORY                      ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} ) # both Debug and Release share this
@@ -224,6 +230,7 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     # to be used in add-test() as the location of executables.
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
     set( BINDIR "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
+    set( TESTBINDIR "$<$<CONFIG:Debug>:${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
 
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_ILIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_ILIBDIR_RELEASE}> )
@@ -239,14 +246,15 @@ else() # assume a single-config generator
     set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
     set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
 
-    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
-    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
+    SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
+    SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${TARGDIR}/lib )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY          ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
     set( CMAKE_JAR_OUTPUT_DIRECTORY              ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 
     # to be used in add-test() as the location of executables.
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
-    set( BINDIR "${CMAKE_BINARY_DIR}/bin" )
+    set( BINDIR "${TARGDIR}/bin" )
+    set( TESTBINDIR "${TARGDIR}/test-bin" )
 
     link_directories( ${NCBI_VDB_LIBDIR} )
     link_directories( ${NCBI_VDB_ILIBDIR} )

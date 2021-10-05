@@ -1,10 +1,6 @@
-if(NOT CMAKE_TEST_OUTPUT_DIRECTORY)
-    set(CMAKE_TEST_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/test-bin)
-endif()
-
 # this is where test executables will be created
-# to access tools themselves, use ${CMAKE_BINARY_DIR}/bin
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_TEST_OUTPUT_DIRECTORY} )
+# to access tools themselves, use ${BINDIR}
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
 
 set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
 link_libraries( ${COMMON_LINK_LIBRARIES} )

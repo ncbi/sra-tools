@@ -46,6 +46,7 @@
 
 #include <bm/bmstrsparsevec.h>
 #include <bm/bmsparsevec_algo.h>
+#include <spdlog/spdlog.h>
 #include <spdlog/stopwatch.h>
 #include <zlib.h>
 #include <chrono>
@@ -62,7 +63,7 @@ class fastq_reader
 //  ============================================================================
 {
 public:    
-    fastq_reader(const string& file_name, istream* _stream = nullptr, char read_type = 'B') 
+    fastq_reader(const string& file_name, shared_ptr<istream> _stream, char read_type = 'B') 
         : m_file_name(file_name)
         , m_stream(_stream)
         , m_read_type(read_type)
@@ -103,10 +104,10 @@ private:
 
 //  ----------------------------------------------------------------------------
 static
-unique_ptr<istream> s_OpenStream(const string& filename)
+shared_ptr<istream> s_OpenStream(const string& filename)
 //  ----------------------------------------------------------------------------
 {
-    unique_ptr<istream> is = (filename != "-") ? unique_ptr<istream>(new bxz::ifstream(filename)) : unique_ptr<istream>(new bxz::istream(std::cin)); 
+    shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename)) : shared_ptr<istream>(new bxz::istream(std::cin)); 
     if (!is->good())
         throw runtime_error("Failure to open '" + filename + "'");
     return is;        
@@ -244,8 +245,8 @@ bool fastq_reader::parse_read(CFastqRead& read)
         // we skip it
         GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
         if (!m_line_view.empty()) {
-            read.AddQualityLine(m_line_view);
             do {
+                read.AddQualityLine(m_line_view);
                 if (m_is_qual_score_numeric && read.Quality().size() >= sequence_size)
                     break;
                 GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
@@ -628,7 +629,7 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
     CFastqRead read;
     map<string, qual_score_params> reader_qual_params;
     for (const auto& fn  : files) {
-        fastq_reader reader(fn, s_OpenStream(fn).release());
+        fastq_reader reader(fn, s_OpenStream(fn));
         if (!reader.parse_read(read))
             throw fastq_error(50 , "File '{}' has no reads", fn);
         qual_score_params& params  = reader_qual_params[fn];
@@ -667,7 +668,7 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
     }
     size_t idx = 0;
     for (const auto& fn  : files) {
-        m_readers.emplace_back(fn, s_OpenStream(fn).release(), (idx < read_types.size()) ? read_types[idx] : 'A');
+        m_readers.emplace_back(fn, s_OpenStream(fn), (idx < read_types.size()) ? read_types[idx] : 'A');
         const qual_score_params& params = reader_qual_params[fn];
         auto& reader = m_readers.back();
         reader.set_qual_validator(params.space_delimited == false, params.min_score, params.max_score);

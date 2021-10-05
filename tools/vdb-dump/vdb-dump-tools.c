@@ -823,21 +823,34 @@ static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def
     rc_t rc = 0;
     uint32_t i;
     p_dump_str s = &( def -> content );
-    if ( src -> in_hex )
-    {
+    if ( src -> in_hex ) {
         MACRO_NBB_IN_HEX
-    }
-    else
-    {
+    } else {
         const char * bt_true;
         const char * bt_false;    
 
         vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
-        for ( i = 0; 0 == rc && i < n; ++i )
-        {
+        if ( 1 == n ) {
             uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
             rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
             DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" ); \
+            
+        } else {
+            for ( i = 0; 0 == rc && i < n - 1; ++i )
+            {
+                uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
+                rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" );
+                if ( 0 == rc ) {
+                    rc = vds_append_str( s, ", " );
+                    DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" );
+                }
+            }
+            if ( 0 == rc ) {
+                uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
+                rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" );
+            }
         }
     }
     return rc;
@@ -1315,19 +1328,31 @@ static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
     uint32_t i;
     p_dump_str s = &( def -> content );
 
-    if ( src -> in_hex )
-    {
+    if ( src -> in_hex ) {
         MACRO_BB_IN_HEX_SHORT
-    }
-    else
-    {
+    } else {
         const char * bt_true;
-        const char * bt_false;    
+        const char * bt_false;
         vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
-        for ( i = 0; 0 == rc && i < n; ++i )
-        {
-            rc = vds_append_str( s, 0 == data[ i ] ? bt_false : bt_true );
+        
+        if ( 1 == n ) {
+            rc = vds_append_str( s, 0 == data[ 0 ] ? bt_false : bt_true );
             DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+            
+        } else {
+            for ( i = 0; 0 == rc && i < n - 1; ++i )
+            {
+                rc = vds_append_str( s, 0 == data[ i ] ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+                if ( 0 == rc ) {
+                    rc = vds_append_str( s, ", " );
+                    DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+                }
+            }
+            if ( 0 == rc ) {
+                rc = vds_append_str( s, 0 == data[ n - 1 ] ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+            }
         }
     }
     return rc;

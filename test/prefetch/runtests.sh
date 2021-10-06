@@ -569,6 +569,7 @@ fi ;
 echo PREFETCH MULTIPLE ITEMS
 rm -fr `pwd`/SRR0* `pwd`/tmp/sra
 ls `pwd`/tmp
+cat `pwd`/tmp/t.kfg
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
   ${bin_dir}/prefetch SRR045450 ${SRAC} -+VFS #> /dev/null
 output=$(ls `pwd`/tmp/sra/SRR045450.sra `pwd`/tmp/sra/${SRAC}.sra)

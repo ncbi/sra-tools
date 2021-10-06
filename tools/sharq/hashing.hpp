@@ -27,7 +27,7 @@
 #define __HASHING_HPP__
 
 #include <hash/sha1.h>
-#include <bm/bm.h>
+#include <bm/bm64.h>
 #include <vector>
 #include <functional>
 

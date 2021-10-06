@@ -75,7 +75,7 @@ void CDefLineParser::Parse(const string_view& defline, CFastqRead& read)
         mDefLineMatchers[mIndexLastSuccessfulMatch]->GetMatch(read);
         return;
     }
-    throw fastq_error(100, "[line:{}] Defline '{}' not recognized", read.LineNumber(), defline);
+    throw fastq_error(100, "Defline '{}' not recognized", defline);
 }
 
 inline

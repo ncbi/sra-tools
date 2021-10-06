@@ -39,9 +39,15 @@
 #include "fastq_error.hpp"
 #include "fastq_parser.hpp"
 #include "fastq_writer.hpp"
+
+#if __has_include(<experimental/filesystem>)
 #include <experimental/filesystem>
-// for brevity
 namespace fs = std::experimental::filesystem;
+#else
+#include <filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
+
 
 #define LOCALDEBUG
 
@@ -124,7 +130,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         app.add_flag("--allowEarlyFileEnd", mAllowEarlyFileEnd, "Complete load at early end of one of the files");
         app.add_flag("--debug", mDebug, "Debug mode");
         bool print_errors;
-        app.add_flag("--print_errors", print_errors, "Print error codes");
+        app.add_flag("--help_errors,--help-errors", print_errors, "Print error codes and descriptions");
+
         string hash_file;
         app.add_option("--hash", hash_file, "Check hash file");
         app.add_option("--spot_file", mSpotFile, "Save spot names");
@@ -179,8 +186,10 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         xCheckInputFiles();
 
         return Run();
+    } catch (fastq_error& e) {
+        spdlog::error(e.Message());
     } catch(std::exception const& e) {
-        spdlog::error(e.what());
+        spdlog::error("[code:0] Runtime error: {}", e.what());
     }
     return 1;
 }
@@ -270,7 +279,7 @@ int CFastqParseApp::xRun()
     parser.set_allow_early_end(mAllowEarlyFileEnd);
     for (const auto& batch : mInputBatches) {
         parser.setup_readers(batch, mReadTypes);
-        parser.parse();
+        parser.parse(); 
     }
     parser.check_duplicates();
     m_writer->close();

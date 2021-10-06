@@ -40,7 +40,7 @@
 #include "hashing.hpp"
 // input streams
 #include "bxzstr/bxzstr.hpp"
-#include <bm/bm.h>
+#include <bm/bm64.h>
 #include <bm/bmdbg.h>
 #include <bm/bmtimer.h>
 
@@ -238,7 +238,7 @@ bool fastq_reader::parse_read(CFastqRead& read)
     }
     auto sequence_size = read.Sequence().size();
     if (sequence_size == 0) 
-        throw fastq_error(110, "[line:{}] Read {}: no sequence data", read.LineNumber(), read.Spot());
+        throw fastq_error(110, "Read {}: no sequence data", read.Spot());
 
     if (!m_line_view.empty() && m_line_view[0] == '+') { // quality score defline
         // quality score defline is expected to start with '+'
@@ -268,9 +268,14 @@ inline
 bool fastq_reader::get_read(CFastqRead& read) 
 //  ----------------------------------------------------------------------------    
 {
-    if (!parse_read(read))
-        return false;
-    m_qual_validator(read, m_qual_score_range);
+    try {
+        if (!parse_read(read))
+            return false;
+        m_qual_validator(read, m_qual_score_range);
+    } catch (fastq_error& e) {
+        e.set_file(m_file_name, read.LineNumber());
+        throw;
+    }
     return true;
 }
 
@@ -339,7 +344,7 @@ void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expecte
             if (!str.empty()) {
                 int score = stoi(str);
                 if (!(score >= expected_range.first && score <= expected_range.second)) 
-                    throw fastq_error(120, "[line:{}] Read {}: unexpected quality score value '{}'", read.LineNumber(), read.Spot(), score);
+                    throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
                 ++qual_size;
                 str.clear();
             }
@@ -350,12 +355,12 @@ void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expecte
     if (!str.empty()) {
         int score = stoi(str);
         if (!(score >= expected_range.first && score <= expected_range.second)) 
-            throw fastq_error(120, "[line:{}] Read {}: unexpected quality score value '{}'", read.LineNumber(), read.Spot(), score);
+            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
         ++qual_size;    
     }
     int sz = read.mSequence.size();
     if (qual_size > sz) {
-        throw fastq_error(130, "[line:{}] Read {}: quality score length exceeds sequence length", read.LineNumber(), read.Spot());
+        throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
     }
 
     while (qual_size < sz) {
@@ -371,14 +376,17 @@ void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected
 //  ----------------------------------------------------------------------------    
 {
     auto qual_size = read.mQuality.size();
+    if (qual_size == 0)
+        throw fastq_error(111, "Read {}: no quality scores", read.Spot());
+
     auto sz = read.mSequence.size();
     if (qual_size > sz) 
-        throw fastq_error(130, "[line:{}] Read {}: quality score length exceeds sequence length", read.LineNumber(), read.Spot());
+        throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
 
     for (auto c : read.mQuality) {
         int score = int(c);
         if (!(score >= expected_range.first && score <= expected_range.second)) 
-            throw fastq_error(120, "[line:{}] Read {}: unexpected quality score value '{}'", read.LineNumber(), read.Spot(), score);
+            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
     }
     if (qual_size < sz) 
         read.mQuality.append(sz - qual_size,  char(expected_range.first + 30));
@@ -539,7 +547,7 @@ void fastq_parser<TWriter>::check_duplicates()
                 bv_collisions.set(idx_pos);
             m_spot_names.set(idx_pos, empty_str);
             if (str_scan.find_eq_str(m_spot_names, value, pos))
-                throw fastq_error(170, "[line:{}] Duplicate spot '{}' at line {}", pos * 4 + 1, value, (idx_pos * 4) + 1);
+                throw fastq_error(170, "[line:{}] Collation check. Duplicate spot '{}' at line {}", pos * 4 + 1, value, (idx_pos * 4) + 1);
             it = m_spot_names.get_const_iterator(idx_pos + 1);
         } else {
             it.advance();
@@ -597,7 +605,7 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
             if (isspace(c)) {
                 if (!str.empty()) {
                     if (!params.set_score(stoi(str)))
-                        throw fastq_error(140, "[line:{}] Read {}: quality score contains unexpected character '{}'", read.LineNumber(), read.Spot(), stoi(str));
+                        throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), stoi(str));
                     str.clear();
                 }
                 continue;
@@ -606,11 +614,11 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
         }
         if (!str.empty()) 
             if (!params.set_score(stoi(str))) 
-                throw fastq_error(140, "[line:{}] Read {}: quality score contains unexpected character '{}'", read.LineNumber(), read.Spot(), stoi(str));
+                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), stoi(str));
     } else {
         for (auto c : quality) {
             if (!params.set_score(int(c)))
-                throw fastq_error(140, "[line:{}] Read {}: quality score contains unexpected character '{}'", read.LineNumber(), read.Spot(), int(c));
+                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), int(c));
         }
     }
 }
@@ -630,17 +638,32 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
     map<string, qual_score_params> reader_qual_params;
     for (const auto& fn  : files) {
         fastq_reader reader(fn, s_OpenStream(fn));
-        if (!reader.parse_read(read))
-            throw fastq_error(50 , "File '{}' has no reads", fn);
+        try {
+            if (!reader.parse_read(read))
+                throw fastq_error(50 , "File '{}' has no reads", fn);
+        } catch (fastq_error& e) {
+            e.set_file(fn, read.LineNumber());
+            throw;
+        }
+
         qual_score_params& params  = reader_qual_params[fn];
         s_check_qual_score(read, params);
-        if (platform == 0)
-            platform = reader.platform();
-        else if (reader.platform() != platform)    
-            throw fastq_error(60, "Platform detected from defline '{}' does not matche paltform passed as paramter '{}'", reader.platform(), platform);
+
+        platform = reader.platform();
+
+        //if (platform == 0)
+        //    platform = reader.platform();
+        //else if (reader.platform() != platform)    
+        //    throw fastq_error(60, "Platform detected from defline '{}' does not match paltform passed as parameter '{}'", reader.platform(), platform);
+
         for (int i = 0; i < num_reads_to_check; ++i) {
-            if (!reader.parse_read(read))
-                break;
+            try {
+                if (!reader.parse_read(read))
+                    break;
+            } catch (fastq_error& e) {
+                e.set_file(fn, read.LineNumber());
+                throw;
+            }
             s_check_qual_score(read, params);
             if (platform != reader.platform()) 
                 throw fastq_error(70, "Input files have deflines from different platforms");

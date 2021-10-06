@@ -21,13 +21,13 @@ public:
 
     void Reset();
 
-#if (__cplusplus >= 201703L) 
+//#if (__cplusplus >= 201703L) 
     void AddSequenceLine(const string_view& sequence);
     void AddQualityLine(const string_view& quality);
-#else
-    void AddSequenceLine(const string& sequence);
-    void AddQualityLine(const string& quality);
-#endif
+//#else
+//    void AddSequenceLine(const string& sequence);
+//    void AddQualityLine(const string& quality);
+//#endif
 
     //void Validate();
 
@@ -56,7 +56,7 @@ public:
                  mReadType = Sequence().size() < 40 ? SRA_READ_TYPE_TECHNICAL: SRA_READ_TYPE_BIOLOGICAL;   
                 break;
             default:
-                throw fastq_error(150, "[line:{}] Read {}: invalid readtType '{}'", mLineNumber, mSpot, readType);
+                throw fastq_error(150, "Read {}: invalid readtType '{}'", mSpot, readType);
          }
     }
 
@@ -120,8 +120,8 @@ void CFastqRead::Reset()
 
 void CFastqRead::AddSequenceLine(const string_view& sequence) {
     // check isalpha
-    if (std::any_of(sequence.begin(), sequence.begin(), [](const char c) { return !isalpha(c);})) {
-        throw fastq_error(160, "[line:{}] Read {}: invalid sequence characters", mLineNumber, mSpot);
+    if (std::any_of(sequence.begin(), sequence.end(), [](const char& c) { return !isalpha(c);})) {
+        throw fastq_error(160, "Read {}: invalid sequence characters", mSpot);
     }
     mSequence.append(sequence.begin(), sequence.end());
 }

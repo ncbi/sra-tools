@@ -5,28 +5,40 @@
 #include <map>
 #include <spdlog/fmt/fmt.h>
 
+#if __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#include <filesystem>
+namespace fs = std::experimental::filesystem;
+#endif
+
+
+
 using TSharqErrorCode = int;
 using TSharqErrorMsg = std::string;
 using TSharqErrorDescription = std::string;
 
 static std::map<TSharqErrorCode, std::tuple<TSharqErrorMsg, TSharqErrorDescription>> 
 SHARQ_ERR_CODES = {
-    {10  ,{ "Invalid command line parameters, inconsistent number of read pairs", "Number of comma-separated files in all readNPairFiles parameters is expected to be the same"}},
-    {20  ,{ "No readTypes provided", "readTypes parameter is expected if readNPairFiles parameters are present"}},
-    {30  ,{ "readTypes number should match number of input files", "readTypes number should match the number of input files"}},
-    {40  ,{ "File '{}' does not exists", "Failure to find input file passed in the parameters"}},
-    {50  ,{ "File '{}' has no reads", "No reads found in the file"}},
-    {60  ,{ "Platform detected from defline '{}' does not matche paltform passed as paramter '{}'", "Platform detected from defline does not matche paltform passed as paramter"}},
-    {70  ,{ "Input files have deflines from different platforms", "Input files have deflines from different platforms"}},
-    {80  ,{ "Inconsistent submission: 10x submissions are mixed with different types.", "Inconsistent submission: 10x submissions are mixed with different types (Check file names)."}},
-    {100 ,{ "Defline '{}' not recognized", "SharQ failed to parse defline"}},
-    {110 ,{ "Read {}: no sequence data", "FastQ read has no sequence data"}},
-    {120 ,{ "Read {}: unexpected quality score value '{}'", "Quality score is out of expected range"}},
-    {130 ,{ "Read {}: quality score length exceeds sequence length", "Quality score length exceeds sequence length"}},
-    {140 ,{ "Read {}: quality score contains unexpected character '{}'", "Quality score contains unexpected characters"}},
-    {150 ,{ "Read {}: invalid readtType '{}'", "Unexpected readTypes parameter values"}},
-    {160 ,{ "Read {}: invalid sequence characters", "Sequence contains non-aplhabetical character"}},
-    {170 ,{ "Duplicate spot '{}'", "Duplicated spot name detected"}},
+    {0   ,{ "Runtime error.", "Runtime error."}},
+    {10  ,{ "Invalid command line parameters, inconsistent number of read pairs", "Number of comma-separated files in all readNPairFiles parameters is expected to be the same."}},
+    {20  ,{ "No readTypes provided", "'--readTypes' parameter is expected if readNPairFiles parameters are present."}},
+    {30  ,{ "readTypes number should match number of input files", "'--readTypes' number should match the number of input files."}},
+    {40  ,{ "File '{}' does not exists", "Failure to find input file passed in the parameters."}},
+    {50  ,{ "File '{}' has no reads", "No reads found in the file."}},
+    //{60  ,{ "Platform detected from defline '{}' does not match paltform passed as parameter '{}'", "Platform detected from defline does not match paltform passed as parameter."}},
+    {70  ,{ "Input files have deflines from different platforms", "Input files have deflines from different platforms."}},
+    {80  ,{ "10x input files are mixed with different types.", "10x input files are mixed with different types (check file names)."}},
+    {100 ,{ "Defline '{}' not recognized", "SharQ failed to parse defline."}},
+    {110 ,{ "Read {}: no sequence data", "FastQ read has no sequence data."}},
+    {111 ,{ "Read {}: no quality scores", "FastQ read has no quality scores."}},
+    {120 ,{ "Read {}: unexpected quality score value '{}'", "Quality score is out of expected range."}},
+    {130 ,{ "Read {}: quality score length exceeds sequence length", "Quality score length exceeds sequence length."}},
+    {140 ,{ "Read {}: quality score contains unexpected character '{}'", "Quality score contains unexpected characters."}},
+    {150 ,{ "Read {}: invalid readtType '{}'", "Unexpected '--readTypes' parameter values."}},
+    {160 ,{ "Read {}: invalid sequence characters", "Sequence contains non-alphabetical character."}},
+    {170 ,{ "Collation check. Duplicate spot '{}'", "Collation check found duplicated spot name."}},
     {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}}
 };
 
@@ -66,10 +78,20 @@ public:
         return mMessage.c_str();
     }
 
-    std::string Message() const
+    const std::string& Message() const
     {
         return mMessage;
     }
+
+    void set_file(const std::string& file, int line_number) 
+    {
+        std::string fname = fs::path(file).filename();
+        if (line_number > 0)
+            mMessage += fmt::format(" [{}:{}]", fname, line_number);
+        else 
+            mMessage += fmt::format(" [{}]", fname);
+    }    
+
 
     static void print_error_codes(std::ostream& os) 
     {

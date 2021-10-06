@@ -156,6 +156,7 @@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 cd .. # out of tmp2
 
 echo URL/ download when user repository is configured
+rm -f `pwd`/tmp2/index.html
 if ls `pwd`/tmp2/index.html 2> /dev/null ; \
  then echo index.html found ; exit 1; fi
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
@@ -246,7 +247,7 @@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 echo "prefetch ${WGS} when there is no kfg"
 NCBI_SETTINGS=/ VDB_CONFIG=`pwd`/tmp \
        ${bin_dir}/prefetch ${WGS} > /dev/null 2>&1
-rm AFVF01.1 
+rm AFVF01.1
 
 echo "${PUBLIC}/apps/wgs/volumes/wgsFlat = \"wgs\"" >> tmp/t.kfg
 echo

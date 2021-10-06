@@ -346,6 +346,7 @@ fi
 
 echo WGS accession download
 rm -f `pwd`/tmp/wgs/AFVF01
+rm -rf `pwd`/AFVF01
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
     ${bin_dir}/prefetch AFVF01 -+VFS #> /dev/null
 output=$(ls `pwd`/tmp/wgs/AFVF01)

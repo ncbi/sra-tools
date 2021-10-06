@@ -1,12 +1,5 @@
 if( NOT WIN32 )
 
-    if ( NOT TMPDIR )
-        set( TMPDIR "/tmp" )
-    endif()
-    if ( NOT TEMPDIR )
-        set( TEMPDIR ${TMPDIR} )
-    endif()
-
     ADD_CUSTOM_COMMAND(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
         COMMAND

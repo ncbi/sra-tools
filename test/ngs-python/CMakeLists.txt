@@ -7,7 +7,7 @@ if( Python3_EXECUTABLE )
     set_tests_properties( SlowTest_NgsPython
         PROPERTIES
             DEPENDS Test_NGS_Python_install
-            ENVIRONMENT "PYTHONUSERBASE=${BINDIR}\\tmp\\ngs"
+            ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/ngs"
     )
 
 endif()

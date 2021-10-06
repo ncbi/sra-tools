@@ -231,6 +231,7 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
     set( BINDIR "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
     set( TESTBINDIR "$<$<CONFIG:Debug>:${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
+    SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_ILIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_ILIBDIR_RELEASE}> )
@@ -255,6 +256,7 @@ else() # assume a single-config generator
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
     set( BINDIR "${TARGDIR}/bin" )
     set( TESTBINDIR "${TARGDIR}/test-bin" )
+    SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
     link_directories( ${NCBI_VDB_LIBDIR} )
     link_directories( ${NCBI_VDB_ILIBDIR} )

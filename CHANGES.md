@@ -1,6 +1,22 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.11.2
+**October 7, 2021**
+
+  **fasterq-dump**: added flexible defline, fasta-unsorted, only-aligned, only-unaligned  
+  **fasterq-dump**: new output format available: --fasta  
+  **fasterq-dump**: option -t sets directory of all temp files (including VDB cache)  
+  **klib, ngs-tools, sra-tools**: status messages (-v) are printed to stderr rather than stdout  
+  **ncbi-vdb, ngs-tools, sra-tools, vdb, vfs**: added  support of SRA Lite files with simplified base quality scores  
+  **prefetch, vfs**: accept Percent Encoding in source URLs  
+  **sam-dump**: fixed wrong value for SAM RNEXT field for unaligned records  
+  **sra-tools, sratools**: verbose option displays information about the type of quality scores contained in the files being used  
+  **sratools**: temporarily changes quality score preference when quality scores are not being used  
+  **sra-tools, vdb**: environment variable NCBI_TMP_CACHE sets the caching directory, overriding any other setting  
+  **vdb-dump**: --info produces valid JSON  
+
+
 ## SRA Toolkit 2.11.1
 **August 17, 2021**
 

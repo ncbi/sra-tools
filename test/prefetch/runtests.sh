@@ -603,7 +603,7 @@ echo PREFETCH SRR FASP URL IS DISABLED
 echo PREFETCH HTTP DIRECTORY URL
 if ls `pwd`/tmp2/index.html 2> /dev/null ; then exit 1; fi
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-  ${bin_dir}/prefetch https://github.com/ncbi/ > /dev/null
+  ${bin_dir}/prefetch https://github.com/ncbi/ -+VFS #> /dev/null
 output=$(ls `pwd`/tmp2/index.html)
 res=$?
 if [ "$res" != "0" ];

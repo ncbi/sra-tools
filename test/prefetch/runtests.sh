@@ -709,7 +709,7 @@ mkdir -p tmp
 echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
 echo 'repository/remote/main/CGI/resolver-cgi = "${CGI}"' >> tmp/t.kfg
 echo '${PUBLIC}/apps/sra/volumes/sraFlat = "sra"'         >> tmp/t.kfg
-echo '${PUBLIC}/root = "${CWD}/tmp"'                      >> tmp/t.kfg
+echo '${PUBLIC}/root = "$(pwd)/tmp"'                      >> tmp/t.kfg
 
 echo Downloading KART was disabled: need to have a public example of protected run or add support of public accessions
 rm -f tmp/sra/SRR0*

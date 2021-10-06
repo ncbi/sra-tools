@@ -9,7 +9,7 @@ if( Python3_EXECUTABLE )
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/setup.py  -q install --user
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
-    # will only matter on Windows
+
     set_tests_properties( Test_NGS_Python_install
         PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${BINDIR}\\tmp\\ngs"
     )

@@ -11,7 +11,7 @@ if( Python3_EXECUTABLE )
     )
 
     set_tests_properties( Test_NGS_Python_install
-        PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/tmp"
+        PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/ngs"
     )
 
 endif()

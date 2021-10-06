@@ -604,6 +604,7 @@ echo PREFETCH HTTP DIRECTORY URL
 if ls `pwd`/tmp2/index.html 2> /dev/null ; then exit 1; fi
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
   ${bin_dir}/prefetch https://github.com/ncbi/ -vv #> /dev/null
+echo `pwd`
 output=$(ls `pwd`/tmp2/index.html)
 res=$?
 if [ "$res" != "0" ];

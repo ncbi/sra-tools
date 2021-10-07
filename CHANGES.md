@@ -8,6 +8,7 @@
   **fasterq-dump**: new output format available: --fasta  
   **fasterq-dump**: option -t sets directory of all temp files (including VDB cache)  
   **klib, ngs-tools, sra-tools**: status messages (-v) are printed to stderr rather than stdout  
+  **kns, ngs-tools, sra-tools**: old verbose messages now happen at verbosity > 1  
   **ncbi-vdb, ngs-tools, sra-tools, vdb, vfs**: added  support of SRA Lite files with simplified base quality scores  
   **prefetch, vfs**: accept Percent Encoding in source URLs  
   **sam-dump**: fixed wrong value for SAM RNEXT field for unaligned records  

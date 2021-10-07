@@ -20,15 +20,23 @@ SRA data is stored and freely available worldwide from Amazon Web Services (AWS)
 
 NIH has released a request for information (RFI) to solicit community feedback on new proposed Sequence Read Archive (SRA) data formats. Learn more and share your thoughts at https://go.usa.gov/xvhdr. The response deadline is July 17th, 2020. We’d encourage you all to share with your colleagues and networks, and respond if you are an SRA submitter or data user.
 
-August 17, 2021: SRA Toolkit 2.11.1
-March 15, 2021: SRA Toolkit 2.11.0 
-December 16, 2020: SRA Toolkit 2.10.9
-June 29, 2020: SRA Toolkit 2.10.8
-May 20, 2020: SRA Toolkit 2.10.7
-May 18, 2020: SRA Toolkit 2.10.6
-April 1, 2020: SRA Toolkit 2.10.5
-February 26, 2020: SRA Toolkit 2.10.4
-February 18, 2020: SRA Toolkit 2.10.3
+August 17, 2021: SRA Toolkit 2.11.1.
+
+March 15, 2021: SRA Toolkit 2.11.0.
+
+December 16, 2020: SRA Toolkit 2.10.9.
+
+June 29, 2020: SRA Toolkit 2.10.8.
+
+May 20, 2020: SRA Toolkit 2.10.7.
+
+May 18, 2020: SRA Toolkit 2.10.6.
+
+April 1, 2020: SRA Toolkit 2.10.5.
+
+February 26, 2020: SRA Toolkit 2.10.4.
+
+February 18, 2020: SRA Toolkit 2.10.3.
 
 Release 2.10.2 of `sra-tools` provides access to all the **public and controlled-access dbGaP** of SRA in the AWS and GCP environments _(Linux only for this release)_. This vast archive's original submission format and SRA-formatted data can both be accessed and computed on these clouds, eliminating the need to download from NCBI FTP as well as improving performance.
 

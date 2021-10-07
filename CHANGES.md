@@ -107,7 +107,7 @@
 
 
 ## SRA Toolkit 2.10.6
-**MAY 18, 2020**
+**May 18, 2020**
 
   **align, sra-tools, ngs-tools**: fixed fetching of reference sequences from cloud  
   **align, sra-tools, vfs**: fixed resolving of hs37d5 reference sequence  

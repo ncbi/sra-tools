@@ -18,7 +18,7 @@ diff expected/${tool}.stderr actual/${tool}.stderr)
 
 res=$?
 if [ "$res" != "0" ];
-	then echo "Driver tool test ${tool} FAILED, res=$res output=$output" && exit 1;
+	then cat actual/${tool}.stderr && echo "Driver tool test ${tool} FAILED, res=$res output=$output" && exit 1;
 fi
 
 echo Driver tool test ${tool} is finished

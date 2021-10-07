@@ -51,6 +51,9 @@ SRRF=${SRAI}:data/sracloud/traces/sra57/SRR/000052/${SRAC}
 WGS=${SRA}/traces/wgs03/WGS/AF/VF/AFVF01.1
 WGSF=${SRAF}:data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 
+work_dir=$(pwd)
+echo WORK DIRECTORY: ${work_dir}
+
 #=============================================
 echo urls_and_accs:
 
@@ -109,7 +112,7 @@ echo HTTP download when user repository is configured
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
     if ping -c1 intranet > /dev/null ; then \
     ${bin_dir}/prefetch ${HTTP_URL} > /dev/null ; fi
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 if ping -c1 intranet > /dev/null ; \
  then ls `pwd`/tmp2/${HTTPFILE} > /dev/null ; fi
 
@@ -118,7 +121,7 @@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
  if ping -c1 intranet > /dev/null ; then \
      ${bin_dir}/prefetch ${HTTP_URL} \
         | grep "found local" > /dev/null ; fi
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 
 rm -f ${HTTPFILE}
 
@@ -129,20 +132,20 @@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
  if ping -c1 intranet > /dev/null ; then \
     ${bin_dir}/prefetch http://intranet/ > /dev/null ; fi
 if ping -c1 intranet>/dev/null; then ls `pwd`/tmp2/index.html > /dev/null;fi
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 
 echo Running prefetch second time finds previous download
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
  if ping -c1 intranet > /dev/null ; then \
     ${bin_dir}/prefetch http://intranet/ | grep "found local" >/dev/null;fi
 rm -f `pwd`/tmp2/index.html
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 
 echo URL download when user repository is configured
 if ls `pwd`/tmp2/wiki 2> /dev/null ; then echo wiki found ; exit 1; fi
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
     ${bin_dir}/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 output=$(ls `pwd`/tmp2/wiki)
 res=$?
 if [ "$res" != "0" ];
@@ -153,7 +156,7 @@ echo Running prefetch second time finds previous download
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
     ${bin_dir}/prefetch https://github.com/ncbi/ngs/wiki \
                               | grep "found local" > /dev/null
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 
 echo URL/ download when user repository is configured
 rm -f `pwd`/tmp2/index.html
@@ -161,7 +164,7 @@ if ls `pwd`/tmp2/index.html 2> /dev/null ; \
  then echo index.html found ; exit 1; fi
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
     ${bin_dir}/prefetch https://github.com/ncbi/ > /dev/null
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 output=$(ls `pwd`/tmp2/index.html)
 res=$?
 if [ "$res" != "0" ];
@@ -171,7 +174,7 @@ fi
 echo Running prefetch second time finds previous download
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
   ${bin_dir}/prefetch https://github.com/ncbi/|grep "found local">/dev/null
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 rm `pwd`/tmp2/index.html
 
 
@@ -371,7 +374,7 @@ else \
         exit 1; \
      fi ; \
 fi
-#cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 
 rm -f `pwd`/tmp2/100MB
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
@@ -380,7 +383,7 @@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
     then echo "prefetch <FASP> when FASP source is not found should fail"; \
          exit 1 ; \
     fi
-cd .. # out of tmp2
+cd ${work_dir} # out of tmp2
 
 rm -r tmp*
 
@@ -457,6 +460,7 @@ if ls `pwd`/tmp/1GB 2> /dev/null; \
    $(DIRTOTEST)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB>/dev/null&&\
    ls `pwd`/1GB > /dev/null ; \
 fi
+cd ${work_dir}
 
 rm -r tmp
 
@@ -604,6 +608,7 @@ echo PREFETCH HTTP DIRECTORY URL
 if ls `pwd`/tmp2/index.html 2> /dev/null ; then exit 1; fi
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
   ${bin_dir}/prefetch https://github.com/ncbi/ -vv #> /dev/null
+cd ${work_dir}
 echo `pwd`
 output=$(ls `pwd`/tmp2/index.html)
 res=$?
@@ -617,6 +622,7 @@ if ls `pwd`/tmp2/wiki 2> /dev/null ; \
 then echo wiki found ; exit 1 ; fi
 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
   ${bin_dir}/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
+cd ${work_dir}
 output=$(ls `pwd`/tmp2/wiki)
 res=$?
 if [ "$res" != "0" ];
@@ -631,6 +637,7 @@ if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
   ls `pwd`/KC702174.1 > /dev/null ; \
 else echo download of FASP URL when ascp is not found is disabled ; \
 fi
+cd ${work_dir} # TODO if we need to use ${work_dir} istead of pwd a few lines above
 
 echo PREFETCH ACCESSION TO OUT-DIR
 rm -f `pwd`/tmp3/dir/${SRAC}/${SRAC}.sra
@@ -873,40 +880,44 @@ cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn"
-cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
-cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
-cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
-cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+cd ${work_dir}
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
 
 echo "Downloading kart ordered by default (size)"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
-cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
-cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
-cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
-cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+cd ${work_dir}
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
 
 echo "Downloading kart ordered by size"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
-cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
-cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
-cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
-cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+cd ${work_dir}
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
 
 echo "Downloading kart ordered by kart"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+cd ${work_dir}
 rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
 rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
 rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
+rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
 
 rm -frv tmp/sra
 echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\""   > tmp/t.kfg
@@ -919,6 +930,7 @@ cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
+cd ${work_dir}
 rm    tmp/sra/SRR1219879_dbGaP-0.sra*
 rm    tmp/sra/SRR1219880_dbGaP-0.sra*
 rm    tmp/sra/SRR1257493_dbGaP-0.sra*
@@ -929,6 +941,7 @@ cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
+cd ${work_dir}
 rm    tmp/sra/SRR1219879_dbGaP-0.sra*
 rm    tmp/sra/SRR1219880_dbGaP-0.sra*
 rm    tmp/sra/SRR1257493_dbGaP-0.sra*
@@ -939,6 +952,7 @@ cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+cd ${work_dir}
 rm    tmp/sra/SRR1219879_dbGaP-0.sra*
 rm    tmp/sra/SRR1219880_dbGaP-0.sra*
 rm    tmp/sra/SRR1257493_dbGaP-0.sra*
@@ -950,30 +964,33 @@ cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
-cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
-cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
-cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
-cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+cd ${work_dir}
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
 
 echo "Downloading kart ordered by size ignoring user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
-cd tmp && rm     SRR1219879/SRR1219879_dbGaP-0.sra*
-cd tmp && rm     SRR1219880/SRR1219880_dbGaP-0.sra*
-cd tmp && rm     SRR1257493/SRR1257493_dbGaP-0.sra*
-cd tmp && rmdir  SRR1219879 SRR1219880 SRR1257493
+cd ${work_dir}
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
 
 echo "Downloading kart ordered by kart ignoring user repo"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
+cd ${work_dir}
 rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
 rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
 rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-cd tmp && rmdir SRR1219879 SRR1219880 SRR1257493
+rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
 
 rm -r tmp
 
@@ -987,6 +1004,7 @@ mkdir  tmp
 echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\"" > tmp/k
 
 cd tmp && NCBI_SETTINGS=k              $B/prefetch SRR619505  -fy > /dev/null
+cd ${work_dir}
 ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
 rm -r tmp/S*
 
@@ -999,14 +1017,17 @@ printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
 #cat tmp/k
 
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR619505  -fy > /dev/null
+cd ${work_dir}
 ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null
 rm -r tmp/[rS]*
 
 #TODO: TO ADD AD for AAAB01 cd tmp &&                 prefetch SRR353827 -fy -+VFS
 
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch SRR353827  -fy > /dev/null
+cd ${work_dir}
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/align-info SRR353827 \
 	| grep -v 'false,remote::https:'                      > /dev/null
+cd ${work_dir}
 ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null
 rm -r tmp/[wS]*
 rm -r tmp
@@ -1028,9 +1049,11 @@ printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k
 
 echo '      ... prefetching...'
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/prefetch   ERR3091357 -fy   > /dev/null
+cd ${work_dir}
 echo '      ... align-infoing...'
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k $B/align-info ERR3091357 \
 	| grep -v 'false,remote::https:'                      > /dev/null
+cd ${work_dir}
 ls tmp/ERR3091357/ERR3091357.sra tmp/wgs/JTFH01 tmp/refseq/KN707955.1 \
                                                          > /dev/null
 
@@ -1050,6 +1073,7 @@ echo Verifying hs37d5
 rm   -frv tmp/*
 mkdir -p  tmp
 cd tmp && NCBI_SETTINGS=k PATH='$(B):${PATH}' perl ../test-hs37d5.pl
+cd ${work_dir}
 rm    -r  tmp
 
 echo ad_as_dir: # turned off by default. Library test is in
@@ -1058,6 +1082,7 @@ echo we can use AD as dir/...
 mkdir -p tmp
 export NCBI_SETTINGS=/ && export PATH='${bin_dir}:${PATH}' \
 	&& cd tmp && perl ../use-AD-as-dir.pl
+cd ${work_dir}
 rm -r tmp
 
 echo dump-vs-prefetch:
@@ -1065,6 +1090,7 @@ rm -frv tmp/*
 mkdir -pv tmp
 cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH='$(B):${PATH}' \
                                perl ../dump-vs-prefetch.pl
+cd ${work_dir}
 rm -r tmp
 
 echo quality: std
@@ -1073,6 +1099,7 @@ mkdir -p tmp
 echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
 #	@ cd tmp && NCBI_SETTINGS=k PATH='${bin_dir}:$(BINDIR):${PATH}' \
 				perl ../test-quality.pl
+cd ${work_dir}
 rm -r tmp
 
 echo ad_not_cwd:

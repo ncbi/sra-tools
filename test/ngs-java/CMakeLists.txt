@@ -48,7 +48,7 @@ if ( Java_FOUND )
     )
 
     add_test( NAME SlowTest_NgsJava_CSRA1
-        COMMAND ${Java_JAVA_EXECUTABLE} -cp "${CLASSPATH}" "-Djava.library.path=${LIBPATH}" ${VARS} org.junit.runner.JUnitCore ngs_test_CSRA1
+        COMMAND ${Java_JAVA_EXECUTABLE} -cp "${CLASSPATH}" "-Djava.library.path=${LIBDIR}" ${VARS} org.junit.runner.JUnitCore ngs_test_CSRA1
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 

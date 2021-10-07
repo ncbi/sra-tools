@@ -14,3 +14,5 @@ res=$?
 if [ "$res" != "0" ];
 	then echo "sra-sort test FAILED, res=$res output=$output" && exit 1;
 fi
+
+echo "$output"

@@ -2,7 +2,7 @@ if( Python3_EXECUTABLE )
 
 if ( NOT WIN32 )
 
-    add_test( NAME SlowTest_Kget
+    add_test( NAME Test_Kget
         COMMAND
         ${CMAKE_COMMAND} -E env PATH=${BINDIR}
         ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}

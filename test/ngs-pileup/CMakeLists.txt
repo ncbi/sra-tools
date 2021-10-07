@@ -12,7 +12,7 @@ target_link_libraries( test-ngs-pileup
     ${COMMON_LINK_LIBRARIES}
 )
 
-add_test( NAME SlowTest_Ngs_Pileup
+add_test( NAME Test_Ngs_Pileup
           COMMAND test-ngs-pileup
 )
 

@@ -43,18 +43,18 @@ extern "C" {
 #include <kfs/file.h>
 #endif
 
-struct file_printer;
+struct file_printer_t;
 
-void destroy_file_printer( struct file_printer * printer );
+void destroy_file_printer( struct file_printer_t * printer );
 
-rc_t make_file_printer_from_file( struct KFile * f, struct file_printer ** printer,
+rc_t make_file_printer_from_file( struct KFile * f, struct file_printer_t ** printer,
                 size_t print_buffer_size );
                 
-rc_t make_file_printer_from_filename( const struct KDirectory * dir, struct file_printer ** printer,
+rc_t make_file_printer_from_filename( const struct KDirectory * dir, struct file_printer_t ** printer,
                 size_t file_buffer_size, size_t print_buffer_size,
                 const char * fmt, ... );
 
-rc_t file_print( struct file_printer * printer, const char * fmt, ... );
+rc_t file_print( struct file_printer_t * printer, const char * fmt, ... );
 
 
 #ifdef __cplusplus

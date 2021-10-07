@@ -13,9 +13,8 @@ vdb-dump extended help
             on linux:   vdb-dump /panfs/traces/sra0/SRR/000000/SRR000001
 
 
-            on windows: vdb-dump \\panfs\traces\sra0\SRR\000000\SRR000001
+            on windows: vdb-dump \\data\sra\sra0\SRR\000000\SRR000001
                         vdb-dump Y:\sra0\SRR\000000\SRR000001
-                        ( if "\\panfs\traces" is mapped to the driveletter Y on your windows-pc )
 
         b) absolute or relative path to a file containing a vdb-table
 

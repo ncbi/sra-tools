@@ -1471,7 +1471,15 @@ rc_t CC KMain ( int argc, char* argv[] )
                     *ext = '\0';
                     ext = strrchr( fmt.accession, '.' );
                 }
-                if ( ext != NULL && ( strcasecmp( ext, ".sra" ) == 0 || strcasecmp( ext, ".csra" ) == 0 ) )
+                if ( ext != NULL &&
+                 /* HACK: need to here use VFSManagerExtractAccessionOrOID!!! */
+                    (
+                        strcasecmp( ext, ".csra" ) == 0 ||
+                        strcasecmp( ext, ".sra" ) == 0 ||
+                        strcasecmp( ext, ".noqual" ) == 0 ||
+                        strcasecmp( ext, ".sralite" ) == 0
+                    )
+                   )
                 {
                     *ext = '\0';
                     ext = strrchr( fmt.accession, '.' );

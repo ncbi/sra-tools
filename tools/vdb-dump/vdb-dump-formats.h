@@ -42,7 +42,7 @@
 extern "C" {
 #endif
 
-rc_t vdfo_print_row( const p_row_context r_ctx );
+rc_t vdfo_print_row( const p_row_context r_ctx, bool first, bool last );
 
 #ifdef __cplusplus
 }

@@ -61,6 +61,8 @@ struct FasterqParams final : CmnOptAndAccessions
     ncbi::U32 MinReadLen;
     bool strict;
     bool append;
+    bool fasta;
+    bool fastaUnsorted;
 
     explicit FasterqParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
@@ -82,6 +84,8 @@ struct FasterqParams final : CmnOptAndAccessions
     , MinReadLen( 0 )
     , strict( false )
     , append( false )
+    , fasta(false)
+    , fastaUnsorted(false)
     {
     }
 
@@ -128,7 +132,14 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline . addOption ( bases, nullptr, "B", "bases", "<bases>", "filter output by matching against given bases" );
         cmdline . addOption ( append, "A", "append", "append to output-file, instead of overwriting it" );
 
+        cmdline.addOption(fasta, "", "fasta", "produce FASTA output");
+        cmdline.addOption(fastaUnsorted, "", "fasta-unsorted", "produce FASTA output, unsorted");
+
         CmnOptAndAccessions::add(cmdline);
+    }
+
+    bool preferNoQual() const override {
+        return fasta || fastaUnsorted;
     }
 
     std::ostream &show(std::ostream &ss) const override

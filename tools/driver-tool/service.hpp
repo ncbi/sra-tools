@@ -47,6 +47,7 @@ public:
 
     uint32_t resultCode() const { return rc; }
     std::string const &failedCall() const { return from; }
+    
     exception(uint32_t rc, char const *from, char const *what)
     : std::runtime_error(what)
     , from(from)
@@ -64,16 +65,27 @@ public:
 class Service {
     void *obj;
     explicit Service(void *);
-public:
-    struct LocalInfo {
-        struct FileInfo {
-            std::string path, cachepath;
-            size_t size;
-            bool have;
 
-            operator bool() const { return have; }
-        } rundata, vdbcache;
+public:
+    enum QualityType {
+        unknown,
+        full,
+        none
     };
+    struct FileInfo {
+        std::string path, cachepath;
+        size_t size;
+        bool have;
+        enum QualityType qualityType = Service::unknown;
+
+        operator bool() const { return have; }
+    };
+private:
+    FileInfo _localInfo(std::string const &accession, std::string const &path) const;
+    FileInfo localInfo(std::string const &accession, std::string const &extension) const;
+
+public:
+    FileInfo localInfo(std::string const &accession) const;
 
     class Response {
         void *obj;
@@ -87,9 +99,9 @@ public:
     public:
         std::string const &responseText() const { return text; }
 
-        Service::LocalInfo::FileInfo localInfo(  std::string const &accession
-                                               , std::string const &name
-                                               , std::string const &type) const;
+        Service::FileInfo localInfo(  std::string const &accession
+                                    , std::string const &name
+                                    , std::string const &type) const;
 
         ~Response();
 
@@ -108,5 +120,6 @@ public:
 
     static bool haveCloudProvider();
     static std::string CE_Token();
+    static QualityType preferredQualityType();
 };
 }

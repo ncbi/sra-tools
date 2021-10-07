@@ -39,24 +39,24 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
-struct temp_dir;
+struct temp_dir_t;
 
-void destroy_temp_dir( struct temp_dir * self );
+void destroy_temp_dir( struct temp_dir_t * self );
 
-rc_t make_temp_dir( struct temp_dir ** obj, const char * requested, KDirectory * dir );
+rc_t make_temp_dir( struct temp_dir_t ** obj, const char * requested, KDirectory * dir );
 
-const char * get_temp_dir( struct temp_dir * self );
+const char * get_temp_dir( struct temp_dir_t * self );
 
-rc_t generate_lookup_filename( const struct temp_dir * self, char * dst, size_t dst_size );
+rc_t generate_lookup_filename( const struct temp_dir_t * self, char * dst, size_t dst_size );
 
-rc_t generate_bg_sub_filename( const struct temp_dir * self, char * dst, size_t dst_size, uint32_t product_id );
+rc_t generate_bg_sub_filename( const struct temp_dir_t * self, char * dst, size_t dst_size, uint32_t product_id );
 
-rc_t generate_bg_merge_filename( const struct temp_dir * self, char * dst, size_t dst_size, uint32_t product_id );
+rc_t generate_bg_merge_filename( const struct temp_dir_t * self, char * dst, size_t dst_size, uint32_t product_id );
 
-rc_t make_joined_filename( const struct temp_dir * self, char * dst, size_t dst_size,
+rc_t make_joined_filename( const struct temp_dir_t * self, char * dst, size_t dst_size,
                            const char * accession, uint32_t id );
 
-rc_t remove_temp_dir( const struct temp_dir * self, KDirectory * dir );
+rc_t remove_temp_dir( const struct temp_dir_t * self, KDirectory * dir );
 
 #ifdef __cplusplus
 }

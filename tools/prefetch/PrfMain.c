@@ -255,7 +255,8 @@ rc_t PrfMainDependenciesList(const PrfMain *self, const Resolved *resolved,
         else if (rc ==
             SILENT_RC(rcKFG, rcEncryptionKey, rcRetrieving, rcItem, rcNotFound))
         {
-            STSMSG(STS_TOP, ("Cannot open encrypted file '%s'", resolved->name));
+            STSMSG(STAT_ALWAYS,
+                ("Cannot open encrypted file '%s'", resolved->name));
             isDb = false;
             rc = 0;
         }

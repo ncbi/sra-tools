@@ -208,6 +208,10 @@ struct FastqParams final : CmnOptAndAccessions
 
     }
 
+    bool preferNoQual() const override {
+        return !fasta.isEmpty();
+    }
+
     std::ostream &show(std::ostream &ss) const override
     {
         if ( !accession_replacement.isEmpty() )  ss << "acc-replace : " << accession_replacement << std::endl;

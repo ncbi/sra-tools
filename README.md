@@ -20,49 +20,15 @@ SRA data is stored and freely available worldwide from Amazon Web Services (AWS)
 
 NIH has released a request for information (RFI) to solicit community feedback on new proposed Sequence Read Archive (SRA) data formats. Learn more and share your thoughts at https://go.usa.gov/xvhdr. The response deadline is July 17th, 2020. We’d encourage you all to share with your colleagues and networks, and respond if you are an SRA submitter or data user.
 
-SRA Toolkit 2.11.0 March 15, 2021
-
-  **fasterq-dump**: does not exit with 0 any more if the given path is not found  
-  **fasterq-dump**: does not exit with 0 if accession is not found  
-  **fasterq-dump**: does not fail when requested to dump a run file with non-standard name  
-  **fasterq-dump**: available on windows  
-  **kfg, prefetch, vfs**: resolve WGS reference sequences into "Accession Directory"  
-  **kfg, sra-tools, vfs**: dropped support of protected repositories  
-  **kns, sra-tools**: fixed formatting of HTTP requests for proxy  
-  **ncbi-vdb, ngs, ngs-tools, sra-tools, vdb**: added support for 64-bit ARM (AArch64, Apple Silicon)  
-  **prefetch, vfs**: fixed download of protected non-run files  
-  **prefetch, vfs**: fixed segfault during download of JWT cart  
-  **prefetch, vfs**: respect requested version when downloading WGS files  
-  **sra-pileup**: now silent if requested slice has no alignments or reference-name does not exist  
-  **sratools**: added description and documentation of the sratools driver tool to GitHub wiki  
-  **sra-tools**: created a script to fix names of downloaded sra files  
-  **sra-tools**: created a script to move downloaded sra run files into proper directories  
-  **sratools**: disable-multithreading option removed from help text for tools that do not support it  
-  **sratools**: does not access remote repository when it is disabled  
-  **sra-tools, vfs**: recognize sra file names with version  
-  **vdb-dump**: exits with no-zero value if asked for non existing column  
-
-SRA Toolkit 2.10.8
-
-kproc, fasterq-dump: fixed problem with seg-faults caused by too small stack used by threads
-kdbmeta: allow to work with remote runs
-kdb, vdb, vfs, sra-tools: fixed bug preventing use of path to directory created by prefetch if it ends with '/'
-vfs, sra-tools, ngs-tools: report an error when file was encrypted for a different ngc file
-prefetch: print error message when cannot resolve reference sequence
-vfs, prefetch: download encrypted phenotype files with encrypted extension
-vdb, sra-docker: config can auto-generate LIBS/GUID when in a docker container
-
-SRA Toolkit 2.10.5
-sratools: fixed a potential build problem in libutf8proc
-ncbi-vdb, ngs, ngs-tools, sra-tools: all Linux builds now use g++ 7.3 (C++11 ABI)
-prefetch: improvements were made to work in environments with bad network connections
-prefetch, sratools: fixed the names of the --min-size and --max-size command line arguments when running prefetch
-
-SRA Toolkit 2.10.4
-kns, sra-tools:: fixed errors when using ngc file
-
-SRA Toolkit 2.10.3
-sraxf, fasterq-dump, fastq-dump, sam-dump: fixed a problem resulting in a segmentation fault
+August 17, 2021: SRA Toolkit 2.11.1
+March 15, 2021: SRA Toolkit 2.11.0 
+December 16, 2020: SRA Toolkit 2.10.9
+June 29, 2020: SRA Toolkit 2.10.8
+May 20, 2020: SRA Toolkit 2.10.7
+May 18, 2020: SRA Toolkit 2.10.6
+April 1, 2020: SRA Toolkit 2.10.5
+February 26, 2020: SRA Toolkit 2.10.4
+February 18, 2020: SRA Toolkit 2.10.3
 
 Release 2.10.2 of `sra-tools` provides access to all the **public and controlled-access dbGaP** of SRA in the AWS and GCP environments _(Linux only for this release)_. This vast archive's original submission format and SRA-formatted data can both be accessed and computed on these clouds, eliminating the need to download from NCBI FTP as well as improving performance.
 

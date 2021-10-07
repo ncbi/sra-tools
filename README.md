@@ -7,7 +7,7 @@ email: sra@ncbi.nlm.nih.gov
 Visit our [download page](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit) for pre-built binaries.
 
 ### Change Log
-Please check the CHANGES.md file for change history.
+Please check the [CHANGES.md](CHANGES.md) file for change history.
 
 ## The SRA Toolkit
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for

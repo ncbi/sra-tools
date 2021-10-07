@@ -6,6 +6,7 @@
 #include "fastq_read.hpp"
 #include "fastq_defline_matcher.hpp"
 #include "fastq_error.hpp"
+#include <spdlog/spdlog.h>
 
 using namespace std;
 
@@ -30,13 +31,14 @@ private:
 CDefLineParser::CDefLineParser() 
 { 
     Reset(); 
-    mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld());
-    mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew());
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNew());
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewNoPrefix());
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithSuffix());
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods());
-    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores());
+    //mDefLineMatchers.emplace_back(new CDefLineMatcher_NoMatch);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNew);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewNoPrefix);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithSuffix);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
 }
 
@@ -63,6 +65,7 @@ bool CDefLineParser::Match(const string_view& defline)
             continue;
         }
         mIndexLastSuccessfulMatch = i;
+        //spdlog::info("Current pattern: {}", mDefLineMatchers[mIndexLastSuccessfulMatch]->Defline());
         return true;
     }
     return false;

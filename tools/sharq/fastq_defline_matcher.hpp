@@ -49,7 +49,7 @@ public:
 
     virtual ~CDefLineMatcher() {}
 
-    bool Matches(const string_view& defline)
+    virtual bool Matches(const string_view& defline)
     {
         return re2::RE2::PartialMatchN(defline, *re, &args[0], (int)args.size());
     }
@@ -64,6 +64,24 @@ protected:
     vector<re2::RE2::Arg*> args;    
     vector<re2::StringPiece> match; 
 };
+
+//  ============================================================================
+class CDefLineMatcher_NoMatch : public CDefLineMatcher
+//  ============================================================================
+{
+public:
+    CDefLineMatcher_NoMatch():
+        CDefLineMatcher("NoMatch", "a^",0)
+    {
+    }
+
+    bool Matches(const string_view& defline) override {return false;}
+    virtual void GetMatch(CFastqRead& read) override  {}
+    virtual uint8_t GetPlatform() const override { return 0;} 
+
+protected:
+};
+
 
 //  ============================================================================
 class CDefLineMatcherIlluminaNewDataGroup : public CDefLineMatcher
@@ -235,7 +253,8 @@ public:
     CDefLineMatcherBgiOld() :
         CDefLineMatcher(
             "BgiOld",
-            "^[@>+](\\S{1,3}\\d{9}\\S{0,3})(L\\d{1})(C\\d{3})(R\\d{3})([_]?\\d{1,7})(#[!-~]*?|)(/[1234]\\S*|)(\\s+|$)",
+            R"--([@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,7})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))--",
+            //"^[@>+](\\S{1,3}\\d{9}\\S{0,3})(L\\d{1})(C\\d{3})(R\\d{3})([_]?\\d{1,7})(#[!-~]*?|)(\\/[1234]\\S*|)(\\s+|$)",
             8)
     {
     }

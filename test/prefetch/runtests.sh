@@ -403,6 +403,7 @@ res=$?
 if [ "$res" != "0" ];
 	then echo "prefetch vdbcache, res=$res output=$output" && exit 1;
 fi
+# TODO: remove test/prefetch/SRR6667190.kfg ?
 
 # second run of prefetch finds local
 NCBI_SETTINGS=/ VDB_CONFIG=`pwd` \
@@ -838,7 +839,7 @@ echo truncated:
 mkdir -p tmp/sra
 echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\"" > tmp/t.kfg
 echo "repository/remote/main/CGI/resolver-cgi = \"${CGI}\"" >> tmp/t.kfg
-echo "${PUBLIC}/apps/sra/volumes/sraFlat = "sra""         >> tmp/t.kfg
+echo "${PUBLIC}/apps/sra/volumes/sraFlat = \"sra\""         >> tmp/t.kfg
 echo "${PUBLIC}/root = \"$(pwd)/tmp\""                      >> tmp/t.kfg
 #	@ ls -l tmp	@ cat tmp/t.kfg
 #	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/vdb-config -on

@@ -89,6 +89,7 @@ void s_AddReadPairBatch(vector<string>& batch, vector<vector<string>>& out)
     } else if (batch.size() != out.size()) {
         throw fastq_error(10, "Invalid command line parameters, inconsistent number of read pairs");
     }
+
     for (size_t i = 0; i < batch.size(); ++i) {
         out[i].push_back(move(batch[i]));
     }
@@ -177,7 +178,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
                 mInputBatches.push_back({"-"});
             } else {
                 stable_sort(input_files.begin(), input_files.end());
-                mInputBatches.push_back(move(input_files));
+                fastq_reader::cluster_files(input_files, mInputBatches);
             }
         }
         if (!mReadTypes.empty() && !mInputBatches.empty() && mReadTypes.size() != mInputBatches.front().size())

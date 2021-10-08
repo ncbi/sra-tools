@@ -23,6 +23,7 @@ static std::map<TSharqErrorCode, std::tuple<TSharqErrorMsg, TSharqErrorDescripti
 SHARQ_ERR_CODES = {
     {0   ,{ "Runtime error.", "Runtime error."}},
     {10  ,{ "Invalid command line parameters, inconsistent number of read pairs", "Number of comma-separated files in all readNPairFiles parameters is expected to be the same."}},
+    {11  ,{ "Inconsistent file sets: first group ({}), second group ({})", "Input files are clustered into groups. Number of files in each groups is expected to be the same."}},
     {20  ,{ "No readTypes provided", "'--readTypes' parameter is expected if readNPairFiles parameters are present."}},
     {30  ,{ "readTypes number should match number of input files", "'--readTypes' number should match the number of input files."}},
     {40  ,{ "File '{}' does not exists", "Failure to find input file passed in the parameters."}},

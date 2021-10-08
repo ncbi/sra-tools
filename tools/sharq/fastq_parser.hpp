@@ -76,13 +76,35 @@ public:
     char read_type() const { return m_read_type;}
     bool parse_read(CFastqRead& read);
     bool get_read(CFastqRead& read);
-    bool get_spot(string& spot_name, vector<CFastqRead>& reads);
-    bool get_next_spot(const string& spot_name, vector<CFastqRead>& reads);
+
+    /**
+     * Retrieves next spot in the stream 
+     *
+     * @param[out] spot name of the next spot 
+     * @param[out] reads vector of reads belonging to the spot 
+     * @return false if readers reaches EOF
+     */
+    bool get_next_spot(string& spot_name, vector<CFastqRead>& reads);
+
+    /**
+     * Searches the reads for the spot 
+     * 
+     * search depth is just one spot 
+     * so the reads have to be either next or one spot down the stream
+     * 
+     * @param[in] spot name
+     * @param[out] reads vector of reads for the spot 
+     * @return true if reads are found 
+     */
+
+    bool get_spot(const string& spot_name, vector<CFastqRead>& reads);
     void set_qual_validator(bool is_numeric, int min_score, int max_score);
 
-    bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns file has no more reads
+    bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true file has no more reads
     size_t line_number() const { return m_line_number; } ///< Returns current line number (1-based)
     const string& file_name() const { return m_file_name; }  ///< Returns reader's file name
+
+    static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 private:
     static void num_qual_validator(CFastqRead& read, pair<int, int>& expected_range);
     static void char_qual_validator(CFastqRead& read, pair<int, int>& expected_range);
@@ -280,7 +302,7 @@ bool fastq_reader::get_read(CFastqRead& read)
 }
 
 //  ----------------------------------------------------------------------------    
-bool fastq_reader::get_spot(string& spot_name, vector<CFastqRead>& reads)
+bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
 //  ----------------------------------------------------------------------------    
 {
     reads.clear();
@@ -312,20 +334,20 @@ bool fastq_reader::get_spot(string& spot_name, vector<CFastqRead>& reads)
 }
 
 //  ----------------------------------------------------------------------------    
-bool fastq_reader::get_next_spot(const string& spot_name, vector<CFastqRead>& reads)
+bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
 //  ----------------------------------------------------------------------------    
 {
     
     string spot;
     vector<CFastqRead> next_reads;
-    if (!get_spot(spot, next_reads)) 
+    if (!get_next_spot(spot, next_reads)) 
         return false;
     if (spot == spot_name) {
         swap(next_reads, reads);
         return true; 
     }
     if (!m_pending_spot.empty() && m_pending_spot.front().Spot() == spot_name) {
-        get_spot(spot, reads);
+        get_next_spot(spot, reads);
         swap(m_buffered_spot, next_reads);
         return true;
     }
@@ -449,7 +471,7 @@ void fastq_parser<TWriter>::parse()
     do {
         has_spots = false;
         for (int i = 0; i < num_readers; ++i) {
-            if (!m_readers[i].get_spot(spot, spot_reads[i])) {
+            if (!m_readers[i].get_next_spot(spot, spot_reads[i])) {
                 check_readers = num_readers > 1 && m_allow_early_end == false;
                 continue;
             }
@@ -457,7 +479,7 @@ void fastq_parser<TWriter>::parse()
             has_spots = true;
             for (int j = 0; j < num_readers; ++j) {
                 if (j == i) continue;
-                m_readers[j].get_next_spot(spot, spot_reads[j]);
+                m_readers[j].get_spot(spot, spot_reads[j]);
             }
 
             assembled_spot.clear();
@@ -700,6 +722,61 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
     m_writer->set_platform(platform);
 }
 
+template<typename T>
+static string s_join(const T& b, const T& e, const string& delimiter = ", ")
+{
+    stringstream ss;
+    auto it = b;
+    ss << *it++;
+    while (it != e) {
+        ss << delimiter << *it++;
+    }
+    return ss.str();    
+}                    
+
+
+//  ----------------------------------------------------------------------------    
+void fastq_reader::cluster_files(const vector<string>& files, vector<vector<string>>& batches) 
+//  ----------------------------------------------------------------------------    
+{
+    batches.clear();
+    if (files.empty())
+        return;
+    if (files.size() == 1) {
+        vector<string> v{files.front()};
+        batches.push_back(move(v));
+        return;
+    }
+
+    vector<CFastqRead> reads;
+    vector<fastq_reader> readers;
+    for (const auto& fn : files)
+        readers.emplace_back(fn, s_OpenStream(fn));
+    vector<uint8_t> placed(files.size(), 0);
+
+    for (size_t i = 0; i < files.size(); ++i) {
+        if (placed[i]) continue;
+        placed[i] = 1;
+        string spot;
+        if (!readers[i].get_next_spot(spot, reads))
+            throw fastq_error(50 , "File '{}' has no reads", readers[i].file_name());
+        vector<string> batch{readers[i].file_name()};
+        for (size_t j = 0; j < files.size(); ++j) {
+            if (placed[j]) continue;
+            if (readers[j].get_spot(spot, reads)) {
+                placed[j] = 1;
+                batch.push_back(readers[j].file_name());
+            }
+        }
+        if (!batches.empty() && batches.front().size() != batch.size()) {
+            string first_group = s_join(batches.front().begin(), batches.front().end());
+            string second_group = s_join(batch.begin(), batch.end());
+            throw fastq_error(11, "Inconsistent file sets: first group ({}), second group ({})", first_group, second_group);
+        }
+        spdlog::info("File group: {}", s_join(batch.begin(), batch.end()));
+        batches.push_back(move(batch));
+    }
+}
 
 //  ----------------------------------------------------------------------------    
 void check_hash_file(const string& hash_file) 
@@ -714,7 +791,13 @@ void check_hash_file(const string& hash_file)
         deserializer.deserialize(vec, (const unsigned char*)&buffer[0]);
     }
 
+
     spdlog::info("Checking reads {:L} on {} threads", vec.size(), std::thread::hardware_concurrency());
+    {
+        str_sv_type::statistics st;
+        vec.calc_stat(&st);
+        spdlog::info("st.memory_used {}", st.memory_used);
+    }
     spdlog::stopwatch sw;
 
     bm::sparse_vector_scanner<str_sv_type> str_scan;

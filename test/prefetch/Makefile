@@ -355,7 +355,7 @@ urls_and_accs:
 	@echo NANNOT accession download
 	@rm -f `pwd`/tmp/nannot/GCA_000390265.1_R
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(DIRTOTEST)/prefetch GCA_000390265.1_R 2> /dev/null
+	    $(DIRTOTEST)/prefetch GCA_000390265.1_R
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null
 
 	@echo WGS accession download

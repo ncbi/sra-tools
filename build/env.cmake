@@ -226,14 +226,15 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG            ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE          ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE} )
     set( CMAKE_JAR_OUTPUT_DIRECTORY                      ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} ) # both Debug and Release share this
+    SetAndCreate( TEMPDIR_DEBUG "${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/tmp" )
+    SetAndCreate( TEMPDIR_RELEASE "${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/tmp" )
 
-    # to be used in add-test() as the location of executables.
+    # to be used in add-test() as the location of executables, etc.
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
     set( BINDIR "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
     set( LIBDIR "$<$<CONFIG:Debug>:${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE}>" )
     set( TESTBINDIR "$<$<CONFIG:Debug>:${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>$<$<CONFIG:Release>:${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>" )
-    SetAndCreate( TEMPDIR "${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/tmp" )
-    SetAndCreate( TEMPDIR "${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/tmp" )
+    set( TEMPDIR "$<$<CONFIG:Debug>:${TEMPDIR_DEBUG}>$<$<CONFIG:Release>:${TEMPDIR_RELEASE}>" )
 
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}> )
     link_directories( $<$<CONFIG:Debug>:${NCBI_VDB_ILIBDIR_DEBUG}> $<$<CONFIG:Release>:${NCBI_VDB_ILIBDIR_RELEASE}> )

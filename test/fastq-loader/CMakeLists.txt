@@ -22,6 +22,7 @@ if( NOT WIN32 )
     macro(LatfTest TestName Result TestParams)
         add_test( NAME Test_FastqLoader_${TestName}
             COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

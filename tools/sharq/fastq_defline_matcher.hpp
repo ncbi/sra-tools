@@ -253,7 +253,7 @@ public:
     CDefLineMatcherBgiOld() :
         CDefLineMatcher(
             "BgiOld",
-            R"--([@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,7})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))--",
+            R"--(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,7})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))--",
             //"^[@>+](\\S{1,3}\\d{9}\\S{0,3})(L\\d{1})(C\\d{3})(R\\d{3})([_]?\\d{1,7})(#[!-~]*?|)(\\/[1234]\\S*|)(\\s+|$)",
             8)
     {
@@ -312,6 +312,8 @@ public:
         match[3].AppendToString(&spot); //row
         match[4].AppendToString(&spot); // readNo
         read.SetSpot(spot);
+
+        read.SetSuffix(match[5]);
 
         read.SetReadNum(match[7]);
 

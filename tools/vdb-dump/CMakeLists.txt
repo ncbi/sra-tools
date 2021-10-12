@@ -2,6 +2,8 @@ add_compile_definitions( __mod__="tools/vdb-dump" )
 
 if( NOT WIN32 )
 	set( ADDITIONAL_LIBS "m" )
+else
+	set( ADDITIONAL_LIBS "" )
 endif()
 
 add_executable( vdb-dump

@@ -12,7 +12,7 @@ if ( Java_FOUND )
             ReadGroupTest.java
             DumpReferenceFASTA.java
         INCLUDE_JARS ngs-java
-        OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        OUTPUT_DIR ${LIBDIR}
     )
 
     if ( NOT WIN32 )

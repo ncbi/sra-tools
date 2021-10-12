@@ -33,8 +33,7 @@ if ( Java_FOUND )
 
     set( libpaths
             "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-            "$<$<CONFIG:Debug>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}>"
-            "$<$<CONFIG:Release>:${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}>"
+            "${BINDIR}"
 
             "${NCBI_VDB_LIBDIR}"
             "$<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>"

@@ -1,7 +1,7 @@
 if( Python3_EXECUTABLE )
 
     add_test( NAME SlowTest_NgsPython
-        COMMAND ${Python3_EXECUTABLE} tests.py ${TestParams}
+        COMMAND ${Python3_EXECUTABLE} tests.py
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( SlowTest_NgsPython

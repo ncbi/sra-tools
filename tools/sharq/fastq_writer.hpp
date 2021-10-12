@@ -60,24 +60,6 @@ public:
         }
         //cout << endl;
     }
-/*
-
-//  -----------------------------------------------------------------------------
-    void write_spot(vector<CFastqRead>& reads, vector<uint8_t>& readIndex)
-//  -----------------------------------------------------------------------------
-    {
-        if (readIndex.empty() || reads.empty())
-            return;
-        const auto& first_read = reads[readIndex.front()];
-        cout << "Spot: " << first_read.Spot() << "\nreads:";
-        for (const auto& idx : readIndex) {
-            auto& read = reads[idx];
-            auto sz = read.Sequence().size();
-            cout << " " << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")";
-        }
-        cout << endl;
-    }
-*/    
 };
 
 

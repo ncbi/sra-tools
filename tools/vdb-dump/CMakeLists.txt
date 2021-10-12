@@ -2,7 +2,7 @@ add_compile_definitions( __mod__="tools/vdb-dump" )
 
 if( NOT WIN32 )
 	set( ADDITIONAL_LIBS "m" )
-else
+else()
 	set( ADDITIONAL_LIBS "" )
 endif()
 

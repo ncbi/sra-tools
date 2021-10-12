@@ -3,7 +3,9 @@ add_compile_definitions( __mod__="test/vdb-dump" )
 if( Python3_EXECUTABLE )
 	add_test( NAME Test_Vdb_dump_Check_exit_code
 		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${BINDIR}/vdb-dump${EXE}
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		COMMAND_EXPAND_LISTS
+	)
 endif()
 
 if ( NOT WIN32 )

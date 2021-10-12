@@ -19,7 +19,7 @@ sub DEPENDS { ( { name => 'fuse' , Include => '/usr/include'        , },
 sub REQ { (
             { name    => 'ngs-sdk',
               aname   => 'NGS',
-              #option  => 'with-ngs-sdk-prefix',
+              option  => 'with-ngs-sdk-prefix',
               origin  => 'I',
               type    => 'L',
               srcpath => '../ngs/ngs-sdk',

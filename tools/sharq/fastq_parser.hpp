@@ -106,6 +106,7 @@ public:
 
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 private:
+    static void dummy_validator(CFastqRead& read, pair<int, int>& expected_range);
     static void num_qual_validator(CFastqRead& read, pair<int, int>& expected_range);
     static void char_qual_validator(CFastqRead& read, pair<int, int>& expected_range);
 
@@ -119,7 +120,7 @@ private:
     vector<CFastqRead>  m_pending_spot;         ///< Partial spot with the first read only 
     bool                m_is_qual_score_numeric = true; ///< Quality score is numeric and qual score size == sequence size
     pair<int, int> m_qual_score_range = {33, 74};       ///< Expected quality score range
-    function<void(CFastqRead&, pair<int,int>&)> m_qual_validator = num_qual_validator; ///< Quality score validator function
+    function<void(CFastqRead&, pair<int,int>&)> m_qual_validator = dummy_validator; ///< Quality score validator function
     string              m_line;
     string_view         m_line_view;
 };
@@ -354,6 +355,10 @@ bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
     return false;
 }
 
+void fastq_reader::dummy_validator(CFastqRead& read, pair<int, int>& expected_range)
+{
+    return;
+}
 
 //  ----------------------------------------------------------------------------    
 void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expected_range)
@@ -591,6 +596,12 @@ void fastq_parser<TWriter>::check_duplicates()
 
 typedef struct qual_score_params 
 {
+    qual_score_params() {
+        min_score = int('~');
+        max_score = int('!');
+        intialized = false;
+        space_delimited = false;        
+    }
     int min_score = int('~');
     int max_score = int('!');
     bool intialized = false;

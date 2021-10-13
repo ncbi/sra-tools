@@ -92,6 +92,7 @@ if ( Java_FOUND )
     if ( Java_JAVADOC_EXECUTABLE )
         create_javadoc( ngs-doc
             PACKAGES gov.nih.nlm.ncbi.ngs ngs
+            SOURCEPATH ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endif()
 

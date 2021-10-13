@@ -32,8 +32,7 @@ if ( Java_FOUND )
     cmake_path( CONVERT "${classpaths}" TO_NATIVE_PATH_LIST CLASSPATH )
 
     set( libpaths
-            "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
-            "${BINDIR}"
+            "${LIBDIR}"
 
             "${NCBI_VDB_LIBDIR}"
             "$<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>"
@@ -47,7 +46,7 @@ if ( Java_FOUND )
     )
 
     add_test( NAME SlowTest_NgsJava_CSRA1
-        COMMAND ${Java_JAVA_EXECUTABLE} -cp "${CLASSPATH}" "-Djava.library.path=${LIBDIR}" ${VARS} org.junit.runner.JUnitCore ngs_test_CSRA1
+        COMMAND ${Java_JAVA_EXECUTABLE} -cp "${CLASSPATH}" "-Djava.library.path=${LIBPATH}" ${VARS} org.junit.runner.JUnitCore ngs_test_CSRA1
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 

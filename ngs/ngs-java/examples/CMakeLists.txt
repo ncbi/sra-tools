@@ -12,7 +12,7 @@ if ( Java_FOUND )
             ReadGroupTest.java
             DumpReferenceFASTA.java
         INCLUDE_JARS ngs-java
-        OUTPUT_DIR ${LIBDIR}
+        OUTPUT_DIR ${CMAKE_JAR_OUTPUT_DIRECTORY}
     )
 
     if ( NOT WIN32 )
@@ -21,7 +21,9 @@ if ( Java_FOUND )
                 NAME Test_NgsJavaExamples_${TestName}
                 COMMAND bash -c
                     "${Java_JAVA_EXECUTABLE} -Dvdb.log=FINEST -cp ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-java.jar -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} examples.${TestName} ${TestParams} > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} 
+                COMMAND_EXPAND_LISTS
+            )
         endmacro()
 
         RunAndDiff( FragTest "ERR225922 10000 2" )

@@ -1036,9 +1036,9 @@ EndText
     L($F);
 
     # we know how to find jni headers
-    if ($PKG{LNG} eq 'JAVA' and $OPT{'with-ngs-sdk-src'}) {
-        L($F, "JNIPATH = $OPT{'with-ngs-sdk-src'}/language/java");
-    }
+    # if ($PKG{LNG} eq 'JAVA' and $OPT{'with-ngs-sdk-src'}) {
+        # L($F, "JNIPATH = $OPT{'with-ngs-sdk-src'}/language/java");
+    # }
 
     L($F, '# directory rules');
     if ($PKG{LNG} eq 'C') {

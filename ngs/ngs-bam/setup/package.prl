@@ -16,7 +16,7 @@ sub PKG { ( LNG       => 'C',
 sub REQ { (
            { name       => 'ngs-sdk',
              aname      => 'NGS',
-             option     => 'with-ngs-sdk-prefix',
+             #option     => 'with-ngs-sdk-prefix',
              origin     => 'I',
              type       => 'L',
              srcpath    => '../ngs-sdk',

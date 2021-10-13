@@ -1,3 +1,4 @@
+if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 if ( NOT WIN32 )
 
 	# GOOD
@@ -116,4 +117,5 @@ if ( NOT WIN32 )
 		COMMAND help_fastq-dump.sh "${BINDIR}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+endif()
 endif()

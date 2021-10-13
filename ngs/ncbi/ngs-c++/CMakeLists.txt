@@ -10,6 +10,7 @@ include_directories( ${CMAKE_SOURCE_DIR} )
 
 GenerateStaticLibs( ncbi-ngs-c++ "${NGS_SRC}" )
 target_link_libraries( ncbi-ngs-c++ ngs )
+ExportStatic( ncbi-ngs-c++ true )
 
 if( NOT WIN32 )
 	add_executable( testy-the-bear testy-the-bear )

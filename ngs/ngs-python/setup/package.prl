@@ -14,7 +14,7 @@ sub PKG { ( LNG   => 'PYTHON',
 sub REQ { (
             { name    => 'ngs-sdk',
               aname   => 'NGS',
-              # option  => 'with-ngs-sdk-prefix',
+              option  => 'with-ngs-sdk-prefix',
               origin  => 'I',
               type    => 'DO',
               pkgpath => '/usr/local/sra-tools/ngs/ngs-sdk',

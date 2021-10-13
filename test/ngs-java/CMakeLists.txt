@@ -32,6 +32,7 @@ if ( Java_FOUND )
     cmake_path( CONVERT "${classpaths}" TO_NATIVE_PATH_LIST CLASSPATH )
 
     set( libpaths
+            "${BINDIR}"
             "${LIBDIR}"
 
             "${NCBI_VDB_LIBDIR}"

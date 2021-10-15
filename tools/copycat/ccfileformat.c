@@ -44,17 +44,22 @@
 #include "copycat-priv.h"
 #include "debug.h"
 
+/** Note: buffer must be at least 8 bytes
+ */
 bool CCFileFormatIsNCBIEncrypted ( void  * buffer )
 {
     static const char file_sig[] = "NCBInenc";
 
-    return (memcmp (buffer, file_sig, sizeof file_sig - 1) == 0);
+    return (memcmp (buffer, file_sig, 8) == 0);
 }
+
+/** Note: buffer must be at least 8 bytes
+ */
 bool CCFileFormatIsKar ( void  * buffer )
 {
     static const char file_sig[] = "NCBI.sra";
 
-    return (memcmp (buffer, file_sig, sizeof file_sig - 1) == 0);
+    return (memcmp (buffer, file_sig, 8) == 0);
 }
 
 
@@ -247,14 +252,14 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
     orc = KFileRead (file, 0, preread, sizeof (preread), &num_read);
     if (orc == 0)
     {
-        if (CCFileFormatIsKar (preread))
+        if (num_read > 7 && CCFileFormatIsKar (preread))
         {
             *pclass = ccffcArchive;
             *ptype = ccfftaSra;
             strncpy (buffer, "Archive/SequenceReadArchive", buffsize);
             return 0;
         }
-        if (CCFileFormatIsNCBIEncrypted (preread))
+        if (num_read > 7 && CCFileFormatIsNCBIEncrypted (preread))
         {
             *pclass = ccffcEncoded;
             *ptype = ccffteNCBI;
@@ -302,12 +307,12 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
                         }
                         else if (!strcmp("BinaryAlignmentMap", etypebuf) && !strcmp ("GnuZip", mtypebuf))
                         {
-				/*** bam files have gnuzip magic, we need to treat them as data files ***/
-				strcpy (mclassbuf, eclassbuf );
-				strcpy (mtypebuf, etypebuf);
-				mtype = etype;
-                                mclass = eclass;
-			}
+                            /* bam files have gnuzip magic, we need to treat them as data files ***/
+                            strcpy (mclassbuf, eclassbuf );
+                            strcpy (mtypebuf, etypebuf);
+                            mtype = etype;
+                            mclass = eclass;
+                        }
                         else if ((strcmp("SequenceReadArchive", etypebuf) == 0) &&
                                  (strcmp("Unknown", mtypebuf) == 0))
                         {

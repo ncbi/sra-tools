@@ -35,16 +35,20 @@
 
 #include "debug.hpp"
 #include "service.hpp"
+#include "util.hpp"
 
-    #include <klib/status.h> /* STSMSG */
-    #include <klib/text.h>
+#include <klib/status.h> /* STSMSG */
+#include <klib/text.h>
 
-    #include <vfs/services.h>
-    #include <vfs/services-priv.h>
-    #include <cloud/cloud.h>
-    #include <cloud/manager.h>
+#include <vfs/services.h>
+#include <vfs/services-priv.h>
+#include <cloud/cloud.h>
+#include <cloud/manager.h>
+#include <vfs/path.h>
+#include <vfs/manager.h>
 
 namespace vdb {
+    extern "C" rc_t VDBManagerGetQualityString(void *, char const **);
 
     class Cloud {
         class Manager {
@@ -97,15 +101,35 @@ namespace vdb {
             return result;
         }
     };
-    
-    extern "C" {
-        extern rc_t VPathMakeString(VPath const *, String const **);
-        extern rc_t VPathRelease(VPath const *);
+
+    namespace VFS {
+        class Manager {
+            VFSManager *self;
+        public:
+            ~Manager() { VFSManagerRelease(self); }
+            Manager() : self(nullptr) {
+                auto const rc = VFSManagerMake(&self);
+                if (rc)
+                    throw vdb::exception(rc, "VFSManagerMake", "can't make a VFS Manager!");
+            }
+            VPath const *makeSystemPath(std::string const &path) const {
+                auto result = (VPath *)(nullptr);
+                auto const rc = VFSManagerMakeSysPath(self, &result, path.c_str());
+                if (rc == 0)
+                    return result;
+                throw vdb::exception(rc, "VFSManagerMakeSysPath", "can't make a VPath");
+            }
+        };
+        static Manager const manager = Manager();
     }
+
     class Path {
         VPath const *self;
+        static VFS::Manager const manager;
     public:
         explicit Path(VPath const *self) : self(self) {}
+        explicit Path(std::string const &path) : self(VFS::manager.makeSystemPath(path)) {}
+
         ~Path() { VPathRelease(self); }
         operator std::string() const {
             auto result = std::string();
@@ -116,6 +140,19 @@ namespace vdb {
                 free((void *)s);
             }
             return result;
+        }
+        Service::QualityType qualityType() const {
+            switch (VPathGetQuality(self)) {
+            case eQualFull:
+                return Service::full;
+            case eQualNo:
+                return Service::none;
+            default:
+                return Service::unknown;
+            }
+        }
+        bool exists() const {
+            return pathExists(*this);
         }
     };
 
@@ -160,6 +197,21 @@ namespace vdb {
                 "Cannot use '" + path + "' as ngc file");
     }
 
+    Service::QualityType Service::preferredQualityType() {
+        char const *quality = NULL;
+
+        VDBManagerGetQualityString(NULL, &quality);
+        if (quality != NULL) {
+            switch (quality[0]) {
+            case 'Z':
+                return none;
+            case 'R':
+                return full;
+            }
+        }
+        return unknown;
+    }
+
     Service::Response Service::response(std::string const &url, std::string const &version) const {
         KSrvResponse const *resp = nullptr;
         KService * service = static_cast <KService*> (obj);
@@ -167,27 +219,6 @@ namespace vdb {
         auto const rc = KServiceNamesExecuteExt(service, 0,
             url.c_str(), version.c_str(), &resp);
         if (rc == 0) {
-            {
-                const char * quality = NULL;
-                KServiceGetQuality(service, &quality);
-                if (quality != NULL) {
-                    const char * msg = NULL;
-                    switch (quality[0]) {
-                    case 'Z':
-                        msg = "Current preference is set to retrieve SRA "
-                            "Lite files with simplified base quality scores.";
-                        break;
-                    case 'R':
-                        msg = "Current preference is set to retrieve SRA "
-                            "Normalized Format files with full "
-                            "base quality scores.";
-                        break;
-                    }
-                    if (msg != NULL)
-                        STSMSG(1, (msg));
-                }
-            }
-
             auto const cstr = KServiceGetResponseCStr(service);
             return Response((void *)resp, cstr);
         }
@@ -196,11 +227,11 @@ namespace vdb {
             "Failed to call external services");
     }
 
-    Service::LocalInfo::FileInfo Service::Response::localInfo(  std::string const &accession
-                                                              , std::string const &name
-                                                              , std::string const &type) const
+    Service::FileInfo Service::Response::localInfo(  std::string const &accession
+                                                   , std::string const &name
+                                                   , std::string const &type) const
     {
-        Service::LocalInfo::FileInfo info = {};
+        Service::FileInfo info = {};
         VPath const *vlocal = nullptr, *vcache = nullptr;
         rc_t rc1 = 0, rc2 = 0;
         auto const rc = KSrvResponseGetLocation2((KSrvResponse const *)obj, accession.c_str(), name.c_str(), type.c_str(), &vlocal, &rc1, &vcache, &rc2);
@@ -209,6 +240,7 @@ namespace vdb {
             Path local(vlocal);
             info.have = true;
             info.path = local;
+            info.qualityType = local.qualityType();
             if (vcache) {
                 Path cache(vcache);
                 info.cachepath = cache;
@@ -223,6 +255,93 @@ namespace vdb {
     
     std::ostream &operator <<(std::ostream &os, Service::Response const &rhs) {
         return os << rhs.text;
+    }
+
+    Service::FileInfo Service::_localInfo(std::string const &accession, std::string const &path) const {
+        Service::FileInfo info = {};
+
+        info.path = accession;
+        try {
+            auto const local = Path(path);
+            info.have = true;
+            info.qualityType = local.qualityType();
+        }
+        catch (...) {
+            info.have = false;
+            info.qualityType = unknown;
+        }
+        return info;
+    }
+
+    Service::FileInfo Service::localInfo(std::string const &accession, std::string const &extension) const {
+        Service::FileInfo info = {};
+
+        return info;
+    }
+
+    /// Builds accession file paths as commonly made by `prefetch`. E.g.
+    /// `/home/repo/SRR000001/SRR000001.sra` but without the extension.
+    /// Different extensions will be tested.
+    static std::string accessionToPath(std::string const &accession) {
+        auto const sep = accession.find_last_of('/');
+        if (sep == std::string::npos)
+            return accession + '/' + accession;
+        else
+            return accession + accession.substr(sep);
+    }
+
+    /// Note: `accession` what the user typed on the command line.
+    /// It has already been verified as a path to something in the file system.
+    /// The default mode for `prefetch` is to create accession folder in the current directory
+    /// that contain the accession data file and any associated files. The path to one of these
+    /// folders is most likely what `accession` is.
+    Service::FileInfo Service::localInfo(std::string const &accession) const {
+        Service::FileInfo info = {};
+        auto const path = accessionToPath(accession);
+
+        /// Add extension to path, check existance and quality type.
+        auto check = [&](char const *ext) -> bool {
+            try {
+                auto const local = Path(path + ext);
+                if (local.exists()) {
+                    info.have = true;
+                    info.qualityType = local.qualityType();
+                    return true;
+                }
+            }
+            catch (...) {}
+            return false;
+        };
+
+        info.path = accession;
+        try {
+            auto const local = Path(accession);
+            info.path = local;
+            info.have = true;
+            info.qualityType = local.qualityType();
+        }
+        catch (...) {
+            info.have = false;
+            info.qualityType = unknown;
+        }
+        if (!info.have || info.qualityType != unknown) {
+            // wow the user gave us a path to a likely data file.
+            return info;
+        }
+
+        // In case the user has both available, we still
+        // want to honor the preference and not blindly
+        // pick the full quality version.
+        if (preferredQualityType() == full && check(".sra"))
+            return info;
+
+        static char const *const noqualTypes[] = { ".sralite", ".realign", ".noqual", nullptr };
+        for (auto ext = noqualTypes; *ext; ++ext) {
+            if (check(*ext))
+                return info;
+        }
+        check(".sra");
+        return info;
     }
 
     bool Service::haveCloudProvider() {

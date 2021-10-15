@@ -1,7 +1,7 @@
 add_compile_definitions( __mod__="tools/copycat" )
 
 # External
-if( NOT WIN32 )
+if( ${OS} STREQUAL "linux" )
     add_executable( copycat
         copycat
         ccfileformat

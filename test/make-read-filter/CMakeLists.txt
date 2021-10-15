@@ -1,12 +1,5 @@
 if( NOT WIN32 )
 
-    if ( NOT TMPDIR )
-        set( TMPDIR "/tmp" )
-    endif()
-    if ( NOT TEMPDIR )
-        set( TEMPDIR ${TMPDIR} )
-    endif()
-
     ADD_CUSTOM_COMMAND(
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/test-data.kar
         COMMAND
@@ -27,7 +20,7 @@ if( NOT WIN32 )
         ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
         ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
         ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
-        ./runtest.sh ${BINDIR} ${VDB_LIBDIR} ${TEMPDIR}
+        ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 else()

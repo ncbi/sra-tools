@@ -1,5 +1,8 @@
 if( NOT WIN32 )
 
+    # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
+    add_test(NAME Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     add_executable( test-id2name test-id2name.cpp )
     target_link_libraries( test-id2name fastqloader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
     add_test( NAME SlowTest_FastqLoader_id2name COMMAND test-id2name WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -14,14 +17,18 @@ if( NOT WIN32 )
 
     add_executable( test-fastq-loader test-fastq-loader.cpp )
     target_link_libraries( test-fastq-loader fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-    add_test( NAME Test_FastqLoader_WbFastqLoader COMMAND test-fastq-loader WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-    # specify the location of schema files in a local .kfg file
-    add_test(NAME Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_FastqLoader_WbFastqLoader
+        COMMAND
+            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+            ${TESTBINDIR}/test-fastq-loader
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
     macro(LatfTest TestName Result TestParams)
         add_test( NAME Test_FastqLoader_${TestName}
             COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "${TestParams}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

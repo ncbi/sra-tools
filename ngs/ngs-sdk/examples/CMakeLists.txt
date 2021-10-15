@@ -1,6 +1,10 @@
 include_directories( ${CMAKE_SOURCE_DIR}/ngs )
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
 
+if (WIN32)
+    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )
+endif()
+
 link_libraries( ${COMMON_LINK_LIBRARIES} ncbi-ngs-c++ ncbi-vdb ngs-bind-c++ ngs-disp ngs )
 
 add_executable( FragTest FragTest.cpp )

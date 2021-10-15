@@ -1,6 +1,6 @@
 add_compile_definitions( __mod__="test/align-info" )
 
-if ( NOT WIN32 )
+if ( ${OS} STREQUAL "linux" )
 
     add_test( NAME Test_Copycat_Help
         COMMAND ${BINDIR}/copycat -h

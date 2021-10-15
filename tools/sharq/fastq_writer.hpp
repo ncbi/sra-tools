@@ -102,9 +102,8 @@ public:
     fastq_writer() {};
     virtual ~fastq_writer() = default;
 
-    virtual void open(const string& destination) {};
+    virtual void open() {};
     virtual void close() {};
-    virtual void set_platform(uint8_t platform) { m_platform = platform;}
     virtual void write_spot(const vector<CFastqRead>& reads) 
     {
         if (reads.empty())
@@ -121,9 +120,14 @@ public:
             cout << read.Quality() << endl;
         }
     }
-
+    void set_attr(const string& name, const string& value) {
+        m_attr[name] = value;
+    }
 protected:
-    uint8_t m_platform{0};
+    using TAttributeName = string;
+    using TAttributeValue = string;
+    map<TAttributeName, TAttributeValue> m_attr;
+
 };
 
 
@@ -137,13 +141,14 @@ public:
     fastq_writer_vdb();
     ~fastq_writer_vdb();
 
-    void open(const string& destination) override;
+    void open() override;
     void close() override;
     void write_spot(const vector<CFastqRead>& reads) override;
 
 private:
     shared_ptr<Writer2> m_writer; 
     std::shared_ptr<spdlog::logger> m_default_logger;
+    Writer2::Table  SEQUENCE_TABLE;
     Writer2::Column c_NAME;
     Writer2::Column c_SPOT_GROUP;
     Writer2::Column c_PLATFORM;
@@ -153,6 +158,8 @@ private:
     Writer2::Column c_READ_LEN;
     Writer2::Column c_READ_TYPE;
     Writer2::Column c_READ_FILTER;
+    uint8_t m_platform{0};
+    bool m_is_writing{false};
 };
 
 //  -----------------------------------------------------------------------------
@@ -160,6 +167,7 @@ fastq_writer_vdb::fastq_writer_vdb()
 //  -----------------------------------------------------------------------------
 {
     m_writer.reset(new Writer2(stdout));
+
     m_default_logger = spdlog::default_logger();
     auto logger = general_writer_logger_mt("general_writer", m_writer);
     spdlog::set_default_logger(logger);
@@ -169,23 +177,58 @@ fastq_writer_vdb::fastq_writer_vdb()
 fastq_writer_vdb::~fastq_writer_vdb() 
 //  -----------------------------------------------------------------------------
 {
-    if (m_writer) {
+    if (m_is_writing) {
         close();
-        spdlog::set_default_logger(m_default_logger);    
     }
+    
 }
 //FILE *const stream, 
 //  -----------------------------------------------------------------------------
-void fastq_writer_vdb::open(const string& destination) 
+void fastq_writer_vdb::open() 
 //  -----------------------------------------------------------------------------
 {
     static const string cSCHEMA = "sra/generic-fastq.vschema";
     static const string cDB = "NCBI:SRA:GenericFastq:db";
 
-    //m_writer.reset(new Writer2(stream));
+    string name_column_expression = "RAW_NAME";
+    {
+        auto name_column_it = m_attr.find("name_column");
+        if (name_column_it != m_attr.end()) {
+            const auto& name_column = name_column_it->second;
+            if (name_column == "RAW_NAME" || name_column == "NAME") {
+                name_column_expression = "(ascii)";
+                name_column_expression = name_column;
+            }
+        }
+    }
+
+    string quality_expression = "(INSDC:quality:text:phred_33)QUALITY";
+    {
+        auto qual_it = m_attr.find("quality_expression");
+        if (qual_it != m_attr.end()) {
+            quality_expression = qual_it->second;
+        }
+    }
+
+    {
+        auto platform_it = m_attr.find("platform");
+        if (platform_it != m_attr.end()) {
+            m_platform = stoi(platform_it->second);
+        }
+    }
+
+    string destination{"sra.out"};
+    {
+        auto dest_it = m_attr.find("destination");
+        if (dest_it != m_attr.end()) {
+            destination = dest_it->second;
+        }
+    }
+
     m_writer->destination(destination); 
     m_writer->schema(cSCHEMA, cDB);
-    m_writer->info("fastq-parse", "1.0");
+    m_writer->info("sharq", "1.0");
+
     m_writer->addTable("SEQUENCE", {
         { "READ",               sizeof(char) }, // sequence literals 
 //        { "CSREAD",             sizeof(char) }, // string
@@ -194,8 +237,8 @@ void fastq_writer_vdb::open(const string& destination)
         { "READ_LEN",           sizeof(int32_t) }, //one per read
         { "READ_TYPE",          sizeof(char) }, // one per read
         { "READ_FILTER",        sizeof(char) }, // one per read '0'or '1'
-        { "QUALITY",            sizeof(char), "(INSDC:quality:text:phred_33)QUALITY" }, // quality string
-        { "NAME",               sizeof(char), "(ascii)NAME" }, // spotName
+        { "QUALITY",            sizeof(char), quality_expression.c_str() }, // quality string
+        { "NAME",               sizeof(char), name_column_expression.c_str() }, // spotName
         { "SPOT_GROUP",         sizeof(char) }, // barcode
 //        { "CLIP_QUALITY_LEFT",  sizeof(int32_t) }, // one per read, default 0
 //        { "CLIP_QUALITY_RIGHT", sizeof(int32_t) }, // one per read, default 0
@@ -206,27 +249,31 @@ void fastq_writer_vdb::open(const string& destination)
         //{ "CHANNEL",            sizeof(int32_t) }, // nanopore
         //{ "READ_NO",            sizeof(int32_t) } // nanopore
     });
-    auto table = m_writer->table("SEQUENCE");
-    c_NAME = move(table.column("NAME"));
-    c_SPOT_GROUP = move(table.column("SPOT_GROUP"));
-    c_PLATFORM = move(table.column("PLATFORM"));
-    c_READ = table.column("READ");
-    c_QUALITY = table.column("QUALITY");
-    c_READ_START = table.column("READ_START");
-    c_READ_LEN = table.column("READ_LEN");
-    c_READ_TYPE = table.column("READ_TYPE");
-    c_READ_FILTER = table.column("READ_FILTER");
+    SEQUENCE_TABLE = move(m_writer->table("SEQUENCE"));
+    c_NAME = move(SEQUENCE_TABLE.column("NAME"));
+    c_SPOT_GROUP = move(SEQUENCE_TABLE.column("SPOT_GROUP"));
+    c_PLATFORM = move(SEQUENCE_TABLE.column("PLATFORM"));
+    c_READ = move(SEQUENCE_TABLE.column("READ"));
+    c_QUALITY = move(SEQUENCE_TABLE.column("QUALITY"));
+    c_READ_START = move(SEQUENCE_TABLE.column("READ_START"));
+    c_READ_LEN = move(SEQUENCE_TABLE.column("READ_LEN"));
+    c_READ_TYPE = move(SEQUENCE_TABLE.column("READ_TYPE"));
+    c_READ_FILTER = move(SEQUENCE_TABLE.column("READ_FILTER"));
 
     m_writer->beginWriting();
+    m_is_writing = true;
+
 }
 
 //  -----------------------------------------------------------------------------
 void fastq_writer_vdb::close() 
 //  -----------------------------------------------------------------------------
 {
-    if (m_writer) {
+    if (m_is_writing && m_writer) {
         m_writer->endWriting();
+        m_is_writing = false;
         m_writer->flush();
+        spdlog::set_default_logger(m_default_logger);    
         //spdlog::set_default_logger(m_default_logger);
         //m_writer.reset();
     }
@@ -259,7 +306,7 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     c_SPOT_GROUP.setValue(first_read.SpotGroup());
     c_PLATFORM.setValue(m_platform);
     string sequence;
-    string quality;
+    vector<uint8_t>  qual_scores;
     auto read_num = reads.size();
     int32_t read_start[read_num];
     size_t start  = 0;
@@ -268,9 +315,9 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     char read_filter[read_num];
 
     read_num = 0;
-    for (auto& read : reads) {
+    for (const auto& read : reads) {
         sequence += read.Sequence();
-        quality += read.Quality();
+        read.GetQualScores(qual_scores);
         read_start[read_num] = start;
         auto sz = read.Sequence().size();
         start += sz;
@@ -283,12 +330,12 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     }
     std::transform(sequence.begin(), sequence.end(), sequence.begin(), ::toupper);
     c_READ.setValue(sequence);
-    c_QUALITY.setValue(quality);
+    c_QUALITY.setValue(qual_scores.size(), sizeof(uint8_t), &qual_scores[0]);
     c_READ_START.setValue(read_num, sizeof(int32_t),&read_start);
     c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len);
     c_READ_TYPE.setValue(read_num, sizeof(char), read_type);
     c_READ_FILTER.setValue(read_num, sizeof(char), read_filter);
-    m_writer->table("SEQUENCE").closeRow();
+    SEQUENCE_TABLE.closeRow();
 }
 
 

@@ -183,6 +183,8 @@ namespace VDB {
 
         bool write(EventCode const code, unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
         {
+            if ((int)cid == -1)
+                return true;
             uint32_t const eid = (code << 24) + cid;
             uint32_t const zero = 0;
             auto const size = elsize * count;
@@ -195,6 +197,8 @@ namespace VDB {
         template <typename T>
         bool write(EventCode const code, unsigned const cid, uint32_t const count, T const *data) const
         {
+            if ((int)cid == -1)
+                return true;
             uint32_t const eid = (code << 24) + cid;
             uint32_t const zero = 0;
             auto const size = sizeof(T) * count;
@@ -366,23 +370,28 @@ public:
     class Column;
     class Table {
         friend Writer2;
-        Writer2 const &parent;
-        Writer2::TableID table;
-        Writer2::Tables::const_iterator const t;
-        Table(Writer2 const &p, Writer2::Tables::const_iterator n) : parent(p), t(n) {
-            table = t->second.first;
+        Writer2 const *parent;
+        Writer2::TableEntry const *table_entry;
+        string table_name;
+        Table(Writer2 const &p, const string& name) : parent(&p), table_name(name) {
+            auto const t = p.tables.find(name);
+            if (t == p.tables.end())
+                throw std::logic_error(name + " is not the name of a table");
+            table_entry = &t->second;
         }
     public:
+        Table() {}
+
         Column column(std::string const &column) const
         {
-            auto const &columns = t->second.second;
+            auto const &columns = table_entry->second;
             auto const c = columns.find(column);
             if (c == columns.end())
-                throw std::logic_error(column + " is not a column of table " + t->first);
+                throw std::logic_error(column + " is not a column of table " + table_name);
             return Column(parent, c->second);
         }
         bool closeRow() const {
-            return parent.closeRow(table);
+            return parent->closeRow(table_entry->first);
         }
     };
 
@@ -390,7 +399,7 @@ public:
         friend Writer2::Table;
         Writer2 const *parent;
         Writer2::ColumnID columnNumber;
-        Column(Writer2 const &p, Writer2::ColumnID n) : parent(&p), columnNumber(n) {}
+        Column(Writer2 const *p, Writer2::ColumnID n) : parent(p), columnNumber(n) {}
     public:
         Column() {}
 
@@ -433,10 +442,7 @@ public:
     };
 
     Table table(std::string const &table) const {
-        auto const t = tables.find(table);
-        if (t == tables.end())
-            throw std::logic_error(table + " is not the name of a table");
-        return Table(*this, t);
+        return Table(*this, table);
     }
     
     Writer2(FILE *const stream)
@@ -451,9 +457,13 @@ public:
         auto const tableNo = ++nextTable;
         openTable(tableNo, name);
         for (auto && i : list) {
-            auto const columnNo = ++nextColumn;
-            openColumn(columnNo, tableNo, i.elemSize * 8, i.expr);
-            columns[i.name] = columnNo;
+            if (i.expr && strcmp(i.expr, "NONE") == 0) {
+                columns[i.name] = -1;
+            } else {
+                auto const columnNo = ++nextColumn;
+                openColumn(columnNo, tableNo, i.elemSize * 8, i.expr);
+                columns[i.name] = columnNo;
+            }
         }
         tables[name] = std::make_pair(tableNo, columns);
     }

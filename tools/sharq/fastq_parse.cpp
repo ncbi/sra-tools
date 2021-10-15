@@ -75,6 +75,7 @@ private:
     bool mDiscardNames{false};
     bool mAllowEarlyFileEnd{false}; ///< Flag to continue if one of the streams ends
     string mSpotFile;
+    string mNameColumn; ///< NAME column's name
     ostream* mpOutStr{nullptr};
     shared_ptr<fastq_writer> m_writer;
 };
@@ -136,6 +137,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         string hash_file;
         app.add_option("--hash", hash_file, "Check hash file");
         app.add_option("--spot_file", mSpotFile, "Save spot names");
+
+        app.add_option("--name-column", mNameColumn, "Database name for NAME column")
+            ->default_str("NAME")
+            ->default_val("NAME")
+            ->check(CLI::IsMember({"NONE", "NAME", "RAW_NAME"}));
 
         vector<string> read_pairs(4);
         app.add_option("--read1PairFiles", read_pairs[0], "Read 1 files");
@@ -273,13 +279,20 @@ int CFastqParseApp::Run()
 int CFastqParseApp::xRun()
 //  -----------------------------------------------------------------------------
 {
-    m_writer->open("sra.out");
+    if (mInputBatches.empty())
+        return 1;
     fastq_parser<fastq_writer> parser(m_writer);
     if (!mDebug)
         parser.set_spot_file(mSpotFile);
     parser.set_allow_early_end(mAllowEarlyFileEnd);
-    for (const auto& batch : mInputBatches) {
-        parser.setup_readers(batch, mReadTypes);
+    auto batch_it = mInputBatches.begin();
+    parser.setup_readers(*batch_it, mReadTypes);
+    m_writer->set_attr("name_column", mNameColumn);
+    m_writer->set_attr("destination", "sra.out");
+    m_writer->open();
+    parser.parse(); 
+    while (++batch_it != mInputBatches.end()) {
+        parser.setup_readers(*batch_it, mReadTypes);
         parser.parse(); 
     }
     parser.check_duplicates();

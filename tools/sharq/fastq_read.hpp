@@ -44,6 +44,8 @@ public:
     const string& Sequence() const { return mSequence; }
     const string& Quality() const { return mQuality; }
 
+    void GetQualScores(vector<uint8_t>& qual_score) const; ///< append quality scores to the input vector
+
     void SetType(char readType) {
          switch (readType) {
              case 'T':
@@ -97,7 +99,8 @@ private:
     uint8_t mReadType{0};
     string mSuffix;
     string mSequence;
-    string mQuality;
+    string mQuality;              ///< Quality string as it comes from file adjusted to seq length
+    vector<uint8_t> mQualScores;  ///< Numeric quality scores
 };
 
 
@@ -142,6 +145,16 @@ void CFastqRead::AddQualityLine(const string_view& quality)
 {
     mQuality.append(quality.begin(), quality.end());
 }
+
+void CFastqRead::GetQualScores(vector<uint8_t>& qual_score) const
+{
+    if (mQualScores.empty()) {
+        copy(mQuality.begin(), mQuality.end(), back_inserter(qual_score));
+    } else {
+        copy(mQualScores.begin(), mQualScores.end(), back_inserter(qual_score));
+    }
+}
+
 
 #endif
 

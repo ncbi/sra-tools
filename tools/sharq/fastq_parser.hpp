@@ -361,18 +361,19 @@ void fastq_reader::dummy_validator(CFastqRead& read, pair<int, int>& expected_ra
 }
 
 //  ----------------------------------------------------------------------------    
-void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expected_range)
+void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected_range)
 //  ----------------------------------------------------------------------------    
 {
     string str;
-    int qual_size = 0;
+    read.mQualScores.clear();
+    read.mQualScores.reserve(read.mQuality.size());
     for (auto c : read.mQuality) {
         if (isspace(c)) {
             if (!str.empty()) {
-                int score = stoi(str);
+                uint8_t score = stoi(str);
                 if (!(score >= expected_range.first && score <= expected_range.second)) 
                     throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
-                ++qual_size;
+                read.mQualScores.push_back(score);
                 str.clear();
             }
             continue;
@@ -383,8 +384,9 @@ void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expecte
         int score = stoi(str);
         if (!(score >= expected_range.first && score <= expected_range.second)) 
             throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
-        ++qual_size;    
+        read.mQualScores.push_back(score);
     }
+    int qual_size = read.mQualScores.size();
     int sz = read.mSequence.size();
     if (qual_size > sz) {
         throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
@@ -393,15 +395,17 @@ void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expecte
     while (qual_size < sz) {
         read.mQuality += " ";
         read.mQuality += to_string(expected_range.first + 30);
+        read.mQualScores.push_back(expected_range.first + 30);
         ++qual_size;
     }
 }
 
 
 //  ----------------------------------------------------------------------------    
-void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected_range)
+void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expected_range)
 //  ----------------------------------------------------------------------------    
 {
+    read.mQualScores.clear();
     auto qual_size = read.mQuality.size();
     if (qual_size == 0)
         throw fastq_error(111, "Read {}: no quality scores", read.Spot());
@@ -727,10 +731,20 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
         m_readers.emplace_back(fn, s_OpenStream(fn), (idx < read_types.size()) ? read_types[idx] : 'A');
         const qual_score_params& params = reader_qual_params[fn];
         auto& reader = m_readers.back();
-        reader.set_qual_validator(params.space_delimited == false, params.min_score, params.max_score);
+        reader.set_qual_validator(params.space_delimited, params.min_score, params.max_score);
         ++idx;
     }
-    m_writer->set_platform(platform);
+    const qual_score_params& params = reader_qual_params[files.front()];
+
+    if (params.space_delimited) {
+        m_writer->set_attr("quality_expression", "(INSDC:quality:phred)QUALITY");
+    } else if (params.min_score == 64) {
+        m_writer->set_attr("quality_expression", "(INSDC:quality:text:phred_64)QUALITY");
+    } else if (params.min_score == 33) {
+        m_writer->set_attr("quality_expression", "(INSDC:quality:text:phred_33)QUALITY");
+    }
+
+    m_writer->set_attr("platform", to_string(platform));
 }
 
 template<typename T>
@@ -742,8 +756,8 @@ static string s_join(const T& b, const T& e, const string& delimiter = ", ")
     while (it != e) {
         ss << delimiter << *it++;
     }
-    return ss.str();    
-}                    
+    return ss.str();
+}
 
 
 //  ----------------------------------------------------------------------------    

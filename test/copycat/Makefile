@@ -54,7 +54,7 @@ ifeq (1,$(HAVE_MAGIC))
   ifeq (0,$(BIN_EXISTS))
 runtests: no-test
   else
-runtests: copy
+runtests: copy bad_name
   endif
 else
 runtests:
@@ -76,9 +76,23 @@ copy:
 	    > /dev/null
 	@ rm -rf actual
 
+#----------------------------------------------------------------------------
 
-BAD_NAME="bad%name.txt"
-bad_name:
-	@ $(DIRTOTEST)/copycat $(BAD_NAME) /dev/null | grep -q $(BAD_NAME)
+TMPDIR ?= /tmp
+TEMPDIR = $(TMPDIR)
+BAD_NAME = "bad%name.txt"
 
-.INTERMEDIATE: $(BAD_NAME)
+$(TEMPDIR)/$(BAD_NAME):
+	@ echo "I'm a BAD file!" >$@
+
+bad_file: $(TEMPDIR)/$(BAD_NAME)
+
+bad_name: bad_file
+	@ $(DIRTOTEST)/copycat $(TEMPDIR)/$(BAD_NAME) /dev/null | grep -q $(BAD_NAME)
+
+.PHONY: runtests copy bad_name
+
+.DELETE_ON_ERRORS:
+
+.INTERMEDIATE: $(TEMPDIR)/$(BAD_NAME)
+

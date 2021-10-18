@@ -81,4 +81,4 @@ BAD_NAME="bad%name.txt"
 bad_name:
 	@ $(DIRTOTEST)/copycat $(BAD_NAME) /dev/null | grep -q $(BAD_NAME)
 
-.INTERMEDIATE $(BAD_NAME)
+.INTERMEDIATE: $(BAD_NAME)

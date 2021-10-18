@@ -75,3 +75,10 @@ copy:
 	 copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml\
 	    > /dev/null
 	@ rm -rf actual
+
+
+BAD_NAME="bad%name.txt"
+bad_name:
+	@ $(DIRTOTEST)/copycat $(BAD_NAME) /dev/null | grep -q $(BAD_NAME)
+
+.INTERMEDIATE $(BAD_NAME)

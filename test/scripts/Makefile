@@ -21,16 +21,5 @@
 #  Please cite the author in any work or product based on this material.
 # ==============================================================================
 
-default: runtests
-
 TOP ?= $(abspath ../..)
-include $(TOP)/build/Makefile.env # runtests
-
-runtests: test-scripts
-
-test-scripts:
-	@ echo "Testing scripts"
-	@ perl test-prepare-sra-names.pl
-	@ perl test-fix-sra-names.pl
-	@ perl test-prepare-sra-names-py.pl
-	@ perl test-fix-sra-names-py.pl
+include $(TOP)/build/Makefile.env

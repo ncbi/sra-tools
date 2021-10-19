@@ -22,62 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
-
 MODULE = tools/ngs-pileup
 
-INT_TOOLS = \
-	ngs-pileup \
-
-EXT_TOOLS = \
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# ngs-pileup
-#
-NGS_PILEUP_SRC = \
-	ngs-pileup    \
-	main \
-
-INCDIRS += -I $(TOP)/ngs/ngs-c++
-
-NGS_PILEUP_OBJ = \
-	$(addsuffix .$(OBJX),$(NGS_PILEUP_SRC))
-
-NGS_PILEUP_LIBS = \
-	-sncbi-ngs-c++    \
-	-sngs-c++         \
-	-sngs         \
-	-sncbi-vdb-static \
-	-skapp \
-	-stk-version \
-
-$(BINDIR)/ngs-pileup: $(NGS_PILEUP_OBJ)
-	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(NGS_PILEUP_LIBS)
-

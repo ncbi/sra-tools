@@ -22,55 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/align-info
 
-INT_TOOLS =
-
-EXT_TOOLS = \
-	align-info
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# align-info
-#
-ALIGN_INFO_SRC = \
-	align-info
-
-ALIGN_INFO_OBJ = \
-	$(addsuffix .$(OBJX),$(ALIGN_INFO_SRC))
-
-ALIGN_INFO_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/align-info: $(ALIGN_INFO_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(ALIGN_INFO_LIB)

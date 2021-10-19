@@ -22,48 +22,7 @@
 #
 # ===========================================================================
 
-default: runtests
-
 TOP ?= $(abspath ../..)
-
 MODULE = test/srapath
 
-TEST_TOOLS = 
-
 include $(TOP)/build/Makefile.env
-
-CONFIGTOUSE ?= NCBI_SETTINGS
-DIRTOTEST ?= $(BINDIR)
-
-$(TEST_TOOLS): makedirs
-	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
-
-ifdef PYTHON
-runtests: announce check_exit_code SRP vdbcache
-
-else
-runtests: announce SRP vdbcache
-
-endif
-
-announce:
-	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
-
-#-------------------------------------------------------------------------------
-# scripted tests
-#
-
-check_exit_code:
-	@ $(PYTHON) $(TOP)/build/check-exit-code.py $(DIRTOTEST)/srapath
-
-SRP:
-# TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/srapath SRR000001 -fnames > /dev/null
-
-vdbcache: #; print "<$_>"
-	@ $(CONFIGTOUSE)=/ $(DIRTOTEST)/srapath SRR1557953 \
-	                                                 | wc -l | perl check-cnt.pl
-
-.PHONY: $(TEST_TOOLS)
-
-clean: stdclean

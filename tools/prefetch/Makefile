@@ -22,60 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/prefetch
 
-INT_TOOLS = \
-
-EXT_TOOLS = \
-	prefetch \
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# prefetch
-#
-PREFETCH_SRC = \
-	kfile-no-q \
-	PrfMain \
-	prefetch \
-	PrfRetrier \
-	PrfOutFile \
-
-PREFETCH_OBJ = \
-	$(addsuffix .$(OBJX),$(PREFETCH_SRC))
-
-PREFETCH_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-
-$(BINDIR)/prefetch: $(PREFETCH_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(PREFETCH_LIB)

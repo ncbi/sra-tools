@@ -22,59 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../../../..)
-include $(TOP)/build/Makefile.config
-INCDIRS += -I$(TOP)/ngs/ngs-sdk
-INCDIRS += -I$(TOP)/ngs/ngs-sdk/ngs/$(OSINC)/$(ARCH)
+MODULE = ngs/ngs-sdk/language/c++
 
-INTLIBS = \
-	ngs-bind-c++
-
-EXTLIBS = \
-
-TARGETS =      \
-	$(INTLIBS) \
-	$(EXTLIBS)
-
-all std: $(TARGETS)
-
-clean:
-	rm -rf $(OBJDIR)
-	rm -f $(addprefix $(ILIBDIR)/$(LPFX),$(addsuffix *,$(INTLIBS)))
-	rm -f $(addprefix $(LIBDIR)/$(LPFX),$(addsuffix *,$(EXTLIBS)))
-
-.PHONY: default all std clean $(TARGETS)
-
-#-------------------------------------------------------------------------------
-# ngs-bind-c++
-#
-ngs-bind-c++: $(ILIBDIR) $(OBJDIR) $(ILIBDIR)/$(LPFX)ngs-bind-c++.$(LIBX)
-
-BIND_SRC =              \
-	ReadCollection      \
-	ReferenceSequence   \
-	ReferenceIterator   \
-	Reference           \
-	PileupIterator      \
-	Pileup              \
-	PileupEventIterator \
-	PileupEvent         \
-	AlignmentIterator   \
-	Alignment           \
-	ReadGroupIterator   \
-	ReadGroup           \
-	ReadIterator        \
-	Read                \
-	FragmentIterator    \
-	Fragment            \
-	Statistics          \
-	StringRef
-
-BIND_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(LOBX),$(BIND_SRC)))
-
-$(ILIBDIR)/$(LPFX)ngs-bind-c++.$(LIBX): $(BIND_OBJ)
-	$(AR) $@ $^
+include $(TOP)/build/Makefile.env

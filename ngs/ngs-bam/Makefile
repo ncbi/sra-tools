@@ -22,24 +22,7 @@
 #
 # ===========================================================================
 
-# default response to "make"
-default: std
+TOP ?= $(abspath ../..)
+MODULE = ngs/ngs-bam
 
-# the sub-targets
-SUBDIRS =    \
-
-SUBTARGS =     \
-
-include $(CURDIR)/Makefile.rules
-
-std: Makefile.config
-	@ $(MAKE) -f Makefile.libs std
-
-clean: Makefile.config
-	@ $(MAKE) -f Makefile.libs clean
-
-install: Makefile.config
-	@ $(MAKE) -f Makefile.libs
-	@ $(MAKE) -s --no-print-directory -f Makefile.install install
-
-.PHONY: std clean install
+include $(TOP)/build/Makefile.env

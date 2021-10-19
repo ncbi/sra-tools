@@ -22,29 +22,7 @@
 #
 # ===========================================================================
 
-# default response to "make"
-default: std
-
 TOP ?= $(abspath ../..)
+MODULE = ngs/ngs-java
 
-std: subtargs
-
-# the sub-targets
-SUBTARGS =  \
-	java
-
-# standard rules and phony targets
-include $(CURDIR)/Makefile.rules
-
-# rules for making java code
-# Java is given special rules because javac defies makefiles
-java: $(TOP)/build/Makefile.config
-	@ $(MAKE) -f Makefile.java
-
-java_cln: $(TOP)/build/Makefile.config
-	@ $(MAKE) -f Makefile.java clean
-
-java_inst: $(TOP)/build/Makefile.config
-	@ echo "Checking make status of jars..."
-	@ $(MAKE) -s --no-print-directory -f Makefile.java
-	@ $(MAKE) -s --no-print-directory -f Makefile.java install
+include $(TOP)/build/Makefile.env

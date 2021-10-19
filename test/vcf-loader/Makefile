@@ -22,58 +22,7 @@
 #
 # ===========================================================================
 
-default: runtests
-	@ rm tmp.kfg
-
 TOP ?= $(abspath ../..)
-
 MODULE = test/vcf-loader
 
-TEST_TOOLS = \
-    test-vcf-loader 
-
-# make sure the test picks up $(SRCDIR)/tmp.kfg pointing to the caurrent schema
-VDB_CONFIG=$(SRCDIR)
-
 include $(TOP)/build/Makefile.env
-
-
-$(shell echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg)
-
-# make sure runs are not cached in the user repository when running tests
-ifeq ($(wildcard ../../../asm-trace),)
-	ifeq (,$(VDB_CONFIG))
-		VDB_CONFIG = $(shell pwd)
-	endif
-endif
-
-ifeq (,$(VDB_CONFIG))
-	VDB_CONFIG = $(shell pwd)
-endif
-
-$(TEST_TOOLS): makedirs
-	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
-
-.PHONY: $(TEST_TOOLS)
-
-clean: stdclean
-
-#-------------------------------------------------------------------------------
-# white-box test
-#
-INCDIRS += -I$(TOP)/tools/vcf-loader
-
-VCF_TEST_SRC = \
-	test-vcf-loader
-
-VCF_TEST_OBJ = \
-	$(addsuffix .$(OBJX),$(VCF_TEST_SRC))
-
-VCF_TEST_LIB = \
-	-skapp \
-	-sktst \
-	-sncbi-wvdb \
-    -svcfloader 
-
-$(TEST_BINDIR)/test-vcf-loader: $(VCF_TEST_OBJ)
-	$(LP) --exe -o $@ $^ $(VCF_TEST_LIB)

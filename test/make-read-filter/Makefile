@@ -22,41 +22,7 @@
 #
 # ===========================================================================
 
-default: runtests
-
 TOP ?= $(abspath ../..)
-
 MODULE = test/make-read-filter
 
 include $(TOP)/build/Makefile.env
-
-TMPDIR ?= /tmp
-TEMPDIR ?= $(TMPDIR)
-
-$(TEMPDIR)/tmp.mkfg:
-	@ echo '/LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"' >$@; \
-	  echo '/sra/quality_type = "raw_scores"' >>$@
-
-mkfg: $(TEMPDIR)/tmp.mkfg
-
-exe: $(BINDIR)/make-read-filter $(BINDIR)/vdb-dump $(BINDIR)/kar
-
-test-data.kar: generate-test-data.py | mkfg exe
-	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	VDB_LIBRARY_PATH=$(VDB_LIBDIR) \
-	python3 $^ $(TEMPDIR)/test-data && \
-	$(BINDIR)/kar -d $(TEMPDIR)/test-data -fc $@ && \
-	rm -rf $(TEMPDIR)/test-data expected
-
-runtests: test-data.kar | mkfg exe
-	$(BINDIR)/kar -d $(TEMPDIR)/test-data -x test-data.kar && \
-	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	$(BINDIR)/make-read-filter --temp $(TEMPDIR) $(TEMPDIR)/test-data && \
-	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
-	$(BINDIR)/vdb-dump $(TEMPDIR)/test-data >$(TEMPDIR)/actual && \
-	$(BINDIR)/kdbmeta -u $(TEMPDIR)/test-data -T SEQUENCE STATS READ_FILTER_CHANGES >$(TEMPDIR)/actual.stats && \
-	diff expected $(TEMPDIR)/actual && diff expected.stats $(TEMPDIR)/actual.stats && \
-	rm -rf $(TEMPDIR)/test-data
-
-.PHONY: runtests
-.INTERMEDIATE: $(TEMPDIR)/tmp.mkfg

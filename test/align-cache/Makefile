@@ -22,57 +22,7 @@
 #
 # ===========================================================================
 
-default: runtests
-
 TOP ?= $(abspath ../..)
-
 MODULE = test/align-cache
 
-TEST_TOOLS = \
-
-ALL_TOOLS = \
-	$(TEST_TOOLS) \
-
 include $(TOP)/build/Makefile.env
-
-DIRTOTEST ?= $(BINDIR)
-
-TOOLTOTEST = $(DIRTOTEST)/align-cache
-ifneq ("$(wildcard $(TOOLTOTEST))","")
-    BIN_EXISTS = 1
-else
-    BIN_EXISTS = 0
-endif
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
-
-.PHONY: $(TEST_TOOLS)
-
-clean: stdclean
-
-#-------------------------------------------------------------------------------
-# align-cache tool tests
-#
-ifeq (0,$(BIN_EXISTS))
-runtests: no-test
-else
-runtests: align-cache
-endif
-
-no-test:
-	@ echo $(TOOLTOTEST) does not exist. Test skipped.
-
-align-cache: $(DIRTOTEST)/align-cache
-	@ rm -rf CSRA_file.cache
-	@ echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
-	@ VDB_CONFIG=`pwd` $(DIRTOTEST)/align-cache \
-	                          -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
-	@ $(DIRTOTEST)/vdb-validate CSRA_file.cache/ 2>&1 \
-	                          | grep --quiet "is consistent"
-	@ rm tmp.kfg
-	@ rm -rf CSRA_file.cache
-	
-vg: $(DIRTOTEST)/align-cache
-	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress \
-	 $(DIRTOTEST)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache

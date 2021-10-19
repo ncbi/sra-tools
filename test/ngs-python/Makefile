@@ -22,33 +22,7 @@
 #
 # ===========================================================================
 
-default: runtests
-
 TOP ?= $(abspath ../..)
-
 MODULE = test/ngs-python
 
-ALL_TARGS = \
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# runtests
-#
-ifdef PYTHON
-runtests: pytest
-
-else
-runtests: 
-
-endif
-
-pytest:
-	$(PYTHON) -c "from ngs import NGS" \
-		&& export VDB_CONFIG=$(VDB_CONFIG) ; export NGS_PY_DOWNLOAD_LIBRARY=0; \
-			unset NGS_PY_LIBRARY_PATH; \
-			export LD_LIBRARY_PATH=$(LIBDIR):$(VDB_LIBDIR):$$LD_LIBRARY_PATH; \
-			NCBI_SETTINGS=/ $(PYTHON) tests.py \
-		|| echo "NGS Python tests are not run since ngs module does not appear to be installed"
-
-.PHONY: pytest

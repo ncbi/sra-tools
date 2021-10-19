@@ -22,51 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../../..)
-include $(TOP)/build/Makefile.config
-INCDIRS += -I$(TOP)/ngs/ngs-sdk
-INCDIRS += -I$(TOP)/ngs/ngs-sdk/ngs/$(OSINC)/$(ARCH)
+MODULE = ngs/ngs-sdk/adapter
 
-INTLIBS = \
-	ngs-adapt-c++
-
-EXTLIBS = \
-
-TARGETS =      \
-	$(INTLIBS) \
-	$(EXTLIBS)
-
-all std: $(TARGETS)
-
-clean:
-	rm -rf $(ILIBDIR)/$(LPFX)ngs-adapt* $(OBJDIR)
-
-.PHONY: default all std $(TARGETS)
-
-ngs-adapt-c++: \
-	$(ILIBDIR) $(OBJDIR) $(ILIBDIR)/$(LPFX)ngs-adapt-c++.$(LIBX)
-
-ADAPT_SRC =              \
-	ReadCollectionItf    \
-	PileupItf            \
-	PileupEventItf       \
-	ReferenceItf         \
-	ReferenceSequenceItf \
-	AlignmentItf         \
-	ReadGroupItf         \
-	ReadItf              \
-	FragmentItf          \
-	StatisticsItf        \
-	StringItf            \
-	Refcount             \
-	ErrorMsg             \
-	ErrBlock
-
-ADAPT_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(LOBX),$(ADAPT_SRC)))
-
-$(ILIBDIR)/$(LPFX)ngs-adapt-c++.$(LIBX): $(ADAPT_OBJ)
-	$(AR) $@ $^
+include $(TOP)/build/Makefile.env

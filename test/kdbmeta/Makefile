@@ -21,14 +21,7 @@
 #  Please cite the author in any work or product based on this material.
 # ==============================================================================
 
-default: runtests
-
 TOP ?= $(abspath ../..)
-include $(TOP)/build/Makefile.env # BINDIR
+MODULE = test/kdbmeta
 
-DIRTOTEST ?= $(BINDIR)
-
-runtests: test-kdbmeta
-
-test-kdbmeta:
-	@ NCBI_SETTINGS=/ $(DIRTOTEST)/kdbmeta SRR053325 > /dev/null
+include $(TOP)/build/Makefile.env

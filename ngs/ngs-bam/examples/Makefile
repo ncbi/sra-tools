@@ -22,66 +22,7 @@
 #
 # ===========================================================================
 
-default: std
+TOP ?= $(abspath ../../..)
+MODULE = ngs/ngs-bam/examples
 
-ifeq (Darwin,$(shell uname -s))
-CFLAGS += -mmacosx-version-min=10.6
-endif
-
-CC = cc $(CFLAGS)
-CXX = c++ $(CPPFLAGS)
-
-# ensure definition of paths, namely
-# NCBI_VDB_LIBDIR and NGS_LIBDIR
-include $(CURDIR)/Makefile.config
-
-TARGETS =         \
-    AlignTest
-
-# This rule triggers detection of the libraries and headers
-# in addition to building the examples
-std: $(NCBI_VDB_LIBDIR)/libncbi-vdb-static.a ncbi-headers \
-	 $(NGS_LIBDIR)/libngs-c++.a ngs-headers \
-	 $(NGS_BAM_LIBDIR)/libngs-bam-c++.a ngs-bam-headers \
-	 $(TARGETS)
-
-clean:
-	rm -f $(TARGETS) *.o
-
-.PHONY: default std $(TARGETS)
-
-# C++ applications require two NGS libraries:
-#  1. ngs-c++ which contains the NGS "front-end" interfaces
-#  2. an NGS "back-end" engine such as ncbi-ngs-c++
-#     which in turn relies upon ncbi-vdb to access the SRA
-#
-TEST_LIBS =              \
-	-L$(NCBI_VDB_LIBDIR) \
-	-L$(NGS_LIBDIR)      \
-	-L$(NGS_BAM_LIBDIR)  \
-	-lncbi-ngs-c++       \
-	-lngs-c++            \
-	-lncbi-vdb-static    \
-	-lngs-bam-c++        \
-	-lngs-adapt-c++      \
-	-lpthread            \
-	-ldl                 \
-	-lm
-
-# AlignTest #################
-#  access alignments
-ALIGN_TEST_SRC = \
-    AlignTest.cpp
-
-AlignTest: $(ALIGN_TEST_SRC)
-	$(CXX) -g -o $@ $^ $(TEST_LIBS)
-
-# ===========================================================================
-#
-# example runs
-
-run_align: AlignTest
-	./$^ ERR225922 1 1
-
-
-.PHONY: run_align
+include $(TOP)/build/Makefile.env

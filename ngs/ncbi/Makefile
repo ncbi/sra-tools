@@ -22,45 +22,7 @@
 #
 # ===========================================================================
 
-# default response to "make"
-default: std
+TOP ?= $(abspath ../..)
+MODULE = ngs/ncbi
 
-std: subdirs
-
-# the sub-directories
-SUBDIRS =    \
-	ngs \
-	ngs-c++ \
-	ngs-jni \
-	ngs-py \
-
-SUBDIRS_CLN = \
-	$(addsuffix _cln,$(SUBDIRS))
-
-SUBDIRS_INST = \
-	$(addsuffix _inst,$(SUBDIRS))
-
-SUBDIRS_TST = \
-	$(addsuffix _test,$(SUBDIRS))
-
-subdirs: $(SUBDIRS)
-
-clean: $(SUBDIRS_CLN)
-
-test: $(SUBDIRS_TST)
-
-install: $(SUBDIRS_INST)
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-$(SUBDIRS_CLN):
-	@ $(MAKE) -C $(subst _cln,,$@) clean
-
-$(SUBDIRS_INST):
-	@ $(MAKE) -s --no-print-directory -C $(subst _inst,,$@) install
-
-$(SUBDIRS_TST):
-	@ $(MAKE) -C $(subst _test,,$@) test
-
-.PHONY: $(SUBDIRS) $(SUBDIRS_CLN) $(SUBDIRS_INST)
+include $(TOP)/build/Makefile.env

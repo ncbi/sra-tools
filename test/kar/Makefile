@@ -22,34 +22,7 @@
 #
 # ===========================================================================
 
-default: runtests
-
 TOP ?= $(abspath ../..)
-
 MODULE = test/kar
 
-TEST_TOOLS = 
-
 include $(TOP)/build/Makefile.env
-
-CONFIGTOUSE ?= NCBI_SETTINGS
-DIRTOTEST ?= $(BINDIR)
-
-$(TEST_TOOLS): makedirs
-	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
-
-runtests: announce kar_test 
-
-announce:
-	@echo Testing $(DIRTOTEST) CONFIGTOUSE=$(CONFIGTOUSE)
-
-#-------------------------------------------------------------------------------
-# scripted tests
-#
-kar_test: kar-ntest.sh
-	@ echo "Starting kar tests..."
-	@ $(CONFIGTOUSE)=/ bash kar-ntest.sh $(DIRTOTEST)/kar $(DIRTOTEST)/prefetch
-
-.PHONY: $(TEST_TOOLS)
-
-clean: stdclean

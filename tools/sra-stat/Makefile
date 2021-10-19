@@ -22,60 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/sra-stat
 
-INT_TOOLS =
-
-EXT_TOOLS = \
-	sra-stat \
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# sra-stat
-#  sra statistics
-#
-SRASTAT_SRC = \
-	assembly-statistics \
-	sra \
-	sra-stat \
-
-SRASTAT_OBJ = \
-	$(addsuffix .$(OBJX),$(SRASTAT_SRC))
-
-SRASTAT_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-sload \
-	-lm \
-
-$(BINDIR)/sra-stat: $(SRASTAT_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRASTAT_LIB)
-

@@ -168,6 +168,8 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( strict ) ss << "strict" << std::endl;
         if ( !bases.isEmpty() )  ss << "bases : " << bases << std::endl;
         if ( append ) ss << "append" << std::endl;
+        if ( fasta ) ss << "fasta" << std::endl;
+        if ( fastaUnsorted ) ss << "fasta-unsorted" << std::endl;
         return CmnOptAndAccessions::show(ss);
     }
 
@@ -208,6 +210,8 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( strict ) builder . add_option( "--strict" );
         if ( !bases.isEmpty() ) builder . add_option( "-B", bases );
         if ( append ) builder . add_option( "-A" );
+        if ( fasta ) builder . add_option("--fasta");
+        if ( fastaUnsorted ) builder . add_option("--fasta-unsorted");
     }
 
     bool check() const override

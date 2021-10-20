@@ -1,0 +1,5 @@
+[info] File group: input/001.R1.fastq
+[info] File group: input/005.offset0_1.fq
+[info] Parsing from 1 files
+[info] spots: 4, reads: 4
+[error] [code:70] Input files have deflines from different platforms 2 != 0

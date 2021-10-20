@@ -184,7 +184,17 @@ FIXTURE_TEST_CASE(InvalidSequence, LoaderFixture)
 FIXTURE_TEST_CASE(EmptyQuality, LoaderFixture)
 {   // invalid quality scores 
     CFastqRead read;
-    fastq_reader reader("test", create_stream(_READ(cDEFLINE1, "GA^TT", "")));
+    fastq_reader reader("test", create_stream(string("@" + cDEFLINE1  + "\nGATT\n+")));
+    REQUIRE_THROW(reader.get_read(read));
+}
+FIXTURE_TEST_CASE(EmptyQuality2, LoaderFixture)
+{   // invalid quality scores 
+    CFastqRead read;
+    fastq_reader reader("test", create_stream(string("\
+@NB501550:336:H75GGAFXY:2:11101:10137:1038 1:N:0:CTAGGTGA\n\
+NCTATCTAGAATTCCCTACTACTCCC\n\
+@NB501550:336:H75GGAFXY:2:11101:9721:1038 1:N:0:CTAGGTGA\n\
+NAGCCGCGTAAGGGAATTAGGCAGCA")));
     REQUIRE_THROW(reader.get_read(read));
 }
 

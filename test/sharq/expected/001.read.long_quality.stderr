@@ -1,0 +1,2 @@
+[info] Parsing from 1 files
+[error] [code:130] Read NB501550:336:H75GGAFXY:2:11101:9721:1038: quality score length exceeds sequence length [001.read.long_quality.fq:5]

@@ -1,0 +1,31 @@
+################################################################################
+sub PACKAGE      { 'ngs-bam' }
+sub PACKAGE_TYPE { 'L' }
+sub PACKAGE_NAME { 'NGS-BAM' }
+sub PACKAGE_NAMW { 'NGS_BAM' }
+sub DEPENDS      {}
+sub CONFIG_OUT   { '.' }
+sub PKG { ( LNG       => 'C',
+            OUT       => 'ncbi-outdir',
+            LOCOUT    => '../../../OUTDIR',
+            PATH      => '/usr/local/ngs/ngs-bam',
+            UPATH     =>      '$HOME/ngs/ngs-bam',
+#           EXAMP     => '1',
+            NOMODPATH =>  1,
+      ) }
+sub REQ { (
+           { name       => 'ngs-sdk',
+             aname      => 'NGS',
+             option     => 'with-ngs-sdk-prefix',
+             origin     => 'I',
+             type       => 'L',
+             srcpath    => '../ngs-sdk',
+             pkgpath    => '/usr/local/ngs/ngs-sdk',
+             usrpath    =>      '$HOME/ngs/ngs-sdk',
+             bldpath    => '$HOME/ncbi-outdir/ngs-sdk',
+             locbldpath => '$Bin/../../../OUTDIR/ngs-sdk',
+             include    => 'ngs/adapter/StringItf.hpp',
+             lib        => 'libngs-adapt-c++.a',
+            }
+        ) }
+1

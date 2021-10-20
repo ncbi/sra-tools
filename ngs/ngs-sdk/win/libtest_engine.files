@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\test\test_engine\test_engine.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\AlignmentItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\PileupEventItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\PileupItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\ReadCollectionItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\ReadGroupItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\ReadItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\ReferenceItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\ReferenceSequenceItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\StatisticsItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\test\test_engine\test_engine.hpp" />
+  </ItemGroup>
+</Project>

@@ -42,7 +42,7 @@
 
 #include <cstring>
 
-static const bool DEBUG(false);
+static const bool DEBUG_LOCAL(false);
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
@@ -344,7 +344,7 @@ public:
     rc_t Update(CKConfig &kfg, const char *node,
         const std::string &appVolPath, bool verbose = false) const
     {
-        if (DEBUG) {
+        if (DEBUG_LOCAL) {
             OUTMSG(("CAppVolume::Update(%s, %s)\n", node, appVolPath.c_str()));
         }
 
@@ -435,20 +435,20 @@ public:
     void Update(const std::string &root, const std::string &name,
         const std::string &type, const std::string &path)
     {
-        if (DEBUG) {
+        if (DEBUG_LOCAL) {
             OUTMSG(("CApps.Update(%s)\n", name.c_str()));
         }
 
         TI it = find(name);
         if (it == end()) {
-            if (DEBUG) {
+            if (DEBUG_LOCAL) {
                 OUTMSG(("CApps.Update(not found)\n"));
             }
             insert(std::pair<const std::string, CApp*>
                 (name, new CApp(root, name, type, path)));
         }
         else {
-            if (DEBUG) {
+            if (DEBUG_LOCAL) {
                 OUTMSG(("CApps.Update(found)\n"));
             }
             (*it).second->Update(root, name, type, path);

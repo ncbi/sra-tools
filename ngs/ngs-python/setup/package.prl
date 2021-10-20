@@ -1,0 +1,37 @@
+################################################################################
+sub PACKAGE      { 'sra-tools/ngs-python' }
+sub PACKAGE_TYPE { 'P' }
+sub PACKAGE_NAME { 'NGS-PYTHON' }
+sub PACKAGE_NAMW { 'NGS_PYTHON' }
+sub DEPENDS      {}
+sub CONFIG_OUT   { '.' }
+sub PKG { ( LNG   => 'PYTHON',
+            OUT   => 'ncbi-outdir',
+            LOCOUT=> '../../../OUTDIR',
+            PATH  => '/usr/local/sra-tools/ngs/ngs-python',
+            UPATH =>      '$HOME/sra-tools/ngs/ngs-python',
+            EXAMP => '1', ) }
+sub REQ { (
+            { name    => 'ngs-sdk',
+              aname   => 'NGS',
+              option  => 'with-ngs-sdk-prefix',
+              origin  => 'I',
+              type    => 'DO',
+              pkgpath => '/usr/local/sra-tools/ngs/ngs-sdk',
+              usrpath =>      '$HOME/ngs/ngs-sdk',
+              bldpath => '$HOME/ncbi-outdir/sra-tools/ngs-sdk',
+              locbldpath=>'$Bin/../../../OUTDIR/sra-tools/ngs-sdk',
+              lib     => 'libngs-sdk.$SHLX',
+            },
+            { name    => 'ncbi-vdb',
+              aname   => 'VDB',
+              option  => 'with-ncbi-vdb-prefix',
+              origin  => 'I',
+              type    => 'DO',
+              pkgpath => '/usr/local/ncbi/ncbi-vdb',
+              usrpath =>      '$HOME/ncbi/ncbi-vdb',
+              bldpath => '$HOME/ncbi-outdir/ncbi-vdb',
+              locbldpath=>'$Bin/../../../OUTDIR/ncbi-vdb',
+              lib     => 'libncbi-vdb.$SHLX',
+             } ) }
+1

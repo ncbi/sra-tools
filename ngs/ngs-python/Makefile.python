@@ -1,0 +1,112 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+
+default: std
+
+TOP ?= $(CURDIR)
+MODPATH =
+
+include $(TOP)/build/Makefile.config
+
+INTLIBS = \
+
+EXTLIBS = \
+
+TARGETS = \
+
+all std: $(TARGETS)
+
+clean:
+
+copyexamples:
+	# @ echo "Installing examples to $(INST_SHAREDIR)/examples-python"
+	# @ mkdir -p $(INST_SHAREDIR)/examples-python
+	# @ cp $(TOP)/examples/*.py $(TOP)/examples/Makefile $(INST_SHAREDIR)/examples-python
+
+
+#-------------------------------------------------------------------------------
+# install
+# 
+ifeq (mac, $(OS))
+$(INST_PYTHONDIR):
+	@ mkdir -p $@
+
+install: $(TARGETS) $(INST_PYTHONDIR) copyexamples
+ifeq (0, $(shell id -u))
+	@ echo "Installing ngs-python package..."
+	@ $(PYTHON) setup.py -q install
+ 
+else
+	@ echo "Installing ngs-python package..."
+	@ $(PYTHON) setup.py -q install --user
+endif
+endif
+
+ifeq (linux, $(OS))
+
+# unset outside defined variables
+ROOT =
+
+#fake root for debugging
+#uncomment this line and change the test for root ( see under install: ) to succeed:
+#ROOT = ~/root 
+
+PROFILE_FILE = $(ROOT)/etc/profile.d/ngs-python
+
+$(INST_PYTHONDIR):
+	@ mkdir -p $@
+
+install: $(TARGETS) $(INST_PYTHONDIR) copyexamples
+ifeq (0, $(shell id -u))
+	@ echo "Installing ngs-python package..."
+	@ $(PYTHON) setup.py -q install
+   
+else
+	@ echo "Installing ngs-python package to the current user..."
+	  echo '$$ python -m site --user-base'
+	  $(PYTHON) -m site --user-base
+	  echo '$$ python -m site --user-site'
+	  $(PYTHON) -m site --user-site
+	  $(PYTHON) setup.py  -q install --user
+	@ echo "... installed"
+endif
+
+ifneq (, $(LIBDIR))
+ifneq (, $(VDB_LIBDIR))
+	@ echo "Please add $(LIBDIR):$(VDB_LIBDIR) to your LD_LIBRARY_PATH, e.g.:"
+	@ echo "      export LD_LIBRARY_PATH=$(LIBDIR):$(VDB_LIBDIR):\$$LD_LIBRARY_PATH"
+endif
+endif
+
+ifeq (, $(VDB_LIBDIR))
+	@ echo "You will need to install ncbi-vdb library in order to run ngs-python."
+endif
+
+else
+install:
+
+endif
+
+.PHONY: default all std install $(TARGETS)

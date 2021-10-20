@@ -32,7 +32,7 @@
 
 // main is at the end of the file
 
-#if __cplusplus < 201103L
+#if __cplusplus < 201103L && 0
 #error c++11 or higher is needed
 #else
 

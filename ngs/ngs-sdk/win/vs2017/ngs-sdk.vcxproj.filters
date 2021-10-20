@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="ngs-disp-sources">
+      <UniqueIdentifier>{a7faf64f-c98f-4335-914f-4b5a5b55c299}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ngs-bind-c++ sources">
+      <UniqueIdentifier>{514f37fa-57ab-43fb-b59c-fa261430dfde}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ngs-bind-java sources">
+      <UniqueIdentifier>{577b60af-a77c-4f5e-b720-42439623c791}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ngs-bind-python sources">
+      <UniqueIdentifier>{577b60af-a77c-4f5e-b720-42439623c792}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\AlignmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ErrBlock.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ErrorMsg.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\FragmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\PackageItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\PileupEventItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\PileupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReadCollectionItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReadGroupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReadItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\Refcount.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReferenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReferenceSequenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\StatisticsItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\StringItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\VTable.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Alignment.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\AlignmentIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Fragment.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\FragmentIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Pileup.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\PileupEvent.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\PileupEventIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\PileupIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Read.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadCollection.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadGroup.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadGroupIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Reference.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReferenceIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReferenceSequence.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Statistics.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\StringRef.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_AlignmentIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_AlignmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ErrorMsg.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_FragmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_Package.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_PileupEventIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_PileupEventItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_PileupIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_PileupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReadCollectionItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReadGroupIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReadGroupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReadIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReadItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_Refcount.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReferenceIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReferenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_ReferenceSequenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_StatisticsItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\java\jni_String.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_AlignmentIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_AlignmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_FragmentIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_FragmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_PackageItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_PileupEventIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_PileupEventItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_PileupIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_PileupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReadCollectionItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReadGroupIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReadGroupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReadIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReadItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_Refcount.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReferenceIteratorItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReferenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_ReferenceSequenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_StatisticsItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\python\py_StringItf.cpp" />
+  </ItemGroup>
+</Project>

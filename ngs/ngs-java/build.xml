@@ -1,0 +1,122 @@
+<project>
+
+    <!-- This file is currently for use on Windows; Linux/Mac builds are run via gmake -->
+    <property name="Platform"        value="x64" />
+    <property name="Configuration"   value="Debug" />
+    <property name="Output"          value="${basedir}\..\..\OUTDIR" />
+    <property name="MSVS"            value="2017" />
+    <property name="PlatformToolset" value="v141" />
+
+    <property name="vdb.dir"        value="${Output}\ncbi-vdb\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+    <property name="ngs.dir"        value="${Output}\ngs-sdk\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+
+    <property name="build.dir"      value="${Output}\ngs-java" />
+
+    <property name="classes.dir"    value="${build.dir}\cls" />
+
+    <target name="clean">
+        <delete dir="${build.dir}"/>
+    </target>
+
+    <target name="api">
+        <mkdir dir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="ngs" destdir="${classes.dir}"/>
+    </target>
+    <target name="ncbi" depends="api">
+        <mkdir dir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="gov" destdir="${classes.dir}"/>
+    </target>
+    <target name="examples" depends="ncbi">
+        <mkdir dir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="examples\examples" includes="FragTest.java" destdir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="examples\examples" includes="AlignTest.java" destdir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="examples\examples" includes="AlignSliceTest.java" destdir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="examples\examples" includes="PileupTest.java" destdir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="examples\examples" includes="ReadGroupTest.java" destdir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="examples\examples" includes="RefTest.java" destdir="${classes.dir}"/>
+    </target>
+
+    <target name="jar" depends="ncbi">
+        <property environment="my_env" />
+        <echo message="PATH=${my_env.PATH}"/>
+        <echo message="APPDATA=${my_env.APPDATA}"/>
+        <mkdir dir="${build.dir}\jar"/>
+        <jar destfile="${build.dir}\jar\ngs-java.jar" >
+            <fileset dir="${classes.dir}" includes="ngs\**" />
+            <fileset dir="${classes.dir}" includes="gov\**" />
+        </jar>
+    </target>
+    <target name="examples-jar" depends="examples">
+        <mkdir dir="${build.dir}\jar"/>
+        <jar destfile="${build.dir}\jar\ngs-examples.jar" basedir="${classes.dir}" includes="examples\**" />
+    </target>
+
+    <condition property="JVMbits" value="64" else="32">
+        <equals arg1="${Platform}" arg2="x64"/>
+    </condition>
+
+    <macrodef name="run-example">
+        <attribute name="class" />
+        <element name="args" optional="yes" />
+        <sequential>
+            <java classname="examples.@{class}" fork="true" failonerror="true" >
+                <classpath>
+                    <pathelement location="${build.dir}\jar\ngs-examples.jar" />
+                    <pathelement location="${build.dir}\jar\ngs-java.jar" />
+                </classpath>
+                <sysproperty key="java.library.path" path="${vdb.dir};${ngs.dir}" />
+                <sysproperty key="vdb.System.loadLibrary" value="1" />
+                <sysproperty key="vdb.log" value="FINEST" />
+                <jvmarg value="-d${JVMbits}" />
+                <args />
+            </java>
+            <!-- TODO: use fc to diff output against expected -->
+        </sequential>
+    </macrodef>
+
+    <target name="run" depends="jar,examples-jar">
+        <run-example class="FragTest">
+            <args>
+                <arg value="ERR225922" />
+                <arg value="10000" />
+                <arg value="2" />
+            </args>
+        </run-example>
+        <run-example class="AlignTest">
+            <args>
+                <arg value="ERR225922" />
+                <arg value="10000" />
+                <arg value="2" />
+            </args>
+        </run-example>
+        <run-example class="AlignSliceTest">
+            <args>
+                <arg value="SRR1121656" />
+                <arg value="1" />
+                <arg value="1" />
+                <arg value="9999" />
+            </args>
+        </run-example>
+        <run-example class="PileupTest">
+            <args>
+                <arg value="SRR1121656" />
+                <arg value="1" />
+                <arg value="9999" />
+                <arg value="10003" />
+            </args>
+        </run-example>
+        <run-example class="ReadGroupTest">
+            <args>
+                <arg value="SRR1121656" />
+            </args>
+        </run-example>
+        <run-example class="RefTest">
+            <args>
+                <arg value="SRR1121656" />
+            </args>
+        </run-example>
+    </target>
+
+    <target name="build" depends="jar"/>
+
+</project>

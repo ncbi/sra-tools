@@ -22,57 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/align-cache
 
-INT_TOOLS = 
-
-EXT_TOOLS = \
-	align-cache
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# align-cache
-#
-ALIGN_CACHE_SRC = \
-	align-cache \
-	helper
-
-ALIGN_CACHE_OBJ = \
-	$(addsuffix .$(OBJX),$(ALIGN_CACHE_SRC))
-
-ALIGN_CACHE_LIB = \
-	-skapp \
-	-stk-version \
-	-sncbi-wvdb \
-	-sm \
-	-sload
-
-$(BINDIR)/align-cache: $(ALIGN_CACHE_OBJ)
-	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(ALIGN_CACHE_LIB)

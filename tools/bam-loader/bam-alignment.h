@@ -67,7 +67,8 @@ struct bam_alignment_s {
 #endif
 };
 
-#define BAM_ALIGNMENT_MIN_SIZE offsetof(struct bam_alignment_s, read_name[0])
+/*#define BAM_ALIGNMENT_MIN_SIZE offsetof(struct bam_alignment_s, read_name[0])*/
+#define BAM_ALIGNMENT_MIN_SIZE (sizeof(struct bam_alignment_s))
 typedef union bam_alignment_u {
     struct bam_alignment_s cooked;
     uint8_t raw[BAM_ALIGNMENT_MIN_SIZE]; /* FAM is for structs */

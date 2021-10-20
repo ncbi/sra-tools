@@ -1,0 +1,174 @@
+version 1;
+
+include 'vdb/built-in.vschema';
+include 'ncbi/sra.vschema';
+include 'insdc/insdc.vschema';
+include 'align/seq.vschema';
+
+table NCBI:align:tbl:ir #1.0.0
+{
+    column utf8 READ_NAME;               // used for assembling fragments
+    column INSDC:dna:text READ;          // the actual bases. See note[1] below.
+    column ascii REFSEQ_ID_CMN;          // chr1 - this should be a dictionary column
+    column INSDC:coord:zero REF_START;     // see note[2] below
+    column I64 PROJECTED_LEN;            // maybe not from your standpoint
+    column ascii CIGAR;                  // you may not be the only producer of CIGAR
+    column bool PCR_DUPLICATE;           // extracted from sam flags. See note[3] below
+    column bool BAD;                     //   ""
+    column U32 sam_record_flags;              // blah
+
+    default column INSDC:quality:phred QUALITY
+        = out_qual_phred;
+
+    INSDC:quality:phred in_qual_phred
+        = QUALITY
+        | ( INSDC:quality:phred ) < B8 > diff < 33 > ( in_qual_text_phred_33 );
+
+    physical column INSDC:quality:phred .QUALITY
+        = in_qual_phred ;
+
+    INSDC:quality:phred out_qual_phred
+        = .QUALITY;
+
+    column INSDC:quality:text:phred_33 QUALITY
+        = out_qual_text_phred_33;
+
+    INSDC:quality:text:phred_33 in_qual_text_phred_33
+        = QUALITY;
+
+    INSDC:quality:text:phred_33 out_qual_text_phred_33
+        = ( INSDC:quality:text:phred_33 ) < B8 > sum < 33 > ( out_qual_phred );
+
+
+};
+
+table NCBI:align:tbl:hdrs #1.0.0
+{
+    column U64 GROUP;
+    column ascii HDR;
+    column ascii TAG;
+    column ascii VALUE;
+};
+
+table NCBI:align:tbl:meta #1.0.0
+{
+    column ascii TOOL;
+    column ascii CMDLINE;
+    column ascii INPUT_FILE;
+    column U64 NUM_HEADERS;
+    column U64 NUM_ALIGNMENTS;
+};
+
+database NCBI:align:db:BAM_DB #1.0.0
+{
+    table NCBI:align:tbl:ir #1 ir;
+    table NCBI:align:tbl:hdrs #1 hdrs;
+    table NCBI:align:tbl:meta #1 meta;
+};
+
+/*
+   For reference, ADAM schemas (Avro DDL mostly):
+https://github.com/bigdatagenomics/bdg-formats/blob/master/src/main/resources/avro/bdg.avdl
+
+    Alphabet (DNA, RNA, protein)
+    Fragment
+    Sequence
+    Slice (extends Sequence)
+    Read (Slice with quality)
+    Contig (split into Fragments, sometimes just for size reasons)
+    Alignment Record
+
+ADAM Read Oriented Format
+General
+    Reference Name String
+    Reference ID Int
+    Start Long
+    Mapping Quality Int
+    Read Name String
+    Sequence String
+    Mate Reference String
+    Mate Alignment Start Long
+    Mate Reference ID Int
+    Cigar String
+    Base Quality String
+
+Flags
+    Read Paired Boolean
+    Proper Pair Boolean
+    Read Mapped Boolean
+    Mate Mapped Boolean
+    Read Negative Strand Boolean
+    Mate Negative Strand Boolean
+    First Of Pair Boolean
+    Second Of Pair Boolean
+    Primary Alignment Boolean
+    Failed Vendor Checks Boolean
+    Duplicate Read Boolean
+
+Attributes
+    Mismatching Positions String
+    Other Attributes String
+
+Read Group
+    Sequencing Center String
+    Description String
+    Run Date Long
+    Flow Order String
+    Key Sequence String
+    Library String
+    Median Insert Int
+    Platform String
+    Platform Unit String
+    Sample String
+
+ADAM Reference/Pileup Orinted Storage
+General
+    Reference Name String
+    Reference ID Int
+    Position Long
+    Range Offset Int
+    Range Length Int
+    Reference Base Base
+    Read Base Base
+    Base Quality Int
+    Mapping Quality Int
+    Number Soft Clipped Int
+    Number Reverse Strand Int
+    Count At Position Int
+
+Read Group
+    Sequencing Center String
+    Description String
+    Run Date Long
+    Flow Order String
+    Key Sequence String
+    Library String
+    Median Insert Int
+    Platform String
+    Platform Unit String
+    Sample String
+
+
+From bdg-formats:
+    The AlignmentRecord schema represents a genomic read, along with that
+    read's alignment to a reference genome, if available.
+
+    The Feature schema represents a generic genomic feature. This record
+    can be used to tag a region of the genome with an annotation, such as
+    coverage observed over that region, or the coordinates of an exon.
+
+    The Fragment schema represents a set of read alignments that came from
+    a single sequenced fragment.
+
+    The Genotype schema represents a genotype call, along with annotations
+    about the quality/read support of the called genotype.
+
+    The NucleotideContigFragment schema represents a section of a contig's
+    sequence.
+
+    The Variant schema represents a sequence variant, along with statistics
+    about that variant's support across a group of samples, and annotations
+    about the effect of the variant.
+
+*/
+

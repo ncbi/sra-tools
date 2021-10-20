@@ -8,7 +8,7 @@ if( Python3_EXECUTABLE )
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_NgsPythonExamples_${TestName}
-                PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/ngs"
+                PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/ngs;NGS_PY_LIBRARY_PATH=${LIBDIR}"
             )
         endmacro()
 

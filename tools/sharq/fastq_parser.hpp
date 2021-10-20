@@ -106,9 +106,9 @@ public:
 
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 private:
-    static void dummy_validator(CFastqRead& read, pair<int, int>& expected_range);
-    static void num_qual_validator(CFastqRead& read, pair<int, int>& expected_range);
-    static void char_qual_validator(CFastqRead& read, pair<int, int>& expected_range);
+    static void dummy_validator(CFastqRead& read, pair<int, int>& expected_range, string& tmp_str);
+    static void num_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& tmp_str);
+    static void char_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& tmp_str);
 
     CDefLineParser      m_defline_parser;       ///< Defline parser 
     string              m_file_name;            ///< Corresponding file name
@@ -119,10 +119,13 @@ private:
     vector<CFastqRead>  m_buffered_spot;        ///< Spot already read from the stream but no returned to the consumer
     vector<CFastqRead>  m_pending_spot;         ///< Partial spot with the first read only 
     bool                m_is_qual_score_numeric = true; ///< Quality score is numeric and qual score size == sequence size
-    pair<int, int> m_qual_score_range = {33, 74};       ///< Expected quality score range
-    function<void(CFastqRead&, pair<int,int>&)> m_qual_validator = dummy_validator; ///< Quality score validator function
+    using TQualScoreRange = pair<int, int>;
+    TQualScoreRange     m_qual_score_range = {33, 74};       ///< Expected quality score range
+    using TTmpStr = string;
+    function<void(CFastqRead&, TQualScoreRange&, TTmpStr&)> m_qual_validator = dummy_validator; ///< Quality score validator function
     string              m_line;
     string_view         m_line_view;
+    string              m_tmp_str;
 };
 
 //  ----------------------------------------------------------------------------
@@ -148,7 +151,7 @@ public:
     ~fastq_parser() {
 //        bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_ops_per_sec);
     }
-    void setup_readers(const vector<string>& files, const vector<char>& read_types, uint8_t platform = 0, int num_reads_to_check = 100000);
+    void setup_readers(const vector<string>& files, const vector<char>& read_types, uint8_t& platform, int quality, int num_reads_to_check = 100000);
     void set_spot_file(const string& spot_file) { m_spot_file = spot_file; }
     void set_allow_early_end(bool allow_early_end = true) { m_allow_early_end = allow_early_end; }
     void parse();
@@ -269,19 +272,21 @@ bool fastq_reader::parse_read(CFastqRead& read)
         GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
         if (!m_line_view.empty()) {
             do {
+                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view)) {
+                    m_buffered_defline = m_line;
+                    break;
+                } 
                 read.AddQualityLine(m_line_view);
                 if (m_is_qual_score_numeric && read.Quality().size() >= sequence_size)
                     break;
                 GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
                 if (m_line_view.empty())
                     break;
-                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view)) {
-                    m_buffered_defline = m_line;
-                    break;
-                } 
             } while (true);
         }
     }
+    if (read.Quality().empty())
+        throw fastq_error(111, "Read {}: no quality scores", read.Spot());
     read.SetType(m_read_type);
     return true;
 }
@@ -294,7 +299,7 @@ bool fastq_reader::get_read(CFastqRead& read)
     try {
         if (!parse_read(read))
             return false;
-        m_qual_validator(read, m_qual_score_range);
+        m_qual_validator(read, m_qual_score_range, m_tmp_str);
     } catch (fastq_error& e) {
         e.set_file(m_file_name, read.LineNumber());
         throw;
@@ -355,18 +360,17 @@ bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
     return false;
 }
 
-void fastq_reader::dummy_validator(CFastqRead& read, pair<int, int>& expected_range)
+void fastq_reader::dummy_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
 {
     return;
 }
 
 //  ----------------------------------------------------------------------------    
-void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected_range)
+void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
 //  ----------------------------------------------------------------------------    
 {
-    string str;
+    str.clear();
     read.mQualScores.clear();
-    read.mQualScores.reserve(read.mQuality.size());
     for (auto c : read.mQuality) {
         if (isspace(c)) {
             if (!str.empty()) {
@@ -402,14 +406,13 @@ void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected
 
 
 //  ----------------------------------------------------------------------------    
-void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expected_range)
+void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
 //  ----------------------------------------------------------------------------    
 {
+    str.clear();
     read.mQualScores.clear();
-    auto qual_size = read.mQuality.size();
-    if (qual_size == 0)
-        throw fastq_error(111, "Read {}: no quality scores", read.Spot());
 
+    auto qual_size = read.mQuality.size();
     auto sz = read.mSequence.size();
     if (qual_size > sz) 
         throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
@@ -419,8 +422,11 @@ void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expecte
         if (!(score >= expected_range.first && score <= expected_range.second)) 
             throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
     }
-    if (qual_size < sz) 
+    if (qual_size < sz) {
+        if (qual_size == 0)
+            throw fastq_error(111, "Read {}: no quality scores", read.Spot());
         read.mQuality.append(sz - qual_size,  char(expected_range.first + 30));
+    }
 }
 
 
@@ -536,7 +542,7 @@ void fastq_parser<TWriter>::parse()
 
 #ifdef LOCALDEBUG
     spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
-    spdlog::info("parsing time: {}", sw);
+    spdlog::debug("parsing time: {}", sw);
 #endif
     spot_names_bi.flush();
 }
@@ -552,7 +558,7 @@ void fastq_parser<TWriter>::check_duplicates()
     str_sv_type sv;
     sv.remap_from(m_spot_names);
     m_spot_names.swap(sv);
-    spdlog::info("remapping done...");
+    spdlog::debug("remapping done...");
 
     if (!m_spot_file.empty()) 
         serialize_vec(m_spot_file, m_spot_names);
@@ -584,18 +590,18 @@ void fastq_parser<TWriter>::check_duplicates()
             it.advance();
         }
         if (++index % 100000000 == 0) {
-            spdlog::info("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
+            spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
             last_hits = hits;
         }
     }    
 
-    spdlog::info("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{:L}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
+    spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{:L}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
 
     if (hits > 0 && !m_spot_file.empty()) {
         string collisions_file = m_spot_file + ".dups";
         bm::SaveBVector(collisions_file.c_str(), bv_collisions);
     }
-    spdlog::info("spot_name check time:{}, num_hits: {:L}", sw, hits);
+    spdlog::debug("spot_name check time:{}, num_hits: {:L}", sw, hits);
 }
 
 typedef struct qual_score_params 
@@ -637,21 +643,30 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
     }
 
     if (params.space_delimited) {
+        auto set_score = [&read, &params](string& str) 
+        { 
+            if (str.empty())
+                return;
+            int score;    
+            try {
+                score = stoi(str);
+            } catch (exception& e) {
+                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), str);
+            }
+            if (!params.set_score(score))
+                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), str);
+            str.clear();                
+        };        
         string str;
         for (auto c : quality) {
             if (isspace(c)) {
-                if (!str.empty()) {
-                    if (!params.set_score(stoi(str)))
-                        throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), stoi(str));
-                    str.clear();
-                }
+                set_score(str);
+                str.clear();
                 continue;
             }
             str.append(1, c);
         }
-        if (!str.empty()) 
-            if (!params.set_score(stoi(str))) 
-                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), stoi(str));
+        set_score(str);
     } else {
         for (auto c : quality) {
             if (!params.set_score(int(c)))
@@ -663,7 +678,7 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
 
 //  ----------------------------------------------------------------------------    
 template<typename TWriter>
-void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vector<char>& read_types, uint8_t platform, int num_reads_to_check) 
+void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vector<char>& read_types, uint8_t& platform, int quality, int num_reads_to_check) 
 //  ----------------------------------------------------------------------------    
 {
     assert(!files.empty());
@@ -684,9 +699,33 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
         }
 
         qual_score_params& params  = reader_qual_params[fn];
-        s_check_qual_score(read, params);
+        if (quality == -1)
+            s_check_qual_score(read, params);
+        else {
+            switch (quality) {
+                case 0:
+                    params.space_delimited = true;
+                    params.min_score = -5;
+                    params.max_score = 40;
+                    break;
+                case 33:
+                    params.space_delimited = false;
+                    params.min_score = 33;
+                    params.max_score = 74;
+                    break;
+                case 64:
+                    params.space_delimited = false;
+                    params.min_score = 64;
+                    params.max_score = 105;
+                    break;
+                default:
+                    break;
+            }
+        }
 
-        platform = reader.platform();
+        if ((int8_t)platform == -1)
+            platform = reader.platform();
+
 
         //if (platform == 0)
         //    platform = reader.platform();
@@ -701,9 +740,11 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
                 e.set_file(fn, read.LineNumber());
                 throw;
             }
-            s_check_qual_score(read, params);
+            if (quality == -1) 
+                s_check_qual_score(read, params);
             if (platform != reader.platform()) 
-                throw fastq_error(70, "Input files have deflines from different platforms");
+                throw fastq_error(70, "Input files have deflines from different platforms {} != {}", platform, reader.platform());
+
         }
 
         //RANGES = {
@@ -712,18 +753,20 @@ void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vec
         //'Solexa': (59, 104),
         //'Illumina-1.3': (64, 104),
         //'Illumina-1.5': (66, 105)
-        if (params.min_score < 0) {
-            params.min_score = -5;
-            params.max_score = 40;
-        } else if (params.min_score >= 33 && params.max_score <= 74) {
-            params.min_score = 33;
-            params.max_score = 74;
-        //} else if (params.min_score >= 59 && params.min_score <= 104) {
-        //    params.min_score = 59;
-        //    params.max_score = 104;
-        } else if (params.min_score >= 64 && params.min_score <= 105) {
-            params.min_score = 64;
-            params.max_score = 105;
+        if (quality == -1) {
+            if (params.min_score < 0) {
+                params.min_score = -5;
+                params.max_score = 40;
+            } else if (params.min_score >= 33 && params.max_score <= 74) {
+                params.min_score = 33;
+                params.max_score = 74;
+            //} else if (params.min_score >= 59 && params.min_score <= 104) {
+            //    params.min_score = 59;
+            //    params.max_score = 104;
+            } else if (params.min_score >= 64 && params.min_score <= 105) {
+                params.min_score = 64;
+                params.max_score = 105;
+            }
         }
     }
     size_t idx = 0;
@@ -817,11 +860,11 @@ void check_hash_file(const string& hash_file)
     }
 
 
-    spdlog::info("Checking reads {:L} on {} threads", vec.size(), std::thread::hardware_concurrency());
+    spdlog::debug("Checking reads {:L} on {} threads", vec.size(), std::thread::hardware_concurrency());
     {
         str_sv_type::statistics st;
         vec.calc_stat(&st);
-        spdlog::info("st.memory_used {}", st.memory_used);
+        spdlog::debug("st.memory_used {}", st.memory_used);
     }
     spdlog::stopwatch sw;
 
@@ -859,14 +902,14 @@ void check_hash_file(const string& hash_file)
             it.advance();
         }
         if (++index % 100000000 == 0) {
-            spdlog::info("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
+            spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
             last_hits = hits;
             bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_all);
             timing_map.clear();
         }
     }
     {
-        spdlog::info("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
+        spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
         bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_all);
     }
 

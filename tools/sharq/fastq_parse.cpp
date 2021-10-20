@@ -68,12 +68,14 @@ private:
     void xCheckInputFiles();
 
     string mOutputFile;
+    string mDestination; ///< path to sra archive
     bool mDebug{false};
     vector<char> mReadTypes;
     using TInptuFiles = vector<string>;
     vector<TInptuFiles> mInputBatches;
     bool mDiscardNames{false};
     bool mAllowEarlyFileEnd{false}; ///< Flag to continue if one of the streams ends
+    int mQuality = -1; ///< quality score interpretation (0, 33, 64)
     string mSpotFile;
     string mNameColumn; ///< NAME column's name
     ostream* mpOutStr{nullptr};
@@ -118,8 +120,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 {
     try {
         CLI::App app{"SharQ"};
-        // Add new options/flags here
-        app.add_option("--o", mOutputFile, "Optional output file");        
+
+        mOutputFile.clear();
+        mDestination = "sra.out";
+
+        app.add_option("--output", mDestination, "Output archive path");        
 
         string platform;
         app.add_option("--platform", platform, "Optional platform");
@@ -130,9 +135,19 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         app.add_option("--useAndDiscardNames", mDiscardNames, "Discard file names (Boolean)");
 
         app.add_flag("--allowEarlyFileEnd", mAllowEarlyFileEnd, "Complete load at early end of one of the files");
+
         app.add_flag("--debug", mDebug, "Debug mode");
-        bool print_errors;
+
+        bool print_errors = false;
         app.add_flag("--help_errors,--help-errors", print_errors, "Print error codes and descriptions");
+
+        bool no_timestamp = false;
+        app.add_flag("--no-timestamp", no_timestamp, "No time stamp in debug mode");
+
+        string log_level = "info";
+        app.add_option("--log-level", log_level, "Log level")
+            ->default_val("info")
+            ->check(CLI::IsMember({"trace", "debug", "info", "warning", "error"}));
 
         string hash_file;
         app.add_option("--hash", hash_file, "Check hash file");
@@ -151,22 +166,33 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         vector<string> input_files;
         app.add_option("files", input_files, "FastQ files to parse");
-        CLI11_PARSE(app, argc, argv);
 
+        mQuality = -1;
+        app.add_option("--quality,-q", mQuality, "Interpretation of ascii quality")
+            ->check(CLI::IsMember({0, 33, 64}));
+
+        CLI11_PARSE(app, argc, argv);
         if (print_errors) {
             fastq_error::print_error_codes(cout);
             return 0;
         }
+        spdlog::set_level(spdlog::level::from_str(log_level));
 
         if (!hash_file.empty()) {
             check_hash_file(hash_file);
             return 0;
         }
+
+        xSetupOutput();
+
         if (mDebug) {
             m_writer = make_shared<fastq_writer>();
+            if (no_timestamp)
+                spdlog::set_pattern("[%l] %v");
+
         } else {
             spdlog::set_pattern("%v");
-            m_writer = make_shared<fastq_writer_vdb>();
+            m_writer = make_shared<fastq_writer_vdb>(*mpOutStr);
         }
         
         copy(read_types.begin(), read_types.end(), back_inserter(mReadTypes));
@@ -268,7 +294,6 @@ void CFastqParseApp::xCheckInputFiles()
 int CFastqParseApp::Run()
 //  ----------------------------------------------------------------------------
 {
-    xSetupOutput();
     int retStatus = xRun();
     xBreakdownOutput();
     return retStatus;
@@ -286,13 +311,14 @@ int CFastqParseApp::xRun()
         parser.set_spot_file(mSpotFile);
     parser.set_allow_early_end(mAllowEarlyFileEnd);
     auto batch_it = mInputBatches.begin();
-    parser.setup_readers(*batch_it, mReadTypes);
+    uint8_t platform = -1;
+    parser.setup_readers(*batch_it, mReadTypes, platform, mQuality);
     m_writer->set_attr("name_column", mNameColumn);
-    m_writer->set_attr("destination", "sra.out");
+    m_writer->set_attr("destination", mDestination);
     m_writer->open();
     parser.parse(); 
     while (++batch_it != mInputBatches.end()) {
-        parser.setup_readers(*batch_it, mReadTypes);
+        parser.setup_readers(*batch_it, mReadTypes, platform, mQuality);
         parser.parse(); 
     }
     parser.check_duplicates();
@@ -308,6 +334,7 @@ void CFastqParseApp::xSetupOutput()
     if (mOutputFile.empty()) 
         return;
     mpOutStr = dynamic_cast<ostream*>(new ofstream(mOutputFile, ios::binary));
+    mpOutStr->exceptions(std::ofstream::badbit);
 }
 
 
@@ -326,10 +353,12 @@ void CFastqParseApp::xBreakdownOutput()
 int main(int argc, const char* argv[])
 //  ----------------------------------------------------------------------------
 {
+    ios_base::sync_with_stdio(false);   // turn off synchronization with standard C streams
     std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
-    auto stderr_logger = spdlog::stderr_logger_mt("stderr");
+    auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
     spdlog::set_default_logger(stderr_logger);
-    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
+    
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern
     return CFastqParseApp().AppMain(argc, argv);
 }
 

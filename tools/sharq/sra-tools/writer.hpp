@@ -75,11 +75,12 @@ namespace VDB {
             logMesg,
             progressMesg
         };
-        FILE *stream;
+        ostream& stream;
+        ///FILE *stream;
         
         class StreamHeader {
             friend Writer;
-            bool write(FILE *const stream) const
+            bool write(ostream& stream) const
             {
                 struct h {
                     char sig[8];
@@ -88,7 +89,9 @@ namespace VDB {
                     uint32_t size;
                     uint32_t packing;
                 } const h = { { 'N', 'C', 'B', 'I', 'g', 'n', 'l', 'd' }, 1, 2, sizeof(struct h), 0 };
-                return fwrite(&h, sizeof(h), 1, stream) == 1;
+                //return fwrite(&h, sizeof(h), 1, stream) == 1;
+                stream.write((const char*)&h, sizeof(h));
+                return true;
             }
         public:
             StreamHeader() {};
@@ -97,10 +100,18 @@ namespace VDB {
         class SimpleEvent {
             friend Writer;
             uint32_t eid;
-
+/*
             bool write(FILE *const stream) const
             {
                 return fwrite(&eid, sizeof(eid), 1, stream) == 1;
+            }
+*/            
+            bool write(ostream& stream) const
+            {
+                //stream << eid;
+                //return fwrite(&eid, sizeof(eid), 1, stream) == 1;
+                stream.write((const char*)&eid, sizeof(eid));
+                return true;
             }
         public:
             SimpleEvent(EventCode const code, unsigned const id) : eid((code << 24) + id) {}
@@ -110,7 +121,7 @@ namespace VDB {
             friend Writer;
             uint32_t eid;
             std::string const &str;
-
+/*
             bool write(FILE *const stream) const {
                 uint32_t const zero = 0;
                 auto const size = (uint32_t)str.size();
@@ -120,6 +131,18 @@ namespace VDB {
                     && fwrite(str.data(), 1, size, stream) == size
                     && fwrite(&zero, 1, padding, stream) == padding;
             }
+*/            
+            bool write(ostream& stream) const {
+                uint32_t const zero = 0;
+                auto const size = (uint32_t)str.size();
+                auto const padding = (4 - (size & 3)) & 3;
+                stream.write((const char*)&eid, sizeof(eid));
+                stream.write((const char*)&size, sizeof(size));
+                stream.write((const char*)str.data(), size);
+                stream.write((const char*)&zero, padding);
+                return true;
+            }
+
         public:
             String1Event(EventCode const code, unsigned const id, std::string const &str)
             : eid((code << 24) + id)
@@ -131,8 +154,8 @@ namespace VDB {
             friend Writer;
             uint32_t eid;
             std::string const &str1;
-            std::string const &str2;
-
+            std::string const &str2; 
+/*
             bool write(FILE *const stream) const {
                 uint32_t const zero = 0;
                 auto const size1 = (uint32_t)str1.size();
@@ -146,6 +169,22 @@ namespace VDB {
                     && fwrite(str2.data(), 1, size2, stream) == size2
                     && fwrite(&zero, 1, padding, stream) == padding;
             }
+*/
+            bool write(ostream& stream) const {
+                uint32_t const zero = 0;
+                auto const size1 = (uint32_t)str1.size();
+                auto const size2 = (uint32_t)str2.size();
+                auto const size = size1 + size2;
+                auto const padding = (4 - (size & 3)) & 3;
+                stream.write((const char*)&eid, sizeof(eid));
+                stream.write((const char*)&size1, sizeof(size1));
+                stream.write((const char*)&size2, sizeof(size2));
+                stream.write((const char*)str1.data(), size1);
+                stream.write((const char*)str2.data(), size2);
+                stream.write((const char*)&zero, padding);
+                return true;
+            }
+
         public:
             String2Event(EventCode const code, unsigned const id, std::string const &str_1, std::string const &str_2)
             : eid((code << 24) + id)
@@ -160,7 +199,7 @@ namespace VDB {
             uint32_t tid;
             uint32_t bits;
             std::string const &name;
-            
+/*            
             bool write(FILE *const stream) const {
                 uint32_t const zero = 0;
                 auto const size = (uint32_t)name.size();
@@ -172,6 +211,20 @@ namespace VDB {
                     && fwrite(name.data(), 1, size, stream) == size
                     && fwrite(&zero, 1, padding, stream) == padding;
             }
+*/
+            bool write(ostream& stream) const {
+                uint32_t const zero = 0;
+                auto const size = (uint32_t)name.size();
+                auto const padding = (4 - (size & 3)) & 3;
+                stream.write((const char*)&eid, sizeof(eid));
+                stream.write((const char*)&tid, sizeof(tid));
+                stream.write((const char*)&bits, sizeof(bits));
+                stream.write((const char*)&size, sizeof(size));
+                stream.write((const char*)name.data(), size);
+                stream.write((const char*)&zero, padding);
+                return true;
+            }
+
         public:
             ColumnEvent(EventCode const code, unsigned const cid, unsigned const tid_, unsigned const elemBits, std::string const &str)
             : eid((code << 24) + cid)
@@ -189,10 +242,17 @@ namespace VDB {
             uint32_t const zero = 0;
             auto const size = elsize * count;
             auto const padding = (4 - (size & 3)) & 3;
+            /*
             return fwrite(&eid, sizeof(eid), 1, stream) == 1
                 && fwrite(&count, sizeof(count), 1, stream) == 1
                 && fwrite(data, elsize, count, stream) == count
                 && fwrite(&zero, 1, padding, stream) == padding;
+                */
+            stream.write((const char*)&eid, sizeof(eid));
+            stream.write((const char*)&count, sizeof(count));
+            stream.write((const char*)data, elsize * count);
+            stream.write((const char*)&zero, padding);
+            return true;    
         }
         template <typename T>
         bool write(EventCode const code, unsigned const cid, uint32_t const count, T const *data) const
@@ -203,11 +263,19 @@ namespace VDB {
             uint32_t const zero = 0;
             auto const size = sizeof(T) * count;
             auto const padding = (4 - (size & 3)) & 3;
+/*            
             return fwrite(&eid, sizeof(eid), 1, stream) == 1
                 && fwrite(&count, sizeof(count), 1, stream) == 1
                 && fwrite(data, sizeof(T), count, stream) == count
                 && fwrite(&zero, 1, padding, stream) == padding;
+*/
+            stream.write((const char*)&eid, sizeof(eid));
+            stream.write((const char*)&count, sizeof(count));
+            stream.write((const char*)data, sizeof(T) * count);
+            stream.write((const char*)&zero, padding);
+            return true;
         }
+
         template <typename T>
         bool write(EventCode const code, unsigned const cid, T const &data) const
         {
@@ -218,7 +286,7 @@ namespace VDB {
             return write(code, cid, (uint32_t)data.size(), (uint32_t)sizeof(std::string::value_type), data.data());
         }
     public:
-        Writer(FILE *const stream_)
+        Writer(ostream& stream_)
         : stream(stream_)
         {
             StreamHeader().write(stream);
@@ -324,10 +392,13 @@ namespace VDB {
         {
             return SimpleEvent(endStream, 0).write(stream);
         }
-        
-        auto flush() const -> decltype(fflush(stream)) {
-            return fflush(stream);
+        void flush() const {
+            stream.flush();
         }
+        
+        //auto flush() const -> decltype(fflush(stream)) {
+        //    return fflush(stream);
+        //}
     };
 }
 
@@ -445,7 +516,7 @@ public:
         return Table(*this, table);
     }
     
-    Writer2(FILE *const stream)
+    Writer2(ostream& stream)
     : VDB::Writer(stream)
     , nextTable(0)
     , nextColumn(0)

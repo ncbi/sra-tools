@@ -4,11 +4,11 @@ if( Python3_EXECUTABLE )
         macro( RunAndDiff TestName TestParams )
             add_test( NAME Test_NgsPythonExamples_${TestName}
                 COMMAND
-                bash -c "ls -l $LD_LIBRARY_PATH && ${Python3_EXECUTABLE} ${TestName}.py ${TestParams}  > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
+                bash -c "${Python3_EXECUTABLE} ${TestName}.py ${TestParams}  > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_NgsPythonExamples_${TestName}
-                PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/ngs;NGS_PY_LIBRARY_PATH=${LIBDIR};LD_LIBRARY_PATH=${NCBI_VDB_LIBDIR}"
+                PROPERTIES ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/ngs;NGS_PY_LIBRARY_PATH=${LIBDIR}\;${NCBI_VDB_LIBDIR}"
                 )
         endmacro()
 

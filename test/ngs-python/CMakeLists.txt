@@ -8,6 +8,7 @@ if( Python3_EXECUTABLE )
         PROPERTIES
             DEPENDS Test_NGS_Python_install
             ENVIRONMENT "PYTHONUSERBASE=${TEMPDIR}/ngs"
+            ENVIRONMENT_MODIFICATION LD_LIBRARY_PATH=string_prepend:${LIBDIR}
     )
 
 endif()

@@ -22,5 +22,7 @@
 #
 # ===========================================================================
 
+default: runtests
+
 TOP ?= $(abspath ../..)
 include $(TOP)/build/Makefile.env

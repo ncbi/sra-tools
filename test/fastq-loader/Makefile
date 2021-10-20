@@ -22,7 +22,7 @@
 #
 # ===========================================================================
 
-#TODO: transfer slowtests/big_loads (see CVS)
+default: runtests
 
 TOP ?= $(abspath ../..)
 MODULE = test/fastq-loader

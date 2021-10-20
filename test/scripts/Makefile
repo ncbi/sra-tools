@@ -21,5 +21,7 @@
 #  Please cite the author in any work or product based on this material.
 # ==============================================================================
 
+default: runtests
+
 TOP ?= $(abspath ../..)
 include $(TOP)/build/Makefile.env

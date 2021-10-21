@@ -22,9 +22,9 @@ tar -xvzf "$ARCHIVE"
 rm "$ARCHIVE"
 
 cd "$DIR"
-#cmake .
-#make
+cmake .
+make
 
-#sudo make install
+sudo make install
 cd ..
 sudo rm -rf "$DIR"

@@ -60,7 +60,10 @@ runtests: \
 	no_fasta_env \
 	fasta_env \
 	no_fasta_er_env \
-	fasta_er_env
+	fasta_er_env \
+	no_fasta_er \
+	fasta_er \
+	fasta_er_unsorted
 
 endif
 
@@ -264,6 +267,33 @@ fasta_er_env: | actual mkfg
 	SRATOOLS_TESTING=5 \
 	SRATOOLS_IMPERSONATE=fasterq-dump \
 	$(BINDIR)/sratools --fasta SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+no_fasta_er: | actual mkfg
+	@echo "testing expected command for fasterq-dump <run>" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=2 \
+	SRATOOLS_IMPERSONATE=fasterq-dump \
+	$(BINDIR)/sratools SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+fasta_er: | actual mkfg
+	@echo "testing expected command for fasterq-dump --fasta <run>" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=2 \
+	SRATOOLS_IMPERSONATE=fasterq-dump \
+	$(BINDIR)/sratools --fasta SRR390728 2>actual/$@.stderr ; \
+	diff expected/$@.stderr actual/$@.stderr
+
+fasta_er_unsorted: | actual mkfg
+	@echo "testing expected command for fasterq-dump --fasta-unsorted <run>" ;\
+	NCBI_SETTINGS=$(TEMPDIR)/tmp.mkfg \
+	PATH=$(DIRTOTEST):$$PATH \
+	SRATOOLS_TESTING=2 \
+	SRATOOLS_IMPERSONATE=fasterq-dump \
+	$(BINDIR)/sratools --fasta-unsorted SRR390728 2>actual/$@.stderr ; \
 	diff expected/$@.stderr actual/$@.stderr
 
 help_srapath: | actual

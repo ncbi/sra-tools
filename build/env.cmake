@@ -184,6 +184,10 @@ if ( PYTHON_PATH )
 endif()
 find_package( Python3 COMPONENTS Interpreter )
 
+if( Python3_EXECUTABLE AND WIN32 )
+    cmake_path( CONVERT "${TEMPDIR}/ngs" TO_NATIVE_PATH_LIST PythonUserBase )
+endif()
+
 # ===========================================================================
 
 enable_testing()

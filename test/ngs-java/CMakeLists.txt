@@ -30,7 +30,8 @@ if ( Java_FOUND )
 
 
     if ( WIN32 )
-        cmake_path( CONVERT "${CMAKE_JAR_OUTPUT_DIRECTORY}/test-ngs-java.jar" "${NGS_JAVA_JAR}" "${JUNIT_JAR}" TO_NATIVE_PATH_LIST CLASSPATH )
+        set( classpaths "${CMAKE_JAR_OUTPUT_DIRECTORY}/test-ngs-java.jar" "${NGS_JAVA_JAR}" "${JUNIT_JAR}" )
+        cmake_path( CONVERT "${classpaths}" TO_NATIVE_PATH_LIST CLASSPATH )
         set( libpaths
                 "${BINDIR}"
                 "${LIBDIR}"

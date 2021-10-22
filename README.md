@@ -16,7 +16,7 @@ using data in the INSDC Sequence Read Archives.
 ### ANNOUNCEMENT:
 
 October 25, 2021. SRA Toolkit 2.11.3:
-Fixed a bug in fasterq-dump: fasta and fasta-unsorted parameters work correctly
+fixed a bug in fasterq-dump: fasta and fasta-unsorted parameters work correctly.
 
 October 7, 2021. SRA Toolkit 2.11.2:
 

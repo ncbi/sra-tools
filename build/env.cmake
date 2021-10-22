@@ -187,10 +187,6 @@ if ( PYTHON_PATH )
 endif()
 find_package( Python3 COMPONENTS Interpreter )
 
-if( Python3_EXECUTABLE AND WIN32 )
-    cmake_path( CONVERT "${TEMPDIR}/ngs" TO_NATIVE_PATH_LIST PythonUserBase )
-endif()
-
 # ===========================================================================
 
 enable_testing()
@@ -275,6 +271,10 @@ else() # assume a single-config generator
     link_directories( ${NCBI_VDB_ILIBDIR} )
 endif()
 
+if( Python3_EXECUTABLE )
+    set( PythonUserBase ${TEMPDIR}/python )
+endif()
+
 function( GenerateStaticLibsWithDefs target_name sources compile_defs )
     add_library( ${target_name} STATIC ${sources} )
     if( NOT "" STREQUAL "${compile_defs}" )
@@ -352,6 +352,30 @@ function(ExportShared lib install)
         MakeLinksShared( ${lib}-shared ${lib} ${install} )
     endif()
 endfunction()
+
+#
+# create versioned names and symlinks for an executable
+#
+function(MakeLinksExe target install)
+    if( SINGLE_CONFIG )
+        add_custom_command(TARGET ${target}
+            POST_BUILD
+            COMMAND rm -f ${target}.${VERSION}
+            COMMAND mv ${target} ${target}.${VERSION}
+            COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+            COMMAND ln -f -s ${target}.${MAJVERS} ${target}.${SHLX}
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+        if ( ${install} )
+            install( FILES  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${SHLX}
+                    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+        )
+        endif()
+    endif()
+endfunction()
+
 
 set( COMMON_LINK_LIBRARIES kapp tk-version )
 

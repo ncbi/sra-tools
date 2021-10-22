@@ -11,7 +11,7 @@ add_executable( samview
 if( WIN32 )
 	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb )
 else()
-	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb m )
+	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
 endif()
 
 # External
@@ -27,5 +27,5 @@ if( NOT WIN32)
 		mem-bank
 		low-match-count
 	)
-	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb )
+	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb.${STLX} pthread dl )
 endif()

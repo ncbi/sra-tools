@@ -23,7 +23,9 @@ if( HDF5_FOUND )
 		kdf5
 		load
 		${HDF5_LIBRARIES}
-		ncbi-wvdb
+		ncbi-wvdb.${STLX}
+		pthread
+		dl
 		m
 	)
 

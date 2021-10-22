@@ -11,4 +11,4 @@ add_executable( prefetch
 	PrfRetrier
 	PrfOutFile
 )
-target_link_libraries ( prefetch ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+target_link_libraries ( prefetch ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )

@@ -3,7 +3,7 @@ add_compile_definitions( __mod__="tools/sra-sort" )
 # Internal
 if( NOT WIN32 )
 	add_executable( dump-blob-boundaries dump-blob-boundaries )
-	target_link_libraries( dump-blob-boundaries ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+	target_link_libraries( dump-blob-boundaries ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
 endif()
 
 # External
@@ -41,8 +41,8 @@ set( SRA_SORT_SRC
 )
 
 add_executable( sra-sort ${SRA_SORT_SRC} )
-target_link_libraries( sra-sort ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
+target_link_libraries( sra-sort ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
 
 add_executable( sra-sort-cg ${SRA_SORT_SRC} )
-target_link_libraries( sra-sort-cg ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
+target_link_libraries( sra-sort-cg ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
 target_compile_definitions( sra-sort-cg PUBLIC SEQUENCE_BEFORE_SECONDARY=0 )

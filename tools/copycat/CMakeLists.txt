@@ -13,5 +13,5 @@ if( ${OS} STREQUAL "linux" )
         ccsubchunk
         ccfile
     )
-    target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ncbi-vdb kff magic-static )
+    target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m kff magic-static )
 endif()

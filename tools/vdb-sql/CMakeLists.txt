@@ -6,7 +6,7 @@ add_executable( vdb-sql vdb_shell )
 set( VDB_SQL_LIB
 	vdb-sqlite
 	ngs
-	ncbi-vdb
+	ncbi-vdb.${STLX}
 )
 if( WIN32 )
 	list( APPEND VDB_SQL_LIB

@@ -12,4 +12,4 @@ add_executable( qual-recalib-stat
 	writer
 	qual-recalib-stat
 )
-target_link_libraries( qual-recalib-stat ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
+target_link_libraries( qual-recalib-stat ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )

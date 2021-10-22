@@ -3,15 +3,15 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
 
 set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
-link_libraries( ${COMMON_LINK_LIBRARIES} )
+#link_libraries( ${COMMON_LINK_LIBRARIES} )
 
 # for the tests that link against libncbi-[w]vdb
 if( WIN32 )
-    set( COMMON_LIBS_READ  ncbi-vdb)
-    set( COMMON_LIBS_WRITE ncbi-wvdb)
+    set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
+    set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
 else()
-    set( COMMON_LIBS_READ   ncbi-vdb  dl pthread )
-    set( COMMON_LIBS_WRITE  ncbi-wvdb dl pthread )
+    set( COMMON_LIBS_READ   ncbi-vdb.${STLX} pthread dl m )
+    set( COMMON_LIBS_WRITE  ncbi-wvdb.${STLX} pthread dl m )
 endif()
 
 add_subdirectory(align)

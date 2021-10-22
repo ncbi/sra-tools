@@ -12,4 +12,4 @@ add_executable( sra-stat
 	sra
 	sra-stat
 )
-target_link_libraries( sra-stat ${COMMON_LINK_LIBRARIES} load ncbi-vdb ${ADDITIONAL_LIBRARIES} )
+target_link_libraries( sra-stat ${COMMON_LINK_LIBRARIES} load ncbi-vdb.${STLX} pthread dl ${ADDITIONAL_LIBRARIES} )

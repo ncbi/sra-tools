@@ -9,7 +9,10 @@ set( NGS_PILEUP_LIBS
 	ncbi-ngs-c++
 	ngs-c++
 	ngs
-	ncbi-vdb
+	ncbi-vdb.${STLX}
+	pthread
+	dl
+	m
 )
 
 target_link_libraries( ngs-pileup ${NGS_PILEUP_LIBS} ${COMMON_LINK_LIBRARIES} )

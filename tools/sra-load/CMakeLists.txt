@@ -17,7 +17,10 @@ if( LibXml2_FOUND )
 		kapp
 		tk-version
 		load
-		ncbi-wvdb
+		ncbi-wvdb.${STLX}
+		pthread
+		dl
+		m
 		kxfs
 		kxml
 		xml2

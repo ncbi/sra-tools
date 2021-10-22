@@ -7,6 +7,7 @@ add_executable( kar
 	kar
 )
 target_link_libraries( kar ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( kar true )
 
 add_executable( kar+
 	kar-path
@@ -16,12 +17,14 @@ add_executable( kar+
 	kar+
 )
 target_link_libraries( kar+ ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( kar+ true )
 
 add_executable( kar+meta
 	kar+util
 	kar+meta
 )
 target_link_libraries( kar+meta ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+MakeLinksExe( kar+meta true )
 
 # # ?
 # add_executable( sra-kar sra-kar )

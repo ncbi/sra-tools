@@ -16,3 +16,4 @@ set( NGS_PILEUP_LIBS
 )
 
 target_link_libraries( ngs-pileup ${NGS_PILEUP_LIBS} ${COMMON_LINK_LIBRARIES} )
+MakeLinksExe( ngs-pileup true )

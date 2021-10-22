@@ -30,4 +30,5 @@ if( HDF5_FOUND )
 	)
 
 	target_link_libraries( pacbio-load ${PACBIO_LOAD_LIB} )
+	MakeLinksExe( pacbio-load true )
 endif()

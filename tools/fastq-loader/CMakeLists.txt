@@ -36,4 +36,5 @@ if( NOT WIN32 ) # sys/mman.h
 		loader-imp
 	)
 	target_link_libraries( latf-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb.${STLX} pthread dl m )
+	MakeLinksExe( latf-load true )
 endif()

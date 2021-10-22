@@ -41,6 +41,7 @@ if( LibXml2_FOUND  )
 		${OS_SPECIFIC_SRC}
 	)
 	target_link_libraries( sra-fuser ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m xml2 )
+	MakeLinksExe( sra-fuser true )
 
 	add_executable( remote-fuser
 		log
@@ -56,4 +57,5 @@ if( LibXml2_FOUND  )
 		${OS_SPECIFIC_SRC}
 	)
 	target_link_libraries( remote-fuser ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m srareader xml2 )
+	MakeLinksExe( remote-fuser true )
 endif()

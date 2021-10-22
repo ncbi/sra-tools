@@ -9,6 +9,8 @@ endif()
 # External
 add_executable( vdb-validate vdb-validate )
 target_link_libraries( vdb-validate ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl ${ADDITIONAL_LIBS} )
+MakeLinksExe( vdb-validate true )
 
 add_executable( check-corrupt check-corrupt )
 target_link_libraries( check-corrupt ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl )
+MakeLinksExe( check-corrupt true )

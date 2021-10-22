@@ -23,6 +23,7 @@ add_executable( sra-pileup
 	sra-pileup
 )
 target_link_libraries( sra-pileup ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( sra-pileup true )
 
 add_executable( sam-dump
 	inputfiles
@@ -42,3 +43,4 @@ add_executable( sam-dump
 	sam-dump3
 )
 target_link_libraries( sam-dump ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( sam-dump true )

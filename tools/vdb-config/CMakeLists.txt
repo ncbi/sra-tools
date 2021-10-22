@@ -14,6 +14,7 @@ add_executable( vdb-config
 	vdb-config-model
 )
 target_link_libraries ( vdb-config tui_cpp tui ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( vdb-config true )
 
 add_custom_command( TARGET vdb-config POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy ${VDB_SRCDIR}/libs/kfg/default.kfg ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ncbi/default.kfg

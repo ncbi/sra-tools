@@ -43,7 +43,7 @@ using std::string;
 rc_t CStdIn::Read(char *buffer, size_t bsize, size_t *num_read) {
     size_t dummy = 0;
     if (num_read == NULL) {
-if (DEBUG) OUTMSG(("<<< Read: num_read == NULL\n"));
+if (DEBUG_LOCAL) OUTMSG(("<<< Read: num_read == NULL\n"));
         num_read = &dummy;
     }
 
@@ -73,7 +73,7 @@ if (DEBUG) OUTMSG(("<<< Read: num_read == NULL\n"));
         }
     }
 
-if (DEBUG) OUTMSG(("<<< Read: num_read = %d\n", *num_read));
+if (DEBUG_LOCAL) OUTMSG(("<<< Read: num_read = %d\n", *num_read));
 
 return rc;
 }
@@ -577,7 +577,7 @@ void CKConfig::Reload(bool verbose) {
 rc_t CKConfig::UpdateNode(const char *path,
     const char *buffer, bool verbose, size_t size)
 {
-    if (DEBUG) {
+    if (DEBUG_LOCAL) {
         OUTMSG(("CKConfig::UpdateNode(%s, %s, %d)\n", path, buffer, size));
     }
 
@@ -830,7 +830,7 @@ rc_t CRepository::Update(CKConfig &kfg, string &node, bool verbose) {
         return rc;
     }
 
-    if (DEBUG) {
+    if (DEBUG_LOCAL) {
         OUTMSG(("CRepository::Update: root = %s\n", root));
     }
 
@@ -962,7 +962,7 @@ rc_t CUserRepository::Fix(CKConfig &kfg,
 {
     Disable(false);
 
-    if (DEBUG) {
+    if (DEBUG_LOCAL) {
         OUTMSG((__FILE__ " CUserRepository::Fix: data = %d\n", data));
     }
 
@@ -970,7 +970,7 @@ rc_t CUserRepository::Fix(CKConfig &kfg,
         m_CacheEnabled = data->GetCacheEnabled();
         const string root(data->GetCurrentRoot());
         if (root.size() > 0) {
-            if (DEBUG) {
+            if (DEBUG_LOCAL) {
                 OUTMSG((__FILE__ " CUserRepository::Fix: SetRoot to %s\n",
                     root.c_str()));
             }
@@ -985,7 +985,7 @@ rc_t CUserRepository::Fix(CKConfig &kfg,
 
     FixApps();
 
-    return Update(kfg, DEBUG);
+    return Update(kfg, DEBUG_LOCAL);
 }
 
 rc_t CUserRepositories::Load(const CKConfig &kfg, const CKDirectory &dir) {
@@ -1042,7 +1042,7 @@ const CUserRepository *CUserRepositories::FindMainPublic(void) const {
     for (TCI it = begin(); it != end(); ++it) {
         CUserRepository *r = *it;
         assert(r);
-        if (DEBUG) {
+        if (DEBUG_LOCAL) {
             OUTMSG(("MainPublic not found\n"));
         }
         if (r->Is("main", "public")) {

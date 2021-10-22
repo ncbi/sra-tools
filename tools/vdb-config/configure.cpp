@@ -24,6 +24,8 @@
 *
 */
 
+#include <cmath>
+
 #include "configure.h" /* configure */
 #include "interactive.h" /* run_interactive */
 #include "util.hpp" // CNoncopyable

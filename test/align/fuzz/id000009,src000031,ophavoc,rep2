@@ -1,0 +1,44 @@
+@HD	VN:1O:coordinate
+@SQ	SN:test	LN:45
+r001	99	test	01	30	16M	=	37	39	TATG	*
+r002	99	test	2001	30	16M	=	77	39	TATG	*
+@S0
+r001	99	test	01	30	16M	=	37	39	TATG	*
+r002	99	test	2001	30	16M	=	77	39	TATG	*
+@S02
+r001	99	test	30	30	3M	=	70	20	ATAT	*rd
+r003	99	tebt	30	30	3M	=	70	20	ATAT	*5
+r00@	99	t	01	30	16M	=	37	39	TATG	*
+r001	99	test	0	30	3M	=	70	20	ATAT	*5
+r001	99	t	01	30	16M	=	37	39	TATG	*
+r001	99	tet	01	30	16M	=	37	39	G	*
+@S	
+r001	99	tQst	01	30	16M	=	37	39	TATG	*
+@S0
+r01	99	test	01	30	16M	=	37	39	TATG	*
+@S02
+r003	99	test	30	30	3M	=	70	20	ATAN	*5
+r001	99	t	01	30	16M	=	37	39	TATG	*
+r001	99	teit	01	30	16M	=	37	39	TATG	*
+r002	99	test	2001	30	16M	=	37	39	TATG	*d
+r00N	99	test	30	30	3M	=	70	25	ATAT	*rde
+@S:2
+r001	99	test	30	30	3M	=	70	20	ATAT	*rd
+r003	99	tebt	30	30	3M	=	70	20	ATAT	*5
+r00@	99	t	01	30	16M	=	37	39	TATG	*
+r001	99	test	0	30	3M	=	70	20	ATAT	*5
+r001	99	t	01	30	16M	=	37	39	TATG	*
+r001	99	tet	01	30	16M	=	37	39	G	*
+@S	
+r001	99	tQst	01	30	16M	=	37	39	TATG	*
+@S0
+r01	99	test	01	30	16M	=	37	39	TATG	*
+@S02
+r003	99	test	30	30	3M	=	70	20	ATAT	*5
+r001	99	t	01	30	16M	=	37	39	TATG	*
+r001	99	teit	01	30	16M	=	37	39	TATG	*
+ÿÿÿ	99	test	2001	30	16M	=	37	39	TATG	*d
+r00N	99	test	30	30	3M	=	70	25	ATAT	*rde
+@@S	
+r0	*
+r

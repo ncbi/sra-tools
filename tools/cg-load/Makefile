@@ -22,76 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/cg-load
 
-INT_TOOLS =
-
-EXT_TOOLS = \
-	cg-load
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# cg-load
-#
-CGLOAD_SRC = \
-	cg-load \
-	factory-evidence-intervals \
-	factory-evidence-dnbs \
-	factory-mappings \
-	factory-reads \
-	factory-tag-lfr \
-	f1_3 \
-	f1_5 \
-	f1_7 \
-	f2_0 \
-	f2_2 \
-	f2_4 \
-	f2_5 \
-	file \
-	file-version-factory \
-	formats \
-	writer-algn \
-	writer-evidence-dnbs \
-	writer-evidence-intervals \
-	writer-seq \
-
-CGLOAD_OBJ = \
-	$(addsuffix .$(OBJX),$(CGLOAD_SRC))
-
-CGLOAD_LIB = \
-	-lkapp \
-	-stk-version \
-	-lload \
-	-sncbi-wvdb \
-	-lm
-
-$(BINDIR)/cg-load: $(CGLOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(CGLOAD_LIB)
-

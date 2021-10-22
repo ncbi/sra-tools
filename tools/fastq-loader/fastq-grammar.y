@@ -36,7 +36,7 @@
     #define YYLEX_PARAM pb->scanner
     #define YYDEBUG 1
 
-    #include "fastq-tokens.h"
+    #include "fastq-grammar.h"
 
     static void SetReadNumber ( FASTQParseBlock * pb, const FASTQToken * token );
 

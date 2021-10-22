@@ -1,0 +1,8 @@
+*.class
+*.jar
+*.o
+core.*
+/Makefile.config*
+/Makefile.userconfig
+/reconfigure
+/user.status

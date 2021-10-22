@@ -22,75 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-validate
 
-INT_TOOLS = \
-
-EXT_TOOLS = \
-	vdb-validate \
-	check-corrupt
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vdb-validate
-#
-VDB_VALIDATE_SRC = \
-	vdb-validate
-
-VDB_VALIDATE_OBJ = \
-	$(addsuffix .$(OBJX),$(VDB_VALIDATE_SRC))
-
-VDB_VALIDATE_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/vdb-validate: $(VDB_VALIDATE_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_VALIDATE_LIB)
-
-
-#-------------------------------------------------------------------------------
-# check-corrupt
-#
-CHECK_CORRUPT_SRC = \
-	check-corrupt
-
-CHECK_CORRUPT_OBJ = \
-	$(addsuffix .$(OBJX),$(CHECK_CORRUPT_SRC))
-
-CHECK_CORRUPT_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/check-corrupt: $(CHECK_CORRUPT_OBJ)
-	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(CHECK_CORRUPT_LIB)

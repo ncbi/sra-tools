@@ -1,0 +1,65 @@
+<project name="NGS-SDK" default="runtests" basedir=".">
+
+    <description>
+        Ant script for NGS-SDK
+    </description>
+	
+    <property name="Platform"       value="x64" />
+    <property name="Configuration"  value="Debug" />
+    <property name="Output"         value="${basedir}\..\..\..\OUTDIR\" />
+    <property name="MSVS"           value="2017" />
+	
+    <target name="help">
+  		<echo message="">
+Apache Ant script for automated testing of NGS-SDK on Windows
+
+Usage (in the directory of this file, build.xml):
+  ant [options] target1 target2 ... 
+  
+Example:
+  ant -DConfiguration=Debug help std
+  
+Supported targets:
+	help        - print this text and exit
+    clean       - remove all build artefacts
+    build       - regular build
+    runtests    - build and run unit tests
+
+Options:
+    -DConfiguration=Debug or -DConfiguration=Release (default)  
+    -DOutput=path   folder to create outputs in (default: ../../../OUTDIR/)
+  		</echo>
+    </target>
+    
+    <target name="clean">
+        <exec executable="msbuild.exe" failonerror="true">
+            <arg value="vs${MSVS}\ngs-sdk.sln"/>
+            <arg value="/t:clean"/>
+            <arg value="/m"/>
+            <arg value="/p:Platform=${Platform}"/>
+            <arg value="/p:Configuration=${Configuration}"/>
+            <arg value="/p:NGS_OUTDIR=${Output}\ngs-sdk\"/>
+        </exec>
+    </target>
+
+    <target name="build">
+        <exec executable="msbuild.exe" failonerror="true">
+            <arg value="vs${MSVS}\ngs-sdk.sln"/>
+            <arg value="/m"/>
+            <arg value="/p:Platform=${Platform}"/>
+            <arg value="/p:Configuration=${Configuration}"/>
+            <arg value="/p:NGS_OUTDIR=${Output}\ngs-sdk\"/>
+        </exec>
+    </target>
+    
+    <target name="runtests" depends="build">
+        <exec executable="msbuild.exe" failonerror="true">
+            <arg value="vs${MSVS}\ngs-sdk.sln"/>
+            <arg value="/p:Platform=${Platform}"/>
+            <arg value="/p:Configuration=${Configuration}"/>
+            <arg value="/p:NGS_OUTDIR=${Output}\ngs-sdk\"/>
+            <arg value="/p:Autorun=true"/>
+        </exec>
+    </target>
+    
+</project>

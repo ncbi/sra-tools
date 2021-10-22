@@ -1,0 +1,4 @@
+sub PACKAGE_NAME { 'NGS-JAVA' }
+sub HAVE        { ( DLLS => 1, EXAMPLES => 1, JAR => 1, ) }
+sub CONFIG_OUT  {  '.' }
+1

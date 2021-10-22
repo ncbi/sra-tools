@@ -1,0 +1,22 @@
+@HD	VN:1oO:coordinate
+@SQ	SN:test	LN:45
+r001	99	t	01	30	16M	=	37	39	TATG	*
+@S	
+r001	99	test	01	30	16M	=	37	39	TATG	*
+@S0
+r003	99	test	30	30	3M	=	70	20	AUAT	*rde
+ÿ:45
+r001	99	t	01	S	
+r001	99	test	01	30	16M	=	37	39	TATG	*
+@S0
+r003	99	test	30	30	3M	=	70	0	ATA30	16M	=	37	39	TATG	*
+@S	
+r00
+@S:45
+r0001	30	16M37	39	TATG	*
+@S02
+r003	99	test	30	30	3M	=	70	20	ATœT	*rde
+@S:45
+r001	99	t	01	30	16M	=	37	39	TATG	*
+@S	
+r00

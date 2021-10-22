@@ -22,69 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/ccextract
 
-INT_TOOLS =
-
-EXT_TOOLS = ccextract
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-ifeq (1,$(HAVE_XML2))
-
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-else
-
-all std: $(ALL_TOOLS)
-
-$(ALL_TOOLS):
-	@ echo "NOTE - $(@F) cannot be built:"                          \
-	       "It requires our internal library 'libkxml'"             \
-	       "which requires 'libxml2' and its development headers."
-endif
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# ccextract
-#  Copy files from one directory to another while cataloging the contents.
-#  XML files can be redirected as well.
-#
-CCEXTRACT_SRC = \
-	ccextract
-
-CCEXTRACT_OBJ = \
-	$(addsuffix .$(OBJX),$(CCEXTRACT_SRC))
-
-CCEXTRACT_LIB = \
-	-lkapp \
-	-stk-version \
-    -lkxfs \
-    -lkxml \
-	-sncbi-vdb
-
-$(BINDIR)/ccextract: $(CCEXTRACT_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(CCEXTRACT_LIB)

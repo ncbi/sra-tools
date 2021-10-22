@@ -1,0 +1,16 @@
+################################################################################
+sub PACKAGE      { 'sra-tools/ngs-java' }
+sub PACKAGE_TYPE { 'J' }
+sub PACKAGE_NAME { 'NGS-JAVA' }
+sub PACKAGE_NAMW { 'NGS_JAVA' }
+sub DEPENDS      {}
+sub CONFIG_OUT   { '.' }
+sub PKG { ( LNG   => 'JAVA',
+            OUT   => 'ncbi-outdir',
+            LOCOUT=> '../../../OUTDIR',
+            PATH  => '/usr/local/sra-tools/ngs/ngs-java',
+            UPATH =>      '$HOME/sra-tools/ngs/ngs-java',
+            EXAMP => '1'
+        ) }
+sub REQ {}
+1

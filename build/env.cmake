@@ -363,13 +363,13 @@ function(MakeLinksExe target install)
             COMMAND rm -f ${target}.${VERSION}
             COMMAND mv ${target} ${target}.${VERSION}
             COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
-            COMMAND ln -f -s ${target}.${MAJVERS} ${target}.${SHLX}
+            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
             WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
         )
         if ( ${install} )
             install( FILES  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${SHLX}
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
         )
         endif()

@@ -11,3 +11,4 @@ add_executable( vdb-diff
 	vdb-diff
 )
 target_link_libraries( vdb-diff ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( vdb-diff true )

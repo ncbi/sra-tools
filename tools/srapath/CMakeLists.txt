@@ -10,3 +10,4 @@ add_executable( srapath
 	srapath
 )
 target_link_libraries( srapath ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( srapath true )

@@ -7,3 +7,4 @@ set( SRC
 
 add_executable( align-cache ${SRC} )
 target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} load pthread dl m )
+MakeLinksExe( align-cache true )

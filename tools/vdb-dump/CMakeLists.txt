@@ -19,4 +19,4 @@ add_executable( vdb-dump
 	vdb-dump
 )
 target_link_libraries( vdb-dump ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} ${ADDITIONAL_LIBS} )
-#MakeLinksExe( vdb-dump true )
+MakeLinksExe( vdb-dump true )

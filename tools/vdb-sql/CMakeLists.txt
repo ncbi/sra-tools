@@ -21,6 +21,8 @@ else()
 endif()
 
 target_link_libraries( vdb-sql ${VDB_SQL_LIB} ${COMMON_LINK_LIBRARIES} )
+MakeLinksExe( vdb-sql true )
 
 add_executable( fastconv fastconv )
 target_link_libraries( fastconv ${COMMON_LINK_LIBRARIES} ${VDB_SQL_LIB} )
+MakeLinksExe( fastconv true )

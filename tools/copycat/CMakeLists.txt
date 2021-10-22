@@ -14,4 +14,5 @@ if( ${OS} STREQUAL "linux" )
         ccfile
     )
     target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m kff magic-static )
+    MakeLinksExe( copycat true )
 endif()

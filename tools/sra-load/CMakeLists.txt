@@ -41,6 +41,7 @@ if( LibXml2_FOUND )
 
 	add_executable( sff-load ${SFF_LOAD_SRC} )
 	target_link_libraries( sff-load ${LOADER_LIB} )
+	MakeLinksExe( sff-load true )
 
 
 	set( FASTQ_LOAD_SRC
@@ -53,6 +54,7 @@ if( LibXml2_FOUND )
 
 	add_executable( fastq-load ${FASTQ_LOAD_SRC} )
 	target_link_libraries( fastq-load ${LOADER_LIB} )
+	MakeLinksExe( fastq-load true )
 
 
 	set( SRF_LOAD_SRC
@@ -70,6 +72,7 @@ if( LibXml2_FOUND )
 
 	add_executable( srf-load ${SRF_LOAD_SRC} )
 	target_link_libraries( srf-load ${LOADER_LIB} )
+	MakeLinksExe( srf-load true )
 
 
 	set( ABSOLID_LOAD_SRC
@@ -80,6 +83,7 @@ if( LibXml2_FOUND )
 
 	add_executable( abi-load ${ABSOLID_LOAD_SRC} )
 	target_link_libraries( abi-load ${LOADER_LIB} )
+	MakeLinksExe( abi-load true )
 
 
 	set( ILLUMINA_LOAD_SRC
@@ -90,6 +94,7 @@ if( LibXml2_FOUND )
 
 	add_executable( illumina-load ${ILLUMINA_LOAD_SRC} )
 	target_link_libraries( illumina-load ${LOADER_LIB} )
+	MakeLinksExe( illumina-load true )
 
 
 	set( HELICOS_LOAD_SRC
@@ -100,6 +105,7 @@ if( LibXml2_FOUND )
 
 	add_executable( helicos-load ${HELICOS_LOAD_SRC} )
 	target_link_libraries( helicos-load ${LOADER_LIB} )
+	MakeLinksExe( helicos-load true )
 
 
 	set( PACBIO_LOADXML_SRC
@@ -109,5 +115,6 @@ if( LibXml2_FOUND )
 
 	add_executable( pacbio-loadxml ${PACBIO_LOADXML_SRC} )
 	target_link_libraries( pacbio-loadxml ${LOADER_LIB} )
+	MakeLinksExe( pacbio-loadxml true )
 
 endif()

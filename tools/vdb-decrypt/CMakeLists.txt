@@ -6,9 +6,11 @@ add_executable( vdb-decrypt
 	shared
 )
 target_link_libraries( vdb-decrypt ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( vdb-decrypt true )
 
 add_executable( vdb-encrypt
 	vdb-encrypt
 	shared
 )
 target_link_libraries( vdb-encrypt ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+MakeLinksExe( vdb-encrypt true )

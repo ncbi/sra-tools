@@ -6,7 +6,7 @@ add_executable( vdb-sql vdb_shell )
 set( VDB_SQL_LIB
 	vdb-sqlite
 	ngs
-	ncbi-vdb.${STLX}
+	${COMMON_LIBS_READ}
 )
 if( WIN32 )
 	list( APPEND VDB_SQL_LIB
@@ -15,9 +15,6 @@ if( WIN32 )
         libucrt$<$<CONFIG:Debug>:d>
         libvcruntime$<$<CONFIG:Debug>:d>
     )
-
-else()
-	list( APPEND VDB_SQL_LIB m pthread dl )
 endif()
 
 target_link_libraries( vdb-sql ${VDB_SQL_LIB} ${COMMON_LINK_LIBRARIES} )

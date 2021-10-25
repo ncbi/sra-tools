@@ -24,12 +24,6 @@ set( TOOLS_SRC
 	fasterq-dump
 )
 
-if( WIN32 )
-	set( ADDITIONAL_LIBS )
-else()
-	set( ADDITIONAL_LIBS m )
-endif()
-
 add_executable( fasterq-dump "${TOOLS_SRC}" )
-target_link_libraries( fasterq-dump ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl ${ADDITIONAL_LIBS} )
+target_link_libraries( fasterq-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( fasterq-dump true )

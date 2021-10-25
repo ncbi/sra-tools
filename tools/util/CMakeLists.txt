@@ -22,47 +22,47 @@ include_directories( "." )
 
 # Internal tools
 add_executable( crc32sum crc32sum )
-target_link_libraries( crc32sum ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( crc32sum ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( crc32sum true )
 
 add_executable( test-download test-download )
-target_link_libraries( test-download ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( test-download ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( test-download true )
 
 add_executable( kdb-index kdb-index )
-target_link_libraries( kdb-index ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( kdb-index ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( kdb-index true )
 
 add_executable( pacbio-correct pacbio-correct )
-target_link_libraries( pacbio-correct ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( pacbio-correct ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( pacbio-correct true )
 
 add_executable( schema-replace schema-replace )
-target_link_libraries( schema-replace ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( schema-replace ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( schema-replace true )
 
 add_executable( sortreadtest sortreadtest )
-target_link_libraries( sortreadtest ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( sortreadtest ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( sortreadtest true )
 
 add_executable( rowwritetest rowwritetest )
-target_link_libraries( rowwritetest ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( rowwritetest ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( rowwritetest true )
 
 add_executable( samview-util samview )
-target_link_libraries( samview-util ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( samview-util ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( samview-util true )
 
 add_executable( testld testld )
-target_link_libraries( testld ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( testld ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( testld true )
 
 add_executable( txt2kdb txt2kdb )
-target_link_libraries( txt2kdb ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( txt2kdb ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( txt2kdb true )
 
 add_executable( validate-names4 validate-names4 )
-target_link_libraries( validate-names4 ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( validate-names4 ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( validate-names4 true )
 
 # add_executable( md5cp md5cp )
@@ -75,31 +75,31 @@ MakeLinksExe( validate-names4 true )
 # External tools
 
 add_executable( rcexplain rcexplain )
-target_link_libraries( rcexplain ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( rcexplain ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( rcexplain true )
 
 add_executable( kdbmeta kdbmeta )
-target_link_libraries( kdbmeta ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( kdbmeta ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( kdbmeta true )
 
 add_executable( vdb-lock vdb-lock )
-target_link_libraries( vdb-lock ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( vdb-lock ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( vdb-lock true )
 
 add_executable( vdb-unlock vdb-unlock )
-target_link_libraries( vdb-unlock ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( vdb-unlock ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( vdb-unlock true )
 
 add_executable( test-sra test-sra ${OS_SPECIFIC_SRC} )
-target_link_libraries( test-sra ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( test-sra ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( test-sra true )
 
 add_executable( vdb-passwd vdb-passwd ${OS_SPECIFIC_SRC} )
-target_link_libraries( vdb-passwd ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( vdb-passwd ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( vdb-passwd true )
 
 if( NOT WIN32 )
 add_executable( make-read-filter make-read-filter )
-target_link_libraries( make-read-filter ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( make-read-filter ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( make-read-filter true )
 endif()

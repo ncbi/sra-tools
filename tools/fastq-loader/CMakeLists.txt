@@ -35,6 +35,6 @@ if( NOT WIN32 ) # sys/mman.h
 		fastq-loader
 		loader-imp
 	)
-	target_link_libraries( latf-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb.${STLX} pthread dl m )
+	target_link_libraries( latf-load ${COMMON_LINK_LIBRARIES} load ${COMMON_LIBS_WRITE} )
 	MakeLinksExe( latf-load true )
 endif()

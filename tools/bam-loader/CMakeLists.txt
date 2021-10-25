@@ -8,11 +8,7 @@ add_executable( samview
 	sam
 	samview
 )
-if( WIN32 )
-	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} )
-else()
-	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
-endif()
+target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( samview true )
 
 # External

@@ -13,7 +13,7 @@ add_executable( vdb-config
 	interactive2
 	vdb-config-model
 )
-target_link_libraries ( vdb-config tui_cpp tui ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries ( vdb-config tui_cpp tui ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( vdb-config true )
 
 add_custom_command( TARGET vdb-config POST_BUILD

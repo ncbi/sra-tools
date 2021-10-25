@@ -12,7 +12,7 @@ add_executable( vdb-copy
 	config_values
 	vdb-copy
 )
-target_link_libraries( vdb-copy ${COMMON_LINK_LIBRARIES} ncbi-wvdb.${STLX} pthread dl m )
+target_link_libraries( vdb-copy ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( vdb-copy true )
 
 add_custom_command( TARGET vdb-copy POST_BUILD

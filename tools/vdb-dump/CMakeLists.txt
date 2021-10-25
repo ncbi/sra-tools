@@ -1,11 +1,5 @@
 add_compile_definitions( __mod__="tools/vdb-dump" )
 
-if( NOT WIN32 )
-	set( ADDITIONAL_LIBS "pthread;dl;m" )
-else()
-	set( ADDITIONAL_LIBS "" )
-endif()
-
 add_executable( vdb-dump
 	vdb-dump-context
 	vdb-dump-coldefs
@@ -18,5 +12,5 @@ add_executable( vdb-dump
 	vdb_info
 	vdb-dump
 )
-target_link_libraries( vdb-dump ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} ${ADDITIONAL_LIBS} )
+target_link_libraries( vdb-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( vdb-dump true )

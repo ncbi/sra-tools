@@ -30,9 +30,7 @@ add_executable( cg-load ${CGLOAD_SRC} )
 set( CGLOAD_LIB
 	load
 	${COMMON_LINK_LIBRARIES}
-	ncbi-wvdb.${STLX}
-	pthread
-	dl
+	${COMMON_LIBS_WRITE}
 )
 if( NOT WIN32 )
 	list( APPEND CGLOAD_LIB m )

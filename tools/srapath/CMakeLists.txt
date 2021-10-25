@@ -9,5 +9,5 @@ add_executable( srapath
 	cgi_request
 	srapath
 )
-target_link_libraries( srapath ${COMMON_LINK_LIBRARIES} ncbi-vdb.${STLX} pthread dl m )
+target_link_libraries( srapath ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( srapath true )

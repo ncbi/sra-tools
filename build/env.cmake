@@ -378,6 +378,13 @@ endfunction()
 
 
 set( COMMON_LINK_LIBRARIES kapp tk-version )
+if( WIN32 )
+    set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
+    set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
+else()
+    set( COMMON_LIBS_READ   ncbi-vdb.${STLX} pthread dl m )
+    set( COMMON_LIBS_WRITE  ncbi-wvdb.${STLX} pthread dl m )
+endif()
 
 if( WIN32 )
     add_compile_definitions( UNICODE _UNICODE )

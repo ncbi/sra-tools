@@ -15,14 +15,12 @@ using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
 
-October 7, 2021
+October 25, 2021. SRA Toolkit 2.11.3:
+fixed a bug in fasterq-dump: fasta and fasta-unsorted parameters work correctly.
+
+October 7, 2021. SRA Toolkit 2.11.2:
 
 SRA data are now available either with full base quality scores (SRA Normalized Format), or with simplified quality scores (SRA Lite), depending on user preference. Both formats can be streamed on demand to the same filetypes (fastq, sam, etc.), so they are both compatible with existing workflows and applications that expect quality scores. However, the SRA Lite format is much smaller, enabling a reduction in storage footprint and data transfer times, allowing dumps to complete more rapidly. The SRA toolkit defaults to using the SRA Normalized Format that includes full, per-base quality scores, but users that do not require full base quality scores for their analysis can request the SRA Lite version to save time on their data transfers. To request the SRA Lite data when using the SRA toolkit, set the "Prefer SRA Lite files with simplified base quality scores" option on the main page of the toolkit configuration- this will instruct the tools to preferentially use the SRA Lite format when available (please be sure to use toolkit version 2.11.2 or later to access this feature). The quality scores generated from SRA Lite files will be the same for each base within a given read (quality = 30 or 3, depending on whether the Read Filter flag is set to 'pass' or 'reject'). Data in the SRA Normalized Format with full base quality scores will continue to have a .sra file extension, while the SRA Lite files have a .sralite file extension. For more information please see our [data format](https://www.ncbi.nlm.nih.gov/sra/docs/sra-data-formats/) page.
-
-
-
-
-October 7, 2021: SRA Toolkit 2.11.2.
 
 August 17, 2021: SRA Toolkit 2.11.1.
 

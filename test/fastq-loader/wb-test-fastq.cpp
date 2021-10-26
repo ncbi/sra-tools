@@ -58,7 +58,8 @@ public:
         errorText(0), errorLine(0), column(0),
         quality(0), qualityAsciiOffset(0), qualityType(-1),
         qualityFormat(FASTQphred33), defaultReadNumber(0),
-        ignoreSpotGroups(false)
+        ignoreSpotGroups(false),
+        flexDebug(false)
     {
         if ( KDirectoryNativeDir ( & wd ) != 0 )
             FAIL("KDirectoryNativeDir failed");
@@ -106,7 +107,7 @@ public:
             }
             file=0;
         }
-        return FastqReaderFileMake(&rf, wd, p_filename, qualityFormat, defaultReadNumber, ignoreSpotGroups);
+        return FastqReaderFileMake(&rf, wd, p_filename, qualityFormat, defaultReadNumber, ignoreSpotGroups, flexDebug);
     }
     void CreateFileGetRecord(const char* fileName, const char* contents)
     {
@@ -184,6 +185,11 @@ public:
         FASTQ_debug = 1;
     }
 
+    void FlexDebugOn()
+    {   // call before CreateFile()
+        flexDebug = true;
+    }
+
     KDirectory* wd;
     string filename;
     const ReaderFile* rf;
@@ -210,6 +216,8 @@ public:
     enum FASTQQualityFormat qualityFormat;
     int8_t defaultReadNumber;
     bool ignoreSpotGroups;
+
+    bool flexDebug;
 };
 
 ///////////////////////////////////////////////// FASTQ test cases
@@ -695,11 +703,32 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode, LoaderFixture)
     REQUIRE(SequenceIsFirst(seq));
 }
 
+FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode_WithPluses, LoaderFixture)
+{   // VDB-4533
+    // BisonDebugOn();
+    // FlexDebugOn();
+    REQUIRE(CreateFileGetSequence(GetName(), "@A00197:49:HCYYGDMXX:1:1101:10004:10175 1:N:0:ATTACTCG+AGGCGAAGCGCTCATT+TAATCTTA\nATCG\n"));
+    REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
+    REQUIRE_EQ(string("ATTACTCG+AGGCGAAGCGCTCATT+TAATCTTA"), string(name, length));
+    REQUIRE(!SequenceIsSecond(seq));
+    REQUIRE(SequenceIsFirst(seq));
+}
+
 FIXTURE_TEST_CASE(SequenceGetSpotGroupUnderscore, LoaderFixture)
 {
     REQUIRE(CreateFileGetSequence(GetName(), "@FCA5PJ4:1:1101:14707:1407#GTAGTCGC_AGCTCGGT/1\nATCG\n"));
     REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
     REQUIRE_EQ(string("GTAGTCGC_AGCTCGGT"), string(name, length));
+    REQUIRE(!SequenceIsSecond(seq));
+    REQUIRE(SequenceIsFirst(seq));
+}
+
+FIXTURE_TEST_CASE(HashStyleBarcodeAndReadNumbersAndJunk, LoaderFixture)
+{   // VDB-4532
+    //BisonDebugOn();
+    REQUIRE(CreateFileGetSequence(GetName(), "@CL100050407L1C001R001_1#224_1078_917/1 1       1/2\nATCG\n"));
+    REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
+    REQUIRE_EQ(string("224_1078_917"), string(name, length));
     REQUIRE(!SequenceIsSecond(seq));
     REQUIRE(SequenceIsFirst(seq));
 }
@@ -982,6 +1011,7 @@ FIXTURE_TEST_CASE(DecimalQualityRejected, LoaderFixture)
 ////////////////// detecting alternative formats
 FIXTURE_TEST_CASE(PacbioRaw, LoaderFixture)
 {
+    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(),
         "@m121205_055009_42163_c100416332550000001523041801151327_s1_p0/19\n"
         "AGAGTTTGAT\n"
@@ -1019,6 +1049,7 @@ FIXTURE_TEST_CASE(PacbioNoReadNumbers, LoaderFixture)
 
 FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
 {
+    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(),
         "@m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
         "AGAGTTTGAT\n"

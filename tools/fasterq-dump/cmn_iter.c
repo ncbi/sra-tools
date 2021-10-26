@@ -144,13 +144,14 @@ static rc_t cmn_release_mgr( const VDBManager * mgr, rc_t rc, const char * funct
     return rc;
 }
 
-static rc_t cmn_release_db( const VDatabase * db, rc_t rc, const char * function, const char * accession_short ) {
-    rc_t rc2 = VDatabaseRelease( db );
-    if ( 0 != rc2 ) {
-        ErrMsg( "cmn_iter.c %s( '%s' ).VDatabaseRelease() -> %R", function, accession_short, rc2 );
-        rc = ( 0 == rc ) ? rc2 : rc;
+static rc_t cmn_release_db( const VDatabase * db, rc_t rc_in, const char * function, const char * accession_short ) {
+    rc_t rc_out = rc_in;
+    rc_t rc = VDatabaseRelease( db );
+    if ( 0 != rc ) {
+        ErrMsg( "cmn_iter.c %s( '%s' ).VDatabaseRelease() -> %R", function, accession_short, rc );
+        rc_out = ( 0 == rc_out ) ? rc : rc_out;
     }
-    return rc;
+    return rc_out;
 }
 
 static rc_t cmn_release_tbl( const VTable * tbl, rc_t rc, const char * function, const char * accession_short ) {
@@ -218,7 +219,10 @@ static rc_t cmn_iter_open_db( const VDBManager * mgr, VSchema * schema,
         } else {
             rc = cmn_iter_open_cursor( tbl, cp -> cursor_cache, cur, cp -> accession_short ); /* releases tbl... */
         }
-        rc = cmn_release_db( db, rc, "cmn_iter_open_db", cp -> accession_short );
+        {
+            rc_t rc2 = cmn_release_db( db, rc, "cmn_iter_open_db", cp -> accession_short );
+            rc = ( 0 == rc ) ? rc2 : rc;
+        }
     }
     return rc;
 }
@@ -615,6 +619,14 @@ static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accessio
                                 }
                             }
                         }
+                    }
+                }
+                {
+                    rc_t rc2 = VNamelistRelease( tables );
+                    if ( 0 != rc2 ) {
+                        ErrMsg( "cmn_iter.c cmn_get_db_type().VNamelistRelease( '%s' ) -> %R\n",
+                                accession_short, rc2 );
+                        rc = ( 0 == rc ) ? rc2 : rc;
                     }
                 }
             }

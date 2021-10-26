@@ -695,10 +695,11 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
             const String * filename = NULL;
             rc1 = locked_file_list_pop( &( self -> files ), &filename );
             if ( 0 == rc1 && filename != NULL ) {
-                rc = VNamelistAppendString ( batch_files, filename );
+                rc = VNamelistAppendString ( batch_files, filename ); /* VNamelist makes a copy! */
                 if ( 0 == rc ) {
                     num_src++;
                 }
+                StringWhack( filename );
             }
         }
         

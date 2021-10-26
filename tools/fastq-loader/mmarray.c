@@ -97,6 +97,11 @@ static MMA_ELEM_T *MMArrayGet(MMArray *const self, rc_t *const prc, uint64_t con
 
 static void MMArrayWhack(MMArray *self)
 {
+    if ( self == NULL )
+    {
+        return;
+    }
+
     size_t const chunk = MMA_SUBCHUNK_SIZE * MMA_ELEM_SIZE;
     unsigned i;
 

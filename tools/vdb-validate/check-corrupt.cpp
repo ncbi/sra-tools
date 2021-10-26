@@ -24,6 +24,8 @@
 *
 */
 
+#include <cmath>
+
 #include <klib/rc.h>
 #include <klib/log.h>
 #include <klib/out.h>
@@ -37,8 +39,6 @@
 #include <kdb/manager.h>
 
 #include <sstream>
-
-#include <cmath>
 
 #define SA_TABLE_LOOKUP_LIMIT 100000
 #define SEQ_TABLE_LOOKUP_LIMIT 100000

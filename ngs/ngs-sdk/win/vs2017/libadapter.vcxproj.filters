@@ -1,0 +1,101 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\AlignmentItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\defs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ErrorMsg.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\FragmentItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\PileupEventItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\PileupItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReadCollectionItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReadGroupItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReadItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\Refcount.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReferenceItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\ReferenceSequenceItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\StatisticsItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\adapter\StringItf.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\AlignmentItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ErrBlock.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ErrorMsg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\FragmentItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\PileupEventItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\PileupItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReadCollectionItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReadGroupItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReadItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\Refcount.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReferenceItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\ReferenceSequenceItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\StatisticsItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\adapter\StringItf.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

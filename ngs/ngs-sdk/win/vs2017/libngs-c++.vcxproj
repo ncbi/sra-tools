@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A8AC88D2-FADA-4458-A251-DB2E039678A4}</ProjectGuid>
+    <ProjectName>libngs-bind-c++</ProjectName>
+  </PropertyGroup>
+  <Import Project="lib-project.props" />
+  <Import Project="..\libngs-c++.files" />
+</Project>

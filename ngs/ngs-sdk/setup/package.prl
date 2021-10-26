@@ -1,0 +1,15 @@
+################################################################################
+sub PACKAGE      { 'sra-tools/ngs-sdk' }
+sub PACKAGE_TYPE { 'L' }
+sub PACKAGE_NAME { 'NGS-SDK' }
+sub PACKAGE_NAMW { 'NGS' }
+sub DEPENDS      {}
+sub CONFIG_OUT   { '.' }
+sub PKG { ( LNG   => 'C',
+            OUT   => 'ncbi-outdir',
+            LOCOUT=> '../../../OUTDIR',
+            PATH  => '/usr/local/sra-tools/ngs/ngs-sdk',
+            UPATH =>      '$HOME/sra-tools/ngs/ngs-sdk',
+            EXAMP => '1', ) }
+sub REQ {}
+1

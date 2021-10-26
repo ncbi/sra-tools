@@ -1,0 +1,62 @@
+<project>
+
+    <!-- This file is currently for use on Windows; Linux/Mac builds are run via gmake -->
+    <property environment="env"/>
+    <property name="Platform"           value="x64" />
+    <property name="Configuration"      value="Debug" />
+    <property name="Output"             value="${basedir}\..\..\..\OUTDIR" />
+    <property name="PlatformToolset"    value="v141" />
+
+    <property name="vdb.dir"        value="${Output}\ncbi-vdb\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+    <property name="ngs.dir"        value="${Output}\ngs-sdk\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+
+    <property name="classes.dir" value="${vdb.dir}\..\test\ngs-java" />
+
+    <target name="clean">
+        <delete dir="${classes.dir}"/>
+    </target>
+
+    <target name="compile">
+
+        <echo message="srcdir=${basedir}"/>
+   
+        <echo message="destdir=${classes.dir}"/>
+
+        <echo message="location=${Output}\ngs-java\jar\ngs-java.jar" />
+
+        <echo message="basedir=${basedir}\..\junit-4.11.jar" />
+
+        <mkdir dir="${classes.dir}"/>
+        <javac includeantruntime="false" srcdir="${basedir}" includes="ngs_test_lib_load.java ngs_test_CSRA1.java" destdir="${classes.dir}" >
+            <classpath>
+                <pathelement location="${Output}\ngs-java\jar\ngs-java.jar" />
+                <pathelement location="${basedir}\..\junit-4.11.jar" />
+            </classpath>
+        </javac>
+    </target>
+
+    <target name="runtests" depends="compile" >
+
+        <echo message="location=${classes.dir}"/>
+
+        <echo message="location=${Output}\ngs-java\jar\ngs-java.jar" />
+
+        <echo message="location=${basedir}\..\junit-4.11.jar" />
+        <echo message="java.library.path=${vdb.dir};${ngs.dir}" />
+
+        <junit printsummary="on" fork="yes" showoutput="yes">
+            <classpath>
+                <pathelement location="${classes.dir}" />
+                <pathelement location="${Output}\ngs-java\jar\ngs-java.jar" />
+                <pathelement location="${basedir}\..\junit-4.11.jar" />
+            </classpath>
+            <jvmarg value="-Djava.library.path=${vdb.dir};${ngs.dir}" />
+            <jvmarg value="-Dvdb.System.loadLibrary=1" />
+            <jvmarg value="-Dvdb.log=FINEST" />
+        	<test name="gov.nih.nlm.ncbi.ngs.ngs_test_lib_load" />
+        	<test name="ngs_test_CSRA1" />
+        </junit>
+    </target>
+
+
+</project>

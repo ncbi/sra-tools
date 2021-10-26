@@ -318,7 +318,7 @@ rc_t parse_params_int ( Params *p, const Args *args )
 
     rc = ArgsOptionCount ( args, OPTION_STDOUT, &count );
     if ( rc == 0 && count != 0 )
-        p -> stdout = true;
+        p -> my_stdout = true;
 
     rc = ArgsOptionCount ( args, OPTION_MD5, &count );
     if ( rc == 0 && count != 0 )
@@ -439,7 +439,7 @@ rc_t parse_params ( Params *p, struct Args ** args, int argc, char * argv [] )
     p -> t_count = 0;
     p -> long_list = false;
     p -> force = false;
-    p -> stdout = false;
+    p -> my_stdout = false;
     p -> keep = NULL;
     p -> drop = NULL;
     p -> kdfile = NULL;
@@ -471,7 +471,7 @@ rc_t whack_params ( Params * p )
         p -> t_count = 0;
         p -> long_list = false;
         p -> force = false;
-        p -> stdout = false;
+        p -> my_stdout = false;
 
         if ( p -> keep != NULL ) {
             VNamelistRelease ( p -> keep );

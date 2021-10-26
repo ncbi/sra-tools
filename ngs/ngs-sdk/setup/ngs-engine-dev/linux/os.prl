@@ -1,0 +1,2 @@
+sub OS { 'linux' }
+1

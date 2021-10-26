@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.11.3
+**October 25, 2021**
+
+  **fasterq-dump, sratools**: fasta and fasta-unsorted parameters work correctly  
+
+
 ## SRA Toolkit 2.11.2
 **October 7, 2021**
 

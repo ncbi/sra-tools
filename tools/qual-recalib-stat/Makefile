@@ -22,63 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/qual-recalib-stat
 
-INT_TOOLS = \
-	qual-recalib-stat
-
-EXT_TOOLS = \
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vdb-config
-#
-Q_RECAL_STAT_SRC = \
-	namelist_tools \
-	context \
-	columns \
-	ref_exclude \
-	spot_position \
-	stat_mod_2 \
-	reader \
-	writer \
-	qual-recalib-stat
-
-Q_RECAL_STAT_OBJ = \
-	$(addsuffix .$(OBJX),$(Q_RECAL_STAT_SRC))
-
-Q_RECAL_STAT_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-wvdb \
-	-lm
-
-$(BINDIR)/qual-recalib-stat: $(Q_RECAL_STAT_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(Q_RECAL_STAT_LIB)

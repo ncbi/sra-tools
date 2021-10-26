@@ -1,0 +1,7 @@
+*.pyc
+/build
+/ld.linux.exe_cmd.sh
+/Makefile.userconfig
+/Makefile.config*
+/reconfigure
+/user.status

@@ -1,0 +1,5 @@
+sub PACKAGE_NAME { 'NGS-ENGINE-DEV' }
+sub HAVE        { ( LIBS => 1, USR_INCLUDES => 1, ) }
+sub INCLUDES    {  'ngs' }
+sub LIBS        {        }
+1

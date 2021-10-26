@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Alignment.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\AlignmentIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Fragment.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\FragmentIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Pileup.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\PileupEvent.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\PileupEventIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\PileupIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Read.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadCollection.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadGroup.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadGroupIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReadIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Reference.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReferenceIterator.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\ReferenceSequence.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\Statistics.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\language\c++\StringRef.cpp" />
+  </ItemGroup>
+</Project>

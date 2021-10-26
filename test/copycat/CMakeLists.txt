@@ -11,8 +11,7 @@ if ( ${OS} STREQUAL "linux" AND EXISTS ${BINDIR}/magic )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test( NAME Test_Copycat_IdenticalCopy
-        COMMAND ${BINDIR}/copycat
-                ./input/1.xml actual/ && diff ./input/1.xml actual/1.xml
+        COMMAND ./test-copy.sh ${BINDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 else()

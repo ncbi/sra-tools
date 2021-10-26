@@ -73,6 +73,11 @@ static rc_t destroy_copy_machine( copy_machine_t * self ) {
     }
     KThreadWait ( self -> thread, &rc );
     
+    rc2 = KThreadRelease( self -> thread );
+    if ( 0 != rc2 ) {
+        ErrMsg( "copy_machine.c destroy_copy_machine.KThreadRelease() -> %R", rc2 );
+    }
+    
     if ( NULL != self -> empty_q ){
         rc2 = KQueueRelease ( self -> empty_q );
         if ( 0 != rc2 ) {

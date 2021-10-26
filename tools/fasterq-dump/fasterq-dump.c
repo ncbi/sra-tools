@@ -1223,9 +1223,24 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                         }
                     }
                 }
+                if ( NULL != tool_ctx . cleanup_task ) {
+                    rc_t rc2 = Terminate_Cleanup_Task ( tool_ctx . cleanup_task );
+                    if ( 0 != rc2 ) {
+                        ErrMsg( "Terminate_Cleanup_Task() -> %R", rc2 );
+                        rc = ( 0 != rc ) ? rc : rc2;
+                    }
+                    
+                }
                 if ( NULL != tool_ctx . accession_short ) {
                     free( ( char * )tool_ctx . accession_short );
                 }
+            }
+        }
+        {
+            rc_t rc2 = ArgsWhack( args );
+            if ( 0 != rc2 ) {
+                ErrMsg( "ArgsWhack() -> %R", rc2 );
+                rc = ( 0 != rc ) ? rc : rc2;
             }
         }
     }

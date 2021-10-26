@@ -1023,10 +1023,15 @@ rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir ) {
     rc_t rc = 0;
     /* tolerates to be called with self == NULL */
     if ( NULL != self ) {
-        rc = KLockRelease ( self -> lock );
-        if ( 0 != rc ) {
-            ErrMsg( "locked_file_list_release().KLockRelease() -> %R", rc );
-        } else {
+        if ( NULL != self -> lock ) {
+            rc = KLockRelease ( self -> lock );
+            if ( 0 != rc ) {
+                ErrMsg( "locked_file_list_release().KLockRelease() -> %R", rc );
+            } else {
+                self -> lock = NULL;
+            }
+        }
+        if ( 0 == rc ) {
             /* tolerates to be called with dir == NULL */
             if ( NULL != dir ) {
                 rc = delete_files( dir, self -> files );
@@ -1036,6 +1041,8 @@ rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir ) {
             rc_t rc2 = VNamelistRelease ( self -> files );
             if ( 0 != rc2 ) {
                 ErrMsg( "locked_file_list_release().VNamelistRelease() -> %R", rc );
+            } else {
+                self -> files = NULL;
             }
         }
     }

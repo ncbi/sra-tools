@@ -220,11 +220,23 @@ static rc_t wait_for_background_vector_merger( background_vector_merger_t * self
     return rc;
 }
 
-static void release_background_vector_merger( background_vector_merger_t * self ) {
+static rc_t release_background_vector_merger( background_vector_merger_t * self ) {
+    rc_t rc = 0;
     if ( NULL != self -> job_q ) {
-        KQueueRelease ( self -> job_q );
+        rc = KQueueRelease( self -> job_q );
+        if ( 0 != rc ) {
+            ErrMsg( "merge_sorter.c release_background_vector_merger() : KQueueRelease() -> %R", rc );
+        }
+    }
+    if ( NULL != self -> thread ) {
+        rc_t rc2 = KThreadRelease( self -> thread );
+        if ( 0 != rc2 ) {
+            ErrMsg( "merge_sorter.c release_background_vector_merger() : KThreadRelease() -> %R", rc2 );
+            rc = ( 0 != rc ) ? rc : rc2;
+        }
     }
     free( self );
+    return rc;
 }
 
 rc_t wait_for_and_release_background_vector_merger( background_vector_merger_t * self ) {
@@ -578,6 +590,13 @@ static void release_background_file_merger( background_file_merger_t * self ) {
     if ( NULL != self ) {
         locked_file_list_release( &( self -> files ), self -> dir );
         locked_value_release( &( self -> sealed ) );
+        
+        if ( NULL != self -> thread ) {
+            rc_t rc = KThreadRelease( self -> thread );
+            if ( 0 != rc ) {
+                ErrMsg( "merger_sorter.c release_background_file_merger() KThreadRelease() -> %R", rc );
+            }
+        }
         free( self );
     }
 }

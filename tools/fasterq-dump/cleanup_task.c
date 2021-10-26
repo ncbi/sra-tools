@@ -167,6 +167,7 @@ rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask_t * self ) {
         ErrMsg( "cleanup_task.c Terminate_Cleanup_Task() : %R", rc );
     } else {
         struct KProcMgr * proc_mgr;
+
         rc = KProcMgrMakeSingleton ( &proc_mgr );
         if ( rc != 0 ) {
             ErrMsg( "cleanup_task.c Terminate_Cleanup_Task(): cannot access process-manager" );
@@ -183,6 +184,9 @@ rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask_t * self ) {
                     rc = ( 0 == rc ) ? rc2 : rc;
                 }
             }
+        }
+        if ( 0 == rc ) {
+            rc = KFastDumpCleanupTask_Execute( self );
         }
     }
     if ( 0 == rc ) {

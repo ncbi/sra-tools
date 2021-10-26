@@ -57,7 +57,8 @@ if( NOT WIN32 )
 #    LatfTest_OneInputPhred33( 2.4 0 ) # reads+qualities, reads before qualities TODO: fix or remove
     LatfTest_OneInputPhred33( 2.5 0 ) # reads+qualities, paired up
     LatfTest_OneInputPhred33( 2.6 0 ) # spot assembly
-    LatfTest_OneInputPhred33( 2.7 0 ) # spot assembly, read numbers not specified
+    LatfTest_OneInputPhred33( 2.7 3 ) # duplicate read names, fragments not specified - error
+    LatfTest( 2.7.1 0  "input/2.7.fastq --quality PHRED_33 --allow_duplicates" ) # duplicate read names, fragments not specified - allowed with an option
 #    LatfTest_OneInputPhred33( 2.8 0 ) # handling of N in reads, ALTREAD is a static column. TODO: update for the new schema; investigate intermittent failure (FIXED_SPOT_LEN == 0, not 3)
     LatfTest_OneInputPhred33( 2.8.1 0 ) # handling of N in reads, ALTREAD is a physical column
     LatfTest_OneInputPhred33( 2.9 3 ) # mismatching length of sequence and quality (qualities shorter)
@@ -129,7 +130,7 @@ if( NOT WIN32 )
     # Consume our own dog food (13.1.fastq created by fastq-dump -F )
     LatfTest_OneInputPhred33( 13.1 0 )
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
-    LatfTest( 14.0 0 "input/14.0.fasta input/14.0.fasta --quality PHRED_33" )
+    LatfTest( 14.0 0 "input/14.0.fasta --quality PHRED_33" )
     # VDB-3154: buffer insufficient
     LatfTest_OneInputPhred33( 15.0 0 )
      # VDB-3413: multi-line reads and qualities

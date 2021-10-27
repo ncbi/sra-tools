@@ -212,6 +212,7 @@ rc_t CCFileFormatMake (CCFileFormat ** p)
                 }
             }
         }
+        LOGMSG(klogErr, "magic file has to be located next to the executable");
         free (self);
     }
     *p = NULL;

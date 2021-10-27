@@ -50,7 +50,11 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 
 ${BINDIR}/vdb-config /vdb/schema/paths
 
-DIFF="diff --ignore-trailing-space"
+if [ "$(uname)" == "Darwin" ]; then
+    DIFF="diff"
+else
+    DIFF="diff -Z"
+fi
 
 echo "running $CASEID"
 

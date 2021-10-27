@@ -723,6 +723,7 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args ) {
         }
     }
     
+    tool_ctx -> cleanup_task = NULL;
     if ( tool_ctx -> fmt != ft_fasta_us_split_spot ) {
         if ( 0 == rc ) {
             rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */

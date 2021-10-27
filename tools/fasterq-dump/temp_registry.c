@@ -279,8 +279,30 @@ rc_t temp_registry_merge( temp_registry_t * self,
 
 /* -------------------------------------------------------------------------------- */
 
-static rc_t temp_on_line_to_stdout( const String * line, void * data ) {
-    return KOutMsg( "%S\n", line );
+static rc_t print_file_to_stdout( struct KFile const * f, size_t buffer_size ) {
+    rc_t rc = 0;    
+    char * buffer = malloc( buffer_size );
+    if ( NULL == buffer ) {
+        rc = RC( rcApp, rcBuffer, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "print_file_to_stdout() malloc( %u )-> %R", buffer_size, rc );        
+    } else {
+        uint64_t pos = 0;
+        bool done = false;
+        do {
+            size_t num_read;
+            rc = KFileRead ( f, pos, buffer, buffer_size - 1, &num_read );
+            if ( 0 == rc ) {
+                done = ( 0 == num_read );
+                if ( !done ) {
+                    buffer[ num_read ] = 0;
+                    rc = KOutMsg( "%s", buffer );
+                    pos += num_read;
+                }
+            }
+        } while ( 0 == rc && !done );
+        free( ( void * ) buffer );
+    }
+    return rc;
 }
 
 typedef struct print_to_stdout_ctx_t
@@ -309,10 +331,9 @@ static void CC on_print_to_stdout( void * item, void * data ) {
                     const struct KFile * src;
                     rc = make_buffered_for_read( c -> dir, &src, filename, c -> buf_size ); /* helper.c */
                     if ( 0 == rc ) {
-                        /* libs/kfs/from_to_namelist.c, libs/interfaces/filetools.h */
-                        rc = ProcessFileLineByLine( src, temp_on_line_to_stdout, NULL );
+                        rc = print_file_to_stdout( src, 4096 * 4 );
                         if ( 0 != rc ) {
-                            ErrMsg( "on_print_to_stdout().ProcessFileLineByLine( '%s' ) -> %R", filename, rc );
+                            ErrMsg( "on_print_to_stdout().print_file_to_stdout( '%s' ) -> %R", filename, rc );
                         }
                         KFileRelease( src );
                     }

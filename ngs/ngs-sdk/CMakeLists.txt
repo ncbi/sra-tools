@@ -24,9 +24,7 @@ if ( Java_FOUND )
     set( NCBI_NGS_TARGETS ${NCBI_NGS_TARGETS} ngs-jni )
 endif()
 
-if( WIN32 )
-    include( CMakeLists.win.txt )
-elseif( SINGLE_CONFIG )
+if( SINGLE_CONFIG OR WIN32 )
     include( CMakeLists.posix.txt )
 else() # XCode
     include( CMakeLists.xcode.txt )

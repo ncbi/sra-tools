@@ -25,7 +25,7 @@
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
 
-# TARGET_OBJECTS doesn't work for XCode, this is why we build ncbi-vdb from sources
+# TARGET_OBJECTS doesn't work for XCode, this is why we build NGS libraries from sources
 function( GetTargetSources targets out_name_src_files out_name_incl_dirs out_name_compile_definitions )
     set( out_src_files "" )
     set( out_incl_dirs "" )
@@ -62,27 +62,39 @@ function( GetTargetSources targets out_name_src_files out_name_incl_dirs out_nam
 endfunction()
 
 ####################################
-GetTargetSources( "${VDB_LIB_RD_TARGETS}" all_src all_incl_dirs all_compile_defs )
-include_directories( ${all_incl_dirs} )
-add_library( ncbi-vdb STATIC ${all_src} )
-add_compile_definitions( ${all_compile_defs} )
+GetTargetSources( "${NGS_CPP_TARGETS}" all_src all_incl_dirs all_compile_defs )
+add_library( ngs-c++ STATIC ${all_src} )
+target_include_directories( ngs-c++ ${all_incl_dirs} )
+target_compile_definitions( ngs-c++ ${all_compile_defs} )
 
 #----------------------------------
-GetTargetSources( "${VDB_LIB_RD_TARGETS}" all_src all_incl_dirs all_compile_defs )
-include_directories( ${all_incl_dirs} )
-add_library( ncbi-vdb-shared SHARED ${all_src} )
-target_link_libraries( ncbi-vdb-shared ${LIBXML2} m dl pthread )
-add_compile_definitions( ${all_compile_defs} )
+add_library( ngs-c++-shared SHARED ${all_src} )
+target_include_directories( ngs-c++-shared ${all_incl_dirs} )
+target_compile_definitions( ngs-c++-shared ${all_compile_defs} )
 
-###################################
-GetTargetSources( "${VDB_LIB_RDWR_TARGETS}" all_src all_incl_dirs all_compile_defs )
-include_directories( ${all_incl_dirs} )
-add_library( ncbi-wvdb STATIC ${all_src} )
-add_compile_definitions( ${all_compile_defs} )
+####################################
+GetTargetSources( "${NGS_SDK_TARGETS}" all_src all_incl_dirs all_compile_defs )
+add_library( ngs-sdk STATIC ${all_src} )
+target_include_directories( ngs-sdk ${all_incl_dirs} )
+target_compile_definitions( ngs-sdk ${all_compile_defs} )
 
 #----------------------------------
-GetTargetSources( "${VDB_LIB_RDWR_TARGETS}" all_src all_incl_dirs all_compile_defs )
-include_directories( ${all_incl_dirs} )
-add_library( ncbi-wvdb-shared SHARED ${all_src} )
-target_link_libraries( ncbi-wvdb-shared ${LIBXML2} m dl pthread )
-add_compile_definitions( ${all_compile_defs} )
+add_library( ngs-sdk-shared SHARED ${all_src} )
+target_include_directories( ngs-sdk-shared ${all_incl_dirs} )
+target_compile_definitions( ngs-sdk-shared ${all_compile_defs} )
+
+##################################################################################
+# C++/Jni/Py wrappers for libncbi-vdb as a static library
+GetTargetSources( "${NCBI_NGS_TARGETS}" all_src all_incl_dirs all_compile_defs )
+add_library( ncbi-ngs STATIC ${all_src} )
+target_include_directories( ncbi-ngs ${all_incl_dirs} )
+target_compile_definitions( ncbi-ngs ${all_compile_defs} )
+
+##################################################################################
+# libncbi-ngs is a shared library that includes libncbi-vdb and its C++/Jni/Py wrappers
+#
+# NGS-based C++/Java/Python apps may now link against this library instead of libncbi-vdb
+#
+add_library( ncbi-ngs-shared SHARED ${all_src} )
+target_include_directories( ncbi-ngs-shared ${all_incl_dirs} )
+target_compile_definitions( ncbi-ngs-shared ${all_compile_defs} )

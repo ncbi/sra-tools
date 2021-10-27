@@ -55,6 +55,7 @@ static rc_t KFastDumpCleanupTask_Execute( KFastDumpCleanupTask_t * self ) {
     if ( 0 != rc ) {
         ErrMsg( "cleanup_task.c KFastDumpCleanupTask_Execute().KDirectoryNativeDir() -> %R", rc );
     } else {
+        
         rc = locked_file_list_delete_files( dir, &self -> files_to_clean ); /* helper.c */
         if ( 0 == rc ) {
             rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean ); /* helper.c */
@@ -166,27 +167,22 @@ rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask_t * self ) {
         rc = RC ( rcPS, rcMgr, rcInitializing, rcParam, rcInvalid );
         ErrMsg( "cleanup_task.c Terminate_Cleanup_Task() : %R", rc );
     } else {
-        struct KProcMgr * proc_mgr;
-
-        rc = KProcMgrMakeSingleton ( &proc_mgr );
-        if ( rc != 0 ) {
-            ErrMsg( "cleanup_task.c Terminate_Cleanup_Task(): cannot access process-manager" );
-        } else {
-            rc = KProcMgrRemoveCleanupTask ( proc_mgr, &( self -> ticket ) );
-            if ( 0 != rc ) {
-                ErrMsg( "cleanup_task.c Terminate_Cleanup_Task().KProcMgrRemoveCleanupTask() -> %R", rc );
-            }
-
-            {
-                rc_t rc2 = KProcMgrRelease ( proc_mgr );
-                if ( 0 != rc2 ) {
-                    ErrMsg( "cleanup_task.c Terminate_Cleanup_Task().KProcMgrRelease() -> %R", rc2 );
-                    rc = ( 0 == rc ) ? rc2 : rc;
+        rc = KFastDumpCleanupTask_Execute( self );
+        if ( 0 == rc ) {
+            struct KProcMgr * proc_mgr;
+            rc = KProcMgrMakeSingleton ( &proc_mgr );
+            if ( rc != 0 ) {
+                ErrMsg( "cleanup_task.c Terminate_Cleanup_Task(): cannot access process-manager" );
+            } else {
+                KProcMgrRemoveCleanupTask ( proc_mgr, &( self -> ticket ) );
+                {
+                    rc_t rc2 = KProcMgrRelease ( proc_mgr );
+                    if ( 0 != rc2 ) {
+                        ErrMsg( "cleanup_task.c Terminate_Cleanup_Task().KProcMgrRelease() -> %R", rc2 );
+                        rc = ( 0 == rc ) ? rc2 : rc;
+                    }
                 }
             }
-        }
-        if ( 0 == rc ) {
-            rc = KFastDumpCleanupTask_Execute( self );
         }
     }
     if ( 0 == rc ) {

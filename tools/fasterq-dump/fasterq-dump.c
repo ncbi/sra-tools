@@ -732,6 +732,8 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args ) {
             rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
                     get_temp_dir( tool_ctx -> temp_dir ) );
         }
+    } else {
+        tool_ctx -> cleanup_task = NULL;
     }
 
     if ( 0 == rc ) {
@@ -1224,12 +1226,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                     }
                 }
                 if ( NULL != tool_ctx . cleanup_task ) {
-                    rc_t rc2 = Terminate_Cleanup_Task ( tool_ctx . cleanup_task );
-                    if ( 0 != rc2 ) {
-                        ErrMsg( "Terminate_Cleanup_Task() -> %R", rc2 );
-                        rc = ( 0 != rc ) ? rc : rc2;
-                    }
-                    
+                    Terminate_Cleanup_Task( tool_ctx . cleanup_task );
                 }
                 if ( NULL != tool_ctx . accession_short ) {
                     free( ( char * )tool_ctx . accession_short );

@@ -27,3 +27,8 @@ set( TOOLS_SRC
 add_executable( fasterq-dump "${TOOLS_SRC}" )
 target_link_libraries( fasterq-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( fasterq-dump true )
+
+set( LEAK1_SRC leak1 )
+add_executable( leak1 "${LEAK1_SRC}" )
+target_link_libraries( leak1 ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+MakeLinksExe( leak1 true )

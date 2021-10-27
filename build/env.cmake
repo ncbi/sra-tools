@@ -233,6 +233,8 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( CMAKE_JAR_OUTPUT_DIRECTORY                      ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} ) # both Debug and Release share this
     SetAndCreate( TEMPDIR_DEBUG "${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/tmp" )
     SetAndCreate( TEMPDIR_RELEASE "${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/tmp" )
+    cmake_path(NATIVE_PATH TEMPDIR_DEBUG NORMALIZE TEMPDIR_DEBUG)
+    cmake_path(NATIVE_PATH TEMPDIR_RELEASE NORMALIZE TEMPDIR_RELEASE)
 
     # to be used in add-test() as the location of executables, etc.
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test

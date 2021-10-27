@@ -30,7 +30,6 @@ endif()
 
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 
-set( CMAKE_OSX_DEPLOYMENT_TARGET 10.10 )
 set( CMAKE_VERBOSE_MAKEFILE ON )
 
 # best to use at the top

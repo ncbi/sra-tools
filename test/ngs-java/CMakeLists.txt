@@ -29,7 +29,7 @@ if ( Java_FOUND )
     set( VARS ${VARS} -Dvdb.log=FINEST )
 
 
-    if ( WIN32 )
+    if ( NOT SINGLE_CONFIG )
         set( classpaths "${CMAKE_JAR_OUTPUT_DIRECTORY}/test-ngs-java.jar" "${NGS_JAVA_JAR}" "${JUNIT_JAR}" )
         cmake_path( CONVERT "${classpaths}" TO_NATIVE_PATH_LIST CLASSPATH )
         set( libpaths

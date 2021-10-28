@@ -181,6 +181,10 @@ find_package( BISON 3 )
 find_package( LibXml2 )
 
 find_package(Java COMPONENTS Development)
+if( Java_FOUND AND NOT Java_VERSION )
+    message(STATUS "No version of Java found")
+    unset( Java_FOUND )
+endif()
 
 if ( PYTHON_PATH )
     set( Python3_EXECUTABLE ${PYTHON_PATH} )

@@ -1,6 +1,6 @@
 if( Python3_EXECUTABLE )
 
-    if ( NOT WIN32 )
+    if ( SINGLE_CONFIG )
         macro( RunAndDiff TestName TestParams )
             add_test( NAME Test_NgsPythonExamples_${TestName}
                 COMMAND

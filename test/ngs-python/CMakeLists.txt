@@ -1,5 +1,5 @@
 if( Python3_EXECUTABLE )
-    if( NOT WIN32 )
+    if( SINGLE_CONFIG )
         add_test( NAME SlowTest_NgsPython
             COMMAND ${Python3_EXECUTABLE} tests.py
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

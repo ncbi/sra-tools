@@ -1,4 +1,4 @@
-if( NOT WIN32 )
+if( SINGLE_CONFIG )
 
     if ( ${OS} STREQUAL  "Linux" )
         ADD_CUSTOM_COMMAND(
@@ -26,5 +26,5 @@ if( NOT WIN32 )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
 else()
-#TODO: make work on Windows
+#TODO: make work on Windows/XCode
 endif()

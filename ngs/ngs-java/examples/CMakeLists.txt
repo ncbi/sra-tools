@@ -15,7 +15,7 @@ if ( Java_FOUND )
         OUTPUT_DIR ${CMAKE_JAR_OUTPUT_DIRECTORY}
     )
 
-    if ( NOT WIN32 )
+    if ( SINGLE_CONFIG )
         macro( RunAndDiff TestName TestParams )
             add_test(
                 NAME Test_NgsJavaExamples_${TestName}

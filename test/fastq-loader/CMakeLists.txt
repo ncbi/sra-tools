@@ -17,12 +17,10 @@ if( NOT WIN32 )
 
     add_executable( test-fastq-loader test-fastq-loader.cpp )
     target_link_libraries( test-fastq-loader fastqloader load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-    add_test( NAME Test_FastqLoader_WbFastqLoader
-        COMMAND
-            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
-            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            ${TESTBINDIR}/test-fastq-loader
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    add_test( NAME Test_FastqLoader_WbFastqLoader COMMAND test-fastq-loader WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_FastqLoader_WbFastqLoader
+        PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )
 
     macro(LatfTest TestName Result TestParams)

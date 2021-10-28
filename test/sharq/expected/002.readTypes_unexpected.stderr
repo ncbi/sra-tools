@@ -1,2 +1,1 @@
-[info] Parsing from 1 files
-[error] [code:150] Read aa,HWI-7001455:146:H97PVADXX:2:1101:1498:2093: invalid readtType 'X' [002.allBiological_1.fq:1]
+[error] [code:150] Invalid --readTypes values 'X'

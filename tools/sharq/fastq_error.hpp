@@ -10,7 +10,7 @@
 namespace fs = std::experimental::filesystem;
 #else
 #include <filesystem>
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 #endif
 
 
@@ -25,7 +25,7 @@ SHARQ_ERR_CODES = {
     {10  ,{ "Invalid command line parameters, inconsistent number of read pairs", "Number of comma-separated files in all readNPairFiles parameters is expected to be the same."}},
     {11  ,{ "Inconsistent file sets: first group ({}), second group ({})", "Input files are clustered into groups. Number of files in each groups is expected to be the same."}},
     {20  ,{ "No readTypes provided", "'--readTypes' parameter is expected if readNPairFiles parameters are present."}},
-    {30  ,{ "readTypes number should match number of input files", "'--readTypes' number should match the number of input files."}},
+    {30  ,{ "readTypes number should match the number of reads", "'--readTypes' number should match the number the number of reads."}},
     {40  ,{ "File '{}' does not exists", "Failure to find input file passed in the parameters."}},
     {50  ,{ "File '{}' has no reads", "No reads found in the file."}},
     //{60  ,{ "Platform detected from defline '{}' does not match paltform passed as parameter '{}'", "Platform detected from defline does not match paltform passed as parameter."}},
@@ -40,7 +40,9 @@ SHARQ_ERR_CODES = {
     {150 ,{ "Read {}: invalid readtType '{}'", "Unexpected '--readTypes' parameter values."}},
     {160 ,{ "Read {}: invalid sequence characters", "Sequence contains non-alphabetical character."}},
     {170 ,{ "Collation check. Duplicate spot '{}'", "Collation check found duplicated spot name."}},
-    {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}}
+    {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}},
+    {190 ,{ "Usupported interleaved file with orphans", "Usupported interleaved file with orphans."}}
+
 };
 
 //  ============================================================================

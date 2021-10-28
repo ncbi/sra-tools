@@ -50,12 +50,15 @@
 #include <spdlog/stopwatch.h>
 #include <zlib.h>
 #include <chrono>
+#include <json.hpp>
+#include <set>
 
 using namespace std;
 
 bm::chrono_taker::duration_map_type timing_map;
 typedef bm::bvector<> bvector_type;
 typedef bm::str_sparse_vector<char, bvector_type, 32> str_sv_type;
+using json = nlohmann::json;
 
 
 //  ============================================================================
@@ -63,19 +66,24 @@ class fastq_reader
 //  ============================================================================
 {
 public:    
-    fastq_reader(const string& file_name, shared_ptr<istream> _stream, char read_type = 'B') 
+
+    fastq_reader(const string& file_name, shared_ptr<istream> _stream,  vector<char> read_type = {'B'}, bool match_all = false) 
         : m_file_name(file_name)
         , m_stream(_stream)
         , m_read_type(read_type)
+        , m_read_type_sz(m_read_type.size())
     {
         //m_stream->exceptions(std::ifstream::failbit | std::ifstream::badbit);
         m_stream->exceptions(std::ifstream::badbit);
+        if (match_all)
+            m_defline_parser.SetMatchAll();
     }
     ~fastq_reader() = default;
     uint8_t platform() const { return m_defline_parser.GetPlatform();}
-    char read_type() const { return m_read_type;}
+    //char read_type() const { return m_read_type;}
     bool parse_read(CFastqRead& read);
     bool get_read(CFastqRead& read);
+
 
     /**
      * Retrieves next spot in the stream 
@@ -103,6 +111,7 @@ public:
     bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true file has no more reads
     size_t line_number() const { return m_line_number; } ///< Returns current line number (1-based)
     const string& file_name() const { return m_file_name; }  ///< Returns reader's file name
+    const string& defline_type() const { return m_defline_parser.GetDeflineType(); }  ///< Returns current defline name
 
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 private:
@@ -113,7 +122,7 @@ private:
     CDefLineParser      m_defline_parser;       ///< Defline parser 
     string              m_file_name;            ///< Corresponding file name
     shared_ptr<istream> m_stream;               ///< reader's stream
-    char                m_read_type = 'B';      ///< Reader's readType (T|B|A), A - illumina, set based on read length
+    vector<char>        m_read_type;            ///< Reader's readType (T|B|A), A - illumina, set based on read length
     size_t              m_line_number = 0;      ///< Line number counter (1-based)
     string              m_buffered_defline;     ///< Defline already read from the stream but not placed in a read
     vector<CFastqRead>  m_buffered_spot;        ///< Spot already read from the stream but no returned to the consumer
@@ -126,6 +135,7 @@ private:
     string              m_line;
     string_view         m_line_view;
     string              m_tmp_str;
+    int                 m_read_type_sz = 0;
 };
 
 //  ----------------------------------------------------------------------------
@@ -151,7 +161,10 @@ public:
     ~fastq_parser() {
 //        bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_ops_per_sec);
     }
-    void setup_readers(const vector<string>& files, const vector<char>& read_types, uint8_t& platform, int quality, int num_reads_to_check = 100000);
+
+    // creates reader from digest data
+    void set_readers(json& data);
+
     void set_spot_file(const string& spot_file) { m_spot_file = spot_file; }
     void set_allow_early_end(bool allow_early_end = true) { m_allow_early_end = allow_early_end; }
     void parse();
@@ -188,35 +201,7 @@ void s_trim(string_view& in)
     if (sz - pos)
         in.remove_suffix(sz - pos);
 }
-/*
-static 
-void TruncateSpacesInPlace(string& str)
-{
-    auto length = str.length();
-    if (length == 0) {
-        return;
-    }
-    size_t  beg = 0;
-    while ( isspace((unsigned char) str.data()[beg]) ) {
-        if (++beg == length) {
-            str.erase();
-            return;
-        }
-    }
 
-    auto end = length;
-    while (isspace((unsigned char) str.data()[--end])) {
-        if (beg == end) {
-            str.erase();
-            return;
-        }
-    }
-    ++end;
-    if ( beg | (end - length) ) { // if either beg != 0 or end != length
-        str.replace(0, length, str, beg, end - beg);
-    }
-}
-*/
 #define GET_LINE(stream, line, str, count) {\
 line.clear(); \
 if (getline(stream, line).eof()) { \
@@ -272,7 +257,7 @@ bool fastq_reader::parse_read(CFastqRead& read)
         GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
         if (!m_line_view.empty()) {
             do {
-                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view)) {
+                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view, true)) {
                     m_buffered_defline = m_line;
                     break;
                 } 
@@ -287,14 +272,12 @@ bool fastq_reader::parse_read(CFastqRead& read)
     }
     if (read.Quality().empty())
         throw fastq_error(111, "Read {}: no quality scores", read.Spot());
-    read.SetType(m_read_type);
     return true;
 }
 
 //  ----------------------------------------------------------------------------    
 inline
 bool fastq_reader::get_read(CFastqRead& read) 
-//  ----------------------------------------------------------------------------    
 {
     try {
         if (!parse_read(read))
@@ -309,7 +292,6 @@ bool fastq_reader::get_read(CFastqRead& read)
 
 //  ----------------------------------------------------------------------------    
 bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
-//  ----------------------------------------------------------------------------    
 {
     reads.clear();
     if (!m_buffered_spot.empty()) {
@@ -336,12 +318,23 @@ bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
         m_pending_spot.emplace_back(move(read));
         break;
     }
-    return reads.empty() == false;
+
+    if (reads.empty())
+        return false;
+    // assign readTypes    
+    if (m_read_type_sz > 0) {
+        if (m_read_type_sz < (int)reads.size())
+            throw fastq_error(30, "readTypes number should match the number of reads {} != {}", m_read_type.size(), reads.size());
+        int i = -1;    
+        for (auto& read : reads) {
+            read.SetType(m_read_type[++i]);
+        }
+    }
+    return true;
 }
 
 //  ----------------------------------------------------------------------------    
 bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
-//  ----------------------------------------------------------------------------    
 {
     
     string spot;
@@ -367,7 +360,6 @@ void fastq_reader::dummy_validator(CFastqRead& read, pair<int, int>& expected_ra
 
 //  ----------------------------------------------------------------------------    
 void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
-//  ----------------------------------------------------------------------------    
 {
     str.clear();
     read.mQualScores.clear();
@@ -407,7 +399,6 @@ void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected
 
 //  ----------------------------------------------------------------------------    
 void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
-//  ----------------------------------------------------------------------------    
 {
     str.clear();
     read.mQualScores.clear();
@@ -432,7 +423,6 @@ void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expecte
 
 //  ----------------------------------------------------------------------------    
 void fastq_reader::set_qual_validator(bool is_numeric, int min_score, int max_score) 
-//  ----------------------------------------------------------------------------    
 {
     m_qual_validator = is_numeric ? num_qual_validator : char_qual_validator;
     m_qual_score_range = pair<int, int>(min_score, max_score);
@@ -447,7 +437,6 @@ BM_DECLARE_TEMP_BLOCK(TB)
 //  ----------------------------------------------------------------------------    
 static 
 void serialize_vec(const string& file_name, str_sv_type& vec)
-//  ----------------------------------------------------------------------------    
 {
     //bm::chrono_taker tt1("Serialize acc list", 1, &timing_map);
     bm::sparse_vector_serializer<str_sv_type> serializer;
@@ -464,7 +453,6 @@ void serialize_vec(const string& file_name, str_sv_type& vec)
 //  ----------------------------------------------------------------------------    
 template<typename TWriter>
 void fastq_parser<TWriter>::parse() 
-//  ----------------------------------------------------------------------------    
 {
 #ifdef LOCALDEBUG
     size_t spotCount = 0;
@@ -619,7 +607,7 @@ typedef struct qual_score_params
     bool set_score(int score) 
     {
         if (space_delimited) {
-            if (score < -5 || score > 126)
+            if (score < -5 || score > 40)
                 return false;
         } else if (score < 33 || score > 126) {
             return false;
@@ -634,7 +622,6 @@ typedef struct qual_score_params
 //  ----------------------------------------------------------------------------    
 static 
 void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
-//  ----------------------------------------------------------------------------    
 {
     const auto& quality = read.Quality();
     if (!params.intialized) {
@@ -676,120 +663,6 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
 }
 
 
-//  ----------------------------------------------------------------------------    
-template<typename TWriter>
-void fastq_parser<TWriter>::setup_readers(const vector<string>& files, const vector<char>& read_types, uint8_t& platform, int quality, int num_reads_to_check) 
-//  ----------------------------------------------------------------------------    
-{
-    assert(!files.empty());
-    assert(read_types.empty() || read_types.size() == files.size());
-    m_readers.clear();
-    // Run first num_reads_to_check to check for consistency 
-    // and setup read_types and platform if needed
-    CFastqRead read;
-    map<string, qual_score_params> reader_qual_params;
-    for (const auto& fn  : files) {
-        fastq_reader reader(fn, s_OpenStream(fn));
-        try {
-            if (!reader.parse_read(read))
-                throw fastq_error(50 , "File '{}' has no reads", fn);
-        } catch (fastq_error& e) {
-            e.set_file(fn, read.LineNumber());
-            throw;
-        }
-
-        qual_score_params& params  = reader_qual_params[fn];
-        if (quality == -1)
-            s_check_qual_score(read, params);
-        else {
-            switch (quality) {
-                case 0:
-                    params.space_delimited = true;
-                    params.min_score = -5;
-                    params.max_score = 40;
-                    break;
-                case 33:
-                    params.space_delimited = false;
-                    params.min_score = 33;
-                    params.max_score = 74;
-                    break;
-                case 64:
-                    params.space_delimited = false;
-                    params.min_score = 64;
-                    params.max_score = 105;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        if ((int8_t)platform == -1)
-            platform = reader.platform();
-
-
-        //if (platform == 0)
-        //    platform = reader.platform();
-        //else if (reader.platform() != platform)    
-        //    throw fastq_error(60, "Platform detected from defline '{}' does not match paltform passed as parameter '{}'", reader.platform(), platform);
-
-        for (int i = 0; i < num_reads_to_check; ++i) {
-            try {
-                if (!reader.parse_read(read))
-                    break;
-            } catch (fastq_error& e) {
-                e.set_file(fn, read.LineNumber());
-                throw;
-            }
-            if (quality == -1) 
-                s_check_qual_score(read, params);
-            if (platform != reader.platform()) 
-                throw fastq_error(70, "Input files have deflines from different platforms {} != {}", platform, reader.platform());
-
-        }
-
-        //RANGES = {
-        //'Sanger': (33, 73),
-        //'Illumina-1.8': (33, 74),
-        //'Solexa': (59, 104),
-        //'Illumina-1.3': (64, 104),
-        //'Illumina-1.5': (66, 105)
-        if (quality == -1) {
-            if (params.min_score < 0) {
-                params.min_score = -5;
-                params.max_score = 40;
-            } else if (params.min_score >= 33 && params.max_score <= 74) {
-                params.min_score = 33;
-                params.max_score = 74;
-            //} else if (params.min_score >= 59 && params.min_score <= 104) {
-            //    params.min_score = 59;
-            //    params.max_score = 104;
-            } else if (params.min_score >= 64 && params.min_score <= 105) {
-                params.min_score = 64;
-                params.max_score = 105;
-            }
-        }
-    }
-    size_t idx = 0;
-    for (const auto& fn  : files) {
-        m_readers.emplace_back(fn, s_OpenStream(fn), (idx < read_types.size()) ? read_types[idx] : 'A');
-        const qual_score_params& params = reader_qual_params[fn];
-        auto& reader = m_readers.back();
-        reader.set_qual_validator(params.space_delimited, params.min_score, params.max_score);
-        ++idx;
-    }
-    const qual_score_params& params = reader_qual_params[files.front()];
-
-    if (params.space_delimited) {
-        m_writer->set_attr("quality_expression", "(INSDC:quality:phred)QUALITY");
-    } else if (params.min_score == 64) {
-        m_writer->set_attr("quality_expression", "(INSDC:quality:text:phred_64)QUALITY");
-    } else if (params.min_score == 33) {
-        m_writer->set_attr("quality_expression", "(INSDC:quality:text:phred_33)QUALITY");
-    }
-
-    m_writer->set_attr("platform", to_string(platform));
-}
-
 template<typename T>
 static string s_join(const T& b, const T& e, const string& delimiter = ", ")
 {
@@ -805,7 +678,6 @@ static string s_join(const T& b, const T& e, const string& delimiter = ", ")
 
 //  ----------------------------------------------------------------------------    
 void fastq_reader::cluster_files(const vector<string>& files, vector<vector<string>>& batches) 
-//  ----------------------------------------------------------------------------    
 {
     batches.clear();
     if (files.empty())
@@ -818,8 +690,9 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
 
     vector<CFastqRead> reads;
     vector<fastq_reader> readers;
-    for (const auto& fn : files)
-        readers.emplace_back(fn, s_OpenStream(fn));
+    vector<char> readTypes;
+    for (const auto& fn : files) 
+        readers.emplace_back(fn, s_OpenStream(fn), readTypes, true);
     vector<uint8_t> placed(files.size(), 0);
 
     for (size_t i = 0; i < files.size(); ++i) {
@@ -845,10 +718,32 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
         batches.push_back(move(batch));
     }
 }
+/*
+static
+int s_search_terms(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& scanner, vector<string>& terms)
+{
+    auto sz = terms.size();
+    if (sz == 0)
+        return -1;
+    bm::sparse_vector_scanner<str_sv_type>::pipeline<bm::agg_opt_only_counts> pipe(vec);
+    pipe.options().batch_size = 0;
+    for (const auto& term : terms)
+        pipe.add(term.c_str());
+    pipe.complete();
+    scanner.find_eq_str(pipe); // run the search pipeline
+    auto& cnt_vect = pipe.get_bv_count_vector();
+    for (size_t i = 0; i < sz; ++i) {
+        if (cnt_vect[i] > 1) {
+            return i;
+        }
+    }
+    return -1;
+}
+*/
+
 
 //  ----------------------------------------------------------------------------    
 void check_hash_file(const string& hash_file) 
-//  ----------------------------------------------------------------------------    
 {
     str_sv_type vec;
     {
@@ -879,6 +774,8 @@ void check_hash_file(const string& hash_file)
     const char* value;
     bool hit;
     auto it = vec.begin();
+    vector<string> search_terms;
+    //int terms_search = 0;
 
     while (it.valid()) {
         value = it.value();
@@ -889,6 +786,18 @@ void check_hash_file(const string& hash_file)
         }
         if (hit) {
             ++hits;
+/*            
+            search_terms.push_back(value);
+            if (search_terms.size() == 10000) {
+                bm::chrono_taker tt1("scan", search_terms.size(), &timing_map);
+                terms_search += search_terms.size();
+                int idx = s_search_terms(vec, str_scan, search_terms);
+                if (idx >= 0)
+                    throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
+                search_terms.clear();
+             }
+        }
+*/
             idx_pos = it.pos();
             //bv_collisions.set(idx_pos);
             vec.set(idx_pos, empty_str);
@@ -898,9 +807,13 @@ void check_hash_file(const string& hash_file)
                     throw fastq_error(170, "Duplicate spot '{}'", value);
             }
             it = vec.get_const_iterator(idx_pos + 1);
-        } else {
+            
+        } 
+        else {
+            
             it.advance();
         }
+
         if (++index % 100000000 == 0) {
             spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
             last_hits = hits;
@@ -908,13 +821,131 @@ void check_hash_file(const string& hash_file)
             timing_map.clear();
         }
     }
+   /*
+    if (!search_terms.empty()) {
+        bm::chrono_taker tt1("scan", search_terms.size(), &timing_map);
+        terms_search += search_terms.size();
+        int idx = s_search_terms(vec, str_scan, search_terms);
+        if (idx >= 0)
+            throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
+    }
+    */
+
     {
         spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
+      //  spdlog::debug("terms search: {:L}", terms_search);
         bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_all);
+        
     }
 
     //string collisions_file = hash_file + ".dups";
     //bm::SaveBVector(collisions_file.c_str(), bv_collisions);
+}
+
+void get_digest(json& j, const vector<vector<string>>& input_batches, int num_reads_to_check = 100000) 
+{
+    assert(!input_batches.empty());
+    // Run first num_reads_to_check to check for consistency 
+    // and setup read_types and platform if needed
+    CFastqRead read;
+    // 10x pattern
+    re2::RE2 re_10x("_[I|R]\\d+[\\._]");
+    assert(re_10x.ok());
+    for (auto& files : input_batches) {
+        json group_j;
+        //map<string, qual_score_params> reader_qual_params;
+        for (const auto& fn  : files) {
+            json f;
+            f["name"] = fn;
+            f["file_size"] = fs::file_size(fn);
+            f["is_10x"] = re2::RE2::PartialMatch(fn, re_10x); 
+
+            fastq_reader reader(fn, s_OpenStream(fn), {}, true);
+            vector<CFastqRead> reads;
+            int max_reads = 0;
+            bool has_orphans = false;
+            string spot_name;
+            set<string> read_names;
+            if (!reader.get_next_spot(spot_name, reads))
+                throw fastq_error(50 , "File '{}' has no reads", fn);
+            max_reads = reads.size();   
+            qual_score_params params;//  = reader_qual_params[fn];
+
+            for (const auto& read : reads) {
+                if (!read.ReadNum().empty())
+                    read_names.insert(read.ReadNum());
+                try {    
+                    s_check_qual_score(read, params);
+                } catch (fastq_error& e) {
+                    e.set_file(fn, read.LineNumber());
+                    throw;
+                }
+            }
+            f["defline_type"] = reader.defline_type();
+            f["top_spot"] = spot_name;
+            auto platform = reader.platform();
+            f["platform_code"] = platform;
+            for (int i = 0; i < num_reads_to_check; ++i) {
+                reads.clear();
+                if (!reader.get_next_spot(spot_name, reads))
+                    break;
+                if (max_reads != (int)reads.size()) {
+                    has_orphans = true;
+                    max_reads = max<int>(max_reads, reads.size());
+                }    
+                for (const auto& read : reads) {
+                    if (!read.ReadNum().empty())
+                        read_names.insert(read.ReadNum());
+                    try {    
+                        s_check_qual_score(read, params);
+                    } catch (fastq_error& e) {
+                        e.set_file(fn, read.LineNumber());
+                        throw;
+                    }
+                }
+                if (platform != reader.platform()) 
+                    throw fastq_error(70, "Input files have deflines from different platforms {} != {}", platform, reader.platform());
+
+            }
+            if (params.space_delimited) {
+                f["quality_encoding"] = 0;
+            } else if (params.min_score >= 33 && params.max_score <= 74) {
+                f["quality_encoding"] = 33;
+            } else if (params.min_score >= 64 && params.min_score <= 105) {
+                f["quality_encoding"] = 64;
+            }
+
+            f["readNums"] = read_names;
+            f["max_reads"] = max_reads;
+            f["orphans"] = has_orphans;
+            group_j["files"].push_back(f);
+        }
+        j["groups"].push_back(group_j);
+    }
+}
+
+template<typename TWriter>
+void fastq_parser<TWriter>::set_readers(json& group)
+{
+    m_readers.clear();
+    for (auto& data : group["files"]) {
+        const string& name = data["name"];
+        m_readers.emplace_back(name, s_OpenStream(name), data["readType"]);
+        auto& reader = m_readers.back();
+        switch ((int)data["quality_encoding"]) {
+            case 0: 
+                reader.set_qual_validator(true, -5, 40); 
+                break;
+            case 33: 
+                reader.set_qual_validator(false, 33, 74); 
+                break;
+            case 64: 
+                reader.set_qual_validator(false, 64, 105); 
+                break;
+            default:
+                throw runtime_error("Invaid quality encoding");
+        }    
+    }
 }
 
 

@@ -1,2 +1,1 @@
-[info] Parsing from 1 files
-[error] [code:120] Read V300047012L3C001R0010000001: unexpected quality score value '83' [001.read.invalid_quality0.fq:1]
+[error] [code:140] Read V300047012L3C001R0010000001: quality score contains unexpected character '83' [001.read.invalid_quality0.fq:1]

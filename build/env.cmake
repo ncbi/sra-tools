@@ -181,8 +181,8 @@ find_package( BISON 3 )
 find_package( LibXml2 )
 
 find_package(Java COMPONENTS Development)
-if( NOT Java_VERSION_STRING )
-    # Java stubbed out?
+if( Java_FOUND AND NOT Java_VERSION )
+    message(STATUS "No version of Java found")
     unset( Java_FOUND )
 endif()
 

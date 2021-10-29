@@ -308,7 +308,7 @@ void CFastqParseApp::xProcessDigest(json& data)
             // and the reads in an interleaved file don't have read numbers 
             // and orphans are present
             // then sharq should fail. 
-            if (!mReadTypes.empty() && max_reads > 1 && f["orphans"] && f["readNums"].empty()) 
+            if (!mReadTypes.empty() && max_reads > 1 && f["has_orphans"] && f["readNums"].empty()) 
                 throw fastq_error(190); // "Usupported interleaved file with orphans"
         }
 
@@ -383,8 +383,7 @@ int CFastqParseApp::xRunDigest()
     json j;
     string error;
     try {
-        get_digest(j, mInputBatches);
-        //xProcessDigest(j);
+        get_digest(j, mInputBatches, 500000);
     } catch (fastq_error& e) {
         error = e.Message();
     } catch(std::exception const& e) {

@@ -113,6 +113,18 @@ public:
     const string& file_name() const { return m_file_name; }  ///< Returns reader's file name
     const string& defline_type() const { return m_defline_parser.GetDeflineType(); }  ///< Returns current defline name
 
+    bool is_compressed() const {
+        auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
+        return fstream ? fstream->compression() != bxz::plaintext : false; 
+    }
+
+
+    //  position in compressed file
+    size_t tellg() const { 
+        auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
+        return fstream ? fstream->compressed_tellg() : m_stream->tellg(); 
+    } 
+
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 private:
     static void dummy_validator(CFastqRead& read, pair<int, int>& expected_range, string& tmp_str);
@@ -140,10 +152,10 @@ private:
 
 //  ----------------------------------------------------------------------------
 static
-shared_ptr<istream> s_OpenStream(const string& filename)
+shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 //  ----------------------------------------------------------------------------
 {
-    shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename)) : shared_ptr<istream>(new bxz::istream(std::cin)); 
+    shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename, ios::in, buffer_size)) : shared_ptr<istream>(new bxz::istream(std::cin)); 
     if (!is->good())
         throw runtime_error("Failure to open '" + filename + "'");
     return is;        
@@ -692,7 +704,7 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
     vector<fastq_reader> readers;
     vector<char> readTypes;
     for (const auto& fn : files) 
-        readers.emplace_back(fn, s_OpenStream(fn), readTypes, true);
+        readers.emplace_back(fn, s_OpenStream(fn, 1024*1024), readTypes, true);
     vector<uint8_t> placed(files.size(), 0);
 
     for (size_t i = 0; i < files.size(); ++i) {
@@ -842,7 +854,7 @@ void check_hash_file(const string& hash_file)
     //bm::SaveBVector(collisions_file.c_str(), bv_collisions);
 }
 
-void get_digest(json& j, const vector<vector<string>>& input_batches, int num_reads_to_check = 100000) 
+void get_digest(json& j, const vector<vector<string>>& input_batches, int num_reads_to_check = 250000) 
 {
     assert(!input_batches.empty());
     // Run first num_reads_to_check to check for consistency 
@@ -853,14 +865,19 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
     assert(re_10x.ok());
     for (auto& files : input_batches) {
         json group_j;
-        //map<string, qual_score_params> reader_qual_params;
+        size_t estimated_spots = 0;
         for (const auto& fn  : files) {
             json f;
+            size_t reads_processed = 0;
+            size_t spots_processed = 0;
+            size_t reads_size = 0;
+            size_t spot_name_sz = 0;
             f["name"] = fn;
-            f["file_size"] = fs::file_size(fn);
+            auto file_size = fs::file_size(fn);
+            f["file_size"] = file_size;
             f["is_10x"] = re2::RE2::PartialMatch(fn, re_10x); 
 
-            fastq_reader reader(fn, s_OpenStream(fn), {}, true);
+            fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, true);
             vector<CFastqRead> reads;
             int max_reads = 0;
             bool has_orphans = false;
@@ -868,9 +885,11 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
             set<string> read_names;
             if (!reader.get_next_spot(spot_name, reads))
                 throw fastq_error(50 , "File '{}' has no reads", fn);
+            f["is_compressed"] = reader.is_compressed();
             max_reads = reads.size();   
-            qual_score_params params;//  = reader_qual_params[fn];
-
+            reads_processed += reads.size();
+            ++spots_processed;
+            qual_score_params params;
             for (const auto& read : reads) {
                 if (!read.ReadNum().empty())
                     read_names.insert(read.ReadNum());
@@ -882,17 +901,25 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                 }
             }
             f["defline_type"] = reader.defline_type();
+            string suffix = reads.empty() ? "" : reads.front().Suffix();
+            spot_name += suffix;
             f["top_spot"] = spot_name;
+            spot_name_sz += spot_name.size();
             auto platform = reader.platform();
             f["platform_code"] = platform;
-            for (int i = 0; i < num_reads_to_check; ++i) {
+            for (int i = 0; i < num_reads_to_check - 1; ++i) {
                 reads.clear();
                 if (!reader.get_next_spot(spot_name, reads))
                     break;
-                if (max_reads != (int)reads.size()) {
+
+                ++spots_processed;
+                reads_processed += reads.size();
+                if (max_reads > (int)reads.size()) {
                     has_orphans = true;
-                    max_reads = max<int>(max_reads, reads.size());
                 }    
+                string suffix = reads.empty() ? "" : reads.front().Suffix();
+                spot_name_sz += spot_name.size() + suffix.size();
+                max_reads = max<int>(max_reads, reads.size());
                 for (const auto& read : reads) {
                     if (!read.ReadNum().empty())
                         read_names.insert(read.ReadNum());
@@ -905,7 +932,6 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                 }
                 if (platform != reader.platform()) 
                     throw fastq_error(70, "Input files have deflines from different platforms {} != {}", platform, reader.platform());
-
             }
             if (params.space_delimited) {
                 f["quality_encoding"] = 0;
@@ -917,9 +943,20 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
 
             f["readNums"] = read_names;
             f["max_reads"] = max_reads;
-            f["orphans"] = has_orphans;
+            f["has_orphans"] = has_orphans;
+            f["reads_processed"] = reads_processed;
+            f["spots_processed"] = spots_processed;
+            f["lines_processed"] = reader.line_number();
+            double bytes_read = reader.tellg();
+            if (bytes_read && spots_processed) {
+                double fsize = file_size;
+                double bytes_per_spot = bytes_read/spots_processed;
+                estimated_spots = max<size_t>(fsize/bytes_per_spot, estimated_spots);
+                f["spot_size_avg"] = spot_name_sz/spots_processed;
+            }
             group_j["files"].push_back(f);
         }
+        group_j["estimated_spots"] = estimated_spots;
         j["groups"].push_back(group_j);
     }
 }
@@ -930,7 +967,7 @@ void fastq_parser<TWriter>::set_readers(json& group)
     m_readers.clear();
     for (auto& data : group["files"]) {
         const string& name = data["name"];
-        m_readers.emplace_back(name, s_OpenStream(name), data["readType"]);
+        m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), data["readType"]);
         auto& reader = m_readers.back();
         switch ((int)data["quality_encoding"]) {
             case 0: 

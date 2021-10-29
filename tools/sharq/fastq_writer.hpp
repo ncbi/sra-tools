@@ -138,7 +138,7 @@ protected:
 class fastq_writer_vdb : public fastq_writer
 {
 public: 
-    fastq_writer_vdb();
+    fastq_writer_vdb(ostream& stream);
     ~fastq_writer_vdb();
 
     void open() override;
@@ -163,10 +163,10 @@ private:
 };
 
 //  -----------------------------------------------------------------------------
-fastq_writer_vdb::fastq_writer_vdb() 
+fastq_writer_vdb::fastq_writer_vdb(ostream& stream) 
 //  -----------------------------------------------------------------------------
 {
-    m_writer.reset(new Writer2(stdout));
+    m_writer.reset(new Writer2(stream));
 
     m_default_logger = spdlog::default_logger();
     auto logger = general_writer_logger_mt("general_writer", m_writer);

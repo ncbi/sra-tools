@@ -19,11 +19,13 @@ public:
     ~CDefLineParser();
     void Reset();
     void Parse(const string_view& defline, CFastqRead& read);
-    bool Match(const string_view& defline);
-
+    bool Match(const string_view& defline, bool strict = false);
+    void SetMatchAll();
+    const string& GetDeflineType() const;
     uint8_t GetPlatform() const;
 private:
     size_t mIndexLastSuccessfulMatch = 0;
+    size_t mAllMatchIndex = -1;
     std::vector<std::shared_ptr<CDefLineMatcher>> mDefLineMatchers;
 };
 
@@ -47,12 +49,19 @@ CDefLineParser::~CDefLineParser()
 
 }
 
+void CDefLineParser::SetMatchAll()
+{
+    mDefLineMatchers.emplace_back(new CDefLineMatcher_AllMatch);
+    mAllMatchIndex = mDefLineMatchers.size() - 1;
+}
+
+
 void CDefLineParser::Reset() 
 {
     mIndexLastSuccessfulMatch = 0;
 }
 
-bool CDefLineParser::Match(const string_view& defline) 
+bool CDefLineParser::Match(const string_view& defline, bool strict) 
 {
     if (mDefLineMatchers[mIndexLastSuccessfulMatch]->Matches(defline)) {
         return true;
@@ -64,6 +73,8 @@ bool CDefLineParser::Match(const string_view& defline)
         if (!mDefLineMatchers[i]->Matches(defline)) {
             continue;
         }
+        if (strict && i == mAllMatchIndex)
+            return false;
         mIndexLastSuccessfulMatch = i;
         //spdlog::info("Current pattern: {}", mDefLineMatchers[mIndexLastSuccessfulMatch]->Defline());
         return true;
@@ -87,6 +98,11 @@ uint8_t CDefLineParser::GetPlatform() const
     return mDefLineMatchers[mIndexLastSuccessfulMatch]->GetPlatform();
 }
 
+inline
+const string& CDefLineParser::GetDeflineType() const
+{
+    return mDefLineMatchers[mIndexLastSuccessfulMatch]->Defline();
+}
 
 
 

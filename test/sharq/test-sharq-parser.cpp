@@ -184,7 +184,17 @@ FIXTURE_TEST_CASE(InvalidSequence, LoaderFixture)
 FIXTURE_TEST_CASE(EmptyQuality, LoaderFixture)
 {   // invalid quality scores 
     CFastqRead read;
-    fastq_reader reader("test", create_stream(_READ(cDEFLINE1, "GA^TT", "")));
+    fastq_reader reader("test", create_stream(string("@" + cDEFLINE1  + "\nGATT\n+")));
+    REQUIRE_THROW(reader.get_read(read));
+}
+FIXTURE_TEST_CASE(EmptyQuality2, LoaderFixture)
+{   // invalid quality scores 
+    CFastqRead read;
+    fastq_reader reader("test", create_stream(string("\
+@NB501550:336:H75GGAFXY:2:11101:10137:1038 1:N:0:CTAGGTGA\n\
+NCTATCTAGAATTCCCTACTACTCCC\n\
+@NB501550:336:H75GGAFXY:2:11101:9721:1038 1:N:0:CTAGGTGA\n\
+NAGCCGCGTAAGGGAATTAGGCAGCA")));
     REQUIRE_THROW(reader.get_read(read));
 }
 
@@ -339,7 +349,7 @@ FIXTURE_TEST_CASE(Test_get_next_spot_multi_2, LoaderFixture)
 {
     vector<CFastqRead> reads;
     auto ss = create_stream(_READ(cDEFLINE1, "GATT\nTAGGA", cQUAL) + _READ(cDEFLINE2, "GATT\nTAGGA", cQUAL));
-    fastq_reader reader("test", ss);
+    fastq_reader reader("test", ss, {'B', 'B'});
     string spot;
     REQUIRE(reader.get_next_spot(spot, reads));
     REQUIRE_EQ(spot, cSPOT1);
@@ -399,7 +409,7 @@ FIXTURE_TEST_CASE(Test_get_spot_match_multi, LoaderFixture)
 {
     vector<CFastqRead> reads;
     auto ss = create_stream(_READ(cDEFLINE1, "GATT\nTAGGA", cQUAL) + _READ(cDEFLINE2, "GATT\nTAGGA", cQUAL));
-    fastq_reader reader("test", ss);
+    fastq_reader reader("test", ss, {'B','B'});
     REQUIRE(reader.get_spot(cSPOT1, reads));
     REQUIRE(reads.size() == 2);
     REQUIRE_EQ(reads[0].Spot(), cSPOT1);
@@ -411,7 +421,7 @@ FIXTURE_TEST_CASE(Test_get_spot_match_multi_skip, LoaderFixture)
 {
     vector<CFastqRead> reads;
     auto ss = create_stream(_READ(cDEFLINE2_1, "GATT\nTAGGA", cQUAL) + _READ(cDEFLINE1, "GATT\nTAGGA", cQUAL) + _READ(cDEFLINE2, "GATT\nTAGGA", cQUAL));
-    fastq_reader reader("test", ss);
+    fastq_reader reader("test", ss, {'B', 'B'});
     REQUIRE(reader.get_spot(cSPOT1, reads));
     REQUIRE(reads.size() == 2);
     REQUIRE_EQ(reads[0].Spot(), cSPOT1);
@@ -432,7 +442,7 @@ FIXTURE_TEST_CASE(Test_get_spot_match_multi_skip_2, LoaderFixture)
         + _READ(cDEFLINE2_2, "GATTTAGGA", cQUAL)
         + _READ(cDEFLINE1, "GATTTAGGA", cQUAL) 
         + _READ(cDEFLINE2, "GATTTAGGA", cQUAL));
-    fastq_reader reader("test", ss);
+    fastq_reader reader("test", ss, {'B', 'B'});
     REQUIRE(reader.get_spot(cSPOT1, reads));
     REQUIRE(reads.size() == 2);
     REQUIRE_EQ(reads[0].Spot(), cSPOT1);

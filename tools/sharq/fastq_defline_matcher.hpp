@@ -67,7 +67,6 @@ protected:
 
 //  ============================================================================
 class CDefLineMatcher_NoMatch : public CDefLineMatcher
-//  ============================================================================
 {
 public:
     CDefLineMatcher_NoMatch():
@@ -82,6 +81,22 @@ public:
 protected:
 };
 
+//  ============================================================================
+class CDefLineMatcher_AllMatch : public CDefLineMatcher
+{
+public:
+    CDefLineMatcher_AllMatch():
+        CDefLineMatcher("undefined", R"([@>+]([!-~]+)(\s+|$))", 1)
+    {
+    }
+
+    //bool Matches(const string_view& defline) override { return true;}
+    virtual void GetMatch(CFastqRead& read) override  { 
+        read.SetSpot(match[0]);
+    }
+    virtual uint8_t GetPlatform() const override { return 0;} 
+protected:
+};
 
 //  ============================================================================
 class CDefLineMatcherIlluminaNewDataGroup : public CDefLineMatcher

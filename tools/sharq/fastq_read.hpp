@@ -118,6 +118,7 @@ void CFastqRead::Reset()
     mReadFilter = 0;
     mSequence.clear();
     mQuality.clear();
+    mQualScores.clear();
     mLineNumber = 0;
 }
 

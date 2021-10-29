@@ -1013,169 +1013,83 @@ static rc_t vdb_info_print_xml( vdb_info_data * data )
 /* ----------------------------------------------------------------------------- */
 
 
-static rc_t vdb_info_print_json_s( const char * tag, const char * value )
+static rc_t vdb_info_print_json_s( const char * tag, const char * value, bool * first )
 {
+    rc_t rc = 0;
     if ( 0 != value[ 0 ] )
     {
-        return KOutMsg( "\"%s\":\"%s\",\n", tag, value );
+        rc = KOutMsg( *first ? "\n\"%s\":\"%s\"" : ",\n\"%s\":\"%s\"", tag, value );
+        *first = false;
     }
-    return 0;
+    return rc;
 }
 
-static rc_t vdb_info_print_json_uint64( const char * tag, const uint64_t value )
+static rc_t vdb_info_print_json_uint64( const char * tag, const uint64_t value, bool *first )
 {
+    rc_t rc = 0;
     if ( 0 != value )
     {
-        return KOutMsg( "\"%s\":%lu,\n", tag, value );
+        rc = KOutMsg( *first ? "\n\"%s\":%lu" : ",\n\"%s\":%lu", tag, value );
+        *first = false;
     }
-    return 0;
+    return rc;
 }
 
-static rc_t vdb_info_print_json_event( const char * tag, vdb_info_event * event )
+static rc_t vdb_info_print_json_uint32( const char * tag, const uint32_t value, bool *first )
+{
+    rc_t rc = KOutMsg( *first ? "\n\"%s\":%u" : ",\n\"%s\":%u", tag, value );
+    *first = false;
+    return rc;
+}
+
+static rc_t vdb_info_print_json_event( const char * tag, vdb_info_event * event, bool *first )
 {
     rc_t rc = 0;
     if ( 0 != event->name[ 0 ] )
     {
-        rc = KOutMsg( "\"%s\":{\n", tag );
-        if ( 0 == rc )
-        {
-            rc = vdb_info_print_json_s( "NAME", event -> name );
-        }
-        if ( 0 == rc )
-        {
-            rc = vdb_info_print_json_s( "VERS", event -> vers . s_vers );
-        }
-        if ( 0 == rc )
-        {
-            rc = vdb_info_print_json_s( "TOOLDATE", event -> tool_date . date );
-        }
-        if ( 0 == rc )
-        {
-            rc = vdb_info_print_json_s( "RUNDATE", event -> run_date . date );
-        }
-        if ( 0 == rc )
-        {
-            rc = KOutMsg( "},\n", tag );
-        }
+        bool sub_first = true;
+        rc = KOutMsg( *first ? "\n\"%s\":{" : ",\n\"%s\":{" , tag );
+        *first = false;
+        if ( 0 == rc ) { rc = vdb_info_print_json_s( "NAME", event -> name, &sub_first ); }
+        if ( 0 == rc ) { rc = vdb_info_print_json_s( "VERS", event -> vers . s_vers, &sub_first ); }
+        if ( 0 == rc ) { rc = vdb_info_print_json_s( "TOOLDATE", event -> tool_date . date, &sub_first ); }
+        if ( 0 == rc ) { rc = vdb_info_print_json_s( "RUNDATE", event -> run_date . date, &sub_first ); }
+        if ( 0 == rc ) { rc = KOutMsg( "\n}" ); }
     }
     return rc;
 }
 
-
 static rc_t vdb_info_print_json( vdb_info_data * data )
 {
-    rc_t rc = KOutMsg( "{\n" );
-
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_s( "acc", data -> acc );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_s( "path", data -> path );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "size", data -> file_size );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_s( "type", data -> s_path_type );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_s( "platf", data -> s_platform );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "SEQ", data -> seq_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "REF", data -> ref_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "PRIM", data -> prim_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "SEC", data -> sec_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "EVID", data -> ev_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "EVINT", data -> ev_int_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "CONS", data -> consensus_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "PASS", data -> passes_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_uint64( "METR", data -> metrics_rows );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_s( "SCHEMA", data -> schema_name );
-    }
-    if ( 0 == rc && 0 != data -> ts . timestamp )
-    {
-        rc = vdb_info_print_json_uint64( "TIMESTAMP", data -> ts . timestamp );
-        if ( 0 == rc )
-        {
-            rc = KOutMsg( "\"MONTH\":%d,\n", data -> ts . month );
-        }
-        if ( 0 == rc )
-        {
-            rc = KOutMsg( "\"DAY\":%d,\n", data -> ts . day );
-        }
-        if ( 0 == rc )
-        {
-            rc = KOutMsg( "\"YEAR\":%d,\n", data -> ts . year );
-        }
-        if ( 0 == rc )
-        {
-            rc = KOutMsg( "\"HOUR\":%d,\n", data -> ts . hour );
-        }
-        if ( 0 == rc )
-        {
-            rc = KOutMsg( "\"MINUTE\":%d,\n", data -> ts . minute );
-        }
-    }
-
-    if ( 0 == rc && 0 != data->species[ 0 ] )
-    {
-        rc = vdb_info_print_json_s( "SPECIES", data -> species );
-    }
-
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_event( "FORMATTER", &( data -> formatter ) );
-    }
-
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_event( "LOADER", &( data -> loader ) );
-    }
-    if ( 0 == rc )
-    {
-        rc = vdb_info_print_json_event( "UPDATE", &( data -> update ) );
-    }
-
-    if ( 0 == rc )
-    {
-        rc = KOutMsg( "};\n" );
-    }
+    rc_t rc = KOutMsg( "{" );
+    bool first = true;
+    if ( 0 == rc ) { rc = vdb_info_print_json_s( "acc", data -> acc, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_s( "path", data -> path, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "size", data -> file_size, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_s( "type", data -> s_path_type, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_s( "platf", data -> s_platform, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "SEQ", data -> seq_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "REF", data -> ref_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "PRIM", data -> prim_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "SEC", data -> sec_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "EVID", data -> ev_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "EVINT", data -> ev_int_rows, &first );}
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "CONS", data -> consensus_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "PASS", data -> passes_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint64( "METR", data -> metrics_rows, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_s( "SCHEMA", data -> schema_name, &first ); }
+    if ( 0 == rc && 0 != data -> ts . timestamp ) { rc = vdb_info_print_json_uint64( "TIMESTAMP", data -> ts . timestamp, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint32( "MONTH",  data -> ts . month, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint32( "DAY",    data -> ts . day, &first); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint32( "YEAR",   data -> ts . year, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint32( "HOUR",   data -> ts . hour, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_uint32( "MINUTE", data -> ts . minute, &first ); }
+    if ( 0 == rc && 0 != data->species[ 0 ] ) { rc = vdb_info_print_json_s( "SPECIES", data -> species, &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_event( "FORMATTER", &( data -> formatter ), &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_event( "LOADER", &( data -> loader ), &first ); }
+    if ( 0 == rc ) { rc = vdb_info_print_json_event( "UPDATE", &( data -> update ), &first ); }
+    if ( 0 == rc ) { rc = KOutMsg( "}\n" ); }
     return rc;
-
 }
 
 
@@ -1725,26 +1639,26 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
         }
 
         /* try to resolve the path locally */
-        rc1 = resolve_accession( acc_or_path, data . path, sizeof data . path, false ); /* vdb-dump-helper.c */
+        rc1 = vdh_resolve_accession( acc_or_path, data . path, sizeof data . path, false ); /* vdb-dump-helper.c */
         if ( 0 == rc1 )
         {
             data . file_size = get_file_size( data . path, false );
             /* not a typo, return value ignored - because it can fail and that is OK in this case */
-            resolve_remote_accession( acc_or_path, data . remote_path, sizeof data . remote_path ); /* vdb-dump-helper.c */
+            vdh_resolve_remote_accession( acc_or_path, data . remote_path, sizeof data . remote_path ); /* vdb-dump-helper.c */
         }
         else
         {
             /* try to resolve the path remotely */
-            rc1 = resolve_accession( acc_or_path, data . path, sizeof data . path, true ); /* vdb-dump-helper.c */
+            rc1 = vdh_resolve_accession( acc_or_path, data . path, sizeof data . path, true ); /* vdb-dump-helper.c */
             if ( 0 == rc1 )
             {
                 data . file_size = get_file_size( data . path, true );
                 /* try to find out the cache-file */
-                rc1 = resolve_cache( acc_or_path, data . cache, sizeof data . cache ); /* vdb-dump-helper.c */
+                rc1 = vdh_resolve_cache( acc_or_path, data . cache, sizeof data . cache ); /* vdb-dump-helper.c */
                 if ( 0 == rc1 )
                 {
                     /* try to find out cache completeness */
-                    check_cache_comleteness( data . cache, &data . cache_percent, &( data . bytes_in_cache ) );
+                    vdh_check_cache_comleteness( data . cache, &data . cache_percent, &( data . bytes_in_cache ) ); /* vdh-dump-helper.c*/
                 }
             }
         }

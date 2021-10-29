@@ -22,32 +22,7 @@
 #
 # ===========================================================================
 
-# default response to "make"
 TOP ?= $(abspath ../..)
+MODULE = ngs/ngs-sdk
 
-default: std
-
-std: subtargs
-
-# the sub-targets
-SUBDIRS =    \
-	language \
-	dispatch \
-	adapter  \
-
-SUBTARGS =     \
-	$(SUBDIRS) \
-	sdk-libs   \
-
-include $(CURDIR)/Makefile.rules
-
-sdk-libs: $(SUBDIRS) $(TOP)/build/Makefile.config
-	@ $(MAKE) -f Makefile.libs
-
-sdk-libs_cln: $(TOP)/build/Makefile.config
-	@ $(MAKE) -f Makefile.libs clean
-
-sdk-libs_inst: $(TOP)/build/Makefile.config
-	@ echo "Checking make status of object libraries..."
-	@ $(MAKE) -s --no-print-directory sdk-libs
-	@ $(MAKE) -s --no-print-directory -f Makefile.install install
+include $(TOP)/build/Makefile.env

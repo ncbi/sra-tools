@@ -24,30 +24,16 @@
 *
 */
 
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/text.h>
 #include <klib/printf.h>
-
-#include <kfs/directory.h>
-#include <kfs/file.h>
 #include <kfs/cacheteefile.h>
-
-#include <vdb/manager.h>
-#include <vdb/database.h>
-#include <vdb/schema.h>
-#include <vdb/table.h>
-#include <vdb/cursor.h>
+#include <sra/sraschema.h>
+#include <vfs/manager.h>
+#include <vfs/resolver.h>
 
 #include <os-native.h>
 #include <sysalloc.h>
-#include "vdb-dump-helper.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <stdarg.h>
+#include "vdb-dump-helper.h"
 
 rc_t ErrMsg( const char * fmt, ... )
 {
@@ -265,7 +251,7 @@ static bool vdh_str_starts_with( const char *a, const char *b )
     return res;
 }
 
-bool list_contains_value( const KNamelist * list, const String * value )
+bool vdh_list_contains_value( const KNamelist * list, const String * value )
 {
     bool found = false;
     uint32_t count;
@@ -342,7 +328,7 @@ bool vdh_take_this_table_from_list( dump_context *ctx, const KNamelist * tbl_nam
     String to_find;
 
     StringInitCString( &to_find, table_to_find );
-    res = list_contains_value( tbl_names, &to_find );
+    res = vdh_list_contains_value( tbl_names, &to_find );
     if ( res )
     {
         vdco_set_table_String( ctx, &to_find );
@@ -475,7 +461,7 @@ rc_t vdh_print_col_info( dump_context *ctx, const p_col_def col_def, const VSche
     return rc;
 }
 
-rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_size )
+rc_t vdh_resolve_remote_accession( const char * accession, char * dst, size_t dst_size )
 {
     VFSManager * vfs_mgr;
     rc_t rc = VFSManagerMake( &vfs_mgr );
@@ -541,7 +527,7 @@ rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_si
     return rc;
 }
 
-rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely )
+rc_t vdh_resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely )
 {
     VFSManager * vfs_mgr;
     rc_t rc = VFSManagerMake( &vfs_mgr );
@@ -625,7 +611,7 @@ rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, boo
     return rc;
 }
 
-rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
+rc_t vdh_resolve_cache( const char * accession, char * dst, size_t dst_size )
 {
     VFSManager * vfs_mgr;
     rc_t rc = VFSManagerMake( &vfs_mgr );
@@ -693,7 +679,7 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
     return rc;
 }
 
-rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache )
+rc_t vdh_check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache )
 {
     rc_t rc = 0;
     if ( NULL != percent)
@@ -747,103 +733,7 @@ rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * byt
     }
     return rc;
 }
-
-static bool matches( const String * cmd, const String * pattern )
-{
-    char buffer[ 256 ];
-    String match;
-    uint32_t matching;
-    
-    StringInit( &match, buffer, sizeof buffer, 0 );
-    matching = StringMatch( &match, cmd, pattern );
-    return ( matching == pattern->len && matching == cmd -> len );
-}
-
-int32_t index_of_match( const String * word, uint32_t num, ... )
-{
-    int32_t res = -1;
-    if ( NULL != word )
-    {
-        uint32_t idx;
-        va_list args;
-        
-        va_start ( args, num );
-        for ( idx = 0; idx < num && res < 0; ++idx )
-        {
-            const char * arg = va_arg ( args, const char * );
-            if ( arg != NULL )
-            {
-                String S;
-                StringInitCString( &S, arg );
-                if ( matches( word, &S ) )
-                {
-                    res = idx;
-                }
-            }
-        }
-        va_end ( args );
-    }
-    return res;
-}
-
-static void CC destroy_String( void * item, void * data ) { free( item ); }
-void destroy_String_vector( Vector * v ) { VectorWhack( v, destroy_String, NULL ); }
-
-uint32_t copy_String_2_vector( Vector * v, const String * S )
-{
-    uint32_t res = 0;
-    if ( S -> len > 0 && NULL != S->addr )
-    {
-        String * S1 = malloc( sizeof * S1 );
-        if ( NULL != S1 )
-        {
-            rc_t rc;
-            StringInit( S1, S->addr, S->size, S->len );
-            rc = VectorAppend( v, NULL, S1 );
-            if ( 0 == rc )
-            {
-                res++;
-            }
-            else
-            {
-                free( S1 );
-            }
-        }
-    }
-    return res;
-}
-
-uint32_t split_buffer( Vector * v, const String * S, const char * delim )
-{
-    uint32_t i, res = 0;
-    size_t delim_len = string_size( delim );
-    String temp;
-    
-    StringInit( &temp, NULL, 0, 0 );
-    VectorInit( v, 0, 10 );
-    for( i = 0; i < S -> len; ++i )
-    {
-        if ( NULL != string_chr( delim, delim_len, S->addr[ i ] ) )
-        {
-            /* delimiter found */
-            res += copy_String_2_vector( v, &temp );
-            StringInit( &temp, NULL, 0, 0 );
-        }
-        else
-        {
-            /* normal char in line */
-            if ( NULL == temp . addr )
-            {
-                temp . addr = &( S -> addr[ i ] );
-            }
-            temp . size++;
-            temp . len++;
-        }
-    }
-    res += copy_String_2_vector( v, &temp );
-    return res;
-}
-
+            
 rc_t vdh_path_to_vpath( const char * path, VPath ** vpath )
 {
     VFSManager * vfs_mgr = NULL;
@@ -867,6 +757,126 @@ rc_t vdh_path_to_vpath( const char * path, VPath ** vpath )
         {
             rc_t rc2 = VFSManagerRelease( vfs_mgr );
             DISP_RC( rc2, "VFSManagerRelease() failed" );
+            rc = ( 0 == rc ) ? rc2 : rc;
+        }
+    }
+    return rc;
+}
+
+void vdh_clear_recorded_errors( void )
+{
+    rc_t rc;
+    const char * filename;
+    const char * funcname;
+    uint32_t line_nr;
+    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+    {
+    }
+}
+
+rc_t vdh_check_table_empty( const VTable * tab )
+{
+    bool empty;
+    rc_t rc = VTableIsEmpty( tab, &empty );
+    DISP_RC( rc, "VTableIsEmpty() failed" );
+    if ( 0 == rc && empty )
+    {
+        vdh_clear_recorded_errors();
+        KOutMsg( "the requested table is empty!\n" );
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
+    }
+    return rc;
+}
+
+/* ================================================================================= */
+
+static rc_t vdh_walk_sections( const VDatabase * base_db, const VDatabase ** sub_db,
+                    const VNamelist * sections, uint32_t count )
+{
+    rc_t rc = 0;
+    const VDatabase * parent_db = base_db;
+    if ( 0 == count )
+    {
+        rc = VDatabaseAddRef ( parent_db );
+        DISP_RC( rc, "VDatabaseAddRef() failed" );
+    }
+    else
+    {
+        uint32_t idx;
+        for ( idx = 0; 0 == rc && idx < count; ++idx )
+        {
+            const char * dbname;
+            rc = VNameListGet ( sections, idx, &dbname );
+            DISP_RC( rc, "VNameListGet() failed" );
+            if ( 0 == rc )
+            {
+                const VDatabase * temp;
+                rc = VDatabaseOpenDBRead ( parent_db, &temp, "%s", dbname );
+                DISP_RC( rc, "VDatabaseOpenDBRead() failed" );
+                if ( 0 == rc && idx > 0 )
+                {
+                    rc = VDatabaseRelease ( parent_db );
+                    DISP_RC( rc, "VDatabaseRelease() failed" );
+                }
+                if ( 0 == rc )
+                {
+                    parent_db = temp;
+                }
+            }
+        }
+    }
+    
+    if ( 0 == rc )
+    {
+        *sub_db = parent_db;
+    }
+    return rc;
+}
+
+rc_t vdh_open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab )
+{
+    VNamelist * sections;
+    rc_t rc = vds_path_to_sections( inner_db_path, '.', &sections );
+    DISP_RC( rc, "vds_path_to_sections() failed" );
+    if ( 0 == rc )
+    {
+        uint32_t count;
+        rc = VNameListCount ( sections, &count );
+        DISP_RC( rc, "VNameListCount() failed" );
+        if ( 0 == rc && count > 0 )
+        {
+            const VDatabase * sub_db;
+            rc = vdh_walk_sections( db, &sub_db, sections, count - 1 );
+            if ( 0 == rc )
+            {
+                const char * tabname;
+                rc = VNameListGet ( sections, count - 1, &tabname );
+                DISP_RC( rc, "VNameListGet() failed" );
+                if ( 0 == rc )
+                {
+                    rc = VDatabaseOpenTableRead( sub_db, tab, "%s", tabname );
+                    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+                    if ( 0 == rc )
+                    {
+                        rc = vdh_check_table_empty( *tab );
+                        if ( 0 != rc )
+                        {
+                            rc_t rc2 = VTableRelease( *tab );
+                            DISP_RC( rc2, "VTableRelease() failed" );
+                            tab = NULL;
+                        }
+                    }
+                }
+                {
+                    rc_t rc2 = VDatabaseRelease ( sub_db );
+                    DISP_RC( rc2, "VDatabaseRelease() failed" );
+                    rc = ( 0 == rc ) ? rc2 : rc;
+                }
+            }
+        }
+        {
+            rc_t rc2 = VNamelistRelease ( sections );
+            DISP_RC( rc2, "VNamelistRelease() failed" );
             rc = ( 0 == rc ) ? rc2 : rc;
         }
     }

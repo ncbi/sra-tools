@@ -22,55 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../../..)
-include $(TOP)/build/Makefile.config
-INCDIRS += -I$(TOP)/ngs/ngs-sdk
-INCDIRS += -I$(TOP)/ngs/ngs-sdk/ngs/$(OSINC)/$(ARCH)
+MODULE = ngs/ngs-sdk/dispatch
 
-INTLIBS = \
-	ngs-disp
-
-EXTLIBS =   \
-
-TARGETS =      \
-	$(INTLIBS) \
-	$(EXTLIBS)
-
-all std: $(TARGETS)
-
-clean:
-	rm -rf $(ILIBDIR)/$(LPFX)ngs-disp* $(OBJDIR)
-
-.PHONY: default all std $(TARGETS)
-
-ngs-disp: $(ILIBDIR) $(OBJDIR) $(ILIBDIR)/$(LPFX)ngs-disp.$(LIBX)
-
-# core dispatcher sources
-DISP_SRC =                   \
-	ReadCollectionItf    \
-	ReferenceItf         \
-	ReferenceSequenceItf \
-	PileupItf            \
-	PileupEventItf       \
-	AlignmentItf         \
-	ReadGroupItf         \
-	ReadItf              \
-	FragmentItf          \
-	StatisticsItf        \
-	PackageItf           \
-	StringItf            \
-	Refcount             \
-	VTable               \
-	ErrBlock             \
-	ErrorMsg
-
-# core dispatcher object files
-DISP_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(LOBX),$(DISP_SRC)))
-
-# rule to produce the static dispatch library
-$(ILIBDIR)/$(LPFX)ngs-disp.$(LIBX): $(DISP_OBJ)
-	$(AR) $@ $^
+include $(TOP)/build/Makefile.env

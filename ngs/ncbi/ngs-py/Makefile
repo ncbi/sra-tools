@@ -22,73 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../../..)
 MODULE = ngs/ncbi/ngs-py
 
-INT_LIBS = \
-	libngs-py
-
-EXT_LIBS = \
-
-ALL_LIBS = \
-	$(INT_LIBS) \
-	$(EXT_LIBS)
-
 include $(TOP)/build/Makefile.env
-INCDIRS += -I$(VDB_SRCDIR)/libs/klib
-
-INCDIRS += \
-	-I$(SRCDIR)/../ngs
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/std
-
-$(INT_LIBS): makedirs
-	@ $(MAKE_CMD) $(ILIBDIR)/$@
-
-.PHONY: all std $(ALL_LIBS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(ILIBDIR)/,$(INT_LIBS))
-
-.PHONY: $(TARGDIR)/all $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# ngs-py
-#
-$(ILIBDIR)/libngs-py: $(addprefix $(ILIBDIR)/libngs-py.,$(LIBX))
-
-NGS_PY_SRC = \
-	py_Manager
-
-NGS_PY_LIB = \
-
-NGS_PY_OBJ = \
-	$(addsuffix .$(LOBX),$(NGS_PY_SRC))
-
-
-$(ILIBDIR)/libngs-py.$(LIBX): $(NGS_PY_OBJ)
-	$(LD) --slib -o $@ $^
-
-
-#-------------------------------------------------------------------------------
-# fuzz
-#
-fuzz: std
-	cp $(addsuffix .$(LIBX),$(addprefix $(ILIBDIR)/,$(INT_LIBS))) $(FLIBDIR)/

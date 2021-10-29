@@ -34,7 +34,7 @@ def check_versions():
     if not should_download_library():
         return 0
     
-    libname_engine = "ncbi-vdb"
+    libname_engine = "ncbi-ngs"
     libname_sdk = "ngs-sdk"
     
     NGS.lib_manager.c_lib_engine = load_library(libname_engine, do_download=False, silent=True)

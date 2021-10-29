@@ -28,18 +28,23 @@ if ( Java_FOUND )
 
     set( VARS ${VARS} -Dvdb.log=FINEST )
 
-    set( classpaths "${CMAKE_JAR_OUTPUT_DIRECTORY}/test-ngs-java.jar" "${NGS_JAVA_JAR}" "${JUNIT_JAR}" )
-    cmake_path( CONVERT "${classpaths}" TO_NATIVE_PATH_LIST CLASSPATH )
 
-    set( libpaths
-            "${BINDIR}"
-            "${LIBDIR}"
+    if ( NOT SINGLE_CONFIG )
+        set( classpaths "${CMAKE_JAR_OUTPUT_DIRECTORY}/test-ngs-java.jar" "${NGS_JAVA_JAR}" "${JUNIT_JAR}" )
+        cmake_path( CONVERT "${classpaths}" TO_NATIVE_PATH_LIST CLASSPATH )
+        set( libpaths
+                "${BINDIR}"
+                "${LIBDIR}"
 
-            "${NCBI_VDB_LIBDIR}"
-            "$<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>"
-            "$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>"
-    )
-    cmake_path( CONVERT "${libpaths}" TO_NATIVE_PATH_LIST LIBPATH )
+                "${NCBI_VDB_LIBDIR}"
+                "$<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>"
+                "$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>"
+        )
+        cmake_path( CONVERT "${libpaths}" TO_NATIVE_PATH_LIST LIBPATH )
+    else()
+        set( CLASSPATH "${CMAKE_JAR_OUTPUT_DIRECTORY}/test-ngs-java.jar:${NGS_JAVA_JAR}:${JUNIT_JAR}" )
+        set( LIBPATH "${BINDIR}:${LIBDIR}:${NCBI_VDB_LIBDIR}" )
+    endif()
 
     add_test( NAME Test_NgsJava_lib_load
         COMMAND ${Java_JAVA_EXECUTABLE} -cp "${CLASSPATH}" ${VARS} org.junit.runner.JUnitCore gov.nih.nlm.ncbi.ngs.ngs_test_lib_load

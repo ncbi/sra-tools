@@ -22,36 +22,7 @@
 #
 # ===========================================================================
 
-
-default: subdirs
-
 TOP ?= $(abspath ../../..)
-export TOP
+MODULE = ngs/ngs-sdk/test
 
-SUBDIRS =  \
-	test_engine    \
-	ngs-test
-
-SUBDIRS_CLN = \
-	$(addsuffix _cln,$(SUBDIRS))
-
-SUBDIRS_TST = \
-	$(addsuffix _tst,$(SUBDIRS))
-
-subdirs: $(SUBDIRS)
-
-clean: $(SUBDIRS_CLN)
-
-test runtests: $(SUBDIRS_TST)
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-$(SUBDIRS_CLN):
-	@ $(MAKE) -s -C $(subst _cln,,$@) clean
-
-$(SUBDIRS_TST):
-	@ $(MAKE) -C $(subst _tst,,$@) runtests
-
-.PHONY: default subdirs $(SUBDIRS) $(SUBDIRS_CLN) $(SUBDIRS_TST)
-
+include $(TOP)/build/Makefile.env

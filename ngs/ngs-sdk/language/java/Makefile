@@ -22,58 +22,7 @@
 #
 # ===========================================================================
 
-default: std
-
 TOP ?= $(abspath ../../../..)
-include $(TOP)/build/Makefile.config
-INCDIRS += -I$(TOP)/ngs/ngs-sdk
+MODULE = ngs/ngs-sdk/language/java
 
-INT_LIBS = \
-	ngs-bind-java
-
-EXT_LIBS = \
-
-TARGETS =       \
-	$(INT_LIBS) \
-	$(EXT_LIBS)
-
-all std: $(TARGETS)
-
-clean:
-	rm -rf $(ILIBDIR)/$(LPFX)ngs-bind-java* $(OBJDIR)
-
-.PHONY: default all std $(TARGETS)
-
-#-------------------------------------------------------------------------------
-# ngs-bind-java
-#
-ngs-bind-java: $(ILIBDIR) $(OBJDIR) $(ILIBDIR)/$(LPFX)ngs-bind-java.$(LIBX)
-
-BIND_SRC =      	       \
-	ReadCollectionItf      \
-	ReferenceIteratorItf   \
-	ReferenceItf           \
-	ReferenceSequenceItf   \
-	PileupIteratorItf      \
-	PileupItf              \
-	PileupEventIteratorItf \
-	PileupEventItf         \
-	AlignmentIteratorItf   \
-	AlignmentItf           \
-	ReadGroupIteratorItf   \
-	ReadGroupItf           \
-	ReadIteratorItf        \
-	ReadItf                \
-	FragmentItf            \
-	StatisticsItf          \
-	Package                \
-	String                 \
-	Refcount               \
-	ErrorMsg
-
-
-BIND_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(LOBX),$(addprefix jni_,$(BIND_SRC))))
-
-$(ILIBDIR)/$(LPFX)ngs-bind-java.$(LIBX): $(BIND_OBJ)
-	$(AR) $@ $^
+include $(TOP)/build/Makefile.env

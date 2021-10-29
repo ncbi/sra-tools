@@ -23,9 +23,9 @@ if( HDF5_FOUND )
 		kdf5
 		load
 		${HDF5_LIBRARIES}
-		ncbi-wvdb
-		m
+		${COMMON_LIBS_WRITE}
 	)
 
 	target_link_libraries( pacbio-load ${PACBIO_LOAD_LIB} )
+	MakeLinksExe( pacbio-load true )
 endif()

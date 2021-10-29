@@ -22,58 +22,7 @@
 #
 # ===========================================================================
 
-default: std
-
 TOP ?= $(abspath ../../../..)
-include $(TOP)/build/Makefile.config
-INCDIRS += -I$(TOP)/ngs/ngs-sdk
+MODULE = ngs/ngs-sdk/language/python
 
-INT_LIBS = \
-	ngs-bind-python
-
-EXT_LIBS = \
-
-TARGETS =       \
-	$(INT_LIBS) \
-	$(EXT_LIBS)
-
-all std: $(TARGETS)
-
-clean:
-	rm -rf $(ILIBDIR)/$(LPFX)ngs-bind-python* $(OBJDIR)
-
-.PHONY: default all std $(TARGETS)
-
-#-------------------------------------------------------------------------------
-# ngs-bind-python
-#
-ngs-bind-python: $(ILIBDIR) $(OBJDIR) $(ILIBDIR)/$(LPFX)ngs-bind-python.$(LIBX)
-
-BIND_SRC =                  \
-	AlignmentItf            \
-	AlignmentIteratorItf    \
-	FragmentItf             \
-	FragmentIteratorItf     \
-	PackageItf				\
-	PileupEventItf          \
-	PileupEventIteratorItf  \
-	PileupItf               \
-	PileupIteratorItf       \
-	ReadCollectionItf       \
-	ReadGroupItf            \
-	ReadGroupIteratorItf    \
-	ReadItf                 \
-	ReadIteratorItf         \
-	ReferenceItf            \
-	ReferenceIteratorItf    \
-	ReferenceSequenceItf	\
-	StatisticsItf           \
-	Refcount                \
-	StringItf
-
-
-BIND_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(LOBX),$(addprefix py_,$(BIND_SRC))))
-
-$(ILIBDIR)/$(LPFX)ngs-bind-python.$(LIBX): $(BIND_OBJ)
-	$(AR) $@ $^
+include $(TOP)/build/Makefile.env

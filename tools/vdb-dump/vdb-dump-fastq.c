@@ -1154,7 +1154,7 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
                    if not try with a sub-string */
                 String value;
                 StringInitCString( &value, ctx -> table );
-                if ( !list_contains_value( tbl_names, &value ) )
+                if ( !vdh_list_contains_value( tbl_names, &value ) )
                 {
                     vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
                 }
@@ -1167,7 +1167,7 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
         }
         if ( 0 == rc )
         {
-            rc = open_table_by_path( db, ctx -> table, &fctx -> tbl ); /* vdb-dump-tools.c */
+            rc = vdh_open_table_by_path( db, ctx -> table, &fctx -> tbl ); /* vdb-dump-helper.c */
             if ( 0 == rc )
             {
                 rc = vdb_fastq_tbl( ctx, fctx );
@@ -1501,7 +1501,7 @@ static rc_t vdf_len_spread_db( const p_dump_context ctx, const VDBManager * mgr,
                    if not try with a sub-string */
                 String value;
                 StringInitCString( &value, ctx -> table );
-                if ( !list_contains_value( tbl_names, &value ) )
+                if ( !vdh_list_contains_value( tbl_names, &value ) ) /* vdb-dump-helper.c */
                 {
                     vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
                 }
@@ -1516,7 +1516,7 @@ static rc_t vdf_len_spread_db( const p_dump_context ctx, const VDBManager * mgr,
         if ( rc == 0 )
         {
             const VTable * tbl;
-            rc = open_table_by_path( db, ctx -> table, &tbl ); /* vdb-dump-tools.c */
+            rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* vdb-dump-helper.c */
             if ( 0 == rc )
             {
                 rc = vdf_len_spread_vdbtbl( ctx, tbl, path );

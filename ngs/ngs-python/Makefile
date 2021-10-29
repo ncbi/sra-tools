@@ -22,26 +22,7 @@
 #
 # ===========================================================================
 
-# default response to "make"
-default: std
-
 TOP ?= $(abspath ../..)
+MODULE = ngs/ngs-python
 
-std: subtargs
-
-# the sub-targets
-SUBTARGS =  \
-	dummy
-
-# standard rules and phony targets
-include $(CURDIR)/Makefile.rules
-
-# rules for making python code
-install: $(TOP)/build/Makefile.config
-	@ $(MAKE) -s --no-print-directory -f Makefile.python install
-
-dummy:
-	@ echo "make complete for python"
-
-dummy_cln dummy_inst:
-	@ true
+include $(TOP)/build/Makefile.env

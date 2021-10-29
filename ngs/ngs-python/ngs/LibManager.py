@@ -231,7 +231,7 @@ class LibManager:
         do_update_engine = check_vers_res & 1
         do_update_sdk    = check_vers_res & 2
 
-        libname_engine = "ncbi-vdb"
+        libname_engine = "ncbi-ngs"
         libname_sdk = "ngs-sdk"
 
         self.c_lib_engine = load_library(libname_engine, do_update_engine, silent=False)

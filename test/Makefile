@@ -22,56 +22,7 @@
 #
 # ===========================================================================
 
-by_default: runtests
-
 TOP ?= $(abspath ..)
 MODULE = test
 
-include $(TOP)/build/Makefile.shell
-
-include $(TOP)/build/Makefile.config
-
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	ngs-java        \
-	kdbmeta            \
-	kar             \
-	kget            \
-	copycat         \
-	vdb-config      \
-	vdb-validate      \
-	vdb-dump        \
-	driver-tool     \
-	srapath           \
-	prefetch        \
-	dump-test       \
-	sra-stat        \
-	sra-sort        \
-	sra-pileup      \
-	fastq-loader    \
-	vdb-copy        \
-	vcf-loader      \
-	scripts           \
-	align-info      \
-	align-cache     \
-	read-filter-redact \
-	make-read-filter
-
-# under construction
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
-#   time of slowtests in linux release mode
-# real    4m 0.076s      user    4m22.256s      sys     0m10.707s     sra-sort
-# real    5m21.151s      user    5m59.396s      sys     0m39.296s     fastdump
-# real    6m55.921s      user    6m28.035s      sys     6m58.052s     sra-pileup
-# real  184m21.347s      user   42m19.318s      sys   259m56.028s     fuse
+include $(TOP)/build/Makefile.env

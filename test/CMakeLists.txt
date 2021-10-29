@@ -1,18 +1,11 @@
 # this is where test executables will be created
 # to access tools themselves, use ${BINDIR}
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
 
 set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
-link_libraries( ${COMMON_LINK_LIBRARIES} )
-
-# for the tests that link against libncbi-[w]vdb
-if( WIN32 )
-    set( COMMON_LIBS_READ  ncbi-vdb)
-    set( COMMON_LIBS_WRITE ncbi-wvdb)
-else()
-    set( COMMON_LIBS_READ   ncbi-vdb  dl pthread )
-    set( COMMON_LIBS_WRITE  ncbi-wvdb dl pthread )
-endif()
+#link_libraries( ${COMMON_LINK_LIBRARIES} )
 
 add_subdirectory(align)
 add_subdirectory(align-cache)

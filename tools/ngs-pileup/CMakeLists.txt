@@ -9,7 +9,8 @@ set( NGS_PILEUP_LIBS
 	ncbi-ngs-c++
 	ngs-c++
 	ngs
-	ncbi-vdb
+	${COMMON_LIBS_READ}
 )
 
 target_link_libraries( ngs-pileup ${NGS_PILEUP_LIBS} ${COMMON_LINK_LIBRARIES} )
+MakeLinksExe( ngs-pileup true )

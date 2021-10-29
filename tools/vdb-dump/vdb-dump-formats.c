@@ -178,7 +178,7 @@ static void CC vdfo_print_col_xml( void *item, void *data )
     KOutMsg( " </%s>\n", col_def -> name );
 }
 
-static rc_t vdfo_print_row_xml( const p_row_context r_ctx )
+static rc_t vdfo_print_row_xml( const p_row_context r_ctx, bool first, bool last )
 {
     rc_t rc = vds_clear( &( r_ctx -> s_col ) );
     DISP_RC( rc, "dump_str_clear() failed" )
@@ -197,56 +197,55 @@ static rc_t vdfo_print_row_xml( const p_row_context r_ctx )
 /*************************************************************************************
     JSON
 *************************************************************************************/
-static void CC vdfo_print_col_json( void *item, void *data )
+static bool CC vdfo_print_col_json( void *item, void *data )
 {
-    rc_t rc = 0;
+    /* we do not ( can not ) handle json-specific printing regardin the value */
+    rc_t * rc = ( rc_t * )data;
     p_col_def col_def = ( p_col_def )item;
 
     if ( !( col_def -> valid ) || col_def -> excluded )
     {
-        return;
+        return true;
     }
 
-    if ( ( col_def -> type_desc . domain == vtdAscii )||
-         ( col_def -> type_desc . domain == vtdUnicode ) )
-    {
-        rc = vds_escape( &( col_def -> content ), '"', '\\' );
-        DISP_RC( rc, "dump_str_escape() failed" )
-        if ( 0 == rc)
-        {
-            rc = vds_enclose_string( &( col_def -> content ), '"', '"' );
-            DISP_RC( rc, "dump_str_enclose_string() failed" )
-        }
-    }
-    else
-    {
-        if ( col_def -> type_desc . intrinsic_dim > 1 )
-        {
-            rc = vds_enclose_string( &( col_def -> content ), '[', ']' );
-            DISP_RC( rc, "dump_str_enclose_string() failed" )
-        }
-    }
-
-    if ( 0 == rc )
-        KOutMsg( ",\n\"%s\":%s", col_def -> name, col_def -> content . buf );
+    *rc = KOutMsg( ",\n\"%s\":%s", col_def -> name, col_def -> content . buf );
+    return ( 0 != *rc );
 }
 
-static rc_t vdfo_print_row_json( const p_row_context r_ctx )
+static rc_t vdfo_print_row_json( const p_row_context r_ctx, bool first, bool last )
 {
     rc_t rc = vds_clear( &( r_ctx -> s_col ) );
     DISP_RC( rc, "dump_str_clear() failed" )
+    if ( 0 == rc && first )
+    {
+        rc = KOutMsg( "[\n" );        
+    }
     if ( 0 == rc )
     {
         rc = KOutMsg( "{\n" );
+    }
+    if ( 0 == rc )
+    {
+        rc = KOutMsg( "\"row_id\": %lu", r_ctx -> row_id );
+    }
+    if ( 0 == rc )
+    {
+        VectorDoUntil( &( r_ctx -> col_defs -> cols ), false, vdfo_print_col_json, &rc );
         if ( 0 == rc )
         {
-            rc = KOutMsg( "\"row_id\": %lu", r_ctx -> row_id );
-            if ( 0 == rc )
+            if ( last )
             {
-                VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdfo_print_col_json, r_ctx );
-                rc = KOutMsg( "\n},\n\n" );
+                rc = KOutMsg( "\n}\n" );
+            }
+            else
+            {
+                rc = KOutMsg( "\n},\n" );                        
             }
         }
+    }
+    if ( 0 == rc && last )
+    {
+        rc = KOutMsg( "]\n" );        
     }
     return rc;
 }
@@ -388,15 +387,15 @@ static rc_t vdfo_print_row_tab( const p_row_context r_ctx )
 /*************************************************************************************
     print-format-switch
 *************************************************************************************/
-rc_t vdfo_print_row( const p_row_context r_ctx )
+rc_t vdfo_print_row( const p_row_context r_ctx, bool first, bool last )
 {
     rc_t rc = 0;
     switch( r_ctx -> ctx -> format )
     {
         case df_default     : rc = vdfo_print_row_default( r_ctx ); break;
         case df_csv         : rc = vdfo_print_row_csv( r_ctx ); break;
-        case df_xml         : rc = vdfo_print_row_xml( r_ctx ); break;
-        case df_json        : rc = vdfo_print_row_json( r_ctx ); break;
+        case df_xml         : rc = vdfo_print_row_xml( r_ctx, first, last ); break;
+        case df_json        : rc = vdfo_print_row_json( r_ctx, first, last ); break;
         case df_piped       : rc = vdfo_print_row_piped( r_ctx ); break;
         case df_sra_dump    : rc = vdfo_print_row_sra_dump( r_ctx ); break;
         case df_tab         : rc = vdfo_print_row_tab( r_ctx ); break;

@@ -255,7 +255,7 @@ public:
         }
     }
 
-    bool Parse(bool traceLex = false)
+    bool Parse( bool traceLex = false, bool traceBison = false )
     {
         pb.self = this;
         pb.input = Input;
@@ -272,7 +272,7 @@ public:
             FAIL("ParserFixture::ParserFixture: malloc failed");
         KDataBufferMakeBytes ( & pb.record->source, 0 );
 
-        //FASTQ_debug = 1;
+        FASTQ_debug = traceBison ? 1 : 0;
         FASTQ_ParseBlockInit ( &pb );
         return FASTQ_parse( &pb ) == 1 && pb.record->rej == 0;
     }
@@ -334,6 +334,32 @@ FIXTURE_TEST_CASE(BufferBreakInMultilineQuality, ParserFixture)
     REQUIRE_EQ ( string ( "abcdefggg" ),
                  string ( ( const char *) ( pb . record -> source . base ) + pb . qualityOffset, pb . qualityLength ) );
 }
+
+FIXTURE_TEST_CASE(ReadNumberNotSeparated, ParserFixture)
+{   // VDB-4531
+    char buf[] = "@V/2\nC\n+\nF\nA\n";
+    AddBuffer ( buf );
+    REQUIRE(Parse());
+    REQUIRE_EQ(2, (int)pb.record->seq.readnumber);
+    REQUIRE_EQ(string( "V" ) , string( buf + pb.spotNameOffset, pb.spotNameLength ) );
+}
+
+FIXTURE_TEST_CASE(ReadNumberNotSeparated_Variation, ParserFixture)
+{   // VDB-4531; extra whitespace after the read #
+    char buf[] = "@V/2 \nC\n+\nF\nA\n";
+    AddBuffer ( buf );
+    REQUIRE(Parse());
+    REQUIRE_EQ(2, (int)pb.record->seq.readnumber);
+    REQUIRE_EQ(string( "V" ) , string( buf + pb.spotNameOffset, pb.spotNameLength ) );
+}
+
+FIXTURE_TEST_CASE(BarcodesReadNumbersJunkOhMy, ParserFixture)
+{   // VDB-4532
+    char buf[] = "@SNPSTER4_246_30GCDAAXX_PE:1:1:3:896/1 run=090102_SNPSTER4_0246_30GCDAAXX_PE\nC\n+\nF\n";
+    AddBuffer ( buf );
+    REQUIRE(Parse());
+}
+
 
 //////////////////////////////////////////// Main
 extern "C"

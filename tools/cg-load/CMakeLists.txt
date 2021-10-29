@@ -29,11 +29,12 @@ add_executable( cg-load ${CGLOAD_SRC} )
 
 set( CGLOAD_LIB
 	load
-	ncbi-wvdb
-    ${COMMON_LINK_LIBRARIES}
+	${COMMON_LINK_LIBRARIES}
+	${COMMON_LIBS_WRITE}
 )
 if( NOT WIN32 )
 	list( APPEND CGLOAD_LIB m )
 endif()
 
 target_link_libraries( cg-load ${CGLOAD_LIB} )
+MakeLinksExe( cg-load true )

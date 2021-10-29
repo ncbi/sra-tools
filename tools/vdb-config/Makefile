@@ -22,62 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-config
 
-INT_TOOLS =
-
-EXT_TOOLS = \
-	vdb-config
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-	
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vdb-config
-#
-VDB_CONFIG_SRC = \
-	configure \
-	util \
-	vdb-config \
-	interactive \
-	interactive2 \
-	vdb-config-model \
-
-VDB_CONFIG_OBJ = \
-	$(addsuffix .$(OBJX),$(VDB_CONFIG_SRC))
-
-VDB_CONFIG_LIB = \
-	-stui_cpp    \
-	-stui        \
-	-skapp       \
-	-stk-version \
-	-sncbi-vdb   \
-	-sm
-
-$(BINDIR)/vdb-config: $(VDB_CONFIG_OBJ)
-	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_CONFIG_LIB)

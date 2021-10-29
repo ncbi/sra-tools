@@ -463,22 +463,18 @@ void CCTreePatchSubdirPath ( BSTNode *n, void *data )
     sym -> dad = data;
 }
 
-static
-rc_t CCTreeVInsert ( CCTree *self, KTime_t mtime,
-    enum CCType type, const void *entry, const char *fmt, va_list args )
+rc_t CCTreeInsert ( CCTree *self, KTime_t mtime,
+    enum CCType type, const void *entry, const char *path )
 {
     rc_t rc;
     size_t sz;
     String name;
     CCName *dad, *sym;
 
-    char path [ 4096 ];
-    int i, j, len = vsnprintf ( path, sizeof path, fmt, args );
-    if ( len < 0 || len >= sizeof path )
-        return RC ( rcExe, rcTree, rcInserting, rcPath, rcExcessive );
+    int i, j, len = strlen(path);
 
     while ( len > 0 && path [ len - 1 ] == '/' )
-        path [ -- len ] = 0;
+        --len;
 
     /* create/navigate path */
     for ( dad = NULL, i = 0; i < len; i = j + 1 )
@@ -629,37 +625,20 @@ rc_t CCTreeVInsert ( CCTree *self, KTime_t mtime,
     return rc;
 }
 
-rc_t CCTreeInsert ( CCTree *self, KTime_t mtime,
-    enum CCType type, const void *entry, const char *path, ... )
-{
-    rc_t rc;
-    va_list args;
-
-    va_start ( args, path );
-    rc = CCTreeVInsert ( self, mtime, type, entry, path, args );
-    va_end ( args );
-
-    return rc;
-}
-
 /* Find
  *  find a named node
  *  returns NULL if not found
  */
-static
-const CCName *CCTreeVFind ( const CCTree *self, const char *fmt, va_list args )
+const CCName *CCTreeFind ( const CCTree *self, const char *path )
 {
     size_t sz;
     String name;
     CCName /* *dad, */ *sym;
 
-    char path [ 4096 ];
-    int i, j, len = vsnprintf ( path, sizeof path, fmt, args );
-    if ( len < 0 || len >= sizeof path )
-        return NULL;
+    int i, j, len = strlen(path);
 
     while ( len > 0 && path [ len - 1 ] == '/' )
-        path [ -- len ] = 0;
+        --len;
 
     /* create/navigate path */
     for ( /* dad = NULL, */ i = 0; i < len; i = j + 1 )
@@ -725,20 +704,6 @@ const CCName *CCTreeVFind ( const CCTree *self, const char *fmt, va_list args )
     StringInit ( & name, & path [ i ], sz, string_len ( & path [ i ], sz ) );
     return ( const CCName* ) BSTreeFind ( self, & name, CCNameCmp );
 }
-
-
-const CCName *CCTreeFind ( const CCTree *self, const char *path, ... )
-{
-    va_list args;
-    const CCName *name;
-
-    va_start ( args, path );
-    name = CCTreeVFind ( self, path, args );
-    va_end ( args );
-
-    return name;
-}
-
 
 /* Link
  *  create a symlink to existing node

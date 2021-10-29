@@ -22,30 +22,7 @@
 #
 # ===========================================================================
 
-
-default: subdirs
-
 TOP ?= $(abspath ../../..)
-export TOP
+MODULE = ngs/ngs-sdk/language
 
-SUBDIRS =  \
-	c++    \
-	java   \
-	python
-
-SUBDIRS_CLN = \
-	$(addsuffix _cln,$(SUBDIRS))
-
-subdirs: $(SUBDIRS)
-
-install: $(SUBDIRS_INST)
-
-clean: $(SUBDIRS_CLN)
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-$(SUBDIRS_CLN):
-	@ $(MAKE) -s -C $(subst _cln,,$@) clean
-
-.PHONY: subdirs $(SUBDIRS) $(SUBDIRS_CLN)
+include $(TOP)/build/Makefile.env

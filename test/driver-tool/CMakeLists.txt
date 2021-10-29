@@ -117,5 +117,17 @@ if ( NOT WIN32 )
 		COMMAND help_fastq-dump.sh "${BINDIR}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+	add_test( NAME Test_Drivertool_fasterq-dump_no-fasta
+		COMMAND fasta_er.sh "${BINDIR}" "no_fasta_er" ""
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+	add_test( NAME Test_Drivertool_fasterq-dump_fasta
+		COMMAND fasta_er.sh "${BINDIR}" "fasta_er" "--fasta"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+	add_test( NAME Test_Drivertool_fasterq-dump_fasta-unsorted
+		COMMAND fasta_er.sh "${BINDIR}" "fasta_er_unsorted" "--fasta-unsorted"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 endif()
 endif()

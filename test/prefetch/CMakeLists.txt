@@ -10,7 +10,7 @@ if ( NOT WIN32 )
 	add_executable( test-quality test-quality )
 	target_link_libraries( test-quality ${COMMON_LINK_LIBRARIES} ncbi-vdb )
 
-	add_test( NAME Test_Prefetch
+	add_test( NAME SlowTest_Prefetch
 		COMMAND runtests.sh "${CMAKE_BINARY_DIR}/test-bin/test-quality" "${BINDIR}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

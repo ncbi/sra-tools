@@ -88,8 +88,6 @@ typedef struct join_options
 {
     bool rowid_as_name;
     bool skip_tech;
-    bool print_read_nr;
-    bool print_name;
     bool print_spotgroup;
     bool terminate_on_invalid;
     uint32_t min_read_len;

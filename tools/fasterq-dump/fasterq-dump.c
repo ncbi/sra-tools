@@ -130,19 +130,11 @@ static const char * force_usage[] = { "force to overwrite existing file(s)", NUL
 #define OPTION_FORCE     "force"
 #define ALIAS_FORCE      "f"
 
-static const char * ridn_usage[] = { "use row-id as name", NULL };
-#define OPTION_RIDN      "rowid-as-name"
-#define ALIAS_RIDN       "N"
-
 static const char * skip_tech_usage[] = { "skip technical reads", NULL };
 #define OPTION_SKIP_TECH      "skip-technical"
 
 static const char * incl_tech_usage[] = { "include technical reads", NULL };
 #define OPTION_INCL_TECH      "include-technical"
-
-static const char * print_read_nr[] = { "print read-numbers", NULL };
-#define OPTION_PRNR      "print-read-nr"
-#define ALIAS_PRNR       "P"
 
 static const char * min_rl_usage[] = { "filter by sequence-len", NULL };
 #define OPTION_MINRDLEN  "min-read-len"
@@ -213,10 +205,8 @@ OptDef ToolOptions[] = {
 /*    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
 /*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
     { OPTION_FORCE,         ALIAS_FORCE,        NULL, force_usage,          1, false,  false },
-    { OPTION_RIDN,          ALIAS_RIDN,         NULL, ridn_usage,           1, false,  false },
     { OPTION_SKIP_TECH,     NULL,               NULL, skip_tech_usage,      1, false,  false },
     { OPTION_INCL_TECH,     NULL,               NULL, incl_tech_usage,      1, false,  false },
-    { OPTION_PRNR,          ALIAS_PRNR,         NULL, print_read_nr,        1, false,  false },
     { OPTION_MINRDLEN,      ALIAS_MINRDLEN,     NULL, min_rl_usage,         1, true,   false },
     { OPTION_TABLE,         NULL,               NULL, table_usage,          1, true,   false },
     { OPTION_STRICT,        NULL,               NULL, strict_usage,         1, false,  false },
@@ -429,11 +419,8 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
-
-    tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
+    tool_ctx -> join_options . rowid_as_name = true;
     tool_ctx -> join_options . skip_tech = !( get_bool_option( args, OPTION_INCL_TECH ) );
-    tool_ctx -> join_options . print_read_nr = get_bool_option( args, OPTION_PRNR );
-    tool_ctx -> join_options . print_name = true;
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
 

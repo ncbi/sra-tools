@@ -1471,8 +1471,6 @@ uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count )
 void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present ) {
     dst -> rowid_as_name = name_column_present ? src -> rowid_as_name : true;
     dst -> skip_tech = src -> skip_tech;
-    dst -> print_read_nr = src -> print_read_nr;
-    dst -> print_name = src -> print_name;
     dst -> print_spotgroup = src -> print_spotgroup;
     dst -> min_read_len = src -> min_read_len;
     dst -> filter_bases = src -> filter_bases;

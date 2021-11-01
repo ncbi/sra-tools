@@ -34,20 +34,28 @@
 /* Undocumented macros, especially those whose name start with YY_,
    are private implementation details.  Do not rely on them.  */
 
-#ifndef YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
-# define YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
+#ifndef YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
+# define YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
 /* Debug traces.  */
-#ifndef YYDEBUG
-# define YYDEBUG 0
-#endif
+#ifndef FASTQ_DEBUG
+# if defined YYDEBUG
 #if YYDEBUG
+#   define FASTQ_DEBUG 1
+#  else
+#   define FASTQ_DEBUG 0
+#  endif
+# else /* ! defined YYDEBUG */
+#  define FASTQ_DEBUG 0
+# endif /* ! defined YYDEBUG */
+#endif  /* ! defined FASTQ_DEBUG */
+#if FASTQ_DEBUG
 extern int FASTQ_debug;
 #endif
 
 /* Token type.  */
-#ifndef YYTOKENTYPE
-# define YYTOKENTYPE
-  enum yytokentype
+#ifndef FASTQ_TOKENTYPE
+# define FASTQ_TOKENTYPE
+  enum FASTQ_tokentype
   {
     fqENDOFTEXT = 0,
     fqRUNDOTSPOT = 258,
@@ -66,14 +74,14 @@ extern int FASTQ_debug;
 #endif
 
 /* Value type.  */
-#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef int YYSTYPE;
-# define YYSTYPE_IS_TRIVIAL 1
-# define YYSTYPE_IS_DECLARED 1
+#if ! defined FASTQ_STYPE && ! defined FASTQ_STYPE_IS_DECLARED
+typedef int FASTQ_STYPE;
+# define FASTQ_STYPE_IS_TRIVIAL 1
+# define FASTQ_STYPE_IS_DECLARED 1
 #endif
 
 
 
 int FASTQ_parse (FASTQParseBlock* pb);
 
-#endif /* !YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED  */
+#endif /* !YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED  */

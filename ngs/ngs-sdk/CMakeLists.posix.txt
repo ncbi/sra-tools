@@ -1,0 +1,73 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+
+################################# ngs-c++
+set( NGS_CPP_LIB "" )
+foreach( target ${NGS_CPP_TARGETS})
+    list( APPEND NGS_CPP_LIB "$<TARGET_OBJECTS:${target}>" )
+endforeach()
+
+add_library( ngs-c++ STATIC "${NGS_CPP_LIB}" )
+ExportStatic( ngs-c++ true )
+
+#--------------------------------
+add_library( ngs-c++-shared SHARED "${NGS_CPP_LIB}" )
+set_target_properties( ngs-c++-shared PROPERTIES OUTPUT_NAME ngs-c++ )
+MakeLinksShared( ngs-c++-shared ngs-c++ true )
+
+################################# ngs-sdk
+set( NGS_SDK_LIB "" )
+foreach( target ${NGS_SDK_TARGETS})
+    list( APPEND NGS_SDK_LIB "$<TARGET_OBJECTS:${target}>" )
+endforeach()
+
+add_library( ngs-sdk STATIC "${NGS_SDK_LIB}" )
+ExportStatic( ngs-sdk true )
+
+#--------------------------------
+add_library( ngs-sdk-shared SHARED ${NGS_SDK_LIB} )
+set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
+MakeLinksShared( ngs-sdk-shared ngs-sdk true )
+
+##################################################################################
+# C++/Jni/Py wrappers for libncbi-vdb as a static library
+set( NCBI_NGS_LIB "" )
+foreach( target ${NCBI_NGS_TARGETS})
+    list( APPEND NCBI_NGS_LIB "$<TARGET_OBJECTS:${target}>" )
+endforeach()
+
+add_library( ncbi-ngs STATIC ${NCBI_NGS_LIB} )
+ExportStatic( ncbi-ngs true )
+
+##################################################################################
+# libncbi-ngs is a shared library that includes libncbi-vdb and its C++/Jni/Py wrappers
+#
+# NGS-based C++/Java/Python apps may now link against this library instead of libncbi-vdb
+#
+add_library( ncbi-ngs-shared SHARED ${NCBI_NGS_LIB} )
+target_link_libraries( ncbi-ngs-shared ncbi-vdb ${COMMON_LINK_LIBRARIES} )
+set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
+MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )

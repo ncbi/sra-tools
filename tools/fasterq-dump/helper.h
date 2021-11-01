@@ -146,6 +146,8 @@ format_t get_format_t( const char * format,
 
 compress_t get_compress_t( bool gzip, bool bzip2 );
 
+uint32_t get_env_u32( const char * name, uint32_t dflt );
+    
 struct Args;
 const char * get_str_option( const struct Args *args, const char *name, const char * dflt );
 bool get_bool_option( const struct Args *args, const char *name );

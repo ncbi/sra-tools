@@ -95,6 +95,22 @@ rc_t ErrMsg( const char * fmt, ... ) {
 rc_t CC ArgsOptionCount( const struct Args * self, const char * option_name, uint32_t * count );
 rc_t CC ArgsOptionValue( const struct Args * self, const char * option_name, uint32_t iteration, const void ** value );
 
+uint32_t str_2_u32( const char * s, uint32_t dflt ) {
+    uint32_t res = dflt;
+    if ( NULL != s ) {
+        size_t l = string_size( s );
+        if ( l > 0 ) {
+            char * endptr;
+            res = ( uint32_t )strtol( s, &endptr, 0 );
+        }
+    }
+    return res;
+}
+
+uint32_t get_env_u32( const char * name, uint32_t dflt ) {
+    return str_2_u32( getenv( name ), dflt );
+}
+
 const char * get_str_option( const struct Args *args, const char *name, const char * dflt ) {
     const char* res = dflt;
     uint32_t count;
@@ -126,16 +142,7 @@ uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64
 }
 
 uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt ) {
-    uint32_t res = dflt;
-    const char * s = get_str_option( args, name, NULL );
-    if ( NULL != s ) {
-        size_t l = string_size( s );
-        if ( l > 0 ) {
-            char * endptr;
-            res = ( uint32_t )strtol( s, &endptr, 0 );
-        }
-    }
-    return res;
+    return str_2_u32( get_str_option( args, name, NULL ), dflt );
 }
 
 size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt ) {

@@ -471,9 +471,15 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
 #define MAX_BUF_SIZE ( 1024L * 1024 * 1024 )
 static void encforce_constrains( tool_ctx_t * tool_ctx )
 {
-    if ( tool_ctx -> num_threads < MIN_NUM_THREADS ) {
-        tool_ctx -> num_threads = MIN_NUM_THREADS;
+    uint32_t env_thread_count = get_env_u32( "DLFT_THREAD_COUNT", 0 );
+    if ( env_thread_count > 0  ) {
+        tool_ctx -> num_threads = env_thread_count;
+    } else {
+        if ( tool_ctx -> num_threads < MIN_NUM_THREADS ) {
+            tool_ctx -> num_threads = MIN_NUM_THREADS;
+        }
     }
+
     if ( tool_ctx -> mem_limit < MIN_MEM_LIMIT ) {
         tool_ctx -> mem_limit = MIN_MEM_LIMIT;
     }

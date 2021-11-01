@@ -1012,6 +1012,7 @@ typedef struct join_thread_data_t {
     uint32_t thread_id;
     int64_t first_row;
     uint64_t row_count;
+    uint64_t row_limit;
     size_t cur_cache;
     size_t buf_size;
     format_t fmt;
@@ -1023,9 +1024,14 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     struct filter_2na_t * filter = make_2na_filter( jtd -> join_options -> filter_bases ); /* join_results.c */
-    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr, 
-                        jtd -> accession_short, jtd -> accession_path,
-                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    cmn_iter_params_t cp = {
+        jtd -> dir,
+        jtd -> vdb_mgr, 
+        jtd -> accession_short,
+        jtd -> accession_path,
+        jtd -> first_row,
+        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+        jtd -> cur_cache }; /* helper.h */
     file_printer_args_t file_args;
     flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
     set_file_printer_args( &file_args,
@@ -1126,7 +1132,14 @@ static rc_t extract_sra_row_count( KDirectory * dir,
                                    const char * tbl_name,
                                    size_t cur_cache,
                                    uint64_t * res ) {
-    cmn_iter_params_t cp = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cur_cache }; /* helper.h */
+    cmn_iter_params_t cp = {
+        dir,
+        vdb_mgr,
+        accession_short,
+        accession_path,
+        0,
+        0,
+        cur_cache }; /* helper.h */
     struct fastq_sra_iter_t * iter; 
     fastq_iter_opt_t opt = { false, false, false, false, false };
     rc_t rc = make_fastq_sra_iter( &cp, opt, tbl_name, &iter ); /* fastq_iter.c */
@@ -1210,6 +1223,7 @@ rc_t execute_tbl_join( const execute_tbl_join_args_t * args ) {
                         jtd -> fmt              = args -> fmt;
                         jtd -> join_options     = &corrected_join_options;
                         jtd -> thread_id        = thread_id;
+                        jtd -> row_limit        = args -> row_limit;
 
                         rc = make_joined_filename( args -> temp_dir, jtd -> part_file, sizeof jtd -> part_file,
                                     args -> accession_short, thread_id ); /* temp_dir.c */
@@ -1246,9 +1260,14 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     join_thread_data_t * jtd = data;
     struct fastq_sra_iter_t * iter;
     /* we open an interator on the selected table, and iterate over it */
-    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr, 
-                    jtd -> accession_short, jtd -> accession_path,
-                    jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    cmn_iter_params_t cp = {
+        jtd -> dir,
+        jtd -> vdb_mgr, 
+        jtd -> accession_short,
+        jtd -> accession_path,
+        jtd -> first_row,
+        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+        jtd -> cur_cache };
     fastq_iter_opt_t opt;
     const join_options_t * jo = jtd -> join_options;
     join_stats_t * stats = &( jtd -> stats );
@@ -1385,7 +1404,7 @@ rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args
                     if ( args -> show_progress ) { rc = bg_progress_make( &progress, row_count, 0, 0 ); } /* progress_thread.c */
 
                    for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
-                        join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
+                        join_thread_data_t * jtd = calloc( 1, sizeof * jtd ); /* above */
                         if ( NULL != jtd ) {
                             jtd -> dir              = args -> dir;
                             jtd -> vdb_mgr          = args -> vdb_mgr;
@@ -1402,6 +1421,7 @@ rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args
                             jtd -> join_options     = &corrected_join_options;
                             jtd -> part_file[ 0 ]   = 0; /* we are not using a part-file */
                             jtd -> multi_writer     = multi_writer;
+                            jtd -> row_limit        = args -> row_limit;
 
                             rc = helper_make_thread( &( jtd -> thread ), unsorted_fasta_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
                             if ( 0 != rc ) {

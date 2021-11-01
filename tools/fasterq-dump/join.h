@@ -71,6 +71,7 @@ typedef struct execute_db_join_args_t {
     size_t cursor_cache;
     size_t buf_size;
     uint32_t num_threads;
+    uint64_t row_limit;
     bool show_progress;
     format_t fmt;
 } execute_db_join_args_t;
@@ -107,6 +108,7 @@ typedef struct execute_unsorted_fasta_db_join_args_t {
     size_t cur_cache;                       /* size of cursor-cache for vdb-cursor */
     size_t buf_size;                        /* size of buffer-file for output-writing */
     uint32_t num_threads;                   /* how many threads to use */
+    uint64_t row_limit;
     bool show_progress;                     /* display progressbar */
     bool force;                             /* overwrite output-file if it exists */
     bool only_unaligned;                    /* process only un-aligned reads */

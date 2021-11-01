@@ -180,6 +180,10 @@ static const char * only_a_usage[] = { "process only aligned reads", NULL };
 #define OPTION_ONLY_ALIG        "only-aligned"
 #define ALIAS_ONLY_ALIG         "a"
 
+static const char * limit_usage[] = { "limit rowcount per thread", NULL };
+#define OPTION_LIMIT            "limit"
+#define ALIAS_LIMIT             "l"
+
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
 
@@ -214,10 +218,11 @@ OptDef ToolOptions[] = {
     { OPTION_APPEND,        ALIAS_APPEND,       NULL, append_usage,         1, false,  false },
     { OPTION_FASTA,         NULL,               NULL, fasta_usage,          1, false,  false },
     { OPTION_FASTA_US,      NULL,               NULL, fasta_us_usage,       1, false,  false },
-    { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,  false },
-    { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,  false },
+    { OPTION_SEQ_DEFLINE,   NULL,               NULL, seq_defline_usage,    1, true,   false },
+    { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,   false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
     { OPTION_ONLY_ALIG,     ALIAS_ONLY_ALIG,    NULL, only_a_usage,         1, false,  false },
+    { OPTION_LIMIT,         ALIAS_LIMIT,        NULL, limit_usage,          1, true,   false },    
     { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
 };
 
@@ -305,6 +310,7 @@ typedef struct tool_ctx_t {
 
     uint32_t num_threads /*, max_fds */;
     uint64_t total_ram;
+    uint64_t row_limit;
     
     format_t fmt; /* helper.h */
 
@@ -341,6 +347,9 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "row-limit    : %lu\n", tool_ctx -> row_limit );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "scratch-path : '%s'\n", get_temp_dir( tool_ctx -> temp_dir ) );
@@ -418,6 +427,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> output_dirname = get_str_option( args, OPTION_OUTPUT_D, NULL );
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
+    tool_ctx -> row_limit = get_uint64_t_option( args, OPTION_LIMIT, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
     tool_ctx -> join_options . rowid_as_name = true;
     tool_ctx -> join_options . skip_tech = !( get_bool_option( args, OPTION_INCL_TECH ) );
@@ -896,6 +906,7 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
     args . cursor_cache = tool_ctx -> cursor_cache;
     args . buf_size = tool_ctx -> buf_size;
     args . num_threads = tool_ctx -> num_threads;
+    args . row_limit = tool_ctx -> row_limit;
     args . show_progress = tool_ctx -> show_progress;
     args . fmt = tool_ctx -> fmt;
 
@@ -1021,6 +1032,7 @@ static rc_t process_csra( tool_ctx_t * tool_ctx ) {
         args . cur_cache = tool_ctx -> cursor_cache;
         args . buf_size = tool_ctx -> buf_size;
         args . num_threads = tool_ctx -> num_threads;
+        args . row_limit = tool_ctx -> row_limit;
         args . show_progress = tool_ctx -> show_progress;
         args . force = tool_ctx -> force;
         args . only_unaligned = tool_ctx -> only_unaligned;
@@ -1053,7 +1065,7 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* this is the 'special' unsorted FASTA for flat tables */
-        execute_fasta_tbl_join_args_t args;
+        execute_fasta_tbl_join_args_t args; /* tbl_join.h */
         args . dir = tool_ctx -> dir;
         args . vdb_mgr = tool_ctx -> vdb_mgr;
         args . accession_short = tool_ctx -> accession_short;
@@ -1068,6 +1080,7 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
         args . num_threads = tool_ctx -> num_threads;
         args . show_progress = tool_ctx -> show_progress;
         args . force = tool_ctx -> force;
+        args . row_limit = tool_ctx -> row_limit;
         rc = execute_unsorted_fasta_tbl_join( &args ); /* tbl_join.c */
     } else {
         /* this is for 'sorted' SPECIAL/FASTQ/FASTA x whole-spot/split-spot/split-file/split-3
@@ -1095,6 +1108,7 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
             args . num_threads = tool_ctx -> num_threads;
             args . show_progress = tool_ctx -> show_progress;
             args . fmt = tool_ctx -> fmt;
+            args . row_limit = tool_ctx -> row_limit;
             rc = execute_tbl_join( &args ); /* tbl_join.c */
         }
 

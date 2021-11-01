@@ -70,6 +70,7 @@ typedef struct execute_tbl_join_args_t {
     size_t cursor_cache;
     size_t buf_size;
     uint32_t num_threads;
+    uint64_t row_limit;
     bool show_progress;
     format_t fmt;                       /* helper.h */
 } execute_tbl_join_args_t;
@@ -89,6 +90,7 @@ typedef struct execute_fasta_tbl_join_args_t {
     size_t cursor_cache;
     size_t buf_size;
     uint32_t num_threads;
+    uint64_t row_limit;
     bool show_progress;
     bool force;
 } execute_fasta_tbl_join_args_t;

@@ -95,7 +95,7 @@ rc_t ErrMsg( const char * fmt, ... ) {
 rc_t CC ArgsOptionCount( const struct Args * self, const char * option_name, uint32_t * count );
 rc_t CC ArgsOptionValue( const struct Args * self, const char * option_name, uint32_t iteration, const void ** value );
 
-uint32_t str_2_u32( const char * s, uint32_t dflt ) {
+static uint32_t str_2_u32( const char * s, uint32_t dflt ) {
     uint32_t res = dflt;
     if ( NULL != s ) {
         size_t l = string_size( s );

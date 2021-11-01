@@ -1493,6 +1493,7 @@ typedef struct join_thread_data {
     
     int64_t first_row;
     uint64_t row_count;
+    uint64_t row_limit;
     size_t cur_cache;
     size_t buf_size;
     format_t fmt;
@@ -1527,9 +1528,14 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
                 is_format_fasta( jtd -> fmt ) );    /* fasta-mode */
     if ( 0 == rc && NULL != flex_printer ) {
         join_t j;
-        cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
-                          jtd -> accession_short, jtd -> accession_path,
-                          jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+        cmn_iter_params_t cp = {
+            jtd -> dir,
+            jtd -> vdb_mgr,
+            jtd -> accession_short,
+            jtd -> accession_path,
+            jtd -> first_row,
+            jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+            jtd -> cur_cache };
         rc = init_join( &cp,
                         flex_printer,
                         filter,
@@ -1675,6 +1681,7 @@ rc_t execute_db_join( const execute_db_join_args_t * args ) {
                     jtd -> index_filename   = args -> index_filename;
                     jtd -> first_row        = row;
                     jtd -> row_count        = rows_per_thread;
+                    jtd -> row_limit        = args -> row_limit;
                     jtd -> cur_cache        = args -> cursor_cache;
                     jtd -> buf_size         = args -> buf_size;
                     jtd -> progress         = progress;
@@ -1805,9 +1812,14 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     join_stats_t * stats = &( jtd -> stats );
-    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
-                        jtd -> accession_short, jtd -> accession_path,
-                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    cmn_iter_params_t cp = {
+        jtd -> dir,
+        jtd -> vdb_mgr,
+        jtd -> accession_short,
+        jtd -> accession_path,
+        jtd -> first_row,
+        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+        jtd -> cur_cache };
     struct align_iter_t * iter;
     uint64_t loop_nr = 0;
     struct flex_printer_t * flex_printer;
@@ -1882,6 +1894,7 @@ static rc_t start_unsorted_fasta_db_join_align( KDirectory * dir,
                     uint32_t num_threads,
                     const join_options_t * join_options,
                     uint64_t row_count,
+                    uint64_t row_limit,
                     struct bg_progress_t * progress,
                     struct multi_writer_t * multi_writer,
                     struct filter_2na_t * filter,
@@ -1904,6 +1917,7 @@ static rc_t start_unsorted_fasta_db_join_align( KDirectory * dir,
             jtd -> seq_defline      = seq_defline;
             jtd -> first_row        = row;
             jtd -> row_count        = rows_per_thread;
+            jtd -> row_limit        = row_limit;
             jtd -> cur_cache        = cur_cache;
             jtd -> buf_size         = buf_size;
             jtd -> progress         = progress;
@@ -1937,9 +1951,14 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
     join_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
     join_stats_t * stats = &( jtd -> stats );
-    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
-                        jtd -> accession_short, jtd -> accession_path,
-                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    cmn_iter_params_t cp = {
+        jtd -> dir,
+        jtd -> vdb_mgr,
+        jtd -> accession_short,
+        jtd -> accession_path,
+        jtd -> first_row,
+        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+        jtd -> cur_cache };
     struct fastq_csra_iter_t * iter;
     uint64_t loop_nr = 0;
     fastq_iter_opt_t opt;
@@ -2036,6 +2055,7 @@ static rc_t start_unsorted_fasta_db_join_seq( KDirectory * dir,
                     uint32_t num_threads,
                     const join_options_t * join_options,
                     uint64_t seq_row_count,
+                    uint64_t row_limit,
                     bool cmp_read_column_present,
                     struct bg_progress_t * progress,
                     struct multi_writer_t * multi_writer,
@@ -2059,6 +2079,7 @@ static rc_t start_unsorted_fasta_db_join_seq( KDirectory * dir,
             jtd -> seq_defline      = seq_defline;
             jtd -> first_row        = row;
             jtd -> row_count        = rows_per_thread;
+            jtd -> row_limit        = row_limit;
             jtd -> cur_cache        = cur_cache;
             jtd -> buf_size         = buf_size;
             jtd -> progress         = progress;
@@ -2154,6 +2175,7 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
                                             num_threads2,
                                             args -> join_options,
                                             seq_row_count,
+                                            args -> row_limit,
                                             cmp_read_column_present,
                                             progress,
                                             multi_writer,
@@ -2174,6 +2196,7 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
                                         num_threads2,
                                         args -> join_options,
                                         align_row_count,
+                                        args -> row_limit,
                                         progress,
                                         multi_writer,
                                         filter,

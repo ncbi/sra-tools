@@ -67,13 +67,14 @@ class fastq_reader
 {
 public:    
 
-    fastq_reader(const string& file_name, shared_ptr<istream> _stream,  vector<char> read_type = {'B'}, bool match_all = false) 
+    fastq_reader(const string& file_name, shared_ptr<istream> _stream, vector<char> read_type = {'B'}, int platform = 0, bool match_all = false) 
         : m_file_name(file_name)
         , m_stream(_stream)
         , m_read_type(read_type)
+        , m_validator(eNoValidator)
         , m_read_type_sz(m_read_type.size())
+        , m_curr_platform(platform)
     {
-        //m_stream->exceptions(std::ifstream::failbit | std::ifstream::badbit);
         m_stream->exceptions(std::ifstream::badbit);
         if (match_all)
             m_defline_parser.SetMatchAll();
@@ -106,7 +107,7 @@ public:
      */
 
     bool get_spot(const string& spot_name, vector<CFastqRead>& reads);
-    void set_qual_validator(bool is_numeric, int min_score, int max_score);
+    void set_validator(bool is_numeric, int min_score, int max_score);
 
     bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true file has no more reads
     size_t line_number() const { return m_line_number; } ///< Returns current line number (1-based)
@@ -126,10 +127,13 @@ public:
     } 
 
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
+
+    void dummy_validator(CFastqRead& read);//, pair<int, int>& expected_range, string& tmp_str);
+    void num_qual_validator(CFastqRead& read);
+    void char_qual_validator(CFastqRead& read);
+
 private:
-    static void dummy_validator(CFastqRead& read, pair<int, int>& expected_range, string& tmp_str);
-    static void num_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& tmp_str);
-    static void char_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& tmp_str);
+    enum EValidator {eNoValidator, eNumeric, ePhred} ;
 
     CDefLineParser      m_defline_parser;       ///< Defline parser 
     string              m_file_name;            ///< Corresponding file name
@@ -141,13 +145,14 @@ private:
     vector<CFastqRead>  m_pending_spot;         ///< Partial spot with the first read only 
     bool                m_is_qual_score_numeric = true; ///< Quality score is numeric and qual score size == sequence size
     using TQualScoreRange = pair<int, int>;
-    TQualScoreRange     m_qual_score_range = {33, 74};       ///< Expected quality score range
-    using TTmpStr = string;
-    function<void(CFastqRead&, TQualScoreRange&, TTmpStr&)> m_qual_validator = dummy_validator; ///< Quality score validator function
+    TQualScoreRange     m_qual_score_range = {33, 126};       ///< Expected quality score range
+    EValidator          m_validator{eNoValidator};
     string              m_line;
     string_view         m_line_view;
     string              m_tmp_str;
     int                 m_read_type_sz = 0;
+    int                 m_curr_platform = 0;     ///< current platform
+
 };
 
 //  ----------------------------------------------------------------------------
@@ -294,7 +299,16 @@ bool fastq_reader::get_read(CFastqRead& read)
     try {
         if (!parse_read(read))
             return false;
-        m_qual_validator(read, m_qual_score_range, m_tmp_str);
+        switch (m_validator) {
+            case eNumeric:
+                num_qual_validator(read);
+                break;
+            case ePhred:
+                char_qual_validator(read);
+                break;
+            default:
+                dummy_validator(read);
+        }
     } catch (fastq_error& e) {
         e.set_file(m_file_name, read.LineNumber());
         throw;
@@ -365,32 +379,35 @@ bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
     return false;
 }
 
-void fastq_reader::dummy_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
+void fastq_reader::dummy_validator(CFastqRead& read) 
 {
     return;
 }
 
 //  ----------------------------------------------------------------------------    
-void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
+void fastq_reader::num_qual_validator(CFastqRead& read)
 {
-    str.clear();
+    if (m_curr_platform != m_defline_parser.GetPlatform()) 
+        throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", m_curr_platform, m_defline_parser.GetPlatform());
+
+    m_tmp_str.clear();
     read.mQualScores.clear();
     for (auto c : read.mQuality) {
         if (isspace(c)) {
-            if (!str.empty()) {
-                uint8_t score = stoi(str);
-                if (!(score >= expected_range.first && score <= expected_range.second)) 
+            if (!m_tmp_str.empty()) {
+                uint8_t score = stoi(m_tmp_str);
+                if (!(score >= m_qual_score_range.first && score <= m_qual_score_range.second)) 
                     throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
                 read.mQualScores.push_back(score);
-                str.clear();
+                m_tmp_str.clear();
             }
             continue;
         }
-        str.append(1, c);
+        m_tmp_str.append(1, c);
     }
-    if (!str.empty()) {
-        int score = stoi(str);
-        if (!(score >= expected_range.first && score <= expected_range.second)) 
+    if (!m_tmp_str.empty()) {
+        int score = stoi(m_tmp_str);
+        if (!(score >= m_qual_score_range.first && score <= m_qual_score_range.second)) 
             throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
         read.mQualScores.push_back(score);
     }
@@ -402,17 +419,20 @@ void fastq_reader::num_qual_validator(CFastqRead& read, pair<int, int>& expected
 
     while (qual_size < sz) {
         read.mQuality += " ";
-        read.mQuality += to_string(expected_range.first + 30);
-        read.mQualScores.push_back(expected_range.first + 30);
+        read.mQuality += to_string(m_qual_score_range.first + 30);
+        read.mQualScores.push_back(m_qual_score_range.first + 30);
         ++qual_size;
     }
 }
 
 
 //  ----------------------------------------------------------------------------    
-void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expected_range, string& str)
+void fastq_reader::char_qual_validator(CFastqRead& read)
 {
-    str.clear();
+    if (m_curr_platform != m_defline_parser.GetPlatform()) 
+        throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", m_curr_platform, m_defline_parser.GetPlatform());
+
+    m_tmp_str.clear();
     read.mQualScores.clear();
 
     auto qual_size = read.mQuality.size();
@@ -422,23 +442,23 @@ void fastq_reader::char_qual_validator(CFastqRead& read, pair<int, int>& expecte
 
     for (auto c : read.mQuality) {
         int score = int(c);
-        if (!(score >= expected_range.first && score <= expected_range.second)) 
+        if (!(score >= m_qual_score_range.first && score <= m_qual_score_range.second)) 
             throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
     }
     if (qual_size < sz) {
         if (qual_size == 0)
             throw fastq_error(111, "Read {}: no quality scores", read.Spot());
-        read.mQuality.append(sz - qual_size,  char(expected_range.first + 30));
+        read.mQuality.append(sz - qual_size,  char(m_qual_score_range.first + 30));
     }
 }
 
 
 //  ----------------------------------------------------------------------------    
-void fastq_reader::set_qual_validator(bool is_numeric, int min_score, int max_score) 
+void fastq_reader::set_validator(bool is_numeric, int min_score, int max_score) 
 {
-    m_qual_validator = is_numeric ? num_qual_validator : char_qual_validator;
     m_qual_score_range = pair<int, int>(min_score, max_score);
     m_is_qual_score_numeric = is_numeric;
+    m_validator = is_numeric ? eNumeric : ePhred; 
 }
 
 
@@ -490,7 +510,7 @@ void fastq_parser<TWriter>::parse()
                 check_readers = num_readers > 1 && m_allow_early_end == false;
                 continue;
             }
-    
+
             has_spots = true;
             for (int j = 0; j < num_readers; ++j) {
                 if (j == i) continue;
@@ -861,21 +881,34 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
     // and setup read_types and platform if needed
     CFastqRead read;
     // 10x pattern
-    re2::RE2 re_10x("_[I|R]\\d+[\\._]");
-    assert(re_10x.ok());
+    re2::RE2 re_10x_I("[_|-]I\\d+[\\._]");
+    assert(re_10x_I.ok());
+    re2::RE2 re_10x_R("[_|-]R\\d+[\\._]");
+    assert(re_10x_R.ok());
+    bool has_I_file = false;
+    bool has_R_file = false;
+    bool has_non_10x_files = false;
     for (auto& files : input_batches) {
         json group_j;
         size_t estimated_spots = 0;
+        int group_reads = 0;
         for (const auto& fn  : files) {
             json f;
             size_t reads_processed = 0;
             size_t spots_processed = 0;
-            size_t reads_size = 0;
             size_t spot_name_sz = 0;
-            f["name"] = fn;
+            set<string> deflines_types;
+            set<int> platforms;
+
+            f["file_path"] = fn;
             auto file_size = fs::file_size(fn);
             f["file_size"] = file_size;
-            f["is_10x"] = re2::RE2::PartialMatch(fn, re_10x); 
+            if (re2::RE2::PartialMatch(fn, re_10x_I))
+                has_I_file = true;
+            else if (re2::RE2::PartialMatch(fn, re_10x_R))
+                has_R_file = true;
+            else 
+                has_non_10x_files = true;
 
             fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, true);
             vector<CFastqRead> reads;
@@ -900,18 +933,26 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                     throw;
                 }
             }
-            f["defline_type"] = reader.defline_type();
             string suffix = reads.empty() ? "" : reads.front().Suffix();
             spot_name += suffix;
-            f["top_spot"] = spot_name;
+            f["first_name"] = spot_name;
             spot_name_sz += spot_name.size();
-            auto platform = reader.platform();
-            f["platform_code"] = platform;
-            for (int i = 0; i < num_reads_to_check - 1; ++i) {
+                
+            while (true) {
+                auto def_it = deflines_types.insert(reader.defline_type());
+                if (def_it.second)
+                    f["defline_type"].push_back(reader.defline_type());
+                auto platform_it = platforms.insert(reader.platform());
+                if (platform_it.second)
+                    f["platform_code"].push_back(reader.platform());
+                if (num_reads_to_check != -1) {
+                    --num_reads_to_check;
+                    if (num_reads_to_check <=0)
+                        break;
+                }
                 reads.clear();
                 if (!reader.get_next_spot(spot_name, reads))
                     break;
-
                 ++spots_processed;
                 reads_processed += reads.size();
                 if (max_reads > (int)reads.size()) {
@@ -930,18 +971,24 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                         throw;
                     }
                 }
-                if (platform != reader.platform()) 
-                    throw fastq_error(70, "Input files have deflines from different platforms {} != {}", platform, reader.platform());
+                //if (platform != reader.platform()) 
+                //    throw fastq_error(70, "Input files have deflines from different platforms {} != {}", platform, reader.platform());
             }
             if (params.space_delimited) {
                 f["quality_encoding"] = 0;
-            } else if (params.min_score >= 33 && params.max_score <= 74) {
-                f["quality_encoding"] = 33;
-            } else if (params.min_score >= 64 && params.min_score <= 105) {
+            } else if (params.min_score >= 64 && params.max_score > 78) {
                 f["quality_encoding"] = 64;
+            } else if (params.min_score >= 33 && params.max_score <= 78) {
+                f["quality_encoding"] = 33;
+            } else {
+                fastq_error e("Invaid quality encoding (min: {}, max: {})", params.min_score, params.max_score);
+                e.set_file(fn, read.LineNumber());
+                throw e;
+
             }
 
             f["readNums"] = read_names;
+            group_reads += max_reads;
             f["max_reads"] = max_reads;
             f["has_orphans"] = has_orphans;
             f["reads_processed"] = reads_processed;
@@ -952,10 +999,13 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                 double fsize = file_size;
                 double bytes_per_spot = bytes_read/spots_processed;
                 estimated_spots = max<size_t>(fsize/bytes_per_spot, estimated_spots);
-                f["spot_size_avg"] = spot_name_sz/spots_processed;
+                f["name_size_avg"] = spot_name_sz/spots_processed;
             }
             group_j["files"].push_back(f);
         }
+        group_j["is_10x"] = group_reads >= 3 && has_I_file && has_R_file;
+        if (has_non_10x_files && group_j["is_10x"])
+            throw fastq_error(80);// "Inconsistent submission: 10x submissions are mixed with different types.");            
         group_j["estimated_spots"] = estimated_spots;
         j["groups"].push_back(group_j);
     }
@@ -966,18 +1016,18 @@ void fastq_parser<TWriter>::set_readers(json& group)
 {
     m_readers.clear();
     for (auto& data : group["files"]) {
-        const string& name = data["name"];
-        m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), data["readType"]);
+        const string& name = data["file_path"];
+        m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), data["readType"], data["platform_code"].front());
         auto& reader = m_readers.back();
         switch ((int)data["quality_encoding"]) {
             case 0: 
-                reader.set_qual_validator(true, -5, 40); 
+                reader.set_validator(true, -5, 40); 
                 break;
             case 33: 
-                reader.set_qual_validator(false, 33, 74); 
+                reader.set_validator(false, 33, 126); 
                 break;
             case 64: 
-                reader.set_qual_validator(false, 64, 105); 
+                reader.set_validator(false, 64, 126); 
                 break;
             default:
                 throw runtime_error("Invaid quality encoding");

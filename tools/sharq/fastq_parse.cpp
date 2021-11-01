@@ -84,7 +84,7 @@ private:
     bool mDiscardNames{false};
     bool mAllowEarlyFileEnd{false}; ///< Flag to continue if one of the streams ends
     int mQuality{-1};               ///< quality score interpretation (0, 33, 64)
-    bool mDigest{false};            ///< Flag to produce summary of input
+    int mDigest{0};                 ///< Numberof dogest lines to produce 
     string mSpotFile;
     string mNameColumn;             ///< NAME column's name
     ostream* mpOutStr{nullptr};
@@ -140,31 +140,25 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         string read_types;
         app.add_option("--readTypes", read_types, "file read types <B|T(s)>");
 
-        app.add_option("--useAndDiscardNames", mDiscardNames, "Discard file names (Boolean)");
+        app.add_flag("--useAndDiscardNames", mDiscardNames, "Discard file names");
 
         app.add_flag("--allowEarlyFileEnd", mAllowEarlyFileEnd, "Complete load at early end of one of the files");
-
-        app.add_flag("--debug", mDebug, "Debug mode");
 
         bool print_errors = false;
         app.add_flag("--help_errors,--help-errors", print_errors, "Print error codes and descriptions");
 
-        bool no_timestamp = false;
-        app.add_flag("--no-timestamp", no_timestamp, "No time stamp in debug mode");
-
-        string log_level = "info";
-        app.add_option("--log-level", log_level, "Log level")
-            ->default_val("info")
-            ->check(CLI::IsMember({"trace", "debug", "info", "warning", "error"}));
-
-        string hash_file;
-        app.add_option("--hash", hash_file, "Check hash file");
-        app.add_option("--spot_file", mSpotFile, "Save spot names");
-
         app.add_option("--name-column", mNameColumn, "Database name for NAME column")
             ->default_str("NAME")
             ->default_val("NAME")
+            ->excludes("--useAndDiscardNames")
             ->check(CLI::IsMember({"NONE", "NAME", "RAW_NAME"}));
+
+        mQuality = -1;
+        app.add_option("--quality,-q", mQuality, "Interpretation of ascii quality")
+            ->check(CLI::IsMember({0, 33, 64}));
+
+        mDigest = 0;
+        app.add_flag("--digest{500000}", mDigest, "Report summary of input data (set optional value to indicate the number of spots to analyze)");
 
         vector<string> read_pairs(4);
         app.add_option("--read1PairFiles", read_pairs[0], "Read 1 files");
@@ -175,20 +169,28 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         vector<string> input_files;
         app.add_option("files", input_files, "FastQ files to parse");
 
-        mQuality = -1;
-        app.add_option("--quality,-q", mQuality, "Interpretation of ascii quality")
-            ->check(CLI::IsMember({0, 33, 64}));
+        auto opt = app.add_option_group("Debugging options");
+        bool no_timestamp = false;
+        opt->add_flag("--no-timestamp", no_timestamp, "No time stamp in debug mode");
 
-        mDigest = false;
-        app.add_flag("--digest", mDigest, "Summary of input files");
+        string log_level = "info";
+        opt->add_option("--log-level", log_level, "Log level")
+            ->default_val("info")
+            ->check(CLI::IsMember({"trace", "debug", "info", "warning", "error"}));
+
+        string hash_file;
+        opt->add_option("--hash", hash_file, "Check hash file");
+        opt->add_option("--spot_file", mSpotFile, "Save spot names");
+        opt->add_flag("--debug", mDebug, "Debug mode");
 
         CLI11_PARSE(app, argc, argv);
         if (print_errors) {
             fastq_error::print_error_codes(cout);
             return 0;
         }
-
-        if (mDigest) 
+        if (mDigest < 0)
+            mDigest = -1;
+        if (mDigest != 0) 
             spdlog::set_level(spdlog::level::from_str("error"));
         else    
             spdlog::set_level(spdlog::level::from_str(log_level));
@@ -198,8 +200,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
             return 0;
         }
 
+        if (mDiscardNames) 
+            mNameColumn = "NONE";
+
         xSetupOutput();
-        if (mDigest == false) {
+        if (mDigest == 0) {
             if (mDebug) {
                 m_writer = make_shared<fastq_writer>();
                 if (no_timestamp)
@@ -216,7 +221,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         copy(read_types.begin(), read_types.end(), back_inserter(mReadTypes));
 
         if (!read_pairs[0].empty()) {
-            if (mDigest == false && mReadTypes.empty())
+            if (mDigest == 0 && mReadTypes.empty())
                 throw fastq_error(20, "No readTypes provided");
             for (auto p : read_pairs) {
                 vector<string> b;
@@ -276,7 +281,7 @@ void CFastqParseApp::xCheckInputFiles(vector<string>& files)
 //  ----------------------------------------------------------------------------
 int CFastqParseApp::Run()
 {
-    int retStatus = mDigest ? xRunDigest() : xRun();
+    int retStatus = mDigest != 0 ? xRunDigest() : xRun();
     xBreakdownOutput();
     return retStatus;
 }
@@ -287,20 +292,25 @@ void CFastqParseApp::xProcessDigest(json& data)
     assert(data.contains("groups"));
     assert(data["groups"].front().contains("files"));
     const auto& first = data["groups"].front()["files"].front();
-    int platform = first["platform_code"];
-    bool is10x = first["is_10x"];
+    if (first["platform_code"].size() > 1)       
+        throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", first["platform_code"][0], first["platform_code"][1]);
+    bool is10x = data["groups"].front()["is_10x"];
+    int platform = first["platform_code"].front();
     int total_reads = 0;
     for (auto& gr : data["groups"]) {
         int max_reads = 0;
         int group_reads = 0;
+        if (gr["is_10x"] != is10x)
+            throw fastq_error(80);// "Inconsistent submission: 10x submissions are mixed with different types.");            
+
         auto& files = gr["files"];
         for (auto& f : files) {
             if (mQuality != -1) 
                 f["quality_encoding"] = mQuality; // Override quality
-           if (platform != f["platform_code"]) 
-                throw fastq_error(70, "Input files have deflines from different platforms {} != {}", platform, int(f["platform_code"]));
-            if (is10x != f["is_10x"]) 
-                throw fastq_error(80);// "Inconsistent submission: 10x submissions are mixed with different types.");
+            if (f["platform_code"].size() > 1)       
+                throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", f["platform_code"][0], f["platform_code"][1]);
+           if (platform != f["platform_code"].front()) 
+                throw fastq_error(70, "Input files have deflines from different platforms ({} != {})", platform, int(f["platform_code"].front()));
             max_reads = max<int>(max_reads, f["max_reads"]); 
             group_reads += (int)f["max_reads"];
 
@@ -328,6 +338,7 @@ void CFastqParseApp::xProcessDigest(json& data)
         total_reads = max<int>(group_reads, total_reads);
         gr["total_reads"] = total_reads;
     } 
+
     if (mReadTypes.empty()) {
         //auto num_files = data["groups"].front().size();
         if (is10x) 
@@ -369,7 +380,7 @@ void CFastqParseApp::xProcessDigest(json& data)
     default:
         throw runtime_error("Invaid quality encoding");
     }    
-    m_writer->set_attr("platform", to_string(first["platform_code"]));
+    m_writer->set_attr("platform", to_string(first["platform_code"].front()));
 
 }
 
@@ -383,7 +394,7 @@ int CFastqParseApp::xRunDigest()
     json j;
     string error;
     try {
-        get_digest(j, mInputBatches, 500000);
+        get_digest(j, mInputBatches, mDigest);
     } catch (fastq_error& e) {
         error = e.Message();
     } catch(std::exception const& e) {

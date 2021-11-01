@@ -43,9 +43,7 @@ class generic_writer
 {
 public: 
     void set_platform(uint8_t platform) {}
-//  -----------------------------------------------------------------------------
     void write_spot(const vector<CFastqRead>& reads)
-//  -----------------------------------------------------------------------------
     {
         if (reads.empty())
             return;
@@ -188,17 +186,21 @@ void fastq_writer_vdb::open()
 //  -----------------------------------------------------------------------------
 {
     static const string cSCHEMA = "sra/generic-fastq.vschema";
-    static const string cDB = "NCBI:SRA:GenericFastq:db";
+    static const string cGENERIC_DB = "NCBI:SRA:GenericFastq:db";
+    static const string cILLUMINA_DB = "NCBI:SRA:Illumina:db";
+    
 
     string name_column_expression = "RAW_NAME";
+    string name_column = "RAW_NAME";
     {
         auto name_column_it = m_attr.find("name_column");
         if (name_column_it != m_attr.end()) {
-            const auto& name_column = name_column_it->second;
-            if (name_column == "RAW_NAME" || name_column == "NAME") {
+            name_column = name_column_it->second;
+            name_column_expression.clear();
+            if (name_column == "NAME") {
                 name_column_expression = "(ascii)";
-                name_column_expression = name_column;
             }
+            name_column_expression += name_column;
         }
     }
 
@@ -217,6 +219,12 @@ void fastq_writer_vdb::open()
         }
     }
 
+    string db = cGENERIC_DB;
+    // use Illumina DB for illumina with standard NAME column
+    if (m_platform == 2 && name_column == "NAME") //SRA_PLATFORM_ILLUMINA = 2
+        db = cILLUMINA_DB;
+    
+
     string destination{"sra.out"};
     {
         auto dest_it = m_attr.find("destination");
@@ -226,7 +234,7 @@ void fastq_writer_vdb::open()
     }
 
     m_writer->destination(destination); 
-    m_writer->schema(cSCHEMA, cDB);
+    m_writer->schema(cSCHEMA, db);
     m_writer->info("sharq", "1.0");
 
     m_writer->addTable("SEQUENCE", {

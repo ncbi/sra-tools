@@ -377,6 +377,9 @@ function(MakeLinksExe target install)
                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                    PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE
+                                GROUP_WRITE GROUP_READ GROUP_EXECUTE
+                                WORLD_READ WORLD_EXECUTE
         )
         endif()
     endif()

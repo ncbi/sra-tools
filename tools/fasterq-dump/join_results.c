@@ -204,60 +204,28 @@ static struct var_desc_list_t * make_flex_printer_vars( void ) {
     return res;
 }
 
-/* move that one to helper.c */
-static const String * make_string_copy( const char * src )
-{
-    const String * res = NULL;
-    if ( NULL != src ) {
-        String tmp;
-        StringInitCString( &tmp, src );
-        StringCopy( &res, &tmp );
-    }
-    return res;
-}
-
 static const char * dflt_seq_defline_fastq_use_name_ri = "@$ac.$si/$ri $sn length=$rl";
 static const char * dflt_seq_defline_fastq_syn_name_ri = "@$ac.$si/$ri $si length=$rl";
-static const char * dflt_seq_defline_fastq_no_name_ri = "@$ac.$si/$ri length=$rl";
 static const char * dflt_seq_defline_fasta_use_name_ri = ">$ac.$si/$ri $sn length=$rl";
 static const char * dflt_seq_defline_fasta_syn_name_ri = ">$ac.$si/$ri $si length=$rl";
-static const char * dflt_seq_defline_fasta_no_name_ri = ">$ac.$si/$ri length=$rl";
 
 static const char * dflt_seq_defline_fastq_use_name = "@$ac.$si $sn length=$rl";
 static const char * dflt_seq_defline_fastq_syn_name = "@$ac.$si $si length=$rl";
-static const char * dflt_seq_defline_fastq_no_name = "@$ac.$si length=$rl";
 static const char * dflt_seq_defline_fasta_use_name = ">$ac.$si $sn length=$rl";
 static const char * dflt_seq_defline_fasta_syn_name = ">$ac.$si $si length=$rl";
-static const char * dflt_seq_defline_fasta_no_name = ">$ac.$si length=$rl";
 
-const char * dflt_seq_defline( flex_printer_name_mode_t name_mode, bool use_read_id, bool fasta ) {
+const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta ) {
     if ( use_read_id ) {
         if ( fasta ) {
-            switch ( name_mode ) {
-                case fpnm_use_name : return dflt_seq_defline_fasta_use_name_ri; break;
-                case fpnm_syn_name : return dflt_seq_defline_fasta_syn_name_ri; break;
-                case fpnm_no_name  : return dflt_seq_defline_fasta_no_name_ri; break;
-            }
+            return use_name ? dflt_seq_defline_fasta_use_name_ri : dflt_seq_defline_fasta_syn_name_ri;
         } else {
-            switch ( name_mode ) {
-                case fpnm_use_name : return dflt_seq_defline_fastq_use_name_ri; break;
-                case fpnm_syn_name : return dflt_seq_defline_fastq_syn_name_ri; break;
-                case fpnm_no_name  : return dflt_seq_defline_fastq_no_name_ri; break;
-            }
+            return use_name ? dflt_seq_defline_fastq_use_name_ri : dflt_seq_defline_fastq_syn_name_ri;
         }
     } else {
         if ( fasta ) {
-            switch ( name_mode ) {
-                case fpnm_use_name : return dflt_seq_defline_fasta_use_name; break;
-                case fpnm_syn_name : return dflt_seq_defline_fasta_syn_name; break;
-                case fpnm_no_name  : return dflt_seq_defline_fasta_no_name; break;
-            }
+            return use_name ? dflt_seq_defline_fasta_use_name : dflt_seq_defline_fasta_syn_name;
         } else {
-            switch ( name_mode ) {
-                case fpnm_use_name : return dflt_seq_defline_fastq_use_name; break;
-                case fpnm_syn_name : return dflt_seq_defline_fastq_syn_name; break;
-                case fpnm_no_name  : return dflt_seq_defline_fastq_no_name; break;
-            }
+            return use_name ? dflt_seq_defline_fastq_use_name : dflt_seq_defline_fastq_syn_name;
         }
     }
     return NULL;
@@ -265,25 +233,15 @@ const char * dflt_seq_defline( flex_printer_name_mode_t name_mode, bool use_read
 
 static const char * dflt_qual_defline_use_name_ri = "+$ac.$si/$ri $sn length=$rl";
 static const char * dflt_qual_defline_syn_name_ri = "+$ac.$si/$ri $si length=$rl";
-static const char * dflt_qual_defline_no_name_ri = "+$ac.$si/$ri length=$rl";
 
 static const char * dflt_qual_defline_use_name = "+$ac.$si $sn length=$rl";
 static const char * dflt_qual_defline_syn_name = "+$ac.$si $si length=$rl";
-static const char * dflt_qual_defline_no_name = "+$ac.$si length=$rl";
 
-const char * dflt_qual_defline( flex_printer_name_mode_t name_mode, bool use_read_id ) {
+const char * dflt_qual_defline( bool use_name, bool use_read_id ) {
     if ( use_read_id ) {
-        switch ( name_mode ) {
-            case fpnm_use_name : return dflt_qual_defline_use_name_ri; break;
-            case fpnm_syn_name : return dflt_qual_defline_syn_name_ri; break;
-            case fpnm_no_name  : return dflt_qual_defline_no_name_ri; break;
-        }
+        return use_name ? dflt_qual_defline_use_name_ri : dflt_qual_defline_syn_name_ri;
     } else {
-        switch ( name_mode ) {
-            case fpnm_use_name : return dflt_qual_defline_use_name; break;
-            case fpnm_syn_name : return dflt_qual_defline_syn_name; break;
-            case fpnm_no_name  : return dflt_qual_defline_no_name; break;
-        }
+        return use_name ? dflt_qual_defline_use_name : dflt_qual_defline_syn_name;
     }
     return NULL;
 }
@@ -295,7 +253,7 @@ const char * dflt_qual_defline( flex_printer_name_mode_t name_mode, bool use_rea
 static const String * make_flex_printer_format_string( const char * seq_defline,
                                                  const char * qual_defline,
                                                  size_t num_reads,
-                                                 flex_printer_name_mode_t name_mode,
+                                                 bool use_name,
                                                  bool use_read_id,
                                                  bool fasta ){
     const String * res = NULL;
@@ -305,7 +263,7 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
     if ( fasta ) {   
         /* ===== FASTA ===== */
         const char * a_seq_defline = seq_defline;
-        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( name_mode, use_read_id, fasta ); }
+        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( use_name, use_read_id, fasta ); }
         if ( NULL == a_seq_defline ) { /* TBD: rc = RC() */  }
         if ( 1 == num_reads ) {
             /* seq_defline + '\n' + read1 + '\n' */
@@ -320,8 +278,8 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
         /* ===== FASTQ ===== */
         const char * a_seq_defline = seq_defline;
         const char * a_qual_defline = qual_defline;
-        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( name_mode, use_read_id, fasta ); }
-        if ( NULL == a_qual_defline ) { a_qual_defline = dflt_qual_defline( name_mode, use_read_id ); }
+        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( use_name, use_read_id, fasta ); }
+        if ( NULL == a_qual_defline ) { a_qual_defline = dflt_qual_defline( use_name, use_read_id ); }
         if ( NULL == a_seq_defline ) { /* TBD: rc = RC() */  }
         if ( NULL == a_qual_defline ) { /* TBD: rc = RC() */  }
         if ( 1 == num_reads ) {
@@ -356,7 +314,7 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,
                         const char * accession,
                         const char * seq_defline,
                         const char * qual_defline,
-                        flex_printer_name_mode_t name_mode,
+                        bool use_name,
                         bool use_read_id, /* needed for picking a default, split...true, whole...false */
                         bool fasta ) {
     if ( !flex_printer_args_valid( file_args, multi_writer ) ) {
@@ -384,8 +342,8 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,
             self = NULL;
         } else {
             /* join seq_defline and qual_defline into one format-definition, describing a whole spot or read */
-            const String * flex_fmt1 = make_flex_printer_format_string( seq_defline, qual_defline, 1, name_mode, use_read_id, fasta );
-            const String * flex_fmt2 = make_flex_printer_format_string( seq_defline, qual_defline, 2, name_mode, use_read_id, fasta );
+            const String * flex_fmt1 = make_flex_printer_format_string( seq_defline, qual_defline, 1, use_name, use_read_id, fasta );
+            const String * flex_fmt2 = make_flex_printer_format_string( seq_defline, qual_defline, 2, use_name, use_read_id, fasta );
             if ( NULL == flex_fmt1 || NULL == flex_fmt2 ) {
                 release_flex_printer( self );
                 self = NULL;

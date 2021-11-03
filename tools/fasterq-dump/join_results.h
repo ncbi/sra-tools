@@ -64,28 +64,6 @@ rc_t make_join_results( struct KDirectory * dir,
                         bool print_frag_nr,
                         bool print_name );
 
-/* used by join.c, tbl_join.c and internally by join_results.c */
-rc_t join_results_print( struct join_results_t * self, uint32_t read_id, const char * fmt, ... );
-
-/* used by join.c and tbl_join.c */
-rc_t join_results_print_fastq_v1( struct join_results_t * self,
-                                  int64_t row_id,
-                                  uint32_t dst_id,
-                                  uint32_t read_id,
-                                  const String * name,
-                                  const String * read,
-                                  const String * quality );
-
-/* used by join.c */
-rc_t join_results_print_fastq_v2( struct join_results_t * self,
-                                  int64_t row_id,
-                                  uint32_t dst_id,
-                                  uint32_t read_id,
-                                  const String * name,
-                                  const String * read1,
-                                  const String * read2,
-                                  const String * quality );
-
 /* --------------------------------------------------------------------------------------------------- */
 
 struct filter_2na_t;
@@ -101,10 +79,8 @@ bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const Stri
 
 bool spot_group_requested( const char * seq_defline, const char * qual_defline );
 
-typedef enum flex_printer_name_mode_t { fpnm_use_name = 1, fpnm_syn_name, fpnm_no_name } flex_printer_name_mode_t;
-
-const char * dflt_seq_defline( flex_printer_name_mode_t name_mode, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( flex_printer_name_mode_t name_mode, bool use_read_id );
+const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
+const char * dflt_qual_defline( bool use_name, bool use_read_id );
 
 struct flex_printer_t;
 
@@ -152,7 +128,7 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,     
                         const char * accession,                         /* used in both modes */
                         const char * seq_defline,                       /* if NULL -> pick default based on fasta/name-mode */
                         const char * qual_defline,                      /* if NULL -> pick default based on fasta/name-mode */
-                        flex_printer_name_mode_t name_mode,             /* needed for picking a default */
+                        bool use_name,                                  /* needed for picking a default */
                         bool use_read_id,                               /* needed for picking a default, split...true, whole...false */
                         bool fasta );
 

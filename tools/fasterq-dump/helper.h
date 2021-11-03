@@ -110,6 +110,7 @@ typedef enum format_t {
 bool is_format_split( format_t fmt );
 bool is_format_fasta( format_t fmt );
 
+
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
 typedef struct cmn_iter_params
@@ -124,6 +125,8 @@ typedef struct cmn_iter_params
 } cmn_iter_params_t;
 
 rc_t ErrMsg( const char * fmt, ... );
+
+const String * make_string_copy( const char * src );
 
 rc_t make_SBuffer( SBuffer_t * self, size_t len );
 void release_SBuffer( SBuffer_t * self );

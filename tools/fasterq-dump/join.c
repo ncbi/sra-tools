@@ -1511,7 +1511,6 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
     struct filter_2na_t * filter = make_2na_filter( jo -> filter_bases ); /* join_results.c */
     struct flex_printer_t * flex_printer = NULL;
     file_printer_args_t file_args;
-    flex_printer_name_mode_t name_mode = ( jo -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
     set_file_printer_args( &file_args,
                             jtd -> dir,
                             jtd -> registry,
@@ -1523,7 +1522,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
                 jtd -> accession_short,             /* we need that for the flexible defline! */
                 jtd -> seq_defline,                 /* the seq-defline */
                 jtd -> qual_defline,                /* the qual-defline */
-                name_mode,                          /* use-name, syn-name or no-name */
+                !( jo -> rowid_as_name ),           /* use-name or syn-name */
                 is_format_split( jtd -> fmt ),      /* use read-id */
                 is_format_fasta( jtd -> fmt ) );    /* fasta-mode */
     if ( 0 == rc && NULL != flex_printer ) {
@@ -1822,18 +1821,17 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
         jtd -> cur_cache };
     struct align_iter_t * iter;
     uint64_t loop_nr = 0;
-    struct flex_printer_t * flex_printer;
-    flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
     /* make_flex_printer() is in join_results.c */
-    flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
-                                      jtd -> multi_writer,          /* passed in multi-writer */
-                                      jtd -> accession_short,       /* the accession to be printed */
-                                      jtd -> seq_defline,           /* if seq-defline is NULL, use default */
-                                      NULL,                         /* qual-defline is NULL ( not used - FASTA! ) */
-                                      name_mode,                    /* use-name, syn-nmame or no-name */
-                                      true,                         /* use read-id */
-                                      true );                       /* fasta-mode */
+    struct flex_printer_t * flex_printer
+        = make_flex_printer( NULL,                         /* unused - multi_writer is set */
+                            jtd -> multi_writer,          /* passed in multi-writer */
+                            jtd -> accession_short,       /* the accession to be printed */
+                            jtd -> seq_defline,           /* if seq-defline is NULL, use default */
+                            NULL,                         /* qual-defline is NULL ( not used - FASTA! ) */
+                            !( jtd -> join_options -> rowid_as_name ), /* use-name or syn-nmame */
+                            true,                         /* use read-id */
+                            true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
@@ -1963,7 +1961,6 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
     uint64_t loop_nr = 0;
     fastq_iter_opt_t opt;
     struct flex_printer_t * flex_printer = NULL;
-    flex_printer_name_mode_t name_mode = ( jo -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
     opt . with_read_len = true;
     opt . with_name = false;
@@ -1974,13 +1971,13 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
 
     /* make_flex_printer() is in join_results.c */
     flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
-                                      jtd -> multi_writer,          /* passed in multi-writer */
-                                      jtd -> accession_short,       /* the accession to be printed */
-                                      jtd -> seq_defline,           /* if seq-defline is NULL, use default */
-                                      NULL,                         /* qual-defline not used ( FASTA! ) */
-                                      name_mode,                    /* use-name, syn-name or no-name */
-                                      true,                         /* use read-id */
-                                      true );                       /* fasta-mode */
+                    jtd -> multi_writer,          /* passed in multi-writer */
+                    jtd -> accession_short,       /* the accession to be printed */
+                    jtd -> seq_defline,           /* if seq-defline is NULL, use default */
+                    NULL,                         /* qual-defline not used ( FASTA! ) */
+                    !( jo -> rowid_as_name ),     /* use-name or syn-name */
+                    true,                         /* use read-id */
+                    true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }

@@ -337,8 +337,26 @@ static rc_t get_environment( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-static rc_t show_details( tool_ctx_t * tool_ctx ) {
-    rc_t rc = KOutMsg( "cursor-cache : %,ld bytes\n", tool_ctx -> cursor_cache );
+const char * DFLT_SEQ_DEFLINE_FASTQ = "AA";
+const char * DFLT_SEQ_DEFLINE_FASTA = "BB";
+static const char * dflt_seq_defline( const tool_ctx_t * tool_ctx ) {
+    return ( is_format_fasta( tool_ctx -> fmt ) ) /* helper.c */
+        ? DFLT_SEQ_DEFLINE_FASTA : DFLT_SEQ_DEFLINE_FASTQ;
+}
+
+const char * DFLT_QUAL_DEFLINE_FASTQ = "CC";
+const char * DFLT_QUAL_DEFLINE_FASTA = "-";
+static const char * dflt_qual_defline( const tool_ctx_t * tool_ctx ) {
+    return ( is_format_fasta( tool_ctx -> fmt ) ) /* helper.c */
+        ? DFLT_QUAL_DEFLINE_FASTA : DFLT_QUAL_DEFLINE_FASTQ;  
+}
+
+static rc_t show_details( const tool_ctx_t * tool_ctx ) {
+    rc_t rc = KOutHandlerSetStdErr();
+    
+    if ( 0 == rc ) {
+        rc = KOutMsg( "cursor-cache : %,ld bytes\n", tool_ctx -> cursor_cache );
+    }
     if ( 0 == rc ) {
         rc = KOutMsg( "buf-size     : %,ld bytes\n", tool_ctx -> buf_size );
     }
@@ -348,7 +366,7 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
     }
-    if ( 0 == rc ) {
+    if ( 0 == rc && tool_ctx -> row_limit > 0 ) {
         rc = KOutMsg( "row-limit    : %lu\n", tool_ctx -> row_limit );
     }
     if ( 0 == rc ) {
@@ -377,7 +395,7 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "output-dir   : '%s'\n", 
-                    NULL != tool_ctx -> output_dirname ? tool_ctx -> output_dirname : "-" );
+                    NULL != tool_ctx -> output_dirname ? tool_ctx -> output_dirname : "." );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
@@ -386,12 +404,14 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "stdout-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "seq-defline  : '%s'\n",
-                    NULL != tool_ctx -> seq_defline ? tool_ctx -> seq_defline : "-" );
+        const char * s = tool_ctx -> seq_defline;
+        if ( NULL == s ) { s = dflt_seq_defline( tool_ctx ); }
+        rc = KOutMsg( "seq-defline  : '%s'\n", s );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "qual-defline  : '%s'\n",
-                    NULL != tool_ctx -> qual_defline ? tool_ctx -> qual_defline : "-" );
+        const char * s = tool_ctx -> qual_defline;
+        if ( NULL == s ) { s = dflt_qual_defline( tool_ctx ); }
+        rc = KOutMsg( "qual-defline  : '%s'\n", s );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "only-unaligned : '%s'\n", tool_ctx -> only_unaligned ? "YES" : "NO" );
@@ -399,6 +419,10 @@ static rc_t show_details( tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "only-aligned  : '%s'\n", tool_ctx -> only_aligned ? "YES" : "NO" );
     }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "\n" );
+    }
+    KOutHandlerSetStdOut();
     return rc;
 }
 

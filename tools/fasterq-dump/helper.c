@@ -77,6 +77,17 @@ bool is_format_fasta( format_t fmt ){
     return res;
 }
 
+const String * make_string_copy( const char * src )
+{
+    const String * res = NULL;
+    if ( NULL != src ) {
+        String tmp;
+        StringInitCString( &tmp, src );
+        StringCopy( &res, &tmp );
+    }
+    return res;
+}
+
 rc_t ErrMsg( const char * fmt, ... ) {
     rc_t rc;
     char buffer[ 4096 ];

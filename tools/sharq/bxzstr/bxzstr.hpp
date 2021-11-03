@@ -96,6 +96,8 @@ class istreambuf : public std::streambuf {
         return this->gptr() == this->egptr()
 	    ? traits_type::eof() : traits_type::to_int_type(*this->gptr());
     }
+    Compression compression() const { return type; }
+
   private:
     std::streambuf* sbuf_p;
     char* in_buff;
@@ -205,6 +207,7 @@ class istream : public std::istream {
         exceptions(std::ios_base::badbit);
     }
     virtual ~istream() { delete rdbuf(); }
+
 }; // class istream
 
 class ostream : public std::ostream {
@@ -242,9 +245,10 @@ class ifstream : public detail::strict_fstream_holder< strict_fstream::ifstream 
   public:
     ifstream() : std::istream(new istreambuf(_fs.rdbuf())) {}
     explicit ifstream(const std::string& filename,
-		      std::ios_base::openmode mode = std::ios_base::in)
+		      std::ios_base::openmode mode = std::ios_base::in,
+              std::size_t _buff_size = default_buff_size)
             : detail::strict_fstream_holder< strict_fstream::ifstream >(filename, mode),
-            std::istream(new istreambuf(_fs.rdbuf())),
+            std::istream(new istreambuf(_fs.rdbuf(), _buff_size)),
 	    filename(filename),
 	    mode(mode) {
         this->setstate(_fs.rdstate());
@@ -266,6 +270,16 @@ class ifstream : public detail::strict_fstream_holder< strict_fstream::ifstream 
     }
     bool is_open() const { return _fs.is_open(); }
     void close() { _fs.close(); }
+
+    std::istream::pos_type  compressed_tellg() { return _fs.tellg();}
+
+    Compression compression() {
+        auto buff = dynamic_cast<istreambuf*>(rdbuf());
+        if (buff)
+            return buff->compression();
+        return plaintext;    
+    }
+    static const std::size_t default_buff_size = (std::size_t)1 << 20;
 
   private:
     std::string filename;

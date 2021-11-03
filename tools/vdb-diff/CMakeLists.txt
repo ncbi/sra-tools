@@ -11,4 +11,4 @@ add_executable( vdb-diff
 	vdb-diff
 )
 target_link_libraries( vdb-diff ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( vdb-diff true )
+MakeLinksExe( vdb-diff false )

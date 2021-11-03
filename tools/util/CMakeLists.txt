@@ -23,47 +23,47 @@ include_directories( "." )
 # Internal tools
 add_executable( crc32sum crc32sum )
 target_link_libraries( crc32sum ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( crc32sum true )
+MakeLinksExe( crc32sum false )
 
 add_executable( test-download test-download )
 target_link_libraries( test-download ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( test-download true )
+MakeLinksExe( test-download false )
 
 add_executable( kdb-index kdb-index )
 target_link_libraries( kdb-index ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( kdb-index true )
+MakeLinksExe( kdb-index false )
 
 add_executable( pacbio-correct pacbio-correct )
 target_link_libraries( pacbio-correct ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( pacbio-correct true )
+MakeLinksExe( pacbio-correct false )
 
 add_executable( schema-replace schema-replace )
 target_link_libraries( schema-replace ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( schema-replace true )
+MakeLinksExe( schema-replace false )
 
 add_executable( sortreadtest sortreadtest )
 target_link_libraries( sortreadtest ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( sortreadtest true )
+MakeLinksExe( sortreadtest false )
 
 add_executable( rowwritetest rowwritetest )
 target_link_libraries( rowwritetest ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( rowwritetest true )
+MakeLinksExe( rowwritetest false )
 
 add_executable( samview-util samview )
 target_link_libraries( samview-util ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( samview-util true )
+MakeLinksExe( samview-util false )
 
 add_executable( testld testld )
 target_link_libraries( testld ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( testld true )
+MakeLinksExe( testld false )
 
 add_executable( txt2kdb txt2kdb )
 target_link_libraries( txt2kdb ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( txt2kdb true )
+MakeLinksExe( txt2kdb false )
 
 add_executable( validate-names4 validate-names4 )
 target_link_libraries( validate-names4 ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( validate-names4 true )
+MakeLinksExe( validate-names4 false )
 
 # add_executable( md5cp md5cp )
 # target_link_libraries( md5cp ${COMMON_LINK_LIBRARIES} ncbi-vdb )
@@ -76,30 +76,30 @@ MakeLinksExe( validate-names4 true )
 
 add_executable( rcexplain rcexplain )
 target_link_libraries( rcexplain ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( rcexplain true )
+MakeLinksExe( rcexplain false )
 
 add_executable( kdbmeta kdbmeta )
 target_link_libraries( kdbmeta ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( kdbmeta true )
+MakeLinksExe( kdbmeta false )
 
 add_executable( vdb-lock vdb-lock )
 target_link_libraries( vdb-lock ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( vdb-lock true )
+MakeLinksExe( vdb-lock false )
 
 add_executable( vdb-unlock vdb-unlock )
 target_link_libraries( vdb-unlock ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( vdb-unlock true )
+MakeLinksExe( vdb-unlock false )
 
 add_executable( test-sra test-sra ${OS_SPECIFIC_SRC} )
 target_link_libraries( test-sra ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( test-sra true )
+MakeLinksExe( test-sra false )
 
 add_executable( vdb-passwd vdb-passwd ${OS_SPECIFIC_SRC} )
 target_link_libraries( vdb-passwd ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( vdb-passwd true )
+MakeLinksExe( vdb-passwd false )
 
 if( NOT WIN32 )
 add_executable( make-read-filter make-read-filter )
 target_link_libraries( make-read-filter ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( make-read-filter true )
+MakeLinksExe( make-read-filter false )
 endif()

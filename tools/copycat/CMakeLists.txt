@@ -14,5 +14,5 @@ if( ${OS} STREQUAL "linux" )
         ccfile
     )
     target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} kff magic-static )
-    MakeLinksExe( copycat true )
+    MakeLinksExe( copycat false )
 endif()

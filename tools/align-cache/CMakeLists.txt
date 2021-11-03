@@ -7,4 +7,4 @@ set( SRC
 
 add_executable( align-cache ${SRC} )
 target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} load )
-MakeLinksExe( align-cache true )
+MakeLinksExe( align-cache false )

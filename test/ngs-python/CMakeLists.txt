@@ -19,7 +19,7 @@ if( Python3_EXECUTABLE )
         set_tests_properties( SlowTest_NgsPython
             PROPERTIES
                 DEPENDS Test_NGS_Python_install
-                ENVIRONMENT "NGS_PY_DOWNLOAD_LIBRARY=0;PYTHONUSERBASE=${PythonUserBase};NGS_PY_LIBRARY_PATH=${LIBDIR}/../bin"
+                ENVIRONMENT "NGS_PY_DOWNLOAD_LIBRARY=0;PYTHONUSERBASE=${PythonUserBase};NGS_PY_LIBRARY_PATH=${BINDIR}"
         )
     endif()
 endif()

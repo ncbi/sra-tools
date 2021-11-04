@@ -429,8 +429,8 @@ int CFastqParseApp::xRun()
         parser.set_readers(group);
         parser.parse();
     }
-    
     parser.check_duplicates();
+    spdlog::info("Parsing complete");
     m_writer->close();
     return 0;
 }

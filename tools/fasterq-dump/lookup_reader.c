@@ -25,15 +25,14 @@
 */
 
 #include "lookup_reader.h"
+
+#ifndef _h_file_printer_
 #include "file_printer.h"
-#include "helper.h"
+#endif
 
-#include <klib/printf.h>
-#include <kfs/file.h>
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
-
-#include <string.h>
-#include <stdio.h>
+#endif
 
 typedef struct lookup_reader_t {
     const struct KFile * f;

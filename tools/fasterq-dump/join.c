@@ -25,21 +25,34 @@
 */
 
 #include "join.h"
+
+#ifndef _h_index_
 #include "index.h"
+#endif
+
+#ifndef _h_lookup_reader_
 #include "lookup_reader.h"
-#include "special_iter.h"
+#endif
+
+#ifndef _h_raw_read_iter_
 #include "raw_read_iter.h"
+#endif
+
+#ifndef _h_fastq_iter_
 #include "fastq_iter.h"
-#include "cleanup_task.h"
+#endif
+
+#ifndef _h_join_results_
 #include "join_results.h"
-#include "progress_thread.h"
-#include "copy_machine.h"
+#endif
 
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <kproc/thread.h>
-#include <insdc/insdc.h> /* for READ_TYPE_BIOLOGICAL, READ_TYPE_REVERSE */
+#endif
 
-//#define USE_JOIN_RESULTS 1
+#ifndef _h_insdc_insdc_
+#include <insdc/insdc.h> /* for READ_TYPE_BIOLOGICAL, READ_TYPE_REVERSE */
+#endif
 
 typedef struct join {
     const char * accession_path;

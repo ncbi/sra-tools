@@ -25,16 +25,20 @@
 */
 
 #include "temp_dir.h"
+
+#ifndef _h_helper_
 #include "helper.h"
+#endif
 
-#include <klib/out.h>
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
+#endif
+
+#ifndef _h_kproc_procmgr_
 #include <kproc/procmgr.h>
+#endif
 
-#include <os-native.h>
-#include <sysalloc.h>
-
-#define HOSTNAMELEN 64
+#define HOSTNAMELEN 128
 #define DFLT_HOST_NAME "host"
 #define DFLT_PATH_LEN 4096
 

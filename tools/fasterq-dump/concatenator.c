@@ -25,19 +25,18 @@
 */
 
 #include "concatenator.h"
+
+#ifndef _h_helper_
 #include "helper.h"
+#endif
+
+#ifndef _h_copy_machine_
 #include "copy_machine.h"
+#endif
 
-#include <klib/out.h>
-#include <klib/printf.h>
-#include <klib/text.h>
-#include <klib/progressbar.h>
-
-#include <kproc/thread.h>
-
-#include <kfs/defs.h>
-#include <kfs/file.h>
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
+#endif
 
 static rc_t execute_concat_un_compressed_append( KDirectory * dir,
                     const char * output_filename,

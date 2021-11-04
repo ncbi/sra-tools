@@ -24,21 +24,30 @@
 *
 */
 #include "merge_sorter.h"
+
+#ifndef _h_lookup_reader_
 #include "lookup_reader.h"
+#endif
+
+#ifndef _h_lookup_writer_
 #include "lookup_writer.h"
-#include "index.h"
-#include "helper.h"
+#endif
 
-#include <klib/out.h>
-#include <klib/text.h>
+#ifndef _h_klib_status_
 #include <klib/status.h>
-#include <klib/printf.h>
-#include <klib/progressbar.h>
-#include <klib/time.h>
+#endif
 
-#include <kproc/thread.h>
+#ifndef _h_klib_time_
+#include <klib/time.h>
+#endif
+
+#ifndef _h_kproc_queue_
 #include <kproc/queue.h>
+#endif
+
+#ifndef _h_kproc_timeout_
 #include <kproc/timeout.h>
+#endif
 
 typedef struct merge_src {
     struct lookup_reader_t * reader;

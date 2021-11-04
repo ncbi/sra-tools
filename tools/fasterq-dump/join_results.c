@@ -24,14 +24,14 @@
 *
 */
 #include "join_results.h"
-#include "helper.h"
-#include "var_fmt.h"
 
-#include <klib/vector.h>
-#include <klib/out.h>
+#ifndef _h_var_fmt_
+#include "var_fmt.h"
+#endif
+
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
-#include <kfs/buffile.h>
-#include <kproc/lock.h>
+#endif
 
 typedef struct join_printer_t {
     struct KFile * f;

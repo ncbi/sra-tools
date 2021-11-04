@@ -24,15 +24,22 @@
 *
 */
 #include "tbl_join.h"
-#include "fastq_iter.h"
-#include "cleanup_task.h"
-#include "join_results.h"
-#include "progress_thread.h"
-#include "copy_machine.h"
 
+#ifndef _h_fastq_iter_
+#include "fastq_iter.h"
+#endif
+
+#ifndef _h_join_results_
+#include "join_results.h"
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <kproc/thread.h>
+#endif
+
+#ifndef _h_insdc_insdc_
 #include <insdc/insdc.h>
+#endif
 
 static bool filter1( join_stats_t * stats,
                      const fastq_rec_t * rec,

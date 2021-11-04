@@ -24,9 +24,14 @@
 *
 */
 #include "file_printer.h"
-#include "helper.h"
 
+#ifndef _h_helper_
+#include "helper.h"
+#endif
+
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
+#endif
 
 typedef struct file_printer_t
 {

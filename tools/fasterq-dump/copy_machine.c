@@ -25,16 +25,25 @@
 */
 #include "copy_machine.h"
 
+#ifndef _h_helper_
 #include "helper.h"
+#endif
 
-#include <kfs/buffile.h>
+#ifndef _h_klib_time_
 #include <klib/time.h>
-#include <klib/time.h>
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
+#endif
 
-#include <kproc/thread.h>
+#ifndef _h_kproc_queue_
 #include <kproc/queue.h>
+#endif
+
+#ifndef _h_kproc_timeout_
 #include <kproc/timeout.h>
+#endif
 
 typedef struct copy_machine_block_t
 {

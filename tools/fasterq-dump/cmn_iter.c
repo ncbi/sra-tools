@@ -25,28 +25,50 @@
 */
 
 #include "cmn_iter.h"
+
+#ifndef _h_helper_
 #include "helper.h"
+#endif
 
-#include <klib/out.h>
+#ifndef _h_klib_num_gen_
 #include <klib/num-gen.h>
+#endif
 
+#ifndef _h_sra_sraschema_
 #include <sra/sraschema.h>
+#endif
 
+#ifndef _h_kdb_manager_
 #include <kdb/manager.h>
+#endif
 
-#include <vdb/manager.h>
+#ifndef _h_vdb_schema_
 #include <vdb/schema.h>
+#endif
+
+#ifndef _h_vdb_table_
 #include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_cursor_
 #include <vdb/cursor.h>
+#endif
+
+#ifndef _h_vdb_database_
 #include <vdb/database.h>
+#endif
 
+#ifndef _h_vfs_manager_
 #include <vfs/manager.h>
+#endif
+
+#ifndef _h_vfs_path_
 #include <vfs/path.h>
+#endif
 
+#ifndef _h_insdc_sra_
 #include <insdc/sra.h>  /* platform enum */
-
-#include <os-native.h>
-#include <sysalloc.h>
+#endif
 
 typedef struct cmn_iter_t {
     const VCursor * cursor;

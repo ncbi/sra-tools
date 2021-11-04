@@ -24,14 +24,14 @@
 *
 */
 #include "temp_registry.h"
-#include "concatenator.h"
-#include "progress_thread.h"
 
-#include <klib/vector.h>
+#ifndef _h_concatenator_
+#include "concatenator.h"
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <klib/namelist.h>
-#include <kproc/lock.h>
-#include <kfs/filetools.h>
+#endif
 
 typedef struct temp_registry_t {
     struct KFastDumpCleanupTask_t * cleanup_task;

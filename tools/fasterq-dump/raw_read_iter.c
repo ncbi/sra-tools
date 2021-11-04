@@ -25,12 +25,14 @@
 */
 
 #include "raw_read_iter.h"
-#include "file_printer.h"
-#include "cmn_iter.h"
-#include "helper.h"
 
-#include <os-native.h>
-#include <sysalloc.h>
+#ifndef _h_file_printer_
+#include "file_printer.h"
+#endif
+
+#ifndef _h_cmn_iter_
+#include "cmn_iter.h"
+#endif
 
 typedef struct raw_read_iter_t {
     struct cmn_iter_t * cmn;

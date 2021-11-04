@@ -59,7 +59,9 @@
 #include <klib/out.h>
 #endif
 
+#ifndef _h_helper_
 #include "helper.h"
+#endif
 
 typedef struct bg_progress_t {
     KThread * thread;

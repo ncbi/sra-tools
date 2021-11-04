@@ -25,10 +25,14 @@
 */
 
 #include "lookup_writer.h"
-#include "helper.h"
 
-#include <kfs/file.h>
+#ifndef _h_helper_
+#include "helper.h"
+#endif
+
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
+#endif
 
 typedef struct lookup_writer_t {
     struct KFile * f;

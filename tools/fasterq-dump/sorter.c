@@ -25,21 +25,26 @@
 */
 
 #include "sorter.h"
+
+#ifndef _h_lookup_writer_
 #include "lookup_writer.h"
-#include "lookup_reader.h"
+#endif
+
+#ifndef _h_raw_read_iter_
 #include "raw_read_iter.h"
+#endif
+
+#ifndef _h_merge_sorter_
 #include "merge_sorter.h"
+#endif
+
+#ifndef _h_progress_thread_
 #include "progress_thread.h"
-#include "helper.h"
+#endif
 
-#include <atomic64.h>
-#include <kproc/thread.h>
-
-#include <klib/vector.h>
-#include <klib/printf.h>
-#include <klib/progressbar.h>
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <kproc/thread.h>
+#endif
 
 /* 
     this is in interfaces/cc/XXX/YYY/atomic.h

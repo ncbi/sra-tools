@@ -24,32 +24,37 @@
 *
 */
 
-#include "cmn_iter.h"
+#ifndef _h_sorter_
 #include "sorter.h"
-#include "merge_sorter.h"
+#endif
+
+#ifndef _h_join_
 #include "join.h"
+#endif
+
+#ifndef _h_tbl_join_
 #include "tbl_join.h"
-#include "concatenator.h"
-#include "cleanup_task.h"
-#include "lookup_reader.h"
-#include "raw_read_iter.h"
-#include "temp_dir.h"
+#endif
 
+#ifndef _h_kapp_main_
 #include <kapp/main.h>
+#endif
+
+#ifndef _h_kapp_args_
 #include <kapp/args.h>
+#endif
 
+#ifndef _h_kfg_config_
 #include <kfg/config.h> /* KConfigSetNgcFile */
+#endif
 
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <klib/printf.h>
-#include <search/grep.h>
-#include <kfs/directory.h>
-#include <kproc/procmgr.h>
-#include <vdb/manager.h>
+#endif
 
-#include <stdio.h>
-#include <os-native.h>
-#include <sysalloc.h>
+#ifndef _h_klib_printf_
+#include <klib/printf.h>
+#endif
 
 /* ---------------------------------------------------------------------------------- */
 

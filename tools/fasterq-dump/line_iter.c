@@ -25,9 +25,14 @@
 */
 
 #include "line_iter.h"
-#include "helper.h"
 
+#ifndef _h_helper_
+#include "helper.h"
+#endif
+
+#ifndef _h_kfs_file_
 #include <kfs/file.h>
+#endif
 
 #define ITER_DONE 0x01
 #define ITER_EOF  0x02

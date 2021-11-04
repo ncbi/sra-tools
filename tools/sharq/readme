@@ -25,6 +25,11 @@ External dependencies
     header-only Command line parser for C++11
     https://github.com/CLIUtils/CLI11
 
+7. JSON
+    header-only JSON for Modern C++
+    https://github.com/nlohmann/json.git    
+
+
 External libraries
 1. re2
 2. zlib

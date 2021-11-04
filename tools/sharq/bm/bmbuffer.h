@@ -211,6 +211,7 @@ public:
         
         this->size_ = new_size;
     }
+
     /// adjust current size (no need to reallocate)
     void resize_no_check(size_t new_size) BMNOEXCEPT
     {
@@ -371,7 +372,7 @@ public:
         }
     }
     
-    value_type* data() BMNOEXCEPT { return (value_type*) buffer_.data(); }
+    value_type* data() const BMNOEXCEPT { return (value_type*) buffer_.data(); }
 
     void swap(heap_vector<Val, BVAlloc, trivial_type>& other) BMNOEXCEPT
     {
@@ -436,6 +437,17 @@ public:
     }
 
     /**
+        Quick resize to zero
+     */
+    void reset() BMNOEXCEPT
+    {
+        if constexpr (trivial_type)
+            buffer_.resize_no_check(0);
+        else
+            resize(0);
+    }
+
+    /**
         @brief vector resize
         @param new_size - new number of elements
         @param init_destroy_values - need to init or destroy values 
@@ -449,7 +461,7 @@ public:
             return;
         if (new_size < sz) // shrink
         {
-            if (!trivial_type)
+            if constexpr (!trivial_type)
             {
                 unsigned char* this_data = buffer_.data();
                 for (size_type i = new_size; i < sz; ++i)
@@ -463,7 +475,7 @@ public:
         else
         {
             buffer_.resize(new_size * v_size);
-            if (!trivial_type)
+            if constexpr (!trivial_type)
             {
                 unsigned char* this_data = buffer_.data();
                 for (size_type i = sz; i < new_size; ++i)
@@ -473,6 +485,16 @@ public:
                 }
             }
         }
+    }
+
+    /**
+        @brief resize without content preservation
+        @internal
+     */
+    void resize_no_copy(size_type new_size)
+    {
+        size_type v_size = value_size();
+        buffer_.resize(new_size * v_size);
     }
 
     /**

@@ -274,16 +274,16 @@ bool fastq_reader::parse_read(CFastqRead& read)
         GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
         if (!m_line_view.empty()) {
             do {
-                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view, true)) {
-                    m_buffered_defline = m_line;
-                    break;
-                } 
                 read.AddQualityLine(m_line_view);
                 if (m_is_qual_score_numeric && read.Quality().size() >= sequence_size)
                     break;
                 GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
                 if (m_line_view.empty())
                     break;
+                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view, true)) {
+                    m_buffered_defline = m_line;
+                    break;
+                } 
             } while (true);
         }
     }
@@ -568,10 +568,43 @@ void fastq_parser<TWriter>::parse()
 }
 
 
+/*!
+ *  This function searches list of terms in vec using sparse_vector_scanner.
+ *
+ *  @param[in] vec  string vector to search in
+ *
+ *  @param[in] scanner  sparse_vector_scanner to use for the search
+ * 
+ *  @param[in] term  list of terms to search 
+ * 
+ *  @return index of found term or -1
+ * 
+ */
+static
+int s_search_terms(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& scanner, const vector<string>& terms)
+{
+    auto sz = terms.size();
+    if (sz == 0)
+        return -1;
+    bm::sparse_vector_scanner<str_sv_type>::pipeline<bm::agg_opt_only_counts> pipe(vec);
+    pipe.options().batch_size = 0;
+    for (const auto& term : terms)
+        pipe.add(term.c_str());
+    pipe.complete();
+    scanner.find_eq_str(pipe); // run the search pipeline
+    auto& cnt_vect = pipe.get_bv_count_vector();
+    for (size_t i = 0; i < sz; ++i) {
+        if (cnt_vect[i] > 1) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+
 //  ----------------------------------------------------------------------------    
 template<typename TWriter>
 void fastq_parser<TWriter>::check_duplicates() 
-//  ----------------------------------------------------------------------------    
 {
     spdlog::stopwatch sw;
     spdlog::info("spot_name check: {} spots", m_spot_names.size());
@@ -585,42 +618,39 @@ void fastq_parser<TWriter>::check_duplicates()
 
     spot_name_check name_check(m_spot_names.size());
 
-    bm::bvector<> bv_collisions;
     bm::sparse_vector_scanner<str_sv_type> str_scan;
 
-    str_sv_type::size_type pos = 0;
-    size_t idx_pos = 0, index = 0, hits = 0, sz = 0, last_hits = 0;
-    static const char empty_str[] = "";
+    size_t index = 0, hits = 0, sz = 0, last_hits = 0;
     const char* value;
     auto it = m_spot_names.begin();
+    vector<string> search_terms;
+    search_terms.reserve(10000);
 
     while (it.valid()) {
         value = it.value();
         sz = strlen(value);
         if (name_check.seen_before(value, sz)) {
             ++hits;
-            idx_pos = it.pos();
-            if (!m_spot_file.empty())
-                bv_collisions.set(idx_pos);
-            m_spot_names.set(idx_pos, empty_str);
-            if (str_scan.find_eq_str(m_spot_names, value, pos))
-                throw fastq_error(170, "[line:{}] Collation check. Duplicate spot '{}' at line {}", pos * 4 + 1, value, (idx_pos * 4) + 1);
-            it = m_spot_names.get_const_iterator(idx_pos + 1);
-        } else {
-            it.advance();
-        }
+            search_terms.push_back(value);
+            if (search_terms.size() == 10000) {
+                int idx = s_search_terms(m_spot_names, str_scan, search_terms);
+                if (idx >= 0)
+                    throw fastq_error(170, "Collation check. Duplicate spot '{}' at index {}", search_terms[idx], idx);
+                search_terms.clear();
+             }
+        } 
+        it.advance();
         if (++index % 100000000 == 0) {
             spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
             last_hits = hits;
         }
     }    
-
-    spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{:L}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
-
-    if (hits > 0 && !m_spot_file.empty()) {
-        string collisions_file = m_spot_file + ".dups";
-        bm::SaveBVector(collisions_file.c_str(), bv_collisions);
+    if (!search_terms.empty()) {
+        int idx = s_search_terms(m_spot_names, str_scan, search_terms);
+        if (idx >= 0)
+            throw fastq_error(170, "Collation check. Duplicate spot '{}' at index {}", search_terms[idx], idx);
     }
+    spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{:L}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
     spdlog::debug("spot_name check time:{}, num_hits: {:L}", sw, hits);
 }
 
@@ -724,7 +754,7 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
     vector<fastq_reader> readers;
     vector<char> readTypes;
     for (const auto& fn : files) 
-        readers.emplace_back(fn, s_OpenStream(fn, 1024*1024), readTypes, true);
+        readers.emplace_back(fn, s_OpenStream(fn, 1024*1024), readTypes, 0, true);
     vector<uint8_t> placed(files.size(), 0);
 
     for (size_t i = 0; i < files.size(); ++i) {
@@ -750,28 +780,6 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
         batches.push_back(move(batch));
     }
 }
-/*
-static
-int s_search_terms(str_sv_type& vec, bm::sparse_vector_scanner<str_sv_type>& scanner, vector<string>& terms)
-{
-    auto sz = terms.size();
-    if (sz == 0)
-        return -1;
-    bm::sparse_vector_scanner<str_sv_type>::pipeline<bm::agg_opt_only_counts> pipe(vec);
-    pipe.options().batch_size = 0;
-    for (const auto& term : terms)
-        pipe.add(term.c_str());
-    pipe.complete();
-    scanner.find_eq_str(pipe); // run the search pipeline
-    auto& cnt_vect = pipe.get_bv_count_vector();
-    for (size_t i = 0; i < sz; ++i) {
-        if (cnt_vect[i] > 1) {
-            return i;
-        }
-    }
-    return -1;
-}
-*/
 
 
 //  ----------------------------------------------------------------------------    
@@ -796,18 +804,14 @@ void check_hash_file(const string& hash_file)
     spdlog::stopwatch sw;
 
     bm::sparse_vector_scanner<str_sv_type> str_scan;
-    str_sv_type::size_type pos = 0;
     spot_name_check name_check(vec.size());
 
-    //bm::bvector<> bv_collisions;
-
-    size_t idx_pos = 0, index = 0, hits = 0, sz = 0, last_hits = 0;
-    static const char empty_str[] = "";
+    size_t index = 0, hits = 0, sz = 0, last_hits = 0;
     const char* value;
     bool hit;
     auto it = vec.begin();
     vector<string> search_terms;
-    //int terms_search = 0;
+    search_terms.reserve(10000);
 
     while (it.valid()) {
         value = it.value();
@@ -818,34 +822,16 @@ void check_hash_file(const string& hash_file)
         }
         if (hit) {
             ++hits;
-/*            
             search_terms.push_back(value);
             if (search_terms.size() == 10000) {
                 bm::chrono_taker tt1("scan", search_terms.size(), &timing_map);
-                terms_search += search_terms.size();
                 int idx = s_search_terms(vec, str_scan, search_terms);
                 if (idx >= 0)
                     throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
                 search_terms.clear();
              }
         }
-*/
-            idx_pos = it.pos();
-            //bv_collisions.set(idx_pos);
-            vec.set(idx_pos, empty_str);
-            {
-                bm::chrono_taker tt1("scan", 1, &timing_map);
-                if (str_scan.find_eq_str(vec, value, pos))
-                    throw fastq_error(170, "Duplicate spot '{}'", value);
-            }
-            it = vec.get_const_iterator(idx_pos + 1);
-            
-        } 
-        else {
-            
-            it.advance();
-        }
-
+        it.advance();
         if (++index % 100000000 == 0) {
             spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
             last_hits = hits;
@@ -853,21 +839,16 @@ void check_hash_file(const string& hash_file)
             timing_map.clear();
         }
     }
-   /*
     if (!search_terms.empty()) {
         bm::chrono_taker tt1("scan", search_terms.size(), &timing_map);
-        terms_search += search_terms.size();
         int idx = s_search_terms(vec, str_scan, search_terms);
         if (idx >= 0)
             throw fastq_error(170, "Duplicate spot '{}'", search_terms[idx]);
     }
-    */
 
     {
         spdlog::debug("index:{:L}, elapsed:{:.2f}, hits:{}, total_hits:{}, memory_used:{:L}", index, sw, hits - last_hits, hits, name_check.memory_used());
-      //  spdlog::debug("terms search: {:L}", terms_search);
         bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_all);
-        
     }
 
     //string collisions_file = hash_file + ".dups";
@@ -910,7 +891,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
             else 
                 has_non_10x_files = true;
 
-            fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, true);
+            fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, 0, true);
             vector<CFastqRead> reads;
             int max_reads = 0;
             bool has_orphans = false;

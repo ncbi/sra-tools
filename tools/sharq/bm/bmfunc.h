@@ -3909,6 +3909,7 @@ void gap_add_to_bitset(unsigned* BMRESTRICT dest,
     BM_ASSERT(dest && pcurr);
     
     const T* pend = pcurr + len;
+    BM_ASSERT(*pend == 65535);
     if (*pcurr & 1)  // Starts with 1
     {
         bm::or_bit_block(dest, 0, 1 + pcurr[1]);
@@ -4322,15 +4323,19 @@ void bit_block_set(bm::word_t* BMRESTRICT dst, bm::word_t value) BMNOEXCEPT
    \brief GAP block to bitblock conversion.
    \param dest - bitblock buffer pointer.
    \param buf  - GAP buffer pointer.
+   \param len - GAP length
 
    @ingroup gapfunc
 */
 template<typename T> 
 void gap_convert_to_bitset(unsigned* BMRESTRICT dest,
-                           const T* BMRESTRICT buf) BMNOEXCEPT
+                           const T* BMRESTRICT buf,
+                           unsigned len=0) BMNOEXCEPT
 {
     bm::bit_block_set(dest, 0);
-    bm::gap_add_to_bitset(dest, buf);
+    if (!len)
+        len = bm::gap_length(buf)-1;
+    bm::gap_add_to_bitset(dest, buf, len);
 }
 
 
@@ -6902,6 +6907,74 @@ bm::id64_t bit_block_and_2way(bm::word_t* BMRESTRICT dst,
 }
 
 
+/*!
+   \brief digest based bit-block AND - OR
+
+   dst =dst OR (src1 AND src2)
+
+   \param dst - destination block.
+   \param src1 - source block.
+   \param src2 - source block.
+   \param digest - known initial digest
+
+   \return new digest (for the AND operation)
+
+   @ingroup bitfunc
+*/
+inline
+bm::id64_t bit_block_and_or_2way(bm::word_t* BMRESTRICT dst,
+                                const bm::word_t* BMRESTRICT src1,
+                                const bm::word_t* BMRESTRICT src2,
+                                bm::id64_t digest) BMNOEXCEPT
+{
+    BM_ASSERT(dst);
+    BM_ASSERT(src1 && src2);
+    BM_ASSERT(dst != src1 && dst != src2);
+
+    const bm::id64_t mask(1ull);
+    bm::id64_t d = digest;
+    while (d)
+    {
+        bm::id64_t t = bm::bmi_blsi_u64(d); // d & -d;
+
+        unsigned wave = bm::word_bitcount64(t - 1);
+        unsigned off = wave * bm::set_block_digest_wave_size;
+
+        #if defined(VECT_AND_OR_DIGEST_2WAY)
+            bool all_zero =
+                VECT_AND_OR_DIGEST_2WAY(&dst[off], &src1[off], &src2[off]);
+            if (all_zero)
+                digest &= ~(mask << wave);
+        #else
+            const bm::bit_block_t::bunion_t* BMRESTRICT src_u1 =
+                                (const bm::bit_block_t::bunion_t*)(&src1[off]);
+            const bm::bit_block_t::bunion_t* BMRESTRICT src_u2 =
+                                (const bm::bit_block_t::bunion_t*)(&src2[off]);
+            bm::bit_block_t::bunion_t* BMRESTRICT dst_u =
+                                (bm::bit_block_t::bunion_t*)(&dst[off]);
+
+            bm::id64_t acc = 0;
+            unsigned j = 0;
+            do
+            {
+                acc |= dst_u->w64[j+0] |= src_u1->w64[j+0] & src_u2->w64[j+0];
+                acc |= dst_u->w64[j+1] |= src_u1->w64[j+1] & src_u2->w64[j+1];
+                acc |= dst_u->w64[j+2] |= src_u1->w64[j+2] & src_u2->w64[j+2];
+                acc |= dst_u->w64[j+3] |= src_u1->w64[j+3] & src_u2->w64[j+3];
+                j+=4;
+            } while (j < bm::set_block_digest_wave_size/2);
+
+            if (!acc) // all zero
+                digest &= ~(mask  << wave);
+        #endif
+
+        d = bm::bmi_bslr_u64(d); // d &= d - 1;
+    } // while
+
+    return digest;
+}
+
+
 
 /*!
    \brief Function ANDs two bitblocks and computes the bitcount. 
@@ -9439,10 +9512,8 @@ bool block_ptr_array_range(bm::word_t** arr,
         return false; // nothing here
     }
     for (j = bm::set_sub_array_size-1; j != i; --j)
-    {
         if (arr[j])
             break;
-    }
     right = j;
     return true;
 }
@@ -9566,6 +9637,24 @@ unsigned lower_bound_u64(const unsigned long long* arr,
         }
     }
     return l;
+}
+
+/**
+    Scan search for pointer value in unordered array
+    @return found flag and  index
+    @internal
+ */
+inline
+bool find_ptr(const void* const * p_arr, size_t arr_size,
+              const void* ptr, size_t *idx) BMNOEXCEPT
+{
+    // TODO: SIMD?
+    for (size_t i = 0; i < arr_size; ++i)
+        if (ptr == p_arr[i])
+        {
+            *idx = i; return true;
+        }
+    return false;
 }
 
 

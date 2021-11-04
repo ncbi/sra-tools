@@ -487,7 +487,8 @@ void sparse_vector_find_mismatch(typename SV1::bvector_type& bv,
     like "find all sparse vector elements equivalent to XYZ".
 
     Class uses fast algorithms based on properties of bit-planes.
-    This is NOT a brute force, direct scan.
+    This is NOT a brute force, direct scan, scanner uses search space pruning and cache optimizations
+    to run the search.
  
     @ingroup svalgo
     @ingroup setalgo
@@ -504,7 +505,100 @@ public:
     
     typedef typename bvector_type::allocator_type        allocator_type;
     typedef typename allocator_type::allocator_pool_type allocator_pool_type;
-    
+
+    typedef bm::aggregator<bvector_type>    aggregator_type;
+    typedef
+    bm::heap_vector<value_type, typename bvector_type::allocator_type, true>
+                                                    remap_vector_type;
+    typedef
+    bm::heap_vector<bvector_type*, allocator_type, true> bvect_vector_type;
+    typedef
+    typename aggregator_type::bv_count_vector_type bv_count_vector_type;
+
+    /**
+       Scanner options to control execution
+     */
+    typedef
+    typename aggregator_type::run_options run_options;
+
+public:
+
+
+    /**
+        Pipeline to run multiple searches against a particular SV faster using cache optimizations.
+        USAGE:
+        - setup the pipeline (add searches)
+        - run all searches at once
+        - get the search results (in the order it was added)
+     */
+    template<class Opt = bm::agg_run_options<> >
+    class pipeline
+    {
+    public:
+        typedef
+        typename aggregator_type::template pipeline<Opt> aggregator_pipeline_type;
+    public:
+        pipeline(const SV& sv)
+        : sv_(sv)
+        {}
+
+        /// Set pipeline run options
+        run_options& options() BMNOEXCEPT
+            { return agg_pipe_.options(); }
+
+        /// Get pipeline run options
+        const run_options& get_options() const BMNOEXCEPT
+            { return agg_pipe_.options(); }
+
+        /**
+            Attach OR (aggregator vector).
+            Pipeline results all will be OR-ed (UNION) into the OR target vector
+           @param bv_or - OR target vector
+         */
+        void set_or_target(bvector_type* bv_or) BMNOEXCEPT
+            { agg_pipe_.set_or_target(bv_or); }
+
+        /*! @name pipeline fill-in methods */
+        //@{
+
+        void add(const typename SV::value_type* str);
+
+        /** Prepare pipeline for the execution (resize and init internal structures)
+            Once complete, you cannot add() to it.
+        */
+        void complete() { agg_pipe_.complete(); }
+        
+        bool is_complete() const BMNOEXCEPT
+            { return agg_pipe_.is_complete(); }
+        //@}
+
+        /** Return results vector used for pipeline execution */
+        bvect_vector_type& get_bv_res_vector()  BMNOEXCEPT
+            { return agg_pipe_.get_bv_res_vector(); }
+        /** Return results vector count used for pipeline execution */
+
+        bv_count_vector_type& get_bv_count_vector()  BMNOEXCEPT
+            { return agg_pipe_.get_bv_count_vector(); }
+
+
+        /**
+            get aggregator pipeline (access to compute internals)
+            @internal
+         */
+         aggregator_pipeline_type& get_aggregator_pipe() BMNOEXCEPT
+            { return agg_pipe_; }
+
+    protected:
+        friend class sparse_vector_scanner;
+
+        pipeline(const pipeline&) = delete;
+        pipeline& operator=(const pipeline&) = delete;
+    protected:
+        const SV&                    sv_; ///< target sparse vector ref
+        aggregator_pipeline_type     agg_pipe_; ///< traget aggregator pipeline
+        remap_vector_type            remap_value_vect_; ///< remap buffer
+    };
+
 public:
     sparse_vector_scanner();
 
@@ -628,6 +722,12 @@ public:
                      const typename SV::value_type* str,
                      typename SV::bvector_type&     bv_out);
 
+    /**
+        \brief find sparse vector elements using search pipeline
+        @param pipe  - pipeline to run
+     */
+    template<class TPipe>
+    void find_eq_str(TPipe& pipe);
 
     /**
         \brief binary find first sparse vector element (string)     
@@ -722,6 +822,7 @@ public:
             correct_nulls(sv, bv_out);
     }
 
+
     /// For testing purposes only
     ///
     /// @internal
@@ -741,6 +842,12 @@ public:
     allocator_pool_type& get_bvector_alloc_pool() BMNOEXCEPT { return pool_; }
     
 protected:
+
+    /// Remap input value into SV char encodings
+    static
+    bool remap_tosv(remap_vector_type& remap_vect_target,
+                    const typename SV::value_type* str,
+                    const SV& sv);
 
     /// set search boundaries (hint for the aggregator)
     void set_search_range(size_type from, size_type to);
@@ -790,6 +897,7 @@ protected:
     /// compare sv[idx] with input value
     int compare(const SV& sv, size_type idx, const value_type val) BMNOEXCEPT;
 
+
 protected:
     sparse_vector_scanner(const sparse_vector_scanner&) = delete;
     void operator=(const sparse_vector_scanner&) = delete;
@@ -805,16 +913,55 @@ protected:
     typedef bm::dynamic_heap_matrix<value_type, allocator_type> matrix_search_buf_type;
 
     typedef
-    bm::heap_vector<value_type, typename bvector_type::allocator_type, true>
-                                                    remap_vector_type;
-    typedef
     bm::heap_vector<bm::id64_t, typename bvector_type::allocator_type, true>
-                                                    mask_vector_type;
+                                            mask_vector_type;
+
+protected:
+
+    /// Addd char  to aggregator (AND-SUB)
+    template<typename AGG>
+    static
+    void add_agg_char(AGG& agg,
+                      const SV& sv,
+                      int octet_idx, bm::id64_t planes_mask,
+                      unsigned value)
+    {
+        unsigned char bits[64];
+        unsigned short bit_count_v = bm::bitscan(value, bits);
+        for (unsigned i = 0; i < bit_count_v; ++i)
+        {
+            unsigned bit_idx = bits[i];
+            BM_ASSERT(value & (value_type(1) << bit_idx));
+            unsigned plane_idx = (unsigned(octet_idx) * 8) + bit_idx;
+            const bvector_type* bv = sv.get_slice(plane_idx);
+            agg.add(bv, 0); // add to the AND group
+        } // for i
+
+        unsigned vinv = unsigned(value);
+        if constexpr (sizeof(value_type) == 1)
+            vinv ^= 0xFF;
+        else // 2-byte char
+        {
+            BM_ASSERT(sizeof(value_type) == 2);
+            vinv ^= 0xFFFF;
+        }
+        // exclude the octet bits which are all not set (no vectors)
+        vinv &= unsigned(planes_mask);
+        for (unsigned octet_plane = (unsigned(octet_idx) * 8); vinv; vinv &= vinv-1)
+        {
+            bm::id_t t = vinv & -vinv;
+            unsigned bit_idx = bm::word_bitcount(t - 1);
+            unsigned plane_idx = octet_plane + bit_idx;
+            const bvector_type* bv = sv.get_slice(plane_idx);
+            BM_ASSERT(bv);
+            agg.add(bv, 1); // add to SUB group
+        } // for
+    }
 
 private:
     allocator_pool_type                pool_;
     bvector_type                       bv_tmp_;
-    bm::aggregator<bvector_type>       agg_;
+    aggregator_type                    agg_;
     bm::rank_compressor<bvector_type>  rank_compr_;
     
     size_type                          mask_from_;
@@ -826,10 +973,8 @@ private:
     heap_matrix_type                   block3_elements_cache_; ///< cache for elements[16384x] of each block
     size_type                          effective_str_max_;
     
-    //value_type                         remap_value_vect_[SV::max_vector_size];
-    remap_vector_type                  remap_value_vect_;
+    remap_vector_type                  remap_value_vect_; ///< remap buffer
     /// masks of allocated bit-planes (1 - means there is a bit-plane)
-    //bm::id64_t                         vector_plane_masks_[SV::max_vector_size];
     mask_vector_type                   vector_plane_masks_;
     matrix_search_buf_type             hmatr_; ///< heap matrix for string search linear stage
 };
@@ -1197,6 +1342,7 @@ sparse_vector_scanner<SV>::sparse_vector_scanner()
 template<typename SV>
 void sparse_vector_scanner<SV>::bind(const SV&  sv, bool sorted)
 {
+    (void)sorted; // MSVC warning over if constexpr variable "not-referenced"
     bound_sv_ = &sv;
 
     if constexpr (SV::is_str()) // bindings for the string sparse vector
@@ -1418,8 +1564,6 @@ bool sparse_vector_scanner<SV>::prepare_and_sub_aggregator(const SV&  sv,
                                       unsigned octet_start,
                                       bool prefix_sub)
 {
-    unsigned char bits[64];
-
     int len = 0;
     for (; str[len] != 0; ++len)
     {}
@@ -1443,39 +1587,7 @@ bool sparse_vector_scanner<SV>::prepare_and_sub_aggregator(const SV&  sv,
         if ((value & planes_mask) != value) // pre-screen for impossible values
             return false; // found non-existing plane
 
-        // prep the lists for combined AND-SUB aggregator
-        //
-        unsigned short bit_count_v = bm::bitscan(value, bits);
-        for (unsigned i = 0; i < bit_count_v; ++i)
-        {
-            unsigned bit_idx = bits[i];
-            BM_ASSERT(value & (value_type(1) << bit_idx));
-            unsigned plane_idx = (unsigned(octet_idx) * 8) + bit_idx;
-            const bvector_type* bv = sv.get_slice(plane_idx);
-            agg_.add(bv);
-        } // for i
-        
-        unsigned vinv = unsigned(value);
-        if (bm::conditional<sizeof(value_type) == 1>::test())
-        {
-            vinv ^= 0xFF;
-        }
-        else // 2-byte char
-        {
-            BM_ASSERT(sizeof(value_type) == 2);
-            vinv ^= 0xFFFF;
-        }
-        // exclude the octet bits which are all not set (no vectors)
-        vinv &= unsigned(planes_mask);
-        for (unsigned octet_plane = (unsigned(octet_idx) * 8); vinv; vinv &= vinv-1)
-        {
-            bm::id_t t = vinv & -vinv;
-            unsigned bit_idx = bm::word_bitcount(t - 1);
-            unsigned plane_idx = octet_plane + bit_idx;
-            const bvector_type* bv = sv.get_slice(plane_idx);
-            BM_ASSERT(bv);
-            agg_.add(bv, 1); // agg to SUB group
-        } // for
+        add_agg_char(agg_, sv, octet_idx, planes_mask, value); // AND-SUB aggregator
      } // for octet_idx
     
     // add all vectors above string len to the SUB aggregation group
@@ -1500,6 +1612,8 @@ bool sparse_vector_scanner<SV>::prepare_and_sub_aggregator(const SV&   sv,
                                            typename SV::value_type   value)
 {
     using unsigned_value_type = typename SV::unsigned_value_type;
+
+    agg_.reset();
 
     unsigned char bits[sizeof(value) * 8];
     unsigned_value_type uv = sv.s2u(value);
@@ -1674,6 +1788,20 @@ bool sparse_vector_scanner<SV>::find_eq_str(const SV&                      sv,
 //----------------------------------------------------------------------------
 
 template<typename SV>
+bool sparse_vector_scanner<SV>::remap_tosv(
+                                remap_vector_type& remap_vect_target,
+                                const typename SV::value_type* str,
+                                const SV& sv)
+{
+    auto str_len = sv.effective_vector_max();
+    remap_vect_target.resize(str_len);
+    bool remaped = sv.remap_tosv(remap_vect_target.data(), str_len, str);
+    return remaped;
+}
+
+//----------------------------------------------------------------------------
+
+template<typename SV>
 bool sparse_vector_scanner<SV>::find_eq_str_impl(const SV&  sv,
                              const typename SV::value_type* str,
                              typename SV::bvector_type& bv_out,
@@ -1695,9 +1823,7 @@ bool sparse_vector_scanner<SV>::find_eq_str_impl(const SV&  sv,
         {
             if (sv.is_remap() && (str != remap_value_vect_.data()))
             {
-                auto str_len = sv.effective_vector_max();
-                remap_value_vect_.resize(str_len);
-                bool remaped = sv.remap_tosv(remap_value_vect_.data(), str_len, str);
+                bool remaped = remap_tosv(remap_value_vect_, str, sv);
                 if (!remaped)
                     return false; // not found because
                 str = remap_value_vect_.data();
@@ -1724,6 +1850,13 @@ bool sparse_vector_scanner<SV>::find_eq_str_impl(const SV&  sv,
 
 }
 
+//----------------------------------------------------------------------------
+
+template<typename SV> template<class TPipe>
+void sparse_vector_scanner<SV>::find_eq_str(TPipe& pipe)
+{
+    agg_.combine_and_sub(pipe.agg_pipe_);
+}
 
 //----------------------------------------------------------------------------
 
@@ -2305,7 +2438,75 @@ void sparse_vector_scanner<SV>::reset_search_range()
 
 
 //----------------------------------------------------------------------------
-//
+// sparse_vector_scanner<SV>::pipeline<Opt>
+//----------------------------------------------------------------------------
+
+template<typename SV> template<class Opt>
+void
+sparse_vector_scanner<SV>::pipeline<Opt>::add(const typename SV::value_type* str)
+{
+    BM_ASSERT(str);
+
+    typename aggregator_type::arg_groups* arg = agg_pipe_.add();
+    BM_ASSERT(arg);
+
+    if constexpr (SV::is_remap_support::value) // test remapping trait
+    {
+        if (sv_.is_remap() && (str != remap_value_vect_.data()))
+        {
+            bool remaped = remap_tosv(remap_value_vect_, str, sv_);
+            if (!remaped)
+                return; // not found (leaves the arg(arg_group) empty
+            str = remap_value_vect_.data();
+        }
+    }
+    int len = 0;
+    for (; str[len] != 0; ++len)
+    {}
+    BM_ASSERT(len);
+
+
+    // use reverse order (faster for sorted arrays)
+    for (int octet_idx = len-1; octet_idx >= 0; --octet_idx)
+    {
+        //if (unsigned(octet_idx) < octet_start) // common prefix
+        //    break;
+
+        unsigned value = unsigned(str[octet_idx]) & 0xFF;
+        BM_ASSERT(value != 0);
+
+        bm::id64_t planes_mask;
+        /*
+        if (&sv == bound_sv_)
+            planes_mask = vector_plane_masks_[unsigned(octet_idx)];
+        else */
+        planes_mask = sv_.get_slice_mask(unsigned(octet_idx));
+
+        if ((value & planes_mask) != value) // pre-screen for impossible values
+            return; // found non-existing plane
+
+        sparse_vector_scanner<SV>::add_agg_char(
+            *arg, sv_, octet_idx, planes_mask, value); // AND-SUB aggregator
+     } // for octet_idx
+
+    // add all vectors above string len to the SUB aggregation group
+    //
+    //if (prefix_sub)
+    {
+        unsigned plane_idx = unsigned(len * 8);
+        typename SV::size_type planes = sv_.get_bmatrix().rows();
+        for (; plane_idx < planes; ++plane_idx)
+        {
+            if (bvector_type_const_ptr bv = sv_.get_slice(plane_idx))
+                arg->add(bv, 1); // agg to SUB group
+        } // for
+    }
+
+
+    //return true;
+
+}
+
 //----------------------------------------------------------------------------
 
 

@@ -81,6 +81,7 @@ For more information please visit:  http://bitmagic.io
 
 #undef VECT_AND_DIGEST
 #undef VECT_AND_DIGEST_2WAY
+#undef VECT_AND_OR_DIGEST_2WAY
 #undef VECT_AND_DIGEST_5WAY
 #undef VECT_BLOCK_SET_DIGEST
 

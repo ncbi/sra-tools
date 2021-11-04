@@ -754,7 +754,7 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
     vector<fastq_reader> readers;
     vector<char> readTypes;
     for (const auto& fn : files) 
-        readers.emplace_back(fn, s_OpenStream(fn, 1024*1024), readTypes, true);
+        readers.emplace_back(fn, s_OpenStream(fn, 1024*1024), readTypes, 0, true);
     vector<uint8_t> placed(files.size(), 0);
 
     for (size_t i = 0; i < files.size(); ++i) {
@@ -891,7 +891,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
             else 
                 has_non_10x_files = true;
 
-            fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, true);
+            fastq_reader reader(fn, s_OpenStream(fn, 1024 * 4), {}, 0, true);
             vector<CFastqRead> reads;
             int max_reads = 0;
             bool has_orphans = false;

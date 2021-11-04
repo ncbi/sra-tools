@@ -89,8 +89,22 @@ using general_writer_sink_mt = general_writer_sink<std::mutex>;
 template<typename Factory = spdlog::synchronous_factory>
 inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::string &logger_name, shared_ptr<Writer2>& writer)
 {
-    auto gw_logger = Factory::template create<general_writer_sink_mt>(logger_name, writer);
-    //gw_logger->set_level(spdlog::level::off);
+    // use this one to create a logger that sinks to general-loader only
+    //auto gw_logger = Factory::template create<general_writer_sink_mt>(logger_name, writer);
+
+    // this logger uses two sinke: stderr and general-loader
+    // each sinker has its own formatting pattern
+    auto stderr_sinker = make_shared<spdlog::sinks::stderr_sink_mt>();
+    stderr_sinker->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); 
+    
+    auto gl_sinker = make_shared<general_writer_sink_mt>(writer);
+    gl_sinker->set_pattern("%v"); 
+
+    auto gw_logger = make_shared<spdlog::logger>("multi_sink", spdlog::sinks_init_list({
+        stderr_sinker,
+        gl_sinker
+    }));
+
     return gw_logger;
 }
 

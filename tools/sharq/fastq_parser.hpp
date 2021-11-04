@@ -274,16 +274,16 @@ bool fastq_reader::parse_read(CFastqRead& read)
         GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
         if (!m_line_view.empty()) {
             do {
-                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view, true)) {
-                    m_buffered_defline = m_line;
-                    break;
-                } 
                 read.AddQualityLine(m_line_view);
                 if (m_is_qual_score_numeric && read.Quality().size() >= sequence_size)
                     break;
                 GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
                 if (m_line_view.empty())
                     break;
+                if (m_line_view[0] == '@' && m_defline_parser.Match(m_line_view, true)) {
+                    m_buffered_defline = m_line;
+                    break;
+                } 
             } while (true);
         }
     }

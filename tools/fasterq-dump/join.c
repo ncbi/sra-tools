@@ -1523,7 +1523,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
                 jtd -> seq_defline,                 /* the seq-defline */
                 jtd -> qual_defline,                /* the qual-defline */
                 !( jo -> rowid_as_name ),           /* use-name or syn-name */
-                is_format_split( jtd -> fmt ),      /* use read-id */
+                false,                              /* use read-id */
                 is_format_fasta( jtd -> fmt ) );    /* fasta-mode */
     if ( 0 == rc && NULL != flex_printer ) {
         join_t j;

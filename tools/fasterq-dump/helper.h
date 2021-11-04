@@ -107,12 +107,10 @@ typedef enum format_t {
     ft_fasta_us_split_spot
     } format_t;
 
-bool is_format_split( format_t fmt );
 bool is_format_fasta( format_t fmt );
 
 const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
 const char * dflt_qual_defline( bool use_name, bool use_read_id );
-
 
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 

@@ -1045,8 +1045,8 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
                         jtd -> seq_defline,             /* the seq-defline */
                         jtd -> qual_defline,            /* the qual-defline */
                         !( jtd -> join_options -> rowid_as_name ), /* use-name or syn-name */
-                        is_format_split( jtd -> fmt ),         /* use read-id */
-                        is_format_fasta( jtd -> fmt ) );       /* fasta-mode */
+                        false,                              /* use read-id */
+                        is_format_fasta( jtd -> fmt ) );    /* fasta-mode */
 
     if ( 0 == rc && NULL != flex_printer ) {
         switch( jtd -> fmt )

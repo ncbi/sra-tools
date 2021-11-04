@@ -1204,7 +1204,7 @@ protected:
         for (unsigned i = 0; i < max_str_size; ++i)
         {
             unsigned ch_acc = 0;
-#if defined(BMVECTOPT)
+#if defined(BMVECTOPT) || defined(BM_USE_GCC_BUILD)
             if (imp_size == ins_buf_size) /// full buffer import can use loop unrolling
             {
                 for (size_type j = 0; j < imp_size; j+=4)
@@ -1242,7 +1242,10 @@ protected:
             this->size_ = idx_to+1;
 
     }
-
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4146 )
+#endif
     /// @internal
     template<size_t BufSize = ins_buf_size>
     void import_char_slice(const unsigned_value_type* ch_slice,
@@ -1256,18 +1259,16 @@ protected:
             unsigned n_bits = 0;
             const unsigned bi = (bm::word_bitcount((ch_acc & -ch_acc) - 1));
             unsigned mask = 1u << bi;
-#if defined(BMVECTOPT)
+#if defined(BMVECTOPT) || defined(BM_USE_GCC_BUILD)
             if (imp_size == ins_buf_size) /// full buffer import can use loop unrolling
             {
                 mask |= (mask << 8) | (mask << 16) | (mask << 24);
                 for (size_type j = 0; j < imp_size; j+=4)
                 {
-                    unsigned ch0 = unsigned(ch_slice[j+0]);
-                    unsigned ch1 = unsigned(ch_slice[j+1]) << 8;
-                    unsigned ch2 = unsigned(ch_slice[j+2]) << 16;
-                    unsigned ch3 = unsigned(ch_slice[j+3]) << 24;
-                    ch0 |= ch1 | ch2 | ch3;
-
+                    unsigned ch0 = ((unsigned)ch_slice[j+0]) |
+                                   ((unsigned)ch_slice[j+1] << 8)  |
+                                   ((unsigned)ch_slice[j+2] << 16) |
+                                   ((unsigned)ch_slice[j+3] << 24);
                     ch0 &= mask;
                     ch0 = (ch0 >> bi) | (ch0 >> (bi+7)) |
                           (ch0 >> (bi+14)) | (ch0 >> (bi+21));
@@ -1275,7 +1276,8 @@ protected:
                     BM_ASSERT(bm::word_bitcount(ch0) <= 4);
                     for (size_type base_idx = idx_from + j ;ch0; ch0 &= ch0 - 1) // bit-scan
                     {
-                        const unsigned bit_idx = (bm::word_bitcount((ch0 & -ch0) - 1));
+                        const unsigned bit_idx =
+                                (bm::word_bitcount((ch0 & -ch0) - 1));
                         bit_list[n_bits++] = base_idx + bit_idx;
                     } // for ch0
                 } // for j
@@ -1285,7 +1287,7 @@ protected:
             {
                 for (size_type j = 0; j < imp_size; ++j)
                 {
-                    unsigned_value_type ch = unsigned(ch_slice[j]);
+                    unsigned ch = unsigned(ch_slice[j]);
                     if (ch & mask)
                         bit_list[n_bits++] = idx_from + j;
                 } // for j
@@ -1294,12 +1296,14 @@ protected:
             if (n_bits) // set transposed bits to the target plane
             {
                 bvector_type* bv =
-                    this->get_create_slice((char_slice_idx * 8) + bi);
+                    this->get_create_slice((unsigned)(char_slice_idx * 8) + bi);
                 bv->import_sorted(&bit_list[0], n_bits);
             }
         } // for ch_acc
     }
-
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
     // ------------------------------------------------------------
     /*! @name Errors and exceptions                              */
     ///@{

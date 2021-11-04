@@ -27,7 +27,7 @@ For more information please visit:  http://bitmagic.io
 #include "bmutil.h"
 
 
-#ifdef _MSVC_VER
+#ifdef _MSC_VER
 #pragma warning (push)
 #pragma warning (disable : 4702)
 #endif 
@@ -1945,7 +1945,7 @@ unsigned bit_in<TDecoder>::get_bit() BMNOEXCEPT
 
 } // namespace bm
 
-#ifdef _MSVC_VER
+#ifdef _MSC_VER
 #pragma warning(pop)
 #endif 
 

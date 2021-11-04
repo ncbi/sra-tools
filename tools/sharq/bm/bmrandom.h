@@ -164,7 +164,6 @@ void random_subset<BV>::sample(BV&       bv_out,
         bool b = bv_in.find_range(first, last);
         if (!b)
             return;
-
         simple_pick(bv_out, bv_in, sample_count, first, last);
         return;
     }
@@ -176,8 +175,7 @@ void random_subset<BV>::sample(BV&       bv_out,
         size_type delta_count = in_count - sample_count;
 
         get_subset(tmp_bv, bv_in, in_count, delta_count);
-        bv_out = bv_in;
-        bv_out -= tmp_bv;
+        bv_out.bit_sub(bv_in, tmp_bv);
         return;
     }
     get_subset(bv_out, bv_in, in_count, sample_count);
@@ -358,12 +356,16 @@ unsigned random_subset<BV>::compute_take_count(
                                     size_type in_count,
                                     size_type sample_count) BMNOEXCEPT
 {
+    BM_ASSERT(sample_count);
     float block_percent = float(bc) / float(in_count);
     float bits_to_take = float(sample_count) * block_percent;
     bits_to_take += 0.99f;
     unsigned to_take = unsigned(bits_to_take);
     if (to_take > bc)
         to_take = bc;
+    if (!to_take)
+        to_take = unsigned(sample_count);
+
     return to_take;
 }
 

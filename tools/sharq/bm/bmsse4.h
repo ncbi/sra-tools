@@ -386,6 +386,62 @@ bool sse4_and_digest_2way(__m128i* BMRESTRICT dst,
 }
 
 /*!
+    @brief AND-OR block digest stride
+    *dst |= *src1 & src2
+
+    @return true if stide is all zero
+    @ingroup SSE4
+*/
+inline
+bool sse4_and_or_digest_2way(__m128i* BMRESTRICT dst,
+                             const __m128i* BMRESTRICT src1,
+                             const __m128i* BMRESTRICT src2) BMNOEXCEPT
+{
+    __m128i m1A, m1B, m1C, m1D;
+    __m128i mACC1;
+
+    m1A = _mm_and_si128(_mm_load_si128(src1+0), _mm_load_si128(src2+0));
+    m1B = _mm_and_si128(_mm_load_si128(src1+1), _mm_load_si128(src2+1));
+    m1C = _mm_and_si128(_mm_load_si128(src1+2), _mm_load_si128(src2+2));
+    m1D = _mm_and_si128(_mm_load_si128(src1+3), _mm_load_si128(src2+3));
+
+    mACC1 = _mm_or_si128(_mm_or_si128(m1A, m1B), _mm_or_si128(m1C, m1D));
+    bool z1 = _mm_testz_si128(mACC1, mACC1);
+
+    m1A = _mm_or_si128(_mm_load_si128(dst+0), m1A);
+    m1B = _mm_or_si128(_mm_load_si128(dst+1), m1B);
+    m1C = _mm_or_si128(_mm_load_si128(dst+2), m1C);
+    m1D = _mm_or_si128(_mm_load_si128(dst+3), m1D);
+
+    _mm_store_si128(dst+0, m1A);
+    _mm_store_si128(dst+1, m1B);
+    _mm_store_si128(dst+2, m1C);
+    _mm_store_si128(dst+3, m1D);
+
+
+    m1A = _mm_and_si128(_mm_load_si128(src1+4), _mm_load_si128(src2+4));
+    m1B = _mm_and_si128(_mm_load_si128(src1+5), _mm_load_si128(src2+5));
+    m1C = _mm_and_si128(_mm_load_si128(src1+6), _mm_load_si128(src2+6));
+    m1D = _mm_and_si128(_mm_load_si128(src1+7), _mm_load_si128(src2+7));
+
+    mACC1 = _mm_or_si128(_mm_or_si128(m1A, m1B), _mm_or_si128(m1C, m1D));
+    bool z2 = _mm_testz_si128(mACC1, mACC1);
+
+    m1A = _mm_or_si128(_mm_load_si128(dst+4), m1A);
+    m1B = _mm_or_si128(_mm_load_si128(dst+5), m1B);
+    m1C = _mm_or_si128(_mm_load_si128(dst+6), m1C);
+    m1D = _mm_or_si128(_mm_load_si128(dst+7), m1D);
+
+    _mm_store_si128(dst+4, m1A);
+    _mm_store_si128(dst+5, m1B);
+    _mm_store_si128(dst+6, m1C);
+    _mm_store_si128(dst+7, m1D);
+
+     return z1 & z2;
+}
+
+
+/*!
     @brief AND block digest stride
     @return true if stide is all zero
     @ingroup SSE4
@@ -1853,6 +1909,9 @@ void sse42_bit_block_xor_2way(bm::word_t* target_block,
 
 #define VECT_AND_DIGEST(dst, src) \
     sse4_and_digest((__m128i*) dst, (const __m128i*) (src))
+
+#define VECT_AND_OR_DIGEST_2WAY(dst, src1, src2) \
+    sse4_and_or_digest_2way((__m128i*) dst, (const __m128i*) (src1), (const __m128i*) (src2))
 
 #define VECT_AND_DIGEST_5WAY(dst, src1, src2, src3, src4) \
     sse4_and_digest_5way((__m128i*) dst, (const __m128i*) (src1), (const __m128i*) (src2), (const __m128i*) (src3), (const __m128i*) (src4))

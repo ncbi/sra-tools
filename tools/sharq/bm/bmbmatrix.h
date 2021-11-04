@@ -508,8 +508,24 @@ public:
      */
     void mark_null_idx(unsigned null_idx) BMNOEXCEPT
         { bmatr_.null_idx_ = null_idx; }
+    /**
+        Convert signed value type to unsigned representation
+        @internal
+     */
+    static
+    unsigned_value_type s2u(value_type v) BMNOEXCEPT;
+
+    /**
+        Convert unsigned value type to signed representation
+        @internal
+    */
+    static
+    value_type u2s(unsigned_value_type v) BMNOEXCEPT;
+
 
     ///@}
+    ///
+    // -------------------------------------------------------------------
     
     /*!
         \brief run memory optimization for all bit-vector rows
@@ -604,15 +620,6 @@ protected:
         typename base_sparse_vector<Val, BV, MAX_SIZE>::size_type right,
         bm::null_support slice_null);
 
-    /**
-        Convert signed value type to unsigned representation
-     */
-    static
-    unsigned_value_type s2u(value_type v) BMNOEXCEPT;
-
-    static
-    value_type u2s(unsigned_value_type v) BMNOEXCEPT;
-
 protected:
     bmatrix_type             bmatr_;              ///< bit-transposed matrix
     unsigned_value_type      slice_mask_;        ///< slice presence bit-mask
@@ -623,6 +630,11 @@ protected:
 //---------------------------------------------------------------------
 //
 //---------------------------------------------------------------------
+
+#ifdef _MSC_VER
+#pragma warning( push )
+#pragma warning( disable : 4146 )
+#endif
 
 template<typename BV>
 basic_bmatrix<BV>::basic_bmatrix(size_type rsize,
@@ -1021,7 +1033,7 @@ void basic_bmatrix<BV>::set_octet(size_type pos,
     size_type row_end = row + 8;
     for (; row < row_end; ++row)
     {
-        bvector_type* bv = this->get_row(row);
+        bvector_type* bv = (row < rsize_) ? this->get_row(row) : 0;
         if (octet & 1u)
         {
             if (!bv)
@@ -1039,6 +1051,8 @@ void basic_bmatrix<BV>::set_octet(size_type pos,
     } // for
     
     // clear the tail
+    if (row_end > rsize_)
+        row_end = rsize_;
     for (++row; row < row_end; ++row)
         if (bvector_type* bv = this->get_row(row))
             bv->clear_bit_no_check(pos);
@@ -1058,7 +1072,7 @@ void basic_bmatrix<BV>::insert_octet(size_type pos,
     size_type row_end = row + 8;
     for (; row < row_end; ++row)
     {
-        bvector_type* bv = this->get_row(row);
+        bvector_type* bv = (row < rsize_) ? this->get_row(row) : 0;
         if (oct & 1u)
         {
             if (!bv)
@@ -1082,6 +1096,8 @@ void basic_bmatrix<BV>::insert_octet(size_type pos,
     } // for
     
     // clear the tail
+    if (row_end > rsize_)
+        row_end = rsize_;
     for (++row; row < row_end; ++row)
         if (bvector_type* bv = this->get_row(row))
             bv->insert(pos, false);
@@ -1809,6 +1825,9 @@ base_sparse_vector<Val, BV, MAX_SIZE>::u2s(unsigned_value_type uv) BMNOEXCEPT
     else
         return uv;
 }
+#ifdef _MSC_VER
+#pragma warning( pop )
+#endif
 
 
 } // namespace

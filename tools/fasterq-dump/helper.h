@@ -110,6 +110,9 @@ typedef enum format_t {
 bool is_format_split( format_t fmt );
 bool is_format_fasta( format_t fmt );
 
+const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
+const char * dflt_qual_defline( bool use_name, bool use_read_id );
+
 
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
@@ -272,60 +275,6 @@ rc_t release_file( struct KFile * f, const char * err_msg );
 rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
 
 /* ===================================================================================== */
-
-/* 
-    This object describes at which position in the str-args/int-args a variable can be found.
-    Its purpose is the be created as a lookup: name->idx,
-    to be used by the the var_fmt_.... functions
-   */
-struct var_desc_list_t;
-
-struct var_desc_list_t * create_var_desc_list( void );
-void release_var_desc_list( struct var_desc_list_t * self );
-void var_desc_list_add_str( struct var_desc_list_t * self, const char * name, uint32_t idx, uint32_t idx2 );
-void var_desc_list_add_int( struct var_desc_list_t * self, const char * name, uint32_t idx );
-
-void var_desc_list_test( void );
-
-/* 
-    This object describes a format,
-    to be used by the the var_fmt_.... functions
-   */
-
-struct var_fmt_t;
-
-struct var_fmt_t * create_empty_var_fmt( size_t buffer_size );
-struct var_fmt_t * create_var_fmt( const String * fmt, const struct var_desc_list_t * vars );
-struct var_fmt_t * create_var_fmt_str( const char * fmt, const struct var_desc_list_t * vars );
-void var_fmt_append( struct var_fmt_t * self,  const String * fmt, const struct var_desc_list_t * vars );
-void var_fmt_append_str( struct var_fmt_t * self,  const char * fmt, const struct var_desc_list_t * vars );
-struct var_fmt_t * var_fmt_clone( const struct var_fmt_t * src );
-
-void var_fmt_debug( const struct var_fmt_t * self );
-
-void release_var_fmt( struct var_fmt_t * self );
-
-size_t var_fmt_buffer_size( const struct var_fmt_t * self,
-                    const String ** str_args, size_t str_args_len );
-
-/* print to buffer */
-SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
-                    const String ** str_args, size_t str_args_len,
-                    const uint64_t * int_args, size_t int_args_len );
-
-/* print to stdout */
-rc_t var_fmt_to_stdout( struct var_fmt_t * self,
-                    const String ** str_args, size_t str_args_len,
-                    const uint64_t * int_args, size_t int_args_len );
-
-/* print to file */
-rc_t var_fmt_to_file( struct var_fmt_t * self,
-                    KFile * f,
-                    uint64_t * pos,
-                    const String ** str_args, size_t str_args_len,
-                    const uint64_t * int_args, size_t int_args_len );
-
-void var_fmt_test( void );
 
 #ifdef __cplusplus
 }

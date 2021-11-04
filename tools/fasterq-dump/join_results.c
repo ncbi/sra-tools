@@ -25,6 +25,8 @@
 */
 #include "join_results.h"
 #include "helper.h"
+#include "var_fmt.h"
+
 #include <klib/vector.h>
 #include <klib/out.h>
 #include <klib/printf.h>
@@ -202,48 +204,6 @@ static struct var_desc_list_t * make_flex_printer_vars( void ) {
         var_desc_list_add_int( res, "$rl",  idi_rl );    /* read-lenght at #2 in the int-list */
     }
     return res;
-}
-
-static const char * dflt_seq_defline_fastq_use_name_ri = "@$ac.$si/$ri $sn length=$rl";
-static const char * dflt_seq_defline_fastq_syn_name_ri = "@$ac.$si/$ri $si length=$rl";
-static const char * dflt_seq_defline_fasta_use_name_ri = ">$ac.$si/$ri $sn length=$rl";
-static const char * dflt_seq_defline_fasta_syn_name_ri = ">$ac.$si/$ri $si length=$rl";
-
-static const char * dflt_seq_defline_fastq_use_name = "@$ac.$si $sn length=$rl";
-static const char * dflt_seq_defline_fastq_syn_name = "@$ac.$si $si length=$rl";
-static const char * dflt_seq_defline_fasta_use_name = ">$ac.$si $sn length=$rl";
-static const char * dflt_seq_defline_fasta_syn_name = ">$ac.$si $si length=$rl";
-
-const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta ) {
-    if ( use_read_id ) {
-        if ( fasta ) {
-            return use_name ? dflt_seq_defline_fasta_use_name_ri : dflt_seq_defline_fasta_syn_name_ri;
-        } else {
-            return use_name ? dflt_seq_defline_fastq_use_name_ri : dflt_seq_defline_fastq_syn_name_ri;
-        }
-    } else {
-        if ( fasta ) {
-            return use_name ? dflt_seq_defline_fasta_use_name : dflt_seq_defline_fasta_syn_name;
-        } else {
-            return use_name ? dflt_seq_defline_fastq_use_name : dflt_seq_defline_fastq_syn_name;
-        }
-    }
-    return NULL;
-}
-
-static const char * dflt_qual_defline_use_name_ri = "+$ac.$si/$ri $sn length=$rl";
-static const char * dflt_qual_defline_syn_name_ri = "+$ac.$si/$ri $si length=$rl";
-
-static const char * dflt_qual_defline_use_name = "+$ac.$si $sn length=$rl";
-static const char * dflt_qual_defline_syn_name = "+$ac.$si $si length=$rl";
-
-const char * dflt_qual_defline( bool use_name, bool use_read_id ) {
-    if ( use_read_id ) {
-        return use_name ? dflt_qual_defline_use_name_ri : dflt_qual_defline_syn_name_ri;
-    } else {
-        return use_name ? dflt_qual_defline_use_name : dflt_qual_defline_syn_name;
-    }
-    return NULL;
 }
 
 /* ------------------------------------------

@@ -79,9 +79,6 @@ bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const Stri
 
 bool spot_group_requested( const char * seq_defline, const char * qual_defline );
 
-const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( bool use_name, bool use_read_id );
-
 struct flex_printer_t;
 
 typedef struct flex_printer_data_t {

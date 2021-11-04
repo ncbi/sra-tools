@@ -2,6 +2,7 @@ add_compile_definitions( __mod__="tools/fasterq-dump" )
 
 set( TOOLS_SRC
 	helper
+	var_fmt
 	temp_dir
 	progress_thread
 	cleanup_task

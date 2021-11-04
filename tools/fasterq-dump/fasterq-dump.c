@@ -337,16 +337,16 @@ static rc_t get_environment( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-const char * DFLT_SEQ_DEFLINE_FASTQ = "AA";
-const char * DFLT_SEQ_DEFLINE_FASTA = "BB";
-static const char * dflt_seq_defline( const tool_ctx_t * tool_ctx ) {
+const char * DFLT_SEQ_DEFLINE_FASTQ = "-";
+const char * DFLT_SEQ_DEFLINE_FASTA = "-";
+static const char * x_dflt_seq_defline( const tool_ctx_t * tool_ctx ) {
     return ( is_format_fasta( tool_ctx -> fmt ) ) /* helper.c */
         ? DFLT_SEQ_DEFLINE_FASTA : DFLT_SEQ_DEFLINE_FASTQ;
 }
 
-const char * DFLT_QUAL_DEFLINE_FASTQ = "CC";
+const char * DFLT_QUAL_DEFLINE_FASTQ = "-";
 const char * DFLT_QUAL_DEFLINE_FASTA = "-";
-static const char * dflt_qual_defline( const tool_ctx_t * tool_ctx ) {
+static const char * x_dflt_qual_defline( const tool_ctx_t * tool_ctx ) {
     return ( is_format_fasta( tool_ctx -> fmt ) ) /* helper.c */
         ? DFLT_QUAL_DEFLINE_FASTA : DFLT_QUAL_DEFLINE_FASTQ;  
 }
@@ -405,12 +405,12 @@ static rc_t show_details( const tool_ctx_t * tool_ctx ) {
     }
     if ( 0 == rc ) {
         const char * s = tool_ctx -> seq_defline;
-        if ( NULL == s ) { s = dflt_seq_defline( tool_ctx ); }
+        if ( NULL == s ) { s = x_dflt_seq_defline( tool_ctx ); }
         rc = KOutMsg( "seq-defline  : '%s'\n", s );
     }
     if ( 0 == rc ) {
         const char * s = tool_ctx -> qual_defline;
-        if ( NULL == s ) { s = dflt_qual_defline( tool_ctx ); }
+        if ( NULL == s ) { s = x_dflt_qual_defline( tool_ctx ); }
         rc = KOutMsg( "qual-defline  : '%s'\n", s );
     }
     if ( 0 == rc ) {
@@ -1035,8 +1035,7 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx ) {
 static rc_t process_csra( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     
-    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); } /* above */
-    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
+    if ( ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* the special case of fasta-unsorted and split-spot : */
@@ -1084,8 +1083,7 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
     if ( tool_ctx -> only_aligned ) { return rc; }
 
     clear_join_stats( &stats ); /* helper.c */
-    if ( tool_ctx -> show_details ) { rc = show_details( tool_ctx ); /* above */ }
-    if ( 0 == rc && ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
+    if ( tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* this is the 'special' unsorted FASTA for flat tables */
@@ -1187,6 +1185,9 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
                                 tool_ctx -> accession_short, tool_ctx -> accession_path,
                                 &acc_type ); /* cmn_iter.c */
     if ( 0 == rc ) {
+        if ( tool_ctx -> show_details ) {
+            rc = show_details( tool_ctx ); /* above */
+        }
         /* =================================================== */
         switch( acc_type ) {
             case acc_csra       : rc = process_csra( tool_ctx ); /* above */

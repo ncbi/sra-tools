@@ -24,6 +24,10 @@
 *
 */
 
+#ifndef _h_arg_helper_
+#include "arg_helper.h"
+#endif
+
 #ifndef _h_sorter_
 #include "sorter.h"
 #endif
@@ -406,6 +410,12 @@ static rc_t show_details( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "only-aligned  : '%s'\n", tool_ctx -> only_aligned ? "YES" : "NO" );
     }
     if ( 0 == rc ) {
+        rc = KOutMsg( "accession     : '%s'\n", tool_ctx -> accession_short );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "accession-path: '%s'\n", tool_ctx -> accession_path );
+    }
+    if ( 0 == rc ) {
         rc = KOutMsg( "\n" );
     }
     KOutHandlerSetStdOut();
@@ -433,7 +443,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> row_limit = get_uint64_t_option( args, OPTION_LIMIT, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
-    tool_ctx -> join_options . rowid_as_name = true;
+    tool_ctx -> join_options . rowid_as_name = false;
     tool_ctx -> join_options . skip_tech = !( get_bool_option( args, OPTION_INCL_TECH ) );
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
@@ -1061,7 +1071,7 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
     if ( tool_ctx -> only_aligned ) { return rc; }
 
     clear_join_stats( &stats ); /* helper.c */
-    if ( tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
+    if ( ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* this is the 'special' unsorted FASTA for flat tables */

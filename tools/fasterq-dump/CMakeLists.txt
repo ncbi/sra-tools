@@ -2,6 +2,7 @@ add_compile_definitions( __mod__="tools/fasterq-dump" )
 
 set( TOOLS_SRC
 	helper
+	arg_helper
 	var_fmt
 	temp_dir
 	progress_thread
@@ -9,6 +10,7 @@ set( TOOLS_SRC
 	index
 	lookup_writer
 	lookup_reader
+	locked_file_list
 	file_printer
 	merge_sorter
 	sorter

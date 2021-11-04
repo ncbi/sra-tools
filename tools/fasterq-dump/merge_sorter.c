@@ -33,6 +33,10 @@
 #include "lookup_writer.h"
 #endif
 
+#ifndef _h_locked_file_list_
+#include "locked_file_list.h"
+#endif
+
 #ifndef _h_klib_status_
 #include <klib/status.h>
 #endif

@@ -45,6 +45,10 @@ struct KFastDumpCleanupTask_t;
 #include "helper.h"
 #endif
 
+#ifndef _h_locked_file_list_
+#include "locked_file_list.h"
+#endif
+
 typedef struct KFastDumpCleanupTask_t {
     KTask dad;
     locked_file_list_t files_to_clean;

@@ -112,8 +112,6 @@ bool is_format_fasta( format_t fmt );
 const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
 const char * dflt_qual_defline( bool use_name, bool use_read_id );
 
-typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
-
 typedef struct cmn_iter_params
 {
     const KDirectory * dir;
@@ -147,8 +145,6 @@ rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
 format_t get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot,
         bool fasta, bool fasta_us );
-
-compress_t get_compress_t( bool gzip, bool bzip2 );
 
 uint32_t get_env_u32( const char * name, uint32_t dflt );
     

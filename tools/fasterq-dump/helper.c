@@ -467,17 +467,6 @@ rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
     return rc;
 }
 
-compress_t get_compress_t( bool gzip, bool bzip2 ) {
-    if ( gzip && bzip2 ) {
-        return ct_bzip2;
-    } else if ( gzip ) {
-        return ct_gzip;
-    } else if ( bzip2 ) {
-        return ct_bzip2;
-    }
-    return ct_none;
-}
-
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id ) {
     uint64_t key = seq_spot_id;
     key <<= 1;

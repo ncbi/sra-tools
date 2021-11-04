@@ -112,20 +112,6 @@ static const char * stdout_usage[] = { "print output to stdout", NULL };
 #define OPTION_STDOUT    "stdout"
 #define ALIAS_STDOUT     "Z"
 
-/*
-static const char * gzip_usage[] = { "compress output using gzip", NULL };
-#define OPTION_GZIP      "gzip"
-#define ALIAS_GZIP       "g"
-
-static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
-#define OPTION_BZIP2     "bzip2"
-#define ALIAS_BZIP2      "z"
-
-static const char * maxfd_usage[] = { "maximal number of file-descriptors", NULL };
-#define OPTION_MAXFD     "maxfd"
-#define ALIAS_MAXFD      "a"
-*/
-
 static const char * force_usage[] = { "force to overwrite existing file(s)", NULL };
 #define OPTION_FORCE     "force"
 #define ALIAS_FORCE      "f"
@@ -205,9 +191,6 @@ OptDef ToolOptions[] = {
     { OPTION_SPLIT_3,       ALIAS_SPLIT_3,      NULL, split_3_usage,        1, false,  false },
     { OPTION_WHOLE_SPOT,    NULL,               NULL, whole_spot_usage,     1, false,  false },    
     { OPTION_STDOUT,        ALIAS_STDOUT,       NULL, stdout_usage,         1, false,  false },
-/*    { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false }, */
-/*    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
-/*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
     { OPTION_FORCE,         ALIAS_FORCE,        NULL, force_usage,          1, false,  false },
     { OPTION_SKIP_TECH,     NULL,               NULL, skip_tech_usage,      1, false,  false },
     { OPTION_INCL_TECH,     NULL,               NULL, incl_tech_usage,      1, false,  false },
@@ -313,8 +296,6 @@ typedef struct tool_ctx_t {
     uint64_t row_limit;
     
     format_t fmt; /* helper.h */
-
-    compress_t compress; /* helper.h */ 
 
     bool force, show_progress, show_details, append, use_stdout, only_unaligned, only_aligned;
     
@@ -436,12 +417,6 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     rc_t rc = 0;
     bool split_spot, split_file, split_3, whole_spot, fasta, fasta_us;
 
-#if 0
-    tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
-                                            get_bool_option( args, OPTION_BZIP2 ) );
-#endif
-    tool_ctx -> compress = ct_none;
-
     tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
@@ -537,7 +512,6 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
         }
     }
     if ( tool_ctx -> use_stdout ) {
-        tool_ctx -> compress = ct_none;
         tool_ctx -> force = false;
         tool_ctx -> append = false;
     }
@@ -960,7 +934,6 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
                               tool_ctx -> buf_size,
                               tool_ctx -> show_progress,
                               tool_ctx -> force,
-                              tool_ctx -> compress,
                               tool_ctx -> append ); /* temp_registry.c */
         }
     }
@@ -1146,7 +1119,6 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
                                 tool_ctx -> buf_size,
                                 tool_ctx -> show_progress,
                                 tool_ctx -> force,
-                                tool_ctx -> compress,
                                 tool_ctx -> append ); /* temp_registry.c */
             }
         }

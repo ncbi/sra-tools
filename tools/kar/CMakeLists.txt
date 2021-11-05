@@ -7,7 +7,7 @@ add_executable( kar
 	kar
 )
 target_link_libraries( kar ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( kar true )
+MakeLinksExe( kar false )
 
 add_executable( kar+
 	kar-path
@@ -17,14 +17,14 @@ add_executable( kar+
 	kar+
 )
 target_link_libraries( kar+ ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( kar+ true )
+MakeLinksExe( kar+ false )
 
 add_executable( kar+meta
 	kar+util
 	kar+meta
 )
 target_link_libraries( kar+meta ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( kar+meta true )
+MakeLinksExe( kar+meta false )
 
 # # ?
 # add_executable( sra-kar sra-kar )

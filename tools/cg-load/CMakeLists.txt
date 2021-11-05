@@ -37,4 +37,4 @@ if( NOT WIN32 )
 endif()
 
 target_link_libraries( cg-load ${CGLOAD_LIB} )
-MakeLinksExe( cg-load true )
+MakeLinksExe( cg-load false )

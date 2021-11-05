@@ -30,6 +30,10 @@
 #include "helper.h"     /* ErrMsg */
 #endif
 
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
 rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize ) {
     rc_t rc;
     if ( NULL == self || 0 == alloc_blocksize ) {

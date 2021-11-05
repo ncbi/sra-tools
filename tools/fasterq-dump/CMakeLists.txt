@@ -4,6 +4,7 @@ set( TOOLS_SRC
 	helper
 	arg_helper
 	sbuffer
+	file_tools
 	var_fmt
 	temp_dir
 	progress_thread

@@ -28,6 +28,10 @@
 #include "arg_helper.h"
 #endif
 
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
 #ifndef _h_sorter_
 #include "sorter.h"
 #endif

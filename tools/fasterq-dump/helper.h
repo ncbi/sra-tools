@@ -148,22 +148,6 @@ int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char *
 
 /* -------------------------------------------------------------------------------- */
 
-rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
-rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force );
-bool file_exists( const KDirectory * dir, const char * fmt, ... );
-bool dir_exists( const KDirectory * dir, const char * fmt, ... );
-rc_t delete_files( KDirectory * dir, const VNamelist * files );
-rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs );
-uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
-
-rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
-                             const char * filename, size_t buf_size );
-
-rc_t release_file( const struct KFile * f, const char * err_msg, ... );
-rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
-
-/* -------------------------------------------------------------------------------- */
-
 void clear_join_stats( join_stats_t * stats );
 void add_join_stats( join_stats_t * stats, const join_stats_t * to_add );
 

@@ -29,6 +29,10 @@
 #include "concatenator.h"
 #endif
 
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
 #ifndef _h_klib_out_
 #include <klib/out.h>
 #endif

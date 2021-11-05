@@ -29,6 +29,10 @@
 #include "var_fmt.h"
 #endif
 
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
 #ifndef _h_klib_printf_
 #include <klib/printf.h>
 #endif

@@ -30,6 +30,10 @@
 #include "helper.h"
 #endif
 
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
 #ifndef _h_copy_machine_
 #include "copy_machine.h"
 #endif

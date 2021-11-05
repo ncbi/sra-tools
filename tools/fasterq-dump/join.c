@@ -30,6 +30,10 @@
 #include "index.h"
 #endif
 
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
 #ifndef _h_lookup_reader_
 #include "lookup_reader.h"
 #endif

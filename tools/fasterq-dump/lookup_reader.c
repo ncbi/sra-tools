@@ -30,6 +30,10 @@
 #include "file_printer.h"
 #endif
 
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
 #ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
 #endif

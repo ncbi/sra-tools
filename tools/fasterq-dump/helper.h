@@ -75,8 +75,6 @@ extern "C" {
 #include "sbuffer.h"
 #endif
     
-rc_t CC Quitting(); /* to avoid including kapp/main.h */
-
 typedef struct join_stats
 {
     uint64_t spots_read;
@@ -98,6 +96,8 @@ typedef struct join_options
     const char * filter_bases;
 } join_options_t;
 
+/* -------------------------------------------------------------------------------- */
+
 typedef enum format_t {
     ft_unknown,
     ft_fastq_whole_spot, ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3,
@@ -107,58 +107,67 @@ typedef enum format_t {
 
 bool is_format_fasta( format_t fmt );
 
-const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( bool use_name, bool use_read_id );
-
-rc_t ErrMsg( const char * fmt, ... );
-
-const String * make_string_copy( const char * src );
-
-rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
-rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
-
 format_t get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot,
         bool fasta, bool fasta_us );
 
-uint32_t get_env_u32( const char * name, uint32_t dflt );
+const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
+const char * dflt_qual_defline( bool use_name, bool use_read_id );
 
+/* -------------------------------------------------------------------------------- */
+
+rc_t CC Quitting(); /* to avoid including kapp/main.h */
+rc_t ErrMsg( const char * fmt, ... );
+uint32_t get_env_u32( const char * name, uint32_t dflt );
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
+void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
+
+rc_t get_quitting( void );
+void set_quitting( void );
+
+/* -------------------------------------------------------------------------------- */
 
 rc_t pack_4na( const String * unpacked, SBuffer_t * packed );
 rc_t pack_read_2_4na( const String * read, SBuffer_t * packed );
 rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool reverse );
 
+/* -------------------------------------------------------------------------------- */
+
+const String * make_string_copy( const char * src );
+
+rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
+rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
 bool ends_in_slash( const char * s );
 bool extract_path( const char * s, String * path );
 const char * extract_acc( const char * s );
 const char * extract_acc2( const char * s );
 
-rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
-rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
-rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force );
-
-bool file_exists( const KDirectory * dir, const char * fmt, ... );
-bool dir_exists( const KDirectory * dir, const char * fmt, ... );
-
-rc_t join_and_release_threads( Vector * threads );
-
-rc_t delete_files( KDirectory * dir, const VNamelist * files );
-rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs );
-
-uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
-
 /*
 int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession );
 */
 
-void clear_join_stats( join_stats_t * stats );
-void add_join_stats( join_stats_t * stats, const join_stats_t * to_add );
+/* -------------------------------------------------------------------------------- */
+
+rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
+rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force );
+bool file_exists( const KDirectory * dir, const char * fmt, ... );
+bool dir_exists( const KDirectory * dir, const char * fmt, ... );
+rc_t delete_files( KDirectory * dir, const VNamelist * files );
+rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs );
+uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
 
 rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
                              const char * filename, size_t buf_size );
 
-/* ===================================================================================== */
+rc_t release_file( const struct KFile * f, const char * err_msg, ... );
+rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
+
+/* -------------------------------------------------------------------------------- */
+
+void clear_join_stats( join_stats_t * stats );
+void add_join_stats( join_stats_t * stats, const join_stats_t * to_add );
+
+/* -------------------------------------------------------------------------------- */
 
 struct Buf2NA_t;
 
@@ -166,7 +175,7 @@ rc_t make_Buf2NA( struct Buf2NA_t ** self, size_t size, const char * pattern );
 void release_Buf2NA( struct Buf2NA_t * self );
 bool match_Buf2NA( struct Buf2NA_t * self, const String * ascii );
 
-/* ===================================================================================== */
+/* -------------------------------------------------------------------------------- */
 
 /* common define for bigger stack-size */
 #define THREAD_BIG_STACK_SIZE ((size_t)(16u * 1024u * 1024u))
@@ -178,22 +187,9 @@ rc_t helper_make_thread( KThread ** self,
                          void * data,
                          size_t stacksize );
 
-/* ===================================================================================== */
-
-rc_t get_quitting( void );
-void set_quitting( void );
-
-/* ===================================================================================== */
-
+rc_t join_and_release_threads( Vector * threads );
 uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
-void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
 
-/* ===================================================================================== */
-
-rc_t release_file( const struct KFile * f, const char * err_msg, ... );
-rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
-
-/* ===================================================================================== */
 
 #ifdef __cplusplus
 }

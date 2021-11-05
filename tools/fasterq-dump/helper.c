@@ -755,19 +755,6 @@ const char * extract_acc2( const char * s ) {
     return res;
 }
 
-rc_t create_this_file( KDirectory * dir, const char * filename, bool force ) {
-    struct KFile * f;
-    KCreateMode create_mode = force ? kcmInit : kcmCreate;
-    rc_t rc = KDirectoryCreateFile( dir, &f, false, 0664, create_mode | kcmParents, "%s", filename );
-    if ( 0 != rc ) {
-        ErrMsg( "create_this_file().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
-    } else {
-        rc_t rc2 = release_file( f, "create_this_file( '%s' )", filename );
-        rc = ( 0 == rc ) ? rc2 : rc;
-    }
-    return rc;
-}
-
 rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force ) {
     KCreateMode create_mode = force ? kcmInit : kcmCreate;
     rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%.*s", dir_name -> len, dir_name -> addr );

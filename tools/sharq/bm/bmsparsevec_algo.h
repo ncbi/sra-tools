@@ -626,7 +626,7 @@ public:
 
         \param sv - input sparse vector
         \param value - value to search for
-        \param bv_out - search result bit-vector (search result masks 1 elements)
+        \param bv_out - search result bit-vector (search result  is a vector of 1s when sv[i] == value)
     */
     void find_eq(const SV&                  sv,
                  typename SV::value_type    value,
@@ -779,6 +779,17 @@ public:
     */
     void find_nonzero(const SV& sv, typename SV::bvector_type& bv_out);
 
+    /*!
+        \brief Find positive (greter than zero elements)
+        Output vector is computed as a logical OR (join) of all planes
+
+        \param  sv - input sparse vector
+        \param  bv_out - output bit-bector of non-zero elements
+    */
+    void find_positive(const SV& sv,
+                      typename SV::bvector_type& bv_out);
+
+
     /**
         \brief invert search result ("EQ" to "not EQ")
 
@@ -829,6 +840,15 @@ public:
     void find_eq_with_nulls_horizontal(const SV&   sv,
                  typename SV::value_type           value,
                  typename SV::bvector_type&        bv_out);
+
+    /// For testing purposes only
+    ///
+    /// @internal
+    void find_gt_horizontal(const SV&   sv,
+                         typename SV::value_type     value,
+                         typename SV::bvector_type&  bv_out,
+                         bool null_correct = true);
+
 
     /** Exclude possible NULL values from the result vector
         \param  sv - input sparse vector
@@ -896,6 +916,26 @@ protected:
 
     /// compare sv[idx] with input value
     int compare(const SV& sv, size_type idx, const value_type val) BMNOEXCEPT;
+
+    ///  @internal
+    void aggregate_OR_slices(bvector_type& bv_target, const SV& sv,
+                unsigned from, unsigned total_planes);
+
+    ///  @internal
+    static
+    void aggregate_AND_OR_slices(bvector_type& bv_target,
+                const bvector_type& bv_mask,
+                const SV& sv,
+                unsigned from, unsigned total_planes);
+
+    /// Return the slice limit for signed/unsigned vector value types
+    /// @internal
+    static constexpr int gt_slice_limit() noexcept
+    {
+        if constexpr (std::is_signed<value_type>::value)
+            return 1; // last plane
+        return 0;
+    }
 
 
 protected:
@@ -1430,6 +1470,12 @@ void sparse_vector_scanner<SV>::invert(const SV& sv, typename SV::bvector_type& 
         return;
     }
     // TODO: find a better algorithm (NAND?)
+    auto old_sz = bv_out.size();
+    bv_out.resize(sv.size());
+    bv_out.invert();
+    bv_out.resize(old_sz);
+    correct_nulls(sv, bv_out);
+    /*
     bv_out.invert();
     const bvector_type* bv_null = sv.get_null_bvector();
     if (bv_null) // correct result to only use not NULL elements
@@ -1439,6 +1485,7 @@ void sparse_vector_scanner<SV>::invert(const SV& sv, typename SV::bvector_type& 
         // TODO: use the shorter range to clear the tail
         bv_out.set_range(sv.size(), bm::id_max - 1, false);
     }
+    */
 }
 
 //----------------------------------------------------------------------------
@@ -1652,6 +1699,7 @@ void sparse_vector_scanner<SV>::find_eq_with_nulls_horizontal(const SV&  sv,
     typename SV::value_type    value,
     typename SV::bvector_type& bv_out)
 {
+    bv_out.clear();
     if (sv.empty())
         return; // nothing to do
 
@@ -1693,6 +1741,219 @@ void sparse_vector_scanner<SV>::find_eq_with_nulls_horizontal(const SV&  sv,
         if (const bvector_type* bv = sv.get_slice(i); bv && !(uv & (1u << i)))
             bv_out -= *bv;
     } // for i
+}
+//----------------------------------------------------------------------------
+
+
+template<typename SV>
+void sparse_vector_scanner<SV>::find_gt_horizontal(const SV&   sv,
+                                         typename SV::value_type     value,
+                                         typename SV::bvector_type&  bv_out,
+                                         bool null_correct)
+{
+    unsigned char blist[64];
+    unsigned bit_count_v;
+
+    if (sv.empty())
+    {
+        bv_out.clear();
+        return; // nothing to do
+    }
+
+    if (!value)
+    {
+        bvector_type bv_zero;
+        find_zero(sv, bv_zero);
+        auto sz = sv.size();
+        bv_out.set_range(0, sz-1);
+        bv_out.bit_sub(bv_zero);  // all but zero
+
+        if constexpr (std::is_signed<value_type>::value)
+        {
+            if (const bvector_type* bv_sign = sv.get_slice(0)) // sign bvector
+                bv_out.bit_sub(*bv_sign);  // all but negatives
+        }
+        if (null_correct)
+            correct_nulls(sv, bv_out);
+        return;
+    }
+    bv_out.clear();
+
+    bvector_type gtz_bv; // all >= 0
+
+    if constexpr (std::is_signed<value_type>::value)
+    {
+        find_positive(sv, gtz_bv); // all positives are greater than all negs
+        if (value == -1)
+        {
+            bv_out.swap(gtz_bv);
+            if (null_correct)
+                correct_nulls(sv, bv_out);
+            return;
+        }
+        if (value == -2)
+        {
+            find_eq(sv, -1, bv_out);
+            bv_out.bit_or(gtz_bv);
+            if (null_correct)
+                correct_nulls(sv, bv_out);
+            return;
+        }
+
+        auto uvalue = SV::s2u(value + bool(value < 0)); // turns it int LE expression
+        uvalue &= ~1u; // drop the negative bit
+        BM_ASSERT(uvalue);
+        bit_count_v = bm::bitscan(uvalue, blist);
+    }
+    else
+        bit_count_v = bm::bitscan(value, blist);
+
+    BM_ASSERT(bit_count_v);
+
+
+    // aggregate all top bit-slices (surely greater)
+    // TODO: use aggregator function
+    bvector_type top_or_bv;
+
+    auto total_planes = sv.effective_slices();
+    const bvector_type* bv_sign = sv.get_slice(0); (void)bv_sign;
+
+    agg_.reset();
+    if constexpr (std::is_signed<value_type>::value)
+    {
+        if (value < 0)
+        {
+            if (!bv_sign) // no negatives at all
+            {
+                bv_out.swap(gtz_bv); // return all >= 0
+                if (null_correct)
+                    correct_nulls(sv, bv_out);
+                return;
+            }
+            aggregate_AND_OR_slices(top_or_bv, *bv_sign, sv, blist[bit_count_v-1]+1, total_planes);
+        }
+        else // value > 0
+        {
+            aggregate_OR_slices(top_or_bv, sv, blist[bit_count_v-1]+1, total_planes);
+        }
+    }
+    else
+    {
+        if (total_planes < blist[bit_count_v-1]+1)
+            return; // number is greater than anything in this vector (empty set)
+        aggregate_OR_slices(top_or_bv, sv, blist[bit_count_v-1]+1, total_planes);
+    }
+    agg_.reset();
+
+    // TODO: optimize FULL blocks
+
+    bvector_type and_eq_bv; // AND accum
+    bool first = true; // flag for initial assignment
+
+    // GT search
+    for (int i = int(bit_count_v)-1; i >= 0; --i)
+    {
+        int slice_idx = blist[i];
+        if (slice_idx == gt_slice_limit()) // last plane
+            break;
+        const bvector_type* bv_base_plane = sv.get_slice(unsigned(slice_idx));
+        if (!bv_base_plane)
+            break;
+        if (first)
+        {
+            first = false;
+            if constexpr (std::is_signed<value_type>::value)
+            {
+                if (value < 0)
+                    and_eq_bv.bit_and(*bv_base_plane, *bv_sign); // use negatives for AND mask
+                else // value > 0
+                    and_eq_bv.bit_and(*bv_base_plane, gtz_bv);
+            }
+            else
+                and_eq_bv = *bv_base_plane; // initial assignment
+        }
+        else
+            and_eq_bv.bit_and(*bv_base_plane); // AND base to accumulator
+
+        int next_slice_idx = 0;
+        if (i)
+        {
+            next_slice_idx = blist[i-1];
+            if (slice_idx-1 == next_slice_idx)
+                continue;
+            ++next_slice_idx;
+        }
+
+        // AND-OR the mid-planes
+        //
+        for (int j = slice_idx-1; j >= next_slice_idx; --j)
+        {
+            if constexpr (std::is_signed<value_type>::value)
+                if (j == 0) // sign plane
+                    break; // do not process the sign plane at all
+            if (const bvector_type* bv_sub_plane = sv.get_slice(unsigned(j)))
+                bv_out.bit_and_or(and_eq_bv, *bv_sub_plane);
+        } // for j
+    } // for i
+
+    bv_out.merge(top_or_bv);
+
+    if constexpr (std::is_signed<value_type>::value)
+    {
+        if (value < 0)
+        {
+            // now we have negatives greter by abs value
+            top_or_bv.set_range(0, sv.size()-1);
+            top_or_bv.bit_sub(bv_out);
+            bv_out.swap(top_or_bv);
+        }
+        else // value > 0
+        {
+            gtz_bv.resize(sv.size());
+            gtz_bv.invert(); // now it is all < 0
+            bv_out.bit_sub(gtz_bv); // exclude all negatives
+        }
+    }
+
+    if (null_correct)
+        correct_nulls(sv, bv_out);
+}
+
+//----------------------------------------------------------------------------
+
+template<typename SV>
+void sparse_vector_scanner<SV>::aggregate_OR_slices(
+                bvector_type& bv_target,
+                const SV& sv,
+                unsigned from, unsigned total_planes)
+{
+    for (unsigned i = from; i < total_planes; ++i)
+    {
+        if (const bvector_type* bv_slice = sv.get_slice(i))
+        {
+            BM_ASSERT(bv_slice != sv.get_null_bvector());
+            agg_.add(bv_slice);
+        }
+    }
+    agg_.combine_or(bv_target);
+}
+
+//----------------------------------------------------------------------------
+
+template<typename SV>
+void sparse_vector_scanner<SV>::aggregate_AND_OR_slices(bvector_type& bv_target,
+            const bvector_type& bv_mask,
+            const SV& sv,
+            unsigned from, unsigned total_planes)
+{
+    for (unsigned i = from; i < total_planes; ++i)
+    {
+        if (const bvector_type* bv_slice = sv.get_slice(i))
+        {
+            BM_ASSERT(bv_slice != sv.get_null_bvector());
+            bv_target.bit_and_or(bv_mask, *bv_slice);
+        }
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -2394,10 +2655,34 @@ void sparse_vector_scanner<SV>::find_nonzero(const SV& sv,
                                              typename SV::bvector_type& bv_out)
 {
     agg_.reset(); // in case if previous scan was interrupted
-    for (unsigned i = 0; i < sv.slices(); ++i)
+    auto sz = sv.effective_slices(); // sv.slices();
+    unsigned i;
+    if constexpr (SV::is_str()) // string vector
+        i = 0;
+    else // numeric vector: int, unsigned, etc
+        if constexpr (std::is_signed<value_type>::value)
+            i = 1; // do not process the sign plane
+        else
+            i = 0;
+    for (; i < sz; ++i)
         agg_.add(sv.get_slice(i));
     agg_.combine_or(bv_out);
     agg_.reset();
+}
+
+//----------------------------------------------------------------------------
+
+template<typename SV>
+void sparse_vector_scanner<SV>::find_positive(const SV& sv,
+                                     typename SV::bvector_type& bv_out)
+{
+    BM_ASSERT(sv.size());
+    bv_out.set_range(0, sv.size()-1); // select all elements
+    if constexpr (std::is_signed<value_type>::value)
+    {
+        if (const bvector_type* bv_sign = sv.get_slice(0)) // sign bvector
+            bv_out.bit_sub(*bv_sign);  // all MINUS negatives
+    }
 }
 
 //----------------------------------------------------------------------------

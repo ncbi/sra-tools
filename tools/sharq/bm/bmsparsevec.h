@@ -474,7 +474,12 @@ public:
         \param count   - number of NULLs to push back
     */
     void push_back_null(size_type count);
-    
+
+    /*!
+        \brief push back NULL value
+    */
+    void push_back_null() { push_back_null(1); }
+
     /*!
         \brief insert specified element into container
         \param idx - element index

@@ -190,7 +190,7 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
 
 /* ===================================================================================== */
 
-rc_t release_file( struct KFile * f, const char * err_msg );
+rc_t release_file( const struct KFile * f, const char * err_msg, ... );
 rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
 
 /* ===================================================================================== */

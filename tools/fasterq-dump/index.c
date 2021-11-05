@@ -41,10 +41,7 @@ typedef struct index_writer_t {
 void release_index_writer( struct index_writer_t * writer ) {
     if ( NULL != writer ) {
         if ( NULL != writer -> f ) {
-            rc_t rc = KFileRelease( writer -> f );
-            if ( 0 != rc ) {
-                ErrMsg( "index.c release_index_writer().KFileRelease() -> %R", rc );
-            }
+            release_file( writer -> f, "index.c release_index_writer()" );
         }
         free( ( void * ) writer );
     }
@@ -129,12 +126,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
             if ( 0 != rc ) {
                 ErrMsg( "index.c make_index_writer().KBufFileMakeWrite() -> %R", rc );
             } else {
-                {
-                    rc_t rc2 = KFileRelease( f );
-                    if ( 0 != rc2 ) {
-                        ErrMsg( "index.c make_index_writer().KFileRelease().1 -> %R", rc2 );
-                    }
-                }
+                release_file( f, "index.c make_index_writer().1" );
                 f = temp_file;
             }
         }
@@ -142,11 +134,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer_t ** writer,
         if ( 0 == rc ) {
             rc = make_index_writer_obj( writer, frequency, f );
             if ( 0 != rc ) {
-                rc_t rc2 = KFileRelease( f );
-                if ( 0 != rc2 )
-                {
-                    ErrMsg( "index.c make_index_writer().KFileRelease().2 -> %R", rc2 );
-                }
+                release_file( f, "index.c make_index_writer().2" );
             }
         }
     }
@@ -163,10 +151,7 @@ typedef struct index_reader_t {
 void release_index_reader( index_reader_t * reader ) {
     if ( NULL != reader ) {
         if ( NULL != reader -> f ) {
-            rc_t rc = KFileRelease( reader -> f );
-            if ( 0 != rc ) {
-                ErrMsg( "index.c make_index_reader().KFileRelease() -> %R", rc );
-            }
+            release_file( reader -> f, "index.c make_index_reader()" );
         }
         free( ( void * ) reader );
     }
@@ -226,10 +211,7 @@ rc_t make_index_reader( const KDirectory * dir, index_reader_t ** reader,
             if ( 0 != rc ) {
                 ErrMsg( "index.c make_index_reader() KBufFileMakeRead() -> %R", rc );
             } else {
-                rc = KFileRelease( f );
-                if ( 0 != rc ) {
-                    ErrMsg( "index.c make_index_reader() KFileRelease() -> %R", rc );
-                }
+                rc = release_file( f, "index.c make_index_reader()" );
                 f = temp_file;
             }
         }

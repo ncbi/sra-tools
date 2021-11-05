@@ -762,11 +762,8 @@ rc_t create_this_file( KDirectory * dir, const char * filename, bool force ) {
     if ( 0 != rc ) {
         ErrMsg( "create_this_file().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
     } else {
-        rc_t rc2 = KFileRelease( f );
-        if ( 0 != rc2 ) {
-            ErrMsg( "create_this_file( '%s' ).KFileRelease() -> %R", filename, rc2 );
-            rc = ( 0 == rc ) ? rc2 : rc;
-        }
+        rc_t rc2 = release_file( f, "create_this_file( '%s' )", filename );
+        rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
 }
@@ -802,21 +799,14 @@ rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
             if ( 0 != rc ) {
                 ErrMsg( "make_buffered_for_read( '%s' ).KBufFileMakeRead() -> %R", filename, rc );
             } else {
-                rc = KFileRelease( fr );
-                if ( 0 != rc ) {
-                    ErrMsg( "make_buffered_for_read( '%s' ).KFileRelease().1 -> %R", filename, rc );
-                } else {
-                    fr = fb;
-                }
+                rc = release_file( fr, "make_buffered_for_read( '%s' ).1", filename );
+                if ( 0 == rc ) { fr = fb; }
             }
         }
         if ( 0 == rc ) {
             *f = fr;
         } else {
-            rc_t rc2 = KFileRelease( fr );
-            if ( 0 != rc2 ) {
-                ErrMsg( "make_buffered_for_read( '%s' ).KFileRelease().2 -> %R", filename, rc2 );
-            }
+            release_file( fr, "make_buffered_for_read( '%s' ).2", filename );
         }
     }
     return rc;
@@ -974,10 +964,20 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
 
 /* ===================================================================================== */
 
-rc_t release_file( struct KFile * f, const char * err_msg ) {
+rc_t release_file( const struct KFile * f, const char * err_msg, ... ) {
     rc_t rc = KFileRelease( f );
     if ( 0 != rc ) {
-        ErrMsg( "%s release_file() -> %R", err_msg, rc );
+        char buffer[ 4096 ];
+        size_t num_writ;
+        va_list list;
+        rc_t rc2;
+        
+        va_start( list, err_msg );
+        rc2 = string_vprintf( buffer, sizeof buffer, &num_writ, err_msg, list );
+        if ( 0 == rc2 ) {
+            PLOGERR( klogErr, ( klogErr, rc, "$(E) . KFileRelease()", "E=%s", buffer ) );
+        }
+        va_end( list );
     }
     return rc;
 }

@@ -59,8 +59,7 @@ static rc_t execute_concat_un_compressed_append( KDirectory * dir,
         } else {
             rc = make_a_copy( dir, dst, files, progress, size_of_existing_file, buf_size, 0, q_wait_time ); /* copy_machine.c */
             {
-                rc_t rc2 = KFileRelease( dst );
-                ErrMsg( "concatenator.c execute_concat_un_compressed_append().KFileRelease() -> %R", rc2 );
+                rc_t rc2 = release_file( dst,"concatenator.c execute_concat_un_compressed_append()" );
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
@@ -125,12 +124,9 @@ static rc_t execute_concat_un_compressed_no_append( KDirectory * dir,
                             ErrMsg( "concatenator.c execute_concat_un_compressed() KBufFileMakeWrite( '%s' ) -> %R",
                                     output_filename, rc );
                         } else {
-                            rc_t rc2 = KFileRelease( dst );
-                            if ( 0 != rc2 ) {
-                                ErrMsg( "concatenator.c execute_concat_un_compressed() KFileRelease( '%s' ).1 -> %R",
-                                        output_filename, rc2 );
-                                rc = ( 0 == rc ) ? rc2 : rc;
-                            }
+                            rc_t rc2 = release_file( dst,
+                                "concatenator.c execute_concat_un_compressed( '%s' ).1", output_filename );
+                            rc = ( 0 == rc ) ? rc2 : rc;
                             dst = tmp;
                         }
                     }
@@ -141,12 +137,9 @@ static rc_t execute_concat_un_compressed_no_append( KDirectory * dir,
                                       files_offset, q_wait_time ); /* copy_machine.c */
 
                     {
-                        rc_t rc2 = KFileRelease( dst );
-                        if ( 0 != rc2 ) {
-                            ErrMsg( "concatenator.c execute_concat_un_compressed() KFileRelease( '%s' ).2 -> %R",
-                                    output_filename, rc2 );
-                            rc = ( 0 == rc ) ? rc2 : rc;
-                        }
+                        rc_t rc2 = release_file( dst,
+                            "concatenator.c execute_concat_un_compressed( '%s' ).2", output_filename );
+                        rc = ( 0 == rc ) ? rc2 : rc;
                     }
                 }
             }

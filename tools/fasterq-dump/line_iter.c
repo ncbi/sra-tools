@@ -48,10 +48,7 @@ typedef struct line_iter_t {
 void release_line_iter( struct line_iter_t * iter ) {
     if ( NULL != iter ) {
         if ( iter -> f != NULL ) {
-            rc_t rc = KFileRelease( iter -> f );
-            if ( 0 != rc ) {
-                ErrMsg( "release_line_iter().KFileRelease() -> %R", filename, rc );
-            }
+            release_file( iter -> f, "release_line_iter()" );
         }
         if ( NULL != iter -> buffer . addr ) {
             free( ( void * ) iter -> buffer . addr );
@@ -153,24 +150,14 @@ rc_t make_line_iter( const KDirectory *dir, line_iter_t ** iter,
         if ( NULL == l ) {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             ErrMsg( "calloc( %d ) -> %R", ( sizeof * l ), rc );
-            {
-                rc_t rc2 = KFileRelease( f );
-                if ( 0 != rc2 ) {
-                    ErrMsg( "make_line_iter().KFileRelease().1 -> %R", rc2 );
-                }
-            }
+            release_file( f, "make_line_iter().1" );
         } else {
             l -> f = f;
             l -> buffer.addr = malloc( buffer_size );
             if ( NULL == l -> buffer . addr ) {
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
                 ErrMsg( "malloc( %d ) -> %R", ( buffer_size ), rc );
-                {
-                    rc_t rc2 = KFileRelease( f );
-                    if ( 0 != rc2 ) {
-                        ErrMsg( "make_line_iter().KFileRelease().2 -> %R", rc2 );
-                    }
-                }
+                release_file( f, "make_line_iter().2" );
                 free( ( void * ) l );
             } else {
                 l -> buffer . size = buffer_size;

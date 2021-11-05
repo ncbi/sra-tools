@@ -198,11 +198,8 @@ static rc_t run_copy_machine( copy_machine_t * self ) {
                 if ( 0 == rc ) {
                     rc_t rc2;
                     rc = copy_this_file( self, src ); /* above */
-                    rc2 = KFileRelease( src );
-                    if ( 0 != rc2 ) {
-                        ErrMsg( "copy_machine.c run_copy_machine().KFileRelease()[ %u ] -> %R", idx, rc2 );
-                        rc = ( 0 == rc ) ? rc2 : rc;
-                    }
+                    rc2 = release_file( src, "copy_machine.c run_copy_machine()[ %u ]", idx );
+                    rc = ( 0 == rc ) ? rc2 : rc;
                 }
                 if ( 0 == rc ) {
                     rc = KDirectoryRemove( self -> dir, true, "%s", filename );
@@ -574,7 +571,7 @@ void release_multi_writer( struct multi_writer_t * self ) {
             }
         }
 
-        if ( NULL != self -> f ) { KFileRelease( self -> f ); }
+        if ( NULL != self -> f ) { release_file( self -> f, "copy_machine.c release_multi_writer()" ); }
         free( ( void * ) self );
     }
 }

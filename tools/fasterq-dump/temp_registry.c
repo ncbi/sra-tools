@@ -332,7 +332,7 @@ static void CC on_print_to_stdout( void * item, void * data ) {
                         if ( 0 != rc ) {
                             ErrMsg( "on_print_to_stdout().print_file_to_stdout( '%s' ) -> %R", filename, rc );
                         }
-                        KFileRelease( src );
+                        release_file( src, "on_print_to_stdout()" );
                     }
 
                     {

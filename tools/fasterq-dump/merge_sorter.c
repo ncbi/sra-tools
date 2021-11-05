@@ -37,6 +37,10 @@
 #include "locked_file_list.h"
 #endif
 
+#ifndef _h_locked_value_
+#include "locked_value.h"
+#endif
+
 #ifndef _h_klib_status_
 #include <klib/status.h>
 #endif

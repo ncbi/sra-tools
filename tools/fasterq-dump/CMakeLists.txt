@@ -11,6 +11,7 @@ set( TOOLS_SRC
 	lookup_writer
 	lookup_reader
 	locked_file_list
+	locked_value
 	file_printer
 	merge_sorter
 	sorter

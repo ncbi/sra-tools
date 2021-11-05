@@ -185,19 +185,6 @@ rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
 
 /* ===================================================================================== */
 
-typedef struct locked_value
-{
-    KLock * lock;
-    uint64_t value;
-} locked_value_t;
-
-rc_t locked_value_init( locked_value_t * self, uint64_t init_value );
-void locked_value_release( locked_value_t * self );
-rc_t locked_value_get( locked_value_t * self, uint64_t * value );
-rc_t locked_value_set( locked_value_t * self, uint64_t value );
-
-/* ===================================================================================== */
-
 struct Buf2NA_t;
 
 rc_t make_Buf2NA( struct Buf2NA_t ** self, size_t size, const char * pattern );

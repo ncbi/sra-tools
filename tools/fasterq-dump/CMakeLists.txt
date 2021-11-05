@@ -3,6 +3,7 @@ add_compile_definitions( __mod__="tools/fasterq-dump" )
 set( TOOLS_SRC
 	helper
 	arg_helper
+	sbuffer
 	var_fmt
 	temp_dir
 	progress_thread

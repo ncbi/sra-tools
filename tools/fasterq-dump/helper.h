@@ -71,6 +71,10 @@ extern "C" {
 #include <vdb/manager.h>
 #endif
 
+#ifndef _h_sbuffer_
+#include "sbuffer.h"
+#endif
+    
 rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
 typedef struct join_stats
@@ -94,12 +98,6 @@ typedef struct join_options
     const char * filter_bases;
 } join_options_t;
 
-typedef struct SBuffer
-{
-    String S;
-    size_t buffer_size;
-} SBuffer_t;
-
 typedef enum format_t {
     ft_unknown,
     ft_fastq_whole_spot, ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3,
@@ -112,35 +110,12 @@ bool is_format_fasta( format_t fmt );
 const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
 const char * dflt_qual_defline( bool use_name, bool use_read_id );
 
-typedef struct cmn_iter_params
-{
-    const KDirectory * dir;
-    const VDBManager * vdb_mgr;
-    const char * accession_short;
-    const char * accession_path;
-    int64_t first_row;
-    uint64_t row_count;
-    size_t cursor_cache;
-} cmn_iter_params_t;
-
 rc_t ErrMsg( const char * fmt, ... );
 
 const String * make_string_copy( const char * src );
 
-rc_t make_SBuffer( SBuffer_t * self, size_t len );
-void release_SBuffer( SBuffer_t * self );
-rc_t increase_SBuffer( SBuffer_t * self, size_t by );
-rc_t increase_SBuffer_to( SBuffer_t * self, size_t new_size );
-rc_t print_to_SBufferV( SBuffer_t * self, const char * fmt, va_list args );
-rc_t print_to_SBuffer( SBuffer_t * self, const char * fmt, ... );
-rc_t try_to_enlarge_SBuffer( SBuffer_t * self, rc_t rc_err );
-rc_t make_and_print_to_SBuffer( SBuffer_t * self, size_t len, const char * fmt, ... );
-
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
 rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
-
-rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
-                                const char * filename, uint32_t idx );
 
 format_t get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot,

@@ -40,7 +40,7 @@ if( NOT WIN32 )
     macro(SharqTest TestName Result TestParams)
     add_test( NAME Test_${TestName}
         COMMAND
-            "./runtestcase.sh" "${CMAKE_CURRENT_BINARY_DIR}/../../bin" "." "${TestName}" "${Result}" "--debug" "--no-timestamp" "${TestParams}"
+            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "--debug" "--no-timestamp" "${TestParams}"            
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     endmacro()

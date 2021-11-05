@@ -26,6 +26,10 @@
 
 #include "special_iter.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 typedef struct special_iter_t {
     struct cmn_iter_t * cmn;
     uint32_t prim_alig_id, cmp_read_id, spot_group_id;

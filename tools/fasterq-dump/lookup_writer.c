@@ -26,8 +26,16 @@
 
 #include "lookup_writer.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_sbuffer_
+#include "sbuffer.h"
+#endif
+
 #ifndef _h_helper_
-#include "helper.h"
+#include "helper.h"   /* make_key() pack_4na */
 #endif
 
 #ifndef _h_file_tools_
@@ -142,6 +150,40 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
                 rc = write_key( writer -> idx, key, start_pos );
             }
             writer -> pos += num_writ;
+        }
+    }
+    return rc;
+}
+
+static rc_t pack_4na( const String * unpacked, SBuffer_t * packed ) {
+    rc_t rc = 0;
+    if ( unpacked -> len < 1 ) {
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    } else {
+        if ( unpacked -> len > 0xFFFF ) {
+            rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        } else {
+            uint32_t i;
+            uint8_t * src = ( uint8_t * )unpacked -> addr;
+            uint8_t * dst = ( uint8_t * )packed -> S . addr;
+            uint16_t dna_len = ( unpacked -> len & 0xFFFF );
+            uint32_t len = 0;
+            dst[ len++ ] = ( dna_len >> 8 );
+            dst[ len++ ] = ( dna_len & 0xFF );
+            for ( i = 0; i < unpacked -> len; ++i ) {
+                if ( len < packed -> buffer_size ) {
+                    uint8_t base = ( src[ i ] & 0x0F );
+                    if ( 0 == ( i & 0x01 ) ) {
+                        dst[ len ] = ( base << 4 );
+                    } else {
+                        dst[ len++ ] |= base;
+                    }
+                }
+            }
+            if ( unpacked -> len & 0x01 ) {
+                len++;
+            }
+            packed -> S . size = packed -> S . len = len;
         }
     }
     return rc;

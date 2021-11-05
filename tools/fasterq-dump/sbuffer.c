@@ -26,8 +26,12 @@
 
 #include "sbuffer.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_helper_
-#include "helper.h"     /* ErrMsg */
+#include "helper.h" /* split_string_r */
 #endif
 
 #ifndef _h_klib_printf_

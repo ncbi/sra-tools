@@ -26,6 +26,10 @@
 
 #include "fastq_iter.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_klib_data_buffer_
 #include <klib/data-buffer.h>
 #endif

@@ -26,8 +26,8 @@
 
 #include "locked_file_list.h"
 
-#ifndef _h_helper_
-#include "helper.h"     /* ErrMsg */
+#ifndef _h_err_msg_
+#include "err_msg.h"
 #endif
 
 #ifndef _h_file_tools_

@@ -25,6 +25,10 @@
 */
 #include "merge_sorter.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_file_tools_
 #include "file_tools.h"
 #endif

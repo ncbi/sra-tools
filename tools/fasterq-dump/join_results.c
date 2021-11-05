@@ -25,6 +25,10 @@
 */
 #include "join_results.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_var_fmt_
 #include "var_fmt.h"
 #endif

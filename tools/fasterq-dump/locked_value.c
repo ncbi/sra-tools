@@ -26,8 +26,8 @@
 
 #include "locked_value.h"
 
-#ifndef _h_helper_
-#include "helper.h"     /* ErrMsg */
+#ifndef _h_err_msg_
+#include "err_msg.h"
 #endif
 
 rc_t locked_value_init( locked_value_t * self, uint64_t init_value ) {

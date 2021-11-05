@@ -26,8 +26,12 @@
 
 #include "temp_dir.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_helper_
-#include "helper.h"
+#include "helper.h"   /* ends_in_slash() */
 #endif
 
 #ifndef _h_file_tools_

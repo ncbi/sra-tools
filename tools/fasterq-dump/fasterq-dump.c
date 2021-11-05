@@ -24,6 +24,10 @@
 *
 */
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_arg_helper_
 #include "arg_helper.h"
 #endif

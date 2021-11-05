@@ -25,6 +25,10 @@
 */
 #include "tbl_join.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_fastq_iter_
 #include "fastq_iter.h"
 #endif

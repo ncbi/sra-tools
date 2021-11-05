@@ -26,6 +26,10 @@
 
 #include "raw_read_iter.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_file_printer_
 #include "file_printer.h"
 #endif

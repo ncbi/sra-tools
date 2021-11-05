@@ -26,6 +26,10 @@
 
 #include "join.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_index_
 #include "index.h"
 #endif

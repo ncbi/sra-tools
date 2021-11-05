@@ -26,8 +26,8 @@
 
 #include "cmn_iter.h"
 
-#ifndef _h_helper_
-#include "helper.h"
+#ifndef _h_err_msg_
+#include "err_msg.h"
 #endif
 
 #ifndef _h_klib_num_gen_

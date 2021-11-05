@@ -25,6 +25,10 @@
 */
 #include "temp_registry.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_concatenator_
 #include "concatenator.h"
 #endif

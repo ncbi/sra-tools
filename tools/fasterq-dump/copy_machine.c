@@ -25,8 +25,12 @@
 */
 #include "copy_machine.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_helper_
-#include "helper.h"
+#include "helper.h"     /* helper_make_thread() */
 #endif
 
 #ifndef _h_file_tools_

@@ -117,19 +117,12 @@ const char * dflt_qual_defline( bool use_name, bool use_read_id );
 /* -------------------------------------------------------------------------------- */
 
 rc_t CC Quitting(); /* to avoid including kapp/main.h */
-rc_t ErrMsg( const char * fmt, ... );
 uint32_t get_env_u32( const char * name, uint32_t dflt );
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 void correct_join_options( join_options_t * dst, const join_options_t * src, bool name_column_present );
 
 rc_t get_quitting( void );
 void set_quitting( void );
-
-/* -------------------------------------------------------------------------------- */
-
-rc_t pack_4na( const String * unpacked, SBuffer_t * packed );
-rc_t pack_read_2_4na( const String * read, SBuffer_t * packed );
-rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool reverse );
 
 /* -------------------------------------------------------------------------------- */
 

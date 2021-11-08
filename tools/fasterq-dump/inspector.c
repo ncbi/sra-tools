@@ -30,12 +30,12 @@
 #include "err_msg.h"
 #endif
 
-#ifndef _h_vfs_manager_
-#include <vfs/manager.h>
+#ifndef _h_helper_
+#include "helper.h"
 #endif
 
-#ifndef _h_vfs_path_
-#include <vfs/path.h>
+#ifndef _h_vfs_manager_
+#include <vfs/manager.h>
 #endif
 
 #ifndef _h_vdb_database_
@@ -58,7 +58,113 @@
 #include <kdb/manager.h>    /* kpt... enums */
 #endif
 
-static rc_t inspector_path_to_vpath( const char * path, VPath ** vpath ) {
+#include <limits.h> /* PATH_MAX */
+#ifndef PATH_MAX
+    #define PATH_MAX 4096
+#endif
+
+static const char * inspector_extract_acc_from_path_v1( const char * s ) {
+    const char * res = NULL;
+    if ( ( NULL != s ) && ( !ends_in_slash( s ) ) ) {
+        size_t size = string_size ( s );
+        char * slash = string_rchr ( s, size, '/' );
+        if ( NULL == slash ) {
+            if ( ends_in_sra( s ) ) {
+                res = string_dup ( s, size - 4 );
+            } else {
+                res = string_dup ( s, size );
+            }
+        } else {
+            char * tmp = slash + 1;
+            if ( ends_in_sra( tmp ) ) {
+                res = string_dup ( tmp, string_size ( tmp ) - 4 );
+            } else {
+                res = string_dup ( tmp, string_size ( tmp ) );
+            }
+        }
+    }
+    return res;
+}
+
+static const char * inspector_extract_acc_from_path_v2( const char * s ) {
+    const char * res = NULL;
+    VFSManager * mgr;
+    rc_t rc = VFSManagerMake ( &mgr );
+    if ( 0 != rc ) {
+        ErrMsg( "extract_acc2( '%s' ).VFSManagerMake() -> %R", s, rc );
+    } else {
+        VPath * orig;
+        rc = VFSManagerMakePath ( mgr, &orig, "%s", s );
+        if ( 0 != rc ) {
+            ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R", s, rc );
+        } else {
+            VPath * acc_or_oid = NULL;
+            rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
+            if ( 0 != rc ) { /* remove trailing slash[es] and try again */
+                char P_option_buffer[ PATH_MAX ] = "";
+                size_t l = string_copy_measure( P_option_buffer, sizeof P_option_buffer, s );
+                char * basename = P_option_buffer;
+                while ( l > 0 && strchr( "\\/", basename[ l - 1 ]) != NULL ) {
+                    basename[ --l ] = '\0';
+                }
+                VPath * orig = NULL;
+                rc = VFSManagerMakePath ( mgr, &orig, "%s", P_option_buffer );
+                if ( 0 != rc ) {
+                    ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R", P_option_buffer, rc );
+                } else {
+                    rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
+                    if ( 0 != rc ) {
+                        ErrMsg( "extract_acc2( '%s' ).VFSManagerExtractAccessionOrOID() -> %R", s, rc );
+                    }
+                    {
+                        rc_t r2 = VPathRelease ( orig );
+                        if ( 0 != r2 ) {
+                            ErrMsg( "extract_acc2( '%s' ).VPathRelease().2 -> %R", P_option_buffer, rc );
+                            if ( 0 == rc ) { rc = r2; }
+                        }
+                    }
+                }
+            }
+            if ( 0 == rc ) {
+                char buffer[ 1024 ];
+                size_t num_read;
+                rc = VPathReadPath ( acc_or_oid, buffer, sizeof buffer, &num_read );
+                if ( 0 != rc ) {
+                    ErrMsg( "extract_acc2( '%s' ).VPathReadPath() -> %R", s, rc );
+                } else {
+                    res = string_dup ( buffer, num_read );
+                }
+                rc = VPathRelease ( acc_or_oid );
+                if ( 0 != rc ) {
+                    ErrMsg( "extract_acc2( '%s' ).VPathRelease().1 -> %R", s, rc );
+                }
+            }
+
+            rc = VPathRelease ( orig );
+            if ( 0 != rc ) {
+                ErrMsg( "extract_acc2( '%s' ).VPathRelease().2 -> %R", s, rc );
+            }
+        }
+
+        rc = VFSManagerRelease ( mgr );
+        if ( 0 != rc ) {
+            ErrMsg( "extract_acc2( '%s' ).VFSManagerRelease() -> %R", s, rc );
+        }
+    }
+    return res;
+}
+
+
+const char * inspector_extract_acc_from_path( const char * s ) {
+    const char * res = inspector_extract_acc_from_path_v2( s );
+    // in case something goes wrong with acc-extraction via VFS-manager
+    if ( NULL == res ) {
+        res = inspector_extract_acc_from_path_v1( s );
+    }
+    return res;
+}
+
+rc_t inspector_path_to_vpath( const char * path, VPath ** vpath ) {
     VFSManager * vfs_mgr = NULL;
     rc_t rc = VFSManagerMake( &vfs_mgr );
     if ( 0 != rc ) {

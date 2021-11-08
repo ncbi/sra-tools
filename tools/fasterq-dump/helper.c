@@ -55,10 +55,6 @@
 #endif
 
 #include <atomic32.h>
-#include <limits.h> /* PATH_MAX */
-#ifndef PATH_MAX
-    #define PATH_MAX 4096
-#endif
 
 bool is_format_fasta( format_t fmt ){
     bool res;
@@ -327,7 +323,7 @@ bool ends_in_slash( const char * s ) {
     return res;
 }
 
-static bool ends_in_sra( const char * s ) {
+bool ends_in_sra( const char * s ) {
     bool res = false;
     if ( NULL != s ) {
         uint32_t len = string_measure( s, NULL );
@@ -360,98 +356,6 @@ bool extract_path( const char * s, String * path ) {
     }
     return res;
 }
-
-const char * extract_acc( const char * s ) {
-    const char * res = NULL;
-    if ( ( NULL != s ) && ( !ends_in_slash( s ) ) ) {
-        size_t size = string_size ( s );
-        char * slash = string_rchr ( s, size, '/' );
-        if ( NULL == slash ) {
-            if ( ends_in_sra( s ) ) {
-                res = string_dup ( s, size - 4 );
-            } else {
-                res = string_dup ( s, size );
-            }
-        } else {
-            char * tmp = slash + 1;
-            if ( ends_in_sra( tmp ) ) {
-                res = string_dup ( tmp, string_size ( tmp ) - 4 );
-            } else {
-                res = string_dup ( tmp, string_size ( tmp ) );
-            }
-        }
-    }
-    return res;
-}
-
-const char * extract_acc2( const char * s ) {
-    const char * res = NULL;
-    VFSManager * mgr;
-    rc_t rc = VFSManagerMake ( &mgr );
-    if ( 0 != rc ) {
-        ErrMsg( "extract_acc2( '%s' ).VFSManagerMake() -> %R", s, rc );
-    } else {
-        VPath * orig;
-        rc = VFSManagerMakePath ( mgr, &orig, "%s", s );
-        if ( 0 != rc ) {
-            ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R", s, rc );
-        } else {
-            VPath * acc_or_oid = NULL;
-            rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
-            if ( 0 != rc ) { /* remove trailing slash[es] and try again */
-                char P_option_buffer[ PATH_MAX ] = "";
-                size_t l = string_copy_measure( P_option_buffer, sizeof P_option_buffer, s );
-                char * basename = P_option_buffer;
-                while ( l > 0 && strchr( "\\/", basename[ l - 1 ]) != NULL ) {
-                    basename[ --l ] = '\0';
-                }
-                VPath * orig = NULL;
-                rc = VFSManagerMakePath ( mgr, &orig, "%s", P_option_buffer );
-                if ( 0 != rc ) {
-                    ErrMsg( "extract_acc2( '%s' ).VFSManagerMakePath() -> %R", P_option_buffer, rc );
-                } else {
-                    rc = VFSManagerExtractAccessionOrOID( mgr, &acc_or_oid, orig );
-                    if ( 0 != rc ) {
-                        ErrMsg( "extract_acc2( '%s' ).VFSManagerExtractAccessionOrOID() -> %R", s, rc );
-                    }
-                    {
-                        rc_t r2 = VPathRelease ( orig );
-                        if ( 0 != r2 ) {
-                            ErrMsg( "extract_acc2( '%s' ).VPathRelease().2 -> %R", P_option_buffer, rc );
-                            if ( 0 == rc ) { rc = r2; }
-                        }
-                    }
-                }
-            }
-            if ( 0 == rc ) {
-                char buffer[ 1024 ];
-                size_t num_read;
-                rc = VPathReadPath ( acc_or_oid, buffer, sizeof buffer, &num_read );
-                if ( 0 != rc ) {
-                    ErrMsg( "extract_acc2( '%s' ).VPathReadPath() -> %R", s, rc );
-                } else {
-                    res = string_dup ( buffer, num_read );
-                }
-                rc = VPathRelease ( acc_or_oid );
-                if ( 0 != rc ) {
-                    ErrMsg( "extract_acc2( '%s' ).VPathRelease().1 -> %R", s, rc );
-                }
-            }
-
-            rc = VPathRelease ( orig );
-            if ( 0 != rc ) {
-                ErrMsg( "extract_acc2( '%s' ).VPathRelease().2 -> %R", s, rc );
-            }
-        }
-
-        rc = VFSManagerRelease ( mgr );
-        if ( 0 != rc ) {
-            ErrMsg( "extract_acc2( '%s' ).VFSManagerRelease() -> %R", s, rc );
-        }
-    }
-    return res;
-}
-
 
 /* ===================================================================================== */
 

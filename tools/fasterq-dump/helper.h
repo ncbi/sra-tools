@@ -131,9 +131,8 @@ const String * make_string_copy( const char * src );
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
 rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
 bool ends_in_slash( const char * s );
+bool ends_in_sra( const char * s );
 bool extract_path( const char * s, String * path );
-const char * extract_acc( const char * s );
-const char * extract_acc2( const char * s );
 
 /*
 int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession );

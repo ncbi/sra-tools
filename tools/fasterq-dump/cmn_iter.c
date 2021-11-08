@@ -30,16 +30,12 @@
 #include "err_msg.h"
 #endif
 
+#ifndef _h_inspector_
+#include "inspector.h"      /* inspector_path_to_vpath */
+#endif
+
 #ifndef _h_klib_num_gen_
 #include <klib/num-gen.h>
-#endif
-
-#ifndef _h_sra_sraschema_
-//#include <sra/sraschema.h>
-#endif
-
-#ifndef _h_vdb_schema_
-#include <vdb/schema.h>
 #endif
 
 #ifndef _h_vdb_table_
@@ -71,44 +67,10 @@ typedef struct cmn_iter_t {
 } cmn_iter_t;
 
 /* ------------------------------------------------------------------------------------------------------- */
-static rc_t cmn_iter_path_to_vpath( const char * path, VPath ** vpath ) {
-    VFSManager * vfs_mgr = NULL;
-    rc_t rc = VFSManagerMake( &vfs_mgr );
-    if ( 0 != rc ) {
-        ErrMsg( "cmn_iter.c cmn_iter_path_to_vpath().VFSManagerMake( %s ) -> %R\n", path, rc );
-    } else {
-        VPath * in_path = NULL;
-        rc = VFSManagerMakePath( vfs_mgr, &in_path, "%s", path );
-        if ( 0 != rc ) {
-            ErrMsg( "cmn_iter.c cmn_iter_path_to_vpath().VFSManagerMakePath( %s ) -> %R\n", path, rc );
-        } else {
-            rc = VFSManagerResolvePath( vfs_mgr, vfsmgr_rflag_kdb_acc, in_path, vpath );
-            if ( 0 != rc ) {
-                ErrMsg( "cmn_iter.c cmn_iter_path_to_vpath().VFSManagerResolvePath( %s ) -> %R\n", path, rc );
-            }
-            {
-                rc_t rc2 = VPathRelease( in_path );
-                if ( 0 != rc2 ) {
-                    ErrMsg( "cmn_iter.c cmn_iter_path_to_vpath().VPathRelease( %s ) -> %R\n", path, rc2 );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
-            }
-        }
-        {
-            rc_t rc2 = VFSManagerRelease( vfs_mgr );
-            if ( 0 != rc2 ) {
-                ErrMsg( "cmn_iter.c cmn_iter_path_to_vpath().VFSManagerRelease( %s ) -> %R\n", path, rc2 );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
-        }
-    }
-    return rc;
-}
 
 static rc_t cmn_open_db( const VDBManager * mgr, const char *path, const VDatabase ** db ) {
     VPath * v_path = NULL;
-    rc_t rc = cmn_iter_path_to_vpath( path, &v_path );
-    /* KOutMsg( "\ncmn_open_db( '%s' )\n", path ); */
+    rc_t rc = inspector_path_to_vpath( path, &v_path );
     if ( 0 == rc ) {
         rc = VDBManagerOpenDBReadVPath( mgr, db, NULL, v_path );
         if ( 0 != rc ) {
@@ -128,8 +90,7 @@ static rc_t cmn_open_db( const VDBManager * mgr, const char *path, const VDataba
 
 static rc_t cmn_open_tbl( const VDBManager * mgr, const char *path, const VTable ** tbl ) {
     VPath * v_path = NULL;
-    rc_t rc = cmn_iter_path_to_vpath( path, &v_path );
-    /* KOutMsg( "\ncmn_open_db( '%s' )\n", path ); */
+    rc_t rc = inspector_path_to_vpath( path, &v_path );
     if ( 0 == rc ) {
         rc = VDBManagerOpenTableReadVPath( mgr, tbl, NULL, v_path );
         if ( 0 != rc ) {

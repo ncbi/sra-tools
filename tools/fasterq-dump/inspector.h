@@ -43,6 +43,10 @@ extern "C" {
 #include <vdb/manager.h>
 #endif
 
+#ifndef _h_vfs_path_
+#include <vfs/path.h>
+#endif
+
 typedef struct inspector_input_t
 {
     KDirectory * dir;
@@ -60,6 +64,10 @@ typedef struct inspector_output_t
 
 rc_t inspect( const inspector_input_t * input, inspector_output_t * output );
 
+rc_t inspector_path_to_vpath( const char * path, VPath ** vpath );
+    
+const char * inspector_extract_acc_from_path( const char * s );
+    
 #ifdef __cplusplus
 }
 #endif

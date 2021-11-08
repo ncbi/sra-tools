@@ -35,7 +35,7 @@
 #endif
 
 #ifndef _h_helper_
-#include "helper.h"   /* make_key() pack_4na */
+#include "helper.h"   /* make_key() */
 #endif
 
 #ifndef _h_file_tools_

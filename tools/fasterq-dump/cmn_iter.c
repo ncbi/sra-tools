@@ -35,11 +35,7 @@
 #endif
 
 #ifndef _h_sra_sraschema_
-#include <sra/sraschema.h>
-#endif
-
-#ifndef _h_kdb_manager_
-#include <kdb/manager.h>
+//#include <sra/sraschema.h>
 #endif
 
 #ifndef _h_vdb_schema_
@@ -64,10 +60,6 @@
 
 #ifndef _h_vfs_path_
 #include <vfs/path.h>
-#endif
-
-#ifndef _h_insdc_sra_
-#include <insdc/sra.h>  /* platform enum */
 #endif
 
 typedef struct cmn_iter_t {
@@ -113,12 +105,12 @@ static rc_t cmn_iter_path_to_vpath( const char * path, VPath ** vpath ) {
     return rc;
 }
 
-static rc_t cmn_open_db( const VDBManager * mgr, VSchema * schema, const char *path, const VDatabase ** db ) {
+static rc_t cmn_open_db( const VDBManager * mgr, const char *path, const VDatabase ** db ) {
     VPath * v_path = NULL;
     rc_t rc = cmn_iter_path_to_vpath( path, &v_path );
     /* KOutMsg( "\ncmn_open_db( '%s' )\n", path ); */
     if ( 0 == rc ) {
-        rc = VDBManagerOpenDBReadVPath( mgr, db, schema, v_path );
+        rc = VDBManagerOpenDBReadVPath( mgr, db, NULL, v_path );
         if ( 0 != rc ) {
             ErrMsg( "cmn_iter.c cmn_open_db().VDBManagerOpenDBReadVPath( '%s' ) -> %R\n", path, rc );
         }
@@ -134,12 +126,12 @@ static rc_t cmn_open_db( const VDBManager * mgr, VSchema * schema, const char *p
     return rc;
 }
 
-static rc_t cmn_open_tbl( const VDBManager * mgr, VSchema * schema, const char *path, const VTable ** tbl ) {
+static rc_t cmn_open_tbl( const VDBManager * mgr, const char *path, const VTable ** tbl ) {
     VPath * v_path = NULL;
     rc_t rc = cmn_iter_path_to_vpath( path, &v_path );
     /* KOutMsg( "\ncmn_open_db( '%s' )\n", path ); */
     if ( 0 == rc ) {
-        rc = VDBManagerOpenTableReadVPath( mgr, tbl, schema, v_path );
+        rc = VDBManagerOpenTableReadVPath( mgr, tbl, NULL, v_path );
         if ( 0 != rc ) {
             ErrMsg( "cmn_iter.c cmn_open_tbl().VDBManagerOpenTableReadVPath( '%s' ) -> %R\n", path, rc );
         }
@@ -210,8 +202,8 @@ void destroy_cmn_iter( cmn_iter_t * self ) {
     }
 }
 
-static rc_t cmn_iter_open_cursor( const VTable * tbl, size_t cursor_cache, const VCursor ** cur,
-                                  const char * accession_short ) {
+static rc_t cmn_iter_open_cursor( const VTable * tbl, size_t cursor_cache,
+                                  const VCursor ** cur, const char * accession_short ) {
     rc_t rc;
     if ( cursor_cache > 0 ) {
         rc = VTableCreateCachedCursorRead( tbl, cur, cursor_cache );
@@ -227,10 +219,10 @@ static rc_t cmn_iter_open_cursor( const VTable * tbl, size_t cursor_cache, const
     return cmn_release_tbl( tbl, rc, "cmn_iter_open_cursor", accession_short );
 }
 
-static rc_t cmn_iter_open_db( const VDBManager * mgr, VSchema * schema,
-                              const cmn_iter_params_t * cp, const char * tblname, const VCursor ** cur ) {
+static rc_t cmn_iter_open_db( const VDBManager * mgr, const cmn_iter_params_t * cp,
+                              const char * tblname, const VCursor ** cur ) {
     const VDatabase * db = NULL;
-    rc_t rc = cmn_open_db( mgr, schema, cp -> accession_path, &db );
+    rc_t rc = cmn_open_db( mgr, cp -> accession_path, &db );
     if ( 0 == rc ) {
         const VTable * tbl = NULL;
         rc = VDatabaseOpenTableRead( db, &tbl, "%s", tblname );
@@ -245,10 +237,10 @@ static rc_t cmn_iter_open_db( const VDBManager * mgr, VSchema * schema,
     return rc;
 }
 
-static rc_t cmn_iter_open_tbl( const VDBManager * mgr, VSchema * schema,
-                               const cmn_iter_params_t * cp, const VCursor ** cur ) {
+static rc_t cmn_iter_open_tbl( const VDBManager * mgr, const cmn_iter_params_t * cp,
+                               const VCursor ** cur ) {
     const VTable * tbl = NULL;
-    rc_t rc = cmn_open_tbl( mgr, schema, cp -> accession_path, &tbl );
+    rc_t rc = cmn_open_tbl( mgr, cp -> accession_path, &tbl );
     if ( 0 == rc ) {
         rc = cmn_iter_open_cursor( tbl, cp -> cursor_cache, cur, cp -> accession_short );
     }
@@ -273,43 +265,30 @@ rc_t make_cmn_iter( const cmn_iter_params_t * cp, const char * tblname, cmn_iter
             }
         }
         if ( 0 == rc ) {
-            VSchema * schema = NULL;
-            rc = VDBManagerMakeSRASchema( mgr, &schema );
-            if ( 0 != rc ) {
-                ErrMsg( "cmn_iter.c make_cmn_iter().VDBManagerMakeSRASchema() -> %R\n", rc );
+            const VCursor * cur = NULL;
+            if ( NULL != tblname ) {
+                rc = cmn_iter_open_db( mgr, cp, tblname, &cur );
             } else {
-                const VCursor * cur = NULL;
-                if ( NULL != tblname ) {
-                    rc = cmn_iter_open_db( mgr, schema, cp, tblname, &cur );
+                rc = cmn_iter_open_tbl( mgr, cp, &cur );
+            }
+            if ( 0 == rc ) {
+                cmn_iter_t * i = calloc( 1, sizeof * i );
+                if ( NULL == i ) {
+                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                    ErrMsg( "cmn_iter.c make_cmn_iter().calloc( %d ) -> %R", ( sizeof * i ), rc );
                 } else {
-                    rc = cmn_iter_open_tbl( mgr, schema, cp, &cur );
+                    i -> cursor = cur;
+                    i -> first_row = cp -> first_row;
+                    i -> row_count = cp -> row_count;
+                    *iter = i;
                 }
-                if ( 0 == rc ) {
-                    cmn_iter_t * i = calloc( 1, sizeof * i );
-                    if ( NULL == i ) {
-                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                        ErrMsg( "cmn_iter.c make_cmn_iter().calloc( %d ) -> %R", ( sizeof * i ), rc );
-                    } else {
-                        i -> cursor = cur;
-                        i -> first_row = cp -> first_row;
-                        i -> row_count = cp -> row_count;
-                        *iter = i;
-                    }
-                } else {
-                    rc = cmn_release_curs( cur, rc, "make_cmn_iter", cp -> accession_short );
-                }
+            } else {
+                rc = cmn_release_curs( cur, rc, "make_cmn_iter", cp -> accession_short );
+            }
 
-                {
-                    rc_t rc2 = VSchemaRelease( schema );
-                    if ( 0 != rc2 ) {
-                        ErrMsg( "cmn_iter.c make_cmn_iter().VSchemaRelease() -> %R", rc2 );
-                        rc = ( 0 == rc ) ? rc2 : rc;
-                    }
-                }
-            }
-            if ( release_mgr ) {
-                rc = cmn_release_mgr( mgr, rc, "make_cmn_iter", cp -> accession_short );
-            }
+        }
+        if ( release_mgr ) {
+            rc = cmn_release_mgr( mgr, rc, "make_cmn_iter", cp -> accession_short );
         }
     }
     return rc;
@@ -524,184 +503,6 @@ rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String * value 
     return rc;
 }
 
-static bool contains( VNamelist * tables, const char * table ) {
-    uint32_t found = 0;
-    rc_t rc = VNamelistIndexOf( tables, table, &found );
-    return ( 0 == rc );
-}
-
-static bool cmn_get_db_platform( const VDatabase * db, const char * accession_short, uint8_t * pf ) {
-    bool res = false;
-    const VTable * tbl = NULL;
-    rc_t rc = VDatabaseOpenTableRead ( db, &tbl, "SEQUENCE" );
-    if ( 0 != rc ) {
-        ErrMsg( "cmn_iter.c cmn_get_db_platform().VDatabaseOpenTableRead( '%s' ) -> %R\n",
-                 accession_short, rc );
-    } else {
-        const VCursor * curs = NULL;
-        rc = VTableCreateCursorRead( tbl, &curs );
-        if ( 0 != rc ) {
-            ErrMsg( "cmn_iter.c cmn_get_db_platform().VTableCreateCursor( '%s' ) -> %R\n",
-                    accession_short, rc );
-        } else {
-            uint32_t idx;
-            rc = VCursorAddColumn( curs, &idx, "PLATFORM" );
-            if ( 0 != rc ) {
-                ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorAddColumn( '%s', PLATFORM ) -> %R\n",
-                        accession_short, rc );
-            } else {
-                rc = VCursorOpen( curs );
-                if ( 0 != rc ) {
-                    ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorOpen( '%s' ) -> %R\n",
-                            accession_short, rc );
-                } else {
-                    int64_t first;
-                    uint64_t count;
-                    rc = VCursorIdRange( curs, idx, &first, &count );
-                    if ( 0 != rc ) {
-                        ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorIdRange( '%s' ) -> %R\n",
-                                accession_short, rc );
-                    } else if ( count > 0 ) {
-                        uint32_t elem_bits, boff, row_len;
-                        uint8_t *values;
-                        rc = VCursorCellDataDirect( curs, first, idx, &elem_bits, (const void **)&values, &boff, &row_len );
-                        if ( 0 != rc ) {
-                            ErrMsg( "cmn_iter.c cmn_get_db_platform().VCursorCellDataDirect( '%s' ) -> %R\n",
-                                    accession_short, rc );
-                        } else if ( NULL != values && 0 == elem_bits && 0 == boff && row_len > 0 ) {
-                            *pf = values[ 0 ];
-                            res = true;
-                        }
-                    }
-                }
-            }
-            {
-                rc_t rc2 = cmn_release_curs( curs, rc, "cmn_get_db_platform", accession_short );
-                if ( 0 != rc2 ) {
-                    ErrMsg( "cmn_iter.c cmn_get_db_platform( '%s' ).cmn_release_curs() -> %R\n",
-                            accession_short, rc2 );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
-            }
-        }
-        {
-            rc_t rc2 = cmn_release_tbl( tbl, rc, "cmn_get_db_platform", accession_short );
-            if ( 0 != rc2 ) {
-                ErrMsg( "cmn_iter.c cmn_get_db_platform( '%s' ).cmn_release_tbl() -> %R\n",
-                        accession_short, rc2 );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
-        }
-    }
-    return res;
-}
-
-/*typedef enum acc_type_t { acc_csra, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;*/
-static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accession_short, 
-                                    const char * accession_path ) {
-    acc_type_t res = acc_none;
-    const VDatabase * db = NULL;
-    rc_t rc = cmn_open_db( mgr, NULL, accession_path, &db );
-    if ( 0 == rc ) {
-        KNamelist * k_tables;
-        rc = VDatabaseListTbl ( db, &k_tables );
-        if ( 0 != rc ) {
-            ErrMsg( "cmn_iter.c cmn_get_db_type().VDatabaseListTbl( '%s' ) -> %R\n",
-                    accession_short, rc );
-        } else {
-            VNamelist * tables;
-            rc = VNamelistFromKNamelist ( &tables, k_tables );
-            if ( 0 != rc ) {
-                ErrMsg( "cmn_iter.c cmn_get_db_type().VNamelistFromKNamelist( '%s' ) -> %R\n",
-                        accession_short, rc );
-            } else {
-                if ( contains( tables, "SEQUENCE" ) )
-                {
-                    res = acc_sra_db;
-                    
-                    /* we have at least a SEQUENCE-table */
-                    if ( contains( tables, "PRIMARY_ALIGNMENT" ) &&
-                         contains( tables, "REFERENCE" ) ) {
-                        res = acc_csra;
-                    } else {
-                        if ( contains( tables, "CONSENSUS" ) ||
-                             contains( tables, "ZMW_METRICS" ) ||
-                             contains( tables, "PASSES" ) ) {
-                            res = acc_pacbio;
-                        } else {
-                            /* last resort try to find out what the database-type is */
-                            uint8_t pf;
-                            if ( cmn_get_db_platform( db, accession_short, &pf ) ) {
-                                if ( SRA_PLATFORM_PACBIO_SMRT == pf ) {
-                                    res = acc_pacbio;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            {
-                rc_t rc2 = KNamelistRelease ( k_tables );
-                if ( 0 != rc2 ) {
-                    ErrMsg( "cmn_iter.c cmn_get_db_type().KNamelistRelease( '%s' ) -> %R\n",
-                            accession_short, rc2 );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
-            }
-        }
-        {
-            rc_t rc2 = cmn_release_db( db, rc, "cmn_get_db_type", accession_short );
-            if ( 0 != rc2 ) {
-                ErrMsg( "cmn_iter.c cmn_get_db_type( '%s' ).cmn_release_db() -> %R\n",
-                        accession_short, rc2 );
-                rc = ( 0 == rc ) ? rc2 : rc;                        
-            }
-        }
-    }
-    return res;
-}
-
-rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
-                       const char * accession_short, const char * accession_path,
-                       acc_type_t * acc_type ) {
-    rc_t rc = 0;
-    if ( NULL != acc_type ) { *acc_type = acc_none; }
-    if ( NULL == dir || NULL == accession_short || NULL == accession_path || NULL == acc_type ) {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ) -> %R", accession_short, rc );
-    } else {
-        bool release_mgr = false;
-        const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
-        if ( NULL == mgr ) {
-            rc = VDBManagerMakeRead( &mgr, dir );
-            if ( 0 == rc ) {
-                release_mgr = true;
-            } else {
-                ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ).VDBManagerMakeRead() -> %R\n",
-                        accession_short, rc );
-            }
-        }
-        if ( rc == 0 ) {
-            int pt = VDBManagerPathType ( mgr, "%s", accession_path );
-            switch( pt )
-            {
-                case kptDatabase    : *acc_type = cmn_get_db_type( mgr, accession_short, accession_path ); break;
-    
-                case kptPrereleaseTbl:
-                case kptTable       : *acc_type = acc_sra_flat; break;
-            }
-            if ( release_mgr ) {
-                rc_t rc2 = cmn_release_mgr( mgr, rc, "cmn_get_acc_type", accession_short );
-                if ( 0 != rc2 ) {
-                    ErrMsg( "cmn_iter.c cmn_get_acc_type( '%s' ).cmn_release_mgr() -> %R\n", accession_short, rc2 );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
-            }
-        }
-    }
-    return rc;
-}
-
 static rc_t cmn_check_tbl_for_column( const VTable * tbl, const char * col_name, bool * present ) {
     struct KNamelist * columns;
     rc_t rc = VTableListReadableColumns ( tbl, &columns );
@@ -761,7 +562,7 @@ rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
         }
         if ( 0 == rc ) {
             const VTable * tbl = NULL;
-            rc = cmn_open_tbl( mgr, NULL, accession_path, &tbl );
+            rc = cmn_open_tbl( mgr, accession_path, &tbl );
             if ( 0 == rc ) {
                 rc = cmn_check_tbl_for_column( tbl, col_name, present );
                 {
@@ -807,7 +608,7 @@ rc_t cmn_check_db_column( KDirectory * dir, const VDBManager * vdb_mgr,
         }
         if ( 0 == rc ) {
             const VDatabase * db = NULL;
-            rc = cmn_open_db( mgr, NULL, accession_path, &db );
+            rc = cmn_open_db( mgr, accession_path, &db );
             if ( 0 == rc ) {
                 const VTable * tbl = NULL;
                 rc = VDatabaseOpenTableRead ( db, &tbl, "%s", tbl_name );
@@ -864,7 +665,7 @@ VNamelist * cmn_get_table_names( KDirectory * dir, const VDBManager * vdb_mgr,
         }
         if ( rc == 0 ) {
             const VDatabase * db;
-            rc = cmn_open_db( mgr, NULL, accession_path, &db );
+            rc = cmn_open_db( mgr, accession_path, &db );
             if ( 0 == rc ) {
                 KNamelist * tables;
                 rc = VDatabaseListTbl ( db, &tables );

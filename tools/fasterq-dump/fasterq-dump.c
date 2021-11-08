@@ -32,6 +32,10 @@
 #include "arg_helper.h"
 #endif
 
+#ifndef _h_inspector_
+#include "inspector.h"
+#endif
+
 #ifndef _h_file_tools_
 #include "file_tools.h"
 #endif
@@ -1175,16 +1179,23 @@ static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx ) {
 /* -------------------------------------------------------------------------------------------- */
 
 static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
-    acc_type_t acc_type; /* cmn_iter.h */
-    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> vdb_mgr,
-                                tool_ctx -> accession_short, tool_ctx -> accession_path,
-                                &acc_type ); /* cmn_iter.c */
+    rc_t rc;
+    inspector_input_t insp_input;
+    inspector_output_t insp_output;
+
+    insp_input . dir = tool_ctx -> dir;
+    insp_input . vdb_mgr = tool_ctx -> vdb_mgr;
+    insp_input . accession_short = tool_ctx -> accession_short;
+    insp_input . accession_path = tool_ctx -> accession_path;
+    
+    rc = inspect( &insp_input, &insp_output );
+    
     if ( 0 == rc ) {
         if ( tool_ctx -> show_details ) {
             rc = show_details( tool_ctx ); /* above */
         }
         /* =================================================== */
-        switch( acc_type ) {
+        switch( insp_output . acc_type ) {
             case acc_csra       : rc = process_csra( tool_ctx ); /* above */
                                   break;
 

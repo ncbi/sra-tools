@@ -81,12 +81,6 @@ rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t **
                             
 rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String *value );
 
-typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
-
-rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
-                       const char * accession_short,
-                       const char * accession_paht, acc_type_t * acc_type );
-
 rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
                            const char * accession_short, const char * accession_path,
                            const char * col_name, bool * present );

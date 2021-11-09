@@ -298,7 +298,7 @@ typedef struct tool_ctx_t {
     const char * accession_short;
     const char * output_filename;
     const char * output_dirname;
-    const char * seq_tbl_name;
+    const char * requested_seq_tbl_name;
     const char * seq_defline;
     const char * qual_defline;
 
@@ -353,20 +353,21 @@ static const char * x_dflt_qual_defline( const tool_ctx_t * tool_ctx ) {
         ? DFLT_QUAL_DEFLINE_FASTA : DFLT_QUAL_DEFLINE_FASTQ;  
 }
 
-static rc_t show_details( const tool_ctx_t * tool_ctx ) {
+static rc_t show_details( const tool_ctx_t * tool_ctx,
+                          const inspector_output_t * insp_output ) {
     rc_t rc = KOutHandlerSetStdErr();
     
     if ( 0 == rc ) {
-        rc = KOutMsg( "cursor-cache : %,ld bytes\n", tool_ctx -> cursor_cache );
+        rc = KOutMsg( "cursor-cache : %,lu bytes\n", tool_ctx -> cursor_cache );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "buf-size     : %,ld bytes\n", tool_ctx -> buf_size );
+        rc = KOutMsg( "buf-size     : %,lu bytes\n", tool_ctx -> buf_size );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "mem-limit    : %,ld bytes\n", tool_ctx -> mem_limit );
+        rc = KOutMsg( "mem-limit    : %,lu bytes\n", tool_ctx -> mem_limit );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
+        rc = KOutMsg( "threads      : %u\n", tool_ctx -> num_threads );
     }
     if ( 0 == rc && tool_ctx -> row_limit > 0 ) {
         rc = KOutMsg( "row-limit    : %lu\n", tool_ctx -> row_limit );
@@ -427,6 +428,14 @@ static rc_t show_details( const tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "accession-path: '%s'\n", tool_ctx -> accession_path );
     }
+
+    if ( 0 == rc ) {
+        rc = KOutMsg( "is-remote?    :'%s'\n", insp_output -> is_remote ? "YES" : "NO" );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "acc-size      : %,lu\n", insp_output -> acc_size );
+    }
+
     if ( 0 == rc ) {
         rc = KOutMsg( "\n" );
     }
@@ -483,7 +492,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
         tool_ctx -> join_options . skip_tech = true;
     }
 
-    tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
+    tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
 
@@ -1153,24 +1162,6 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
     return rc;
 }
 
-static const char * consensus_table = "CONSENSUS";
-
-static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx ) {
-    const char * res = tool_ctx -> seq_tbl_name;
-    VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> vdb_mgr,
-                                              tool_ctx -> accession_short,
-                                              tool_ctx -> accession_path ); /* cmn_iter.c */
-    if ( NULL != tables ) {
-        int32_t idx;
-        rc_t rc = VNamelistContainsStr( tables, consensus_table, &idx );
-        if ( 0 == rc && idx > -1 ) {
-            res = consensus_table;
-        }
-        VNamelistRelease ( tables );
-    }
-    return res;
-}
-
 /* -------------------------------------------------------------------------------------------- */
 
 static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
@@ -1187,21 +1178,25 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
     
     if ( 0 == rc ) {
         if ( tool_ctx -> show_details ) {
-            rc = show_details( tool_ctx ); /* above */
+            rc = show_details( tool_ctx, &insp_output ); /* above */
         }
         /* =================================================== */
         switch( insp_output . acc_type ) {
+            /* a cSRA-database with alignments */
             case acc_csra       : rc = process_csra( tool_ctx ); /* above */
                                   break;
 
+            /* a PACBIO-database */
             case acc_pacbio     : ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx -> accession_path );
                                   rc = 3; /* signal to main() that the accession is not-processed */
                                   break;
 
+            /* a flat SRA-table */
             case acc_sra_flat   : rc = process_table( tool_ctx, NULL ); /* above */
                                   break;
 
-            case acc_sra_db     : rc = process_table( tool_ctx, get_db_seq_tbl_name( tool_ctx ) ); /* above */
+            /* a cSRA-database withou alignments */
+            case acc_sra_db     : rc = process_table( tool_ctx, insp_output . seq_tbl_name ); /* above */
                                   break;
 
             default             : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );

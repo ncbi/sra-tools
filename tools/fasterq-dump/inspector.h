@@ -53,6 +53,7 @@ typedef struct inspector_input_t
     const VDBManager * vdb_mgr;
     const char * accession_short;
     const char * accession_path;
+    const char * requested_seq_tbl_name;
 } inspector_input_t;
 
 typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
@@ -60,6 +61,9 @@ typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_no
 typedef struct inspector_output_t
 {
     acc_type_t acc_type;
+    bool is_remote;
+    size_t acc_size;
+    const char * seq_tbl_name;
 } inspector_output_t;
 
 rc_t inspect( const inspector_input_t * input, inspector_output_t * output );

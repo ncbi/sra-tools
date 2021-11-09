@@ -34,6 +34,10 @@
 #include "helper.h"
 #endif
 
+#ifndef _h_klib_printf_
+#include <klib/printf.h>
+#endif
+
 #ifndef _h_vfs_manager_
 #include <vfs/manager.h>
 #endif
@@ -56,6 +60,18 @@
 
 #ifndef _h_kdb_manager_
 #include <kdb/manager.h>    /* kpt... enums */
+#endif
+
+#ifndef _h_kns_manager_
+#include <kns/manager.h>
+#endif
+
+#ifndef _h_kns_http_
+#include <kns/http.h>
+#endif
+
+#ifndef _h_vfs_resolver_
+#include <vfs/resolver.h>
 #endif
 
 #include <limits.h> /* PATH_MAX */
@@ -164,6 +180,117 @@ const char * inspector_extract_acc_from_path( const char * s ) {
     return res;
 }
 
+#include <klib/out.h>
+
+static uint64_t get_file_size( const KDirectory * dir, const char * path, bool remotely )
+{
+    rc_t rc = 0;
+    uint64_t res = 0;
+    const KFile * f;
+    
+    if ( remotely ) {
+        KNSManager * kns_mgr;
+        rc = KNSManagerMake ( &kns_mgr );
+        if ( 0 == rc )
+        {
+            rc = KNSManagerMakeHttpFile ( kns_mgr, &f, NULL, 0x01010000, "%s", path );
+            KNSManagerRelease ( kns_mgr );
+        }
+    } else {
+        rc = KDirectoryOpenFileRead( dir, &f, "%s", path );        
+    }
+    if ( 0 == rc ) {
+        KFileSize ( f, &res );
+        KFileRelease( f );
+        KOutMsg( "and the size is %lu\n", res );
+    } else {
+        ErrMsg( "inspector.c get_file_size( '%s', remotely = %s ) -> %R",
+                path,
+                remotely ? "YES" : "NO",
+                rc );
+    }
+    return res;
+}
+
+static bool starts_with( const char *a, const char *b )
+{
+    bool res = false;
+    size_t asize = string_size ( a );
+    size_t bsize = string_size ( b );
+    if ( asize >= bsize )
+    {
+        res = ( 0 == strcase_cmp ( a, bsize, b, bsize, (uint32_t)bsize ) );
+    }
+    return res;
+}
+
+static rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely )
+{
+    VFSManager * vfs_mgr;
+    rc_t rc = VFSManagerMake( &vfs_mgr );
+    dst[ 0 ] = 0;
+    if ( 0 == rc ) {
+        VResolver * resolver;
+        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
+        if ( 0 == rc ) {
+            VPath * vpath;
+            rc = VFSManagerMakePath( vfs_mgr, &vpath, "%s", accession );
+            if ( 0 == rc )
+            {
+                const VPath * local = NULL;
+                const VPath * remote = NULL;
+                if ( remotely ) {
+                    rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, NULL );
+                } else {
+                    rc = VResolverQuery ( resolver, 0, vpath, &local, NULL, NULL );
+                }
+                if ( 0 == rc && ( NULL != local || NULL != remote ) )
+                {
+                    const String * path;
+                    if ( NULL != local ) {
+                        rc = VPathMakeString( local, &path );
+                    } else {
+                        rc = VPathMakeString( remote, &path );
+                    }
+
+                    if ( 0 == rc && NULL != path ) {
+                        string_copy ( dst, dst_size, path -> addr, path -> size );
+                        dst[ path -> size ] = 0;
+                        StringWhack ( path );
+                    }
+
+                    if ( NULL != local ) {
+                        VPathRelease ( local );
+                    }
+                    if ( NULL != remote ) {
+                        VPathRelease ( remote );
+                    }
+                }
+                {
+                    rc_t rc2 = VPathRelease ( vpath );
+                    rc = ( 0 == rc ) ? rc2 : rc;
+                }
+            }
+            {
+                rc_t rc2 = VResolverRelease( resolver );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
+        }
+        {
+            rc_t rc2 = VFSManagerRelease ( vfs_mgr );
+            rc = ( 0 == rc ) ? rc2 : rc;
+        }
+    }
+
+    if ( 0 == rc && starts_with( dst, "ncbi-acc:" ) )
+    {
+        size_t l = string_size ( dst );
+        memmove( dst, &( dst[ 9 ] ), l - 9 );
+        dst[ l - 9 ] = 0;
+    }
+    return rc;
+}
+
 rc_t inspector_path_to_vpath( const char * path, VPath ** vpath ) {
     VFSManager * vfs_mgr = NULL;
     rc_t rc = VFSManagerMake( &vfs_mgr );
@@ -216,6 +343,15 @@ static rc_t inspector_open_db( const inspector_input_t * input, const VDatabase 
                 rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
+    }
+    return rc;
+}
+
+static rc_t inspector_release_db( const VDatabase * db, rc_t rc, const char * function, const char * accession_short ) {
+    rc_t rc2 = VDatabaseRelease( db );
+    if ( 0 != rc2 ) {
+        ErrMsg( "inspector.c %s( '%s' ).VDatabaseRelease() -> %R", function, accession_short, rc2 );
+        rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
 }
@@ -292,7 +428,11 @@ static bool inspect_db_platform( const inspector_input_t * input, const VDatabas
     return res;
 }
 
-static acc_type_t inspect_db_type( const inspector_input_t * input ) {
+static const char * SEQ_TBL_NAME = "SEQUENCE";
+static const char * CONS_TBL_NAME = "CONSENSUS";
+
+static acc_type_t inspect_db_type( const inspector_input_t * input,
+                                   inspector_output_t * output ) {
     acc_type_t res = acc_none;
     const VDatabase * db = NULL;
     rc_t rc = inspector_open_db( input, &db );
@@ -309,18 +449,24 @@ static acc_type_t inspect_db_type( const inspector_input_t * input ) {
                 ErrMsg( "inspector.inspect_db_type.VNamelistFromKNamelist( '%s' ) -> %R\n",
                         input -> accession_short, rc );
             } else {
-                if ( contains( tables, "SEQUENCE" ) )
+                if ( contains( tables, SEQ_TBL_NAME ) )
                 {
                     res = acc_sra_db;
+                    output -> seq_tbl_name = SEQ_TBL_NAME;
                     
                     /* we have at least a SEQUENCE-table */
                     if ( contains( tables, "PRIMARY_ALIGNMENT" ) &&
                          contains( tables, "REFERENCE" ) ) {
+                        /* we have a SEQUENCE-, PRIMARY_ALIGNMENT-, and REFERENCE-table */
                         res = acc_csra;
                     } else {
-                        if ( contains( tables, "CONSENSUS" ) ||
+                        bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
+                        if ( has_cons_tbl ||
                              contains( tables, "ZMW_METRICS" ) ||
                              contains( tables, "PASSES" ) ) {
+                            if ( has_cons_tbl ) {
+                                output -> seq_tbl_name = CONS_TBL_NAME;                                
+                            }
                             res = acc_pacbio;
                         } else {
                             /* last resort try to find out what the database-type is */
@@ -355,17 +501,83 @@ static acc_type_t inspect_db_type( const inspector_input_t * input ) {
     return res;
 }
 
-static acc_type_t inspect_path_type( const inspector_input_t * input ) {
+static acc_type_t inspect_path_type_and_seq_tbl_name( const inspector_input_t * input,
+                                                      inspector_output_t * output ) {
     acc_type_t res = acc_none;
     int pt = VDBManagerPathType ( input -> vdb_mgr, "%s", input -> accession_path );
+    output -> seq_tbl_name = NULL;  /* might be changed in case of PACBIO ( in case we handle PACBIO! ) */
     switch( pt )
     {
-        case kptDatabase    : res = inspect_db_type( input ); break;
+        case kptDatabase    :   res = inspect_db_type( input, output );
+                                break;
 
         case kptPrereleaseTbl:
-        case kptTable       : res = acc_sra_flat; break;
+        case kptTable       :   res = acc_sra_flat;
+                                break;
     }
     return res;
+}
+
+static rc_t inspect_location_and_size( const inspector_input_t * input,
+                                       inspector_output_t * output ) {
+    rc_t rc;
+    char resolved[ PATH_MAX ];
+    
+    /* try to resolve the path locally */
+    rc = resolve_accession( input -> accession_path, resolved, sizeof resolved, false ); /* above */
+    if ( 0 == rc )
+    {
+        output -> is_remote = false;
+        output -> acc_size = get_file_size( input -> dir, resolved, false );
+        if ( 0 == output -> acc_size ) {
+            // it could be the user specified a directory instead of a path to a file...
+            char p[ PATH_MAX ];
+            size_t written;
+            rc = string_printf( p, sizeof p, &written, "%s/%s", resolved, input -> accession_short );
+            if ( 0 == rc ) {
+                output -> acc_size = get_file_size( input -> dir, p, false );
+            }
+        }
+    }
+    else
+    {
+        /* try to resolve the path remotely */
+        rc = resolve_accession( input -> accession_path, resolved, sizeof resolved, true ); /* above */
+        if ( 0 == rc )
+        {
+            output -> is_remote = true;
+            output -> acc_size = get_file_size( input -> dir, resolved, true );
+        }
+    }
+    return rc;
+}
+
+/* it is a cSRA with alignments! */
+static rc_t inspect_csra( const inspector_input_t * input, inspector_output_t * output ) {
+    const VDatabase * db;
+    rc_t rc = inspector_open_db( input, &db );
+    if ( 0 == rc ) {
+
+        rc = inspector_release_db( db, rc, "inspect_csra", input -> accession_short );
+    }
+    return rc;
+}
+
+/* it is a database without alignments! */
+static rc_t inspect_sra_db( const inspector_input_t * input, inspector_output_t * output ) {
+    const VDatabase * db;
+    rc_t rc = inspector_open_db( input, &db );
+    if ( 0 == rc ) {
+
+        rc = inspector_release_db( db, rc, "inspect_sra_db", input -> accession_short );
+    }
+    return rc;
+}
+
+/* it is a flat table! */
+static rc_t inspect_sra_flat( const inspector_input_t * input, inspector_output_t * output ) {
+
+    return 0;
 }
 
 rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
@@ -389,7 +601,18 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "inspector.c inspect() : input->accession_path is NULL -> %R", rc );
     } else {
-        output -> acc_type = inspect_path_type( input );
+        rc = inspect_location_and_size( input, output );
+        if ( 0 == rc ) {
+            output -> acc_type = inspect_path_type_and_seq_tbl_name( input, output ); /* db or table? */
+
+            switch( output -> acc_type ) {
+                case acc_csra       : rc = inspect_csra( input, output ); break; /* above */
+                case acc_sra_flat   : rc = inspect_sra_flat( input, output ); break; /* above */
+                case acc_sra_db     : rc = inspect_sra_db( input, output ); break; /* above */
+                default            : break;
+            }
+
+        }
     }
     return rc;
 }

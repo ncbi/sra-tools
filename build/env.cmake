@@ -419,3 +419,14 @@ if( WIN32 )
     # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries
     # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  /INCREMENTAL:NO" )
 endif()
+
+function( BuildExecutableForTest exe_name sources libraries )
+	add_executable( ${exe_name} ${sources} )
+	#MSVS_StaticRuntime( ${exe_name} )
+	target_link_libraries( ${exe_name} ${libraries} )
+endfunction()
+
+function( AddExecutableTest test_name sources libraries )
+	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
+	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endfunction()

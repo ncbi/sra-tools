@@ -451,9 +451,6 @@ namespace sratools2
             std::cerr << e.what() << std::endl;
             return EX_USAGE;
         }
-        catch (std::exception const &e) {
-            throw e;
-        }
         catch (...) {
             throw;
         }

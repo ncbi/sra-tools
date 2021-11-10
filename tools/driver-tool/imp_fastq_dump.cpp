@@ -363,12 +363,11 @@ struct FastqParams final : CmnOptAndAccessions
 
     int run() const override {
         auto const theirArgv0 = what.toolpath.getPathFor(TOOL_NAME).fullpath();
-        {
-            auto const realpath = what.toolpath.getPathFor(TOOL_ORIGINAL_NAME);
-            if (realpath.executable())
-                return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
-        }
-        throw std::runtime_error(TOOL_NAME " was not found or is not executable.");
+        auto const realpath = what.toolpath.getPathFor(TOOL_ORIGINAL_NAME);
+        if (realpath.executable())
+            return ToolExec::run(TOOL_NAME, realpath.fullpath(), theirArgv0, *this, accessions);
+
+        throw std::runtime_error(realpath.fullpath() + " (aka " TOOL_NAME ") was not found or is not executable.");
     }
 
 };

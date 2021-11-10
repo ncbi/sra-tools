@@ -34,7 +34,10 @@ if( NOT WIN32 )
     add_executable(test-sharq-parser test-sharq-parser.cpp )
     add_dependencies(test-sharq-parser RE2_)
     target_include_directories(test-sharq-parser PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
-    target_link_libraries(test-sharq-parser stdc++fs ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
+    endif()
+    target_link_libraries(test-sharq-parser ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
     add_test( NAME Test_sharq_parser COMMAND test-sharq-parser WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 

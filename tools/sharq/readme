@@ -1,0 +1,36 @@
+
+External dependencies
+
+1. Google RE2 
+    regular expression library
+    https://github.com/google/re2
+    
+2. bxzstr
+    header-only ZLib / libBZ2 streams
+    https://github.com/tmaklin/bxzstr
+
+3. hash
+    C++14 header-only easy-to-use hash library
+    https://github.com/Chocobo1/Hash 
+
+4. BitMagic
+    header-only succint data structures
+    https://github.com/tlk00/BitMagic
+
+5. spdlog
+    header-only C++ logging library
+    https://github.com/gabime/spdlog
+
+6. CLI11
+    header-only Command line parser for C++11
+    https://github.com/CLIUtils/CLI11
+
+7. JSON
+    header-only JSON for Modern C++
+    https://github.com/nlohmann/json.git    
+
+
+External libraries
+1. re2
+2. zlib
+3. BZip2   

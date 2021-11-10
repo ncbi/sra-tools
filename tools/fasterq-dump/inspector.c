@@ -38,6 +38,10 @@
 #include <klib/printf.h>
 #endif
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
 #ifndef _h_vfs_manager_
 #include <vfs/manager.h>
 #endif
@@ -180,30 +184,50 @@ const char * inspector_extract_acc_from_path( const char * s ) {
     return res;
 }
 
-#include <klib/out.h>
-
+static rc_t on_visit( const KDirectory *dir, uint32_t type, const char *name, void *data ) {
+    rc_t rc = 0;
+    if ( kptFile == ( type & kptFile ) ) {
+        uint64_t size;
+        rc = KDirectoryFileSize( dir, &size, "%s", name );
+        if ( 0 == rc ) {
+            uint64_t * res = data;
+            *res += size;
+        }
+    }
+    return rc;
+}
+    
 static uint64_t get_file_size( const KDirectory * dir, const char * path, bool remotely )
 {
     rc_t rc = 0;
     uint64_t res = 0;
-    const KFile * f;
     
     if ( remotely ) {
         KNSManager * kns_mgr;
         rc = KNSManagerMake ( &kns_mgr );
         if ( 0 == rc )
         {
+            const KFile * f = NULL;
             rc = KNSManagerMakeHttpFile ( kns_mgr, &f, NULL, 0x01010000, "%s", path );
+            if ( 0 == rc ) {
+                rc = KFileSize ( f, &res );
+                KFileRelease( f );
+            }
             KNSManagerRelease ( kns_mgr );
         }
     } else {
-        rc = KDirectoryOpenFileRead( dir, &f, "%s", path );        
+        /* we first have to check if the path is a directory or a file! */
+        uint32_t pt = KDirectoryPathType( dir, "%s", path );
+        if ( kptDir == ( pt & kptDir ) ) {
+            /* the path is a directory: adding size of each file in it */
+            rc = KDirectoryVisit( dir, false, on_visit, &res, "%s", path );
+        } else if ( kptFile == ( pt & kptFile ) ) {
+            /* the path is a file: retrieve its size */
+            rc = KDirectoryFileSize( dir, &res, "%s", path );
+        }
     }
-    if ( 0 == rc ) {
-        KFileSize ( f, &res );
-        KFileRelease( f );
-        KOutMsg( "and the size is %lu\n", res );
-    } else {
+
+    if ( 0 != rc ) {
         ErrMsg( "inspector.c get_file_size( '%s', remotely = %s ) -> %R",
                 path,
                 remotely ? "YES" : "NO",
@@ -325,24 +349,39 @@ rc_t inspector_path_to_vpath( const char * path, VPath ** vpath ) {
     return rc;
 }
 
+static rc_t inspector_release_vpath( VPath * v_path, rc_t rc ) {
+    rc_t rc2 = VPathRelease( v_path );
+    if ( 0 != rc2 ) {
+        ErrMsg( "inspector.c inspector_release_vpath() -> %R\n", rc2 );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
 static rc_t inspector_open_db( const inspector_input_t * input, const VDatabase ** db ) {
     VPath * v_path = NULL;
     rc_t rc = inspector_path_to_vpath( input -> accession_path, &v_path );
-    /* KOutMsg( "\ncmn_open_db( '%s' )\n", path ); */
     if ( 0 == rc ) {
         rc = VDBManagerOpenDBReadVPath( input -> vdb_mgr, db, NULL, v_path );
         if ( 0 != rc ) {
             ErrMsg( "inspector.c inspector_open_db().VDBManagerOpenDBReadVPath( '%s' ) -> %R\n",
                     input -> accession_path, rc );
         }
-        {
-            rc_t rc2 = VPathRelease( v_path );
-            if ( 0 != rc2 ) {
-                ErrMsg( "inspector.c inspector_open_db().VPathRelease( '%s' ) -> %R\n",
-                        input -> accession_path, rc2 );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+        rc = inspector_release_vpath( v_path, rc );
+    }
+    return rc;
+}
+
+static rc_t inspector_open_tbl( const inspector_input_t * input, const VTable ** tbl ) {
+    VPath * v_path = NULL;
+    rc_t rc = inspector_path_to_vpath( input -> accession_path, &v_path );
+    if ( 0 == rc ) {
+        rc = VDBManagerOpenTableReadVPath( input -> vdb_mgr, tbl, NULL, v_path );
+        if ( 0 != rc ) {
+            ErrMsg( "inspector.c inspector_open_tbl().VDBManagerOpenTableReadVPath( '%s' ) -> %R\n",
+                    input -> accession_path, rc );
         }
+        rc = inspector_release_vpath( v_path, rc );
     }
     return rc;
 }
@@ -351,6 +390,15 @@ static rc_t inspector_release_db( const VDatabase * db, rc_t rc, const char * fu
     rc_t rc2 = VDatabaseRelease( db );
     if ( 0 != rc2 ) {
         ErrMsg( "inspector.c %s( '%s' ).VDatabaseRelease() -> %R", function, accession_short, rc2 );
+        rc = ( 0 == rc ) ? rc2 : rc;
+    }
+    return rc;
+}
+
+static rc_t inspector_release_tbl( const VTable * tbl, rc_t rc, const char * function, const char * accession_short ) {
+    rc_t rc2 = VTableRelease( tbl );
+    if ( 0 != rc2 ) {
+        ErrMsg( "inspector.c %s( '%s' ).VDatabaseTable() -> %R", function, accession_short, rc2 );
         rc = ( 0 == rc ) ? rc2 : rc;
     }
     return rc;
@@ -518,12 +566,24 @@ static acc_type_t inspect_path_type_and_seq_tbl_name( const inspector_input_t * 
     return res;
 }
 
+void unread_rc_info( bool show ) {
+    rc_t rc;
+    const char *filename;
+    const char * funcname;
+    uint32_t lineno;
+    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &lineno ) ) {
+        if ( show ) {
+            KOutMsg( "unread: %R %s %s %u\n", rc, filename, funcname, lineno );
+        }
+    }
+}
+
 static rc_t inspect_location_and_size( const inspector_input_t * input,
                                        inspector_output_t * output ) {
     rc_t rc;
     char resolved[ PATH_MAX ];
     
-    /* try to resolve the path locally */
+    /* try to resolve the path locally first */
     rc = resolve_accession( input -> accession_path, resolved, sizeof resolved, false ); /* above */
     if ( 0 == rc )
     {
@@ -541,6 +601,7 @@ static rc_t inspect_location_and_size( const inspector_input_t * input,
     }
     else
     {
+        unread_rc_info( false ); /* get rid of stored rc-messages... */
         /* try to resolve the path remotely */
         rc = resolve_accession( input -> accession_path, resolved, sizeof resolved, true ); /* above */
         if ( 0 == rc )
@@ -552,12 +613,84 @@ static rc_t inspect_location_and_size( const inspector_input_t * input,
     return rc;
 }
 
+/* ------------------------------------------------------------------------------------------- */
+
+static rc_t inspect_extract_column_list( const VTable * tbl, const inspector_input_t * input, VNamelist ** columns ) {
+    struct KNamelist * k_columns;
+    rc_t rc = VTableListReadableColumns( tbl, &k_columns );
+    if ( 0 != rc ) {
+        ErrMsg( "inspector.c inspect_extract_column_list( '%s' ).VTableListReadableColumns() -> %R\n",
+                input -> accession_short, rc );
+    } else {
+        rc = VNamelistFromKNamelist( columns, k_columns );
+        if ( 0 != rc ) {
+            ErrMsg( "inspector.c inspect_extract_column_list( '%s' ).VNamelistFromKNamelist() -> %R\n",
+                    input -> accession_short, rc );
+        }
+        {
+            rc_t rc2 = KNamelistRelease ( k_columns );
+            if ( 0 != rc2 ) {
+                ErrMsg( "inspector.c inspect_extract_column_list( '%s' ).KNamelistRelease() -> %R\n",
+                        input -> accession_short, rc2 );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
+        }
+    }
+    return rc;
+}
+
+static bool inspect_list_contains( const VNamelist * lst, const char * item ) {
+    int32_t idx;
+    rc_t rc = VNamelistContainsStr( lst, item, &idx );
+    return ( rc == 0 && idx >= 0 );
+}
+
+static rc_t inspect_seq_columns( const VTable * tbl, const inspector_input_t * input, inspector_output_t * output ) {
+    VNamelist * columns;
+    rc_t rc = inspect_extract_column_list( tbl, input, &columns );
+    if ( 0 == rc ) {
+        output -> seq_has_name_column = inspect_list_contains( columns, "NAME" );
+        output -> seq_has_spot_group_column = inspect_list_contains( columns, "SPOT_GROUP" );
+        VNamelistRelease( columns );
+    }
+    return rc;
+}
+
+static rc_t inspect_seq_tbl( const VTable * tbl, const inspector_input_t * input, inspector_output_t * output ) {
+    rc_t rc = inspect_seq_columns( tbl, input, output );
+        
+    return rc;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+
 /* it is a cSRA with alignments! */
 static rc_t inspect_csra( const inspector_input_t * input, inspector_output_t * output ) {
     const VDatabase * db;
     rc_t rc = inspector_open_db( input, &db );
     if ( 0 == rc ) {
+        const VTable * tbl;
 
+        /* inspecting the SEQUENCE-table */
+        rc = VDatabaseOpenTableRead( db, &tbl, "%s", output -> seq_tbl_name );
+        if ( 0 != rc ) {
+            ErrMsg( "inspector.c inspect_csra().VDatabaseOpenTableRead( '%s' ) -> %R",
+                    output -> seq_tbl_name, rc );
+        }
+        else {
+            rc = inspect_seq_tbl( tbl, input, output );
+            rc = inspector_release_tbl( tbl, rc, "inspect_csra (seq)", input -> accession_short );
+        }
+
+        /* inspecting the PRIMARY_ALIGNMENT-table */
+        rc = VDatabaseOpenTableRead( db, &tbl, "%s", "PRIMARY_ALIGNMENT" );
+        if ( 0 != rc ) {
+            ErrMsg( "inspector.c inspect_csra().VDatabaseOpenTableRead( PRIMARY_ALIGNMENT ) -> %R", rc );
+        }
+        else {
+            /* TBD: inspect the alignments */
+            rc = inspector_release_tbl( tbl, rc, "inspect_csra (align)", input -> accession_short );
+        }
         rc = inspector_release_db( db, rc, "inspect_csra", input -> accession_short );
     }
     return rc;
@@ -568,6 +701,16 @@ static rc_t inspect_sra_db( const inspector_input_t * input, inspector_output_t 
     const VDatabase * db;
     rc_t rc = inspector_open_db( input, &db );
     if ( 0 == rc ) {
+        const VTable * tbl;
+        rc = VDatabaseOpenTableRead( db, &tbl, "%s", output -> seq_tbl_name );
+        if ( 0 != rc ) {
+            ErrMsg( "inspector.c inspect_sra_db().VDatabaseOpenTableRead( '%s' ) -> %R",
+                    output -> seq_tbl_name, rc );
+        }
+        else {
+            rc = inspect_seq_tbl( tbl, input, output );
+            rc = inspector_release_tbl( tbl, rc, "inspect_sra_db", input -> accession_short );
+        }
 
         rc = inspector_release_db( db, rc, "inspect_sra_db", input -> accession_short );
     }
@@ -576,9 +719,17 @@ static rc_t inspect_sra_db( const inspector_input_t * input, inspector_output_t 
 
 /* it is a flat table! */
 static rc_t inspect_sra_flat( const inspector_input_t * input, inspector_output_t * output ) {
-
+    const VTable * tbl;
+    rc_t rc = inspector_open_tbl( input, &tbl );
+    if ( 0 == rc ) {
+        rc = inspect_seq_tbl( tbl, input, output );
+        rc = inspector_release_tbl( tbl, rc, "inspect_sra_flat", input -> accession_short );
+    }
     return 0;
 }
+
+
+/* ------------------------------------------------------------------------------------------- */
 
 rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
     rc_t rc = 0;
@@ -601,6 +752,7 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "inspector.c inspect() : input->accession_path is NULL -> %R", rc );
     } else {
+        memset( output, 0, sizeof *output );
         rc = inspect_location_and_size( input, output );
         if ( 0 == rc ) {
             output -> acc_type = inspect_path_type_and_seq_tbl_name( input, output ); /* db or table? */
@@ -614,5 +766,53 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
 
         }
     }
+    return rc;
+}
+
+rc_t inspection_report( const inspector_input_t * input, const inspector_output_t * output ) {
+    rc_t rc = KOutHandlerSetStdErr();
+    if ( 0 == rc ) {
+        rc = KOutMsg( "%s is %s\n",
+                       input -> accession_short,
+                       output -> is_remote ? "remote" : "local" );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "... has a size of %,lu bytes\n", output -> acc_size );
+    }
+    if ( 0 == rc && NULL != output -> seq_tbl_name ) {
+        rc = KOutMsg( "... uses '%s' as sequence-table\n", output -> seq_tbl_name );
+    }
+    if ( 0 == rc ) {
+        switch( output -> acc_type ) {
+            case acc_csra       : rc = KOutMsg( "... is cSRA with alignments\n" ); break;
+            case acc_sra_flat   : rc = KOutMsg( "... is unaligned\n" ); break;
+            case acc_sra_db     : rc = KOutMsg( "... is cSRA without alignments\n" ); break;
+            case acc_pacbio     : rc = KOutMsg( "... is PACBIO\n" ); break;
+            case acc_none       : rc = KOutMsg( "... is unknown\n" ); break;
+        }
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "... SEQ has NAME column = %s\n", output -> seq_has_name_column ? "YES" : "NO" );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "... SEQ has SPOT_GROUP column = %s\n", output -> seq_has_spot_group_column ? "YES" : "NO" );
+    }
+    /*
+    int64_t seq_first_row;
+    uint64_t seq_row_count;
+    uint64_t seq_spot_count;
+    uint64_t seq_total_base_count;
+    uint64_t seq_bio_base_count;
+    uint32_t seq_avg_name_len;
+    uint32_t seq_avg_spot_group_len;
+    */
+    if ( 0 == rc ) {
+        rc = KOutMsg( "... SEQ has SPOT_GROUP column = %s\n", output -> seq_has_spot_group_column ? "YES" : "NO" );
+    }
+
+    if ( 0 == rc ) {
+        rc = KOutMsg( "\n" );
+    }
+    KOutHandlerSetStdOut();
     return rc;
 }

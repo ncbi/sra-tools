@@ -63,15 +63,30 @@ typedef struct inspector_output_t
     acc_type_t acc_type;
     bool is_remote;
     size_t acc_size;
+
     const char * seq_tbl_name;
+    bool seq_has_name_column;
+    bool seq_has_spot_group_column;
+    int64_t seq_first_row;
+    uint64_t seq_row_count;
+    uint64_t seq_spot_count;
+    uint64_t seq_total_base_count;
+    uint64_t seq_bio_base_count;
+    uint32_t seq_avg_name_len;
+    uint32_t seq_avg_spot_group_len;
+
 } inspector_output_t;
 
 rc_t inspect( const inspector_input_t * input, inspector_output_t * output );
 
+rc_t inspection_report( const inspector_input_t * input, const inspector_output_t * output );
+
 rc_t inspector_path_to_vpath( const char * path, VPath ** vpath );
     
 const char * inspector_extract_acc_from_path( const char * s );
-    
+
+void unread_rc_info( bool show );
+
 #ifdef __cplusplus
 }
 #endif

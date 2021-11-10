@@ -353,8 +353,7 @@ static const char * x_dflt_qual_defline( const tool_ctx_t * tool_ctx ) {
         ? DFLT_QUAL_DEFLINE_FASTA : DFLT_QUAL_DEFLINE_FASTQ;  
 }
 
-static rc_t show_details( const tool_ctx_t * tool_ctx,
-                          const inspector_output_t * insp_output ) {
+static rc_t show_details( const tool_ctx_t * tool_ctx ) {
     rc_t rc = KOutHandlerSetStdErr();
     
     if ( 0 == rc ) {
@@ -427,13 +426,6 @@ static rc_t show_details( const tool_ctx_t * tool_ctx,
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "accession-path: '%s'\n", tool_ctx -> accession_path );
-    }
-
-    if ( 0 == rc ) {
-        rc = KOutMsg( "is-remote?    :'%s'\n", insp_output -> is_remote ? "YES" : "NO" );
-    }
-    if ( 0 == rc ) {
-        rc = KOutMsg( "acc-size      : %,lu\n", insp_output -> acc_size );
     }
 
     if ( 0 == rc ) {
@@ -1178,7 +1170,10 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
     
     if ( 0 == rc ) {
         if ( tool_ctx -> show_details ) {
-            rc = show_details( tool_ctx, &insp_output ); /* above */
+            rc = show_details( tool_ctx ); /* above */
+            if ( 0 == rc ) {
+                rc = inspection_report( &insp_input, &insp_output );
+            }
         }
         /* =================================================== */
         switch( insp_output . acc_type ) {
@@ -1258,5 +1253,6 @@ rc_t CC KMain ( int argc, char *argv [] ) {
             }
         }
     }
+    unread_rc_info( false );
     return rc;
 }

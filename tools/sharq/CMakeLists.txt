@@ -1,3 +1,4 @@
+
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -37,6 +38,7 @@
 #
 ## ===========================================================================
 
+if( NOT WIN32 )
 
 cmake_minimum_required(VERSION 3.16)
 project(sharq)
@@ -82,3 +84,4 @@ add_dependencies(sharq RE2)
 target_include_directories(sharq PUBLIC ${LOCAL_INCDIR} ./)
 target_link_libraries(sharq stdc++fs ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
+endif()

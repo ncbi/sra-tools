@@ -656,9 +656,167 @@ static rc_t inspect_seq_columns( const VTable * tbl, const inspector_input_t * i
     return rc;
 }
 
+static rc_t inspect_add_column( const VCursor * cur, uint32_t * id, const char * name ) {
+    rc_t rc = VCursorAddColumn( cur, id, name );    
+    if ( 0 != rc ) {
+        ErrMsg( "inspector.c inspect_add_column( '%s' ) -> %R", name, rc );
+    }
+    return rc;
+}
+
+static rc_t inspect_read_u64( const VCursor * cur, int64_t row_id, uint32_t col_id, const char * name, uint64_t * dst ) {
+    const uint64_t * u64_ptr;
+    uint32_t elem_bits, boff, row_len;        
+    rc_t rc = VCursorCellDataDirect( cur, row_id, col_id, &elem_bits, (const void **)&u64_ptr, &boff, &row_len );
+    if ( 0 != rc ) {
+        ErrMsg( "inspector.c inspect_read_u64().VCursorCellDataDirect( %s ) -> %R", name, rc );
+    } else {
+        if ( row_len > 0 && 0 == boff && 64 == elem_bits ) { *dst = *u64_ptr; }
+    }
+    return rc;
+}
+
+static rc_t inspect_read_len( const VCursor * cur, int64_t row_id, uint32_t col_id, const char * name, uint32_t * dst ) {
+    const char * c_ptr;
+    uint32_t elem_bits, boff, row_len;        
+    rc_t rc = VCursorCellDataDirect( cur, row_id, col_id, &elem_bits, (const void **)&c_ptr, &boff, &row_len );
+    if ( 0 != rc ) {
+        ErrMsg( "inspector.c inspect_read_len().VCursorCellDataDirect( %s ) -> %R", name, rc );
+    } else {
+        *dst = row_len;
+    }
+    return rc;
+}
+
+static rc_t inspect_avg_len( const VCursor * cur, int64_t first_row, uint64_t row_count,
+                            uint32_t col_id, const char * name, uint32_t * dst ) {
+    rc_t rc = 0;
+    uint32_t n = 10;
+    uint32_t sum = 0;
+    if ( row_count < n ) { n = (uint32_t)row_count; }
+    if ( n > 0 ) {
+        uint32_t i;
+        for ( i = 0; 0 == rc && i < n; i++ ) {
+            uint32_t value;
+            rc = inspect_read_len( cur, first_row + i, col_id, name, &value );
+            if ( 0 == rc ) { sum += value; }
+        }
+        *dst = ( sum / n );
+    }
+    return rc;
+}
+                                 
+static rc_t inspect_seq_data( const VTable * tbl, const inspector_input_t * input, inspector_output_t * output ) {
+    const VCursor * cur;
+    rc_t rc = VTableCreateCursorRead( tbl, &cur );    
+    if ( 0 != 0 ) {
+        ErrMsg( "inspector.c inspect_seq_data().VTableCreateCursorRead( '%s' ) -> %R", output -> seq_tbl_name, rc );
+    } else {
+        uint32_t id_read, id_name, id_spot_group, id_base_count, id_bio_base_count, id_spot_count;
+       
+        /* we need this, because all other columns may by static - and because of that do not reveal the row-count! */
+        rc = inspect_add_column( cur, &id_read, "READ" );
+        if ( 0 == rc && output -> seq_has_name_column ) { rc = inspect_add_column( cur, &id_name, "NAME" ); }
+        if ( 0 == rc && output -> seq_has_spot_group_column ) { rc = inspect_add_column( cur, &id_spot_group, "SPOT_GROUP" ); }
+        if ( 0 == rc ) { rc = inspect_add_column( cur, &id_base_count, "BASE_COUNT" ); }
+        if ( 0 == rc ) { rc = inspect_add_column( cur, &id_bio_base_count, "BIO_BASE_COUNT" ); }
+        if ( 0 == rc ) { rc = inspect_add_column( cur, &id_spot_count, "SPOT_COUNT" ); }
+        if ( 0 == rc ) {
+            rc = VCursorOpen( cur );
+            if ( 0 != rc ) {
+                ErrMsg( "inspector.c inspect_seq_data().VCursorOpen( '%s' ) -> %R", output -> seq_tbl_name, rc );                
+            }
+        }
+        if ( 0 == rc ) {
+            rc = VCursorIdRange( cur, id_read, &( output -> seq_first_row ), &( output -> seq_row_count ) );
+            if ( 0 != rc ) {
+                ErrMsg( "inspector.c inspect_seq_data().VCursorIdRange( '%s' ) -> %R", output -> seq_tbl_name, rc );
+            }
+        }
+        if ( 0 == rc ) {
+            rc = inspect_read_u64( cur, output -> seq_first_row, id_base_count, "BASE_COUNT",
+                                   &( output -> seq_total_base_count ) );
+        }
+        if ( 0 == rc ) {
+            rc = inspect_read_u64( cur, output -> seq_first_row, id_bio_base_count, "BIO_BASE_COUNT",
+                                   &( output -> seq_bio_base_count ) );
+        }
+        if ( 0 == rc ) {
+            rc = inspect_read_u64( cur, output -> seq_first_row, id_spot_count, "SPOT_COUNT",
+                                   &( output -> seq_spot_count ) );
+        }
+        if ( 0 == rc && output -> seq_has_name_column ) {
+            rc = inspect_avg_len( cur, output -> seq_first_row, output -> seq_row_count,
+                                  id_name, "NAME", &( output -> seq_avg_name_len ) );
+        }
+        if ( 0 == rc && output -> seq_has_spot_group_column ) {
+            rc = inspect_avg_len( cur, output -> seq_first_row, output -> seq_row_count,
+                                  id_spot_group, "SPOT_GROUP", &( output -> seq_avg_spot_group_len ) );
+        }
+        {
+            rc_t rc2 = VCursorRelease( cur );
+            if ( rc2 != 0 ) {
+                ErrMsg( "inspector.c inspect_seq_data().VCursorRelease( '%s' ) -> %R", output -> seq_tbl_name, rc2 );
+                rc = ( rc == 0 ) ? rc2 : rc;
+            }
+        }
+    }
+    return rc;
+}
+
 static rc_t inspect_seq_tbl( const VTable * tbl, const inspector_input_t * input, inspector_output_t * output ) {
     rc_t rc = inspect_seq_columns( tbl, input, output );
-        
+    if ( 0 == rc ) {
+        rc = inspect_seq_data( tbl, input, output );
+    }
+    return rc;
+}
+
+static rc_t inspect_align_tbl( const VTable * tbl, const inspector_input_t * input, inspector_output_t * output ) {
+    const VCursor * cur;
+    rc_t rc = VTableCreateCursorRead( tbl, &cur );    
+    if ( 0 != 0 ) {
+        ErrMsg( "inspector.c inspect_align_tbl().VTableCreateCursorRead() -> %R", rc );
+    } else {
+        uint32_t id_read, id_base_count, id_bio_base_count, id_spot_count;
+       
+        /* we need this, because all other columns may by static - and because of that do not reveal the row-count! */
+        rc = inspect_add_column( cur, &id_read, "READ" );
+        if ( 0 == rc ) { rc = inspect_add_column( cur, &id_base_count, "BASE_COUNT" ); }
+        if ( 0 == rc ) { rc = inspect_add_column( cur, &id_bio_base_count, "BIO_BASE_COUNT" ); }
+        if ( 0 == rc ) { rc = inspect_add_column( cur, &id_spot_count, "SPOT_COUNT" ); }
+        if ( 0 == rc ) {
+            rc = VCursorOpen( cur );
+            if ( 0 != rc ) {
+                ErrMsg( "inspector.c inspect_align_tbl().VCursorOpen() -> %R", rc );                
+            }
+        }
+        if ( 0 == rc ) {
+            rc = VCursorIdRange( cur, id_read, &( output -> align_first_row ), &( output -> align_row_count ) );
+            if ( 0 != rc ) {
+                ErrMsg( "inspector.c inspect_align_tbl().VCursorIdRange() -> %R", rc );
+            }
+        }
+        if ( 0 == rc ) {
+            rc = inspect_read_u64( cur, output -> align_first_row, id_base_count, "BASE_COUNT",
+                                   &( output -> align_total_base_count ) );
+        }
+        if ( 0 == rc ) {
+            rc = inspect_read_u64( cur, output -> align_first_row, id_bio_base_count, "BIO_BASE_COUNT",
+                                   &( output -> align_bio_base_count ) );
+        }
+        if ( 0 == rc ) {
+            rc = inspect_read_u64( cur, output -> align_first_row, id_spot_count, "SPOT_COUNT",
+                                   &( output -> align_spot_count ) );
+        }
+        {
+            rc_t rc2 = VCursorRelease( cur );
+            if ( rc2 != 0 ) {
+                ErrMsg( "inspector.c inspect_align_tbl().VCursorRelease() -> %R", rc2 );
+                rc = ( rc == 0 ) ? rc2 : rc;
+            }
+        }
+    }
     return rc;
 }
 
@@ -688,7 +846,7 @@ static rc_t inspect_csra( const inspector_input_t * input, inspector_output_t * 
             ErrMsg( "inspector.c inspect_csra().VDatabaseOpenTableRead( PRIMARY_ALIGNMENT ) -> %R", rc );
         }
         else {
-            /* TBD: inspect the alignments */
+            rc = inspect_align_tbl( tbl, input, output );
             rc = inspector_release_tbl( tbl, rc, "inspect_csra (align)", input -> accession_short );
         }
         rc = inspector_release_db( db, rc, "inspect_csra", input -> accession_short );
@@ -797,17 +955,42 @@ rc_t inspection_report( const inspector_input_t * input, const inspector_output_
     if ( 0 == rc ) {
         rc = KOutMsg( "... SEQ has SPOT_GROUP column = %s\n", output -> seq_has_spot_group_column ? "YES" : "NO" );
     }
-    /*
-    int64_t seq_first_row;
-    uint64_t seq_row_count;
-    uint64_t seq_spot_count;
-    uint64_t seq_total_base_count;
-    uint64_t seq_bio_base_count;
-    uint32_t seq_avg_name_len;
-    uint32_t seq_avg_spot_group_len;
-    */
     if ( 0 == rc ) {
-        rc = KOutMsg( "... SEQ has SPOT_GROUP column = %s\n", output -> seq_has_spot_group_column ? "YES" : "NO" );
+        rc = KOutMsg( "SEQ.first_row = %,ld\n", output -> seq_first_row );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.row_count = %,lu\n", output -> seq_row_count );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.spot_count = %,lu\n", output -> seq_spot_count );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.total_base_count = %,lu\n", output -> seq_total_base_count );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.bio_base_count = %,lu\n", output -> seq_bio_base_count );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.avg_name_len = %u\n", output -> seq_avg_name_len );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.avg_spot_group_len = %u\n", output -> seq_avg_spot_group_len );
+    }
+
+    if ( 0 == rc ) {
+        rc = KOutMsg( "ALIGN.first_row = %,ld\n", output -> align_first_row );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "ALIGN.row_count = %,lu\n", output -> align_row_count );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "ALIGN.spot_count = %,lu\n", output -> align_spot_count );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "ALIGN.total_base_count = %,lu\n", output -> align_total_base_count );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "ALIGN.bio_base_count = %,lu\n", output -> align_bio_base_count );
     }
 
     if ( 0 == rc ) {

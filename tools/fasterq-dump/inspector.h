@@ -75,6 +75,12 @@ typedef struct inspector_output_t
     uint32_t seq_avg_name_len;
     uint32_t seq_avg_spot_group_len;
 
+    int64_t align_first_row;
+    uint64_t align_row_count;
+    uint64_t align_spot_count;    
+    uint64_t align_total_base_count;
+    uint64_t align_bio_base_count;
+
 } inspector_output_t;
 
 rc_t inspect( const inspector_input_t * input, inspector_output_t * output );

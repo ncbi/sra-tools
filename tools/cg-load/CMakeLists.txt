@@ -27,14 +27,5 @@ set( CGLOAD_SRC
 
 add_executable( cg-load ${CGLOAD_SRC} )
 
-set( CGLOAD_LIB
-	load
-	${COMMON_LINK_LIBRARIES}
-	${COMMON_LIBS_WRITE}
-)
-if( NOT WIN32 )
-	list( APPEND CGLOAD_LIB m )
-endif()
-
-target_link_libraries( cg-load ${CGLOAD_LIB} )
+target_link_libraries( cg-load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( cg-load false )

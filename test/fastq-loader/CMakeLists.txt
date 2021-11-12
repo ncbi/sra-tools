@@ -4,9 +4,9 @@ if( NOT WIN32 )
     add_test(NAME Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     AddExecutableTest( SlowTest_FastqLoader_id2name "test-id2name.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastq "wb-test-fastq.cpp" "fastqloader;load;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqParse "wb-test-fastq-parse.cpp" "fastqloader;load;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqLoader "test-fastq-loader.cpp" "fastqloader;load;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    AddExecutableTest( Test_FastqLoader_WbFastq "wb-test-fastq.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_FastqLoader_WbFastqParse "wb-test-fastq-parse.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_FastqLoader_WbFastqLoader "test-fastq-loader.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
     set_tests_properties( Test_FastqLoader_WbFastqLoader
         PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )

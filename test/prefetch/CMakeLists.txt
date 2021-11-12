@@ -7,7 +7,7 @@ add_compile_definitions( __mod__="test/prefetch" )
 # endif()
 
 if ( NOT WIN32 )
-	BuildExecutableForTest( SlowTest_Prefetch "test-quality" "${COMMON_LINK_LIBRARIES};ncbi-vdb" )
+	BuildExecutableForTest( SlowTest_Prefetch "test-quality" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 	add_test( NAME SlowTest_Prefetch
 		COMMAND runtests.sh "${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch" "${BINDIR}"

@@ -55,6 +55,10 @@ extern "C" {
 #include "temp_registry.h"
 #endif
 
+#ifndef _h_inspector_
+#include "inspector.h"
+#endif
+
 typedef struct execute_db_join_args_t {
     KDirectory * dir;
     const VDBManager * vdb_mgr;
@@ -66,6 +70,7 @@ typedef struct execute_db_join_args_t {
     const char * index_filename;
     join_stats_t * stats;                   /* helper.h */
     const join_options_t * join_options;    /* helper.h */
+    const inspector_output_t * insp_output; /* inspector.h */
     const struct temp_dir_t * temp_dir;
     struct temp_registry_t * registry;
     size_t cursor_cache;
@@ -105,6 +110,7 @@ typedef struct execute_unsorted_fasta_db_join_args_t {
     const char * seq_defline;               /* NULL for default, we need only seq-defline here ( FASTA!) */
     join_stats_t * stats;                   /* helper.h */
     const join_options_t * join_options;    /* helper.h */
+    const inspector_output_t * insp_output; /* inspector.h */
     size_t cur_cache;                       /* size of cursor-cache for vdb-cursor */
     size_t buf_size;                        /* size of buffer-file for output-writing */
     uint32_t num_threads;                   /* how many threads to use */

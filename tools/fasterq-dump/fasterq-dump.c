@@ -805,11 +805,12 @@ static rc_t print_stats( const join_stats_t * stats )
 
 static const uint32_t queue_timeout = 200;  /* ms */
 
-static rc_t produce_lookup_files( tool_ctx_t * tool_ctx ) {
+static rc_t produce_lookup_files( const tool_ctx_t * tool_ctx,
+                                  uint64_t align_row_count ) {
     rc_t rc = 0;
-    struct bg_update_t * gap = NULL;
-    struct background_file_merger_t * bg_file_merger;
-    struct background_vector_merger_t * bg_vec_merger;
+    struct bg_update_t * gap = NULL;                    /* merge_sorter.h */
+    struct background_file_merger_t * bg_file_merger;   /* merge_sorter.h */
+    struct background_vector_merger_t * bg_vec_merger;  /* merge_sorter.h */
     
     if ( tool_ctx -> show_progress ) {
         rc = bg_update_make( &gap, 0 );
@@ -818,30 +819,36 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx ) {
     /* the background-file-merger catches the files produced by
         the background-vector-merger */
     if ( 0 == rc ) {
-        rc = make_background_file_merger( &bg_file_merger,
-                                tool_ctx -> dir,
-                                tool_ctx -> temp_dir,
-                                tool_ctx -> cleanup_task,
-                                &tool_ctx -> lookup_filename[ 0 ],
-                                &tool_ctx -> index_filename[ 0 ],
-                                tool_ctx -> num_threads,
-                                queue_timeout,
-                                tool_ctx -> buf_size,
-                                gap ); /* merge_sorter.c */
+        file_merger_args_t fm_args; /* merge_sorter.h */
+
+        fm_args . dir = tool_ctx -> dir;
+        fm_args . temp_dir = tool_ctx -> temp_dir;
+        fm_args . cleanup_task = tool_ctx -> cleanup_task;
+        fm_args . lookup_filename = tool_ctx -> lookup_filename;
+        fm_args . index_filename = tool_ctx -> index_filename;
+        fm_args . batch_size = tool_ctx -> num_threads;
+        fm_args . wait_time = queue_timeout;
+        fm_args . buf_size = tool_ctx -> buf_size;
+        fm_args . gap = gap;
+
+        rc = make_background_file_merger( &bg_file_merger, &fm_args ); /* merge_sorter.c */
     }
 
     /* the background-vector-merger catches the KVectors produced by
        the lookup-produceer */
     if ( 0 == rc ) {
-        rc = make_background_vector_merger( &bg_vec_merger,
-                 tool_ctx -> dir,
-                 tool_ctx -> temp_dir,
-                 tool_ctx -> cleanup_task,
-                 bg_file_merger,
-                 tool_ctx -> num_threads,
-                 queue_timeout,
-                 tool_ctx -> buf_size,
-                 gap ); /* merge_sorter.c */
+        vector_merger_args_t vm_args; /* merge_sorter.c */
+        
+        vm_args . dir = tool_ctx -> dir;
+        vm_args . temp_dir = tool_ctx -> temp_dir;
+        vm_args . cleanup_task = tool_ctx -> cleanup_task;
+        vm_args . file_merger = bg_file_merger;
+        vm_args . batch_size = tool_ctx -> num_threads;
+        vm_args . q_wait_time = queue_timeout;
+        vm_args . buf_size = tool_ctx -> buf_size;
+        vm_args . gap = gap;
+
+        rc = make_background_vector_merger( &bg_vec_merger, &vm_args ); /* merge_sorter.c */
     }
    
 /* --------------------------------------------------------------------------------------------
@@ -859,16 +866,20 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx ) {
 -------------------------------------------------------------------------------------------- */
     /* the lookup-producer is the source of the chain */
     if ( 0 == rc ) {
-        rc = execute_lookup_production( tool_ctx -> dir,
-                                        tool_ctx -> vdb_mgr,
-                                        tool_ctx -> accession_short,
-                                        tool_ctx -> accession_path,
-                                        bg_vec_merger, /* drives the bg_file_merger */
-                                        tool_ctx -> cursor_cache,
-                                        tool_ctx -> buf_size,
-                                        tool_ctx -> mem_limit,
-                                        tool_ctx -> num_threads,
-                                        tool_ctx -> show_progress ); /* sorter.c */
+        lookup_production_args_t args;
+        args . dir = tool_ctx -> dir;
+        args . vdb_mgr = tool_ctx -> vdb_mgr;
+        args . accession_short = tool_ctx -> accession_short;
+        args . accession_path = tool_ctx -> accession_path;        
+        args . merger = bg_vec_merger;
+        args . align_row_count = align_row_count;
+        args . cursor_cache = tool_ctx -> cursor_cache;
+        args . buf_size = tool_ctx -> buf_size;
+        args . mem_limit = tool_ctx -> mem_limit;
+        args . num_threads = tool_ctx -> num_threads;
+        args . show_progress = tool_ctx -> show_progress;
+
+        rc = execute_lookup_production( &args ); /* sorter.c */
     }
     bg_update_start( gap, "merge  : " ); /* progress_thread.c ...start showing the activity... */
             
@@ -893,10 +904,11 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx ) {
 /* -------------------------------------------------------------------------------------------- */
 
 
-static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
-    struct temp_registry_t * registry = NULL;
-    join_stats_t stats;
-    execute_db_join_args_t args;
+static rc_t produce_final_db_output( const tool_ctx_t * tool_ctx,
+                                     const inspector_output_t * insp_output ) {
+    struct temp_registry_t * registry = NULL; /* temp_registry.h */
+    join_stats_t stats; /* helper.h */
+    execute_db_join_args_t args; /* join.h */
 
     rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
     
@@ -921,6 +933,7 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
     args . lookup_filename = &( tool_ctx -> lookup_filename[ 0 ] );
     args . index_filename = &( tool_ctx -> index_filename[ 0 ] );
     args . stats = &stats;
+    args . insp_output = insp_output;
     args . join_options = &( tool_ctx -> join_options );
     args . temp_dir = tool_ctx -> temp_dir;
     args . registry= registry;
@@ -975,11 +988,11 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static bool output_exists_whole( tool_ctx_t * tool_ctx ) {
+static bool output_exists_whole( const tool_ctx_t * tool_ctx ) {
     return file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
 }
 
-static bool output_exists_idx( tool_ctx_t * tool_ctx, uint32_t idx ) {
+static bool output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) {
     bool res = false;
     SBuffer_t s_filename;
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
@@ -991,7 +1004,7 @@ static bool output_exists_idx( tool_ctx_t * tool_ctx, uint32_t idx ) {
     return res;
 }
 
-static bool output_exists_split( tool_ctx_t * tool_ctx ) {
+static bool output_exists_split( const tool_ctx_t * tool_ctx ) {
     bool res = output_exists_whole( tool_ctx );
     if ( !res ) {
         res = output_exists_idx( tool_ctx, 1 );
@@ -1002,7 +1015,7 @@ static bool output_exists_split( tool_ctx_t * tool_ctx ) {
     return res;
 }
 
-static rc_t check_output_exits( tool_ctx_t * tool_ctx ) {
+static rc_t check_output_exits( const tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     /* check if the output-file(s) do already exist, in case we are not overwriting */    
     if ( !( tool_ctx -> force ) && !( tool_ctx -> append ) ) {
@@ -1028,15 +1041,14 @@ static rc_t check_output_exits( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-static rc_t process_csra( tool_ctx_t * tool_ctx ) {
+static rc_t process_csra( const tool_ctx_t * tool_ctx,
+                          const inspector_output_t * insp_output ) {
     rc_t rc = 0;
     
-    if ( ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
-
-    if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
+    if ( tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* the special case of fasta-unsorted and split-spot : */
         join_stats_t stats;
-        execute_unsorted_fasta_db_join_args_t args;
+        execute_unsorted_fasta_db_join_args_t args; /* join.h */
 
         clear_join_stats( &stats ); /* helper.c */
 
@@ -1047,6 +1059,7 @@ static rc_t process_csra( tool_ctx_t * tool_ctx ) {
         args . output_filename = tool_ctx -> use_stdout ? NULL : tool_ctx -> output_filename;
         args . seq_defline = tool_ctx -> seq_defline;
         args . stats = &stats;
+        args . insp_output = insp_output;
         args . join_options = &( tool_ctx -> join_options );
         args . cur_cache = tool_ctx -> cursor_cache;
         args . buf_size = tool_ctx -> buf_size;
@@ -1063,8 +1076,8 @@ static rc_t process_csra( tool_ctx_t * tool_ctx ) {
 
     } else {
         /* the common case the other cominations of FASTA/FASTQ : */
-        if ( 0 == rc ) { rc = produce_lookup_files( tool_ctx ); } /* above */
-        if ( 0 == rc ) { rc = produce_final_db_output( tool_ctx ); } /* above */
+        if ( 0 == rc ) { rc = produce_lookup_files( tool_ctx, insp_output -> align . row_count ); } /* above */
+        if ( 0 == rc ) { rc = produce_final_db_output( tool_ctx, insp_output ); } /* above */
     }
     return rc;
 }
@@ -1072,14 +1085,15 @@ static rc_t process_csra( tool_ctx_t * tool_ctx ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
+static rc_t process_table( const tool_ctx_t * tool_ctx,
+                           const char * tbl_name, /* can be NULL for flat table */
+                           const inspector_output_t * insp_output ) {
     rc_t rc = 0;
     join_stats_t stats;
     
     if ( tool_ctx -> only_aligned ) { return rc; }
 
     clear_join_stats( &stats ); /* helper.c */
-    if ( ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); /* above */ }
 
     if ( 0 == rc && tool_ctx -> fmt == ft_fasta_us_split_spot ) {
         /* this is the 'special' unsorted FASTA for flat tables */
@@ -1156,8 +1170,8 @@ static rc_t process_table( tool_ctx_t * tool_ctx, const char * tbl_name ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
-    rc_t rc;
+static rc_t perform_tool( const tool_ctx_t * tool_ctx ) {
+    rc_t rc = 0;
     inspector_input_t insp_input;
     inspector_output_t insp_output;
 
@@ -1165,20 +1179,31 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
     insp_input . vdb_mgr = tool_ctx -> vdb_mgr;
     insp_input . accession_short = tool_ctx -> accession_short;
     insp_input . accession_path = tool_ctx -> accession_path;
-    
-    rc = inspect( &insp_input, &insp_output );
-    
+
+    if ( ! tool_ctx -> use_stdout ) { rc = check_output_exits( tool_ctx ); } /* above */
+        
     if ( 0 == rc ) {
+        rc = inspect( &insp_input, &insp_output ); /* perform the pre-flight inspection: inspector.c */
+    }
+
+    if ( 0 == rc ) {
+        /* =================================================== */
+        
         if ( tool_ctx -> show_details ) {
             rc = show_details( tool_ctx ); /* above */
             if ( 0 == rc ) {
-                rc = inspection_report( &insp_input, &insp_output );
+                rc = inspection_report( &insp_input, &insp_output ); /* inspector.c */
             }
         }
+
+        /* =================================================== */
+
+        /* TBD: check available space, based on inspection... */
+
         /* =================================================== */
         switch( insp_output . acc_type ) {
             /* a cSRA-database with alignments */
-            case acc_csra       : rc = process_csra( tool_ctx ); /* above */
+            case acc_csra       : rc = process_csra( tool_ctx, &insp_output ); /* above */
                                   break;
 
             /* a PACBIO-database */
@@ -1187,11 +1212,11 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx ) {
                                   break;
 
             /* a flat SRA-table */
-            case acc_sra_flat   : rc = process_table( tool_ctx, NULL ); /* above */
+            case acc_sra_flat   : rc = process_table( tool_ctx, NULL, &insp_output ); /* above */
                                   break;
 
             /* a cSRA-database withou alignments */
-            case acc_sra_db     : rc = process_table( tool_ctx, insp_output . seq_tbl_name ); /* above */
+            case acc_sra_db     : rc = process_table( tool_ctx, insp_output . seq . tbl_name,  &insp_output ); /* above */
                                   break;
 
             default             : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );

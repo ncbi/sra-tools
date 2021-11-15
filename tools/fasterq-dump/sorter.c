@@ -311,140 +311,114 @@ static rc_t CC producer_thread_func( const KThread *self, void *data ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static uint64_t find_out_row_count( cmn_iter_params_t * cmn ) {
-    rc_t rc;
-    uint64_t res = 0;
-    struct raw_read_iter_t * iter; /* raw_read_iter.c */
-    cmn_iter_params_t cp; /* cmn_iter.h */
-    
-    cp . dir             = cmn -> dir;
-    cp . vdb_mgr         = cmn -> vdb_mgr;
-    cp . accession_short = cmn -> accession_short;
-    cp . accession_path  = cmn -> accession_path;
-    cp . first_row       = 0;
-    cp . row_count       = 0;
-    cp . cursor_cache    = cmn -> cursor_cache;
-
-    rc = make_raw_read_iter( &cp, &iter ); /* raw_read_iter.c */
-    if ( 0 == rc ) {
-        res = get_row_count_of_raw_read( iter ); /* raw_read_iter.c */
-        destroy_raw_read_iter( iter ); /* raw_read_iter.c */
-    }
-    return res;
-}
-
 static rc_t run_producer_pool( cmn_iter_params_t * cmn, /* helper.h */
                                struct background_vector_merger_t * merger, /* merge_sorter.h */
                                size_t buf_size,
                                size_t mem_limit,
                                uint32_t num_threads,
+                               uint64_t total_row_count,
                                bool show_progress ) {
     rc_t rc = 0;
-    uint64_t total_row_count = find_out_row_count( cmn );
-    if ( 0 == total_row_count ) {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "sorter.c run_producer_pool(): row_count == 0!" );
-    } else {
-        Vector threads;
-        uint32_t chunk_id = 1;
-        int64_t row = 1;
-        uint64_t rows_per_thread = ( total_row_count / num_threads ) + 1;
-        struct bg_progress_t * progress = NULL;
-        atomic64_t processed_row_count;
+    Vector threads;
+    uint32_t chunk_id = 1;
+    int64_t row = 1;
+    uint64_t rows_per_thread = ( total_row_count / num_threads ) + 1;
+    struct bg_progress_t * progress = NULL;
+    atomic64_t processed_row_count;
 
-        tell_total_rowcount_to_vector_merger( merger, total_row_count ); /* merge_sorter.h */
-        atomic64_set( &processed_row_count, 0 );
-        VectorInit( &threads, 0, num_threads );
-        if ( show_progress ) {
-            rc = bg_progress_make( &progress, total_row_count, 0, 0 ); /* progress_thread.c */
-        }
+    tell_total_rowcount_to_vector_merger( merger, total_row_count ); /* merge_sorter.h */
+    atomic64_set( &processed_row_count, 0 );
+    VectorInit( &threads, 0, num_threads );
+    if ( show_progress ) {
+        rc = bg_progress_make( &progress, total_row_count, 0, 0 ); /* progress_thread.c */
+    }
 
-        while ( 0 == rc && ( row < ( int64_t )total_row_count ) ) {
-            lookup_producer_t * producer = calloc( 1, sizeof *producer );
-            if ( NULL != producer ) {
-                rc = init_multi_producer( producer,
-                                          cmn,
-                                          merger,
-                                          buf_size,
-                                          mem_limit,
-                                          progress,
-                                          chunk_id,
-                                          row,
-                                          rows_per_thread,
-                                          &processed_row_count ); /* above */
-                if ( 0 == rc ) {
-                    KThread * thread;
-                    rc = helper_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
-                    if ( 0 != rc ) {
-                        ErrMsg( "sorter.c run_producer_pool().helper_make_thread( sort-thread #%d ) -> %R", chunk_id - 1, rc );
-                    } else {
-                        rc = VectorAppend( &threads, NULL, thread );
-                        if ( 0 != rc ) {
-                            ErrMsg( "sorter.c run_producer_pool().VectorAppend( sort-thread #%d ) -> %R", chunk_id - 1, rc );
-                        } else {
-                            row  += rows_per_thread;
-                            chunk_id++;
-                        }
-                    }
+    while ( 0 == rc && ( row < ( int64_t )total_row_count ) ) {
+        lookup_producer_t * producer = calloc( 1, sizeof *producer );
+        if ( NULL != producer ) {
+            rc = init_multi_producer( producer,
+                                        cmn,
+                                        merger,
+                                        buf_size,
+                                        mem_limit,
+                                        progress,
+                                        chunk_id,
+                                        row,
+                                        rows_per_thread,
+                                        &processed_row_count ); /* above */
+            if ( 0 == rc ) {
+                KThread * thread;
+                rc = helper_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
+                if ( 0 != rc ) {
+                    ErrMsg( "sorter.c run_producer_pool().helper_make_thread( sort-thread #%d ) -> %R", chunk_id - 1, rc );
                 } else {
-                    release_producer( producer ); /* above */
+                    rc = VectorAppend( &threads, NULL, thread );
+                    if ( 0 != rc ) {
+                        ErrMsg( "sorter.c run_producer_pool().VectorAppend( sort-thread #%d ) -> %R", chunk_id - 1, rc );
+                    } else {
+                        row  += rows_per_thread;
+                        chunk_id++;
+                    }
                 }
             } else {
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                release_producer( producer ); /* above */
             }
+        } else {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         }
+    }
 
-        /* collect all the sorter-threads */
-        rc = join_and_release_threads( &threads ); /* helper.c */
-        if ( 0 != rc ) {
-            ErrMsg( "sorter.c run_producer_pool().join_and_release_threads -> %R", rc );
-        }
+    /* collect all the sorter-threads */
+    rc = join_and_release_threads( &threads ); /* helper.c */
+    if ( 0 != rc ) {
+        ErrMsg( "sorter.c run_producer_pool().join_and_release_threads -> %R", rc );
+    }
 
-        /* all sorter-threads are done now, tell the progress-thread to terminate! */
-        bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
+    /* all sorter-threads are done now, tell the progress-thread to terminate! */
+    bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
 
-        if ( 0 == rc ) {
-            uint64_t value = atomic64_read( &processed_row_count );
-            if ( value != total_row_count ) {
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSize, rcInvalid );
-                ErrMsg( "sorter.c run_producer_pool() : processed lookup rows: %lu of %lu", value, total_row_count );
-            }
+    if ( 0 == rc ) {
+        uint64_t value = atomic64_read( &processed_row_count );
+        if ( value != total_row_count ) {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSize, rcInvalid );
+            ErrMsg( "sorter.c run_producer_pool() : processed lookup rows: %lu of %lu", value, total_row_count );
         }
     }
     return rc;
 }
 
-rc_t execute_lookup_production( KDirectory * dir,
-                                const VDBManager * vdb_mgr,
-                                const char * accession_short,
-                                const char * accession_path,
-                                struct background_vector_merger_t * merger,
-                                size_t cursor_cache,
-                                size_t buf_size,
-                                size_t mem_limit,
-                                uint32_t num_threads,
-                                bool show_progress ) {
+rc_t execute_lookup_production( const lookup_production_args_t * args ) {
     rc_t rc = 0;
-    if ( show_progress ) {
+    if ( args -> show_progress ) {
         KOutHandlerSetStdErr();
         rc = KOutMsg( "lookup :" );
         KOutHandlerSetStdOut();
     }
     
     if ( rc == 0 ) {
-        cmn_iter_params_t cmn = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cursor_cache };
+        cmn_iter_params_t cmn; /* cmn_iter.h */
+
+        cmn . dir = args -> dir;
+        cmn . vdb_mgr = args -> vdb_mgr;
+        cmn . accession_short = args -> accession_short;
+        cmn . accession_path = args -> accession_path;
+        cmn . first_row = 0;
+        cmn . row_count = 0;
+        cmn . cursor_cache = args -> cursor_cache;
+
         rc = run_producer_pool( &cmn,
-                                merger,
-                                buf_size,
-                                mem_limit,
-                                num_threads,
-                                show_progress ); /* above */
+                                args -> merger,
+                                args -> buf_size,
+                                args -> mem_limit,
+                                args -> num_threads,
+                                args -> align_row_count,
+                                args -> show_progress ); /* above */
     }
     
     /* signal to the receiver-end of the job-queue that nothing will be put into the
        queue any more... */
-    if ( rc == 0 && merger != NULL ) {
-        rc = seal_background_vector_merger( merger ); /* merge_sorter.c */
+    if ( rc == 0 && args -> merger != NULL ) {
+        rc = seal_background_vector_merger( args -> merger ); /* merge_sorter.c */
     }
 
     if ( rc != 0 ) {

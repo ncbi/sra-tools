@@ -58,29 +58,38 @@ typedef struct inspector_input_t
 
 typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
 
+typedef struct inspector_seq_data_t
+{
+    const char * tbl_name;
+    bool has_name_column;
+    bool has_spot_group_column;
+    int64_t  first_row;
+    uint64_t row_count;
+    uint64_t spot_count;
+    uint64_t total_base_count;
+    uint64_t bio_base_count;
+    uint32_t avg_name_len;
+    uint32_t avg_spot_group_len;
+} inspector_seq_data_t;
+
+typedef struct inspector_align_data_t
+{
+    int64_t  first_row;
+    uint64_t row_count;
+    uint64_t spot_count;    
+    uint64_t total_base_count;
+    uint64_t bio_base_count;
+
+} inspector_align_data_t;
+
 typedef struct inspector_output_t
 {
     acc_type_t acc_type;
     bool is_remote;
     size_t acc_size;
 
-    const char * seq_tbl_name;
-    bool seq_has_name_column;
-    bool seq_has_spot_group_column;
-    int64_t seq_first_row;
-    uint64_t seq_row_count;
-    uint64_t seq_spot_count;
-    uint64_t seq_total_base_count;
-    uint64_t seq_bio_base_count;
-    uint32_t seq_avg_name_len;
-    uint32_t seq_avg_spot_group_len;
-
-    int64_t align_first_row;
-    uint64_t align_row_count;
-    uint64_t align_spot_count;    
-    uint64_t align_total_base_count;
-    uint64_t align_bio_base_count;
-
+    inspector_seq_data_t seq;
+    inspector_align_data_t align;
 } inspector_output_t;
 
 rc_t inspect( const inspector_input_t * input, inspector_output_t * output );

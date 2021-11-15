@@ -483,35 +483,30 @@ static rc_t CC background_vector_merger_thread_func( const KThread * thread, voi
 }
 
 rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
-                             KDirectory * dir,
-                             const struct temp_dir_t * temp_dir,
-                             struct KFastDumpCleanupTask_t * cleanup_task,                             
-                             struct background_file_merger_t * file_merger,
-                             uint32_t batch_size,
-                             uint32_t q_wait_time,
-                             size_t buf_size,
-                             struct bg_update_t * gap ) {
+                                    vector_merger_args_t * args ) {
     rc_t rc = 0;
     background_vector_merger_t * b = calloc( 1, sizeof * b );
     *merger = NULL;
     if ( NULL == b ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     } else {
-        b -> dir = dir;
-        b -> temp_dir = temp_dir;
-        b -> batch_size = batch_size;
-        b -> q_wait_time = q_wait_time;
-        b -> buf_size = buf_size;
-        b -> file_merger = file_merger;
-        b -> cleanup_task = cleanup_task;
-        b -> gap = gap;
+        b -> dir = args -> dir;
+        b -> temp_dir = args -> temp_dir;
+        b -> batch_size = args -> batch_size;
+        b -> q_wait_time = args -> q_wait_time;
+        b -> buf_size = args -> buf_size;
+        b -> file_merger = args -> file_merger;
+        b -> cleanup_task = args -> cleanup_task;
+        b -> gap = args -> gap;
         b -> total = 0;
         b -> total_rowcount_prod = 0;
         
-        rc = KQueueMake ( &( b -> job_q ), batch_size );
+        rc = KQueueMake ( &( b -> job_q ), args -> batch_size );
         if ( 0 == rc ) {
-            rc = helper_make_thread( &( b -> thread ), background_vector_merger_thread_func,
-                                     b, THREAD_DFLT_STACK_SIZE );
+            rc = helper_make_thread( &( b -> thread ),
+                                     background_vector_merger_thread_func,
+                                     b,
+                                     THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "merge_sorter.c helper_make_thread( vector-merger ) -> %R", rc );
             }
@@ -781,30 +776,22 @@ static rc_t CC background_file_merger_thread_func( const KThread * thread, void 
 }
 
 rc_t make_background_file_merger( background_file_merger_t ** merger,
-                                KDirectory * dir,
-                                const struct temp_dir_t * temp_dir,
-                                struct KFastDumpCleanupTask_t * cleanup_task,
-                                const char * lookup_filename,
-                                const char * index_filename,
-                                uint32_t batch_size,
-                                uint32_t wait_time,
-                                size_t buf_size,
-                                struct bg_update_t * gap ) {
+                                  file_merger_args_t * args ) {
     rc_t rc = 0;
     background_file_merger_t * b = calloc( 1, sizeof * b );
     *merger = NULL;
     if ( NULL == b ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     } else {
-        b -> dir = dir;
-        b -> temp_dir = temp_dir;
-        b -> lookup_filename = lookup_filename;
-        b -> index_filename = index_filename;
-        b -> batch_size = batch_size;
-        b -> wait_time = wait_time;
-        b -> buf_size = buf_size;
-        b -> cleanup_task = cleanup_task;
-        b -> gap = gap;
+        b -> dir = args -> dir;
+        b -> temp_dir = args -> temp_dir;
+        b -> lookup_filename = args -> lookup_filename;
+        b -> index_filename = args -> index_filename;
+        b -> batch_size = args -> batch_size;
+        b -> wait_time = args -> wait_time;
+        b -> buf_size = args -> buf_size;
+        b -> cleanup_task = args -> cleanup_task;
+        b -> gap = args -> gap;
         b -> total_rows = 0;
         b -> total_rowcount_prod = 0;
 
@@ -813,8 +800,10 @@ rc_t make_background_file_merger( background_file_merger_t ** merger,
             rc = locked_value_init( &( b -> sealed ), 0 );
         }
         if ( 0 == rc ) {
-            rc = helper_make_thread( &( b -> thread ), background_file_merger_thread_func,
-                                     b, THREAD_DFLT_STACK_SIZE );
+            rc = helper_make_thread( &( b -> thread ),
+                                     background_file_merger_thread_func,
+                                     b,
+                                     THREAD_DFLT_STACK_SIZE );
             if ( 0 != rc ) {
                 ErrMsg( "merge_sorter.c helper_make_thread( file-mergerr ) -> %R", rc );
             }

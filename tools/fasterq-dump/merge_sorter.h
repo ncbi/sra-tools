@@ -56,15 +56,20 @@ struct background_file_merger_t;
 
 /* ================================================================================= */
 
+typedef struct vector_merger_args_t {
+    KDirectory * dir;
+    const struct temp_dir_t * temp_dir;
+    struct KFastDumpCleanupTask_t * cleanup_task;
+    struct background_file_merger_t * file_merger;
+    uint32_t batch_size;
+    uint32_t q_wait_time;
+    size_t buf_size;
+    struct bg_update_t * gap;
+} vector_merger_args_t;
+
+
 rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
-                             KDirectory * dir,
-                             const struct temp_dir_t * temp_dir,
-                             struct KFastDumpCleanupTask_t * cleanup_task,                             
-                             struct background_file_merger_t * file_merger,
-                             uint32_t batch_size,
-                             uint32_t q_wait_time,
-                             size_t buf_size,
-                             struct bg_update_t * gap );
+                                    vector_merger_args_t * args );
 
 void tell_total_rowcount_to_vector_merger( struct background_vector_merger_t * self, uint64_t value );
 
@@ -77,16 +82,20 @@ rc_t wait_for_and_release_background_vector_merger( struct background_vector_mer
 
 /* ================================================================================= */
 
+typedef struct file_merger_args_t {
+    KDirectory * dir;
+    const struct temp_dir_t * temp_dir;
+    struct KFastDumpCleanupTask_t * cleanup_task;
+    const char * lookup_filename;
+    const char * index_filename;
+    uint32_t batch_size;
+    uint32_t wait_time;
+    size_t buf_size;
+    struct bg_update_t * gap;
+} file_merger_args_t;
+
 rc_t make_background_file_merger( struct background_file_merger_t ** merger,
-                                KDirectory * dir,
-                                const struct temp_dir_t * temp_dir,
-                                struct KFastDumpCleanupTask_t * cleanup_task,                                
-                                const char * lookup_filename,
-                                const char * index_filename,
-                                uint32_t batch_size,
-                                uint32_t wait_time,
-                                size_t buf_size,
-                                struct bg_update_t * gap );
+                                  file_merger_args_t * args );
 
 void tell_total_rowcount_to_file_merger( struct background_file_merger_t * self, uint64_t value );
 

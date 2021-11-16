@@ -144,6 +144,17 @@ rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs ) {
     return rc;
 }
 
+uint64_t file_size( const KDirectory * dir, const char * fmt, ... ) {
+    uint64_t res = 0;
+    if ( NULL != dir && NULL != fmt ) {
+        va_list args;
+        va_start( args, fmt );
+        KDirectoryVFileSize( dir, &res, fmt, args );
+        va_end( args );
+    }
+    return res;
+}
+
 uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files ) {
     uint64_t res = 0;
     if ( NULL != dir && NULL != files ) {

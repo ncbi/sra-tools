@@ -893,16 +893,18 @@ static rc_t produce_lookup_files( const tool_ctx_t * tool_ctx,
 
     bg_update_release( gap );
 
-    if ( 0 != rc ) {
+    if ( 0 == rc ) {
+        uint64_t lookup_size = file_size( tool_ctx -> dir, tool_ctx -> lookup_filename ); /* file_tools.c */
+        uint64_t index_size = file_size( tool_ctx -> dir, tool_ctx -> index_filename ); /* file_tools.c */
+        KOutMsg( "lookup = %,lu bytes\nindex = %,lu bytes\n", lookup_size, index_size );
+    } else {
         ErrMsg( "fasterq-dump.c produce_lookup_files() -> %R", rc );
     }
-   
+
     return rc;
 }
 
-
 /* -------------------------------------------------------------------------------------------- */
-
 
 static rc_t produce_final_db_output( const tool_ctx_t * tool_ctx,
                                      const inspector_output_t * insp_output ) {

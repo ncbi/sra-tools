@@ -105,7 +105,6 @@ rc_t seal_background_file_merger( struct background_file_merger_t * self );
 
 rc_t wait_for_and_release_background_file_merger( struct background_file_merger_t * self );
 
-
 #ifdef __cplusplus
 }
 #endif

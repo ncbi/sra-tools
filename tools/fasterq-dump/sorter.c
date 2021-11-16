@@ -84,49 +84,6 @@ static void release_producer( lookup_producer_t * self ) {
     }
 }
 
-static rc_t init_multi_producer( lookup_producer_t * self,
-                                 cmn_iter_params_t * cmn, /* helper.h */
-                                 struct background_vector_merger_t * merger, /* merge_sorter.h */
-                                 size_t buf_size,
-                                 size_t mem_limit,
-                                 struct bg_progress_t * progress, /* progress_thread.h */
-                                 uint32_t chunk_id,
-                                 int64_t first_row,
-                                 uint64_t row_count,
-                                 atomic64_t * processed_row_count ) {
-    rc_t rc = KVectorMake( &self -> store );
-    if ( 0 != rc ) {
-        ErrMsg( "sorter.c init_multi_producer().KVectorMake() -> %R", rc );
-    } else {
-        rc = make_SBuffer( &( self -> buf ), 4096 ); /* helper.c */
-        if ( 0 == rc ) {
-            cmn_iter_params_t cp;
-
-            self -> iter            = NULL;
-            self -> progress        = progress;
-            self -> merger          = merger;
-            self -> bytes_in_store  = 0;
-            self -> chunk_id        = chunk_id;
-            self -> sub_file_id     = 0;
-            self -> buf_size        = buf_size;
-            self -> mem_limit       = mem_limit;
-            self -> single          = false;
-            self -> processed_row_count = processed_row_count;
-
-            cp . dir                = cmn -> dir;
-            cp . vdb_mgr            = cmn -> vdb_mgr;
-            cp . accession_short    = cmn -> accession_short;
-            cp . accession_path     = cmn -> accession_path;
-            cp . first_row          = first_row;
-            cp . row_count          = row_count;
-            cp . cursor_cache       = cmn -> cursor_cache;
-
-            rc = make_raw_read_iter( &cp, &( self -> iter ) );
-        }
-    }
-    return rc;
-}
-
 static rc_t push_store_to_merger( lookup_producer_t * self, bool last ) {
     rc_t rc = 0;
     if ( self -> bytes_in_store > 0 ) {
@@ -263,12 +220,10 @@ static rc_t write_to_store( lookup_producer_t * self,
 }
 
 static rc_t CC producer_thread_func( const KThread *self, void *data ) {
-    rc_t rc = 0;
-    rc_t rc1;
+    rc_t rc1, rc = 0;
     lookup_producer_t * producer = data;
     raw_read_rec_t rec;
     uint64_t row_count = 0;
-    struct bg_progress_t * progress = producer -> progress;
 
     while ( 0 == rc && get_from_raw_read_iter( producer -> iter, &rec, &rc1 ) ) { /* raw_read_iter.c */
         rc_t rc2 = get_quitting(); /* helper.c */
@@ -282,7 +237,7 @@ static rc_t CC producer_thread_func( const KThread *self, void *data ) {
                     /* the keys are allowed to be out of order here */
                     rc = write_to_store( producer, key, &rec . read ); /* above! */
                     if ( 0 == rc ) {
-                        bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
+                        bg_progress_inc( producer -> progress ); /* progress_thread.c (ignores NULL) */
                         row_count++;
                     }
                 }
@@ -311,108 +266,105 @@ static rc_t CC producer_thread_func( const KThread *self, void *data ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t run_producer_pool( cmn_iter_params_t * cmn, /* helper.h */
-                               struct background_vector_merger_t * merger, /* merge_sorter.h */
-                               size_t buf_size,
-                               size_t mem_limit,
-                               uint32_t num_threads,
-                               uint64_t total_row_count,
-                               bool show_progress ) {
-    rc_t rc = 0;
-    Vector threads;
-    uint32_t chunk_id = 1;
-    int64_t row = 1;
-    uint64_t rows_per_thread = ( total_row_count / num_threads ) + 1;
-    struct bg_progress_t * progress = NULL;
-    atomic64_t processed_row_count;
-
-    tell_total_rowcount_to_vector_merger( merger, total_row_count ); /* merge_sorter.h */
-    atomic64_set( &processed_row_count, 0 );
-    VectorInit( &threads, 0, num_threads );
-    if ( show_progress ) {
-        rc = bg_progress_make( &progress, total_row_count, 0, 0 ); /* progress_thread.c */
-    }
-
-    while ( 0 == rc && ( row < ( int64_t )total_row_count ) ) {
-        lookup_producer_t * producer = calloc( 1, sizeof *producer );
-        if ( NULL != producer ) {
-            rc = init_multi_producer( producer,
-                                        cmn,
-                                        merger,
-                                        buf_size,
-                                        mem_limit,
-                                        progress,
-                                        chunk_id,
-                                        row,
-                                        rows_per_thread,
-                                        &processed_row_count ); /* above */
-            if ( 0 == rc ) {
-                KThread * thread;
-                rc = helper_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
-                if ( 0 != rc ) {
-                    ErrMsg( "sorter.c run_producer_pool().helper_make_thread( sort-thread #%d ) -> %R", chunk_id - 1, rc );
-                } else {
-                    rc = VectorAppend( &threads, NULL, thread );
-                    if ( 0 != rc ) {
-                        ErrMsg( "sorter.c run_producer_pool().VectorAppend( sort-thread #%d ) -> %R", chunk_id - 1, rc );
-                    } else {
-                        row  += rows_per_thread;
-                        chunk_id++;
-                    }
-                }
-            } else {
-                release_producer( producer ); /* above */
-            }
-        } else {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        }
-    }
-
-    /* collect all the sorter-threads */
-    rc = join_and_release_threads( &threads ); /* helper.c */
-    if ( 0 != rc ) {
-        ErrMsg( "sorter.c run_producer_pool().join_and_release_threads -> %R", rc );
-    }
-
-    /* all sorter-threads are done now, tell the progress-thread to terminate! */
-    bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
-
-    if ( 0 == rc ) {
-        uint64_t value = atomic64_read( &processed_row_count );
-        if ( value != total_row_count ) {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSize, rcInvalid );
-            ErrMsg( "sorter.c run_producer_pool() : processed lookup rows: %lu of %lu", value, total_row_count );
-        }
-    }
-    return rc;
-}
-
 rc_t execute_lookup_production( const lookup_production_args_t * args ) {
     rc_t rc = 0;
+
     if ( args -> show_progress ) {
         KOutHandlerSetStdErr();
         rc = KOutMsg( "lookup :" );
         KOutHandlerSetStdOut();
     }
-    
+
+    tell_total_rowcount_to_vector_merger( args -> merger, args -> align_row_count ); /* merge_sorter.h */
+
     if ( rc == 0 ) {
-        cmn_iter_params_t cmn; /* cmn_iter.h */
+        Vector threads;
+        uint32_t chunk_id = 1;
+        int64_t row = 1;
+        struct bg_progress_t * progress = NULL; /* progress_thread.h */
+        atomic64_t processed_row_count;
+        uint64_t rows_per_thread = ( args -> align_row_count / args -> num_threads ) + 1;
+    
+        atomic64_set( &processed_row_count, 0 );
+        VectorInit( &threads, 0, args -> num_threads );
+        if ( args -> show_progress ) {
+            rc = bg_progress_make( &progress, args -> align_row_count, 0, 0 ); /* progress_thread.c */
+        }
 
-        cmn . dir = args -> dir;
-        cmn . vdb_mgr = args -> vdb_mgr;
-        cmn . accession_short = args -> accession_short;
-        cmn . accession_path = args -> accession_path;
-        cmn . first_row = 0;
-        cmn . row_count = 0;
-        cmn . cursor_cache = args -> cursor_cache;
+        while ( 0 == rc && ( row < ( int64_t )args -> align_row_count ) ) {
+            lookup_producer_t * producer = calloc( 1, sizeof *producer );
+            if ( NULL != producer ) {
 
-        rc = run_producer_pool( &cmn,
-                                args -> merger,
-                                args -> buf_size,
-                                args -> mem_limit,
-                                args -> num_threads,
-                                args -> align_row_count,
-                                args -> show_progress ); /* above */
+                /* initialize the producer */
+                rc = KVectorMake( &producer -> store );
+                if ( 0 != rc ) {
+                    ErrMsg( "sorter.c init_multi_producer().KVectorMake() -> %R", rc );
+                } else {
+                    rc = make_SBuffer( &( producer -> buf ), 4096 ); /* helper.c */
+                    if ( 0 == rc ) {
+                        cmn_iter_params_t cip;   /* cm_iter.h */
+
+                        producer -> iter            = NULL;
+                        producer -> progress        = progress;
+                        producer -> merger          = args -> merger;
+                        producer -> bytes_in_store  = 0;
+                        producer -> chunk_id        = chunk_id;
+                        producer -> sub_file_id     = 0;
+                        producer -> buf_size        = args -> buf_size;
+                        producer -> mem_limit       = args -> mem_limit;
+                        producer -> single          = false;
+                        producer -> processed_row_count = &processed_row_count;
+
+                        cip . dir                = args -> dir;
+                        cip . vdb_mgr            = args -> vdb_mgr;
+                        cip . accession_short    = args -> accession_short;
+                        cip . accession_path     = args -> accession_path;
+                        cip . first_row          = row;
+                        cip . row_count          = rows_per_thread;
+                        cip . cursor_cache       = args -> cursor_cache;
+
+                        rc = make_raw_read_iter( &cip, &( producer -> iter ) );
+                    }
+                }
+
+                if ( 0 == rc ) {
+                    KThread * thread;
+                    rc = helper_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
+                    if ( 0 != rc ) {
+                        ErrMsg( "sorter.c run_producer_pool().helper_make_thread( sort-thread #%d ) -> %R", chunk_id - 1, rc );
+                    } else {
+                        rc = VectorAppend( &threads, NULL, thread );
+                        if ( 0 != rc ) {
+                            ErrMsg( "sorter.c run_producer_pool().VectorAppend( sort-thread #%d ) -> %R", chunk_id - 1, rc );
+                        } else {
+                            row  += rows_per_thread;
+                            chunk_id++;
+                        }
+                    }
+                } else {
+                    release_producer( producer ); /* above */
+                }
+            } else {
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            }
+        }
+
+        /* collect all the sorter-threads */
+        rc = join_and_release_threads( &threads ); /* helper.c */
+        if ( 0 != rc ) {
+            ErrMsg( "sorter.c run_producer_pool().join_and_release_threads -> %R", rc );
+        }
+
+        /* all sorter-threads are done now, tell the progress-thread to terminate! */
+        bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
+
+        if ( 0 == rc ) {
+            uint64_t value = atomic64_read( &processed_row_count );
+            if ( value != args -> align_row_count ) {
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSize, rcInvalid );
+                ErrMsg( "sorter.c run_producer_pool() : processed lookup rows: %lu of %lu", value, args -> align_row_count );
+            }
+        }
     }
     
     /* signal to the receiver-end of the job-queue that nothing will be put into the

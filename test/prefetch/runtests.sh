@@ -1009,7 +1009,13 @@ cd ${work_dir}
 ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
 rm -r tmp/S*
 
+echo '/libs/vdb/quality = "ZR"'                           >> tmp/k
 echo '/repository/site/disabled = "true"'                 >> tmp/k
+cd tmp && NCBI_SETTINGS=k          ${bin_dir}/prefetch SRR619505  -fy > /dev/null
+cd ${work_dir}
+ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null || exit 1016
+rm -r tmp/[NS]*
+
 echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                 >> tmp/k
 echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
 	                                                       >> tmp/k

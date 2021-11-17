@@ -78,9 +78,10 @@ private:
     void xReportTelemetry();
 
     string mOutputFile;
-    string mDestination; ///< path to sra archive
-    bool mDebug{false};
-    vector<char> mReadTypes;
+    string mDestination;         ///< path to sra archive
+    bool mDebug{false};          ///< Debug mode  
+    bool mNoTimeStamp{false};    ///< No time stamp in debug mode
+    vector<char> mReadTypes;     ///< ReadType paramter value
     using TInptuFiles = vector<string>;
     vector<TInptuFiles> mInputBatches;
     bool mDiscardNames{false};
@@ -93,6 +94,7 @@ private:
     ostream* mpOutStr{nullptr};
     shared_ptr<fastq_writer> m_writer;
     json  mReport;
+
 
 };
 
@@ -179,8 +181,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         app.add_option("files", input_files, "FastQ files to parse");
 
         auto opt = app.add_option_group("Debugging options");
-        bool no_timestamp = false;
-        opt->add_flag("--no-timestamp", no_timestamp, "No time stamp in debug mode");
+        mNoTimeStamp = false;
+        opt->add_flag("--no-timestamp", mNoTimeStamp, "No time stamp in debug mode");
 
         string log_level = "info";
         opt->add_option("--log-level", log_level, "Log level")
@@ -226,7 +228,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         if (mDigest == 0) {
             if (mDebug) {
                 m_writer = make_shared<fastq_writer>();
-                if (no_timestamp)
+                if (mNoTimeStamp)
                     spdlog::set_pattern("[%l] %v");
 
             } else {
@@ -467,8 +469,10 @@ int CFastqParseApp::xRun()
         parser.set_readers(group);
         parser.parse();
     }
+    spdlog::stopwatch sw;
     parser.check_duplicates();
-    spdlog::info("Parsing complete");
+    if (mNoTimeStamp == false)
+        mReport["collation_check_time"] = sw.elapsed().count();
     m_writer->close();
 
     if (!mTelemetryFile.empty()) {

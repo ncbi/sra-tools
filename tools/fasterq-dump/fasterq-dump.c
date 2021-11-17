@@ -896,7 +896,7 @@ static rc_t produce_lookup_files( const tool_ctx_t * tool_ctx,
     if ( 0 == rc ) {
         uint64_t lookup_size = file_size( tool_ctx -> dir, tool_ctx -> lookup_filename ); /* file_tools.c */
         uint64_t index_size = file_size( tool_ctx -> dir, tool_ctx -> index_filename ); /* file_tools.c */
-        KOutMsg( "lookup = %,lu bytes\nindex = %,lu bytes\n", lookup_size, index_size );
+        /* KOutMsg( "lookup = %,lu bytes\nindex = %,lu bytes\n", lookup_size, index_size ); */
     } else {
         ErrMsg( "fasterq-dump.c produce_lookup_files() -> %R", rc );
     }

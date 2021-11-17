@@ -10,6 +10,6 @@ if ( NOT WIN32 )
 	BuildExecutableForTest( SlowTest_Prefetch "test-quality" "${COMMON_LINK_LIBRARIES};ncbi-vdb" )
 
 	add_test( NAME SlowTest_Prefetch
-		COMMAND runtests.sh "${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch" "${BINDIR}"
+		COMMAND sh runtests.sh "${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch" "${BINDIR}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

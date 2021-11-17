@@ -1699,6 +1699,8 @@ rc_t execute_db_join( const execute_db_join_args_t * args ) {
                     jtd -> accession_short  = args -> accession_short;
                     jtd -> lookup_filename  = args -> lookup_filename;
                     jtd -> index_filename   = args -> index_filename;
+                    jtd -> seq_defline      = args -> seq_defline;
+                    jtd -> qual_defline     = args -> qual_defline;
                     jtd -> first_row        = row;
                     jtd -> row_count        = rows_per_thread;
                     jtd -> row_limit        = args -> row_limit;

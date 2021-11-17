@@ -339,6 +339,7 @@ static rc_t get_environment( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
+#if 0
 const char * DFLT_SEQ_DEFLINE_FASTQ = "-";
 const char * DFLT_SEQ_DEFLINE_FASTA = "-";
 static const char * x_dflt_seq_defline( const tool_ctx_t * tool_ctx ) {
@@ -352,6 +353,7 @@ static const char * x_dflt_qual_defline( const tool_ctx_t * tool_ctx ) {
     return ( is_format_fasta( tool_ctx -> fmt ) ) /* helper.c */
         ? DFLT_QUAL_DEFLINE_FASTA : DFLT_QUAL_DEFLINE_FASTQ;  
 }
+#endif
 
 static rc_t show_details( const tool_ctx_t * tool_ctx ) {
     rc_t rc = KOutHandlerSetStdErr();
@@ -407,12 +409,12 @@ static rc_t show_details( const tool_ctx_t * tool_ctx ) {
     }
     if ( 0 == rc ) {
         const char * s = tool_ctx -> seq_defline;
-        if ( NULL == s ) { s = x_dflt_seq_defline( tool_ctx ); }
+        /* if ( NULL == s ) { s = x_dflt_seq_defline( tool_ctx ); } */
         rc = KOutMsg( "seq-defline  : '%s'\n", s );
     }
     if ( 0 == rc ) {
         const char * s = tool_ctx -> qual_defline;
-        if ( NULL == s ) { s = x_dflt_qual_defline( tool_ctx ); }
+        /* if ( NULL == s ) { s = x_dflt_qual_defline( tool_ctx ); } */
         rc = KOutMsg( "qual-defline  : '%s'\n", s );
     }
     if ( 0 == rc ) {

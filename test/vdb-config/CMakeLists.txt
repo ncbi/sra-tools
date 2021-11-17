@@ -9,6 +9,6 @@ if ( NOT WIN32 )
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 	add_test( NAME Test_VDB_Config
-		COMMAND test-vdb-config.sh "${BINDIR}"
+		COMMAND test-vdb-config.sh "${DIRTOTEST}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

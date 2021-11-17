@@ -277,6 +277,12 @@ else() # assume a single-config generator
     link_directories( ${NCBI_VDB_ILIBDIR} )
 endif()
 
+# DIRTOTEST is the overridable location of the executables to call from scripted test
+if( NOT DIRTOTEST )
+    set( DIRTOTEST ${BINDIR} )
+endif()
+message( DIRTOTEST: ${DIRTOTEST})
+
 if( Python3_EXECUTABLE )
     set( PythonUserBase ${TEMPDIR}/python )
 endif()

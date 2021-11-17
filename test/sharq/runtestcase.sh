@@ -40,7 +40,8 @@ BINDIR=$1
 WORKDIR=$2
 CASEID=$3
 RC=$4
-shift 4
+TELEMETRY_RPT=$5
+shift 5
 CMDLINE=$*
 
 DUMP="$BINDIR/vdb-dump"
@@ -62,8 +63,12 @@ if [ "$?" != "0" ] ; then
 fi
 export LD_LIBRARY_PATH=$BINDIR/../lib;
 
+if [ "$TELEMETRY_RPT" != "0" ] ; then
+CMDLINE="${CMDLINE} -t ${TEMPDIR}/telemetry"
+fi
+
 CMD="$LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-    echo $CMD
+echo $CMD
 eval $CMD
 rc="$?"
 if [ "$rc" != "$RC" ] ; then
@@ -87,6 +92,17 @@ if [ "$rc" != "0" ] ; then
     echo "command executed:"
     echo $CMD
     exit 3
+fi
+
+if [ "$TELEMETRY_RPT" != "0" ] ; then
+    $DIFF $WORKDIR/expected/$CASEID.telemetry $TEMPDIR/telemetry >$TEMPDIR/telemetry.diff
+    rc="$?"
+    if [ "$rc" != "0" ] ; then
+        cat $TEMPDIR/telemetry.diff
+        echo "command executed:"
+        echo $CMD
+        exit 3
+    fi
 fi
 
 

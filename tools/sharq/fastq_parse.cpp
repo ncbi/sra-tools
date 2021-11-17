@@ -75,6 +75,8 @@ private:
     void xBreakdownOutput();
     void xCheckInputFiles(vector<string>& files);
 
+    void xReportTelemetry();
+
     string mOutputFile;
     string mDestination; ///< path to sra archive
     bool mDebug{false};
@@ -85,10 +87,13 @@ private:
     bool mAllowEarlyFileEnd{false}; ///< Flag to continue if one of the streams ends
     int mQuality{-1};               ///< quality score interpretation (0, 33, 64)
     int mDigest{0};                 ///< Numberof dogest lines to produce 
+    string mTelemetryFile;          ///< Telemetry report file name
     string mSpotFile;
     string mNameColumn;             ///< NAME column's name
     ostream* mpOutStr{nullptr};
     shared_ptr<fastq_writer> m_writer;
+    json  mReport;
+
 };
 
 
@@ -126,6 +131,7 @@ void s_split(const string& str, vector<string>& out, char c = ',')
 //  ----------------------------------------------------------------------------
 int CFastqParseApp::AppMain(int argc, const char* argv[])
 {
+    int ret_code = 0;
     try {
         CLI::App app{"SharQ"};
 
@@ -160,6 +166,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mDigest = 0;
         app.add_flag("--digest{500000}", mDigest, "Report summary of input data (set optional value to indicate the number of spots to analyze)");
 
+        mTelemetryFile.clear();
+        app.add_option("--telemetry,-t", mTelemetryFile, "Telemetry report file");        
+
         vector<string> read_pairs(4);
         app.add_option("--read1PairFiles", read_pairs[0], "Read 1 files");
         app.add_option("--read2PairFiles", read_pairs[1], "Read 2 files");
@@ -183,6 +192,10 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         opt->add_option("--spot_file", mSpotFile, "Save spot names");
         opt->add_flag("--debug", mDebug, "Debug mode");
 
+        // save cmd args
+        for (int i = 1; i < argc; ++i) 
+            mReport["args"].push_back(argv[i]);
+
         CLI11_PARSE(app, argc, argv);
         if (print_errors) {
             fastq_error::print_error_codes(cout);
@@ -198,6 +211,12 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         if (!hash_file.empty()) {
             check_hash_file(hash_file);
             return 0;
+        }
+        vector<string> options2log = {"--platform", "--readTypes", "--useAndDiscardNames", "--allowEarlyFileEnd", "--name-column", "--quality"};
+        for (const auto& opt_name : options2log) {
+            auto opt = app.get_option(opt_name);
+            if (opt && *opt)  
+                mReport[opt_name] = opt->as<string>();
         }
 
         if (mDiscardNames) 
@@ -238,13 +257,32 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
                 fastq_reader::cluster_files(input_files, mInputBatches);
             }
         }
-        return Run();
+        ret_code = Run();
     } catch (fastq_error& e) {
         spdlog::error(e.Message());
+        mReport["error"] = e.Message();
+        ret_code = 1;
+    } catch(std::exception const& e) {
+        string error = fmt::format("[code:0] Runtime error: {}", e.what());
+        spdlog::error(error);
+        mReport["error"] = error;
+        ret_code = 1;
+    }
+
+    xReportTelemetry();
+    return ret_code;
+}
+
+void CFastqParseApp::xReportTelemetry()
+{
+    if (mTelemetryFile.empty()) 
+        return;
+    try {
+        ofstream f(mTelemetryFile.c_str(), ios::out);
+        f << mReport.dump(4, ' ', true) << endl;
     } catch(std::exception const& e) {
         spdlog::error("[code:0] Runtime error: {}", e.what());
     }
-    return 1;
 }
 
 
@@ -432,6 +470,11 @@ int CFastqParseApp::xRun()
     parser.check_duplicates();
     spdlog::info("Parsing complete");
     m_writer->close();
+
+    if (!mTelemetryFile.empty()) {
+        parser.report_telemetry(mReport);
+    }
+
     return 0;
 }
 

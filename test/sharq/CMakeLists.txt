@@ -41,7 +41,15 @@ if( NOT WIN32 )
     macro(SharqTest TestName Result TestParams)
     add_test( NAME Test_${TestName}
         COMMAND
-            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "--debug" "--no-timestamp" "${TestParams}"            
+            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"            
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    endmacro()
+
+    macro(SharqTestWithTelemetry TestName Result TestParams)
+    add_test( NAME Test_${TestName}
+        COMMAND
+            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"            
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     endmacro()
@@ -86,5 +94,6 @@ if( NOT WIN32 )
     SharqTest(007.digest.multiple 0 "--digest ${IN}003.t_R1.fastq ${IN}003.t_R1.fastq ${IN}003.t_I1.fastq")
     SharqTest(007.digest.groups 0 "--digest ${IN}003.t_R1.fastq.gz ${IN}003.t2_R1.fastq ${IN}003.t3_R1.fastq ${IN}003.t_R2.fastq.gz ${IN}003.t2_R2.fastq ${IN}003.t3_R2.fastq ${IN}003.t_I1.fastq.gz ${IN}003.t2_I1.fastq ${IN}003.t3_I1.fastq")
     SharqTest(007.digest.error 0 "--digest ${IN}001.read.invalid_quality0.fq")
+    SharqTestWithTelemetry(008.telemetry_pass  0 "--readTypes=BBT --read1PairFiles=${IN}003.t_R1.fastq.gz,${IN}003.t2_R1.fastq,${IN}003.t3_R1.fastq --read2PairFiles=${IN}003.t_R2.fastq.gz,${IN}003.t2_R2.fastq,${IN}003.t3_R2.fastq --read3PairFiles=${IN}003.t_I1.fastq.gz,${IN}003.t2_I1.fastq,${IN}003.t3_I1.fastq")
 
 endif()

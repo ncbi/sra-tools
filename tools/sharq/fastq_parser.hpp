@@ -52,6 +52,7 @@
 #include <chrono>
 #include <json.hpp>
 #include <set>
+#include <limits>
 
 using namespace std;
 
@@ -126,11 +127,15 @@ public:
         return fstream ? fstream->compressed_tellg() : m_stream->tellg(); 
     } 
 
+    const set<string>& AllDeflineTypes() const { return m_defline_parser.AllDeflineTypes();}
+
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 
     void dummy_validator(CFastqRead& read);//, pair<int, int>& expected_range, string& tmp_str);
     void num_qual_validator(CFastqRead& read);
     void char_qual_validator(CFastqRead& read);
+
+
 
 private:
     enum EValidator {eNoValidator, eNumeric, ePhred} ;
@@ -170,7 +175,6 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 //  ============================================================================
 template<typename TWriter>
 class fastq_parser
-//  ============================================================================
 {
 public:    
     fastq_parser(shared_ptr<TWriter> writer) :
@@ -186,7 +190,34 @@ public:
     void set_allow_early_end(bool allow_early_end = true) { m_allow_early_end = allow_early_end; }
     void parse();
     void check_duplicates();
+    void report_telemetry(json& j);
 private:
+
+    typedef struct {
+        vector<string> files;
+        set<string> defline_types;
+        bool is_10x = false;
+        bool is_interleaved = false;
+        bool has_read_names = false;
+        bool is_early_end = false;
+        size_t number_of_spots = 0;
+        size_t number_of_reads = 0;
+        int    reads_per_spot = 0;
+        size_t number_of_spots_with_orphans = 0;
+        size_t max_sequence_size = 0;
+        size_t min_sequence_size = numeric_limits<size_t>::max();
+    } group_telemetry;
+    struct m_telemetry
+    {
+        int platform_code = 0;
+        int quality_code = 0;
+        double parsing_time = 0;
+        double collation_check_time = 0;
+        vector<group_telemetry> groups;
+    } m_telemetry;
+
+    void set_telemetry(const json& group);
+    void update_telemetry(const vector<CFastqRead>& reads);
 
     shared_ptr<TWriter>  m_writer;
     vector<fastq_reader> m_readers;
@@ -463,7 +494,6 @@ void fastq_reader::set_validator(bool is_numeric, int min_score, int max_score)
 
 
 
-
 BM_DECLARE_TEMP_BLOCK(TB)
 
 //  ----------------------------------------------------------------------------    
@@ -503,10 +533,13 @@ void fastq_parser<TWriter>::parse()
     string spot;
     bool has_spots;
     bool check_readers = false;
+    int early_end = 0;
     do {
         has_spots = false;
+        early_end = 0;
         for (int i = 0; i < num_readers; ++i) {
             if (!m_readers[i].get_next_spot(spot, spot_reads[i])) {
+                ++early_end;
                 check_readers = num_readers > 1 && m_allow_early_end == false;
                 continue;
             }
@@ -532,6 +565,7 @@ void fastq_parser<TWriter>::parse()
             if (!assembled_spot.empty()) {
                 m_writer->write_spot(assembled_spot);
                 spot_names_bi = assembled_spot.front().Spot();
+                update_telemetry(assembled_spot);
 #ifdef LOCALDEBUG
                 ++spotCount;
                 if (currCount >= 10e6) {
@@ -544,6 +578,10 @@ void fastq_parser<TWriter>::parse()
         }
         if (has_spots == false)
             break;
+
+        if (early_end && early_end < num_readers)
+            m_telemetry.groups.back().is_early_end = true;
+
         if (check_readers) {
             vector<int> reader_idx;
             for (int i = 0; i < num_readers; ++i) {
@@ -560,13 +598,33 @@ void fastq_parser<TWriter>::parse()
 
     } while (true);
 
+
 #ifdef LOCALDEBUG
     spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
     spdlog::debug("parsing time: {}", sw);
 #endif
     spot_names_bi.flush();
+    // update telemetry
+    for(const auto& reader : m_readers) {
+        m_telemetry.groups.back().defline_types
+            .insert(reader.AllDeflineTypes().begin(), reader.AllDeflineTypes().end()); 
+    }
 }
 
+template<typename TWriter>
+void fastq_parser<TWriter>::update_telemetry(const vector<CFastqRead>& reads)
+{
+    auto& telemetry = m_telemetry.groups.back();
+    telemetry.number_of_spots += 1;
+    telemetry.number_of_reads += reads.size();
+    for (const auto& r : reads) {
+        auto sz = r.Sequence().size();
+        telemetry.max_sequence_size = max<int>(sz, telemetry.max_sequence_size);
+        telemetry.min_sequence_size = min<size_t>(sz, telemetry.min_sequence_size);
+    }
+    if ((int)reads.size() < telemetry.reads_per_spot)
+        ++telemetry.number_of_spots_with_orphans;
+}
 
 /*!
  *  This function searches list of terms in vec using sparse_vector_scanner.
@@ -993,9 +1051,38 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
 }
 
 template<typename TWriter>
+void fastq_parser<TWriter>::set_telemetry(const json& group)
+{
+   if (group["files"].empty())
+        return;
+    auto& first = group["files"].front();        
+
+    m_telemetry.platform_code = first["platform_code"].front();
+    m_telemetry.quality_code = (int)first["quality_encoding"];
+    m_telemetry.groups.emplace_back();
+    auto& group_telemetry = m_telemetry.groups.back();
+    group_telemetry.is_10x = group["is_10x"];
+    int spot_reads = 0;
+    for (auto& data : group["files"]) {
+        const string& name = data["file_path"];
+        group_telemetry.files.push_back(name);
+        int max_reads = (int)data["max_reads"];
+        if (max_reads > 1)
+            group_telemetry.is_interleaved = true;
+        spot_reads += max_reads;
+       if (!data["readNums"].empty())
+            group_telemetry.has_read_names = true;
+    }
+    group_telemetry.reads_per_spot = spot_reads;
+}
+
+
+template<typename TWriter>
 void fastq_parser<TWriter>::set_readers(json& group)
 {
     m_readers.clear();
+    if (group["files"].empty())
+        return;
     for (auto& data : group["files"]) {
         const string& name = data["file_path"];
         m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), data["readType"], data["platform_code"].front());
@@ -1014,8 +1101,33 @@ void fastq_parser<TWriter>::set_readers(json& group)
                 throw runtime_error("Invaid quality encoding");
         }    
     }
+    set_telemetry(group);
 }
 
+template<typename TWriter>
+void fastq_parser<TWriter>::report_telemetry(json& j)
+{
+    j["platform_code"] = m_telemetry.platform_code;
+    j["quality_code"] = m_telemetry.quality_code;
+
+    for (const auto& gr : m_telemetry.groups) {
+        j["groups"].emplace_back();
+        auto& g = j["groups"].back();
+        g["files"] = gr.files;
+        g["is_10x"] = gr.is_10x;
+        g["is_early_end"] = gr.is_early_end;
+        g["number_of_spots"] = gr.number_of_spots;
+        g["number_of_reads"] = gr.number_of_reads;
+        g["is_interleaved"] = gr.is_interleaved;
+        g["has_read_names"] = gr.has_read_names;
+        g["defline_type"] = gr.defline_types;
+        g["reads_per_spot"] = gr.reads_per_spot;
+        g["number_of_spots_with_orphans"] = gr.number_of_spots_with_orphans;
+        g["max_sequence_size"] = gr.max_sequence_size;
+        g["min_sequence_size"] = gr.min_sequence_size;
+    }
+
+}
 
 #endif
 

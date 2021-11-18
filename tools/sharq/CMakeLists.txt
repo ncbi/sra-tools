@@ -81,8 +81,17 @@ ExternalProject_Add(RE2
 )
 set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
 
+#file(COPY ${CMAKE_SOURCE_DIR}/tools/sharq/sharq.py  DESTINATION ${BINDIR})
+
+add_custom_target(
+  sharq.py  
+  DEPENDS ${CMAKE_SOURCE_DIR}/tools/sharq/sharq.py
+  COMMAND ${CMAKE_COMMAND} -E copy 
+    ${CMAKE_SOURCE_DIR}/tools/sharq/sharq.py
+    ${BINDIR}/sharq.py)
+
 add_executable(sharq fastq_parse )
-add_dependencies(sharq RE2)
+add_dependencies(sharq RE2 sharq.py)
 target_include_directories(sharq PUBLIC ${LOCAL_INCDIR} ./)
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")

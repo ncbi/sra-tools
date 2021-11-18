@@ -7,6 +7,7 @@
 #include "fastq_defline_matcher.hpp"
 #include "fastq_error.hpp"
 #include <spdlog/spdlog.h>
+#include <set>
 
 using namespace std;
 
@@ -23,17 +24,19 @@ public:
     void SetMatchAll();
     const string& GetDeflineType() const;
     uint8_t GetPlatform() const;
+    const set<string>& AllDeflineTypes() const { return mDeflineTypes;}
 private:
     size_t mIndexLastSuccessfulMatch = 0;
     size_t mAllMatchIndex = -1;
     std::vector<std::shared_ptr<CDefLineMatcher>> mDefLineMatchers;
+    std::set<string> mDeflineTypes; ///< Set of deflines types processed by this reader
 };
 
 
 CDefLineParser::CDefLineParser() 
 { 
     Reset(); 
-    //mDefLineMatchers.emplace_back(new CDefLineMatcher_NoMatch);
+    mDefLineMatchers.emplace_back(new CDefLineMatcher_NoMatch);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNew);
@@ -76,6 +79,7 @@ bool CDefLineParser::Match(const string_view& defline, bool strict)
         if (strict && i == mAllMatchIndex)
             return false;
         mIndexLastSuccessfulMatch = i;
+        mDeflineTypes.insert(mDefLineMatchers[mIndexLastSuccessfulMatch]->Defline());
         //spdlog::info("Current pattern: {}", mDefLineMatchers[mIndexLastSuccessfulMatch]->Defline());
         return true;
     }

@@ -116,22 +116,7 @@ public:
 
     virtual void open() {};
     virtual void close() {};
-    virtual void write_spot(const vector<CFastqRead>& reads) 
-    {
-        if (reads.empty())
-            return;
-        const auto& first_read = reads.front();
-        string spot_name = first_read.Spot();
-        spot_name += first_read.Suffix();
-        cout << "Spot: " << spot_name << "\nreads " << reads.size() <<":\n";
-        for (const auto& read : reads) {
-            //auto sz = read.Sequence().size();
-            cout << "num:" << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")" << "\n";
-            cout << read.Sequence() << "\n";
-            cout << "+\n";
-            cout << read.Quality() << endl;
-        }
-    }
+    virtual void write_spot(const vector<CFastqRead>& reads);
     void set_attr(const string& name, const string& value) {
         m_attr[name] = value;
     }
@@ -139,10 +124,26 @@ protected:
     using TAttributeName = string;
     using TAttributeValue = string;
     map<TAttributeName, TAttributeValue> m_attr;
-
 };
 
 
+void fastq_writer::write_spot(const vector<CFastqRead>& reads) 
+{
+    if (reads.empty())
+        return;
+    const auto& first_read = reads.front();
+    string spot_name = first_read.Spot();
+    spot_name += first_read.Suffix();
+    cout << "Spot: " << spot_name << "\nreads " << reads.size() <<":\n";
+    for (const auto& read : reads) {
+        //auto sz = read.Sequence().size();
+        cout << "num:" << read.ReadNum() << "(" << (read.Type() == 0 ? "T" : "B") << ")" << "\n";
+        cout << read.Sequence() << "\n";
+        cout << "+\n";
+        cout << read.Quality() << endl;
+    }
+}
+ 
 
 /*
     VDB Writer 
@@ -176,7 +177,6 @@ private:
 
 //  -----------------------------------------------------------------------------
 fastq_writer_vdb::fastq_writer_vdb(ostream& stream) 
-//  -----------------------------------------------------------------------------
 {
     m_writer.reset(new Writer2(stream));
 
@@ -187,17 +187,15 @@ fastq_writer_vdb::fastq_writer_vdb(ostream& stream)
 
 //  -----------------------------------------------------------------------------
 fastq_writer_vdb::~fastq_writer_vdb() 
-//  -----------------------------------------------------------------------------
 {
     if (m_is_writing) {
         close();
     }
     
 }
-//FILE *const stream, 
+
 //  -----------------------------------------------------------------------------
 void fastq_writer_vdb::open() 
-//  -----------------------------------------------------------------------------
 {
     static const string cSCHEMA = "sra/generic-fastq.vschema";
     static const string cGENERIC_DB = "NCBI:SRA:GenericFastq:db";
@@ -289,7 +287,6 @@ void fastq_writer_vdb::open()
 
 //  -----------------------------------------------------------------------------
 void fastq_writer_vdb::close() 
-//  -----------------------------------------------------------------------------
 {
     if (m_is_writing && m_writer) {
         m_writer->endWriting();
@@ -316,7 +313,6 @@ enum
 */
 //  -----------------------------------------------------------------------------
 void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
-//  -----------------------------------------------------------------------------
 {
     if (reads.empty())
         return;

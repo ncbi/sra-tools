@@ -647,6 +647,24 @@ static rc_t vdb_copy_prepare_legacy_tab( const p_context ctx,
     return rc;
 }
 
+static const char * PRIM_TBL = "PRIMARY_ALIGNMENT";
+static const char * PRIM_EX  = "PRIMARY_ALIGNMENT:CMP_QUALITY,PRIMARY_ALIGNMENT:MATE_ALIGN_ID,PRIMARY_ALIGNMENT:RD_FILTER,PRIMARY_ALIGNMENT:SEQ_NAME";
+static const char * REF_TBL  = "REFERENCE";
+static const char * REF_EX   = "REFERENCE:PRESERVE_QUAL";
+static const char * SEQ_TBL  = "SEQUENCE";
+static const char * SEQ_EX   = "SEQUENCE:ALTREAD";
+
+static bool string_eq( const char * s1, const char * s2 ) {
+    if ( NULL == s1 || NULL == s2 ) {
+        return false;
+    } else {
+        size_t s1_size = string_size ( s1 );
+        size_t s2_size = string_size ( s2 );    
+        size_t max_size = s1_size > s2_size ? s1_size : s2_size;
+        int eq = string_cmp ( s1, s1_size, s2, s2_size, max_size );
+        return ( 0 == eq );
+    }
+}
 
 static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
                                                    const char * tablename,
@@ -673,6 +691,18 @@ static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
         {
             rc = col_defs_exclude_these_columns( columns, tablename, excluded );
             DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:col_defs_unmark_writable_columns() failed" );
+        }
+        if ( 0 == rc ) {
+            if ( string_eq( tablename, PRIM_TBL ) ) {
+                rc = col_defs_exclude_these_columns( columns, tablename, PRIM_EX );
+                DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_PRIM_TBL() failed" );
+            } else if ( string_eq( tablename, REF_TBL ) ) {
+                rc = col_defs_exclude_these_columns( columns, tablename, REF_EX );
+                DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_REF_TBL() failed" );
+            } else if ( string_eq( tablename, SEQ_TBL ) ) {
+                rc = col_defs_exclude_these_columns( columns, tablename, SEQ_EX );
+                DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_SEQ_TBL() failed" );
+            }
         }
     }
     return rc;

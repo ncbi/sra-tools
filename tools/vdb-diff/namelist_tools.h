@@ -44,6 +44,9 @@ rc_t nlt_remove_names_from_namelist( const KNamelist *source,
 rc_t nlt_remove_strings_from_namelist( const KNamelist *source,
             const KNamelist **dest, const char *items_to_remove );
 
+rc_t nlt_remove_prefixed_strings_from_namelist( const KNamelist *source,
+            const KNamelist **dest, const char *items_to_remove, const char * prefix );
+
 bool nlt_compare_namelists( const KNamelist *nl1, const KNamelist *nl2, uint32_t * found );
 
 rc_t nlt_copy_namelist( const KNamelist *src, const KNamelist ** dst );

@@ -143,7 +143,11 @@ static rc_t perform_table_diff( const VTable * tab_1, const VTable * tab_2,
             if ( rc == 0 && dctx -> excluded != NULL )
             {
                 const KNamelist * temp;
-                rc = nlt_remove_strings_from_namelist( cols_to_diff, &temp, dctx -> excluded );
+                if ( NULL == tablename ) {
+                    rc = nlt_remove_strings_from_namelist( cols_to_diff, &temp, dctx -> excluded );
+                } else {
+                    rc = nlt_remove_prefixed_strings_from_namelist( cols_to_diff, &temp, dctx -> excluded, tablename );
+                }
                 KNamelistRelease( cols_to_diff );
                 cols_to_diff = temp;
             }

@@ -27,6 +27,8 @@
 
 #include <klib/log.h>
 #include <klib/out.h>
+#include <klib/text.h>
+#include <klib/printf.h>
 
 #include <sysalloc.h>
 #include <stdlib.h>
@@ -140,6 +142,11 @@ bool nlt_namelist_intersect( const KNamelist *list1, const KNamelist *list2 )
     return res;
 }
 
+/* -------------------------------------------------------------------
+ for each entry in the source-list:
+    if the item is NOT in the to-remove-list add it to the temp. list
+    return the temp. list as dst ( transformed to const KNamelist )
+ ------------------------------------------------------------------- */
 rc_t nlt_remove_names_from_namelist( const KNamelist *source,
             const KNamelist **dest, const KNamelist *to_remove )
 {
@@ -150,22 +157,21 @@ rc_t nlt_remove_names_from_namelist( const KNamelist *source,
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     *dest = NULL;
     rc = KNamelistCount( source, &count );
-    if ( rc == 0 && count > 0 )
-    {
+    if ( rc == 0 && count > 0 ) {
         VNamelist *cleaned;
         rc = VNamelistMake ( &cleaned, count );
-        if ( rc == 0 )
-        {
+        if ( rc == 0 ) {
             uint32_t idx;
-            for ( idx = 0; idx < count && rc == 0; ++idx )
-            {
+            for ( idx = 0; idx < count && rc == 0; ++idx ) {
                 const char *s;
                 rc = KNamelistGet( source, idx, &s );
-                if ( rc == 0 )
-                {
-                    if ( !nlt_is_name_in_namelist( to_remove, s ) )
+                if ( rc == 0 ) {
+                    if ( !nlt_is_name_in_namelist( to_remove, s ) ) {
                         rc = VNamelistAppend ( cleaned, s );
+                    }
                 }
+            }
+            if ( 0 == rc ) {
                 rc = VNamelistToConstNamelist ( cleaned, dest );
             }
         }
@@ -176,16 +182,70 @@ rc_t nlt_remove_names_from_namelist( const KNamelist *source,
 rc_t nlt_remove_strings_from_namelist( const KNamelist *source,
             const KNamelist **dest, const char *items_to_remove )
 {
-    rc_t rc = 0;
-    const KNamelist *to_remove;
-    
-    if ( source == NULL || dest == NULL || items_to_remove == NULL )
-        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-    rc = nlt_make_namelist_from_string( &to_remove, items_to_remove );
-    if ( rc == 0 )
-    {
-        rc = nlt_remove_names_from_namelist( source, dest, to_remove );
-        KNamelistRelease( to_remove );
+    rc_t rc;
+    if ( source == NULL || dest == NULL || items_to_remove == NULL ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    } else {
+        const KNamelist *to_remove;        
+        rc = nlt_make_namelist_from_string( &to_remove, items_to_remove );
+        if ( rc == 0 ) {
+            rc = nlt_remove_names_from_namelist( source, dest, to_remove );
+            KNamelistRelease( to_remove );
+        }
+    }
+    return rc;
+}
+
+/* -------------------------------------------------------------------
+ for each entry in the source-list:
+    if the item is NOT in the to-remove-list add it to the temp. list
+    return the temp. list as dst ( transformed to const KNamelist )
+ ------------------------------------------------------------------- */
+rc_t nlt_remove_prefixed_strings_from_namelist( const KNamelist *source,
+            const KNamelist **dest, const char *items_to_remove, const char * prefix ) {
+
+    rc_t rc;
+    if ( source == NULL || dest == NULL || items_to_remove == NULL ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    } else {
+        const KNamelist *to_remove;
+
+        *dest = NULL;
+        rc = nlt_make_namelist_from_string( &to_remove, items_to_remove );
+        if ( rc == 0 ) {
+            uint32_t count;
+            rc = KNamelistCount( source, &count );
+            if ( 0 == rc && count > 0 ) {
+                VNamelist *cleaned;
+                rc = VNamelistMake ( &cleaned, count );
+                if ( rc == 0 ) {
+                    uint32_t idx;
+                    size_t prefix_len = NULL != prefix ? string_size( prefix ) : 0;
+                    for ( idx = 0; idx < count && rc == 0; ++idx ) {
+                        const char *s;
+                        rc = KNamelistGet( source, idx, &s );
+                        if ( rc == 0 ) {
+                            bool append = !nlt_is_name_in_namelist( to_remove, s );
+                            if ( append && NULL != prefix ) {
+                                size_t l = string_size ( s ) + prefix_len + 2;
+                                char * s2 = malloc( l );
+                                if ( s2 != NULL ) {
+                                    size_t num_writ;
+                                    rc_t rc1 = string_printf ( s2, l, &num_writ, "%s.%s", prefix, s );
+                                    if ( rc1 == 0 ) { append = !nlt_is_name_in_namelist( to_remove, s2 ); }
+                                    free( s2 );
+                                }
+                            }
+                            if ( append ) { rc = VNamelistAppend ( cleaned, s ); }
+                        }
+                    }
+                    if ( 0 == rc ) {
+                        rc = VNamelistToConstNamelist ( cleaned, dest );
+                    }
+                }
+            }
+            KNamelistRelease( to_remove );
+        }
     }
     return rc;
 }

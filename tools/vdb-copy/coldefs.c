@@ -566,7 +566,7 @@ rc_t col_defs_exclude_these_columns( col_defs* defs, const char * prefix, const 
     {
         uint32_t idx, len = VectorLength( &(defs->cols) );
         size_t prefix_len = 0;
-        if ( prefix != 0 )
+        if ( prefix != NULL )
             prefix_len = string_size( prefix ) + 2;
         for ( idx = 0;  idx < len; ++idx )
         {
@@ -581,7 +581,7 @@ rc_t col_defs_exclude_these_columns( col_defs* defs, const char * prefix, const 
                     {
                         if ( prefix != NULL )
                         {
-                            size_t len1 = string_size ( col->name ) + prefix_len;
+                            size_t len1 = string_size ( col->name ) + prefix_len + 2;
                             char * s = malloc( len1 );
                             if ( s != NULL )
                             {

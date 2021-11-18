@@ -134,6 +134,8 @@ void s_split(const string& str, vector<string>& out, char c = ',')
 int CFastqParseApp::AppMain(int argc, const char* argv[])
 {
     int ret_code = 0;
+    spdlog::stopwatch stop_watch;
+
     try {
         CLI::App app{"SharQ"};
 
@@ -270,6 +272,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mReport["error"] = error;
         ret_code = 1;
     }
+
+    if (mNoTimeStamp == false)
+        mReport["exec_time"] =  ceil(stop_watch.elapsed().count() * 100.0) / 100.0;
 
     xReportTelemetry();
     return ret_code;
@@ -472,13 +477,13 @@ int CFastqParseApp::xRun()
     spdlog::stopwatch sw;
     parser.check_duplicates();
     if (mNoTimeStamp == false)
-        mReport["collation_check_time"] = sw.elapsed().count();
+        mReport["collation_check_time"] =  ceil(sw.elapsed().count() * 100.0) / 100.0;
+    spdlog::info("Parsing complete");
     m_writer->close();
 
     if (!mTelemetryFile.empty()) {
         parser.report_telemetry(mReport);
     }
-
     return 0;
 }
 

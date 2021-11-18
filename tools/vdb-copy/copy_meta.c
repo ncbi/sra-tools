@@ -473,6 +473,11 @@ rc_t copy_table_meta ( const VTable *src_table, VTable *dst_table,
                 if ( rc == 0 )
                     rc = enter_vdbcopy_node( dst_meta, show_meta );
 
+                if ( rc == 0 ) {
+                    rc = KMetadataCommit ( dst_meta );
+                    DISP_RC( rc, "copy_table_meta:KMetadataCommit() failed" );
+                }
+                    
                 KMetadataRelease ( dst_meta );
             }
         }
@@ -509,6 +514,11 @@ rc_t copy_database_meta ( const VDatabase *src_db, VDatabase *dst_db,
                                        show_meta );
             if ( show_meta )
                 KOutMsg( "+++end of copy db-current metadata\n" );
+
+            if ( rc == 0 ) {
+                rc = KMetadataCommit ( dst_meta );
+                DISP_RC( rc, "copy_table_meta:KMetadataCommit() failed" );
+            }
 
             KMetadataRelease ( dst_meta );
         }

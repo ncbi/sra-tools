@@ -13,7 +13,7 @@ endif()
 if ( NOT WIN32 AND Python3_EXECUTABLE )
     add_test( NAME SlowTest_SraPileup
         COMMAND
-            ${CMAKE_COMMAND} -E env VDB_CONFIG=..
+            ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
             bash -c "./runtests-slow.sh ${DIRTOTEST} ${Python3_EXECUTABLE}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )

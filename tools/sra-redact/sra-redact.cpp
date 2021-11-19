@@ -65,6 +65,11 @@ static int filterPipeIn; ///< it is replying here
 static int filterPipeOut; ///< we are querying here
 static bool shouldFilter(uint32_t const len, uint8_t const *const seq)
 {
+#if _DEBUGGING || DEBUG
+    static auto const SKIP = getenv("SRA_REDACT_NONE");
+    if (SKIP && *SKIP == '1') return false;
+#endif
+
     static auto buffer = std::vector<uint8_t>();
 
     buffer.reserve(len + 1);

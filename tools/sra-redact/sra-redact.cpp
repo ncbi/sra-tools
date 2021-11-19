@@ -205,7 +205,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         auto spotId = *reinterpret_cast<uint64_t const *>(spot_id.data);
 
         spot_id.data = &spotId;
-        if (wasRedated) {
+        if (redact) {
             if (isPrimary) {
                 dispositionBaseCount[dspcRedactedReads] += read.count;
                 redactedSpot(spotId);

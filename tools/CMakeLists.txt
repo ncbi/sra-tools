@@ -1,6 +1,7 @@
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINDIR} )
 
 add_subdirectory( driver-tool )
+add_subdirectory( sra-redact )
 add_subdirectory( util )
 add_subdirectory( align-cache )
 add_subdirectory( align-info )

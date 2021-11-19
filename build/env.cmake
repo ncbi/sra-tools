@@ -136,42 +136,6 @@ endif()
 message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
 
 # ===========================================================================
-# ncbi-vdb sources
-
-if( NOT VDB_SRCDIR )
-    set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
-    if ( NOT EXISTS ${VDB_SRCDIR} )
-        message( FATAL_ERROR "Please specify the location of ncbi-vdb sources in Cmake variable VDB_SRCDIR")
-    endif()
-	message( "VDB_SRCDIR: ${VDB_SRCDIR}" )
-endif()
-
-include_directories( ${VDB_SRCDIR}/interfaces ) # TODO: introduce a variable pointing to interfaces
-
-if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
-    include_directories(${VDB_SRCDIR}/interfaces/cc/gcc)
-    include_directories(${VDB_SRCDIR}/interfaces/cc/gcc/${ARCH})
-elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
-    include_directories(${VDB_SRCDIR}/interfaces/cc/clang)
-    include_directories(${VDB_SRCDIR}/interfaces/cc/clang/${ARCH})
-elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
-    include_directories(${VDB_SRCDIR}/interfaces/cc/vc++)
-    include_directories(${VDB_SRCDIR}/interfaces/cc/vc++/${ARCH})
-endif()
-
-if ( "mac" STREQUAL ${OS} )
-    include_directories(${VDB_SRCDIR}/interfaces/os/mac)
-    include_directories(${VDB_SRCDIR}/interfaces/os/unix)
-elseif( "linux" STREQUAL ${OS} )
-    include_directories(${VDB_SRCDIR}/interfaces/os/linux)
-    include_directories(${VDB_SRCDIR}/interfaces/os/unix)
-elseif( "windows" STREQUAL ${OS} )
-    include_directories(${VDB_SRCDIR}/interfaces/os/win)
-endif()
-
-include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
-
-# ===========================================================================
 # 3d party packages
 
 # Flex/Bison
@@ -273,9 +237,78 @@ else() # assume a single-config generator
     set( TESTBINDIR "${TARGDIR}/test-bin" )
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
-    link_directories( ${NCBI_VDB_LIBDIR} )
-    link_directories( ${NCBI_VDB_ILIBDIR} )
+    link_directories( ${NCBI_VDB_LIBDIR} ) # TODO: USE_INSTALLED_NCBI_VDB
+    link_directories( ${NCBI_VDB_ILIBDIR} ) # TODO: not clear what to do in case USE_INSTALLED_NCBI_VDB == 1
 endif()
+
+# ===========================================================================
+# ncbi-vdb sources
+
+# Using installed ncbi-vdb directory
+if( WIN32 )
+	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	set( USE_INSTALLED_NCBI_VDB 0 )
+elseif( SINGLE_CONFIG )
+	set( USE_INSTALLED_NCBI_VDB 1 )
+else() # XCode
+	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	set( USE_INSTALLED_NCBI_VDB 0 )
+endif()
+
+if( NOT VDB_SRCDIR )
+	if( USE_INSTALLED_NCBI_VDB )
+		set( VDB_SRCDIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/vdb_shared_sources" )
+		set( VDB_INTERFACES_DIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/interfaces" )
+
+		if ( NOT EXISTS ${VDB_SRCDIR} )
+			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb...")
+			set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+		endif()
+
+		if ( NOT EXISTS ${VDB_INTERFACES_DIR} )
+			message("${VDB_INTERFACES_DIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces...")
+			set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
+		endif()
+	else()
+		set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+		set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
+	endif()
+
+	message("VDB_SRCDIR was not explicitly provided, using the following location: sources: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
+
+	if ( NOT EXISTS ${VDB_SRCDIR} )
+		message( FATAL_ERROR "${VDB_SRCDIR} does not exist. Please specify the location of ncbi-vdb sources in Cmake variable VDB_SRCDIR")
+	endif()
+endif()
+
+
+include_directories( ${VDB_INTERFACES_DIR} )
+include_directories( ${VDB_INTERFACES_DIR}/../vdb_shared_sources/libs ) # /libs for ngs/ncbi/ngs/NGS_FragmentBlob.c:39:10 #include <../libs/vdb/blob-priv.h> TODO: change the source to include in a more straight-forward manner
+
+if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    include_directories(${VDB_INTERFACES_DIR}/cc/gcc)
+    include_directories(${VDB_INTERFACES_DIR}/cc/gcc/${ARCH})
+elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
+    include_directories(${VDB_INTERFACES_DIR}/cc/clang)
+    include_directories(${VDB_INTERFACES_DIR}/cc/clang/${ARCH})
+elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    include_directories(${VDB_INTERFACES_DIR}/cc/vc++)
+    include_directories(${VDB_INTERFACES_DIR}/cc/vc++/${ARCH})
+endif()
+
+if ( "mac" STREQUAL ${OS} )
+    include_directories(${VDB_INTERFACES_DIR}/os/mac)
+    include_directories(${VDB_INTERFACES_DIR}/os/unix)
+elseif( "linux" STREQUAL ${OS} )
+    include_directories(${VDB_INTERFACES_DIR}/os/linux)
+    include_directories(${VDB_INTERFACES_DIR}/os/unix)
+elseif( "windows" STREQUAL ${OS} )
+    include_directories(${VDB_INTERFACES_DIR}/os/win)
+endif()
+
+include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
+
+# ===========================================================================
 
 if( Python3_EXECUTABLE )
     set( PythonUserBase ${TEMPDIR}/python )

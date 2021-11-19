@@ -291,7 +291,7 @@ static void tblSchemaInfo(VTable const *const tbl, char **name, VSchema *schema)
     getSchemaInfo(meta, name, schema);
 }
 
-static VTable const *dbOpenTable(  char const *const name
+static VTable const *dbOpenTable(  VDatabase const *db
                                  , char const *const table
                                  , VDBManager const *const mgr
                                  , std::string &schemaType
@@ -299,7 +299,6 @@ static VTable const *dbOpenTable(  char const *const name
                                  , bool optional = false
                                  )
 {
-    VDatabase const *db = openDatabase(name, mgr);
     VTable const *in = NULL;
     rc_t const rc = VDatabaseOpenTableRead(db, &in, "%s", table);
     if (rc == 0 && schema) {
@@ -308,12 +307,23 @@ static VTable const *dbOpenTable(  char const *const name
         schemaType.assign(schemaName);
         free(schemaName);
     }
-    VDatabaseRelease(db);
     if (rc == 0 || optional)
         return in;
 
     LogErr(klogFatal, rc, "can't open input table");
     exit(EX_NOINPUT);
+}
+
+static VTable const *dbOpenTable(  char const *const name
+                                 , char const *const table
+                                 , VDBManager const *const mgr
+                                 , std::string &schemaType
+                                 , VSchema *schema
+                                 , bool optional = false
+                                 )
+{
+    VDatabase const *const db = openDatabase(name, mgr);
+    return dbOpenTable(db, table, mgr, schemaType, schema, optional);
 }
 
 #define PATH_TYPE_ISA_DATABASE(TYPE) ((TYPE | kptAlias) == (kptDatabase | kptAlias))

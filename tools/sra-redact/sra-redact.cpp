@@ -727,12 +727,14 @@ static Inputs openInputs(char const *const input, VDBManager const *const mgr, V
     int const inputType = pathType(mgr, input);
 
     if (PATH_TYPE_ISA_DATABASE(inputType)) {
+        auto const db = openDatabase(input, mgr);
         LogMsg(klogInfo, "input is a database");
         result.noDb = false;
-        result.sequence = dbOpenTable(input, SEQUENCE_TABLE, mgr, result.schemaType, schema);
-        result.primaryAlignment = dbOpenTable(input, PRI_ALIGN_TABLE, mgr, result.schemaType, nullptr, true);
+        result.sequence = dbOpenTable(db, SEQUENCE_TABLE, mgr, result.schemaType, schema);
+        result.primaryAlignment = dbOpenTable(db, PRI_ALIGN_TABLE, mgr, result.schemaType, nullptr, true);
         if (result.primaryAlignment != nullptr)
-            result.secondaryAlignment = dbOpenTable(input, SEC_ALIGN_TABLE, mgr, result.schemaType, nullptr, true);
+            result.secondaryAlignment = dbOpenTable(db, SEC_ALIGN_TABLE, mgr, result.schemaType, nullptr, true);
+        VDatabaseRelease(db);
     }
     else if (PATH_TYPE_ISA_TABLE(inputType)) {
         LogMsg(klogInfo, "input is a table");

@@ -214,7 +214,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
 
 #if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogInfo, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
+            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
         }
 #endif
         auto const redact = shouldFilter(read.count, (uint8_t const *)read.data);
@@ -300,7 +300,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
 #if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogInfo, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
+            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
         }
 #endif
 

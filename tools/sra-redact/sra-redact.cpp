@@ -201,7 +201,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
             pLogMsg(klogInfo, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
         }
 #endif
-        auto const wasRedated = redactRead(nullptr, read.count, (uint8_t const *)read.data);
+        auto const redact = shouldFilter(read.count, (uint8_t const *)read.data);
         auto spotId = *reinterpret_cast<uint64_t const *>(spot_id.data);
 
         spot_id.data = &spotId;

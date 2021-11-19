@@ -596,7 +596,7 @@ static std::string which(std::string const &prog) {
         auto const part = path.substr(0, sep);
         auto const full = part + '/' + prog;
 
-        path = path.substr(sep == std::string::npos ? sep : (sep + 1));
+        path = path.substr(sep == std::string::npos ? path.size() : (sep + 1));
         if (access(full.c_str(), X_OK) == 0)
             return full;
     }

@@ -89,7 +89,10 @@ static bool shouldFilter(uint32_t const len, uint8_t const *const seq)
 }
 
 static bool redactRead(uint8_t *const out, uint32_t const len, uint8_t const *const seq) {
-    return false;
+    if (!shouldFilter(len, seq))
+        return false;
+    memset(out, 'N', len);
+    return true;
 }
 
 static bool redactRead(uint8_t *const out_read, CellData const &readStartData, CellData const &readTypeData, CellData const &readLenData, CellData const &readData)
@@ -257,9 +260,6 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     uint64_t r = 0;
     auto redactedStart = redacted ? redacted : &first;
     auto const redactedEnd = redactedStart + redactedCount;
-
-    assert(!aligned && redacted == nullptr);
-    assert(!aligned && redactedCount == 0);
 
     allN.reserve(1024);
     allZero.reserve(2);

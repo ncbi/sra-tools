@@ -42,7 +42,8 @@ SHARQ_ERR_CODES = {
     {170 ,{ "Collation check. Duplicate spot '{}'", "Collation check found duplicated spot name."}},
     {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}},
     {190 ,{ "Usupported interleaved file with orphans", "Usupported interleaved file with orphans."}},
-    {200 ,{ "Invaid quality encoding", "Failure to calculate quality score encoding."}}
+    {200 ,{ "Invaid quality encoding", "Failure to calculate quality score encoding."}},
+    {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}}
 
 };
 

@@ -562,7 +562,10 @@ void fastq_parser<TWriter>::parse()
                 }
             }
             assert(assembled_spot.empty() == false);
-            if (!assembled_spot.empty()) {
+            auto spot_size = assembled_spot.size();
+            if (spot_size > 0) {
+                if (spot_size > 4)
+                    throw fastq_error(210, "Spot {} has more than 4 reads", assembled_spot.front().Spot());
                 m_writer->write_spot(assembled_spot);
                 spot_names_bi = assembled_spot.front().Spot();
                 update_telemetry(assembled_spot);

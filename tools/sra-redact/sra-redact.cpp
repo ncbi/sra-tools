@@ -153,14 +153,19 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     /* MARK: input columns */
     auto const cid_spot_id     = addColumn(SPOT_ID   , "I64", in);
     auto const cid_read        = addColumn(ALIGN_READ, "U8" , in);
+    auto const cid_has_miss    = addColumn(HAS_MISS  , "U8" , in);
+    auto const cid_has_offset  = addColumn(HAS_OFFSET, "U8" , in);
+    auto const cid_mismatch    = addColumn(MISMATCH  , BASE_REPRESENTATION_TYPE, in);
+    auto const cid_ref_offset  = addColumn(REF_OFFSET, "I32", in);
+    auto const cid_offset_type = addColumnOptional(OFFSET_TYPE, "U8", in, has_offset_type);
 
     /* MARK: output columns */
-    auto const cid_has_miss    = addColumn(HAS_MISS  , "U8" , out);
-    auto const cid_has_offset  = addColumn(HAS_OFFSET, "U8" , out);
-    auto const cid_mismatch    = addColumn(MISMATCH  , BASE_REPRESENTATION_TYPE, out);
-    auto const cid_ref_offset  = addColumn(REF_OFFSET, "I32", out);
-    auto const cid_out_spot_id = addColumn(SPOT_ID   , "I64", out);
-    auto const cid_offset_type = addColumnOptional(OFFSET_TYPE, "U8", out, has_offset_type);
+    auto const cid_out_has_miss    = addColumn(HAS_MISS  , "U8" , out);
+    auto const cid_out_has_offset  = addColumn(HAS_OFFSET, "U8" , out);
+    auto const cid_out_mismatch    = addColumn(MISMATCH  , BASE_REPRESENTATION_TYPE, out);
+    auto const cid_out_ref_offset  = addColumn(REF_OFFSET, "I32", out);
+    auto const cid_out_spot_id     = addColumn(SPOT_ID   , "I64", out);
+    auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, "U8", out) : 0;
 
     int64_t first = 0;
     uint64_t count = 0;
@@ -213,11 +218,11 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         }
         openRow(row, out);
         writeRow(row, spot_id    , cid_out_spot_id, out);
-        writeRow(row, has_miss   , cid_has_miss   , out);
-        writeRow(row, has_offset , cid_has_offset , out);
-        writeRow(row, mismatch   , cid_mismatch   , out);
-        writeRow(row, ref_offset , cid_ref_offset , out);
-        writeRow(row, offset_type, cid_offset_type, out);
+        writeRow(row, has_miss   , cid_out_has_miss   , out);
+        writeRow(row, has_offset , cid_out_has_offset , out);
+        writeRow(row, mismatch   , cid_out_mismatch   , out);
+        writeRow(row, ref_offset , cid_out_ref_offset , out);
+        writeRow(row, offset_type, cid_out_offset_type, out);
         commitRow(row, out);
         closeRow(row, out);
     }

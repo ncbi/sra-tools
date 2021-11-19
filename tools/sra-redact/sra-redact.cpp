@@ -598,6 +598,9 @@ static OptDef Options [] = {
 /* MARK: Mostly boilerplate from here */
 
 static std::string which(std::string const &prog) {
+    if (access(prog.c_str(), X_OK) == 0)
+        return prog;
+
     static auto const defaultPATH = ".";
     auto PATH = const_cast<char const *>(getenv("PATH"));
     if (PATH == nullptr || PATH[0] == '\0') {

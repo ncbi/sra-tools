@@ -160,6 +160,8 @@ rc_t CC Usage ( const Args * args ) {
     return rc;
 }
 
+typedef enum db_type_t { db_type_csra, db_type_pacbio, db_type_just_seq, db_type_none } db_type_t;
+
 /* ----------------------------------------------------------------------------------- */
 static rc_t vdb_copy_redact_cell( const VCursor * src_cursor,
                                   VCursor * dst_cursor,
@@ -636,7 +638,8 @@ static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
                                                    const char * tablename,
                                                    col_defs * columns, 
                                                    const char * requested,
-                                                   const char * excluded ) {
+                                                   const char * excluded,
+                                                   db_type_t db_type ) {
     bool cols_requested = ( ( requested != NULL ) &&
                             ( nlt_strcmp( requested, "*" ) != 0 ) );
     /* no matter if specific columns are requested, we first discover all of them
@@ -658,15 +661,17 @@ static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
             DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:col_defs_unmark_writable_columns() failed" );
         }
         if ( 0 == rc ) {
-            if ( string_eq( tablename, PRIM_TBL ) ) {
-                rc = col_defs_exclude_these_columns( columns, tablename, PRIM_EX );
-                DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_PRIM_TBL() failed" );
-            } else if ( string_eq( tablename, REF_TBL ) ) {
-                rc = col_defs_exclude_these_columns( columns, tablename, REF_EX );
-                DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_REF_TBL() failed" );
-            } else if ( string_eq( tablename, SEQ_TBL ) ) {
-                rc = col_defs_exclude_these_columns( columns, tablename, SEQ_EX );
-                DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_SEQ_TBL() failed" );
+            if ( db_type_csra == db_type ) {
+                if ( string_eq( tablename, PRIM_TBL ) ) {
+                    rc = col_defs_exclude_these_columns( columns, tablename, PRIM_EX );
+                    DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_PRIM_TBL() failed" );
+                } else if ( string_eq( tablename, REF_TBL ) ) {
+                    rc = col_defs_exclude_these_columns( columns, tablename, REF_EX );
+                    DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_REF_TBL() failed" );
+                } else if ( string_eq( tablename, SEQ_TBL ) ) {
+                    rc = col_defs_exclude_these_columns( columns, tablename, SEQ_EX );
+                    DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_SEQ_TBL() failed" );
+                }
             }
         }
     }
@@ -867,7 +872,8 @@ static rc_t vdb_copy_table2( const p_context ctx,
 static rc_t vdb_copy_table( const p_context ctx,
                             VDBManager * vdb_mgr,
                             const VTable * src_table,
-                            const char * tablename ) {
+                            const char * tablename,
+                            db_type_t db_type ) {
     const VSchema * src_schema;
     rc_t rc = VTableOpenSchema ( src_table, &src_schema );
     DISP_RC( rc, "vdb_copy_main:VTableOpenSchema( src_schema ) failed" );
@@ -877,7 +883,7 @@ static rc_t vdb_copy_table( const p_context ctx,
         DISP_RC( rc, "vdb_copy_table:col_defs_init() failed" );
         if ( 0 == rc ) {
             rc = vdb_copy_find_out_what_columns_to_use( src_table, tablename, columns,
-                                        ctx -> columns, ctx -> excluded_columns );
+                                        ctx -> columns, ctx -> excluded_columns, db_type );
             if ( 0 == rc ) {
                 const VCursor * src_cursor;
                 rc = VTableCreateCursorRead( src_table, &src_cursor );
@@ -963,7 +969,8 @@ static rc_t vdb_copy_cur_2_cur( const p_context ctx,
 static rc_t vdb_copy_tab_2_tab( const p_context ctx,
                                 const VTable * src_tab,
                                 VTable * dst_tab,
-                                const char * tab_name ) {
+                                const char * tab_name,
+                                db_type_t db_type ) {
     const VSchema * schema;
     rc_t rc = VTableOpenSchema ( src_tab, &schema );
     DISP_RC( rc, "vdb_copy_tab_2_tab:VTableOpenSchema( src_schema ) failed" );
@@ -973,7 +980,7 @@ static rc_t vdb_copy_tab_2_tab( const p_context ctx,
         DISP_RC( rc, "vdb_copy_tab_2_tab:col_defs_init() failed" );
         if ( 0 == rc ) {
             rc = vdb_copy_find_out_what_columns_to_use( src_tab, tab_name, columns, 
-                                                        NULL, ctx -> excluded_columns );
+                                            NULL, ctx -> excluded_columns, db_type );
             if ( 0 == rc ) {
                 matcher * type_matcher;
                 rc = matcher_init( &type_matcher );
@@ -1025,7 +1032,8 @@ static rc_t vdb_copy_tab_2_tab( const p_context ctx,
 static rc_t vdb_copy_db_tab( const p_context ctx,
                              const VDatabase * src_db,
                              VDatabase * dst_db,
-                             const char *tab_name ) {
+                             const char *tab_name,
+                             db_type_t db_type ) {
     const VTable * src_tab;
     rc_t rc = VDatabaseOpenTableRead( src_db, &src_tab, "%s", tab_name );
     DISP_RC( rc, "vdb_copy_db_tab:VDatabaseOpenTableRead(src) failed" );
@@ -1048,18 +1056,20 @@ static rc_t vdb_copy_db_tab( const p_context ctx,
                 DISP_RC( rc, "vdb_copy_db_tab:copy_table_meta failed" );
                 if ( 0 == rc ) {
                     /********************************************************/
-                    rc = vdb_copy_tab_2_tab( ctx, src_tab, dst_tab, tab_name );
+                    rc = vdb_copy_tab_2_tab( ctx, src_tab, dst_tab, tab_name, db_type );
                     /********************************************************/
                 }
                 if ( 0 == rc ) {
-                    if ( string_eq( tab_name, SEQ_TBL ) ) {
-                        /* for a cSRA we have to drop the ALTREAD-column */
-                        rc = VTableDropColumn( dst_tab, "ALTREAD" );
-                        DISP_RC( rc, "vdb_copy_db_tab:VTableDropColumn( ALTREAD ) failed" );                    
-                    } else if ( string_eq( tab_name, PRIM_TBL ) ) {
-                        /* for a cSRA we have to drop the RD_FILTER-column */
-                        rc = VTableDropColumn( dst_tab, "RD_FILTER" );
-                        DISP_RC( rc, "vdb_copy_db_tab:VTableDropColumn( RD_FILTER ) failed" );                    
+                    if ( db_type_csra == db_type ) {
+                        if ( string_eq( tab_name, SEQ_TBL ) ) {
+                            /* for a cSRA we have to drop the ALTREAD-column */
+                            rc = VTableDropColumn( dst_tab, "ALTREAD" );
+                            DISP_RC( rc, "vdb_copy_db_tab:VTableDropColumn( ALTREAD ) failed" );                    
+                        } else if ( string_eq( tab_name, PRIM_TBL ) ) {
+                            /* for a cSRA we have to drop the RD_FILTER-column */
+                            rc = VTableDropColumn( dst_tab, "RD_FILTER" );
+                            DISP_RC( rc, "vdb_copy_db_tab:VTableDropColumn( RD_FILTER ) failed" );                    
+                        }
                     }
                 }
             }
@@ -1073,10 +1083,11 @@ static rc_t vdb_copy_db_tab( const p_context ctx,
 
 static rc_t vdb_copy_db_sub_tables( const p_context ctx,
                                     const VDatabase * src_db,
-                                    VDatabase * dst_db ) {
+                                    VDatabase * dst_db,
+                                    db_type_t db_type ) {
     KNamelist *names;
-
     rc_t rc = VDatabaseListTbl( src_db, &names );
+    DISP_RC( rc, "vdb_copy_db_sub_tables:VDatabaseListTbl() failed" );
     if ( 0 == rc ) {
         uint32_t idx, count;
         rc = KNamelistCount( names, &count );
@@ -1088,7 +1099,7 @@ static rc_t vdb_copy_db_sub_tables( const p_context ctx,
                 DISP_RC( rc, "vdb_copy_db_sub_tables:KNamelistGet() failed" );
                 if ( 0 == rc ) {
                     /**************************************************/
-                    rc = vdb_copy_db_tab( ctx, src_db, dst_db, a_name );
+                    rc = vdb_copy_db_tab( ctx, src_db, dst_db, a_name, db_type );
                     /**************************************************/
                 }
             }
@@ -1104,11 +1115,13 @@ static rc_t vdb_copy_db_sub_tables( const p_context ctx,
 /* forward decl. to make recursive copy of sub-databases possible */
 static rc_t vdb_copy_db_2_db( const p_context ctx,
                               const VDatabase * src_db,
-                              VDatabase * dst_db );
+                              VDatabase * dst_db,
+                              db_type_t db_type );
 
 static rc_t vdb_copy_sub_dbs( const p_context ctx,
                               const VDatabase * src_db,
-                              VDatabase * dst_db ) {
+                              VDatabase * dst_db,
+                              db_type_t db_type ) {
     KNamelist *names;
 
     rc_t rc = VDatabaseListDB( src_db, &names );
@@ -1145,7 +1158,7 @@ static rc_t vdb_copy_sub_dbs( const p_context ctx,
                                 DISP_RC( rc, "vdb_copy_sub_dbs:VDatabaseColumnCreateParams failed" );
                                 if ( 0 == rc ) {
                                     /**************************************************/
-                                    rc = vdb_copy_db_2_db( ctx, src_sub_db, dst_sub_db );
+                                    rc = vdb_copy_db_2_db( ctx, src_sub_db, dst_sub_db, db_type );
                                     /**************************************************/
                                 }
                                 VDatabaseRelease( dst_sub_db );
@@ -1166,26 +1179,84 @@ static rc_t vdb_copy_sub_dbs( const p_context ctx,
 
 static rc_t vdb_copy_db_2_db( const p_context ctx,
                               const VDatabase * src_db,
-                              VDatabase * dst_db ) {
+                              VDatabase * dst_db,
+                              db_type_t db_type ) {
     rc_t rc = copy_database_meta ( src_db, dst_db, NULL, ctx -> show_meta );
     if ( 0 == rc ) {
         if ( NULL == ctx -> table ) {
             /* the user did not specify a particular table: copy all of them */
             /*************************************************/
-            rc = vdb_copy_db_sub_tables( ctx, src_db, dst_db );
+            rc = vdb_copy_db_sub_tables( ctx, src_db, dst_db, db_type );
             /*************************************************/
             if ( 0 == rc ) {
                 /* if the database has sub-databases: copy them too */
-                rc = vdb_copy_sub_dbs( ctx, src_db, dst_db );
+                rc = vdb_copy_sub_dbs( ctx, src_db, dst_db, db_type );
             }
         } else {
             /* copy only this table... */
-            rc = vdb_copy_db_tab( ctx, src_db, dst_db, ctx -> table );
+            rc = vdb_copy_db_tab( ctx, src_db, dst_db, ctx -> table, db_type );
         }
     }
     return rc;
 }
 
+/*
+    we try to detect the type of database ( like cSRA, PacBIO, etc. )
+    so that later decitions about column-exclustions can be made exactly
+    based on this type and the name of the table 
+    available types are:
+        typedef enum db_type_t { db_type_csra, db_type_pacbio, db_type_just_seq, db_type_none } db_type_t;
+*/
+
+static bool contains( VNamelist * tables, const char * table ) {
+    uint32_t found = 0;
+    rc_t rc = VNamelistIndexOf( tables, table, &found );
+    return ( 0 == rc );
+}
+
+static rc_t vdb_copy_detect_db_type( const VDatabase * src_db, db_type_t * db_type ) {
+    KNamelist *k_tables;
+    rc_t rc = VDatabaseListTbl( src_db, &k_tables );
+    *db_type = db_type_none;    /* first we assume no special db-type */
+    DISP_RC( rc, "vdb_copy_detect_db_type:VDatabaseListTbl() failed" );
+    if ( 0 == rc ) {
+        VNamelist * tables;
+        rc = VNamelistFromKNamelist( &tables, k_tables );
+        DISP_RC( rc, "vdb_copy_detect_db_type:VNamelistFromKNamelist() failed" );
+        if ( 0 == rc ) {
+            if ( contains( tables, "SEQUENCE" ) )
+            {
+                *db_type = db_type_just_seq; /* it has at least a SEQUENCE-table! */
+                
+                if ( contains( tables, "PRIMARY_ALIGNMENT" ) &&
+                        contains( tables, "REFERENCE" ) ) {
+                    *db_type = db_type_csra; /* it is definetely a cSRA */
+                } else {
+                    if ( contains( tables, "CONSENSUS" ) ||
+                            contains( tables, "ZMW_METRICS" ) ||
+                            contains( tables, "PASSES" ) ) {
+                        *db_type = db_type_pacbio; /* it looks like PacBIO */
+                    }
+                }
+            }
+            {
+                rc_t rc2 = VNamelistRelease ( tables );
+                if ( 0 != rc2 ) {
+                    DISP_RC( rc, "vdb_copy_detect_db_type:.VNamelistRelease() failed" );
+                    rc = ( 0 == rc ) ? rc2 : rc;
+                }
+            }
+        }
+        {
+            rc_t rc2 = KNamelistRelease ( k_tables );
+            if ( 0 != rc2 ) {
+                DISP_RC( rc, "vdb_copy_detect_db_type:.KNamelistRelease() failed" );
+                rc = ( 0 == rc ) ? rc2 : rc;
+            }
+        }
+    }
+    return rc;
+}
 
 static rc_t vdb_copy_database( const p_context ctx,
                                VDBManager * vdb_mgr,
@@ -1211,9 +1282,13 @@ static rc_t vdb_copy_database( const p_context ctx,
                 rc = VDatabaseColumnCreateParams ( dst_db, cmode, cs_mode, 0 );
                 DISP_RC( rc, "vdb_copy_sub_dbs:VDatabaseColumnCreateParams failed" );
                 if ( 0 == rc ) {
-                    /*******************************************/
-                    rc = vdb_copy_db_2_db( ctx, src_db, dst_db );
-                    /*******************************************/
+                    db_type_t db_type;
+                    rc = vdb_copy_detect_db_type( src_db, &db_type );
+                    if ( 0 == rc ) {
+                        /*******************************************/
+                        rc = vdb_copy_db_2_db( ctx, src_db, dst_db, db_type );
+                        /*******************************************/
+                    }
                 }
                 VDatabaseRelease( dst_db );
             }
@@ -1261,7 +1336,7 @@ static rc_t vdb_copy_perform( const p_context ctx,
             /* if it succeeds it is a table, continue to copy it */
             if ( 0 == rc ) {
                 /*********************************************/
-                rc = vdb_copy_table( ctx, vdb_mgr, src_table, NULL );
+                rc = vdb_copy_table( ctx, vdb_mgr, src_table, NULL, db_type_none );
                 /*********************************************/
                 DISP_RC( rc, "vdb_copy_perform:vdb_copy_table() failed" );
                 VTableRelease( src_table );

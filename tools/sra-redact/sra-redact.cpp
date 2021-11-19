@@ -63,13 +63,8 @@ enum OPTIONS {
 
 static int filterPipeIn; ///< it is replying here
 static int filterPipeOut; ///< we are querying here
-static bool shouldFilter(uint32_t const len, uint8_t const *const seq)
+static bool doFilter(uint32_t const len, uint8_t const *const seq)
 {
-#if _DEBUGGING || DEBUG
-    static auto const SKIP = getenv("SRA_REDACT_NONE");
-    if (SKIP && *SKIP == '1') return false;
-#endif
-
     static auto buffer = std::vector<uint8_t>();
 
     buffer.reserve(len + 1);
@@ -92,6 +87,22 @@ static bool shouldFilter(uint32_t const len, uint8_t const *const seq)
     LogErr(klogErr, RC(rcExe, rcProcess, rcReading, rcData, rcNotFound), "Failed to read reply from filter process!");
     exit(EX_TEMPFAIL);
 }
+
+static bool noFilter(uint32_t const len, uint8_t const *const seq)
+{
+    return false;
+}
+
+using FilterFunction = decltype(doFilter);
+static FilterFunction&& filterFunction() {
+#if _DEBUGGING || DEBUG
+    auto const SKIP = getenv("SRA_REDACT_NONE");
+    if (SKIP && *SKIP == '1')
+        return noFilter;
+#endif
+    return doFilter;
+}
+auto const &&shouldFilter = filterFunction();
 
 static bool redactRead(uint8_t *const out, uint32_t const len, uint8_t const *const seq) {
     if (!shouldFilter(len, seq))

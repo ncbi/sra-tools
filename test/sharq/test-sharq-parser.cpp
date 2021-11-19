@@ -218,43 +218,48 @@ FIXTURE_TEST_CASE(TestSequence_Multi, LoaderFixture)
 
 
 //////////////////// tag line parsing
-#define TEST_TAGLINE(line)\
+
+#define TEST_TAGLINE(line, _defline_type)\
     string cREAD = string(line) + "\n" +cSEQ + "\n+\n" + cQUAL + "\n"; \
     CFastqRead read; \
     fastq_reader reader("test", create_stream(cREAD)); \
     REQUIRE(reader.get_read(read)); \
+    REQUIRE_EQ(reader.defline_type(), string(_defline_type)); \
 \
 
-FIXTURE_TEST_CASE(IlluminaNew1, LoaderFixture)  { TEST_TAGLINE("@M00730:68:000000000-A2307:1:1101:14701:1383 1:N:0:1"); }
-FIXTURE_TEST_CASE(IlluminaNew2, LoaderFixture)  { TEST_TAGLINE("@HWI-962:74:C0K69ACXX:8:2104:14888:94110 2:N:0:CCGATAT"); }
-FIXTURE_TEST_CASE(IlluminaNew3, LoaderFixture)  { TEST_TAGLINE("@HWI-ST808:130:H0B8YADXX:1:1101:1914:2223 1:N:0:NNNNNN-GGTCCA-AAAA"); }
-FIXTURE_TEST_CASE(IlluminaNew4, LoaderFixture)  { TEST_TAGLINE("@HWI-M01380:63:000000000-A8KG4:1:1101:17932:1459 1:N:0:Alpha29 CTAGTACG|0|GTAAGGAG|0"); }
-FIXTURE_TEST_CASE(IlluminaNew5, LoaderFixture)  { TEST_TAGLINE("@HWI-ST959:56:D0AW4ACXX:8:1101:1233:2026 2:N:0:"); }
-FIXTURE_TEST_CASE(IlluminaNew6, LoaderFixture)  { TEST_TAGLINE("@DJB77P1:546:H8V5MADXX:2:1101:11528:3334 1:N:0:_I_GACGAC"); }
-FIXTURE_TEST_CASE(IlluminaNew7, LoaderFixture)  { TEST_TAGLINE("@HET-141-007:154:C391TACXX:6:1216:12924:76893 1:N:0"); }
-FIXTURE_TEST_CASE(IlluminaNew8, LoaderFixture)  { TEST_TAGLINE("@DG7PMJN1:293:D12THACXX:2:1101:1161:1968_1:N:0:GATCAG"); }
-FIXTURE_TEST_CASE(IlluminaNew9, LoaderFixture)  { TEST_TAGLINE("@M01321:49:000000000-A6HWP:1:1101:17736:2216_1:N:0:1/M01321:49:000000000-A6HWP:1:1101:17736:2216_2:N:0:1"); }
-FIXTURE_TEST_CASE(IlluminaNew10, LoaderFixture)  { TEST_TAGLINE("@MISEQ:36:000000000-A5BCL:1:1101:24982:8584;smpl=12;brcd=ACTTTCCCTCGA 1:N:0:ACTTTCCCTCGA"); }
-FIXTURE_TEST_CASE(IlluminaNew11, LoaderFixture)  { TEST_TAGLINE("@HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG"); }
-FIXTURE_TEST_CASE(IlluminaNew12, LoaderFixture)  { TEST_TAGLINE("@aa,HWI-7001455:146:H97PVADXX:2:1101:1498:2093 1:Y:0:ACAAACGGAGTTCCGA"); }
-FIXTURE_TEST_CASE(IlluminaNew13, LoaderFixture)  { TEST_TAGLINE("@NS500234:97:HC75GBGXX:1:11101:6479:1067 1:N:0:ATTCAG+NTTCGC"); }
-FIXTURE_TEST_CASE(IlluminaNew14, LoaderFixture)  { TEST_TAGLINE("@M01388:38:000000000-A49F2:1:1101:14022:1748 1:N:0:0"); }
-FIXTURE_TEST_CASE(IlluminaNew15, LoaderFixture)  { TEST_TAGLINE("@M00388:100:000000000-A98FW:1:1101:17578:2134 1:N:0:1|isu|119|c95|303"); }
-FIXTURE_TEST_CASE(IlluminaNew16, LoaderFixture)  { TEST_TAGLINE("@HISEQ:191:H9BYTADXX:1:1101:1215:1719 1:N:0:TTAGGC##NGTCCG"); }
-FIXTURE_TEST_CASE(IlluminaNew17, LoaderFixture)  { TEST_TAGLINE("@HWI:1:X:1:1101:1298:2061 1:N:0: AGCGATAG (barcode is discarded)"); }
-FIXTURE_TEST_CASE(IlluminaNew18, LoaderFixture)  { TEST_TAGLINE("@8:1101:1486:2141 1:N:0:/1"); }
-FIXTURE_TEST_CASE(IlluminaNew19, LoaderFixture)  { TEST_TAGLINE("@HS2000-1017_69:7:2203:18414:13643|2:N:O:GATCAG"); }
-FIXTURE_TEST_CASE(IlluminaNew20, LoaderFixture)  { TEST_TAGLINE("@HISEQ:258:C6E8AANXX:6:1101:1823:1979:CGAGCACA:1:N:0:CGAGCACA:NG:GT"); }
-FIXTURE_TEST_CASE(IlluminaNew21, LoaderFixture)  { TEST_TAGLINE("@HWI-ST226:170:AB075UABXX:3:1101:1436:2127 1:N:0:GCCAAT"); }
-FIXTURE_TEST_CASE(IlluminaNew22, LoaderFixture)  { TEST_TAGLINE("@HISEQ06:187:C0WKBACXX:6:1101:1198:2254 1:N:0:"); }
+FIXTURE_TEST_CASE(IlluminaNew1, LoaderFixture)  { TEST_TAGLINE("@M00730:68:000000000-A2307:1:1101:14701:1383 1:N:0:1", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew2, LoaderFixture)  { TEST_TAGLINE("@HWI-962:74:C0K69ACXX:8:2104:14888:94110 2:N:0:CCGATAT", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew3, LoaderFixture)  { TEST_TAGLINE("@HWI-ST808:130:H0B8YADXX:1:1101:1914:2223 1:N:0:NNNNNN-GGTCCA-AAAA", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew4, LoaderFixture)  { TEST_TAGLINE("@HWI-M01380:63:000000000-A8KG4:1:1101:17932:1459 1:N:0:Alpha29 CTAGTACG|0|GTAAGGAG|0", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew5, LoaderFixture)  { TEST_TAGLINE("@HWI-ST959:56:D0AW4ACXX:8:1101:1233:2026 2:N:0:", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew6, LoaderFixture)  { TEST_TAGLINE("@DJB77P1:546:H8V5MADXX:2:1101:11528:3334 1:N:0:_I_GACGAC", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew7, LoaderFixture)  { TEST_TAGLINE("@HET-141-007:154:C391TACXX:6:1216:12924:76893 1:N:0", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew8, LoaderFixture)  { TEST_TAGLINE("@DG7PMJN1:293:D12THACXX:2:1101:1161:1968_1:N:0:GATCAG", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew9, LoaderFixture)  { TEST_TAGLINE("@M01321:49:000000000-A6HWP:1:1101:17736:2216_1:N:0:1/M01321:49:000000000-A6HWP:1:1101:17736:2216_2:N:0:1", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew10, LoaderFixture)  { TEST_TAGLINE("@MISEQ:36:000000000-A5BCL:1:1101:24982:8584;smpl=12;brcd=ACTTTCCCTCGA 1:N:0:ACTTTCCCTCGA", "illuminaNewWithSuffix"); }
+FIXTURE_TEST_CASE(IlluminaNew11, LoaderFixture)  { TEST_TAGLINE("@HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG", "illuminaNewWithSuffix"); }
+FIXTURE_TEST_CASE(IlluminaNew12, LoaderFixture)  { TEST_TAGLINE("@aa,HWI-7001455:146:H97PVADXX:2:1101:1498:2093 1:Y:0:ACAAACGGAGTTCCGA", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew13, LoaderFixture)  { TEST_TAGLINE("@NS500234:97:HC75GBGXX:1:11101:6479:1067 1:N:0:ATTCAG+NTTCGC", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew14, LoaderFixture)  { TEST_TAGLINE("@M01388:38:000000000-A49F2:1:1101:14022:1748 1:N:0:0", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew15, LoaderFixture)  { TEST_TAGLINE("@M00388:100:000000000-A98FW:1:1101:17578:2134 1:N:0:1|isu|119|c95|303", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew16, LoaderFixture)  { TEST_TAGLINE("@HISEQ:191:H9BYTADXX:1:1101:1215:1719 1:N:0:TTAGGC##NGTCCG", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew17, LoaderFixture)  { TEST_TAGLINE("@HWI:1:X:1:1101:1298:2061 1:N:0: AGCGATAG (barcode is discarded)", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew18, LoaderFixture)  { TEST_TAGLINE("@8:1101:1486:2141 1:N:0:/1", "illuminaNewNoPrefix"); }
+FIXTURE_TEST_CASE(IlluminaNew19, LoaderFixture)  { TEST_TAGLINE("@HS2000-1017_69:7:2203:18414:13643|2:N:O:GATCAG", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew20, LoaderFixture)  { TEST_TAGLINE("@HISEQ:258:C6E8AANXX:6:1101:1823:1979:CGAGCACA:1:N:0:CGAGCACA:NG:GT", "illuminaNewWithSuffix"); }
+FIXTURE_TEST_CASE(IlluminaNew21, LoaderFixture)  { TEST_TAGLINE("@HWI-ST226:170:AB075UABXX:3:1101:1436:2127 1:N:0:GCCAAT", "illuminaNew"); }
+FIXTURE_TEST_CASE(IlluminaNew22, LoaderFixture)  { TEST_TAGLINE("@HISEQ06:187:C0WKBACXX:6:1101:1198:2254 1:N:0:", "illuminaNew"); }
 
-FIXTURE_TEST_CASE(IlluminaNewDataGroup1, LoaderFixture)  { TEST_TAGLINE("@SEDCJ:00674:05781 1:N:0:AAAAA"); }
+FIXTURE_TEST_CASE(IlluminaNewDataGroup1, LoaderFixture)  { TEST_TAGLINE("@SEDCJ:00674:05781 1:N:0:AAAAA", "illuminaNewDataGroup"); }
 
-FIXTURE_TEST_CASE(BGI1, LoaderFixture)  { TEST_TAGLINE("@V300019058_8BL1C001R0010000000 1:N:0:ATGGTAGG"); }
-FIXTURE_TEST_CASE(BGI2, LoaderFixture)  { TEST_TAGLINE("@V300103666L2C001R0010000000:0:0:0:0 1:N:0:ATAGTCTC"); }
-FIXTURE_TEST_CASE(BGI3, LoaderFixture)  { TEST_TAGLINE("@CL100159005L1C001R001_2 2:N:0:0"); }
+FIXTURE_TEST_CASE(BGI1, LoaderFixture)  { TEST_TAGLINE("@V300019058_8BL1C001R0010000000 1:N:0:ATGGTAGG", "BgiNew"); }
+FIXTURE_TEST_CASE(BGI2, LoaderFixture)  { TEST_TAGLINE("@V300103666L2C001R0010000000:0:0:0:0 1:N:0:ATAGTCTC", "BgiNew"); }
+FIXTURE_TEST_CASE(BGI3, LoaderFixture)  { TEST_TAGLINE("@CL100159005L1C001R001_2 2:N:0:0", "BgiNew"); }
 
-FIXTURE_TEST_CASE(BGIOld1, LoaderFixture)  { TEST_TAGLINE("@CL100050407L1C001R001_1#224_1078_917/1 1       1"); }
+FIXTURE_TEST_CASE(BGIOld1, LoaderFixture)  { TEST_TAGLINE("@CL100050407L1C001R001_1#224_1078_917/1 1       1", "BgiOld"); }
+
+FIXTURE_TEST_CASE(BgiOld8, LoaderFixture)  { TEST_TAGLINE("@V350012516L1C001R00100001492/1", "BgiOld"); }
+FIXTURE_TEST_CASE(BgiNewd8, LoaderFixture)  { TEST_TAGLINE("@V300019058_8BL1C001R00112345678 1:N:0:ATGGTAG", "BgiNew") }
 
 
 FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode, LoaderFixture)
@@ -456,7 +461,6 @@ FIXTURE_TEST_CASE(Test_get_spot_match_multi_skip_2, LoaderFixture)
 }
 
 
-
 // Illumina spot names
 FIXTURE_TEST_CASE(IlluminaCasava_1_8, LoaderFixture)
 { 
@@ -519,28 +523,6 @@ FIXTURE_TEST_CASE(Illumina_Underscore, LoaderFixture)
     REQUIRE_EQ(string("GATCAG"), reads.front().SpotGroup());
 }
 
-/*
-FIXTURE_TEST_CASE(Illumina_SpaceAndIdentifierAtFront, LoaderFixture)
-{
-    fastq_reader reader("test", create_stream(_READ(" QSEQ161 EAS139:136:FC706VJ:2:2104:15343:197393 1:Y:18:ATCACG", "AACA", "$.%0")));
-    string spot;
-    vector<CFastqRead> reads;
-    REQUIRE(reader.get_next_spot(spot, reads));
-    REQUIRE(reads.empty() == false);
-    REQUIRE_EQ(string("EAS139:136:FC706VJ:2:2104:15343:197393"), spot);
-    REQUIRE_EQ(string("1"), reads.front().ReadNum());
-    REQUIRE_EQ(string("ATCACG"), reads.front().SpotGroup());
-}
-
-FIXTURE_TEST_CASE(SRR1778155 , LoaderFixture)
-{
-    fastq_reader reader("test", create_stream(_READ("2-796964       M01929:5:000000000-A46YE:1:1108:16489:18207 1:N:0:2     orig_bc=TATCGGGA        new_bc=TATCGGGA   bc_diffs=0", cSEQ, cQUAL)));
-    CFastqRead read;
-    REQUIRE(reader.get_read(read));
-    REQUIRE_EQ(string("M01929:5:000000000-A46YE:1:1108:16489:18207"), read.Spot());
-
-}
-*/
 
 FIXTURE_TEST_CASE(SRA192487, LoaderFixture)
 {
@@ -550,6 +532,14 @@ FIXTURE_TEST_CASE(SRA192487, LoaderFixture)
     REQUIRE_EQ(string("HWI-ST1234:33:D1019ACXX:2:1101:1415:2223"), read.Spot());
 }
 
+//VDB-4693
+FIXTURE_TEST_CASE(BgiNew8Digit, LoaderFixture)
+{
+  fastq_reader reader("test", create_stream(_READ("V300019058_8BL1C001R00100000012 3:N:0:CGCCGTTT", cSEQ, cQUAL)));
+  CFastqRead read;
+  REQUIRE(reader.get_read(read));
+  REQUIRE_EQ(string("V300019058_8BL1C001R00100000012"), read.Spot());
+}
 
 FIXTURE_TEST_CASE(Quality33TooLow, LoaderFixture)
 {   // negative qualities are not allowed for Phred33
@@ -565,6 +555,7 @@ FIXTURE_TEST_CASE(Quality33TooLow, LoaderFixture)
         REQUIRE(err.Message().find("unexpected quality score value") != string::npos);
     }
 }
+
 
 FIXTURE_TEST_CASE(Quality33Adjusteed, LoaderFixture)
 {   // negative qualities are not allowed for Phred33

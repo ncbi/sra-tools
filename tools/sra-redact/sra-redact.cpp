@@ -104,13 +104,6 @@ static FilterFunction&& filterFunction() {
 }
 auto const &&shouldFilter = filterFunction();
 
-static bool redactRead(uint8_t *const out, uint32_t const len, uint8_t const *const seq) {
-    if (!shouldFilter(len, seq))
-        return false;
-    memset(out, 'N', len);
-    return true;
-}
-
 static bool redactRead(uint8_t *const out_read, CellData const &readStartData, CellData const &readTypeData, CellData const &readLenData, CellData const &readData)
 {
     auto const nreads = readLenData.count;
@@ -118,21 +111,28 @@ static bool redactRead(uint8_t *const out_read, CellData const &readStartData, C
     auto const readLen = reinterpret_cast<uint32_t const *>(readLenData.data);
     auto const readType = reinterpret_cast<uint8_t const *>(readTypeData.data);
     auto const bases = reinterpret_cast<uint8_t const *>(readData.data);
+    bool redacted = false;
 
     assert(readStartData.count == nreads);
     assert(readTypeData.count == nreads);
-    assert(readStart[nreads - 1] + readLen[nreads - 1] == readData.count);
+    if (nreads == 0)
+        return false;
 
+    assert(readStart[nreads - 1] + readLen[nreads - 1] <= readData.count);
+
+    std::copy(bases, bases + readData.count, out_read);
     for (auto i = 0; i < nreads; ++i) {
         if ((readType[i] & SRA_READ_TYPE_BIOLOGICAL) != SRA_READ_TYPE_BIOLOGICAL)
             continue;
-        if (!shouldFilter(readLen[i], bases + readStart[i]))
+        if (!redacted && !shouldFilter(readLen[i], bases + readStart[i]))
             continue;
-        redactRead(out_read, readData.count, bases);
-        return true;
+
+        redacted = true;
+
+        auto const outStart = out_read + readStart[i];
+        std::fill(outStart, outStart + readLen[i], 'N');
     }
-    std::copy(bases, bases + readData.count, out_read);
-    return false;
+    return redacted;
 }
 
 enum {

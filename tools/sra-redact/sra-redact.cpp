@@ -59,6 +59,8 @@ enum OPTIONS {
 #define OFFSET_TYPE "REF_OFFSET_TYPE"
 #define BASE_REPRESENTATION_TYPE "INSDC:dna:text"
 
+#define PROGRESS_MESSAGES 1
+
 static int filterPipeIn; ///< it is replying here
 static int filterPipeOut; ///< we are querying here
 static bool shouldFilter(uint32_t const len, uint8_t const *const seq)
@@ -191,9 +193,9 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         auto mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
         auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
 
-#if 0
+#if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogInfo, "progress: $(row) rows", "row=%li", row);
+            pLogMsg(klogInfo, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
         }
 #endif
         auto const wasRedated = redactRead(nullptr, read.count, (uint8_t const *)read.data);
@@ -279,9 +281,10 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         auto read = cellData(readColName, cid_read, row, in);
         auto prId = cellData(ALIGN_ID, cid_pr_id, row, in);
         bool redact = false;
-#if 0
+
+#if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogInfo, "progress: $(row) rows", "row=%li", row);
+            pLogMsg(klogInfo, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
         }
 #endif
 

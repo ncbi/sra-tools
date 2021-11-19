@@ -57,6 +57,7 @@ enum OPTIONS {
 #define MISMATCH "MISMATCH"
 #define REF_OFFSET "REF_OFFSET"
 #define OFFSET_TYPE "REF_OFFSET_TYPE"
+#define BASE_REPRESENTATION_TYPE "INSDC:dna:text"
 
 static int filterPipeIn; ///< it is replying here
 static int filterPipeOut; ///< we are querying here
@@ -156,7 +157,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     /* MARK: output columns */
     auto const cid_has_miss    = addColumn(HAS_MISS  , "U8" , out);
     auto const cid_has_offset  = addColumn(HAS_OFFSET, "U8" , out);
-    auto const cid_mismatch    = addColumn(MISMATCH  , "U8" , out);
+    auto const cid_mismatch    = addColumn(MISMATCH  , BASE_REPRESENTATION_TYPE, out);
     auto const cid_ref_offset  = addColumn(REF_OFFSET, "I32", out);
     auto const cid_out_spot_id = addColumn(SPOT_ID   , "I64", out);
     auto const cid_offset_type = addColumnOptional(OFFSET_TYPE, "U8", out, has_offset_type);
@@ -237,10 +238,10 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     auto const cid_readstart   = addColumn("READ_START" , "I32", in);
     auto const cid_read_type   = addColumn("READ_TYPE"  , "U8" , in);
     auto const cid_readlen     = addColumn("READ_LEN"   , "U32", in);
-    auto const cid_read        = addColumn(readColName  , "U8" , in);
+    auto const cid_read        = addColumn(readColName  , BASE_REPRESENTATION_TYPE, in);
 
     /* MARK: output columns */
-    auto const cid_out_read = addColumn(readColName, "U8", out);
+    auto const cid_out_read = addColumn(readColName, BASE_REPRESENTATION_TYPE, out);
     auto const cid_out_pr_id = aligned ? addColumn(ALIGN_ID, "I64", out) : 0;
 
     int64_t first = 0;

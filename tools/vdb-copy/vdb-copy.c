@@ -616,9 +616,14 @@ static rc_t vdb_copy_prepare_legacy_tab( const p_context ctx,
 }
 
 static const char * PRIM_TBL = "PRIMARY_ALIGNMENT";
-static const char * PRIM_EX  = "PRIMARY_ALIGNMENT:CMP_QUALITY,PRIMARY_ALIGNMENT:MATE_ALIGN_ID,PRIMARY_ALIGNMENT:RD_FILTER,PRIMARY_ALIGNMENT:SEQ_NAME";
+static const char * PRIM_EX  = "PRIMARY_ALIGNMENT:CMP_QUALITY,PRIMARY_ALIGNMENT:MATE_ALIGN_ID,PRIMARY_ALIGNMENT:RD_FILTER,PRIMARY_ALIGNMENT:SEQ_NAME,PRIMARY_ALIGNMENT:READ_LEN,PRIMARY_ALIGNMENT:PLATFORM";
+
+static const char * SEC_TBL = "SECONDARY_ALIGNMENT";
+static const char * SEC_EX  = "SECONDARY_ALIGNMENT:SEQ_NAME,SECONDARY_ALIGNMENT:PRIMARY_ALIGNMENT_ID,SECONDARY_ALIGNMENT:READ_LEN,SECONDARY_ALIGNMENT:RD_FILTER,SECONDARY_ALIGNMENT:PLATFORM";
+
 static const char * REF_TBL  = "REFERENCE";
 static const char * REF_EX   = "REFERENCE:PRESERVE_QUAL";
+
 static const char * SEQ_TBL  = "SEQUENCE";
 static const char * SEQ_EX   = "SEQUENCE:ALTREAD,SEQUENCE:CMP_ALTREAD";
 
@@ -662,12 +667,19 @@ static rc_t vdb_copy_find_out_what_columns_to_use( const VTable * src_table,
         }
         if ( 0 == rc ) {
             if ( db_type_csra == db_type ) {
+                /* PRIMARY_ALIGNMENT */
                 if ( string_eq( tablename, PRIM_TBL ) ) {
                     rc = col_defs_exclude_these_columns( columns, tablename, PRIM_EX );
                     DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_PRIM_TBL() failed" );
+                /* SECONDARY_ALIGNMENT */
+                } else if ( string_eq( tablename, SEC_TBL ) ) {
+                    rc = col_defs_exclude_these_columns( columns, tablename, SEC_EX );
+                    DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_SEC_TBL() failed" );
+                /* REFERENCE */
                 } else if ( string_eq( tablename, REF_TBL ) ) {
                     rc = col_defs_exclude_these_columns( columns, tablename, REF_EX );
                     DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_REF_TBL() failed" );
+                /* SEQUENCE */
                 } else if ( string_eq( tablename, SEQ_TBL ) ) {
                     rc = col_defs_exclude_these_columns( columns, tablename, SEQ_EX );
                     DISP_RC( rc, "vdb_copy_find_out_what_columns_to_use:unmark_SEQ_TBL() failed" );
@@ -1063,12 +1075,15 @@ static rc_t vdb_copy_db_tab( const p_context ctx,
                     if ( db_type_csra == db_type ) {
                         if ( string_eq( tab_name, SEQ_TBL ) ) {
                             /* for a cSRA we have to drop the ALTREAD-column */
-                            rc = VTableDropColumn( dst_tab, "ALTREAD" );
-                            DISP_RC( rc, "vdb_copy_db_tab:VTableDropColumn( ALTREAD ) failed" );                    
+                            VTableDropColumn( dst_tab, "ALTREAD" );
                         } else if ( string_eq( tab_name, PRIM_TBL ) ) {
                             /* for a cSRA we have to drop the RD_FILTER-column */
-                            rc = VTableDropColumn( dst_tab, "RD_FILTER" );
-                            DISP_RC( rc, "vdb_copy_db_tab:VTableDropColumn( RD_FILTER ) failed" );                    
+                            VTableDropColumn( dst_tab, "RD_FILTER" );
+                        } else if ( string_eq( tab_name, SEC_TBL ) ) {
+                            /* for a cSRA we have to drop the RD_FILTER-column */
+                            VTableDropColumn( dst_tab, "RD_FILTER" );
+                        } else if ( string_eq( tab_name, REF_TBL ) ) {
+                            VTableDropColumn( dst_tab, "ALTREAD" );
                         }
                     }
                 }

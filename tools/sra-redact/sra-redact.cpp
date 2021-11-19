@@ -657,7 +657,7 @@ extern "C" {
                     close(stdout_fds[1]);
 
                     argv[i] = nullptr;
-                    main_1(i + 1, argv);
+                    main_1(i, argv);
                     return 0;
                 }
                 else {

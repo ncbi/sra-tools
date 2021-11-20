@@ -171,6 +171,8 @@ enum {
     dspcKeptReads,
     dspcRedactedSpots,
     dspcKeptSpots,
+    dspcRedactedBases = dspcRedactedReads,
+    dspcKeptBases = dspcKeptReads,
 };
 uint64_t dispositionCount[4];
 uint64_t dispositionBaseCount[2];
@@ -245,7 +247,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
 
 #if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
+            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedBases]);
         }
 #endif
         auto const redact = shouldFilter(read.count, (uint8_t const *)read.data);
@@ -254,7 +256,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         spot_id.data = &spotId;
         if (redact) {
             if (isPrimary) {
-                dispositionBaseCount[dspcRedactedReads] += read.count;
+                dispositionBaseCount[dspcRedactedBases] += read.count;
                 redactedSpot(spotId);
             }
             allfalse.resize(has_miss.count, 0);
@@ -266,7 +268,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
             spotId = 0;
         }
         else if (isPrimary) {
-            dispositionBaseCount[dspcKeptReads] += read.count;
+            dispositionBaseCount[dspcKeptBases] += read.count;
         }
         openRow(row, out);
         writeRow(row, spot_id    , cid_out_spot_id, out);
@@ -331,7 +333,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
 #if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
+            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedBases]);
         }
 #endif
         outRead.resize(read.count, 'N');
@@ -351,7 +353,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         if (redact) {
             dispositionCount[dspcRedactedReads] += nreads;
             dispositionCount[dspcRedactedSpots] += 1;
-            dispositionBaseCount[dspcRedactedReads] += read.count;
+            dispositionBaseCount[dspcRedactedBases] += read.count;
 
             read.data = outRead.data();
             prId.data = allZero.data();
@@ -359,7 +361,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         else {
             dispositionCount[dspcKeptReads] += nreads;
             dispositionCount[dspcKeptSpots] += 1;
-            dispositionBaseCount[dspcKeptReads] += read.count;
+            dispositionBaseCount[dspcKeptBases] += read.count;
         }
 
         openRow(row, out);
@@ -368,7 +370,10 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         commitRow(row, out);
         closeRow(row, out);
     }
-    LogMsg(klogInfo, "progress: done");
+    pLogMsg(klogInfo, "progress: redacted $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu"
+            , (unsigned long)dispositionCount[dspcRedactedSpots]
+            , (unsigned long)dispositionCount[dspcRedactedReads]
+            , (unsigned long)dispositionBaseCount[dspcRedactedBases]);
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
@@ -405,24 +410,28 @@ static void copyColumn(char const *const column, char const *const table, char c
     VTableRelease(tbl);
 }
 
-static void saveCounts(char const *const table, char const *const dest, VDBManager *const mgr)
-{
-    VTable *tbl = table ? openUpdateDb(dest, table, mgr) : openUpdateTbl(dest, mgr);
-    KMDataNode *const stats = openNodeUpdate(tbl, "%s", "STATS");
+static void saveCounts(KMDataNode *node) {
+    writeChildNode(node, "REDACTED_SPOTS", sizeof(uint64_t), &dispositionCount[dspcRedactedSpots]);
+    writeChildNode(node, "KEPT_SPOTS", sizeof(uint64_t), &dispositionCount[dspcKeptSpots]);
+    writeChildNode(node, "REDACTED_READS", sizeof(uint64_t), &dispositionCount[dspcRedactedReads]);
+    writeChildNode(node, "KEPT_READS", sizeof(uint64_t), &dispositionCount[dspcKeptReads]);
+    writeChildNode(node, "REDACTED_BASES", sizeof(uint64_t), &dispositionBaseCount[dspcRedactedBases]);
+    writeChildNode(node, "KEPT_BASES", sizeof(uint64_t), &dispositionBaseCount[dspcKeptBases]);
+    KMDataNodeRelease(node);
+}
 
-    /* record stats about the other changes made */
-    {
-        KMDataNode *node = openNodeUpdate(tbl, "REDACTION");
-        writeChildNode(node, "REDACTED_SPOTS", sizeof(dispositionCount[2]), &dispositionCount[2]);
-        writeChildNode(node, "KEPT_SPOTS", sizeof(dispositionCount[3]), &dispositionCount[3]);
-        writeChildNode(node, "REDACTED_READS", sizeof(dispositionCount[0]), &dispositionCount[0]);
-        writeChildNode(node, "KEPT_READS", sizeof(dispositionCount[1]), &dispositionCount[1]);
-        writeChildNode(node, "REDACTED_BASES", sizeof(dispositionBaseCount[0]), &dispositionBaseCount[0]);
-        writeChildNode(node, "KEPT_BASES", sizeof(dispositionBaseCount[1]), &dispositionBaseCount[1]);
-        KMDataNodeRelease(node);
+static void saveCounts(bool isDb, char const *const dest, VDBManager *const mgr)
+{
+    if (isDb) {
+        auto const db = openUpdateDb(dest, mgr);
+        saveCounts(openNodeUpdate(db, "REDACTION"));
+        VDatabaseRelease(db);
     }
-    KMDataNodeRelease(stats);
-    VTableRelease(tbl);
+    else {
+        auto const tbl = openUpdateTbl(dest, mgr);
+        saveCounts(openNodeUpdate(tbl, "REDACTION"));
+        VTableRelease(tbl);
+    }
 }
 
 static char const *temporaryDirectory(Args *const args);
@@ -480,8 +489,7 @@ void main_1(int argc, char *argv[])
         else {
             copyColumn(READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
         }
-        /// TODO: SAVE REDACTION COUNTS
-        // saveCounts(in.noDb ? NULL : "SEQUENCE", input, mgr);
+        saveCounts(!in.noDb, input, mgr);
 
         VDBManagerRelease(mgr);
         ArgsWhack(args);

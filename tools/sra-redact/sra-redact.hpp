@@ -474,11 +474,41 @@ static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const
     return node;
 }
 
+static KMDataNode *openNodeUpdate(KMetadata *meta, char const *const path, va_list va) {
+    KMDataNode *node = NULL;
+
+    auto const rc = KMetadataVOpenNodeUpdate(meta, &node, path, va);
+    if (rc) {
+        LogErr(klogFatal, rc, "can't get metadata node to update");
+        exit(EX_DATAERR);
+    }
+
+    return node;
+}
+
+static KMDataNode *openNodeUpdate(VDatabase *const db, char const *const path, ...)
+{
+    va_list va;
+    KMetadata *meta = NULL;
+    rc_t rc = VDatabaseOpenMetadataUpdate(db, &meta);
+
+    if (rc) {
+        LogErr(klogFatal, rc, "can't open database metadata!!!");
+        exit(EX_SOFTWARE);
+    }
+
+    va_start(va, path);
+    KMDataNode *const node = openNodeUpdate(meta, path, va);
+    va_end(va);
+    KMetadataRelease(meta);
+
+    return node;
+}
+
 static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...)
 {
     va_list va;
     KMetadata *meta = NULL;
-    KMDataNode *node = NULL;
     rc_t rc = VTableOpenMetadataUpdate(tbl, &meta);
 
     if (rc) {
@@ -487,14 +517,10 @@ static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...
     }
     
     va_start(va, path);
-    rc = KMetadataVOpenNodeUpdate(meta, &node, path, va);
+    KMDataNode *const node = openNodeUpdate(meta, path, va);
     va_end(va);
     KMetadataRelease(meta);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't get metadata node to update");
-        exit(EX_DATAERR);
-    }
-    
+
     return node;
 }
 
@@ -549,16 +575,22 @@ static VTable *openUpdateTbl(char const *const name, VDBManager *const mgr)
     return tbl;
 }
 
-static VTable *openUpdateDb(char const *const name, char const *const table, VDBManager *const mgr)
+static VDatabase *openUpdateDb(char const *const name, VDBManager *const mgr)
 {
-    VTable *tbl = NULL;
     VDatabase *db = NULL;
     rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", name);
     if (rc) {
         LogErr(klogFatal, rc, "can't open database for update");
         exit(EX_DATAERR);
     }
-    rc = VDatabaseOpenTableUpdate(db, &tbl, "%s", table);
+    return db;
+}
+
+static VTable *openUpdateDb(char const *const name, char const *const table, VDBManager *const mgr)
+{
+    VTable *tbl = NULL;
+    VDatabase *db = openUpdateDb(name, mgr);
+    rc_t rc = VDatabaseOpenTableUpdate(db, &tbl, "%s", table);
     VDatabaseRelease(db);
     if (rc) {
         LogErr(klogFatal, rc, "can't open table for update");

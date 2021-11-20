@@ -257,8 +257,12 @@ endif()
 
 if( NOT VDB_SRCDIR )
 	if( USE_INSTALLED_NCBI_VDB )
-		set( VDB_SRCDIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/vdb_shared_sources" )
-		set( VDB_INTERFACES_DIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/interfaces" )
+		set( VDB_SRCDIR "/usr/local/ncbi/ncbi-vdb/lib64/vdb_shared_sources" )
+		set( VDB_INTERFACES_DIR "/usr/local/ncbi/ncbi-vdb/lib64/interfaces" )
+
+		# TODO: handle "${CMAKE_INSTALL_PREFIX}/.." somehow when ${CMAKE_INSTALL_PREFIX} doesn't exist
+		#set( VDB_SRCDIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/vdb_shared_sources" )
+		#set( VDB_INTERFACES_DIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/interfaces" )
 
 		if ( NOT EXISTS ${VDB_SRCDIR} )
 			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb...")

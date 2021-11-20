@@ -46,7 +46,7 @@
 
 #include "NGS_ReadCollection.h"
 #include "NGS_ReferenceSequence.h"
-#include "../klib/release-vers.h"
+#include "klib/release-vers.h"
 
 #include <assert.h>
 

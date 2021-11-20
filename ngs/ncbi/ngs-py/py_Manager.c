@@ -18,7 +18,7 @@
 #include <kdb/manager.h> /* KDBManager */
 #include <kns/manager.h>
 #include <klib/ncbi-vdb-version.h> /* GetPackageVersion */
-#include "../klib/release-vers.h"
+#include "klib/release-vers.h"
 
 #include <vfs/manager.h> /* VFSManager */
 #include <vfs/path.h> /* VPath */

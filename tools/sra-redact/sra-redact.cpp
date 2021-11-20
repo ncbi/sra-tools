@@ -104,7 +104,41 @@ static FilterFunction&& filterFunction() {
 }
 auto const &&shouldFilter = filterFunction();
 
-static bool redactRead(uint8_t *const out_read, CellData const &readStartData, CellData const &readTypeData, CellData const &readLenData, CellData const &readData)
+static bool redactUnalignedReads(uint8_t *out_read, CellData const &prIdData, CellData const &readLenData, CellData const &readData)
+{
+    auto const nreads = readLenData.count;
+    auto const readLen = reinterpret_cast<uint32_t const *>(readLenData.data);
+    auto const prID = reinterpret_cast<int64_t const *>(prIdData.data);
+    auto bases = reinterpret_cast<uint8_t const *>(readData.data);
+    bool redacted = false;
+
+    assert(prIdData.count == nreads);
+    if (nreads == 0)
+        return false;
+
+    std::copy(bases, bases + readData.count, out_read);
+    for (auto i = 0; i < nreads; ++i) {
+        auto const read = bases;
+        auto const out = out_read;
+        auto const len = readLen[i];
+
+        if (prID[i] != 0)
+            continue;
+
+        bases += len;
+        out_read += len;
+
+        if (!redacted && !shouldFilter(len, read))
+            continue;
+
+        redacted = true;
+
+        std::fill(out, out + len, 'N');
+    }
+    return redacted;
+}
+
+static bool redactReads(uint8_t *const out_read, CellData const &readStartData, CellData const &readTypeData, CellData const &readLenData, CellData const &readData)
 {
     auto const nreads = readLenData.count;
     auto const readStart = reinterpret_cast<int32_t const *>(readStartData.data);
@@ -255,7 +289,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
 
 static void processSequenceCursors(VCursor *const out, VCursor const *const in, bool aligned, int64_t const *const redacted, size_t const redactedCount)
 {
-    auto allN = std::vector<uint8_t>();
+    auto outRead = std::vector<uint8_t>();
     auto allZero = std::vector<int64_t>();
 
     /* MARK: input columns */
@@ -277,7 +311,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     auto redactedStart = redacted ? redacted : &first;
     auto const redactedEnd = redactedStart + redactedCount;
 
-    allN.reserve(1024);
+    outRead.reserve(1024);
     allZero.reserve(2);
 
     openCursor(in, "input");    
@@ -303,6 +337,8 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
             pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedReads]);
         }
 #endif
+        outRead.resize(read.count, 'N');
+        allZero.resize(prId.count, 0);
 
         if (redactedStart && redactedStart < redactedEnd && *redactedStart == row) {
             redact = true;
@@ -310,18 +346,17 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
                 ++redactedStart;
             } while (redactedStart < redactedEnd && *redactedStart == row);
         }
+        else if (aligned)
+            redact = redactUnalignedReads(outRead.data(), prId, readlen, read);
         else
-            redact = redactRead(allN.data(), readstart, readtype, readlen, read);
+            redact = redactReads(outRead.data(), readstart, readtype, readlen, read);
 
         if (redact) {
             dispositionCount[dspcRedactedReads] += nreads;
             dispositionCount[dspcRedactedSpots] += 1;
             dispositionBaseCount[dspcRedactedReads] += read.count;
 
-            allN.resize(read.count, 'N');
-            read.data = allN.data();
-
-            allZero.resize(prId.count, 0);
+            read.data = outRead.data();
             prId.data = allZero.data();
         }
         else {

@@ -104,13 +104,12 @@ static FilterFunction&& filterFunction() {
 }
 auto const &&shouldFilter = filterFunction();
 
-static bool redactUnalignedReads(uint8_t *out_read, CellData const &prIdData, CellData const &readLenData, CellData const &readData)
+static bool redactUnalignedReads(uint8_t *const out_read, CellData const &prIdData, CellData const &readLenData, CellData const &readData)
 {
     auto const nreads = readLenData.count;
     auto const readLen = reinterpret_cast<uint32_t const *>(readLenData.data);
     auto const prID = reinterpret_cast<int64_t const *>(prIdData.data);
     auto bases = reinterpret_cast<uint8_t const *>(readData.data);
-    bool redacted = false;
 
     assert(prIdData.count == nreads);
     if (nreads == 0)
@@ -119,23 +118,19 @@ static bool redactUnalignedReads(uint8_t *out_read, CellData const &prIdData, Ce
     std::copy(bases, bases + readData.count, out_read);
     for (auto i = 0; i < nreads; ++i) {
         auto const read = bases;
-        auto const out = out_read;
         auto const len = readLen[i];
 
         if (prID[i] != 0)
             continue;
 
         bases += len;
-        out_read += len;
 
-        if (!redacted && !shouldFilter(len, read))
-            continue;
-
-        redacted = true;
-
-        std::fill(out, out + len, 'N');
+        if (shouldFilter(len, read)) {
+            std::fill(out_read, out_read + readData.count, 'N');
+            return true;
+        }
     }
-    return redacted;
+    return false;
 }
 
 static bool redactReads(uint8_t *const out_read, CellData const &readStartData, CellData const &readTypeData, CellData const &readLenData, CellData const &readData)

@@ -311,7 +311,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
             } while (redactedStart < redactedEnd && *redactedStart == row);
         }
         else
-            redact = redactRead(allN.data(), readtype, readstart, readlen, read);
+            redact = redactRead(allN.data(), readstart, readtype, readlen, read);
 
         if (redact) {
             dispositionCount[dspcRedactedReads] += nreads;

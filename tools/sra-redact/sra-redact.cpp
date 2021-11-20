@@ -200,8 +200,9 @@ static void redactedSpot(int64_t const row)
     redactedSpot(row);
 }
 
-static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool const isPrimary, bool &has_offset_type)
+static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool &has_offset_type, Redacted const &redacted)
 {
+    auto const isPrimary = redacted.count == 0;
     auto allfalse = std::vector<uint8_t>();
 
     /* MARK: input columns */
@@ -250,8 +251,13 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
             pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedBases]);
         }
 #endif
-        auto const redact = shouldFilter(read.count, (uint8_t const *)read.data);
         auto spotId = *reinterpret_cast<uint64_t const *>(spot_id.data);
+        bool redact;
+
+        if (isPrimary)
+            redact = shouldFilter(read.count, (uint8_t const *)read.data);
+        else
+            redact = redacted.find(spotId);
 
         spot_id.data = &spotId;
         if (redact) {
@@ -286,7 +292,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     VCursorRelease(in);
 }
 
-static void processSequenceCursors(VCursor *const out, VCursor const *const in, bool aligned, int64_t const *const redacted, size_t const redactedCount)
+static void processSequenceCursors(VCursor *const out, VCursor const *const in, bool aligned, Redacted const &redacted)
 {
     auto outRead = std::vector<uint8_t>();
     auto allZero = std::vector<int64_t>();
@@ -307,8 +313,8 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     uint64_t count = 0;
 
     uint64_t r = 0;
-    auto redactedStart = redacted ? redacted : &first;
-    auto const redactedEnd = redactedStart + redactedCount;
+    auto redactedStart = redacted.start ? redacted.start : &first;
+    auto const redactedEnd = redactedStart + redacted.count;
 
     outRead.reserve(1024);
     allZero.reserve(2);
@@ -345,8 +351,11 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
                 ++redactedStart;
             } while (redactedStart < redactedEnd && *redactedStart == row);
         }
-        else if (aligned)
+        else if (aligned) {
             redact = redactUnalignedReads(outRead.data(), prId, readlen, read);
+            if (redact)
+                redactedSpot(row);
+        }
         else
             redact = redactReads(outRead.data(), readstart, readtype, readlen, read);
 
@@ -451,18 +460,20 @@ void main_1(int argc, char *argv[])
         auto const isAligned = in.primaryAlignment != nullptr;
         auto const out = createOutputs(args, mgr, in, schema);
         bool has_offset_type[2] = {false, false};
+        Redacted redacted;
 
         if (isAligned)
-            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, true, has_offset_type[0]);
+            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, has_offset_type[0], redacted);
 
-        processSequenceTables(out.sequence, in.sequence, isAligned);
+        redacted = processSequenceTables(out.sequence, in.sequence, isAligned);
 
         if (isAligned && in.secondaryAlignment != nullptr)
-            processAlignmentTables(out.secondaryAlignment, in.secondaryAlignment, false, has_offset_type[1]);
+            processAlignmentTables(out.secondaryAlignment, in.secondaryAlignment, has_offset_type[1], redacted);
 
         /// MARK: COPY COLUMNS TO OUTPUT
         if (isAligned) {
             copyColumn(CMP_READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn("CMP_ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(ALIGN_ID, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
 
             copyColumn(HAS_MISS   , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
@@ -485,9 +496,11 @@ void main_1(int argc, char *argv[])
         }
         else if (in.noDb) {
             copyColumn(READ, nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn("ALTREAD", nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
         }
         else {
             copyColumn(READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn("ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
         }
         saveCounts(!in.noDb, input, mgr);
 
@@ -505,7 +518,7 @@ void main_1(int argc, char *argv[])
     exit(EX_TEMPFAIL);
 }
 
-static void processAlignmentTables(VTable *const output, VTable const *const input, bool const isPrimary, bool &has_offset_type)
+static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted)
 {
     VCursor *out = NULL;
     VCursor const *in = NULL;
@@ -524,14 +537,13 @@ static void processAlignmentTables(VTable *const output, VTable const *const inp
         }
     }
     VTableRelease(input);
-    processAlignmentCursors(out, in, isPrimary, has_offset_type);
     VTableRelease(output);
+    processAlignmentCursors(out, in, has_offset_type, redacted);
 }
 
-static void processSequenceTables(VTable *const output, VTable const *const input, bool const aligned)
+static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned)
 {
-    int64_t *redacted = nullptr;
-    size_t redactedCount = 0;
+    Redacted redacted;
     VCursor *out = NULL;
     VCursor const *in = NULL;
     {
@@ -551,24 +563,12 @@ static void processSequenceTables(VTable *const output, VTable const *const inpu
     VTableRelease(input);
     VTableRelease(output);
 
-    if (redactedSpots >= 0) {
-        fsync(redactedSpots);
+    if (redactedSpots >= 0)
+        redacted = Redacted(redactedSpots);
 
-        off_t const fsize = lseek(redactedSpots, 0, SEEK_END);
-        assert(fsize % sizeof(int64_t) == 0);
+    processSequenceCursors(out, in, aligned, redacted);
 
-        void *const map = mmap(nullptr, fsize, PROT_READ|PROT_WRITE, MAP_FILE|MAP_PRIVATE, redactedSpots, 0);
-
-        close(redactedSpots);
-        if (map == MAP_FAILED) {
-            LogMsg(klogFatal, "failed to map redacted spots file");
-            exit(EX_IOERR);
-        }
-        redactedCount = fsize / sizeof(int64_t);
-        redacted = reinterpret_cast<int64_t *>(map);
-        std::sort(redacted, redacted + redactedCount);
-    }
-    processSequenceCursors(out, in, aligned, redacted, redactedCount);
+    return redactedSpots >= 0 ? Redacted(redactedSpots) : Redacted();
 }
 
 static Outputs createOutputs(  Args *const args

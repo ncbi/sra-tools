@@ -99,9 +99,45 @@ struct Outputs {
     VTable *primaryAlignment;
     VTable *secondaryAlignment;
 };
+
+struct Redacted {
+    int64_t *start;
+    size_t count;
+
+    int64_t const *begin() const { return start; }
+    int64_t const *end() const { return start + count; }
+
+    Redacted() : start(nullptr), count(0) {}
+    explicit Redacted(int fd) {
+        fsync(fd);
+
+        auto const fsize = lseek(fd, 0, SEEK_END);
+        assert(fsize % sizeof(*start) == 0);
+
+        auto *const map = mmap(nullptr, fsize, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+        if (map == MAP_FAILED) {
+            LogMsg(klogFatal, "failed to map redacted spots file");
+            exit(EX_IOERR);
+        }
+
+        start = reinterpret_cast<int64_t *>(map);
+        count = fsize / sizeof(*start);
+
+        std::sort(start, start + count);
+    }
+    ~Redacted() {
+        if (start && count) {
+            munmap(start, count * sizeof(*start));
+        }
+    }
+    bool find(int64_t value) const {
+        return std::lower_bound(begin(), end(), value) != end();
+    }
+};
+
 static Inputs openInputs(char const *input, VDBManager const *mgr, VSchema *schema);
-static void processSequenceTables(VTable *const output, VTable const *const input, bool const aligned);
-static void processAlignmentTables(VTable *const output, VTable const *const input, bool const isPrimary, bool &has_offset_type);
+static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned);
+static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted);
 static Outputs createOutputs(Args *const args, VDBManager *const mgr, Inputs const &inputs, VSchema const *schema);
 static VSchema *makeSchema(VDBManager *mgr);
 

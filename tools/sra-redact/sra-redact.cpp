@@ -97,8 +97,10 @@ using FilterFunction = decltype(doFilter);
 static FilterFunction&& filterFunction() {
 #if _DEBUGGING || DEBUG
     auto const SKIP = getenv("SRA_REDACT_NONE");
-    if (SKIP && *SKIP == '1')
+    if (SKIP && *SKIP == '1') {
+        LogMsg(klogWarn, "NOT ACTUALLY REDACTING");
         return noFilter;
+    }
 #endif
     return doFilter;
 }

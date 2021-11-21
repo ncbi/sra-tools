@@ -245,9 +245,9 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
 
         auto has_miss    = cellData(HAS_MISS   , cid_has_miss   , row, in);
         auto has_offset  = cellData(HAS_OFFSET , cid_has_offset , row, in);
-        auto ref_offset  = cellData();
-        auto mismatch    = cellData();
-        auto offset_type = cellData();
+        auto ref_offset  = CellData();
+        auto mismatch    = CellData();
+        auto offset_type = CellData();
 
         if ((row & 0xFFFF) == 0) {
             pLogMsg(klogDebug, "progress: $(pct)%", "pct=%f", (100.0 * row) / count);

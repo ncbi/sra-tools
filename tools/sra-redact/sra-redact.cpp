@@ -57,7 +57,7 @@ enum OPTIONS {
 #define MISMATCH "MISMATCH"
 #define REF_OFFSET "REF_OFFSET"
 #define OFFSET_TYPE "REF_OFFSET_TYPE"
-#define BASE_REPRESENTATION_TYPE "INSDC:dna:text"
+#define BASE_TYPE "INSDC:dna:text"
 
 #define PROGRESS_MESSAGES 1
 
@@ -210,20 +210,21 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     auto const cid_read        = addColumn(ALIGN_READ, "U8" , in);
     auto const cid_has_miss    = addColumn(HAS_MISS  , "U8" , in);
     auto const cid_has_offset  = addColumn(HAS_OFFSET, "U8" , in);
-    auto const cid_mismatch    = addColumn(MISMATCH  , BASE_REPRESENTATION_TYPE, in);
+    auto const cid_mismatch    = addColumn(MISMATCH  , BASE_TYPE, in);
     auto const cid_ref_offset  = addColumn(REF_OFFSET, "I32", in);
     auto const cid_offset_type = addColumnOptional(OFFSET_TYPE, "U8", in, has_offset_type);
 
     /* MARK: output columns */
     auto const cid_out_has_miss    = addColumn(HAS_MISS  , "U8" , out);
     auto const cid_out_has_offset  = addColumn(HAS_OFFSET, "U8" , out);
-    auto const cid_out_mismatch    = addColumn(MISMATCH  , BASE_REPRESENTATION_TYPE, out);
+    auto const cid_out_mismatch    = addColumn(MISMATCH  , BASE_TYPE, out);
     auto const cid_out_ref_offset  = addColumn(REF_OFFSET, "I32", out);
     auto const cid_out_spot_id     = addColumn(SPOT_ID   , "I64", out);
     auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, "U8", out) : 0;
 
     int64_t first = 0;
     uint64_t count = 0;
+    uint64_t redactions = 0;
 
     allfalse.reserve(1024);
 
@@ -238,26 +239,24 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     for (uint64_t r = 0; r < count; ++r) {
         int64_t const row = 1 + r;
         auto const read = cellData(ALIGN_READ, cid_read, row, in);
+        auto spot_id = cellData(SPOT_ID, cid_spot_id, row, in);
+        auto spotId = *reinterpret_cast<uint64_t const *>(spot_id.data);
+        auto redact = false;
 
-        auto spot_id     = cellData(SPOT_ID    , cid_spot_id    , row, in);
         auto has_miss    = cellData(HAS_MISS   , cid_has_miss   , row, in);
         auto has_offset  = cellData(HAS_OFFSET , cid_has_offset , row, in);
-        auto ref_offset  = cellData(REF_OFFSET , cid_ref_offset , row, in);
-        auto mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
-        auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
+        auto ref_offset  = cellData();
+        auto mismatch    = cellData();
+        auto offset_type = cellData();
 
-#if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedBases]);
+            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%f", (100.0 * row) / count);
         }
-#endif
-        auto spotId = *reinterpret_cast<uint64_t const *>(spot_id.data);
-        bool redact;
 
         if (isPrimary)
             redact = shouldFilter(read.count, (uint8_t const *)read.data);
         else
-            redact = redacted.find(spotId);
+            redact = redacted.contains(spotId);
 
         spot_id.data = &spotId;
         if (redact) {
@@ -266,18 +265,20 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
                 redactedSpot(spotId);
             }
             allfalse.resize(has_miss.count, 0);
-            mismatch.count = 0;
-            ref_offset.count = 0;
-            offset_type.count = 0;
             has_miss.data = allfalse.data();
             has_offset.data = allfalse.data();
             spotId = 0;
+            ++redactions;
         }
-        else if (isPrimary) {
-            dispositionBaseCount[dspcKeptBases] += read.count;
+        else {
+            ref_offset  = cellData(REF_OFFSET , cid_ref_offset , row, in);
+            mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
+            offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
+            if (isPrimary)
+                dispositionBaseCount[dspcKeptBases] += read.count;
         }
         openRow(row, out);
-        writeRow(row, spot_id    , cid_out_spot_id, out);
+        writeRow(row, spot_id    , cid_out_spot_id    , out);
         writeRow(row, has_miss   , cid_out_has_miss   , out);
         writeRow(row, has_offset , cid_out_has_offset , out);
         writeRow(row, mismatch   , cid_out_mismatch   , out);
@@ -286,7 +287,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         commitRow(row, out);
         closeRow(row, out);
     }
-    LogMsg(klogInfo, "progress: done");
+    pLogMsg(klogInfo, "progress: done, alignments redacted: $(count)", "count=%lu", (unsigned long)redactions);
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
@@ -303,10 +304,10 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     auto const cid_readstart   = addColumn("READ_START" , "I32", in);
     auto const cid_read_type   = addColumn("READ_TYPE"  , "U8" , in);
     auto const cid_readlen     = addColumn("READ_LEN"   , "U32", in);
-    auto const cid_read        = addColumn(readColName  , BASE_REPRESENTATION_TYPE, in);
+    auto const cid_read        = addColumn(readColName  , BASE_TYPE, in);
 
     /* MARK: output columns */
-    auto const cid_out_read = addColumn(readColName, BASE_REPRESENTATION_TYPE, out);
+    auto const cid_out_read = addColumn(readColName, BASE_TYPE, out);
     auto const cid_out_pr_id = aligned ? addColumn(ALIGN_ID, "I64", out) : 0;
 
     int64_t first = 0;
@@ -337,11 +338,9 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         auto prId = cellData(ALIGN_ID, cid_pr_id, row, in);
         bool redact = false;
 
-#if PROGRESS_MESSAGES
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(row) rows, bases redacted: $(count)", "row=%lu,count=%lu", (unsigned long)row, (unsigned long)dispositionBaseCount[dspcRedactedBases]);
+            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%f", (100.0 * row) / count);
         }
-#endif
         outRead.resize(read.count, 'N');
         allZero.resize(prId.count, 0);
 
@@ -379,7 +378,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         commitRow(row, out);
         closeRow(row, out);
     }
-    pLogMsg(klogInfo, "progress: redacted $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu"
+    pLogMsg(klogInfo, "progress: done; redacted: $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu"
             , (unsigned long)dispositionCount[dspcRedactedSpots]
             , (unsigned long)dispositionCount[dspcRedactedReads]
             , (unsigned long)dispositionBaseCount[dspcRedactedBases]);
@@ -390,6 +389,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
 static void copyColumn(char const *const column, char const *const table, char const *const source, char const *const dest, VDBManager *const mgr)
 {
+    pLogMsg(klogDebug, "going to copy $(table).$(column) from $(source) to $(dest)", "table=%s,column=%s,source=%s,dest=%s", table ? table : "<implied>", column, source, dest);
     VTable *tbl = table ? openUpdateDb(dest, table, mgr) : openUpdateTbl(dest, mgr);
 
     dropColumn(tbl, column);
@@ -404,6 +404,8 @@ static void copyColumn(char const *const column, char const *const table, char c
             KDirectoryRelease(dst); KDirectoryRelease(src);
         }
         if (rc) {
+            pLogMsg(klogInfo, "couldn't copy physical column $(column); trying metadata copy", "column=%s", column);
+
             /* could not copy the physical column; try the metadata node */
             VTable const *const tmp = table ? openReadDb(source, table, mgr) : openReadTbl(source, mgr);
 

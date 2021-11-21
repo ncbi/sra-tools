@@ -62,7 +62,7 @@ struct CellData {
     uint32_t elem_bits;
 
     CellData()
-    : data(nullptr)
+    : data(this)
     , count(0)
     , elem_bits(0)
     {}
@@ -130,7 +130,7 @@ struct Redacted {
             munmap(start, count * sizeof(*start));
         }
     }
-    bool find(int64_t value) const {
+    bool contains(int64_t value) const {
         return std::lower_bound(begin(), end(), value) != end();
     }
 };
@@ -660,9 +660,14 @@ static VTable const *openReadTbl(char const *const name, VDBManager const *const
 
 static void dropColumn(VTable *const tbl, char const *const name)
 {
-    rc_t const rc = VTableDropColumn(tbl, "%s", name);
-    if (rc && !(GetRCObject(rc) == (int)rcPath && GetRCState(rc) == (int)rcNotFound)) {
-        LogErr(klogInfo, rc, "can't drop RD_FILTER column");
+    auto const rc = VTableDropColumn(tbl, "%s", name);
+    auto const notFound = GetRCObject(rc) == (int)rcPath && GetRCState(rc) == (int)rcNotFound;
+    if (notFound) {
+        pLogMsg(klogDebug, "column $(column) doesn't exist", "column=%s", name);
+        return;
+    }
+    if (rc && !notFound) {
+        pLogErr(klogInfo, rc, "can't drop $(column) column", "column=%s", name);
         exit(EX_SOFTWARE);
     }
 }

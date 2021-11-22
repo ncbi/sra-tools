@@ -200,7 +200,7 @@ static void redactedSpot(int64_t const row)
     redactedSpot(row);
 }
 
-static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool &has_offset_type, Redacted const &redacted, char const *&readFilterColName)
+static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool &has_offset_type, Redacted const &redacted)
 {
     auto const isPrimary = redacted.count == 0;
     auto allfalse = std::vector<uint8_t>(256, 0);
@@ -213,7 +213,6 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     auto const cid_mismatch    = addColumn(MISMATCH  , BASE_TYPE, in);
     auto const cid_ref_offset  = addColumn(REF_OFFSET, "I32", in);
     auto const cid_offset_type = addColumn(OFFSET_TYPE, "U8", in, has_offset_type);
-    auto const cid_read_filter = addColumn("RD_FILTER", "READ_FILTER", "U8", in, readFilterColName);
 
     /* MARK: output columns */
     auto const cid_out_has_miss    = addColumn(HAS_MISS  , "U8" , out);
@@ -221,7 +220,6 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     auto const cid_out_mismatch    = addColumn(MISMATCH  , BASE_TYPE, out);
     auto const cid_out_ref_offset  = addColumn(REF_OFFSET, "I32", out);
     auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, "U8", out) : 0;
-    auto const cid_out_read_filter  = addColumn(readFilterColName, "U8", out);
 
     int64_t first = 0;
     uint64_t count = 0;
@@ -247,14 +245,10 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         auto ref_offset  = cellData(REF_OFFSET , cid_ref_offset , row, in);
         auto mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
         auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
-        auto read_filter = cellData(readFilterColName, cid_read_filter, row, in);
-        auto readFilter = read_filter.value<uint8_t>();
 
         if ((row & 0xFFFF) == 0) {
             pLogMsg(klogDebug, "progress: $(pct)%", "pct=%.2f", (100.0 * r) / count);
         }
-
-        read_filter.data = &readFilter;
 
         if (isPrimary)
             redact = shouldFilter(read.count, (uint8_t const *)read.data);
@@ -270,7 +264,6 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
                 allfalse.resize(has_miss.count, 0);
             has_miss.data = allfalse.data();
             has_offset.data = allfalse.data();
-            readFilter = SRA_READ_FILTER_REDACTED;
             ++redactions;
         }
         else if (isPrimary) {
@@ -282,7 +275,6 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         writeRow(row, mismatch   , cid_out_mismatch   , out);
         writeRow(row, ref_offset , cid_out_ref_offset , out);
         writeRow(row, offset_type, cid_out_offset_type, out);
-        writeRow(row, read_filter, cid_out_read_filter, out);
         commitRow(row, out);
         closeRow(row, out);
     }
@@ -464,23 +456,22 @@ void main_1(int argc, char *argv[])
         auto const out = createOutputs(args, mgr, in, schema);
         bool has_offset_type[2] = {false, false};
         Redacted redacted;
-        char const *readFilterColName[3] = {};
+        char const *readFilterColName = nullptr;
 
         if (isAligned)
-            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, has_offset_type[0], redacted, readFilterColName[1]);
+            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, has_offset_type[0], redacted);
 
-        redacted = processSequenceTables(out.sequence, in.sequence, isAligned, readFilterColName[0]);
+        redacted = processSequenceTables(out.sequence, in.sequence, isAligned, readFilterColName);
 
         if (isAligned && in.secondaryAlignment != nullptr)
-            processAlignmentTables(out.secondaryAlignment, in.secondaryAlignment, has_offset_type[1], redacted, readFilterColName[2]);
+            processAlignmentTables(out.secondaryAlignment, in.secondaryAlignment, has_offset_type[1], redacted);
 
         /// MARK: COPY COLUMNS TO OUTPUT
         if (isAligned) {
             copyColumn(CMP_READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("CMP_ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
-            copyColumn(readFilterColName[0], SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn(readFilterColName, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
 
-            copyColumn(readFilterColName[1], PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(HAS_MISS   , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(HAS_OFFSET , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(MISMATCH   , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
@@ -490,7 +481,6 @@ void main_1(int argc, char *argv[])
                 copyColumn(OFFSET_TYPE, PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
 
             if (in.secondaryAlignment != nullptr) {
-                copyColumn(readFilterColName[2], SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
                 copyColumn(HAS_MISS   , SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
                 copyColumn(HAS_OFFSET , SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
                 copyColumn(MISMATCH   , SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
@@ -503,12 +493,12 @@ void main_1(int argc, char *argv[])
         else if (in.noDb) {
             copyColumn(READ, nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("ALTREAD", nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
-            copyColumn(readFilterColName[0], nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn(readFilterColName, nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
         }
         else {
             copyColumn(READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
-            copyColumn(readFilterColName[0], SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn(readFilterColName, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
         }
         saveCounts(!in.noDb, input, mgr);
 
@@ -526,7 +516,7 @@ void main_1(int argc, char *argv[])
     exit(EX_TEMPFAIL);
 }
 
-static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted, char const *&readFilterColName)
+static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted)
 {
     VCursor *out = NULL;
     VCursor const *in = NULL;
@@ -546,7 +536,7 @@ static void processAlignmentTables(VTable *const output, VTable const *const inp
     }
     VTableRelease(input);
     VTableRelease(output);
-    processAlignmentCursors(out, in, has_offset_type, redacted, readFilterColName);
+    processAlignmentCursors(out, in, has_offset_type, redacted);
 }
 
 static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned, char const *&readFilterColName)

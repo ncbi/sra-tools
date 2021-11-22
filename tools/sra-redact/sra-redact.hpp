@@ -150,7 +150,7 @@ struct Redacted {
 
 static Inputs openInputs(char const *input, VDBManager const *mgr, VSchema *schema);
 static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned, char const *&readFilterColName);
-static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted, char const *&readFilterColName);
+static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted);
 static Outputs createOutputs(Args *const args, VDBManager *const mgr, Inputs const &inputs, VSchema const *schema);
 static VSchema *makeSchema(VDBManager *mgr);
 
@@ -216,8 +216,14 @@ static uint32_t addColumn(  char const *const name
                           , char const *&used)
 {
     auto have = false;
-    auto const cid = addColumn(used = name, type, curs, have);
-    return have ? cid : addColumn(used = altname, type, curs);
+    auto cid = addColumn(used = name, type, curs, have);
+    if (have)
+        return cid;
+    cid = addColumn(used = altname, type, curs, have);
+    if (have)
+        return cid;
+    used = nullptr;
+    return 0;
 }
 
 static void openCursor(VCursor const *const curs, char const *const name)

@@ -675,18 +675,28 @@ static VTable const *openReadTbl(char const *const name, VDBManager const *const
     return openTable(name, mgr);
 }
 
-static void dropColumn(VTable *const tbl, char const *const name)
+static bool dropColumn(VTable *const tbl, char const *const name)
 {
     auto const rc = VTableDropColumn(tbl, "%s", name);
     auto const notFound = GetRCObject(rc) == (int)rcPath && GetRCState(rc) == (int)rcNotFound;
     if (notFound) {
         pLogMsg(klogDebug, "column $(column) doesn't exist", "column=%s", name);
-        return;
+        return false;
     }
-    if (rc && !notFound) {
+    if (rc) {
         pLogErr(klogInfo, rc, "can't drop $(column) column", "column=%s", name);
         exit(EX_SOFTWARE);
     }
+    return true;
+}
+
+static void dropColumn(VTable *const tbl, char const *const name, char const *const altname, char const *&used)
+{
+    if (dropColumn(tbl, used = name))
+        return;
+    if (dropColumn(tbl, used = altname))
+        return;
+    used = nullptr;
 }
 
 static void removeTempDir(char const *const temp)

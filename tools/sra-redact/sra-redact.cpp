@@ -380,12 +380,16 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     VCursorRelease(in);
 }
 
-static void copyColumn(char const *const column, char const *const table, char const *const source, char const *const dest, VDBManager *const mgr)
+static void copyColumn(char const *const column, char const *const table, char const *const source, char const *const dest, VDBManager *const mgr, char const *const altname = nullptr)
 {
     pLogMsg(klogDebug, "going to copy $(table).$(column) from $(source) to $(dest)", "table=%s,column=%s,source=%s,dest=%s", table ? table : "<implied>", column, source, dest);
     VTable *tbl = table ? openUpdateDb(dest, table, mgr) : openUpdateTbl(dest, mgr);
+    const char *actColName = column;
 
-    dropColumn(tbl, column);
+    if (altname)
+        dropColumn(tbl, column, altname, actColName);
+    else
+        dropColumn(tbl, column);
     {
         rc_t rc = 0;
         {
@@ -393,19 +397,19 @@ static void copyColumn(char const *const column, char const *const table, char c
             KDirectory const *const src = table ? openDirRead(fmt, source, table) : openDirRead(fmt + 7, source);
             KDirectory *const dst = table ? openDirUpdate(fmt, dest, table) : openDirUpdate(fmt + 7, dest);
 
-            rc = KDirectoryCopy(src, dst, true, column, column);
+            rc = KDirectoryCopy(src, dst, true, actColName, actColName);
             KDirectoryRelease(dst); KDirectoryRelease(src);
         }
         if (rc) {
-            pLogMsg(klogInfo, "couldn't copy physical column $(column); trying metadata copy", "column=%s", column);
+            pLogMsg(klogInfo, "couldn't copy physical column $(column); trying metadata copy", "column=%s", actColName);
 
             /* could not copy the physical column; try the metadata node */
             VTable const *const tmp = table ? openReadDb(source, table, mgr) : openReadTbl(source, mgr);
 
-            if (VTableHasStaticColumn(tmp, column))
-                copyNodeValue(openNodeUpdate(tbl, "col/%s", column), openNodeRead(tmp, "col/%s", column));
+            if (VTableHasStaticColumn(tmp, actColName))
+                copyNodeValue(openNodeUpdate(tbl, "col/%s", actColName), openNodeRead(tmp, "col/%s", actColName));
             else {
-                pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", column);
+                pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", actColName);
                 exit(EX_DATAERR);
             }
             VTableRelease(tmp);
@@ -470,7 +474,7 @@ void main_1(int argc, char *argv[])
         if (isAligned) {
             copyColumn(CMP_READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("CMP_ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
-            copyColumn(readFilterColName, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn("RD_FILTER", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr, readFilterColName);
 
             copyColumn(HAS_MISS   , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(HAS_OFFSET , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
@@ -493,12 +497,12 @@ void main_1(int argc, char *argv[])
         else if (in.noDb) {
             copyColumn(READ, nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("ALTREAD", nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
-            copyColumn(readFilterColName, nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn("RD_FILTER", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr, "READ_FILTER");
         }
         else {
             copyColumn(READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
-            copyColumn(readFilterColName, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn("RD_FILTER", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr, "READ_FILTER");
         }
         saveCounts(!in.noDb, input, mgr);
 

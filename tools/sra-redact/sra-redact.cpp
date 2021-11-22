@@ -493,14 +493,13 @@ void main_1(int argc, char *argv[])
         auto const isAligned = in.primaryAlignment != nullptr;
         auto const out = createOutputs(args, mgr, in, schema);
         bool has_offset_type[2] = {false, false};
-        Redacted redacted;
         char const *readFilterColName = nullptr;
         auto const seqTableName = in.noDb ? nullptr : SEQUENCE_TABLE;
 
         if (isAligned)
-            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, has_offset_type[0], redacted);
+            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, has_offset_type[0], Redacted());
 
-        redacted = processSequenceTables(out.sequence, in.sequence, isAligned, readFilterColName);
+        auto const &redacted = processSequenceTables(out.sequence, in.sequence, isAligned, readFilterColName);
 
         if (isAligned && in.secondaryAlignment != nullptr)
             processAlignmentTables(out.secondaryAlignment, in.secondaryAlignment, has_offset_type[1], redacted);
@@ -570,9 +569,22 @@ static void processAlignmentTables(VTable *const output, VTable const *const inp
     processAlignmentCursors(out, in, has_offset_type, redacted);
 }
 
+static Redacted processSequenceCursorsRedacted(VCursor *const out, VCursor const *const in, bool aligned, char const *&readFilterColName)
+{
+    Redacted redacted(redactedSpots);
+    processSequenceCursors(out, in, aligned, redacted, readFilterColName);
+    return redacted;
+}
+
+static Redacted processSequenceCursorsNotRedacted(VCursor *const out, VCursor const *const in, bool aligned, char const *&readFilterColName)
+{
+    auto redacted = Redacted();
+    processSequenceCursors(out, in, aligned, redacted, readFilterColName);
+    return redacted;
+}
+
 static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned, char const *&readFilterColName)
 {
-    Redacted redacted;
     VCursor *out = NULL;
     VCursor const *in = NULL;
     {
@@ -592,12 +604,12 @@ static Redacted processSequenceTables(VTable *const output, VTable const *const 
     VTableRelease(input);
     VTableRelease(output);
 
-    if (redactedSpots >= 0)
-        redacted = Redacted(redactedSpots);
-
-    processSequenceCursors(out, in, aligned, redacted, readFilterColName);
-
-    return redactedSpots >= 0 ? Redacted(redactedSpots) : Redacted();
+    if (redactedSpots >= 0) {
+        return processSequenceCursorsRedacted(out, in, aligned, readFilterColName);
+    }
+    else {
+        return processSequenceCursorsNotRedacted(out, in, aligned, readFilterColName);
+    }
 }
 
 static Outputs createOutputs(  Args *const args

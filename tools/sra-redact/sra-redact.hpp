@@ -120,6 +120,14 @@ struct Redacted {
     int64_t const *begin() const { return start; }
     int64_t const *end() const { return start + count; }
 
+    Redacted(Redacted &&other)
+    : start(other.start)
+    , count(other.count)
+    {
+        other.start = nullptr;
+        other.count = 0;
+    }
+    Redacted(Redacted const &other) = delete;
     Redacted() : start(nullptr), count(0) {}
     explicit Redacted(int fd) {
         fsync(fd);

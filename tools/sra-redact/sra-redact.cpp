@@ -73,7 +73,7 @@ static bool doFilter(uint32_t const len, uint8_t const *const seq)
     buffer.push_back('\n');
 
     auto const sent = write(filterPipeOut, buffer.data(), buffer.size());
-    if (sent != buffer.size()) {
+    if (sent < 0 || decltype(buffer.size())(sent) != buffer.size()) {
         LogErr(klogErr, RC(rcExe, rcProcess, rcWriting, rcData, rcNotFound), "Failed to send to filter process!");
         exit(EX_TEMPFAIL);
     }
@@ -201,6 +201,19 @@ static void redactedSpot(int64_t const row)
     redactedSpot(row);
 }
 
+static double estimatedSecondsToCompletion(decltype(std::chrono::high_resolution_clock::now()) const &start, uint64_t const current, uint64_t const total)
+{
+    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
+    if (elapsed > 0.0) {
+        auto const rate = current / elapsed;
+        if (rate > 0.0) {
+            auto const remains = total - current;
+            return (remains / rate) / 1000.0;
+        }
+    }
+    return 0;
+}
+
 static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool &has_offset_type, Redacted const &redacted)
 {
     auto const startTimer = std::chrono::high_resolution_clock::now();
@@ -251,9 +264,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
 
         if (pct > complete) {
-            auto const elapsed = (std::chrono::high_resolution_clock::now() - startTimer).count();
-            auto const rate = elapsed > 0.0 ? r / elapsed : 0.0;
-            auto const etc = rate > 0.0 ? (count - r) / rate : 0.0;
+            auto const etc = estimatedSecondsToCompletion(startTimer, r, count);
 
             pLogMsg(klogDebug, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
             if (complete % 10 == 0)
@@ -268,7 +279,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         if (redact) {
             if (isPrimary) {
                 if (dispositionBaseCount[dspcRedactedBases] == 0) {
-                    pLogMsg(klogInfo, "first redacted primary alignment: $(row)", "row=%llu", (unsigned long long)row);
+                    pLogMsg(klogInfo, "first redacted primary alignment: $(row)", "row=%lu", (unsigned long)row);
                 }
                 dispositionBaseCount[dspcRedactedBases] += read.count;
                 redactedSpot(spotId);
@@ -344,9 +355,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         bool redact = false;
 
         if (pct > complete) {
-            auto const elapsed = (std::chrono::high_resolution_clock::now() - startTimer).count();
-            auto const rate = elapsed > 0.0 ? r / elapsed : 0.0;
-            auto const etc = rate > 0.0 ? (count - r) / rate : 0.0;
+            auto const etc = estimatedSecondsToCompletion(startTimer, r, count);
 
             pLogMsg(klogDebug, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
             if (complete % 10 == 0)
@@ -374,7 +383,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
         if (redact) {
             if (dispositionCount[dspcRedactedReads] == 0) {
-                pLogMsg(klogInfo, "first redacted spot: $(row)", "row=%llu", (unsigned long long)row);
+                pLogMsg(klogInfo, "first redacted spot: $(row)", "row=%lu", (unsigned long)row);
             }
             dispositionCount[dspcRedactedReads] += nreads;
             dispositionCount[dspcRedactedSpots] += 1;

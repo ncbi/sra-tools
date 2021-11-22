@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <chrono>
 #include "sra-redact.hpp" /* contains mostly boilerplate code */
 
 /* NOTE: Needs to be in same order as Options array */
@@ -202,6 +203,7 @@ static void redactedSpot(int64_t const row)
 
 static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool &has_offset_type, Redacted const &redacted)
 {
+    auto const startTimer = std::chrono::high_resolution_clock::now();
     auto const isPrimary = redacted.count == 0;
     auto allfalse = std::vector<uint8_t>(256, 0);
 
@@ -224,6 +226,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     int64_t first = 0;
     uint64_t count = 0;
     uint64_t redactions = 0;
+    unsigned complete = 0;
 
     openCursor(in, "input");
     openCursor(out, "output");
@@ -234,6 +237,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
 
     /* MARK: Main loop over the alignments */
     for (uint64_t r = 0; r < count; ++r) {
+        auto const pct = unsigned((100.0 * r) / count);
         int64_t const row = 1 + r;
         auto const read = cellData(ALIGN_READ, cid_read, row, in);
         auto const spot_id = cellData(SPOT_ID, cid_spot_id, row, in);
@@ -246,8 +250,14 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         auto mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
         auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
 
-        if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%.2f", (100.0 * r) / count);
+        if (pct > complete) {
+            auto const elapsed = (std::chrono::high_resolution_clock::now() - startTimer).count();
+            auto const rate = elapsed > 0.0 ? r / elapsed : 0.0;
+            auto const etc = rate > 0.0 ? (count - r) / rate : 0.0;
+
+            pLogMsg(klogDebug, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+            if (complete % 10 == 0)
+                pLogMsg(klogInfo, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
         }
 
         if (isPrimary)
@@ -281,7 +291,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         commitRow(row, out);
         closeRow(row, out);
     }
-    pLogMsg(klogInfo, "progress: done, alignments redacted: $(count)", "count=%lu", (unsigned long)redactions);
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%lu,elapsed=%.0f", (unsigned long)redactions, (std::chrono::high_resolution_clock::now() - startTimer).count());
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
@@ -289,6 +299,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
 
 static void processSequenceCursors(VCursor *const out, VCursor const *const in, bool aligned, Redacted const &redacted, char const *&readFilterColName)
 {
+    auto const startTimer = std::chrono::high_resolution_clock::now();
     auto outRead = std::vector<uint8_t>(256, 'N');
     auto outReadFilter = std::vector<uint8_t>(2, SRA_READ_FILTER_REDACTED);
 
@@ -307,8 +318,8 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
     int64_t first = 0;
     uint64_t count = 0;
+    unsigned complete = 0;
 
-    uint64_t r = 0;
     auto redactedStart = redacted.start ? redacted.start : &first;
     auto const redactedEnd = redactedStart + redacted.count;
 
@@ -320,7 +331,8 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     pLogMsg(klogInfo, "progress: about to process $(rows) spots", "rows=%lu", count);
 
     /* MARK: Main loop over the input */
-    for (r = 0; r < count; ++r) {
+    for (uint64_t r = 0; r < count; ++r) {
+        auto const pct = unsigned((100.0 * r) / count);
         int64_t const row = 1 + r;
         auto const readstart  = cellData("READ_START" , cid_readstart  , row, in);
         auto const readtype   = cellData("READ_TYPE"  , cid_read_type  , row, in);
@@ -331,8 +343,14 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         auto readFilter = cellData(readFilterColName, cid_read_filter, row, in);
         bool redact = false;
 
-        if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%.2f", (100.0 * r) / count);
+        if (pct > complete) {
+            auto const elapsed = (std::chrono::high_resolution_clock::now() - startTimer).count();
+            auto const rate = elapsed > 0.0 ? r / elapsed : 0.0;
+            auto const etc = rate > 0.0 ? (count - r) / rate : 0.0;
+
+            pLogMsg(klogDebug, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+            if (complete % 10 == 0)
+                pLogMsg(klogInfo, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
         }
 
         if (outRead.size() < read.count)
@@ -377,10 +395,11 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         commitRow(row, out);
         closeRow(row, out);
     }
-    pLogMsg(klogInfo, "progress: done; redacted: $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu"
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds,; redacted: $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu,elapsed=%.0f"
             , (unsigned long)dispositionCount[dspcRedactedSpots]
             , (unsigned long)dispositionCount[dspcRedactedReads]
-            , (unsigned long)dispositionBaseCount[dspcRedactedBases]);
+            , (unsigned long)dispositionBaseCount[dspcRedactedBases]
+            , (std::chrono::high_resolution_clock::now() - startTimer).count());
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);

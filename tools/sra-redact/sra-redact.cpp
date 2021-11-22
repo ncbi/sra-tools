@@ -118,7 +118,7 @@ static bool redactUnalignedReads(uint8_t *const out_read, CellData const &prIdDa
         return false;
 
     std::copy(bases, bases + readData.count, out_read);
-    for (auto i = 0; i < nreads; ++i) {
+    for (auto i = decltype(nreads)(0); i < nreads; ++i) {
         auto const read = bases;
         auto const len = readLen[i];
 
@@ -152,7 +152,7 @@ static bool redactReads(uint8_t *const out_read, CellData const &readStartData, 
     assert(readStart[nreads - 1] + readLen[nreads - 1] <= readData.count);
 
     std::copy(bases, bases + readData.count, out_read);
-    for (auto i = 0; i < nreads; ++i) {
+    for (auto i = decltype(nreads)(0); i < nreads; ++i) {
         if ((readType[i] & SRA_READ_TYPE_BIOLOGICAL) != SRA_READ_TYPE_BIOLOGICAL)
             continue;
         if (!redacted && !shouldFilter(readLen[i], bases + readStart[i]))
@@ -257,6 +257,9 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
 
         if (redact) {
             if (isPrimary) {
+                if (dispositionBaseCount[dspcRedactedBases] == 0) {
+                    pLogMsg(klogInfo, "first redacted primary alignment: $(row)", "row=%ull", (unsigned long long)row);
+                }
                 dispositionBaseCount[dspcRedactedBases] += read.count;
                 redactedSpot(spotId);
             }
@@ -352,6 +355,9 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
             redact = redactReads(outRead.data(), readstart, readtype, readlen, read);
 
         if (redact) {
+            if (dispositionCount[dspcRedactedReads] == 0) {
+                pLogMsg(klogInfo, "first redacted spot: $(row)", "row=%ull", (unsigned long long)row);
+            }
             dispositionCount[dspcRedactedReads] += nreads;
             dispositionCount[dspcRedactedSpots] += 1;
             dispositionBaseCount[dspcRedactedBases] += read.count;

@@ -347,7 +347,9 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         commitRow(row, out);
         closeRow(row, out);
     }
-    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%lu,elapsed=%.0f", (unsigned long)redactions, (std::chrono::high_resolution_clock::now() - startTimer).count());
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%lu,elapsed=%.0f"
+            , (unsigned long)redactions
+            , std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0);
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
@@ -455,7 +457,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
             , (unsigned long)dispositionCount[dspcRedactedSpots]
             , (unsigned long)dispositionCount[dspcRedactedReads]
             , (unsigned long)dispositionBaseCount[dspcRedactedBases]
-            , (std::chrono::high_resolution_clock::now() - startTimer).count());
+            , std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0);
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);

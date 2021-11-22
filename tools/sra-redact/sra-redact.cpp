@@ -258,7 +258,7 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
         if (redact) {
             if (isPrimary) {
                 if (dispositionBaseCount[dspcRedactedBases] == 0) {
-                    pLogMsg(klogInfo, "first redacted primary alignment: $(row)", "row=%ull", (unsigned long long)row);
+                    pLogMsg(klogInfo, "first redacted primary alignment: $(row)", "row=%llu", (unsigned long long)row);
                 }
                 dispositionBaseCount[dspcRedactedBases] += read.count;
                 redactedSpot(spotId);
@@ -356,7 +356,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
         if (redact) {
             if (dispositionCount[dspcRedactedReads] == 0) {
-                pLogMsg(klogInfo, "first redacted spot: $(row)", "row=%ull", (unsigned long long)row);
+                pLogMsg(klogInfo, "first redacted spot: $(row)", "row=%llu", (unsigned long long)row);
             }
             dispositionCount[dspcRedactedReads] += nreads;
             dispositionCount[dspcRedactedSpots] += 1;

@@ -200,10 +200,10 @@ static void redactedSpot(int64_t const row)
     redactedSpot(row);
 }
 
-static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool &has_offset_type, Redacted const &redacted)
+static void processAlignmentCursors(VCursor *const out, VCursor const *const in, bool &has_offset_type, Redacted const &redacted, char const *&readFilterColName)
 {
     auto const isPrimary = redacted.count == 0;
-    auto allfalse = std::vector<uint8_t>();
+    auto allfalse = std::vector<uint8_t>(256, 0);
 
     /* MARK: input columns */
     auto const cid_spot_id     = addColumn(SPOT_ID   , "I64", in);
@@ -212,21 +212,20 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     auto const cid_has_offset  = addColumn(HAS_OFFSET, "U8" , in);
     auto const cid_mismatch    = addColumn(MISMATCH  , BASE_TYPE, in);
     auto const cid_ref_offset  = addColumn(REF_OFFSET, "I32", in);
-    auto const cid_offset_type = addColumnOptional(OFFSET_TYPE, "U8", in, has_offset_type);
+    auto const cid_offset_type = addColumn(OFFSET_TYPE, "U8", in, has_offset_type);
+    auto const cid_read_filter = addColumn("RD_FILTER", "READ_FILTER", "U8", in, readFilterColName);
 
     /* MARK: output columns */
     auto const cid_out_has_miss    = addColumn(HAS_MISS  , "U8" , out);
     auto const cid_out_has_offset  = addColumn(HAS_OFFSET, "U8" , out);
     auto const cid_out_mismatch    = addColumn(MISMATCH  , BASE_TYPE, out);
     auto const cid_out_ref_offset  = addColumn(REF_OFFSET, "I32", out);
-    auto const cid_out_spot_id     = addColumn(SPOT_ID   , "I64", out);
     auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, "U8", out) : 0;
+    auto const cid_out_read_filter  = addColumn(readFilterColName, "U8", out);
 
     int64_t first = 0;
     uint64_t count = 0;
     uint64_t redactions = 0;
-
-    allfalse.reserve(1024);
 
     openCursor(in, "input");
     openCursor(out, "output");
@@ -239,51 +238,51 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     for (uint64_t r = 0; r < count; ++r) {
         int64_t const row = 1 + r;
         auto const read = cellData(ALIGN_READ, cid_read, row, in);
-        auto spot_id = cellData(SPOT_ID, cid_spot_id, row, in);
-        auto spotId = *reinterpret_cast<uint64_t const *>(spot_id.data);
+        auto const spot_id = cellData(SPOT_ID, cid_spot_id, row, in);
+        auto const spotId = spot_id.value<int64_t>();
         auto redact = false;
 
         auto has_miss    = cellData(HAS_MISS   , cid_has_miss   , row, in);
         auto has_offset  = cellData(HAS_OFFSET , cid_has_offset , row, in);
-        auto ref_offset  = CellData();
-        auto mismatch    = CellData();
-        auto offset_type = CellData();
+        auto ref_offset  = cellData(REF_OFFSET , cid_ref_offset , row, in);
+        auto mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
+        auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
+        auto read_filter = cellData(readFilterColName, cid_read_filter, row, in);
+        auto readFilter = read_filter.value<uint8_t>();
 
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%f", (100.0 * row) / count);
+            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%.2f", (100.0 * r) / count);
         }
+
+        read_filter.data = &readFilter;
 
         if (isPrimary)
             redact = shouldFilter(read.count, (uint8_t const *)read.data);
         else
             redact = redacted.contains(spotId);
 
-        spot_id.data = &spotId;
         if (redact) {
             if (isPrimary) {
                 dispositionBaseCount[dspcRedactedBases] += read.count;
                 redactedSpot(spotId);
             }
-            allfalse.resize(has_miss.count, 0);
+            if (allfalse.size() < has_miss.count)
+                allfalse.resize(has_miss.count, 0);
             has_miss.data = allfalse.data();
             has_offset.data = allfalse.data();
-            spotId = 0;
+            readFilter = SRA_READ_FILTER_REDACTED;
             ++redactions;
         }
-        else {
-            ref_offset  = cellData(REF_OFFSET , cid_ref_offset , row, in);
-            mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
-            offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
-            if (isPrimary)
-                dispositionBaseCount[dspcKeptBases] += read.count;
+        else if (isPrimary) {
+            dispositionBaseCount[dspcKeptBases] += read.count;
         }
         openRow(row, out);
-        writeRow(row, spot_id    , cid_out_spot_id    , out);
         writeRow(row, has_miss   , cid_out_has_miss   , out);
         writeRow(row, has_offset , cid_out_has_offset , out);
         writeRow(row, mismatch   , cid_out_mismatch   , out);
         writeRow(row, ref_offset , cid_out_ref_offset , out);
         writeRow(row, offset_type, cid_out_offset_type, out);
+        writeRow(row, read_filter, cid_out_read_filter, out);
         commitRow(row, out);
         closeRow(row, out);
     }
@@ -293,10 +292,10 @@ static void processAlignmentCursors(VCursor *const out, VCursor const *const in,
     VCursorRelease(in);
 }
 
-static void processSequenceCursors(VCursor *const out, VCursor const *const in, bool aligned, Redacted const &redacted)
+static void processSequenceCursors(VCursor *const out, VCursor const *const in, bool aligned, Redacted const &redacted, char const *&readFilterColName)
 {
-    auto outRead = std::vector<uint8_t>();
-    auto allZero = std::vector<int64_t>();
+    auto outRead = std::vector<uint8_t>(256, 'N');
+    auto outReadFilter = std::vector<uint8_t>(2, SRA_READ_FILTER_REDACTED);
 
     /* MARK: input columns */
     auto const readColName = aligned ? CMP_READ : READ;
@@ -305,10 +304,11 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     auto const cid_read_type   = addColumn("READ_TYPE"  , "U8" , in);
     auto const cid_readlen     = addColumn("READ_LEN"   , "U32", in);
     auto const cid_read        = addColumn(readColName  , BASE_TYPE, in);
+    auto const cid_read_filter = addColumn("RD_FILTER", "READ_FILTER", "U8", in, readFilterColName);
 
     /* MARK: output columns */
     auto const cid_out_read = addColumn(readColName, BASE_TYPE, out);
-    auto const cid_out_pr_id = aligned ? addColumn(ALIGN_ID, "I64", out) : 0;
+    auto const cid_out_read_filter = addColumn(readFilterColName, "U8", out);
 
     int64_t first = 0;
     uint64_t count = 0;
@@ -317,10 +317,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
     auto redactedStart = redacted.start ? redacted.start : &first;
     auto const redactedEnd = redactedStart + redacted.count;
 
-    outRead.reserve(1024);
-    allZero.reserve(2);
-
-    openCursor(in, "input");    
+    openCursor(in, "input");
     openCursor(out, "output");
     
     count = rowCount(in, &first, cid_read_type);
@@ -334,15 +331,19 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
         auto const readtype   = cellData("READ_TYPE"  , cid_read_type  , row, in);
         auto const readlen    = cellData("READ_LEN"   , cid_readlen    , row, in);
         auto const nreads = readlen.count;
+        auto const prId = cellData(ALIGN_ID, cid_pr_id, row, in);
         auto read = cellData(readColName, cid_read, row, in);
-        auto prId = cellData(ALIGN_ID, cid_pr_id, row, in);
+        auto readFilter = cellData(readFilterColName, cid_read_filter, row, in);
         bool redact = false;
 
         if ((row & 0xFFFF) == 0) {
-            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%f", (100.0 * row) / count);
+            pLogMsg(klogDebug, "progress: $(pct)%", "pct=%.2f", (100.0 * r) / count);
         }
-        outRead.resize(read.count, 'N');
-        allZero.resize(prId.count, 0);
+
+        if (outRead.size() < read.count)
+            outRead.resize(read.count, 'N');
+        if (outReadFilter.size() < readFilter.count)
+            outReadFilter.resize(readFilter.count, SRA_READ_FILTER_REDACTED);
 
         if (redactedStart && redactedStart < redactedEnd && *redactedStart == row) {
             redact = true;
@@ -364,7 +365,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
             dispositionBaseCount[dspcRedactedBases] += read.count;
 
             read.data = outRead.data();
-            prId.data = allZero.data();
+            readFilter.data = outReadFilter.data();
         }
         else {
             dispositionCount[dspcKeptReads] += nreads;
@@ -374,7 +375,7 @@ static void processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
         openRow(row, out);
         writeRow(row, read, cid_out_read, out);
-        writeRow(row, prId, cid_out_pr_id, out);
+        writeRow(row, readFilter, cid_out_read_filter, out);
         commitRow(row, out);
         closeRow(row, out);
     }
@@ -463,21 +464,23 @@ void main_1(int argc, char *argv[])
         auto const out = createOutputs(args, mgr, in, schema);
         bool has_offset_type[2] = {false, false};
         Redacted redacted;
+        char const *readFilterColName[3] = {};
 
         if (isAligned)
-            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, has_offset_type[0], redacted);
+            processAlignmentTables(out.primaryAlignment, in.primaryAlignment, has_offset_type[0], redacted, readFilterColName[1]);
 
-        redacted = processSequenceTables(out.sequence, in.sequence, isAligned);
+        redacted = processSequenceTables(out.sequence, in.sequence, isAligned, readFilterColName[0]);
 
         if (isAligned && in.secondaryAlignment != nullptr)
-            processAlignmentTables(out.secondaryAlignment, in.secondaryAlignment, has_offset_type[1], redacted);
+            processAlignmentTables(out.secondaryAlignment, in.secondaryAlignment, has_offset_type[1], redacted, readFilterColName[2]);
 
         /// MARK: COPY COLUMNS TO OUTPUT
         if (isAligned) {
             copyColumn(CMP_READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("CMP_ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
-            copyColumn(ALIGN_ID, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn(readFilterColName[0], SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
 
+            copyColumn(readFilterColName[1], PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(HAS_MISS   , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(HAS_OFFSET , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn(MISMATCH   , PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
@@ -487,6 +490,7 @@ void main_1(int argc, char *argv[])
                 copyColumn(OFFSET_TYPE, PRI_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
 
             if (in.secondaryAlignment != nullptr) {
+                copyColumn(readFilterColName[2], SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
                 copyColumn(HAS_MISS   , SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
                 copyColumn(HAS_OFFSET , SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
                 copyColumn(MISMATCH   , SEC_ALIGN_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
@@ -499,10 +503,12 @@ void main_1(int argc, char *argv[])
         else if (in.noDb) {
             copyColumn(READ, nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("ALTREAD", nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn(readFilterColName[0], nullptr, TEMP_MAIN_OBJECT_NAME, input, mgr);
         }
         else {
             copyColumn(READ, SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
             copyColumn("ALTREAD", SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
+            copyColumn(readFilterColName[0], SEQUENCE_TABLE, TEMP_MAIN_OBJECT_NAME, input, mgr);
         }
         saveCounts(!in.noDb, input, mgr);
 
@@ -520,7 +526,7 @@ void main_1(int argc, char *argv[])
     exit(EX_TEMPFAIL);
 }
 
-static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted)
+static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted, char const *&readFilterColName)
 {
     VCursor *out = NULL;
     VCursor const *in = NULL;
@@ -540,10 +546,10 @@ static void processAlignmentTables(VTable *const output, VTable const *const inp
     }
     VTableRelease(input);
     VTableRelease(output);
-    processAlignmentCursors(out, in, has_offset_type, redacted);
+    processAlignmentCursors(out, in, has_offset_type, redacted, readFilterColName);
 }
 
-static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned)
+static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned, char const *&readFilterColName)
 {
     Redacted redacted;
     VCursor *out = NULL;
@@ -568,7 +574,7 @@ static Redacted processSequenceTables(VTable *const output, VTable const *const 
     if (redactedSpots >= 0)
         redacted = Redacted(redactedSpots);
 
-    processSequenceCursors(out, in, aligned, redacted);
+    processSequenceCursors(out, in, aligned, redacted, readFilterColName);
 
     return redactedSpots >= 0 ? Redacted(redactedSpots) : Redacted();
 }

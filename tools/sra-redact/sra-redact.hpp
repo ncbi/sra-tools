@@ -62,10 +62,23 @@ struct CellData {
     uint32_t elem_bits;
 
     CellData()
-    : data(this)
+    : data(nullptr)
     , count(0)
     , elem_bits(0)
     {}
+
+    template<typename T>
+    T const &value() const {
+        assert(sizeof(T) * 8 == elem_bits);
+        auto const p = reinterpret_cast<T const *>(data);
+        return *p;
+    }
+    template<typename T>
+    void copyTo(std::vector<T> &dst) const {
+        assert(sizeof(T) * 8 == elem_bits);
+        auto const p = reinterpret_cast<T const *>(data);
+        dst.assign(p, p + count);
+    }
 };
 
 static CellData cellData(char const *const colName, int const col, int64_t const row, VCursor const *const curs);
@@ -136,8 +149,8 @@ struct Redacted {
 };
 
 static Inputs openInputs(char const *input, VDBManager const *mgr, VSchema *schema);
-static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned);
-static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted);
+static Redacted processSequenceTables(VTable *const output, VTable const *const input, bool const aligned, char const *&readFilterColName);
+static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, Redacted const &redacted, char const *&readFilterColName);
 static Outputs createOutputs(Args *const args, VDBManager *const mgr, Inputs const &inputs, VSchema const *schema);
 static VSchema *makeSchema(VDBManager *mgr);
 
@@ -185,16 +198,26 @@ static uint32_t addColumn( char const *const name
     exit(EX_NOINPUT);
 }
 
-
-static uint32_t addColumnOptional(  char const *const name
-                                  , char const *const type
-                                  , VCursor const *const curs
-                                  , bool &have)
+static uint32_t addColumn(  char const *const name
+                          , char const *const type
+                          , VCursor const *const curs
+                          , bool &have)
 {
     uint32_t cid = 0;
     rc_t const rc = VCursorAddColumn(curs, &cid, "(%s)%s", type, name);
     have = rc == 0;
     return rc == 0 ? cid : 0;
+}
+
+static uint32_t addColumn(  char const *const name
+                          , char const *const altname
+                          , char const *const type
+                          , VCursor const *const curs
+                          , char const *&used)
+{
+    auto have = false;
+    auto const cid = addColumn(used = name, type, curs, have);
+    return have ? cid : addColumn(used = altname, type, curs);
 }
 
 static void openCursor(VCursor const *const curs, char const *const name)
@@ -348,18 +371,6 @@ static VTable const *dbOpenTable(  VDatabase const *db
 
     LogErr(klogFatal, rc, "can't open input table");
     exit(EX_NOINPUT);
-}
-
-static VTable const *dbOpenTable(  char const *const name
-                                 , char const *const table
-                                 , VDBManager const *const mgr
-                                 , std::string &schemaType
-                                 , VSchema *schema
-                                 , bool optional = false
-                                 )
-{
-    VDatabase const *const db = openDatabase(name, mgr);
-    return dbOpenTable(db, table, mgr, schemaType, schema, optional);
 }
 
 #define PATH_TYPE_ISA_DATABASE(TYPE) ((TYPE | kptAlias) == (kptDatabase | kptAlias))

@@ -68,16 +68,40 @@ struct CellData {
     {}
 
     template<typename T>
+    class Typed {
+        friend CellData;
+
+        T const *data;
+        size_t count;
+
+        Typed(CellData const &parent) {
+            assert(parent.elem_bits == sizeof(T) * 8);
+            data = reinterpret_cast<T const *>(parent.data);
+            count = parent.count;
+        }
+    public:
+        T const *begin() const { return data; }
+        T const *end() const { return data + count; }
+
+        T const &operator [](int i) const {
+            assert(i >= 0 && i < count);
+            return data[i];
+        }
+    };
+
+    template<typename T>
+    Typed<T> const typed() const {
+        return Typed<T>(*this);
+    }
+
+    template<typename T>
     T const &value() const {
-        assert(sizeof(T) * 8 == elem_bits);
-        auto const p = reinterpret_cast<T const *>(data);
-        return *p;
+        return typed<T>()[0];
     }
     template<typename T>
     void copyTo(std::vector<T> &dst) const {
-        assert(sizeof(T) * 8 == elem_bits);
-        auto const p = reinterpret_cast<T const *>(data);
-        dst.assign(p, p + count);
+        auto const &p = typed<T>();
+        dst.assign(p.begin(), p.end());
     }
 };
 

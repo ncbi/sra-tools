@@ -242,7 +242,7 @@ public:
     }
 };
 
-auto Redacted::fd = -1;
+int Redacted::fd = -1;
 
 static double estimatedSecondsToCompletion(decltype(std::chrono::high_resolution_clock::now()) const &start, uint64_t const current, uint64_t const total)
 {

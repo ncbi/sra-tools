@@ -131,15 +131,21 @@ struct Inputs {
     bool noDb = false;
 };
 
+struct Output {
+    VTable *tbl = nullptr;
+    std::vector<std::string> changedColumns;
+};
+
 struct Outputs {
-    VTable *sequence;
-    VTable *primaryAlignment;
-    VTable *secondaryAlignment;
+    Output sequence;
+    Output primaryAlignment;
+    Output secondaryAlignment;
 };
 
 static Inputs openInputs(char const *input, VDBManager const *mgr, VSchema *schema);
-static bool processSequenceTables(VTable *const output, VTable const *const input, bool const aligned, char const *&readFilterColName);
-static void processAlignmentTables(VTable *const output, VTable const *const input, bool &has_offset_type, bool const isPrimary);
+static bool processSequenceTable(Output &output, VTable const *const input, bool const aligned);
+static void processAlignmentTable(VTable const *const input);
+static void redactAlignmentTable(Output &output, VTable const *const input, bool const isPrimary);
 static Outputs createOutputs(Args *const args, VDBManager *const mgr, Inputs const &inputs, VSchema const *schema);
 static VSchema *makeSchema(VDBManager *mgr);
 

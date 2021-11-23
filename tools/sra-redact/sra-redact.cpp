@@ -1003,9 +1003,6 @@ static char const *temporaryDirectory(Args *const args)
     char *pattern = NULL;
     size_t len = 0;
     char const *tmp = getOptArgValue(OPT_OUTPUT, args);
-    char const *arg0 = nullptr;
-
-    ArgsProgram(args, nullptr, &arg0);
 
     if (tmp == NULL)
         tmp = getenv("TMPDIR");
@@ -1023,7 +1020,7 @@ static char const *temporaryDirectory(Args *const args)
         pattern = (char *)malloc(len);
         if (pattern == NULL)
             OUT_OF_MEMORY();
-        rc = KDirectoryResolvePath(ndir, true, pattern, len, "%s/%s.%i.XXX", tmp, arg0, int(getpid()));
+        rc = KDirectoryResolvePath(ndir, true, pattern, len, "%s/XXXXXX", tmp);
         if (rc == 0)
             break;
         free(pattern);

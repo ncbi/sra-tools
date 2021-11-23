@@ -314,9 +314,10 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         commitRow(row, out);
         closeRow(row, out);
     }
+    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
     pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%lu,elapsed=%.0f"
             , (unsigned long)redactions
-            , std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0);
+            , elapsed);
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
@@ -361,9 +362,10 @@ static void processAlignments(VCursor const *const in)
             ++redactions;
         }
     }
+    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
     pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments to redact: $(count)", "count=%lu,elapsed=%.0f"
             , (unsigned long)redactions
-            , std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0);
+            , elapsed);
     VCursorRelease(in);
 }
 
@@ -402,6 +404,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
     count = rowCount(in, &first, cid_read_type);
     assert(first == 1);
+    pLogMsg(klogDebug, "using $(read) and $(filter)", "read=%s,filter=%s", readColName, readFilterColName);
     pLogMsg(klogInfo, "progress: about to process $(rows) spots", "rows=%lu", count);
 
     /* MARK: Main loop over the spots */
@@ -475,11 +478,13 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
         commitRow(row, out);
         closeRow(row, out);
     }
-    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds,; redacted: $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu,elapsed=%.0f"
+    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds; redacted: $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu,elapsed=%.0f"
             , (unsigned long)dispositionCount[dspcRedactedSpots]
             , (unsigned long)dispositionCount[dspcRedactedReads]
             , (unsigned long)dispositionBaseCount[dspcRedactedBases]
-            , std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0);
+            , elapsed);
+
     commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
@@ -998,6 +1003,9 @@ static char const *temporaryDirectory(Args *const args)
     char *pattern = NULL;
     size_t len = 0;
     char const *tmp = getOptArgValue(OPT_OUTPUT, args);
+    char const *arg0 = nullptr;
+
+    ArgsProgram(args, nullptr, &arg0);
 
     if (tmp == NULL)
         tmp = getenv("TMPDIR");
@@ -1015,7 +1023,7 @@ static char const *temporaryDirectory(Args *const args)
         pattern = (char *)malloc(len);
         if (pattern == NULL)
             OUT_OF_MEMORY();
-        rc = KDirectoryResolvePath(ndir, true, pattern, len, "%s/mkf.XXXXXX", tmp);
+        rc = KDirectoryResolvePath(ndir, true, pattern, len, "%s/%s.%i.XXX", tmp, arg0, int(getpid()));
         if (rc == 0)
             break;
         free(pattern);

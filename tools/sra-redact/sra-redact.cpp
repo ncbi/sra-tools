@@ -1036,6 +1036,6 @@ static char const *temporaryDirectory(Args *const args)
     if (chdir(pattern) == 0)
         return pattern;
 
-    LogMsg(klogFatal, "Can't cd to temp directory");
+    pLogMsg(klogFatal, "Can't cd to temp directory $(dir)", "dir=%s", pattern);
     exit(EX_TEMPFAIL);
 }

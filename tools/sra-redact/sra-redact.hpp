@@ -84,7 +84,7 @@ struct CellData {
         T const *end() const { return data + count; }
 
         T const &operator [](int i) const {
-            assert(i >= 0 && i < count);
+            assert(i >= 0 && (size_t)i < count);
             return data[i];
         }
     };

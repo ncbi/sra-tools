@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <chrono>
+#include <cmath>
 #include "sra-redact.hpp" /* contains mostly boilerplate code */
 
 /* NOTE: Needs to be in same order as Options array */
@@ -224,17 +225,32 @@ public:
 
 int Redacted::fd = -1;
 
-static double estimatedSecondsToCompletion(decltype(std::chrono::high_resolution_clock::now()) const &start, uint64_t const current, uint64_t const total)
+using HiRezTimePoint = decltype(std::chrono::high_resolution_clock::now());
+
+static std::tm make_tm(std::chrono::system_clock::time_point const &time) {
+    std::tm result = {};
+    auto const tt = std::chrono::system_clock::to_time_t(time);
+    gmtime_r(&tt, &result);
+    return result;
+}
+
+static std::string estimatedTimeOfCompletion(HiRezTimePoint const &start
+                                                                       , uint64_t const completed
+                                                                       , uint64_t const total)
 {
-    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count();
-    if (elapsed > 0.0) {
-        auto const rate = current / elapsed;
+    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
+    if (elapsed > elapsed.zero() && completed > 0) {
+        auto const rate = double(completed) / (elapsed.count() / 1000.0);
         if (rate > 0.0) {
-            auto const remains = total - current;
-            return (remains / rate) / 1000.0;
+            auto const remainCount = total - completed;
+            auto const remainTime = remainCount / rate;
+            auto const eta_tm = make_tm(std::chrono::system_clock::now() + std::chrono::seconds((uint64_t)(std::ceil(remainTime))));
+            char buffer[32];
+            auto size = std::strftime(buffer, sizeof(buffer), "%FT%T", &eta_tm);
+            return std::string(buffer, size);
         }
     }
-    return 0;
+    return "?";
 }
 
 static void redactAlignments(VCursor *const out, VCursor const *const in, bool const isPrimary, Redacted const &redacted, Output &output)
@@ -291,11 +307,11 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
 
         if (pct > complete) {
-            auto const etc = estimatedSecondsToCompletion(startTimer, r, count);
+            auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            pLogMsg(klogDebug, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+            pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
             if (complete % 10 == 0)
-                pLogMsg(klogInfo, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }
 
         if (redacted.contains(spotId)) {
@@ -353,11 +369,11 @@ static void processAlignments(VCursor const *const in)
         auto const spotId = cellData(SPOT_ID, cid_spot_id, row, in).value<int64_t>();
 
         if (pct > complete) {
-            auto const etc = estimatedSecondsToCompletion(startTimer, r, count);
+            auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            pLogMsg(klogDebug, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+            pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
             if (complete % 10 == 0)
-                pLogMsg(klogInfo, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }
 
         if (shouldFilter(read.count, (uint8_t const *)read.data)) {
@@ -403,7 +419,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     openCursor(in, "input");
     openCursor(out, "output");
 
-    output.changedColumns.assign({readColName, "RD_FILTER", "READ_FILTER", readFilterColName});
+    output.changedColumns.assign({readColName, "RD_FILTER", "READ_FILTER"});
     if (aligned)
         output.changedColumns.push_back("CMP_ALTREAD");
     else
@@ -433,11 +449,11 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
         auto bases = aligned ? readlen.typed<uint32_t>()[nreads - 1] + readstart.typed<int32_t>()[nreads - 1] : read.count;
 
         if (pct > complete) {
-            auto const etc = estimatedSecondsToCompletion(startTimer, r, count);
+            auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            pLogMsg(klogDebug, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+            pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
             if (complete % 10 == 0)
-                pLogMsg(klogInfo, "progress: $(pct)%, ESC: $(etc)", "pct=%u,etc=%.1f", complete = pct, etc);
+                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }
 
         read.copyTo(outRead);

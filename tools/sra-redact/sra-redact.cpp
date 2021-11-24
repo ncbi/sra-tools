@@ -31,6 +31,7 @@
  */
 
 #include <vector>
+#include <set>
 #include <algorithm>
 #include <string>
 #include <stdlib.h>
@@ -531,51 +532,65 @@ static void copyColumns(  Output const &output
         return;
     }
 
-    auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
-    auto const srcTbl = tableName ? openReadDb(from, tableName, mgr) : openReadTbl(from, mgr);
+    auto dropped = std::vector<std::string>();
+    {
+        auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
 
-    for (auto && colName : output.changedColumns) {
-        rc_t rc = 0;
-        auto const column = colName.c_str();
+        for (auto && colName : output.changedColumns) {
+            pLogMsg(klogDebug, "going to copy $(table).$(column) from $(source) to $(dest)", "table=%s,column=%s,source=%s,dest=%s"
+                    , tableName ? tableName : "<implied>"
+                    , colName.c_str()
+                    , from
+                    , to);
 
-        pLogMsg(klogDebug, "going to copy $(table).$(column) from $(source) to $(dest)", "table=%s,column=%s,source=%s,dest=%s"
-                , tableName ? tableName : "<implied>"
-                , column
-                , from
-                , to);
-
-        if (dropColumn(dstTbl, column)) {
-            char const *const fmt = "%s/tbl/%s/col";
-            KDirectory const *const src = tableName
-                                        ? openDirRead(fmt, from, tableName)
-                                        : openDirRead(fmt + 7, from);
-            KDirectory *const dst = tableName
-                                  ? openDirUpdate(fmt, to, tableName)
-                                  : openDirUpdate(fmt + 7, to);
-
-            rc = KDirectoryCopy(src, dst, true, column, column);
-            KDirectoryRelease(dst); KDirectoryRelease(src);
-
-            if (rc) {
-                pLogMsg(klogInfo, "couldn't copy physical column $(column); trying metadata copy", "column=%s", column);
-
-                /* could not copy the physical column; try the metadata node */
-                if (VTableHasStaticColumn(srcTbl, column))
-                    copyNodeValue(openNodeUpdate(dstTbl, "col/%s", column), openNodeRead(srcTbl, "col/%s", column));
-                else {
-                    pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", column);
-                    exit(EX_DATAERR);
-                }
+            if (dropColumn(dstTbl, colName.c_str()))
+                dropped.push_back(colName);
+            else {
+                pLogMsg(klogDebug, "$(table).$(column) in $(dest) does not exist", "table=%s,column=%s,dest=%s"
+                        , tableName ? tableName : "<implied>"
+                        , colName.c_str()
+                        , to);
             }
         }
-        else {
-            pLogMsg(klogDebug, "$(table).$(column) in $(dest) does not exist", "table=%s,column=%s,dest=%s"
-                    , tableName ? tableName : "<implied>"
-                    , column
-                    , to);
-        }
+        VTableRelease(dstTbl);
     }
-    VTableRelease(srcTbl);
+
+    auto not_copied = std::vector<std::string>();
+    for (auto && colName : dropped) {
+        auto const column = colName.c_str();
+        char const *const fmt = "%s/tbl/%s/col";
+        KDirectory const *const src = tableName
+                                    ? openDirRead(fmt, from, tableName)
+                                    : openDirRead(fmt + 7, from);
+        KDirectory *const dst = tableName
+                              ? openDirUpdate(fmt, to, tableName)
+                              : openDirUpdate(fmt + 7, to);
+
+        auto const rc = KDirectoryCopy(src, dst, true, column, column);
+        if (rc)
+            not_copied.push_back(colName);
+
+        KDirectoryRelease(dst); KDirectoryRelease(src);
+    }
+    if (not_copied.empty())
+        return;
+
+    auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
+    for (auto && colName : not_copied) {
+        auto const column = colName.c_str();
+        pLogMsg(klogInfo, "couldn't copy physical column $(column); trying metadata copy", "column=%s", column);
+
+        auto const srcTbl = tableName ? openReadDb(from, tableName, mgr) : openReadTbl(from, mgr);
+        /* could not copy the physical column; try the metadata node */
+        if (VTableHasStaticColumn(srcTbl, column)) {
+            copyNodeValue(openNodeUpdate(dstTbl, "col/%s", column), openNodeRead(srcTbl, "col/%s", column));
+        }
+        else {
+            pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", column);
+            exit(EX_DATAERR);
+        }
+        VTableRelease(srcTbl);
+    }
     VTableRelease(dstTbl);
 }
 

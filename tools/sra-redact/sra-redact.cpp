@@ -272,6 +272,9 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
     if (has_offset_type)
         output.changedColumns.push_back(OFFSET_TYPE);
 
+    for (auto && name : output.changedColumns)
+        pLogMsg(klogInfo, "redacting/updating $(col)", "col=%s", name.c_str());
+
     count = rowCount(in, &first, cid_spot_id);
     assert(first == 1);
     pLogMsg(klogInfo, "progress: about to process $(rows) $(kind) alignments", "kind=%s,rows=%lu", isPrimary ? "primary" : "secondary", count);
@@ -401,6 +404,13 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     openCursor(out, "output");
 
     output.changedColumns.assign({readColName, "RD_FILTER", "READ_FILTER", readFilterColName});
+    if (aligned)
+        output.changedColumns.push_back("CMP_ALTREAD");
+    else
+        output.changedColumns.push_back("ALTREAD");
+
+    for (auto && name : output.changedColumns)
+        pLogMsg(klogInfo, "redacting/updating $(col)", "col=%s", name.c_str());
 
     count = rowCount(in, &first, cid_read_type);
     assert(first == 1);
@@ -498,9 +508,13 @@ static void copyColumns(  Output const &output
                         , char const *const to
                         , VDBManager *const mgr)
 {
-    if (output.changedColumns.empty())
+    if (output.changedColumns.empty()) {
+        pLogMsg(klogDebug, "no columns were changed in $(table) from $(source)", "table=%s,source=%s"
+                , tableName ? tableName : "<implied>"
+                , from);
         return;
-    
+    }
+
     auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
     auto const srcTbl = tableName ? openReadDb(from, tableName, mgr) : openReadTbl(from, mgr);
 
@@ -537,6 +551,12 @@ static void copyColumns(  Output const &output
                     exit(EX_DATAERR);
                 }
             }
+        }
+        else {
+            pLogMsg(klogDebug, "$(table).$(column) in $(dest) does not exist", "table=%s,column=%s,dest=%s"
+                    , tableName ? tableName : "<implied>"
+                    , column
+                    , to);
         }
     }
     VTableRelease(srcTbl);

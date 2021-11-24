@@ -653,10 +653,10 @@ static VTable const *openReadDb(char const *const name, char const *const table,
     VDatabase const *db = NULL;
     rc_t rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name);
     if (rc) {
-        LogErr(klogFatal, rc, "can't open database for read");
+        pLogErr(klogFatal, rc, "can't open database $(db) for read", "db=%s", name);
         exit(EX_DATAERR);
     }
-    rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
+    rc = VDatabaseOpenTableRead(db, &tbl, "%s", table);
     VDatabaseRelease(db);
     if (rc) {
         LogErr(klogFatal, rc, "can't open table for read");

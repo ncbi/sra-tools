@@ -499,7 +499,7 @@ static void copyColumns(  Output const &output
                         , VDBManager *const mgr)
 {
     auto const tbl = tableName ? openUpdateDb(destPath, tableName, mgr) : openUpdateTbl(destPath, mgr);
-    auto const tmp = tableName ? openReadDb(destPath, tableName, mgr) : openReadTbl(destPath, mgr);
+    auto const tmp = tableName ? openReadDb(sourcePath, tableName, mgr) : openReadTbl(sourcePath, mgr);
 
     for (auto && colName : output.changedColumns) {
         rc_t rc = 0;

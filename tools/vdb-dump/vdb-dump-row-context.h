@@ -60,6 +60,7 @@ typedef struct row_context
     int64_t row_id;
     uint32_t col_nr;
     rc_t rc;
+    rc_t last_rc;
 } row_context;
 typedef row_context* p_row_context;
 

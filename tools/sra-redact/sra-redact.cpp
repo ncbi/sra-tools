@@ -397,7 +397,7 @@ static void processAlignments(VCursor const *const in)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }
 
-        if (spotId % 10 == 1 || shouldFilter(read.count, (uint8_t const *)read.data)) {
+        if (shouldFilter(read.count, (uint8_t const *)read.data)) {
             Redacted::addSpot(spotId);
             ++redactions;
         }

@@ -243,6 +243,7 @@ struct ReadResult {
         rr_undefined = 0,
         rr_sequence,
         rr_rejected,
+        rr_fileDone,
         rr_done,
         rr_error
     } type;
@@ -524,19 +525,24 @@ static void readRecord(CommonWriterSettings *const G, SpotAssembler *const ctx, 
     RejectedRelease(rej);
 }
 
-static struct ReadResult *threadGetNextRecord(CommonWriterSettings *const G, SpotAssembler *const ctx, struct ReaderFile const *reader, uint64_t *reccount)
+static struct ReadResult *threadGetNextRecord(
+    CommonWriterSettings *const G,
+    SpotAssembler *const ctx,
+    struct ReaderFile const *reader,
+    uint64_t *reccount)
 {
     rc_t rc = 0;
     Record const *record = NULL;
     struct ReadResult *const rslt = calloc(1, sizeof(*rslt));
 
     assert(rslt != NULL);
-    if (rslt != NULL) {
+    if (rslt != NULL)
+    {
         rslt->progress = ReaderFileGetProportionalPosition(reader);
         rslt->recordNo = ++*reccount;
         if (G->maxAlignCount > 0 && rslt->recordNo > G->maxAlignCount) {
             (void)PLOGMSG(klogDebug, (klogDebug, "reached limit of $(max) records read", "max=%u", (unsigned)G->maxAlignCount));
-            rslt->type = rr_done;
+            rslt->type = rr_fileDone;
             return rslt;
         }
         rc = ReaderFileGetRecord(reader, &record);
@@ -552,7 +558,7 @@ static struct ReadResult *threadGetNextRecord(CommonWriterSettings *const G, Spo
             return rslt;
         }
         else {
-            rslt->type = rr_done;
+            rslt->type = rr_fileDone;
             return rslt;
         }
     }
@@ -579,7 +585,11 @@ struct ReadThreadContext {
     KQueue *que;
     CommonWriterSettings *settings;
     SpotAssembler *ctx;
-    ReaderFile const *reader;
+    ReaderFile const *reader1;
+    ReaderFile const *reader2;
+    ReaderFile const *cur_reader;
+    bool reader1_active;
+    bool reader2_active;
     uint64_t reccount;
 };
 
@@ -588,36 +598,106 @@ static rc_t readThread(KThread const *const th, void *const ctx)
     struct ReadThreadContext *const self = ctx;
     rc_t rc = 0;
 
-    while (Quitting() == 0) {
-        struct ReadResult *const rr = threadGetNextRecord(self->settings, self->ctx, self->reader, &self->reccount);
-        int const rr_type = rr->type;
+    self->reader1_active = self -> reader1 != NULL;
+    self->reader2_active = self -> reader2 != NULL;
 
-        while (Quitting() == 0) {
+    if ( self -> reader1_active )
+    {
+        self->cur_reader = self -> reader1;
+    }
+    else
+    {
+        self->cur_reader = self -> reader2;
+    }
+    assert( self->cur_reader != NULL );
+
+    while ( rc == 0 && Quitting() == 0 )
+    {
+        (void)LOGMSG(klogDebug, "threadGetNextRecord from ");
+
+        (void)PLOGMSG(klogDebug, (klogDebug, "threadGetNextRecord($(r))", "r=%s",
+                                self->cur_reader == self -> reader1 ? "1" : "2" ) );
+
+        struct ReadResult *const rr =
+            threadGetNextRecord(
+                self->settings,
+                self->ctx,
+                self->cur_reader,
+                &self->reccount
+            );
+
+        while ( Quitting() == 0 )
+        {
             timeout_t tm;
             TimeoutInit(&tm, 10000);
             rc = KQueuePush(self->que, rr, &tm);
             if (rc == 0)
+            {
                 break;
-            if ((int)GetRCObject(rc) == rcTimeout) {
+            }
+            if ((int)GetRCObject(rc) == rcTimeout)
+            {
                 continue;
             }
             break;
         }
-        if (rc) {
+        if ( rc != 0 )
+        {   // KQueuePush failed
             free(rr);
-            if ((int)GetRCState(rc) == rcReadonly && (int)GetRCObject(rc) == rcQueue) {
+            if ((int)GetRCState(rc) == rcReadonly && (int)GetRCObject(rc) == rcQueue)
+            {
                 (void)LOGMSG(klogDebug, "readThread: consumer closed queue");
                 rc = 0;
             }
-            else {
+            else
+            {
                 (void)LOGERR(klogErr, rc, "readThread: failed to push next record into queue");
+                break;
             }
-            break;
         }
-        else if (rr_type == rr_done) {
-            /* normal exit from end of file */
-            (void)LOGMSG(klogDebug, "readThread done : end of file");
-            break;
+        else if (rr->type == rr_fileDone)
+        {
+            /* normal exit from an end of file */
+            (void)LOGMSG(klogDebug, "readThread: end of file");
+            /* do not use this reader anymore */
+            if ( self->cur_reader == self -> reader1 )
+            {
+                self->reader1_active = false;
+            }
+            else
+            {
+                assert( self->cur_reader == self -> reader2 );
+                self->reader2_active = false;
+            }
+        }
+
+        // switch to the other reader if necessary
+        if ( self->cur_reader == self -> reader1 )
+        {
+            if ( self->reader2_active )
+            {
+                self->cur_reader = self -> reader2;
+            }
+        }
+        else
+        {
+            if ( self->reader1_active )
+            {
+                self->cur_reader = self -> reader1;
+            }
+        }
+
+        if ( rr->type == rr_fileDone )
+        {   // if no more readers left, signal to the caller that we are done
+            if ( ! self->reader1_active && ! self->reader2_active )
+            {
+                rr->type = rr_done;
+                break;
+            }
+            else
+            {   // proceed with the remaining reader
+                continue;
+            }
         }
     }
     KQueueSeal(self->que);
@@ -661,7 +741,10 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
             (void)LOGMSG(klogDebug, "KQueuePop timed out");
         }
         else {
-            (void)LOGERR(klogErr, rslt.u.error.rc, "KQueuePop failed");
+            if ( Quitting() == 0 )
+            {
+                (void)LOGERR(klogErr, rslt.u.error.rc, "KQueuePop failed");
+            }
             rslt.type = rr_done;
             goto DONE;
         }
@@ -679,7 +762,7 @@ DONE:
     }
 #else
     if ((rslt.u.error.rc = Quitting()) == 0) {
-        struct ReadResult *const rr = threadGetNextRecord(self->settings, self->ctx, self->reader, &self->reccount);
+        struct ReadResult *const rr = threadGetNextRecord(self->settings, self->ctx, self->reader1, &self->reccount);
         rslt = *rr;
         free(rr);
     }
@@ -691,7 +774,328 @@ DONE:
     return rslt;
 }
 
-rc_t ArchiveFile(const struct ReaderFile *const reader,
+rc_t
+HandleSequence( const struct ReadResult * rr,
+                const char * fileName,
+                CommonWriterSettings * G,
+                struct SpotAssembler * ctx,
+                bool * had_sequences,
+                uint64_t * fragmentsAdded,
+                uint64_t * fragmentsEvicted,
+                uint64_t * spotsCompleted,
+                KDataBuffer * fragBuf,
+                SequenceRecord * srec,
+                struct SequenceWriter * seq
+            )
+{
+    bool removeMe = false; //TODO: remove all code related to colorspace
+    bool * isColorSpace = & removeMe;
+    rc_t rc = 0;
+    if ( rr != NULL && rr -> type == rr_sequence)
+    {
+        uint64_t const keyId = rr -> u.sequence.id;
+        bool const wasInserted = !!rr -> u.sequence.inserted;
+        bool const mated = !!rr -> u.sequence.mated;
+        unsigned const readNo = rr -> u.sequence.readNo;
+        char const *const seqDNA = rr -> u.sequence.seqDNA;
+        uint8_t const *const qual = rr -> u.sequence.quality;
+        unsigned const readlen = rr -> u.sequence.readLen;
+        int const readOrientation = !!rr -> u.sequence.orientation;
+        bool const reverse = * isColorSpace ? false : (readOrientation == ReadOrientationReverse);
+        char const cskey = rr -> u.sequence.cskey;
+        bool const bad = !!rr -> u.sequence.bad;
+        char const *const spotGroup = rr -> u.sequence.spotGroup;
+        char const *const name = rr -> u.sequence.name;
+        int const namelen = strlen(name);
+
+        ctx_value_t *value;
+        value = SpotAssemblerGetCtxValue(ctx, &rc, keyId);
+        if (value == NULL)
+        {
+            (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
+            return rc;
+        }
+
+        if (wasInserted) {
+            memset(value, 0, sizeof(*value));
+            value->fragmentOffset = -1;
+            value->unmated = !mated;
+        }
+        else {
+            if ( ! G->allowDuplicateReadNames )
+            {   // VDB-4524
+                if ( ! mated && value -> unmated )
+                {   // same read name, no frag# in either
+                    rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
+                    PLOGERR(klogErr, (klogErr, rc,
+                        "Duplicate read name '$(name)'",
+                        "name=%s", name));
+                    return rc;
+                }
+            }
+
+            if (mated && value->unmated) {
+                (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                                            "Spot '$(name)', which was first seen without mate info, now has mate info",
+                                            "name=%s", name));
+                rc = CheckLimitAndLogError(G);
+                return rc;
+            }
+        }
+
+        if (mated) {
+            if (value->written) {
+                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id", "name=%s", name));
+            }
+            else if (!value->has_a_read) {
+                /* new mated fragment - do spot assembly */
+                unsigned sz;
+                FragmentInfo fi;
+                void *myData = NULL;
+                FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
+                int64_t const victimId = frag -> id;
+                void *const victimData = frag -> data;
+
+                ++ (*fragmentsAdded);
+                value->seqHash[readNo - 1] = SeqHashKey(seqDNA, readlen);
+
+                memset(&fi, 0, sizeof(fi));
+                fi.orientation = readOrientation;
+                fi.otherReadNo = readNo;
+                fi.sglen   = strlen(spotGroup);
+                fi.readlen = readlen;
+                fi.cskey = cskey;
+                fi.is_bad = bad;
+                sz = sizeof(fi) + 2*fi.readlen + fi.sglen;
+                myData = malloc(sz);
+                if (myData == NULL) {
+                    (void)LOGERR(klogErr, RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted), "OUT OF MEMORY!");
+                    abort();
+                    return rc;
+                }
+                {{
+                    uint8_t *dst = (uint8_t*)myData;
+
+                    memmove(dst,&fi,sizeof(fi));
+                    dst += sizeof(fi);
+                    COPY_READ((char *)dst, seqDNA, fi.readlen, reverse);
+                    dst += fi.readlen;
+                    COPY_QUAL(dst, qual, fi.readlen, reverse);
+                    dst += fi.readlen;
+                    memmove(dst,spotGroup,fi.sglen);
+                }}
+
+                frag->id = keyId;
+                frag->data = myData;
+
+                value->has_a_read = 1;
+                value->fragmentSize = sz;
+                *had_sequences = true;
+
+                if (victimData != NULL) {
+                    ctx_value_t *const victim = SpotAssemblerGetCtxValue(ctx, &rc, victimId);
+                    if (victim == NULL) {
+                        (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", victimId));
+                        abort();
+                        return rc;
+                    }
+                    if (victim->fragmentOffset < 0) {
+                        int64_t const pos = ctx->nextFragment; //AB
+                        int64_t const nwrit = pwrite(ctx->fragmentFd, victimData, victim->fragmentSize, pos); //AB
+
+                        if (nwrit == victim->fragmentSize) {
+                            ctx->nextFragment += victim->fragmentSize; //AB
+                            victim->fragmentOffset = pos;
+                            free(victimData);
+                            ++ (*fragmentsEvicted);
+                        }
+                        else {
+                            (void)LOGMSG(klogFatal, "Failed to write fragment data");
+                            abort();
+                            return rc;
+                        }
+                    }
+                    else {
+                        (void)LOGMSG(klogFatal, "PROGRAMMER ERROR!!");
+                        abort();
+                        return rc;
+                    }
+                }
+
+                /* save the read, to be used when mate shows up, or in SpotAssemblerWriteSoloFragments() */
+                rc = Id2Name_Add ( & ctx->id2name, keyId, name );
+            }
+            else {
+                /* might be second fragment */
+                uint64_t const sz = value->fragmentSize;
+                bool freeFip = false;
+                FragmentInfo *fip = NULL;
+                FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
+
+                if (frag->id == keyId)
+                {
+                    fip = frag->data;
+                    freeFip = true;
+                }
+                else {
+                    int64_t nread = 0;
+                    rc = KDataBufferResize(fragBuf, (size_t)sz);
+                    if (rc) {
+                        (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
+                        abort();
+                        return rc;
+                    }
+                    nread = pread(ctx->fragmentFd, fragBuf->base, sz, value->fragmentOffset); //AB
+                    if (nread == sz) {
+                        fip = (FragmentInfo *) fragBuf->base;
+                    }
+                    else {
+                        (void)PLOGMSG(klogFatal, (klogFatal, "Failed to read fragment data; spot:'$(name)'; "
+                            "size: $(size); pos: $(pos); read: $(read)", "name=%s,size=%lu,pos=%lu,read=%lu",
+                            name, sz, value->fragmentOffset, nread));
+                        abort();
+                        return rc;
+                    }
+                }
+                if (readNo == fip->otherReadNo)
+                {   // VDB-4524
+                    if ( ! G->allowDuplicateReadNames )
+                    {
+                        rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
+                        PLOGERR(klogErr, (klogErr, rc,
+                            "Duplicate read name '$(name)'",
+                            "name=%s", name));
+                        return rc;
+                    }
+                }
+                else
+                {   /* mate found */
+                    unsigned readLen[2];
+                    unsigned read1 = 0;
+                    unsigned read2 = 1;
+                    uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
+
+                    ++ (*spotsCompleted);
+                    value->seqHash[readNo - 1] = SeqHashKey(seqDNA, readlen);
+
+                    if (readNo < fip->otherReadNo) {
+                        read1 = 1;
+                        read2 = 0;
+                    }
+                    readLen[read1] = fip->readlen;
+                    readLen[read2] = readlen;
+                    rc = SequenceRecordInit(srec, 2, readLen);
+                    if (rc) {
+                        (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
+                        return rc;
+                    }
+                    srec->is_bad[read1] = fip->is_bad;
+                    srec->orientation[read1] = fip->orientation;
+                    srec->cskey[read1] = fip->cskey;
+                    memmove(srec->seq + srec->readStart[read1], src, fip->readlen);
+                    src += fip->readlen;
+                    memmove(srec->qual + srec->readStart[read1], src, fip->readlen);
+                    src += fip->readlen;
+
+                    srec->orientation[read2] = readOrientation;
+                    COPY_READ(srec->seq + srec->readStart[read2],
+                                seqDNA,
+                                srec->readLen[read2],
+                                reverse);
+                    COPY_QUAL(srec->qual + srec->readStart[read2],
+                                qual,
+                                srec->readLen[read2],
+                                reverse);
+
+                    srec->keyId = keyId;
+                    srec->is_bad[read2] = bad;
+                    srec->cskey[read2] = cskey;
+
+                    rc = Id2Name_Get ( & ctx->id2name, keyId, (const char**) & srec->spotName );
+                    if (rc)
+                    {
+                        (void)LOGERR(klogErr, rc, "Is2Name_Get failed");
+                        return rc;
+                    }
+                    srec->spotNameLen = strlen(srec->spotName);
+
+                    srec->spotGroup = (char *)spotGroup;
+                    srec->spotGroupLen = strlen(spotGroup);
+                    rc = SequenceWriteRecord(seq, srec, *isColorSpace, false, G->platform,
+                                                G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer, G->dropReadnames);
+                    if (freeFip) {
+                        free(fip);
+                        frag->data = NULL;
+                    }
+                    if (rc) {
+                        (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                        return rc;
+                    }
+                    CTX_VALUE_SET_S_ID(*value, ++ctx->spotId); //AB
+                    value->written = 1;
+                }
+            }
+        }
+        else if (value->written) {
+            (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id", "name=%s", name));
+        }
+        else if (value->has_a_read)
+        {
+            FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
+            if (frag -> id == keyId)
+            {
+                free ( frag -> data );
+                frag -> data = NULL;
+            }
+            (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                                        "Spot '$(name)', which was first seen with mate info, now has no mate info",
+                                        "name=%s", name));
+            rc = CheckLimitAndLogError(G);
+        }
+        else {
+            /* new unmated fragment - no spot assembly */
+            unsigned readLen[1];
+
+            value->seqHash[0] = SeqHashKey(seqDNA, readlen);
+
+            readLen[0] = readlen;
+            rc = SequenceRecordInit(srec, 1, readLen);
+            if (rc) {
+                (void)LOGERR(klogErr, rc, "Failed resizing sequence record buffer");
+                return rc;
+            }
+            srec->is_bad[0] = bad;
+            srec->orientation[0] = readOrientation;
+            srec->cskey[0] = cskey;
+            COPY_READ(srec->seq  + srec->readStart[0], seqDNA, readlen, false);
+            COPY_QUAL(srec->qual + srec->readStart[0], qual, readlen, false);
+
+            srec->keyId = keyId;
+
+            srec->spotGroup = (char *)spotGroup;
+            srec->spotGroupLen = strlen(spotGroup);
+
+            srec->spotName = (char *)name;
+            srec->spotNameLen = namelen;
+
+            rc = SequenceWriteRecord(seq, srec, *isColorSpace, false, G->platform,
+                                        G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer, G->dropReadnames);
+            if (rc) {
+                (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                return rc;
+            }
+            CTX_VALUE_SET_S_ID(*value, ++ctx->spotId); //AB
+            value->written = 1;
+            *had_sequences = true;
+        }
+    }
+    else
+        abort();
+    return rc;
+}
+
+rc_t ArchiveFile(const struct ReaderFile *const reader1,
+                 const struct ReaderFile *const reader2,
                  CommonWriterSettings *const G,
                  struct SpotAssembler *const ctx,
                  struct SequenceWriter *const seq,
@@ -707,21 +1111,18 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     uint64_t filterFlagConflictRecords=0; /*** counts number of conflicts between flags 'duplicate' and 'lowQuality' ***/
 #define MAX_WARNINGS_FLAG_CONFLICT 10000 /*** maximum errors to report ***/
 
-    bool isNotColorSpace = G->noColorSpace;
-    char const *const fileName = ReaderFileGetPathname(reader);
+    char const *const fileName = ReaderFileGetPathname(reader1); //AB
     struct ReadThreadContext threadCtx;
     uint64_t fragmentsAdded = 0;
     uint64_t spotsCompleted = 0;
     uint64_t fragmentsEvicted = 0;
 
-    assert ( isColorSpace );
-    *isColorSpace = false;
-
     memset(&srec, 0, sizeof(srec));
     memset(&threadCtx, 0, sizeof(threadCtx));
     threadCtx.settings = G;
     threadCtx.ctx = ctx;
-    threadCtx.reader = reader;
+    threadCtx.reader1 = reader1;
+    threadCtx.reader2 = reader2;
 
     rc = KDataBufferMake(&fragBuf, 8, 4096);
     if (rc)
@@ -734,7 +1135,6 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     *had_sequences = false;
 
     while (rc == 0) {
-        ctx_value_t *value;
         struct ReadResult const rr = getNextRecord(&threadCtx);
 
         if ((unsigned)(rr.progress * 100.0) > progress) {
@@ -744,6 +1144,8 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
         }
         if (rr.type == rr_done)
             break;
+        if ( rr.type == rr_fileDone )
+            continue;
         if (rr.type == rr_error) {
             rc = rr.u.error.rc;
             if (rr.u.error.message == kQuitting) {
@@ -761,9 +1163,8 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                 (void)PLOGERR(klogErr, (klogErr, rc, "ArchiveFile: $(func) failed", "func=%s", rr.u.error.message));
                 rc = CheckLimitAndLogError(G);
             }
-            goto LOOP_END;
         }
-        if (rr.type == rr_rejected) {
+        else if (rr.type == rr_rejected) {
             char const *const message = rr.u.reject.message;
             uint64_t const line = rr.u.reject.line;
             uint64_t const col = rr.u.reject.column;
@@ -775,301 +1176,14 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
             rc = CheckLimitAndLogError(G);
             if (fatal)
                 rc = RC(rcExe, rcFile, rcParsing, rcFormat, rcUnsupported);
-            goto LOOP_END;
-        }
-        if (rr.type == rr_sequence) {
-            uint64_t const keyId = rr.u.sequence.id;
-            bool const wasInserted = !!rr.u.sequence.inserted;
-            bool const colorspace = !!rr.u.sequence.colorspace;
-            bool const mated = !!rr.u.sequence.mated;
-            unsigned const readNo = rr.u.sequence.readNo;
-            char const *const seqDNA = rr.u.sequence.seqDNA;
-            uint8_t const *const qual = rr.u.sequence.quality;
-            unsigned const readlen = rr.u.sequence.readLen;
-            int const readOrientation = !!rr.u.sequence.orientation;
-            bool const reverse = * isColorSpace ? false : (readOrientation == ReadOrientationReverse);
-            char const cskey = rr.u.sequence.cskey;
-            bool const bad = !!rr.u.sequence.bad;
-            char const *const spotGroup = rr.u.sequence.spotGroup;
-            char const *const name = rr.u.sequence.name;
-            int const namelen = strlen(name);
-
-            if (!G->noColorSpace) {
-                if (colorspace) {
-                    if (isNotColorSpace) {
-                    MIXED_BASE_AND_COLOR:
-                        rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
-                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains base space and color space", "file=%s", fileName));
-                        goto LOOP_END;
-                    }
-                    * isColorSpace = true;
-                }
-                else if ( * isColorSpace )
-                    goto MIXED_BASE_AND_COLOR;
-                else
-                    isNotColorSpace = true;
-            }
-
-            value = SpotAssemblerGetCtxValue(ctx, &rc, keyId);
-            if (value == NULL) {
-                (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
-                goto LOOP_END;
-            }
-            if (wasInserted) {
-                memset(value, 0, sizeof(*value));
-                value->fragmentOffset = -1;
-                value->unmated = !mated;
-            }
-            else {
-                if (mated && value->unmated) {
-                    (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
-                                             "Spot '$(name)', which was first seen without mate info, now has mate info",
-                                             "name=%s", name));
-                    rc = CheckLimitAndLogError(G);
-                    goto LOOP_END;
-                }
-            }
-
-            ++recordsProcessed;
-            if (mated) {
-                if (value->written) {
-                    (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id", "name=%s", name));
-                }
-                else if (!value->has_a_read) {
-                    /* new mated fragment - do spot assembly */
-                    unsigned sz;
-                    FragmentInfo fi;
-                    void *myData = NULL;
-                    FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
-                    int64_t const victimId = frag -> id;
-                    void *const victimData = frag -> data;
-
-                    ++fragmentsAdded;
-                    value->seqHash[readNo - 1] = SeqHashKey(seqDNA, readlen);
-
-                    memset(&fi, 0, sizeof(fi));
-                    fi.orientation = readOrientation;
-                    fi.otherReadNo = readNo;
-                    fi.sglen   = strlen(spotGroup);
-                    fi.readlen = readlen;
-                    fi.cskey = cskey;
-                    fi.is_bad = bad;
-                    sz = sizeof(fi) + 2*fi.readlen + fi.sglen;
-                    myData = malloc(sz);
-                    if (myData == NULL) {
-                        (void)LOGERR(klogErr, RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted), "OUT OF MEMORY!");
-                        abort();
-                        goto LOOP_END;
-                    }
-                    {{
-                        uint8_t *dst = (uint8_t*)myData;
-
-                        memmove(dst,&fi,sizeof(fi));
-                        dst += sizeof(fi);
-                        COPY_READ((char *)dst, seqDNA, fi.readlen, reverse);
-                        dst += fi.readlen;
-                        COPY_QUAL(dst, qual, fi.readlen, reverse);
-                        dst += fi.readlen;
-                        memmove(dst,spotGroup,fi.sglen);
-                    }}
-
-                    frag->id = keyId;
-                    frag->data = myData;
-
-                    value->has_a_read = 1;
-                    value->fragmentSize = sz;
-                    *had_sequences = true;
-
-                    if (victimData != NULL) {
-                        ctx_value_t *const victim = SpotAssemblerGetCtxValue(ctx, &rc, victimId);
-                        if (victim == NULL) {
-                            (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", victimId));
-                            abort();
-                            goto LOOP_END;
-                        }
-                        if (victim->fragmentOffset < 0) {
-                            int64_t const pos = ctx->nextFragment; //AB
-                            int64_t const nwrit = pwrite(ctx->fragmentFd, victimData, victim->fragmentSize, pos); //AB
-
-                            if (nwrit == victim->fragmentSize) {
-                                ctx->nextFragment += victim->fragmentSize; //AB
-                                victim->fragmentOffset = pos;
-                                free(victimData);
-                                ++fragmentsEvicted;
-                            }
-                            else {
-                                (void)LOGMSG(klogFatal, "Failed to write fragment data");
-                                abort();
-                                goto LOOP_END;
-                            }
-                        }
-                        else {
-                            (void)LOGMSG(klogFatal, "PROGRAMMER ERROR!!");
-                            abort();
-                            goto LOOP_END;
-                        }
-                    }
-
-                    /* save the read, to be used whan mate shows up, or in SpotAssemblerWriteSoloFragments() */
-                    rc = Id2Name_Add ( & ctx->id2name, keyId, name );
-                }
-                else {
-                    /* might be second fragment */
-                    uint64_t const sz = value->fragmentSize;
-                    bool freeFip = false;
-                    FragmentInfo *fip = NULL;
-                    FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
-
-                    if (frag->id == keyId)
-                    {
-                        fip = frag->data;
-                        freeFip = true;
-                    }
-                    else {
-                        int64_t nread = 0;
-                        rc = KDataBufferResize(&fragBuf, (size_t)sz);
-                        if (rc) {
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
-                            abort();
-                            goto LOOP_END;
-                        }
-                        nread = pread(ctx->fragmentFd, fragBuf.base, sz, value->fragmentOffset); //AB
-                        if (nread == sz) {
-                            fip = (FragmentInfo *) fragBuf.base;
-                        }
-                        else {
-                            (void)PLOGMSG(klogFatal, (klogFatal, "Failed to read fragment data; spot:'$(name)'; "
-                                "size: $(size); pos: $(pos); read: $(read)", "name=%s,size=%lu,pos=%lu,read=%lu",
-                                name, sz, value->fragmentOffset, nread));
-                            abort();
-                            goto LOOP_END;
-                        }
-                    }
-                    if (readNo != fip->otherReadNo) {
-                        /* mate found */
-                        unsigned readLen[2];
-                        unsigned read1 = 0;
-                        unsigned read2 = 1;
-                        uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
-
-                        ++spotsCompleted;
-                        value->seqHash[readNo - 1] = SeqHashKey(seqDNA, readlen);
-
-                        if (readNo < fip->otherReadNo) {
-                            read1 = 1;
-                            read2 = 0;
-                        }
-                        readLen[read1] = fip->readlen;
-                        readLen[read2] = readlen;
-                        rc = SequenceRecordInit(&srec, 2, readLen);
-                        if (rc) {
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
-                            goto LOOP_END;
-                        }
-                        srec.is_bad[read1] = fip->is_bad;
-                        srec.orientation[read1] = fip->orientation;
-                        srec.cskey[read1] = fip->cskey;
-                        memmove(srec.seq + srec.readStart[read1], src, fip->readlen);
-                        src += fip->readlen;
-                        memmove(srec.qual + srec.readStart[read1], src, fip->readlen);
-                        src += fip->readlen;
-
-                        srec.orientation[read2] = readOrientation;
-                        COPY_READ(srec.seq + srec.readStart[read2],
-                                  seqDNA,
-                                  srec.readLen[read2],
-                                  reverse);
-                        COPY_QUAL(srec.qual + srec.readStart[read2],
-                                  qual,
-                                  srec.readLen[read2],
-                                  reverse);
-
-                        srec.keyId = keyId;
-                        srec.is_bad[read2] = bad;
-                        srec.cskey[read2] = cskey;
-
-                        rc = Id2Name_Get ( & ctx->id2name, keyId, (const char**) & srec.spotName );
-                        if (rc)
-                        {
-                            (void)LOGERR(klogErr, rc, "Is2Name_Get failed");
-                            goto LOOP_END;
-                        }
-                        srec.spotNameLen = strlen(srec.spotName);
-
-                        srec.spotGroup = (char *)spotGroup;
-                        srec.spotGroupLen = strlen(spotGroup);
-                        rc = SequenceWriteRecord(seq, &srec, *isColorSpace, false, G->platform,
-                                                 G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer, G->dropReadnames);
-                        if (freeFip) {
-                            free(fip);
-                            frag->data = NULL;
-                        }
-                        if (rc) {
-                            (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
-                            goto LOOP_END;
-                        }
-                        CTX_VALUE_SET_S_ID(*value, ++ctx->spotId); //AB
-                        value->written = 1;
-                    }
-                }
-            }
-            else if (value->written) {
-                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' has already been assigned a spot id", "name=%s", name));
-            }
-            else if (value->has_a_read)
-            {
-                FragmentEntry * frag = SpotAssemblerGetFragmentEntry(ctx, keyId);
-                if (frag -> id == keyId)
-                {
-                    free ( frag -> data );
-                    frag -> data = NULL;
-                }
-                (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
-                                         "Spot '$(name)', which was first seen with mate info, now has no mate info",
-                                         "name=%s", name));
-                rc = CheckLimitAndLogError(G);
-            }
-            else {
-                /* new unmated fragment - no spot assembly */
-                unsigned readLen[1];
-
-                value->seqHash[0] = SeqHashKey(seqDNA, readlen);
-
-                readLen[0] = readlen;
-                rc = SequenceRecordInit(&srec, 1, readLen);
-                if (rc) {
-                    (void)LOGERR(klogErr, rc, "Failed resizing sequence record buffer");
-                    goto LOOP_END;
-                }
-                srec.is_bad[0] = bad;
-                srec.orientation[0] = readOrientation;
-                srec.cskey[0] = cskey;
-                COPY_READ(srec.seq  + srec.readStart[0], seqDNA, readlen, false);
-                COPY_QUAL(srec.qual + srec.readStart[0], qual, readlen, false);
-
-                srec.keyId = keyId;
-
-                srec.spotGroup = (char *)spotGroup;
-                srec.spotGroupLen = strlen(spotGroup);
-
-                srec.spotName = (char *)name;
-                srec.spotNameLen = namelen;
-
-                rc = SequenceWriteRecord(seq, &srec, *isColorSpace, false, G->platform,
-                                         G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer, G->dropReadnames);
-                if (rc) {
-                    (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
-                    goto LOOP_END;
-                }
-                CTX_VALUE_SET_S_ID(*value, ++ctx->spotId); //AB
-                value->written = 1;
-                *had_sequences = true;
-            }
         }
         else
-            abort();
+        {
+            rc = HandleSequence( & rr, fileName, G, ctx, had_sequences, & fragmentsAdded, & fragmentsEvicted, & spotsCompleted, & fragBuf, & srec, seq );
+            ++recordsProcessed;
+        }
 
-LOOP_END:
+
         freeReadResult(&rr);
     }
 
@@ -1172,13 +1286,15 @@ rc_t CommonWriterInit(CommonWriter* self, struct VDBManager *mgr, struct VDataba
 }
 
 rc_t CommonWriterArchive(CommonWriter *const self,
-                         const struct ReaderFile *const reader)
+                         const struct ReaderFile *const reader1,
+                         const struct ReaderFile *const reader2)
 {
     rc_t rc;
     bool has_sequences = false;
 
     assert(self);
-    rc = ArchiveFile(reader,
+    rc = ArchiveFile(reader1,
+                     reader2,
                      &self->settings,
                      self->ctx,
                      self->seq,

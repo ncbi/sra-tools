@@ -22,60 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/srapath
 
-INT_TOOLS =
-
-EXT_TOOLS = \
-	srapath
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-	
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# srapath
-#
-SRAPATH_SRC = \
-	helper \
-	line_iter \
-	repository-mgr \
-	services \
-	cgi_request \
-	srapath
-
-SRAPATH_OBJ = \
-	$(addsuffix .$(OBJX),$(SRAPATH_SRC))
-
-SRAPATH_LIB += \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-
-$(BINDIR)/srapath: $(SRAPATH_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRAPATH_LIB)
-

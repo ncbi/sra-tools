@@ -1,0 +1,30 @@
+{
+    "groups": [
+        {
+            "estimated_spots": 3,
+            "files": [
+                {
+                    "defline_type": [
+                        "undefined"
+                    ],
+                    "file_path": "input/001.read.unsupported.fq",
+                    "file_size": 651,
+                    "first_name": "BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        0
+                    ],
+                    "quality_encoding": 0,
+                    "readNums": [],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                }
+            ],
+            "is_10x": false
+        }
+    ]
+}

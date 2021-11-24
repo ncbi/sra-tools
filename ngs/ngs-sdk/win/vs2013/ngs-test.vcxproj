@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="ngs-common.props" />
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}</ProjectGuid>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ConfigurationType>Application</ConfigurationType>
+    <TargetExt>.exe</TargetExt>
+    <OutDir>$(NGS_TARGET)\bin\</OutDir>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemGroup>
+    <ProjectReference Include="libadapter.vcxproj">
+      <Project>{b9096fef-5b55-4308-a81f-3b52ca968be9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="libdispatch.vcxproj">
+      <Project>{06fa485f-8aa9-4f3b-b1e3-d8cf1993637b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="libngs-c++.vcxproj">
+      <Project>{a8ac88d2-fada-4458-a251-db2e039678a4}</Project>
+    </ProjectReference>
+    <ProjectReference Include="libtest_engine.vcxproj">
+      <Project>{fb574d6f-8684-45ae-a0af-b52ba67e9fde}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  
+  <Import Project="..\ngs-test.files" />
+  
+  <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
+    <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)\" />
+  </Target>
+</Project>

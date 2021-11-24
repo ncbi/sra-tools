@@ -1,0 +1,3 @@
+[info] File group: input/009.test_I1_001.fastq, input/009.test_R1_001.fastq, input/009.test_R2_001.fastq, input/009.test_R3_001.fastq
+[info] Parsing from 4 files
+[error] [code:210] Spot V300019058_8BL1C001R00100000000 has more than 4 reads

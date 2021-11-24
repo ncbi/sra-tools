@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B9096FEF-5B55-4308-A81F-3B52CA968BE9}</ProjectGuid>
+    <ProjectName>libngs-adapt-c++</ProjectName>
+  </PropertyGroup>
+  <Import Project="lib-project.props" />
+  <Import Project="..\libadapter.files" />
+</Project>

@@ -1,0 +1,128 @@
+NGS LIBRARY NOTES
+
+C++ Structure:
+
+The "interface" file is in interfaces/ngs/*.hpp and is named to be consistent
+with Java conventions in order to avoid potential problems with IDEs, etc. So
+for the interface class "ngs::Read", it is in its own file <ngs/Read.hpp>.
+
+C++ "interfaces" in this library are actually references, or "smart pointers".
+They must NEVER have a virtual table or be allocated, although they do support
+copy constructors and assignment operators in general. They have no inline
+methods because the interface is being proposed as a standard for several
+institutions to implement, meaning we can't imply ANYTHING about the underlying
+implementation.
+
+The implementation of the C++ interfaces is private to NCBI, and is currently
+defined in this directory. So for example, <ngs/Read.hpp> is imlemented here as
+Read.cpp.
+
+The main purpose of methods in Read.cpp is to simply dispatch the message to a
+ReadItf object, which is polymorphic. Philosophically the other job of these
+methods ( Read.cpp ) is to wrap allocations in references ( smart pointers ),
+e.g. creating a String or StringRef from a StringItf*, etc. So far, I've just
+been letting the polymorphic dispatcher class throw the exceptions.
+
+The smart pointer's reference to the opaque polymorphic interface class is
+forward declared in the <ngs/Read.hpp> as "typedef class ReadItf * ReadRef;" or
+something like that. The interface class is opened within this directory by
+ReadItf.hpp. This declaration is entirely used for type punning, so again there
+cannot be any virtual methods.
+
+The methods of the ReadItf will be happy to return pointers now, since they'll
+be wrapped by the Read class' methods. ReadItf.cpp is also responsible for
+re-dispatching, but serves the additional and important function of establishing
+thread context for the C code upon entry, and checking for C exceptions before
+returning.
+
+QUICK SUMMARY:
+  ReadItf.cpp methods
+    - establish C context
+    - redispatch to C code, casting "this" pointer to C type
+    - throw appropriate C++ exceptions upon error detection
+    - return values from C code, type-punned as appropriate
+
+  NGS_Read.c methods
+    - directly implement interface to VDB, or
+    - redispatch through C vtables
+	- provides iteration methods
+
+  ReadItf.hpp
+    - declares the main C++ wrapper methods, generally mirroring public
+      interface
+    - declare a pair of casting operators I've been calling "self()"
+    - can never be directly instantiated, so always use the macro
+      "NON_INSTANTIABLE(classname)" to prevent this.
+    - generally inherit from Refcount<classname>
+
+  NGS_Read.h
+    - forward declare C version of *Itf, e.g. NGS_Read == ReadItf
+    - the actual struct definition includes NGS_Refcount dad as first thing.
+      the structure type has to be an NGS_Refcount to inherit from Refcount<T>.
+    - sometimes will describe the C vtable
+	- also declares iteration functions, more later
+
+  Read.cpp
+    - dispatch to self, which is a ReadItf*
+	- allow exceptions to flow through from ReadItf
+	- provide type wrappers on pointers returned from ReadItf
+
+
+It's a little over-complicated, as always, but it satisfies many simultaneous
+requirements. There's a lot I'd rather put higher up in C++, such as
+polymorphism, where I'd declare ReadItf as an abstract class and put the calls
+to VDB in a C++ ReadImpl.cpp or whatever.
+
+  Read.cpp -> vt ( ReadItf ) -> <impl>.cpp -> VDB
+
+
+But doing so would leave Java native methods out of the picture, since they call
+through to C code.
+
+  Read.java -> ReadItf.java -> JNI_Read.c -+
+                                           |
+                                           +-> NGS_Read.c -> vt -> <impl>.c -> VDB
+                                           |
+  Read.cpp -> ReadItf.cpp -----------------+
+
+
+==========================
+ITERATORS
+
+The iterators are, as you have seen, sub-classes of the interface they are
+iterating upon, which removes the need to allocate objects in Java. So there is
+generally a <ngs/Read.hpp> and <ngs/ReadIterator.hpp>.
+
+For implementation, there should be ReadIterator.cpp, but the iteration methods
+are included under ReadItf.hpp (or should be). This is because sending an
+iteration message to an object is package private, so only the ReadIterator
+should be able to send such a message, and it should know that it holds an
+object capable of iterating.
+
+ReadItf is a type-punned version of NGS_Read, so the latter also should declare
+its iteration methods.
+
+An implementation that cannot iterate should mark an error in C code with
+INTERNAL_ERROR macro. The *Itf version that called it should turn this into an
+ErrorMsg or subclass thereof, because there should be no way that the message
+was ever sent.
+
+An implementation that CAN iterate but has only a single element would allow the
+first "nextRead" or whatever to succeed, but return false on all subsequent ones
+(and not throw an exception).
+
+
+=========================
+
+TODO:
+
+I left the code in a semi-catatonic state, because initially I had Read.cpp
+calling through directly to NGS_Read. Technically, we could still do that and
+maybe it'd make sense... but again I'm trying to keep some parallel between the
+Java and C++ code.
+
+So all of the stuff in interfaces needs to be reflected in the libraries. After
+getting the code together, we'll have to look at restructuring to include the C
+code into libncbi-vdb, and the C++ code in its own static and dynamic external
+libraries, versioned independently from our releases, since they will now
+reflect the API version (1.0.x).

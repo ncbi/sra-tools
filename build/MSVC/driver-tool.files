@@ -22,8 +22,9 @@
         <ClCompile Include="..\..\..\tools\driver-tool\run-source.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\uuid.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\service.cpp" />
+        <ClCompile Include="..\..\..\tools\driver-tool\support2.cpp" />
 
-        <ClCompile Include="..\..\..\tools\driver-tool\json\json.cpp" />
+      <ClCompile Include="..\..\..\tools\driver-tool\json\json.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\json\json-array.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\json\json-object.cpp" />
         <ClCompile Include="..\..\..\tools\driver-tool\json\json-primitive.cpp" />

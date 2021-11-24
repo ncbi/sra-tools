@@ -1,0 +1,44 @@
+NGS-SDK: CONTENTS
+
+language
+
+  The language sub-directory contains "bindings" for supported API languages.
+  Bindings are functions or methods that connect the API to the dispatch
+  interface.
+
+  All of the non-line API methods for C++ are contained in "language/c++".
+  Note that most of the C++ bindings are inlines, and can be found in "ngs/inl".
+
+  Java bindings come in the form of "JNI" (Java Native Interface) C functions.
+
+  Python bindings also come in the form of C functions, and serve the same
+  essential purpose as Java's JNI.
+
+
+dispatch
+
+  The dispatch sub-directory contains code responsible for dispatching API
+  messages to NGS back-end "engines," e.g. the NCBI SRA engine.
+
+  Dispatch code is written natively in C++, but performs the function of
+  relaying messages across a C interface to engine code. This avoids common
+  fragilities that make C++ inappropriate for use in shared libraries.
+
+  The dispatch sub-directory also contains NCBI-specific code that clients can
+  link against to bring in the NCBI SRA or BAM engines. This code is NCBI
+  specific, and does not affect the interface code.
+
+
+adapter
+
+  As mentioned in the "dispatch" section, the conduit between interface and
+  engine uses a C-only polymorphic protocol. While it is possible to implement
+  this directly within an engine, some developers may prefer to use C++. This
+  directory provides C++ base classes that adapt the C protocol to C++ in a safe
+  way.
+
+
+test
+
+  (* ANATOLY CAN PROVIDE INPUT HERE *)
+

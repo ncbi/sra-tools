@@ -750,8 +750,8 @@ rc_t ccat_main ( CCTree *tree, const KFile *sf, KTime_t mtime,
     else
     {
         /* file could be a container */
-        CCContainerNode *cont;
-        CCCachedFileNode *cfile;
+        CCContainerNode *cont = NULL;
+        CCCachedFileNode *cfile = NULL;
 
         /* assume this node will get name */
         void *entry = node;
@@ -1715,6 +1715,7 @@ rc_t copycat (CCTree *tree, KTime_t mtime, KDirectory * _cwd,
     copycat_pb pb;
     rc_t rc;
 
+    memset(&pb, 0, sizeof(pb));
     DEBUG_STATUS (("%s: copy file %s\n",__func__, spath));
 
     cwd = _cwd;

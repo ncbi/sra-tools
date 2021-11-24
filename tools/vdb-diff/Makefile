@@ -22,62 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-diff
 
-INT_TOOLS = \
-
-EXT_TOOLS = \
-	vdb-diff
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-	
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vdb-diff
-#
-
-VDB_DIFF_SRC = \
-	namelist_tools \
-	coldefs \
-	vdb-diff-context \
-	cmn \
-	row_by_row \
-	col_by_col \
-	vdb-diff
-
-VDB_DIFF_OBJ = \
-	$(addsuffix .$(OBJX),$(VDB_DIFF_SRC))
-
-VDB_DIFF_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/vdb-diff: $(VDB_DIFF_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_DIFF_LIB)

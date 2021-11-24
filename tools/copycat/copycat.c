@@ -932,9 +932,6 @@ rc_t KMain ( int argc, char *argv [] )
     rc = ArgsMakeAndHandle (&args, argc, argv, 1, Options, sizeof Options / sizeof (OptDef));
     if (rc == 0)
     {
-        /* CS-101: DO WHILE ( 0 ) LOOPS ARE CUTE FOR AVOIDING GOTO,
-           BUT IT MEANS YOU HAVE TO PUT ALL OF YOUR CLEANUP OUTSIDE
-           OF THE LOOP, IN ORDER TO BREAK OUT IN A NON-STRUCTURED WAY */
         do
         {
             const char * dest;

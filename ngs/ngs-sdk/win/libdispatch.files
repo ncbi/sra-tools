@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\AlignmentItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\AlignmentItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\defs.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ErrBlock.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ErrBlock.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ErrorMsg.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\FragmentItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\FragmentItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\PackageItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\PileupEventItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\PileupEventItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\PileupItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\PileupItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReadCollectionItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReadCollectionItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReadGroupItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReadGroupItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReadItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReadItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\Refcount.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\Refcount.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReferenceItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReferenceItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReferenceSequenceItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\ReferenceSequenceItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\StatisticsItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\StatisticsItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\StringItf.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\StringItf.hpp" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\VTable.h" />
+    <ClInclude Include="$(NGS_ROOT)ngs-sdk\ngs\itf\VTable.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\AlignmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ErrBlock.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ErrorMsg.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\FragmentItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\PackageItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\PileupEventItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\PileupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReadCollectionItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReadGroupItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReadItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\Refcount.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReferenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\ReferenceSequenceItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\StatisticsItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\StringItf.cpp" />
+    <ClCompile Include="$(NGS_ROOT)ngs-sdk\dispatch\VTable.cpp" />
+  </ItemGroup>
+</Project>

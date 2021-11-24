@@ -1,0 +1,43 @@
+<project>
+
+    <!-- This file is currently for use on Windows; Linux/Mac builds are run via gmake -->
+    <property environment="env"/>
+    <property name="Platform"       value="x64" />
+    <property name="Configuration"  value="Debug" />
+    <property name="Output"         value="${basedir}\..\..\..\OUTDIR" />
+    <property name="MSVS"            value="2017" />
+    <property name="PlatformToolset" value="v141" />
+
+    <property name="vdb.dir"        value="${Output}\ncbi-vdb\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+    <property name="ngs.dir"        value="${Output}\ngs-sdk\win\${PlatformToolset}\${Platform}\${Configuration}\bin" />
+
+    <property name="ngs-source.dir" value="${basedir}\..\..\..\ngs" />
+
+    <!-- Set this to full path to Python if not in PATH already
+        make sure that
+            python -c "import platform;print (platform.architecture()[0])" = "32bit" or "64bit"
+        as needed for the platform
+    -->
+    <property name="python.exe"     value="python" />
+    <target name="install">
+        <property name="PYTHONUSERBASE" value="${Output}\tmp\ngs"/>
+        <exec executable="${python.exe}" dir="${ngs-source.dir}\ngs-python" failonerror="true" >
+	    <env key="PYTHONUSERBASE" value="${PYTHONUSERBASE}"/>
+            <arg value="setup.py" />
+            <arg value="install" />
+            <arg value="--user" />
+        </exec>
+    </target>
+
+    <target name="runtests" depends="install">
+        <property name="PYTHONUSERBASE" value="${Output}\tmp\ngs"/>
+        <exec executable="${python.exe}" failonerror="true">
+	    <env key="PYTHONUSERBASE" value="${PYTHONUSERBASE}"/>
+            <env key="Path" path="${vdb.dir};${ngs.dir};${env.Path}"/>
+            <env key="NGS_PY_DOWNLOAD_LIBRARY" value="0"/>
+            <env key="NGS_PY_LIBRARY_PATH" path="${vdb.dir};${ngs.dir}"/>
+          <arg value="tests.py" />
+        </exec>
+    </target>
+
+</project>

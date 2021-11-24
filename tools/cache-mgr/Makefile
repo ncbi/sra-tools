@@ -22,55 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/cache-mgr
 
-INT_TOOLS = \
-
-EXT_TOOLS = \
-	cache-mgr
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# cache-mgr
-#
-TOOL_SRC = \
-	cache-mgr
-
-TOOL_OBJ = \
-	$(addsuffix .$(OBJX),$(TOOL_SRC))
-
-TOOL_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/cache-mgr: $(TOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
-

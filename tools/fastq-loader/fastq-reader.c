@@ -641,7 +641,8 @@ rc_t CC FastqReaderFileMake( const ReaderFile **reader,
                              const char* file,
                              enum FASTQQualityFormat qualityFormat,
                              int8_t defaultReadNumber,
-                             bool ignoreSpotGroups)
+                             bool ignoreSpotGroups,
+                             bool debugLex)
 {
     rc_t rc;
     FastqReaderFile* self = (FastqReaderFile*) malloc ( sizeof * self );
@@ -673,7 +674,7 @@ rc_t CC FastqReaderFileMake( const ReaderFile **reader,
             self->pb.secondaryReadNumber = 0;
             self->pb.ignoreSpotGroups = ignoreSpotGroups;
 
-            rc = FASTQScan_yylex_init(& self->pb, false);
+            rc = FASTQScan_yylex_init(& self->pb, debugLex);
             if (rc == 0)
             {
                 *reader = (const ReaderFile *) self;

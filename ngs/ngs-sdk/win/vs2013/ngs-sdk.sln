@@ -1,0 +1,125 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libngs-adapt-c++", "libadapter.vcxproj", "{B9096FEF-5B55-4308-A81F-3B52CA968BE9}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libngs-disp", "libdispatch.vcxproj", "{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libngs-bind-c++", "libngs-c++.vcxproj", "{A8AC88D2-FADA-4458-A251-DB2E039678A4}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libtest_engine", "libtest_engine.vcxproj", "{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ngs-test", "ngs-test.vcxproj", "{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HeaderFiles", "HeaderFiles", "{3F19C31D-C662-4909-84F1-FCB983178DEE}"
+	ProjectSection(SolutionItems) = preProject
+		..\ngs\Alignment.hpp = ..\ngs\Alignment.hpp
+		..\ngs\AlignmentIterator.hpp = ..\ngs\AlignmentIterator.hpp
+		..\ngs\defs.h = ..\ngs\defs.h
+		..\ngs\ErrorMsg.hpp = ..\ngs\ErrorMsg.hpp
+		..\ngs\Fragment.hpp = ..\ngs\Fragment.hpp
+		..\ngs\FragmentIterator.hpp = ..\ngs\FragmentIterator.hpp
+		..\ngs\Pileup.hpp = ..\ngs\Pileup.hpp
+		..\ngs\PileupEvent.hpp = ..\ngs\PileupEvent.hpp
+		..\ngs\PileupEventIterator.hpp = ..\ngs\PileupEventIterator.hpp
+		..\ngs\PileupIterator.hpp = ..\ngs\PileupIterator.hpp
+		..\ngs\Read.hpp = ..\ngs\Read.hpp
+		..\ngs\ReadCollection.hpp = ..\ngs\ReadCollection.hpp
+		..\ngs\ReadGroup.hpp = ..\ngs\ReadGroup.hpp
+		..\ngs\ReadGroupIterator.hpp = ..\ngs\ReadGroupIterator.hpp
+		..\ngs\ReadIterator.hpp = ..\ngs\ReadIterator.hpp
+		..\ngs\Reference.hpp = ..\ngs\Reference.hpp
+		..\ngs\ReferenceIterator.hpp = ..\ngs\ReferenceIterator.hpp
+		..\ngs\ReferenceSequence.hpp = ..\ngs\ReferenceSequence.hpp
+		..\ngs\Statistics.hpp = ..\ngs\Statistics.hpp
+		..\ngs\StringRef.hpp = ..\ngs\StringRef.hpp
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "inl", "inl", "{D3CE4594-5886-4BD8-97A0-69449C45820E}"
+	ProjectSection(SolutionItems) = preProject
+		..\ngs\inl\Alignment.hpp = ..\ngs\inl\Alignment.hpp
+		..\ngs\inl\AlignmentIterator.hpp = ..\ngs\inl\AlignmentIterator.hpp
+		..\ngs\inl\Fragment.hpp = ..\ngs\inl\Fragment.hpp
+		..\ngs\inl\FragmentIterator.hpp = ..\ngs\inl\FragmentIterator.hpp
+		..\ngs\inl\Pileup.hpp = ..\ngs\inl\Pileup.hpp
+		..\ngs\inl\PileupEvent.hpp = ..\ngs\inl\PileupEvent.hpp
+		..\ngs\inl\PileupEventIterator.hpp = ..\ngs\inl\PileupEventIterator.hpp
+		..\ngs\inl\PileupIterator.hpp = ..\ngs\inl\PileupIterator.hpp
+		..\ngs\inl\Read.hpp = ..\ngs\inl\Read.hpp
+		..\ngs\inl\ReadCollection.hpp = ..\ngs\inl\ReadCollection.hpp
+		..\ngs\inl\ReadGroup.hpp = ..\ngs\inl\ReadGroup.hpp
+		..\ngs\inl\ReadGroupIterator.hpp = ..\ngs\inl\ReadGroupIterator.hpp
+		..\ngs\inl\ReadIterator.hpp = ..\ngs\inl\ReadIterator.hpp
+		..\ngs\inl\Reference.hpp = ..\ngs\inl\Reference.hpp
+		..\ngs\inl\ReferenceIterator.hpp = ..\ngs\inl\ReferenceIterator.hpp
+		..\ngs\inl\ReferenceSequence.hpp = ..\ngs\inl\ReferenceSequence.hpp
+		..\ngs\inl\Statistics.hpp = ..\ngs\inl\Statistics.hpp
+		..\ngs\inl\StringRef.hpp = ..\ngs\inl\StringRef.hpp
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libngs-sdk", "ngs-sdk.vcxproj", "{A6A46CB4-760E-4F16-9499-BC712E99FB5D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Debug|Win32.Build.0 = Debug|Win32
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Debug|x64.ActiveCfg = Debug|x64
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Debug|x64.Build.0 = Debug|x64
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Release|Win32.ActiveCfg = Release|Win32
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Release|Win32.Build.0 = Release|Win32
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Release|x64.ActiveCfg = Release|x64
+		{B9096FEF-5B55-4308-A81F-3B52CA968BE9}.Release|x64.Build.0 = Release|x64
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Debug|Win32.Build.0 = Debug|Win32
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Debug|x64.ActiveCfg = Debug|x64
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Debug|x64.Build.0 = Debug|x64
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Release|Win32.ActiveCfg = Release|Win32
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Release|Win32.Build.0 = Release|Win32
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Release|x64.ActiveCfg = Release|x64
+		{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}.Release|x64.Build.0 = Release|x64
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Debug|Win32.Build.0 = Debug|Win32
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Debug|x64.ActiveCfg = Debug|x64
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Debug|x64.Build.0 = Debug|x64
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Release|Win32.ActiveCfg = Release|Win32
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Release|Win32.Build.0 = Release|Win32
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Release|x64.ActiveCfg = Release|x64
+		{A8AC88D2-FADA-4458-A251-DB2E039678A4}.Release|x64.Build.0 = Release|x64
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Debug|Win32.Build.0 = Debug|Win32
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Debug|x64.ActiveCfg = Debug|x64
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Debug|x64.Build.0 = Debug|x64
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Release|Win32.ActiveCfg = Release|Win32
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Release|Win32.Build.0 = Release|Win32
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Release|x64.ActiveCfg = Release|x64
+		{FB574D6F-8684-45AE-A0AF-B52BA67E9FDE}.Release|x64.Build.0 = Release|x64
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Debug|Win32.ActiveCfg = Debug|Win32
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Debug|Win32.Build.0 = Debug|Win32
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Debug|x64.ActiveCfg = Debug|x64
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Debug|x64.Build.0 = Debug|x64
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Release|Win32.ActiveCfg = Release|Win32
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Release|Win32.Build.0 = Release|Win32
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Release|x64.ActiveCfg = Release|x64
+		{33E73C44-6EEB-4CAE-8DE6-2546E7DE2133}.Release|x64.Build.0 = Release|x64
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Debug|Win32.Build.0 = Debug|Win32
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Debug|x64.ActiveCfg = Debug|x64
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Debug|x64.Build.0 = Debug|x64
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Release|Win32.ActiveCfg = Release|Win32
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Release|Win32.Build.0 = Release|Win32
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Release|x64.ActiveCfg = Release|x64
+		{A6A46CB4-760E-4F16-9499-BC712E99FB5D}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D3CE4594-5886-4BD8-97A0-69449C45820E} = {3F19C31D-C662-4909-84F1-FCB983178DEE}
+	EndGlobalSection
+EndGlobal

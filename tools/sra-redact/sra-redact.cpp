@@ -203,6 +203,26 @@ public:
         count_ = fsize / sizeof(*start);
 
         std::sort(start, start + count());
+
+        auto last = *start;
+        auto const inf = *(start + count() - 1) + 1;
+        size_t dups = 0;
+        for (auto i = start + 1; i < end(); ++i) {
+            if (last == *i) {
+                *i = inf;
+                dups += 1;
+            }
+            else
+                last = *i;
+        }
+        if (dups) {
+            std::sort(start, start + count());
+            count_ -= dups;
+
+            ftruncate(fd, count() * sizeof(*start));
+            lseek(fd, 0, SEEK_END);
+        }
+        mprotect(map, count() * sizeof(*start), PROT_READ);
     }
     ~Redacted() {
         if (start) {
@@ -334,11 +354,11 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         commitRow(row, out);
         closeRow(row, out);
     }
+    commitCursor(out);
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
     pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%lu,elapsed=%.0f"
             , (unsigned long)redactions
             , elapsed);
-    commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
 }
@@ -377,7 +397,7 @@ static void processAlignments(VCursor const *const in)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }
 
-        if (shouldFilter(read.count, (uint8_t const *)read.data)) {
+        if (spotId % 10 == 1 || shouldFilter(read.count, (uint8_t const *)read.data)) {
             Redacted::addSpot(spotId);
             ++redactions;
         }
@@ -505,6 +525,8 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
         commitRow(row, out);
         closeRow(row, out);
     }
+    commitCursor(out);
+
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
     pLogMsg(klogInfo, "progress: done in $(elapsed) seconds; redacted: $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu,elapsed=%.0f"
             , (unsigned long)dispositionCount[dspcRedactedSpots]
@@ -512,7 +534,6 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
             , (unsigned long)dispositionBaseCount[dspcRedactedBases]
             , elapsed);
 
-    commitCursor(out);
     VCursorRelease(out);
     VCursorRelease(in);
 
@@ -532,8 +553,12 @@ static void copyColumns(  Output const &output
         return;
     }
 
+    /// This is split into three sections to ensure that
+    /// the VDB objects are NOT open during the purely file system operations.
     auto dropped = std::vector<std::string>();
     {
+        /// First drop columns from the destination.
+        /// Done using VDB because the columns might be metadata only.
         auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
 
         for (auto && colName : output.changedColumns) {
@@ -553,28 +578,36 @@ static void copyColumns(  Output const &output
             }
         }
         VTableRelease(dstTbl);
+        /// The destination is closed;
     }
 
+    /// First try purely file system operations.
+    /// This will copy the big columns.
     auto not_copied = std::vector<std::string>();
-    for (auto && colName : dropped) {
-        auto const column = colName.c_str();
+    {
         char const *const fmt = "%s/tbl/%s/col";
-        KDirectory const *const src = tableName
-                                    ? openDirRead(fmt, from, tableName)
-                                    : openDirRead(fmt + 7, from);
         KDirectory *const dst = tableName
                               ? openDirUpdate(fmt, to, tableName)
                               : openDirUpdate(fmt + 7, to);
+        KDirectory const *const src = tableName
+                                    ? openDirRead(fmt, from, tableName)
+                                    : openDirRead(fmt + 7, from);
 
-        auto const rc = KDirectoryCopy(src, dst, true, column, column);
-        if (rc)
-            not_copied.push_back(colName);
+        for (auto && colName : dropped) {
+            auto const column = colName.c_str();
+            auto const rc = KDirectoryCopyPaths(src, dst, true, column, column);
+            if (rc)
+                not_copied.push_back(colName);
+        }
 
-        KDirectoryRelease(dst); KDirectoryRelease(src);
+        KDirectoryRelease(src);
+        KDirectoryRelease(dst);
     }
     if (not_copied.empty())
         return;
 
+    /// Finally, copy the metadata only columns.
+    /// By definition, these are tiny.
     auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
     for (auto && colName : not_copied) {
         auto const column = colName.c_str();

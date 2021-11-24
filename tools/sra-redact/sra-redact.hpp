@@ -696,6 +696,9 @@ static void dropColumn(VTable *const tbl, char const *const name, char const *co
 
 static void removeTempDir(char const *const temp)
 {
+    pLogMsg(klogInfo, "NOT!!! Deleted temp object directory $(temp)", "temp=%s", temp);
+    return;
+
     KDirectory *ndir = rootDir();
     rc_t rc;
     

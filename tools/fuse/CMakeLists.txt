@@ -41,7 +41,7 @@ if( LibXml2_FOUND  )
 		${OS_SPECIFIC_SRC}
 	)
 	target_link_libraries( sra-fuser ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} xml2 )
-	MakeLinksExe( sra-fuser true )
+	MakeLinksExe( sra-fuser false )
 
 	add_executable( remote-fuser
 		log
@@ -57,5 +57,5 @@ if( LibXml2_FOUND  )
 		${OS_SPECIFIC_SRC}
 	)
 	target_link_libraries( remote-fuser ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} srareader xml2 )
-	MakeLinksExe( remote-fuser true )
+	MakeLinksExe( remote-fuser false )
 endif()

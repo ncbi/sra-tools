@@ -6,11 +6,11 @@ add_executable( vdb-decrypt
 	shared
 )
 target_link_libraries( vdb-decrypt ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( vdb-decrypt true )
+MakeLinksExe( vdb-decrypt false )
 
 add_executable( vdb-encrypt
 	vdb-encrypt
 	shared
 )
 target_link_libraries( vdb-encrypt ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( vdb-encrypt true )
+MakeLinksExe( vdb-encrypt false )

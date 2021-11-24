@@ -13,4 +13,4 @@ add_executable( qual-recalib-stat
 	qual-recalib-stat
 )
 target_link_libraries( qual-recalib-stat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( qual-recalib-stat true )
+MakeLinksExe( qual-recalib-stat false )

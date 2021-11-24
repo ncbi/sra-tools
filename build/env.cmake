@@ -362,22 +362,41 @@ endfunction()
 #
 # create versioned names and symlinks for an executable
 #
-function(MakeLinksExe target install)
+function(MakeLinksExe target install_via_driver)
     if( SINGLE_CONFIG )
         add_custom_command(TARGET ${target}
             POST_BUILD
             COMMAND rm -f ${target}.${VERSION}
             COMMAND mv ${target} ${target}.${VERSION}
             COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
-            COMMAND ln -f -s ${target}.${MAJVERS} ${target}${EXE}
+            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+            COMMAND ln -f -s sratools.${VERSION} ${target}-driver
             WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
         )
-        if ( ${install} )
-            install( FILES  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
+        if ( install_via_driver )
+            install(
+                PROGRAMS
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
+            install(
+                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
+                RENAME ${target}-orig.${VERSION}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
+            install(
+                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver
+                RENAME ${target}.${VERSION}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
+
+        else()
+            install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
+                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
+                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-        )
+            )
         endif()
     endif()
 endfunction()
@@ -400,3 +419,14 @@ if( WIN32 )
     # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries
     # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  /INCREMENTAL:NO" )
 endif()
+
+function( BuildExecutableForTest exe_name sources libraries )
+	add_executable( ${exe_name} ${sources} )
+	#MSVS_StaticRuntime( ${exe_name} )
+	target_link_libraries( ${exe_name} ${libraries} )
+endfunction()
+
+function( AddExecutableTest test_name sources libraries )
+	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
+	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endfunction()

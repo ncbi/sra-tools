@@ -598,7 +598,7 @@ static void writeChildNode(KMDataNode *const node, char const *const name, size_
     {
         rc_t const rc = KMDataNodeOpenNodeUpdate(node, &child, "%s", name);
         if (rc) {
-            LogErr(klogFatal, rc, "can't update metadata");
+            pLogErr(klogFatal, rc, "can't update metadata node $(name)", "name=%s", name);
             exit(EX_DATAERR);
         }
     }
@@ -606,7 +606,7 @@ static void writeChildNode(KMDataNode *const node, char const *const name, size_
         rc_t const rc = KMDataNodeWrite(child, data, size);
         KMDataNodeRelease(child);
         if (rc) {
-            LogErr(klogFatal, rc, "can't write metadata");
+            pLogErr(klogFatal, rc, "can't write metadata node $(name)", "name=%s", name);
             exit(EX_DATAERR);
         }
     }
@@ -617,7 +617,7 @@ static VTable *openUpdateTbl(char const *const name, VDBManager *const mgr)
     VTable *tbl = NULL;
     rc_t const rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name);
     if (rc) {
-        LogErr(klogFatal, rc, "can't open table for update");
+        pLogErr(klogFatal, rc, "can't open $(name) for update", "name=%s", name);
         exit(EX_DATAERR);
     }
     return tbl;
@@ -628,7 +628,7 @@ static VDatabase *openUpdateDb(char const *const name, VDBManager *const mgr)
     VDatabase *db = NULL;
     rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", name);
     if (rc) {
-        LogErr(klogFatal, rc, "can't open database for update");
+        pLogErr(klogFatal, rc, "can't open database $(name) for update", "name=%s", name);
         exit(EX_DATAERR);
     }
     return db;
@@ -641,7 +641,7 @@ static VTable *openUpdateDb(char const *const name, char const *const table, VDB
     rc_t rc = VDatabaseOpenTableUpdate(db, &tbl, "%s", table);
     VDatabaseRelease(db);
     if (rc) {
-        LogErr(klogFatal, rc, "can't open table for update");
+        pLogErr(klogFatal, rc, "can't open table $(table) in $(name) for update", "table=%s,name=%s", table, name);
         exit(EX_DATAERR);
     }
     return tbl;

@@ -1,6 +1,12 @@
 #ifndef __CFASTQDEFLINEPARSER_HPP__
 #define __CFASTQDEFLINEPARSER_HPP__
 
+/**
+ * @file fastq_defline_parser.hpp
+ * @brief Defline Parser
+ * 
+ */
+
 #include <string_view>
 #include <vector>
 #include "fastq_read.hpp"
@@ -10,26 +16,78 @@
 #include <set>
 
 using namespace std;
-
-//  ============================================================================
 class CDefLineParser
-//  ============================================================================
+/// Parse defline into CFastQRead using list of registered defline matcher
 {
 public:
+    /**
+     * @brief Construct a new CDefLineParser object
+     * 
+     * Registers a list of supported matchers
+     */
     CDefLineParser();
+
+    /**
+     * @brief Destroy the CDefLineParser object
+     * 
+     */
     ~CDefLineParser();
+
+    /**
+     * @brief Reset internal state
+     * 
+     */
     void Reset();
+
+    /**
+     * @brief Parse defline into CFastqRead object
+     * 
+     * @param[in] defline defline string_view to parse
+     * @param[in, out] read CFastqRead with populated defline related field 
+     */
     void Parse(const string_view& defline, CFastqRead& read);
+
+    /**
+     * @brief Check if parser can match a given defline
+     * 
+     * @param[in] defline defline string_view to parse
+     * @param[in] strict if true Matchall pattern cannot be used, otherwise it will match any defline
+     * @return true if defline can be parsed
+     * @return false if defline cannot be parsed
+     */
     bool Match(const string_view& defline, bool strict = false);
+
+    /**
+     * @brief Enable MatchAll pattern 
+     * 
+     */
     void SetMatchAll();
+
+    /**
+     * @brief Get last matched defline type
+     * 
+     * @return const string& defline type
+     */
     const string& GetDeflineType() const;
+
+    /**
+     * @brief Get last matched platform code
+     * 
+     * @return uint8_t platform code
+     */
     uint8_t GetPlatform() const;
+
+    /**
+     * @brief Get all defline type there were matched 
+     * 
+     * @return const set<string>& 
+     */
     const set<string>& AllDeflineTypes() const { return mDeflineTypes;}
 private:
-    size_t mIndexLastSuccessfulMatch = 0;
-    size_t mAllMatchIndex = -1;
-    std::vector<std::shared_ptr<CDefLineMatcher>> mDefLineMatchers;
-    std::set<string> mDeflineTypes; ///< Set of deflines types processed by this reader
+    std::vector<std::shared_ptr<CDefLineMatcher>> mDefLineMatchers; ///< Vector of all registered Defline matchers 
+    size_t mIndexLastSuccessfulMatch = 0; ///< Index of the last sucessfull matcher
+    size_t mAllMatchIndex = -1;           ///< Index of Match everything matcher
+    std::set<string> mDeflineTypes;       ///< Set of deflines types processed by this reader
 };
 
 

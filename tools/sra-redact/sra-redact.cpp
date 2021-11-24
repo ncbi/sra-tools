@@ -494,12 +494,15 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
 static void copyColumns(  Output const &output
                         , char const *const tableName
-                        , char const *const sourcePath
-                        , char const *const destPath
+                        , char const *const from
+                        , char const *const to
                         , VDBManager *const mgr)
 {
-    auto const tbl = tableName ? openUpdateDb(destPath, tableName, mgr) : openUpdateTbl(destPath, mgr);
-    auto const tmp = tableName ? openReadDb(sourcePath, tableName, mgr) : openReadTbl(sourcePath, mgr);
+    if (output.changedColumns.empty())
+        return;
+    
+    auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
+    auto const srcTbl = tableName ? openReadDb(from, tableName, mgr) : openReadTbl(from, mgr);
 
     for (auto && colName : output.changedColumns) {
         rc_t rc = 0;
@@ -508,17 +511,17 @@ static void copyColumns(  Output const &output
         pLogMsg(klogDebug, "going to copy $(table).$(column) from $(source) to $(dest)", "table=%s,column=%s,source=%s,dest=%s"
                 , tableName ? tableName : "<implied>"
                 , column
-                , sourcePath
-                , destPath);
+                , from
+                , to);
 
-        if (dropColumn(tbl, column)) {
+        if (dropColumn(dstTbl, column)) {
             char const *const fmt = "%s/tbl/%s/col";
             KDirectory const *const src = tableName
-                                        ? openDirRead(fmt, sourcePath, tableName)
-                                        : openDirRead(fmt + 7, sourcePath);
+                                        ? openDirRead(fmt, from, tableName)
+                                        : openDirRead(fmt + 7, from);
             KDirectory *const dst = tableName
-                                  ? openDirUpdate(fmt, destPath, tableName)
-                                  : openDirUpdate(fmt + 7, destPath);
+                                  ? openDirUpdate(fmt, to, tableName)
+                                  : openDirUpdate(fmt + 7, to);
 
             rc = KDirectoryCopy(src, dst, true, column, column);
             KDirectoryRelease(dst); KDirectoryRelease(src);
@@ -527,8 +530,8 @@ static void copyColumns(  Output const &output
                 pLogMsg(klogInfo, "couldn't copy physical column $(column); trying metadata copy", "column=%s", column);
 
                 /* could not copy the physical column; try the metadata node */
-                if (VTableHasStaticColumn(tmp, column))
-                    copyNodeValue(openNodeUpdate(tbl, "col/%s", column), openNodeRead(tmp, "col/%s", column));
+                if (VTableHasStaticColumn(srcTbl, column))
+                    copyNodeValue(openNodeUpdate(dstTbl, "col/%s", column), openNodeRead(srcTbl, "col/%s", column));
                 else {
                     pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", column);
                     exit(EX_DATAERR);
@@ -536,8 +539,8 @@ static void copyColumns(  Output const &output
             }
         }
     }
-    VTableRelease(tmp);
-    VTableRelease(tbl);
+    VTableRelease(srcTbl);
+    VTableRelease(dstTbl);
 }
 
 static void saveCounts(KMDataNode *node) {

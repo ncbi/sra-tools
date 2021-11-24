@@ -1,6 +1,12 @@
 #ifndef __CFASTQ_DEFLINE_MATCHER_HPP__
 #define __CFASTQ_DEFLINE_MATCHER_HPP__
 
+/**
+ * @file fastq_defline_matcher.hpp
+ * @brief Defline matcher classes
+ * 
+ */
+
 #include "fastq_read.hpp"
 #include <re2/re2.h>
 
@@ -23,20 +29,27 @@ enum
     SRA_PLATFORM_OXFORD_NANOPORE   = 9
 };
 */
-//  ============================================================================
 class CDefLineMatcher
-//  ============================================================================
+/// Base class for all defline matchers 
 {
 public:
+    /**
+     * @brief Construct a new CDefLineMatcher object
+     * 
+     * @param defLineName defline description
+     * @param pattern defline regex pattern
+     * 
+     * @throws runtime error on invalid pattern 
+     */
     CDefLineMatcher(
         const string& defLineName,
-        const string& pattern,
-        int groupSize)
+        const string& pattern)
     {
         mDefLineName = defLineName;
         re.reset(new re2::RE2(pattern));
         if (!re->ok())
             throw runtime_error("Invalid regex '" + pattern + "'");
+        int groupSize = re->NumberOfCapturingGroups();
         argv.resize(groupSize);
         args.resize(groupSize);
         match.resize(groupSize);
@@ -49,28 +62,53 @@ public:
 
     virtual ~CDefLineMatcher() {}
 
+    /**
+     * @brief Check if matcher recrogizes defline
+     * 
+     * @param[in] defline string_view de fline to check
+     * @return true if defline matches 
+     * @return false if defline does not match
+     */
     virtual bool Matches(const string_view& defline)
     {
-        return re2::RE2::PartialMatchN(defline, *re, &args[0], (int)args.size());
+        return re2::RE2::PartialMatchN(defline, *re, args.empty() ? nullptr : &args[0], (int)args.size());
     }
+
+    /**
+     * @brief retrun Defline description
+     * 
+     * @return const string& 
+     */
     const string& Defline() const { return mDefLineName;}
+
+    /**
+     * @brief Fill CFastqRead with the data from matched defline 
+     * 
+     * @param read 
+     */
     virtual void GetMatch(CFastqRead& read) = 0;
+
+    /**
+     * @brief Return matcher's platform code 
+     * 
+     * @return uint8_t 
+     */
     virtual uint8_t GetPlatform() const = 0;
 
 protected:
-    string mDefLineName;
-    unique_ptr<re2::RE2> re;
-    vector<re2::RE2::Arg> argv;
-    vector<re2::RE2::Arg*> args;    
-    vector<re2::StringPiece> match; 
+    string mDefLineName;             ///< Defline description
+    unique_ptr<re2::RE2> re;         ///< RE2 object 
+    vector<re2::RE2::Arg> argv;      ///< internal structure to facilitate capture of matched groups
+    vector<re2::RE2::Arg*> args;     ///< internal structure to facilitate capture of matched groups
+    vector<re2::StringPiece> match;  ///< captured macthed groups 
 };
 
-//  ============================================================================
 class CDefLineMatcher_NoMatch : public CDefLineMatcher
+/// Matcher that matches nothing
 {
 public:
     CDefLineMatcher_NoMatch():
-        CDefLineMatcher("NoMatch", "a^",0)
+        CDefLineMatcher("NoMatch", "a^")
     {
     }
 
@@ -81,12 +119,12 @@ public:
 protected:
 };
 
-//  ============================================================================
 class CDefLineMatcher_AllMatch : public CDefLineMatcher
+/// Matcher that matches everything similar to defline
 {
 public:
     CDefLineMatcher_AllMatch():
-        CDefLineMatcher("undefined", R"([@>+]([!-~]+)(\s+|$))", 1)
+        CDefLineMatcher("undefined", R"([@>+]([!-~]+)(\s+|$))")
     {
     }
 
@@ -98,16 +136,14 @@ public:
 protected:
 };
 
-//  ============================================================================
 class CDefLineMatcherIlluminaNewDataGroup : public CDefLineMatcher
-//  ============================================================================
+/// illuminaNewDataGroup matcher
 {
 public:
     CDefLineMatcherIlluminaNewDataGroup() :
         CDefLineMatcher(
             "illuminaNewDataGroup",
-            "^[@>+]([!-~]+?)(\\s+|[_|])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)",
-            6)
+            "^[@>+]([!-~]+?)(\\s+|[_|])([12345]|):([NY]):(\\d+|O):?([!-~]*?)(\\s+|$)")
     {
     }
 
@@ -126,14 +162,13 @@ public:
 private:
 };
 
-//  ============================================================================
 class CDefLineMatcherIlluminaNewBase : public CDefLineMatcher
-//  ============================================================================
+/// Base class for IlluminaNew matchers
 {
 public:
     CDefLineMatcherIlluminaNewBase(
         const string& displayName,
-        const string& pattern): CDefLineMatcher(displayName, pattern, 14)
+        const string& pattern): CDefLineMatcher(displayName, pattern)
     {
     }
 
@@ -168,9 +203,8 @@ private:
 };
 
 
-//  ============================================================================
 class CDefLineMatcherIlluminaNew : public CDefLineMatcherIlluminaNewBase
-//  ============================================================================
+/// illuminaNew matcher
 {
 public:
     CDefLineMatcherIlluminaNew() :
@@ -181,9 +215,8 @@ public:
 };
 
 
-//  ============================================================================
 class CDefLineMatcherIlluminaNewNoPrefix : public CDefLineMatcherIlluminaNewBase
-//  ============================================================================
+/// illuminaNewNoPrefix matcher
 {
 public:
     CDefLineMatcherIlluminaNewNoPrefix() :
@@ -195,10 +228,8 @@ public:
 };
 
 
-// IlluminaNewWithSuffix aka IlluminaNewWithJunk in fastq-load.py 
-//  ============================================================================
 class CDefLineMatcherIlluminaNewWithSuffix : public CDefLineMatcherIlluminaNewBase
-//  ============================================================================
+/// IlluminaNewWithSuffix (aka IlluminaNewWithJunk in fastq-load.py) matcher 
 {
 public:
     CDefLineMatcherIlluminaNewWithSuffix() :
@@ -234,9 +265,8 @@ private:
 };
 
 
-//  ============================================================================
 class CDefLineMatcherIlluminaNewWithPeriods : public CDefLineMatcherIlluminaNewBase
-//  ============================================================================
+/// illuminaNewWithPeriods matcher
 {
 public:
     CDefLineMatcherIlluminaNewWithPeriods() :
@@ -247,9 +277,8 @@ public:
 };
 
 
-//  ============================================================================
 class CDefLineMatcherIlluminaNewWithUnderscores : public CDefLineMatcherIlluminaNewBase
-//  ============================================================================
+/// illuminaNewWithUnderscores matcher
 {
 public:
     CDefLineMatcherIlluminaNewWithUnderscores() :
@@ -260,16 +289,14 @@ public:
 };
 
 
-//  ============================================================================
 class CDefLineMatcherBgiOld : public CDefLineMatcher
-//  ============================================================================
+/// BgiOld matcher
 {
 public:
     CDefLineMatcherBgiOld() :
         CDefLineMatcher(
             "BgiOld",
-            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))",
-            8)
+            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(#[!-~]*?|)(/[1234]\S*|)(\s+|$))")
     {
     }
     uint8_t GetPlatform() const override {
@@ -299,16 +326,14 @@ public:
 
 };
 
-//  ============================================================================
 class CDefLineMatcherBgiNew : public CDefLineMatcher
-//  ============================================================================
+/// BgiNew matcher
 {
 public:
     CDefLineMatcherBgiNew() :
         CDefLineMatcher(
             "BgiNew",
-            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))",
-            12)
+            R"(^[@>+](\S{1,3}\d{9}\S{0,3})(L\d{1})(C\d{3})(R\d{3})([_]?\d{1,8})(\S*)(\s+|[_|-])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$))")
     {}
 
     uint8_t GetPlatform() const override {
@@ -335,8 +360,6 @@ public:
 
         read.SetReadFilter(match[8] == "Y" ? 1 : 0);
     }
-
-
 };
 
 #endif

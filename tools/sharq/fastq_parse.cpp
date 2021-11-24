@@ -36,6 +36,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_sinks.h>
 
+#include "version.h"
 #include "fastq_error.hpp"
 #include "fastq_parser.hpp"
 #include "fastq_writer.hpp"
@@ -142,6 +143,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mOutputFile.clear();
         mDestination = "sra.out";
 
+        app.set_version_flag("--version,-v", SHARQ_VERSION);
+
         app.add_option("--output", mDestination, "Output archive path");        
 
         string platform;
@@ -196,6 +199,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         opt->add_option("--spot_file", mSpotFile, "Save spot names");
         opt->add_flag("--debug", mDebug, "Debug mode");
 
+        mReport["version"] = SHARQ_VERSION;
         // save cmd args
         for (int i = 1; i < argc; ++i) 
             mReport["args"].push_back(argv[i]);
@@ -469,6 +473,8 @@ int CFastqParseApp::xRun()
 
     m_writer->set_attr("name_column", mNameColumn);
     m_writer->set_attr("destination", mDestination);
+    m_writer->set_attr("version", SHARQ_VERSION);
+
     m_writer->open();
     for (auto& group : data["groups"]) {
         parser.set_readers(group);

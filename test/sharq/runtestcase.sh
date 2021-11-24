@@ -95,7 +95,7 @@ if [ "$rc" != "0" ] ; then
 fi
 
 if [ "$TELEMETRY_RPT" != "0" ] ; then
-    $DIFF $WORKDIR/expected/$CASEID.telemetry $TEMPDIR/telemetry >$TEMPDIR/telemetry.diff
+    $DIFF $WORKDIR/expected/$CASEID.telemetry <(grep -v '"version":' $TEMPDIR/telemetry) >$TEMPDIR/telemetry.diff
     rc="$?"
     if [ "$rc" != "0" ] ; then
         cat $TEMPDIR/telemetry.diff

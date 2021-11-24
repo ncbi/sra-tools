@@ -245,9 +245,17 @@ void fastq_writer_vdb::open()
         }
     }
 
+    string version{"1.0"};
+    {
+        auto dest_it = m_attr.find("version");
+        if (dest_it != m_attr.end()) {
+            version = dest_it->second;
+        }
+    }
+
     m_writer->destination(destination); 
     m_writer->schema(cSCHEMA, db);
-    m_writer->info("sharq", "1.0");
+    m_writer->info("sharq", version);
 
     m_writer->addTable("SEQUENCE", {
         { "READ",               sizeof(char) }, // sequence literals 

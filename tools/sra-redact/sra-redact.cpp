@@ -596,8 +596,10 @@ static void copyColumns(  Output const &output
         for (auto && colName : dropped) {
             auto const column = colName.c_str();
             auto const rc = KDirectoryCopyPaths(src, dst, true, column, column);
-            if (rc)
+            if (rc) {
+                pLogErr(klogInfo, rc, "couldn't copy physical column $(column); will try metadata copy", "column=%s", column);
                 not_copied.push_back(colName);
+            }
         }
 
         KDirectoryRelease(src);
@@ -609,11 +611,9 @@ static void copyColumns(  Output const &output
     /// Finally, copy the metadata only columns.
     /// By definition, these are tiny.
     auto const dstTbl = tableName ? openUpdateDb(to, tableName, mgr) : openUpdateTbl(to, mgr);
+    auto const srcTbl = tableName ? openReadDb(from, tableName, mgr) : openReadTbl(from, mgr);
     for (auto && colName : not_copied) {
         auto const column = colName.c_str();
-        pLogMsg(klogInfo, "couldn't copy physical column $(column); trying metadata copy", "column=%s", column);
-
-        auto const srcTbl = tableName ? openReadDb(from, tableName, mgr) : openReadTbl(from, mgr);
         /* could not copy the physical column; try the metadata node */
         if (VTableHasStaticColumn(srcTbl, column)) {
             copyNodeValue(openNodeUpdate(dstTbl, "col/%s", column), openNodeRead(srcTbl, "col/%s", column));
@@ -622,8 +622,8 @@ static void copyColumns(  Output const &output
             pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", column);
             exit(EX_DATAERR);
         }
-        VTableRelease(srcTbl);
     }
+    VTableRelease(srcTbl);
     VTableRelease(dstTbl);
 }
 

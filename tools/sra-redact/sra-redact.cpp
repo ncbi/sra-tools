@@ -221,9 +221,9 @@ public:
             ftruncate(fd, count() * sizeof(*start));
             lseek(fd, 0, SEEK_END);
 
-            auto *const remap = mmap(start, count() * sizeof(*start), PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);
+            auto *const remap = mmap(start, count() * sizeof(*start), PROT_READ, MAP_FIXED|MAP_FILE|MAP_SHARED, fd, 0);
             if (remap != MAP_FAILED) {
-                LogMsg(klogFatal, "failed to map redacted spots file");
+                pLogMsg(klogFatal, "failed to map redacted spots file: $(err)", "err=%s", strerror(errno));
                 exit(EX_IOERR);
             }
             start = reinterpret_cast<int64_t *>(remap);

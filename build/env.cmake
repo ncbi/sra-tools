@@ -221,9 +221,14 @@ else() # assume a single-config generator
         message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
     endif()
 
-    set( NCBI_VDB_BINDIR ${VDB_BINDIR}/bin )
-    set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
-    set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
+    if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
+        message( FATAL_ERROR "Please specify the location where ncbi-vdb libraries are installed (VDB_LIBDIR)")
+    endif()
+
+    #set( NCBI_VDB_BINDIR ${VDB_BINDIR}/bin )
+    #set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
+    set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
+    #set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )
@@ -238,7 +243,7 @@ else() # assume a single-config generator
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
     link_directories( ${NCBI_VDB_LIBDIR} ) # TODO: USE_INSTALLED_NCBI_VDB
-    link_directories( ${NCBI_VDB_ILIBDIR} ) # TODO: not clear what to do in case USE_INSTALLED_NCBI_VDB == 1
+    #link_directories( ${NCBI_VDB_ILIBDIR} ) # TODO: not clear what to do in case USE_INSTALLED_NCBI_VDB == 1
 endif()
 
 # ===========================================================================
@@ -257,12 +262,12 @@ endif()
 
 if( NOT VDB_SRCDIR )
 	if( USE_INSTALLED_NCBI_VDB )
-		set( VDB_SRCDIR "/usr/local/ncbi/ncbi-vdb/lib64/vdb_shared_sources" )
-		set( VDB_INTERFACES_DIR "/usr/local/ncbi/ncbi-vdb/lib64/interfaces" )
+		set( VDB_SRCDIR "/usr/local/ncbi/ncbi-vdb/vdb_shared_sources" )
+		set( VDB_INTERFACES_DIR "/usr/local/ncbi/ncbi-vdb/interfaces" )
 
 		# TODO: handle "${CMAKE_INSTALL_PREFIX}/.." somehow when ${CMAKE_INSTALL_PREFIX} doesn't exist
-		#set( VDB_SRCDIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/vdb_shared_sources" )
-		#set( VDB_INTERFACES_DIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/lib64/interfaces" )
+		#set( VDB_SRCDIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/vdb_shared_sources" )
+		#set( VDB_INTERFACES_DIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/interfaces" )
 
 		if ( NOT EXISTS ${VDB_SRCDIR} )
 			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb...")
@@ -440,6 +445,7 @@ endfunction()
 
 
 set( COMMON_LINK_LIBRARIES kapp tk-version )
+# set( COMMON_LINK_LIBRARIES tk-version )
 if( WIN32 )
     set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
     set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )

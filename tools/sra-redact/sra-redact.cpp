@@ -205,24 +205,30 @@ public:
         std::sort(start, start + count());
 
         auto last = *start;
-        auto const inf = *(start + count() - 1) + 1;
         size_t dups = 0;
         for (auto i = start + 1; i < end(); ++i) {
             if (last == *i) {
-                *i = inf;
+                *i = 0;
                 dups += 1;
             }
             else
                 last = *i;
         }
         if (dups) {
-            std::sort(start, start + count());
-            count_ -= dups;
+            count_ = std::remove(start, start + count(), 0) - start;
+            assert(sizeof(*start) * (count() + dups) == fsize);
 
             ftruncate(fd, count() * sizeof(*start));
             lseek(fd, 0, SEEK_END);
+
+            auto *const remap = mmap(start, count() * sizeof(*start), PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);
+            if (remap != (void *)start) {
+                LogMsg(klogFatal, "failed to map redacted spots file");
+                exit(EX_IOERR);
+            }
         }
-        mprotect(map, count() * sizeof(*start), PROT_READ);
+        else
+            mprotect(map, count() * sizeof(*start), PROT_READ);
     }
     ~Redacted() {
         if (start) {
@@ -597,7 +603,12 @@ static void copyColumns(  Output const &output
             auto const column = colName.c_str();
             auto const rc = KDirectoryCopyPaths(src, dst, true, column, column);
             if (rc) {
-                pLogErr(klogInfo, rc, "couldn't copy $(table).$(column) from $(source) to $(dest) as a physical column; will try metadata copy", "column=%s", column);
+                pLogErr(klogInfo, rc, "couldn't copy $(table).$(column) from $(source) to $(dest) as a physical column; will try metadata copy"
+                        , "column=%s,table=%s,source=%s,dest=%s"
+                        , column
+                        , tableName ? tableName : "<implied>"
+                        , from
+                        , to);
                 not_copied.push_back(colName);
             }
         }

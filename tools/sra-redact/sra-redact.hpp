@@ -685,15 +685,6 @@ static bool dropColumn(VTable *const tbl, char const *const name)
     return true;
 }
 
-static void dropColumn(VTable *const tbl, char const *const name, char const *const altname, char const *&used)
-{
-    if (dropColumn(tbl, used = name))
-        return;
-    if (dropColumn(tbl, used = altname))
-        return;
-    used = nullptr;
-}
-
 static void removeTempDir(char const *const temp)
 {
     KDirectory *ndir = rootDir();

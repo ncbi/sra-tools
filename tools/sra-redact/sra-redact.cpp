@@ -222,10 +222,11 @@ public:
             lseek(fd, 0, SEEK_END);
 
             auto *const remap = mmap(start, count() * sizeof(*start), PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);
-            if (remap != (void *)start) {
+            if (remap != MAP_FAILED) {
                 LogMsg(klogFatal, "failed to map redacted spots file");
                 exit(EX_IOERR);
             }
+            start = reinterpret_cast<int64_t *>(remap);
         }
         else
             mprotect(map, count() * sizeof(*start), PROT_READ);

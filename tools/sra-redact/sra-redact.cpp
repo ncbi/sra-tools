@@ -316,7 +316,7 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
 
     count = rowCount(in, &first, cid_spot_id);
     assert(first == 1);
-    pLogMsg(klogInfo, "progress: about to process $(rows) $(kind) alignments", "kind=%s,rows=%lu", isPrimary ? "primary" : "secondary", count);
+    pLogMsg(klogInfo, "progress: about to process $(rows) $(kind) alignments", "kind=%s,rows=%zu", isPrimary ? "primary" : "secondary", (size_t)count);
 
     /* MARK: Main loop over the alignments */
     for (uint64_t r = 0; r < count; ++r) {
@@ -360,8 +360,8 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
     commitCursor(out);
 
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
-    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%lu,elapsed=%.0f"
-            , (unsigned long)redactions
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%zu,elapsed=%.0f"
+            , (size_t)redactions
             , elapsed);
     VCursorRelease(out);
     VCursorRelease(in);
@@ -384,7 +384,7 @@ static void processAlignments(VCursor const *const in)
 
     count = rowCount(in, &first, cid_spot_id);
     assert(first == 1);
-    pLogMsg(klogInfo, "progress: about to process $(rows) primary alignments", "rows=%lu", count);
+    pLogMsg(klogInfo, "progress: about to process $(rows) primary alignments", "rows=%zu", (size_t)count);
 
     /* MARK: Main loop over the alignments */
     for (uint64_t r = 0; r < count; ++r) {
@@ -408,8 +408,8 @@ static void processAlignments(VCursor const *const in)
         }
     }
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
-    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments to redact: $(count)", "count=%lu,elapsed=%.0f"
-            , (unsigned long)redactions
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments to redact: $(count)", "count=%zu,elapsed=%.0f"
+            , (size_t)redactions
             , elapsed);
     VCursorRelease(in);
 }
@@ -438,6 +438,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     uint64_t count = 0;
     unsigned complete = 0;
     auto someRedacted = false;
+    uint64_t redactedHere = 0;
 
     auto redactedStart = redacted.begin() ? redacted.begin() : &first;
     auto const redactedEnd = redactedStart + redacted.count();
@@ -457,7 +458,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     count = rowCount(in, &first, cid_read_type);
     assert(first == 1);
     pLogMsg(klogDebug, "using $(read) and $(filter)", "read=%s,filter=%s", readColName, readFilterColName);
-    pLogMsg(klogInfo, "progress: about to process $(rows) spots", "rows=%lu", count);
+    pLogMsg(klogInfo, "progress: about to process $(rows) spots", "rows=%zu", (size_t)count);
 
     /* MARK: Main loop over the spots */
     for (uint64_t r = 0; r < count; ++r) {
@@ -502,15 +503,16 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
             redact = redactReads(readstart, readtype, readlen, read);
 
         if (redact) {
-            if (!fromRedacted)
+            if (!fromRedacted) {
+                ++redactedHere;
                 Redacted::addSpot(row);
-
+            }
             std::fill(outRead.begin(), outRead.end(), 'N');
             std::fill(outReadFilter.begin(), outReadFilter.end(), SRA_READ_FILTER_REDACTED);
 
             someRedacted = true;
             if (dispositionCount[dspcRedactedReads] == 0) {
-                pLogMsg(klogInfo, "first redacted spot: $(row)", "row=%lu", (unsigned long)row);
+                pLogMsg(klogInfo, "first redacted spot: $(row)", "row=%zu", (size_t)row);
             }
             dispositionCount[dspcRedactedReads] += nreads;
             dispositionCount[dspcRedactedSpots] += 1;
@@ -534,10 +536,11 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     commitCursor(out);
 
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
-    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds; redacted: $(spots) spots, $(reads) reads, $(bases) bases", "spots=%lu,reads=%lu,bases=%lu,elapsed=%.0f"
-            , (unsigned long)dispositionCount[dspcRedactedSpots]
-            , (unsigned long)dispositionCount[dspcRedactedReads]
-            , (unsigned long)dispositionBaseCount[dspcRedactedBases]
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds; redacted: $(spots) spots ($(here) new), $(reads) reads, $(bases) bases", "spots=%zu,here=%zu,reads=%zu,bases=%zu,elapsed=%.0f"
+            , (size_t)dispositionCount[dspcRedactedSpots]
+            , (size_t)redactedHere
+            , (size_t)dispositionCount[dspcRedactedReads]
+            , (size_t)dispositionBaseCount[dspcRedactedBases]
             , elapsed);
 
     VCursorRelease(out);

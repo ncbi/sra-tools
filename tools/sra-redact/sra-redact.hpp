@@ -155,6 +155,19 @@ static void OUT_OF_MEMORY()
     exit(EX_TEMPFAIL);
 }
 
+#define WARN_IF(CALL) do { \
+    auto const rc = CALL; \
+    if (rc != 0) \
+        LogErr(klogWarn, rc, "Failed: " #CALL ); \
+} while(0)
+
+#define DIE_UNLESS(EX, CALL) do { \
+    auto const rc = CALL; \
+    if (rc == 0) break; \
+    LogErr(klogFatal, rc, "FAILED! " #CALL); \
+    exit(EX); \
+} while(0)
+
 static CellData cellData(char const *const colName, int const col, int64_t const row, VCursor const *const curs)
 {
     CellData result;
@@ -175,8 +188,7 @@ static CellData cellData(char const *const colName, int const col, int64_t const
 static uint64_t rowCount(VCursor const *const curs, int64_t *const first, uint32_t cid)
 {
     uint64_t count = 0;
-    rc_t const rc = VCursorIdRange(curs, cid, first, &count);
-    assert(rc == 0);
+    DIE_UNLESS(EX_SOFTWARE, VCursorIdRange(curs, cid, first, &count));
     return count;
 }
 
@@ -237,7 +249,7 @@ static VTable const *openTable(char const *const name, VDBManager const *const m
     if (rc == 0)
         return in;
 
-    LogErr(klogFatal, rc, "can't open input table");
+    pLogErr(klogFatal, rc, "can't open input table $(name)", "name=%s", name);
     exit(EX_SOFTWARE);
 }
 
@@ -270,36 +282,11 @@ static void getSchemaInfo(KMetadata const *const meta, char **type, VSchema *sch
     KMDataNode const *node = NULL;
     size_t valueLen = 0;
     char *value = NULL;
-    {
-        rc_t const rc = KMetadataOpenNodeRead(meta, &root, NULL);
-        KMetadataRelease(meta);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "can't get database metadata");
-            exit(EX_SOFTWARE);
-        }
-    }
-    {
-        rc_t const rc = KMDataNodeOpenNodeRead(root, &node, "schema");
-        KMDataNodeRelease(root);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "can't get database schema");
-            exit(EX_SOFTWARE);
-        }
-    }
-    {
-        rc_t const rc = KMDataNodeAddr(node, (const void **)&value, &valueLen);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "can't get database schema");
-            exit(EX_SOFTWARE);
-        }
-    }
-    {
-        rc_t const rc = VSchemaParseText(schema, NULL, value, valueLen);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "can't get database schema");
-            exit(EX_SOFTWARE);
-        }
-    }
+
+    DIE_UNLESS(EX_SOFTWARE, KMetadataOpenNodeRead(meta, &root, NULL)); KMetadataRelease(meta);
+    DIE_UNLESS(EX_SOFTWARE, KMDataNodeOpenNodeRead(root, &node, "schema")); KMDataNodeRelease(root);
+    DIE_UNLESS(EX_SOFTWARE, KMDataNodeAddr(node, (const void **)&value, &valueLen));
+    DIE_UNLESS(EX_SOFTWARE, VSchemaParseText(schema, NULL, value, valueLen));
     {
         char dummy = 0;
         rc_t const rc = KMDataNodeReadAttr(node, "name", &dummy, 0, &valueLen);
@@ -312,14 +299,9 @@ static void getSchemaInfo(KMetadata const *const meta, char **type, VSchema *sch
     value = (char *)malloc(valueLen + 1);
     if (value == NULL)
         OUT_OF_MEMORY();
-    {
-        rc_t const rc = KMDataNodeReadAttr(node, "name", value, valueLen + 1, &valueLen);
-        KMDataNodeRelease(node);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "can't get database schema");
-            exit(EX_SOFTWARE);
-        }
-    }
+    DIE_UNLESS(EX_SOFTWARE, KMDataNodeReadAttr(node, "name", value, valueLen + 1, &valueLen));
+    KMDataNodeRelease(node);
+
     value[valueLen] = '\0';
     *type = value;
     pLogMsg(klogInfo, "Schema type is $(type)", "type=%s", value);
@@ -328,26 +310,14 @@ static void getSchemaInfo(KMetadata const *const meta, char **type, VSchema *sch
 static void dbSchemaInfo(VDatabase const *const db, char **name, VSchema *schema)
 {
     KMetadata const *meta = NULL;
-    {
-        rc_t const rc = VDatabaseOpenMetadataRead(db, &meta);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "can't get database metadata");
-            exit(EX_SOFTWARE);
-        }
-    }
+    DIE_UNLESS(EX_SOFTWARE, VDatabaseOpenMetadataRead(db, &meta));
     getSchemaInfo(meta, name, schema);
 }
 
 static void tblSchemaInfo(VTable const *const tbl, char **name, VSchema *schema)
 {
     KMetadata const *meta = NULL;
-    {
-        rc_t const rc = VTableOpenMetadataRead(tbl, &meta);
-        if (rc != 0) {
-            LogErr(klogFatal, rc, "can't get database metadata");
-            exit(EX_SOFTWARE);
-        }
-    }
+    DIE_UNLESS(EX_SOFTWARE, VTableOpenMetadataRead(tbl, &meta));
     getSchemaInfo(meta, name, schema);
 }
 
@@ -380,61 +350,38 @@ static VTable const *dbOpenTable(  VDatabase const *db
 static VDBManager *manager()
 {
     VDBManager *mgr = NULL;
-    rc_t const rc = VDBManagerMakeUpdate(&mgr, NULL);
-    if (rc == 0)
-        return mgr;
-    
-    LogErr(klogFatal, rc, "VDBManagerMake failed!");
-    exit(EX_TEMPFAIL);
+    DIE_UNLESS(EX_SOFTWARE, VDBManagerMakeUpdate(&mgr, NULL));
+    return mgr;
 }
 
 static int pathType(VDBManager const *mgr, char const *path)
 {
     KDBManager const *kmgr = 0;
-    rc_t rc = VDBManagerOpenKDBManagerRead(mgr, &kmgr);
-    if (rc == 0) {
-        int const type = KDBManagerPathType(kmgr, "%s", path);
-        KDBManagerRelease(kmgr);
-        return type;
-    }
-    LogErr(klogFatal, rc, "VDBManagerOpenKDBManager failed!");
-    exit(EX_TEMPFAIL);
+    DIE_UNLESS(EX_SOFTWARE, VDBManagerOpenKDBManagerRead(mgr, &kmgr));
+    auto const type = KDBManagerPathType(kmgr, "%s", path);
+    KDBManagerRelease(kmgr);
+    return type;
 }
 
 static void openRow(int64_t const row, VCursor const *const out)
 {
-    rc_t const rc = VCursorOpenRow(out);
-    if (rc) {
-        pLogErr(klogFatal, rc, "Failed to open a new row $(row)", "row=%li", row);
-        exit(EX_IOERR);
-    }
+    DIE_UNLESS(EX_IOERR, VCursorOpenRow(out));
 }
 
 static void commitRow(int64_t const row, VCursor *const out)
 {
-    rc_t const rc = VCursorCommitRow(out);
-    if (rc) {
-        pLogErr(klogFatal, rc, "Failed to commit row $(row)", "row=%li", row);
-        exit(EX_IOERR);
-    }
+    DIE_UNLESS(EX_IOERR, VCursorCommitRow(out));
 }
 
 static void closeRow(int64_t const row, VCursor *const out)
 {
-    rc_t const rc = VCursorCloseRow(out);
-    if (rc) {
-        pLogErr(klogFatal, rc, "Failed to close row $(row)", "row=%li", row);
-        exit(EX_IOERR);
-    }
+    DIE_UNLESS(EX_IOERR, VCursorCloseRow(out));
 }
 
 static void commitCursor(VCursor *const out)
 {
-    rc_t const rc = VCursorCommit(out);
-    if (rc) {
-        LogErr(klogFatal, rc, "Failed to commit cursor");
-        exit(EX_IOERR);
-    }
+    WARN_IF(VCursorFlushPage(out));
+    DIE_UNLESS(EX_IOERR, VCursorCommit(out));
 }
 
 static void writeRow(  int64_t const row
@@ -443,22 +390,14 @@ static void writeRow(  int64_t const row
                       , VCursor *const out)
 {
     if (cid) {
-        rc_t const rc = VCursorWrite(out, cid, data.elem_bits, data.data, 0, data.count);
-        if (rc) {
-            pLogErr(klogFatal, rc, "Failed to write row $(row)", "row=%li", row);
-            exit(EX_IOERR);
-        }
+        DIE_UNLESS(EX_IOERR, VCursorWrite(out, cid, data.elem_bits, data.data, 0, data.count));
     }
 }
 
 static KDirectory *rootDir()
 {
     KDirectory *ndir = NULL;
-    rc_t const rc = KDirectoryNativeDir(&ndir);
-    if (rc) {
-        LogErr(klogFatal, rc, "Can't get a directory!!!");
-        exit(EX_SOFTWARE);
-    }
+    DIE_UNLESS(EX_SOFTWARE, KDirectoryNativeDir(&ndir));
     return ndir;
 }
 
@@ -503,34 +442,19 @@ static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const
     va_list va;
     KMetadata const *meta = NULL;
     KMDataNode const *node = NULL;
-    rc_t rc = VTableOpenMetadataRead(tbl, &meta);
-
-    if (rc) {
-        LogErr(klogFatal, rc, "can't open table metadata!!!");
-        exit(EX_SOFTWARE);
-    }
+    DIE_UNLESS(EX_SOFTWARE, VTableOpenMetadataRead(tbl, &meta));
 
     va_start(va, path);
-    rc = KMetadataVOpenNodeRead(meta, &node, path, va);
+    DIE_UNLESS(EX_SOFTWARE, KMetadataVOpenNodeRead(meta, &node, path, va));
     va_end(va);
     KMetadataRelease(meta);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't get metadata node to read");
-        exit(EX_SOFTWARE);
-    }
-    
+
     return node;
 }
 
 static KMDataNode *openNodeUpdate(KMetadata *meta, char const *const path, va_list va) {
     KMDataNode *node = NULL;
-
-    auto const rc = KMetadataVOpenNodeUpdate(meta, &node, path, va);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't get metadata node to update");
-        exit(EX_DATAERR);
-    }
-
+    DIE_UNLESS(EX_DATAERR, KMetadataVOpenNodeUpdate(meta, &node, path, va));
     return node;
 }
 
@@ -538,12 +462,7 @@ static KMDataNode *openNodeUpdate(VDatabase *const db, char const *const path, .
 {
     va_list va;
     KMetadata *meta = NULL;
-    rc_t rc = VDatabaseOpenMetadataUpdate(db, &meta);
-
-    if (rc) {
-        LogErr(klogFatal, rc, "can't open database metadata!!!");
-        exit(EX_SOFTWARE);
-    }
+    DIE_UNLESS(EX_SOFTWARE, VDatabaseOpenMetadataUpdate(db, &meta));
 
     va_start(va, path);
     KMDataNode *const node = openNodeUpdate(meta, path, va);
@@ -557,13 +476,8 @@ static KMDataNode *openNodeUpdate(VTable *const tbl, char const *const path, ...
 {
     va_list va;
     KMetadata *meta = NULL;
-    rc_t rc = VTableOpenMetadataUpdate(tbl, &meta);
+    DIE_UNLESS(EX_SOFTWARE, VTableOpenMetadataUpdate(tbl, &meta));
 
-    if (rc) {
-        LogErr(klogFatal, rc, "can't open table metadata!!!");
-        exit(EX_SOFTWARE);
-    }
-    
     va_start(va, path);
     KMDataNode *const node = openNodeUpdate(meta, path, va);
     va_end(va);
@@ -577,60 +491,33 @@ static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
     extern rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
     void const *data = NULL;
     size_t data_size = 0;
-    rc_t rc = KMDataNodeAddr(src, &data, &data_size);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't read metadata");
-        exit(EX_DATAERR);
-    }
 
-    rc = KMDataNodeWrite(dst, data, data_size);
+    DIE_UNLESS(EX_SOFTWARE, KMDataNodeAddr(src, &data, &data_size));
+    DIE_UNLESS(EX_DATAERR, KMDataNodeWrite(dst, data, data_size));
+
     KMDataNodeRelease(src);
     KMDataNodeRelease(dst);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't write metadata");
-        exit(EX_DATAERR);
-    }
 }
 
 static void writeChildNode(KMDataNode *const node, char const *const name, size_t const size, void const *const data)
 {
     KMDataNode *child = NULL;
-    {
-        rc_t const rc = KMDataNodeOpenNodeUpdate(node, &child, "%s", name);
-        if (rc) {
-            pLogErr(klogFatal, rc, "can't update metadata node $(name)", "name=%s", name);
-            exit(EX_DATAERR);
-        }
-    }
-    {
-        rc_t const rc = KMDataNodeWrite(child, data, size);
-        KMDataNodeRelease(child);
-        if (rc) {
-            pLogErr(klogFatal, rc, "can't write metadata node $(name)", "name=%s", name);
-            exit(EX_DATAERR);
-        }
-    }
+    DIE_UNLESS(EX_DATAERR, KMDataNodeOpenNodeUpdate(node, &child, "%s", name));
+    DIE_UNLESS(EX_DATAERR, KMDataNodeWrite(child, data, size));
+    KMDataNodeRelease(child);
 }
 
 static VTable *openUpdateTbl(char const *const name, VDBManager *const mgr)
 {
     VTable *tbl = NULL;
-    rc_t const rc = VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name);
-    if (rc) {
-        pLogErr(klogFatal, rc, "can't open $(name) for update", "name=%s", name);
-        exit(EX_DATAERR);
-    }
+    DIE_UNLESS(EX_DATAERR, VDBManagerOpenTableUpdate(mgr, &tbl, NULL, "%s", name));
     return tbl;
 }
 
 static VDatabase *openUpdateDb(char const *const name, VDBManager *const mgr)
 {
     VDatabase *db = NULL;
-    rc_t rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", name);
-    if (rc) {
-        pLogErr(klogFatal, rc, "can't open database $(name) for update", "name=%s", name);
-        exit(EX_DATAERR);
-    }
+    DIE_UNLESS(EX_DATAERR, VDBManagerOpenDBUpdate(mgr, &db, NULL, "%s", name));
     return db;
 }
 
@@ -638,12 +525,8 @@ static VTable *openUpdateDb(char const *const name, char const *const table, VDB
 {
     VTable *tbl = NULL;
     VDatabase *db = openUpdateDb(name, mgr);
-    rc_t rc = VDatabaseOpenTableUpdate(db, &tbl, "%s", table);
+    DIE_UNLESS(EX_DATAERR, VDatabaseOpenTableUpdate(db, &tbl, "%s", table));
     VDatabaseRelease(db);
-    if (rc) {
-        pLogErr(klogFatal, rc, "can't open table $(table) in $(name) for update", "table=%s,name=%s", table, name);
-        exit(EX_DATAERR);
-    }
     return tbl;
 }
 
@@ -651,17 +534,9 @@ static VTable const *openReadDb(char const *const name, char const *const table,
 {
     VTable const *tbl = NULL;
     VDatabase const *db = NULL;
-    rc_t rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name);
-    if (rc) {
-        pLogErr(klogFatal, rc, "can't open database $(db) for read", "db=%s", name);
-        exit(EX_DATAERR);
-    }
-    rc = VDatabaseOpenTableRead(db, &tbl, "%s", table);
+    DIE_UNLESS(EX_DATAERR, VDBManagerOpenDBRead(mgr, &db, NULL, "%s", name));
+    DIE_UNLESS(EX_DATAERR, VDatabaseOpenTableRead(db, &tbl, "%s", table));
     VDatabaseRelease(db);
-    if (rc) {
-        LogErr(klogFatal, rc, "can't open table for read");
-        exit(EX_DATAERR);
-    }
     return tbl;
 }
 

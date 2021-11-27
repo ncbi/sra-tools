@@ -358,6 +358,7 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         closeRow(row, out);
     }
     commitCursor(out);
+
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
     pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%lu,elapsed=%.0f"
             , (unsigned long)redactions
@@ -611,7 +612,6 @@ static void copyColumns(  Output const &output
                 not_copied.push_back(colName);
             }
         }
-
         KDirectoryRelease(src);
         KDirectoryRelease(dst);
     }
@@ -683,18 +683,18 @@ void main_1(int argc, char *argv[])
             processAlignmentTable(in.primaryAlignment);
 
         auto const someRedacted = processSequenceTable(out.sequence, in.sequence, isAligned);
+        VTableRelease(in.sequence);
+        VTableRelease(out.sequence.tbl);
 
         if (someRedacted && isAligned) {
             redactAlignmentTable(out.primaryAlignment, in.primaryAlignment, true);
             if (in.secondaryAlignment != nullptr)
                 redactAlignmentTable(out.secondaryAlignment, in.secondaryAlignment, false);
         }
-        else {
-            VTableRelease(in.primaryAlignment);
-            VTableRelease(in.secondaryAlignment);
-            VTableRelease(out.primaryAlignment.tbl);
-            VTableRelease(out.secondaryAlignment.tbl);
-        }
+        VTableRelease(in.primaryAlignment);
+        VTableRelease(in.secondaryAlignment);
+        VTableRelease(out.primaryAlignment.tbl);
+        VTableRelease(out.secondaryAlignment.tbl);
 
         if (someRedacted) {
             /// MARK: Copy changed columns to temp object
@@ -738,8 +738,6 @@ static void redactAlignmentTable(Output &output, VTable const *const input, bool
             exit(EX_NOINPUT);
         }
     }
-    VTableRelease(input);
-    VTableRelease(output.tbl); output.tbl = nullptr;
     redactAlignments(out, in, isPrimary, Redacted(), output);
 }
 
@@ -774,9 +772,6 @@ static bool processSequenceTable(Output &output, VTable const *const input, bool
             exit(EX_NOINPUT);
         }
     }
-    VTableRelease(input);
-    VTableRelease(output.tbl); output.tbl = nullptr;
-
     return processSequenceCursors(out, in, aligned, Redacted(), output);
 }
 

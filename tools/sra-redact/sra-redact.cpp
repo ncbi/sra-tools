@@ -195,7 +195,7 @@ public:
 
         auto *const map = mmap(nullptr, fsize, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
         if (map == MAP_FAILED) {
-            LogMsg(klogFatal, "failed to map redacted spots file");
+            pLogMsg(klogFatal, "failed to map redacted spots file: $(err)", "err=%s", strerror(errno));
             exit(EX_IOERR);
         }
 
@@ -217,11 +217,13 @@ public:
         if (dups) {
             count_ = std::remove(start, start + count(), 0) - start;
             assert(sizeof(*start) * (count() + dups) == fsize);
+            auto newsize = count() * sizeof(*start);
 
-            ftruncate(fd, count() * sizeof(*start));
+            munmap(start, fsize);
+            ftruncate(fd, newsize);
             lseek(fd, 0, SEEK_END);
 
-            auto *const remap = mmap(start, count() * sizeof(*start), PROT_READ, MAP_FIXED|MAP_FILE|MAP_SHARED, fd, 0);
+            auto *const remap = mmap(nullptr, newsize, PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);
             if (remap != MAP_FAILED) {
                 pLogMsg(klogFatal, "failed to map redacted spots file: $(err)", "err=%s", strerror(errno));
                 exit(EX_IOERR);

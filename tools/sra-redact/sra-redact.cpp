@@ -201,6 +201,7 @@ public:
 
         start = reinterpret_cast<int64_t *>(map);
         count_ = fsize / sizeof(*start);
+        pLogMsg(klogDebug, "redacted spots file has $(count) IDs", "count=%zu", count());
 
         std::sort(start, start + count());
 
@@ -214,24 +215,16 @@ public:
             else
                 last = *i;
         }
+        pLogMsg(klogDebug, "redacted spots file has $(count) duplicate IDs", "count=%zu", dups);
         if (dups) {
             count_ = std::remove(start, start + count(), 0) - start;
             assert(sizeof(*start) * (count() + dups) == fsize);
-            auto newsize = count() * sizeof(*start);
 
-            munmap(start, fsize);
-            ftruncate(fd, newsize);
+            ftruncate(fd, count() * sizeof(*start));
             lseek(fd, 0, SEEK_END);
-
-            auto *const remap = mmap(nullptr, newsize, PROT_READ, MAP_FILE|MAP_SHARED, fd, 0);
-            if (remap != MAP_FAILED) {
-                pLogMsg(klogFatal, "failed to map redacted spots file: $(err)", "err=%s", strerror(errno));
-                exit(EX_IOERR);
-            }
-            start = reinterpret_cast<int64_t *>(remap);
         }
-        else
-            mprotect(map, count() * sizeof(*start), PROT_READ);
+        pLogMsg(klogDebug, "redacted spots file has $(count) IDs", "count=%zu", count());
+        mprotect(map, count() * sizeof(*start), PROT_READ);
     }
     ~Redacted() {
         if (start) {
@@ -339,7 +332,7 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
+            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
             if (complete % 10 == 0)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }
@@ -401,7 +394,7 @@ static void processAlignments(VCursor const *const in)
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
+            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
             if (complete % 10 == 0)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }
@@ -481,7 +474,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
+            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
             if (complete % 10 == 0)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
         }

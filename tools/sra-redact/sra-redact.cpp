@@ -332,9 +332,10 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
-            if (complete % 10 == 0)
-                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
+            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
+            if (pct % 10 == 0)
+                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
+            complete = pct;
         }
 
         if (redacted.contains(spotId)) {
@@ -394,9 +395,10 @@ static void processAlignments(VCursor const *const in)
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
-            if (complete % 10 == 0)
-                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
+            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
+            if (pct % 10 == 0)
+                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
+            complete = pct;
         }
 
         if (shouldFilter(read.count, (uint8_t const *)read.data)) {
@@ -474,9 +476,10 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
-            if (complete % 10 == 0)
-                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", complete = pct, etc.c_str());
+            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
+            if (pct % 10 == 0)
+                pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
+            complete = pct;
         }
 
         read.copyTo(outRead);

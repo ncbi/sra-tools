@@ -112,10 +112,12 @@ static FilterFunction&& filterFunction() {
 }
 auto const &&shouldFilter = filterFunction();
 
-static bool redactUnalignedReads(CellData::Typed<int64_t> const &prId, CellData const &readLenData, CellData const &readData)
+static bool redactUnalignedReads(  CellData::Typed<int64_t> const &prId
+                                 , CellData::Typed<uint32_t> const &readLenData
+                                 , CellData::Typed<uint8_t> const &readData)
 {
-    auto readLen = readLenData.typed<uint32_t>().begin();
-    auto read = readData.typed<uint8_t>().begin();
+    auto readLen = readLenData.begin();
+    auto read = readData.begin();
 
     for (auto && id : prId) {
         auto const len = id == 0 ? *readLen : 0;
@@ -129,12 +131,11 @@ static bool redactUnalignedReads(CellData::Typed<int64_t> const &prId, CellData 
     return false;
 }
 
-static bool redactReads(CellData const &readStartData, CellData const &readTypeData, CellData const &readLenData, CellData const &readData)
+static bool redactReads(  CellData::Typed<int32_t> const &readStart
+                        , CellData::Typed<uint8_t> const &readType
+                        , CellData::Typed<uint32_t> const &readLen
+                        , CellData::Typed<uint8_t> const &bases)
 {
-    auto const readStart = readStartData.typed<int32_t>();
-    auto const readLen = readLenData.typed<uint32_t>();
-    auto const readType = readTypeData.typed<uint8_t>();
-    auto const bases = readData.typed<uint8_t>();
     unsigned read = 0;
 
     for (auto &&type : readType) {
@@ -322,7 +323,7 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
     for (uint64_t r = 0; r < count; ++r) {
         auto const pct = unsigned((100.0 * r) / count);
         int64_t const row = 1 + r;
-        auto const spotId = cellData(SPOT_ID, cid_spot_id, row, in).value<int64_t>();
+        auto const spotId = cellData(SPOT_ID, cid_spot_id, row, in).typed<int64_t>().front();
         auto has_miss    = cellData(HAS_MISS   , cid_has_miss   , row, in);
         auto has_offset  = cellData(HAS_OFFSET , cid_has_offset , row, in);
         auto ref_offset  = cellData(REF_OFFSET , cid_ref_offset , row, in);
@@ -363,8 +364,9 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
     pLogMsg(klogInfo, "progress: done in $(elapsed) seconds, alignments redacted: $(count)", "count=%zu,elapsed=%.0f"
             , (size_t)redactions
             , elapsed);
-    VCursorRelease(out);
+
     VCursorRelease(in);
+    VCursorRelease(out);
 }
 
 static void processAlignments(VCursor const *const in)
@@ -391,7 +393,12 @@ static void processAlignments(VCursor const *const in)
         auto const pct = unsigned((100.0 * r) / count);
         int64_t const row = 1 + r;
         auto const read = cellData(ALIGN_READ, cid_read, row, in);
-        auto const spotId = cellData(SPOT_ID, cid_spot_id, row, in).value<int64_t>();
+        auto const spotId = cellData(SPOT_ID, cid_spot_id, row, in).typed<int64_t>().front();
+
+        if (shouldFilter(read.count, (uint8_t const *)read.data)) {
+            Redacted::addSpot(spotId);
+            ++redactions;
+        }
 
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
@@ -400,11 +407,6 @@ static void processAlignments(VCursor const *const in)
             if (pct % 10 == 0)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             complete = pct;
-        }
-
-        if (shouldFilter(read.count, (uint8_t const *)read.data)) {
-            Redacted::addSpot(spotId);
-            ++redactions;
         }
     }
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
@@ -438,7 +440,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     uint64_t count = 0;
     unsigned complete = 0;
     auto someRedacted = false;
-    uint64_t redactedHere = 0;
+    uint64_t redactions = 0;
 
     auto redactedStart = redacted.begin() ? redacted.begin() : &first;
     auto const redactedEnd = redactedStart + redacted.count();
@@ -464,16 +466,16 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     for (uint64_t r = 0; r < count; ++r) {
         auto const pct = unsigned((100.0 * r) / count);
         int64_t const row = 1 + r;
-        auto const readstart  = cellData("READ_START" , cid_readstart  , row, in);
-        auto const readtype   = cellData("READ_TYPE"  , cid_read_type  , row, in);
-        auto const readlen    = cellData("READ_LEN"   , cid_readlen    , row, in);
-        auto const nreads = readlen.count;
+        auto const readstart  = cellData("READ_START" , cid_readstart  , row, in).typed<int32_t>();
+        auto const readtype   = cellData("READ_TYPE"  , cid_read_type  , row, in).typed<uint8_t>();
+        auto const readlen    = cellData("READ_LEN"   , cid_readlen    , row, in).typed<uint32_t>();
+        auto const nreads = readlen.count();
         auto const prId = cellData(ALIGN_ID, cid_pr_id, row, in).typed<int64_t>();
         auto read = cellData(readColName, cid_read, row, in);
         auto readFilter = cellData(readFilterColName, cid_read_filter, row, in);
         bool redact = false;
         bool fromRedacted = false;
-        auto bases = aligned ? readlen.typed<uint32_t>()[nreads - 1] + readstart.typed<int32_t>()[nreads - 1] : read.count;
+        auto bases = aligned ? readlen.back() + readstart.back() : read.count;
 
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
@@ -483,9 +485,6 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             complete = pct;
         }
-
-        read.copyTo(outRead);
-        readFilter.copyTo(outReadFilter);
 
         if (redactedStart && redactedStart < redactedEnd && *redactedStart == row) {
             redact = true;
@@ -497,18 +496,22 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
         if (aligned) {
             auto const redactable = std::count_if(prId.begin(), prId.end(), [](int64_t const id) { return id == 0; });
 
-            redact = redact || (redactable > 0 && redactUnalignedReads(prId, readlen, read));
+            redact = redact || (redactable > 0 && redactUnalignedReads(prId, readlen, read.typed<uint8_t>()));
         }
         else
-            redact = redactReads(readstart, readtype, readlen, read);
+            redact = redactReads(readstart, readtype, readlen, read.typed<uint8_t>());
 
         if (redact) {
             if (!fromRedacted) {
-                ++redactedHere;
+                ++redactions;
                 Redacted::addSpot(row);
             }
-            std::fill(outRead.begin(), outRead.end(), 'N');
-            std::fill(outReadFilter.begin(), outReadFilter.end(), SRA_READ_FILTER_REDACTED);
+
+            outRead.resize(read.count, 'N');
+            read.data = outRead.data();
+
+            outReadFilter.resize(readFilter.count, SRA_READ_FILTER_REDACTED);
+            readFilter.data = outReadFilter.data();
 
             someRedacted = true;
             if (dispositionCount[dspcRedactedReads] == 0) {
@@ -517,9 +520,6 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
             dispositionCount[dspcRedactedReads] += nreads;
             dispositionCount[dspcRedactedSpots] += 1;
             dispositionBaseCount[dspcRedactedBases] += bases;
-
-            read.data = outRead.data();
-            readFilter.data = outReadFilter.data();
         }
         else {
             dispositionCount[dspcKeptReads] += nreads;
@@ -538,7 +538,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
     pLogMsg(klogInfo, "progress: done in $(elapsed) seconds; redacted: $(spots) spots ($(here) new), $(reads) reads, $(bases) bases", "spots=%zu,here=%zu,reads=%zu,bases=%zu,elapsed=%.0f"
             , (size_t)dispositionCount[dspcRedactedSpots]
-            , (size_t)redactedHere
+            , (size_t)redactions
             , (size_t)dispositionCount[dspcRedactedReads]
             , (size_t)dispositionBaseCount[dspcRedactedBases]
             , elapsed);
@@ -602,6 +602,7 @@ static void copyColumns(  Output const &output
                                     ? openDirRead(fmt, from, tableName)
                                     : openDirRead(fmt + 7, from);
 
+        listDir(src);
         for (auto && colName : dropped) {
             auto const column = colName.c_str();
             auto const rc = KDirectoryCopyPaths(src, dst, true, column, column);
@@ -686,16 +687,17 @@ void main_1(int argc, char *argv[])
             processAlignmentTable(in.primaryAlignment);
 
         auto const someRedacted = processSequenceTable(out.sequence, in.sequence, isAligned);
-        VTableRelease(in.sequence);
-        VTableRelease(out.sequence.tbl);
 
         if (someRedacted && isAligned) {
             redactAlignmentTable(out.primaryAlignment, in.primaryAlignment, true);
             if (in.secondaryAlignment != nullptr)
                 redactAlignmentTable(out.secondaryAlignment, in.secondaryAlignment, false);
         }
+        VTableRelease(in.sequence);
         VTableRelease(in.primaryAlignment);
         VTableRelease(in.secondaryAlignment);
+
+        VTableRelease(out.sequence.tbl);
         VTableRelease(out.primaryAlignment.tbl);
         VTableRelease(out.secondaryAlignment.tbl);
 

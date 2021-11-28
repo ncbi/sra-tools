@@ -71,37 +71,31 @@ struct CellData {
     class Typed {
         friend CellData;
 
-        T const *data;
-        size_t count;
+        T const *data_;
+        size_t count_;
 
         Typed(CellData const &parent) {
             assert(parent.elem_bits == sizeof(T) * 8);
-            data = reinterpret_cast<T const *>(parent.data);
-            count = parent.count;
+            data_ = reinterpret_cast<T const *>(parent.data);
+            count_ = parent.count;
         }
     public:
-        T const *begin() const { return data; }
-        T const *end() const { return data + count; }
+        T const *data() const { return data_; }
+        size_t count() const { return count_; }
+        T const *begin() const { return data_; }
+        T const *end() const { return data_ + count(); }
 
         T const &operator [](int i) const {
-            assert(i >= 0 && (size_t)i < count);
-            return data[i];
+            assert(i >= 0 && (size_t)i < count());
+            return data_[i];
         }
+        T const &front() const { return data_[0]; }
+        T const &back() const { return data_[count_ - 1]; }
     };
 
     template<typename T>
     Typed<T> const typed() const {
         return Typed<T>(*this);
-    }
-
-    template<typename T>
-    T const &value() const {
-        return typed<T>()[0];
-    }
-    template<typename T>
-    void copyTo(std::vector<T> &dst) const {
-        auto const &p = typed<T>();
-        dst.assign(p.begin(), p.end());
     }
 };
 
@@ -394,6 +388,17 @@ static void writeRow(  int64_t const row
     }
 }
 
+template <typename T>
+static void writeRow(  int64_t const row
+                     , std::vector<T> const &data
+                     , uint32_t const cid
+                     , VCursor *const curs)
+{
+    if (cid) {
+        DIE_UNLESS(EX_IOERR, VCursorWrite(curs, cid, 8 * sizeof(data.front()), data.data(), 0, data.size()));
+    }
+}
+
 static KDirectory *rootDir()
 {
     KDirectory *ndir = NULL;
@@ -435,6 +440,26 @@ static KDirectory const *openDirRead(char const *const path, ...)
 
     LogErr(klogFatal, rc, "Can't get directory");
     exit(EX_SOFTWARE);
+}
+
+template <typename F>
+void KNamelistForEach(KNamelist const *const list, F && f) {
+    uint32_t count = 0;
+    DIE_UNLESS(EX_SOFTWARE, KNamelistCount(list, &count));
+    for (uint32_t i = 0; i < count; ++i) {
+        char const *name = nullptr;
+        DIE_UNLESS(EX_SOFTWARE, KNamelistGet(list, i, &name));
+        f(name);
+    }
+}
+
+static void listDir(KDirectory const *const dir) {
+    KNamelist *list = nullptr;
+    DIE_UNLESS(EX_SOFTWARE, KDirectoryList_v1(dir, &list, nullptr, nullptr, nullptr));
+    KNamelistForEach(list, [](char const *name) {
+        LogMsg(klogDebug, name);
+    });
+    KNamelistRelease(list);
 }
 
 static KMDataNode const *openNodeRead(VTable const *const tbl, char const *const path, ...)

@@ -365,6 +365,7 @@ static void closeRow(int64_t const row, VCursor *const out)
 
 static void commitCursor(VCursor *const out)
 {
+    VCursorFlushPage(out);
     rc_t const rc = VCursorCommit(out);
     if (rc) {
         LogErr(klogFatal, rc, "Failed to commit cursor");

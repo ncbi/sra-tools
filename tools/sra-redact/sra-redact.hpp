@@ -187,6 +187,18 @@ static uint64_t rowCount(VCursor const *const curs, int64_t *const first, uint32
 }
 
 static uint32_t addColumn( char const *const name
+                          , VCursor const *const curs)
+{
+    uint32_t cid = 0;
+    rc_t const rc = VCursorAddColumn(curs, &cid, "%s", name);
+    if (rc == 0)
+        return cid;
+
+    pLogErr(klogFatal, rc, "Failed to open $(name) column", "name=%s", name);
+    exit(EX_NOINPUT);
+}
+
+static uint32_t addColumn( char const *const name
                          , char const *const type
                          , VCursor const *const curs)
 {
@@ -197,6 +209,16 @@ static uint32_t addColumn( char const *const name
 
     pLogErr(klogFatal, rc, "Failed to open $(name) column", "name=%s", name);
     exit(EX_NOINPUT);
+}
+
+static uint32_t addColumn(  char const *const name
+                          , VCursor const *const curs
+                          , bool &have)
+{
+    uint32_t cid = 0;
+    rc_t const rc = VCursorAddColumn(curs, &cid, "%s", name);
+    have = rc == 0;
+    return rc == 0 ? cid : 0;
 }
 
 static uint32_t addColumn(  char const *const name

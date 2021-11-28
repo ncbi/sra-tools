@@ -284,21 +284,21 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
     auto has_offset_type = false;
 
     /* MARK: input columns */
-    auto const cid_spot_id     = addColumn(SPOT_ID   , "I64", in);
+    auto const cid_spot_id     = addColumn(SPOT_ID   , in);
 
     /* MARK: redacted input columns */
-    auto const cid_has_miss    = addColumn(HAS_MISS  , "U8" , in);
-    auto const cid_has_offset  = addColumn(HAS_OFFSET, "U8" , in);
-    auto const cid_mismatch    = addColumn(MISMATCH  , BASE_TYPE, in);
-    auto const cid_ref_offset  = addColumn(REF_OFFSET, "I32", in);
-    auto const cid_offset_type = addColumn(OFFSET_TYPE, "U8", in, has_offset_type);
+    auto const cid_has_miss    = addColumn(HAS_MISS, in);
+    auto const cid_has_offset  = addColumn("(bool)" HAS_OFFSET, in);
+    auto const cid_mismatch    = addColumn(MISMATCH, in);
+    auto const cid_ref_offset  = addColumn(REF_OFFSET, in);
+    auto const cid_offset_type = addColumn(OFFSET_TYPE, in, has_offset_type);
 
     /* MARK: redacted output columns */
-    auto const cid_out_has_miss    = addColumn(HAS_MISS  , "U8" , out);
-    auto const cid_out_has_offset  = addColumn(HAS_OFFSET, "U8" , out);
-    auto const cid_out_mismatch    = addColumn(MISMATCH  , BASE_TYPE, out);
-    auto const cid_out_ref_offset  = addColumn(REF_OFFSET, "I32", out);
-    auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, "U8", out) : 0;
+    auto const cid_out_has_miss    = addColumn(HAS_MISS, out);
+    auto const cid_out_has_offset  = addColumn("(bool)" HAS_OFFSET, out);
+    auto const cid_out_mismatch    = addColumn(MISMATCH, out);
+    auto const cid_out_ref_offset  = addColumn(REF_OFFSET, out);
+    auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, out) : 0;
 
     int64_t first = 0;
     uint64_t count = 0;

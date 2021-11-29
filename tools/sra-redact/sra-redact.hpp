@@ -491,7 +491,7 @@ static VDBManager *manager()
 {
     VDBManager *mgr = NULL;
     DIE_UNLESS(EX_SOFTWARE, VDBManagerMakeUpdate(&mgr, NULL));
-#if 0
+#if 1
 #ifndef NDEBUG
     DIE_UNLESS(EX_SOFTWARE, VDBManagerDisableFlushThread(mgr));
     DIE_UNLESS(EX_SOFTWARE, VDBManagerDisablePagemapThread(mgr));

@@ -194,7 +194,7 @@ uint64_t dispositionBaseCount[2];
 int Redacted::fd = -1;
 
 #define ALIGNMENT_IN_COLUMNS                                                    \
-    auto const cid_has_miss    = addColumn(HAS_MISS, in);                       \
+    auto const cid_has_miss    = addColumn("(bool)" HAS_MISS, in);              \
     auto const cid_has_offset  = addColumn("(bool)" HAS_OFFSET, in);            \
     auto const cid_mismatch    = addColumn(MISMATCH, in);                       \
     auto const cid_ref_offset  = addColumn(REF_OFFSET, in);                     \
@@ -202,8 +202,8 @@ int Redacted::fd = -1;
     auto const cid_offset_type = addColumn(OFFSET_TYPE, in, has_offset_type);
 
 #define ALIGNMENT_OUT_COLUMNS                                                   \
-    auto const cid_out_has_miss    = addColumn("(U8)" HAS_MISS, out);           \
-    auto const cid_out_has_offset  = addColumn("(U8)" HAS_OFFSET, out);         \
+    auto const cid_out_has_miss    = addColumn("(bool)" HAS_MISS, out);         \
+    auto const cid_out_has_offset  = addColumn("(bool)" HAS_OFFSET, out);       \
     auto const cid_out_mismatch    = addColumn(MISMATCH, out);                  \
     auto const cid_out_ref_offset  = addColumn(REF_OFFSET, out);                \
     auto const cid_out_reflen      = addColumn(REF_LEN, out);                   \

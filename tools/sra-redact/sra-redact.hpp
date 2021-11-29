@@ -34,6 +34,7 @@
 #include <vdb/vdb-priv.h>
 #include <kdb/manager.h>
 #include <kdb/meta.h>
+#include <kdb/namelist.h>
 #include <kfs/directory.h>
 #include <klib/log.h>
 #include <klib/out.h>
@@ -49,12 +50,100 @@
 #include <sysexits.h>
 #include <unistd.h>
 #include <sys/mman.h> 
+#include <fcntl.h>
 
 #define TEMP_MAIN_OBJECT_NAME "out"
 
 extern "C" {
     rc_t KMDataNodeAddr(const KMDataNode *self, const void **addr, size_t *size);
 }
+
+using HiRezTimePoint = decltype(std::chrono::high_resolution_clock::now());
+
+struct Redacted {
+private:
+    static int fd;
+
+    static void open_redacted_alignments()
+    {
+        fd = open("redactedAlignments", O_RDWR | O_APPEND | O_CREAT | O_EXCL, 0700);
+        if (fd >= 0)
+            return;
+        LogMsg(klogFatal, "Can't create file for redacted redacted alignments");
+        exit(EX_CANTCREAT);
+    }
+
+    int64_t *start;
+    size_t count_;
+
+public:
+    size_t const count() const { return count_; }
+    int64_t const *begin() const { return start; }
+    int64_t const *end() const { return begin() + count(); }
+
+    Redacted(Redacted &&other) = delete;
+    Redacted(Redacted const &other) = delete;
+    Redacted() : start(nullptr), count_(0)
+    {
+        if (fd < 0) return;
+
+        fsync(fd);
+
+        auto const fsize = lseek(fd, 0, SEEK_END);
+        assert(fsize % sizeof(*start) == 0);
+
+        auto *const map = mmap(nullptr, fsize, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+        if (map == MAP_FAILED) {
+            pLogMsg(klogFatal, "failed to map redacted spots file: $(err)", "err=%s", strerror(errno));
+            exit(EX_IOERR);
+        }
+
+        start = reinterpret_cast<int64_t *>(map);
+        count_ = fsize / sizeof(*start);
+        pLogMsg(klogDebug, "redacted spots file has $(count) IDs", "count=%zu", count());
+
+        std::sort(start, start + count());
+
+        auto last = *start;
+        size_t dups = 0;
+        for (auto i = start + 1; i < end(); ++i) {
+            if (last == *i) {
+                *i = 0;
+                dups += 1;
+            }
+            else
+                last = *i;
+        }
+        pLogMsg(klogDebug, "redacted spots file has $(count) duplicate IDs", "count=%zu", dups);
+        if (dups) {
+            count_ = std::remove(start, start + count(), 0) - start;
+            assert(sizeof(*start) * (count() + dups) == fsize);
+
+            ftruncate(fd, count() * sizeof(*start));
+            lseek(fd, 0, SEEK_END);
+        }
+        pLogMsg(klogDebug, "redacted spots file has $(count) IDs", "count=%zu", count());
+        mprotect(map, count() * sizeof(*start), PROT_READ);
+    }
+    ~Redacted() {
+        if (start) {
+            munmap(start, count() * sizeof(*start));
+        }
+    }
+    bool contains(int64_t value) const {
+        return std::lower_bound(begin(), end(), value) != end();
+    }
+    static void addSpot(int64_t const row) {
+        if (fd >= 0) {
+            if (write(fd, &row, sizeof(row)) == sizeof(row))
+                return;
+            LogMsg(klogFatal, "Can't record invalidated rows");
+            exit(EX_IOERR);
+        }
+        open_redacted_alignments();
+        addSpot(row);
+    }
+};
 
 struct CellData {
     void const *data;
@@ -143,23 +232,57 @@ static void redactAlignmentTable(Output &output, VTable const *const input, bool
 static Outputs createOutputs(Args *const args, VDBManager *const mgr, Inputs const &inputs, VSchema const *schema);
 static VSchema *makeSchema(VDBManager *mgr);
 
+static std::tm make_tm(std::chrono::system_clock::time_point const &time) {
+    std::tm result = {};
+    auto const tt = std::chrono::system_clock::to_time_t(time);
+    gmtime_r(&tt, &result);
+    return result;
+}
+
+static std::string estimatedTimeOfCompletion(HiRezTimePoint const &start
+                                             , uint64_t const completed
+                                             , uint64_t const total)
+{
+    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
+    if (elapsed > elapsed.zero() && completed > 0) {
+        auto const rate = double(completed) / (elapsed.count() / 1000.0);
+        if (rate > 0.0) {
+            auto const remainCount = total - completed;
+            auto const remainTime = remainCount / rate;
+            auto const eta_tm = make_tm(std::chrono::system_clock::now() + std::chrono::seconds((uint64_t)(std::ceil(remainTime))));
+            char buffer[32];
+            auto size = std::strftime(buffer, sizeof(buffer), "%FT%T", &eta_tm);
+            return std::string(buffer, size);
+        }
+    }
+    return "?";
+}
+
 static void OUT_OF_MEMORY()
 {
     LogErr(klogFatal, RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted), "OUT OF MEMORY!!!");
     exit(EX_TEMPFAIL);
 }
 
+static void WARN(rc_t const rc, char const *const msg) {
+    LogErr(klogWarn, rc, msg);
+}
+
+static void DIE(int const EX, rc_t const rc, char const *const msg) {
+    LogErr(klogFatal, rc, msg);
+    exit(EX);
+}
+
 #define WARN_IF(CALL) do { \
     auto const rc = CALL; \
-    if (rc != 0) \
-        LogErr(klogWarn, rc, "Failed: " #CALL ); \
+    if (rc == 0) break; \
+    WARN(rc, "Failed: " #CALL); \
 } while(0)
 
 #define DIE_UNLESS(EX, CALL) do { \
     auto const rc = CALL; \
     if (rc == 0) break; \
-    LogErr(klogFatal, rc, "FAILED! " #CALL); \
-    exit(EX); \
+    DIE(EX, rc, "FAILED! " #CALL); \
 } while(0)
 
 static CellData cellData(char const *const colName, int const col, int64_t const row, VCursor const *const curs)
@@ -367,6 +490,12 @@ static VDBManager *manager()
 {
     VDBManager *mgr = NULL;
     DIE_UNLESS(EX_SOFTWARE, VDBManagerMakeUpdate(&mgr, NULL));
+#if 0
+#ifndef NDEBUG
+    DIE_UNLESS(EX_SOFTWARE, VDBManagerDisableFlushThread(mgr));
+    DIE_UNLESS(EX_SOFTWARE, VDBManagerDisablePagemapThread(mgr));
+#endif
+#endif
     return mgr;
 }
 
@@ -401,9 +530,9 @@ static void commitCursor(VCursor *const out)
 }
 
 static void writeRow(  int64_t const row
-                      , CellData const &data
-                      , uint32_t const cid
-                      , VCursor *const out)
+                     , CellData const &data
+                     , uint32_t const cid
+                     , VCursor *const out)
 {
     if (cid) {
         DIE_UNLESS(EX_IOERR, VCursorWrite(out, cid, data.elem_bits, data.data, 0, data.count));
@@ -466,6 +595,8 @@ static KDirectory const *openDirRead(char const *const path, ...)
 
 template <typename F>
 void KNamelistForEach(KNamelist const *const list, F && f) {
+    if (!list) return;
+
     uint32_t count = 0;
     DIE_UNLESS(EX_SOFTWARE, KNamelistCount(list, &count));
     for (uint32_t i = 0; i < count; ++i) {
@@ -541,6 +672,47 @@ static void copyNodeValue(KMDataNode *const dst, KMDataNode const *const src)
 
     DIE_UNLESS(EX_SOFTWARE, KMDataNodeAddr(src, &data, &data_size));
     DIE_UNLESS(EX_DATAERR, KMDataNodeWrite(dst, data, data_size));
+}
+
+static size_t nodeAttrSize(KMDataNode const *const src, char const *const name)
+{
+    size_t size;
+    KMDataNodeReadAttr(src, name, nullptr, 0, &size);
+    return size;
+}
+
+static void copyNodeAttr(KMDataNode *const dst, KMDataNode const *const src, char const *const name)
+{
+    size_t size = nodeAttrSize(src, name);
+    auto buffer = std::vector<char>(size + 1, 0);
+
+    DIE_UNLESS(EX_SOFTWARE, KMDataNodeReadAttr(src, name, buffer.data(), buffer.size(), &size));
+    DIE_UNLESS(EX_DATAERR, KMDataNodeWriteAttr(dst, name, buffer.data()));
+}
+
+static void copyNode(KMDataNode *const dst, KMDataNode const *const src)
+{
+    copyNodeValue(dst, src);
+
+    KNamelist *attr = nullptr;
+    WARN_IF(KMDataNodeListAttr(src, &attr));
+    KNamelistForEach(attr, [&](char const *name) {
+        copyNodeAttr(dst, src, name);
+    });
+    KNamelistRelease(attr);
+
+    KNamelist *children = nullptr;
+    WARN_IF(KMDataNodeListChildren(src, &children));
+    KNamelistForEach(children, [&](char const *name) {
+        KMDataNode *dchild = nullptr;
+        KMDataNode const *schild = nullptr;
+
+        DIE_UNLESS(EX_DATAERR, KMDataNodeOpenNodeUpdate(dst, &dchild, "%s", name));
+        DIE_UNLESS(EX_DATAERR, KMDataNodeOpenNodeRead(src, &schild, "%s", name));
+
+        copyNode(dchild, schild);
+    });
+    KNamelistRelease(children);
 
     KMDataNodeRelease(src);
     KMDataNodeRelease(dst);

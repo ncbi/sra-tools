@@ -59,10 +59,11 @@ enum OPTIONS {
 #define HAS_OFFSET "HAS_REF_OFFSET"
 #define MISMATCH "MISMATCH"
 #define REF_OFFSET "REF_OFFSET"
+#define REF_LEN "REF_LEN"
 #define OFFSET_TYPE "REF_OFFSET_TYPE"
 #define BASE_TYPE "INSDC:dna:text"
 
-#define PROGRESS_MESSAGES 1
+#define REDACT_EVERYTHING 0
 
 static int filterPipeIn; ///< it is replying here
 static int filterPipeOut; ///< we are querying here
@@ -94,14 +95,41 @@ static bool doFilter(uint32_t const len, uint8_t const *const seq)
     exit(EX_TEMPFAIL);
 }
 
+static bool filterAlways(uint32_t const len, uint8_t const *const seq)
+{
+    return true;
+}
+
 static bool noFilter(uint32_t const len, uint8_t const *const seq)
 {
-    return false;
+    if (len == 0)
+        return false;
+    /*
+     algorithm fnv-1a is
+         hash := FNV_offset_basis
+
+         for each byte_of_data to be hashed do
+             hash := hash XOR byte_of_data
+             hash := hash × FNV_prime
+
+         return hash
+     */
+    uint64_t h = 0xcbf29ce484222325ULL;
+    h ^= len;
+    h *= 0x00000100000001B3ULL;
+    for (uint32_t i = 0; i < len; ++i) {
+        h ^= seq[i];
+        h *= 0x00000100000001B3ULL;
+    }
+    return (h % 16) == 1;
 }
 
 using FilterFunction = decltype(doFilter);
 static FilterFunction&& filterFunction() {
-#if _DEBUGGING || DEBUG
+#if REDACT_EVERYTHING
+    return filterAlways;
+#else
+#ifndef NDEBUG
     auto const SKIP = getenv("SRA_REDACT_NONE");
     if (SKIP && *SKIP == '1') {
         LogMsg(klogWarn, "NOT ACTUALLY REDACTING");
@@ -109,8 +137,10 @@ static FilterFunction&& filterFunction() {
     }
 #endif
     return doFilter;
+#endif
 }
-auto const &&shouldFilter = filterFunction();
+
+static auto const &&shouldFilter = filterFunction();
 
 static bool redactUnalignedReads(  CellData::Typed<int64_t> const &prId
                                  , CellData::Typed<uint32_t> const &readLenData
@@ -161,121 +191,52 @@ enum {
 uint64_t dispositionCount[4];
 uint64_t dispositionBaseCount[2];
 
-#include <fcntl.h>
-struct Redacted {
-private:
-    static int fd;
-
-    static void open_redacted_alignments()
-    {
-        fd = open("redactedAlignments", O_RDWR | O_APPEND | O_CREAT | O_EXCL, 0700);
-        if (fd >= 0)
-            return;
-        LogMsg(klogFatal, "Can't create file for redacted redacted alignments");
-        exit(EX_CANTCREAT);
-    }
-
-    int64_t *start;
-    size_t count_;
-
-public:
-    size_t const count() const { return count_; }
-    int64_t const *begin() const { return start; }
-    int64_t const *end() const { return begin() + count(); }
-
-    Redacted(Redacted &&other) = delete;
-    Redacted(Redacted const &other) = delete;
-    Redacted() : start(nullptr), count_(0)
-    {
-        if (fd < 0) return;
-
-        fsync(fd);
-
-        auto const fsize = lseek(fd, 0, SEEK_END);
-        assert(fsize % sizeof(*start) == 0);
-
-        auto *const map = mmap(nullptr, fsize, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
-        if (map == MAP_FAILED) {
-            pLogMsg(klogFatal, "failed to map redacted spots file: $(err)", "err=%s", strerror(errno));
-            exit(EX_IOERR);
-        }
-
-        start = reinterpret_cast<int64_t *>(map);
-        count_ = fsize / sizeof(*start);
-        pLogMsg(klogDebug, "redacted spots file has $(count) IDs", "count=%zu", count());
-
-        std::sort(start, start + count());
-
-        auto last = *start;
-        size_t dups = 0;
-        for (auto i = start + 1; i < end(); ++i) {
-            if (last == *i) {
-                *i = 0;
-                dups += 1;
-            }
-            else
-                last = *i;
-        }
-        pLogMsg(klogDebug, "redacted spots file has $(count) duplicate IDs", "count=%zu", dups);
-        if (dups) {
-            count_ = std::remove(start, start + count(), 0) - start;
-            assert(sizeof(*start) * (count() + dups) == fsize);
-
-            ftruncate(fd, count() * sizeof(*start));
-            lseek(fd, 0, SEEK_END);
-        }
-        pLogMsg(klogDebug, "redacted spots file has $(count) IDs", "count=%zu", count());
-        mprotect(map, count() * sizeof(*start), PROT_READ);
-    }
-    ~Redacted() {
-        if (start) {
-            munmap(start, count() * sizeof(*start));
-        }
-    }
-    bool contains(int64_t value) const {
-        return std::lower_bound(begin(), end(), value) != end();
-    }
-    static void addSpot(int64_t const row) {
-        if (fd >= 0) {
-            if (write(fd, &row, sizeof(row)) == sizeof(row))
-                return;
-            LogMsg(klogFatal, "Can't record invalidated rows");
-            exit(EX_IOERR);
-        }
-        open_redacted_alignments();
-        addSpot(row);
-    }
-};
-
 int Redacted::fd = -1;
 
-using HiRezTimePoint = decltype(std::chrono::high_resolution_clock::now());
+#define ALIGNMENT_IN_COLUMNS                                                    \
+    auto const cid_has_miss    = addColumn(HAS_MISS, in);                       \
+    auto const cid_has_offset  = addColumn("(bool)" HAS_OFFSET, in);            \
+    auto const cid_mismatch    = addColumn(MISMATCH, in);                       \
+    auto const cid_ref_offset  = addColumn(REF_OFFSET, in);                     \
+    auto const cid_reflen      = addColumn(REF_LEN, in);                        \
+    auto const cid_offset_type = addColumn(OFFSET_TYPE, in, has_offset_type);
 
-static std::tm make_tm(std::chrono::system_clock::time_point const &time) {
-    std::tm result = {};
-    auto const tt = std::chrono::system_clock::to_time_t(time);
-    gmtime_r(&tt, &result);
-    return result;
-}
+#define ALIGNMENT_OUT_COLUMNS                                                   \
+    auto const cid_out_has_miss    = addColumn("(U8)" HAS_MISS, out);           \
+    auto const cid_out_has_offset  = addColumn("(U8)" HAS_OFFSET, out);         \
+    auto const cid_out_mismatch    = addColumn(MISMATCH, out);                  \
+    auto const cid_out_ref_offset  = addColumn(REF_OFFSET, out);                \
+    auto const cid_out_reflen      = addColumn(REF_LEN, out);                   \
+    auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, out) : 0;
 
-static std::string estimatedTimeOfCompletion(HiRezTimePoint const &start
-                                                                       , uint64_t const completed
-                                                                       , uint64_t const total)
+#ifndef NDEBUG
+static void test_alignmentColumns(VCursor const *const in, bool &has_offset_type)
 {
-    auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start);
-    if (elapsed > elapsed.zero() && completed > 0) {
-        auto const rate = double(completed) / (elapsed.count() / 1000.0);
-        if (rate > 0.0) {
-            auto const remainCount = total - completed;
-            auto const remainTime = remainCount / rate;
-            auto const eta_tm = make_tm(std::chrono::system_clock::now() + std::chrono::seconds((uint64_t)(std::ceil(remainTime))));
-            char buffer[32];
-            auto size = std::strftime(buffer, sizeof(buffer), "%FT%T", &eta_tm);
-            return std::string(buffer, size);
-        }
-    }
-    return "?";
+    ALIGNMENT_IN_COLUMNS
+    openCursor(in, "input");
+    VCursorRelease(in);
+
+    (void)cid_mismatch;
+    (void)cid_has_miss;
+    (void)cid_has_offset;
+    (void)cid_ref_offset;
+    (void)cid_reflen;
+    (void)cid_offset_type;
 }
+static void test_alignmentColumns(VCursor *const out, bool const has_offset_type)
+{
+    ALIGNMENT_OUT_COLUMNS
+    openCursor(out, "output");
+    VCursorRelease(out);
+
+    (void)cid_out_mismatch;
+    (void)cid_out_has_miss;
+    (void)cid_out_has_offset;
+    (void)cid_out_ref_offset;
+    (void)cid_out_reflen;
+    (void)cid_out_offset_type;
+}
+#endif
 
 static void redactAlignments(VCursor *const out, VCursor const *const in, bool const isPrimary, Redacted const &redacted, Output &output)
 {
@@ -287,33 +248,25 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
     auto const cid_spot_id     = addColumn(SPOT_ID   , in);
 
     /* MARK: redacted input columns */
-    auto const cid_has_miss    = addColumn(HAS_MISS, in);
-    auto const cid_has_offset  = addColumn("(bool)" HAS_OFFSET, in);
-    auto const cid_mismatch    = addColumn(MISMATCH, in);
-    auto const cid_ref_offset  = addColumn(REF_OFFSET, in);
-    auto const cid_offset_type = addColumn(OFFSET_TYPE, in, has_offset_type);
+    ALIGNMENT_IN_COLUMNS
 
     /* MARK: redacted output columns */
-    auto const cid_out_has_miss    = addColumn(HAS_MISS, out);
-    auto const cid_out_has_offset  = addColumn("(bool)" HAS_OFFSET, out);
-    auto const cid_out_mismatch    = addColumn(MISMATCH, out);
-    auto const cid_out_ref_offset  = addColumn(REF_OFFSET, out);
-    auto const cid_out_offset_type = has_offset_type ? addColumn(OFFSET_TYPE, out) : 0;
+    ALIGNMENT_OUT_COLUMNS
 
     int64_t first = 0;
     uint64_t count = 0;
     uint64_t redactions = 0;
     unsigned complete = 0;
+    uint64_t empty_mismatch = 0;
+    uint64_t empty_offset = 0;
+    uint64_t empty_offtype = 0;
 
     openCursor(in, "input");
     openCursor(out, "output");
 
-    output.changedColumns.assign({HAS_MISS, HAS_OFFSET, MISMATCH, REF_OFFSET});
+    output.changedColumns.assign({HAS_MISS, HAS_OFFSET, MISMATCH, REF_OFFSET, REF_LEN});
     if (has_offset_type)
         output.changedColumns.push_back(OFFSET_TYPE);
-
-    for (auto && name : output.changedColumns)
-        pLogMsg(klogInfo, "redacting/updating $(col)", "col=%s", name.c_str());
 
     count = rowCount(in, &first, cid_spot_id);
     assert(first == 1);
@@ -328,8 +281,11 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         auto has_offset  = cellData(HAS_OFFSET , cid_has_offset , row, in);
         auto ref_offset  = cellData(REF_OFFSET , cid_ref_offset , row, in);
         auto mismatch    = cellData(MISMATCH   , cid_mismatch   , row, in);
+        auto ref_len     = cellData(REF_LEN    , cid_reflen     , row, in);
         auto offset_type = cellData(OFFSET_TYPE, cid_offset_type, row, in);
+        auto reflen = ref_len.typed<uint32_t>().front();
 
+        ref_len.data = &reflen;
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
@@ -339,9 +295,12 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
             complete = pct;
         }
 
-        if (redacted.contains(spotId)) {
+        auto const redact = redacted.contains(spotId);
+
+        if (redact) {
             if (allfalse.size() < has_miss.count)
                 allfalse.resize(has_miss.count, 0);
+            reflen = has_miss.count;
             has_miss.data = allfalse.data();
             has_offset.data = allfalse.data();
             mismatch.count = 0;
@@ -349,11 +308,16 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
             offset_type.count = 0;
             ++redactions;
         }
+        empty_mismatch += mismatch.count == 0 ? 1 : 0;
+        empty_offset += ref_offset.count == 0 ? 1 : 0;
+        empty_offtype += offset_type.count == 0 ? 1 : 0;
+
         openRow(row, out);
         writeRow(row, has_miss   , cid_out_has_miss   , out);
         writeRow(row, has_offset , cid_out_has_offset , out);
         writeRow(row, mismatch   , cid_out_mismatch   , out);
         writeRow(row, ref_offset , cid_out_ref_offset , out);
+        writeRow(row, ref_len    , cid_out_reflen     , out);
         writeRow(row, offset_type, cid_out_offset_type, out);
         commitRow(row, out);
         closeRow(row, out);
@@ -369,13 +333,13 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
     VCursorRelease(out);
 }
 
-static void processAlignments(VCursor const *const in)
+static void scanAlignments(VCursor const *const in)
 {
     auto const startTimer = std::chrono::high_resolution_clock::now();
 
     /* MARK: input columns */
-    auto const cid_spot_id     = addColumn(SPOT_ID   , "I64", in);
-    auto const cid_read        = addColumn(ALIGN_READ, "U8" , in);
+    auto const cid_spot_id = addColumn(SPOT_ID, "I64", in);
+    auto const cid_read = addColumn(ALIGN_READ, BASE_TYPE, in);
 
     int64_t first = 0;
     uint64_t count = 0;
@@ -448,14 +412,11 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     openCursor(in, "input");
     openCursor(out, "output");
 
-    output.changedColumns.assign({readColName, "RD_FILTER", "READ_FILTER"});
+    output.changedColumns.assign({readColName, "RD_FILTER", readFilterColName});
     if (aligned)
         output.changedColumns.push_back("CMP_ALTREAD");
     else
         output.changedColumns.push_back("ALTREAD");
-
-    for (auto && name : output.changedColumns)
-        pLogMsg(klogInfo, "redacting/updating $(col)", "col=%s", name.c_str());
 
     count = rowCount(in, &first, cid_read_type);
     assert(first == 1);
@@ -536,7 +497,7 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
     commitCursor(out);
 
     auto const elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - startTimer).count() / 1000.0;
-    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds; redacted: $(spots) spots ($(here) new), $(reads) reads, $(bases) bases", "spots=%zu,here=%zu,reads=%zu,bases=%zu,elapsed=%.0f"
+    pLogMsg(klogInfo, "progress: done in $(elapsed) seconds; redacted: $(spots) spots ($(here) from unaligned reads), $(reads) reads, $(bases) bases", "spots=%zu,here=%zu,reads=%zu,bases=%zu,elapsed=%.0f"
             , (size_t)dispositionCount[dspcRedactedSpots]
             , (size_t)redactions
             , (size_t)dispositionCount[dspcRedactedReads]
@@ -607,13 +568,19 @@ static void copyColumns(  Output const &output
             auto const column = colName.c_str();
             auto const rc = KDirectoryCopyPaths(src, dst, true, column, column);
             if (rc) {
-                pLogErr(klogInfo, rc, "couldn't copy $(table).$(column) from $(source) to $(dest) as a physical column; will try metadata copy"
+                pLogErr(klogDebug, rc, "couldn't copy $(table).$(column) from $(source) to $(dest) as a physical column; will try metadata copy"
                         , "column=%s,table=%s,source=%s,dest=%s"
                         , column
                         , tableName ? tableName : "<implied>"
                         , from
                         , to);
                 not_copied.push_back(colName);
+            }
+            else {
+                pLogMsg(klogInfo, "updated $(table).$(column)"
+                        , "column=%s,table=%s"
+                        , column
+                        , tableName ? tableName : "<implied>");
             }
         }
         KDirectoryRelease(src);
@@ -630,7 +597,11 @@ static void copyColumns(  Output const &output
         auto const column = colName.c_str();
         /* could not copy the physical column; try the metadata node */
         if (VTableHasStaticColumn(srcTbl, column)) {
-            copyNodeValue(openNodeUpdate(dstTbl, "col/%s", column), openNodeRead(srcTbl, "col/%s", column));
+            copyNode(openNodeUpdate(dstTbl, "col/%s", column), openNodeRead(srcTbl, "col/%s", column));
+            pLogMsg(klogInfo, "updated $(table).$(column)"
+                    , "column=%s,table=%s"
+                    , column
+                    , tableName ? tableName : "<implied>");
         }
         else {
             pLogMsg(klogFatal, "can't copy replacement $(column) column", "column=%s", column);
@@ -725,6 +696,35 @@ void main_1(int argc, char *argv[])
     exit(EX_TEMPFAIL);
 }
 
+#ifndef NDEBUG
+static void test_AlignmentTable(VTable const *const input, bool &has_offset_type)
+{
+    VCursor const *in = NULL;
+    rc_t const rc = VTableCreateCursorRead(input, &in);
+    if (rc != 0) {
+        LogErr(klogFatal, rc, "Failed to create input cursor!");
+        exit(EX_NOINPUT);
+    }
+    test_alignmentColumns(in, has_offset_type);
+}
+static void test_AlignmentTable(VTable *const output, bool const has_offset_type)
+{
+    VCursor *out = NULL;
+    rc_t const rc = VTableCreateCursorWrite(output, &out, kcmInsert);
+    if (rc != 0) {
+        LogErr(klogFatal, rc, "Failed to create output cursor!");
+        exit(EX_CANTCREAT);
+    }
+    test_alignmentColumns(out, has_offset_type);
+}
+static void test_AlignmentTables(VTable *const output, VTable const *const input)
+{
+    bool has_offset_type = false;
+    test_AlignmentTable(input, has_offset_type);
+    test_AlignmentTable(output, has_offset_type);
+}
+#endif
+
 static void redactAlignmentTable(Output &output, VTable const *const input, bool const isPrimary)
 {
     VCursor *out = NULL;
@@ -756,7 +756,7 @@ static void processAlignmentTable(VTable const *const input)
             exit(EX_NOINPUT);
         }
     }
-    processAlignments(in);
+    scanAlignments(in);
 }
 
 static bool processSequenceTable(Output &output, VTable const *const input, bool const aligned)

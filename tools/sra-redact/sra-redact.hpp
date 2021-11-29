@@ -131,7 +131,8 @@ public:
         }
     }
     bool contains(int64_t value) const {
-        return std::lower_bound(begin(), end(), value) != end();
+        auto const found = std::lower_bound(begin(), end(), value);
+        return found != end() && *found == value;
     }
     static void addSpot(int64_t const row) {
         if (fd >= 0) {

@@ -289,7 +289,6 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             if (pct % 10 == 0)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             complete = pct;
@@ -331,6 +330,8 @@ static void redactAlignments(VCursor *const out, VCursor const *const in, bool c
 
     VCursorRelease(in);
     VCursorRelease(out);
+
+    assert(redactions <= redacted.count() * 2 /* can't redact more than 2 alignments per spot */);
 }
 
 static void scanAlignments(VCursor const *const in)
@@ -367,7 +368,6 @@ static void scanAlignments(VCursor const *const in)
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             if (pct % 10 == 0)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             complete = pct;
@@ -420,7 +420,6 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
 
     count = rowCount(in, &first, cid_read_type);
     assert(first == 1);
-    pLogMsg(klogDebug, "using $(read) and $(filter)", "read=%s,filter=%s", readColName, readFilterColName);
     pLogMsg(klogInfo, "progress: about to process $(rows) spots", "rows=%zu", (size_t)count);
 
     /* MARK: Main loop over the spots */
@@ -441,7 +440,6 @@ static bool processSequenceCursors(VCursor *const out, VCursor const *const in, 
         if (pct > complete) {
             auto const etc = estimatedTimeOfCompletion(startTimer, r, count);
 
-            // pLogMsg(klogDebug, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             if (pct % 10 == 0)
                 pLogMsg(klogInfo, "progress: $(pct)%, $(etc) ETA", "pct=%u,etc=%s", pct, etc.c_str());
             complete = pct;

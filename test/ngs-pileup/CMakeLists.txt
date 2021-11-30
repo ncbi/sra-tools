@@ -3,9 +3,8 @@ set( NGS_PILEUP_LIBS
     ncbi-ngs-c++
     ngs-c++
     ngs
-    ncbi-vdb
-    ktst
     ${COMMON_LINK_LIBRARIES}
+    ${COMMON_LIBS_READ}
 )
 AddExecutableTest( Test_Ngs_Pileup "test-ngs-pileup.cpp" "${NGS_PILEUP_LIBS}" )
 

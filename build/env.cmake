@@ -273,8 +273,8 @@ else() # assume a single-config generator
     set( TESTBINDIR "${TARGDIR}/test-bin" )
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
-    link_directories( ${NCBI_VDB_LIBDIR} )
-    link_directories( ${NCBI_VDB_ILIBDIR} )
+#    link_directories( ${NCBI_VDB_LIBDIR} )
+#    link_directories( ${NCBI_VDB_ILIBDIR} )
 endif()
 
 if( Python3_EXECUTABLE )
@@ -402,13 +402,15 @@ function(MakeLinksExe target install_via_driver)
 endfunction()
 
 
-set( COMMON_LINK_LIBRARIES kapp tk-version )
 if( WIN32 )
+    set( COMMON_LINK_LIBRARIES kapp tk-version )
     set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
     set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
 else()
-    set( COMMON_LIBS_READ   ncbi-vdb.${STLX} pthread dl m )
-    set( COMMON_LIBS_WRITE  ncbi-wvdb.${STLX} pthread dl m )
+    # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
+    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_ILIBDIR}/libkapp.${STLX} ${NCBI_VDB_ILIBDIR}/libload.${STLX} tk-version )
+    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
+    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
 endif()
 
 if( WIN32 )

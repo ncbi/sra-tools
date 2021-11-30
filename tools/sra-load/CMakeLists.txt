@@ -14,18 +14,12 @@ if( LibXml2_FOUND )
 	)
 
 	set( LOADER_LIB
-		kapp
-		tk-version
-		load
+        ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
-		kxfs
-		kxml
+		${NCBI_VDB_ILIBDIR}/libkxfs.${STLX}
+		${NCBI_VDB_ILIBDIR}/libkxml.${STLX}
 		xml2
 	)
-
-	if( NOT WIN32 )
-		list( APPEND LOADER_LIB m )
-	endif()
 
 	# External
 

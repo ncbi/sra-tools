@@ -24,31 +24,26 @@
 # ===========================================================================
 #echo "$0 $*"
 
-# $1 - path to vdb tools (fastq-load.3, vdb-dump)
-# $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $3 - test case ID
-# $3 - expected result code from fastq-load.3
-# $4, $5, ... - command line options for fastq-load.3
+# $1 - command line for the dumper
+# $2 - command line for the loader
+# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $4 - test case ID
+# $5 - expected result code from the loader
 #
 # return codes:
 # 0 - passed
 # 1 - coud not create temp dir
-# 2 - unexpected return code from fastq-load.3
-# 3 - vdb-dump failed on the output of fastq-load.3
+# 2 - unexpected return code from the loader
+# 3 - the dumper failed on the output of the loader
 # 4 - outputs differ
 
-BINDIR=$1
-WORKDIR=$2
-CASEID=$3
-RC=$4
-shift 4
-CMDLINE=$*
+DUMP=$1
+LOAD=$2
+WORKDIR=$3
+CASEID=$4
+RC=$5
 
-DUMP="$BINDIR/vdb-dump"
-LOAD="$BINDIR/latf-load"
 TEMPDIR=$WORKDIR/actual/$CASEID
-
-${BINDIR}/vdb-config /vdb/schema/paths
 
 if [ "$(uname)" == "Darwin" ]; then
     DIFF="diff"
@@ -65,9 +60,8 @@ if [ "$?" != "0" ] ; then
 fi
 export LD_LIBRARY_PATH=$BINDIR/../lib;
 
-#CMD="$LOAD $CMDLINE -o $TEMPDIR/obj --no-user-settings 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-CMD="$LOAD $CMDLINE -o $TEMPDIR/obj 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-    echo $CMD
+CMD="$LOAD -o $TEMPDIR/obj 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+echo $CMD
 eval $CMD
 rc="$?"
 if [ "$rc" != "$RC" ] ; then

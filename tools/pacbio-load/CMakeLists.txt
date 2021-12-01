@@ -1,6 +1,6 @@
 if( NOT WIN32 )
 
-    find_package( HDF5 REQUIRED COMPONENTS C )
+    find_package( HDF5 COMPONENTS C )
 
     # External
     if( HDF5_FOUND )

@@ -1,4 +1,4 @@
-find_package( HDF5 COMPONENTS )
+find_package( HDF5 REQUIRED COMPONENTS C )
 
 # External
 if( HDF5_FOUND )
@@ -17,15 +17,15 @@ if( HDF5_FOUND )
 		pacbio-load
 	)
 
-	set( PACBIO_LOAD_LIB
-		kapp
-		tk-version
-		kdf5
-		load
-		${HDF5_LIBRARIES}
-		${COMMON_LIBS_WRITE}
-	)
+	# set( PACBIO_LOAD_LIB
+	# 	kapp
+	# 	tk-version
+	# 	kdf5
+	# 	load
+	# 	${HDF5_LIBRARIES}
+	# 	${COMMON_LIBS_WRITE}
+	# )
 
-	target_link_libraries( pacbio-load ${PACBIO_LOAD_LIB} )
+	target_link_libraries( pacbio-load ${NCBI_VDB_LIBDIR}/libkdf5.${STLX} ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 	MakeLinksExe( pacbio-load false )
 endif()

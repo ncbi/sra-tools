@@ -217,9 +217,9 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 else() # assume a single-config generator
     set( SINGLE_CONFIG true )
 
-    if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
-        message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
-    endif()
+    # if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
+        # message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
+    # endif()
 
     if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
         message( FATAL_ERROR "Please specify the location where ncbi-vdb libraries are installed (VDB_LIBDIR)")
@@ -229,6 +229,7 @@ else() # assume a single-config generator
     #set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
     set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
     #set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
+    message(WARNING "Linking with ncbi-vdb libraries from the following location: ${NCBI_VDB_LIBDIR}")
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )
@@ -262,25 +263,30 @@ endif()
 
 if( NOT VDB_SRCDIR )
 	if( USE_INSTALLED_NCBI_VDB )
-		set( VDB_SRCDIR "/usr/local/ncbi/ncbi-vdb/vdb_shared_sources" )
-		set( VDB_INTERFACES_DIR "/usr/local/ncbi/ncbi-vdb/interfaces" )
+		cmake_path( GET CMAKE_INSTALL_PREFIX PARENT_PATH NCBI_INSTALL_PREFIX )
+		message("NCBI_INSTALL_PREFIX: ${NCBI_INSTALL_PREFIX}")
 
-		# TODO: handle "${CMAKE_INSTALL_PREFIX}/.." somehow when ${CMAKE_INSTALL_PREFIX} doesn't exist
-		#set( VDB_SRCDIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/vdb_shared_sources" )
-		#set( VDB_INTERFACES_DIR "${CMAKE_INSTALL_PREFIX}/../ncbi-vdb/interfaces" )
+		set( VDB_SRCDIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/vdb_shared_sources" )
+		set( VDB_INTERFACES_DIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/interfaces" )
 
 		if ( NOT EXISTS ${VDB_SRCDIR} )
-			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb...")
+			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb")
 			set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+		else()
+			message(WARNING "Using INSTALLED ncbi-vdb sources: ${VDB_SRCDIR}")
 		endif()
 
 		if ( NOT EXISTS ${VDB_INTERFACES_DIR} )
 			message("${VDB_INTERFACES_DIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces...")
 			set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
+		else()
+			message(WARNING "Using INSTALLED ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
 		endif()
 	else()
 		set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
 		set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
+
+		message(WARNING "Using ncbi-vdb sources from: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
 	endif()
 
 	message("VDB_SRCDIR was not explicitly provided, using the following location: sources: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
@@ -292,7 +298,7 @@ endif()
 
 
 include_directories( ${VDB_INTERFACES_DIR} )
-include_directories( ${VDB_INTERFACES_DIR}/../vdb_shared_sources/libs ) # /libs for ngs/ncbi/ngs/NGS_FragmentBlob.c:39:10 #include <../libs/vdb/blob-priv.h> TODO: change the source to include in a more straight-forward manner
+include_directories( ${VDB_SRCDIR}/libs ) # /libs for ngs/ncbi/ngs/NGS_FragmentBlob.c:39:10
 
 if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
     include_directories(${VDB_INTERFACES_DIR}/cc/gcc)

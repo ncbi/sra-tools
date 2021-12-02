@@ -1,33 +1,51 @@
 if( NOT WIN32 )
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME Test_FastqLoader_Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties( Test_FastqLoader_Setup PROPERTIES FIXTURES_SETUP Fixture_FastqLoader )
 
     AddExecutableTest( SlowTest_FastqLoader_id2name "test-id2name.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastq "wb-test-fastq.cpp" "fastqloader;load;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqParse "wb-test-fastq-parse.cpp" "fastqloader;load;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqLoader "test-fastq-loader.cpp" "fastqloader;load;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    AddExecutableTest( Test_FastqLoader_WbFastq "wb-test-fastq.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_FastqLoader_WbFastqParse "wb-test-fastq-parse.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_FastqLoader_WbFastqLoader "test-fastq-loader.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
     set_tests_properties( Test_FastqLoader_WbFastqLoader
         PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )
 
-    macro(LatfTest TestName Result TestParams)
+    #
+    # test definition helpers
+    #
+
+    # basic test case, accepting parameters for the dumper and the loader
+    macro(LatfTestInt TestName Result DumpParams LoadParams)
         add_test( NAME Test_FastqLoader_${TestName}
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "${TestParams}"
+                "./runtestcase.sh" "${BINDIR}/vdb-dump ${DumpParams}" "${BINDIR}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+        set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED Fixture_FastqLoader )
     endmacro()
 
-    macro(LatfTest_OneInput TestName Result TestParams)
-        LatfTest( ${TestName} ${Result} "${CMAKE_CURRENT_SOURCE_DIR}/input/${TestName}.fastq ${TestParams}" )
+    # default dump params
+    macro(LatfTest TestName Result LoadParams)
+        LatfTestInt( ${TestName} ${Result} "" "${LoadParams}" )
     endmacro()
 
+    # default dump params; single input with the name made out of TestName
+    macro(LatfTest_OneInput TestName Result LoadParams)
+        LatfTestInt( ${TestName} ${Result} "" "${CMAKE_CURRENT_SOURCE_DIR}/input/${TestName}.fastq ${LoadParams}" )
+    endmacro()
+
+    # default dump params; single input with the most common --quality option
     macro(LatfTest_OneInputPhred33 TestName Result)
         LatfTest_OneInput( ${TestName} ${Result} "--quality PHRED_33" )
     endmacro()
+
+    #
+    # load-dump-diff test cases
+    #
 
     #       Quality encoding: phred/logodds, ascii/decimal
     LatfTest_OneInputPhred33( 1.1 0 )
@@ -118,7 +136,7 @@ if( NOT WIN32 )
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
     LatfTest( 14.0 0 "input/14.0.fasta --quality PHRED_33" )
     # VDB-3154: buffer insufficient
-    LatfTest_OneInputPhred33( 15.0 0 )
+    LatfTestInt( 15.0 0 "-x READ_SEG" "./input/15.0.fastq --quality PHRED_33" )
      # VDB-3413: multi-line reads and qualities
     LatfTest( 16.0 0 "input/16.0.fasta --quality PHRED_33 --platform=PACBIO" )
     LatfTest( 16.1 0 "input/16.1.fastq --quality PHRED_33 --platform=PACBIO" )

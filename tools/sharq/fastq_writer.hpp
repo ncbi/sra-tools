@@ -1,5 +1,12 @@
 #ifndef __FASTQ_WRITER_HPP__
 #define __FASTQ_WRITER_HPP__
+
+/**
+ * @file fastq_writer.hpp
+ * @brief FASTQ Writer
+ * 
+ */
+
 /* 
 * ===========================================================================
 *
@@ -25,9 +32,9 @@
 *
 * ===========================================================================
 *
-* Author:  Many, by the time it's done.
+* Author:  Andrei Shkeda
 *
-* File Description:
+* File Description: FASTQ Writer
 *
 * ===========================================================================
 */
@@ -39,6 +46,10 @@
 #include "spdlog/sinks/base_sink.h"
 #define LOCALDEBUG
 
+/**
+ * @brief Generic writer with std output
+ * 
+ */
 class generic_writer
 {
 public: 
@@ -60,7 +71,11 @@ public:
     }
 };
 
-
+/**
+ * @brief Redirects spdlog logging messages to general-loader
+ * 
+ * @tparam Mutex 
+ */
 template<typename Mutex>
 class general_writer_sink : public spdlog::sinks::base_sink<Mutex>
 {
@@ -75,7 +90,7 @@ protected:
         spdlog::sinks::base_sink<Mutex>::formatter_->format(msg, formatted);
         if (msg.level >= SPDLOG_LEVEL_ERROR) 
             writer->errorMessage(fmt::to_string(formatted));
-        else            
+        else
             writer->logMessage(fmt::to_string(formatted));
         //writer->progressMessage(fmt::to_string(formatted));
     }
@@ -85,7 +100,14 @@ protected:
 
 using general_writer_sink_mt = general_writer_sink<std::mutex>;
 
-
+/**
+ * @brief Create MT logger with general-loader sinker 
+ * 
+ * @tparam Factory 
+ * @param logger_name 
+ * @param writer 
+ * @return std::shared_ptr<spdlog::logger> 
+ */
 template<typename Factory = spdlog::synchronous_factory>
 inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::string &logger_name, shared_ptr<Writer2>& writer)
 {
@@ -108,6 +130,12 @@ inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::strin
     return gw_logger;
 }
 
+
+/**
+ * @brief FASTQ Write Base class 
+ * 
+ * fastq_parser uses open(), close() and write_spot() methods
+ */
 class fastq_writer 
 {
 public: 
@@ -116,14 +144,27 @@ public:
 
     virtual void open() {};
     virtual void close() {};
+    
+    /**
+     * @brief Write the list of reads as one spot 
+     * 
+     * @param[in] reads 
+     */
     virtual void write_spot(const vector<CFastqRead>& reads);
+
+    /**
+     * @brief Set user-defined attributes 
+     * 
+     * @param[in] name 
+     * @param[in] value 
+     */
     void set_attr(const string& name, const string& value) {
         m_attr[name] = value;
     }
 protected:
     using TAttributeName = string;
     using TAttributeValue = string;
-    map<TAttributeName, TAttributeValue> m_attr;
+    map<TAttributeName, TAttributeValue> m_attr;  ///< Attributes dictionary
 };
 
 
@@ -145,9 +186,14 @@ void fastq_writer::write_spot(const vector<CFastqRead>& reads)
 }
  
 
-/*
-    VDB Writer 
-*/
+/**
+ * @brief VDB Writer implementaion
+ * 
+ * Constructor redirects logging to general_loader
+ * Open() method sets up the VDB table using user defin attributes
+ * 
+ * 
+ */
 class fastq_writer_vdb : public fastq_writer
 {
 public: 
@@ -159,9 +205,9 @@ public:
     void write_spot(const vector<CFastqRead>& reads) override;
 
 private:
-    shared_ptr<Writer2> m_writer; 
-    std::shared_ptr<spdlog::logger> m_default_logger;
-    Writer2::Table  SEQUENCE_TABLE;
+    shared_ptr<Writer2> m_writer;    ///< VDB Writer
+    std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default loger
+    Writer2::Table SEQUENCE_TABLE;
     Writer2::Column c_NAME;
     Writer2::Column c_SPOT_GROUP;
     Writer2::Column c_PLATFORM;
@@ -172,7 +218,7 @@ private:
     Writer2::Column c_READ_TYPE;
     Writer2::Column c_READ_FILTER;
     uint8_t m_platform{0};
-    bool m_is_writing{false};
+    bool m_is_writing{false};  ///< Flag to indicate if writing was initiated
 };
 
 //  -----------------------------------------------------------------------------

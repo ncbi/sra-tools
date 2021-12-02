@@ -10,7 +10,7 @@ endif()
 
 if ( NOT WIN32 )
 	add_executable( vdb-dump-makedb makedb )
-	target_link_libraries( vdb-dump-makedb ${COMMON_LINK_LIBRARIES} ncbi-wvdb )
+	target_link_libraries( vdb-dump-makedb ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 
 	add_test( NAME Test_Vdb_dump
 		COMMAND vdb_dump.sh "${TESTBINDIR}/vdb-dump-makedb" "${BINDIR}"

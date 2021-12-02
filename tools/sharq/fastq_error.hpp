@@ -1,6 +1,12 @@
 #ifndef __CFASTQERROR_HPP__
 #define __CFASTQERROR_HPP__
 
+/**
+ * @file fastq_error.hpp
+ * @brief Error handling
+ * 
+ */
+
 #include <string>
 #include <map>
 #include <spdlog/fmt/fmt.h>
@@ -17,8 +23,14 @@ namespace fs = std::filesystem;
 
 using TSharqErrorCode = int;
 using TSharqErrorMsg = std::string;
-using TSharqErrorDescription = std::string;
+using TSharqErrorDescription = std::string;  ///< s
 
+
+/**
+ * @brief 
+ * 
+ */
+ 
 static std::map<TSharqErrorCode, std::tuple<TSharqErrorMsg, TSharqErrorDescription>> 
 SHARQ_ERR_CODES = {
     {0   ,{ "Runtime error.", "Runtime error."}},
@@ -47,14 +59,10 @@ SHARQ_ERR_CODES = {
 
 };
 
-//  ============================================================================
 class fastq_error: public std::exception
-//  ============================================================================
+/// Error class used throughout application 
 {
 public:
-    //fastq_error(
-    //    const std::string& message): mMessage(message)
-    //{}
     
     template<typename... Args> 
     fastq_error(const std::string& message, Args... args) {

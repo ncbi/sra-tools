@@ -1,7 +1,8 @@
 if( NOT WIN32 )
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME Test_FastqLoader_Setup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties( Test_FastqLoader_Setup PROPERTIES FIXTURES_SETUP Fixture_FastqLoader )
 
     AddExecutableTest( SlowTest_FastqLoader_id2name "test-id2name.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
     AddExecutableTest( Test_FastqLoader_WbFastq "wb-test-fastq.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
@@ -24,6 +25,7 @@ if( NOT WIN32 )
                 "./runtestcase.sh" "${BINDIR}/vdb-dump ${DumpParams}" "${BINDIR}/latf-load ${LoadParams}" "." "${TestName}" "${Result}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+        set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED Fixture_FastqLoader )
     endmacro()
 
     # default dump params

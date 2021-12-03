@@ -32,6 +32,10 @@
 #include "arg_helper.h"
 #endif
 
+#ifndef _h_dflt_defline_
+#include "dflt_defline.h"
+#endif
+
 #ifndef _h_inspector_
 #include "inspector.h"
 #endif
@@ -154,9 +158,6 @@ static const char * base_flt_usage[] = { "filter by bases", NULL };
 static const char * table_usage[] = { "which seq-table to use in case of pacbio", NULL };
 #define OPTION_TABLE    "table"
 
-static const char * strict_usage[] = { "terminate on invalid read", NULL };
-#define OPTION_STRICT   "strict"
-
 static const char * append_usage[] = { "append to output-file", NULL };
 #define OPTION_APPEND           "append"
 #define ALIAS_APPEND            "A"
@@ -217,7 +218,6 @@ OptDef ToolOptions[] = {
     { OPTION_INCL_TECH,     NULL,               NULL, incl_tech_usage,      1, false,  false },
     { OPTION_MINRDLEN,      ALIAS_MINRDLEN,     NULL, min_rl_usage,         1, true,   false },
     { OPTION_TABLE,         NULL,               NULL, table_usage,          1, true,   false },
-    { OPTION_STRICT,        NULL,               NULL, strict_usage,         1, false,  false },
     { OPTION_BASE_FLT,      ALIAS_BASE_FLT,     NULL, base_flt_usage,       10, true,  false },
     { OPTION_APPEND,        ALIAS_APPEND,       NULL, append_usage,         1, false,  false },
     { OPTION_FASTA,         NULL,               NULL, fasta_usage,          1, false,  false },
@@ -339,22 +339,6 @@ static rc_t get_environment( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-#if 0
-const char * DFLT_SEQ_DEFLINE_FASTQ = "-";
-const char * DFLT_SEQ_DEFLINE_FASTA = "-";
-static const char * x_dflt_seq_defline( const tool_ctx_t * tool_ctx ) {
-    return ( is_format_fasta( tool_ctx -> fmt ) ) /* helper.c */
-        ? DFLT_SEQ_DEFLINE_FASTA : DFLT_SEQ_DEFLINE_FASTQ;
-}
-
-const char * DFLT_QUAL_DEFLINE_FASTQ = "-";
-const char * DFLT_QUAL_DEFLINE_FASTA = "-";
-static const char * x_dflt_qual_defline( const tool_ctx_t * tool_ctx ) {
-    return ( is_format_fasta( tool_ctx -> fmt ) ) /* helper.c */
-        ? DFLT_QUAL_DEFLINE_FASTA : DFLT_QUAL_DEFLINE_FASTQ;  
-}
-#endif
-
 static rc_t show_details( const tool_ctx_t * tool_ctx ) {
     rc_t rc = KOutHandlerSetStdErr();
     
@@ -375,6 +359,9 @@ static rc_t show_details( const tool_ctx_t * tool_ctx ) {
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "scratch-path : '%s'\n", get_temp_dir( tool_ctx -> temp_dir ) );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "total ram    : '%lu'\n", tool_ctx -> total_ram );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "output-format: " );
@@ -408,14 +395,10 @@ static rc_t show_details( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "stdout-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
     }
     if ( 0 == rc ) {
-        const char * s = tool_ctx -> seq_defline;
-        /* if ( NULL == s ) { s = x_dflt_seq_defline( tool_ctx ); } */
-        rc = KOutMsg( "seq-defline  : '%s'\n", s );
+        rc = KOutMsg( "seq-defline  : '%s'\n", tool_ctx -> seq_defline );
     }
     if ( 0 == rc ) {
-        const char * s = tool_ctx -> qual_defline;
-        /* if ( NULL == s ) { s = x_dflt_qual_defline( tool_ctx ); } */
-        rc = KOutMsg( "qual-defline  : '%s'\n", s );
+        rc = KOutMsg( "qual-defline  : '%s'\n", tool_ctx -> qual_defline );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "only-unaligned : '%s'\n", tool_ctx -> only_unaligned ? "YES" : "NO" );
@@ -458,16 +441,12 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> row_limit = get_uint64_t_option( args, OPTION_LIMIT, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
+    
+    /* join_options_t is defined in helper.h */
     tool_ctx -> join_options . rowid_as_name = false;
     tool_ctx -> join_options . skip_tech = !( get_bool_option( args, OPTION_INCL_TECH ) );
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
-
-#if 0
-    tool_ctx -> join_options . terminate_on_invalid = get_bool_option( args, OPTION_STRICT );
-#else
-    tool_ctx -> join_options . terminate_on_invalid = true;
-#endif
 
     split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );
@@ -551,7 +530,7 @@ static void encforce_constrains( tool_ctx_t * tool_ctx )
     }
 }
 
-static rc_t handle_accession( tool_ctx_t * tool_ctx ) {
+static rc_t extract_short_accession( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     tool_ctx -> accession_short = inspector_extract_acc_from_path( tool_ctx -> accession_path ); /* inspector.c */
 
@@ -565,7 +544,7 @@ static rc_t handle_accession( tool_ctx_t * tool_ctx ) {
 static rc_t handle_lookup_path( tool_ctx_t * tool_ctx ) {
     rc_t rc = generate_lookup_filename( tool_ctx -> temp_dir,
                                         &tool_ctx -> lookup_filename[ 0 ],
-                                        sizeof tool_ctx -> lookup_filename );
+                                        sizeof tool_ctx -> lookup_filename ); /* temp_dir.c */
     if ( 0 != rc ) {
         ErrMsg( "fasterq-dump.c handle_lookup_path( lookup_filename ) -> %R", rc );
     } else {
@@ -707,10 +686,10 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args ) {
         tool_ctx -> index_filename[ 0 ] = 0;
         tool_ctx -> dflt_output[ 0 ] = 0;
 
-        rc = get_user_input( tool_ctx, args );
+        rc = get_user_input( tool_ctx, args ); /* above */
         if ( 0 == rc ) {
-            encforce_constrains( tool_ctx );
-            rc = get_environment( tool_ctx );
+            encforce_constrains( tool_ctx ); /* above */
+            rc = get_environment( tool_ctx ); /* above */
         }
         if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
             rc = make_temp_dir( &tool_ctx -> temp_dir,
@@ -720,31 +699,31 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args ) {
     }
     
     if ( 0 == rc ) {
-        rc = handle_accession( tool_ctx );
+        rc = extract_short_accession( tool_ctx ); /* above */
     }
 
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        rc = handle_lookup_path( tool_ctx );
+        rc = handle_lookup_path( tool_ctx ); /* above */
     }
 
     if ( 0 == rc && NULL != tool_ctx -> output_dirname ) {
-        if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) {
-            rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true );
+        if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) /* file_tools.c */ {
+            rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true ); /* file_tools.c */
         }
     }
     
     if ( rc == 0 ) {
         if ( NULL == tool_ctx -> output_filename ) {
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = make_output_filename_from_accession( tool_ctx );
+                rc = make_output_filename_from_accession( tool_ctx ); /* above */
             } else {
-                rc = make_output_filename_from_dir_and_accession( tool_ctx );
+                rc = make_output_filename_from_dir_and_accession( tool_ctx ); /* above */
             }
         } else {
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = adjust_output_filename( tool_ctx );
+                rc = adjust_output_filename( tool_ctx ); /* above */
             } else {
-                rc = adjust_output_filename_by_dir( tool_ctx );
+                rc = adjust_output_filename_by_dir( tool_ctx ); /* above */
             }
         }
     }
@@ -896,9 +875,11 @@ static rc_t produce_lookup_files( const tool_ctx_t * tool_ctx,
     bg_update_release( gap );
 
     if ( 0 == rc ) {
+#if 0
         uint64_t lookup_size = file_size( tool_ctx -> dir, tool_ctx -> lookup_filename ); /* file_tools.c */
         uint64_t index_size = file_size( tool_ctx -> dir, tool_ctx -> index_filename ); /* file_tools.c */
-        /* KOutMsg( "lookup = %,lu bytes\nindex = %,lu bytes\n", lookup_size, index_size ); */
+        KOutMsg( "lookup = %,lu bytes\nindex = %,lu bytes\n", lookup_size, index_size );
+#endif
     } else {
         ErrMsg( "fasterq-dump.c produce_lookup_files() -> %R", rc );
     }

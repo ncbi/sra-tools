@@ -91,7 +91,6 @@ typedef struct join_options
     bool rowid_as_name;
     bool skip_tech;
     bool print_spotgroup;
-    bool terminate_on_invalid;
     uint32_t min_read_len;
     const char * filter_bases;
 } join_options_t;
@@ -110,9 +109,6 @@ bool is_format_fasta( format_t fmt );
 format_t get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot,
         bool fasta, bool fasta_us );
-
-const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( bool use_name, bool use_read_id );
 
 /* -------------------------------------------------------------------------------- */
 

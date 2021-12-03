@@ -37,6 +37,10 @@
 #include "file_tools.h"
 #endif
 
+#ifndef _h_dflt_defline_
+#include "dflt_defline.h"
+#endif
+
 #ifndef _h_klib_printf_
 #include <klib/printf.h>
 #endif

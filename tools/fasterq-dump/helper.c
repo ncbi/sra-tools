@@ -80,48 +80,6 @@ const String * make_string_copy( const char * src )
     return res;
 }
 
-static const char * dflt_seq_defline_fastq_use_name_ri = "@$ac.$si/$ri $sn length=$rl";
-static const char * dflt_seq_defline_fastq_syn_name_ri = "@$ac.$si/$ri $si length=$rl";
-static const char * dflt_seq_defline_fasta_use_name_ri = ">$ac.$si/$ri $sn length=$rl";
-static const char * dflt_seq_defline_fasta_syn_name_ri = ">$ac.$si/$ri $si length=$rl";
-
-static const char * dflt_seq_defline_fastq_use_name = "@$ac.$si $sn length=$rl";
-static const char * dflt_seq_defline_fastq_syn_name = "@$ac.$si $si length=$rl";
-static const char * dflt_seq_defline_fasta_use_name = ">$ac.$si $sn length=$rl";
-static const char * dflt_seq_defline_fasta_syn_name = ">$ac.$si $si length=$rl";
-
-const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta ) {
-    if ( use_read_id ) {
-        if ( fasta ) {
-            return use_name ? dflt_seq_defline_fasta_use_name_ri : dflt_seq_defline_fasta_syn_name_ri;
-        } else {
-            return use_name ? dflt_seq_defline_fastq_use_name_ri : dflt_seq_defline_fastq_syn_name_ri;
-        }
-    } else {
-        if ( fasta ) {
-            return use_name ? dflt_seq_defline_fasta_use_name : dflt_seq_defline_fasta_syn_name;
-        } else {
-            return use_name ? dflt_seq_defline_fastq_use_name : dflt_seq_defline_fastq_syn_name;
-        }
-    }
-    return NULL;
-}
-
-static const char * dflt_qual_defline_use_name_ri = "+$ac.$si/$ri $sn length=$rl";
-static const char * dflt_qual_defline_syn_name_ri = "+$ac.$si/$ri $si length=$rl";
-
-static const char * dflt_qual_defline_use_name = "+$ac.$si $sn length=$rl";
-static const char * dflt_qual_defline_syn_name = "+$ac.$si $si length=$rl";
-
-const char * dflt_qual_defline( bool use_name, bool use_read_id ) {
-    if ( use_read_id ) {
-        return use_name ? dflt_qual_defline_use_name_ri : dflt_qual_defline_syn_name_ri;
-    } else {
-        return use_name ? dflt_qual_defline_use_name : dflt_qual_defline_syn_name;
-    }
-    return NULL;
-}
-
 static format_t format_cmp( String * Format, const char * test, format_t test_fmt ) {
     String TestFormat;
     StringInitCString( &TestFormat, test );
@@ -505,5 +463,4 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
     dst -> print_spotgroup = src -> print_spotgroup;
     dst -> min_read_len = src -> min_read_len;
     dst -> filter_bases = src -> filter_bases;
-    dst -> terminate_on_invalid = src -> terminate_on_invalid;
 }

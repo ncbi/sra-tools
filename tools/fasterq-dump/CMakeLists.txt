@@ -4,6 +4,7 @@ set( TOOLS_SRC
 	helper
 	arg_helper
 	dflt_defline
+	tool_ctx
 	inspector
 	sbuffer
 	err_msg

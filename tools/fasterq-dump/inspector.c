@@ -979,12 +979,9 @@ static rc_t inspection_report_align( const inspector_align_data_t * align ) {
 }
 
 rc_t inspection_report( const inspector_input_t * input, const inspector_output_t * output ) {
-    rc_t rc = KOutHandlerSetStdErr();
-    if ( 0 == rc ) {
-        rc = KOutMsg( "%s is %s\n",
+    rc_t rc = KOutMsg( "%s is %s\n",
                        input -> accession_short,
                        output -> is_remote ? "remote" : "local" );
-    }
     if ( 0 == rc ) {
         rc = KOutMsg( "... has a size of %,lu bytes\n", output -> acc_size );
     }
@@ -1006,6 +1003,5 @@ rc_t inspection_report( const inspector_input_t * input, const inspector_output_
     if ( 0 == rc ) {
         rc = KOutMsg( "\n" );
     }
-    KOutHandlerSetStdOut();
     return rc;
 }

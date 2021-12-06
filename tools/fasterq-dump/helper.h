@@ -162,6 +162,9 @@ rc_t helper_make_thread( KThread ** self,
 rc_t join_and_release_threads( Vector * threads );
 uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count );
 
+/* -------------------------------------------------------------------------------- */
+
+rc_t print_stats( const join_stats_t * stats );
 
 #ifdef __cplusplus
 }

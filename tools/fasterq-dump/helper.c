@@ -30,6 +30,10 @@
 #include "err_msg.h"
 #endif
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
 #ifndef _h_klib_log_
 #include <klib/log.h>
 #endif
@@ -463,4 +467,32 @@ void correct_join_options( join_options_t * dst, const join_options_t * src, boo
     dst -> print_spotgroup = src -> print_spotgroup;
     dst -> min_read_len = src -> min_read_len;
     dst -> filter_bases = src -> filter_bases;
+}
+
+/* ===================================================================================== */
+
+rc_t print_stats( const join_stats_t * stats )
+{
+    KOutHandlerSetStdErr();
+    rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
+    if ( 0 == rc ) {
+         rc = KOutMsg( "reads read      : %,lu\n", stats -> reads_read );
+    }
+    if ( 0 == rc ) {
+         rc = KOutMsg( "reads written   : %,lu\n", stats -> reads_written );
+    }
+    if ( 0 == rc && stats -> reads_zero_length > 0 ) {
+         rc = KOutMsg( "reads 0-length  : %,lu\n", stats -> reads_zero_length );
+    }
+    if ( 0 == rc && stats -> reads_technical > 0 ) {
+         rc = KOutMsg( "technical reads : %,lu\n", stats -> reads_technical );
+    }
+    if ( 0 == rc && stats -> reads_too_short > 0 ) {
+         rc = KOutMsg( "reads too short : %,lu\n", stats -> reads_too_short );
+    }
+    if ( 0 == rc && stats -> reads_invalid > 0 ) {
+         rc = KOutMsg( "reads invalid   : %,lu\n", stats -> reads_invalid );
+    }
+    KOutHandlerSetStdOut();
+    return rc;
 }

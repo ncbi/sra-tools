@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_tbl_join_
-#define _h_tbl_join_
+#ifndef _h_tool_ctx_
+#define _h_tool_ctx_
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,61 +47,52 @@ extern "C" {
 #include "helper.h"
 #endif
 
-#ifndef _h_temp_dir_
-#include "temp_dir.h"
-#endif
-
-#ifndef _h_temp_registry_
-#include "temp_registry.h"
-#endif
-
 #ifndef _h_inspector_
 #include "inspector.h"
 #endif
 
-typedef struct execute_tbl_join_args_t {
-    KDirectory * dir;
-    const VDBManager * vdb_mgr;
-    const char * accession_path;
-    const char * accession_short;
-    const char * seq_defline;           /* NULL for default */
-    const char * qual_defline;          /* NULL for default */
-    const char * tbl_name;
-    join_stats_t * stats;                   /* helper.h */
-    const inspector_output_t * insp_output; /* inspector.h */
-    const join_options_t * join_options;    /* helper.h */
-    const struct temp_dir_t * temp_dir;     /* temp_dir.h */
-    struct temp_registry_t * registry;      /* temp_registry.h */
-    size_t cursor_cache;
-    size_t buf_size;
-    uint32_t num_threads;
-    uint64_t row_limit;
-    bool show_progress;
-    format_t fmt;                       /* helper.h */
-} execute_tbl_join_args_t;
+#define DFLT_PATH_LEN 4096
 
-rc_t execute_tbl_join( const execute_tbl_join_args_t * args );
-
-typedef struct execute_fasta_tbl_join_args_t {
+typedef struct tool_ctx_t {
     KDirectory * dir;
-    const VDBManager * vdb_mgr;
+    const VDBManager * vdb_mgr;     /* created, but unused to avoid race-condition in threads */
+
+    const char * requested_temp_path;
     const char * accession_path;
     const char * accession_short;
     const char * output_filename;
-    const char * seq_defline;           /* NULL for default */
-    const char * tbl_name;
-    join_stats_t * stats;                   /* helper.h */
-    const join_options_t * join_options;    /* helper.h */
-    const inspector_output_t * insp_output; /* inspector.h */
-    size_t cursor_cache;
-    size_t buf_size;
-    uint32_t num_threads;
-    uint64_t row_limit;
-    bool show_progress;
-    bool force;
-} execute_fasta_tbl_join_args_t;
+    const char * output_dirname;
+    const char * requested_seq_tbl_name;
+    const char * seq_defline;
+    const char * qual_defline;
 
-rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args );
+    struct temp_dir_t * temp_dir; /* temp_dir.h */
+    
+    char lookup_filename[ DFLT_PATH_LEN ];
+    char index_filename[ DFLT_PATH_LEN ];
+    char dflt_output[ DFLT_PATH_LEN ];
+    
+    struct KFastDumpCleanupTask_t * cleanup_task; /* cleanup_task.h */
+    
+    size_t cursor_cache, buf_size, mem_limit;
+
+    uint32_t num_threads /*, max_fds */;
+    uint64_t total_ram;
+    uint64_t row_limit;
+    
+    format_t fmt; /* helper.h */
+
+    bool force, show_progress, show_details, append, use_stdout, only_unaligned, only_aligned;
+    
+    join_options_t join_options; /* helper.h */
+
+    inspector_input_t insp_input;       /* inspector.h */
+    inspector_output_t insp_output;     /* inspector.h */
+} tool_ctx_t;
+
+rc_t populate_tool_ctx( tool_ctx_t * tool_ctx );
+
+rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in );
 
 #ifdef __cplusplus
 }

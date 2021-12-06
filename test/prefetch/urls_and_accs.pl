@@ -30,12 +30,12 @@ $INT = 'intranet';
 `ping -c1 $INT > /dev/null`;
 $NCBI = $? == 0;
 if ($NCBI) {
- `rm -f index.html`; die if $?;
- $CMD =
-    "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch http://$INT/";
- print "$CMD\n" if $VERBOSE;
- `$CMD 2> /dev/null`; die if $?;
- `rm index.html`    ; die if $?;
+    `rm -f index.html`; die if $?;
+    $CMD =
+        "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch http://$INT/";
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`; die if $?;
+    `rm index.html`    ; die if $?;
 }
 
 $HTTPFILE = 'contact.shtml';
@@ -43,12 +43,12 @@ $HTTP_URL = "https://test.ncbi.nlm.nih.gov/home/about/$HTTPFILE";
 
 print "prefetch URL-2/3 when there is no kfg\n";
 if ($NCBI) {
- `rm -f $HTTPFILE`; die if $?;
- $CMD =
+    `rm -f $HTTPFILE`; die if $?;
+    $CMD =
        "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $HTTP_URL";
- print "$CMD\n" if $VERBOSE;
- `$CMD 2> /dev/null`; die if $?;
- `rm $HTTPFILE`    ; die if $?;
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`; die if $?;
+    `rm $HTTPFILE`    ; die if $?;
 }
 
 `echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg`;
@@ -60,46 +60,46 @@ $PUBLIC = '/repository/user/main/public';
 
 print "HTTP file download when user repository is configured\n";
 if ($NCBI) {
- `rm -f $CWD/tmp2/$HTTPFILE`; die if $?;
- chdir "$CWD/tmp2" or die;
- $CMD =
+    `rm -f $CWD/tmp2/$HTTPFILE`; die if $?;
+    chdir "$CWD/tmp2" or die;
+    $CMD =
        "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $HTTP_URL";
- print "$CMD\n" if $VERBOSE;
- `$CMD 2> /dev/null`; die if $?;
- `ls $HTTPFILE`     ; die if $?;
- chdir $CWD        or die;
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`; die if $?;
+    `ls $HTTPFILE`     ; die if $?;
+    chdir $CWD        or die;
 }
 
 print "Running prefetch file second time finds previous download\n";
 if ($NCBI) {
- chdir "$CWD/tmp2" or die;
- $CMD .= " 2>&1 | grep \"found local\"";
- print "$CMD\n" if $VERBOSE;
- `$CMD 2> /dev/null`; die if $?;
- `rm $HTTPFILE`    ; die if $?;
- chdir $CWD       or die;
+    chdir "$CWD/tmp2" or die;
+    $CMD .= " 2>&1 | grep \"found local\"";
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`; die if $?;
+    `rm $HTTPFILE`    ; die if $?;
+    chdir $CWD       or die;
 }
 
 print "HTTP dir download when user repository is configured\n";
 if ($NCBI) {
- `rm -f $CWD/tmp2/index.html`; die if $?;
- chdir "$CWD/tmp2" or die;
- $URL = 'http://intranet/';
- $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $URL";
- print "$CMD\n" if $VERBOSE;
- `$CMD 2> /dev/null`; die if $?;
- `ls index.html`    ; die if $?;
- chdir $CWD        or die;
+    `rm -f $CWD/tmp2/index.html`; die if $?;
+    chdir "$CWD/tmp2" or die;
+    $URL = 'http://intranet/';
+    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $URL";
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`; die if $?;
+    `ls index.html`    ; die if $?;
+    chdir $CWD        or die;
 }
 
 print "Running prefetch dir second time finds previous download\n";
 if ($NCBI) {
- chdir "$CWD/tmp2" or die;
- $CMD .= " 2>&1 | grep \"found local\"";
- print "$CMD\n" if $VERBOSE;
- `$CMD 2> /dev/null`; die if $?;
- `rm index.html`    ; die if $?;
- chdir $CWD        or die;
+    chdir "$CWD/tmp2" or die;
+    $CMD .= " 2>&1 | grep \"found local\"";
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`; die if $?;
+    `rm index.html`    ; die if $?;
+    chdir $CWD        or die;
 }
 
 print "URL download when user repository is configured\n";
@@ -240,15 +240,16 @@ print "$CMD\n" if $VERBOSE;
 `rm tmp/wgs/$WGSC`         ; die if $?;
 
 `which ascp 2> /dev/null`;
-unless ($?) {   $HAVE_NCBI_ASCP = 1 unless `hostname` eq "iebdev21\n" }
+unless ($?)
+{   $HAVE_NCBI_ASCP = 1 unless `hostname` eq "iebdev21\n" }
 
 if ($HAVE_NCBI_ASCP) {
- print "REFSEQ FASP download when user repository is configured\n";
- `rm -f tmp/refseq/$REFSEQC`; die if $?;
- $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQF";
- print "$CMD\n" if $VERBOSE;
- `$CMD 2> /dev/null`     ; die if $?;
- `rm tmp/refseq/$REFSEQC`; die if $?;
+    print "REFSEQ FASP download when user repository is configured\n";
+    `rm -f tmp/refseq/$REFSEQC`; die if $?;
+    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQF";
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`     ; die if $?;
+    `rm tmp/refseq/$REFSEQC`; die if $?;
 } else {
     print "download of $REFSEQF when ascp is not found is disabled\n";
 }
@@ -324,11 +325,9 @@ if ($?) {
     $CMD = "$DIRTOTEST/prefetch $REFSEQF";
     print "$CMD\n" if $VERBOSE==0;
     `$CMD 2> /dev/null`;
-    unless ($?) {
-        die 'prefetch ASCP URL when ascp is not found has to fail'
-    }
-} else {
-    print "prefetch ASCP URL when ascp is found is skipped\n"
-}
+    unless ($?)
+    {   die 'prefetch ASCP URL when ascp is not found has to fail' }
+} else { print "prefetch ASCP URL when ascp is found is skipped\n" }
 
 `rm -rf tmp*`; die if $?;
+

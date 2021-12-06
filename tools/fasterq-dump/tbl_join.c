@@ -1111,31 +1111,6 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
     return rc;
 }
 
-static rc_t extract_sra_row_count( KDirectory * dir,
-                                   const VDBManager * vdb_mgr,
-                                   const char * accession_short,
-                                   const char * accession_path,
-                                   const char * tbl_name,
-                                   size_t cur_cache,
-                                   uint64_t * res ) {
-    cmn_iter_params_t cp = {
-        dir,
-        vdb_mgr,
-        accession_short,
-        accession_path,
-        0,
-        0,
-        cur_cache }; /* helper.h */
-    struct fastq_sra_iter_t * iter; 
-    fastq_iter_opt_t opt = { false, false, false, false, false };
-    rc_t rc = make_fastq_sra_iter( &cp, opt, tbl_name, &iter ); /* fastq_iter.c */
-    if ( 0 == rc ) {
-        *res = get_row_count_of_fastq_sra_iter( iter ); /* fastq_iter.c */
-        destroy_fastq_sra_iter( iter ); /* fastq_iter.c */
-    }
-    return rc;
-}
-
 static rc_t join_the_threads_and_collect_status( Vector *threads, join_stats_t * stats ) {
     rc_t rc = 0;
     uint32_t i, n = VectorLength( threads );
@@ -1166,72 +1141,66 @@ rc_t execute_tbl_join( const execute_tbl_join_args_t * args ) {
     }
 
     if ( 0 == rc ) {
-        uint64_t row_count = 0;
-        rc = extract_sra_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                    args -> tbl_name, args -> cursor_cache, &row_count ); /* above */
+        uint64_t row_count = args -> insp_output -> seq . row_count;
         if ( 0 == rc && row_count > 0 ) {
-            bool name_column_present;
-            rc = is_column_name_present( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                         args -> tbl_name, &name_column_present ); /* cmn_iter.c */
-            if ( 0 == rc ) {
-                Vector threads;
-                int64_t row = 1;
-                uint32_t thread_id;
-                uint32_t num_threads = args -> num_threads;
-                uint64_t rows_per_thread;
-                struct bg_progress_t * progress = NULL;
-                join_options_t corrected_join_options; /* helper.h */
+            bool name_column_present = args -> insp_output -> seq . has_name_column;
+            Vector threads;
+            int64_t row = 1;
+            uint32_t thread_id;
+            uint32_t num_threads = args -> num_threads;
+            uint64_t rows_per_thread;
+            struct bg_progress_t * progress = NULL;
+            join_options_t corrected_join_options; /* helper.h */
 
-                VectorInit( &threads, 0, num_threads );
-                correct_join_options( &corrected_join_options, args -> join_options, name_column_present ); /* helper.c */
-                corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, args -> qual_defline ); /* join_results.c */
-                rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
-                if ( args -> show_progress ) {
-                    rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
-                }
+            VectorInit( &threads, 0, num_threads );
+            correct_join_options( &corrected_join_options, args -> join_options, name_column_present ); /* helper.c */
+            corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, args -> qual_defline ); /* join_results.c */
+            rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
+            if ( args -> show_progress ) {
+                rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
+            }
 
-                for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
-                    join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
-                    if ( NULL != jtd ) {
-                        jtd -> dir              = args -> dir;
-                        jtd -> vdb_mgr          = args -> vdb_mgr;
-                        jtd -> accession_short  = args -> accession_short;
-                        jtd -> accession_path   = args -> accession_path;
-                        jtd -> seq_defline      = args -> seq_defline;
-                        jtd -> qual_defline     = args -> qual_defline;
-                        jtd -> tbl_name         = args -> tbl_name;
-                        jtd -> first_row        = row;
-                        jtd -> row_count        = rows_per_thread;
-                        jtd -> cur_cache        = args -> cursor_cache;
-                        jtd -> buf_size         = args -> buf_size;
-                        jtd -> progress         = progress;
-                        jtd -> registry         = args -> registry;
-                        jtd -> fmt              = args -> fmt;
-                        jtd -> join_options     = &corrected_join_options;
-                        jtd -> thread_id        = thread_id;
-                        jtd -> row_limit        = args -> row_limit;
+            for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
+                join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
+                if ( NULL != jtd ) {
+                    jtd -> dir              = args -> dir;
+                    jtd -> vdb_mgr          = args -> vdb_mgr;
+                    jtd -> accession_short  = args -> accession_short;
+                    jtd -> accession_path   = args -> accession_path;
+                    jtd -> seq_defline      = args -> seq_defline;
+                    jtd -> qual_defline     = args -> qual_defline;
+                    jtd -> tbl_name         = args -> tbl_name;
+                    jtd -> first_row        = row;
+                    jtd -> row_count        = rows_per_thread;
+                    jtd -> cur_cache        = args -> cursor_cache;
+                    jtd -> buf_size         = args -> buf_size;
+                    jtd -> progress         = progress;
+                    jtd -> registry         = args -> registry;
+                    jtd -> fmt              = args -> fmt;
+                    jtd -> join_options     = &corrected_join_options;
+                    jtd -> thread_id        = thread_id;
+                    jtd -> row_limit        = args -> row_limit;
 
-                        rc = make_joined_filename( args -> temp_dir, jtd -> part_file, sizeof jtd -> part_file,
-                                    args -> accession_short, thread_id ); /* temp_dir.c */
-                        if ( 0 == rc ) {
-                            /* thread executes cmn_thread_func() located above */
-                            rc = helper_make_thread( &jtd -> thread, sorted_fastq_fasta_thread_func,
-                                                     jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                    rc = make_joined_filename( args -> temp_dir, jtd -> part_file, sizeof jtd -> part_file,
+                                args -> accession_short, thread_id ); /* temp_dir.c */
+                    if ( 0 == rc ) {
+                        /* thread executes cmn_thread_func() located above */
+                        rc = helper_make_thread( &jtd -> thread, sorted_fastq_fasta_thread_func,
+                                                    jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                        if ( 0 != rc ) {
+                            ErrMsg( "tbl_join.c helper_make_thread( fastq/special #%d ) -> %R", thread_id, rc );
+                        } else {
+                            rc = VectorAppend( &threads, NULL, jtd );
                             if ( 0 != rc ) {
-                                ErrMsg( "tbl_join.c helper_make_thread( fastq/special #%d ) -> %R", thread_id, rc );
-                            } else {
-                                rc = VectorAppend( &threads, NULL, jtd );
-                                if ( 0 != rc ) {
-                                    ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
-                                }
+                                ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
                             }
-                            row += rows_per_thread;
                         }
+                        row += rows_per_thread;
                     }
                 }
-                rc = join_the_threads_and_collect_status( &threads, args -> stats );
-                bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
             }
+            rc = join_the_threads_and_collect_status( &threads, args -> stats );
+            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
         }
     }
     return rc;
@@ -1355,76 +1324,70 @@ rc_t execute_unsorted_fasta_tbl_join( const execute_fasta_tbl_join_args_t * args
         KOutHandlerSetStdOut();
     }
     if ( 0 == rc ) {
-        uint64_t row_count = 0;
-        rc = extract_sra_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                    args -> tbl_name, args -> cursor_cache, &row_count ); /* above */
-        if ( 0 == rc && row_count > 0 ) {
-            bool name_column_present;
-            rc = is_column_name_present( args -> dir, args -> vdb_mgr, args -> accession_short,
-                                         args -> accession_path, args -> tbl_name, &name_column_present );
-            if ( 0 == rc ) {
-                struct multi_writer_t * multi_writer = create_multi_writer( args -> dir,
-                        args -> output_filename,
-                        args -> buf_size,
-                        0,                          /* q_wait_time, if 0 --> use default = 5 ms */
-                        args -> num_threads * 3,    /* q_num_blocks, if 0 use default = 8 */
-                        0 );                        /* q_block_size, if 0 use default = 4 MB */
-                if ( NULL != multi_writer ) {
-                    /* create a 2na-base-filter ( if filterbases were given, by default not ) */
-                    struct filter_2na_t * filter = make_2na_filter( args -> join_options -> filter_bases ); /* join_results.c */
-                    Vector threads;
-                    int64_t row = 1;
-                    uint32_t thread_id;
-                    uint32_t num_threads = args -> num_threads;
-                    uint64_t rows_per_thread;
-                    struct bg_progress_t * progress = NULL;
-                    join_options_t corrected_join_options; /* helper.h */
+        uint64_t row_count = args -> insp_output -> seq . row_count;
+        if ( row_count > 0 ) {
+            bool name_column_present = args -> insp_output -> seq . has_name_column;
+            struct multi_writer_t * multi_writer = create_multi_writer( args -> dir,
+                    args -> output_filename,
+                    args -> buf_size,
+                    0,                          /* q_wait_time, if 0 --> use default = 5 ms */
+                    args -> num_threads * 3,    /* q_num_blocks, if 0 use default = 8 */
+                    0 );                        /* q_block_size, if 0 use default = 4 MB */
+            if ( NULL != multi_writer ) {
+                /* create a 2na-base-filter ( if filterbases were given, by default not ) */
+                struct filter_2na_t * filter = make_2na_filter( args -> join_options -> filter_bases ); /* join_results.c */
+                Vector threads;
+                int64_t row = 1;
+                uint32_t thread_id;
+                uint32_t num_threads = args -> num_threads;
+                uint64_t rows_per_thread;
+                struct bg_progress_t * progress = NULL;
+                join_options_t corrected_join_options; /* helper.h */
 
-                    VectorInit( &threads, 0, num_threads );
-                    correct_join_options( &corrected_join_options, args -> join_options, name_column_present ); /* helper.c */
-                    corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, NULL ); /* join_results.c */
-                    rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
-                    if ( args -> show_progress ) { rc = bg_progress_make( &progress, row_count, 0, 0 ); } /* progress_thread.c */
+                VectorInit( &threads, 0, num_threads );
+                correct_join_options( &corrected_join_options, args -> join_options, name_column_present ); /* helper.c */
+                corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, NULL ); /* join_results.c */
+                rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
+                if ( args -> show_progress ) { rc = bg_progress_make( &progress, row_count, 0, 0 ); } /* progress_thread.c */
 
-                   for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
-                        join_thread_data_t * jtd = calloc( 1, sizeof * jtd ); /* above */
-                        if ( NULL != jtd ) {
-                            jtd -> dir              = args -> dir;
-                            jtd -> vdb_mgr          = args -> vdb_mgr;
-                            jtd -> accession_short  = args -> accession_short;
-                            jtd -> accession_path   = args -> accession_path;
-                            jtd -> seq_defline      = args -> seq_defline;
-                            jtd -> tbl_name         = args -> tbl_name;
-                            jtd -> first_row        = row;
-                            jtd -> row_count        = rows_per_thread;
-                            jtd -> cur_cache        = args -> cursor_cache;
-                            jtd -> buf_size         = args -> buf_size;
-                            jtd -> progress         = progress;
-                            jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
-                            jtd -> join_options     = &corrected_join_options;
-                            jtd -> part_file[ 0 ]   = 0; /* we are not using a part-file */
-                            jtd -> multi_writer     = multi_writer;
-                            jtd -> row_limit        = args -> row_limit;
+                for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
+                    join_thread_data_t * jtd = calloc( 1, sizeof * jtd ); /* above */
+                    if ( NULL != jtd ) {
+                        jtd -> dir              = args -> dir;
+                        jtd -> vdb_mgr          = args -> vdb_mgr;
+                        jtd -> accession_short  = args -> accession_short;
+                        jtd -> accession_path   = args -> accession_path;
+                        jtd -> seq_defline      = args -> seq_defline;
+                        jtd -> tbl_name         = args -> tbl_name;
+                        jtd -> first_row        = row;
+                        jtd -> row_count        = rows_per_thread;
+                        jtd -> cur_cache        = args -> cursor_cache;
+                        jtd -> buf_size         = args -> buf_size;
+                        jtd -> progress         = progress;
+                        jtd -> fmt              = ft_fasta_us_split_spot; /* we handle only this one... */
+                        jtd -> join_options     = &corrected_join_options;
+                        jtd -> part_file[ 0 ]   = 0; /* we are not using a part-file */
+                        jtd -> multi_writer     = multi_writer;
+                        jtd -> row_limit        = args -> row_limit;
 
-                            rc = helper_make_thread( &( jtd -> thread ), unsorted_fasta_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                        rc = helper_make_thread( &( jtd -> thread ), unsorted_fasta_thread_func, jtd, THREAD_BIG_STACK_SIZE ); /* helper.c */
+                        if ( 0 != rc ) {
+                            ErrMsg( "tbl_join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
+                        } else {
+                            rc = VectorAppend( &threads, NULL, jtd );
                             if ( 0 != rc ) {
-                                ErrMsg( "tbl_join.c helper_make_thread( fasta #%d ) -> %R", thread_id, rc );
-                            } else {
-                                rc = VectorAppend( &threads, NULL, jtd );
-                                if ( 0 != rc ) {
-                                    ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
-                                }
+                                ErrMsg( "tbl_join.c VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
                             }
-                            row += rows_per_thread;
+                        }
+                        row += rows_per_thread;
 
-                        } /* if ( NULL != jtd ) */
-                    } /* for( thread_id... ) */
-                    rc = join_the_threads_and_collect_status( &threads, args -> stats ); /* releases jtd! */
-                    bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
-                    release_2na_filter( filter ); /* join_results.c ( ignores NULL ) */
-                    release_multi_writer( multi_writer ); /* ( ignores NULL ) */ 
-                } /* if ( NULL != multi_writer )*/
-            } /* if ( is_column_name_present() ) */
+                    } /* if ( NULL != jtd ) */
+                } /* for( thread_id... ) */
+                rc = join_the_threads_and_collect_status( &threads, args -> stats ); /* releases jtd! */
+                bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
+                release_2na_filter( filter ); /* join_results.c ( ignores NULL ) */
+                release_multi_writer( multi_writer ); /* ( ignores NULL ) */ 
+            } /* if ( NULL != multi_writer )*/
         } /* if ( extract_sra_row_count() && row_count > 0 )*/
     } /* if ( KOutMsg(...) ) */
     return rc;

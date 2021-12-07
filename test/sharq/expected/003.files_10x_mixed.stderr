@@ -1,0 +1,3 @@
+[info] File group: input/003.R1.fastq, input/003.R2.fastq, input/003._I1.fastq
+[info] File group: input/003.t_I1.fastq, input/003.t_R1.fastq, input/003.t_R2.fastq
+[error] [code:80] 10x input files are mixed with different types.

@@ -68,6 +68,6 @@ ExportStatic( ncbi-ngs true )
 # NGS-based C++/Java/Python apps may now link against this library instead of libncbi-vdb
 #
 add_library( ncbi-ngs-shared SHARED ${NCBI_NGS_LIB} )
-target_link_libraries( ncbi-ngs-shared ncbi-vdb ${COMMON_LINK_LIBRARIES} )
+target_link_libraries( ncbi-ngs-shared ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
 MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )

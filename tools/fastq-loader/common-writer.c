@@ -741,7 +741,10 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
             (void)LOGMSG(klogDebug, "KQueuePop timed out");
         }
         else {
-            (void)LOGERR(klogErr, rslt.u.error.rc, "KQueuePop failed");
+            if ( Quitting() == 0 )
+            {
+                (void)LOGERR(klogErr, rslt.u.error.rc, "KQueuePop failed");
+            }
             rslt.type = rr_done;
             goto DONE;
         }

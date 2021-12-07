@@ -6,5 +6,5 @@ add_executable( sra-stat
 	sra
 	sra-stat
 )
-target_link_libraries( sra-stat ${COMMON_LINK_LIBRARIES} load ${COMMON_LIBS_READ} )
-MakeLinksExe( sra-stat true )
+target_link_libraries( sra-stat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+MakeLinksExe( sra-stat false )

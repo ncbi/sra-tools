@@ -1,20 +1,12 @@
-
-add_executable( test-ngs-pileup test-ngs-pileup.cpp )
-
 include_directories( ${CMAKE_SOURCE_DIR} )
-
-target_link_libraries( test-ngs-pileup
+set( NGS_PILEUP_LIBS
     ncbi-ngs-c++
     ngs-c++
     ngs
-    ncbi-vdb
-    ktst
     ${COMMON_LINK_LIBRARIES}
+    ${COMMON_LIBS_READ}
 )
-
-add_test( NAME Test_Ngs_Pileup
-          COMMAND test-ngs-pileup
-)
+AddExecutableTest( Test_Ngs_Pileup "test-ngs-pileup.cpp" "${NGS_PILEUP_LIBS}" )
 
 if( NOT WIN32 )
 

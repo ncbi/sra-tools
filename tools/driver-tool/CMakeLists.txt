@@ -38,4 +38,4 @@ endif()
 
 add_executable( sratools "${SRATOOLS_SRC}" )
 target_link_libraries( sratools ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} )
-MakeLinksExe( sratools true )
+MakeLinksExe( sratools false )

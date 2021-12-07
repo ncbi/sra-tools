@@ -6,5 +6,5 @@ set( SRC
 )
 
 add_executable( align-cache ${SRC} )
-target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} load )
-MakeLinksExe( align-cache true )
+target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+MakeLinksExe( align-cache false )

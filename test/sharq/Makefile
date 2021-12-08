@@ -28,4 +28,3 @@ TOP ?= $(abspath ../..)
 MODULE = test/sharq
 
 include $(TOP)/build/Makefile.env
-

@@ -69,15 +69,20 @@ override `preferNoQual` to return `true` when appropriate.
 
 ## Environment variables for logging and debugging:
 
-1. `SRATOOLS_TRACE` - setting to 1 (or anything not falsy) turns on TRACE
+* `SRATOOLS_TRACE` - setting to 1 (or anything not falsy) turns on TRACE
 printing to STDERR (not fully implemented).
-2. `SRATOOLS_DEBUG` - setting to 1 (or anything not falsy) turns on DEBUG
+* `SRATOOLS_DEBUG` - setting to 1 (or anything not falsy) turns on DEBUG
 printing to STDERR, less verbose than TRACE (not fully implemented).
-3. `SRATOOLS_VERBOSE=[1-9]` - turn on VERBOSE logging, 1 is less verbose than 9.
-4. `SRATOOLS_IMPERSONATE=<path>` - force `$0` to be this. Particularly useful
+* `SRATOOLS_VERBOSE=[1-9]` - turn on VERBOSE logging, 1 is less verbose than 9.
+* `SRATOOLS_IMPERSONATE=<path>` - force `$0` to be this. Particularly useful
 for running the driver tool in its uninstalled state. E.g. this would cause the
 tool to run `srapath`: `SRATOOLS_IMPERSONATE=srapath sratools SRR000001`
-5. `SRATOOLS_DRY_RUN` - setting to 1 (or anything not falsy) will cause the tool
+* `SRATOOLS_DRY_RUN` - setting to 1 (or anything not falsy) will cause the tool
 to print out the commands it would have executed.
-6. `SRATOOLS_TESTING=[1-9]` - setting various values with invoke various testing
-modes. `1`: Run internal tests and quit. `2-4`: various dry run modes.
+* `SRATOOLS_TESTING=[1-9]` - setting various values with invoke various testing
+modes. 
+  1. Run internal tests and quit.
+  2. Print resulting command line.
+  3. Print resulting command line and changed environment variable names.
+  4. Print environment variables and command line.
+  5. Print changed environment variables and their values.

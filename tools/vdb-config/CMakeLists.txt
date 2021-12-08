@@ -3,6 +3,9 @@ add_compile_definitions( __mod__="tools/vdb-config" )
 
 if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
+	set( TUI_LIBS tui_cpp tui)
+else()
+	set( TUI_LIBS ${NCBI_VDB_ILIBDIR}/libtui_cpp.${STLX} ${NCBI_VDB_ILIBDIR}/libtui.${STLX})
 endif()
 
 add_executable( vdb-config
@@ -13,7 +16,7 @@ add_executable( vdb-config
 	interactive2
 	vdb-config-model
 )
-target_link_libraries ( vdb-config tui_cpp tui ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+target_link_libraries ( vdb-config ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( vdb-config false )
 
 add_custom_command( TARGET vdb-config POST_BUILD

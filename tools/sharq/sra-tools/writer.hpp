@@ -100,16 +100,8 @@ namespace VDB {
         class SimpleEvent {
             friend Writer;
             uint32_t eid;
-/*
-            bool write(FILE *const stream) const
-            {
-                return fwrite(&eid, sizeof(eid), 1, stream) == 1;
-            }
-*/            
             bool write(ostream& stream) const
             {
-                //stream << eid;
-                //return fwrite(&eid, sizeof(eid), 1, stream) == 1;
                 stream.write((const char*)&eid, sizeof(eid));
                 return true;
             }
@@ -121,17 +113,6 @@ namespace VDB {
             friend Writer;
             uint32_t eid;
             std::string const &str;
-/*
-            bool write(FILE *const stream) const {
-                uint32_t const zero = 0;
-                auto const size = (uint32_t)str.size();
-                auto const padding = (4 - (size & 3)) & 3;
-                return fwrite(&eid, sizeof(eid), 1, stream) == 1
-                    && fwrite(&size, sizeof(size), 1, stream) == 1
-                    && fwrite(str.data(), 1, size, stream) == size
-                    && fwrite(&zero, 1, padding, stream) == padding;
-            }
-*/            
             bool write(ostream& stream) const {
                 uint32_t const zero = 0;
                 auto const size = (uint32_t)str.size();
@@ -155,21 +136,6 @@ namespace VDB {
             uint32_t eid;
             std::string const &str1;
             std::string const &str2; 
-/*
-            bool write(FILE *const stream) const {
-                uint32_t const zero = 0;
-                auto const size1 = (uint32_t)str1.size();
-                auto const size2 = (uint32_t)str2.size();
-                auto const size = size1 + size2;
-                auto const padding = (4 - (size & 3)) & 3;
-                return fwrite(&eid, sizeof(eid), 1, stream) == 1
-                    && fwrite(&size1, sizeof(size1), 1, stream) == 1
-                    && fwrite(&size2, sizeof(size2), 1, stream) == 1
-                    && fwrite(str1.data(), 1, size1, stream) == size1
-                    && fwrite(str2.data(), 1, size2, stream) == size2
-                    && fwrite(&zero, 1, padding, stream) == padding;
-            }
-*/
             bool write(ostream& stream) const {
                 uint32_t const zero = 0;
                 auto const size1 = (uint32_t)str1.size();
@@ -199,19 +165,6 @@ namespace VDB {
             uint32_t tid;
             uint32_t bits;
             std::string const &name;
-/*            
-            bool write(FILE *const stream) const {
-                uint32_t const zero = 0;
-                auto const size = (uint32_t)name.size();
-                auto const padding = (4 - (size & 3)) & 3;
-                return fwrite(&eid, sizeof(eid), 1, stream) == 1
-                    && fwrite(&tid, sizeof(tid), 1, stream) == 1
-                    && fwrite(&bits, sizeof(bits), 1, stream) == 1
-                    && fwrite(&size, sizeof(size), 1, stream) == 1
-                    && fwrite(name.data(), 1, size, stream) == size
-                    && fwrite(&zero, 1, padding, stream) == padding;
-            }
-*/
             bool write(ostream& stream) const {
                 uint32_t const zero = 0;
                 auto const size = (uint32_t)name.size();
@@ -242,12 +195,6 @@ namespace VDB {
             uint32_t const zero = 0;
             auto const size = elsize * count;
             auto const padding = (4 - (size & 3)) & 3;
-            /*
-            return fwrite(&eid, sizeof(eid), 1, stream) == 1
-                && fwrite(&count, sizeof(count), 1, stream) == 1
-                && fwrite(data, elsize, count, stream) == count
-                && fwrite(&zero, 1, padding, stream) == padding;
-                */
             stream.write((const char*)&eid, sizeof(eid));
             stream.write((const char*)&count, sizeof(count));
             stream.write((const char*)data, elsize * count);
@@ -263,12 +210,6 @@ namespace VDB {
             uint32_t const zero = 0;
             auto const size = sizeof(T) * count;
             auto const padding = (4 - (size & 3)) & 3;
-/*            
-            return fwrite(&eid, sizeof(eid), 1, stream) == 1
-                && fwrite(&count, sizeof(count), 1, stream) == 1
-                && fwrite(data, sizeof(T), count, stream) == count
-                && fwrite(&zero, 1, padding, stream) == padding;
-*/
             stream.write((const char*)&eid, sizeof(eid));
             stream.write((const char*)&count, sizeof(count));
             stream.write((const char*)data, sizeof(T) * count);
@@ -396,9 +337,6 @@ namespace VDB {
             stream.flush();
         }
         
-        //auto flush() const -> decltype(fflush(stream)) {
-        //    return fflush(stream);
-        //}
     };
 }
 

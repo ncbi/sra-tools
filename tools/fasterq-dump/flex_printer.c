@@ -237,6 +237,7 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
     return res;
 }
 
+#if 0
 static bool flex_printer_args_valid( struct file_printer_args_t * file_args,
                                      struct multi_writer_t * multi_writer ) {
     if ( NULL == file_args && NULL == multi_writer ) {
@@ -299,7 +300,89 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,
     }
     return self;
 }
+#endif
 
+static struct flex_printer_t * make_flex_printer_cmn( flex_printer_t * self,
+                        const char * accession,
+                        const char * seq_defline,
+                        const char * qual_defline,
+                        bool fasta ) {
+    self -> fasta = fasta;
+
+    /* pre-set the accession-variable in the string-data, this one does not change during the
+        lifetime of the flex-printer */
+    self -> string_data[ sdi_acc ] = make_string_copy( accession );
+
+    /* construct the 2 flex-formats ( one with 1xREAD/1xQUAL, one with 2xREAD/2xQUAL ) */
+    /* ------------------------------------------------------------------------------- */
+    /* first create the variable-definitions ( and their indexes ) */
+    struct var_desc_list_t * vdl = make_flex_printer_vars();
+    if ( NULL == vdl ) {
+        release_flex_printer( self );
+        self = NULL;
+    } else {
+        /* join seq_defline and qual_defline into one format-definition, describing a whole spot or read */
+        const String * flex_fmt1 = make_flex_printer_format_string( seq_defline, qual_defline, 1, fasta );
+        const String * flex_fmt2 = make_flex_printer_format_string( seq_defline, qual_defline, 2, fasta );
+        if ( NULL == flex_fmt1 || NULL == flex_fmt2 ) {
+            release_flex_printer( self );
+            self = NULL;
+        } else {
+            self -> fmt_v1 = create_var_fmt( flex_fmt1, vdl );
+            self -> fmt_v2 = create_var_fmt( flex_fmt2, vdl );
+            if ( NULL == self -> fmt_v1 || NULL == self -> fmt_v2 ) {
+                release_flex_printer( self );
+                self = NULL;
+            }
+        }
+        if ( NULL != flex_fmt1 ) { StringWhack( flex_fmt1 ); }  /* create_var_fmt makes a copy! */
+        if ( NULL != flex_fmt2 ) { StringWhack( flex_fmt2 ); }  /* create_var_fmt makes a copy! */
+        release_var_desc_list( vdl );   /* has been copied into fmt1 and fmt2 */
+    }
+    return self;
+}
+                                             
+struct flex_printer_t * make_flex_printer_1( file_printer_args_t * file_args,
+                        const char * accession,
+                        const char * seq_defline,
+                        const char * qual_defline,
+                        bool fasta ) {
+    flex_printer_t * self = NULL;
+    if ( NULL == file_args || NULL == seq_defline || NULL == accession ) {
+        return NULL;
+    }
+    if ( !fasta && NULL == qual_defline ) {
+        return NULL;
+    }
+    self = calloc( 1, sizeof * self );
+    if ( NULL != self ) {
+        self -> file_args = file_args;
+        VectorInit ( &( self -> printers ), 0, 4 );
+        self = make_flex_printer_cmn( self, accession, seq_defline, qual_defline, fasta );
+    }
+    return self;
+}
+
+struct flex_printer_t * make_flex_printer_2( struct multi_writer_t * multi_writer,
+                        const char * accession,
+                        const char * seq_defline,
+                        const char * qual_defline,
+                        bool fasta ) {
+    flex_printer_t * self = NULL;
+    if ( NULL == multi_writer || NULL == seq_defline || NULL == accession ) {
+        return NULL;
+    }
+    if ( !fasta && NULL == qual_defline ) {
+        return NULL;
+    }
+    self = calloc( 1, sizeof * self );
+    if ( NULL != self ) {
+        self -> multi_writer = multi_writer;
+        self = make_flex_printer_cmn( self, accession, seq_defline, qual_defline, fasta );
+    }
+    return self;
+}
+    
 static join_printer_t * get_or_make_join_printer( Vector * v, uint32_t read_id,
                                                   file_printer_args_t * file_args ) {
     join_printer_t * res = VectorGet ( v, read_id );

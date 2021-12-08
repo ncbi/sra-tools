@@ -1026,8 +1026,7 @@ static rc_t CC sorted_fastq_fasta_thread_func( const KThread *self, void *data )
                             jtd -> part_file,
                             jtd -> buf_size );
     /* make_flex_printer() is in flex_printer.c */
-    struct flex_printer_t * flex_printer = make_flex_printer( &file_args,
-                        NULL,                           /* no multi-writer here, each thread writes into it's own files! */
+    struct flex_printer_t * flex_printer = make_flex_printer_1( &file_args,
                         jtd -> accession_short,         /* we need that for the flexible defline! */
                         jtd -> seq_defline,             /* the seq-defline */
                         jtd -> qual_defline,            /* the qual-defline */
@@ -1235,8 +1234,7 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
     opt . with_spotgroup = jo -> print_spotgroup;
 
     /* is in flex_printer.c */
-    flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
-                    jtd -> multi_writer,          /* passed in multi-writer */
+    flex_printer = make_flex_printer_2( jtd -> multi_writer,          /* passed in multi-writer */
                     jtd -> accession_short,       /* the accession to be printed */
                     jtd -> seq_defline,           /* if seq-defline is NULL, use default */
                     NULL,                         /* FASTA: not qual-defline! */

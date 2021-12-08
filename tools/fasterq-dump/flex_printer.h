@@ -83,24 +83,24 @@ void set_file_printer_args( file_printer_args_t * self,
                             size_t buffer_size );
 
 /* ---------------------------------------------------------------------------------------------------
-    there are 2 modes for the flex-printer: file-per-read-id-mode / multi-writer-mode
-        file_args   multi_writer
-        ------------------------
-        NULL        NULL            ... invalid
-        ptr         NULL            ... file-per-read-id-mode
-        NULL        ptr             ... multi-writer-mode
-        ptr         ptr             ... invalid
-
     accession       ... used in both modes for filling into the flexible defline
     seq_defline     ... user supplied sequence-defline ( if NULL -> error  )
     qual_defline    ... user supplied quality-defline  ( if NULL and FASTQ -> error )
     fasta           ... flag used to pick a default-defline
  --------------------------------------------------------------------------------------------------- */
-struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,     /* used in file-per-read-id-mode */
-                        struct multi_writer_t * multi_writer,           /* if used: dir,registry,output_base,buffer_size are unused */
-                        const char * accession,                         /* used in both modes */
-                        const char * seq_defline,                       /* if NULL -> error */
-                        const char * qual_defline,                      /* if NULL -> error ( for FASTQ ) */
+
+/* for file-per-read-id-mode */
+struct flex_printer_t * make_flex_printer_1( file_printer_args_t * file_args,
+                        const char * accession,
+                        const char * seq_defline,
+                        const char * qual_defline,
+                        bool fasta );
+
+/* for multi-writer-mode */
+struct flex_printer_t * make_flex_printer_2( struct multi_writer_t * multi_writer,
+                        const char * accession,
+                        const char * seq_defline,
+                        const char * qual_defline,
                         bool fasta );
 
 void release_flex_printer( struct flex_printer_t * self );

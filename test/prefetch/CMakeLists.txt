@@ -12,6 +12,6 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_Prefetch
 		COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-            bash -c "/runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}"
+            bash -c "./runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

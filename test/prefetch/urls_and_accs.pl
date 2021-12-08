@@ -178,6 +178,7 @@ print "prefetch $REFSEQ when there is no kfg\n";
 `rm -f $REFSEQC`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQ";
 print "$CMD\n" if $VERBOSE;
+#print `$CMD 2>&1`; die if $?;
 `$CMD 2> /dev/null`; die if $?;
 `rm $REFSEQC`      ; die if $?;
 
@@ -199,7 +200,7 @@ $KMERC = 'GCA_000390265.1_R';
 $KMER  =                "$SRA/traces/nannot01/kmer/000/390/$KMERC";
 $KMERF = "$SRAF:data/sracloud/traces/nannot01/kmer/000/390/$KMERC";
 
-print "$KMER HTTP download when there is no kfg should fail\n";
+print "$KMER HTTP download when there is no kfg has to fail\n";
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $KMER";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die unless $?;
@@ -207,18 +208,36 @@ print "$CMD\n" if $VERBOSE;
 `echo '$PUBLIC/apps/nakmer/volumes/nakmerFlat = "nannot"' >> tmp/t.kfg`;
 die if $?;
 
-print "NANNOT download when user repository is configured\n";
+print "KMER download when user repository is configured\n";
 `rm -f tmp/nannot/$KMERC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $KMER";
 print "$CMD\n" if $VERBOSE;
+#print `$CMD 2>&1`   ; die if $?;
 `$CMD 2> /dev/null`   ; die if $?;
 `ls tmp/nannot/$KMERC`; die if $?;
 
-print "Running NANNOT prefetch second time finds previous download\n";
+print "Running KMER prefetch second time finds previous download\n";
 $CMD .= " 2>&1 | grep \"found local\"";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`      ; die if $?;
 `rm tmp/nannot/$KMERC`; die if $?;
+
+$NANTC = 'NA000000007.1';
+$NANT  = "$SRA/traces/nannot01/000/000/$NANTC";
+
+print "$NANT download when there is no kfg has to fail\n";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $NANT";
+print "$CMD\n" if $VERBOSE;
+`$CMD 2> /dev/null`   ; die unless $?;
+
+`echo '$PUBLIC/apps/nannot/volumes/nannotFlat = "nannot"' >> tmp/t.kfg`;
+die if $?;
+
+print "$NANT download when user repository is configured\n";
+`rm -f tmp/nannot/$NANTC`; die if $?;
+print "$CMD\n" if $VERBOSE;
+#print `$CMD 2>&1`   ; die if $?;
+`$CMD 2> /dev/null`   ; die if $?;
+`rm tmp/nannot/$NANTC`; die if $?;
 
 $WGSC = 'AFVF01.1';
 $WGS  =                 "$SRA/traces/wgs03/WGS/AF/VF/$WGSC";

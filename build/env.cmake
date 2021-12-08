@@ -277,9 +277,26 @@ else() # assume a single-config generator
 #    link_directories( ${NCBI_VDB_ILIBDIR} )
 endif()
 
+# DIRTOTEST is the overridable location of the executables to call from scripted test
+if( NOT DIRTOTEST )
+    set( DIRTOTEST ${BINDIR} )
+endif()
+message( DIRTOTEST: ${DIRTOTEST})
+
+# CONFIGTOUSE is a way to block user settings ($HOME/.ncbi/user-settings.mkfg). Assign anything but NCBI_SETTINGS to it, and the user settings will be ignored.
+if( NOT CONFIGTOUSE )
+    set( CONFIGTOUSE NCBI_SETTINGS )
+endif()
+message( CONFIGTOUSE: ${CONFIGTOUSE})
+
+# Python 3
 if( Python3_EXECUTABLE )
     set( PythonUserBase ${TEMPDIR}/python )
 endif()
+
+#
+# Common functions for creation of build artefacts
+#
 
 function( GenerateStaticLibsWithDefs target_name sources compile_defs )
     add_library( ${target_name} STATIC ${sources} )

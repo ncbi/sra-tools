@@ -166,6 +166,17 @@ uint64_t calculate_rows_per_thread( uint32_t * num_threads, uint64_t row_count )
 
 rc_t print_stats( const join_stats_t * stats );
 
+/* -------------------------------------------------------------------------------- */
+
+struct filter_2na_t;
+
+struct filter_2na_t * make_2na_filter( const char * filter_bases );
+void release_2na_filter( struct filter_2na_t * self );
+
+/* return true if no filter set, or filter matches the bases */
+bool filter_2na_1( struct filter_2na_t * self, const String * bases );
+bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const String * bases2 );
+
 #ifdef __cplusplus
 }
 #endif

@@ -496,3 +496,50 @@ rc_t print_stats( const join_stats_t * stats )
     KOutHandlerSetStdOut();
     return rc;
 }
+
+/* ===================================================================================== */
+
+typedef struct filter_2na_t {
+    struct Buf2NA_t * filter_buf2na;        /* the 2na-filter */
+} filter_2na_t;
+
+filter_2na_t * make_2na_filter( const char * filter_bases ) {
+    filter_2na_t * res = NULL;
+    if ( NULL != filter_bases ) {
+        res = calloc( 1, sizeof * res );
+        if ( NULL != res ) {
+            rc_t rc = make_Buf2NA( &( res -> filter_buf2na ), 512, filter_bases ); /* helper.c */
+            if ( 0 != rc ) {
+                ErrMsg( "make_2na_filter().error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
+                free( ( void * )res );
+                res = NULL;
+            }
+        }
+    }
+    return res;
+}
+
+void release_2na_filter( filter_2na_t * self ) {
+    if ( NULL != self ) {
+        if ( NULL != self -> filter_buf2na ) {
+            release_Buf2NA( self -> filter_buf2na );
+        }
+    }
+}
+
+bool filter_2na_1( filter_2na_t * self, const String * bases ) {
+    bool res = true;
+    if ( NULL != self && NULL != bases ) {
+        res = match_Buf2NA( self -> filter_buf2na, bases ); /* helper.c */
+    }
+    return res;
+}
+
+bool filter_2na_2( filter_2na_t * self, const String * bases1, const String * bases2 ) {
+    bool res = true;
+    if ( NULL != self && NULL != bases1 && NULL != bases2 ) {
+        res = ( match_Buf2NA( self -> filter_buf2na, bases1 ) || match_Buf2NA( self -> filter_buf2na, bases2 ) ); /* helper.c */
+    }
+    return res;
+}
+

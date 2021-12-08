@@ -54,6 +54,10 @@
 #include <klib/printf.h>
 #endif
 
+#ifndef _h_dflt_defline_
+#include "dflt_defline.h"
+#endif
+
 static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
     rc_t rc = KOutHandlerSetStdErr();
     
@@ -493,6 +497,15 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         rc = inspect( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) ); /* perform the pre-flight inspection: inspector.c */
     }
     
+    if ( 0 == rc ) {
+        bool fasta = is_format_fasta( tool_ctx -> fmt ); /* helper.c */
+        bool use_name = tool_ctx -> insp_output . seq . has_name_column;
+        bool use_read_id = false;
+
+        tool_ctx -> seq_defline  = dflt_seq_defline( use_name, use_read_id, fasta );
+        tool_ctx -> qual_defline = dflt_qual_defline( use_name, use_read_id );
+    }
+
     if ( 0 == rc && tool_ctx -> show_details ) {
         rc = print_tool_ctx( tool_ctx ); /* above */
     }

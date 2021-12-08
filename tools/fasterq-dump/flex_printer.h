@@ -23,23 +23,26 @@
 * ===========================================================================
 *
 */
-#ifndef _h_join_results_
-#define _h_join_results_
+#ifndef _h_flex_printer_
+#define _h_flex_printer_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <stdbool.h> 
+#include <stdint.h>
+
 #ifndef _h_klib_rc_
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
+#ifndef _h_klib_text_
+#include <klib/text.h>
 #endif
 
-#ifndef _h_kfs_file_
-#include <kfs/file.h>
+#ifndef _h_kfs_directory_
+#include <kfs/directory.h>
 #endif
 
 #ifndef _h_temp_registry_
@@ -50,33 +53,7 @@ extern "C" {
 #include "copy_machine.h"
 #endif
 
-struct join_results_t;
-
-void destroy_join_results( struct join_results_t * self );
-
-rc_t make_join_results( struct KDirectory * dir,
-                        struct join_results_t ** results,
-                        struct temp_registry_t * registry,
-                        const char * output_base,
-                        const char * accession_short,
-                        size_t file_buffer_size,
-                        size_t print_buffer_size,
-                        bool print_frag_nr,
-                        bool print_name );
-
-/* --------------------------------------------------------------------------------------------------- */
-
-struct filter_2na_t;
-
-struct filter_2na_t * make_2na_filter( const char * filter_bases );
-void release_2na_filter( struct filter_2na_t * self );
-
-/* return true if no filter set, or filter matches the bases */
-bool filter_2na_1( struct filter_2na_t * self, const String * bases );
-bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const String * bases2 );
-
-/* --------------------------------------------------------------------------------------------------- */
-
+/* helper to detect if spot-group is requestd in the def-lines */
 bool spot_group_requested( const char * seq_defline, const char * qual_defline );
 
 struct flex_printer_t;
@@ -115,18 +92,15 @@ void set_file_printer_args( file_printer_args_t * self,
         ptr         ptr             ... invalid
 
     accession       ... used in both modes for filling into the flexible defline
-    seq_defline     ... user supplied sequence-defline ( if NULL, pick internal default based on fasta and name-mode  )
-    qual_defline    ... user supplied quality-defline  ( if NULL, pick internal default based on name-mode, ignored for fasta )
-    name_mode       ... flag used to pick a default-defline
+    seq_defline     ... user supplied sequence-defline ( if NULL -> error  )
+    qual_defline    ... user supplied quality-defline  ( if NULL and FASTQ -> error )
     fasta           ... flag used to pick a default-defline
  --------------------------------------------------------------------------------------------------- */
 struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,     /* used in file-per-read-id-mode */
                         struct multi_writer_t * multi_writer,           /* if used: dir,registry,output_base,buffer_size are unused */
                         const char * accession,                         /* used in both modes */
-                        const char * seq_defline,                       /* if NULL -> pick default based on fasta/name-mode */
-                        const char * qual_defline,                      /* if NULL -> pick default based on fasta/name-mode */
-                        bool use_name,                                  /* needed for picking a default */
-                        bool use_read_id,                               /* needed for picking a default, split...true, whole...false */
+                        const char * seq_defline,                       /* if NULL -> error */
+                        const char * qual_defline,                      /* if NULL -> error ( for FASTQ ) */
                         bool fasta );
 
 void release_flex_printer( struct flex_printer_t * self );
@@ -135,7 +109,7 @@ void release_flex_printer( struct flex_printer_t * self );
     quality == NULL ... fasta / fastq
     read2 == NULL ... 1 spot / 2 spots
  */
-rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_data_t * data );
+rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data );
 
 #ifdef __cplusplus
 }

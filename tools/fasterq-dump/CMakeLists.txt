@@ -10,6 +10,7 @@ set( TOOLS_SRC
 	err_msg
 	file_tools
 	var_fmt
+	flex_printer
 	temp_dir
 	progress_thread
 	cleanup_task
@@ -27,7 +28,6 @@ set( TOOLS_SRC
 	fastq_iter
 	join
 	tbl_join
-	join_results
 	temp_registry
 	copy_machine
 	concatenator

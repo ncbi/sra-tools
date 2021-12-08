@@ -23,14 +23,13 @@
 * ===========================================================================
 *
 */
-#include "join_results.h"
 
-#ifndef _h_err_msg_
-#include "err_msg.h"
-#endif
+#include "flex_printer.h"
 
-#ifndef _h_var_fmt_
-#include "var_fmt.h"
+#include <string.h>     /* for strstr() */
+
+#ifndef _h_klib_printf_
+#include <klib/printf.h>
 #endif
 
 #ifndef _h_file_tools_
@@ -41,8 +40,12 @@
 #include "dflt_defline.h"
 #endif
 
-#ifndef _h_klib_printf_
-#include <klib/printf.h>
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_var_fmt_
+#include "var_fmt.h"
 #endif
 
 typedef struct join_printer_t {
@@ -107,57 +110,6 @@ static join_printer_t * make_join_printer( file_printer_args_t * file_args, uint
     return res;
 }
 
-/* --------------------------------------------------------------------------------------------------- */
-
-typedef struct filter_2na_t {
-    struct Buf2NA_t * filter_buf2na;        /* the 2na-filter */
-} filter_2na_t;
-
-filter_2na_t * make_2na_filter( const char * filter_bases ) {
-    filter_2na_t * res = NULL;
-    if ( NULL != filter_bases ) {
-        res = calloc( 1, sizeof * res );
-        if ( NULL != res ) {
-            rc_t rc = make_Buf2NA( &( res -> filter_buf2na ), 512, filter_bases ); /* helper.c */
-            if ( 0 != rc ) {
-                ErrMsg( "make_2na_filter().error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
-                free( ( void * )res );
-                res = NULL;
-            }
-        }
-    }
-    return res;
-}
-
-void release_2na_filter( filter_2na_t * self ) {
-    if ( NULL != self ) {
-        if ( NULL != self -> filter_buf2na ) {
-            release_Buf2NA( self -> filter_buf2na );
-        }
-    }
-}
-
-bool filter_2na_1( filter_2na_t * self, const String * bases ) {
-    bool res = true;
-    if ( NULL != self && NULL != bases ) {
-        res = match_Buf2NA( self -> filter_buf2na, bases ); /* helper.c */
-    }
-    return res;
-}
-
-bool filter_2na_2( filter_2na_t * self, const String * bases1, const String * bases2 ) {
-    bool res = true;
-    if ( NULL != self && NULL != bases1 && NULL != bases2 ) {
-        res = ( match_Buf2NA( self -> filter_buf2na, bases1 ) || match_Buf2NA( self -> filter_buf2na, bases2 ) ); /* helper.c */
-    }
-    return res;
-}
-
-
-/* ----------------------------------------------------------------------------------------------------- */
-
-/* the output is parameterized via var_fmt_t from helper.c */
-
 static bool spot_group_requested_1( const char * defline ) {
     if ( NULL == defline ) {
         return false;
@@ -169,6 +121,8 @@ static bool spot_group_requested_1( const char * defline ) {
 bool spot_group_requested( const char * seq_defline, const char * qual_defline ) {
     return ( spot_group_requested_1( seq_defline ) || spot_group_requested_1( qual_defline ) );
 }
+
+/* the output is parameterized via var_fmt_t from helper.c */
 
 typedef struct flex_printer_t {
     file_printer_args_t * file_args;        /* dir, registry, output-base, buffer_size */
@@ -225,8 +179,6 @@ static struct var_desc_list_t * make_flex_printer_vars( void ) {
 static const String * make_flex_printer_format_string( const char * seq_defline,
                                                  const char * qual_defline,
                                                  size_t num_reads,
-                                                 bool use_name,
-                                                 bool use_read_id,
                                                  bool fasta ){
     const String * res = NULL;
     char buffer[ 4096 ];
@@ -234,34 +186,49 @@ static const String * make_flex_printer_format_string( const char * seq_defline,
     rc_t rc = 0;
     if ( fasta ) {   
         /* ===== FASTA ===== */
-        const char * a_seq_defline = seq_defline;
-        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( use_name, use_read_id, fasta ); }
-        if ( NULL == a_seq_defline ) { /* TBD: rc = RC() */  }
-        if ( 1 == num_reads ) {
-            /* seq_defline + '\n' + read1 + '\n' */
-            rc = string_printf ( buffer, sizeof buffer, &num_writ,
-                                "%s\n$RD1\n", a_seq_defline );
-        } else if ( 2 == num_reads ) {
-            /* seq_defline + '\n' + read1 + read2 + '\n' */
-            rc = string_printf ( buffer, sizeof buffer, &num_writ,
-                                "%s\n$RD1$RD2\n", a_seq_defline );
+        if ( NULL == seq_defline ) { 
+            rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
+            ErrMsg( "make_flex_printer_format_string( FASTA ) seq_defline is NULL -> %R", rc );
+        }
+        if ( 0 == rc ) {
+            if ( 1 == num_reads ) {
+                /* seq_defline + '\n' + read1 + '\n' */
+                rc = string_printf ( buffer, sizeof buffer, &num_writ,
+                                    "%s\n$RD1\n", seq_defline );
+            } else if ( 2 == num_reads ) {
+                /* seq_defline + '\n' + read1 + read2 + '\n' */
+                rc = string_printf ( buffer, sizeof buffer, &num_writ,
+                                    "%s\n$RD1$RD2\n", seq_defline );
+            }
+            if ( 0 != rc ) {
+                ErrMsg( "make_flex_printer_format_string( FASTA ) string_printf() failed -> %R", rc );
+            }
         }
     } else {
         /* ===== FASTQ ===== */
-        const char * a_seq_defline = seq_defline;
-        const char * a_qual_defline = qual_defline;
-        if ( NULL == a_seq_defline ) { a_seq_defline = dflt_seq_defline( use_name, use_read_id, fasta ); }
-        if ( NULL == a_qual_defline ) { a_qual_defline = dflt_qual_defline( use_name, use_read_id ); }
-        if ( NULL == a_seq_defline ) { /* TBD: rc = RC() */  }
-        if ( NULL == a_qual_defline ) { /* TBD: rc = RC() */  }
-        if ( 1 == num_reads ) {
-            /* seq_defline + '\n' + read1 + '\n' + qual_defline + '\n' + qual + '\n' */
-            rc = string_printf ( buffer, sizeof buffer, &num_writ,
-                                "%s\n$RD1\n%s\n$QA\n", a_seq_defline, a_qual_defline );
-        } else if ( 2 == num_reads ) {
-            /* seq_defline + '\n' + read1 + read2 + '\n' + qual_defline + '\n' + qual + '\n' */
-            rc = string_printf ( buffer, sizeof buffer, &num_writ,
-                                "%s\n$RD1$RD2\n%s\n$QA\n", a_seq_defline, a_qual_defline );
+        if ( NULL == seq_defline ) {
+            rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
+            ErrMsg( "make_flex_printer_format_string( FASTQ ) seq_defline is NULL -> %R", rc );
+        }
+        if ( 0 == rc ) {
+            if ( NULL == qual_defline ) {
+                rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
+                ErrMsg( "make_flex_printer_format_string( FASTQ ) qual_defline is NULL -> %R", rc );
+            }
+            if ( 0 == rc ) {
+                if ( 1 == num_reads ) {
+                    /* seq_defline + '\n' + read1 + '\n' + qual_defline + '\n' + qual + '\n' */
+                    rc = string_printf ( buffer, sizeof buffer, &num_writ,
+                                        "%s\n$RD1\n%s\n$QA\n", seq_defline, qual_defline );
+                } else if ( 2 == num_reads ) {
+                    /* seq_defline + '\n' + read1 + read2 + '\n' + qual_defline + '\n' + qual + '\n' */
+                    rc = string_printf ( buffer, sizeof buffer, &num_writ,
+                                        "%s\n$RD1$RD2\n%s\n$QA\n", seq_defline, qual_defline );
+                }
+                if ( 0 != rc ) {
+                    ErrMsg( "make_flex_printer_format_string( FASTQ ) string_printf() failed -> %R", rc );
+                }
+            }
         }
     }
     if ( 0 == rc ) {
@@ -286,8 +253,6 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,
                         const char * accession,
                         const char * seq_defline,
                         const char * qual_defline,
-                        bool use_name,
-                        bool use_read_id, /* needed for picking a default, split...true, whole...false */
                         bool fasta ) {
     if ( !flex_printer_args_valid( file_args, multi_writer ) ) {
         return NULL;
@@ -314,8 +279,8 @@ struct flex_printer_t * make_flex_printer( file_printer_args_t * file_args,
             self = NULL;
         } else {
             /* join seq_defline and qual_defline into one format-definition, describing a whole spot or read */
-            const String * flex_fmt1 = make_flex_printer_format_string( seq_defline, qual_defline, 1, use_name, use_read_id, fasta );
-            const String * flex_fmt2 = make_flex_printer_format_string( seq_defline, qual_defline, 2, use_name, use_read_id, fasta );
+            const String * flex_fmt1 = make_flex_printer_format_string( seq_defline, qual_defline, 1, fasta );
+            const String * flex_fmt2 = make_flex_printer_format_string( seq_defline, qual_defline, 2, fasta );
             if ( NULL == flex_fmt1 || NULL == flex_fmt2 ) {
                 release_flex_printer( self );
                 self = NULL;
@@ -370,49 +335,47 @@ static struct var_fmt_t * flex_printer_prepare_data( struct flex_printer_t * sel
     return fmt;
 }
 
-static bool join_result_flex_submit( struct flex_printer_t * self, SBuffer_t * t ) {
-    bool res = false;
+/* submit a buffer to the multi-writer ( via a queue into a different thread! ) */
+static rc_t flex_submit( struct flex_printer_t * self, SBuffer_t * t ) {
+    rc_t rc = 0;
     if ( NULL == self -> block ) {
         self -> block = multi_writer_get_empty_block( self -> multi_writer );
     }
-    res = ( NULL != self -> block );
-    if ( !res ) {
-        /* TBD : error could not get block from multi-writer... */
+    if ( NULL == self -> block ) {
+        rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "flex_submit() could not get block from multi-writer -> %R", rc );
     } else {
-        res = multi_writer_block_append( self -> block, t -> S. addr, t -> S . len );
-        if ( !res ) {
+        if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
             /* block was not big enough to hold the new data : */
-            res = multi_writer_submit_block( self -> multi_writer, self -> block );
-            if ( !res ) {
-                /* TBD : error cannot submit! */
+            if ( !multi_writer_submit_block( self -> multi_writer, self -> block ) ) {
+                rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                ErrMsg( "flex_submit() cannot submit block to multi-writer -> %R", rc );
             } else {
                 self -> block = multi_writer_get_empty_block( self -> multi_writer );
-                res = ( NULL != self -> block );
-                if ( !res ) {
-                    /* TBD : error could not get block from multi-writer... */
+                if ( NULL == self -> block ) {
+                    rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                    ErrMsg( "flex_submit() could not get block from multi-writer -> %R", rc );
                 } else {
-                    res = multi_writer_block_append( self -> block, t -> S. addr, t -> S . len );
-                    if ( !res ) {
+                    if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
                         /* oops the data does not fit into an new, empty block... */
-                        res = multi_writer_block_expand( self -> block, t -> S . len + 1 );
-                        if ( !res ) {
-                            /* TBD: cannot expand block... */
+                        if ( ! multi_writer_block_expand( self -> block, t -> S . len + 1 ) ) {
+                            rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                            ErrMsg( "flex_submit() could not expand block from multi-writer -> %R", rc );
                         } else {
-                            res = multi_writer_block_append( self -> block, t -> S. addr, t -> S . len );
-                            if ( !res ) {
-                                /* TBD: still cannot write to expanded block */
+                            if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+                                rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                                ErrMsg( "flex_submit() still cannot append block to multi-writer -> %R", rc );
                             }
                         }
                     }
                 }
             }
         }
-        //rc = multi_writer_write( self -> multi_writer, t -> S . addr, t -> S . len );
     }
-    return res;
+    return rc;
 }
 
-rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_data_t * data ) {
+rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data ) {
     rc_t rc = 0;
     if ( NULL == self || data == NULL ) {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
@@ -430,7 +393,8 @@ rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_da
                                     self -> string_data, sdi_qa + 1,
                                     self -> int_data, idi_rl + 1 );
             } else {
-                /* TBD error */
+                rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
+                ErrMsg( "flex_print() cannot create printer -> %R", rc );
             }
         } else if ( NULL != self -> multi_writer ) {
             /* we are in multi-writer-mode */
@@ -438,7 +402,10 @@ rc_t join_result_flex_print( struct flex_printer_t * self, const flex_printer_da
                                                self -> string_data, sdi_qa + 1,
                                                self -> int_data, idi_rl + 1 );
             if ( NULL != t ) {
-                join_result_flex_submit( self, t );
+                rc = flex_submit( self, t );
+            } else {
+                rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
+                ErrMsg( "flex_print() cannot format data into buffer -> %R", rc );
             }
        }
     }

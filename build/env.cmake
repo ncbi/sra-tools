@@ -368,6 +368,9 @@ function( ExportStatic name install )
             ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
         set_target_properties( ${name} PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
+        if ( ${install} )
+            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib )
+        endif()
     endif()
 endfunction()
 
@@ -391,6 +394,17 @@ function(MakeLinksShared target name install)
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
         )
+        endif()
+    else()
+        set_target_properties( ${target} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG})
+        set_target_properties( ${target} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
+        if ( ${install} )
+            install( TARGETS ${target}
+                     ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
         endif()
     endif()
 endfunction()
@@ -446,12 +460,25 @@ function(MakeLinksExe target install_via_driver)
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+    else()
+        if ( install_via_driver )
+                install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
+                         RENAME ${target}-orig${EXE}
+                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                )
+                install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE}
+                         RENAME ${target}${EXE}
+                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                )
+        else()
+            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+        endif()
+
     endif()
 endfunction()
 
 
 set( COMMON_LINK_LIBRARIES kapp tk-version )
-# set( COMMON_LINK_LIBRARIES tk-version )
 if( WIN32 )
     set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
     set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
@@ -465,13 +492,10 @@ if( WIN32 )
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
-    # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries
-    # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  /INCREMENTAL:NO" )
 endif()
 
 function( BuildExecutableForTest exe_name sources libraries )
 	add_executable( ${exe_name} ${sources} )
-	#MSVS_StaticRuntime( ${exe_name} )
 	target_link_libraries( ${exe_name} ${libraries} )
 endfunction()
 

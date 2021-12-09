@@ -130,10 +130,6 @@ bool ends_in_slash( const char * s );
 bool ends_in_sra( const char * s );
 bool extract_path( const char * s, String * path );
 
-/*
-int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession );
-*/
-
 /* -------------------------------------------------------------------------------- */
 
 void clear_join_stats( join_stats_t * stats );

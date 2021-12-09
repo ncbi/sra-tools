@@ -28,6 +28,8 @@
 #define _h_dflt_defline_
 
 #include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +37,22 @@ extern "C" {
 
 const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
 const char * dflt_qual_defline( bool use_name, bool use_read_id );
-    
+
+/* ------------------------------------------------------------------------------------------- */
+
+bool spot_group_requested( const char * seq_defline, const char * qual_defline );
+
+/* ------------------------------------------------------------------------------------------- */
+
+typedef struct defline_estimator_input_t
+{
+    const char * defline;
+    const char * acc;
+    uint32_t avg_name_len;
+} defline_estimator_input_t;
+
+size_t estimate_defline_length( const defline_estimator_input_t * input );
+
 #ifdef __cplusplus
 }
 #endif

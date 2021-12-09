@@ -53,9 +53,6 @@ extern "C" {
 #include "copy_machine.h"
 #endif
 
-/* helper to detect if spot-group is requestd in the def-lines */
-bool spot_group_requested( const char * seq_defline, const char * qual_defline );
-
 struct flex_printer_t;
 
 typedef struct flex_printer_data_t {

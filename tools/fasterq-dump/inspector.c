@@ -34,6 +34,10 @@
 #include "helper.h"
 #endif
 
+#ifndef _h_dflt_defline_
+#include "dflt_defline.h"
+#endif
+
 #ifndef _h_klib_printf_
 #include <klib/printf.h>
 #endif
@@ -1004,4 +1008,40 @@ rc_t inspection_report( const inspector_input_t * input, const inspector_output_
         rc = KOutMsg( "\n" );
     }
     return rc;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+
+static size_t inspector_estimated_defline_length( const inspector_estimate_input_t * input ) {
+    size_t seq_defline_length = 0;
+    size_t qual_defline_length = 0;
+    defline_estimator_input_t defl_est_inp;
+
+    defl_est_inp . acc = input -> acc;
+    defl_est_inp . avg_name_len = input -> avg_name_len;
+    
+    defl_est_inp . defline = input -> seq_defline;    
+    seq_defline_length = estimate_defline_length( &defl_est_inp );
+
+    if ( ! input -> fasta ) {
+        defl_est_inp . defline = input -> qual_defline;
+        qual_defline_length = estimate_defline_length( &defl_est_inp );
+    }
+
+    return seq_defline_length + qual_defline_length;
+}
+
+size_t inspector_estimate_output_size( const inspector_estimate_input_t * input ) {
+    size_t res = 0;
+
+    /* if we are skipping technical reads : we take the bio_base_count, otherwise the total_base_count 
+       ( these 2 numbers can be the same for cSRA objects, they have no technical reads ) */
+    if ( input -> skip_tech ) {
+        res = input -> insp -> seq . bio_base_count;
+    } else {
+        res = input -> insp -> seq . total_base_count;
+    }
+    if ( ! input -> fasta ) res *= 2;
+    res += inspector_estimated_defline_length( input );
+    return res;
 }

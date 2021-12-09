@@ -30,6 +30,10 @@
 #include "err_msg.h"
 #endif
 
+#ifndef _h_dflt_defline_
+#include "dflt_defline.h"
+#endif
+
 #ifndef _h_index_
 #include "index.h"
 #endif

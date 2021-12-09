@@ -131,6 +131,9 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "accession-path: '%s'\n", tool_ctx -> accession_path );
     }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "est. output   : %lu'\n", tool_ctx -> estimated_output_size );
+    }
 
     if ( 0 == rc ) {
         rc = KOutMsg( "\n" );
@@ -267,7 +270,7 @@ rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
     return rc;
 }
 
-static rc_t extract_short_accession( tool_ctx_t * tool_ctx ) {
+static rc_t tool_ctx_extract_short_accession( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     tool_ctx -> accession_short = inspector_extract_acc_from_path( tool_ctx -> accession_path ); /* inspector.c */
 
@@ -278,7 +281,7 @@ static rc_t extract_short_accession( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-static rc_t handle_lookup_path( tool_ctx_t * tool_ctx ) {
+static rc_t tool_ctx_create_lookup_and_index_path( tool_ctx_t * tool_ctx ) {
     rc_t rc = generate_lookup_filename( tool_ctx -> temp_dir,
                                         &tool_ctx -> lookup_filename[ 0 ],
                                         sizeof tool_ctx -> lookup_filename ); /* temp_dir.c */
@@ -298,32 +301,14 @@ static rc_t handle_lookup_path( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-static bool fasta_requested( tool_ctx_t * tool_ctx ) {
-    bool res = false;
-    switch( tool_ctx -> fmt ) {
-        case ft_unknown             : break;
-        case ft_fastq_whole_spot    : break;
-        case ft_fastq_split_spot    : break;
-        case ft_fastq_split_file    : break;
-        case ft_fastq_split_3       : break;
-
-        case ft_fasta_whole_spot    : res = true; break;
-        case ft_fasta_split_spot    : res = true; break;
-        case ft_fasta_us_split_spot : res = true; break;
-        case ft_fasta_split_file    : res = true; break;
-        case ft_fasta_split_3       : res = true; break;
-    }
-    return res;
-}
-
 /* we have NO output-dir and NO output-file */
-static rc_t make_output_filename_from_accession( tool_ctx_t * tool_ctx ) {
+static rc_t tool_ctx_make_output_filename_from_accession( tool_ctx_t * tool_ctx, bool fasta ) {
     rc_t rc;
     /* we DO NOT have a output-directory : build output-filename from the accession */
     /* generate the full path of the output-file, if not given */
     size_t num_writ;
 
-    if ( fasta_requested( tool_ctx ) ) {
+    if ( fasta ) {
         rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
                             &num_writ,
                             "%s.fasta",
@@ -344,11 +329,11 @@ static rc_t make_output_filename_from_accession( tool_ctx_t * tool_ctx ) {
 }
 
 /* we have an output-dir and NO output-file */
-static rc_t make_output_filename_from_dir_and_accession( tool_ctx_t * tool_ctx ) {
+static rc_t tool_ctx_make_output_filename_from_dir_and_accession( tool_ctx_t * tool_ctx, bool fasta ) {
     rc_t rc;
     size_t num_writ;
     bool es = ends_in_slash( tool_ctx -> output_dirname ); /* helper.c */
-    if ( fasta_requested( tool_ctx ) ) {
+    if ( fasta ) {
         rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
                             &num_writ,
                             es ? "%s%s.fasta" : "%s/%s.fasta",
@@ -369,7 +354,7 @@ static rc_t make_output_filename_from_dir_and_accession( tool_ctx_t * tool_ctx )
     return rc;
 }
 
-static rc_t optionally_create_paths_in_output_filename( tool_ctx_t * tool_ctx ) {
+static rc_t tool_ctx_optionally_create_paths_in_output_filename( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     String path;
     if ( extract_path( tool_ctx -> output_filename, &path ) ) {
@@ -382,7 +367,7 @@ static rc_t optionally_create_paths_in_output_filename( tool_ctx_t * tool_ctx ) 
     return rc;
 }
 
-static rc_t adjust_output_filename( tool_ctx_t * tool_ctx ) {
+static rc_t tool_ctx_adjust_output_filename( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     /* we do have a output-filename : use it */
     if ( dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) ) { /* helper.c */
@@ -390,12 +375,12 @@ static rc_t adjust_output_filename( tool_ctx_t * tool_ctx ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
     } else {
-        rc = optionally_create_paths_in_output_filename( tool_ctx );
+        rc = tool_ctx_optionally_create_paths_in_output_filename( tool_ctx ); /* above */
     }
     return rc;
 }
 
-static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
+static rc_t tool_ctx_adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
     size_t num_writ;
     bool es = ends_in_slash( tool_ctx -> output_dirname ); /* helper.c */
     rc_t rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
@@ -407,7 +392,7 @@ static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
         ErrMsg( "string_printf( output-filename ) -> %R", rc );
     } else {
         tool_ctx -> output_filename = tool_ctx -> dflt_output;
-        rc = optionally_create_paths_in_output_filename( tool_ctx );
+        rc = tool_ctx_optionally_create_paths_in_output_filename( tool_ctx );
     }
     return rc;
 }
@@ -416,62 +401,81 @@ static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
 rc_t KAppGetTotalRam ( uint64_t * totalRam );
 
 rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
+
+    bool fasta = is_format_fasta( tool_ctx -> fmt ); /* helper.c */
+
+    /* create the KDirectory-instance for all modules to use */
     rc_t rc = KDirectoryNativeDir( &( tool_ctx -> dir ) );
     if ( 0 != rc ) {
         ErrMsg( "KDirectoryNativeDir() -> %R", rc );
     }
 
+    /* create the VDB-Manager-instance for all modules to use */
     if ( 0 == rc ) {
-        rc = KAppGetTotalRam ( &( tool_ctx -> total_ram ) );
+        rc = VDBManagerMakeRead( &( tool_ctx -> vdb_mgr ), tool_ctx -> dir );
+        if ( 0 != rc ) {
+            ErrMsg( "fasterq-dump.c populate_tool_ctx().VDBManagerMakeRead() -> %R\n", rc );
+        }
+    }
+
+    /* query the amount of RAM available */
+    if ( 0 == rc ) {
+        rc = KAppGetTotalRam ( &( tool_ctx -> total_ram ) ); /* kapp-library */
         if ( 0 != rc ) {
             ErrMsg( "KAppGetTotalRam() -> %R", rc );
         }
     }
 
+    /* enforce some constrains: thread-count, mem-limit, buffer-size, stdout, only-aligned/unaligned */
     if ( 0 == rc ) {
-        tool_ctx_encforce_constrains( tool_ctx ); /* tool_ctx.c */
+        tool_ctx_encforce_constrains( tool_ctx ); /* above */
     }
-    
+
+    /* extract the accesion-string, for output- and temp-files to use */
+    if ( 0 == rc ) {
+        rc = tool_ctx_extract_short_accession( tool_ctx ); /* above */
+    }
+
+    /* create the temp. directory ( only if we need it! ) */
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
         rc = make_temp_dir( &tool_ctx -> temp_dir,
                         tool_ctx -> requested_temp_path,
-                        tool_ctx -> dir );
-    }
-    
-    if ( 0 == rc ) {
-        rc = extract_short_accession( tool_ctx ); /* above */
+                        tool_ctx -> dir ); /* temp_dir.c */
     }
 
+    /* create the lookup- and index-filenames ( only if we need it! ) */
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        rc = handle_lookup_path( tool_ctx ); /* above */
+        rc = tool_ctx_create_lookup_and_index_path( tool_ctx ); /* above */
     }
 
+    /* if an output-directory is explicity given from the commandline: create if not exists */
     if ( 0 == rc && NULL != tool_ctx -> output_dirname ) {
         if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) /* file_tools.c */ {
             rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true ); /* file_tools.c */
         }
     }
-    
-    if ( rc == 0 ) {
+
+    /* create of adjust the output-filename(s) if needed */
+    if ( rc == 0 && !tool_ctx -> use_stdout ) {
         if ( NULL == tool_ctx -> output_filename ) {
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = make_output_filename_from_accession( tool_ctx ); /* above */
+                rc = tool_ctx_make_output_filename_from_accession( tool_ctx, fasta ); /* above */
             } else {
-                rc = make_output_filename_from_dir_and_accession( tool_ctx ); /* above */
+                rc = tool_ctx_make_output_filename_from_dir_and_accession( tool_ctx, fasta ); /* above */
             }
         } else {
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = adjust_output_filename( tool_ctx ); /* above */
+                rc = tool_ctx_adjust_output_filename( tool_ctx ); /* above */
             } else {
-                rc = adjust_output_filename_by_dir( tool_ctx ); /* above */
+                rc = tool_ctx_adjust_output_filename_by_dir( tool_ctx ); /* above */
             }
+        }
+        if ( 0 == rc ) {
+            rc = check_output_exits( tool_ctx ); /* above */
         }
     }
 
-    if ( ! tool_ctx -> use_stdout ) {
-        rc = check_output_exits( tool_ctx ); /* above */
-    }
-
+    /* create the cleanup-taks ( for modules to add file/directories to it ) and add the tem-dir to it */
     tool_ctx -> cleanup_task = NULL;
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
         rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */
@@ -481,31 +485,44 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         }
     }
 
-    if ( 0 == rc ) {
-        rc = VDBManagerMakeRead( &( tool_ctx -> vdb_mgr ), tool_ctx -> dir );
-        if ( 0 != rc ) {
-            ErrMsg( "fasterq-dump.c populate_tool_ctx().VDBManagerMakeRead() -> %R\n", rc );
-        }
-    }
-    
+    /* run the inspector to extract valuable info about the accession */
     if ( 0 == rc ) {
         tool_ctx -> insp_input . dir = tool_ctx -> dir;
         tool_ctx -> insp_input . vdb_mgr = tool_ctx -> vdb_mgr;
         tool_ctx -> insp_input . accession_short = tool_ctx -> accession_short;
         tool_ctx -> insp_input . accession_path = tool_ctx -> accession_path;
 
-        rc = inspect( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) ); /* perform the pre-flight inspection: inspector.c */
+        rc = inspect( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) );
     }
-    
+
+    /* create seq/qual deflines ( if they are not given at the commandline ) */
     if ( 0 == rc ) {
-        bool fasta = is_format_fasta( tool_ctx -> fmt ); /* helper.c */
         bool use_name = tool_ctx -> insp_output . seq . has_name_column;
         bool use_read_id = false;
 
-        tool_ctx -> seq_defline  = dflt_seq_defline( use_name, use_read_id, fasta );
-        tool_ctx -> qual_defline = dflt_qual_defline( use_name, use_read_id );
+        if ( NULL == tool_ctx -> seq_defline ) {
+            tool_ctx -> seq_defline  = dflt_seq_defline( use_name, use_read_id, fasta );
+        }
+        if ( NULL == tool_ctx -> qual_defline && !fasta ) {
+            tool_ctx -> qual_defline = dflt_qual_defline( use_name, use_read_id );
+        }
     }
 
+    /* create an estimation of the output-size */
+    if ( 0 == rc ) {
+        inspector_estimate_input_t iei;
+        iei . insp = &( tool_ctx -> insp_output );
+        iei . seq_defline  = tool_ctx -> seq_defline;
+        iei . qual_defline = tool_ctx -> qual_defline;
+        iei . acc = tool_ctx -> accession_short;
+        iei . avg_name_len = tool_ctx -> insp_output . seq . avg_name_len;
+        iei . fasta = fasta;
+        iei . skip_tech = tool_ctx -> join_options . skip_tech;
+        
+        tool_ctx -> estimated_output_size = inspector_estimate_output_size( &iei );
+    }
+
+    /* print all the values gathered here, if requested */
     if ( 0 == rc && tool_ctx -> show_details ) {
         rc = print_tool_ctx( tool_ctx ); /* above */
     }

@@ -29,6 +29,10 @@
 #include "err_msg.h"
 #endif
 
+#ifndef _h_dflt_defline_
+#include "dflt_defline.h"
+#endif
+
 #ifndef _h_fastq_iter_
 #include "fastq_iter.h"
 #endif

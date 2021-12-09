@@ -110,18 +110,6 @@ static join_printer_t * make_join_printer( file_printer_args_t * file_args, uint
     return res;
 }
 
-static bool spot_group_requested_1( const char * defline ) {
-    if ( NULL == defline ) {
-        return false;
-    } else {
-        return ( NULL != strstr( defline, "$sg" ) );
-    }
-}
-
-bool spot_group_requested( const char * seq_defline, const char * qual_defline ) {
-    return ( spot_group_requested_1( seq_defline ) || spot_group_requested_1( qual_defline ) );
-}
-
 /* the output is parameterized via var_fmt_t from helper.c */
 
 typedef struct flex_printer_t {

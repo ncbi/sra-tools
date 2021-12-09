@@ -26,7 +26,9 @@
 
 #include "dflt_defline.h"
 
-#include <stddef.h>
+#ifndef _h_klib_text_
+#include <klib/text.h>
+#endif
 
 static const char * DSD_FASTQ_USE_NAME_RDID = "@$ac.$si/$ri $sn length=$rl";
 static const char * DSD_FASTQ_SYN_NAME_RDID = "@$ac.$si/$ri $si length=$rl";
@@ -68,4 +70,69 @@ const char * dflt_qual_defline( bool use_name, bool use_read_id ) {
         return use_name ? DQD_USE_NAME : DQD_SYN_NAME;
     }
     return NULL;
+}
+
+/* ------------------------------------------------------------------------------------------- */
+
+static uint32_t var_in_line( const char * defline, const char * var ) {
+    uint32_t res = 0;
+    if ( NULL != defline && NULL != var ) {
+        char * needle;
+        do {
+            needle = strstr( defline, var );
+            if ( NULL != needle ) {
+                res++;
+                defline += string_size( var );
+            }
+        } while ( NULL != needle );
+    }
+    return res;
+}
+
+static bool var_requested( const char * defline, const char * var ) {
+    if ( NULL == defline || NULL == var ) {
+        return false;
+    } else {
+        return ( NULL != strstr( defline, var ) );
+    }
+}
+
+bool spot_group_requested( const char * seq_defline, const char * qual_defline ) {
+    return ( var_requested( seq_defline, "$sg" ) || var_requested( qual_defline, "$sg" ) );
+}
+
+/* ------------------------------------------------------------------------------------------- */
+
+size_t estimate_defline_length( const defline_estimator_input_t * input ) {
+    size_t res = 0;
+    if ( NULL != input ) {
+        if ( NULL != input -> defline ) {
+            uint32_t n;
+            
+            res = string_size( input -> defline );
+
+            /* if the accession is in the defline */
+            n = var_in_line( input -> defline, "$ac" );
+            if ( n > 0 ) {
+                res -= n * 3;   /* take away the 3 chars '$ac' */
+                res += n * string_size( input -> acc );
+            }
+
+            /* if the name is in the defline */
+            n = var_in_line( input -> defline, "$sn" );
+            if ( n > 0 ) {
+                res -= n * 3;   /* take away the 3 chars '$sn' */
+                res += n * input -> avg_name_len;
+            }
+
+            /* if the spot-group is in the defline */
+            n = var_in_line( input -> defline, "$sg" );
+            if ( n > 0 ) {
+                res -= n * 3;   /* take away the 3 chars '$sg' */
+                res += n * input -> avg_name_len;
+            }
+
+        }
+    }
+    return res;
 }

@@ -75,6 +75,7 @@ typedef struct tool_ctx_t {
     struct KFastDumpCleanupTask_t * cleanup_task; /* cleanup_task.h */
     
     size_t cursor_cache, buf_size, mem_limit;
+    size_t estimated_output_size;
 
     uint32_t num_threads /*, max_fds */;
     uint64_t total_ram;
@@ -83,7 +84,7 @@ typedef struct tool_ctx_t {
     format_t fmt; /* helper.h */
 
     bool force, show_progress, show_details, append, use_stdout, only_unaligned, only_aligned;
-    
+
     join_options_t join_options; /* helper.h */
 
     inspector_input_t insp_input;       /* inspector.h */

@@ -100,6 +100,23 @@ rc_t inspector_path_to_vpath( const char * path, VPath ** vpath );
     
 const char * inspector_extract_acc_from_path( const char * s );
 
+/* ------------------------------------------------------------------------------------------- */
+
+typedef struct inspector_estimate_input_t
+{
+    const inspector_output_t * insp;
+    const char * seq_defline;
+    const char * qual_defline;
+    const char * acc;
+    uint32_t avg_name_len;
+    bool fasta;
+    bool skip_tech;
+} inspector_estimate_input_t;
+
+size_t inspector_estimate_output_size( const inspector_estimate_input_t * input );
+
+/* ------------------------------------------------------------------------------------------- */
+
 void unread_rc_info( bool show );
 
 #ifdef __cplusplus

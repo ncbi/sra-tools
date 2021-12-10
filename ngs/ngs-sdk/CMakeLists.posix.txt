@@ -49,25 +49,6 @@ ExportStatic( ngs-sdk true )
 
 #--------------------------------
 add_library( ngs-sdk-shared SHARED ${NGS_SDK_LIB} )
+target_link_libraries( ngs-sdk-shared ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
 MakeLinksShared( ngs-sdk-shared ngs-sdk true )
-
-##################################################################################
-# C++/Jni/Py wrappers for libncbi-vdb as a static library
-set( NCBI_NGS_LIB "" )
-foreach( target ${NCBI_NGS_TARGETS})
-    list( APPEND NCBI_NGS_LIB "$<TARGET_OBJECTS:${target}>" )
-endforeach()
-
-add_library( ncbi-ngs STATIC ${NCBI_NGS_LIB} )
-ExportStatic( ncbi-ngs true )
-
-##################################################################################
-# libncbi-ngs is a shared library that includes libncbi-vdb and its C++/Jni/Py wrappers
-#
-# NGS-based C++/Java/Python apps may now link against this library instead of libncbi-vdb
-#
-add_library( ncbi-ngs-shared SHARED ${NCBI_NGS_LIB} )
-target_link_libraries( ncbi-ngs-shared ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
-MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )

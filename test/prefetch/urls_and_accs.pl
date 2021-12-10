@@ -196,10 +196,11 @@ $KMERC = 'GCA_000390265.1_R';
 $KMER  =                "$SRA/traces/nannot01/kmer/000/390/$KMERC";
 $KMERF = "$SRAF:data/sracloud/traces/nannot01/kmer/000/390/$KMERC";
 
-print "$KMER HTTP download when there is no kfg has to fail\n";
+print "$KMER HTTP download when there is no kfg\n";
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $KMER";
 print "$CMD\n" if $VERBOSE;
-`$CMD 2> /dev/null`; die unless $?;
+`$CMD 2> /dev/null`;
+die "$KMER HTTP download when there is no kfg has to fail" unless $?;
 
 `echo '$PUBLIC/apps/nakmer/volumes/nakmerFlat = "nannot"' >> tmp/t.kfg`;
 die if $?;
@@ -220,10 +221,11 @@ print "$CMD\n" if $VERBOSE;
 $NANTC = 'NA000000007.1';
 $NANT  = "$SRA/traces/nannot01/000/000/$NANTC";
 
-print "$NANT download when there is no kfg has to fail\n";
+print "$NANT download when there is no kfg\n";
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $NANT";
 print "$CMD\n" if $VERBOSE;
-`$CMD 2> /dev/null`   ; die unless $?;
+`$CMD 2> /dev/null`;
+die "$NANT download when there is no kfg has to fail" unless $?;
 
 `echo '$PUBLIC/apps/nannot/volumes/nannotFlat = "nannot"' >> tmp/t.kfg`;
 die if $?;

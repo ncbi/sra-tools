@@ -62,8 +62,6 @@ print "HTTP file download when user repository is configured\n";
 if ($NCBI) {
     `rm -f $CWD/tmp2/$HTTPFILE`; die if $?;
     chdir "$CWD/tmp2" or die;
-    $CMD =
-       "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $HTTP_URL";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`; die if $?;
     `ls $HTTPFILE`     ; die if $?;
@@ -156,8 +154,7 @@ print "$CMD\n" if $VERBOSE;
 print "SRR download when user repository is configured\n";
 `echo '$PUBLIC/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg`; die if $?;
 `rm -f $CWD/tmp/sra/$SRAC.sra`; die if $?;
-$CMD = "ENV_VAR_LOG_HTTP_RETRY=1 NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y " .
-       "VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $SRR";
+$CMD = "ENV_VAR_LOG_HTTP_RETRY=1 $CMD";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`    ; die if $?;
 `ls $CWD/tmp/sra/$SRAC.sra`; die if $?;
@@ -185,7 +182,6 @@ print "$CMD\n" if $VERBOSE;
 print "REFSEQ HTTP download when user repository is configured\n";
 `echo '$PUBLIC/apps/refseq/volumes/refseq = "refseq"' >> tmp/t.kfg`; die if $?;
 `rm -f tmp/refseq/$REFSEQC`                                        ; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQ";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`     ; die if $?;
 `ls tmp/refseq/$REFSEQC`; die if $?;
@@ -253,7 +249,6 @@ print "$CMD\n" if $VERBOSE;
 print "WGS HTTP download when user repository is configured\n";
 `echo '$PUBLIC/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/t.kfg`; die if $?;
 `rm -f tmp/wgs/$WGSC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $WGS";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp/wgs/$WGSC`         ; die if $?;
@@ -269,9 +264,7 @@ if ($HAVE_NCBI_ASCP) {
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`     ; die if $?;
     `rm tmp/refseq/$REFSEQC`; die if $?;
-} else {
-    print "download of $REFSEQF when ascp is not found is disabled\n";
-}
+} else { print "download of $REFSEQF when ascp is not found is disabled\n" }
 
 if ($HAVE_NCBI_ASCP) {
    print "NANNOT FASP download when user repository is configured\n";
@@ -280,9 +273,7 @@ if ($HAVE_NCBI_ASCP) {
    print "$CMD\n" if $VERBOSE;
    `$CMD 2> /dev/null`   ; die if $?;
    `rm tmp/nannot/$KMERC`; die if $?;
-} else {
-    print "download of $KMERF when ascp is not found is disabled\n";
-}
+} else { print "download of $KMERF when ascp is not found is disabled\n" }
 
 if ($HAVE_NCBI_ASCP) {
     print "WGS FASP download when user repository is configured\n";
@@ -291,9 +282,7 @@ if ($HAVE_NCBI_ASCP) {
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`   ; die if $?;
     `rm tmp/wgs/$WGSC`; die if $?;
-} else {
-    print "download of $WGSF when ascp is not found is disabled\n";
-}
+} else { print "download of $WGSF when ascp is not found is disabled\n" }
 
 $SDL = 'https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve';
 
@@ -342,11 +331,18 @@ print "$CMD\n" if $VERBOSE;
 if ($?) {
     print "prefetch ASCP URL\n";
     $CMD = "$DIRTOTEST/prefetch $REFSEQF";
-    print "$CMD\n" if $VERBOSE==0;
+    print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`;
-    unless ($?)
-    {   die 'prefetch ASCP URL when ascp is not found has to fail' }
+    unless ($?) { die 'prefetch ASCP URL when ascp is not found has to fail' }
 } else { print "prefetch ASCP URL when ascp is found is skipped\n" }
 
-`rm -rf tmp*`; die if $?;
+if ($HAVE_NCBI_ASCP) {
+    print "prefetch ASCP <BAD SOURCE>\n";
+    $CMD = "$BINDIR/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:100MB";
+    print "$CMD\n" if $VERBOSE;
+    `$CMD 2> /dev/null`;
+    unless ($?)
+    {   die 'prefetch <FASP> when FASP source is not found has to fail' }
+} else { print "prefetch ASCP <BAD SOURCE> when ascp is found is skipped\n" }
 
+`rm -rf tmp*`; die if $?;

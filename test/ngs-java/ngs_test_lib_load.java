@@ -149,7 +149,7 @@ public class ngs_test_lib_load {
         assertNotNull(e);
         assertEquals(LibraryNotFoundError.class, e.getClass());
         assertNotNull(e.getCause());
-        assertEquals(ConnectionProblemCause.class, e.getCause().getClass());
+        assertEquals(DownloadDisabledCause.class, e.getCause().getClass());
     }
 
     @Test
@@ -162,7 +162,7 @@ public class ngs_test_lib_load {
         assertNotNull(e);
         assertEquals(LibraryNotFoundError.class, e.getClass());
         assertNotNull(e.getCause());
-        assertEquals(UnsupportedArchCause.class, e.getCause().getClass());
+        assertEquals(DownloadDisabledCause.class, e.getCause().getClass());
     }
 
     @Test
@@ -174,9 +174,9 @@ public class ngs_test_lib_load {
 
         Throwable e = loadAndCatch(test_lib);
         assertNotNull(e);
-        assertEquals(LibraryLoadError.class, e.getClass());
+        assertEquals(LibraryNotFoundError.class, e.getClass());
         assertNotNull(e.getCause());
-        assertEquals(JvmErrorCause.class, e.getCause().getClass());
+        assertEquals(DownloadDisabledCause.class, e.getCause().getClass());
     }
 
     @Test
@@ -187,9 +187,9 @@ public class ngs_test_lib_load {
 
         Throwable e = loadAndCatch(test_lib);
         assertNotNull(e);
-        assertEquals(LibraryLoadError.class, e.getClass());
+        assertEquals(LibraryNotFoundError.class, e.getClass());
         assertNotNull(e.getCause());
-        assertEquals(InvalidLibraryCause.class, e.getCause().getClass());
+        assertEquals(DownloadDisabledCause.class, e.getCause().getClass());
     }
 
     @Test
@@ -222,9 +222,9 @@ public class ngs_test_lib_load {
 
             Throwable e = loadAndCatch(test_lib);
             assertNotNull(e);
-            assertEquals(LibraryIncompatibleVersionError.class, e.getClass());
+            assertEquals(LibraryNotFoundError.class, e.getClass());
             assertNotNull(e.getCause());
-            assertEquals(PrereleaseReqLibCause.class, e.getCause().getClass());
+            assertEquals(DownloadDisabledCause.class, e.getCause().getClass());
         }
     }
 
@@ -239,8 +239,8 @@ public class ngs_test_lib_load {
 
         Throwable e = loadAndCatch(test_lib);
         assertNotNull(e);
-        assertEquals(LibraryIncompatibleVersionError.class, e.getClass());
+        assertEquals(LibraryNotFoundError.class, e.getClass());
         assertNotNull(e.getCause());
-        assertEquals(OutdatedJarCause.class, e.getCause().getClass());
+        assertEquals(DownloadDisabledCause.class, e.getCause().getClass());
     }
 }

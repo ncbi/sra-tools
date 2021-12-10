@@ -36,8 +36,9 @@
 #include <klib/log.h>
 #include <klib/status.h>
 
-#include <string.h>
 #include <assert.h>
+#include <ctype.h> /* isdigit */
+#include <string.h>
 
 /* Usage
  */
@@ -124,16 +125,45 @@ sra_enc_file:
 
 bool NameFixUp (char * name)
 {
+    bool r = false;
+
     char * pc = strrchr (name, '.');
     if (pc != NULL)
     {
         if (strcmp (pc, EncExt) == 0)
         {
             pc[0] = '\0';
-            return true;
+            r = true;
         }
     }
-    return false;
+
+    pc = strrchr(name, '_');
+    if (pc != NULL) {
+        const char dbGaP[] = "_dbGaP-";
+        if (strlen(pc) > sizeof dbGaP &&
+            strncmp(pc, dbGaP, sizeof dbGaP - 1) == 0)
+        {
+            bool encrypted = true;
+            bool dot = false;
+            const char * p = pc + sizeof dbGaP - 1;
+            for (; encrypted && *p; ++p) {
+                if (*p == '.') {
+                    dot = true;
+                    break;
+                }
+                else if (!isdigit(*p))
+                    encrypted = false;
+            }
+            if (encrypted && dot) {
+                if (strncmp(p, ".sra", 4) == 0) {
+                    strcpy(pc, ".sra");
+                    r |= true;
+                }
+            }
+        }
+    }
+
+    return r;
 }
 
 rc_t CryptFile (const KFile * in, const KFile ** new_in,

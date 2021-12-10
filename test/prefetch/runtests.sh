@@ -54,7 +54,6 @@ WGSF=${SRAF}:data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 work_dir=$(pwd)
 echo WORK DIRECTORY: ${work_dir}
 
-
 # echo vdbcache:
 # echo vdbcache download
 

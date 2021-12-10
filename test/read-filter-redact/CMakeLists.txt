@@ -5,7 +5,7 @@ if( Python3_EXECUTABLE )
         COMMAND
             ${Python3_EXECUTABLE}
                 ${CMAKE_SOURCE_DIR}/build/check-exit-code.py
-                ${BINDIR}/vdb-unlock${EXE}
+                ${DIRTOTEST}/vdb-unlock${EXE}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         COMMAND_EXPAND_LISTS
     )
@@ -13,6 +13,6 @@ endif()
 
 if ( NOT WIN32 )
 	add_test( NAME Test_Read_filter_redact
-		COMMAND runtests.sh ${BINDIR}
+		COMMAND runtests.sh ${DIRTOTEST}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

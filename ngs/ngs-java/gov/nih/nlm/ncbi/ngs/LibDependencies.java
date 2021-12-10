@@ -26,9 +26,11 @@
 
 package gov.nih.nlm.ncbi.ngs;
 
-class LibDependencies {
-    final static String NGS_SDK  = "ngs-sdk";
-    final static String NCBI_VDB = "ncbi-ngs"; // this is an sra-tools library that includes libncbi-vdb and its JNI wrapper
+public class LibDependencies {
+    public final static String NGS_SDK  = "ngs-sdk";
     final static String NGS_SDK_VERSION = "2.11.0";
+
+ // this is an sra-tools library that includes libncbi-vdb and its JNI wrapper
+    public final static String NCBI_VDB = "ncbi-ngs";
     final static String NCBI_VDB_VERSION = "2.11.0";
 }

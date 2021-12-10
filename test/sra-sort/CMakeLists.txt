@@ -5,6 +5,6 @@ if ( NOT WIN32 )
     # if it does exist, the script requires env var TEST_DATA to be set, or it will return an error (1)
     # TEST_DATA is supposed to point to a directory with the inputs for this test
 	add_test( NAME SlowTest_Sra_sort
-		COMMAND test-sra-sort.sh ${BINDIR}
+		COMMAND test-sra-sort.sh ${DIRTOTEST}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

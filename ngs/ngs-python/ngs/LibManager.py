@@ -164,7 +164,9 @@ def load_library(lib_name, do_download, silent):
             lib_name +
             " (NGS_PY_DOWNLOAD_LIBRARY=" + os.environ.get("NGS_PY_DOWNLOAD_LIBRARY", "<not set>") + ", "
             + "NGS_PY_LIBRARY_PATH=" + os.environ.get("NGS_PY_LIBRARY_PATH", "<not set>") + ", "
-            + "do_download=" + str(do_download) + ")")
+            + "do_download=" + str(do_download) + ")\n"
+            + "Please install ngs-sdk and ncbi-ngs libraries: "
+            + "https://github.com/ncbi/ngs/wiki/Downloads")
     else:
         return library
 

@@ -1,6 +1,12 @@
 #ifndef __CFASTQERROR_HPP__
 #define __CFASTQERROR_HPP__
 
+/**
+ * @file fastq_error.hpp
+ * @brief Error handling
+ * 
+ */
+
 #include <string>
 #include <map>
 #include <spdlog/fmt/fmt.h>
@@ -17,8 +23,14 @@ namespace fs = std::filesystem;
 
 using TSharqErrorCode = int;
 using TSharqErrorMsg = std::string;
-using TSharqErrorDescription = std::string;
+using TSharqErrorDescription = std::string;  ///< s
 
+
+/**
+ * @brief 
+ * 
+ */
+ 
 static std::map<TSharqErrorCode, std::tuple<TSharqErrorMsg, TSharqErrorDescription>> 
 SHARQ_ERR_CODES = {
     {0   ,{ "Runtime error.", "Runtime error."}},
@@ -42,18 +54,15 @@ SHARQ_ERR_CODES = {
     {170 ,{ "Collation check. Duplicate spot '{}'", "Collation check found duplicated spot name."}},
     {180 ,{ "{} ended early at line {}. Use '--allowEarlyFileEnd' to allow load to finish.", "One of the files is shorter than the other. Use '--allowEarlyFileEnd' to allow load to finish."}},
     {190 ,{ "Usupported interleaved file with orphans", "Usupported interleaved file with orphans."}},
-    {200 ,{ "Invaid quality encoding", "Failure to calculate quality score encoding."}}
+    {200 ,{ "Invaid quality encoding", "Failure to calculate quality score encoding."}},
+    {210 ,{ "Spot {} has more than 4 reads", "Assembled spot has more than 4 reads."}}
 
 };
 
-//  ============================================================================
 class fastq_error: public std::exception
-//  ============================================================================
+/// Error class used throughout application 
 {
 public:
-    //fastq_error(
-    //    const std::string& message): mMessage(message)
-    //{}
     
     template<typename... Args> 
     fastq_error(const std::string& message, Args... args) {

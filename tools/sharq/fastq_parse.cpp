@@ -1,3 +1,9 @@
+/**
+ * @file fastq_parse.cpp
+ * @brief SharQ application
+ *
+ */
+
 /*  $Id: fastq_parse.cpp 637208 2021-09-08 21:30:39Z shkeda $
 * ===========================================================================
 *
@@ -23,19 +29,19 @@
 *
 * ===========================================================================
 *
-* Author:  Many, by the time it's done.
-*
-* File Description:
+* Author:  Andrei Shkeda
+* File Description: SharQ application
 *
 * ===========================================================================
 */
-// comand line 
+// command line 
 #include "CLI11.hpp"
 //loging 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_sinks.h>
 
+#include "version.h"
 #include "fastq_error.hpp"
 #include "fastq_parser.hpp"
 #include "fastq_writer.hpp"
@@ -54,9 +60,21 @@ using json = nlohmann::json;
 
 #define LOCALDEBUG
 
-//  ============================================================================
+/**
+ * @brief SharQ application class
+ * 
+ * After processing the command line arguments and input files,
+ * the application builds a digest (json data structure) for the first 500K spots.
+ * 
+ * Digest captures the payload properties as well as identifies quality score encoding. 
+ * 
+ * Parser and writer are set up using the digest data
+ *
+ * Witer's output (stdout) is expected to be piped in general_loader application.
+ * 
+ * --debug parameter can be used to send the output to stdout
+ */
 class CFastqParseApp
-//  ============================================================================
 {
 public:    
     int AppMain(int argc, const char* argv[]);
@@ -77,23 +95,23 @@ private:
 
     void xReportTelemetry();
 
-    string mOutputFile;
-    string mDestination;         ///< path to sra archive
-    bool mDebug{false};          ///< Debug mode  
-    bool mNoTimeStamp{false};    ///< No time stamp in debug mode
-    vector<char> mReadTypes;     ///< ReadType paramter value
-    using TInptuFiles = vector<string>;
-    vector<TInptuFiles> mInputBatches;
-    bool mDiscardNames{false};
-    bool mAllowEarlyFileEnd{false}; ///< Flag to continue if one of the streams ends
-    int mQuality{-1};               ///< quality score interpretation (0, 33, 64)
-    int mDigest{0};                 ///< Numberof dogest lines to produce 
-    string mTelemetryFile;          ///< Telemetry report file name
-    string mSpotFile;
-    string mNameColumn;             ///< NAME column's name
-    ostream* mpOutStr{nullptr};
-    shared_ptr<fastq_writer> m_writer;
-    json  mReport;
+    string mDestination;                ///< path to sra archive
+    bool mDebug{false};                 ///< Debug mode  
+    bool mNoTimeStamp{false};           ///< No time stamp in debug mode
+    vector<char> mReadTypes;            ///< ReadType paramter value
+    using TInputFiles = vector<string>;
+    vector<TInputFiles> mInputBatches;  ///< List of input batches
+    bool mDiscardNames{false};          ///< If set spot names are not written in the db, the same effect as mNameColumn = 'NONE'
+    bool mAllowEarlyFileEnd{false};     ///< Flag to continue if one of the streams ends
+    int mQuality{-1};                   ///< quality score interpretation (0, 33, 64)
+    int mDigest{0};                     ///< Numberof dogest lines to produce 
+    string mTelemetryFile;              ///< Telemetry report file name
+    string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
+    string mNameColumn;                 ///< NAME column's name, ('NONE', 'NAME', 'RAW_NAME')
+    string mOutputFile;                 ///< Outut file name - not currently used 
+    ostream* mpOutStr{nullptr};         ///< Outpu stream pointer  = not currentl used 
+    shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer 
+    json  mReport;                      ///< Telemtry report 
 
 
 };
@@ -141,6 +159,8 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         mOutputFile.clear();
         mDestination = "sra.out";
+
+        app.set_version_flag("--version,-v", SHARQ_VERSION);
 
         app.add_option("--output", mDestination, "Output archive path");        
 
@@ -196,6 +216,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         opt->add_option("--spot_file", mSpotFile, "Save spot names");
         opt->add_flag("--debug", mDebug, "Debug mode");
 
+        mReport["version"] = SHARQ_VERSION;
         // save cmd args
         for (int i = 1; i < argc; ++i) 
             mReport["args"].push_back(argv[i]);
@@ -469,7 +490,10 @@ int CFastqParseApp::xRun()
 
     m_writer->set_attr("name_column", mNameColumn);
     m_writer->set_attr("destination", mDestination);
+    m_writer->set_attr("version", SHARQ_VERSION);
+
     m_writer->open();
+
     for (auto& group : data["groups"]) {
         parser.set_readers(group);
         parser.parse();
@@ -484,6 +508,7 @@ int CFastqParseApp::xRun()
     if (!mTelemetryFile.empty()) {
         parser.report_telemetry(mReport);
     }
+
     return 0;
 }
 
@@ -517,7 +542,7 @@ int main(int argc, const char* argv[])
     auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
     spdlog::set_default_logger(stderr_logger);
     
-    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern (datetime, error level, error text)
     return CFastqParseApp().AppMain(argc, argv);
 }
 

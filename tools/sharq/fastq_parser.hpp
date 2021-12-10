@@ -1,5 +1,13 @@
 #ifndef __FASTQ_PRASER_HPP__
 #define __FASTQ_PRASER_HPP__
+
+/**
+ * @file fastq_parser.hpp
+ * @brief FASTQ reader and parser
+ * 
+ */
+
+
 /*  
 * ===========================================================================
 *
@@ -25,9 +33,9 @@
 *
 * ===========================================================================
 *
-* Author:  Many, by the time it's done.
+* Author: Andrei Shkeda
 *
-* File Description:
+* File Description: FASTQ reader and parser
 *
 * ===========================================================================
 */
@@ -62,12 +70,20 @@ typedef bm::str_sparse_vector<char, bvector_type, 32> str_sv_type;
 using json = nlohmann::json;
 
 
-//  ============================================================================
 class fastq_reader
-//  ============================================================================
+/// FASTQ reader
 {
 public:    
 
+    /**
+     * @brief Construct a new fastq reader object
+     * 
+     * @param[in] file_name File name 
+     * @param[in] _stream opened input stream to read from
+     * @param[in] read_type expected read type ('T', 'B', 'A')
+     * @param[in] platform expected platfrom code 
+     * @param[in] match_all if True no failure on unspoorted deflines
+     */
     fastq_reader(const string& file_name, shared_ptr<istream> _stream, vector<char> read_type = {'B'}, int platform = 0, bool match_all = false) 
         : m_file_name(file_name)
         , m_stream(_stream)
@@ -81,14 +97,39 @@ public:
             m_defline_parser.SetMatchAll();
     }
     ~fastq_reader() = default;
+
+    /**
+     * @brief Returns defline's platform code
+     * 
+     * @return uint8_t 
+     */
     uint8_t platform() const { return m_defline_parser.GetPlatform();}
-    //char read_type() const { return m_read_type;}
+
+    /**
+     * @brief Reads one read from the stream
+     * 
+     * @param[in,out] read  
+     * @return true if read successfully parsed
+     * @return false if eof reached
+     * 
+     * @throws fastq_error on parsing failures
+     */
     bool parse_read(CFastqRead& read);
+
+    /**
+     * @brief Parses and validates read
+     * 
+     * @param[in,out] read 
+     * @return true if read successfully parsed
+     * @return false if eof reached
+     * 
+     * @throws fastq_error on parsing failures
+     */
     bool get_read(CFastqRead& read);
 
 
     /**
-     * Retrieves next spot in the stream 
+     * @brief Retrieves next spot in the stream 
      *
      * @param[out] spot name of the next spot 
      * @param[out] reads vector of reads belonging to the spot 
@@ -97,7 +138,7 @@ public:
     bool get_next_spot(string& spot_name, vector<CFastqRead>& reads);
 
     /**
-     * Searches the reads for the spot 
+     * @brief Searches the reads for the spot 
      * 
      * search depth is just one spot 
      * so the reads have to be either next or one spot down the stream
@@ -106,39 +147,68 @@ public:
      * @param[out] reads vector of reads for the spot 
      * @return true if reads are found 
      */
-
     bool get_spot(const string& spot_name, vector<CFastqRead>& reads);
+
+    /**
+     * @brief Set reader's validation parameters 
+     * 
+     * @param[in] is_numeric true if quality score is expected to be numeric
+     * @param[in] min_score quality score min value
+     * @param[in] max_score quality score max value 
+     */
     void set_validator(bool is_numeric, int min_score, int max_score);
 
-    bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true file has no more reads
+    bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true if file has no more reads
+
     size_t line_number() const { return m_line_number; } ///< Returns current line number (1-based)
+
     const string& file_name() const { return m_file_name; }  ///< Returns reader's file name
+
     const string& defline_type() const { return m_defline_parser.GetDeflineType(); }  ///< Returns current defline name
 
+    /**
+     * @brief returns True is stream is compressed
+     * 
+     */
     bool is_compressed() const {
         auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
         return fstream ? fstream->compression() != bxz::plaintext : false; 
     }
 
-
-    //  position in compressed file
-    size_t tellg() const { 
+    /**
+     * @brief returns current stream position 
+     * 
+     * @return size_t 
+     */
+    size_t tellg() const {
         auto fstream = dynamic_cast<bxz::ifstream*>(&*m_stream);
         return fstream ? fstream->compressed_tellg() : m_stream->tellg(); 
     } 
 
-    const set<string>& AllDeflineTypes() const { return m_defline_parser.AllDeflineTypes();}
+    const set<string>& AllDeflineTypes() const { return m_defline_parser.AllDeflineTypes(); } ///< retruns set of defline types processed by the reader
 
+    /**
+     * @brief cluster list of files into groups by common spot name
+     * 
+     * @param[in] files list of input files
+     * @param[out] batches  batches of files grouped by common top spot 
+     */
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 
-    void dummy_validator(CFastqRead& read);//, pair<int, int>& expected_range, string& tmp_str);
-    void num_qual_validator(CFastqRead& read);
-    void char_qual_validator(CFastqRead& read);
-
+    void dummy_validator(CFastqRead& read);      ///< dummy read validator, no validation 
+    void num_qual_validator(CFastqRead& read);   ///< Numeric quality score validatot
+    void char_qual_validator(CFastqRead& read);  ///< Character (PHRED) quality score validator
 
 
 private:
-    enum EValidator {eNoValidator, eNumeric, ePhred} ;
+    /**
+     * @brief Validator types
+     * 
+     */
+    enum EValidator {
+        eNoValidator,  
+        eNumeric,      
+        ePhred} ;
 
     CDefLineParser      m_defline_parser;       ///< Defline parser 
     string              m_file_name;            ///< Corresponding file name
@@ -148,22 +218,20 @@ private:
     string              m_buffered_defline;     ///< Defline already read from the stream but not placed in a read
     vector<CFastqRead>  m_buffered_spot;        ///< Spot already read from the stream but no returned to the consumer
     vector<CFastqRead>  m_pending_spot;         ///< Partial spot with the first read only 
-    bool                m_is_qual_score_numeric = true; ///< Quality score is numeric and qual score size == sequence size
+    bool                m_is_qual_score_numeric = true;  ///< Quality score is numeric and qual score size == sequence size
     using TQualScoreRange = pair<int, int>;
-    TQualScoreRange     m_qual_score_range = {33, 126};       ///< Expected quality score range
-    EValidator          m_validator{eNoValidator};
-    string              m_line;
-    string_view         m_line_view;
-    string              m_tmp_str;
-    int                 m_read_type_sz = 0;
-    int                 m_curr_platform = 0;     ///< current platform
-
+    TQualScoreRange     m_qual_score_range = {33, 126};  ///< Expected quality score range
+    EValidator          m_validator{eNoValidator};  ///< Validator types
+    string              m_line;                     ///< Temporary variable to hold current line 
+    string_view         m_line_view;                ///< Temporary variable to hold string_view to the current line 
+    string              m_tmp_str;                  ///< Temporary string holder
+    int                 m_read_type_sz = 0;         ///< Temporary variable yto hold readtype vector size
+    int                 m_curr_platform = 0;        ///< current platform
 };
 
 //  ----------------------------------------------------------------------------
 static
 shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
-//  ----------------------------------------------------------------------------
 {
     shared_ptr<istream> is = (filename != "-") ? shared_ptr<istream>(new bxz::ifstream(filename, ios::in, buffer_size)) : shared_ptr<istream>(new bxz::istream(std::cin)); 
     if (!is->good())
@@ -172,27 +240,77 @@ shared_ptr<istream> s_OpenStream(const string& filename, size_t buffer_size)
 }
 
 
-//  ============================================================================
 template<typename TWriter>
 class fastq_parser
+/// FASTQ parser: reads from a group of readers and assembles the spots
 {
-public:    
+public:
+
+    /**
+     * @brief Construct a new fastq parser object
+     * 
+     * @param[in] writer  
+     */
     fastq_parser(shared_ptr<TWriter> writer) :
         m_writer(writer) {}
+    
     ~fastq_parser() {
 //        bm::chrono_taker::print_duration_map(timing_map, bm::chrono_taker::ct_ops_per_sec);
     }
 
-    // creates reader from digest data
+    /**
+     * @brief Set up readers from prepared digest data
+     * 
+     * @param data[in[ 
+     */
     void set_readers(json& data);
 
-    void set_spot_file(const string& spot_file) { m_spot_file = spot_file; }
+    /**
+     * @brief Set allow early end
+     * 
+     * Allow parser to procceed at early end of one of the files
+     * 
+     * @param[in]  allow_early_end
+     */
     void set_allow_early_end(bool allow_early_end = true) { m_allow_early_end = allow_early_end; }
+
+    /**
+     * @brief Set the spot_file name 
+     * 
+     * Debugging/info function: when spot_file name is set 
+     * the list of all spot names will be serialized
+     * The seirizlized format: BitMagic str_sparse_vector
+     * 
+     * @param spot_file[in[
+     */
+    void set_spot_file(const string& spot_file) { m_spot_file = spot_file; }
+
+    /**
+     * @brief read from a group of readers, assembles the spot and send it to the writer
+     * 
+     */
     void parse();
+
+    /**
+     * @brief Collation check
+     * 
+     * Check if more than one name exists in the collected m_spot_names dictionary
+     * 
+     */
     void check_duplicates();
+
+    /**
+     * @brief Reports collected telemetry via json
+     * 
+     * @param j[out]
+     */
     void report_telemetry(json& j);
 private:
 
+    /**
+     * @brief Data structure to collect runtime statistics for each file group
+     * 
+     */
     typedef struct {
         vector<string> files;
         set<string> defline_types;
@@ -207,24 +325,39 @@ private:
         size_t max_sequence_size = 0;
         size_t min_sequence_size = numeric_limits<size_t>::max();
     } group_telemetry;
+    /**
+     * @brief Data structure to collect runtime statistics for the whole run 
+     * 
+     */
     struct m_telemetry
     {
         int platform_code = 0;
         int quality_code = 0;
         double parsing_time = 0;
         double collation_check_time = 0;
-        vector<group_telemetry> groups;
+        vector<group_telemetry> groups; ///< telemetry per each group
     } m_telemetry;
 
+    /**
+     * @brief Populate telemetry from digest json 
+     * 
+     * @param[in]  group
+     */
     void set_telemetry(const json& group);
+
+    /**
+     * @brief Update telemetry for the assembled spot
+     * 
+     * @param[in] reads assembled spot 
+     */
     void update_telemetry(const vector<CFastqRead>& reads);
 
-    shared_ptr<TWriter>  m_writer;
-    vector<fastq_reader> m_readers;
-    str_sv_type          m_spot_names;
-    bool                 m_allow_early_end{false};     ///< Allow early file end
-    string               m_spot_file;
-    str_sv_type::back_insert_iterator m_spot_names_bi;
+    shared_ptr<TWriter>  m_writer;                     ///< FASTQ writer
+    vector<fastq_reader> m_readers;                    ///< List of readers   
+    str_sv_type          m_spot_names;                 ///< Run-time collected spot name dictionary 
+    bool                 m_allow_early_end{false};     ///< Allow early file end flag
+    string               m_spot_file;                  ///< Optional file name for spot_name dictionary
+    str_sv_type::back_insert_iterator m_spot_names_bi; ///< Internal back_inserter for spot_names collection
 };
 
 
@@ -266,7 +399,6 @@ if (getline(stream, line).eof()) { \
 
 //  ----------------------------------------------------------------------------    
 bool fastq_reader::parse_read(CFastqRead& read) 
-//  ----------------------------------------------------------------------------    
 {
     if (m_stream->eof())
         return false;
@@ -494,7 +626,7 @@ void fastq_reader::set_validator(bool is_numeric, int min_score, int max_score)
 
 
 
-BM_DECLARE_TEMP_BLOCK(TB)
+BM_DECLARE_TEMP_BLOCK(TB) // BitMagic Temporary block
 
 //  ----------------------------------------------------------------------------    
 static 
@@ -512,7 +644,12 @@ void serialize_vec(const string& file_name, str_sv_type& vec)
 }
 
 
-//  ----------------------------------------------------------------------------    
+
+/**
+ * gets top spot spot name for each reader 
+ * and retrieves next reads belonging to the same spot from other readers
+ * to assembly the spot
+ */
 template<typename TWriter>
 void fastq_parser<TWriter>::parse() 
 {
@@ -562,7 +699,10 @@ void fastq_parser<TWriter>::parse()
                 }
             }
             assert(assembled_spot.empty() == false);
-            if (!assembled_spot.empty()) {
+            auto spot_size = assembled_spot.size();
+            if (spot_size > 0) {
+                if (spot_size > 4)
+                    throw fastq_error(210, "Spot {} has more than 4 reads", assembled_spot.front().Spot());
                 m_writer->write_spot(assembled_spot);
                 spot_names_bi = assembled_spot.front().Spot();
                 update_telemetry(assembled_spot);
@@ -712,6 +852,10 @@ void fastq_parser<TWriter>::check_duplicates()
     spdlog::debug("spot_name check time:{}, num_hits: {:L}", sw, hits);
 }
 
+/**
+ * @brief Temporary structure to collect quality score stats
+ * 
+ */
 typedef struct qual_score_params 
 {
     qual_score_params() {
@@ -841,6 +985,11 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
 
 
 //  ----------------------------------------------------------------------------    
+/**
+ * @brief Debugging function to perform a collation check on previously saved spot_name file
+ * 
+ * @param[in] hash_file 
+ */
 void check_hash_file(const string& hash_file) 
 {
     str_sv_type vec;
@@ -913,6 +1062,13 @@ void check_hash_file(const string& hash_file)
     //bm::SaveBVector(collisions_file.c_str(), bv_collisions);
 }
 
+/**
+ * @brief Generate digest data 
+ * 
+ * @param[in,out] j digest data
+ * @param[in] input_batches input group pf files
+ * @param[in] num_reads_to_check
+ */
 void get_digest(json& j, const vector<vector<string>>& input_batches, int num_reads_to_check = 250000) 
 {
     assert(!input_batches.empty());

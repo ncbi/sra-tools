@@ -330,6 +330,8 @@ static void CC vdm_read_cell_data( void *item, void *data )
                      "col_name=%s,row_nr=%lu",
                       col_def -> name, r_ctx -> row_id ));
         }
+        /* remember the last error */
+        r_ctx -> last_rc = r_ctx -> rc;
         /* be forgiving and continue if a cell cannot be read */
         r_ctx -> rc = 0;
     }
@@ -642,6 +644,7 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
 {
     row_context r_ctx;
     rc_t rc = VTableCreateCachedCursorRead( tbl, &( r_ctx . cursor ), ctx -> cur_cache_size );
+    r_ctx . last_rc = 0;
     DISP_RC( rc, "VTableCreateCursorRead() failed" );
     if ( 0 == rc )
     {
@@ -741,6 +744,9 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
             rc_t rc2 = VCursorRelease( r_ctx . cursor );
             DISP_RC( rc2, "VCursorRelease() failed" );
             rc = ( rc == 0 ) ? rc2 : rc;
+        }
+        if ( 0 == rc && 0 != r_ctx . last_rc ) {
+            rc = r_ctx . last_rc;
         }
     }
     return rc;

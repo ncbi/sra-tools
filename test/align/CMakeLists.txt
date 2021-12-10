@@ -6,7 +6,7 @@ include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
 
 if( NOT WIN32 )
     include_directories( ${VDB_SRCDIR}/libs/align )
-    AddExecutableTest( Test_Align_samextract "test-samextract" "${NCBI_VDB_ILIBDIR}/libsam-extract.${STLX};${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_Align_samextract "test-samextract" "${NCBI_VDB_LIBDIR}/libsam-extract.${STLX};${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 endif()
 
 add_executable( test-estimator pileup_estimator )

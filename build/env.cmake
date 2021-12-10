@@ -225,10 +225,7 @@ else() # assume a single-config generator
         message( FATAL_ERROR "Please specify the location where ncbi-vdb libraries are installed (VDB_LIBDIR)")
     endif()
 
-    #set( NCBI_VDB_BINDIR ${VDB_BINDIR}/bin )
-    #set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
     set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
-    #set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
     message(WARNING "Linking with ncbi-vdb libraries from the following location: ${NCBI_VDB_LIBDIR}")
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
@@ -244,7 +241,6 @@ else() # assume a single-config generator
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
     link_directories( ${NCBI_VDB_LIBDIR} ) # TODO: USE_INSTALLED_NCBI_VDB
-    #link_directories( ${NCBI_VDB_ILIBDIR} ) # TODO: not clear what to do in case USE_INSTALLED_NCBI_VDB == 1
 endif()
 
 # ===========================================================================
@@ -522,7 +518,7 @@ if( WIN32 )
     set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
-    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_ILIBDIR}/libkapp.${STLX} ${NCBI_VDB_ILIBDIR}/libload.${STLX} tk-version )
+    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} ${NCBI_VDB_LIBDIR}/libload.${STLX} tk-version )
     set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
     set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
 endif()

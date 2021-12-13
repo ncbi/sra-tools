@@ -22,32 +22,37 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="test/prefetch" )
+($DIRTOTEST) = @ARGV;
 
-# if( Python3_EXECUTABLE )
-	# add_test( NAME Test_Vdb_dump_Check_exit_code
-		# COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-dump
-		# WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# endif()
+`which ascp 2> /dev/null`;
+unless ($?) {
+    unless (`hostname` eq "iebdev21\n") {
+        $FOUND = 1;
 
-if ( NOT WIN32 )
-	BuildExecutableForTest( SlowTest_Prefetch "test-quality" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+        print "FASP download: ncbi/1GB\n";
 
-	add_test( NAME Test_Prefetch_urls_and_accs
-		COMMAND perl urls_and_accs.pl ${BINDIR} ${BINDIR}
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        $CWD = `pwd`; die if $?; chomp $CWD;
 
-	add_test( NAME SlowTest_Prefetch
-		COMMAND
-            ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-            bash -c "./runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}"
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        `rm -fr tmp/*`; die if $?;
+        `mkdir -p tmp`; die if $?;
+        chdir 'tmp'  or die;
 
-	add_test( NAME SlowTest_Prefetch_1GB
-		COMMAND perl ncbi1GB.pl ${BINDIR}
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        `echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > t.kfg`;
+        die if $?;
 
-	add_test( NAME SlowTest_Prefetch_vdbcache
-		COMMAND perl vdbcache.pl ${BINDIR}
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endif()
+        `rm -f 1GB`; die if $?;
+
+        $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
+               "$DIRTOTEST/prefetch fasp://anonftp\@ftp.ncbi.nlm.nih.gov:1GB";
+        print "$CMD\n" if $VERBOSE;
+        `$CMD 2> /dev/null`; die 'Is there DIRTOTEST?' if $?;
+        `rm 1GB`; die if $?;
+
+        chdir $CWD or die;
+
+        `rm -r tmp`; die if $?;
+    }
+}
+
+print "ascp download when ascp is not found is disabled\n" unless $FOUND;
+

@@ -77,24 +77,6 @@ WGSF=${SRAF}:data/sracloud/traces/wgs03/WGS/AF/VF/AFVF01.1
 work_dir=$(pwd)
 echo WORK DIRECTORY: ${work_dir}
 
-# echo ncbi1GB:
-# mkdir -p tmp
-
-# echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
-
-# if ls `pwd`/tmp/1GB 2> /dev/null; \
-    # then echo 1GB found ; exit 1; fi
-
- # if [ "${HAVE_NCBI_ASCP}" = "1" ] ; then \
- # echo FASP download: ncbi/1GB ; \
- # export VDB_CONFIG=`pwd`/tmp && export NCBI_SETTINGS=/ && cd tmp && \
-   # $(DIRTOTEST)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB>/dev/null&&\
-   # ls `pwd`/1GB > /dev/null ; \
-# fi
-# cd ${work_dir}
-
-# rm -r tmp
-
 # ################################################################################
 
 # echo out_dir_and_file:

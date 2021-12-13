@@ -47,6 +47,10 @@ extern "C" {
 #include <vfs/path.h>
 #endif
 
+#ifndef _h_helper_
+#include "helper.h"
+#endif
+
 typedef struct inspector_input_t
 {
     KDirectory * dir;
@@ -104,12 +108,12 @@ const char * inspector_extract_acc_from_path( const char * s );
 
 typedef struct inspector_estimate_input_t
 {
-    const inspector_output_t * insp;
+    const inspector_output_t * insp;    /* above */
     const char * seq_defline;
     const char * qual_defline;
     const char * acc;
+    format_t fmt;                       /* helper.h */
     uint32_t avg_name_len;
-    bool fasta;
     bool skip_tech;
 } inspector_estimate_input_t;
 

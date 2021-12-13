@@ -78,7 +78,7 @@
 
 /* ---------------------------------------------------------------------------------- */
 
-static const char * format_usage[] = { "format (special, fastq, lookup, default=fastq)", NULL };
+static const char * format_usage[] = { "format (special, fastq, default=fastq)", NULL };
 #define OPTION_FORMAT   "format"
 #define ALIAS_FORMAT    "F"
 
@@ -188,9 +188,19 @@ static const char * only_a_usage[] = { "process only aligned reads", NULL };
 #define OPTION_ONLY_ALIG        "only-aligned"
 #define ALIAS_ONLY_ALIG         "a"
 
-static const char * limit_usage[] = { "limit rowcount per thread", NULL };
-#define OPTION_LIMIT            "limit"
-#define ALIAS_LIMIT             "l"
+static const char * row_limit_usage[] = { "limit rowcount per thread", NULL };
+#define OPTION_ROW_LIMIT        "row-limit"
+#define ALIAS_ROW_LIMIT         "l"
+
+static const char * check_usage[] = { "switch to control:",
+                                      "on=perform size-check (default), ",
+                                      "off=do not perform size-check, ",
+                                      "only=perform size-check only",
+                                      NULL };
+#define OPTION_CHECK            "size-check"
+
+static const char * disk_limit_usage[] = { "explicitly set disk-limit", NULL };
+#define OPTION_DISK_LIMIT       "disk-limit"
 
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
@@ -226,8 +236,10 @@ OptDef ToolOptions[] = {
     { OPTION_QUAL_DEFLINE,  NULL,               NULL, qual_defline_usage,   1, true,   false },
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
     { OPTION_ONLY_ALIG,     ALIAS_ONLY_ALIG,    NULL, only_a_usage,         1, false,  false },
-    { OPTION_LIMIT,         ALIAS_LIMIT,        NULL, limit_usage,          1, true,   false },    
-    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false },
+    { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false },
+    { OPTION_DISK_LIMIT,    NULL,               NULL, disk_limit_usage,     1, true,   false },
+    { OPTION_CHECK,         NULL,               NULL, check_usage,          1, true,   false },
+    { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false }
 };
 
 /* ----------------------------------------------------------------------------------- */
@@ -310,7 +322,8 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> output_dirname = get_str_option( args, OPTION_OUTPUT_D, NULL );
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
-    tool_ctx -> row_limit = get_uint64_t_option( args, OPTION_LIMIT, 0 );
+    tool_ctx -> row_limit = get_uint64_t_option( args, OPTION_ROW_LIMIT, 0 );
+    tool_ctx -> disk_limit = get_size_t_option( args, OPTION_DISK_LIMIT, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
     
     /* join_options_t is defined in helper.h */
@@ -326,7 +339,8 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     fasta      = get_bool_option( args, OPTION_FASTA );
     fasta_us   = get_bool_option( args, OPTION_FASTA_US );
 
-    if ( split_spot && split_file ) {
+    if ( 0 == rc && split_spot && split_file ) {
+        rc = RC( rcExe, rcFile, rcPacking, rcName, rcInvalid );
         ErrMsg( "split-spot and split-file exclude each other -> %R", rc );
     }
 
@@ -336,6 +350,12 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
         tool_ctx -> join_options . skip_tech = true;
     }
 
+    tool_ctx -> check_mode = get_check_mode_t( get_str_option( args, OPTION_CHECK, "on" ) );
+    if ( 0 == rc && cmt_unknown == tool_ctx -> check_mode ) {
+        rc = RC( rcExe, rcFile, rcPacking, rcName, rcUnknown  );
+        ErrMsg( "invalid check-mode -> %R", rc );
+    }
+    
     tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
@@ -749,7 +769,7 @@ rc_t CC KMain ( int argc, char *argv [] ) {
                     rc = populate_tool_ctx( &tool_ctx ); /* tool_ctx.c */
                 }
 
-                if ( 0 == rc ) {
+                if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {
                     switch( tool_ctx . insp_output . acc_type ) {
                         /* a cSRA-database with alignments */
                         case acc_csra       : rc = process_csra( &tool_ctx ); break; /* above */

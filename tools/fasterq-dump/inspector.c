@@ -1012,36 +1012,59 @@ rc_t inspection_report( const inspector_input_t * input, const inspector_output_
 
 /* ------------------------------------------------------------------------------------------- */
 
-static size_t inspector_estimated_defline_length( const inspector_estimate_input_t * input ) {
-    size_t seq_defline_length = 0;
-    size_t qual_defline_length = 0;
+static size_t insp_est_seq_defline_len( const inspector_estimate_input_t * input ) {
     defline_estimator_input_t defl_est_inp;
 
     defl_est_inp . acc = input -> acc;
     defl_est_inp . avg_name_len = input -> avg_name_len;
-    
+
     defl_est_inp . defline = input -> seq_defline;    
-    seq_defline_length = estimate_defline_length( &defl_est_inp );
-
-    if ( ! input -> fasta ) {
-        defl_est_inp . defline = input -> qual_defline;
-        qual_defline_length = estimate_defline_length( &defl_est_inp );
-    }
-
-    return seq_defline_length + qual_defline_length;
+    return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
 }
 
-size_t inspector_estimate_output_size( const inspector_estimate_input_t * input ) {
-    size_t res = 0;
+static size_t insp_est_qual_defline_len( const inspector_estimate_input_t * input ) {
+    defline_estimator_input_t defl_est_inp;
 
+    defl_est_inp . acc = input -> acc;
+    defl_est_inp . avg_name_len = input -> avg_name_len;
+
+    defl_est_inp . defline = input -> qual_defline;    
+    return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
+}
+
+static size_t insp_est_base_count( const inspector_estimate_input_t * input ) {
     /* if we are skipping technical reads : we take the bio_base_count, otherwise the total_base_count 
        ( these 2 numbers can be the same for cSRA objects, they have no technical reads ) */
     if ( input -> skip_tech ) {
-        res = input -> insp -> seq . bio_base_count;
-    } else {
-        res = input -> insp -> seq . total_base_count;
+        return input -> insp -> seq . bio_base_count;
     }
-    if ( ! input -> fasta ) res *= 2;
-    res += inspector_estimated_defline_length( input );
+    return input -> insp -> seq . total_base_count;
+}
+
+static size_t insp_est_out_size_whole_spot( const inspector_estimate_input_t * input, bool fasta ) {
+    size_t res = insp_est_base_count( input );
+    if ( fasta ) {
+        res += ( insp_est_seq_defline_len( input ) * input -> insp -> seq . row_count );
+        return res;
+    }
+    res *= 2;
+    res += ( insp_est_seq_defline_len( input ) * input -> insp -> seq . row_count );
+    res += ( insp_est_qual_defline_len( input ) * input -> insp -> seq . row_count );    
     return res;
+}
+
+size_t inspector_estimate_output_size( const inspector_estimate_input_t * input ) {
+    switch( input -> fmt ) {
+        case ft_unknown                 : return 0; break;
+        case ft_fastq_whole_spot        : return insp_est_out_size_whole_spot( input, false ); break;
+        case ft_fastq_split_spot        : return 0; break;
+        case ft_fastq_split_file        : return 0; break;
+        case ft_fastq_split_3           : return 0; break;
+        case ft_fasta_whole_spot        : return insp_est_out_size_whole_spot( input, true ); break;
+        case ft_fasta_split_spot        : return 0; break;
+        case ft_fasta_split_file        : return 0; break;
+        case ft_fasta_split_3           : return 0; break;
+        case ft_fasta_us_split_spot     : return 0; break;
+    }
+    return 0;
 }

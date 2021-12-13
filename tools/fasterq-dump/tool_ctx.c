@@ -74,14 +74,15 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "threads      : %u\n", tool_ctx -> num_threads );
     }
     if ( 0 == rc && tool_ctx -> row_limit > 0 ) {
-        rc = KOutMsg( "row-limit    : %lu\n", tool_ctx -> row_limit );
+        rc = KOutMsg( "row-limit    : %,lu rows\n", tool_ctx -> row_limit );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "scratch-path : '%s'\n", get_temp_dir( tool_ctx -> temp_dir ) /* temp_dir.h */ );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "total ram    : '%lu'\n", tool_ctx -> total_ram );
+        rc = KOutMsg( "total ram    : %,lu bytes\n", tool_ctx -> total_ram );
     }
+
     if ( 0 == rc ) {
         rc = KOutMsg( "output-format: " );
     }
@@ -99,6 +100,19 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
             case ft_fasta_split_3       : rc = KOutMsg( "FASTA split 3\n" ); break;
         }
     }
+
+    if ( 0 == rc ) {
+        rc = KOutMsg( "check-mode   : " );
+    }
+    if ( 0 == rc ) {
+        switch ( tool_ctx -> check_mode ) {
+            case cmt_unknown            : rc = KOutMsg( "unknown check-modet\n" ); break;
+            case cmt_on                 : rc = KOutMsg( "on\n" ); break;
+            case cmt_off                : rc = KOutMsg( "off\n" ); break;
+            case cmt_only               : rc = KOutMsg( "only\n" ); break;
+        }
+    }
+
     if ( 0 == rc ) {
         rc = KOutMsg( "output-file  : '%s'\n",
                     NULL != tool_ctx -> output_filename ? tool_ctx -> output_filename : "-" );
@@ -132,7 +146,10 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "accession-path: '%s'\n", tool_ctx -> accession_path );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "est. output   : %lu'\n", tool_ctx -> estimated_output_size );
+        rc = KOutMsg( "est. output   : %,lu bytes\n", tool_ctx -> estimated_output_size );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "disk-limit    : %,lu bytes\n", tool_ctx -> disk_limit );
     }
 
     if ( 0 == rc ) {
@@ -449,7 +466,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
     }
 
     /* if an output-directory is explicity given from the commandline: create if not exists */
-    if ( 0 == rc && NULL != tool_ctx -> output_dirname ) {
+    if ( 0 == rc && NULL != tool_ctx -> output_dirname && cmt_only != tool_ctx -> check_mode ) {
         if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) ) /* file_tools.c */ {
             rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true ); /* file_tools.c */
         }
@@ -470,7 +487,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
                 rc = tool_ctx_adjust_output_filename_by_dir( tool_ctx ); /* above */
             }
         }
-        if ( 0 == rc ) {
+        if ( 0 == rc && cmt_only != tool_ctx -> check_mode ) {
             rc = check_output_exits( tool_ctx ); /* above */
         }
     }
@@ -508,16 +525,28 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         }
     }
 
+    /* evaluate the free-disk-space if no limit has been given explicitly */
+    if ( 0 == rc && 0 == tool_ctx -> disk_limit ) {
+        uint64_t free_space, total_space;
+        rc = KDirectoryGetDiskFreeSpace( tool_ctx -> dir, &free_space, &total_space );
+        if ( 0 != rc ) {
+            ErrMsg( "KDirectoryGetDiskFreeSpace() -> %R", rc );
+        } else {
+            tool_ctx -> disk_limit = free_space;
+        }
+    }
+    
     /* create an estimation of the output-size */
-    if ( 0 == rc ) {
-        inspector_estimate_input_t iei;
+    if ( 0 == rc && is_perform_check( tool_ctx -> check_mode ) /* helper.c */ ) {
+        inspector_estimate_input_t iei; /* inspector.h */
+
         iei . insp = &( tool_ctx -> insp_output );
         iei . seq_defline  = tool_ctx -> seq_defline;
         iei . qual_defline = tool_ctx -> qual_defline;
         iei . acc = tool_ctx -> accession_short;
         iei . avg_name_len = tool_ctx -> insp_output . seq . avg_name_len;
-        iei . fasta = fasta;
         iei . skip_tech = tool_ctx -> join_options . skip_tech;
+        iei . fmt = tool_ctx -> fmt;
         
         tool_ctx -> estimated_output_size = inspector_estimate_output_size( &iei );
     }

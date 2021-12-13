@@ -112,6 +112,16 @@ format_t get_format_t( const char * format,
 
 /* -------------------------------------------------------------------------------- */
 
+typedef enum check_mode_t {
+    cmt_unknown, cmt_on, cmt_off, cmt_only
+    } check_mode_t;
+
+check_mode_t get_check_mode_t( const char * mode );
+
+bool is_perform_check( check_mode_t mode );
+
+/* -------------------------------------------------------------------------------- */
+
 rc_t CC Quitting(); /* to avoid including kapp/main.h */
 uint32_t get_env_u32( const char * name, uint32_t dflt );
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );

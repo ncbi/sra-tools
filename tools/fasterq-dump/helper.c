@@ -60,6 +60,8 @@
 
 #include <atomic32.h>
 
+/* -------------------------------------------------------------------------------- */
+
 bool is_format_fasta( format_t fmt ){
     bool res;
     switch( fmt ) {
@@ -73,18 +75,7 @@ bool is_format_fasta( format_t fmt ){
     return res;
 }
 
-const String * make_string_copy( const char * src )
-{
-    const String * res = NULL;
-    if ( NULL != src ) {
-        String tmp;
-        StringInitCString( &tmp, src );
-        StringCopy( &res, &tmp );
-    }
-    return res;
-}
-
-static format_t format_cmp( String * Format, const char * test, format_t test_fmt ) {
+static format_t format_cmp( const String * Format, const char * test, format_t test_fmt ) {
     String TestFormat;
     StringInitCString( &TestFormat, test );
     if ( 0 == StringCaseCompare ( Format, &TestFormat ) )  {
@@ -165,6 +156,56 @@ format_t get_format_t( const char * format,
     return res;
 }
 
+/* -------------------------------------------------------------------------------- */
+
+static check_mode_t check_mode_cmp( const String * Mode, const char * test, check_mode_t test_mode ) {
+    String STestMode;
+    StringInitCString( &STestMode, test );
+    if ( 0 == StringCaseCompare ( Mode, &STestMode ) )  {
+        return test_mode;
+    }
+    return cmt_unknown;
+}
+
+check_mode_t get_check_mode_t( const char * mode ) {
+    check_mode_t res = cmt_on;
+    if ( NULL != mode ) {
+        String Mode;
+        StringInitCString( &Mode, mode );
+
+        res = check_mode_cmp( &Mode, "on", cmt_on );
+        if ( cmt_unknown == res ) {
+            res = check_mode_cmp( &Mode, "off", cmt_off );
+        }
+        if ( cmt_unknown == res ) {
+            res = check_mode_cmp( &Mode, "only", cmt_only );
+        }
+    }
+    return res;
+}
+
+bool is_perform_check( check_mode_t mode ) {
+    switch ( mode ) {
+        case cmt_unknown : return true; break;
+        case cmt_on      : return true; break;
+        case cmt_off     : return false; break;
+        case cmt_only    : return true; break;
+    }
+    return true;
+}
+/* -------------------------------------------------------------------------------- */
+
+const String * make_string_copy( const char * src )
+{
+    const String * res = NULL;
+    if ( NULL != src ) {
+        String tmp;
+        StringInitCString( &tmp, src );
+        StringCopy( &res, &tmp );
+    }
+    return res;
+}
+
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch ) {
     rc_t rc = 0;
     char * ch_ptr = string_chr( in -> addr, in -> size, ch );
@@ -204,6 +245,8 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id ) {
     return key;
 }
 
+/* -------------------------------------------------------------------------------- */
+
 rc_t join_and_release_threads( Vector * threads ) {
     rc_t rc = 0;
     uint32_t i, n = VectorLength( threads );
@@ -221,6 +264,8 @@ rc_t join_and_release_threads( Vector * threads ) {
     VectorWhack ( threads, NULL, NULL );
     return rc;
 }
+
+/* -------------------------------------------------------------------------------- */
 
 void clear_join_stats( join_stats_t * stats ) {
     if ( stats != NULL )
@@ -247,30 +292,6 @@ void add_join_stats( join_stats_t * stats, const join_stats_t * to_add ) {
         stats -> reads_invalid += to_add -> reads_invalid;
     }
 }
-
-/*
-int get_vdb_pathtype( KDirectory * dir, const VDBManager * vdb_mgr, const char * accession ) {
-    int res = kptAny;
-    rc_t rc = 0;
-    bool release_mgr = false;
-    const VDBManager * mgr = vdb_mgr != NULL ? vdb_mgr : NULL;
-    if ( mgr == NULL ) {
-        rc = VDBManagerMakeRead( &mgr, dir );
-        if ( rc != 0 ) {
-            ErrMsg( "get_vdb_pathtype().VDBManagerMakeRead() -> %R\n", rc );
-        } else {
-            release_mgr = true;
-        }
-    }
-    if ( rc == 0 ) {
-        res = ( VDBManagerPathType ( mgr, "%s", accession ) & ~ kptAlias );
-        if ( release_mgr ) {
-            VDBManagerRelease( mgr );
-        }
-    }
-    return res;
-}
-*/
 
 /* ===================================================================================== */
 

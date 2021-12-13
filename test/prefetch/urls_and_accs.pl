@@ -357,7 +357,8 @@ print "$CMD\n" if $VERBOSE;
 if ($?) {
     print "prefetch ASCP URL\n";
     $CMD = "$DIRTOTEST/prefetch $REFSEQF";
-    print "$CMD\n" if $VERBOSE;
+    print "$CMD\n" if $VERBOSE==0;
+    print `$CMD 2>&1`;
     `$CMD 2> /dev/null`;
     unless ($?) { die 'prefetch ASCP URL when ascp is not found has to fail' }
 } else { print "prefetch ASCP URL when ascp is found is skipped\n" }

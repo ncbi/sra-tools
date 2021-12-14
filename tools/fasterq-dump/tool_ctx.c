@@ -545,6 +545,8 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         iei . qual_defline = tool_ctx -> qual_defline;
         iei . acc = tool_ctx -> accession_short;
         iei . avg_name_len = tool_ctx -> insp_output . seq . avg_name_len;
+        iei . avg_bio_reads = tool_ctx -> insp_output . seq . avg_bio_reads;
+        iei . avg_tech_reads = tool_ctx -> insp_output . seq . avg_tech_reads;
         iei . skip_tech = tool_ctx -> join_options . skip_tech;
         iei . fmt = tool_ctx -> fmt;
         

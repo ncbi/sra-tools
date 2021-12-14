@@ -73,18 +73,19 @@ const char * dflt_qual_defline( bool use_name, bool use_read_id ) {
 }
 
 /* ------------------------------------------------------------------------------------------- */
-
 static uint32_t var_in_line( const char * defline, const char * var ) {
     uint32_t res = 0;
     if ( NULL != defline && NULL != var ) {
-        char * needle;
+        const char * hay = defline;
+        char * found = NULL;
+        size_t var_len = string_size( var );
         do {
-            needle = strstr( defline, var );
-            if ( NULL != needle ) {
+            found = strstr( hay, var );
+            if ( NULL != found ) {
                 res++;
-                defline += string_size( var );
+                hay = found + var_len;
             }
-        } while ( NULL != needle );
+        } while ( NULL != found );
     }
     return res;
 }
@@ -103,6 +104,32 @@ bool spot_group_requested( const char * seq_defline, const char * qual_defline )
 
 /* ------------------------------------------------------------------------------------------- */
 
+#include <klib/out.h>
+
+/* MAX of size_t : 18.446.744.073.709.551.615 */
+
+static size_t digits_of( size_t value ) {
+    if ( value < 10 ) return 1;
+    if ( value < 100 ) return 2;
+    if ( value < 1000 ) return 3;
+    if ( value < 10000 ) return 4;
+    if ( value < 100000 ) return 5;
+    if ( value < 1000000 ) return 6;
+    if ( value < 10000000 ) return 7;
+    if ( value < 100000000 ) return 8;
+    if ( value < 1000000000 ) return 9;
+    if ( value < 10000000000 ) return 10;
+    if ( value < 100000000000 ) return 11;
+    if ( value < 1000000000000 ) return 12;
+    if ( value < 10000000000000 ) return 13;
+    if ( value < 100000000000000 ) return 14;
+    if ( value < 1000000000000000 ) return 15;
+    if ( value < 10000000000000000 ) return 16;
+    if ( value < 100000000000000000 ) return 17;
+    if ( value < 1000000000000000000 ) return 18;
+    return 19;
+}
+
 size_t estimate_defline_length( const defline_estimator_input_t * input ) {
     size_t res = 0;
     if ( NULL != input ) {
@@ -110,26 +137,47 @@ size_t estimate_defline_length( const defline_estimator_input_t * input ) {
             uint32_t n;
             
             res = string_size( input -> defline );
-
+            
             /* if the accession is in the defline */
             n = var_in_line( input -> defline, "$ac" );
             if ( n > 0 ) {
-                res -= n * 3;   /* take away the 3 chars '$ac' */
-                res += n * string_size( input -> acc );
+                res -= ( n * 3 );   /* take away the 3 chars '$ac' */
+                res += ( n * string_size( input -> acc ) );
             }
 
             /* if the name is in the defline */
             n = var_in_line( input -> defline, "$sn" );
             if ( n > 0 ) {
-                res -= n * 3;   /* take away the 3 chars '$sn' */
-                res += n * input -> avg_name_len;
+                res -= ( n * 3 );   /* take away the 3 chars '$sn' */
+                res += ( n * input -> avg_name_len );
             }
 
             /* if the spot-group is in the defline */
             n = var_in_line( input -> defline, "$sg" );
             if ( n > 0 ) {
-                res -= n * 3;   /* take away the 3 chars '$sg' */
-                res += n * input -> avg_name_len;
+                res -= ( n * 3 );   /* take away the 3 chars '$sg' */
+                res += ( n * input -> avg_name_len );
+            }
+
+            /* if row-length is in the defline */
+            n = var_in_line( input -> defline, "$rl" );
+            if ( n > 0 ) {
+                res -= ( n * 3 );   /* take away the 3 chars '$rl' */
+                res += ( n * digits_of( input -> avg_seq_len ) );
+            }
+
+            /* if read-id is in the defline */
+            n = var_in_line( input -> defline, "$ri" );
+            if ( n > 0 ) {
+                res -= ( n * 3 );   /* take away the 3 chars '$ru' */
+                res += n;       /* we assume here that read-id is 1 character*/
+            }
+
+            /* if spot-id is in the defline */
+            n = var_in_line( input -> defline, "$si" );
+            if ( n > 0 ) {
+                res -= ( n * 3 );   /* take away the 3 chars '$si' */
+                res += ( n * digits_of( input -> row_count ) ); /* this will be a little bit over... */
             }
 
         }

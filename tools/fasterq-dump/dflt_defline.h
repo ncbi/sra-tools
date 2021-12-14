@@ -49,6 +49,8 @@ typedef struct defline_estimator_input_t
     const char * defline;
     const char * acc;
     uint32_t avg_name_len;
+    uint32_t avg_seq_len;
+    size_t row_count;
 } defline_estimator_input_t;
 
 size_t estimate_defline_length( const defline_estimator_input_t * input );

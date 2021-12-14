@@ -709,14 +709,53 @@ static rc_t inspect_avg_len( const VCursor * cur, int64_t first_row, uint64_t ro
     }
     return rc;
 }
-                                 
+
+/* for SRA_READ_TYPE_TECHNICAL and SRA_READ_TYPE_BIOLOGICAL */
+#ifndef _h_insdc_insdc_
+#include <insdc/insdc.h>
+#endif
+
+static rc_t inspect_avg_read_type( const VCursor * cur, int64_t first_row, uint64_t row_count,
+                            uint32_t col_id, uint32_t * bio, uint32_t * tech ) {
+    rc_t rc = 0;
+    uint32_t n = 10;
+    uint32_t n_bio = 0;
+    uint32_t n_tech = 0;
+    if ( row_count < n ) { n = (uint32_t)row_count; }
+    if ( n > 0 ) {
+        uint32_t i;
+        const uint8_t * data_ptr;
+        uint32_t elem_bits, boff, row_len;        
+        for ( i = 0; 0 == rc && i < n; i++ ) {
+            rc = VCursorCellDataDirect( cur, first_row + i, col_id, &elem_bits, (const void **)&data_ptr, &boff, &row_len );
+            if ( 0 != rc ) {
+                ErrMsg( "inspector.c inspect_avg_read_type().VCursorCellDataDirect() -> %R", rc );
+            } else {
+                /* now we can count how many bio- and tech-reads we have in this row */
+                uint32_t j;
+                for ( j = 0; j < row_len; ++j ) {
+                    uint8_t t = data_ptr[ j ];
+                    if ( ( t & SRA_READ_TYPE_BIOLOGICAL ) == SRA_READ_TYPE_BIOLOGICAL ) {
+                        n_bio++;
+                    } else if ( ( t & SRA_READ_TYPE_TECHNICAL ) == SRA_READ_TYPE_TECHNICAL ) {
+                        n_tech++;
+                    }
+                }
+            }
+        }
+        *bio = ( n_bio / n );
+        *tech = ( n_tech / n );
+    }
+    return rc;
+}
+
 static rc_t inspect_seq_data( const VTable * tbl, const inspector_input_t * input, inspector_seq_data_t * seq ) {
     const VCursor * cur;
     rc_t rc = VTableCreateCursorRead( tbl, &cur );    
     if ( 0 != 0 ) {
         ErrMsg( "inspector.c inspect_seq_data().VTableCreateCursorRead( '%s' ) -> %R", seq -> tbl_name, rc );
     } else {
-        uint32_t id_read, id_name, id_spot_group, id_base_count, id_bio_base_count, id_spot_count;
+        uint32_t id_read, id_name, id_spot_group, id_base_count, id_bio_base_count, id_spot_count, id_read_type;
        
         /* we need this, because all other columns may by static - and because of that do not reveal the row-count! */
         rc = inspect_add_column( cur, &id_read, "READ" );
@@ -725,6 +764,7 @@ static rc_t inspect_seq_data( const VTable * tbl, const inspector_input_t * inpu
         if ( 0 == rc ) { rc = inspect_add_column( cur, &id_base_count, "BASE_COUNT" ); }
         if ( 0 == rc ) { rc = inspect_add_column( cur, &id_bio_base_count, "BIO_BASE_COUNT" ); }
         if ( 0 == rc ) { rc = inspect_add_column( cur, &id_spot_count, "SPOT_COUNT" ); }
+        if ( 0 == rc ) { rc = inspect_add_column( cur, &id_read_type, "READ_TYPE" ); }
         if ( 0 == rc ) {
             rc = VCursorOpen( cur );
             if ( 0 != rc ) {
@@ -756,6 +796,10 @@ static rc_t inspect_seq_data( const VTable * tbl, const inspector_input_t * inpu
         if ( 0 == rc && seq -> has_spot_group_column ) {
             rc = inspect_avg_len( cur, seq -> first_row, seq -> row_count,
                                   id_spot_group, "SPOT_GROUP", &( seq -> avg_spot_group_len ) );
+        }
+        if ( 0 == rc ) {
+            rc = inspect_avg_read_type( cur, seq -> first_row, seq -> row_count,
+                                  id_read_type, &( seq -> avg_bio_reads ), &( seq -> avg_tech_reads ) );                                        
         }
         {
             rc_t rc2 = VCursorRelease( cur );
@@ -962,6 +1006,12 @@ static rc_t inspection_report_seq( const inspector_seq_data_t * seq ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "SEQ.avg_spot_group_len = %u\n", seq -> avg_spot_group_len );
     }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.avg_bio_reads_per_spot = %u\n", seq -> avg_bio_reads );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "SEQ.avg_tech_reads_per_spot = %u\n", seq -> avg_tech_reads );
+    }
     return rc;
 }
 
@@ -1012,26 +1062,6 @@ rc_t inspection_report( const inspector_input_t * input, const inspector_output_
 
 /* ------------------------------------------------------------------------------------------- */
 
-static size_t insp_est_seq_defline_len( const inspector_estimate_input_t * input ) {
-    defline_estimator_input_t defl_est_inp;
-
-    defl_est_inp . acc = input -> acc;
-    defl_est_inp . avg_name_len = input -> avg_name_len;
-
-    defl_est_inp . defline = input -> seq_defline;    
-    return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
-}
-
-static size_t insp_est_qual_defline_len( const inspector_estimate_input_t * input ) {
-    defline_estimator_input_t defl_est_inp;
-
-    defl_est_inp . acc = input -> acc;
-    defl_est_inp . avg_name_len = input -> avg_name_len;
-
-    defl_est_inp . defline = input -> qual_defline;    
-    return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
-}
-
 static size_t insp_est_base_count( const inspector_estimate_input_t * input ) {
     /* if we are skipping technical reads : we take the bio_base_count, otherwise the total_base_count 
        ( these 2 numbers can be the same for cSRA objects, they have no technical reads ) */
@@ -1041,30 +1071,95 @@ static size_t insp_est_base_count( const inspector_estimate_input_t * input ) {
     return input -> insp -> seq . total_base_count;
 }
 
+static uint32_t insp_est_reads_per_spot( const inspector_estimate_input_t * input ) {
+    uint32_t res = input -> insp -> seq . avg_bio_reads;
+    if ( !input -> skip_tech ) {
+        res += input -> insp -> seq . avg_tech_reads;
+    }
+    return res;
+}
+
+static size_t insp_est_seq_defline_len( const inspector_estimate_input_t * input ) {
+    defline_estimator_input_t defl_est_inp;
+
+    defl_est_inp . acc = input -> acc;
+    defl_est_inp . avg_name_len = input -> avg_name_len;
+    defl_est_inp . row_count = input -> insp -> seq . row_count;
+    defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    defl_est_inp . defline = input -> seq_defline;
+
+    return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
+}
+
+static size_t insp_est_qual_defline_len( const inspector_estimate_input_t * input ) {
+    defline_estimator_input_t defl_est_inp;
+
+    defl_est_inp . acc = input -> acc;
+    defl_est_inp . avg_name_len = input -> avg_name_len;
+    defl_est_inp . row_count = input -> insp -> seq . row_count;
+    defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    defl_est_inp . defline = input -> qual_defline;    
+    
+    return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
+}
+
 static size_t insp_est_out_size_whole_spot( const inspector_estimate_input_t * input, bool fasta ) {
-    size_t res = insp_est_base_count( input );
+    size_t res = input -> insp -> seq . total_base_count;   /* whole spot: always the total count */
+    size_t l_seq_dl = insp_est_seq_defline_len( input );
+    size_t l_qual_dl = 0;
+    size_t row_count = input -> insp -> seq . row_count;
+
     if ( fasta ) {
-        res += ( insp_est_seq_defline_len( input ) * input -> insp -> seq . row_count );
+        res += ( l_seq_dl * row_count );    /* add the length of the seq-defline for each row */
+        res += ( row_count * 2 );           /* add the new-lines */
         return res;
     }
-    res *= 2;
-    res += ( insp_est_seq_defline_len( input ) * input -> insp -> seq . row_count );
-    res += ( insp_est_qual_defline_len( input ) * input -> insp -> seq . row_count );    
+    
+    l_qual_dl = insp_est_qual_defline_len( input );
+    res *= 2;                               /* double the bases, because of quality */
+    res += ( l_seq_dl * row_count );        /* add the length of the seq-defline for each row */
+    res += ( l_qual_dl * row_count );       /* and the qual-defline for each row */
+    res += ( row_count * 4  );              /* add the new-lines */
+    return res;
+}
+
+static size_t insp_est_out_size_split_spot( const inspector_estimate_input_t * input, bool fasta ) {
+    size_t res = insp_est_base_count( input );  /* depends on with/without technical reads */
+
+    size_t l_seq_dl = insp_est_seq_defline_len( input );
+    size_t l_qual_dl = 0;
+    size_t row_count = input -> insp -> seq . row_count;
+
+    size_t read_count = insp_est_reads_per_spot( input ); /* this depends on skip_tech:
+                                                            we need to know how many tech. and bio. reads per spot */
+    
+    if ( fasta ) {
+        res += ( l_seq_dl * row_count * read_count );    /* add the length of the seq-defline for each row and read */
+        res += ( row_count * read_count * 2 );           /* add the new-lines */
+        return res;
+    }
+    
+    l_qual_dl = insp_est_qual_defline_len( input );
+    res *= 2;                                           /* double the bases, because of quality */
+    res += ( l_seq_dl * row_count * read_count );       /* add the length of the seq-defline for each row and read */
+    res += ( l_qual_dl * row_count * read_count );      /* and the qual-defline for each row */
+    res += ( row_count * read_count * 4  );             /* add the new-lines */
     return res;
 }
 
 size_t inspector_estimate_output_size( const inspector_estimate_input_t * input ) {
+    size_t res = 0;
     switch( input -> fmt ) {
-        case ft_unknown                 : return 0; break;
-        case ft_fastq_whole_spot        : return insp_est_out_size_whole_spot( input, false ); break;
-        case ft_fastq_split_spot        : return 0; break;
-        case ft_fastq_split_file        : return 0; break;
-        case ft_fastq_split_3           : return 0; break;
-        case ft_fasta_whole_spot        : return insp_est_out_size_whole_spot( input, true ); break;
-        case ft_fasta_split_spot        : return 0; break;
-        case ft_fasta_split_file        : return 0; break;
-        case ft_fasta_split_3           : return 0; break;
-        case ft_fasta_us_split_spot     : return 0; break;
+        case ft_unknown                 : break;
+        case ft_fastq_whole_spot        : res = insp_est_out_size_whole_spot( input, false ); break;
+        case ft_fastq_split_spot        : res = insp_est_out_size_split_spot( input, false ); break;
+        case ft_fastq_split_file        : res = insp_est_out_size_split_spot( input, false ); break;
+        case ft_fastq_split_3           : res = insp_est_out_size_split_spot( input, false ); break;
+        case ft_fasta_whole_spot        : res = insp_est_out_size_whole_spot( input, true ); break;
+        case ft_fasta_split_spot        : res = insp_est_out_size_split_spot( input, true ); break;
+        case ft_fasta_split_file        : res = insp_est_out_size_split_spot( input, true ); break;
+        case ft_fasta_split_3           : res = insp_est_out_size_split_spot( input, true ); break;
+        case ft_fasta_us_split_spot     : res = insp_est_out_size_split_spot( input, false ); break;
     }
-    return 0;
+    return res;
 }

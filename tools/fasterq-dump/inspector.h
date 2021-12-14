@@ -74,6 +74,9 @@ typedef struct inspector_seq_data_t
     uint64_t bio_base_count;
     uint32_t avg_name_len;
     uint32_t avg_spot_group_len;
+    uint32_t avg_bio_reads;
+    uint32_t avg_tech_reads;
+    
 } inspector_seq_data_t;
 
 typedef struct inspector_align_data_t
@@ -114,6 +117,8 @@ typedef struct inspector_estimate_input_t
     const char * acc;
     format_t fmt;                       /* helper.h */
     uint32_t avg_name_len;
+    uint32_t avg_bio_reads;
+    uint32_t avg_tech_reads;
     bool skip_tech;
 } inspector_estimate_input_t;
 

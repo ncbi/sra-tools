@@ -1,16 +1,16 @@
 add_compile_definitions( __mod__="tools/fastq-loader" )
 
 if( FLEX_FOUND AND BISON_FOUND )
-    FLEX_TARGET( Flex fastq-lex.l ${CMAKE_CURRENT_SOURCE_DIR}/fastq-lex.c
+    FLEX_TARGET( Flex fastq-lex.l ${CMAKE_CURRENT_SOURCE_DIR}/zz_fastq-lex.c
         COMPILE_FLAGS "--debug --noline" )
     set( Scanner ${FLEX_Flex_OUTPUTS} )
-    BISON_TARGET( Grammar fastq-grammar.y ${CMAKE_CURRENT_SOURCE_DIR}/fastq-grammar.c
-        COMPILE_FLAGS "-Wno-other --no-lines -r state" )
+    BISON_TARGET( Grammar fastq-grammar.y ${CMAKE_CURRENT_SOURCE_DIR}/zz_fastq-grammar.c
+        COMPILE_FLAGS "-Wno-other --no-lines -r state -v --defines=${CMAKE_CURRENT_SOURCE_DIR}/zz_fastq-grammar.h" )
     set( Parser ${BISON_Grammar_OUTPUT_SOURCE} )
     ADD_FLEX_BISON_DEPENDENCY(Flex Grammar)
 else()
-    set( Scanner fastq-lex.c )
-    set( Parser fastq-grammar.c )
+    set( Scanner zz_fastq-lex.c )
+    set( Parser zz_fastq-grammar.c )
 endif()
 
 set( FASTQ_SRC

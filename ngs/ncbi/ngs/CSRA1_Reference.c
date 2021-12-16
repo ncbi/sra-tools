@@ -58,7 +58,7 @@ typedef struct CSRA1_Reference CSRA1_Reference;
 #include <vdb/schema.h>
 #include <vdb/vdb-priv.h>
 #include <vdb/blob.h>
-#include "../vdb/blob-priv.h"
+#include "vdb/blob-priv.h"
 
 #include <stddef.h>
 #include <assert.h>

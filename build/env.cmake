@@ -136,42 +136,6 @@ endif()
 message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
 
 # ===========================================================================
-# ncbi-vdb sources
-
-if( NOT VDB_SRCDIR )
-    set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
-    if ( NOT EXISTS ${VDB_SRCDIR} )
-        message( FATAL_ERROR "Please specify the location of ncbi-vdb sources in Cmake variable VDB_SRCDIR")
-    endif()
-	message( "VDB_SRCDIR: ${VDB_SRCDIR}" )
-endif()
-
-include_directories( ${VDB_SRCDIR}/interfaces ) # TODO: introduce a variable pointing to interfaces
-
-if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
-    include_directories(${VDB_SRCDIR}/interfaces/cc/gcc)
-    include_directories(${VDB_SRCDIR}/interfaces/cc/gcc/${ARCH})
-elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
-    include_directories(${VDB_SRCDIR}/interfaces/cc/clang)
-    include_directories(${VDB_SRCDIR}/interfaces/cc/clang/${ARCH})
-elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
-    include_directories(${VDB_SRCDIR}/interfaces/cc/vc++)
-    include_directories(${VDB_SRCDIR}/interfaces/cc/vc++/${ARCH})
-endif()
-
-if ( "mac" STREQUAL ${OS} )
-    include_directories(${VDB_SRCDIR}/interfaces/os/mac)
-    include_directories(${VDB_SRCDIR}/interfaces/os/unix)
-elseif( "linux" STREQUAL ${OS} )
-    include_directories(${VDB_SRCDIR}/interfaces/os/linux)
-    include_directories(${VDB_SRCDIR}/interfaces/os/unix)
-elseif( "windows" STREQUAL ${OS} )
-    include_directories(${VDB_SRCDIR}/interfaces/os/win)
-endif()
-
-include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
-
-# ===========================================================================
 # 3d party packages
 
 # Flex/Bison
@@ -253,13 +217,16 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 else() # assume a single-config generator
     set( SINGLE_CONFIG true )
 
-    if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
-        message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
+    # if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
+        # message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
+    # endif()
+
+    if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
+        message( FATAL_ERROR "Please specify the location where ncbi-vdb libraries are installed (VDB_LIBDIR)")
     endif()
 
-    set( NCBI_VDB_BINDIR ${VDB_BINDIR}/bin )
-    set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
-    set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
+    set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
+    message(WARNING "Linking with ncbi-vdb libraries from the following location: ${NCBI_VDB_LIBDIR}")
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )
@@ -273,9 +240,86 @@ else() # assume a single-config generator
     set( TESTBINDIR "${TARGDIR}/test-bin" )
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
-#    link_directories( ${NCBI_VDB_LIBDIR} )
-#    link_directories( ${NCBI_VDB_ILIBDIR} )
+    link_directories( ${NCBI_VDB_LIBDIR} ) # TODO: USE_INSTALLED_NCBI_VDB
 endif()
+
+# ===========================================================================
+# ncbi-vdb sources
+
+# Using installed ncbi-vdb directory
+if( WIN32 )
+	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	set( USE_INSTALLED_NCBI_VDB 0 )
+elseif( SINGLE_CONFIG )
+	set( USE_INSTALLED_NCBI_VDB 1 )
+else() # XCode
+	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	set( USE_INSTALLED_NCBI_VDB 0 )
+endif()
+
+if( NOT VDB_SRCDIR )
+	if( USE_INSTALLED_NCBI_VDB )
+		message("CMAKE_INSTALL_PREFIX_ROOT: ${CMAKE_INSTALL_PREFIX_ROOT}")
+		set( NCBI_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX_ROOT} )
+
+		set( VDB_SRCDIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/vdb_shared_sources" )
+		set( VDB_INTERFACES_DIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/interfaces" )
+
+		if ( NOT EXISTS ${VDB_SRCDIR} )
+			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb")
+			set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+		else()
+			message(WARNING "Using INSTALLED ncbi-vdb sources: ${VDB_SRCDIR}")
+		endif()
+
+		if ( NOT EXISTS ${VDB_INTERFACES_DIR} )
+			message("${VDB_INTERFACES_DIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces...")
+			set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
+		else()
+			message(WARNING "Using INSTALLED ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
+		endif()
+	else()
+		set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+		set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
+
+		message(WARNING "Using ncbi-vdb sources from: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
+	endif()
+
+	message("VDB_SRCDIR was not explicitly provided, using the following location: sources: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
+
+	if ( NOT EXISTS ${VDB_SRCDIR} )
+		message( FATAL_ERROR "${VDB_SRCDIR} does not exist. Please specify the location of ncbi-vdb sources in Cmake variable VDB_SRCDIR")
+	endif()
+endif()
+
+
+include_directories( ${VDB_INTERFACES_DIR} )
+include_directories( ${VDB_SRCDIR}/libs ) # /libs for ngs/ncbi/ngs/NGS_FragmentBlob.c:39:10
+
+if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    include_directories(${VDB_INTERFACES_DIR}/cc/gcc)
+    include_directories(${VDB_INTERFACES_DIR}/cc/gcc/${ARCH})
+elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
+    include_directories(${VDB_INTERFACES_DIR}/cc/clang)
+    include_directories(${VDB_INTERFACES_DIR}/cc/clang/${ARCH})
+elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    include_directories(${VDB_INTERFACES_DIR}/cc/vc++)
+    include_directories(${VDB_INTERFACES_DIR}/cc/vc++/${ARCH})
+endif()
+
+if ( "mac" STREQUAL ${OS} )
+    include_directories(${VDB_INTERFACES_DIR}/os/mac)
+    include_directories(${VDB_INTERFACES_DIR}/os/unix)
+elseif( "linux" STREQUAL ${OS} )
+    include_directories(${VDB_INTERFACES_DIR}/os/linux)
+    include_directories(${VDB_INTERFACES_DIR}/os/unix)
+elseif( "windows" STREQUAL ${OS} )
+    include_directories(${VDB_INTERFACES_DIR}/os/win)
+endif()
+
+include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
+
+# ===========================================================================
 
 # DIRTOTEST is the overridable location of the executables to call from scripted test
 if( NOT DIRTOTEST )
@@ -344,6 +388,9 @@ function( ExportStatic name install )
             ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
         set_target_properties( ${name} PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
+        if ( ${install} )
+            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib )
+        endif()
     endif()
 endfunction()
 
@@ -374,6 +421,17 @@ function(MakeLinksShared target name install)
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
         )
+        endif()
+    else()
+        set_target_properties( ${target} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG})
+        set_target_properties( ${target} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
+        if ( ${install} )
+            install( TARGETS ${target}
+                     ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
         endif()
     endif()
 endfunction()
@@ -436,6 +494,20 @@ function(MakeLinksExe target install_via_driver)
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+    else()
+        if ( install_via_driver )
+                install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
+                         RENAME ${target}-orig${EXE}
+                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                )
+                install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE}
+                         RENAME ${target}${EXE}
+                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                )
+        else()
+            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+        endif()
+
     endif()
 endfunction()
 
@@ -446,7 +518,7 @@ if( WIN32 )
     set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
-    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_ILIBDIR}/libkapp.${STLX} ${NCBI_VDB_ILIBDIR}/libload.${STLX} tk-version )
+    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} ${NCBI_VDB_LIBDIR}/libload.${STLX} tk-version )
     set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
     set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
 endif()
@@ -456,13 +528,10 @@ if( WIN32 )
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
-    # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries
-    # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  /INCREMENTAL:NO" )
 endif()
 
 function( BuildExecutableForTest exe_name sources libraries )
 	add_executable( ${exe_name} ${sources} )
-	#MSVS_StaticRuntime( ${exe_name} )
 	target_link_libraries( ${exe_name} ${libraries} )
 endfunction()
 

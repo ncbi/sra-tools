@@ -38,8 +38,8 @@
 #include "CSRA1_Reference.h"
 #include "VByteBlob.h"
 
-#include "../vdb/blob-priv.h"
-#include <../libs/vdb/page-map.h>
+#include "vdb/blob-priv.h"
+#include <vdb/page-map.h>
 
 const int64_t ChunkSize = 5000;
 

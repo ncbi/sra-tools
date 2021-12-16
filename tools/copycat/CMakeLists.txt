@@ -13,6 +13,6 @@ if( ${OS} STREQUAL "linux" )
         ccsubchunk
         ccfile
     )
-    target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${NCBI_VDB_ILIBDIR}/libkff.${STLX} ${NCBI_VDB_ILIBDIR}/libmagic-static.${STLX} )
+    target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${NCBI_VDB_LIBDIR}/libkff.${STLX} ${NCBI_VDB_LIBDIR}/libmagic-static.${STLX} )
     MakeLinksExe( copycat false )
 endif()

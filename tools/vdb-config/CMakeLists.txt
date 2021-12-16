@@ -5,7 +5,7 @@ if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
 	set( TUI_LIBS tui_cpp tui)
 else()
-	set( TUI_LIBS ${NCBI_VDB_ILIBDIR}/libtui_cpp.${STLX} ${NCBI_VDB_ILIBDIR}/libtui.${STLX})
+	set( TUI_LIBS ${NCBI_VDB_LIBDIR}/libtui_cpp.${STLX} ${NCBI_VDB_LIBDIR}/libtui.${STLX})
 endif()
 
 add_executable( vdb-config

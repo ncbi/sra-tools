@@ -122,6 +122,10 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
                     NULL != tool_ctx -> output_dirname ? tool_ctx -> output_dirname : "." );
     }
     if ( 0 == rc ) {
+        rc = KOutMsg( "output       : '%s'\n", 
+                    NULL != tool_ctx -> dflt_output ? tool_ctx -> dflt_output : "-" );
+    }
+    if ( 0 == rc ) {
         rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
     }
     if ( 0 == rc ) {
@@ -137,7 +141,7 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "only-unaligned : '%s'\n", tool_ctx -> only_unaligned ? "YES" : "NO" );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "only-aligned  : '%s'\n", tool_ctx -> only_aligned ? "YES" : "NO" );
+        rc = KOutMsg( "only-aligned   : '%s'\n", tool_ctx -> only_aligned ? "YES" : "NO" );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "accession     : '%s'\n", tool_ctx -> accession_short );
@@ -149,7 +153,14 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "est. output   : %,lu bytes\n", tool_ctx -> estimated_output_size );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "disk-limit    : %,lu bytes\n", tool_ctx -> disk_limit );
+        rc = KOutMsg( "disk-limit out: %,lu bytes\n", tool_ctx -> disk_limit_out );
+    }
+    if ( 0 == rc ) {
+        rc = KOutMsg( "disk-limit tmp: %,lu bytes\n", tool_ctx -> disk_limit_tmp );
+    }
+
+    if ( 0 == rc ) {    
+        rc = KOutMsg( "out/tmp on same fs  : '%s'\n", tool_ctx -> out_and_tmp_on_same_fs ? "YES" : "NO" );
     }
 
     if ( 0 == rc ) {
@@ -165,16 +176,16 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
 }
 
 static bool output_exists_whole( const tool_ctx_t * tool_ctx ) {
-    return file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename );
+    return file_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ); /* file_tools.c */
 }
 
 static bool output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) {
     bool res = false;
     SBuffer_t s_filename;
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
-                            tool_ctx -> output_filename, idx ); /* helper.c */
+                            tool_ctx -> output_filename, idx ); /* sbuffer.c */
     if ( 0 == rc ) {
-        res = file_exists( tool_ctx -> dir, "%S", &( s_filename . S ) ); /* helper.c */
+        res = file_exists( tool_ctx -> dir, "%S", &( s_filename . S ) ); /* file_tools.c */
         release_SBuffer( &s_filename ); /* helper.c */
     }
     return res;
@@ -320,25 +331,17 @@ static rc_t tool_ctx_create_lookup_and_index_path( tool_ctx_t * tool_ctx ) {
 
 /* we have NO output-dir and NO output-file */
 static rc_t tool_ctx_make_output_filename_from_accession( tool_ctx_t * tool_ctx, bool fasta ) {
-    rc_t rc;
     /* we DO NOT have a output-directory : build output-filename from the accession */
     /* generate the full path of the output-file, if not given */
-    size_t num_writ;
-
-    if ( fasta ) {
-        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
-                            &num_writ,
-                            "%s.fasta",
-                            tool_ctx -> accession_short );
-    } else {
-        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
-                            &num_writ,
-                            "%s.fastq",
-                            tool_ctx -> accession_short );
-    }
-
+    rc_t rc = KDirectoryResolvePath( tool_ctx -> dir,
+                                true /* absolute */,
+                                &( tool_ctx -> dflt_output[ 0 ] ),
+                                sizeof tool_ctx -> dflt_output,
+                                "%s%s",
+                                tool_ctx -> accession_short,
+                                out_ext( fasta ) /* helper.c */ );
     if ( 0 != rc ) {
-        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+        ErrMsg( "tool_ctx_make_output_filename_from_accession.KDirectoryResolvePath() -> %R", rc );
     } else {
         tool_ctx -> output_filename = tool_ctx -> dflt_output;
     }
@@ -347,24 +350,17 @@ static rc_t tool_ctx_make_output_filename_from_accession( tool_ctx_t * tool_ctx,
 
 /* we have an output-dir and NO output-file */
 static rc_t tool_ctx_make_output_filename_from_dir_and_accession( tool_ctx_t * tool_ctx, bool fasta ) {
-    rc_t rc;
-    size_t num_writ;
     bool es = ends_in_slash( tool_ctx -> output_dirname ); /* helper.c */
-    if ( fasta ) {
-        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                            &num_writ,
-                            es ? "%s%s.fasta" : "%s/%s.fasta",
-                            tool_ctx -> output_dirname,
-                            tool_ctx -> accession_short );
-    } else {
-        rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                            &num_writ,
-                            es ? "%s%s.fastq" : "%s/%s.fastq",
-                            tool_ctx -> output_dirname,
-                            tool_ctx -> accession_short );
-    }
+    rc_t rc = KDirectoryResolvePath( tool_ctx -> dir,
+                                true /* absolute */,
+                                &( tool_ctx -> dflt_output[ 0 ] ),
+                                sizeof tool_ctx -> dflt_output,
+                                es ? "%s%s%s" : "%s/%s%s",
+                                tool_ctx -> output_dirname,
+                                tool_ctx -> accession_short,
+                                out_ext( fasta ) /* helper.c */ );
     if ( 0 != rc ) {
-        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+        ErrMsg( "tool_ctx_make_output_filename_from_dir_and_accession.KDirectoryResolvePath() -> %R", rc );
     } else {
         tool_ctx -> output_filename = tool_ctx -> dflt_output;
     }
@@ -398,19 +394,52 @@ static rc_t tool_ctx_adjust_output_filename( tool_ctx_t * tool_ctx ) {
 }
 
 static rc_t tool_ctx_adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
-    size_t num_writ;
     bool es = ends_in_slash( tool_ctx -> output_dirname ); /* helper.c */
-    rc_t rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                        &num_writ,
-                        es ? "%s%s" : "%s/%s",
-                        tool_ctx -> output_dirname,
-                        tool_ctx -> output_filename );
+    rc_t rc = KDirectoryResolvePath( tool_ctx -> dir,
+                                true /* absolute */,
+                                &( tool_ctx -> dflt_output[ 0 ] ),
+                                sizeof tool_ctx -> dflt_output,
+                                es ? "%s%s" : "%s/%s",
+                                tool_ctx -> output_dirname,
+                                tool_ctx -> output_filename );
     if ( 0 != rc ) {
-        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+        ErrMsg( "tool_ctx_adjust_output_filename_by_dir.KDirectoryResolvePath() -> %R", rc );
     } else {
         tool_ctx -> output_filename = tool_ctx -> dflt_output;
         rc = tool_ctx_optionally_create_paths_in_output_filename( tool_ctx );
     }
+    return rc;
+}
+
+static rc_t tool_ctx_get_disk_limits( tool_ctx_t * tool_ctx ) {
+    rc_t rc = 0;
+    if ( 0 == tool_ctx -> disk_limit_out ) {
+        rc = available_space_disk_space( tool_ctx -> dir,
+                                         tool_ctx -> output_filename,
+                                         &( tool_ctx -> disk_limit_out ),
+                                         true /* is_file */ ); /* file_tools.c */
+    }
+    if ( 0 == tool_ctx -> disk_limit_tmp ) {
+        rc = available_space_disk_space( tool_ctx -> dir,
+                                         get_temp_dir( tool_ctx -> temp_dir ), /* tmp_dir.c */
+                                         &( tool_ctx -> disk_limit_tmp ),
+                                         false /* is_file */ ); /* file_tools.c */
+    }
+    return rc;
+}
+
+static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
+    rc_t rc = 0;
+    
+    /*
+    size_t required_by_vdb = 0;
+
+    if ( tool_ctx -> insp_output . is_remote ) {
+        required_by_vdb = ( tool_ctx -> insp_output . acc_size * tool_ctx -> num_threads );
+    }
+    if ( !use_stdout ) {
+    }
+    */
     return rc;
 }
 
@@ -526,14 +555,8 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
     }
 
     /* evaluate the free-disk-space if no limit has been given explicitly */
-    if ( 0 == rc && 0 == tool_ctx -> disk_limit ) {
-        uint64_t free_space, total_space;
-        rc = KDirectoryGetDiskFreeSpace( tool_ctx -> dir, &free_space, &total_space );
-        if ( 0 != rc ) {
-            ErrMsg( "KDirectoryGetDiskFreeSpace() -> %R", rc );
-        } else {
-            tool_ctx -> disk_limit = free_space;
-        }
+    if ( 0 == rc && 0 == tool_ctx -> disk_limit_out ) {
+        rc = tool_ctx_get_disk_limits( tool_ctx ); /* above */
     }
     
     /* create an estimation of the output-size */
@@ -553,10 +576,18 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         tool_ctx -> estimated_output_size = inspector_estimate_output_size( &iei );
     }
 
+    if ( 0 == rc ) {
+        tool_ctx -> out_and_tmp_on_same_fs = paths_on_same_filesystem(
+            tool_ctx -> output_filename, get_temp_dir( tool_ctx -> temp_dir ) ); /* helper.c */
+    }
+    
     /* print all the values gathered here, if requested */
     if ( 0 == rc && tool_ctx -> show_details ) {
         rc = print_tool_ctx( tool_ctx ); /* above */
     }
 
+    if ( 0 == rc && cmt_on == tool_ctx -> check_mode ) {
+        rc = tool_ctx_check_available_disk_size( tool_ctx ); /* above */
+    }
     return rc;
 }

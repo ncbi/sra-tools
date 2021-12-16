@@ -110,6 +110,8 @@ format_t get_format_t( const char * format,
         bool split_spot, bool split_file, bool split_3, bool whole_spot,
         bool fasta, bool fasta_us );
 
+const char * out_ext( bool fasta );
+
 /* -------------------------------------------------------------------------------- */
 
 typedef enum check_mode_t {
@@ -182,6 +184,12 @@ void release_2na_filter( struct filter_2na_t * self );
 /* return true if no filter set, or filter matches the bases */
 bool filter_2na_1( struct filter_2na_t * self, const String * bases );
 bool filter_2na_2( struct filter_2na_t * self, const String * bases1, const String * bases2 );
+
+/* -------------------------------------------------------------------------------- */
+
+/* returns 0 if the id cannot be found ( for instance on none-posix systems ) */
+uint32_t device_id_of_path( const char * path );
+bool paths_on_same_filesystem( const char * path1, const char * path2 );
 
 #ifdef __cplusplus
 }

@@ -65,6 +65,8 @@ rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
 rc_t release_file( const struct KFile * f, const char * err_msg, ... );
 rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
 
+rc_t available_space_disk_space( const KDirectory * dir, const char * path, size_t * res, bool is_file );
+
 #ifdef __cplusplus
 }
 #endif

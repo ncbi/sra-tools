@@ -76,7 +76,8 @@ typedef struct tool_ctx_t {
     
     size_t cursor_cache, buf_size, mem_limit;
     size_t estimated_output_size;
-    size_t disk_limit;
+    size_t disk_limit_out;
+    size_t disk_limit_tmp;
     
     uint32_t num_threads /*, max_fds */;
     uint64_t total_ram;
@@ -85,8 +86,10 @@ typedef struct tool_ctx_t {
     format_t fmt; /* helper.h */
     check_mode_t check_mode; /* helper.h */
         
-    bool force, show_progress, show_details, append, use_stdout, only_unaligned, only_aligned;
-
+    bool force, show_progress, show_details, append, use_stdout;
+    bool only_unaligned, only_aligned;
+    bool out_and_tmp_on_same_fs;
+    
     join_options_t join_options; /* helper.h */
 
     inspector_input_t insp_input;       /* inspector.h */

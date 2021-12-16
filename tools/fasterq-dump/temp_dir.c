@@ -81,22 +81,55 @@ static rc_t get_pid_and_hostname( temp_dir_t * self ) {
     return rc;
 }
 
-static rc_t generate_dflt_path( temp_dir_t * self ) {
-    size_t num_writ;
-    return string_printf( self -> path, sizeof self -> path, &num_writ,
-                         "fasterq.tmp.%s.%u/", self -> hostname, self -> pid );
+static void append_slash( char * path, size_t maxlen ) {
+    size_t l = strlen( path );
+    if ( l < maxlen ) {
+        path[ l ] = '/';
+        path[ l + 1 ] = 0;
+    }
 }
 
-static rc_t generate_sub_path( temp_dir_t * self, const char * requested ) {
+static rc_t generate_dflt_path( temp_dir_t * self, const KDirectory * dir ) {
+    rc_t rc = KDirectoryResolvePath( dir,
+                                     true /* absolute */,
+                                     &( self -> path[ 0 ] ),
+                                     sizeof self -> path,
+                                     "fasterq.tmp.%s.%u", self -> hostname, self -> pid );
+    if ( 0 != rc ) {
+        ErrMsg( "temp_dir.c generate_dflt_path() -> %R", rc );        
+    } else {
+        /* we have to add a slash! ( because KDirectoryResolvePath() does not want to... ) */
+        append_slash( self -> path, sizeof( self -> path ) - 2 );
+    }
+    /*
+    size_t num_writ;    
+    return string_printf( self -> path, sizeof self -> path, &num_writ,
+                         "fasterq.tmp.%s.%u/", self -> hostname, self -> pid );
+    */
+    return rc;
+}
+
+static rc_t generate_sub_path( temp_dir_t * self, const char * requested, const KDirectory * dir ) {
     rc_t rc;
-    size_t num_writ;
     bool es = ends_in_slash( requested );
     if ( es ) {
-        rc = string_printf( self -> path, sizeof self -> path, &num_writ,
-                            "%sfasterq.tmp.%s.%u/", requested, self -> hostname, self -> pid );
+        rc = KDirectoryResolvePath( dir,
+                                    true /* absolute */,
+                                    &( self -> path[ 0 ] ),
+                                    sizeof self -> path,
+                                    "%sfasterq.tmp.%s.%u/", requested, self -> hostname, self -> pid );
     } else {
-        rc = string_printf( self -> path, sizeof self -> path, &num_writ,
-                            "%s/fasterq.tmp.%s.%u/", requested, self -> hostname, self -> pid );
+        rc = KDirectoryResolvePath( dir,
+                                    true /* absolute */,
+                                    &( self -> path[ 0 ] ),
+                                    sizeof self -> path,
+                                    "%s/fasterq.tmp.%s.%u/", requested, self -> hostname, self -> pid );
+    }
+    if ( 0 != rc ) {
+        ErrMsg( "temp_dir.c generate_sub_path() -> %R", rc );        
+    } else {
+        /* we have to add a slash! ( because KDirectoryResolvePath() does not want to... ) */
+        append_slash( self -> path, sizeof( self -> path ) - 2 );
     }
     return rc;
 }
@@ -115,9 +148,9 @@ rc_t make_temp_dir( struct temp_dir_t ** obj, const char * requested, KDirectory
             rc = get_pid_and_hostname( o );
             if ( 0 == rc ) {
                 if ( requested == NULL ) {
-                    rc = generate_dflt_path( o );
+                    rc = generate_dflt_path( o, dir );
                 } else {
-                    rc = generate_sub_path( o, requested );
+                    rc = generate_sub_path( o, requested, dir );
                 }
             }
             if ( 0 == rc ) {

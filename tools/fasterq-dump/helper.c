@@ -156,6 +156,14 @@ format_t get_format_t( const char * format,
     return res;
 }
 
+static const char * FASTA_EXT = ".fasta";
+static const char * FASTQ_EXT = ".fastq";
+
+const char * out_ext( bool fasta ) {
+    if ( fasta ) return FASTA_EXT;
+    return FASTQ_EXT;
+}
+
 /* -------------------------------------------------------------------------------- */
 
 static check_mode_t check_mode_cmp( const String * Mode, const char * test, check_mode_t test_mode ) {
@@ -564,3 +572,28 @@ bool filter_2na_2( filter_2na_t * self, const String * bases1, const String * ba
     return res;
 }
 
+/* ===================================================================================== */
+
+uint32_t device_id_of_path( const char * path ) {
+    uint32_t res = 0;
+    if ( NULL != path ) {
+#ifdef WINDOWS
+        /* do nothing for WINDOWS... */
+#else
+
+#include <sys/types.h>
+#include <sys/stat.h> 
+        struct stat st;
+        if ( 0 == lstat( path, &st ) ) {
+            res = st . st_dev;
+        }
+#endif
+    }
+    return res;
+}
+
+bool paths_on_same_filesystem( const char * path1, const char * path2 ) {
+    uint32_t id1 = device_id_of_path( path1 );
+    uint32_t id2 = device_id_of_path( path2 );
+    return ( id1 == id2 );
+}

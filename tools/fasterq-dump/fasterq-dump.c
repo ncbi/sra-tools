@@ -199,8 +199,11 @@ static const char * check_usage[] = { "switch to control:",
                                       NULL };
 #define OPTION_CHECK            "size-check"
 
-static const char * disk_limit_usage[] = { "explicitly set disk-limit", NULL };
-#define OPTION_DISK_LIMIT       "disk-limit"
+static const char * disk_limit_out_usage[] = { "explicitly set disk-limit", NULL };
+#define OPTION_DISK_LIMIT_OUT   "disk-limit"
+
+static const char * disk_limit_tmp_usage[] = { "explicitly set disk-limit for temp. files", NULL };
+#define OPTION_DISK_LIMIT_TMP   "disk-limit-tmp"
 
 static const char * ngc_usage[] = { "PATH to ngc file", NULL };
 #define OPTION_NGC              "ngc"
@@ -237,7 +240,8 @@ OptDef ToolOptions[] = {
     { OPTION_ONLY_UN,       ALIAS_ONLY_UN,      NULL, only_un_usage,        1, false,  false },
     { OPTION_ONLY_ALIG,     ALIAS_ONLY_ALIG,    NULL, only_a_usage,         1, false,  false },
     { OPTION_ROW_LIMIT,     ALIAS_ROW_LIMIT,    NULL, row_limit_usage,      1, true,   false },
-    { OPTION_DISK_LIMIT,    NULL,               NULL, disk_limit_usage,     1, true,   false },
+    { OPTION_DISK_LIMIT_OUT,NULL,               NULL, disk_limit_out_usage, 1, true,   false },
+    { OPTION_DISK_LIMIT_TMP,NULL,               NULL, disk_limit_tmp_usage, 1, true,   false },    
     { OPTION_CHECK,         NULL,               NULL, check_usage,          1, true,   false },
     { OPTION_NGC,           NULL,               NULL, ngc_usage,            1, true,   false }
 };
@@ -323,7 +327,8 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> row_limit = get_uint64_t_option( args, OPTION_ROW_LIMIT, 0 );
-    tool_ctx -> disk_limit = get_size_t_option( args, OPTION_DISK_LIMIT, 0 );
+    tool_ctx -> disk_limit_out = get_size_t_option( args, OPTION_DISK_LIMIT_OUT, 0 );
+    tool_ctx -> disk_limit_tmp = get_size_t_option( args, OPTION_DISK_LIMIT_TMP, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
     
     /* join_options_t is defined in helper.h */

@@ -38,17 +38,17 @@ add_library( ngs-c++-shared SHARED "${NGS_CPP_LIB}" )
 set_target_properties( ngs-c++-shared PROPERTIES OUTPUT_NAME ngs-c++ )
 MakeLinksShared( ngs-c++-shared ngs-c++ true )
 
-################################# ngs-sdk
+################################# ngs-sdk renamed to ncbi-ngs
 set( NGS_SDK_LIB "" )
 foreach( target ${NGS_SDK_TARGETS})
     list( APPEND NGS_SDK_LIB "$<TARGET_OBJECTS:${target}>" )
 endforeach()
 
-add_library( ngs-sdk STATIC "${NGS_SDK_LIB}" )
-ExportStatic( ngs-sdk true )
+add_library( ncbi-ngs STATIC "${NGS_SDK_LIB}" )
+ExportStatic( ncbi-ngs true )
 
 #--------------------------------
-add_library( ngs-sdk-shared SHARED ${NGS_SDK_LIB} )
-target_link_libraries( ngs-sdk-shared ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
-MakeLinksShared( ngs-sdk-shared ngs-sdk true )
+add_library( ncbi-ngs-shared SHARED ${NGS_SDK_LIB} )
+target_link_libraries( ncbi-ngs-shared ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
+MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )

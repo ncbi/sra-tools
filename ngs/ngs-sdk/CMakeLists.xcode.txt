@@ -75,13 +75,13 @@ set_target_properties( ngs-c++-shared PROPERTIES OUTPUT_NAME ngs-c++ )
 
 ####################################
 GetTargetSources( "${NGS_SDK_TARGETS}" all_src all_incl_dirs all_compile_defs )
-add_library( ngs-sdk STATIC ${all_src} )
-target_include_directories( ngs-sdk PUBLIC ${all_incl_dirs} )
-target_compile_definitions( ngs-sdk PUBLIC ${all_compile_defs} )
+add_library( ncbi-ngs STATIC ${all_src} )
+target_include_directories( ncbi-ngs PUBLIC ${all_incl_dirs} )
+target_compile_definitions( ncbi-ngs PUBLIC ${all_compile_defs} )
 
 #----------------------------------
-add_library( ngs-sdk-shared SHARED ${all_src} )
-target_include_directories( ngs-sdk-shared PUBLIC ${all_incl_dirs} )
-target_compile_definitions( ngs-sdk-shared PUBLIC ${all_compile_defs} )
-target_link_libraries( ngs-sdk-shared ncbi-vdb ${COMMON_LINK_LIBRARIES} )
-set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
+add_library( ncbi-ngs-shared SHARED ${all_src} )
+target_include_directories( ncbi-ngs-shared PUBLIC ${all_incl_dirs} )
+target_compile_definitions( ncbi-ngs-shared PUBLIC ${all_compile_defs} )
+target_link_libraries( ncbi-ngs-shared ncbi-vdb ${COMMON_LINK_LIBRARIES} )
+set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )

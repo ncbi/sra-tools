@@ -30,3 +30,7 @@ else() # XCode
     include( CMakeLists.xcode.txt )
 endif()
 
+install( DIRECTORY ngs
+         DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+)
+

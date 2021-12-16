@@ -43,6 +43,8 @@ struct FasterqParams final : CmnOptAndAccessions
     ncbi::String temp;
     ncbi::String table;
     ncbi::String bases;
+    ncbi::String seqDefline;
+    ncbi::String qualDefline;
     ncbi::U32 ThreadsCount;
     ncbi::U32 Threads;
     bool progress;
@@ -63,6 +65,8 @@ struct FasterqParams final : CmnOptAndAccessions
     bool append;
     bool fasta;
     bool fastaUnsorted;
+    bool unaligned_only;
+    bool aligned_only;
 
     explicit FasterqParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
@@ -86,6 +90,8 @@ struct FasterqParams final : CmnOptAndAccessions
     , append( false )
     , fasta(false)
     , fastaUnsorted(false)
+    , unaligned_only(false)
+    , aligned_only(false)
     {
     }
 
@@ -135,6 +141,12 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline.addOption(fasta, "", "fasta", "produce FASTA output");
         cmdline.addOption(fastaUnsorted, "", "fasta-unsorted", "produce FASTA output, unsorted");
 
+        cmdline.addOption(seqDefline, nullptr, "", "seq-defline", "", "custom defline for sequence: $ac=accession, $sn=spot-name, $sg=spot-group, $si=spot-id, $ri=read-id, $rl=read-length");
+        cmdline.addOption(qualDefline, nullptr, "", "qual-defline", "", "custom defline for qualities (see seq-defline)");
+
+        cmdline.addOption(unaligned_only, "U", "only-unaligned", "process only unaligned reads");
+        cmdline.addOption(aligned_only, "a", "only-aligned", "process only aligned reads");
+
         CmnOptAndAccessions::add(cmdline);
     }
 
@@ -168,6 +180,12 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( strict ) ss << "strict" << std::endl;
         if ( !bases.isEmpty() )  ss << "bases : " << bases << std::endl;
         if ( append ) ss << "append" << std::endl;
+        if ( fasta ) ss << "fasta" << std::endl;
+        if ( fastaUnsorted ) ss << "fasta-unsorted" << std::endl;
+        if ( !seqDefline.isEmpty() ) ss << "seq-defline: " << seqDefline << std::endl;
+        if ( !qualDefline.isEmpty() ) ss << "qual-defline: " << qualDefline << std::endl;
+        if ( unaligned_only ) ss << "only-unaligned" << std::endl;
+        if ( aligned_only ) ss << "only-aligned" << std::endl;
         return CmnOptAndAccessions::show(ss);
     }
 
@@ -208,6 +226,12 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( strict ) builder . add_option( "--strict" );
         if ( !bases.isEmpty() ) builder . add_option( "-B", bases );
         if ( append ) builder . add_option( "-A" );
+        if ( fasta ) builder . add_option("--fasta");
+        if ( fastaUnsorted ) builder . add_option("--fasta-unsorted");
+        if ( !seqDefline.isEmpty() ) builder.add_option("--seq-defline", seqDefline);
+        if ( !qualDefline.isEmpty() ) builder.add_option("--qual-defline", qualDefline);
+        if ( unaligned_only ) builder . add_option("-U");
+        if ( aligned_only ) builder . add_option("-a");
     }
 
     bool check() const override

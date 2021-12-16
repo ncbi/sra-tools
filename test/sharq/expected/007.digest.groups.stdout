@@ -1,0 +1,220 @@
+{
+    "groups": [
+        {
+            "estimated_spots": 3,
+            "files": [
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t2_I1.fastq.gz",
+                    "file_size": 145,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:19722:1042",
+                    "has_orphans": false,
+                    "is_compressed": true,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 40,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t2_R1.fastq.gz",
+                    "file_size": 363,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:19722:1042",
+                    "has_orphans": false,
+                    "is_compressed": true,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 40,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t2_R2.fastq.gz",
+                    "file_size": 373,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:19722:1042",
+                    "has_orphans": false,
+                    "is_compressed": true,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 40,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "2"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                }
+            ],
+            "is_10x": true
+        },
+        {
+            "estimated_spots": 3,
+            "files": [
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t3_I1.fastq.bz2",
+                    "file_size": 162,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:2560:1044",
+                    "has_orphans": false,
+                    "is_compressed": true,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t3_R1.fastq.bz2",
+                    "file_size": 405,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:2560:1044",
+                    "has_orphans": false,
+                    "is_compressed": true,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t3_R2.fastq.bz2",
+                    "file_size": 423,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:2560:1044",
+                    "has_orphans": false,
+                    "is_compressed": true,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "2"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                }
+            ],
+            "is_10x": true
+        },
+        {
+            "estimated_spots": 3,
+            "files": [
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t_I1.fastq",
+                    "file_size": 269,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:14600:1041",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t_R1.fastq",
+                    "file_size": 1037,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:14600:1041",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t_R2.fastq",
+                    "file_size": 1037,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:14600:1041",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "2"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                }
+            ],
+            "is_10x": true
+        }
+    ]
+}

@@ -2,15 +2,16 @@ add_compile_definitions( __mod__="test/prefetch" )
 
 # if( Python3_EXECUTABLE )
 	# add_test( NAME Test_Vdb_dump_Check_exit_code
-		# COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${BINDIR}/vdb-dump
+		# COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-dump
 		# WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 # endif()
 
 if ( NOT WIN32 )
-	add_executable( test-quality test-quality )
-	target_link_libraries( test-quality ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+	BuildExecutableForTest( SlowTest_Prefetch "test-quality" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
-	add_test( NAME Test_Prefetch
-		COMMAND runtests.sh "${CMAKE_BINARY_DIR}/test-bin/test-quality" "${BINDIR}"
+	add_test( NAME SlowTest_Prefetch
+		COMMAND
+            ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
+            bash -c "./runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

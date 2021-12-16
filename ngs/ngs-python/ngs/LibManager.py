@@ -164,7 +164,9 @@ def load_library(lib_name, do_download, silent):
             lib_name +
             " (NGS_PY_DOWNLOAD_LIBRARY=" + os.environ.get("NGS_PY_DOWNLOAD_LIBRARY", "<not set>") + ", "
             + "NGS_PY_LIBRARY_PATH=" + os.environ.get("NGS_PY_LIBRARY_PATH", "<not set>") + ", "
-            + "do_download=" + str(do_download) + ")")
+            + "do_download=" + str(do_download) + ")\n"
+            + "Please install ngs-sdk and ncbi-ngs libraries: "
+            + "https://github.com/ncbi/ngs/wiki/Downloads")
     else:
         return library
 
@@ -231,7 +233,7 @@ class LibManager:
         do_update_engine = check_vers_res & 1
         do_update_sdk    = check_vers_res & 2
 
-        libname_engine = "ncbi-vdb"
+        libname_engine = "ncbi-ngs"
         libname_sdk = "ngs-sdk"
 
         self.c_lib_engine = load_library(libname_engine, do_update_engine, silent=False)

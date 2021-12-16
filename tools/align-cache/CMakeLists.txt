@@ -6,4 +6,5 @@ set( SRC
 )
 
 add_executable( align-cache ${SRC} )
-target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ncbi-wvdb load )
+target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+MakeLinksExe( align-cache false )

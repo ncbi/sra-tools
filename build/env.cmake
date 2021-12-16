@@ -49,11 +49,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Darwin" )
     set(OS "mac")
     set(SHLX "dylib")
+    set(STLX "a")
 elseif ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Linux" )
     set(OS "linux")
     set(SHLX "so")
+    set(STLX "a")
 elseif ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Windows" )
     set(OS "windows")
+    set(STLX "lib")
 elseif()
     message ( FATAL_ERROR "unknown OS " ${CMAKE_HOST_SYSTEM_NAME})
 endif()
@@ -178,6 +181,10 @@ find_package( BISON 3 )
 find_package( LibXml2 )
 
 find_package(Java COMPONENTS Development)
+if( Java_FOUND AND NOT Java_VERSION )
+    message(STATUS "No version of Java found")
+    unset( Java_FOUND )
+endif()
 
 if ( PYTHON_PATH )
     set( Python3_EXECUTABLE ${PYTHON_PATH} )
@@ -230,6 +237,8 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
     set( CMAKE_JAR_OUTPUT_DIRECTORY                      ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG} ) # both Debug and Release share this
     SetAndCreate( TEMPDIR_DEBUG "${TEST_RUNTIME_OUTPUT_DIRECTORY_DEBUG}/tmp" )
     SetAndCreate( TEMPDIR_RELEASE "${TEST_RUNTIME_OUTPUT_DIRECTORY_RELEASE}/tmp" )
+    cmake_path(NATIVE_PATH TEMPDIR_DEBUG NORMALIZE TEMPDIR_DEBUG)
+    cmake_path(NATIVE_PATH TEMPDIR_RELEASE NORMALIZE TEMPDIR_RELEASE)
 
     # to be used in add-test() as the location of executables, etc.
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
@@ -255,7 +264,7 @@ else() # assume a single-config generator
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )
     SetAndCreate( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${TARGDIR}/ilib )
-    set( CMAKE_JAR_OUTPUT_DIRECTORY              ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
+    set( CMAKE_JAR_OUTPUT_DIRECTORY              ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} )
 
     # to be used in add-test() as the location of executables.
     # NOTE: always use the COMMAND_EXPAND_LISTS option of add_test
@@ -264,9 +273,30 @@ else() # assume a single-config generator
     set( TESTBINDIR "${TARGDIR}/test-bin" )
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
-    link_directories( ${NCBI_VDB_LIBDIR} )
-    link_directories( ${NCBI_VDB_ILIBDIR} )
+#    link_directories( ${NCBI_VDB_LIBDIR} )
+#    link_directories( ${NCBI_VDB_ILIBDIR} )
 endif()
+
+# DIRTOTEST is the overridable location of the executables to call from scripted test
+if( NOT DIRTOTEST )
+    set( DIRTOTEST ${BINDIR} )
+endif()
+message( DIRTOTEST: ${DIRTOTEST})
+
+# CONFIGTOUSE is a way to block user settings ($HOME/.ncbi/user-settings.mkfg). Assign anything but NCBI_SETTINGS to it, and the user settings will be ignored.
+if( NOT CONFIGTOUSE )
+    set( CONFIGTOUSE NCBI_SETTINGS )
+endif()
+message( CONFIGTOUSE: ${CONFIGTOUSE})
+
+# Python 3
+if( Python3_EXECUTABLE )
+    set( PythonUserBase ${TEMPDIR}/python )
+endif()
+
+#
+# Common functions for creation of build artefacts
+#
 
 function( GenerateStaticLibsWithDefs target_name sources compile_defs )
     add_library( ${target_name} STATIC ${sources} )
@@ -294,6 +324,13 @@ function( ExportStatic name install )
             COMMAND ln -f -s lib${name}.a lib${name}-static.a
             WORKING_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         )
+
+        set_property(
+            TARGET    ${name}
+            APPEND
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${VERSION};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${MAJVERS};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a;${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}-static.a"
+        )
+
         if ( ${install} )
             install( FILES  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${VERSION}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${MAJVERS}
@@ -324,6 +361,13 @@ function(MakeLinksShared target name install)
             COMMAND ln -f -s lib${name}.${SHLX}.${MAJVERS} lib${name}.${SHLX}
             WORKING_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         )
+
+        set_property(
+            TARGET    ${target}
+            APPEND
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${VERSION};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${MAJVERS};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}"
+        )
+
         if ( ${install} )
             install( FILES  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${VERSION}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${MAJVERS}
@@ -346,7 +390,66 @@ function(ExportShared lib install)
     endif()
 endfunction()
 
-set( COMMON_LINK_LIBRARIES kapp tk-version )
+#
+# create versioned names and symlinks for an executable
+#
+function(MakeLinksExe target install_via_driver)
+    if( SINGLE_CONFIG )
+        add_custom_command(TARGET ${target}
+            POST_BUILD
+            COMMAND rm -f ${target}.${VERSION}
+            COMMAND mv ${target} ${target}.${VERSION}
+            COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+            COMMAND ln -f -s sratools.${VERSION} ${target}-driver
+            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        )
+
+        set_property(
+            TARGET    ${target}
+            APPEND
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
+        )
+
+        if ( install_via_driver )
+            install(
+                PROGRAMS
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
+            install(
+                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
+                RENAME ${target}-orig.${VERSION}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
+            install(
+                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver
+                RENAME ${target}.${VERSION}
+                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
+
+        else()
+            install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
+                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
+                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
+                    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
+        endif()
+    endif()
+endfunction()
+
+
+if( WIN32 )
+    set( COMMON_LINK_LIBRARIES kapp load tk-version )
+    set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
+    set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
+else()
+    # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
+    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_ILIBDIR}/libkapp.${STLX} ${NCBI_VDB_ILIBDIR}/libload.${STLX} tk-version )
+    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
+    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
+endif()
 
 if( WIN32 )
     add_compile_definitions( UNICODE _UNICODE )
@@ -356,3 +459,14 @@ if( WIN32 )
     # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries
     # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  /INCREMENTAL:NO" )
 endif()
+
+function( BuildExecutableForTest exe_name sources libraries )
+	add_executable( ${exe_name} ${sources} )
+	#MSVS_StaticRuntime( ${exe_name} )
+	target_link_libraries( ${exe_name} ${libraries} )
+endfunction()
+
+function( AddExecutableTest test_name sources libraries )
+	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
+	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endfunction()

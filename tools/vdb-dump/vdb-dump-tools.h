@@ -35,8 +35,13 @@ extern "C" {
 #include <klib/defs.h>
 #endif
 
-#include "vdb-dump-coldefs.h"
-#include "vdb-dump-str.h"
+#ifndef _h_vdb_dump_coldefs_
+#include "vdb-dump-coldefs.h" /* because of p_col_def */
+#endif
+
+#ifndef _h_vdb_dump_context_
+#include "vdb-dump-context.h" /* because of dump_format_t */
+#endif
 
 typedef struct dump_src
 {
@@ -47,17 +52,18 @@ typedef struct dump_src
     bool in_hex;
     bool print_dna_bases;
     bool without_sra_types;
+    bool print_comma;
+    bool translate_sra_values; /* legacy ??? */
+    bool value_trans;   /* translate each value */
+    bool group_trans;   /* translate a group of values */
     char c_boolean;
+    dump_format_t output_format;
 } dump_src;
 typedef dump_src* p_dump_src;
 
-rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket );
+rc_t vdt_format_cell_v1( const p_dump_src src, const p_col_def def, bool cell_debug );
 
-void vdm_clear_recorded_errors( void );
-
-rc_t check_table_empty( const VTable * tab );
-
-rc_t open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab );
+rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_debug );
 
 #ifdef __cplusplus
 }

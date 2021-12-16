@@ -26,8 +26,8 @@
 
 #include "vdb-dump-tools.h"
 #include "vdb-dump-str.h"
+#include "vdb-dump-helper.h"
 
-#include <vdb/schema.h>
 #include <klib/printf.h>
 #include <klib/rc.h>
 #include <klib/pack.h>
@@ -42,7 +42,6 @@
 
 #include <klib/rc.h>
 #include <klib/log.h>
-#define DISP_RC(rc,err) if( rc != 0 ) LOGERR( klogInt, rc, err );
 
 #define BYTE_OFFSET(VALUE)  ( (VALUE) >> 3 )
 #define BIT_OFFSET(VALUE)   ( (VALUE) & 0x7 )
@@ -104,114 +103,61 @@ static uint64_t vdt_bitlength_2_mask( const size_t n_bits )
     return res;
 }
 
-static rc_t vdb_dump_txt_ascii( p_dump_str s, const p_dump_src src,
-                                const p_col_def def )
-{
-    char *src_ptr = ( char* )src -> buf + BYTE_OFFSET( src -> offset_in_bits );
-    return vds_append_fmt( s, src -> number_of_elements,
-                           "%.*s", src -> number_of_elements, src_ptr );
 
+typedef struct bit_iter
+{
+    const uint8_t *buf;
+    uint64_t bit_offset;
+} bit_iter;
+typedef bit_iter* p_bit_iter;
+
+#define MACRO_GET( DATA_TYPE ) \
+    DATA_TYPE res = 0; \
+    const uint8_t * p = iter -> buf + BYTE_OFFSET( iter -> bit_offset ); \
+    bitcpy ( &res, 0, p, BIT_OFFSET( iter -> bit_offset ), num_bits ); \
+    iter -> bit_offset += num_bits; \
+    return res;
+
+static uint8_t vdt_get_u8( p_bit_iter iter, uint8_t num_bits )
+{
+    MACRO_GET( uint8_t )
 }
 
-static rc_t vdb_dump_hex_char( char * temp, uint32_t * idx, const uint8_t c )
+static uint64_t vdt_get_u64( p_bit_iter iter, uint8_t num_bits )
 {
-    char s[ 8 ];
-    size_t num_writ;
-    rc_t rc = string_printf ( s, sizeof s, &num_writ, "%X ", c );
-    if ( 0 == rc )
-    {
-        size_t i;
-        for ( i = 0; i < num_writ; ++i )
-        {
-            temp[ ( *idx )++ ] = s[ i ];
-        }
-    }
-    return rc;
+    MACRO_GET( uint64_t )
 }
 
-static rc_t vdb_dump_hex_ascii( p_dump_str s, const p_dump_src src,
-                                const p_col_def def )
+static int64_t vdt_get_i64( p_bit_iter iter, uint8_t num_bits )
 {
-    rc_t rc = 0;
-    char *src_ptr = ( char* )src -> buf + BYTE_OFFSET( src -> offset_in_bits );
-    char *tmp = malloc( src -> number_of_elements * 4 );
-    if ( NULL != tmp )
-    {
-        uint32_t i, dst = 0;
-        for ( i = 0; i < src->number_of_elements && 0 == rc; ++i )
-        {
-            rc = vdb_dump_hex_char( tmp, &dst, src_ptr[ i ] );
-        }
-        if ( 0 == rc )
-        {
-            rc = vds_append_fmt( s, dst, "%.*s", dst, tmp );
-        }
-        free( tmp );
-    }
-    else
-    {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-    }
-    return rc;
+    MACRO_GET( int64_t )
 }
 
-/*************************************************************************************
-src         [IN] ... buffer containing the data
-dpo         [IN] ... pointer to buffer-offset (bit-offset-part will be ignored)
-
-dumps an ascii-string
-*************************************************************************************/
-static rc_t vdt_dump_ascii( p_dump_str s, const p_dump_src src,
-                            const p_col_def def )
+static float vdt_get_f32( p_bit_iter iter, uint8_t num_bits )
 {
-    rc_t rc;
-    if ( src -> in_hex )
-    {
-        rc = vdb_dump_hex_ascii( s, src, def );
-        DISP_RC( rc, "vdb_dump_hex_ascii() failed" );
-    }
-    else
-    {
-        rc = vdb_dump_txt_ascii( s, src, def );
-        DISP_RC( rc, "vdb_dump_txt_ascii() failed" );
-    }
-    if ( 0 == rc )
-    {
-        src -> element_idx += src -> number_of_elements;
-        src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * src -> number_of_elements );
-    }
-    return rc;
+    MACRO_GET( float )
 }
 
-/*************************************************************************************
-src         [IN] ... buffer containing the data
-dpo         [IN] ... pointer to buffer-offset (bit-offset-part will be ignored)
-
-dumps an ascii-string
-*************************************************************************************/
-static rc_t vdt_dump_unicode( p_dump_str s, const p_dump_src src,
-                              const p_col_def def )
+static double vdt_get_f64( p_bit_iter iter, uint8_t num_bits )
 {
-    rc_t rc;
-    if ( src -> in_hex )
-    {
-        rc = vdb_dump_hex_ascii( s, src, def );
-        DISP_RC( rc, "vdb_dump_hex_ascii() failed" );
-    }
-    else
-    {
-        rc = vdb_dump_txt_ascii( s, src, def );
-        DISP_RC( rc, "vdb_dump_txt_ascii() failed" );
-    }
-    if ( 0 == rc )
-    {
-        src -> element_idx += src -> number_of_elements;
-        src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * src -> number_of_elements );
-    }
-    return rc;
+    MACRO_GET( double )
 }
 
-void vdt_move_to_value( void* dst, const p_dump_src src, const uint32_t n_bits )
+#undef MACRO_GET
+
+static uint8_t * vdt_get_bits( p_bit_iter iter, size_t num_bytes )
+{
+    uint8_t * res = malloc( num_bytes );
+    if ( NULL != res )
+    {
+        const uint8_t * p = iter -> buf + BYTE_OFFSET( iter -> bit_offset );
+        bitcpy ( res, 0, p, BIT_OFFSET( iter -> bit_offset ), num_bytes << 3 );
+        iter -> bit_offset += ( num_bytes << 3 );
+    }
+    return res;
+}
+    
+static void vdt_move_to_value( void* dst, const p_dump_src src, const uint32_t n_bits )
 {
     char *src_ptr = ( char* )src -> buf + BYTE_OFFSET( src -> offset_in_bits );
     if ( 0 == BIT_OFFSET( src -> offset_in_bits ) )
@@ -238,6 +184,116 @@ static uint64_t vdt_move_to_uint64( const p_dump_src src, const uint32_t n_bits 
     src -> offset_in_bits += n_bits;
     return value;
 }
+
+/*************************************************************************************
+    byte-source-iter
+
+    returns: uint8,int8,uint16,int16,uint32,int32,uint64,int64,fload,double
+*************************************************************************************/
+
+static rc_t vdt_ascii_v1( p_dump_str s, const p_dump_src src, const p_col_def def )
+{
+    char *src_ptr = ( char* )src -> buf + BYTE_OFFSET( src -> offset_in_bits );
+    return vds_append_fmt( s, src -> number_of_elements,
+                           "%.*s", src -> number_of_elements, src_ptr );
+
+}
+
+static rc_t vdt_hex_char_v1( char * temp, uint32_t * idx, const uint8_t c )
+{
+    char s[ 8 ];
+    size_t num_writ;
+    rc_t rc = string_printf ( s, sizeof s, &num_writ, "%X ", c );
+    if ( 0 == rc )
+    {
+        size_t i;
+        for ( i = 0; i < num_writ; ++i )
+        {
+            temp[ ( *idx )++ ] = s[ i ];
+        }
+    }
+    return rc;
+}
+
+static rc_t vdt_hex_ascii_v1( p_dump_str s, const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    char *src_ptr = ( char* )src -> buf + BYTE_OFFSET( src -> offset_in_bits );
+    char *tmp = malloc( src -> number_of_elements * 4 );
+    if ( NULL != tmp )
+    {
+        uint32_t i, dst = 0;
+        for ( i = 0; i < src->number_of_elements && 0 == rc; ++i )
+        {
+            rc = vdt_hex_char_v1( tmp, &dst, src_ptr[ i ] );
+        }
+        if ( 0 == rc )
+        {
+            rc = vds_append_fmt( s, dst, "%.*s", dst, tmp );
+        }
+        free( tmp );
+    }
+    else
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+    }
+    return rc;
+}
+
+/*************************************************************************************
+src         [IN] ... buffer containing the data
+dpo         [IN] ... pointer to buffer-offset (bit-offset-part will be ignored)
+
+dumps an ascii-string
+*************************************************************************************/
+static rc_t vdt_hex_or_ascii_v1( p_dump_str s, const p_dump_src src, const p_col_def def )
+{
+    rc_t rc;
+    if ( src -> in_hex )
+    {
+        rc = vdt_hex_ascii_v1( s, src, def );
+        DISP_RC( rc, "vdt_hex_ascii_v1() failed" );
+    }
+    else
+    {
+        rc = vdt_ascii_v1( s, src, def );
+        DISP_RC( rc, "vdt_ascii_v1() failed" );
+    }
+    if ( 0 == rc )
+    {
+        src -> element_idx += src -> number_of_elements;
+        src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * src -> number_of_elements );
+    }
+    return rc;
+}
+
+/*************************************************************************************
+src         [IN] ... buffer containing the data
+dpo         [IN] ... pointer to buffer-offset (bit-offset-part will be ignored)
+
+dumps an ascii-string
+*************************************************************************************/
+static rc_t vdt_unicode_v1( p_dump_str s, const p_dump_src src, const p_col_def def )
+{
+    rc_t rc;
+    if ( src -> in_hex )
+    {
+        rc = vdt_hex_ascii_v1( s, src, def );
+        DISP_RC( rc, "vdt_hex_ascii_v1() failed" );
+    }
+    else
+    {
+        rc = vdt_ascii_v1( s, src, def );
+        DISP_RC( rc, "vdt_ascii_v1() failed" );
+    }
+    if ( 0 == rc )
+    {
+        src -> element_idx += src -> number_of_elements;
+        src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * src -> number_of_elements );
+    }
+    return rc;
+}
+
 
 /*************************************************************************************
 src         [IN] ... buffer containing the data
@@ -282,7 +338,7 @@ static rc_t vdt_dump_boolean_element( p_dump_str s, const p_dump_src src,
                     }
                     break;
     }
-    DISP_RC( rc, "dump_str_append_str() failed" )
+    DISP_RC( rc, "dump_str_append_str() failed" );
     return rc;
 }
 
@@ -301,11 +357,11 @@ static rc_t vdt_dump_uint_element( p_dump_str s, const p_dump_src src,
 {
     rc_t rc = 0;
     uint64_t value = vdt_move_to_uint64( src, def -> type_desc . intrinsic_bits );
-    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct ) )
+    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn ) )
     {
-        const char *txt = def -> value_trans_fct( ( uint32_t )value );
+        const char *txt = def -> value_trans_fn( ( uint32_t )value );
         rc = vds_append_str( s, txt );
-        DISP_RC( rc, "dump_str_append_str() failed" )
+        DISP_RC( rc, "dump_str_append_str() failed" );
     }
     else
     {
@@ -317,7 +373,7 @@ static rc_t vdt_dump_uint_element( p_dump_str s, const p_dump_src src,
         {
             rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%lu", value );
         }
-        DISP_RC( rc, "dump_str_append_fmt() failed" )
+        DISP_RC( rc, "dump_str_append_fmt() failed" );
     }
     return rc;
 }
@@ -334,11 +390,11 @@ static rc_t vdt_dump_int_element( p_dump_str s, const p_dump_src src,
 {
     rc_t rc = 0;
     int64_t value = ( int64_t )vdt_move_to_uint64( src, def -> type_desc . intrinsic_bits );
-    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fct ) )
+    if ( ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn ) )
     {
-        const char *txt = def -> value_trans_fct( ( uint32_t )value );
+        const char *txt = def -> value_trans_fn( ( uint32_t )value );
         rc = vds_append_str( s, txt );
-        DISP_RC( rc, "dump_str_append_str() failed" )
+        DISP_RC( rc, "dump_str_append_str() failed" );
     }
     else
     {
@@ -371,7 +427,7 @@ static rc_t vdt_dump_int_element( p_dump_str s, const p_dump_src src,
         {
             rc = vds_append_fmt( s, MAX_CHARS_FOR_DEC_UINT64, "%ld", value );
         }
-        DISP_RC( rc, "dump_str_append_fmt() failed" )
+        DISP_RC( rc, "dump_str_append_fmt() failed" );
     }
     return rc;
 }
@@ -401,19 +457,19 @@ static rc_t vdt_dump_float_element( p_dump_str s, const p_dump_src src,
             float value;
             vdt_move_to_value( &value, src, def -> type_desc . intrinsic_bits );
             rc = vds_append_fmt( s, MAX_CHARS_FOR_DOUBLE, "%e", value );
-            DISP_RC( rc, "dump_str_append_fmt() failed" )
+            DISP_RC( rc, "dump_str_append_fmt() failed" );
         }
         else if ( BITSIZE_OF_DOUBLE == def -> type_desc . intrinsic_bits )
         {
             double value;
             vdt_move_to_value( &value, src, def -> type_desc . intrinsic_bits );
             rc = vds_append_fmt( s, MAX_CHARS_FOR_DOUBLE, "%e", value );
-            DISP_RC( rc, "dump_str_append_fmt() failed" )
+            DISP_RC( rc, "dump_str_append_fmt() failed" );
         }
         else
         {
             rc = vds_append_str( s, "unknown float-type" );
-            DISP_RC( rc, "dump_str_append_str() failed" )
+            DISP_RC( rc, "dump_str_append_str() failed" );
         }
         src -> offset_in_bits += def -> type_desc.intrinsic_bits;
     }
@@ -435,7 +491,7 @@ static rc_t vdt_dump_base_element( p_dump_str s,
     value1 <<= 1;
     value1 |= value2;
     rc = vds_append_fmt( s, 1, "%c", dna_chars[ value1 & 0x03 ] );
-    DISP_RC( rc, "dump_str_append_fmt() failed" )
+    DISP_RC( rc, "dump_str_append_fmt() failed" );
     return rc;
 }
 
@@ -450,24 +506,26 @@ vdt_dump_fkt_t vdt_DomainDispatch[] =
     vdt_dump_uint_element,
     vdt_dump_int_element,
     vdt_dump_float_element,
-    vdt_dump_ascii,
-    vdt_dump_unicode
+    vdt_hex_or_ascii_v1,
+    vdt_unicode_v1
 };
 
 rc_t vdt_dump_dim_trans( const p_dump_src src, const p_col_def def,
                          const int dimension )
 {
     rc_t rc = 0;
-    char *s;
     uint8_t *sbuf = ( uint8_t * )src -> buf;
+    char trans_txt[ 512 ];
+    size_t written;
+    
     sbuf += ( src -> offset_in_bits >> 3 );
-    s = def -> dim_trans_fct( sbuf );
+    rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written, sbuf, src -> output_format );
     src -> offset_in_bits += ( def -> type_desc . intrinsic_bits * dimension );
-    rc = vds_append_str( &( def -> content ), s );
-    DISP_RC( rc, "dump_str_append_str() failed" )
-    /* we have to free, because dim_trans_fct()
-       makes the string dynamically */
-    free( s );
+    if ( 0 == rc )
+    {
+        rc = vds_append_str( &( def -> content ), trans_txt );
+        DISP_RC( rc, "dump_str_append_str() failed" );
+    }
     return rc;
 }
 
@@ -490,12 +548,12 @@ rc_t vdt_dump_dim( const p_dump_src src, const p_col_def def,
         if ( print_comma && ( i > 0 ) )
         {
             rc = vds_append_str( &( def -> content ), ", " );
-            DISP_RC( rc, "dump_str_append_str() failed" )
+            DISP_RC( rc, "dump_str_append_str() failed" );
         }
         if ( rc == 0 )
         {
             rc = vdt_DomainDispatch[ selection ]( &( def -> content ), src, def );
-            DISP_RC( rc, "DomainDispatch[]() failed" )
+            DISP_RC( rc, "DomainDispatch[]() failed" );
         }
         i++;
     }
@@ -508,7 +566,7 @@ my_col_def  [IN] ... the definition of the column to be dumped
 
 dumps one data-element (or a vector of it)
 *************************************************************************************/
-rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket )
+static rc_t vdt_dump_cell_element( const p_dump_src src, const p_col_def def, bool bracket )
 {
     int dimension, selection;
     rc_t rc = 0;
@@ -520,11 +578,12 @@ rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket )
     dimension   = def -> type_desc . intrinsic_dim;
     selection   = def -> type_desc . domain - 1;
 
+   
     if ( 1 == dimension )
     {
         /* we have only 1 dimension ---> just print this value */
         rc = vdt_DomainDispatch[ selection ]( &( def -> content ), src, def );
-        DISP_RC( rc, "DomainDispatch[]() failed" )
+        DISP_RC( rc, "DomainDispatch[]() failed" );
     }
     else
     {
@@ -535,13 +594,13 @@ rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket )
         }
         else
         {
-            bool trans = ( ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fct ) );
+            bool trans = ( ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn ) );
             bool paren = ( ( src -> number_of_elements > 1 ) || ( !trans ) );
 
             if ( paren )
             {
                 rc = vds_append_str( &( def -> content), bracket ? "[" : "{" );
-                DISP_RC( rc, "dump_str_append_str() failed" )
+                DISP_RC( rc, "dump_str_append_str() failed" );
             }
 
             if ( 0 == rc )
@@ -559,7 +618,7 @@ rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket )
             if ( paren && ( 0 == rc ) )
             {
                 rc = vds_append_str( &( def -> content ), bracket ? "]" : "}" );
-                DISP_RC( rc, "dump_str_append_str() failed" )
+                DISP_RC( rc, "dump_str_append_str() failed" );
             }
         }
     }
@@ -567,119 +626,1449 @@ rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket )
     return rc;
 }
 
-void vdm_clear_recorded_errors( void )
+
+static rc_t vdt_dump_cell_dflt( const p_dump_src src, const p_col_def def )
 {
-    rc_t rc;
-    const char * filename;
-    const char * funcname;
-    uint32_t line_nr;
-    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+    rc_t rc = 0;
+    /* loop through the elements(dimension's) of a cell */
+    while( ( src -> element_idx < src -> number_of_elements )&&( rc == 0 ) )
     {
+        uint32_t eidx = src -> element_idx;
+        if ( ( eidx > 0 )&& ( ! src -> print_dna_bases ) && src -> print_comma )
+        {
+            if ( src -> translate_sra_values )
+            {
+                vds_append_str( &( def -> content ), "," );
+            }
+            else
+            {
+                vds_append_str( &( def -> content ), ", " );
+            }
+        }
+
+        rc = vdt_dump_cell_element( src, def, !( src -> translate_sra_values ) );
+
+        /* insurance against endless loop */
+        if ( eidx == src -> element_idx )
+        {
+            src -> element_idx++;
+        }
+    }
+    return rc;
+}
+
+
+static rc_t vdt_dump_cell_json( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    /* loop through the elements(dimension's) of a cell */
+    while( ( src -> element_idx < src -> number_of_elements )&&( rc == 0 ) )
+    {
+        uint32_t eidx = src -> element_idx;
+        if ( ( eidx > 0 )&& ( ! src -> print_dna_bases ) && src -> print_comma )
+        {
+            if ( src -> translate_sra_values )
+            {
+                vds_append_str( &( def -> content ), "," );
+            }
+            else
+            {
+                vds_append_str( &( def -> content ), ", " );
+            }
+        }
+
+        rc = vdt_dump_cell_element( src, def, !( src -> translate_sra_values ) );
+
+        /* insurance against endless loop */
+        if ( eidx == src -> element_idx )
+        {
+            src -> element_idx++;
+        }
+    }
+    return rc;
+}
+
+
+static rc_t vdt_print_cell_debug( const p_dump_src src, const p_col_def def )
+{
+    return vds_append_fmt( &( def -> content ), 128,
+        "<dom=%u, dim=%u, num=%u, bits=%u, ofs=%u> ",
+        def -> type_desc . domain,
+        def -> type_desc . intrinsic_dim,
+        src -> number_of_elements,
+        def -> type_desc . intrinsic_bits,
+        src -> offset_in_bits );
+}
+
+/*************************************************************************************
+src         [IN] ... buffer containing the data
+my_col_def  [IN] ... the definition of the column to be dumped
+
+dumps all data-elements of a cell
+*************************************************************************************/
+rc_t vdt_format_cell_v1( const p_dump_src src, const p_col_def def, bool cell_debug )
+{
+    rc_t rc = 0;
+
+    if ( cell_debug )
+    {
+        rc = vdt_print_cell_debug( src, def );
+    }
+
+    if ( 0 == rc )
+    {
+        /* initialize the element-idx ( for dimension > 1 ) */
+        src -> element_idx = 0;
+
+        switch ( src -> output_format )
+        {
+            case df_json : rc = vdt_dump_cell_json( src, def ); break;
+            default      : rc = vdt_dump_cell_dflt( src, def ); break;
+        }
+    }
+    return rc;
+}
+
+/* ================================================================================= */
+
+const char * bool_true_1      = "1";
+const char * bool_false_1     = "0";
+const char * bool_true_T      = "T";
+const char * bool_false_T     = "F";
+const char * bool_true_dflt   = "true";
+const char * bool_false_dflt  = "false";
+
+static void vdt_get_bool_strings( char c_boolean, const char ** s_true, const char ** s_false )
+{
+    *s_true  = bool_true_dflt;
+    *s_false = bool_false_dflt;    
+    switch( c_boolean )
+    {
+        case '1' :  *s_true = bool_true_1; *s_false = bool_false_1; break;
+        case 'T' :  *s_true = bool_true_T; *s_false = bool_false_T; break;
     }
 }
 
-static rc_t walk_sections( const VDatabase * base_db, const VDatabase ** sub_db,
-                    const VNamelist * sections, uint32_t count )
+/* --------------------------------------------------------------------------------- */
+
+#define MACRO_NBB_IN_HEX_JSON \
+    uint64_t value; \
+    if ( 1 == n ) \
+    { \
+        value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "\"0x%lX\"", value ); \
+        DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        rc = vds_append_str( s, "[" ); \
+        DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_str() #2 failed" ); \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "\"0x%lX\", ", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_fmt() #3 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "\"0x%lX\"", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_fmt() #4 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_JSON.vds_append_str() #5 failed" ); \
+        } \
+    }
+
+#define MACRO_NBB_IN_HEX_DFLT \
+    uint64_t value; \
+    if ( 1 == n ) \
+    { \
+        value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX", value ); \
+        DISP_RC( rc, "MACRO_NBB_IN_HEX_DFLT.vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX, ", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_DFLT.vds_append_fmt() #2 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, "0x%lX", value ); \
+            DISP_RC( rc, "MACRO_NBB_IN_HEX_DFLT.vds_append_fmt() #3 failed" ); \
+        } \
+    }
+
+#define MACRO_NBB_IN_HEX \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_NBB_IN_HEX_JSON \
+    } \
+    else \
+    { \
+        MACRO_NBB_IN_HEX_DFLT \
+    }
+
+static rc_t vdt_format_slice_nbb_bool( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
 {
     rc_t rc = 0;
-    const VDatabase * parent_db = base_db;
-    if ( 0 == count )
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex ) {
+        MACRO_NBB_IN_HEX
+    } else {
+        const char * bt_true;
+        const char * bt_false;    
+
+        vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
+        if ( 1 == n ) {
+            uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
+            rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
+            DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" ); \
+            
+        } else {
+            for ( i = 0; 0 == rc && i < n - 1; ++i )
+            {
+                uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
+                rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" );
+                if ( 0 == rc ) {
+                    rc = vds_append_str( s, ", " );
+                    DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" );
+                }
+            }
+            if ( 0 == rc ) {
+                uint64_t value = vdt_get_u64( bi, def -> type_desc . intrinsic_bits );
+                rc = vds_append_str( s, 0 == value ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_nbb_bool.vds_append_str() failed" );
+            }
+        }
+    }
+    return rc;
+}
+
+#define MACRO_NBB_TRANSLATE( DATA_TYPE, GETTER_FUNC ) \
+    if ( 1 == n ) \
+    { \
+        DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+        const char *txt = def -> value_trans_fn( ( uint32_t )value ); \
+        if ( NULL != txt ) \
+        { \
+            if ( df_json == src -> output_format ) \
+            { \
+                size_t txt_len = string_size( txt ); \
+                rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+                DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #1 failed" ); \
+            } \
+            else \
+            { \
+                rc = vds_append_str( s, txt ); \
+                DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #2 failed" ); \
+            }\
+        } \
+    } \
+    else \
+    { \
+        if ( df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "[" ); \
+            DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #3 failed" ); \
+        } \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            const char *txt = def -> value_trans_fn( ( uint32_t )value ); \
+            if ( NULL != txt ) \
+            { \
+                size_t txt_len = string_size( txt ); \
+                if ( df_json == src -> output_format ) \
+                { \
+                    rc = vds_append_fmt( s, txt_len + 6, "\"%s\", ", txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #4 failed" ); \
+                } \
+                else \
+                { \
+                    rc = vds_append_fmt( s, txt_len + 4, "%s, ", txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #4 failed" ); \
+                }\
+            }\
+        } \
+        if ( 0 == rc ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            const char *txt = def -> value_trans_fn( ( uint32_t )value ); \
+            if ( NULL != txt ) \
+            { \
+                if ( df_json == src -> output_format ) \
+                { \
+                    size_t txt_len = string_size( txt ); \
+                    rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_fmt() #5 failed" ); \
+                } \
+                else \
+                { \
+                    rc = vds_append_str( s, txt ); \
+                    DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #6 failed" ); \
+                }\
+            } \
+        } \
+        if ( 0 == rc && df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_NBB_TRANSLATE.vds_append_str() #7 failed" ); \
+        } \
+    }
+
+#define MACRO_NBB_PRINT( DATA_TYPE, GETTER_FUNC, FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, value ); \
+        DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        if ( df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "[" ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_str() #2 failed" ); \
+        } \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, value ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_fmt() #3 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            DATA_TYPE value = GETTER_FUNC( bi, def -> type_desc . intrinsic_bits ); \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, value ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_fmt() #4 failed" ); \
+        } \
+        if ( 0 == rc && df_json == src -> output_format ) \
+        { \
+            rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_NBB_PRINT.vds_append_str() #5 failed" ); \
+        } \
+    }
+
+/* unsigned integer values, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
+static rc_t vdt_format_slice_nbb_unsig( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
     {
-        rc = VDatabaseAddRef ( parent_db );
-        DISP_RC( rc, "VDatabaseAddRef() failed" );
+        MACRO_NBB_IN_HEX
+    }
+    else if ( src -> value_trans )
+    {
+        MACRO_NBB_TRANSLATE( uint64_t, vdt_get_u64 )
     }
     else
     {
-        uint32_t idx;
-        for ( idx = 0; 0 == rc && idx < count; ++idx )
+        MACRO_NBB_PRINT( uint64_t, vdt_get_u64, "%lu", "%lu, " )
+    }
+    return rc;
+}
+
+/* signed integer values, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
+static rc_t vdt_format_slice_nbb_sig( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
+    {
+        MACRO_NBB_IN_HEX
+    }
+    else if ( src -> value_trans )
+    {
+        MACRO_NBB_TRANSLATE( uint64_t, vdt_get_u64 )
+    }
+    else
+    {
+        MACRO_NBB_PRINT( int64_t, vdt_get_i64, "%lu", "%lu, " )
+    }
+    return rc;
+}
+
+/* here the bit-size should be only 32-bit or 64-bit, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
+static rc_t vdt_format_slice_nbb_float( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
+    {
+        MACRO_NBB_IN_HEX
+    }
+    else
+    {
+        if ( 32 == def -> type_desc . intrinsic_bits )
         {
-            const char * dbname;
-            rc = VNameListGet ( sections, idx, &dbname );
-            DISP_RC( rc, "VNameListGet() failed" );
-            if ( 0 == rc )
-            {
-                const VDatabase * temp;
-                rc = VDatabaseOpenDBRead ( parent_db, &temp, "%s", dbname );
-                DISP_RC( rc, "VDatabaseOpenDBRead() failed" );
-                if ( 0 == rc && idx > 0 )
-                {
-                    rc = VDatabaseRelease ( parent_db );
-                    DISP_RC( rc, "VDatabaseRelease() failed" );
-                }
-                if ( 0 == rc )
-                {
-                    parent_db = temp;
-                }
-            }
+            MACRO_NBB_PRINT( float, vdt_get_f32, "%e", "%e, " )
+        }
+        else if ( 64 == def -> type_desc . intrinsic_bits )
+        {
+            MACRO_NBB_PRINT( double, vdt_get_f64, "%e", "%e, " )            
+        }
+        else
+        {
+            /* this should not happen... */
         }
     }
-    
-    if ( 0 == rc )
-    {
-        *sub_db = parent_db;
-    }
     return rc;
 }
 
-rc_t check_table_empty( const VTable * tab )
+/* here the bit-size should be only 8-bit, but we are not on a byte-boundary
+  called by vdt_format_slice_nbb below */
+static rc_t vdt_format_slice_nbb_ascii( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
 {
-    bool empty;
-    rc_t rc = VTableIsEmpty( tab, &empty );
-    DISP_RC( rc, "VTableIsEmpty() failed" );
-    if ( 0 == rc && empty )
-    {
-        vdm_clear_recorded_errors();
-        KOutMsg( "the requested table is empty!\n" );
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
-    }
-    return rc;
-}
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
 
-rc_t open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab )
-{
-    VNamelist * sections;
-    rc_t rc = vds_path_to_sections( inner_db_path, '.', &sections );
-    DISP_RC( rc, "vds_path_to_sections() failed" );
-    if ( 0 == rc )
+    if ( src -> in_hex )
     {
-        uint32_t count;
-        rc = VNameListCount ( sections, &count );
-        DISP_RC( rc, "VNameListCount() failed" );
-        if ( 0 == rc && count > 0 )
+        MACRO_NBB_IN_HEX
+    }
+    else
+    {
+        bool is_json = df_json == src -> output_format;
+        if ( def -> type_desc . intrinsic_bits < 9 )
         {
-            const VDatabase * sub_db;
-            rc = walk_sections( db, &sub_db, sections, count - 1 );
-            if ( 0 == rc )
+            if ( is_json )
             {
-                const char * tabname;
-                rc = VNameListGet ( sections, count - 1, &tabname );
-                DISP_RC( rc, "VNameListGet() failed" );
-                if ( 0 == rc )
+                rc = vds_append_str( s, "\"" );
+                DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_str() #1 failed" );
+            }
+            for ( i = 0; 0 == rc && i < n; ++i )
+            {
+                uint8_t value = vdt_get_u8( bi, def -> type_desc . intrinsic_bits );
+                if ( is_json )
                 {
-                    rc = VDatabaseOpenTableRead( sub_db, tab, "%s", tabname );
-                    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
-                    if ( 0 == rc )
+                    /* here we are escaping ctrl-chars and the backslash */
+                    if ( value < 0x20 )
                     {
-                        rc = check_table_empty( *tab );
-                        if ( 0 != rc )
-                        {
-                            rc_t rc2 = VTableRelease( *tab );
-                            DISP_RC( rc2, "VTableRelease() failed" );
-                            tab = NULL;
-                        }
+                        rc = vds_append_fmt( s, 8, "\\u%04x", value );
+                        DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_fmt() #2 failed" );
+                    }
+                    else if ( '\\' == value )
+                    {
+                        rc = vds_append_str( s, "\\\\" );
+                        DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_str() #3 failed" );
+                    }
+                    else
+                    {
+                        rc = vds_append_fmt( s, 4, "%c", value );
+                        DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_fmt() #4 failed" );
                     }
                 }
+                else
                 {
-                    rc_t rc2 = VDatabaseRelease ( sub_db );
-                    DISP_RC( rc2, "VDatabaseRelease() failed" );
-                    rc = ( 0 == rc ) ? rc2 : rc;
+                    rc = vds_append_fmt( s, 4, "%c", value );
+                    DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_fmt() #5 failed" );
+                }
+            }
+            if ( 0 == rc && is_json )
+            {
+                rc = vds_append_str( s, "\"" );
+                DISP_RC( rc, "vdt_format_slice_nbb_ascii().vds_append_str() #6 failed" );
+            }
+        }
+        else
+        {
+            /* this should not happen... */
+        }
+    }
+    return rc;
+}
+
+#undef MACRO_NBB_IN_HEX
+#undef MACRO_NBB_TRANSLATE
+#undef MACRO_NBB_PRINT
+
+/* not on a byte-boundary, 1 dimensional array of values
+ called by: vdt_format_cell_nbb_dim2_v2 AND vdt_format_cell_v2 below */
+static rc_t vdt_format_slice_nbb( const p_dump_src src, const p_col_def def, p_bit_iter bi, uint32_t n )
+{
+    switch( def -> type_desc . domain )
+    {
+        /* boolean */
+        case 1 : return vdt_format_slice_nbb_bool( src, def, bi, n ); break;
+        
+        /* unsigned integers */
+        case 2 : return vdt_format_slice_nbb_unsig( src, def, bi, n ); break;
+        
+        /* signed integers */
+        case 3 : return vdt_format_slice_nbb_sig( src, def, bi, n ); break;
+        
+        /* floats */
+        case 4 : return vdt_format_slice_nbb_float( src, def, bi, n ); break;
+
+        /* text */
+        case 5 :
+        case 6 : return vdt_format_slice_nbb_ascii( src, def, bi, n ); break;
+
+        default : /* this should not be reached - we checked before !*/ break;
+    }
+    return 0;
+}
+
+/* not on a byte-boundary, 2 dimensional array of values ( grouped ), translate each value, json-format
+ called by vdt_format_cell_nbb_dim2_v2 below */
+static rc_t vdt_format_nbb_dim2_trans_json( const p_dump_src src, const p_col_def def )
+{
+    bit_iter bi = { src -> buf, src -> offset_in_bits };
+    size_t num_bytes = def -> dim_trans_size;
+    uint32_t n = src -> number_of_elements;
+    uint32_t group;
+    p_dump_str ds = &( def -> content );
+
+    rc_t rc = vds_append_str( ds, "[" );
+    DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().vds_append_str() #1 failed" );
+    for ( group = 0; 0 == rc && group < n; ++group )
+    {
+        char trans_txt[ 512 ];
+        size_t written;
+        uint8_t * slice = vdt_get_bits( &bi, num_bytes );
+        if ( NULL != slice )
+        {
+            rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                      slice, src -> output_format );
+            DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().dim_trans_fn() failed" );
+            if ( 0 == rc )
+            {
+                bool not_last = ( group < n - 1 );
+                rc = vds_append_fmt( ds, written + 3, not_last ? "%s," : "%s", trans_txt );
+                DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().vds_append_fmt() #2 failed" );
+            }
+            free( slice );
+        }
+    }
+    if ( 0 == rc )
+    {
+        rc = vds_append_str( ds, "]" );
+        DISP_RC( rc, "vdt_format_nbb_dim2_trans_json().vds_append_str() #3 failed" );
+    }
+    return rc;
+}
+
+/* not on a byte-boundary, 2 dimensional array of values ( grouped ), translate each value, dflt-format
+ called by vdt_format_cell_nbb_dim2_v2 below */
+static rc_t vdt_format_nbb_dim2_trans_dflt( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    bit_iter bi = { src -> buf, src -> offset_in_bits };
+    size_t num_bytes = def -> dim_trans_size;
+    uint32_t n = src -> number_of_elements;
+    uint32_t group;
+
+    for ( group = 0; 0 == rc && group < n; ++group )
+    {
+        char trans_txt[ 512 ];
+        size_t written;
+        uint8_t * slice = vdt_get_bits( &bi, num_bytes );
+        if ( NULL != slice )
+        {
+            rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                      slice, src -> output_format );
+            DISP_RC( rc, "vdt_format_nbb_dim2_trans_dflt().dim_trans_fn() failed" );
+            if ( 0 == rc )
+            {
+                rc = vds_append_fmt( &( def -> content ), written + 3, "[%s]", trans_txt );
+                DISP_RC( rc, "vdt_format_nbb_dim2_trans_dflt().vds_append_fmt() failed" );
+            }
+            free( slice );
+        }
+    }
+    return rc;
+}
+
+/* not on a byte-boundary, 2 dimensional array of values ( grouped )
+ called by vdt_format_cell_v2 below */
+static rc_t vdt_format_cell_nbb_dim2_v2( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
+    
+    if ( group_trans )
+    {
+        switch ( src -> output_format )
+        {
+            case df_json : return vdt_format_nbb_dim2_trans_json( src, def ); break;
+            case df_xml  : ; /* fall through for now */
+            default      : return vdt_format_nbb_dim2_trans_dflt( src, def ); break;
+        }
+    }
+    else
+    {
+        bit_iter bi = { src -> buf, src -> offset_in_bits };
+        uint32_t dim = def -> type_desc . intrinsic_dim;
+        uint32_t n = src -> number_of_elements;
+        uint32_t group;
+
+        if ( df_json == src -> output_format )
+        {
+            rc = vds_append_str( &( def -> content ), "[" );
+            DISP_RC( rc, "vdt_format_cell_nbb_dim2_v2().vds_append_str() #1 failed" );
+        }
+
+        for ( group = 0; 0 == rc && group < n; ++group )
+        {
+            rc = vdt_format_slice_nbb( src, def, &bi, dim );
+            if ( 0 == rc && group < n - 1 )
+            {
+                rc = vds_append_str( &( def -> content ), "," );
+                DISP_RC( rc, "vdt_format_cell_nbb_dim2_v2().vds_append_str() #2 failed" );
+            }
+        }
+
+        if ( 0 == rc && df_json == src -> output_format )
+        {
+            rc = vds_append_str( &( def -> content ), "]" );
+            DISP_RC( rc, "vdt_format_cell_nbb_dim2_v2().vds_append_str() #3 failed" );
+        }
+    }
+    return rc;
+}
+
+/* --------------------------------------------------------------------------------- */
+
+#define MACRO_BB_IN_HEX_JSON( FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ 0 ] ); \
+        DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        if ( brackets ) \
+        { \
+           rc = vds_append_str( s, "[" ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_str() #2 failed" ); \
+        } \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_fmt() #3 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_fmt() #4 failed" ); \
+        } \
+        if ( 0 == rc && brackets ) \
+        { \
+            rc = vds_append_str( s, "]" ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_JSON().vds_append_str() #5 failed" ); \
+        } \
+    }
+
+#define MACRO_BB_IN_HEX_DFLT( FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ 0 ] ); \
+        DISP_RC( rc, "MACRO_BB_IN_HEX_DFLT().vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_DFLT().vds_append_fmt() #2 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_fmt( s, MAX_CHARS_FOR_HEX_UINT64, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_IN_HEX_DFLT().vds_append_fmt() #3 failed" ); \
+        } \
+    }
+
+#define MACRO_BB_IN_HEX_SHORT \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_BB_IN_HEX_JSON( "\"0x%X\"", "\"0x%X\", " ) \
+    } \
+    else \
+    { \
+        MACRO_BB_IN_HEX_DFLT( "0x%X", "0x%X, " ) \
+    }
+
+#define MACRO_BB_IN_HEX_LONG \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_BB_IN_HEX_JSON( "\"0x%lX\"", "\"0x%lX\", " ) \
+    } \
+    else \
+    { \
+        MACRO_BB_IN_HEX_DFLT( "0x%lX", "0x%lX, " ) \
+    }
+
+static rc_t vdt_format_slice_bb_bool( const p_dump_src src, const p_col_def def,
+                                      const uint8_t * data, uint32_t n, bool brackets )
+{
+    rc_t rc = 0;
+    uint32_t i;
+    p_dump_str s = &( def -> content );
+
+    if ( src -> in_hex ) {
+        MACRO_BB_IN_HEX_SHORT
+    } else {
+        const char * bt_true;
+        const char * bt_false;
+        vdt_get_bool_strings( src -> c_boolean, &bt_true, &bt_false );
+        
+        if ( 1 == n ) {
+            rc = vds_append_str( s, 0 == data[ 0 ] ? bt_false : bt_true );
+            DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+            
+        } else {
+            for ( i = 0; 0 == rc && i < n - 1; ++i )
+            {
+                rc = vds_append_str( s, 0 == data[ i ] ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+                if ( 0 == rc ) {
+                    rc = vds_append_str( s, ", " );
+                    DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+                }
+            }
+            if ( 0 == rc ) {
+                rc = vds_append_str( s, 0 == data[ n - 1 ] ? bt_false : bt_true );
+                DISP_RC( rc, "vdt_format_slice_bb_bool().vds_append_str() failed" );
+            }
+        }
+    }
+    return rc;
+}
+
+#define MACRO_BB_TRANSLATE_JSON \
+    if ( 1 == n ) \
+    { \
+        const char *txt = def -> value_trans_fn( ( uint32_t )data[ 0 ] ); \
+        size_t txt_len = string_size( txt ) ;\
+        rc = vds_append_fmt( s, txt_len + 3, "\"%s\"", txt ); \
+        DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        rc = vds_append_str( s, "[" ); \
+        DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_str() #2 failed" ); \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ i ] ); \
+            size_t txt_len = string_size( txt ) ;\
+            rc = vds_append_fmt( s, txt_len + 5, "\"%s\", ", txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_fmt() #3 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ n - 1 ] ); \
+            size_t txt_len = string_size( txt ) ;\
+            rc = vds_append_fmt( s, txt_len + 4, "\"%s\"]", txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_JSON().vds_append_fmt() #4 failed" ); \
+        } \
+    }
+
+
+#define MACRO_BB_TRANSLATE_DFLT \
+    if ( 1 == n ) \
+    { \
+        const char *txt = def -> value_trans_fn( ( uint32_t )data[ 0 ] ); \
+        rc = vds_append_str( s, txt ); \
+        DISP_RC( rc, "MACRO_BB_TRANSLATE_DFLT().vds_append_str() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ i ] ); \
+            size_t txt_len = string_size( txt ); \
+            rc = vds_append_fmt( s, txt_len + 3, "%s, ", txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_DFLT().vds_append_fmt() #2 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            const char *txt = def -> value_trans_fn( ( uint32_t )data[ n - 1 ] ); \
+            rc = vds_append_str( s, txt ); \
+            DISP_RC( rc, "MACRO_BB_TRANSLATE_DFLT().vds_append_str() #3 failed" ); \
+        } \
+    }
+
+
+#define MACRO_BB_TRANSLATE \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_BB_TRANSLATE_JSON \
+    } \
+    else \
+    { \
+        MACRO_BB_TRANSLATE_DFLT \
+    }
+
+#define MACRO_BB_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        rc = vds_append_fmt( s, RESERVE, FMT1, data[ 0 ] ); \
+        DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_fmt() #1 failed" ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        if ( brackets ) \
+        { \
+            rc = vds_append_str( &( def -> content ), "[" ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_str() #2 failed" ); \
+        } \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            rc = vds_append_fmt( s, RESERVE, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_fmt() #3 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_fmt( s, RESERVE, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_fmt() #4 failed" ); \
+        } \
+        if ( 0 == rc && brackets ) \
+        { \
+            rc = vds_append_str( &( def -> content ), "]" ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_JSON().vds_append_str() #5 failed" ); \
+        } \
+    }
+
+#define MACRO_BB_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
+    if ( 1 == n ) \
+    { \
+        rc = vds_append_fmt( s, RESERVE, FMT1, data[ 0 ] ); \
+    } \
+    else \
+    { \
+        uint32_t i; \
+        for ( i = 0; 0 == rc && i < n - 1; ++i ) \
+        { \
+            rc = vds_append_fmt( s, RESERVE, FMT2, data[ i ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_DFLT().vds_append_fmt() #1 failed" ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_fmt( s, RESERVE, FMT1, data[ n - 1 ] ); \
+            DISP_RC( rc, "MACRO_BB_PRINT_DFLT().vds_append_fmt() #2 failed" ); \
+        } \
+    }
+
+#define MACRO_BB_PRINT( RESERVE, FMT1, FMT2 ) \
+    if ( df_json == src -> output_format ) \
+    { \
+        MACRO_BB_PRINT_JSON( RESERVE, FMT1, FMT2 ) \
+    } \
+    else \
+    { \
+        MACRO_BB_PRINT_DFLT( RESERVE, FMT1, FMT2 ) \
+    }
+
+#define MACRO_BB_PRINT_SHORT( RESERVE, FMT1, FMT2 ) \
+    rc_t rc = 0; \
+    p_dump_str s = &( def -> content ); \
+    if ( src -> in_hex ) \
+    { \
+        MACRO_BB_IN_HEX_SHORT \
+    } \
+    else if ( src -> value_trans ) \
+    { \
+        MACRO_BB_TRANSLATE \
+    } \
+    else \
+    { \
+        MACRO_BB_PRINT( RESERVE, FMT1, FMT2 ) \
+    } \
+    return rc;
+
+#define MACRO_BB_PRINT_LONG( RESERVE, FMT1, FMT2 ) \
+    rc_t rc = 0; \
+    p_dump_str s = &( def -> content ); \
+    if ( src -> in_hex ) \
+    { \
+        MACRO_BB_IN_HEX_LONG \
+    } \
+    else if ( src -> value_trans ) \
+    { \
+        MACRO_BB_TRANSLATE \
+    } \
+    else \
+    { \
+        MACRO_BB_PRINT( RESERVE, FMT1, FMT2 ) \
+    } \
+    return rc;
+
+    
+static rc_t vdt_format_slice_bb_u8( const p_dump_src src, const p_col_def def,
+                                    const uint8_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
+}
+
+static rc_t vdt_format_slice_bb_i8( const p_dump_src src, const p_col_def def,
+                                    const int8_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
+}
+
+static rc_t vdt_format_slice_bb_u16( const p_dump_src src, const p_col_def def,
+                                     const uint16_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
+}
+
+static rc_t vdt_format_slice_bb_i16( const p_dump_src src, const p_col_def def,
+                                     const int16_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
+}
+
+static rc_t vdt_format_slice_bb_u32( const p_dump_src src, const p_col_def def,
+                                     const uint32_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%u", "%u, " )
+}
+
+static rc_t vdt_format_slice_bb_i32( const p_dump_src src, const p_col_def def,
+                                     const int32_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DEC_UINT64, "%d", "%d, " )
+}
+
+static rc_t vdt_format_slice_bb_u64( const p_dump_src src, const p_col_def def,
+                                     const uint64_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%lu", "%lu, " )
+}
+
+static rc_t vdt_format_slice_bb_i64( const p_dump_src src, const p_col_def def,
+                                     const int64_t * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_LONG( MAX_CHARS_FOR_DEC_UINT64, "%ld", "%ld, " )
+}
+
+static rc_t vdt_format_slice_bb_f32( const p_dump_src src, const p_col_def def,
+                                     const float * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_SHORT( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
+}
+
+static rc_t vdt_format_slice_bb_f64( const p_dump_src src, const p_col_def def,
+                                     const double * data, uint32_t n, bool brackets )
+{
+    MACRO_BB_PRINT_LONG( MAX_CHARS_FOR_DOUBLE, "%e", "%e, " )
+}
+
+static bool vdt_has_ctrl_chars( const uint8_t * data, uint32_t n )
+{
+    uint32_t i;
+    for ( i = 0; i < n; ++i )
+    {
+        if ( data[ i ] < 0x20 || '\\' == data[ i ] ) return true;
+    }
+    return false;
+}
+
+static rc_t vdt_escape_ctrl_chars( p_dump_str s, const uint8_t * data, uint32_t n )
+{
+    rc_t rc = vds_append_str( s, "\"" );
+    DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_str() #1 failed" );
+    if  ( 0 == rc )
+    {
+        uint32_t i;
+        for ( i = 0; 0 == rc && i < n; ++i )
+        {
+            if ( data[ i ] < 0x20 )
+            {
+                rc = vds_append_fmt( s, 8, "\\u%04x", data[ i ] );
+                DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_fmt() #2 failed" );
+            }
+            else if ( '\\' == data[ i ] )
+            {
+                rc = vds_append_str( s, "\\\\" );
+                DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_str() #3 failed" );
+            }
+            else
+            {
+                rc = vds_append_fmt( s, 4, "%c", data[ i ] );
+                DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_fmt() #4 failed" );
+            }
+        }
+        if ( 0 == rc )
+        {
+            rc = vds_append_str( s, "\"" );
+            DISP_RC( rc, "vdt_escape_ctrl_chars().vds_append_str() #5 failed" );
+        }
+    }
+    return rc;
+}
+
+/* on a byte-boundary, slice of ascii-test */
+static rc_t vdt_format_slice_bb_ascii( const p_dump_src src, const p_col_def def,
+                                       const uint8_t * data, uint32_t n, bool brackets )
+{
+    rc_t rc = 0;
+    p_dump_str s = &( def -> content );
+    if ( src -> in_hex )
+    {
+        MACRO_BB_IN_HEX_SHORT
+    }
+    else
+    {
+        if ( df_json == src -> output_format )
+        {
+            if ( vdt_has_ctrl_chars( data, n ) )
+            {
+                rc = vdt_escape_ctrl_chars( s, data, n );
+            }
+            else
+            {
+                rc = vds_append_fmt( s, n + 3, "\"%.*s\"", n, data );
+                DISP_RC( rc, "vdt_format_slice_bb_ascii().vds_append_fmt() #1 failed" );
+            }
+        }
+        else
+        {
+            rc = vds_append_fmt( s, n, "%.*s", n, data );
+            DISP_RC( rc, "vdt_format_slice_bb_ascii().vds_append_fmt() #2 failed" );
+        }
+    }
+    return rc;
+}
+
+/* just in case... */
+#undef MACRO_BB_IN_HEX_JSON
+#undef MACRO_BB_IN_HEX_DFLT
+#undef MACRO_BB_IN_HEX_SHORT
+#undef MACRO_BB_IN_HEX_LONG
+#undef MACRO_BB_TRANSLATE_JSON
+#undef MACRO_BB_TRANSLATE_DFLT
+#undef MACRO_BB_TRANSLATE
+#undef MACRO_BB_PRINT_JSON
+#undef MACRO_BB_PRINT_DFLT
+#undef MACRO_BB_PRINT
+#undef MACRO_BB_PRINT_SHORT
+#undef MACRO_BB_PRINT_LONG
+
+/* on a byte-boundary, 1 dimensional array of values */
+static rc_t vdt_format_cell_bb_dim1_v2( const p_dump_src src, const p_col_def def )
+{
+    uint32_t n = src -> number_of_elements;
+    switch( def -> type_desc . domain )
+    {
+        /* boolean */
+        case 1 : return vdt_format_slice_bb_bool( src, def, src -> buf, n, true ); break;
+        
+        /* unsigned integers */
+        case 2 : switch( def -> type_desc . intrinsic_bits )
+                 {
+                    case  8 : return vdt_format_slice_bb_u8( src, def, src -> buf, n, true ); break;
+                    case 16 : return vdt_format_slice_bb_u16( src, def, src -> buf, n, true ); break;
+                    case 32 : return vdt_format_slice_bb_u32( src, def, src -> buf, n, true ); break;
+                    case 64 : return vdt_format_slice_bb_u64( src, def, src -> buf, n, true ); break;
+                 }
+                 break;
+        
+        /* signed integers */
+        case 3 : switch( def -> type_desc . intrinsic_bits )
+                 {
+                    case  8 : return vdt_format_slice_bb_i8( src, def, src -> buf, n, true ); break;
+                    case 16 : return vdt_format_slice_bb_i16( src, def, src -> buf, n, true ); break;
+                    case 32 : return vdt_format_slice_bb_i32( src, def, src -> buf, n, true ); break;
+                    case 64 : return vdt_format_slice_bb_i64( src, def, src -> buf, n, true ); break;
+                 }
+                 break;
+        
+        /* floats */
+        case 4 : switch( def -> type_desc . intrinsic_bits )
+                 {
+                    case 32 : return vdt_format_slice_bb_f32( src, def, src -> buf, n, true ); break;
+                    case 64 : return vdt_format_slice_bb_f64( src, def, src -> buf, n, true ); break;
+                 }
+                 break;
+
+        /* text */
+        case 5 :
+        case 6 : return vdt_format_slice_bb_ascii( src, def, src -> buf, n, true ); break;
+
+        default : /* this should not be reached - we checked before !*/ break;
+    }
+    return 0;
+}
+
+#define MACRO_BB_DIM2( DATA_TYPE, SLICE_FUNC ) \
+    rc_t rc = 0; \
+    uint32_t dim = def -> type_desc . intrinsic_dim; \
+    uint32_t n = src -> number_of_elements; \
+    uint32_t group; \
+    const DATA_TYPE * data = src -> buf; \
+    if ( df_json == src -> output_format ) \
+    { \
+        rc = vds_append_str( &( def -> content ), "[" ); \
+        DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str([) #1 failed" ); \
+    } \
+    for ( group = 0; 0 == rc && group < n; ++group ) \
+    { \
+        const DATA_TYPE * slice = &( data[ group * dim ] ); \
+        rc = vds_append_str( &( def -> content ), "[" ); \
+        DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str([) #2 failed" ); \
+        if ( 0 == rc ) \
+        { \
+            rc = SLICE_FUNC( src, def, slice, dim, false ); \
+        } \
+        if ( 0 == rc ) \
+        { \
+            rc = vds_append_str( &( def -> content ), group < n - 1 ? "], " : "]" ); \
+            DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str(]) #2 failed" ); \
+        } \
+    } \
+    if ( 0 == rc && df_json == src -> output_format ) \
+    { \
+        rc = vds_append_str( &( def -> content ), "]" ); \
+        DISP_RC( rc, "MACRO_BB_DIM2.vds_append_str(]) #1 failed" ); \
+    } \
+    return rc;
+
+/* on a byte-boundary, 2 dimensional array of bool ( aka 1 byte ) 
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_bool( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( uint8_t, vdt_format_slice_bb_bool )
+}
+
+/* on a byte-boundary, 2 dimensional array of uint8
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_u8( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( uint8_t, vdt_format_slice_bb_u8 )
+}
+
+/* on a byte-boundary, 2 dimensional array of uint16
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_u16( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( uint16_t, vdt_format_slice_bb_u16 )
+}
+
+/* on a byte-boundary, 2 dimensional array of uint32
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_u32( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( uint32_t, vdt_format_slice_bb_u32 )
+}
+
+/* on a byte-boundary, 2 dimensional array of uint64
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_u64( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( uint64_t, vdt_format_slice_bb_u64 )
+}
+
+/* on a byte-boundary, 2 dimensional array of int8
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_i8( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( int8_t, vdt_format_slice_bb_i8 )
+}
+
+/* on a byte-boundary, 2 dimensional array of uint16
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_i16( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( int16_t, vdt_format_slice_bb_i16 )
+}
+
+/* on a byte-boundary, 2 dimensional array of int32
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_i32( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( int32_t, vdt_format_slice_bb_i32 )
+}
+
+/* on a byte-boundary, 2 dimensional array of int64
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_i64( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( int64_t, vdt_format_slice_bb_i64 )
+}
+
+/* on a byte-boundary, 2 dimensional array of floats
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_f32( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( float, vdt_format_slice_bb_f32 )
+}
+
+/* on a byte-boundary, 2 dimensional array of doubles
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_f64( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( double, vdt_format_slice_bb_f64 )
+}
+
+/* on a byte-boundary, 2 dimensional array of ascii-text ( 8 bit )
+ called by vdt_format_cell_bb_dim2_v2 below */
+static rc_t vdt_format_cell_bb_dim2_ascii( const p_dump_src src, const p_col_def def )
+{
+    MACRO_BB_DIM2( uint8_t, vdt_format_slice_bb_ascii )
+}
+
+#undef MACRO_BB_DIM2
+
+#define TRANS_TXT_SIZE 1024
+
+/* on a byte-boundary, 2 dimensional array of values ( grouped ) translated to txt, jsond-format
+ called by by vdt_format_cell_bb_dim2_v2() below */
+static rc_t vdt_format_bb_dim2_trans_json( const p_dump_src src, const p_col_def def )
+{
+    uint32_t n = src -> number_of_elements;
+    uint32_t group;
+    const uint8_t * data = src -> buf;  /* this type-casts the ptr ! */
+    p_dump_str ds = &( def -> content );
+    char trans_txt[ TRANS_TXT_SIZE ];
+    size_t written;
+
+    rc_t rc = vds_append_str( ds, "[" );
+    DISP_RC( rc, "vdt_format_bb_dim2_trans_json().vds_append_str([) failed" );
+    for ( group = 0; 0 == rc && group < n; ++group )
+    {
+        const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
+        rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                    slice, src -> output_format );
+        DISP_RC( rc, "vdt_format_bb_dim2_trans_json().dim_trans_fn() failed" );
+        if ( 0 == rc )
+        {
+            bool not_last = ( group < n - 1 );
+            rc = vds_append_fmt( ds, written + 3, not_last ? "%s," : "%s", trans_txt );
+            DISP_RC( rc, "vdt_format_bb_dim2_trans_json().vds_append_fmt() failed" );
+        }
+    }
+    if ( 0 == rc )
+    {
+        rc = vds_append_str( ds, "]" );
+        DISP_RC( rc, "vdt_format_bb_dim2_trans_json().vds_append_str(]) failed" );
+    }
+    return rc;
+}
+
+/* on a byte-boundary, 2 dimensional array of values ( grouped ) translated to txt, dflt-format
+ called by vdt_format_cell_bb_dim2_v2() below */
+static rc_t vdt_format_bb_dim2_trans_dflt( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    uint32_t group_count = src -> number_of_elements;
+    const uint8_t * data = src -> buf;  /* this type-casts the ptr ! */
+    char trans_txt[ TRANS_TXT_SIZE ];
+    size_t written;
+    
+    if ( 1 == group_count ) {
+        rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                  data, src -> output_format );
+        DISP_RC( rc, "vdt_format_bb_dim2_trans_dflt().dim_trans_fn() failed" );
+        if ( 0 == rc ) {
+            rc = vds_append_fmt( &( def -> content ), written + 3, "%s", trans_txt );
+            DISP_RC( rc, "vdt_format_bb_dim_2trans_dflt().vds_append_fmt() failed" );
+        }
+    } else {
+        uint32_t group;
+        for ( group = 0; 0 == rc && group < group_count; ++group ) {
+            const uint8_t * slice = &( data[ group * def -> type_desc . intrinsic_dim ] );
+            rc = def -> dim_trans_fn( trans_txt, sizeof trans_txt, &written,
+                                        slice, src -> output_format );
+            DISP_RC( rc, "vdt_format_bb_dim2_trans_dflt().dim_trans_fn() failed" );
+            if ( 0 == rc ) {
+                rc = vds_append_fmt( &( def -> content ), written + 5,
+                                     group < ( group_count - 1 ) ? "[%s], " : "[%s]", trans_txt );
+                DISP_RC( rc, "vdt_format_bb_dim_2trans_dflt().vds_append_fmt() failed" );
+            }
+        }
+    }
+    return rc;
+}
+
+/* on a byte-boundary, 2 dimensional array of values ( grouped )
+ called by vdt_format_cell_v2 below */
+static rc_t vdt_format_cell_bb_dim2_v2( const p_dump_src src, const p_col_def def )
+{
+    rc_t rc = 0;
+    bool group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
+    
+    if ( group_trans )
+    {
+        switch ( src -> output_format )
+        {
+            case df_json : return vdt_format_bb_dim2_trans_json( src, def ); break;
+            case df_xml  : ; /* fall through for now */
+            default      : return vdt_format_bb_dim2_trans_dflt( src, def ); break;
+        }
+    }
+    else
+    {
+        switch( def -> type_desc . domain )
+        {
+            /* boolean */        
+            case 1 : return vdt_format_cell_bb_dim2_bool( src, def ); break;
+
+            /* unsigned integers */
+            case 2 : switch( def -> type_desc . intrinsic_bits )
+                    {
+                        case  8 : return vdt_format_cell_bb_dim2_u8( src, def ); break;
+                        case 16 : return vdt_format_cell_bb_dim2_u16( src, def ); break;
+                        case 32 : return vdt_format_cell_bb_dim2_u32( src, def ); break;
+                        case 64 : return vdt_format_cell_bb_dim2_u64( src, def ); break;
+                    }
+                    break;
+
+            /* signed integers */
+            case 3 : switch( def -> type_desc . intrinsic_bits )
+                    {
+                        case  8 : return vdt_format_cell_bb_dim2_i8( src, def ); break;
+                        case 16 : return vdt_format_cell_bb_dim2_i16( src, def ); break;
+                        case 32 : return vdt_format_cell_bb_dim2_i32( src, def ); break;
+                        case 64 : return vdt_format_cell_bb_dim2_i64( src, def ); break;
+                    }
+                    break;
+            
+            /* floats */
+            case 4 : switch( def -> type_desc . intrinsic_bits )
+                    {
+                        case 32 : return vdt_format_cell_bb_dim2_f32( src, def ); break;
+                        case 64 : return vdt_format_cell_bb_dim2_f64( src, def ); break;
+                    }
+                    break;
+            
+            /* text */
+            case 5 :
+            case 6 : return vdt_format_cell_bb_dim2_ascii( src, def ); break; /* can that happen? */
+
+            default : /* this should not be reached - we checked before !*/ break;
+        }
+    }
+    return rc;
+}
+
+/*************************************************************************************
+src         [IN] ... buffer containing the data
+my_col_def  [IN] ... the definition of the column to be dumped
+
+new and improved print of a cell, takes advantage of the fact that most ( if not 
+all ) cells have bit-offset == 0 and can be printed as a typecast to an array
+called by vdm_read_cell_data() in vdb-dump.c
+*************************************************************************************/
+rc_t vdt_format_cell_v2( const p_dump_src src, const p_col_def def, bool cell_debug )
+{
+    rc_t rc = 0;
+
+    if ( cell_debug )
+    {
+        /* for debug purpose only: if '--cell-debug' via cmd-line, prepend each cell-value with
+         * <dom=d, dim=i, num=n, bits=b, ofs=o>
+         */
+        rc = vdt_print_cell_debug( src, def );
+    }
+
+    if ( 0 == rc )
+    {
+        uint32_t dom  = def -> type_desc . domain;
+        uint32_t dim  = def -> type_desc . intrinsic_dim;
+        p_dump_str ds = &( def -> content );
+
+        if ( dom < 1 || dom > 6 )
+        {
+            /* insurance against unknown domains */
+            switch ( src -> output_format )
+            {
+                case df_json : rc = vds_append_fmt( ds, 32, "\"unknown domain: #%u\"", dom ); break;
+                case df_xml  : rc = vds_append_fmt( ds, 32, "unknown domain: #%u", dom ); break;
+                default      : rc = vds_append_fmt( ds, 32, "unknown domain: #%u", dom ); break;
+            }
+        }
+        else if ( dim < 1 )
+        {
+            /* insurance against invalid dimension */
+            switch ( src -> output_format )
+            {
+                case df_json : rc = vds_append_fmt( ds, 32, "\"invalid dimension: #%u\"", dim ); break;
+                case df_xml  : rc = vds_append_fmt( ds, 32, "invalid dimension: #%u", dim ); break;
+                default      : rc = vds_append_fmt( ds, 32, "invalid dimension: #%u", dim ); break;
+            }
+        }
+        else if ( src -> number_of_elements > 0 )
+        {
+            /* we can take a simpler and faster approach if the data is on a byte-boundary! 
+            * it always seems to be...
+            */
+            
+            uint32_t bits = def -> type_desc . intrinsic_bits;
+            uint32_t ofs  = src -> offset_in_bits;
+            bool on_byte_boundary = ( 0 == ofs && ( 8 == bits || 16 == bits || 32 == bits || 64 == bits ) );
+            
+            /* precompute this setting to prevent it from beeing computed later in the detailed functions */
+            src -> value_trans = ( ! src -> without_sra_types ) && ( NULL != def -> value_trans_fn );
+            src -> group_trans = ( ! src -> without_sra_types ) && ( NULL != def -> dim_trans_fn );
+
+            if ( on_byte_boundary )
+            {
+                /* on a byte-boundary, bit-size is 8 or 16 or 32 or 64 : the common case */
+                if ( 1 == dim )
+                {
+                    /* the cell is a 1-dimensional vector of elements ... */
+                    rc = vdt_format_cell_bb_dim1_v2( src, def );
+                }
+                else
+                {
+                    /* the cell is a 2-dimensional vector of elements ... */
+                    rc = vdt_format_cell_bb_dim2_v2( src, def );
+                }
+            }    
+            else
+            {
+                /* NOT on a byte-boundary, or bit-size is NOT 8 or 16 or 32 or 64 : the rare case */
+                if ( 1 == dim )
+                {
+                    /* the cell is a 1-dimensional vector of elements ... */
+                    bit_iter bi = { src -> buf, src -> offset_in_bits };
+                    rc = vdt_format_slice_nbb( src, def, &bi, src -> number_of_elements );
+                }
+                else
+                {
+                    /* the cell is a 2-dimensional vector of elements ... */
+                    rc = vdt_format_cell_nbb_dim2_v2( src, def );
                 }
             }
         }
+        else
         {
-            rc_t rc2 = VNamelistRelease ( sections );
-            DISP_RC( rc2, "VNamelistRelease() failed" );
-            rc = ( 0 == rc ) ? rc2 : rc;
+            /* we need format-specific handling in case of json/xml for an empty cell */
+            switch ( src -> output_format )
+            {
+                case df_json  : rc = vds_append_str( ds, "\"\"" );
+                                DISP_RC( rc, "vdt_format_cell_v2().vds_append_str() failed" );
+                                break;
+                case df_xml   : ;
+                default       : break; /* nothing by default */
+            }
         }
     }
     return rc;

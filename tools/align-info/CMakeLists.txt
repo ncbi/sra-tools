@@ -5,4 +5,5 @@ set( SRC
 )
 
 add_executable( align-info ${SRC} )
-target_link_libraries ( align-info ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+target_link_libraries ( align-info ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+MakeLinksExe( align-info false )

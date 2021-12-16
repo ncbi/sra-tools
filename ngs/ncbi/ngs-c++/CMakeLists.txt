@@ -14,5 +14,5 @@ ExportStatic( ncbi-ngs-c++ true )
 
 if( NOT WIN32 )
 	add_executable( testy-the-bear testy-the-bear )
-	target_link_libraries( testy-the-bear ${COMMON_LINK_LIBRARIES} ncbi-ngs-c++ ngs-sdk ngs  ncbi-vdb ngs-bind-c++ ngs-disp )
+	target_link_libraries( testy-the-bear ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ncbi-ngs-c++ ngs-sdk ngs  ngs-bind-c++ ngs-disp )
 endif()

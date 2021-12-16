@@ -1,0 +1,76 @@
+{
+    "groups": [
+        {
+            "estimated_spots": 3,
+            "files": [
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t_I1.fastq",
+                    "file_size": 269,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:14600:1041",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t_R1.fastq",
+                    "file_size": 1037,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:14600:1041",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                },
+                {
+                    "defline_type": [
+                        "illuminaNew"
+                    ],
+                    "file_path": "input/003.t_R1.fastq",
+                    "file_size": 1037,
+                    "first_name": "NB551628:63:HTL7VAFXY:1:11101:14600:1041",
+                    "has_orphans": false,
+                    "is_compressed": false,
+                    "lines_processed": 12,
+                    "max_reads": 1,
+                    "name_size_avg": 39,
+                    "platform_code": [
+                        2
+                    ],
+                    "quality_encoding": 33,
+                    "readNums": [
+                        "1"
+                    ],
+                    "reads_processed": 3,
+                    "spots_processed": 3
+                }
+            ],
+            "is_10x": true
+        }
+    ]
+}

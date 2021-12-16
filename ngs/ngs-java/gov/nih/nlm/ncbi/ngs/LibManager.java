@@ -177,6 +177,8 @@ class LibManager implements FileCreator
             Logger.warning ( "Search of installed DLL was disabled" );
             SEARCH_FOR_LIBRARY = false;
         }
+
+        AUTO_DOWNLOAD = false;
     }
 
     private Location[] generateLocations() {

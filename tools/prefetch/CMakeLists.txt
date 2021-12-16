@@ -11,4 +11,5 @@ add_executable( prefetch
 	PrfRetrier
 	PrfOutFile
 )
-target_link_libraries ( prefetch ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+target_link_libraries ( prefetch ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+MakeLinksExe( prefetch true )

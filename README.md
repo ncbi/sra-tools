@@ -7,7 +7,7 @@ email: sra@ncbi.nlm.nih.gov
 Visit our [download page](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit) for pre-built binaries.
 
 ### Change Log
-Please check the CHANGES.md file for change history.
+Please check the [CHANGES.md](CHANGES.md) file for change history.
 
 ## The SRA Toolkit
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
@@ -15,54 +15,69 @@ using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
 
-April 19, 2021
-SRA data is stored and freely available worldwide from Amazon Web Services (AWS)'s Open Data Sponsorship Program. The data being retrieved and delivered by the SRA Toolkit comes from AWS storage and is also free for users everywhere.
+December 9, 2021. Upcoming changes to the source build system:
 
-NIH has released a request for information (RFI) to solicit community feedback on new proposed Sequence Read Archive (SRA) data formats. Learn more and share your thoughts at https://go.usa.gov/xvhdr. The response deadline is July 17th, 2020. We’d encourage you all to share with your colleagues and networks, and respond if you are an SRA submitter or data user.
+NCBI’s SRA will change the source build system to use CMake in the next toolkit release (date TBD). This change is an important step to improve developers’ productivity as it provides unified cross platform access to support multiple build systems. This change affects developers building NCBI SRA tools from source. Old makefiles and build systems will no longer be supported after we make this change.
 
-SRA Toolkit 2.11.0 March 15, 2021
+This change will also include the structure of GitHub repositories, which will undergo consolidation to provide an easier environment for building tools and libraries (NGS libs and dependencies are consolidated). Consolidation of NGS libraries and dependencies provides better usage scope isolation and makes building more straightforward.
 
-  **fasterq-dump**: does not exit with 0 any more if the given path is not found  
-  **fasterq-dump**: does not exit with 0 if accession is not found  
-  **fasterq-dump**: does not fail when requested to dump a run file with non-standard name  
-  **fasterq-dump**: available on windows  
-  **kfg, prefetch, vfs**: resolve WGS reference sequences into "Accession Directory"  
-  **kfg, sra-tools, vfs**: dropped support of protected repositories  
-  **kns, sra-tools**: fixed formatting of HTTP requests for proxy  
-  **ncbi-vdb, ngs, ngs-tools, sra-tools, vdb**: added support for 64-bit ARM (AArch64, Apple Silicon)  
-  **prefetch, vfs**: fixed download of protected non-run files  
-  **prefetch, vfs**: fixed segfault during download of JWT cart  
-  **prefetch, vfs**: respect requested version when downloading WGS files  
-  **sra-pileup**: now silent if requested slice has no alignments or reference-name does not exist  
-  **sratools**: added description and documentation of the sratools driver tool to GitHub wiki  
-  **sra-tools**: created a script to fix names of downloaded sra files  
-  **sra-tools**: created a script to move downloaded sra run files into proper directories  
-  **sratools**: disable-multithreading option removed from help text for tools that do not support it  
-  **sratools**: does not access remote repository when it is disabled  
-  **sra-tools, vfs**: recognize sra file names with version  
-  **vdb-dump**: exits with no-zero value if asked for non existing column  
+### **Affected repositories**
 
-SRA Toolkit 2.10.8
+1) ncbi/ngs (https://github.com/ncbi/ngs)
 
-kproc, fasterq-dump: fixed problem with seg-faults caused by too small stack used by threads
-kdbmeta: allow to work with remote runs
-kdb, vdb, vfs, sra-tools: fixed bug preventing use of path to directory created by prefetch if it ends with '/'
-vfs, sra-tools, ngs-tools: report an error when file was encrypted for a different ngc file
-prefetch: print error message when cannot resolve reference sequence
-vfs, prefetch: download encrypted phenotype files with encrypted extension
-vdb, sra-docker: config can auto-generate LIBS/GUID when in a docker container
+   This repository will be frozen, and all the code moved to Github repository ncbi/sra-tools, under subdirectory ngs/. All future modifications will take place in sra-tools
 
-SRA Toolkit 2.10.5
-sratools: fixed a potential build problem in libutf8proc
-ncbi-vdb, ngs, ngs-tools, sra-tools: all Linux builds now use g++ 7.3 (C++11 ABI)
-prefetch: improvements were made to work in environments with bad network connections
-prefetch, sratools: fixed the names of the --min-size and --max-size command line arguments when running prefetch
+2) ncbi/ncbi-vdb (https://github.com/ncbi/ncbi-vdb)
 
-SRA Toolkit 2.10.4
-kns, sra-tools:: fixed errors when using ngc file
+   This project’s build system will be based on CMake. The libraries supporting access to VDB data via NGS API will be moved to Github repository 
+   ncbi/sra-tools. 
 
-SRA Toolkit 2.10.3
-sraxf, fasterq-dump, fastq-dump, sam-dump: fixed a problem resulting in a segmentation fault
+The projects to move are: 
+
+| Old location (base URL: https://github.com/ncbi/ncbi-vdb) | New location (base URL: https://github.com/ncbi/sra-tools) |
+| --------------------------------------------------------- | ---------------------------------------------------------- |
+| libs/ngs | ngs/ncbi/ngs |
+| libs/ngs-c++ | ngs/ncbi/ngs-c++ |
+| libs/ngs-jni | ngs/ncbi/ngs-jni |
+| libs/ngs-py | ngs/ncbi/ngs-py |
+| libs/vdb-sqlite | libs/vdb-sqlite |
+| test/ngs-java | test/ngs-java |
+| test/ngs-python | test/ngs-python |
+
+
+3) ncbi/sra-tools (https://github.com/ncbi/sra-tools)
+
+   This project’s build system will be based on CMake. The project will acquire some new components:
+
+      3a) NGS SDK (now under ngs/, formerly in Github repository ncbi/ngs)
+       
+      3b) NGS-related VDB access libraries and their dependents, formerly in Github repository ncbi/ncbi-vdb, as listed in the table above.
+       
+       
+October 25, 2021. SRA Toolkit 2.11.3:
+fixed a bug in fasterq-dump: fasta and fasta-unsorted parameters work correctly.
+
+October 7, 2021. SRA Toolkit 2.11.2:
+
+SRA data are now available either with full base quality scores (SRA Normalized Format), or with simplified quality scores (SRA Lite), depending on user preference. Both formats can be streamed on demand to the same filetypes (fastq, sam, etc.), so they are both compatible with existing workflows and applications that expect quality scores. However, the SRA Lite format is much smaller, enabling a reduction in storage footprint and data transfer times, allowing dumps to complete more rapidly. The SRA toolkit defaults to using the SRA Normalized Format that includes full, per-base quality scores, but users that do not require full base quality scores for their analysis can request the SRA Lite version to save time on their data transfers. To request the SRA Lite data when using the SRA toolkit, set the "Prefer SRA Lite files with simplified base quality scores" option on the main page of the toolkit configuration- this will instruct the tools to preferentially use the SRA Lite format when available (please be sure to use toolkit version 2.11.2 or later to access this feature). The quality scores generated from SRA Lite files will be the same for each base within a given read (quality = 30 or 3, depending on whether the Read Filter flag is set to 'pass' or 'reject'). Data in the SRA Normalized Format with full base quality scores will continue to have a .sra file extension, while the SRA Lite files have a .sralite file extension. For more information please see our [data format](https://www.ncbi.nlm.nih.gov/sra/docs/sra-data-formats/) page.
+
+August 17, 2021: SRA Toolkit 2.11.1.
+
+March 15, 2021: SRA Toolkit 2.11.0.
+
+December 16, 2020: SRA Toolkit 2.10.9.
+
+June 29, 2020: SRA Toolkit 2.10.8.
+
+May 20, 2020: SRA Toolkit 2.10.7.
+
+May 18, 2020: SRA Toolkit 2.10.6.
+
+April 1, 2020: SRA Toolkit 2.10.5.
+
+February 26, 2020: SRA Toolkit 2.10.4.
+
+February 18, 2020: SRA Toolkit 2.10.3.
 
 Release 2.10.2 of `sra-tools` provides access to all the **public and controlled-access dbGaP** of SRA in the AWS and GCP environments _(Linux only for this release)_. This vast archive's original submission format and SRA-formatted data can both be accessed and computed on these clouds, eliminating the need to download from NCBI FTP as well as improving performance.
 

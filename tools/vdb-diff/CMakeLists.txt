@@ -10,4 +10,5 @@ add_executable( vdb-diff
 	col_by_col
 	vdb-diff
 )
-target_link_libraries( vdb-diff ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+target_link_libraries( vdb-diff ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+MakeLinksExe( vdb-diff false )

@@ -86,6 +86,10 @@ extern "C" {
 #define OPTION_APPEND            "append"
 
 #define OPTION_SLICE             "slice"
+
+#define OPTION_CELL_DEBUG        "cell-debug"
+#define OPTION_CELL_V1            "cell-v1"
+
 #define OPTION_LEN_SPREAD        "len-spread"
 
 #define OPTION_NGC               "ngc"
@@ -201,6 +205,8 @@ typedef struct dump_context
     bool interactive;
     bool len_spread;
     bool append;
+    bool cell_debug;
+    bool cell_v1;
 } dump_context;
 typedef dump_context* p_dump_context;
 

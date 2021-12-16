@@ -2,7 +2,7 @@ if( Python3_EXECUTABLE )
 
     add_subdirectory( examples )
 
-    cmake_path( CONVERT "${TEMPDIR}/ngs" TO_NATIVE_PATH_LIST PythonUserBase )
+    #TODO: install
 
     add_test(
         NAME Test_NGS_Python_install

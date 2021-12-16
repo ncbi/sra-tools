@@ -8,11 +8,8 @@ add_executable( samview
 	sam
 	samview
 )
-if( WIN32 )
-	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb )
-else()
-	target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ncbi-vdb m )
-endif()
+target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+MakeLinksExe( samview false )
 
 # External
 if( NOT WIN32)
@@ -27,5 +24,6 @@ if( NOT WIN32)
 		mem-bank
 		low-match-count
 	)
-	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES} load ncbi-wvdb )
+	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
+	MakeLinksExe( bam-load false )
 endif()

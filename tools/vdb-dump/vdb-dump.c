@@ -176,6 +176,8 @@ OptDef DumpOptions[] =
     { OPTION_APPEND,                ALIAS_APPEND,             NULL, append_usage,            1, false,  false },
     { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false },
+    { OPTION_CELL_DEBUG,            NULL,                     NULL, NULL,                    1, false,  false },
+    { OPTION_CELL_V1,               NULL,                     NULL, NULL,                    1, false,  false },
     { OPTION_NGC,                   NULL,                     NULL, ngc_usage,               1, true,   false }
 };
 
@@ -299,12 +301,15 @@ static void CC vdm_read_cell_data( void *item, void *data )
 {
     dump_src src; /* defined in vdb-dump-tools.h */
     p_col_def col_def = ( p_col_def )item;
-    p_row_context r_ctx = ( p_row_context )data;
+    p_row_context r_ctx = ( p_row_context )data; /* vdb-dump-row-context.h */
 
     if ( 0 != r_ctx -> rc ) return; /* important to stop if the last read was not successful */
     vds_clear( &( col_def -> content ) ); /* clear the destination-dump-string */
     if ( !col_def -> valid ) return;
     if ( col_def -> excluded ) return;
+
+    /* to make vdt_dump_element() aware of the output-format ( df_json, df_xml, etc ) */
+    src . output_format = r_ctx -> ctx -> format;
 
     /* read the data of a cursor-cell: buffer-addr, offset and element-count
        is stored in the dump_src-struct */
@@ -325,6 +330,8 @@ static void CC vdm_read_cell_data( void *item, void *data )
                      "col_name=%s,row_nr=%lu",
                       col_def -> name, r_ctx -> row_id ));
         }
+        /* remember the last error */
+        r_ctx -> last_rc = r_ctx -> rc;
         /* be forgiving and continue if a cell cannot be read */
         r_ctx -> rc = 0;
     }
@@ -337,31 +344,22 @@ static void CC vdm_read_cell_data( void *item, void *data )
     }
     else
     {
-        bool print_comma = true;
-        bool sra_dump_format;
+        src . print_comma = !( col_def -> type_desc . domain == vtdBool && r_ctx -> ctx -> c_boolean != 0 );
 
-        /* initialize the element-idx ( for dimension > 1 ) */
-        src . element_idx = 0;
-
+        /* special treatment to suppress spaces between values */
+        src . translate_sra_values = ( r_ctx -> ctx -> format == df_sra_dump );
+        
         /* transfer context-flags (hex-print, no sra-types) */
         src . in_hex = r_ctx -> ctx -> print_in_hex;
         src . without_sra_types = r_ctx -> ctx -> without_sra_types;
 
-        /* special treatment to suppress spaces between values */
-        sra_dump_format = ( r_ctx -> ctx -> format == df_sra_dump );
-
+        /* how a boolean is displayed */
+        src . c_boolean = r_ctx -> ctx -> c_boolean;
+        
         /* hardcoded printing of dna-bases if the column-type fits */
         src . print_dna_bases = ( r_ctx -> ctx -> print_dna_bases &
                     ( col_def -> type_desc . intrinsic_dim == 2 ) &
                     ( col_def -> type_desc . intrinsic_bits == 1 ) );
-
-        /* how a boolean is displayed */
-        src . c_boolean = r_ctx -> ctx -> c_boolean;
-
-        if ( col_def -> type_desc . domain == vtdBool && src . c_boolean != 0 )
-        {
-            print_comma = false;
-        }
 
         if ( r_ctx -> ctx -> print_num_elem )
         {
@@ -380,36 +378,15 @@ static void CC vdm_read_cell_data( void *item, void *data )
         }
         else
         {
-            /* loop through the elements(dimension's) of a cell */
-            while( ( src . element_idx < src . number_of_elements )&&( r_ctx -> rc == 0 ) )
+            if ( r_ctx -> ctx -> cell_v1 )
             {
-                uint32_t eidx = src . element_idx;
-                if ( ( eidx > 0 )&& ( ! src . print_dna_bases ) && print_comma )
-                {
-                    if ( sra_dump_format )
-                    {
-                        vds_append_str( &( col_def -> content ), "," );
-                    }
-                    else
-                    {
-                        vds_append_str( &( col_def -> content ), ", " );
-                    }
-                }
-
-                /* dumps the basic data-types, implementation in vdb-dump-tools.c
-                   >>> that means it appends the element-string to
-                       col_def -> content <<<
-                   the formated output is only collected, to be printed later
-                   dump_element is also responsible for incrementing
-                   the src.element_idx by: 1...bool/int/uint/float
-                                           n...string/unicode-string */
-                r_ctx -> rc = vdt_dump_element( &src, col_def, !sra_dump_format );
-
-                /* insurance against endless loop */
-                if ( eidx == src . element_idx )
-                {
-                    src . element_idx++;
-                }
+                /* the version1 ( legacy ) of cell-formatting ( for comparison ) in vdb-dump-tools.c */
+                r_ctx -> rc = vdt_format_cell_v1( &src, col_def, r_ctx -> ctx -> cell_debug );
+            }
+            else
+            {
+                /* the version2 of cell-formatting: faster, correct json in vdb-dump-tools.c */
+                r_ctx -> rc = vdt_format_cell_v2( &src, col_def, r_ctx -> ctx -> cell_debug );
             }
         }
     }
@@ -457,88 +434,94 @@ r_ctx   [IN] ... row-context ( cursor, dump_context, col_defs ... )
 static rc_t vdm_dump_rows( p_row_context r_ctx )
 {
     /* the important row_id is a member of r_ctx ! */
-    r_ctx -> rc = vds_make( &( r_ctx -> s_col ), r_ctx -> ctx->max_line_len, 512 );
-    if ( 0 != r_ctx -> rc )
-    {
-        vdm_row_error( "dump_str_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id );
-    }
-    else
-    {
-        const struct num_gen_iter * iter;
+    const struct num_gen_iter * iter;
 
+    r_ctx -> rc = vds_make( &( r_ctx -> s_col ), r_ctx -> ctx->max_line_len, 512 ); /* vdb-dump-str.sh */
+    DISP_RC( r_ctx -> rc, "vdm_dump_rows().vds_make() failed" );
+    if ( 0 == r_ctx -> rc )
+    {
         r_ctx -> rc = num_gen_iterator_make( r_ctx -> ctx -> rows, &iter );
-        if ( 0 != r_ctx -> rc )
+        DISP_RC( r_ctx -> rc, "vdm_dump_rows().num_gen_iterator_make() failed" );
+        if ( 0 == r_ctx -> rc )
         {
-            vdm_row_error( "num_gen_iterator_make( row#$(row_nr) ) failed", r_ctx -> rc, r_ctx -> row_id );
-        }
-        else
-        {
-            while ( ( 0 == r_ctx -> rc ) &&
-                      num_gen_iterator_next( iter, &( r_ctx -> row_id ), &( r_ctx -> rc ) ) )
+            uint64_t count;
+            r_ctx -> rc = num_gen_iterator_count( iter, &count );
+            DISP_RC( r_ctx -> rc, "vdm_dump_rows().num_gen_iterator_count() failed" );            
+            if ( 0 == r_ctx -> rc )
             {
-                if ( 0 == r_ctx -> rc )
+                uint64_t num = 0;
+                while ( ( 0 == r_ctx -> rc ) &&
+                        num_gen_iterator_next( iter, &( r_ctx -> row_id ), &( r_ctx -> rc ) ) )
                 {
-                    r_ctx -> rc = Quitting();
-                }
-                if ( 0 != r_ctx -> rc ) break;
-                r_ctx -> rc = VCursorSetRowId( r_ctx -> cursor, r_ctx -> row_id );
-                if ( 0 != r_ctx -> rc )
-                {
-                    vdm_row_error( "VCursorSetRowId( row#$(row_nr) ) failed", 
-                                   r_ctx -> rc, r_ctx -> row_id );
-                }
-                else
-                {
-                    r_ctx -> rc = VCursorOpenRow( r_ctx -> cursor );
+                    if ( 0 == r_ctx -> rc )
+                    {
+                        r_ctx -> rc = Quitting();
+                    }
+                    if ( 0 != r_ctx -> rc ) break;
+                    
+                    r_ctx -> rc = VCursorSetRowId( r_ctx -> cursor, r_ctx -> row_id );
                     if ( 0 != r_ctx -> rc )
                     {
-                        vdm_row_error( "VCursorOpenRow( row#$(row_nr) ) failed", 
-                                       r_ctx -> rc, r_ctx -> row_id );
+                        vdm_row_error( "vdm_dump_rows().VCursorSetRowId( row#$(row_nr) ) failed", 
+                                    r_ctx -> rc, r_ctx -> row_id ); /* above */
                     }
                     else
                     {
-                        /* first reset the string and valid-flag for every column */
-                        vdcd_reset_content( r_ctx -> col_defs );
-
-                        /* read the data of every column and create a string for it */
-                        VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_read_cell_data, r_ctx );
-
-                        if ( 0 == r_ctx -> rc )
-                        {
-                            /* prints the collected strings, in vdb-dump-formats.c */
-                            if ( !r_ctx -> ctx -> sum_num_elem )
-                            {
-                                r_ctx -> rc = vdfo_print_row( r_ctx );
-                                if ( 0 != r_ctx -> rc )
-                                {
-                                    vdm_row_error( "vdfo_print_row( row#$(row_nr) ) failed", 
-                                           r_ctx -> rc, r_ctx -> row_id );
-                                }
-                            }
-                        }
-                        r_ctx -> rc = VCursorCloseRow( r_ctx -> cursor );
+                        r_ctx -> rc = VCursorOpenRow( r_ctx -> cursor );
                         if ( 0 != r_ctx -> rc )
                         {
-                            vdm_row_error( "VCursorCloseRow( row#$(row_nr) ) failed", 
-                                           r_ctx -> rc, r_ctx -> row_id );
+                            vdm_row_error( "vdm_dump_rows().VCursorOpenRow( row#$(row_nr) ) failed", 
+                                        r_ctx -> rc, r_ctx -> row_id ); /* above */
+                        }
+                        else
+                        {
+                            /* first reset the string and valid-flag for every column */
+                            vdcd_reset_content( r_ctx -> col_defs );
+
+                            /* read the data of every column and create a string for it */
+                            VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_read_cell_data, r_ctx );
+
+                            if ( 0 == r_ctx -> rc )
+                            {
+                                /* prints the collected strings, in vdb-dump-formats.c */
+                                if ( !r_ctx -> ctx -> sum_num_elem )
+                                {
+                                    bool first = ( 0 == num );
+                                    bool last  = ( num >= count - 1 );
+                                    r_ctx -> rc = vdfo_print_row( r_ctx, first, last ); /* in vdb-dump-formats.c */
+                                    if ( 0 != r_ctx -> rc )
+                                    {
+                                        vdm_row_error( "vdm_dump_rows().vdfo_print_row( row#$(row_nr) ) failed", 
+                                            r_ctx -> rc, r_ctx -> row_id ); /* above */
+                                    }
+                                }
+                            }
+                            r_ctx -> rc = VCursorCloseRow( r_ctx -> cursor );
+                            if ( 0 != r_ctx -> rc )
+                            {
+                                vdm_row_error( "vdm_dump_rows().VCursorCloseRow( row#$(row_nr) ) failed", 
+                                            r_ctx -> rc, r_ctx -> row_id ); /* above */
+                            }
                         }
                     }
-                }
+                    num += 1;
+                } /* while( ... ) */
             }
         }
         num_gen_iterator_destroy( iter );
 
+        /* in case the user selected element-sum on the commandline ( -U|--numelemsum )*/
         if ( 0 == r_ctx -> rc && r_ctx -> ctx -> sum_num_elem )
         {
             VectorForEach( &( r_ctx -> col_defs -> cols ), false, vdm_print_elem_sum, r_ctx );
             if ( 0 == r_ctx -> rc )
             {
-                r_ctx -> rc = vdfo_print_row( r_ctx );
-                DISP_RC( r_ctx -> rc, "VTableOpenSchema() failed" );
+                r_ctx -> rc = vdfo_print_row( r_ctx, true, true /* always the first and last (because the only ) row */ );
+                DISP_RC( r_ctx -> rc, "vdm_dump_rows().vdfo_print_row() failed" );
             }
         }
 
-        vds_free( &( r_ctx -> s_col ) );
+        vds_free( &( r_ctx -> s_col ) ); /* vdb-dump-str.c */
     }
     return r_ctx -> rc;
 }
@@ -661,6 +644,7 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
 {
     row_context r_ctx;
     rc_t rc = VTableCreateCachedCursorRead( tbl, &( r_ctx . cursor ), ctx -> cur_cache_size );
+    r_ctx . last_rc = 0;
     DISP_RC( rc, "VTableCreateCursorRead() failed" );
     if ( 0 == rc )
     {
@@ -761,6 +745,9 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *tbl )
             DISP_RC( rc2, "VCursorRelease() failed" );
             rc = ( rc == 0 ) ? rc2 : rc;
         }
+        if ( 0 == rc && 0 != r_ctx . last_rc ) {
+            rc = r_ctx . last_rc;
+        }
     }
     return rc;
 }
@@ -779,7 +766,7 @@ static rc_t vdm_dump_opened_database( const p_dump_context ctx,
                                       const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
         rc = vdm_dump_opened_table( ctx, tbl );
@@ -882,10 +869,10 @@ static rc_t vdm_show_tab_spread( const p_dump_context ctx,
 static rc_t vdm_show_db_spread( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_show_tab_spread( ctx, tbl );
+        rc = vdm_show_tab_spread( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -970,10 +957,10 @@ static rc_t vdm_dump_db_schema( const p_dump_context ctx, const VDatabase *db )
     {
         /* the user has given a database as object, but asks to inspect a given table */
         const VTable *tbl;
-        rc = open_table_by_path( db, ctx -> table, &tbl );
+        rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
         if ( 0 == rc )
         {
-            rc = vdm_dump_tab_schema( ctx, tbl );
+            rc = vdm_dump_tab_schema( ctx, tbl ); /* above */
             {
                 rc_t rc2 = VTableRelease( tbl );
                 DISP_RC( rc2, "VTableRelease() failed" );
@@ -1577,7 +1564,7 @@ db    [IN] ... open database needed for vdb-calls
 static rc_t vdm_enum_db_columns( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
         rc = vdm_enum_tab_columns( ctx, tbl );
@@ -1665,10 +1652,10 @@ db    [IN] ... open database needed for vdb-calls
 static rc_t vdm_print_db_id_range( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_print_tab_id_range( ctx, tbl );
+        rc = vdm_print_tab_id_range( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -1792,10 +1779,10 @@ static rc_t vdm_enum_tab_index( const p_dump_context ctx, const VTable *tbl )
 static rc_t vdm_enum_db_index( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_enum_tab_index( ctx, tbl );
+        rc = vdm_enum_tab_index( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -1857,10 +1844,10 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *tbl )
 static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_range_tab_index( ctx, tbl );
+        rc = vdm_range_tab_index( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -1913,7 +1900,7 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *tbl
                                 if ( 0 != rc )
                                 {
                                     ErrMsg( "KMDataNodeReadAsU64() -> %R", rc );
-                                    vdm_clear_recorded_errors();
+                                    vdh_clear_recorded_errors();
                                 }
                                 else
                                 {
@@ -1977,10 +1964,10 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *tbl
 static rc_t vdm_show_db_spotgroups( const p_dump_context ctx, const VDatabase *db )
 {
     const VTable *tbl;
-    rc_t rc = open_table_by_path( db, ctx -> table, &tbl );
+    rc_t rc = vdh_open_table_by_path( db, ctx -> table, &tbl ); /* in vdb-dump-helper.c */
     if ( 0 == rc )
     {
-        rc = vdm_show_tab_spotgroups( ctx, tbl );
+        rc = vdm_show_tab_spotgroups( ctx, tbl ); /* above */
         {
             rc_t rc2 = VTableRelease( tbl );
             DISP_RC( rc2, "VTableRelease() failed" );
@@ -2027,7 +2014,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
             ErrMsg( "VDBManagerOpenTableReadVPath( '%R' ) -> %R", ctx->path, rc );
         else
         {
-            rc = check_table_empty( tbl );
+            rc = vdh_check_table_empty( tbl );
             if ( 0 == rc )
             {
                 rc = tab_fkt( ctx, tbl ); /* fkt-pointer is called */
@@ -2098,7 +2085,7 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *mgr )
         else if ( ctx -> table_enum_requested )
         {
             KOutMsg( "cannot enum tables of a table-object\n" );
-            vdm_clear_recorded_errors();
+            vdh_clear_recorded_errors();
             return 0;
         }
         else if ( enum_col_request( ctx ) )
@@ -2200,7 +2187,7 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
                     if not try with a sub-string */
                     String value;
                     StringInitCString( &value, ctx -> table );
-                    if ( !list_contains_value( tbl_names, &value ) )
+                    if ( !vdh_list_contains_value( tbl_names, &value ) ) /* vdb-dump-helper.c */
                     {
                         vdh_take_this_table_from_list( ctx, tbl_names, ctx -> table );
                     }
@@ -2579,7 +2566,18 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
     return 0;
 }
 
-#if 0
+/* uncomment the next line to compile vdb-dump with sqlite-support */
+/* #define WITH_VDB_SHELL */
+/*
+ * in Makefile:
+ *  - add 'vdb_shell' to VDB_DUMP_SRC
+ *  - add -sngs to VDB_DUMP_LIB
+ *  - add -svdb-sqlite to VDB_DUMP_LIB ( we need libxml2-dev to be installed for this )
+ *  - add -lreadline to VDB_DUMP_LIB ( we need libreadline-dev to be installed for this )
+ *  compile vdb_shell.c with '-DHAVE_READLINE'
+ */
+
+#ifdef WITH_VDB_SHELL
     int main_vdb_shell_org( int argc, char **argv );    /* to be found in vdb_shell.c! */
 #endif
 
@@ -2588,7 +2586,7 @@ rc_t CC KMain ( int argc, char *argv [] )
     rc_t rc;
     Args * args;
 
-#if 0
+#ifdef WITH_VDB_SHELL
     if ( argc > 1 && ( 0 == string_cmp ( argv[ 1 ], 7, "--shell", 7, 7 ) ) )
     {
         return main_vdb_shell_org( argc, argv );

@@ -22,14 +22,14 @@
 #
 # ===========================================================================
 
-cmake_minimum_required (VERSION 3.20)
+cmake_minimum_required (VERSION 3.16)
 if (WIN32)
+    cmake_minimum_required (VERSION 3.20)
 	set (CMAKE_SYSTEM_VERSION 10.0 CACHE STRING INTERNAL FORCE)
 endif()
 
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 
-set( CMAKE_OSX_DEPLOYMENT_TARGET 10.10 )
 set( CMAKE_VERBOSE_MAKEFILE ON )
 
 # best to use at the top

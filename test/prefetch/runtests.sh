@@ -55,85 +55,6 @@ work_dir=$(pwd)
 echo WORK DIRECTORY: ${work_dir}
 
 #=============================================
-# echo urls_and_accs:
-
-# mkdir -p tmp tmp2
-# rm -fr tmp/* tmp2/*
-# echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
-
-# echo prefetch URL-1 when there is no kfg
-# rm -f wiki
-# output=$(export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-    # ${bin_dir}/prefetch https://github.com/ncbi/ngs/wiki)
-# rm wiki
-# res=$?
-# if [ "$res" != "0" ];
-	# then echo "prefetch URL-1 FAILED, res=$res output=$output" && exit 1;
-# fi
-
-# echo prefetch URL-2/2 when there is no kfg
-# rm -f index.html
-# export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-   # ${bin_dir}/prefetch https://github.com/ncbi/ >/dev/null
-# rm index.html
-# res=$?
-# if [ "$res" != "0" ];
-	# then echo "prefetch URL-2/2, res=$res output=$output" && exit 1;
-# fi
-
-# echo prefetch URL-2/1 when there is no kfg
-# export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-    # if ping -c1 intranet > /dev/null ; then \
-       # ${bin_dir}/prefetch http://intranet/ >/dev/null ; rm index.html ; \
-    # fi
-# res=$?
-# if [ "$res" != "0" ];
-	# then echo "prefetch URL-2/1, res=$res output=$output" && exit 1;
-# fi
-
-# echo prefetch URL-2/3 when there is no kfg
-# export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-    # if ping -c1 intranet > /dev/null ; then \
-     # ${bin_dir}/prefetch ${HTTP_URL} > /dev/null; \
-    # fi
-# res=$?
-# if [ "$res" != "0" ];
-	# then echo "prefetch URL-2/3, res=$res output=$output" && exit 1;
-# fi
-
-
-# echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/t.kfg
-# echo "${PUBLIC}/apps/file/volumes/flat = \"files\"" >> tmp/t.kfg
-# echo "${PUBLIC}/root = \"$(pwd)/tmp\"" >> tmp/t.kfg
-
-# if ls `pwd`/tmp2/${HTTPFILE} 2> /dev/null ; \
- # then echo ${HTTPFILE} found ; exit 1 ; fi
-# echo HTTP download when user repository is configured
-# export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-    # if ping -c1 intranet > /dev/null ; then \
-    # ${bin_dir}/prefetch ${HTTP_URL} > /dev/null ; fi
-# cd ${work_dir} # out of tmp2
-# if ping -c1 intranet > /dev/null ; \
- # then ls `pwd`/tmp2/${HTTPFILE} > /dev/null ; fi
-
-# echo Running prefetch second time finds previous download
-# export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
- # if ping -c1 intranet > /dev/null ; then \
-     # ${bin_dir}/prefetch ${HTTP_URL} \
-        # | grep "found local" > /dev/null ; fi
-# cd ${work_dir} # out of tmp2
-
-# rm -f ${HTTPFILE}
-
-# if ls `pwd`/tmp2/index.html 2> /dev/null ; \
- # then echo index.shtml found ; exit 1; fi
-# echo HTTP download when user repository is configured
-# export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
- # if ping -c1 intranet > /dev/null ; then \
-    # ${bin_dir}/prefetch http://intranet/ > /dev/null ; fi
-# if ping -c1 intranet>/dev/null; then ls `pwd`/tmp2/index.html > /dev/null;fi
-# cd ${work_dir} # out of tmp2
-
 # echo Running prefetch second time finds previous download
 # export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
  # if ping -c1 intranet > /dev/null ; then \
@@ -836,273 +757,308 @@ echo truncated:
 	echo prefetch correctly re-downloads incomplete files
 
 #setup
-mkdir -p tmp/sra
-echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\"" > tmp/t.kfg
-echo "repository/remote/main/CGI/resolver-cgi = \"${CGI}\"" >> tmp/t.kfg
-echo "${PUBLIC}/apps/sra/volumes/sraFlat = \"sra\""         >> tmp/t.kfg
-echo "${PUBLIC}/root = \"$(pwd)/tmp\""                      >> tmp/t.kfg
+mkdir -p tmp/sra || exit 839
+echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\"" > tmp/t.kfg \
+    || exit 841
+echo "repository/remote/main/CGI/resolver-cgi = \"${CGI}\"" >> tmp/t.kfg \
+    || exit 843
+echo "${PUBLIC}/apps/sra/volumes/sraFlat = \"sra\""         >> tmp/t.kfg \
+    || exit 844
+echo "${PUBLIC}/root = \"$(pwd)/tmp\""                      >> tmp/t.kfg \
+    || exit 847
 #	@ ls -l tmp	@ cat tmp/t.kfg
 #	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/vdb-config -on
 #	@ VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/srapath ${SRAC}
 #	echo 669	perl check-size.pl 4	echo 671
 
 # create truncated run
-echo '123' > tmp/sra/${SRAC}.sra
+echo '123' > tmp/sra/${SRAC}.sra || exit 854
 if perl check-size.pl 4 > /dev/null; \
 then echo "run should be truncated for this test"; exit 1; \
 fi
 
 # prefetch should detect truncated run and redownload it
-VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/prefetch ${SRAC} 2>tmp/out
+VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/prefetch ${SRAC} 2>tmp/out \
+    || exit 861
  if grep ": 1) '${SRAC}' is found locally" tmp/out ; \
  then echo "prefetch incorrectly stopped on truncated run"; exit 1; \
  fi
 #	@ wc tmp/sra/${SRAC}.sra	@ wc -c tmp/sra/${SRAC}.sra
 
 # run should be complete
-perl check-size.pl 4
+perl check-size.pl 4 || exit 868
 
 # the second run of prefetch should find local file
-VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/prefetch ${SRAC} 2>tmp/out
- grep -q ": 1) '${SRAC}' is found locally" tmp/out
- perl check-size.pl 4
+VDB_CONFIG=`pwd`/tmp NCBI_SETTINGS=/ ${bin_dir}/prefetch ${SRAC} 2>tmp/out \
+                                                   || exit 872
+ grep -q ": 1) '${SRAC}' is found locally" tmp/out || exit 873
+ perl check-size.pl 4                              || exit 874
 
 #cleanup
-rm -r tmp
+rm -r tmp                                          || exit 877
 
 echo kart: ##########################################################################
-rm -frv tmp/*
-mkdir -p tmp
-echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\""   > tmp/t.kfg
-echo "repository/remote/main/SDL.2/resolver-cgi = \"${SDL}\"" >> tmp/t.kfg
+rm -frv tmp/* || exit 880
+mkdir -p tmp  || exit 881
+echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\""   > tmp/t.kfg \
+    || exit 883
+echo "repository/remote/main/SDL.2/resolver-cgi = \"${SDL}\"" >> tmp/t.kfg \
+    || exit 885
 
 echo "Downloading --cart <kart> ordered by default (size)"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch -+VFS --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn"
-cd ${work_dir}
-rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
-rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
-rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
+ "${bin_dir}/prefetch -+VFS --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn" \
+                                                    || exit 892
+cd ${work_dir}                                      || exit 893
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 894
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 895
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 896
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 897
 
 echo "Downloading kart ordered by default (size)"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
-cd ${work_dir}
-rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
-rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
-rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn" \
+                                                    || exit 904
+cd ${work_dir}                                      || exit 905
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 906
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 907
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 908
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 909
 
 echo "Downloading kart ordered by size"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
-cd ${work_dir}
-rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
-rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
-rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn" \
+                                                    || exit 916
+cd ${work_dir}                                      || exit 917
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 918
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 919
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 920
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 921
 
 echo "Downloading kart ordered by kart"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
-cd ${work_dir}
-rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
-rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
-rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn" \
+                                                    || exit 928
+cd ${work_dir}                                      || exit 929
+rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*           || exit 930
+rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*           || exit 931
+rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*           || exit 932
+rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493  || exit 933
 
-rm -frv tmp/sra
-echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\""   > tmp/t.kfg
-echo "repository/remote/main/SDL.2/resolver-cgi = \"${SDL}\"" >> tmp/t.kfg
-echo "${PUBLIC}/apps/sra/volumes/sraFlat = \"sra\""           >> tmp/t.kfg
-echo "${PUBLIC}/root = \"$(pwd)/tmp\""                        >> tmp/t.kfg
+rm -frv tmp/sra                                     || exit 935
+echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\""   > tmp/t.kfg \
+    || exit 937
+echo "repository/remote/main/SDL.2/resolver-cgi = \"${SDL}\"" >> tmp/t.kfg \
+    || exit 939
+echo "${PUBLIC}/apps/sra/volumes/sraFlat = \"sra\"" >> tmp/t.kfg || exit 940
+echo "${PUBLIC}/root = \"$(pwd)/tmp\""              >> tmp/t.kfg || exit 941
 
 echo "Downloading kart ordered by default (size) to user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
-cd ${work_dir}
-rm    tmp/sra/SRR1219879_dbGaP-0.sra*
-rm    tmp/sra/SRR1219880_dbGaP-0.sra*
-rm    tmp/sra/SRR1257493_dbGaP-0.sra*
-rmdir tmp/sra
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn" \
+                                      || exit 948
+cd ${work_dir}                        || exit 949
+rm    tmp/sra/SRR1219879_dbGaP-0.sra* || exit 950
+rm    tmp/sra/SRR1219880_dbGaP-0.sra* || exit 951
+rm    tmp/sra/SRR1257493_dbGaP-0.sra* || exit 952
+rmdir tmp/sra                         || exit 953
 
 echo "Downloading kart ordered by size to user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
-cd ${work_dir}
-rm    tmp/sra/SRR1219879_dbGaP-0.sra*
-rm    tmp/sra/SRR1219880_dbGaP-0.sra*
-rm    tmp/sra/SRR1257493_dbGaP-0.sra*
-rmdir tmp/sra
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn" \
+                                      || exit 960
+cd ${work_dir}                        || exit 961
+rm    tmp/sra/SRR1219879_dbGaP-0.sra* || exit 962
+rm    tmp/sra/SRR1219880_dbGaP-0.sra* || exit 963
+rm    tmp/sra/SRR1257493_dbGaP-0.sra* || exit 964
+rmdir tmp/sra                         || exit 965
 
 echo "Downloading kart ordered by kart to user repo"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
-cd ${work_dir}
-rm    tmp/sra/SRR1219879_dbGaP-0.sra*
-rm    tmp/sra/SRR1219880_dbGaP-0.sra*
-rm    tmp/sra/SRR1257493_dbGaP-0.sra*
-rmdir tmp/sra
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn" \
+                                      || exit 972
+cd ${work_dir}                        || exit 973
+rm    tmp/sra/SRR1219879_dbGaP-0.sra* || exit 974
+rm    tmp/sra/SRR1219880_dbGaP-0.sra* || exit 975
+rm    tmp/sra/SRR1257493_dbGaP-0.sra* || exit 976
+rmdir tmp/sra                         || exit 977
 
-echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg
+echo '/tools/prefetch/download_to_cache = "false"' >> tmp/t.kfg || exit 979
 echo "Downloading kart ordered by default (size) ignoring user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn"
-cd ${work_dir}
-rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
-rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
-rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -Cn" \
+                                                    || exit 985
+cd ${work_dir}                                      || exit 986
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 987
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 988
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 989
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 990
 
 echo "Downloading kart ordered by size ignoring user repo"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
  "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -os -Cn"
-cd ${work_dir}
-rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
-rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
-rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
+cd ${work_dir} \
+                                                    || exit  998
+rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit  999
+rm     tmp/SRR1219880/SRR1219880_dbGaP-0.sra*       || exit 1000
+rm     tmp/SRR1257493/SRR1257493_dbGaP-0.sra*       || exit 1001
+rmdir  tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493 || exit 1002
 
 echo "Downloading kart ordered by kart ignoring user repo"
 cd tmp && printf "ding 'SRR1257493'\nding 'SRR1219880'\nding 'SRR1219879'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn"
-cd ${work_dir}
-rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*
-rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*
-rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*
-rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc ../data/3-dbGaP-0.krt -ok -Cn" \
+                                                                     || exit 1009
+cd ${work_dir}                                                       || exit 1010
+rm tmp/SRR1219879/SRR1219879_dbGaP-0.sra*                            || exit 1011
+rm tmp/SRR1219880/SRR1219880_dbGaP-0.sra*                            || exit 1012
+rm tmp/SRR1257493/SRR1257493_dbGaP-0.sra*                            || exit 1013
+rmdir tmp/SRR1219879 tmp/SRR1219880 tmp/SRR1257493                   || exit 1014
 
-rm -r tmp
+rm -r tmp                                                            || exit 1015
 
 echo wgs:
 echo Verifying prefetch of runs with WGS references...
 
-rm -fr tmp
-mkdir  tmp
+rm -fr tmp                                                           || exit 1021
+mkdir  tmp                                                           || exit 1022
 
 #pwd
-echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\"" > tmp/k
+echo "/LIBS/GUID = \"8test002-6ab7-41b2-bfd0-prefetchpref\"" > tmp/k || exit 1025
 
-cd tmp && NCBI_SETTINGS=k              ${bin_dir}/prefetch SRR619505  -fy > /dev/null
-cd ${work_dir}
-ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null
-rm -r tmp/S*
+cd tmp && NCBI_SETTINGS=k    ${bin_dir}/prefetch SRR619505 -fy > /dev/null 2>&1 \
+                                                                     || exit 1028
+cd ${work_dir}                                                       || exit 1029
+ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null || exit 1030
+rm -r tmp/S*                                                         || exit 1031
 
-echo '/repository/site/disabled = "true"'                 >> tmp/k
-echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                 >> tmp/k
+echo '/libs/vdb/quality = "ZR"'                           >> tmp/k   || exit 1033
+echo '/repository/site/disabled = "true"'                 >> tmp/k   || exit 1034
+cd tmp && NCBI_SETTINGS=k   ${bin_dir}/prefetch SRR619505  -fy > /dev/null 2>&1 \
+                                                                     || exit 1036
+cd ${work_dir}                                                       || exit 1037
+ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null || exit 1016
+rm -r tmp/[NS]*                                                      || exit 1039
+
+echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                 >> tmp/k  || exit 1041
 echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
-	                                                       >> tmp/k
-echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
-printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k
+	                                                       >> tmp/k  || exit 1043
+echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k \
+                                                                     || exit 1045
+printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd` >> tmp/k||exit 1046
 #cat tmp/k
 
-cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/prefetch SRR619505  -fy > /dev/null
-cd ${work_dir}
-ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null
-rm -r tmp/[rS]*
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/prefetch SRR619505  -fy \
+                                                    > /dev/null 2>&1 || exit 1050
+cd ${work_dir}                                                       || exit 1051
+ls tmp/SRR619505/SRR619505.sra tmp/refseq/NC_000005.8    > /dev/null || exit 1052
+rm -r tmp/[rS]*                                                      || exit 1053
 
 #TODO: TO ADD AD for AAAB01 cd tmp &&                 prefetch SRR353827 -fy -+VFS
 
-cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/prefetch SRR353827  -fy > /dev/null
-cd ${work_dir}
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/prefetch SRR353827  -fy \
+                                                    > /dev/null 2>&1 || exit 1058
+cd ${work_dir}                                                       || exit 1059
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info SRR353827 \
-	| grep -v 'false,remote::https:'                      > /dev/null
-cd ${work_dir}
-ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null
-rm -r tmp/[wS]*
-rm -r tmp
+	| grep -v 'false,remote::https:'                     > /dev/null || exit 1061
+cd ${work_dir}                                                       || exit 1062
+ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null || exit 1063
+rm -r tmp                                                            || exit 1064
 
 echo lots_wgs:
 echo  Verifying prefetch of run with with a lot of WGS references...
-rm -fr tmp
-mkdir  tmp
+rm -fr tmp                                                           || exit 1068
+mkdir  tmp                                                           || exit 1069
 
 #pwd
-echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'            > tmp/k
-echo '/repository/site/disabled = "true"'                            >> tmp/k
-echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                            >> tmp/k
+echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'   > tmp/k || exit 1072
+echo '/repository/site/disabled = "true"'                   >> tmp/k || exit 1073
+echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                  >> tmp/k || exit 1074
 echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
-	                                                                  >> tmp/k
-echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k
-printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k
+	                                                        >> tmp/k || exit 1076
+echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k \
+                                                                     || exit 1078
+printf '/repository/user/main/public/root = "%s/tmp"\n' `pwd`        >> tmp/k \
+                                                                     || exit 1080
 #cat tmp/k
 
 echo '      ... prefetching...'
-cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/prefetch   ERR3091357 -fy   > /dev/null
-cd ${work_dir}
+cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/prefetch   ERR3091357 -fy \
+                                                   > /dev/null  2>&1 || exit 1085
+cd ${work_dir}                                                       || exit 1086
 echo '      ... align-infoing...'
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info ERR3091357 \
-	| grep -v 'false,remote::https:'                      > /dev/null
-cd ${work_dir}
+	| grep -v 'false,remote::https:'                     > /dev/null || exit 1089
+cd ${work_dir}                                                       || exit 1090
 ls tmp/ERR3091357/ERR3091357.sra tmp/wgs/JTFH01 tmp/refseq/KN707955.1 \
-                                                         > /dev/null
+                                                         > /dev/null || exit 1092
 
-rm -r tmp
+rm -r tmp                                                            || exit 1094
 
 echo resume:
 echo Verifying prefetch resume
-rm   -frv tmp/*
-mkdir -p  tmp
-echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
-echo '/repository/site/disabled = "true"'                 >> tmp/k
-cd tmp && PATH="${bin_dir}:${PATH}" NCBI_SETTINGS=k perl ../test-resume.pl && cd ..
-rm    -r  tmp
+rm   -frv tmp/*                                                      || exit 1098
+mkdir -p  tmp                                                        || exit 1099
+echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k   || exit 1100
+echo '/repository/site/disabled = "true"'                 >> tmp/k   || exit 1101
+cd tmp && PATH="${bin_dir}:${PATH}" NCBI_SETTINGS=k perl ../test-resume.pl \
+                                                            && cd .. || exit 1103
+rm    -r  tmp                                                        || exit 1104
 
 echo hs37d5:
 echo Verifying hs37d5
-rm   -frv tmp/*
-mkdir -p  tmp
-cd tmp && NCBI_SETTINGS=k PATH="${bin_dir}:${PATH}" perl ../test-hs37d5.pl
-cd ${work_dir}
-rm    -r  tmp
+rm   -frv tmp/*                                                      || exit 1108
+mkdir -p  tmp                                                        || exit 1109
+cd tmp && NCBI_SETTINGS=k PATH="${bin_dir}:${PATH}" perl ../test-hs37d5.pl \
+                                                                     || exit 1111
+cd ${work_dir}                                                       || exit 1112
+rm    -r  tmp                                                        || exit 1113
 
 echo ad_as_dir: # turned off by default. Library test is in
            # ncbi-vdb\test\vfs\managertest.cpp::TestVFSManagerCheckAd
 echo we can use AD as dir/...
-mkdir -p tmp
+mkdir -p tmp                                                         || exit 1118
 export NCBI_SETTINGS=/ && export PATH="${bin_dir}:${PATH}" \
-	&& cd tmp && perl ../use-AD-as-dir.pl
-cd ${work_dir}
-rm -r tmp
+	&& cd tmp && perl ../use-AD-as-dir.pl                            || exit 1120
+cd ${work_dir}                                                       || exit 1121
+rm -r tmp                                                            || exit 1122
 
 echo dump-vs-prefetch:
-rm -frv tmp/*
-mkdir -pv tmp
+rm -frv tmp/*                                                        || exit 1125
+mkdir -pv tmp                                                        || exit 1126
 cd tmp && NCBI_SETTINGS=/ NCBI_VDB_NO_ETC_NCBI_KFG=1 PATH="${bin_dir}:${PATH}" \
-                               perl ../dump-vs-prefetch.pl
-cd ${work_dir}
-rm -r tmp
+                               perl ../dump-vs-prefetch.pl           || exit 1128
+cd ${work_dir}                                                       || exit 1129
+rm -r tmp                                                            || exit 1130
 
 echo quality: std
 echo Testing quality
-mkdir -p tmp
-echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k
+mkdir -p tmp                                                         || exit 1134
+echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k   || exit 1135
 #	@ cd tmp && NCBI_SETTINGS=k PATH='${bin_dir}:$(BINDIR):${PATH}' \
 				perl ../test-quality.pl
-cd ${work_dir}
-rm -r tmp
+cd ${work_dir}                                                       || exit 1138
+rm -r tmp                                                            || exit 1139
 
 echo ad_not_cwd:
 echo Testing prefetch into output directory and using results
-PATH="${bin_dir}:${PATH}" perl test-ad-not-cwd.pl
+PATH="${bin_dir}:${PATH}" perl test-ad-not-cwd.pl                    || exit 1143

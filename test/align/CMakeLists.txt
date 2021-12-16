@@ -2,15 +2,11 @@ add_compile_definitions( __mod__="test/align" )
 
 include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
 
-# add_executable( test-load-index indextest )
-# target_link_libraries( test-load-index ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-# add_test( NAME Test_Align_load_index COMMAND test-load-index WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# AddExecutableTest( Test_Align_load_index "indextest" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 if( NOT WIN32 )
-    add_executable( test-samextract test-samextract )
     include_directories( ${VDB_SRCDIR}/libs/align )
-    target_link_libraries( test-samextract sam-extract ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-    add_test( NAME Test_Align_samextract COMMAND test-samextract WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    AddExecutableTest( Test_Align_samextract "test-samextract" "${NCBI_VDB_ILIBDIR}/libsam-extract.${STLX};${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 endif()
 
 add_executable( test-estimator pileup_estimator )

@@ -1,17 +1,13 @@
 # this is where test executables will be created
 # to access tools themselves, use ${BINDIR}
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
 
-set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
-link_libraries( ${COMMON_LINK_LIBRARIES} )
-
-# for the tests that link against libncbi-[w]vdb
-if( WIN32 )
-    set( COMMON_LIBS_READ  ncbi-vdb)
-    set( COMMON_LIBS_WRITE ncbi-wvdb)
+if ( WIN32 )
+	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ktst )
 else()
-    set( COMMON_LIBS_READ   ncbi-vdb  dl pthread )
-    set( COMMON_LIBS_WRITE  ncbi-wvdb dl pthread )
+	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_ILIBDIR}/libktst.${STLX} )
 endif()
 
 add_subdirectory(align)
@@ -33,6 +29,7 @@ add_subdirectory(qual-recalib-stat)
 add_subdirectory(read-filter-redact)
 # # add_subdirectory(samline) # command line tool; needs arguments to become a test?
 add_subdirectory(scripts)
+add_subdirectory(sharq)
 add_subdirectory(sra-pileup)
 add_subdirectory(sra-sort) # TODO: it's not clear if the test itself was running, now it's not.
 add_subdirectory(sra-stat)

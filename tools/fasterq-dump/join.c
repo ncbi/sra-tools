@@ -1828,6 +1828,7 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
             align_rec_t rec; /* fastq_iter.h */
             while ( 0 == rc && get_from_align_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
                 rc = get_quitting(); /* helper.c */
+
                 if ( 0 == rc ) {
                     if ( rec . read . len > 0 ) {
                         flex_printer_data_t data;
@@ -1975,6 +1976,7 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
                     uint32_t read_id_0 = 0;
                     uint32_t offset = 0;
                     stats -> spots_read++;
+                    
                     while ( 0 == rc && read_id_0 < rec . num_read_len ) {
                         if ( rec . read_len[ read_id_0 ] > 0 ) {
                             if ( 0 == rec . prim_alig_id[ read_id_0 ] ) {

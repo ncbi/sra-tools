@@ -188,6 +188,7 @@ static bool output_exists_whole( const tool_ctx_t * tool_ctx ) {
 static bool output_exists_idx( const tool_ctx_t * tool_ctx, uint32_t idx ) {
     bool res = false;
     SBuffer_t s_filename;
+   
     rc_t rc = split_filename_insert_idx( &s_filename, 4096,
                             tool_ctx -> output_filename, idx ); /* sbuffer.c */
     if ( 0 == rc ) {
@@ -423,10 +424,12 @@ static void tool_ctx_get_disk_limits( tool_ctx_t * tool_ctx ) {
                                 tool_ctx -> output_filename,
                                 &( tool_ctx -> disk_limit_out_os ),
                                 true /* is_file */ ); /* file_tools.c */
-    available_space_disk_space( tool_ctx -> dir,
-                                get_temp_dir( tool_ctx -> temp_dir ), /* tmp_dir.c */
-                                &( tool_ctx -> disk_limit_tmp_os ),
-                                false /* is_file */ ); /* file_tools.c */
+    if ( NULL != tool_ctx -> temp_dir ) {
+        available_space_disk_space( tool_ctx -> dir,
+                                    get_temp_dir( tool_ctx -> temp_dir ), /* tmp_dir.c */
+                                    &( tool_ctx -> disk_limit_tmp_os ),
+                                    false /* is_file */ ); /* file_tools.c */
+    }
 }
 
 static size_t tool_ctx_temp_file_sizes( tool_ctx_t * tool_ctx ) {

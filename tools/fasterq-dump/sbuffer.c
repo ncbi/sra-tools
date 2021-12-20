@@ -170,3 +170,65 @@ rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
     }
     return rc;
 }
+
+rc_t copy_SBuffer( SBuffer_t * self, const SBuffer_t * src ) {
+    rc_t rc = 0;
+    if ( NULL == self || NULL == src ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    } else {
+        if ( src -> buffer_size > self -> buffer_size ) {
+            rc = increase_SBuffer_to( self, src -> buffer_size );
+        }
+        if ( 0 == rc ) {
+            size_t new_size = string_copy( ( char * )self -> S . addr, self -> S . size,
+                                            src -> S . addr, src -> S . size );
+            self -> S . size = new_size;
+            self -> S . len = ( uint32_t )self -> S . size;
+        }
+    }
+    return rc;
+}
+
+rc_t append_SBuffer( SBuffer_t * self, const SBuffer_t * src ) {
+    rc_t rc = 0;
+    if ( NULL == self || NULL == src ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    } else {
+        size_t needed = self -> S . size + src -> S . size + 1;
+        if ( needed > self -> buffer_size ) {
+            /* we have to store the content of self, because increase_SBuffer_to() will destroy it! */
+            SBuffer_t tmp;
+            rc = make_SBuffer( &tmp, self -> buffer_size );
+            if ( 0 == rc ) {
+                rc = copy_SBuffer( &tmp, self );
+                if ( 0 == rc ) {
+                    rc = increase_SBuffer_to( self, needed );
+                    if ( 0 == rc ) {
+                        rc = copy_SBuffer( self, &tmp );
+                    }
+                }
+                release_SBuffer( &tmp );
+            }
+        }
+        if ( 0 == rc ) {
+            char * dst = ( char * )&( self -> S . addr[ self -> S . size ] );
+            size_t dst_size = self -> buffer_size - self -> S . size;
+            size_t new_size = string_copy( dst, dst_size,
+                                           src -> S . addr, src -> S . size );
+            self -> S . size = new_size;
+            self -> S . len = ( uint32_t )self -> S . size;
+        }
+    }
+    return rc;
+}
+
+rc_t clear_SBuffer( SBuffer_t * self ) {
+    rc_t rc = 0;
+    if ( NULL == self ) {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    } else {
+        self -> S . len = 0;
+        self -> S . size = 0;
+    }
+    return rc;
+}

@@ -108,7 +108,6 @@ void release_flex_printer( struct flex_printer_t * self );
  */
 rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data );
 
-
 #ifdef __cplusplus
 }
 #endif

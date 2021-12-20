@@ -1297,6 +1297,7 @@ static rc_t CC unsorted_fasta_thread_func( const KThread *self, void *data ) {
                     else { stats -> reads_zero_length++; }
                     read_id_0++;
                 }
+
                 stats -> spots_read++;
                 stats -> reads_read += rec . num_read_len;
                 bg_progress_inc( jtd -> progress ); /* progress_thread.c (ignores NULL) */

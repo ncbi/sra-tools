@@ -282,13 +282,13 @@ rc_t available_space_disk_space( const KDirectory * dir, const char * path, size
         if ( 0 == rc ) {
             rc = KDirectoryOpenDirRead( dir, &sub, false, "%s", tmp );
             if ( 0 != rc ) {
-                ErrMsg( "available_space_disk_space.KDirectoryOpenDirRead( '%s' ) -> %R", tmp, rc );
+                ErrMsg( "available_space_disk_space.KDirectoryOpenDirRead( '%s' ).1 -> %R", tmp, rc );
             }
         }
     } else {
         rc = KDirectoryOpenDirRead( dir, &sub, false, "%s", path );
         if ( 0 != rc ) {
-            ErrMsg( "available_space_disk_space.KDirectoryOpenDirRead( '%s' ) -> %R", path, rc );
+            ErrMsg( "available_space_disk_space.KDirectoryOpenDirRead( '%s' ).2 -> %R", path, rc );
         }
     }
     if ( 0 == rc && NULL != sub ) {

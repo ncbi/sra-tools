@@ -57,6 +57,10 @@ rc_t make_and_print_to_SBuffer( SBuffer_t * self, size_t len, const char * fmt, 
 rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
                                 const char * filename, uint32_t idx );
 
+rc_t copy_SBuffer( SBuffer_t * self, const SBuffer_t * src );
+rc_t append_SBuffer( SBuffer_t * self, const SBuffer_t * src );
+rc_t clear_SBuffer( SBuffer_t * self );
+
 #ifdef __cplusplus
 }
 #endif

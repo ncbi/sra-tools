@@ -117,7 +117,9 @@ typedef struct flex_printer_t {
     Vector printers;                        /* container for printers, one for each read-id ( used if registry is not NULL ) */
     struct multi_writer_t * multi_writer;   /* from copy-machine, multi-threaded common-file writer */
     struct multi_writer_block_t * block;    /* keep a block at hand... */
+    SBuffer_t transaction_buffer;           /* used only if transaction used.. */
     bool fasta;                             /* flag if FASTA or FASTQ */
+    bool in_transaction;                    /* flag if we are in a transaction */
     struct var_fmt_t * fmt_v1;              /* var-printer for 1-READ-data */
     struct var_fmt_t * fmt_v2;              /* var-printer for 2-READ-data */
     const String * string_data[ 8 ];        /* vector of strings, idx has to match var_desc_list */
@@ -129,6 +131,7 @@ typedef enum int_data_index_t { idi_si = 0, idi_ri = 1, idi_rl = 2 } int_data_in
 
 void release_flex_printer( struct flex_printer_t * self ) {
     if ( NULL != self ) {
+        release_SBuffer( &( self -> transaction_buffer ) );
         if ( NULL != self -> multi_writer && NULL != self -> block ) {
             if ( !multi_writer_submit_block( self -> multi_writer, self -> block ) ) {
                 /* TBD: cannot submit last block to multi-writer */
@@ -231,7 +234,9 @@ static struct flex_printer_t * make_flex_printer_cmn( flex_printer_t * self,
                         const char * qual_defline,
                         bool fasta ) {
     self -> fasta = fasta;
-
+    self -> in_transaction = false;
+    make_SBuffer( &( self -> transaction_buffer ), 4096 );
+    
     /* pre-set the accession-variable in the string-data, this one does not change during the
         lifetime of the flex-printer */
     self -> string_data[ sdi_acc ] = make_string_copy( accession );
@@ -351,26 +356,29 @@ static rc_t flex_submit( struct flex_printer_t * self, SBuffer_t * t ) {
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "flex_submit() could not get block from multi-writer -> %R", rc );
     } else {
-        if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
-            /* block was not big enough to hold the new data : */
-            if ( !multi_writer_submit_block( self -> multi_writer, self -> block ) ) {
-                rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                ErrMsg( "flex_submit() cannot submit block to multi-writer -> %R", rc );
-            } else {
-                self -> block = multi_writer_get_empty_block( self -> multi_writer );
-                if ( NULL == self -> block ) {
+        if ( t -> S . len > 0 ) {
+            if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+                /* block was not big enough to hold the new data : */
+                if ( !multi_writer_submit_block( self -> multi_writer, self -> block ) ) {
                     rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                    ErrMsg( "flex_submit() could not get block from multi-writer -> %R", rc );
+                    ErrMsg( "flex_submit() cannot submit block to multi-writer -> %R", rc );
                 } else {
-                    if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
-                        /* oops the data does not fit into an new, empty block... */
-                        if ( ! multi_writer_block_expand( self -> block, t -> S . len + 1 ) ) {
-                            rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                            ErrMsg( "flex_submit() could not expand block from multi-writer -> %R", rc );
-                        } else {
-                            if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+                    self -> block = multi_writer_get_empty_block( self -> multi_writer );
+                    if ( NULL == self -> block ) {
+                        rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                        ErrMsg( "flex_submit() could not get block from multi-writer -> %R", rc );
+                    } else {
+                        if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+                            /* oops the data does not fit into an new, empty block... */
+                            size_t needed = t -> S . len + 1;
+                            if ( ! multi_writer_block_expand( self -> block, needed ) ) /* copy_machine.c */ {
                                 rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                                ErrMsg( "flex_submit() still cannot append block to multi-writer -> %R", rc );
+                                ErrMsg( "flex_submit() could not expand block from multi-writer to %u -> %R", needed, rc );
+                            } else {
+                                if ( !multi_writer_block_append( self -> block, t -> S. addr, t -> S . len ) ) {
+                                    rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                                    ErrMsg( "flex_submit() still cannot append block to multi-writer -> %R", rc );
+                                }
                             }
                         }
                     }
@@ -381,34 +389,38 @@ static rc_t flex_submit( struct flex_printer_t * self, SBuffer_t * t ) {
     return rc;
 }
 
+
 rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data ) {
     rc_t rc = 0;
     if ( NULL == self || data == NULL ) {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-        ErrMsg( "join_results.c join_result_flex_print() -> %R", rc );
+        ErrMsg( "flex_print() -> %R", rc );
     } else {
         /* pick the right format, depending if data-read2 is NULL or not */
-        struct var_fmt_t * fmt = flex_printer_prepare_data( self, data );
+        struct var_fmt_t * fmt = flex_printer_prepare_data( self, data ); /* above */
         if ( NULL != self -> file_args ) {
             /* we are in file-per-read-id--mode */
             join_printer_t * printer = get_or_make_join_printer( &( self -> printers ), 
-                            data -> dst_id, self -> file_args );
+                            data -> dst_id, self -> file_args ); /* above */
             if ( NULL != printer ) {
                 rc = var_fmt_to_file( fmt,
                                     printer -> f, &( printer -> file_pos ),
                                     self -> string_data, sdi_qa + 1,
-                                    self -> int_data, idi_rl + 1 );
+                                    self -> int_data, idi_rl + 1 ); /* var_fmt.c */
             } else {
                 rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
                 ErrMsg( "flex_print() cannot create printer -> %R", rc );
             }
         } else if ( NULL != self -> multi_writer ) {
-            /* we are in multi-writer-mode */
+            /* we are in multi-writer-mode :
+             * the return value is not allocated every-time, it is a reference to a buffer
+             * enclosed in fmt...
+             */
             SBuffer_t * t = var_fmt_to_buffer( fmt, 
                                                self -> string_data, sdi_qa + 1,
-                                               self -> int_data, idi_rl + 1 );
+                                               self -> int_data, idi_rl + 1 ); /* var_fmt.c */
             if ( NULL != t ) {
-                rc = flex_submit( self, t );
+                rc = flex_submit( self, t ); /* above */
             } else {
                 rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
                 ErrMsg( "flex_print() cannot format data into buffer -> %R", rc );

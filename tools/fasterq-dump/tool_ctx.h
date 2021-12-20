@@ -76,8 +76,10 @@ typedef struct tool_ctx_t {
     
     size_t cursor_cache, buf_size, mem_limit;
     size_t estimated_output_size;
-    size_t disk_limit_out;
-    size_t disk_limit_tmp;
+    size_t disk_limit_out_cmdl;
+    size_t disk_limit_tmp_cmdl;
+    size_t disk_limit_out_os;
+    size_t disk_limit_tmp_os;
     
     uint32_t num_threads /*, max_fds */;
     uint64_t total_ram;

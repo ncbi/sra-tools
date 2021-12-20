@@ -150,17 +150,23 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "accession-path: '%s'\n", tool_ctx -> accession_path );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "est. output   : %,lu bytes\n", tool_ctx -> estimated_output_size );
+        rc = KOutMsg( "est. output          : %,lu bytes\n", tool_ctx -> estimated_output_size );
+    }
+    if ( 0 == rc && tool_ctx -> disk_limit_out_cmdl > 0 ) {
+        rc = KOutMsg( "disk-limit input     : %,lu bytes\n", tool_ctx -> disk_limit_out_cmdl );
+    }
+    if ( 0 == rc && tool_ctx -> disk_limit_tmp_cmdl > 0 ) {
+        rc = KOutMsg( "disk-limit-tmp input : %,lu bytes\n", tool_ctx -> disk_limit_tmp_cmdl );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "disk-limit out: %,lu bytes\n", tool_ctx -> disk_limit_out );
+        rc = KOutMsg( "disk-limit (OS)      : %,lu bytes\n", tool_ctx -> disk_limit_out_os );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "disk-limit tmp: %,lu bytes\n", tool_ctx -> disk_limit_tmp );
+        rc = KOutMsg( "disk-limit-tmp (OS)  : %,lu bytes\n", tool_ctx -> disk_limit_tmp_os );
     }
 
     if ( 0 == rc ) {    
-        rc = KOutMsg( "out/tmp on same fs  : '%s'\n", tool_ctx -> out_and_tmp_on_same_fs ? "YES" : "NO" );
+        rc = KOutMsg( "out/tmp on same fs   : '%s'\n", tool_ctx -> out_and_tmp_on_same_fs ? "YES" : "NO" );
     }
 
     if ( 0 == rc ) {
@@ -411,35 +417,111 @@ static rc_t tool_ctx_adjust_output_filename_by_dir( tool_ctx_t * tool_ctx ) {
     return rc;
 }
 
-static rc_t tool_ctx_get_disk_limits( tool_ctx_t * tool_ctx ) {
-    rc_t rc = 0;
-    if ( 0 == tool_ctx -> disk_limit_out ) {
-        rc = available_space_disk_space( tool_ctx -> dir,
-                                         tool_ctx -> output_filename,
-                                         &( tool_ctx -> disk_limit_out ),
-                                         true /* is_file */ ); /* file_tools.c */
+static void tool_ctx_get_disk_limits( tool_ctx_t * tool_ctx ) {
+    /* we do not stop processing if there is an error while asking for this value */
+    available_space_disk_space( tool_ctx -> dir,
+                                tool_ctx -> output_filename,
+                                &( tool_ctx -> disk_limit_out_os ),
+                                true /* is_file */ ); /* file_tools.c */
+    available_space_disk_space( tool_ctx -> dir,
+                                get_temp_dir( tool_ctx -> temp_dir ), /* tmp_dir.c */
+                                &( tool_ctx -> disk_limit_tmp_os ),
+                                false /* is_file */ ); /* file_tools.c */
+}
+
+static size_t tool_ctx_temp_file_sizes( tool_ctx_t * tool_ctx ) {
+    size_t res = 0;
+    
+    /* if the accession is not local, each thread creates it's own local cache of it */
+    if ( tool_ctx -> insp_output . is_remote ) {
+        res = ( tool_ctx -> insp_output . acc_size * tool_ctx -> num_threads );
     }
-    if ( 0 == tool_ctx -> disk_limit_tmp ) {
-        rc = available_space_disk_space( tool_ctx -> dir,
-                                         get_temp_dir( tool_ctx -> temp_dir ), /* tmp_dir.c */
-                                         &( tool_ctx -> disk_limit_tmp ),
-                                         false /* is_file */ ); /* file_tools.c */
+
+    /* in case of ft_fasta_us_split_spot: there are no temp-files*/
+    if ( ft_fasta_us_split_spot != tool_ctx -> fmt ) {
+        /* if we do use temp-files: they need as much space as the generated output */
+        res = tool_ctx -> estimated_output_size;
+        /* plus ( size / thread-count ) */
+        res += ( tool_ctx -> estimated_output_size / tool_ctx -> num_threads );
     }
-    return rc;
+
+    return res;
+}
+
+static size_t tool_ctx_get_temp_file_limit( tool_ctx_t * tool_ctx ) {
+    size_t res = tool_ctx -> disk_limit_tmp_cmdl;   /* the commandline has priority! */
+    if ( 0 == res ) { res = tool_ctx -> disk_limit_out_cmdl; } /* if not specific tmp-limit given */
+    if ( 0 == res ) { res = tool_ctx -> disk_limit_tmp_os; } /* what the OS thinks is free */
+    if ( 0 == res ) { res = tool_ctx -> disk_limit_out_os; } /* as a last resort, if above has not value */
+    return res;
+}
+
+static size_t tool_ctx_get_out_file_limit( tool_ctx_t * tool_ctx ) {
+    size_t res = tool_ctx -> disk_limit_out_cmdl;   /* the commandline has priority! */
+    if ( 0 == res ) { res = tool_ctx -> disk_limit_out_os; } /* as a last resort, if above has not value */
+    return res;
 }
 
 static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
-    
-    /*
-    size_t required_by_vdb = 0;
 
-    if ( tool_ctx -> insp_output . is_remote ) {
-        required_by_vdb = ( tool_ctx -> insp_output . acc_size * tool_ctx -> num_threads );
+    if ( tool_ctx -> use_stdout ) {
+        /* if the tool is set to output on stdout: we only need to check the temp-file-size */
+        size_t needed = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
+        /* the limit is either given at the command-line or queried from the OS */
+        size_t limit = tool_ctx_get_temp_file_limit( tool_ctx );
+        if ( limit > 0 && needed > limit ) {
+            /* we are over the limit! */
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcTooBig );
+        }
+    } else {
+        /* we have to check for output- as well as for temp-file-size */        
+        if ( tool_ctx -> out_and_tmp_on_same_fs ) {
+            /* output as well as temp-files are on the same file-system, temp-size includes the output */
+            size_t needed = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
+            size_t limit = tool_ctx_get_out_file_limit( tool_ctx );
+            if ( 0 == limit ) { limit = tool_ctx_get_temp_file_limit( tool_ctx ); }
+            if ( limit > 0 && needed > limit ) {
+                /* we are over the limit! */
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcTooBig );
+            }
+        } else {
+            /* output and temp-files are on different file-systems */
+            size_t needed = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
+            size_t limit = tool_ctx_get_out_file_limit( tool_ctx );
+            if ( limit > 0 && needed > limit ) {
+                /* we are over the limit! */
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcTooBig );
+            } else {
+                limit = tool_ctx_get_temp_file_limit( tool_ctx );
+                if ( limit > 0 && needed > limit ) {
+                    /* we are over the limit! */
+                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcTooBig );
+                }
+            }
+        }
     }
-    if ( !use_stdout ) {
+    
+    if ( 0 == rc ) {
+        if ( tool_ctx -> show_details ) {
+            rc_t rc2 = KOutHandlerSetStdErr();
+            
+            if ( 0 == rc2 ) {
+                rc2 = KOutMsg( "disk-limit(s) not exeeded!\n" );
+                KOutHandlerSetStdOut();
+            }
+        }
+    } else {
+        rc_t rc2 = KOutHandlerSetStdErr();
+        
+        if ( 0 == rc2 ) {
+            rc2 = KOutMsg( "disk-limit exeeded!\n" );
+            if ( 0 == rc2 && !tool_ctx -> show_details ) {
+                rc2 = KOutMsg( "to see limits: re-run with '-x' option.\n" );                
+            }
+            KOutHandlerSetStdOut();
+        }
     }
-    */
     return rc;
 }
 
@@ -554,10 +636,8 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         }
     }
 
-    /* evaluate the free-disk-space if no limit has been given explicitly */
-    if ( 0 == rc && 0 == tool_ctx -> disk_limit_out ) {
-        rc = tool_ctx_get_disk_limits( tool_ctx ); /* above */
-    }
+    /* evaluate the free-disk-space according the os */
+    if ( 0 == rc ) { tool_ctx_get_disk_limits( tool_ctx ); /* above */  }
     
     /* create an estimation of the output-size */
     if ( 0 == rc && is_perform_check( tool_ctx -> check_mode ) /* helper.c */ ) {
@@ -586,8 +666,12 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         rc = print_tool_ctx( tool_ctx ); /* above */
     }
 
-    if ( 0 == rc && cmt_on == tool_ctx -> check_mode ) {
-        rc = tool_ctx_check_available_disk_size( tool_ctx ); /* above */
+    if ( 0 == rc ) {
+        switch( tool_ctx -> check_mode ) { /* check-mode defined in helper.h */
+            case cmt_on     :
+            case cmt_only   : rc = tool_ctx_check_available_disk_size( tool_ctx ); break; /* above */
+            default         : break;
+        }
     }
     return rc;
 }

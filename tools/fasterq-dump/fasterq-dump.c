@@ -327,8 +327,8 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> row_limit = get_uint64_t_option( args, OPTION_ROW_LIMIT, 0 );
-    tool_ctx -> disk_limit_out = get_size_t_option( args, OPTION_DISK_LIMIT_OUT, 0 );
-    tool_ctx -> disk_limit_tmp = get_size_t_option( args, OPTION_DISK_LIMIT_TMP, 0 );
+    tool_ctx -> disk_limit_out_cmdl = get_size_t_option( args, OPTION_DISK_LIMIT_OUT, 0 );
+    tool_ctx -> disk_limit_tmp_cmdl = get_size_t_option( args, OPTION_DISK_LIMIT_TMP, 0 );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
     
     /* join_options_t is defined in helper.h */

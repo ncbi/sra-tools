@@ -77,7 +77,7 @@ SETUP =
 
 else
 
-# When linking dynamically, C++ NGS applications only need libncbi-ngs.so
+# When linking dynamically, C++ NGS applications only need libncbi-ngs.so;
 # make sure $(NGS_LIBDIR) is in LD_LIBRARY_PATH at the time of running
 #
 TEST_LIBS =               \
@@ -93,63 +93,56 @@ endif
 
 # AlignSliceTest
 #  slice a ReadCollection and output alignments
-ALIGNSLICE_TEST_SRC = \
-        AlignSliceTest.cpp
+ALIGNSLICE_TEST_SRC = AlignSliceTest.cpp
 
 AlignSliceTest: $(ALIGNSLICE_TEST_SRC)
-		$(CXX) -g $(CPPFLAGS) -o $@ $(ALIGNSLICE_TEST_SRC) $(TEST_LIBS)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(ALIGNSLICE_TEST_SRC) $(TEST_LIBS)
 
 
 # AlignTest #################
 #  access alignments
-ALIGN_TEST_SRC = \
-        AlignTest.cpp
+ALIGN_TEST_SRC = AlignTest.cpp
 
 AlignTest: $(ALIGN_TEST_SRC)
-		$(CXX) -g $(CPPFLAGS) -o $@ $(ALIGN_TEST_SRC) $(TEST_LIBS)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(ALIGN_TEST_SRC) $(TEST_LIBS)
 
 
 # DumpReferenceFASTA
-DUMP_SRC = \
-        DumpReferenceFASTA.cpp
+DUMP_SRC = DumpReferenceFASTA.cpp
 
 DumpReferenceFASTA: $(DUMP_SRC)
-		$(CXX) -g $(CPPFLAGS) -o $@ $(DUMP_SRC) $(TEST_LIBS)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(DUMP_SRC) $(TEST_LIBS)
 
 
 # FastqTableDump
 #  produce fastq-like table
-FASTQ_TABLE_DUMP_OBJ = \
-        FastqTableDump.cpp
+FASTQ_TABLE_DUMP_OBJ = FastqTableDump.cpp
 
 FastqTableDump: $(FASTQ_TABLE_DUMP_OBJ)
-		$(CXX) -g $(CPPFLAGS) -o $@ $(FASTQ_TABLE_DUMP_OBJ) $(TEST_LIBS)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(FASTQ_TABLE_DUMP_OBJ) $(TEST_LIBS)
 
 
 # FragTest
 #  access read fragments
-FRAG_TEST_SRC = \
-        FragTest.cpp
+FRAG_TEST_SRC = FragTest.cpp
 
 FragTest: $(FRAG_TEST_SRC)
-		$(CXX) -g $(CPPFLAGS) -o $@ $(FRAG_TEST_SRC) $(TEST_LIBS)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(FRAG_TEST_SRC) $(TEST_LIBS)
 
 
 # PileupTest
 #  slice a ReadCollection and produce pileups
-PILEUP_TEST_OBJ = \
-        PileupTest.cpp
+PILEUP_TEST_OBJ = PileupTest.cpp
 
 PileupTest: $(PILEUP_TEST_OBJ)
-		$(CXX) -g $(CPPFLAGS) -o $@ $(PILEUP_TEST_OBJ) $(TEST_LIBS)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(PILEUP_TEST_OBJ) $(TEST_LIBS)
 
 
 # RefTest ###################
-REF_TEST_SRC = \
-        RefTest.cpp
+REF_TEST_SRC = RefTest.cpp
 
 RefTest: $(REF_TEST_SRC)
-		$(CXX) -g $(CPPFLAGS) -o $@ $(REF_TEST_SRC) $(TEST_LIBS)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(REF_TEST_SRC) $(TEST_LIBS)
 
 # ===========================================================================
 #

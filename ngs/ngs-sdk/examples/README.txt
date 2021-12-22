@@ -44,7 +44,7 @@ To be built, the executables require some external libraries and the correspondi
 
 5. Run separately
     - run "make <example>" where <example" is one of "run_frag", "run_align", "run_dump", "run_align_slice", "run_pileup", "run_ref". This will run the selected example with some predefined arguments.
-    - In order to run an individual executable with custom arguments, do so from the command line, e.g. "./AlignTest SRR1121656 1 2 999". When run without arguments, the executables will output a very short description of required parameters.
+    - In order to run an individual executable with custom arguments, do so from the command line, e.g. "./AlignSliceTest SRR1121656 1 2 9999". When run without arguments, the executables will output a very short description of required parameters.
 
 6. Static vs Dynamic Linking
     - The executables can be build using static or dynamic linkage. Static linking is the default.
@@ -57,3 +57,6 @@ To be built, the executables require some external libraries and the correspondi
         -- NCBI_VDB_INCDIR - the location of VDB header files (default ../../../ncbi-vdb/interfaces)
         -- NGS_LIBDIR - the location of NGS object libraries (default ../../lib64)
         -- NGS_INCDIR - the location of NGS C++ headers (default ../../include)
+
+8. Clean
+    - run "make clean" to remove the executables.

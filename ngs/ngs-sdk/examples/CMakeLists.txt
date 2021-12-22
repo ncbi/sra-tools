@@ -14,6 +14,8 @@ add_executable( PileupTest PileupTest.cpp )
 add_executable( RefTest RefTest.cpp )
 add_executable( DumpReferenceFASTA DumpReferenceFASTA.cpp )
 
+#TODO: FastqTableDump
+
 if ( NOT WIN32 )
 	add_test( NAME SlowTest_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${BINDIR} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()
@@ -21,10 +23,15 @@ endif()
 install(FILES FragTest.cpp AlignTest.cpp AlignSliceTest.cpp PileupTest.cpp RefTest.cpp DumpReferenceFASTA.cpp
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
 )
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
-        RENAME Makefile
-)
-install(FILES Makefile.config expected.txt
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
-)
+
+if( WIN32 )
+    # TODO: install support for building/running examples on Windows
+else()
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
+            RENAME Makefile
+    )
+    install(FILES Makefile.config expected.txt README.txt
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
+    )
+endif()

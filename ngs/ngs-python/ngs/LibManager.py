@@ -231,7 +231,7 @@ class LibManager:
 
         do_update_sdk    = check_vers_res & 2
 
-        libname_sdk = "ngs-sdk"
+        libname_sdk = "ncbi-ngs"
 
         self.c_lib_sdk = load_library(libname_sdk, do_update_sdk, silent=False)
 

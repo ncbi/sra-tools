@@ -171,7 +171,6 @@ def load_library(lib_name, do_download, silent):
         return library
 
 class LibManager:
-    c_lib_engine = None
     c_lib_sdk = None
 
     URL_NCBI_SRATOOLKIT = 'https://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi'
@@ -219,7 +218,7 @@ class LibManager:
             return ""
 
     def initialize_ngs_bindings(self):
-        if self.c_lib_engine and self.c_lib_sdk: # already initialized
+        if self.c_lib_sdk: # already initialized
             return
 
         # check versions - must be run in a separate script to free library before overwriting it
@@ -230,23 +229,19 @@ class LibManager:
         # os.system is not that reliable and cross-platform as subprocess. So using subprocess
         check_vers_res = subprocess.call([sys.executable, "-c", "from ngs import NGS; exit(NGS.checkLibVersions())"])
 
-        do_update_engine = check_vers_res & 1
         do_update_sdk    = check_vers_res & 2
 
-        libname_engine = "ncbi-ngs"
         libname_sdk = "ngs-sdk"
 
-        self.c_lib_engine = load_library(libname_engine, do_update_engine, silent=False)
         self.c_lib_sdk = load_library(libname_sdk, do_update_sdk, silent=False)
 
         ##############  ngs-engine imports below  ####################
+        self._bind(self.c_lib_sdk, "PY_NGS_Engine_ReadCollectionMake",    [c_char_p, POINTER(c_void_p), POINTER(c_char), c_size_t], None)
+        self._bind(self.c_lib_sdk, "PY_NGS_Engine_ReferenceSequenceMake", [c_char_p, POINTER(c_void_p), POINTER(c_char), c_size_t], None)
 
-        self._bind(self.c_lib_engine, "PY_NGS_Engine_ReadCollectionMake",    [c_char_p, POINTER(c_void_p), POINTER(c_char), c_size_t], None)
-        self._bind(self.c_lib_engine, "PY_NGS_Engine_ReferenceSequenceMake", [c_char_p, POINTER(c_void_p), POINTER(c_char), c_size_t], None)
-
-        self._bind(self.c_lib_engine, "PY_NGS_Engine_SetAppVersionString",   [c_char_p, POINTER(c_char), c_size_t], None)
-        self._bind(self.c_lib_engine, "PY_NGS_Engine_GetVersion",            [POINTER(c_char_p), POINTER(c_char), c_size_t], None)
-        self._bind(self.c_lib_engine, "PY_NGS_Engine_IsValid",               [c_char_p, POINTER(c_int), POINTER(c_char), c_size_t], None)
+        self._bind(self.c_lib_sdk, "PY_NGS_Engine_SetAppVersionString",   [c_char_p, POINTER(c_char), c_size_t], None)
+        self._bind(self.c_lib_sdk, "PY_NGS_Engine_GetVersion",            [POINTER(c_char_p), POINTER(c_char), c_size_t], None)
+        self._bind(self.c_lib_sdk, "PY_NGS_Engine_IsValid",               [c_char_p, POINTER(c_int), POINTER(c_char), c_size_t], None)
 
         # self._bind(self.c_lib_engine, "PY_NGS_Engine_RefcountRelease",       [c_void_p, POINTER(c_char), c_size_t], None)
         # self._bind(self.c_lib_engine, "PY_NGS_Engine_StringData", [c_void_p, POINTER(c_char_p)], None)

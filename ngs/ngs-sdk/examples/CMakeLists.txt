@@ -28,10 +28,14 @@ if( WIN32 )
     # TODO: install support for building/running examples on Windows
 else()
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
-            RENAME Makefile
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
+        RENAME Makefile
     )
-    install(FILES Makefile.config expected.txt README.txt
-            DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/README.install
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
+        RENAME README.txt
+    )
+    install(FILES Makefile.config expected.txt
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
     )
 endif()

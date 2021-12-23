@@ -1,5 +1,13 @@
 if( Python3_EXECUTABLE )
 
+    set( SOURCES
+        AlignTest.py
+        AlignSliceTest.py
+        FragTest.py
+        PileupTest.py
+        RefTest.py
+    )
+
     if ( SINGLE_CONFIG )
         macro( RunAndDiff TestName TestParams )
             add_test( NAME Test_NgsPythonExamples_${TestName}
@@ -18,6 +26,26 @@ if( Python3_EXECUTABLE )
         RunAndDiff( AlignSliceTest "SRR1121656 1 1 9999" )
         RunAndDiff( PileupTest "SRR1121656 1 9999 10003" )
         RunAndDiff( RefTest "SRR1121656" )
+    endif()
+
+    set( INSTALL_DEST ${CMAKE_INSTALL_PREFIX}/share/examples-python )
+
+    install(FILES ${SOURCES} DESTINATION ${INSTALL_DEST} )
+
+    if( WIN32 )
+    # TODO: install support for running examples on Windows
+    else()
+        install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install
+            DESTINATION ${INSTALL_DEST}
+            RENAME Makefile
+        )
+        install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/README.install
+            DESTINATION ${INSTALL_DEST}
+            RENAME README.txt
+        )
+        install(FILES expected.txt
+            DESTINATION ${INSTALL_DEST}
+        )
     endif()
 
 endif()

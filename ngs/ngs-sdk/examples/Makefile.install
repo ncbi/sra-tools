@@ -35,7 +35,7 @@ TARGETS =               \
     DumpReferenceFASTA  \
     FragTest            \
     PileupTest          \
-    RefTest             \
+    RefTest
 
 # This rule triggers detection of the libraries and headers
 # in addition to building the examples
@@ -48,7 +48,7 @@ $(TARGETS): \
 	ncbi-headers    \
 	ngs-headers
 
-.PHONY: default std $(TARGETS)
+.PHONY: default std clean $(TARGETS)
 
 ifeq (,$(DYNAMIC))
 
@@ -166,19 +166,11 @@ ALL_TESTS = run_frag run_align run_align_slice run_pileup run_ref run_dump
 
 run_all: $(ALL_TESTS)
 
-.PHONY: $(ALL_TESTS)
-
-# ===========================================================================
-#
-# expected results for auto-testing
-#
-expected.txt update_expected:
-		rm -f expected.txt
-		run_all REDIRECT=">>expected.txt"
+.PHONY: run_all $(ALL_TESTS)
 
 run_and_diff: expected.txt
 		@ rm -f actual.txt
 		@ $(MAKE) run_all REDIRECT=">>actual.txt"
 		@ diff expected.txt actual.txt && rm actual.txt && echo "NGS C++ examples work as expected"
 
-.PHONY: update_expected run_and_diff install
+.PHONY: run_and_diff

@@ -34,17 +34,17 @@ To be built, the executables require some external libraries and the correspondi
     - run "make". This will build executables for all examples and place them in the current directory.
 
 2. Build separately
-    - run "make <example>", where <example> is one of "AlignSliceTest", "AlignTest", "DumpReferenceFASTA", "FragTest", "PileupTest", "RefTest". This will build (if necessary) and run the selected example with predefined arguments.
+    - run "make <example>", where <example> is one of "AlignSliceTest", "AlignTest", "DumpReferenceFASTA", "FragTest", "PileupTest", "RefTest". This will build and run the selected example with predefined arguments.
 
 3. Run all
     - run "make run_all". This will run all examples with their predefined arguments. The output of all the examples goes to stdout and for some of them there is a lot of it, so it is advisable to redirect stdout to a file, e.g. "make run_all >output.txt"
 
 4. Run and diff
-    - run "make run_and_diff". This will execute all the examples with their predefined arguments, run, them, capture the output in a temporary file, and then use "diff" to compare the actual output against a file containing the expected output (./expected.txt). Any discrepancies will be displayed. If the actual output matches the expected, there will be a message "NGS C++ examples work as expected" at the end of execution.
+    - run "make run_and_diff". This will execute all the examples with their predefined arguments, run them, capture the output in a temporary file, and then use "diff" to compare the actual output against a file containing the expected output (./expected.txt). Any discrepancies will be displayed. If the actual output matches the expected, there will be a message "NGS C++ examples work as expected" at the end of the execution.
 
 5. Run separately
     - run "make <example>" where <example" is one of "run_frag", "run_align", "run_dump", "run_align_slice", "run_pileup", "run_ref". This will run the selected example with some predefined arguments.
-    - In order to run an individual executable with custom arguments, do so from the command line, e.g. "./AlignSliceTest SRR1121656 1 2 9999". When run without arguments, the executables will output a very short description of required parameters.
+    - In order to run an individual executable with custom arguments, do so from the command line, e.g. "./AlignSliceTest SRR1121656 1 2 9999". When run without arguments, the executables will output a very short description of the required parameters.
 
 6. Static vs Dynamic Linking
     - The executables can be build using static or dynamic linkage. Static linking is the default.

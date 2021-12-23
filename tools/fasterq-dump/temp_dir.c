@@ -172,11 +172,13 @@ rc_t make_temp_dir( struct temp_dir_t ** obj, const char * requested, KDirectory
     return rc;
 }
 
+static const char * UNKNOWN_DIR = "unknown";
+
 const char * get_temp_dir( struct temp_dir_t * self ) {
     if ( NULL != self ) {
         return self -> path;
     }
-    return "unknown";
+    return UNKNOWN_DIR;
 }
 
 rc_t generate_lookup_filename( const struct temp_dir_t * self, char * dst, size_t dst_size ) {

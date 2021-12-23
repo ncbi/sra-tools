@@ -429,3 +429,35 @@ rc_t flex_print( struct flex_printer_t * self, const flex_printer_data_t * data 
     }
     return rc;
 }
+
+/* print into a SBuffer... */
+#if 0
+rc_t flex_print_to( struct flex_printer_t * self, SBuffer_t * buffer, const flex_printer_data_t * data ) {
+    rc_t rc = 0;
+    if ( NULL == self || NULL == buffer || NULL == data ) {
+        rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
+        ErrMsg( "flex_print_to() -> %R", rc );
+    } else {
+        const String * string_data[ 8 ];        /* vector of strings, idx has to match var_desc_list */
+        uint64_t int_data[ 4 ];                 /* vector of ints, idx has to match var_desc_list */
+        
+        /* pick the right format-string, depending if we have 2 parts or only one */
+        struct var_fmt_t * fmt = ( NULL == data -> read2 ) ? self -> fmt_v1 : self -> fmt_v2;
+
+        /* prepare string-data, common between FASTA and FASTQ ( accession aka #0 is set by constructor ) */
+        string_data[ sdi_sn ] = ( NULL != data -> spotname ) ? data -> spotname : NULL;
+        string_data[ sdi_sg ] = ( NULL != data -> spotgroup ) ? data -> spotgroup : NULL;
+        string_data[ sdi_rd1 ] = ( NULL != data -> read1 ) ? data -> read1 : NULL;
+        string_data[ sdi_rd2 ] = ( NULL != data -> read2 ) ? data -> read2 : NULL;
+        string_data[ sdi_qa ] = ( NULL != data -> quality ) ? data -> quality : NULL;
+
+        /* prepare int-data, common between FASTA and FASTQ */
+        int_data[ idi_si ] = ( uint64_t )data -> row_id;
+        int_data[ idi_ri ] = ( uint64_t )data -> read_id;
+        int_data[ idi_rl ] = calc_read_length( data );
+
+
+    }
+    return rc;
+}
+#endif

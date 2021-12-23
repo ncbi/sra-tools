@@ -387,6 +387,21 @@ static rc_t tool_ctx_optionally_create_paths_in_output_filename( tool_ctx_t * to
     return rc;
 }
 
+static rc_t tool_ctx_resolve_output_filename( tool_ctx_t * tool_ctx ) {
+    rc_t rc = KDirectoryResolvePath( tool_ctx -> dir,
+                                true /* absolute */,
+                                &( tool_ctx -> dflt_output[ 0 ] ),
+                                sizeof tool_ctx -> dflt_output,
+                                "%s",
+                                tool_ctx -> output_filename );
+    if ( 0 != rc ) {
+        ErrMsg( "tool_ctx_resolve_output_filename.KDirectoryResolvePath() -> %R", rc );        
+    } else {
+        tool_ctx -> output_filename = tool_ctx -> dflt_output;        
+    }
+    return rc;
+}
+    
 static rc_t tool_ctx_adjust_output_filename( tool_ctx_t * tool_ctx ) {
     rc_t rc = 0;
     /* we do have a output-filename : use it */
@@ -481,7 +496,9 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
         /* we have to check for output- as well as for temp-file-size */        
         if ( tool_ctx -> out_and_tmp_on_same_fs ) {
             /* output as well as temp-files are on the same file-system, temp-size includes the output */
-            size_t needed = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
+            size_t needed_tmp = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
+            size_t needed_out = tool_ctx -> estimated_output_size;
+            size_t needed = needed_tmp > needed_out ? needed_tmp : needed_out;
             size_t limit = tool_ctx_get_out_file_limit( tool_ctx );
             if ( 0 == limit ) { limit = tool_ctx_get_temp_file_limit( tool_ctx ); }
             if ( limit > 0 && needed > limit ) {
@@ -490,8 +507,10 @@ static rc_t tool_ctx_check_available_disk_size( tool_ctx_t * tool_ctx ) {
             }
         } else {
             /* output and temp-files are on different file-systems */
-            size_t needed = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
-            size_t limit = tool_ctx_get_out_file_limit( tool_ctx );
+            size_t needed_tmp = tool_ctx_temp_file_sizes( tool_ctx ); /* above */
+            size_t needed_out = tool_ctx -> estimated_output_size;
+            size_t needed = needed_tmp > needed_out ? needed_tmp : needed_out;
+            size_t limit = tool_ctx_get_out_file_limit( tool_ctx ); /* above */
             if ( limit > 0 && needed > limit ) {
                 /* we are over the limit! */
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcTooBig );
@@ -589,14 +608,19 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
     /* create of adjust the output-filename(s) if needed */
     if ( rc == 0 && !tool_ctx -> use_stdout ) {
         if ( NULL == tool_ctx -> output_filename ) {
+            /* no output-filename has been given on the commandline */
             if ( NULL == tool_ctx -> output_dirname ) {
                 rc = tool_ctx_make_output_filename_from_accession( tool_ctx, fasta ); /* above */
             } else {
                 rc = tool_ctx_make_output_filename_from_dir_and_accession( tool_ctx, fasta ); /* above */
             }
         } else {
+            /* there is an output-filename on the commandline */
             if ( NULL == tool_ctx -> output_dirname ) {
-                rc = tool_ctx_adjust_output_filename( tool_ctx ); /* above */
+                rc = tool_ctx_resolve_output_filename( tool_ctx );
+                if ( 0 == rc ) {
+                    rc = tool_ctx_adjust_output_filename( tool_ctx ); /* above */
+                }
             } else {
                 rc = tool_ctx_adjust_output_filename_by_dir( tool_ctx ); /* above */
             }

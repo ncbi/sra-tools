@@ -30,6 +30,10 @@
 #include <klib/out.h>
 #endif
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
 #ifndef _h_klib_printf_
 #include <klib/printf.h>
 #endif
@@ -500,18 +504,18 @@ SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
     SBuffer_t * res = NULL;
     if ( NULL != self )
     {
-        size_t needed = var_fmt_buffer_size( self, str_args, str_args_len );
+        size_t needed = var_fmt_buffer_size( self, str_args, str_args_len ); /* above */
         if ( needed > 0 )
         {
-            rc_t rc = increase_SBuffer_to( &( self -> buffer ), needed );
+            rc_t rc = increase_SBuffer_to( &( self -> buffer ), needed ); /* does nothing if not neccessary */
             if ( 0 == rc )
             {
-                const Vector * v = &( self -> elements );
-                uint32_t i, l = VectorLength( v );
                 SBuffer_t * dst = &( self -> buffer );
                 self -> buffer . S . len = 0;
                 self -> buffer . S . size = 0;
-
+                
+                const Vector * v = &( self -> elements );
+                uint32_t i, l = VectorLength( v );
                 for ( i = VectorStart( v ); i < l; ++i ) {
                     const var_fmt_entry_t * entry = VectorGet( v, i );
                     if ( NULL != entry ) {
@@ -538,6 +542,25 @@ SBuffer_t * var_fmt_to_buffer( struct var_fmt_t * self,
         }
     }
     return res;
+}
+
+rc_t var_fmt_to_buffer_2( struct var_fmt_t * self,
+                          SBuffer_t * dst,
+                          const String ** str_args, size_t str_args_len,
+                          const uint64_t * int_args, size_t int_args_len ) {
+    rc_t rc = 0;
+    if ( NULL == self || NULL == dst || NULL == str_args || NULL == int_args ) {
+        rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
+        ErrMsg( "var_fmt_to_buffer_2() -> %R", rc );
+    } else {
+        size_t needed = var_fmt_buffer_size( self, str_args, str_args_len ); /* above */
+        if ( needed > 0 ) {
+            needed += dst -> S . size;
+            rc = increase_SBuffer_to( dst, needed ); /* does nothing if not neccessary */
+            
+        }
+    }
+    return rc;
 }
 
 /* apply the var-fmt-struct to the given arguments, print the result to stdout */

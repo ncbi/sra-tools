@@ -42,22 +42,23 @@ NGS_EXAMPLES = \
 #
 # example runs
 #
-# NOTE: Expect libncbi-ngs.so inside $LD_LIBRARY_PATH
+
+SETUP ?= NGS_PY_LIBRARY_PATH=../../lib64
 
 run_frag:
-	$(PYTHON) FragTest.py ERR225922 10000 2 $(REDIRECT)
+	$(SETUP) $(PYTHON) FragTest.py ERR225922 10000 2 $(REDIRECT)
 
 run_align:
-	$(PYTHON) AlignTest.py ERR225922 10000 2 $(REDIRECT)
+	$(SETUP) $(PYTHON) AlignTest.py ERR225922 10000 2 $(REDIRECT)
 
 run_align_slice:
-	$(PYTHON) AlignSliceTest.py SRR1121656 1 1 9999 $(REDIRECT)
+	$(SETUP) $(PYTHON) AlignSliceTest.py SRR1121656 1 1 9999 $(REDIRECT)
 
 run_pileup:
-	$(PYTHON) PileupTest.py SRR1121656 1 9999 10003 $(REDIRECT)
+	$(SETUP) $(PYTHON) PileupTest.py SRR1121656 1 9999 10003 $(REDIRECT)
 
 run_ref:
-	$(PYTHON) RefTest.py SRR1121656 $(REDIRECT)
+	$(SETUP) $(PYTHON) RefTest.py SRR1121656 $(REDIRECT)
 
 ALL_TESTS = run_frag run_align run_align_slice run_pileup run_ref
 

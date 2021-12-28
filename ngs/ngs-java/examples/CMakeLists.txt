@@ -54,6 +54,9 @@ if ( Java_FOUND )
             DESTINATION ${INSTALL_DEST}
             RENAME README.txt
         )
+        install(FILES expected.txt
+            DESTINATION ${INSTALL_DEST}
+        )
     endif()
 
 endif()

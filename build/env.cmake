@@ -243,7 +243,7 @@ else() # assume a single-config generator
     set( TESTBINDIR "${TARGDIR}/test-bin" )
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
-    link_directories( ${NCBI_VDB_LIBDIR} ) # TODO: USE_INSTALLED_NCBI_VDB
+    link_directories( ${NCBI_VDB_LIBDIR} ) # Must point to the installed ncbi-vdb libs
     #link_directories( ${NCBI_VDB_ILIBDIR} ) # TODO: not clear what to do in case USE_INSTALLED_NCBI_VDB == 1
 endif()
 
@@ -263,11 +263,11 @@ endif()
 
 if( NOT VDB_SRCDIR )
 	if( USE_INSTALLED_NCBI_VDB )
-		message("CMAKE_INSTALL_PREFIX_ROOT: ${CMAKE_INSTALL_PREFIX_ROOT}")
-		set( NCBI_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX_ROOT} )
+		set( NCBI_VDB_INSTALL_PREFIX ${VDB_BINDIR} )
+		message( "NCBI_VDB_INSTALL_PREFIX: ${NCBI_VDB_INSTALL_PREFIX}" )
 
-		set( VDB_SRCDIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/vdb_shared_sources" )
-		set( VDB_INTERFACES_DIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/interfaces" )
+		set( VDB_SRCDIR "${NCBI_VDB_INSTALL_PREFIX}/vdb_shared_sources" )
+		set( VDB_INTERFACES_DIR "${NCBI_VDB_INSTALL_PREFIX}/interfaces" )
 
 		if ( NOT EXISTS ${VDB_SRCDIR} )
 			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb")

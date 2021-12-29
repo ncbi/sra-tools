@@ -39,7 +39,7 @@ if ( Java_FOUND )
 
         set( INSTALL_DEST ${CMAKE_INSTALL_PREFIX}/share/examples-java )
 
-        install(FILES ${SOURCES} expected.txt
+        install(FILES ${SOURCES}
             DESTINATION ${INSTALL_DEST}/examples )
         install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install
             DESTINATION ${INSTALL_DEST}
@@ -49,6 +49,8 @@ if ( Java_FOUND )
             DESTINATION ${INSTALL_DEST}
             RENAME README.txt
         )
+        install(FILES expected.txt
+            DESTINATION ${INSTALL_DEST} )
     endif()
 
 endif()

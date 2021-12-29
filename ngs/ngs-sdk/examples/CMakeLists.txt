@@ -20,13 +20,12 @@ if ( NOT WIN32 )
 	add_test( NAME SlowTest_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${BINDIR} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()
 
-install(FILES FragTest.cpp AlignTest.cpp AlignSliceTest.cpp PileupTest.cpp RefTest.cpp DumpReferenceFASTA.cpp
+if ( SINGLE_CONFIG )
+    install(
+        FILES FragTest.cpp AlignTest.cpp AlignSliceTest.cpp PileupTest.cpp RefTest.cpp DumpReferenceFASTA.cpp
+              Makefile.config expected.txt
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
-)
-
-if( WIN32 )
-    # TODO: install support for building/running examples on Windows
-else()
+    )
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
         RENAME Makefile
@@ -34,8 +33,5 @@ else()
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/README.install
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
         RENAME README.txt
-    )
-    install(FILES Makefile.config expected.txt
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
     )
 endif()

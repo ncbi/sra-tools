@@ -37,15 +37,10 @@ if ( Java_FOUND )
         RunAndDiff( ReadGroupTest "SRR1121656" )
         RunAndDiff( DumpReferenceFASTA "SRR520124 1" )
 
-    endif()
+        set( INSTALL_DEST ${CMAKE_INSTALL_PREFIX}/share/examples-java )
 
-    set( INSTALL_DEST ${CMAKE_INSTALL_PREFIX}/share/examples-java )
-
-    install(FILES ${SOURCES} DESTINATION ${INSTALL_DEST}/examples )
-
-    if( WIN32 )
-    # TODO: install support for building/running examples on Windows
-    else()
+        install(FILES ${SOURCES} expected.txt
+            DESTINATION ${INSTALL_DEST}/examples )
         install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install
             DESTINATION ${INSTALL_DEST}
             RENAME Makefile
@@ -53,9 +48,6 @@ if ( Java_FOUND )
         install(FILES README.install
             DESTINATION ${INSTALL_DEST}
             RENAME README.txt
-        )
-        install(FILES expected.txt
-            DESTINATION ${INSTALL_DEST}
         )
     endif()
 

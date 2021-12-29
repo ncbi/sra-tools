@@ -512,7 +512,7 @@ function(MakeLinksExe target install_via_driver)
 endfunction()
 
 
-if( WIN32 )
+if( NOT SINGLE_CONFIG )
     set( COMMON_LINK_LIBRARIES kapp load tk-version )
     set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
     set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )

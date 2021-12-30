@@ -37,8 +37,6 @@ set( SRC
 	VByteBlob
 )
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/vdb ) # libs/vdb is not needed, #include in the cpp source file goes to ../
-
 GenerateStaticLibs( ngs "${SRC}" )
 target_link_libraries( ngs ${COMMON_LIBS_READ} )
 

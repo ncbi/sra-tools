@@ -13,6 +13,7 @@ if( LibXml2_FOUND )
 		loader
 	)
 
+   if (SINGLE_CONFIF )
 	set( LOADER_LIB
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
@@ -20,6 +21,15 @@ if( LibXml2_FOUND )
 		${NCBI_VDB_LIBDIR}/libkxml.${STLX}
 		xml2
 	)
+   else()
+	set( LOADER_LIB
+        ${COMMON_LINK_LIBRARIES}
+		${COMMON_LIBS_WRITE}
+		kxfs
+		kxml
+		xml2
+	)
+   endif()
 
 	# External
 

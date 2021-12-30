@@ -1,4 +1,4 @@
-if( NOT WIN32 )
+if( SINGLE_CONFIG )
 
     set(CMAKE_CXX_STANDARD 17)
     add_definitions(-msse4.2 -DBMSSE42OPT)

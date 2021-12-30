@@ -4,8 +4,10 @@ add_compile_definitions( __mod__="tools/vdb-config" )
 if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
 	set( TUI_LIBS tui_cpp tui)
-else()
+elseif( SINGLE_CONFIG)
 	set( TUI_LIBS ${NCBI_VDB_LIBDIR}/libtui_cpp.${STLX} ${NCBI_VDB_LIBDIR}/libtui.${STLX})
+else() # XCode
+	set( TUI_LIBS tui_cpp tui)
 endif()
 
 add_executable( vdb-config

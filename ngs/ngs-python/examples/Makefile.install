@@ -22,33 +22,52 @@
 #
 # ===========================================================================
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
-################################# ngs-c++
-set( NGS_CPP_LIB "" )
-foreach( target ${NGS_CPP_TARGETS})
-    list( APPEND NGS_CPP_LIB "$<TARGET_OBJECTS:${target}>" )
-endforeach()
+default: run_all
 
-add_library( ngs-c++ STATIC "${NGS_CPP_LIB}" )
-ExportStatic( ngs-c++ true )
+clean:
 
-#--------------------------------
-add_library( ngs-c++-shared SHARED "${NGS_CPP_LIB}" )
-set_target_properties( ngs-c++-shared PROPERTIES OUTPUT_NAME ngs-c++ )
-MakeLinksShared( ngs-c++-shared ngs-c++ true )
+.PHONY: default clean
 
-################################# ngs-sdk renamed to ncbi-ngs
-set( NGS_SDK_LIB "" )
-foreach( target ${NGS_SDK_TARGETS})
-    list( APPEND NGS_SDK_LIB "$<TARGET_OBJECTS:${target}>" )
-endforeach()
+PYTHON ?= python3
 
-add_library( ncbi-ngs STATIC "${NGS_SDK_LIB}" )
-ExportStatic( ncbi-ngs true )
+NGS_EXAMPLES = \
+	FragTest \
+	AlignTest \
+	AlignSliceTest \
+	PileupTest \
+	RefTest
 
-#--------------------------------
-add_library( ncbi-ngs-shared SHARED ${NGS_SDK_LIB} )
-target_link_libraries( ncbi-ngs-shared ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )
-MakeLinksShared( ncbi-ngs-shared ncbi-ngs true )
+# ===========================================================================
+#
+# example runs
+#
+
+SETUP ?= NGS_PY_LIBRARY_PATH=../../lib64
+
+run_frag:
+	$(SETUP) $(PYTHON) FragTest.py ERR225922 10000 2 $(REDIRECT)
+
+run_align:
+	$(SETUP) $(PYTHON) AlignTest.py ERR225922 10000 2 $(REDIRECT)
+
+run_align_slice:
+	$(SETUP) $(PYTHON) AlignSliceTest.py SRR1121656 1 1 9999 $(REDIRECT)
+
+run_pileup:
+	$(SETUP) $(PYTHON) PileupTest.py SRR1121656 1 9999 10003 $(REDIRECT)
+
+run_ref:
+	$(SETUP) $(PYTHON) RefTest.py SRR1121656 $(REDIRECT)
+
+ALL_TESTS = run_frag run_align run_align_slice run_pileup run_ref
+
+run_all: $(ALL_TESTS)
+
+.PHONY: run_all $(ALL_TESTS)
+
+run_and_diff: expected.txt
+	rm -f actual.txt; $(MAKE) run_all REDIRECT=">>actual.txt" ; \
+	diff expected.txt actual.txt && rm actual.txt && echo NGS Python examples work as expected
+
+.PHONY: run_and_diff

@@ -512,10 +512,10 @@ function(MakeLinksExe target install_via_driver)
 endfunction()
 
 
-if( WIN32 )
+if( NOT SINGLE_CONFIG )
     set( COMMON_LINK_LIBRARIES kapp load tk-version )
-    set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
-    set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
+    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} )
+    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
     set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} ${NCBI_VDB_LIBDIR}/libload.${STLX} tk-version )

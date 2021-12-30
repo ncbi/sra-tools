@@ -252,12 +252,12 @@ endif()
 
 # Using installed ncbi-vdb directory
 if( WIN32 )
-	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	# TODO: WIN32 and Mac still work in an assumption that ncbi-vdb sources are checked out alongside with sra-tools
 	set( USE_INSTALLED_NCBI_VDB 0 )
 elseif( SINGLE_CONFIG )
 	set( USE_INSTALLED_NCBI_VDB 1 )
 else() # XCode
-	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	# TODO: WIN32 and Mac still work in an assumption that ncbi-vdb sources are checked out alongside with sra-tools
 	set( USE_INSTALLED_NCBI_VDB 0 )
 endif()
 

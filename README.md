@@ -13,6 +13,65 @@ Please check the [CHANGES.md](CHANGES.md) file for change history.
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
+## How To Build From Source
+
+To build from source, you need one of the supported operating systems (Linux, Windows, MacOS) and CMake (minimum version 3.16). On Linux and MacOS you need the GNU C/C++ toolchain (On MacOS, you may also use CMake to generate an XCode project), on Windows a set of MS Build Tools for Visual Studio 2017 or 2019.
+
+As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK (https://github.com/ncbi/ncbi-vdb). In the following instructions, we refer to ......................................................................... as ```<path-to-sdk>```
+
+### Linux, MacOS (gmake)
+
+1. In the root of the sra-tools checkout, run:
+
+```
+./configure
+```
+
+Use ```./configure -h``` for the list of available optins
+
+2. Once the configuration script has successfully finished, run:
+
+```
+make
+```
+
+This will invoke a Makefile that performs the following sequence:
+* retrieve all the settings saved by the configuration script
+* pass the settings to CMake
+  * if this is the first time CMake is invoked, it will generate a project tree. The project tree will be located underneath the directory specified in the ```--build-prefix``` option of the configuration. The location can be displayed by running ```make config``` or ```make help``` inside the source tree.
+  * build the CMake-generated project
+
+Running ```make``` from any directory inside the source tree will invoke the same sequence but limit the scope of the build to the sub-tree with the current directory as the root.
+
+The ```make``` command inside the source tree supports several additional targets; run ```make help``` for the list and short descriptions.
+
+### MacOS (XCode)
+
+To generate an XCode project, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Add an entry ```VDB_BINDIR=<path-to-sdk>``` to the list of cache variables. Choose Xcode as the generator and click "Generate". Once the CMake generation succeeds, there will be an XCode project file ```ncbi-vdb.xcodeproj``` in the build's binary directory. You can open it with XCode and build from the IDE.
+
+
+Alternatively, you can configure and build from the command line:
+
+```
+cmake <path-to-sra-tools> -G Xcode -DVDB_BINDIR=<path-to-sdk>
+cmake --build . --config Debug      # or Release
+```
+
+### Windows (Visual Studio)
+
+To generate an MS Visual Studio solution, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Add an entry ```VDB_BINDIR=<path-to-sdk>``` to the list of cache variables. Now, choose one of the supported Visual Studio generators (see NOTE below) and a 64-bit generator, and click on "Configure" and then "Generate". Once the CMake generation succeeds, there will be an MS VS solution file ```sra-tools.sln``` in the build's binary directory. You can open it with the Visual Studio and build from the IDE.
+
+NOTE: This release supports generators ```Visual Studio 15 2017``` and ```Visual Studio 16 2019```, only for 64 bit platforms.
+
+
+Alternatively, you can configure and build from the command line (assuming the correct MSVS Build Tools are in the %PATH%), e.g.:
+
+```
+cmake <path-to-sra-tools> -G "Visual Studio 16 2019" -A x64 -DVDB_BINDIR=<path-to-sdk>
+cmake --build . --config Debug      # or Release
+```
+
+
 ### ANNOUNCEMENT:
 
 December 9, 2021. Upcoming changes to the source build system:
@@ -29,10 +88,10 @@ This change will also include the structure of GitHub repositories, which will u
 
 2) ncbi/ncbi-vdb (https://github.com/ncbi/ncbi-vdb)
 
-   This project’s build system will be based on CMake. The libraries supporting access to VDB data via NGS API will be moved to Github repository 
-   ncbi/sra-tools. 
+   This project’s build system will be based on CMake. The libraries supporting access to VDB data via NGS API will be moved to Github repository
+   ncbi/sra-tools.
 
-The projects to move are: 
+The projects to move are:
 
 | Old location (base URL: https://github.com/ncbi/ncbi-vdb) | New location (base URL: https://github.com/ncbi/sra-tools) |
 | --------------------------------------------------------- | ---------------------------------------------------------- |
@@ -50,10 +109,10 @@ The projects to move are:
    This project’s build system will be based on CMake. The project will acquire some new components:
 
       3a) NGS SDK (now under ngs/, formerly in Github repository ncbi/ngs)
-       
+
       3b) NGS-related VDB access libraries and their dependents, formerly in Github repository ncbi/ncbi-vdb, as listed in the table above.
-       
-       
+
+
 October 25, 2021. SRA Toolkit 2.11.3:
 fixed a bug in fasterq-dump: fasta and fasta-unsorted parameters work correctly.
 

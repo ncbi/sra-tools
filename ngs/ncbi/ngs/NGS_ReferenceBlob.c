@@ -33,13 +33,13 @@
 #include <kfc/xc.h>
 
 #include <vdb/blob.h>
+#include <vdb/page-map-priv.h>
 
 #include "NGS_Cursor.h"
 #include "CSRA1_Reference.h"
 #include "VByteBlob.h"
 
 #include "vdb/blob-priv.h"
-#include <vdb/page-map.h>
 
 const int64_t ChunkSize = 5000;
 
@@ -214,10 +214,10 @@ uint64_t NGS_ReferenceBlobUnpackedSize ( const struct NGS_ReferenceBlob * self, 
             row_count_t  repeat;
             do
             {
-                repeat = PageMapIteratorRepeatCount ( &pmIt );
-                ret += repeat * PageMapIteratorDataLength ( &pmIt );
+                repeat = PageMapIteratorRepeatCount_Ext ( &pmIt );
+                ret += repeat * PageMapIteratorDataLength_Ext ( &pmIt );
             }
-            while ( PageMapIteratorAdvance ( &pmIt, repeat ) );
+            while ( PageMapIteratorAdvance_Ext ( &pmIt, repeat ) );
         }
     }
     return ret;
@@ -247,9 +247,9 @@ void NGS_ReferenceBlobResolveOffset ( const struct NGS_ReferenceBlob * self, ctx
             uint64_t inUnrolledBlob = 0; /* offset from the starting position of self->rowId if all repetitions in the blob were unrolled */
             while ( true )
             {
-                row_count_t  repeat = PageMapIteratorRepeatCount ( &pmIt );
-                int64_t size = PageMapIteratorDataLength ( &pmIt );
-                elem_count_t offset = PageMapIteratorDataOffset ( &pmIt );
+                row_count_t  repeat = PageMapIteratorRepeatCount_Ext ( &pmIt );
+                int64_t size = PageMapIteratorDataLength_Ext ( &pmIt );
+                elem_count_t offset = PageMapIteratorDataOffset_Ext ( &pmIt );
                 if (inUnrolledBlob == 0)
                 {   /* the first offset is not always 0! */
                     inUnrolledBlob = offset;
@@ -270,7 +270,7 @@ void NGS_ReferenceBlobResolveOffset ( const struct NGS_ReferenceBlob * self, ctx
                     }
                     return;
                 }
-                if ( ! PageMapIteratorAdvance ( &pmIt, repeat ) )
+                if ( ! PageMapIteratorAdvance_Ext( &pmIt, repeat ) )
                 {
                     INTERNAL_ERROR ( xcParamNull, "offset %lu is not found in (row=%li, count=%lu)", p_inBlob, self -> rowId, self -> count );
                     return;

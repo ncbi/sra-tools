@@ -29,9 +29,8 @@
 #include <kfc/except.h>
 #include <kfc/xc.h>
 
-#include <vdb/blob.h>
-#include <../libs/vdb/blob-priv.h>
-#include <../libs/vdb/page-map.h>
+#include <vdb/blob-priv.h>
+#include <vdb/page-map-priv.h>
 
 /* Calculate the biggest available contiguous data portion of the blob:
 *  starts at rowId, ends before a repeated value or at the end of the blob
@@ -89,8 +88,8 @@ VByteBlob_ContiguousChunk ( const VBlob*    p_blob,
                             do
                             {
                                 ++ rowCount;
-                                * p_size += PageMapIteratorDataLength ( &pmIt );
-                                if ( PageMapIteratorRepeatCount ( &pmIt ) > 1 )
+                                * p_size += PageMapIteratorDataLength_Ext ( &pmIt );
+                                if ( PageMapIteratorRepeatCount_Ext ( &pmIt ) > 1 )
                                 {   /* repeated row found */
                                     break;
                                 }
@@ -99,7 +98,7 @@ VByteBlob_ContiguousChunk ( const VBlob*    p_blob,
                                     break;
                                 }
                             }
-                            while ( PageMapIteratorNext ( &pmIt ) );
+                            while ( PageMapIteratorNext_Ext ( &pmIt ) );
 
                             if ( p_rowCount != 0 )
                             {

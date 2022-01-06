@@ -261,47 +261,7 @@ endif()
 # VDB-4651 - relying on ./configure's logic for determining interfaces location
 set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
 
-# if( NOT VDB_SRCDIR )
-# 	if( USE_INSTALLED_NCBI_VDB ) # VDB-4651 - while ./configure is not fixed using our own logic here
-# 		set( NCBI_VDB_INSTALL_PREFIX ${VDB_BINDIR} )
-# 		message( "NCBI_VDB_INSTALL_PREFIX: ${NCBI_VDB_INSTALL_PREFIX}" )
-# 		message( "VDB_INCDIR: ${VDB_INCDIR}")
-
-# 		set( VDB_SRCDIR "${NCBI_VDB_INSTALL_PREFIX}/vdb_shared_sources" )
-# 		# set( VDB_INTERFACES_DIR "${NCBI_VDB_INSTALL_PREFIX}/interfaces" )
-
-# 		if ( NOT EXISTS ${VDB_SRCDIR} )
-# 			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb")
-# 			set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
-# 		else()
-# 			message(WARNING "Using INSTALLED ncbi-vdb sources: ${VDB_SRCDIR}")
-# 		endif()
-
-# 		# VDB-4651 - don't do anything about interfaces here, in cmake. ./configure is supposed to handle all errors
-# 		# if ( NOT EXISTS ${VDB_INTERFACES_DIR} )
-# 			# message("${VDB_INTERFACES_DIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces...")
-# 			# set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
-# 		# else()
-# 			# message(WARNING "Using INSTALLED ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
-# 		# endif()
-# 	else()
-# 		set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
-# 		# VDB-4651 - don't do anything about interfaces here, in cmake. ./configure is supposed to handle all errors
-# 		# set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
-
-# 		message(WARNING "Using ncbi-vdb sources from: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
-# 	endif()
-
-# 	message("VDB_SRCDIR was not explicitly provided, using the following location: sources: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
-
-# 	if ( NOT EXISTS ${VDB_SRCDIR} )
-# 		message( FATAL_ERROR "${VDB_SRCDIR} does not exist. Please specify the location of ncbi-vdb sources in Cmake variable VDB_SRCDIR")
-# 	endif()
-# endif()
-
-
 include_directories( ${VDB_INTERFACES_DIR} )
-include_directories( ${VDB_SRCDIR}/libs ) # /libs for ngs/ncbi/ngs/NGS_FragmentBlob.c:39:10   TODO: remove (see VDB-4735)
 
 if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
     include_directories(${VDB_INTERFACES_DIR}/cc/gcc)

@@ -25,7 +25,7 @@
 if( NOT WIN32 )
 
     # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-    add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_SRCDIR}/interfaces\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)
 
     AddExecutableTest( SlowTest_FastqLoader_id2name "test-id2name.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )

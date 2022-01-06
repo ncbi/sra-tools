@@ -254,7 +254,7 @@ rc_t make_joined_filename( const struct temp_dir_t * self, char * dst, size_t ds
 }
 
 rc_t remove_temp_dir( const struct temp_dir_t * self, KDirectory * dir ) {
-    rc_t rc;
+    rc_t rc = 0;
     if ( NULL == self || NULL == dir ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "temp_dir.c remove_temp_dir() -> %R", rc );

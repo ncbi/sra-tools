@@ -521,8 +521,10 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
                             }
                             res = acc_pacbio;
                         } else {
-                            /* last resort try to find out what the database-type is */
-                            uint8_t pf;
+                            /* last resort try to find out what the database-type is 
+                             * ... the enums are in ncbi-vdb/interfaces/insdc/sra.h
+                             */
+                            uint8_t pf = SRA_PLATFORM_UNDEFINED;
                             if ( inspect_db_platform( input, db, &pf ) ) {
                                 if ( SRA_PLATFORM_PACBIO_SMRT == pf ) {
                                     res = acc_pacbio;

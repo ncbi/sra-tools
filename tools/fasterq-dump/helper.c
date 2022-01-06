@@ -574,15 +574,19 @@ bool filter_2na_2( filter_2na_t * self, const String * bases1, const String * ba
 
 /* ===================================================================================== */
 
+#ifdef WINDOWS
+        /* do nothing for WINDOWS... */
+#else
+#include <sys/types.h>
+#include <sys/stat.h> 
+#endif
+
 uint32_t device_id_of_path( const char * path ) {
     uint32_t res = 0;
     if ( NULL != path ) {
 #ifdef WINDOWS
         /* do nothing for WINDOWS... */
 #else
-
-#include <sys/types.h>
-#include <sys/stat.h> 
         struct stat st;
         if ( 0 == lstat( path, &st ) ) {
             res = st . st_dev;

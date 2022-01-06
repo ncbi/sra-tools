@@ -159,7 +159,7 @@ static rc_t loop_until_key_found( struct lookup_reader_t * self, uint64_t key_to
     bool done = false;
     uint64_t curr = *offset;
     while ( !done && 0 == rc ) {
-        size_t found_len;
+        size_t found_len = 0;
         rc = read_key_and_len( self, curr, key_found, &found_len );
         if ( keys_equal( key_to_find, *key_found ) ) {
             done = true;

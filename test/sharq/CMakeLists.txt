@@ -1,11 +1,13 @@
 if( NOT WIN32 )
 
+find_package(ZLIB)
+find_package(BZip2)
+find_package (Threads)
+
+if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
+
     set(CMAKE_CXX_STANDARD 17)
     add_definitions(-msse4.2 -DBMSSE42OPT)
-
-    find_package(ZLIB)
-    find_package(BZip2)
-    find_package (Threads)
 
     set(LOCAL_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/libs)
     set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)
@@ -15,19 +17,19 @@ if( NOT WIN32 )
     set(RE2_TAG 2021-09-01)
 
     include (ExternalProject)
-    ExternalProject_Add(RE2_      
-    PREFIX RE2      
+    ExternalProject_Add(RE2_
+    PREFIX RE2
     GIT_REPOSITORY https://github.com/google/re2.git
-    GIT_TAG ${RE2_TAG}    
+    GIT_TAG ${RE2_TAG}
     BUILD_IN_SOURCE 1
     UPDATE_COMMAND "" # No update as we use specific tag
-    CMAKE_ARGS    
-        -DCMAKE_BUILD_TYPE:STRING=Release 
-        -DRE2_BUILD_TESTING:BOOL=OFF 
-        -DCMAKE_INSTALL_PREFIX:PATH=${LOCAL_BUILD_DIR} 
-        -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF 
+    CMAKE_ARGS
+        -DCMAKE_BUILD_TYPE:STRING=Release
+        -DRE2_BUILD_TESTING:BOOL=OFF
+        -DCMAKE_INSTALL_PREFIX:PATH=${LOCAL_BUILD_DIR}
+        -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
         -DCMAKE_INSTALL_LIBDIR:PATH=lib
-        -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON  
+        -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
         -DCMAKE_INSTALL_MESSAGE:STRING=LAZY
     )
     set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
@@ -44,7 +46,7 @@ if( NOT WIN32 )
     macro(SharqTest TestName Result TestParams)
     add_test( NAME Test_${TestName}
         COMMAND
-            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"            
+            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     endmacro()
@@ -52,7 +54,7 @@ if( NOT WIN32 )
     macro(SharqTestWithTelemetry TestName Result TestParams)
     add_test( NAME Test_${TestName}
         COMMAND
-            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"            
+            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     endmacro()
@@ -98,5 +100,7 @@ if( NOT WIN32 )
     SharqTest(007.digest.groups 0 "--digest ${IN}003.t_R1.fastq.gz ${IN}003.t2_R1.fastq ${IN}003.t3_R1.fastq ${IN}003.t_R2.fastq.gz ${IN}003.t2_R2.fastq ${IN}003.t3_R2.fastq ${IN}003.t_I1.fastq.gz ${IN}003.t2_I1.fastq ${IN}003.t3_I1.fastq")
     SharqTest(007.digest.error 0 "--digest ${IN}001.read.invalid_quality0.fq")
     SharqTestWithTelemetry(008.telemetry_pass  0 "--readTypes=BBT --read1PairFiles=${IN}003.t_R1.fastq.gz,${IN}003.t2_R1.fastq,${IN}003.t3_R1.fastq --read2PairFiles=${IN}003.t_R2.fastq.gz,${IN}003.t2_R2.fastq,${IN}003.t3_R2.fastq --read3PairFiles=${IN}003.t_I1.fastq.gz,${IN}003.t2_I1.fastq,${IN}003.t3_I1.fastq")
+
+endif()
 
 endif()

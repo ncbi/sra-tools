@@ -5,7 +5,6 @@ include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
 # AddExecutableTest( Test_Align_load_index "indextest" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 if( NOT WIN32 )
-    include_directories( ${VDB_SRCDIR}/libs/align )
     AddExecutableTest( Test_Align_samextract "test-samextract" "sam-extract;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 endif()
 

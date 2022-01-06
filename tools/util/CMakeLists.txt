@@ -61,9 +61,9 @@ add_executable( txt2kdb txt2kdb )
 target_link_libraries( txt2kdb ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( txt2kdb false )
 
-add_executable( validate-names4 validate-names4 )
-target_link_libraries( validate-names4 ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
-MakeLinksExe( validate-names4 false )
+# add_executable( validate-names4 validate-names4 )
+# target_link_libraries( validate-names4 ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+# MakeLinksExe( validate-names4 false )
 
 # add_executable( md5cp md5cp )
 # target_link_libraries( md5cp ${COMMON_LINK_LIBRARIES} ncbi-vdb )

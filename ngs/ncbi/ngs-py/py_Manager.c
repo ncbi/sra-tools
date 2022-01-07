@@ -8,7 +8,9 @@
 
 #include <kfc/rsrc-global.h>
 
+#include <klib/ncbi-vdb-version.h> /* GetPackageVersion */
 #include <klib/text.h>
+#include <klib/vdb_release_version.h> /* VDB_RELEASE_VERSION */
 
 #include "NGS_String.h"
 #include "NGS_ReadCollection.h"
@@ -17,8 +19,6 @@
 
 #include <kdb/manager.h> /* KDBManager */
 #include <kns/manager.h>
-#include <klib/ncbi-vdb-version.h> /* GetPackageVersion */
-#include "../klib/release-vers.h"
 
 #include <vfs/manager.h> /* VFSManager */
 #include <vfs/path.h> /* VPath */
@@ -52,7 +52,8 @@ static void set_app_version_string ( const char * app_version )
     if ( rc == 0 )
     {
         have_user_version_string = true;
-        KNSManagerSetUserAgent ( kns, "ncbi-ngs.%V %s", RELEASE_VERS, app_version );
+        KNSManagerSetUserAgent ( kns, "ncbi-ngs.%V %s",
+                                             VDB_RELEASE_VERSION, app_version );
         KNSManagerRelease ( kns );
     }
 }

@@ -29,6 +29,6 @@ if ( NOT WIN32 )
 	target_link_libraries( test-vcf-loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} vcfloader )
 
 	add_test( NAME Test_Vcf_loader
-		COMMAND vcf-loader.sh ${TESTBINDIR}/test-vdb-config-model "${VDB_SRCDIR}/interfaces"
+		COMMAND vcf-loader.sh ${TESTBINDIR}/test-vdb-config-model #"${VDB_INTERFACES_DIR}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()

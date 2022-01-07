@@ -29,7 +29,7 @@ if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
 	set( TUI_LIBS tui_cpp tui)
 else()
-	set( TUI_LIBS ${NCBI_VDB_ILIBDIR}/libtui_cpp.${STLX} ${NCBI_VDB_ILIBDIR}/libtui.${STLX})
+	set( TUI_LIBS ${NCBI_VDB_LIBDIR}/libtui_cpp.${STLX} ${NCBI_VDB_LIBDIR}/libtui.${STLX})
 endif()
 
 add_executable( vdb-config
@@ -44,5 +44,5 @@ target_link_libraries ( vdb-config ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON
 MakeLinksExe( vdb-config false )
 
 add_custom_command( TARGET vdb-config POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy ${VDB_SRCDIR}/libs/kfg/default.kfg ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ncbi/default.kfg
+	COMMAND ${CMAKE_COMMAND} -E copy ${VDB_INCDIR}/kfg/ncbi/default.kfg ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ncbi/default.kfg
 )

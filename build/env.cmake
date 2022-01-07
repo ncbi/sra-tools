@@ -291,6 +291,18 @@ include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
 
 # ===========================================================================
 
+# DIRTOTEST is the overridable location of the executables to call from scripted test
+if( NOT DIRTOTEST )
+    set( DIRTOTEST ${BINDIR} )
+endif()
+#message( DIRTOTEST: ${DIRTOTEST})
+
+# CONFIGTOUSE is a way to block user settings ($HOME/.ncbi/user-settings.mkfg). Assign anything but NCBI_SETTINGS to it, and the user settings will be ignored
+if( NOT CONFIGTOUSE )
+    set( CONFIGTOUSE NCBI_SETTINGS )
+endif()
+#message( CONFIGTOUSE: ${CONFIGTOUSE})
+
 if( Python3_EXECUTABLE )
     set( PythonUserBase ${TEMPDIR}/python )
 endif()

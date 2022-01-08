@@ -292,15 +292,14 @@ include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
 if( NOT DIRTOTEST )
     set( DIRTOTEST ${BINDIR} )
 endif()
-message( DIRTOTEST: ${DIRTOTEST})
+#message( DIRTOTEST: ${DIRTOTEST})
 
 # CONFIGTOUSE is a way to block user settings ($HOME/.ncbi/user-settings.mkfg). Assign anything but NCBI_SETTINGS to it, and the user settings will be ignored.
 if( NOT CONFIGTOUSE )
     set( CONFIGTOUSE NCBI_SETTINGS )
 endif()
-message( CONFIGTOUSE: ${CONFIGTOUSE})
+#message( CONFIGTOUSE: ${CONFIGTOUSE})
 
-# Python 3
 if( Python3_EXECUTABLE )
     set( PythonUserBase ${TEMPDIR}/python )
 endif()
@@ -506,3 +505,18 @@ function( AddExecutableTest test_name sources libraries )
 	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
 	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endfunction()
+
+
+if ( SINGLE_CONFIG )
+    # standard kfg files
+    install( SCRIPT CODE
+        "execute_process( COMMAND /bin/bash -c \
+            \"${CMAKE_SOURCE_DIR}/build/install.sh  \
+                ${VDB_INCDIR}/kfg/ncbi              \
+                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
+                ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
+                /etc/ncbi                           \
+                ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
+            \" )"
+    )
+endif()

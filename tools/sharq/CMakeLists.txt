@@ -37,7 +37,7 @@
 #
 ## ===========================================================================
 
-if( NOT WIN32 )
+if( SINGLE_CONFIG )
 
 cmake_minimum_required(VERSION 3.16)
 project(sharq)

@@ -35,24 +35,20 @@ TARGETS =               \
     DumpReferenceFASTA  \
     FragTest            \
     PileupTest          \
-    RefTest             \
+    RefTest
 
 # This rule triggers detection of the libraries and headers
 # in addition to building the examples
 std: $(TARGETS)
 
-$(TARGETS): \
-	$(NCBI_VDB_LIBDIR)/libncbi-vdb-static.a \
-	$(NGS_LIBDIR)/libncbi-ngs-c++-static.a  \
-	$(NGS_LIBDIR)/libncbi-ngs-static.a      \
-	$(NGS_LIBDIR)/libngs-c++-static.a       \
-	ncbi-headers                            \
-	ngs-headers
-
 clean:
 	rm -f $(TARGETS)
 
-.PHONY: default std $(TARGETS)
+$(TARGETS): \
+	ncbi-headers    \
+	ngs-headers
+
+.PHONY: default std clean $(TARGETS)
 
 ifeq (,$(DYNAMIC))
 
@@ -62,6 +58,12 @@ ifeq (,$(DYNAMIC))
 #  3. libncbi-ngs-c++.a which provides a C++ wrapper around libncbi-ngs.a
 #  4  libncbi-vdb-static.a which provides to access the undelying VDB
 #
+$(TARGETS): \
+	$(NCBI_VDB_LIBDIR)/libncbi-vdb-static.a \
+	$(NGS_LIBDIR)/libncbi-ngs-c++-static.a  \
+	$(NGS_LIBDIR)/libncbi-ngs-static.a      \
+	$(NGS_LIBDIR)/libngs-c++-static.a       \
+
 TEST_LIBS =               \
     -L$(NCBI_VDB_LIBDIR)  \
     -L$(NGS_LIBDIR)       \
@@ -75,11 +77,13 @@ TEST_LIBS =               \
 
 SETUP =
 
-else
+else # DYNAMIC != ""
 
 # When linking dynamically, C++ NGS applications only need libncbi-ngs.so;
 # make sure $(NGS_LIBDIR) is in LD_LIBRARY_PATH at the time of running
 #
+$(TARGETS): $(NGS_LIBDIR)/libncbi-ngs.so
+
 TEST_LIBS =               \
     $(NGS_LIBDIR)/libncbi-ngs.so \
     -lpthread             \
@@ -112,14 +116,6 @@ DUMP_SRC = DumpReferenceFASTA.cpp
 
 DumpReferenceFASTA: $(DUMP_SRC)
 	$(CXX) -g $(CPPFLAGS) -o $@ $(DUMP_SRC) $(TEST_LIBS)
-
-
-# FastqTableDump
-#  produce fastq-like table
-FASTQ_TABLE_DUMP_OBJ = FastqTableDump.cpp
-
-FastqTableDump: $(FASTQ_TABLE_DUMP_OBJ)
-	$(CXX) -g $(CPPFLAGS) -o $@ $(FASTQ_TABLE_DUMP_OBJ) $(TEST_LIBS)
 
 
 # FragTest
@@ -170,19 +166,11 @@ ALL_TESTS = run_frag run_align run_align_slice run_pileup run_ref run_dump
 
 run_all: $(ALL_TESTS)
 
-.PHONY: $(ALL_TESTS)
-
-# ===========================================================================
-#
-# expected results for auto-testing
-#
-expected.txt update_expected:
-		rm -f expected.txt
-		run_all REDIRECT=">>expected.txt"
+.PHONY: run_all $(ALL_TESTS)
 
 run_and_diff: expected.txt
 		@ rm -f actual.txt
 		@ $(MAKE) run_all REDIRECT=">>actual.txt"
 		@ diff expected.txt actual.txt && rm actual.txt && echo "NGS C++ examples work as expected"
 
-.PHONY: update_expected run_and_diff install
+.PHONY: run_and_diff

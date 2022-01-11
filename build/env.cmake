@@ -516,6 +516,8 @@ if ( SINGLE_CONFIG )
                 ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
                 ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
+                ${CMAKE_INSTALL_PREFIX}/bin         \
+                ${CMAKE_INSTALL_PREFIX}/lib64       \
                 ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
             \" )"
     )

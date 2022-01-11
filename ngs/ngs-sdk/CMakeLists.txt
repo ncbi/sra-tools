@@ -43,7 +43,6 @@ endif()
 set( NCBI_NGS_TARGETS
     ngs
     ncbi-ngs-c++
-    ngs-jni
     ngs-py
     ${NGS_CPP_TARGETS}
 )

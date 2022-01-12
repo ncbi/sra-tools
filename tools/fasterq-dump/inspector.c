@@ -234,7 +234,7 @@ static uint64_t get_file_size( const KDirectory * dir, const char * path, bool r
     if ( 0 != rc ) {
         ErrMsg( "inspector.c get_file_size( '%s', remotely = %s ) -> %R",
                 path,
-                remotely ? "YES" : "NO",
+                yes_or_no( remotely ),
                 rc );
     }
     return res;
@@ -980,9 +980,9 @@ rc_t inspect( const inspector_input_t * input, inspector_output_t * output ) {
 /* ------------------------------------------------------------------------------------------- */
 
 static rc_t inspection_report_seq( const inspector_seq_data_t * seq ) {
-    rc_t rc = KOutMsg( "... SEQ has NAME column = %s\n", seq -> has_name_column ? "YES" : "NO" );
+    rc_t rc = KOutMsg( "... SEQ has NAME column = %s\n", yes_or_no( seq -> has_name_column ) );
     if ( 0 == rc ) {
-        rc = KOutMsg( "... SEQ has SPOT_GROUP column = %s\n", seq -> has_spot_group_column ? "YES" : "NO" );
+        rc = KOutMsg( "... SEQ has SPOT_GROUP column = %s\n", yes_or_no( seq -> has_spot_group_column ) );
     }
     if ( 0 == rc && NULL != seq -> tbl_name ) {
         rc = KOutMsg( "... uses '%s' as sequence-table\n", seq -> tbl_name );

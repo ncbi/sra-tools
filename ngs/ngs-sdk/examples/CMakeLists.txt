@@ -29,7 +29,7 @@ if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )
 endif()
 
-link_libraries( ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ncbi-ngs-c++ ngs-bind-c++ ngs-disp ngs )
+link_libraries( ncbi-ngs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 
 add_executable( FragTest FragTest.cpp )
 add_executable( AlignTest AlignTest.cpp )
@@ -47,7 +47,7 @@ endif()
 if ( SINGLE_CONFIG )
     install(
         FILES FragTest.cpp AlignTest.cpp AlignSliceTest.cpp PileupTest.cpp RefTest.cpp DumpReferenceFASTA.cpp
-              Makefile.config expected.txt
+              expected.txt
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/examples
     )
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/Makefile.install

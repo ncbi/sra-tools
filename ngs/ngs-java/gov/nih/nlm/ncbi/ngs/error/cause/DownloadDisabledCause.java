@@ -27,6 +27,8 @@
 
 package gov.nih.nlm.ncbi.ngs.error.cause;
 
+import gov.nih.nlm.ncbi.ngs.LibDependencies;
+
 public class DownloadDisabledCause extends LibraryLoadCause {
     public DownloadDisabledCause() {
         super("NGS auto-download is disabled");
@@ -34,7 +36,8 @@ public class DownloadDisabledCause extends LibraryLoadCause {
 
     @Override
     public String getRecommendation() {
-        return "Please enable auto-download or install ngs and ncbi-vdb manually: " +
-                "https://github.com/ncbi/ngs/wiki/Downloads";
+        return "Please install " + LibDependencies.NGS_SDK + " and " +
+                                   LibDependencies.NCBI_VDB + " libraries: "
+             + "https://github.com/ncbi/ngs/wiki/Downloads";
     }
 }

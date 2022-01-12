@@ -46,9 +46,9 @@ RC=$5
 TEMPDIR=$WORKDIR/actual/$CASEID
 
 if [ "$(uname)" == "Darwin" ]; then
-    DIFF="diff"
+    DIFF="diff -b"
 else
-    DIFF="diff -Z"
+    DIFF="diff -b -Z"
 fi
 
 echo "running $CASEID"

@@ -116,4 +116,5 @@ class NGS:
     @staticmethod
     def checkLibVersions():
         from . LibChecker import check_versions
-        return check_versions()
+        return 0
+      # never VDB-4708: check_versions() anymore

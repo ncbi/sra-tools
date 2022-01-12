@@ -52,10 +52,11 @@
 #include "core.h"
 #include "fasta_dump.h"
 
+#include <assert.h>
+#include <ctype.h> /* isdigit */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 /* ### checks to see if NREADS <= nreads_max defined in factory.h ##################################################### */
 
@@ -1486,6 +1487,26 @@ rc_t CC KMain ( int argc, char* argv[] )
                     if ( ext != NULL && strcasecmp( ext, ".lite" ) == 0 )
                     {
                         *ext = '\0';
+                    }
+                }
+
+                /* cut off [_dbGaP-NNN] if any */
+                if (ext == NULL) {
+                    ext = strrchr(fmt.accession, '_');
+                    if (ext != NULL) {
+                        const char dbGaP[] = "_dbGaP-";
+                        if (strlen(ext) > sizeof dbGaP &&
+                            strncmp(ext, dbGaP, sizeof dbGaP - 1) == 0)
+                        {
+                            bool encrypted = true;
+                            const char * p = ext + sizeof dbGaP - 1;
+                            while (encrypted && *p)
+                                if (!isdigit(*(p++)))
+                                    encrypted = false;
+                            if (encrypted)
+                                *ext = '\0';
+                        }
+                        ext = NULL;
                     }
                 }
             }

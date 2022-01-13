@@ -232,7 +232,6 @@ else() # assume a single-config generator
     set( SINGLE_CONFIG true )
 
     set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
-    message("Linking with ncbi-vdb libraries from the following location: ${NCBI_VDB_LIBDIR}")
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )

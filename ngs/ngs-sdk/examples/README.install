@@ -53,8 +53,7 @@ To be built, the executables require some external libraries and the correspondi
 7. Alternative Library Locations
     - By default, the makefile accesses the required object liraries and headers via paths relative to the current directory, assuming that the examples are a part of a standard installation of sra-tools.
     - To change the location of the libraries and/or headers to use, specify the following varibles on the make command (e.g. "make NGS_INCDIR=/some-path/"):
-        -- NCBI_VDB_LIBDIR - the location of libncvi-vdb.a (default ../../../ncbi-vdb/lib64). Used for static linking only
-        -- NCBI_VDB_INCDIR - the location of VDB header files (default ../../../ncbi-vdb/interfaces)
+        -- VDB_LIBDIR - the location of libncvi-vdb.a (default ../../../ncbi-vdb/lib64). Used for static linking only
         -- NGS_LIBDIR - the location of NGS object libraries (default ../../lib64)
         -- NGS_INCDIR - the location of NGS C++ headers (default ../../include)
 

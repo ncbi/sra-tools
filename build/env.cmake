@@ -173,12 +173,6 @@ if( NOT TARGDIR )
     set( TARGDIR ${CMAKE_BINARY_DIR} )
 endif()
 
-if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
-	message(FATAL_ERROR "VDB_LIBDIR=\"${VDB_LIBDIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_LIBDIR variable pointing to the ncbi-vdb binary libraries must be specified.")
-else()
-	message("Using ncbi-vdb binary libraries: ${VDB_LIBDIR}")
-endif()
-
 # VDB-4651 - relying on ./configure's logic for determining interfaces location
 set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
 if ( NOT VDB_INTERFACES_DIR OR NOT EXISTS ${VDB_INTERFACES_DIR} )
@@ -230,6 +224,12 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 
 else() # assume a single-config generator
     set( SINGLE_CONFIG true )
+
+	if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
+		message(FATAL_ERROR "VDB_LIBDIR=\"${VDB_LIBDIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_LIBDIR variable pointing to the ncbi-vdb binary libraries must be specified.")
+	else()
+		message("Using ncbi-vdb binary libraries: ${VDB_LIBDIR}")
+	endif()
 
     set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
 

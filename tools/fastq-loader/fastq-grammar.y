@@ -32,6 +32,7 @@
 
     #include "fastq-parse.h"
 
+    #define YYSTYPE FASTQToken
     #define YYLEX_PARAM pb->scanner
     #define YYDEBUG 1
 
@@ -54,15 +55,13 @@
     static void SaveSpotName(FASTQParseBlock* pb);
     static void RevertSpotName(FASTQParseBlock* pb);
 
-    #define UNLEX do { if (yychar != YYEMPTY && yychar != fqENDOFTEXT) FASTQ_unlex(pb, & yylval); } while (0)
+    #define UNLEX do { if (yychar != YYEMPTY && yychar != YYEOF) FASTQ_unlex(pb, & yylval); } while (0)
 
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 %}
 
 %define api.pure
 %define parse.error verbose
-%define api.value.type {FASTQToken}
-
 %define api.prefix {FASTQ_}
 
 %parse-param {FASTQParseBlock* pb }

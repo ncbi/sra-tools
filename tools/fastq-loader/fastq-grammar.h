@@ -75,7 +75,7 @@ extern int FASTQ_debug;
 
 /* Value type.  */
 #if ! defined FASTQ_STYPE && ! defined FASTQ_STYPE_IS_DECLARED
-typedef FASTQToken FASTQ_STYPE;
+typedef int FASTQ_STYPE;
 # define FASTQ_STYPE_IS_TRIVIAL 1
 # define FASTQ_STYPE_IS_DECLARED 1
 #endif

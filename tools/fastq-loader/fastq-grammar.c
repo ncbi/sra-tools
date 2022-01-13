@@ -80,6 +80,7 @@
 
     #include "fastq-parse.h"
 
+    #define YYSTYPE FASTQToken
     #define YYLEX_PARAM pb->scanner
     #define YYDEBUG 1
 
@@ -102,7 +103,7 @@
     static void SaveSpotName(FASTQParseBlock* pb);
     static void RevertSpotName(FASTQParseBlock* pb);
 
-    #define UNLEX do { if (yychar != YYEMPTY && yychar != fqENDOFTEXT) FASTQ_unlex(pb, & yylval); } while (0)
+    #define UNLEX do { if (yychar != YYEMPTY && yychar != YYEOF) FASTQ_unlex(pb, & yylval); } while (0)
 
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 
@@ -179,7 +180,7 @@ extern int FASTQ_debug;
 
 /* Value type.  */
 #if ! defined FASTQ_STYPE && ! defined FASTQ_STYPE_IS_DECLARED
-typedef FASTQToken FASTQ_STYPE;
+typedef int FASTQ_STYPE;
 # define FASTQ_STYPE_IS_TRIVIAL 1
 # define FASTQ_STYPE_IS_DECLARED 1
 #endif
@@ -551,17 +552,17 @@ static const yytype_int8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    89,    89,    91,    96,    97,    99,    95,   102,   104,
-     108,   109,   113,   117,   118,   119,   120,   124,   124,   125,
-     125,   126,   126,   130,   131,   135,   136,   137,   141,   141,
-     143,   143,   148,   149,   154,   155,   157,   159,   159,   160,
-     160,   161,   163,   163,   164,   164,   166,   166,   168,   169,
-     170,   174,   175,   179,   180,   181,   181,   182,   183,   184,
-     188,   198,   200,   199,   206,   206,   207,   207,   208,   208,
-     209,   213,   214,   215,   216,   217,   218,   219,   220,   225,
-     224,   249,   248,   260,   261,   262,   263,   264,   265,   261,
-     270,   270,   271,   275,   276,   277,   281,   282,   283,   289,
-     290,   294,   295,   299,   300,   301
+       0,    88,    88,    90,    95,    96,    98,    94,   101,   103,
+     107,   108,   112,   116,   117,   118,   119,   123,   123,   124,
+     124,   125,   125,   129,   130,   134,   135,   136,   140,   140,
+     142,   142,   147,   148,   153,   154,   156,   158,   158,   159,
+     159,   160,   162,   162,   163,   163,   165,   165,   167,   168,
+     169,   173,   174,   178,   179,   180,   180,   181,   182,   183,
+     187,   197,   199,   198,   205,   205,   206,   206,   207,   207,
+     208,   212,   213,   214,   215,   216,   217,   218,   219,   224,
+     223,   248,   247,   259,   260,   261,   262,   263,   264,   260,
+     269,   269,   270,   274,   275,   276,   280,   281,   282,   288,
+     289,   293,   294,   298,   299,   300
 };
 #endif
 

@@ -24,14 +24,22 @@
 *
 */
 #include "temp_registry.h"
-#include "concatenator.h"
-#include "progress_thread.h"
 
-#include <klib/vector.h>
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_concatenator_
+#include "concatenator.h"
+#endif
+
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <klib/namelist.h>
-#include <kproc/lock.h>
-#include <kfs/filetools.h>
+#endif
 
 typedef struct temp_registry_t {
     struct KFastDumpCleanupTask_t * cleanup_task;
@@ -160,7 +168,6 @@ typedef struct cmn_merge_t
     struct bg_progress_t * progress;
     bool force;
     bool append;
-    compress_t compress;
 } cmn_merge_t;
 
 typedef struct merge_data_t
@@ -183,8 +190,7 @@ static rc_t CC merge_thread_func( const KThread *self, void *data ) {
             md -> cmn -> buf_size,
             md -> cmn -> progress,
             md -> cmn -> force,
-            md -> cmn -> append,
-            md -> cmn -> compress ); /* concatenator.c */
+            md -> cmn -> append ); /* concatenator.c */
         release_SBuffer( &s_filename ); /* helper.c */
     }
     free( ( void * ) md );
@@ -231,7 +237,6 @@ rc_t temp_registry_merge( temp_registry_t * self,
                           size_t buf_size,
                           bool show_progress,
                           bool force,
-                          compress_t compress,
                           bool append ) {
     rc_t rc = 0;
     if ( NULL == self ) {
@@ -261,11 +266,11 @@ rc_t temp_registry_merge( temp_registry_t * self,
                     l,
                     buf_size,
                     progress,
-                    force, append,
-                    compress ); /* concatenator.c */
+                    force,
+                    append ); /* concatenator.c */
             } else if ( count > 1 ) {
                 /* we have MULTIPLE sets of files... */
-                cmn_merge_t cmn = { dir, output_filename, buf_size, progress, force, append, compress };
+                cmn_merge_t cmn = { dir, output_filename, buf_size, progress, force, append };
                 on_merge_ctx_t omc = { &cmn, 0 };
                 VectorInit( &omc . threads, 0, count );
                 VectorForEach ( &self -> lists, false, on_merge, &omc );
@@ -279,8 +284,30 @@ rc_t temp_registry_merge( temp_registry_t * self,
 
 /* -------------------------------------------------------------------------------- */
 
-static rc_t temp_on_line_to_stdout( const String * line, void * data ) {
-    return KOutMsg( "%S\n", line );
+static rc_t print_file_to_stdout( struct KFile const * f, size_t buffer_size ) {
+    rc_t rc = 0;    
+    char * buffer = malloc( buffer_size );
+    if ( NULL == buffer ) {
+        rc = RC( rcApp, rcBuffer, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "print_file_to_stdout() malloc( %u )-> %R", buffer_size, rc );        
+    } else {
+        uint64_t pos = 0;
+        bool done = false;
+        do {
+            size_t num_read;
+            rc = KFileRead ( f, pos, buffer, buffer_size - 1, &num_read );
+            if ( 0 == rc ) {
+                done = ( 0 == num_read );
+                if ( !done ) {
+                    buffer[ num_read ] = 0;
+                    rc = KOutMsg( "%s", buffer );
+                    pos += num_read;
+                }
+            }
+        } while ( 0 == rc && !done );
+        free( ( void * ) buffer );
+    }
+    return rc;
 }
 
 typedef struct print_to_stdout_ctx_t
@@ -309,12 +336,11 @@ static void CC on_print_to_stdout( void * item, void * data ) {
                     const struct KFile * src;
                     rc = make_buffered_for_read( c -> dir, &src, filename, c -> buf_size ); /* helper.c */
                     if ( 0 == rc ) {
-                        /* libs/kfs/from_to_namelist.c, libs/interfaces/filetools.h */
-                        rc = ProcessFileLineByLine( src, temp_on_line_to_stdout, NULL );
+                        rc = print_file_to_stdout( src, 4096 * 4 );
                         if ( 0 != rc ) {
-                            ErrMsg( "on_print_to_stdout().ProcessFileLineByLine( '%s' ) -> %R", filename, rc );
+                            ErrMsg( "on_print_to_stdout().print_file_to_stdout( '%s' ) -> %R", filename, rc );
                         }
-                        KFileRelease( src );
+                        release_file( src, "on_print_to_stdout()" );
                     }
 
                     {

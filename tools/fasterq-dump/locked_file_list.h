@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_locked_file_list_
+#define _h_locked_file_list_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,29 +35,31 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
 
-#ifndef _h_helper_
-#include "helper.h"
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
 #endif
 
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
+#ifndef _h_kproc_lock_
+#include <kproc/lock.h>
 #endif
 
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
+typedef struct locked_file_list
+{
+    KLock * lock;
+    VNamelist * files;
+} locked_file_list_t;
+
+rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize );
+rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir );
+rc_t locked_file_list_append( const locked_file_list_t * self, const char * filename );
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self );
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self );
+rc_t locked_file_list_count( const locked_file_list_t * self, uint32_t * count );
+rc_t locked_file_list_pop( locked_file_list_t * self, const String ** item );
 
 #ifdef __cplusplus
 }

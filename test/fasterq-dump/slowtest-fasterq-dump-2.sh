@@ -1,13 +1,18 @@
 #------------------------------------------------------------------------------------------
 #
-#   compare default-output of fasterq-dump vs fastq-dump in different modes
+#   compare output with a custom defline of fasterq-dump vs fastq-dump in different modes
 #   on a flat table and a cSRA accession
 #
 #------------------------------------------------------------------------------------------
 
 TOOL="fasterq-dump"
 REFTOOL="fastq-dump"
-MD5_LOC="./ref_md5"
+MD5_LOC="./ref_md5_2"
+
+REF_DEFLINE="--defline-seq '@\$si' --defline-qual '+\$si'"
+
+DEFLINE_FASTQ="--seq-defline '@\$si' --qual-defline '+\$si'"
+DEFLINE_FASTA="--seq-defline '>\$si'"
 
 function compare {
     if [ -f "$1" ]; then
@@ -41,17 +46,17 @@ function run {
 
 function test_whole_spot_fastq {
     SACC=`basename $1`
-    echo "" && echo "testing: WHOLE SPOT / FASTQ for ${SACC}"
+    echo "" && echo "testing: WHOLE SPOT / FASTQ for ${SACC} with custom deflines"
     MD5REFERENCE="${MD5_LOC}/${SACC}.whole_spot_fastq.reference.md5"
     if [ ! -f "$MD5REFERENCE" ]; then
         echo "" && echo "producing reference-md5-sum for WHOLE SPOT / FASTQ for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1"
+        run "$REFTOOL $1 $REF_DEFLINE"
         md5sum "${SACC}.fastq" | cut -d ' ' -f 1 > "$MD5REFERENCE"
         rm -f "${SACC}.fastq"
     fi
     #run fasterq-dump
-    run "$TOOL $1 --include-technical --concatenate-reads -pf -o ${SACC}.faster.fastq"
+    run "$TOOL $1 --include-technical --concatenate-reads -pf -o ${SACC}.faster.fastq $DEFLINE_FASTQ"
     produce_md5_and_compare "${SACC}.faster.fastq" "$MD5REFERENCE"
 }
 
@@ -62,12 +67,12 @@ function test_whole_spot_fasta {
     if [ ! -f "$MD5REFERENCE" ]; then
         echo "" && echo "producing reference-md5-sum for WHOLE SPOT / FASTA for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --fasta 0"
+        run "$REFTOOL $1 --fasta 0 $REF_DEFLINE"
         md5sum "${SACC}.fasta" | cut -d ' ' -f 1 > "$MD5REFERENCE"
         rm -f "${SACC}.fasta"
     fi
     #run fasterq-dump
-    run "$TOOL $1 --include-technical --concatenate-reads --fasta -pf -o ${SACC}.faster.fasta"
+    run "$TOOL $1 --include-technical --concatenate-reads --fasta -pf -o ${SACC}.faster.fasta $DEFLINE_FASTA"
     produce_md5_and_compare "${SACC}.faster.fasta" "$MD5REFERENCE"
 }
 
@@ -82,12 +87,12 @@ function test_split_spot_fastq {
     if [ ! -f "$MD5REFERENCE" ]; then
         echo "" && echo "producing reference-md5-sum for SPLIT SPOT / FASTQ for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --split-spot --skip-technical"
+        run "$REFTOOL $1 --split-spot --skip-technical $REF_DEFLINE"
         md5sum "${SACC}.fastq" | cut -d ' ' -f 1 > "$MD5REFERENCE"
         rm -f "${SACC}.fastq"
     fi
     #run fasterq-dump
-    run "$TOOL $1 --split-spot -pf -o ${SACC}.faster.fastq"
+    run "$TOOL $1 --split-spot -pf -o ${SACC}.faster.fastq $DEFLINE_FASTQ"
     produce_md5_and_compare "${SACC}.faster.fastq" "$MD5REFERENCE"
 }
 
@@ -98,12 +103,12 @@ function test_split_spot_fasta {
     if [ ! -f "$MD5REFERENCE" ]; then
         echo "" && echo "producing reference-md5-sum for SPLIT SPOT / FASTA for ${SACC}"
         #run fasterq-dump as reference
-        run "$REFTOOL $1 --split-spot --skip-technical --fasta 0"
+        run "$REFTOOL $1 --split-spot --skip-technical --fasta 0 $REF_DEFLINE"
         md5sum "${SACC}.fasta" | cut -d ' ' -f 1 > "$MD5REFERENCE"
         rm -f "${SACC}.fasta"
     fi
     #run fasterq-dump
-    run "$TOOL $1 --split-spot --fasta -pf -o ${SACC}.faster.fasta"
+    run "$TOOL $1 --split-spot --fasta -pf -o ${SACC}.faster.fasta $DEFLINE_FASTA"
     produce_md5_and_compare "${SACC}.faster.fasta" "$MD5REFERENCE"
 }
 
@@ -125,7 +130,7 @@ function test_split_files_fastq {
     if [[ "$i" -gt 0 ]]; then
         echo "" && echo "producing reference-md5-sum for SPLIT FILES / FASTQ for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --split-files --skip-technical"
+        run "$REFTOOL $1 --split-files --skip-technical $REF_DEFLINE"
         for num in {1..4}
         do
             MD5REFERENCE="${MD5_LOC}/${SACC}.split_files.fastq_${num}.reference.md5"
@@ -134,7 +139,7 @@ function test_split_files_fastq {
         done
     fi
     #run fasterq-dump
-    run "$TOOL $1 --split-files -pf -o ${SACC}.faster.fastq"
+    run "$TOOL $1 --split-files -pf -o ${SACC}.faster.fastq $DEFLINE_FASTQ"
     for num in {1..4}
     do
         if [ -f "${SACC}.faster_${num}.fastq" ]; then
@@ -158,7 +163,7 @@ function test_split_files_fasta {
     if [[ "$i" -gt 0 ]]; then
         echo "" && echo "producing reference-md5-sum for SPLIT FILES / FASTA for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --split-files --skip-technical --fasta 0"
+        run "$REFTOOL $1 --split-files --skip-technical --fasta 0 $REF_DEFLINE"
         for num in {1..4}
         do
             MD5REFERENCE="${MD5_LOC}/${SACC}.split_files.fasta_${num}.reference.md5"
@@ -167,7 +172,7 @@ function test_split_files_fasta {
         done
     fi
     #run fasterq-dump
-    run "$TOOL $1 --split-files --fasta -pf -o ${SACC}.faster.fasta"
+    run "$TOOL $1 --split-files --fasta -pf -o ${SACC}.faster.fasta $DEFLINE_FASTA"
     for num in {1..4}
     do
         if [ -f "${SACC}.faster_${num}.fasta" ]; then
@@ -195,7 +200,7 @@ function test_split_3_fastq {
     if [[ "$i" -gt 0 ]]; then
         echo "" && echo "producing reference-md5-sum for SPLIT-3 / FASTQ for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --split-3 --skip-technical"
+        run "$REFTOOL $1 --split-3 --skip-technical $REF_DEFLINE"
         for num in {1..4}
         do
             MD5REFERENCE="${MD5_LOC}/${SACC}.split_3.fastq_${num}.reference.md5"
@@ -207,7 +212,7 @@ function test_split_3_fastq {
         rm -f "${SACC}.fastq"
     fi
     #run fasterq-dump
-    run "$TOOL $1 --split-3 -pf -o ${SACC}.faster.fastq"
+    run "$TOOL $1 --split-3 -pf -o ${SACC}.faster.fastq $DEFLINE_FASTQ"
     for num in {1..4}
     do
         if [ -f "${SACC}.faster_${num}.fastq" ]; then
@@ -235,7 +240,7 @@ function test_split_3_fasta {
     if [[ "$i" -gt 0 ]]; then
         echo "" && echo "producing reference-md5-sum for SPLIT-3 / FASTA for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --split-3 --skip-technical --fasta 0"
+        run "$REFTOOL $1 --split-3 --skip-technical --fasta 0 $REF_DEFLINE"
         for num in {1..4}
         do
             MD5REFERENCE="${MD5_LOC}/${SACC}.split_3.fasta_${num}.reference.md5"
@@ -247,7 +252,7 @@ function test_split_3_fasta {
         rm -f "${SACC}.fasta"
     fi
     #run fasterq-dump
-    run "$TOOL $1 --split-3 --fasta -pf -o ${SACC}.faster.fasta"
+    run "$TOOL $1 --split-3 --fasta -pf -o ${SACC}.faster.fasta $DEFLINE_FASTA"
     for num in {1..4}
     do
         if [ -f "${SACC}.faster_${num}.fasta" ]; then
@@ -271,15 +276,14 @@ function test_unsorted_fasta {
     if [ ! -f "$MD5REFERENCE" ]; then
         echo "" && echo "producing reference-md5-sum for UNSORTED / FASTA for $SACC"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --split-spot --skip-technical --fasta 0"
+        run "$REFTOOL $1 --split-spot --skip-technical --fasta 0 $REF_DEFLINE"
         ./fasta_2_line.py "${SACC}.fasta" | sort > "${SACC}.fasta.sorted"
         rm -f "${SACC}.fasta"
         md5sum "${SACC}.fasta.sorted" | cut -d ' ' -f 1 > "$MD5REFERENCE"
         rm -f "${SACC}.fasta.sorted"
     fi
     #run fasterq-dump
-    DEFLINE="--seq-defline '>\$ac.\$si \$sn length=\$rl'"
-    run "$TOOL $1 --fasta-unsorted -pf -o ${SACC}.faster.fasta $DEFLINE"
+    run "$TOOL $1 --fasta-unsorted -pf -o ${SACC}.faster.fasta $DEFLINE_FASTA"
     ./fasta_2_line.py "${SACC}.faster.fasta" | sort > "${SACC}.faster.fasta.sorted"
     rm "${SACC}.faster.fasta"
     produce_md5_and_compare "${SACC}.faster.fasta.sorted" "$MD5REFERENCE"
@@ -295,16 +299,15 @@ function test_unsorted_fasta_parts {
     if [ ! -f "$MD5REFERENCE" ]; then
         echo "" && echo "producing reference-md5-sum for UNSORTED / FASTA for ${SACC}"
         #run fastq-dump as reference
-        run "$REFTOOL $1 --split-spot --skip-technical --fasta 0"
+        run "$REFTOOL $1 --split-spot --skip-technical --fasta 0 $REF_DEFLINE"
         ./fasta_2_line.py "${SACC}.fasta" | sort > "${SACC}.fasta.sorted"
         rm -f "${SACC}.fasta"
         md5sum "${SACC}.fasta.sorted" | cut -d ' ' -f 1 > "$MD5REFERENCE"
         rm -f "${SACC}.fasta.sorted"
     fi
     #run fasterq-dump twice ( only-aligned and ony-unaligned )
-    DEFLINE="--seq-defline '>\$ac.\$si \$sn length=\$rl'"
-    run "$TOOL $1 --fasta-unsorted -pf -o ${SACC}.only_aligned --only-aligned $DEFLINE"
-    run "$TOOL $1 --fasta-unsorted -pf -o ${SACC}.only_unaligned --only-unaligned $DEFLINE"
+    run "$TOOL $1 --fasta-unsorted -pf -o ${SACC}.only_aligned --only-aligned $DEFLINE_FASTA"
+    run "$TOOL $1 --fasta-unsorted -pf -o ${SACC}.only_unaligned --only-unaligned $DEFLINE_FASTA"
     cat "${SACC}.only_aligned" "${SACC}.only_unaligned" > "${SACC}.faster.fasta"
     rm -f "${SACC}.only_aligned" "${SACC}.only_unaligned"
     ./fasta_2_line.py "${SACC}.faster.fasta" | sort > "${SACC}.faster.fasta.sorted"

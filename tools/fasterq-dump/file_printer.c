@@ -24,9 +24,22 @@
 *
 */
 #include "file_printer.h"
-#include "helper.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_sbuffer_
+#include "sbuffer.h"
+#endif
+
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
+#endif
 
 typedef struct file_printer_t
 {
@@ -37,12 +50,7 @@ typedef struct file_printer_t
 
 void destroy_file_printer( struct file_printer_t * printer ) {
     if ( NULL != printer ) {
-        if ( NULL != printer -> f ) {
-            rc_t rc2 = KFileRelease( printer -> f );
-            if ( 0 != rc2 ) {
-                ErrMsg( "destroy_file_printer.KFileRelease() -> %R", rc2 );
-            }
-        }
+        if ( NULL != printer -> f ) { release_file( printer -> f, "destroy_file_printer" ); }
         release_SBuffer( &( printer -> print_buffer ) );
         free( ( void * ) printer );
     }
@@ -55,19 +63,14 @@ rc_t make_file_printer_from_file( KFile * f, struct file_printer_t ** printer, s
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "make_file_printer_from_file().calloc( %d ) -> %R", ( sizeof * p ), rc );
         {
-            rc_t rc2 = KFileRelease( f );
-            if ( 0 != rc2 ) {
-                ErrMsg( "make_file_printer_from_file().KFileRelease().1 -> %R", rc2 );
-            }
+            rc_t rc2 = release_file( f, "make_file_printer_from_file().1" );
+            rc = ( 0 == rc ) ? rc2 : rc;
         }
     } else {
         rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size );
         if ( 0 != rc ) {
-            rc_t rc2 = KFileRelease( f );
-            if ( 0 != rc2 ) {
-                ErrMsg( "make_file_printer_from_file().KFileRelease().2 -> %R", rc2 );
-                rc = ( 0 == rc ) ? rc2 : rc;
-            }
+            rc_t rc2 = release_file( f, "make_file_printer_from_file().2" );
+            rc = ( 0 == rc ) ? rc2 : rc;
         } else {
             p -> f = f;
             *printer = p;
@@ -96,11 +99,8 @@ rc_t make_file_printer_from_filename( const KDirectory * dir, struct file_printe
                 ErrMsg( "make_file_printer_from_filename().KBufFileMakeWrite() -> %R", rc );
             }
             {
-                rc_t rc2 = KFileRelease( f );
-                if ( 0 != rc2 ) {
-                    ErrMsg( "make_file_printer_from_filename().KFileRelease() -> %R", rc2 );
-                    rc = ( 0 == rc ) ? rc2 : rc;
-                }
+                rc_t rc2 = release_file( f, "make_file_printer_from_filename()" );
+                rc = ( 0 == rc ) ? rc2 : rc;
             }
         }
         if ( 0 == rc ) {

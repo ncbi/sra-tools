@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_err_msg_
+#define _h_err_msg_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,29 +35,7 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
-
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
-
-#ifndef _h_helper_
-#include "helper.h"
-#endif
-
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
-
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
+rc_t ErrMsg( const char * fmt, ... );
 
 #ifdef __cplusplus
 }

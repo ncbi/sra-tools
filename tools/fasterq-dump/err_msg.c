@@ -24,43 +24,27 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#include "err_msg.h"
 
-#ifdef __cplusplus
-extern "C" {
+#ifndef _h_klib_printf_
+#include <klib/printf.h>
 #endif
 
-#ifndef _h_klib_rc_
-#include <klib/rc.h>
+#ifndef _h_klib_log_
+#include <klib/log.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
+rc_t ErrMsg( const char * fmt, ... ) {
+    rc_t rc;
+    char buffer[ 4096 ];
+    size_t num_writ;
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
-
-#ifndef _h_helper_
-#include "helper.h"
-#endif
-
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
-
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+    va_list list;
+    va_start( list, fmt );
+    rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
+    if ( 0 == rc ) {
+        rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
+    }
+    va_end( list );
+    return rc;
+} 

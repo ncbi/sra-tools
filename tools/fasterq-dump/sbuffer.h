@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_sbuffer_
+#define _h_sbuffer_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,29 +35,31 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
+#ifndef _h_klib_text_
+#include <klib/text.h>
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
+typedef struct SBuffer
+{
+    String S;
+    size_t buffer_size;
+} SBuffer_t;
 
-#ifndef _h_helper_
-#include "helper.h"
-#endif
+rc_t make_SBuffer( SBuffer_t * self, size_t len );
+void release_SBuffer( SBuffer_t * self );
+rc_t increase_SBuffer( SBuffer_t * self, size_t by );
+rc_t increase_SBuffer_to( SBuffer_t * self, size_t new_size );
+rc_t print_to_SBufferV( SBuffer_t * self, const char * fmt, va_list args );
+rc_t print_to_SBuffer( SBuffer_t * self, const char * fmt, ... );
+rc_t try_to_enlarge_SBuffer( SBuffer_t * self, rc_t rc_err );
+rc_t make_and_print_to_SBuffer( SBuffer_t * self, size_t len, const char * fmt, ... );
 
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
+rc_t split_filename_insert_idx( SBuffer_t * dst, size_t dst_size,
+                                const char * filename, uint32_t idx );
 
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
+rc_t copy_SBuffer( SBuffer_t * self, const SBuffer_t * src );
+rc_t append_SBuffer( SBuffer_t * self, const SBuffer_t * src );
+rc_t clear_SBuffer( SBuffer_t * self );
 
 #ifdef __cplusplus
 }

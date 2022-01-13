@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_locked_value_
+#define _h_locked_value_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,29 +35,20 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
+#ifndef _h_kproc_lock_
+#include <kproc/lock.h>
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
+typedef struct locked_value
+{
+    KLock * lock;
+    uint64_t value;
+} locked_value_t;
 
-#ifndef _h_helper_
-#include "helper.h"
-#endif
-
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
-
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
+rc_t locked_value_init( locked_value_t * self, uint64_t init_value );
+void locked_value_release( locked_value_t * self );
+rc_t locked_value_get( locked_value_t * self, uint64_t * value );
+rc_t locked_value_set( locked_value_t * self, uint64_t value );
 
 #ifdef __cplusplus
 }

@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_arg_helper_
+#define _h_arg_helper_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,29 +35,16 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
-
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
-
-#ifndef _h_helper_
-#include "helper.h"
-#endif
-
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
-
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
+#include <stdint.h>     /* uint32_t etc. */
+#include <stddef.h>     /* size_t */
+#include <stdbool.h>    /* bool */
+    
+struct Args;
+const char * get_str_option( const struct Args *args, const char *name, const char * dflt );
+bool get_bool_option( const struct Args *args, const char *name );
+size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt );
+uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt );
+uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt );
 
 #ifdef __cplusplus
 }

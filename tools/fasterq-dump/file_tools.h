@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_file_tools_
+#define _h_file_tools_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,29 +35,37 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
 
-#ifndef _h_helper_
-#include "helper.h"
+#ifndef _h_kfs_file_
+#include <kfs/file.h>
 #endif
 
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
 #endif
 
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
+rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
+rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force );
+
+bool file_exists( const KDirectory * dir, const char * fmt, ... );
+bool dir_exists( const KDirectory * dir, const char * fmt, ... );
+
+rc_t delete_files( KDirectory * dir, const VNamelist * files );
+rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs );
+
+uint64_t file_size( const KDirectory * dir, const char * fmt, ... );
+uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
+
+rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
+                             const char * filename, size_t buf_size );
+
+rc_t release_file( const struct KFile * f, const char * err_msg, ... );
+rc_t wrap_file_in_buffer( struct KFile ** f, size_t buffer_size, const char * err_msg );
+
+rc_t available_space_disk_space( const KDirectory * dir, const char * path, size_t * res, bool is_file );
 
 #ifdef __cplusplus
 }

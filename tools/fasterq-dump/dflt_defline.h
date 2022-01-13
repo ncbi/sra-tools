@@ -24,40 +24,36 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_dflt_defline_
+#define _h_dflt_defline_
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef _h_klib_rc_
-#include <klib/rc.h>
-#endif
+const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
+const char * dflt_qual_defline( bool use_name, bool use_read_id );
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
+/* ------------------------------------------------------------------------------------------- */
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
+bool spot_group_requested( const char * seq_defline, const char * qual_defline );
 
-#ifndef _h_helper_
-#include "helper.h"
-#endif
+/* ------------------------------------------------------------------------------------------- */
 
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
+typedef struct defline_estimator_input_t
+{
+    const char * defline;
+    const char * acc;
+    uint32_t avg_name_len;
+    uint32_t avg_seq_len;
+    size_t row_count;
+} defline_estimator_input_t;
 
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress_t * progress,
-                    bool force,
-                    bool append );
+size_t estimate_defline_length( const defline_estimator_input_t * input );
 
 #ifdef __cplusplus
 }

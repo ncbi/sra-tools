@@ -25,21 +25,30 @@
 */
 
 #include "sorter.h"
+
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_lookup_writer_
 #include "lookup_writer.h"
-#include "lookup_reader.h"
+#endif
+
+#ifndef _h_raw_read_iter_
 #include "raw_read_iter.h"
+#endif
+
+#ifndef _h_merge_sorter_
 #include "merge_sorter.h"
+#endif
+
+#ifndef _h_progress_thread_
 #include "progress_thread.h"
-#include "helper.h"
+#endif
 
-#include <atomic64.h>
-#include <kproc/thread.h>
-
-#include <klib/vector.h>
-#include <klib/printf.h>
-#include <klib/progressbar.h>
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <kproc/thread.h>
+#endif
 
 /* 
     this is in interfaces/cc/XXX/YYY/atomic.h
@@ -75,49 +84,6 @@ static void release_producer( lookup_producer_t * self ) {
     }
 }
 
-static rc_t init_multi_producer( lookup_producer_t * self,
-                                 cmn_iter_params_t * cmn, /* helper.h */
-                                 struct background_vector_merger_t * merger, /* merge_sorter.h */
-                                 size_t buf_size,
-                                 size_t mem_limit,
-                                 struct bg_progress_t * progress, /* progress_thread.h */
-                                 uint32_t chunk_id,
-                                 int64_t first_row,
-                                 uint64_t row_count,
-                                 atomic64_t * processed_row_count ) {
-    rc_t rc = KVectorMake( &self -> store );
-    if ( 0 != rc ) {
-        ErrMsg( "sorter.c init_multi_producer().KVectorMake() -> %R", rc );
-    } else {
-        rc = make_SBuffer( &( self -> buf ), 4096 ); /* helper.c */
-        if ( 0 == rc ) {
-            cmn_iter_params_t cp;
-
-            self -> iter            = NULL;
-            self -> progress        = progress;
-            self -> merger          = merger;
-            self -> bytes_in_store  = 0;
-            self -> chunk_id        = chunk_id;
-            self -> sub_file_id     = 0;
-            self -> buf_size        = buf_size;
-            self -> mem_limit       = mem_limit;
-            self -> single          = false;
-            self -> processed_row_count = processed_row_count;
-
-            cp . dir                = cmn -> dir;
-            cp . vdb_mgr            = cmn -> vdb_mgr;
-            cp . accession_short    = cmn -> accession_short;
-            cp . accession_path     = cmn -> accession_path;
-            cp . first_row          = first_row;
-            cp . row_count          = row_count;
-            cp . cursor_cache       = cmn -> cursor_cache;
-
-            rc = make_raw_read_iter( &cp, &( self -> iter ) );
-        }
-    }
-    return rc;
-}
-
 static rc_t push_store_to_merger( lookup_producer_t * self, bool last ) {
     rc_t rc = 0;
     if ( self -> bytes_in_store > 0 ) {
@@ -131,6 +97,92 @@ static rc_t push_store_to_merger( lookup_producer_t * self, bool last ) {
                     ErrMsg( "sorter.c push_store_to_merger().KVectorMake() -> %R", rc );
                 }
             }
+        }
+    }
+    return rc;
+}
+
+static const char xASCII_to_4na[ 256 ] = {
+    /* 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x10 0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18 0x19 0x1A 0x1B 0x1C 0x1D 0x1E 0x1F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x20 0x21 0x22 0x23 0x24 0x25 0x26 0x27 0x28 0x29 0x2A 0x2B 0x2C 0x2D 0x2E 0x2F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x30 0x31 0x32 0x33 0x34 0x35 0x36 0x37 0x38 0x39 0x3A 0x3B 0x3C 0x3D 0x3E 0x3F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x40 0x41 0x42 0x43 0x44 0x45 0x46 0x47 0x48 0x49 0x4A 0x4B 0x4C 0x4D 0x4E 0x4F */
+    /* @    A    B    C    D    E    F    G    H    I    J    K    L    M    N    O */
+       0,   1,   0,   2,   0,   0,   0,   4,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x50 0x51 0x52 0x53 0x54 0x55 0x56 0x57 0x58 0x59 0x5A 0x5B 0x5C 0x5D 0x5E 0x5F */
+    /* P    Q    R    S    T    U    V    W    X    Y    Z    [    \    ]    ^    _ */
+       0,   0,   0,   0,   8,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x60 0x61 0x62 0x63 0x64 0x65 0x66 0x67 0x68 0x69 0x6A 0x6B 0x6C 0x6D 0x6E 0x6F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x70 0x71 0x72 0x73 0x74 0x75 0x76 0x77 0x78 0x79 0x7A 0x7B 0x7C 0x7D 0x7E 0x7F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x80 0x81 0x82 0x83 0x84 0x85 0x86 0x87 0x88 0x89 0x8A 0x8B 0x8C 0x8D 0x8E 0x8F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x90 0x91 0x92 0x93 0x94 0x95 0x96 0x97 0x98 0x99 0x9A 0x9B 0x9C 0x9D 0x9E 0x9F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xA0 0xA1 0xA2 0xA3 0xA4 0xA5 0xA6 0xA7 0xA8 0xA9 0xAA 0xAB 0xAC 0xAD 0xAE 0xAF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xB0 0xB1 0xB2 0xB3 0xB4 0xB5 0xB6 0xB7 0xB8 0xB9 0xBA 0xBB 0xBC 0xBD 0xBE 0xBF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xC0 0xC1 0xC2 0xC3 0xC4 0xC5 0xC6 0xC7 0xC8 0xC9 0xCA 0xCB 0xCC 0xCD 0xCE 0xCF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xD0 0xD1 0xD2 0xD3 0xD4 0xD5 0xD6 0xD7 0xD8 0xD9 0xDA 0xDB 0xDC 0xDD 0xDE 0xDF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xE0 0xE1 0xE2 0xE3 0xE4 0xE5 0xE6 0xE7 0xE8 0xE9 0xEA 0xEB 0xEC 0xED 0xEE 0xEF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xF0 0xF1 0xF2 0xF3 0xF4 0xF5 0xF6 0xF7 0xF8 0xF9 0xFA 0xFB 0xFC 0xFD 0xFE 0xFF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
+};
+
+static rc_t pack_read_2_4na( const String * read, SBuffer_t * packed ) {
+    rc_t rc = 0;
+    if ( read -> len < 1 ) {
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    } else {
+        if ( read -> len > 0xFFFF ) {
+            rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        } else {
+            uint32_t i;
+            uint8_t * src = ( uint8_t * )read -> addr;
+            uint8_t * dst = ( uint8_t * )packed -> S . addr;
+            uint16_t dna_len = ( read -> len & 0xFFFF );
+            uint32_t len = 0;
+            dst[ len++ ] = ( dna_len >> 8 );
+            dst[ len++ ] = ( dna_len & 0xFF );
+            for ( i = 0; i < read -> len; ++i ) {
+                if ( len < packed -> buffer_size ) {
+                    uint8_t base = ( xASCII_to_4na[ src[ i ] ] & 0x0F );
+                    if ( 0 == ( i & 0x01 ) ) {
+                        dst[ len ] = ( base << 4 );
+                    } else {
+                        dst[ len++ ] |= base;
+                    }
+                }
+            }
+            if ( read -> len & 0x01 ) {
+                len++;
+            }
+            packed -> S . size = packed -> S . len = len;
         }
     }
     return rc;
@@ -168,12 +220,10 @@ static rc_t write_to_store( lookup_producer_t * self,
 }
 
 static rc_t CC producer_thread_func( const KThread *self, void *data ) {
-    rc_t rc = 0;
-    rc_t rc1;
+    rc_t rc1, rc = 0;
     lookup_producer_t * producer = data;
     raw_read_rec_t rec;
     uint64_t row_count = 0;
-    struct bg_progress_t * progress = producer -> progress;
 
     while ( 0 == rc && get_from_raw_read_iter( producer -> iter, &rec, &rc1 ) ) { /* raw_read_iter.c */
         rc_t rc2 = get_quitting(); /* helper.c */
@@ -187,7 +237,7 @@ static rc_t CC producer_thread_func( const KThread *self, void *data ) {
                     /* the keys are allowed to be out of order here */
                     rc = write_to_store( producer, key, &rec . read ); /* above! */
                     if ( 0 == rc ) {
-                        bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
+                        bg_progress_inc( producer -> progress ); /* progress_thread.c (ignores NULL) */
                         row_count++;
                     }
                 }
@@ -216,67 +266,67 @@ static rc_t CC producer_thread_func( const KThread *self, void *data ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static uint64_t find_out_row_count( cmn_iter_params_t * cmn ) {
-    rc_t rc;
-    uint64_t res = 0;
-    struct raw_read_iter_t * iter; /* raw_read_iter.c */
-    cmn_iter_params_t cp; /* cmn_iter.h */
-    
-    cp . dir             = cmn -> dir;
-    cp . vdb_mgr         = cmn -> vdb_mgr;
-    cp . accession_short = cmn -> accession_short;
-    cp . accession_path  = cmn -> accession_path;
-    cp . first_row       = 0;
-    cp . row_count       = 0;
-    cp . cursor_cache    = cmn -> cursor_cache;
-
-    rc = make_raw_read_iter( &cp, &iter ); /* raw_read_iter.c */
-    if ( 0 == rc ) {
-        res = get_row_count_of_raw_read( iter ); /* raw_read_iter.c */
-        destroy_raw_read_iter( iter ); /* raw_read_iter.c */
-    }
-    return res;
-}
-
-static rc_t run_producer_pool( cmn_iter_params_t * cmn, /* helper.h */
-                               struct background_vector_merger_t * merger, /* merge_sorter.h */
-                               size_t buf_size,
-                               size_t mem_limit,
-                               uint32_t num_threads,
-                               bool show_progress ) {
+rc_t execute_lookup_production( const lookup_production_args_t * args ) {
     rc_t rc = 0;
-    uint64_t total_row_count = find_out_row_count( cmn );
-    if ( 0 == total_row_count ) {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "sorter.c run_producer_pool(): row_count == 0!" );
-    } else {
+
+    if ( args -> show_progress ) {
+        KOutHandlerSetStdErr();
+        rc = KOutMsg( "lookup :" );
+        KOutHandlerSetStdOut();
+    }
+
+    tell_total_rowcount_to_vector_merger( args -> merger, args -> align_row_count ); /* merge_sorter.h */
+
+    if ( rc == 0 ) {
         Vector threads;
         uint32_t chunk_id = 1;
         int64_t row = 1;
-        uint64_t rows_per_thread = ( total_row_count / num_threads ) + 1;
-        struct bg_progress_t * progress = NULL;
+        struct bg_progress_t * progress = NULL; /* progress_thread.h */
         atomic64_t processed_row_count;
-
-        tell_total_rowcount_to_vector_merger( merger, total_row_count ); /* merge_sorter.h */
+        uint64_t rows_per_thread = ( args -> align_row_count / args -> num_threads ) + 1;
+    
         atomic64_set( &processed_row_count, 0 );
-        VectorInit( &threads, 0, num_threads );
-        if ( show_progress ) {
-            rc = bg_progress_make( &progress, total_row_count, 0, 0 ); /* progress_thread.c */
+        VectorInit( &threads, 0, args -> num_threads );
+        if ( args -> show_progress ) {
+            rc = bg_progress_make( &progress, args -> align_row_count, 0, 0 ); /* progress_thread.c */
         }
 
-        while ( 0 == rc && ( row < ( int64_t )total_row_count ) ) {
+        while ( 0 == rc && ( row < ( int64_t )args -> align_row_count ) ) {
             lookup_producer_t * producer = calloc( 1, sizeof *producer );
             if ( NULL != producer ) {
-                rc = init_multi_producer( producer,
-                                          cmn,
-                                          merger,
-                                          buf_size,
-                                          mem_limit,
-                                          progress,
-                                          chunk_id,
-                                          row,
-                                          rows_per_thread,
-                                          &processed_row_count ); /* above */
+
+                /* initialize the producer */
+                rc = KVectorMake( &producer -> store );
+                if ( 0 != rc ) {
+                    ErrMsg( "sorter.c init_multi_producer().KVectorMake() -> %R", rc );
+                } else {
+                    rc = make_SBuffer( &( producer -> buf ), 4096 ); /* helper.c */
+                    if ( 0 == rc ) {
+                        cmn_iter_params_t cip;   /* cm_iter.h */
+
+                        producer -> iter            = NULL;
+                        producer -> progress        = progress;
+                        producer -> merger          = args -> merger;
+                        producer -> bytes_in_store  = 0;
+                        producer -> chunk_id        = chunk_id;
+                        producer -> sub_file_id     = 0;
+                        producer -> buf_size        = args -> buf_size;
+                        producer -> mem_limit       = args -> mem_limit;
+                        producer -> single          = false;
+                        producer -> processed_row_count = &processed_row_count;
+
+                        cip . dir                = args -> dir;
+                        cip . vdb_mgr            = args -> vdb_mgr;
+                        cip . accession_short    = args -> accession_short;
+                        cip . accession_path     = args -> accession_path;
+                        cip . first_row          = row;
+                        cip . row_count          = rows_per_thread;
+                        cip . cursor_cache       = args -> cursor_cache;
+
+                        rc = make_raw_read_iter( &cip, &( producer -> iter ) );
+                    }
+                }
+
                 if ( 0 == rc ) {
                     KThread * thread;
                     rc = helper_make_thread( &thread, producer_thread_func, producer, THREAD_BIG_STACK_SIZE );
@@ -310,46 +360,17 @@ static rc_t run_producer_pool( cmn_iter_params_t * cmn, /* helper.h */
 
         if ( 0 == rc ) {
             uint64_t value = atomic64_read( &processed_row_count );
-            if ( value != total_row_count ) {
+            if ( value != args -> align_row_count ) {
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSize, rcInvalid );
-                ErrMsg( "sorter.c run_producer_pool() : processed lookup rows: %lu of %lu", value, total_row_count );
+                ErrMsg( "sorter.c run_producer_pool() : processed lookup rows: %lu of %lu", value, args -> align_row_count );
             }
         }
-    }
-    return rc;
-}
-
-rc_t execute_lookup_production( KDirectory * dir,
-                                const VDBManager * vdb_mgr,
-                                const char * accession_short,
-                                const char * accession_path,
-                                struct background_vector_merger_t * merger,
-                                size_t cursor_cache,
-                                size_t buf_size,
-                                size_t mem_limit,
-                                uint32_t num_threads,
-                                bool show_progress ) {
-    rc_t rc = 0;
-    if ( show_progress ) {
-        KOutHandlerSetStdErr();
-        rc = KOutMsg( "lookup :" );
-        KOutHandlerSetStdOut();
-    }
-    
-    if ( rc == 0 ) {
-        cmn_iter_params_t cmn = { dir, vdb_mgr, accession_short, accession_path, 0, 0, cursor_cache };
-        rc = run_producer_pool( &cmn,
-                                merger,
-                                buf_size,
-                                mem_limit,
-                                num_threads,
-                                show_progress ); /* above */
     }
     
     /* signal to the receiver-end of the job-queue that nothing will be put into the
        queue any more... */
-    if ( rc == 0 && merger != NULL ) {
-        rc = seal_background_vector_merger( merger ); /* merge_sorter.c */
+    if ( rc == 0 && args -> merger != NULL ) {
+        rc = seal_background_vector_merger( args -> merger ); /* merge_sorter.c */
     }
 
     if ( rc != 0 ) {

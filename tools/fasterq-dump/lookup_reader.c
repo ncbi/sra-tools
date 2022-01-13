@@ -25,15 +25,22 @@
 */
 
 #include "lookup_reader.h"
+
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_file_printer_
 #include "file_printer.h"
-#include "helper.h"
+#endif
 
-#include <klib/printf.h>
-#include <kfs/file.h>
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
-
-#include <string.h>
-#include <stdio.h>
+#endif
 
 typedef struct lookup_reader_t {
     const struct KFile * f;
@@ -45,10 +52,7 @@ typedef struct lookup_reader_t {
 void release_lookup_reader( struct lookup_reader_t * self ) {
     if ( NULL != self ) {
         if ( NULL != self -> f ) {
-            rc_t rc = KFileRelease( self -> f );
-            if ( 0 != rc ) {
-                ErrMsg( "release_lookup_reader().KFileRelease() -> %R", rc );
-            }
+            release_file( self -> f, "release_lookup_reader()" );
         }
         release_SBuffer( &( self -> buf ) ); /* helper.c */
         free( ( void * ) self );
@@ -105,12 +109,8 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader_t * in
             if ( 0 != rc ) {
                 ErrMsg( "make_lookup_reader().KBufFileMakeRead() -> %R", rc );
             } else {
-                rc = KFileRelease( f );
-                if ( 0 != rc ) {
-                    ErrMsg( "make_lookup_reader().KFileRelease() -> %R", rc );
-                } else {
-                    f = temp_file;
-                }
+                rc = release_file( f, "make_lookup_reader()" );
+                if ( 0 == rc ) { f = temp_file; }
             }
         }
         if ( 0 == rc ) {
@@ -159,7 +159,7 @@ static rc_t loop_until_key_found( struct lookup_reader_t * self, uint64_t key_to
     bool done = false;
     uint64_t curr = *offset;
     while ( !done && 0 == rc ) {
-        size_t found_len;
+        size_t found_len = 0;
         rc = read_key_and_len( self, curr, key_found, &found_len );
         if ( keys_equal( key_to_find, *key_found ) ) {
             done = true;
@@ -310,6 +310,66 @@ rc_t lookup_reader_get( struct lookup_reader_t * self, uint64_t * key, SBuffer_t
                 }
             }
         }
+    }
+    return rc;
+}
+
+static const char x4na_to_ASCII_fwd[ 16 ] = {
+    /* 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
+       'N', 'A', 'C', 'N', 'G', 'N', 'N', 'N', 'T', 'N', 'N', 'N', 'N', 'N', 'N', 'N'
+};
+
+static const char x4na_to_ASCII_rev[ 16 ] = {
+    /* 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
+       'N', 'T', 'G', 'N', 'C', 'N', 'N', 'N', 'A', 'N', 'N', 'N', 'N', 'N', 'N', 'N'
+};
+
+static rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool reverse ) {
+    rc_t rc = 0;
+    uint8_t * src = ( uint8_t * )packed -> addr;
+    uint16_t dna_len;
+
+    /* the first 2 bytes are the 16-bit dna-length */
+    dna_len = src[ 0 ];
+    dna_len <<= 8;
+    dna_len |= src[ 1 ];
+
+    if ( dna_len > unpacked -> buffer_size ) {
+        rc = increase_SBuffer( unpacked, dna_len - unpacked -> buffer_size );
+    }
+    if ( 0 == rc ) {
+        uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
+        uint32_t dst_idx;
+        uint32_t i;
+
+        /* use the complement-lookup-table in case of reverse */
+        const char * lookup = reverse ? x4na_to_ASCII_rev : x4na_to_ASCII_fwd;
+
+        dst_idx = reverse ? dna_len - 1 : 0;
+
+        for ( i = 2; i < packed -> len; ++i ) {
+            /* get the packed byte out of the packed input */
+            uint8_t packed_byte = src[ i ];
+
+            /* write the first unpacked byte */
+            if ( dst_idx < unpacked -> buffer_size ) {
+                dst[ dst_idx ] = lookup[ ( packed_byte >> 4 ) & 0x0F ];
+                dst_idx += reverse ? -1 : 1;
+            }
+
+            /* write the second unpacked byte */
+            if ( dst_idx < unpacked -> buffer_size ) {
+                dst[ dst_idx ] = lookup[ packed_byte & 0x0F ];
+                dst_idx += reverse ? -1 : 1;
+            }
+        }
+
+        /* set the dna-length in the output-string */
+        unpacked -> S . size = dna_len;
+        unpacked -> S . len = ( uint32_t )unpacked -> S . size;
+
+        /* terminated the output-string, just in case */
+        dst[ dna_len ] = 0;
     }
     return rc;
 }

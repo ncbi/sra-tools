@@ -60,7 +60,6 @@ rc_t temp_registry_merge( struct temp_registry_t * self,
                           size_t buf_size,
                           bool show_progress,
                           bool force,
-                          compress_t compress,
                           bool append );
 
 rc_t temp_registry_to_stdout( struct temp_registry_t * self,

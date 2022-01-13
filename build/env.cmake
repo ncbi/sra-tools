@@ -263,6 +263,11 @@ endif()
 
 # VDB-4651 - relying on ./configure's logic for determining interfaces location
 set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
+if ( NOT EXISTS ${VDB_INTERFACES_DIR} )
+	message(FATAL_ERROR "VDB_INCDIR=\"${VDB_INTERFACES_DIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_INCDIR variable pointing to the ncbi-vdb headers (interfaces) must be specified.")
+else()
+	message(WARNING "Using ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
+endif()
 
 include_directories( ${VDB_INTERFACES_DIR} )
 

@@ -36,8 +36,7 @@
 
 #include <vdb/cursor.h>
 #include <vdb/blob.h>
-#include <../libs/vdb/blob-priv.h>
-#include <../libs/vdb/page-map.h>
+#include <vdb/page-map-priv.h>
 
 #include "NGS_String.h"
 #include "NGS_Id.h"
@@ -362,9 +361,9 @@ NGS_FragmentBlobInfoByOffset ( const struct NGS_FragmentBlob * self, ctx_t ctx, 
                 row_count_t rowInBlob = 0;
                 do
                 {
-                    elem_count_t length = PageMapIteratorDataLength ( &pmIt );
-                    elem_count_t offset = PageMapIteratorDataOffset ( &pmIt );
-                    row_count_t  repeat = PageMapIteratorRepeatCount ( &pmIt );
+                    elem_count_t length = PageMapIteratorDataLength_Ext ( &pmIt );
+                    elem_count_t offset = PageMapIteratorDataOffset_Ext ( &pmIt );
+                    row_count_t  repeat = PageMapIteratorRepeatCount_Ext ( &pmIt );
                     if ( offsetInBases < offset + length * repeat )
                     {   /* found the row containing offSetInBases */
                         while ( repeat > 1 ) /* look deeper to account for possible repetitions */
@@ -390,7 +389,7 @@ NGS_FragmentBlobInfoByOffset ( const struct NGS_FragmentBlob * self, ctx_t ctx, 
                     }
                     ++rowInBlob;
                 }
-                while ( PageMapIteratorNext ( &pmIt ) );
+                while ( PageMapIteratorNext_Ext ( &pmIt ) );
             }
         }
     }

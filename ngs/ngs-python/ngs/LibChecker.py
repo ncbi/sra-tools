@@ -34,25 +34,14 @@ def check_versions():
     if not should_download_library():
         return 0
     
-    libname_engine = "ncbi-ngs"
+    # TODO: now ngs-sdk contains all necessary functions, need to load it only once
+    # but there are two different package version fuctions, abandoning PY_NGS_Engine_GetVersion
     libname_sdk = "ngs-sdk"
-    
-    NGS.lib_manager.c_lib_engine = load_library(libname_engine, do_download=False, silent=True)
+
     NGS.lib_manager.c_lib_sdk = load_library(libname_sdk, do_download=False, silent=True)
     
     ret = 0
 
-    if NGS.lib_manager.c_lib_engine is None:
-        ret = ret | 1
-    else:
-        try:
-            NGS.lib_manager._bind(NGS.lib_manager.c_lib_engine, "PY_NGS_Engine_GetVersion", [POINTER(c_char_p), POINTER(c_char), c_size_t], None)
-        except AttributeError:
-            NGS.lib_manager.setattr("PY_NGS_Engine_GetVersion", None)
-
-        if version_tuple( NGS.getVersion_impl() ) < get_library_version_tuple_remote(libname_engine):
-            ret = ret | 1
-        
     if NGS.lib_manager.c_lib_sdk is None:
         ret = ret | 2
     else:

@@ -25,33 +25,58 @@
 */
 
 #include "join.h"
+
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_dflt_defline_
+#include "dflt_defline.h"
+#endif
+
+#ifndef _h_index_
 #include "index.h"
+#endif
+
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
+#ifndef _h_lookup_reader_
 #include "lookup_reader.h"
-#include "special_iter.h"
+#endif
+
+#ifndef _h_raw_read_iter_
 #include "raw_read_iter.h"
+#endif
+
+#ifndef _h_fastq_iter_
 #include "fastq_iter.h"
-#include "cleanup_task.h"
-#include "join_results.h"
-#include "progress_thread.h"
-#include "copy_machine.h"
+#endif
 
+#ifndef _h_flex_printer_
+#include "flex_printer.h"
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <kproc/thread.h>
-#include <insdc/insdc.h> /* for READ_TYPE_BIOLOGICAL, READ_TYPE_REVERSE */
+#endif
 
-//#define USE_JOIN_RESULTS 1
+#ifndef _h_insdc_insdc_
+#include <insdc/insdc.h> /* for READ_TYPE_BIOLOGICAL, READ_TYPE_REVERSE */
+#endif
 
 typedef struct join {
     const char * accession_path;
     const char * accession_short;
-    struct lookup_reader_t * lookup;  /* lookup_reader.h */
-    struct index_reader_t * index;    /* index.h */
-    struct flex_printer_t * flex_printer;   /* join_results.h */
-    struct filter_2na_t * filter;     /* joint_reslts.h */
-    SBuffer_t B1, B2;                 /* helper.h */
-    uint64_t loop_nr;                 /* in which loop of this partial join are we? */
-    uint32_t thread_id;               /* in which thread are we? */
-    bool cmp_read_present;            /* do we have a cmp-read column? */
+    struct lookup_reader_t * lookup;        /* lookup_reader.h */
+    struct index_reader_t * index;          /* index.h */
+    struct flex_printer_t * flex_printer;   /* flex_printer.h */
+    struct filter_2na_t * filter;           /* helper.h */
+    SBuffer_t B1, B2;                       /* helper.h */
+    uint64_t loop_nr;                       /* in which loop of this partial join are we? */
+    uint32_t thread_id;                     /* in which thread are we? */
+    bool cmp_read_present;                  /* do we have a cmp-read column? */
 } join_t;
 
 static void release_join_ctx( join_t* j ) {
@@ -64,7 +89,7 @@ static void release_join_ctx( join_t* j ) {
 }
 
 static rc_t init_join( cmn_iter_params_t * cp,
-                       struct flex_printer_t * flex_printer,   /* join_results.h */
+                       struct flex_printer_t * flex_printer,   /* flex_printer.h */
                        struct filter_2na_t * filter,
                        const char * lookup_filename,
                        const char * index_filename,
@@ -157,9 +182,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
                 ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", row_id,
                         rec -> read . len, rec -> quality . len );
                 stats -> reads_invalid++;
-                if ( jo -> terminate_on_invalid ) {
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                }
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
             }
             if ( rec -> read . len > 0 ) {
                 flex_printer_data_t data;
@@ -171,7 +194,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
                 data . read1 = &( rec -> read );
                 data . read2 = NULL;
                 data . quality = &( rec -> quality );
-                rc = join_result_flex_print( j -> flex_printer, &data );
+                rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                 if ( 0 == rc ) { stats -> reads_written++; }
             }
         }
@@ -185,9 +208,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
                     ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", row_id,
                              j -> B1 . S . len, rec -> quality . len );
                     stats -> reads_invalid++;
-                    if ( jo -> terminate_on_invalid ) {
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 if ( j -> B1 . S . len > 0 ) {
                     flex_printer_data_t data;
@@ -199,7 +220,7 @@ static rc_t print_fastq_1_read( join_stats_t * stats,
                     data . read1 = &( j -> B1 . S );
                     data . read2 = NULL;
                     data . quality = &( rec -> quality );
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
@@ -231,7 +252,7 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
                 data . read1 = &( rec -> read );
                 data . read2 = NULL;
                 data . quality = &( rec -> quality );
-                rc = join_result_flex_print( j -> flex_printer, &data );
+                rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                 if ( 0 == rc ) { stats -> reads_written++; }
             }
         }
@@ -251,7 +272,7 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
                     data . read1 = &( j -> B1 . S );
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written++; }
                 }
             }
@@ -277,9 +298,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                     ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", row_id,
                             rec -> read . len, rec -> quality . len );
                     stats -> reads_invalid++;
-                    if ( jo -> terminate_on_invalid ) {
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 flex_printer_data_t data;
                 data . row_id = row_id;
@@ -290,7 +309,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                 data . read1 = &( rec -> read );
                 data . read2 = NULL;
                 data . quality = &( rec -> quality );
-                rc = join_result_flex_print( j -> flex_printer, &data );
+                rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                 if ( 0 == rc ) { stats -> reads_written += 2; }
             }
         } else {
@@ -303,9 +322,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", row_id,
                                 j -> B2 . S. len, rec -> quality . len );
                         stats -> reads_invalid++;
-                        if ( jo -> terminate_on_invalid ) {
-                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                        }
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     flex_printer_data_t data;
                     data . row_id = row_id;
@@ -316,7 +333,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                     data . read1 = &( rec -> read );
                     data . read2 = &( j -> B2 . S );
                     data . quality = &( rec -> quality );
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
@@ -333,9 +350,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (E)\n", row_id,
                                 rl, rec -> quality . len );
                         stats -> reads_invalid++;
-                        if ( jo -> terminate_on_invalid ) {
-                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                        }
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     flex_printer_data_t data;
                     data . row_id = row_id;
@@ -346,7 +361,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                     data . read1 = &( j -> B1 . S );
                     data . read2 = &( rec -> read );
                     data . quality = &( rec -> quality );
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
@@ -365,9 +380,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (F)\n", row_id,
                                 rl, rec -> quality . len );
                         stats -> reads_invalid++;
-                        if ( jo -> terminate_on_invalid ) {
-                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                        }
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     flex_printer_data_t data;
                     data . row_id = row_id;
@@ -378,7 +391,7 @@ static rc_t print_fastq_2_reads( join_stats_t * stats,
                     data . read1 = &( j -> B1 . S );
                     data . read2 = &( j -> B2 . S );
                     data . quality = &( rec -> quality );
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
@@ -407,7 +420,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
                 data . read1 = &( rec -> read );
                 data . read2 = NULL;
                 data . quality = NULL;
-                rc = join_result_flex_print( j -> flex_printer, &data );
+                rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                 if ( 0 == rc ) { stats -> reads_written += 2; }
             }
         } else {
@@ -425,7 +438,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
                     data . read1 = &( rec -> read );
                     data . read2 = &( j -> B2 . S );
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
@@ -446,7 +459,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
                     data . read1 = &( j -> B1 . S );
                     data . read2 = &( rec -> read );
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
@@ -469,7 +482,7 @@ static rc_t print_fasta_2_reads( join_stats_t * stats,
                     data . read1 = &( j -> B1 . S );
                     data . read2 = &( j -> B2 . S );
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written += 2; }
                 }
             }
@@ -508,9 +521,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
     if ( ( Q1 . len + Q2 . len ) != rec -> quality . len ) {
         ErrMsg( "row #%ld : Q[1].len(%u) + Q[2].len(%u) != Q.len(%u)\n", row_id, Q1 . len, Q2 . len, rec -> quality . len );
         stats -> reads_invalid++;
-        if ( jo -> terminate_on_invalid ) {
-            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-        }
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
 
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
@@ -523,9 +534,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                 if ( READ1 . len != Q1 . len ) {
                     ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 . len, Q1 . len );
                     stats -> reads_invalid++;
-                    if ( jo -> terminate_on_invalid ) {
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_0 = ( READ1 . len > 0 );
             }
@@ -538,9 +547,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                 if ( READ2 . len != Q2 . len ) {
                     ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 . len, Q2 . len );
                     stats -> reads_invalid++;
-                    if ( jo -> terminate_on_invalid ) {
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_1 = ( READ2 . len > 0 );
             }
@@ -558,7 +565,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = &READ1;
                     data . read2 = NULL;
                     data . quality = &Q1;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) {
                         stats -> reads_written ++;
                         if ( split_file && dst_id > 0 ) { dst_id++; }
@@ -577,7 +584,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = &READ2;
                     data . read2 = NULL;
                     data . quality = &Q2;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -589,9 +596,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                 if ( READ1 -> len != Q1 . len ) {
                     ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
                     stats -> reads_invalid++;
-                    if ( jo -> terminate_on_invalid ) {
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_0 = ( READ1 -> len > 0 );
             }
@@ -605,9 +610,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     if ( READ2 -> len != Q2 . len ) {
                         ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
                         stats -> reads_invalid++;
-                        if ( jo -> terminate_on_invalid ) {
-                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                        }
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_1 = ( READ2 -> len > 0 );
                 }
@@ -625,7 +628,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ1;
                     data . read2 = NULL;
                     data . quality = &Q1;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                     if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
@@ -641,7 +644,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ2;
                     data . read2 = NULL;
                     data . quality = &Q2;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -660,9 +663,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     if ( READ1 -> len != Q1 . len ) {
                         ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
                         stats -> reads_invalid++;
-                        if ( jo -> terminate_on_invalid ) {
-                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                        }
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_0 = ( READ1 -> len > 0 );
                 }
@@ -673,9 +674,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                 if ( READ2 -> len != Q2 . len ) {
                     ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
                     stats -> reads_invalid++;
-                    if ( jo -> terminate_on_invalid ) {
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_1 = ( READ2 -> len > 0 );
             }
@@ -692,7 +691,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ1;
                     data . read2 = NULL;
                     data . quality = &Q1;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                     if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
@@ -708,7 +707,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ2;
                     data . read2 = NULL;
                     data . quality = &Q2;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -725,9 +724,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     if ( READ1 -> len != Q1 . len ) {
                         ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
                         stats -> reads_invalid++;
-                        if ( jo -> terminate_on_invalid ) {
-                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                        }
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_0 = ( READ1 -> len > 0 );
                 }
@@ -742,9 +739,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     if ( READ2 -> len != Q2 . len ) {
                         ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
                         stats -> reads_invalid++;
-                        if ( jo -> terminate_on_invalid ) {
-                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                        }
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_1 =( READ2 -> len > 0 );
                 }
@@ -762,7 +757,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ1;
                     data . read2 = NULL;
                     data . quality = &Q1;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                     if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
@@ -778,7 +773,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ2;
                     data . read2 = NULL;
                     data . quality = &Q2;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -834,7 +829,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = &READ1;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) {
                         stats -> reads_written ++;
                         if ( split_file && dst_id > 0 ) { dst_id++; }
@@ -853,7 +848,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = &READ2;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -885,7 +880,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ1;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written++; }
                     if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
@@ -901,7 +896,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ2;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -935,7 +930,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ1;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                     if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
@@ -951,7 +946,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ2;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -991,7 +986,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ1;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                     if ( split_file && dst_id > 0 ) { dst_id++; }
                 }
@@ -1007,7 +1002,7 @@ static rc_t print_fasta_2_reads_splitted( join_stats_t * stats,
                     data . read1 = READ2;
                     data . read2 = NULL;
                     data . quality = NULL;
-                    rc = join_result_flex_print( j -> flex_printer, &data );
+                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                     if ( 0 == rc ) { stats -> reads_written ++; }
                 }
             }
@@ -1071,10 +1066,7 @@ static rc_t perform_fastq_whole_spot_join( cmn_iter_params_t * cp,
         fastq_rec_t rec; /* fastq_iter.h */
         join_options_t local_opt = { jo -> rowid_as_name,
                                    false, 
-                                   jo -> print_read_nr,
-                                   jo -> print_name,
                                    jo -> print_spotgroup,
-                                   jo -> terminate_on_invalid,
                                    jo -> min_read_len,
                                    jo -> filter_bases };
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
@@ -1171,10 +1163,7 @@ static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
         join_options_t local_opt = { 
                 jo -> rowid_as_name,
                 false,
-                jo -> print_read_nr,
-                jo -> print_name,
                 jo -> print_spotgroup,
-                jo -> terminate_on_invalid,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
@@ -1229,10 +1218,7 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
         join_options_t local_opt = {
                 jo -> rowid_as_name,
                 false,
-                jo -> print_read_nr,
-                jo -> print_name,
                 jo -> print_spotgroup,
-                jo -> terminate_on_invalid,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
@@ -1285,10 +1271,7 @@ static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
         fastq_rec_t rec; /* fastq_iter.h */
         join_options_t local_opt = { jo -> rowid_as_name,
                                    false, 
-                                   jo -> print_read_nr,
-                                   jo -> print_name,
                                    jo -> print_spotgroup,
-                                   jo -> terminate_on_invalid,
                                    jo -> min_read_len,
                                    jo -> filter_bases };
         while ( 0 == rc && get_from_fastq_csra_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
@@ -1386,10 +1369,7 @@ static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
         join_options_t local_opt = { 
                 jo -> rowid_as_name,
                 false,
-                jo -> print_read_nr,
-                jo -> print_name,
                 jo -> print_spotgroup,
-                jo -> terminate_on_invalid,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
@@ -1445,10 +1425,7 @@ static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
         join_options_t local_opt = {
                 jo -> rowid_as_name,
                 false,
-                jo -> print_read_nr,
-                jo -> print_name,
                 jo -> print_spotgroup,
-                jo -> terminate_on_invalid,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
@@ -1505,6 +1482,7 @@ typedef struct join_thread_data {
     
     int64_t first_row;
     uint64_t row_count;
+    uint64_t row_limit;
     size_t cur_cache;
     size_t buf_size;
     format_t fmt;
@@ -1519,29 +1497,30 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
-    struct filter_2na_t * filter = make_2na_filter( jo -> filter_bases ); /* join_results.c */
+    struct filter_2na_t * filter = make_2na_filter( jo -> filter_bases ); /* helper.c */
     struct flex_printer_t * flex_printer = NULL;
     file_printer_args_t file_args;
-    flex_printer_name_mode_t name_mode = ( jo -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
     set_file_printer_args( &file_args,
                             jtd -> dir,
                             jtd -> registry,
                             jtd -> part_file,
                             jtd -> buf_size );
-    /* make_flex_printer() is in join_results.c */
-    flex_printer = make_flex_printer( &file_args,
-                NULL,                               /* no multi-writer here, each thread writes into it's own files! */
+    /* make_flex_printer() is in flex_printer.c */
+    flex_printer = make_flex_printer_1( &file_args,
                 jtd -> accession_short,             /* we need that for the flexible defline! */
                 jtd -> seq_defline,                 /* the seq-defline */
                 jtd -> qual_defline,                /* the qual-defline */
-                name_mode,                          /* use-name, syn-name or no-name */
-                is_format_split( jtd -> fmt ),      /* use read-id */
                 is_format_fasta( jtd -> fmt ) );    /* fasta-mode */
     if ( 0 == rc && NULL != flex_printer ) {
         join_t j;
-        cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
-                          jtd -> accession_short, jtd -> accession_path,
-                          jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+        cmn_iter_params_t cp = {
+            jtd -> dir,
+            jtd -> vdb_mgr,
+            jtd -> accession_short,
+            jtd -> accession_path,
+            jtd -> first_row,
+            jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+            jtd -> cur_cache };
         rc = init_join( &cp,
                         flex_printer,
                         filter,
@@ -1607,9 +1586,9 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
             }
             release_join_ctx( &j );
         }
-    release_flex_printer( flex_printer );
+    release_flex_printer( flex_printer ); /* flex_printer.c */
     }
-    release_2na_filter( filter );   /* join_results.c */
+    release_2na_filter( filter );   /* helper.c */
     return rc;
 }
 
@@ -1665,7 +1644,7 @@ rc_t execute_db_join( const execute_db_join_args_t * args ) {
             join_options_t corrected_join_options;
 
             correct_join_options( &corrected_join_options, args -> join_options, name_column_present ); /* helper.c */
-            corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, args -> qual_defline ); /* join_results.c */
+            corrected_join_options . print_spotgroup = spot_group_requested( args -> seq_defline, args -> qual_defline ); /* flex_printer.c */
             VectorInit( &threads, 0, args -> num_threads );
             rows_per_thread = calculate_rows_per_thread( &num_threads2, seq_row_count ); /* helper.c */
 
@@ -1685,8 +1664,11 @@ rc_t execute_db_join( const execute_db_join_args_t * args ) {
                     jtd -> accession_short  = args -> accession_short;
                     jtd -> lookup_filename  = args -> lookup_filename;
                     jtd -> index_filename   = args -> index_filename;
+                    jtd -> seq_defline      = args -> seq_defline;
+                    jtd -> qual_defline     = args -> qual_defline;
                     jtd -> first_row        = row;
                     jtd -> row_count        = rows_per_thread;
+                    jtd -> row_limit        = args -> row_limit;
                     jtd -> cur_cache        = args -> cursor_cache;
                     jtd -> buf_size         = args -> buf_size;
                     jtd -> progress         = progress;
@@ -1817,23 +1799,24 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
     rc_t rc = 0;
     join_thread_data_t * jtd = data;
     join_stats_t * stats = &( jtd -> stats );
-    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
-                        jtd -> accession_short, jtd -> accession_path,
-                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    cmn_iter_params_t cp = {
+        jtd -> dir,
+        jtd -> vdb_mgr,
+        jtd -> accession_short,
+        jtd -> accession_path,
+        jtd -> first_row,
+        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+        jtd -> cur_cache };
     struct align_iter_t * iter;
     uint64_t loop_nr = 0;
-    struct flex_printer_t * flex_printer;
-    flex_printer_name_mode_t name_mode = ( jtd -> join_options -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
-    /* make_flex_printer() is in join_results.c */
-    flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
-                                      jtd -> multi_writer,          /* passed in multi-writer */
-                                      jtd -> accession_short,       /* the accession to be printed */
-                                      jtd -> seq_defline,           /* if seq-defline is NULL, use default */
-                                      NULL,                         /* qual-defline is NULL ( not used - FASTA! ) */
-                                      name_mode,                    /* use-name, syn-nmame or no-name */
-                                      true,                         /* use read-id */
-                                      true );                       /* fasta-mode */
+    /* make_flex_printer() is in flex_printer.c */
+    struct flex_printer_t * flex_printer
+        = make_flex_printer_2( jtd -> multi_writer,          /* passed in multi-writer */
+                            jtd -> accession_short,       /* the accession to be printed */
+                            jtd -> seq_defline,           /* if seq-defline is NULL, use default */
+                            NULL,                         /* qual-defline is NULL ( not used - FASTA! ) */
+                            true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
@@ -1845,6 +1828,7 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
             align_rec_t rec; /* fastq_iter.h */
             while ( 0 == rc && get_from_align_iter( iter, &rec, &rc ) ) { /* fastq-iter.c */
                 rc = get_quitting(); /* helper.c */
+
                 if ( 0 == rc ) {
                     if ( rec . read . len > 0 ) {
                         flex_printer_data_t data;
@@ -1862,7 +1846,7 @@ static rc_t CC unsorted_fasta_align_thread_func( const KThread * self, void * da
                         data . quality = NULL;
 
                         /* finally print it out */
-                        rc = join_result_flex_print( flex_printer, &data );
+                        rc = flex_print( flex_printer, &data ); /* flex_printer.c */
                         if ( 0 == rc ) { stats -> reads_written++; }
                     } else { 
                         stats -> reads_zero_length++;
@@ -1894,6 +1878,7 @@ static rc_t start_unsorted_fasta_db_join_align( KDirectory * dir,
                     uint32_t num_threads,
                     const join_options_t * join_options,
                     uint64_t row_count,
+                    uint64_t row_limit,
                     struct bg_progress_t * progress,
                     struct multi_writer_t * multi_writer,
                     struct filter_2na_t * filter,
@@ -1904,7 +1889,7 @@ static rc_t start_unsorted_fasta_db_join_align( KDirectory * dir,
     uint64_t rows_per_thread = calculate_rows_per_thread( &num_threads, row_count ); /* helper.c */
     join_options_t corrected_join_options; /* helper.h */
     correct_join_options( &corrected_join_options, join_options, false );
-    corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, NULL ); /* join_results.c */
+    corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, NULL ); /* flex_printer.c */
 
     for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
         join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
@@ -1916,6 +1901,7 @@ static rc_t start_unsorted_fasta_db_join_align( KDirectory * dir,
             jtd -> seq_defline      = seq_defline;
             jtd -> first_row        = row;
             jtd -> row_count        = rows_per_thread;
+            jtd -> row_limit        = row_limit;
             jtd -> cur_cache        = cur_cache;
             jtd -> buf_size         = buf_size;
             jtd -> progress         = progress;
@@ -1949,14 +1935,18 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
     join_thread_data_t * jtd = data;
     const join_options_t * jo = jtd -> join_options;
     join_stats_t * stats = &( jtd -> stats );
-    cmn_iter_params_t cp = { jtd -> dir, jtd -> vdb_mgr,
-                        jtd -> accession_short, jtd -> accession_path,
-                        jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+    cmn_iter_params_t cp = {
+        jtd -> dir,
+        jtd -> vdb_mgr,
+        jtd -> accession_short,
+        jtd -> accession_path,
+        jtd -> first_row,
+        jtd -> row_limit > 0 ? jtd -> row_limit : jtd -> row_count,
+        jtd -> cur_cache };
     struct fastq_csra_iter_t * iter;
     uint64_t loop_nr = 0;
     fastq_iter_opt_t opt;
     struct flex_printer_t * flex_printer = NULL;
-    flex_printer_name_mode_t name_mode = ( jo -> rowid_as_name ) ? fpnm_syn_name : fpnm_use_name;
 
     opt . with_read_len = true;
     opt . with_name = false;
@@ -1965,15 +1955,12 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
     opt . with_quality = false;
     opt . with_spotgroup = jo -> print_spotgroup;
 
-    /* make_flex_printer() is in join_results.c */
-    flex_printer = make_flex_printer( NULL,                         /* unused - multi_writer is set */
-                                      jtd -> multi_writer,          /* passed in multi-writer */
-                                      jtd -> accession_short,       /* the accession to be printed */
-                                      jtd -> seq_defline,           /* if seq-defline is NULL, use default */
-                                      NULL,                         /* qual-defline not used ( FASTA! ) */
-                                      name_mode,                    /* use-name, syn-name or no-name */
-                                      true,                         /* use read-id */
-                                      true );                       /* fasta-mode */
+    /* make_flex_printer() is in flex_printer.c */
+    flex_printer = make_flex_printer_2( jtd -> multi_writer,          /* passed in multi-writer */
+                    jtd -> accession_short,       /* the accession to be printed */
+                    jtd -> seq_defline,           /* if seq-defline is NULL, use default */
+                    NULL,                         /* qual-defline not used ( FASTA! ) */
+                    true );                       /* fasta-mode */
     if ( NULL == flex_printer ) {
         return rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     }
@@ -1989,6 +1976,7 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
                     uint32_t read_id_0 = 0;
                     uint32_t offset = 0;
                     stats -> spots_read++;
+                    
                     while ( 0 == rc && read_id_0 < rec . num_read_len ) {
                         if ( rec . read_len[ read_id_0 ] > 0 ) {
                             if ( 0 == rec . prim_alig_id[ read_id_0 ] ) {
@@ -2013,7 +2001,7 @@ static rc_t CC unsorted_fasta_seq_thread_func( const KThread * self, void * data
                                 data . quality = NULL;
 
                                 /* finally print it out */
-                                rc = join_result_flex_print( flex_printer, &data );
+                                rc = flex_print( flex_printer, &data ); /* flex_printer.c */
                                 if ( 0 == rc ) { stats -> reads_written++; }
                                 offset += rec . read_len[ read_id_0 ];
                             }
@@ -2048,6 +2036,7 @@ static rc_t start_unsorted_fasta_db_join_seq( KDirectory * dir,
                     uint32_t num_threads,
                     const join_options_t * join_options,
                     uint64_t seq_row_count,
+                    uint64_t row_limit,
                     bool cmp_read_column_present,
                     struct bg_progress_t * progress,
                     struct multi_writer_t * multi_writer,
@@ -2059,7 +2048,7 @@ static rc_t start_unsorted_fasta_db_join_seq( KDirectory * dir,
     uint64_t rows_per_thread = calculate_rows_per_thread( &num_threads, seq_row_count ); /* helper.c */
     join_options_t corrected_join_options; /* helper.h */
     correct_join_options( &corrected_join_options, join_options, false );
-    corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, NULL ); /* join_results.c */
+    corrected_join_options . print_spotgroup = spot_group_requested( seq_defline, NULL ); /* flex_printer.c */
 
     for ( thread_id = 0; 0 == rc && thread_id < num_threads; ++thread_id ) {
         join_thread_data_t * jtd = calloc( 1, sizeof * jtd );
@@ -2071,6 +2060,7 @@ static rc_t start_unsorted_fasta_db_join_seq( KDirectory * dir,
             jtd -> seq_defline      = seq_defline;
             jtd -> first_row        = row;
             jtd -> row_count        = rows_per_thread;
+            jtd -> row_limit        = row_limit;
             jtd -> cur_cache        = cur_cache;
             jtd -> buf_size         = buf_size;
             jtd -> progress         = progress;
@@ -2133,7 +2123,7 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
                     0 );                        /* q_block_size, if 0 use default = 4 MB */
             if ( NULL != multi_writer ) {
                 struct bg_progress_t * progress = NULL;
-                struct filter_2na_t * filter = make_2na_filter( args -> join_options -> filter_bases ); /* join_results.c */
+                struct filter_2na_t * filter = make_2na_filter( args -> join_options -> filter_bases ); /* helper.c */
 
                 uint32_t num_threads2 = args -> num_threads;
                 if ( args -> only_unaligned || args -> only_aligned ) {
@@ -2149,7 +2139,6 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
                 /* we now have:
                     - row-count for SEQ- and ALIGN table
                     - know if the CMP_READ-column exists in the SEQ-table
-                    - the common-output-results, ready to beeing used via common_join_results_print()
                     - optionally a progress-bar ( set to the sum of the row-counts in the SEQ- and ALIGN-table )
                 */
                 Vector seq_threads;
@@ -2166,6 +2155,7 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
                                             num_threads2,
                                             args -> join_options,
                                             seq_row_count,
+                                            args -> row_limit,
                                             cmp_read_column_present,
                                             progress,
                                             multi_writer,
@@ -2186,6 +2176,7 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
                                         num_threads2,
                                         args -> join_options,
                                         align_row_count,
+                                        args -> row_limit,
                                         progress,
                                         multi_writer,
                                         filter,
@@ -2197,7 +2188,7 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
                 if ( 0 == rc ) {
                     rc = join_threads_collect_stats( &seq_threads, args -> stats ); /* above */
                 }
-                release_2na_filter( filter ); /* join_results.c */
+                release_2na_filter( filter ); /* helper.c */
                 bg_progress_release( progress ); /* progress_thread.c ( ignores NULL ) */
                 release_multi_writer( multi_writer ); /* ( ignores NULL ) */ 
 

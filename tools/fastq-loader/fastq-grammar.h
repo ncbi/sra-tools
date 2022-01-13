@@ -37,25 +37,17 @@
 #ifndef YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
 # define YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
 /* Debug traces.  */
-#ifndef FASTQ_DEBUG
-# if defined YYDEBUG
+#ifndef YYDEBUG
+# define YYDEBUG 0
+#endif
 #if YYDEBUG
-#   define FASTQ_DEBUG 1
-#  else
-#   define FASTQ_DEBUG 0
-#  endif
-# else /* ! defined YYDEBUG */
-#  define FASTQ_DEBUG 0
-# endif /* ! defined YYDEBUG */
-#endif  /* ! defined FASTQ_DEBUG */
-#if FASTQ_DEBUG
 extern int FASTQ_debug;
 #endif
 
 /* Token type.  */
-#ifndef FASTQ_TOKENTYPE
-# define FASTQ_TOKENTYPE
-  enum FASTQ_tokentype
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+  enum yytokentype
   {
     fqENDOFTEXT = 0,
     fqRUNDOTSPOT = 258,
@@ -74,10 +66,10 @@ extern int FASTQ_debug;
 #endif
 
 /* Value type.  */
-#if ! defined FASTQ_STYPE && ! defined FASTQ_STYPE_IS_DECLARED
-typedef int FASTQ_STYPE;
-# define FASTQ_STYPE_IS_TRIVIAL 1
-# define FASTQ_STYPE_IS_DECLARED 1
+#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+typedef FASTQToken YYSTYPE;
+# define YYSTYPE_IS_TRIVIAL 1
+# define YYSTYPE_IS_DECLARED 1
 #endif
 
 

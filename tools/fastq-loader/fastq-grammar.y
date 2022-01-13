@@ -55,14 +55,16 @@
     static void SaveSpotName(FASTQParseBlock* pb);
     static void RevertSpotName(FASTQParseBlock* pb);
 
-    #define UNLEX do { if (yychar != YYEMPTY && yychar != YYEOF) FASTQ_unlex(pb, & yylval); } while (0)
+    #define UNLEX do { if (yychar != YYEMPTY && yychar != fqENDOFTEXT) FASTQ_unlex(pb, & yylval); } while (0)
 
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 %}
 
 %define api.pure
 %define parse.error verbose
-%define api.prefix {FASTQ_}
+%define api.value.type {FASTQToken}
+
+%name-prefix="FASTQ_"
 
 %parse-param {FASTQParseBlock* pb }
 %lex-param {FASTQParseBlock* pb }

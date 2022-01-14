@@ -173,6 +173,14 @@ if( NOT TARGDIR )
     set( TARGDIR ${CMAKE_BINARY_DIR} )
 endif()
 
+# VDB-4651 - relying on ./configure's logic for determining interfaces location
+set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
+if ( NOT VDB_INTERFACES_DIR OR NOT EXISTS ${VDB_INTERFACES_DIR} )
+	message(FATAL_ERROR "VDB_INCDIR=\"${VDB_INTERFACES_DIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_INCDIR variable pointing to the ncbi-vdb headers (interfaces) must be specified.")
+else()
+	message("Using ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
+endif()
+
 if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
     set( SINGLE_CONFIG false )
@@ -217,16 +225,13 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 else() # assume a single-config generator
     set( SINGLE_CONFIG true )
 
-    # if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
-        # message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
-    # endif()
-
-    if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
-        message( FATAL_ERROR "Please specify the location where ncbi-vdb libraries are installed (VDB_LIBDIR)")
-    endif()
+	if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
+		message(FATAL_ERROR "VDB_LIBDIR=\"${VDB_LIBDIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_LIBDIR variable pointing to the ncbi-vdb binary libraries must be specified.")
+	else()
+		message("Using ncbi-vdb binary libraries: ${VDB_LIBDIR}")
+	endif()
 
     set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
-    message(WARNING "Linking with ncbi-vdb libraries from the following location: ${NCBI_VDB_LIBDIR}")
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )
@@ -240,7 +245,7 @@ else() # assume a single-config generator
     set( TESTBINDIR "${TARGDIR}/test-bin" )
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
-    link_directories( ${NCBI_VDB_LIBDIR} ) # TODO: USE_INSTALLED_NCBI_VDB
+    link_directories( ${NCBI_VDB_LIBDIR} ) # Must point to the installed ncbi-vdb libs
 endif()
 
 # ===========================================================================
@@ -248,53 +253,17 @@ endif()
 
 # Using installed ncbi-vdb directory
 if( WIN32 )
-	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	# TODO: WIN32 and Mac still work in an assumption that ncbi-vdb sources are checked out alongside with sra-tools
 	set( USE_INSTALLED_NCBI_VDB 0 )
 elseif( SINGLE_CONFIG )
 	set( USE_INSTALLED_NCBI_VDB 1 )
 else() # XCode
-	# TODO: WIN32 and Mac still work in an assumtion that ncbi-vdb sources is checked out along with sra-tools
+	# TODO: WIN32 and Mac still work in an assumption that ncbi-vdb sources are checked out alongside with sra-tools
 	set( USE_INSTALLED_NCBI_VDB 0 )
-endif()
-
-if( NOT VDB_SRCDIR )
-	if( USE_INSTALLED_NCBI_VDB )
-		message("CMAKE_INSTALL_PREFIX_ROOT: ${CMAKE_INSTALL_PREFIX_ROOT}")
-		set( NCBI_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX_ROOT} )
-
-		set( VDB_SRCDIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/vdb_shared_sources" )
-		set( VDB_INTERFACES_DIR "${NCBI_INSTALL_PREFIX}/ncbi-vdb/interfaces" )
-
-		if ( NOT EXISTS ${VDB_SRCDIR} )
-			message("${VDB_SRCDIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location ${CMAKE_SOURCE_DIR}/../ncbi-vdb")
-			set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
-		else()
-			message(WARNING "Using INSTALLED ncbi-vdb sources: ${VDB_SRCDIR}")
-		endif()
-
-		if ( NOT EXISTS ${VDB_INTERFACES_DIR} )
-			message("${VDB_INTERFACES_DIR} does not exist - ncbi-vdb was not installed in that location, falling back to the standard ncbi-vdb build location VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces...")
-			set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
-		else()
-			message(WARNING "Using INSTALLED ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
-		endif()
-	else()
-		set( VDB_SRCDIR ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
-		set( VDB_INTERFACES_DIR ${VDB_SRCDIR}/interfaces )
-
-		message(WARNING "Using ncbi-vdb sources from: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
-	endif()
-
-	message("VDB_SRCDIR was not explicitly provided, using the following location: sources: ${VDB_SRCDIR}, interfaces: ${VDB_INTERFACES_DIR}")
-
-	if ( NOT EXISTS ${VDB_SRCDIR} )
-		message( FATAL_ERROR "${VDB_SRCDIR} does not exist. Please specify the location of ncbi-vdb sources in Cmake variable VDB_SRCDIR")
-	endif()
 endif()
 
 
 include_directories( ${VDB_INTERFACES_DIR} )
-include_directories( ${VDB_SRCDIR}/libs ) # /libs for ngs/ncbi/ngs/NGS_FragmentBlob.c:39:10
 
 if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
     include_directories(${VDB_INTERFACES_DIR}/cc/gcc)
@@ -325,15 +294,14 @@ include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
 if( NOT DIRTOTEST )
     set( DIRTOTEST ${BINDIR} )
 endif()
-message( DIRTOTEST: ${DIRTOTEST})
+#message( DIRTOTEST: ${DIRTOTEST})
 
 # CONFIGTOUSE is a way to block user settings ($HOME/.ncbi/user-settings.mkfg). Assign anything but NCBI_SETTINGS to it, and the user settings will be ignored.
 if( NOT CONFIGTOUSE )
     set( CONFIGTOUSE NCBI_SETTINGS )
 endif()
-message( CONFIGTOUSE: ${CONFIGTOUSE})
+#message( CONFIGTOUSE: ${CONFIGTOUSE})
 
-# Python 3
 if( Python3_EXECUTABLE )
     set( PythonUserBase ${TEMPDIR}/python )
 endif()
@@ -514,8 +482,8 @@ endfunction()
 
 if( NOT SINGLE_CONFIG )
     set( COMMON_LINK_LIBRARIES kapp load tk-version )
-    set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
-    set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
+    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} )
+    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
     set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} ${NCBI_VDB_LIBDIR}/libload.${STLX} tk-version )
@@ -539,3 +507,20 @@ function( AddExecutableTest test_name sources libraries )
 	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
 	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endfunction()
+
+
+if ( SINGLE_CONFIG )
+    # standard kfg files
+    install( SCRIPT CODE
+        "execute_process( COMMAND /bin/bash -c \
+            \"${CMAKE_SOURCE_DIR}/build/install.sh  \
+                ${VDB_INCDIR}/kfg/ncbi              \
+                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
+                ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
+                /etc/ncbi                           \
+                ${CMAKE_INSTALL_PREFIX}/bin         \
+                ${CMAKE_INSTALL_PREFIX}/lib64       \
+                ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
+            \" )"
+    )
+endif()

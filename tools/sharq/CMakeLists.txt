@@ -1,4 +1,3 @@
-
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -43,16 +42,16 @@ if( SINGLE_CONFIG )
 cmake_minimum_required(VERSION 3.16)
 project(sharq)
 
+find_package(ZLIB)
+find_package(BZip2)
+find_package (Threads)
+
+if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 17)
 
 #specific to BitMagic
 add_definitions(-msse4.2 -DBMSSE42OPT)
-
-find_package(ZLIB)
-find_package(BZip2)
-#find_package(LZMA)
-find_package (Threads)
 
 set(LOCAL_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/libs)
 set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)
@@ -62,31 +61,31 @@ set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
 set(RE2_TAG 2021-09-01)
 
 include (ExternalProject)
-ExternalProject_Add(RE2      
-  PREFIX RE2      
+ExternalProject_Add(RE2
+  PREFIX RE2
   GIT_REPOSITORY https://github.com/google/re2.git
-  GIT_TAG ${RE2_TAG}    
+  GIT_TAG ${RE2_TAG}
   BUILD_IN_SOURCE 1
   UPDATE_COMMAND "" # No update as we use specific tag
   #INSTALL_DIR ${LOCAL_BUILD_DIR}
-  CMAKE_ARGS    
-    -DCMAKE_BUILD_TYPE:STRING=Release 
-    -DRE2_BUILD_TESTING:BOOL=OFF 
-    -DCMAKE_INSTALL_PREFIX:PATH=${LOCAL_BUILD_DIR} 
+  CMAKE_ARGS
+    -DCMAKE_BUILD_TYPE:STRING=Release
+    -DRE2_BUILD_TESTING:BOOL=OFF
+    -DCMAKE_INSTALL_PREFIX:PATH=${LOCAL_BUILD_DIR}
     -DCMAKE_INSTALL_LIBDIR:PATH=lib
-    -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF 
-    -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON  
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
+    -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
     -DCMAKE_INSTALL_MESSAGE:STRING=LAZY
-    
+
 )
 set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
 
 #file(COPY ${CMAKE_SOURCE_DIR}/tools/sharq/sharq.py  DESTINATION ${BINDIR})
 
 add_custom_target(
-  sharq.py  
+  sharq.py
   DEPENDS ${CMAKE_SOURCE_DIR}/tools/sharq/sharq.py
-  COMMAND ${CMAKE_COMMAND} -E copy 
+  COMMAND ${CMAKE_COMMAND} -E copy
     ${CMAKE_SOURCE_DIR}/tools/sharq/sharq.py
     ${BINDIR}/sharq.py)
 
@@ -97,5 +96,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
 endif()
 target_link_libraries(sharq ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+
+endif()
 
 endif()

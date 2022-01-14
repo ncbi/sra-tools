@@ -82,37 +82,12 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
     if ( 0 == rc ) {
         rc = KOutMsg( "total ram    : %,lu bytes\n", tool_ctx -> total_ram );
     }
-
     if ( 0 == rc ) {
-        rc = KOutMsg( "output-format: " );
+        rc = KOutMsg( "output-format: %s\n", fmt_2_string( tool_ctx -> fmt ) );
     }
     if ( 0 == rc ) {
-        switch ( tool_ctx -> fmt ) {
-            case ft_unknown             : rc = KOutMsg( "unknown format\n" ); break;
-            case ft_fastq_whole_spot    : rc = KOutMsg( "FASTQ whole spot\n" ); break;
-            case ft_fastq_split_spot    : rc = KOutMsg( "FASTQ split spot\n" ); break;
-            case ft_fastq_split_file    : rc = KOutMsg( "FASTQ split file\n" ); break;
-            case ft_fastq_split_3       : rc = KOutMsg( "FASTQ split 3\n" ); break;
-            case ft_fasta_whole_spot    : rc = KOutMsg( "FASTA whole spot\n" ); break;
-            case ft_fasta_split_spot    : rc = KOutMsg( "FASTA split spot\n" ); break;
-            case ft_fasta_us_split_spot : rc = KOutMsg( "FASTA-unsorted split spot\n" ); break;
-            case ft_fasta_split_file    : rc = KOutMsg( "FASTA split file\n" ); break;
-            case ft_fasta_split_3       : rc = KOutMsg( "FASTA split 3\n" ); break;
-        }
+        rc = KOutMsg( "check-mode   : %s\n", check_mode_2_string( tool_ctx -> check_mode ) );
     }
-
-    if ( 0 == rc ) {
-        rc = KOutMsg( "check-mode   : " );
-    }
-    if ( 0 == rc ) {
-        switch ( tool_ctx -> check_mode ) {
-            case cmt_unknown            : rc = KOutMsg( "unknown check-modet\n" ); break;
-            case cmt_on                 : rc = KOutMsg( "on\n" ); break;
-            case cmt_off                : rc = KOutMsg( "off\n" ); break;
-            case cmt_only               : rc = KOutMsg( "only\n" ); break;
-        }
-    }
-
     if ( 0 == rc ) {
         rc = KOutMsg( "output-file  : '%s'\n",
                     NULL != tool_ctx -> output_filename ? tool_ctx -> output_filename : "-" );
@@ -126,10 +101,10 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
                     NULL != tool_ctx -> dflt_output ? tool_ctx -> dflt_output : "-" );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "append-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
+        rc = KOutMsg( "append-mode  : '%s'\n", yes_or_no( tool_ctx -> append ) );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "stdout-mode  : '%s'\n", tool_ctx -> append ? "YES" : "NO" );
+        rc = KOutMsg( "stdout-mode  : '%s'\n", yes_or_no( tool_ctx -> use_stdout ) );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "seq-defline  : '%s'\n", tool_ctx -> seq_defline );
@@ -138,10 +113,10 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
         rc = KOutMsg( "qual-defline  : '%s'\n", tool_ctx -> qual_defline );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "only-unaligned : '%s'\n", tool_ctx -> only_unaligned ? "YES" : "NO" );
+        rc = KOutMsg( "only-unaligned : '%s'\n", yes_or_no( tool_ctx -> only_unaligned ) );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "only-aligned   : '%s'\n", tool_ctx -> only_aligned ? "YES" : "NO" );
+        rc = KOutMsg( "only-aligned   : '%s'\n", yes_or_no( tool_ctx -> only_aligned ) );
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "accession     : '%s'\n", tool_ctx -> accession_short );
@@ -166,17 +141,14 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
     }
 
     if ( 0 == rc ) {    
-        rc = KOutMsg( "out/tmp on same fs   : '%s'\n", tool_ctx -> out_and_tmp_on_same_fs ? "YES" : "NO" );
+        rc = KOutMsg( "out/tmp on same fs   : '%s'\n", yes_or_no( tool_ctx -> out_and_tmp_on_same_fs ) );
     }
-
     if ( 0 == rc ) {
         rc = KOutMsg( "\n" );
     }
-    
     if ( 0 == rc ) {
         rc = inspection_report( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) ); /* inspector.c */
     }
-    
     KOutHandlerSetStdOut();
     return rc;
 }
@@ -239,8 +211,9 @@ static rc_t check_output_exits( const tool_ctx_t * tool_ctx ) {
 #define MIN_NUM_THREADS 2
 #define MIN_MEM_LIMIT ( 1024L * 1024 * 5 )
 #define MAX_BUF_SIZE ( 1024L * 1024 * 1024 )
-static void tool_ctx_encforce_constrains( tool_ctx_t * tool_ctx )
-{
+static rc_t tool_ctx_encforce_constrains( tool_ctx_t * tool_ctx ) {
+    rc_t rc = 0;
+    bool ignore_stdout = false;
     uint32_t env_thread_count = get_env_u32( "DLFT_THREAD_COUNT", 0 );
     if ( env_thread_count > 0  ) {
         tool_ctx -> num_threads = env_thread_count;
@@ -262,14 +235,14 @@ static void tool_ctx_encforce_constrains( tool_ctx_t * tool_ctx )
 
             case ft_fastq_whole_spot    : break;
             case ft_fastq_split_spot    : break;
-            case ft_fastq_split_file    : tool_ctx -> use_stdout = false; break;
-            case ft_fastq_split_3       : tool_ctx -> use_stdout = false; break;
+            case ft_fastq_split_file    : tool_ctx -> use_stdout = false; ignore_stdout = true; break;
+            case ft_fastq_split_3       : tool_ctx -> use_stdout = false; ignore_stdout = true; break;
 
             case ft_fasta_whole_spot    : break;
             case ft_fasta_split_spot    : break;
             case ft_fasta_us_split_spot : break;
-            case ft_fasta_split_file    : tool_ctx -> use_stdout = false; break;
-            case ft_fasta_split_3       : tool_ctx -> use_stdout = false; break;
+            case ft_fasta_split_file    : tool_ctx -> use_stdout = false; ignore_stdout = true; break;
+            case ft_fasta_split_3       : tool_ctx -> use_stdout = false; ignore_stdout = true; break;
         }
     }
     if ( tool_ctx -> use_stdout ) {
@@ -280,6 +253,12 @@ static void tool_ctx_encforce_constrains( tool_ctx_t * tool_ctx )
         tool_ctx -> only_aligned = false;
         tool_ctx -> only_unaligned = false;
     }
+    if ( ignore_stdout ) {
+        rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
+        ErrMsg( "directing output to stdout requested." );
+        ErrMsg( "but requested mode ( %s ) would produce multiple files", fmt_2_string( tool_ctx -> fmt ) );
+    }
+    return rc;
 }
 
 rc_t release_tool_ctx( const tool_ctx_t * tool_ctx, rc_t rc_in ) {
@@ -578,7 +557,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
 
     /* enforce some constrains: thread-count, mem-limit, buffer-size, stdout, only-aligned/unaligned */
     if ( 0 == rc ) {
-        tool_ctx_encforce_constrains( tool_ctx ); /* above */
+        rc = tool_ctx_encforce_constrains( tool_ctx ); /* above */
     }
 
     /* extract the accesion-string, for output- and temp-files to use */

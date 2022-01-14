@@ -263,6 +263,8 @@ elseif( SINGLE_CONFIG )
 else() # XCode
 	# TODO: WIN32 and Mac still work in an assumption that ncbi-vdb sources are checked out alongside with sra-tools
 	set( USE_INSTALLED_NCBI_VDB 0 )
+        # Workaround for Xcode's signing phase code-braking behavior
+        set(CMAKE_XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "-o 131072" ) # linker-signed
 endif()
 
 

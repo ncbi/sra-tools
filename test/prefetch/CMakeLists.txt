@@ -20,7 +20,7 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# ==============================================================================
 
 add_compile_definitions( __mod__="test/prefetch" )
 
@@ -34,13 +34,17 @@ if ( NOT WIN32 )
 	BuildExecutableForTest( SlowTest_Prefetch "test-quality" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 
 	add_test( NAME Test_Prefetch_urls_and_accs
-		COMMAND perl urls_and_accs.pl ${BINDIR} ${BINDIR}
+		COMMAND perl urls_and_accs.pl ${DIRTOTEST} ${BINDIR}
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+	add_test( NAME Test_Prefetch_out_dir_and_file
+		COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 	add_test( NAME SlowTest_Prefetch
 		COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
-            bash -c "./runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}"
+            bash -c "sh runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
 	add_test( NAME SlowTest_Prefetch_1GB

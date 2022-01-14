@@ -173,6 +173,14 @@ if( NOT TARGDIR )
     set( TARGDIR ${CMAKE_BINARY_DIR} )
 endif()
 
+# VDB-4651 - relying on ./configure's logic for determining interfaces location
+set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
+if ( NOT VDB_INTERFACES_DIR OR NOT EXISTS ${VDB_INTERFACES_DIR} )
+	message(FATAL_ERROR "VDB_INCDIR=\"${VDB_INTERFACES_DIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_INCDIR variable pointing to the ncbi-vdb headers (interfaces) must be specified.")
+else()
+	message("Using ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
+endif()
+
 if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
     set( SINGLE_CONFIG false )
@@ -217,16 +225,13 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 else() # assume a single-config generator
     set( SINGLE_CONFIG true )
 
-    # if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
-        # message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
-    # endif()
-
-    if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
-        message( FATAL_ERROR "Please specify the location where ncbi-vdb libraries are installed (VDB_LIBDIR)")
-    endif()
+	if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
+		message(FATAL_ERROR "VDB_LIBDIR=\"${VDB_LIBDIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_LIBDIR variable pointing to the ncbi-vdb binary libraries must be specified.")
+	else()
+		message("Using ncbi-vdb binary libraries: ${VDB_LIBDIR}")
+	endif()
 
     set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
-    message(WARNING "Linking with ncbi-vdb libraries from the following location: ${NCBI_VDB_LIBDIR}")
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )
@@ -241,7 +246,6 @@ else() # assume a single-config generator
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
     link_directories( ${NCBI_VDB_LIBDIR} ) # Must point to the installed ncbi-vdb libs
-    #link_directories( ${NCBI_VDB_ILIBDIR} ) # TODO: not clear what to do in case USE_INSTALLED_NCBI_VDB == 1
 endif()
 
 # ===========================================================================
@@ -258,8 +262,6 @@ else() # XCode
 	set( USE_INSTALLED_NCBI_VDB 0 )
 endif()
 
-# VDB-4651 - relying on ./configure's logic for determining interfaces location
-set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
 
 include_directories( ${VDB_INTERFACES_DIR} )
 

@@ -8,3 +8,4 @@
 problems:
 SRR2989969 ( difference in ref-orientation between SEQUENCE- and PRIMARY_ALIGNMENT-table )
 
+test test test

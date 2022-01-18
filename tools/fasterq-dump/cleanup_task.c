@@ -26,13 +26,28 @@
 
 struct KFastDumpCleanupTask_t;
 #define KTASK_IMPL struct KFastDumpCleanupTask_t
+
 #include <kproc/impl.h>
 
+#ifndef _h_klib_rc_
 #include <klib/rc.h>
-#include <klib/out.h>
-#include <kproc/procmgr.h>
+#endif
 
-#include "helper.h"
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_kproc_procmgr_
+#include <kproc/procmgr.h>
+#endif
+
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_locked_file_list_
+#include "locked_file_list.h"
+#endif
 
 typedef struct KFastDumpCleanupTask_t {
     KTask dad;

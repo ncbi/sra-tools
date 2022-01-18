@@ -47,16 +47,21 @@ extern "C" {
 #include <vdb/manager.h>
 #endif
 
-rc_t execute_lookup_production( KDirectory * dir,
-                                const VDBManager * vdb_mgr,
-                                const char * accession_short,
-                                const char * accession_path,
-                                struct background_vector_merger_t * merger,
-                                size_t cursor_cache,
-                                size_t buf_size,
-                                size_t mem_limit,
-                                uint32_t num_threads,
-                                bool show_progress );
+typedef struct lookup_production_args_t {
+    KDirectory * dir;
+    const VDBManager * vdb_mgr;
+    const char * accession_path;
+    const char * accession_short;
+    struct background_vector_merger_t * merger; /*merge_sorter.h */
+    uint64_t align_row_count;
+    size_t cursor_cache;
+    size_t buf_size;
+    size_t mem_limit;
+    uint32_t num_threads;
+    bool show_progress;
+} lookup_production_args_t;
+
+rc_t execute_lookup_production( const lookup_production_args_t * args );
 
 #ifdef __cplusplus
 }

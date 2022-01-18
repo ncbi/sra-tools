@@ -22,8 +22,8 @@
 //
 // ===========================================================================
 
-#include "samextract-pool.h"
-#include "samextract.h"
+#include "align/samextract-pool-priv.h"
+#include "align/samextract-priv.h"
 #include <align/samextract-lib.h>
 #include <ctype.h>
 #include <glob.h>

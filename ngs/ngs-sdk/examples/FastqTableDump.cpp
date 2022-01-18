@@ -24,7 +24,7 @@
 *
 */
 
-#include <ncbi-vdb/NGS.hpp>
+#include <ncbi/NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/ReadIterator.hpp>
@@ -41,18 +41,15 @@ class FastqTableDump
 {
 public:
 
-    static void run ( String acc )
+    static void run ( String acc, int rows )
     {
 
         // open requested accession using SRA implementation of the API
         ReadCollection run = ncbi::NGS::openReadCollection ( acc );
         String run_name = run.getName ();
 
-        // compute window to iterate through
-        long MAX_ROW = run.getReadCount (); 
-
         //start iterator on reads
-        ReadIterator it = run.getReadRange ( 1, MAX_ROW, Read::all );
+        ReadIterator it = run.getReadRange ( 1, rows, Read::all );
 
         long i;
         for ( i = 0; it.nextRead (); ++ i )
@@ -74,14 +71,14 @@ public:
 
 int main (int argc, char const *argv[])
 {
-    if ( argc != 2 )
+    if ( argc != 3 )
     {
-        cerr << "Usage: FastqTableDump accession \n";
+        cerr << "Usage: FastqTableDump accession rows\n";
     }
     else try
     {
         ncbi::NGS::setAppVersionString ( "FastqTableDump.1.1.0" );
-        FastqTableDump::run ( argv[1]) ;
+        FastqTableDump::run ( argv[1], atoi ( argv[2] ) );
         return 0;
     }
     catch ( ErrorMsg & x )

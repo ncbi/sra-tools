@@ -17,9 +17,11 @@ using data in the INSDC Sequence Read Archives.
 
 To build from source, you need one of the supported operating systems (Linux, Windows, MacOS) and CMake (minimum version 3.16). On Linux and MacOS you need the GNU C/C++ toolchain (On MacOS, you may also use CMake to generate an XCode project), on Windows a set of MS Build Tools for Visual Studio 2017 or 2019.
 
-As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK (https://github.com/ncbi/ncbi-vdb). In the following instructions, we refer to ......................................................................... as ```<path-to-sdk>```
+As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK (https://github.com/ncbi/ncbi-vdb). The easiest way to build the toolkit from the sources is to checkout the SDK and the toolkit side-by side (ncbi-vdb/ and sra-tools/ under a common parent directory) and run configure/make first in ncbi-vdb/ and then in sra-tools/, as described below.
 
 ### Linux, MacOS (gmake)
+
+0. Build or download the SDK. For instructions, see README.md in https://github.com/ncbi/ncbi-vdb
 
 1. In the root of the sra-tools checkout, run:
 
@@ -28,6 +30,8 @@ As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK
 ```
 
 Use ```./configure -h``` for the list of available optins
+
+If the SDK is checked out side-by-side with the toolkit (i.e. ncbi-vdb/ and sra-tools/ share a common parent directory), the configuration step will locate it and set the internal variables to point to its headers and libraries. Otherwise, you would need to specify their location using the configuration option --with-ncbi-vdb-prefix=```<path-to-sdk-checkout>```
 
 2. Once the configuration script has successfully finished, run:
 
@@ -47,27 +51,27 @@ The ```make``` command inside the source tree supports several additional target
 
 ### MacOS (XCode)
 
-To generate an XCode project, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Add an entry ```VDB_BINDIR=<path-to-sdk>``` to the list of cache variables. Choose Xcode as the generator and click "Generate". Once the CMake generation succeeds, there will be an XCode project file ```ncbi-vdb.xcodeproj``` in the build's binary directory. You can open it with XCode and build from the IDE.
+To generate an XCode project, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory.
+Add entries ```VDB_BINDIR=<path-to-sdk-build>``` and ```VDB_INCDIR=<path-to-sdk-headers>``` to the list of cache variables. Choose Xcode as the generator and click "Generate". Once the CMake generation succeeds, there will be an XCode project file ```ncbi-vdb.xcodeproj``` in the build's binary directory. You can open it with XCode and build from the IDE.
 
-
-Alternatively, you can configure and build from the command line:
+Alternatively, you can configure and build from the command line, in which case you would need to provide the 2 paths to the SDK's libraries and headers:
 
 ```
-cmake <path-to-sra-tools> -G Xcode -DVDB_BINDIR=<path-to-sdk>
+cmake <path-to-sra-tools> -G Xcode -DVDB_BINDIR=<path-to-sdk-build> -DVDB_INCDIR=<path-to-sdk-headers>
 cmake --build . --config Debug      # or Release
 ```
 
 ### Windows (Visual Studio)
 
-To generate an MS Visual Studio solution, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Add an entry ```VDB_BINDIR=<path-to-sdk>``` to the list of cache variables. Now, choose one of the supported Visual Studio generators (see NOTE below) and a 64-bit generator, and click on "Configure" and then "Generate". Once the CMake generation succeeds, there will be an MS VS solution file ```sra-tools.sln``` in the build's binary directory. You can open it with the Visual Studio and build from the IDE.
+To generate an MS Visual Studio solution, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Add entries ```VDB_BINDIR=<path-to-sdk-build>``` and ```VDB_INCDIR=<path-to-sdk-headers>``` to the list of cache variables. Now, choose one of the supported Visual Studio generators (see NOTE below) and a 64-bit generator, and click on "Configure" and then "Generate". Once the CMake generation succeeds, there will be an MS VS solution file ```sra-tools.sln``` in the build's binary directory. You can open it with the Visual Studio and build from the IDE.
 
 NOTE: This release supports generators ```Visual Studio 15 2017``` and ```Visual Studio 16 2019```, only for 64 bit platforms.
 
 
-Alternatively, you can configure and build from the command line (assuming the correct MSVS Build Tools are in the %PATH%), e.g.:
+Alternatively, you can configure and build from the command line (assuming the correct MSVS Build Tools are in the %PATH%), in which case you would need to provide the 2 paths to the SDK's libraries and headers:
 
 ```
-cmake <path-to-sra-tools> -G "Visual Studio 16 2019" -A x64 -DVDB_BINDIR=<path-to-sdk>
+cmake <path-to-sra-tools> -G "Visual Studio 16 2019" -A x64 -DVDB_BINDIR=<path-to-sdk-build> -DVDB_INCDIR=<path-to-sdk-headers>
 cmake --build . --config Debug      # or Release
 ```
 
@@ -76,7 +80,7 @@ cmake --build . --config Debug      # or Release
 
 December 9, 2021. Upcoming changes to the source build system:
 
-NCBI’s SRA will change the source build system to use CMake in the next toolkit release (date TBD). This change is an important step to improve developers’ productivity as it provides unified cross platform access to support multiple build systems. This change affects developers building NCBI SRA tools from source. Old makefiles and build systems will no longer be supported after we make this change.
+NCBI’s SRA will change the source build system to use CMake in the next toolkit release, 3.0.0. This change is an important step to improve developers’ productivity as it provides unified cross platform access to support multiple build systems. This change affects developers building NCBI SRA tools from source. Old makefiles and build systems will no longer be supported after we make this change.
 
 This change will also include the structure of GitHub repositories, which will undergo consolidation to provide an easier environment for building tools and libraries (NGS libs and dependencies are consolidated). Consolidation of NGS libraries and dependencies provides better usage scope isolation and makes building more straightforward.
 

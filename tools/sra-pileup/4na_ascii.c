@@ -47,8 +47,7 @@
 ***************************************/
 
 
-static char _4na_2_ascii_tab[] =
-{
+static char _4na_2_ascii_tab[] = {
 /*  0x0  0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
     'N', 'A', 'C', 'M', 'G', 'R', 'S', 'V', 'T', 'W', 'Y', 'H', 'K', 'D', 'B', 'N',
     'n', 'a', 'c', 'm', 'g', 'r', 's', 'v', 't', 'w', 'y', 'h', 'k', 'd', 'b', 'n'
@@ -75,8 +74,7 @@ static char _4na_2_ascii_tab[] =
 ***************************************/
 
 
-static uint32_t _4na_2_index_tab[] =
-{
+static uint32_t _4na_2_index_tab[] = {
 /*  0x0  0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
      0,   0,   1,   0,   2,   0,  0,   0,   3,   0,   0,   0,   0,   0,   0,   0 
 };
@@ -84,12 +82,10 @@ static uint32_t _4na_2_index_tab[] =
 
 /* ------------------------------------------------------------------------------------- */
 
-char _4na_to_ascii( INSDC_4na_bin c, bool reverse )
-{
+char _4na_to_ascii( INSDC_4na_bin c, bool reverse ) {
     return _4na_2_ascii_tab[ ( c & 0x0F ) | ( reverse ? 0x10 : 0 ) ];
 }
 
-uint32_t _4na_to_index( INSDC_4na_bin c )
-{
+uint32_t _4na_to_index( INSDC_4na_bin c ) {
     return _4na_2_index_tab[ ( c & 0x0F ) ];
 }

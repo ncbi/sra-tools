@@ -29,32 +29,24 @@
 #include "ref_walker_0.h"
 #include "4na_ascii.h"
 
-typedef struct indel_counters
-{
+typedef struct indel_counters {
     uint32_t coverage;
     uint32_t deletes;
     uint32_t inserts;
 } indel_counters;
 
-
-static rc_t CC walk_indels_enter_ref_pos( walk_data * data )
-{
+static rc_t CC walk_indels_enter_ref_pos( walk_data * data ) {
     indel_counters * vc = data->data;
     memset( vc, 0, sizeof *vc );
     return 0;
 }
 
-
-static rc_t CC walk_indels_exit_ref_pos( walk_data * data )
-{
-	rc_t rc = 0;
-    if ( data->depth > 0 )
-    {
+static rc_t CC walk_indels_exit_ref_pos( walk_data * data ) {
+    rc_t rc = 0;
+    if ( data->depth > 0 ) {
         indel_counters * vc = data->data;
-		if ( ( vc -> deletes + vc -> inserts ) > 0 )
-		{
-			char ref_base = _4na_to_ascii( data->ref_base, false );
-
+        if ( ( vc -> deletes + vc -> inserts ) > 0 ) {
+            char ref_base = _4na_to_ascii( data->ref_base, false );
 /*
         A ... ref-name
         B ... ref-pos
@@ -63,36 +55,32 @@ static rc_t CC walk_indels_exit_ref_pos( walk_data * data )
 
         E ... total deletes
         F ... total insertes
-                          A   B   C   D   E   F
+                        A   B   C   D   E   F
 */
-			rc = KOutMsg( "%s\t%u\t%c\t%u\t%u\t%u\n", 
-                     data->ref_name, data->ref_pos + 1, ref_base, data->depth,
-                     vc->deletes, vc->inserts );
-		}
+            rc = KOutMsg( "%s\t%u\t%c\t%u\t%u\t%u\n", 
+                    data->ref_name, data->ref_pos + 1, ref_base, data->depth,
+                    vc->deletes, vc->inserts );
+        }
     }
-	return rc;
+    return rc;
 }
 
-
-static rc_t CC walk_indels_placement( walk_data * data )
-{
+static rc_t CC walk_indels_placement( walk_data * data ) {
     int32_t state = data->state;
-    if ( ( state & align_iter_invalid ) != align_iter_invalid )
-    {
+    if ( ( state & align_iter_invalid ) != align_iter_invalid ) {
         indel_counters * vc = data->data;
 
-        if ( ( state & align_iter_skip ) == align_iter_skip )
+        if ( ( state & align_iter_skip ) == align_iter_skip ) {
             ( vc->deletes ) ++;
-
-        if ( ( state & align_iter_insert ) == align_iter_insert )
+        }
+        if ( ( state & align_iter_insert ) == align_iter_insert ) {
             ( vc->inserts )++;
+        }
     }
     return 0;
 }
 
-
-rc_t walk_indels( ReferenceIterator *ref_iter, pileup_options * options )
-{
+rc_t walk_indels( ReferenceIterator *ref_iter, pileup_options * options ) {
     walk_data data;
     walk_funcs funcs;
 

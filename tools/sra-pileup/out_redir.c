@@ -32,89 +32,75 @@
 #include <kfs/gzip.h>
 #include <sysalloc.h>
 
-static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufsize, size_t * num_writ )
-{
+static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufsize, size_t * num_writ ) {
     out_redir * redir = ( out_redir * )self;
     rc_t rc = KFileWriteAll( redir->kfile, redir->pos, buffer, bufsize, num_writ );
-    if ( rc == 0 )
-        redir->pos += *num_writ;
+    if ( rc == 0 ) {
+        redir -> pos += *num_writ;
+    }
     return rc;
 }
 
-
-rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * filename, size_t bufsize )
-{
+rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * filename, size_t bufsize ) {
     rc_t rc;
     KFile *output_file;
 
-    if ( filename != NULL )
-    {
+    if ( filename != NULL ) {
         KDirectory *dir;
         rc = KDirectoryNativeDir( &dir );
-        if ( rc != 0 )
+        if ( rc != 0 ) {
             LOGERR( klogInt, rc, "KDirectoryNativeDir() failed" );
-        else
-        {
+        } else {
             rc = KDirectoryCreateFile ( dir, &output_file, false, 0664, kcmInit, "%s", filename );
             KDirectoryRelease( dir );
         }
-    }
-    else
+    } else {
         rc = KFileMakeStdOut ( &output_file );
+    }
 
-    if ( rc == 0 )
-    {
+    if ( rc == 0 ) {
         KFile *temp_file;
 
         /* wrap the output-file in compression, if requested */
-        switch ( mode )
-        {
+        switch ( mode ) {
             case orm_gzip  : rc = KFileMakeGzipForWrite( &temp_file, output_file ); break;
             case orm_bzip2 : rc = KFileMakeBzip2ForWrite( &temp_file, output_file ); break;
             case orm_uncompressed : break;
         }
-        if ( rc == 0 )
-        {
-            if ( mode != orm_uncompressed )
-            {
+        if ( rc == 0 ) {
+            if ( mode != orm_uncompressed ) {
                 KFileRelease( output_file );
                 output_file = temp_file;
             }
 
             /* wrap the output/compressed-file in buffering, if requested */
-            if ( bufsize != 0 )
-            {
+            if ( bufsize != 0 ) {
                 rc = KBufFileMakeWrite( &temp_file, output_file, false, bufsize );
-                if ( rc == 0 )
-                {
+                if ( rc == 0 ) {
                     KFileRelease( output_file );
                     output_file = temp_file;
                 }
             }
 
-            if ( rc == 0 )
-            {
+            if ( rc == 0 ) {
                 self->kfile = output_file;
                 self->org_writer = KOutWriterGet();
                 self->org_data = KOutDataGet();
                 self->pos = 0;
                 rc = KOutHandlerSet( out_redir_callback, self );
-                if ( rc != 0 )
+                if ( rc != 0 ) {
                     LOGERR( klogInt, rc, "KOutHandlerSet() failed" );
+                }
             }
         }
     }
     return rc;
 }
 
-
-void release_out_redir( out_redir * self )
-{
+void release_out_redir( out_redir * self ) {
     KFileRelease( self->kfile );
-    if( self->org_writer != NULL )
-    {
-        KOutHandlerSet( self->org_writer, self->org_data );
+    if( self->org_writer != NULL ) {
+        KOutHandlerSet( self -> org_writer, self -> org_data );
     }
-    self->org_writer = NULL;
+    self -> org_writer = NULL;
 }
-

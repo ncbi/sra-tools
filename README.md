@@ -19,7 +19,7 @@ To build from source, you need one of the supported operating systems (Linux, Wi
 
 As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK (https://github.com/ncbi/ncbi-vdb). The easiest way to build the toolkit from the sources is to checkout the SDK and the toolkit side-by-side (ncbi-vdb/ and sra-tools/ under a common parent directory) and run configure/make first in ncbi-vdb/ and then in sra-tools/, as described below.
 
-### Linux, MacOS (gmake)
+### Linux, macOS (gmake)
 
 0. Build or download the SDK. For instructions, see README.md in https://github.com/ncbi/ncbi-vdb
 
@@ -51,7 +51,7 @@ Running ```make``` from any directory inside the source tree will invoke the sam
 
 The ```make``` command inside the source tree supports several additional targets; run ```make help``` for the list and short descriptions.
 
-### MacOS (XCode)
+### macOS (XCode)
 
 To generate an XCode project, you will need to first checkout and build ncbi-vdb, then check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Click "Configure", then edit the entries for `VDB_BINDIR` and `VDB_INCDIR` to contain the paths for the CMake build directory for ncbi-vdb and the `interfaces` directory in the ncbi-vdb source directory, respectively. Choose "Xcode" as the generator and click "Configure" and then "Generate". Once the CMake generation succeeds, there will be an XCode project file `ncbi-vdb.xcodeproj` in the build's binary directory. You can open it with XCode and build from the IDE.
 

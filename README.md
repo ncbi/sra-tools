@@ -31,7 +31,9 @@ As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK
 
 Use ```./configure -h``` for the list of available optins
 
-If the SDK is checked out side-by-side with the toolkit (i.e. ncbi-vdb/ and sra-tools/ share a common parent directory), the configuration step will locate it and set the internal variables to point to its headers and libraries. Otherwise, you would need to specify their location using the configuration option --with-ncbi-vdb-prefix=```<path-to-sdk-checkout>```
+If the SDK is checked out side-by-side with the toolkit (i.e. ncbi-vdb/ and sra-tools/ share a common parent directory), the configuration step will locate it and set the internal variables to point to its headers and libraries. Otherwise, you would need to specify their location using the configuration option --with-ncbi-vdb-prefix=```<path-to-sdk>```
+If you do not specify the --with-ncbi-vdb-prefix and there is no ncbi-vdb/ checked out side-by-side with sra-tools, the configuration script will look for a copy of the SDK installed into the system location, /usr/local/ncbi/ncbi-vdb.
+
 
 2. Once the configuration script has successfully finished, run:
 

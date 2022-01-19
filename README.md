@@ -44,8 +44,8 @@ make
 This will invoke a Makefile that performs the following sequence:
 * retrieve all the settings saved by the configuration script
 * pass the settings to CMake
-  * if this is the first time CMake is invoked, it will generate a project tree. The project tree will be located underneath the directory specified in the ```--build-prefix``` option of the configuration. The location can be displayed by running ```make config``` or ```make help``` inside the source tree.
-  * build the CMake-generated project
+* if this is the first time CMake is invoked, it will generate a project tree. The project tree will be located underneath the directory specified in the ```--build-prefix``` option of the configuration. The location can be displayed by running ```make config``` or ```make help``` inside the source tree.
+* build the CMake-generated project
 
 Running ```make``` from any directory inside the source tree will invoke the same sequence but limit the scope of the build to the sub-tree with the current directory as the root.
 
@@ -53,8 +53,7 @@ The ```make``` command inside the source tree supports several additional target
 
 ### MacOS (XCode)
 
-To generate an XCode project, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory.
-Add entries ```VDB_BINDIR=<path-to-sdk-build>``` and ```VDB_INCDIR=<path-to-sdk-headers>``` to the list of cache variables. Choose Xcode as the generator and click "Generate". Once the CMake generation succeeds, there will be an XCode project file ```ncbi-vdb.xcodeproj``` in the build's binary directory. You can open it with XCode and build from the IDE.
+To generate an XCode project, you will need to first checkout and build ncbi-vdb, then check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Click "Configure", then edit the entries for `VDB_BINDIR` and `VDB_INCDIR` to contain the paths for the CMake build directory for ncbi-vdb and the `interfaces` directory in the ncbi-vdb source directory, respectively. Choose "Xcode" as the generator and click "Configure" and then "Generate". Once the CMake generation succeeds, there will be an XCode project file `ncbi-vdb.xcodeproj` in the build's binary directory. You can open it with XCode and build from the IDE.
 
 Alternatively, you can configure and build from the command line, in which case you would need to provide the 2 paths to the SDK's libraries and headers:
 
@@ -65,7 +64,7 @@ cmake --build . --config Debug      # or Release
 
 ### Windows (Visual Studio)
 
-To generate an MS Visual Studio solution, check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Add entries ```VDB_BINDIR=<path-to-sdk-build>``` and ```VDB_INCDIR=<path-to-sdk-headers>``` to the list of cache variables. Now, choose one of the supported Visual Studio generators (see NOTE below) and a 64-bit generator, and click on "Configure" and then "Generate". Once the CMake generation succeeds, there will be an MS VS solution file ```sra-tools.sln``` in the build's binary directory. You can open it with the Visual Studio and build from the IDE.
+To generate an MS Visual Studio solution, you will need to first checkout and build ncbi-vdb, then check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Click "Configure", then edit the entries for `VDB_BINDIR` and `VDB_INCDIR` to contain the paths for the CMake build directory for ncbi-vdb and the `interfaces` directory in the ncbi-vdb source directory, respectively. Now, choose one of the supported Visual Studio generators (see NOTE below) and a 64-bit generator, and click "Configure" and then "Generate". Once the CMake generation succeeds, there will be an MS VS solution file ```sra-tools.sln``` in the build's binary directory. You can open it with the Visual Studio and build from the IDE.
 
 NOTE: This release supports generators ```Visual Studio 15 2017``` and ```Visual Studio 16 2019```, only for 64 bit platforms.
 

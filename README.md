@@ -15,7 +15,7 @@ using data in the INSDC Sequence Read Archives.
 
 ## How To Build From Source
 
-To build from source, you need one of the supported operating systems (Linux, Windows, MacOS) and CMake (minimum version 3.16). On Linux and MacOS you need the GNU C/C++ toolchain (On MacOS, you may also use CMake to generate an Xcode project), on Windows a set of MS Build Tools for Visual Studio 2017 or 2019.
+To build from source, you need one of the supported operating systems (Linux, Windows, macOS) and CMake (minimum version 3.16). On Linux and macOS you need the GNU C/C++ toolchain (On macOS, you may also use CMake to generate an Xcode project), on Windows a set of MS Build Tools for Visual Studio 2017 or 2019.
 
 As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK (https://github.com/ncbi/ncbi-vdb). The easiest way to build the toolkit from the sources is to checkout the SDK and the toolkit side-by-side (ncbi-vdb/ and sra-tools/ under a common parent directory) and run configure/make first in ncbi-vdb/ and then in sra-tools/, as described below.
 

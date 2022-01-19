@@ -1901,11 +1901,11 @@ EndText
         foreach my $href (@REQ) {
             next if (optional($href->{type}));
             my %a = %$href;
-            if ($a{type} =~ /S/) {
+            if ($need_source) {
                 println "  --$a{option}=DIR    search for $a{name} package";
                 println "                                 source files in DIR";
             } else {
-                unless ($a{type} =~ /E/) {
+                unless ($need_bin) {
                   println
                     "  --$a{option}=DIR      search for $a{name} package in DIR"
                 }

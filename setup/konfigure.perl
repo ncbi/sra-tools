@@ -1901,6 +1901,8 @@ EndText
         foreach my $href (@REQ) {
             next if (optional($href->{type}));
             my %a = %$href;
+            my $need_source = $a{type} =~ /S/;
+            my $need_bin    = $a{type} =~ /E/;
             if ($need_source) {
                 println "  --$a{option}=DIR    search for $a{name} package";
                 println "                                 source files in DIR";

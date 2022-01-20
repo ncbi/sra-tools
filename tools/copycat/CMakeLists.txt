@@ -39,4 +39,9 @@ if( ${OS} STREQUAL "linux" )
     )
     target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${NCBI_VDB_LIBDIR}/libkff.${STLX} ${NCBI_VDB_LIBDIR}/libmagic.${STLX} )
     MakeLinksExe( copycat false )
+
+    # copy/install the magic file
+    configure_file( magic ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/magic COPYONLY )
+    install( FILES magic DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+
 endif()

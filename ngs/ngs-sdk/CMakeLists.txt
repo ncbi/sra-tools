@@ -42,7 +42,9 @@ endif()
 
 set( NCBI_NGS_TARGETS
     ngs
+    ncbi-ngs-c++
     ngs-py
+    ${NGS_CPP_TARGETS}
 )
 if ( Java_FOUND )
     set( NCBI_NGS_TARGETS ${NCBI_NGS_TARGETS} ngs-jni )
@@ -56,4 +58,8 @@ if( SINGLE_CONFIG OR WIN32 )
 else() # XCode
     include( CMakeLists.xcode.txt )
 endif()
+
+install( DIRECTORY ngs
+         DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+)
 

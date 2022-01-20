@@ -43,16 +43,13 @@ if( NOT WIN32 )
             pacbio-load
         )
 
-        # set( PACBIO_LOAD_LIB
-        # 	kapp
-        # 	tk-version
-        # 	kdf5
-        # 	load
-        # 	${HDF5_LIBRARIES}
-        # 	${COMMON_LIBS_WRITE}
-        # )
+        if ( SINGLE_CONFIG )
+           target_link_libraries( pacbio-load ${NCBI_VDB_LIBDIR}/libkdf5.${STLX} )
+        else()
+           target_link_libraries( pacbio-load kdf5 )
+        endif()
+        target_link_libraries( pacbio-load ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 
-        target_link_libraries( pacbio-load ${NCBI_VDB_LIBDIR}/libkdf5.${STLX} ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
         MakeLinksExe( pacbio-load false )
     endif()
 

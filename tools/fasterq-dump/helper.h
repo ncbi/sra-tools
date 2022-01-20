@@ -112,6 +112,8 @@ format_t get_format_t( const char * format,
 
 const char * out_ext( bool fasta );
 
+const char * fmt_2_string( format_t fmt );
+
 /* -------------------------------------------------------------------------------- */
 
 typedef enum check_mode_t {
@@ -121,6 +123,12 @@ typedef enum check_mode_t {
 check_mode_t get_check_mode_t( const char * mode );
 
 bool is_perform_check( check_mode_t mode );
+
+const char * check_mode_2_string( check_mode_t cm );
+
+/* -------------------------------------------------------------------------------- */
+
+const char * yes_or_no( bool b );
 
 /* -------------------------------------------------------------------------------- */
 

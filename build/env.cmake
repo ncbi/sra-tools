@@ -48,14 +48,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # determine OS
 if ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Darwin" )
     set(OS "mac")
+    set(LIBPFX "lib")
     set(SHLX "dylib")
     set(STLX "a")
 elseif ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Linux" )
     set(OS "linux")
+    set(LIBPFX "lib")
     set(SHLX "so")
     set(STLX "a")
 elseif ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Windows" )
     set(OS "windows")
+    set(LIBPFX "")
     set(STLX "lib")
 elseif()
     message ( FATAL_ERROR "unknown OS " ${CMAKE_HOST_SYSTEM_NAME})
@@ -173,6 +176,14 @@ if( NOT TARGDIR )
     set( TARGDIR ${CMAKE_BINARY_DIR} )
 endif()
 
+# VDB-4651 - relying on ./configure's logic for determining interfaces location
+set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
+if ( NOT VDB_INTERFACES_DIR OR NOT EXISTS ${VDB_INTERFACES_DIR} )
+	message(FATAL_ERROR "VDB_INCDIR=\"${VDB_INTERFACES_DIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_INCDIR variable pointing to the ncbi-vdb headers (interfaces) must be specified.")
+else()
+	message("Using ncbi-vdb interfaces: ${VDB_INTERFACES_DIR}")
+endif()
+
 if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
      ${CMAKE_GENERATOR} STREQUAL "Xcode" )
     set( SINGLE_CONFIG false )
@@ -217,19 +228,13 @@ if ( ${CMAKE_GENERATOR} MATCHES "Visual Studio.*" OR
 else() # assume a single-config generator
     set( SINGLE_CONFIG true )
 
-    # if( NOT VDB_BINDIR OR NOT EXISTS ${VDB_BINDIR} )
-        # message( FATAL_ERROR "Please specify the location of an ncbi-vdb build in Cmake variable VDB_BINDIR. It is expected to contain subdirectories bin/, lib/, ilib/.")
-    # endif()
+	if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
+		message(FATAL_ERROR "VDB_LIBDIR=\"${VDB_LIBDIR}\" does not exist - ncbi-vdb was not installed in that location. VDB_LIBDIR variable pointing to the ncbi-vdb binary libraries must be specified.")
+	else()
+		message("Using ncbi-vdb binary libraries: ${VDB_LIBDIR}")
+	endif()
 
-    if( NOT VDB_LIBDIR OR NOT EXISTS ${VDB_LIBDIR} )
-        message( FATAL_ERROR "Please specify the location where ncbi-vdb libraries are installed (VDB_LIBDIR)")
-    endif()
-
-    #set( NCBI_VDB_BINDIR ${VDB_BINDIR}/bin )
-    #set( NCBI_VDB_LIBDIR ${VDB_BINDIR}/lib )
     set( NCBI_VDB_LIBDIR ${VDB_LIBDIR} )
-    #set( NCBI_VDB_ILIBDIR ${VDB_BINDIR}/ilib )
-    message(WARNING "Linking with ncbi-vdb libraries from the following location: ${NCBI_VDB_LIBDIR}")
 
     SetAndCreate( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TARGDIR}/bin )
     SetAndCreate( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${TARGDIR}/lib )
@@ -244,7 +249,6 @@ else() # assume a single-config generator
     SetAndCreate( TEMPDIR "${TESTBINDIR}/tmp" )
 
     link_directories( ${NCBI_VDB_LIBDIR} ) # Must point to the installed ncbi-vdb libs
-    #link_directories( ${NCBI_VDB_ILIBDIR} ) # TODO: not clear what to do in case USE_INSTALLED_NCBI_VDB == 1
 endif()
 
 # ===========================================================================
@@ -259,10 +263,10 @@ elseif( SINGLE_CONFIG )
 else() # XCode
 	# TODO: WIN32 and Mac still work in an assumption that ncbi-vdb sources are checked out alongside with sra-tools
 	set( USE_INSTALLED_NCBI_VDB 0 )
+        # Workaround for Xcode's signing phase code-braking behavior
+        set(CMAKE_XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS "-o 131072" ) # linker-signed
 endif()
 
-# VDB-4651 - relying on ./configure's logic for determining interfaces location
-set( VDB_INTERFACES_DIR "${VDB_INCDIR}" )
 
 include_directories( ${VDB_INTERFACES_DIR} )
 
@@ -297,7 +301,7 @@ if( NOT DIRTOTEST )
 endif()
 #message( DIRTOTEST: ${DIRTOTEST})
 
-# CONFIGTOUSE is a way to block user settings ($HOME/.ncbi/user-settings.mkfg). Assign anything but NCBI_SETTINGS to it, and the user settings will be ignored
+# CONFIGTOUSE is a way to block user settings ($HOME/.ncbi/user-settings.mkfg). Assign anything but NCBI_SETTINGS to it, and the user settings will be ignored.
 if( NOT CONFIGTOUSE )
     set( CONFIGTOUSE NCBI_SETTINGS )
 endif()
@@ -357,6 +361,9 @@ function( ExportStatic name install )
             ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
         set_target_properties( ${name} PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
+        if ( ${install} )
+            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64 )
+        endif()
     endif()
 endfunction()
 
@@ -387,6 +394,17 @@ function(MakeLinksShared target name install)
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
         )
+        endif()
+    else()
+        set_target_properties( ${target} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG})
+        set_target_properties( ${target} PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
+        if ( ${install} )
+            install( TARGETS ${target}
+                     ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            )
         endif()
     endif()
 endfunction()
@@ -449,13 +467,28 @@ function(MakeLinksExe target install_via_driver)
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+    else()
+        if ( install_via_driver )
+                install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
+                         RENAME ${target}-orig${EXE}
+                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                )
+                install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE}
+                         RENAME ${target}${EXE}
+                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                )
+        else()
+            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+        endif()
+
     endif()
 endfunction()
 
-if( WIN32 )
+
+if( NOT SINGLE_CONFIG )
     set( COMMON_LINK_LIBRARIES kapp load tk-version )
-    set( COMMON_LIBS_READ  ncbi-vdb.${STLX} )
-    set( COMMON_LIBS_WRITE ncbi-wvdb.${STLX} )
+    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} )
+    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
     set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} ${NCBI_VDB_LIBDIR}/libload.${STLX} tk-version )
@@ -468,13 +501,10 @@ if( WIN32 )
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
-    # unset(CMAKE_IMPORT_LIBRARY_SUFFIX) # do not generate import libraries
-    # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  /INCREMENTAL:NO" )
 endif()
 
 function( BuildExecutableForTest exe_name sources libraries )
 	add_executable( ${exe_name} ${sources} )
-	#MSVS_StaticRuntime( ${exe_name} )
 	target_link_libraries( ${exe_name} ${libraries} )
 endfunction()
 
@@ -482,3 +512,20 @@ function( AddExecutableTest test_name sources libraries )
 	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
 	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endfunction()
+
+
+if ( SINGLE_CONFIG )
+    # standard kfg files
+    install( SCRIPT CODE
+        "execute_process( COMMAND /bin/bash -c \
+            \"${CMAKE_SOURCE_DIR}/build/install.sh  \
+                ${VDB_INCDIR}/kfg/ncbi              \
+                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
+                ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
+                /etc/ncbi                           \
+                ${CMAKE_INSTALL_PREFIX}/bin         \
+                ${CMAKE_INSTALL_PREFIX}/lib64       \
+                ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
+            \" )"
+    )
+endif()

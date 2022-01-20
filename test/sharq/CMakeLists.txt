@@ -22,7 +22,7 @@
 #
 # ===========================================================================
 
-if( NOT WIN32 )
+if( SINGLE_CONFIG )
 
 find_package(ZLIB)
 find_package(BZip2)

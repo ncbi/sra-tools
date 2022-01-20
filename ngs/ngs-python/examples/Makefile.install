@@ -22,5 +22,52 @@
 #
 # ===========================================================================
 
-# SRA-TOOLS and library version
-VERSION = 3.0.0
+
+default: run_all
+
+clean:
+
+.PHONY: default clean
+
+PYTHON ?= python3
+
+NGS_EXAMPLES = \
+	FragTest \
+	AlignTest \
+	AlignSliceTest \
+	PileupTest \
+	RefTest
+
+# ===========================================================================
+#
+# example runs
+#
+
+SETUP ?= NGS_PY_LIBRARY_PATH=../../lib64
+
+run_frag:
+	$(SETUP) $(PYTHON) FragTest.py ERR225922 10000 2 $(REDIRECT)
+
+run_align:
+	$(SETUP) $(PYTHON) AlignTest.py ERR225922 10000 2 $(REDIRECT)
+
+run_align_slice:
+	$(SETUP) $(PYTHON) AlignSliceTest.py SRR1121656 1 1 9999 $(REDIRECT)
+
+run_pileup:
+	$(SETUP) $(PYTHON) PileupTest.py SRR1121656 1 9999 10003 $(REDIRECT)
+
+run_ref:
+	$(SETUP) $(PYTHON) RefTest.py SRR1121656 $(REDIRECT)
+
+ALL_TESTS = run_frag run_align run_align_slice run_pileup run_ref
+
+run_all: $(ALL_TESTS)
+
+.PHONY: run_all $(ALL_TESTS)
+
+run_and_diff: expected.txt
+	rm -f actual.txt; $(MAKE) run_all REDIRECT=">>actual.txt" ; \
+	diff expected.txt actual.txt && rm actual.txt && echo NGS Python examples work as expected
+
+.PHONY: run_and_diff

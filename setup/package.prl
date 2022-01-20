@@ -21,7 +21,7 @@ sub REQ { (
               aname   => 'VDB',
               option  => 'with-ncbi-vdb-prefix',
               origin  => 'I',
-              type    => 'L',
+              type    => 'Lb',
               srcpath => '../ncbi-vdb',
               pkgpath => '/usr/local/ncbi/ncbi-vdb',
               usrpath =>      '$HOME/ncbi/ncbi-vdb',

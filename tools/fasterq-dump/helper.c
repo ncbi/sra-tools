@@ -156,12 +156,53 @@ format_t get_format_t( const char * format,
     return res;
 }
 
+static const char * FMT_UNKNOWN             = "unknown format";
+static const char * FMT_FASTQ_WHOLE_SPOT    = "FASTQ whole spot";
+static const char * FMT_FASTQ_SPLIT_SPOT    = "FASTQ split spot";
+static const char * FMT_FASTQ_SPLIT_FILE    = "FASTQ split file";
+static const char * FMT_FASTQ_SPLIT_3       = "FASTQ split 3";
+static const char * FMT_FASTA_WHOLE_SPOT    = "FASTA whole spot";
+static const char * FMT_FASTA_SPLIT_SPOT    = "FASTA split spot";
+static const char * FMT_FASTA_UNSORTED      = "FASTA-unsorted split spot";
+static const char * FMT_FASTA_SPLIT_FILE    = "FASTA split file";
+static const char * FMT_FASTA_SPLIT_3       = "FASTA split 3";
+
+
+const char * fmt_2_string( format_t fmt ) {
+    const char * res = FMT_UNKNOWN;
+    switch ( fmt ) {
+        case ft_unknown             : res = FMT_UNKNOWN; break;
+        case ft_fastq_whole_spot    : res = FMT_FASTQ_WHOLE_SPOT; break;
+        case ft_fastq_split_spot    : res = FMT_FASTQ_SPLIT_SPOT; break;
+        case ft_fastq_split_file    : res = FMT_FASTQ_SPLIT_FILE; break;
+        case ft_fastq_split_3       : res = FMT_FASTQ_SPLIT_3; break;
+        case ft_fasta_whole_spot    : res = FMT_FASTA_WHOLE_SPOT; break;
+        case ft_fasta_split_spot    : res = FMT_FASTA_SPLIT_SPOT; break;
+        case ft_fasta_us_split_spot : res = FMT_FASTA_UNSORTED; break;
+        case ft_fasta_split_file    : res = FMT_FASTA_SPLIT_FILE; break;
+        case ft_fasta_split_3       : res = FMT_FASTA_SPLIT_3; break;
+    }
+    return res;
+}
+
+/* -------------------------------------------------------------------------------- */
+
 static const char * FASTA_EXT = ".fasta";
 static const char * FASTQ_EXT = ".fastq";
 
 const char * out_ext( bool fasta ) {
     if ( fasta ) return FASTA_EXT;
     return FASTQ_EXT;
+}
+
+/* -------------------------------------------------------------------------------- */
+
+static const char * B_YES = "YES";
+static const char * B_NO  = "NO";
+
+const char * yes_or_no( bool b ) {
+    if ( b ) return B_YES;
+    return B_NO;
 }
 
 /* -------------------------------------------------------------------------------- */
@@ -201,6 +242,23 @@ bool is_perform_check( check_mode_t mode ) {
     }
     return true;
 }
+
+static const char * CM_UNKNOWN    = "unknown";
+static const char * CM_ON         = "on";
+static const char * CM_OFF        = "off";
+static const char * CM_ONLY       = "only";
+
+const char * check_mode_2_string( check_mode_t cm ) {
+    const char * res = CM_UNKNOWN;
+    switch ( cm ) {
+        case cmt_unknown    : res = CM_UNKNOWN; break;
+        case cmt_on         : res = CM_ON; break;
+        case cmt_off        : res = CM_OFF; break;
+        case cmt_only       : res = CM_ONLY; break;
+    }
+    return res;
+}
+
 /* -------------------------------------------------------------------------------- */
 
 const String * make_string_copy( const char * src )

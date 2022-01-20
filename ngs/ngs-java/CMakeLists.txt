@@ -114,6 +114,9 @@ if ( Java_FOUND )
         )
     endif()
 
+    install_jar( ngs-java ${CMAKE_INSTALL_PREFIX}/jar/ )
+    #TODO: add symlinks
+
     ########################################
     # examples
     add_subdirectory( examples )

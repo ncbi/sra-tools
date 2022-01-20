@@ -21,7 +21,7 @@ As a prerequisite, you need a set of libraries and headers from the NCBI SRA SDK
 
 ### Linux, macOS (gmake)
 
-0. Build or download the SDK. For instructions, see README.md in https://github.com/ncbi/ncbi-vdb
+0. Checkout and build the SDK. For instructions, see README.md in https://github.com/ncbi/ncbi-vdb
 
 1. In the root of the sra-tools checkout, run:
 

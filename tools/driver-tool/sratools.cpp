@@ -229,9 +229,22 @@ namespace sratools {
     {
 #if MAC
         if (extra) {
+            auto path = extra[0];
             for (auto i = extra; *i; ++i) {
                 if (starts_with("executable_path=", *i)) {
-                    return *i + 16;
+                    path = *i + 16;
+                    break;
+                }
+            }
+            if (path) {
+                if (path[0] == '/')
+                    return path;
+
+                auto cwd = getcwd(NULL, 0); ///< passing NULL is non-standard but documented in the man page.
+                if (cwd) {
+                    auto result = std::string(cwd) + "/" + path;
+                    free(cwd);
+                    return result;
                 }
             }
         }

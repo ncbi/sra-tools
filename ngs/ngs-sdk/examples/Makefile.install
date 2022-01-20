@@ -1,0 +1,175 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+default: std
+
+CXX ?= g++
+
+#
+# Paths to includes and libraries
+# Override from the make command line as needed, e.g.
+#   make VDB_LIBDIR=/path/to/ncbi-vdb/lib
+#
+VDB_LIBDIR ?= $(abspath ../../../ncbi-vdb/lib64)
+NGS_LIBDIR      ?= $(abspath ../../lib64)
+NGS_INCDIR      ?= $(abspath ../../include)
+
+CPPFLAGS += -I$(NGS_INCDIR)
+
+#
+# These are the included example programs
+#
+TARGETS =               \
+    AlignSliceTest      \
+    AlignTest           \
+    DumpReferenceFASTA  \
+    FragTest            \
+    PileupTest          \
+    RefTest
+
+#
+# Detect libraries and headers, build the examples
+#
+std: $(NGS_INCDIR) $(NGS_LIBDIR) $(TARGETS)
+
+clean:
+	rm -f $(TARGETS)
+
+.PHONY: default std clean $(TARGETS)
+
+ifeq (,$(DYNAMIC))
+
+    # When linking statically, C++ NGS applications require two libraries:
+    #  - $(NGS_LIBDIR)/libncbi-ngs.a, which provides access to SRA for the C/C++ NGS API
+    #  - $(VDB_LIBDIR)/libncbi-vdb-static.a, which provides access to the underlying VDB
+    #
+$(TARGETS): \
+	$(NGS_LIBDIR)/libncbi-ngs-static.a      \
+
+TEST_LIBS =               \
+    $(NGS_LIBDIR)/libncbi-ngs-static.a \
+    $(VDB_LIBDIR)/libncbi-vdb-static.a     \
+    -lpthread             \
+    -ldl                  \
+    -lm
+
+SETUP =
+
+else # DYNAMIC != ""
+
+    # When linking dynamically, C++ NGS applications only need libncbi-ngs.so;
+    # make sure $(NGS_LIBDIR) is in LD_LIBRARY_PATH at the time of running
+    #
+$(TARGETS): $(VDB_LIBDIR) $(NGS_LIBDIR)/libncbi-ngs.so
+
+TEST_LIBS =               \
+    $(NGS_LIBDIR)/libncbi-ngs.so \
+    -lpthread             \
+    -ldl                  \
+    -lm                   \
+$(info Please make sure $(NGS_LIBDIR) is in $$LD_LIBRARY_PATH)
+
+SETUP = LD_LIBRARY_PATH=$(NGS_LIBDIR):$${LD_LIBRARY_PATH}
+
+endif
+
+# AlignSliceTest
+#  slice a ReadCollection and output alignments
+ALIGNSLICE_TEST_SRC = AlignSliceTest.cpp
+
+AlignSliceTest: $(ALIGNSLICE_TEST_SRC)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(ALIGNSLICE_TEST_SRC) $(TEST_LIBS)
+
+
+# AlignTest #################
+#  access alignments
+ALIGN_TEST_SRC = AlignTest.cpp
+
+AlignTest: $(ALIGN_TEST_SRC)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(ALIGN_TEST_SRC) $(TEST_LIBS)
+
+
+# DumpReferenceFASTA
+DUMP_SRC = DumpReferenceFASTA.cpp
+
+DumpReferenceFASTA: $(DUMP_SRC)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(DUMP_SRC) $(TEST_LIBS)
+
+
+# FragTest
+#  access read fragments
+FRAG_TEST_SRC = FragTest.cpp
+
+FragTest: $(FRAG_TEST_SRC)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(FRAG_TEST_SRC) $(TEST_LIBS)
+
+
+# PileupTest
+#  slice a ReadCollection and produce pileups
+PILEUP_TEST_OBJ = PileupTest.cpp
+
+PileupTest: $(PILEUP_TEST_OBJ)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(PILEUP_TEST_OBJ) $(TEST_LIBS)
+
+
+# RefTest ###################
+REF_TEST_SRC = RefTest.cpp
+
+RefTest: $(REF_TEST_SRC)
+	$(CXX) -g $(CPPFLAGS) -o $@ $(REF_TEST_SRC) $(TEST_LIBS)
+
+# ===========================================================================
+#
+# example runs
+
+run_frag:  FragTest
+		$(SETUP) ./$^ ERR225922 10000 2 $(REDIRECT)
+
+run_align: AlignTest
+		$(SETUP) ./$^ ERR225922 10000 2 $(REDIRECT)
+
+run_dump: DumpReferenceFASTA
+		$(SETUP) ./$^ SRR520124 1 $(REDIRECT)
+
+run_align_slice: AlignSliceTest
+		$(SETUP) ./$^ SRR1121656 1 1 9999 $(REDIRECT)
+
+run_pileup: PileupTest
+		$(SETUP) ./$^ SRR1121656 1 9999 10003 $(REDIRECT)
+
+run_ref: RefTest
+		$(SETUP) ./$^ SRR1121656 $(REDIRECT)
+
+ALL_TESTS = run_frag run_align run_align_slice run_pileup run_ref run_dump
+
+run_all: $(ALL_TESTS)
+
+.PHONY: run_all $(ALL_TESTS)
+
+run_and_diff: expected.txt
+		@ rm -f actual.txt
+		@ $(MAKE) run_all REDIRECT=">>actual.txt"
+		@ diff expected.txt actual.txt && rm actual.txt && echo "NGS C++ examples work as expected"
+
+.PHONY: run_and_diff

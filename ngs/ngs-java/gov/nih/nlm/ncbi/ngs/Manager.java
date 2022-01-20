@@ -100,7 +100,7 @@ class Manager
                     new String[] { LibDependencies.NGS_SDK, LibDependencies.NCBI_VDB },
                     new String[] { LibDependencies.NGS_SDK_VERSION, LibDependencies.NCBI_VDB_VERSION });
 
-            m . loadLibrary ( LibDependencies.NGS_SDK );
+            //m . loadLibrary ( LibDependencies.NGS_SDK );
             m . loadLibrary ( LibDependencies.NCBI_VDB );
 
             // try to initialize the NCBI library

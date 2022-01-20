@@ -75,28 +75,11 @@ set_target_properties( ngs-c++-shared PROPERTIES OUTPUT_NAME ngs-c++ )
 
 ####################################
 GetTargetSources( "${NGS_SDK_TARGETS}" all_src all_incl_dirs all_compile_defs )
-add_library( ngs-sdk STATIC ${all_src} )
-target_include_directories( ngs-sdk PUBLIC ${all_incl_dirs} )
-target_compile_definitions( ngs-sdk PUBLIC ${all_compile_defs} )
-
-#----------------------------------
-add_library( ngs-sdk-shared SHARED ${all_src} )
-target_include_directories( ngs-sdk-shared PUBLIC ${all_incl_dirs} )
-target_compile_definitions( ngs-sdk-shared PUBLIC ${all_compile_defs} )
-set_target_properties( ngs-sdk-shared PROPERTIES OUTPUT_NAME ngs-sdk )
-
-##################################################################################
-# C++/Jni/Py wrappers for libncbi-vdb as a static library
-GetTargetSources( "${NCBI_NGS_TARGETS}" all_src all_incl_dirs all_compile_defs )
 add_library( ncbi-ngs STATIC ${all_src} )
 target_include_directories( ncbi-ngs PUBLIC ${all_incl_dirs} )
 target_compile_definitions( ncbi-ngs PUBLIC ${all_compile_defs} )
 
-##################################################################################
-# libncbi-ngs is a shared library that includes libncbi-vdb and its C++/Jni/Py wrappers
-#
-# NGS-based C++/Java/Python apps may now link against this library instead of libncbi-vdb
-#
+#----------------------------------
 add_library( ncbi-ngs-shared SHARED ${all_src} )
 target_include_directories( ncbi-ngs-shared PUBLIC ${all_incl_dirs} )
 target_compile_definitions( ncbi-ngs-shared PUBLIC ${all_compile_defs} )

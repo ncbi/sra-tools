@@ -29,6 +29,7 @@ use File::Basename 'dirname';
 use lib dirname( abs_path $0 );
 
 sub println  { print @_; print "\n" }
+my $TRS = 0; # $TRS = 1;
 
 my ($filename, $directories, $suffix) = fileparse($0);
 if ($directories ne "./") {
@@ -555,14 +556,22 @@ foreach my $href (@REQ) {
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
     my $is_optional = optional($a{type});
+
+    # needs interfaces; library is optional
     my $quasi_optional = $a{type} =~ /Q/;
-    my $need_source = $a{type} =~ /S/;
-    my $need_bin = $a{type} =~ /E/;
-    my $need_build = $a{type} =~ /B/;
-    my $need_lib = $a{type} =~ /L|D/;
-    my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
-    $need_itf = 1 if ($a{type} =~ /I/);
+
+    my $need_source    = $a{type} =~ /S/;
+    my $need_bin       = $a{type} =~ /E/;
+    my $need_build     = $a{type} =~ /B/;
+
+    # will use build if found; needs to find default install otherwise
+    my $canUse_build   = $a{type} =~ /b/ || $need_build;
+
+    my $need_lib       = $a{type} =~ /L|D/;
     my $need_jar = $a{type} =~ /J/;
+
+    my $need_itf    = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
+    $need_itf    = 1 if ($a{type} =~ /I/);
 
     my ($bin, $inc, $lib, $ilib, $src)
         = ($a{bin}, $a{include}, $a{lib}, undef, $a{src}); # file names to check
@@ -583,6 +592,7 @@ foreach my $href (@REQ) {
             println "checking for $a{name} package...";
         }
     }
+println "---0 $a{name}" if ($TRS);
     my %has_option;
     my $tolib = $need_itf || $need_lib;
     my $tojar = $need_jar;
@@ -607,6 +617,7 @@ foreach my $href (@REQ) {
                     undef $il;
                     ++$has_option{sources};
                 }
+println "---1 $try" if ($TRS);
                 my ($fi, $fl, $fil, $fs)
                     = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
@@ -632,12 +643,14 @@ foreach my $href (@REQ) {
     }
     if (! $found_itf && ! $has_option{sources} && $a{srcpath}) {
         my $try = $a{srcpath};
+println "---2 $try"  if ($TRS);
         ($found_itf, undef, undef, $found_src)
             = find_in_dir($try, $inc, undef, undef, undef, undef, $src);
     }
     if (! $has_option{prefix}) {
         my $try = $a{pkgpath};
         if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib)) {
+println "---3 $try" if ($TRS);
             my ($fi, $fl) = find_in_dir($try, $inc, $lib);
             $found_itf  = $fi  if (! $found_itf  && $fi);
             $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -649,6 +662,7 @@ foreach my $href (@REQ) {
 
         $try = $a{usrpath};
         if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib)) {
+println "---4 $try if ($TRS)";
             my ($fi, $fl) = find_in_dir($try, $inc, $lib);
             $found_itf  = $fi  if (! $found_itf  && $fi);
             $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -659,14 +673,18 @@ foreach my $href (@REQ) {
         }
     }
     if (! $has_option{build}) {
+println "---5 $a{bldpath}" if ($TRS);
         if ($a{bldpath}) {
-            my $tolib = $need_build || ($need_lib && ! $found_lib);
+println "---6 $canUse_build || ($need_lib && ! $found_lib" if ($TRS);
+            my $tolib = $canUse_build || ($need_lib && ! $found_lib);
             my $tobin = $need_bin && ! $found_bin;
             my $tojar = $need_jar && ! $found_jar;
+println "---7  $tolib || $tobin || $tojar" if ($TRS);
             if ($tolib || $tobin || $tojar) {
                 my ($fl, $fil, $found);
                 if ($OPT{'build-prefix'}) {
                     my $try = $OPT{'build-prefix'};
+println "---8 $try" if ($TRS);
                     if ($tolib) {
                         (undef, $fl, $fil)
                             = find_in_dir($try, undef, $lib, $ilib);
@@ -683,6 +701,7 @@ foreach my $href (@REQ) {
                     if (! ($try =~ /$a{name}$/)) {
                         $try = File::Spec->catdir($try, $a{name});
                         if ($tolib && ! $found) {
+println "---9 $try" if ($TRS);
                             (undef, $fl, $fil)
                                 = find_in_dir($try, undef, $lib, $ilib);
                             if ($fl || $fil) {
@@ -697,18 +716,27 @@ foreach my $href (@REQ) {
                         }
                     }
                 }
+if ($TRS) {
+    my $tmp = 0; $tmp = $found if defined $found; $tmp = $tmp || $fl  if defined $fl;
+                                                  $tmp = $tmp || $fil if defined $fil;
+    print "---A = "; print $found if defined $found; print "-"; print $fl if defined $fl;
+    print "_"; print $fil if defined $fil;    print "^"; print $tmp if defined $tmp;    println;
+}
                 unless ($found || $fl || $fil) {
                     my $try = $a{bldpath};
+println "---B $try"if ($TRS);
                     $try = $a{locbldpath} if ($OPT{'local-build-out'});
                     if ($tolib && ! $found) {
                         (undef, $fl, $fil)
                             = find_in_dir($try, undef, $lib, $ilib);
-                        my $resetLib = ! $found_lib;
-                        if (! $found_ilib && $fil) {
-                            $found_ilib = $fil;
-                            ++$resetLib;
-                        }
-                        $found_lib  = $fl  if ($resetLib && $fl);
+# removed because there are no need to check for ilib
+#                       my $resetLib = ! $found_lib;
+#                       if (! $found_ilib && $fil) {
+#                           $found_ilib = $fil;
+#                           ++$resetLib;
+#                       }
+                        $found_lib  = $fl if ( # $resetLib &&
+                                              $fl);
                     }
                     if ($tobin && ! $found) {
                         (undef, $fl, $fil) =
@@ -1873,11 +1901,13 @@ EndText
         foreach my $href (@REQ) {
             next if (optional($href->{type}));
             my %a = %$href;
-            if ($a{type} =~ /S/) {
+            my $need_source = $a{type} =~ /S/;
+            my $need_bin    = $a{type} =~ /E/;
+            if ($need_source) {
                 println "  --$a{option}=DIR    search for $a{name} package";
                 println "                                 source files in DIR";
             } else {
-                unless ($a{type} =~ /E/) {
+                unless ($need_bin) {
                   println
                     "  --$a{option}=DIR      search for $a{name} package in DIR"
                 }

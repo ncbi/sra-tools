@@ -62,8 +62,7 @@
 /* Pull parsers.  */
 #define YYPULL 1
 
-/* Substitute the type names.  */
-#define YYSTYPE         FASTQ_STYPE
+
 /* Substitute the variable and function names.  */
 #define yyparse         FASTQ_parse
 #define yylex           FASTQ_lex
@@ -103,7 +102,7 @@
     static void SaveSpotName(FASTQParseBlock* pb);
     static void RevertSpotName(FASTQParseBlock* pb);
 
-    #define UNLEX do { if (yychar != YYEMPTY && yychar != YYEOF) FASTQ_unlex(pb, & yylval); } while (0)
+    #define UNLEX do { if (yychar != YYEMPTY && yychar != fqENDOFTEXT) FASTQ_unlex(pb, & yylval); } while (0)
 
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 
@@ -139,28 +138,20 @@
 
 /* Use api.header.include to #include this header
    instead of duplicating it here.  */
-#ifndef YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
-# define YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED
+#ifndef YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_ZZ_FASTQ_GRAMMAR_H_INCLUDED
+# define YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_ZZ_FASTQ_GRAMMAR_H_INCLUDED
 /* Debug traces.  */
-#ifndef FASTQ_DEBUG
-# if defined YYDEBUG
+#ifndef YYDEBUG
+# define YYDEBUG 0
+#endif
 #if YYDEBUG
-#   define FASTQ_DEBUG 1
-#  else
-#   define FASTQ_DEBUG 0
-#  endif
-# else /* ! defined YYDEBUG */
-#  define FASTQ_DEBUG 0
-# endif /* ! defined YYDEBUG */
-#endif  /* ! defined FASTQ_DEBUG */
-#if FASTQ_DEBUG
 extern int FASTQ_debug;
 #endif
 
 /* Token type.  */
-#ifndef FASTQ_TOKENTYPE
-# define FASTQ_TOKENTYPE
-  enum FASTQ_tokentype
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+  enum yytokentype
   {
     fqENDOFTEXT = 0,
     fqRUNDOTSPOT = 258,
@@ -179,17 +170,17 @@ extern int FASTQ_debug;
 #endif
 
 /* Value type.  */
-#if ! defined FASTQ_STYPE && ! defined FASTQ_STYPE_IS_DECLARED
-typedef int FASTQ_STYPE;
-# define FASTQ_STYPE_IS_TRIVIAL 1
-# define FASTQ_STYPE_IS_DECLARED 1
+#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+typedef FASTQToken YYSTYPE;
+# define YYSTYPE_IS_TRIVIAL 1
+# define YYSTYPE_IS_DECLARED 1
 #endif
 
 
 
 int FASTQ_parse (FASTQParseBlock* pb);
 
-#endif /* !YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_GRAMMAR_H_INCLUDED  */
+#endif /* !YY_FASTQ_HOME_BOSHKINS_NCBI_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_ZZ_FASTQ_GRAMMAR_H_INCLUDED  */
 
 
 
@@ -434,7 +425,7 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 
 #if (! defined yyoverflow \
      && (! defined __cplusplus \
-         || (defined FASTQ_STYPE_IS_TRIVIAL && FASTQ_STYPE_IS_TRIVIAL)))
+         || (defined YYSTYPE_IS_TRIVIAL && YYSTYPE_IS_TRIVIAL)))
 
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
@@ -548,25 +539,25 @@ static const yytype_int8 yytranslate[] =
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14
 };
 
-#if FASTQ_DEBUG
+#if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,    88,    88,    90,    95,    96,    98,    94,   101,   103,
-     107,   108,   112,   116,   117,   118,   119,   123,   123,   124,
-     124,   125,   125,   129,   130,   134,   135,   136,   140,   140,
-     142,   142,   147,   148,   153,   154,   156,   158,   158,   159,
-     159,   160,   162,   162,   163,   163,   165,   165,   167,   168,
-     169,   173,   174,   178,   179,   180,   180,   181,   182,   183,
-     187,   197,   199,   198,   205,   205,   206,   206,   207,   207,
-     208,   212,   213,   214,   215,   216,   217,   218,   219,   224,
-     223,   248,   247,   259,   260,   261,   262,   263,   264,   260,
-     269,   269,   270,   274,   275,   276,   280,   281,   282,   288,
-     289,   293,   294,   298,   299,   300
+       0,    90,    90,    92,    97,    98,   100,    96,   103,   105,
+     109,   110,   114,   118,   119,   120,   121,   125,   125,   126,
+     126,   127,   127,   131,   132,   136,   137,   138,   142,   142,
+     144,   144,   149,   150,   155,   156,   158,   160,   160,   161,
+     161,   162,   164,   164,   165,   165,   167,   167,   169,   170,
+     171,   175,   176,   180,   181,   182,   182,   183,   184,   185,
+     189,   199,   201,   200,   207,   207,   208,   208,   209,   209,
+     210,   214,   215,   216,   217,   218,   219,   220,   221,   226,
+     225,   250,   249,   261,   262,   263,   264,   265,   266,   262,
+     271,   271,   272,   276,   277,   278,   282,   283,   284,   290,
+     291,   295,   296,   300,   301,   302
 };
 #endif
 
-#if FASTQ_DEBUG || YYERROR_VERBOSE || 1
+#if YYDEBUG || YYERROR_VERBOSE || 1
 /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
@@ -800,7 +791,7 @@ static const yytype_int8 yyr2[] =
 
 
 /* Enable debugging if requested.  */
-#if FASTQ_DEBUG
+#if YYDEBUG
 
 # ifndef YYFPRINTF
 #  include <stdio.h> /* INFRINGES ON USER NAME SPACE */
@@ -924,12 +915,12 @@ do {                                    \
 /* Nonzero means print parse trace.  It is left uninitialized so that
    multiple parsers can coexist.  */
 int yydebug;
-#else /* !FASTQ_DEBUG */
+#else /* !YYDEBUG */
 # define YYDPRINTF(Args)
 # define YY_SYMBOL_PRINT(Title, Type, Value, Location)
 # define YY_STACK_PRINT(Bottom, Top)
 # define YY_REDUCE_PRINT(Rule)
-#endif /* !FASTQ_DEBUG */
+#endif /* !YYDEBUG */
 
 
 /* YYINITDEPTH -- initial size of the parser's stacks.  */

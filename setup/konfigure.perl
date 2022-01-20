@@ -662,7 +662,7 @@ println "---3 $try" if ($TRS);
 
         $try = $a{usrpath};
         if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib)) {
-println "---4 $try if ($TRS)";
+println "---4 $try" if ($TRS);
             my ($fi, $fl) = find_in_dir($try, $inc, $lib);
             $found_itf  = $fi  if (! $found_itf  && $fi);
             $found_lib  = $fl  if (! $found_lib  && $fl);

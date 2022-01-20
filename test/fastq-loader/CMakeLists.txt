@@ -165,4 +165,7 @@ if( NOT WIN32 )
     LatfTest( 16.0 0 "input/16.0.fasta --quality PHRED_33 --platform=PACBIO" )
     LatfTest( 16.1 0 "input/16.1.fastq --quality PHRED_33 --platform=PACBIO" )
 
+    # VDB-4746: file padded with \0s
+    LatfTest_OneInputPhred33( 17.0 0 )
+
 endif()

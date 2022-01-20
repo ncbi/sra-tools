@@ -729,14 +729,15 @@ println "---B $try"if ($TRS);
                     if ($tolib && ! $found) {
                         (undef, $fl, $fil)
                             = find_in_dir($try, undef, $lib, $ilib);
-# removed because there are no need to check for ilib
-#                       my $resetLib = ! $found_lib;
-#                       if (! $found_ilib && $fil) {
-#                           $found_ilib = $fil;
-#                           ++$resetLib;
-#                       }
-                        $found_lib  = $fl if ( # $resetLib &&
-                                              $fl);
+                        my $resetLib = ! $found_lib;
+                        if ($need_build) {
+                            # there is a need to check for ilib
+                            if (! $found_ilib && $fil) {
+                               $found_ilib = $fil;
+                               ++$resetLib;
+                            }
+                        } else { ++$resetLib; }
+                        $found_lib  = $fl if ($resetLib && $fl);
                     }
                     if ($tobin && ! $found) {
                         (undef, $fl, $fil) =

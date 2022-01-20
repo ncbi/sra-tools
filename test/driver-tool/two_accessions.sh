@@ -11,8 +11,7 @@ output=$(NCBI_SETTINGS=tmp.mkfg \
 	PATH="${bin_dir}:$PATH" \
 	SRATOOLS_DRY_RUN=1 \
 	SRATOOLS_IMPERSONATE=vdb-dump \
-	${bin_dir}/sratools SRR000001 SRR390728 2>actual/${test_name}.stderr ; \
-	diff expected/${test_name}.stderr actual/${test_name}.stderr)
+	${bin_dir}/sratools SRR000001 SRR390728)
 
 res=$?
 if [ "$res" != "0" ];

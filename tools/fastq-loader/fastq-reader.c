@@ -628,6 +628,12 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
         }
     }
 
+    if ( memchr( self->recordStart + self->curPos, 0, length ) != NULL )
+    {
+        LogErr(klogErr, RC( RC_MODULE, rcData, rcReading, rcData, rcIncomplete), "Premature EOF, FASTQ_input failed");
+        return 0;
+    }
+
     memmove(buf, self->recordStart + self->curPos, length);
 
     self->lastEol = ( buf[length-1] == '\n' );
@@ -674,7 +680,7 @@ rc_t CC FastqReaderFileMake( const ReaderFile **reader,
             self->pb.secondaryReadNumber = 0;
             self->pb.ignoreSpotGroups = ignoreSpotGroups;
 
-            rc = FASTQScan_yylex_init(& self->pb, debugLex);
+            rc = FASTQScan_yylex_init(& self->pb, false);
             if (rc == 0)
             {
                 *reader = (const ReaderFile *) self;

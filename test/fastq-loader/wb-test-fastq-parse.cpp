@@ -237,6 +237,21 @@ FIXTURE_TEST_CASE(InlineBaseSequence, FastqScanFixture)
     REQUIRE_EQUAL(Scan(), 0);
 }
 
+FIXTURE_TEST_CASE(ZeroPadding, FastqScanFixture)
+{
+    char buf[200000];
+    memset( buf, 0 , sizeof buf );
+    strcpy( buf, "@8\nCGGA" );
+    InitScan(buf);
+    REQUIRE_TOKEN('@');
+    REQUIRE_TOKEN_TEXT(fqNUMBER, "8");
+    REQUIRE_TOKEN(fqENDLINE);
+    REQUIRE_TOKEN_TEXT(fqBASESEQ, "CGGA");
+    REQUIRE_TOKEN(fqENDLINE);
+    REQUIRE_EQUAL(Scan(), 0);
+    REQUIRE_EQUAL(Scan(), 0);
+}
+
 ///////////////////////////////////////////////// Fastq Parser test fixture
 class ParserFixture
 {

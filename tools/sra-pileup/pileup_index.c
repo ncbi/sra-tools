@@ -29,8 +29,7 @@
 #include "ref_walker_0.h"
 #include "4na_ascii.h"
 
-static uint32_t percent( uint32_t v1, uint32_t v2 )
-{
+static uint32_t percent( uint32_t v1, uint32_t v2 ) {
     uint32_t sum = v1 + v2;
     uint32_t res = 0;
     if ( sum > 0 )
@@ -38,9 +37,7 @@ static uint32_t percent( uint32_t v1, uint32_t v2 )
     return res;
 }
 
-
-typedef struct index_counters
-{
+typedef struct index_counters {
     uint32_t base_counts[ 4 ];   /* 0...A, 1...C, 2...G, 3...T */
     uint32_t inserts;
     uint32_t deletes;
@@ -48,54 +45,49 @@ typedef struct index_counters
     uint32_t reverse;
 } index_counters;
 
-
-static rc_t CC walk_index_enter_ref_pos( walk_data * data )
-{
+static rc_t CC walk_index_enter_ref_pos( walk_data * data ) {
     index_counters * ic = data->data;
     memset( ic, 0, sizeof *ic );
     return 0;
 }
 
-
-static rc_t CC walk_index_exit_ref_pos( walk_data * data )
-{
+static rc_t CC walk_index_exit_ref_pos( walk_data * data ) {
     index_counters * ic = data->data;
-    if ( ic->forward + ic->reverse == 0 )
+    if ( ic->forward + ic->reverse == 0 ) {
         return 0;
-    else
+    } else {
         return KOutMsg( "%s\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t%u\n", 
                      data->ref_name, data->ref_pos + 1, 
                      ic->base_counts[ 0 ], ic->base_counts[ 1 ], ic->base_counts[ 2 ], ic->base_counts[ 3 ],
                      ic->inserts, ic->deletes, percent( ic->forward, ic->reverse ) );
+    }
 }
 
-
-static rc_t CC walk_index_placement( walk_data * data )
-{
+static rc_t CC walk_index_placement( walk_data * data ) {
     int32_t state = data->state;
-    if ( ( state & align_iter_invalid ) != align_iter_invalid )
-    {
+    if ( ( state & align_iter_invalid ) != align_iter_invalid ) {
         index_counters * ic = data->data;
 
-        if ( ( state & align_iter_skip ) == align_iter_skip )
+        if ( ( state & align_iter_skip ) == align_iter_skip ) {
             ( ic->deletes ) ++;
-        else
+        } else {
             ic->base_counts[ _4na_to_index( state ) ] ++;
+        }
 
-        if ( data->xrec->reverse )
+        if ( data->xrec->reverse ) {
             ( ic->reverse )++;
-        else
+        } else {
             ( ic->forward )++;
-
-        if ( ( state & align_iter_insert ) == align_iter_insert )
+        }
+        
+        if ( ( state & align_iter_insert ) == align_iter_insert ) {
             ( ic->inserts )++;
+        }
     }
     return 0;
 }
 
-
-rc_t walk_index( ReferenceIterator *ref_iter, pileup_options * options )
-{
+rc_t walk_index( ReferenceIterator *ref_iter, pileup_options * options ) {
     walk_data data;
     walk_funcs funcs;
     index_counters i_counters;

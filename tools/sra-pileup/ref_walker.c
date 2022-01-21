@@ -803,84 +803,73 @@ static rc_t ref_walker_walk_ref_range( struct ref_walker * self, ref_walker_data
     return rc;
 }
 
-
 static rc_t ref_walker_walk_ref_region( struct ref_walker * self, 
-                        const struct reference_region * region, ref_walker_data * rwd )
-{
+                        const struct reference_region * region, ref_walker_data * rwd ) {
     rc_t rc = 0;
     uint32_t idx, count = get_ref_node_range_count( region );
-    rwd->ref_name = get_ref_node_name( region );
-    
-    rwd->ref_start = 0;
-    rwd->ref_end = 0;
-    rwd->pos = 0;
-    rwd->depth = 0;
-    rwd->bin_ref_base = 0;
-    rwd->ascii_ref_base = 0;
-    rwd->spot_group = NULL;
-    rwd->spot_group_len = 0;
-    rwd->state = 0;
-    rwd->reverse = 0;
-    
-    if ( self->on_enter_ref != NULL )
-        rc = self->on_enter_ref( rwd );
-
-    if ( rc == 0 )
-    {
+    rwd -> ref_name = get_ref_node_name( region );
+    rwd -> ref_start = 0;
+    rwd -> ref_end = 0;
+    rwd -> pos = 0;
+    rwd -> depth = 0;
+    rwd -> bin_ref_base = 0;
+    rwd -> ascii_ref_base = 0;
+    rwd -> spot_group = NULL;
+    rwd -> spot_group_len = 0;
+    rwd -> state = 0;
+    rwd -> reverse = 0;
+    if ( self -> on_enter_ref != NULL ) {
+        rc = self -> on_enter_ref( rwd );
+    }
+    if ( rc == 0 ) {
         /* TODO: we need seq-name and seq-id here to identify the skiplist correctly */
-        if ( self->skiplist != NULL )
+        if ( self->skiplist != NULL ) {
             skiplist_enter_ref( self->skiplist, rwd->ref_name, NULL );
-
-        for ( idx = 0; idx < count; ++ idx )
-        {
+        }
+        for ( idx = 0; idx < count; ++ idx ) {
             const struct reference_range * range = get_ref_range( region, idx );
-            if ( range != NULL )
-            {
-                rwd->ref_start = get_ref_range_start( range );
-                rwd->ref_end = get_ref_range_end( range );
-                if ( self->on_enter_ref_window != NULL )
-                    rc = self->on_enter_ref_window( rwd );
-                if ( rc == 0 )
-                {
-                    rc = ref_walker_walk_ref_range( self, rwd );
-                    if ( rc == 0 && self->on_exit_ref_window != NULL )
-                        rc = self->on_exit_ref_window( rwd );
+            if ( range != NULL ) {
+                rwd -> ref_start = get_ref_range_start( range );
+                rwd -> ref_end = get_ref_range_end( range );
+                if ( self -> on_enter_ref_window != NULL ) {
+                    rc = self -> on_enter_ref_window( rwd );
                 }
-                rwd->ref_start = 0;
-                rwd->ref_end = 0;
+                if ( rc == 0 ) {
+                    rc = ref_walker_walk_ref_range( self, rwd );
+                    if ( rc == 0 && self->on_exit_ref_window != NULL ) {
+                        rc = self -> on_exit_ref_window( rwd );
+                    }
+                }
+                rwd -> ref_start = 0;
+                rwd -> ref_end = 0;
             }
         }
-        
-        if ( self->on_exit_ref != NULL )
-            rc = self->on_exit_ref( rwd );
+        if ( self -> on_exit_ref != NULL ) {
+            rc = self -> on_exit_ref( rwd );
+        }
     }
-    rwd->ref_name = NULL;
-
+    rwd -> ref_name = NULL;
     return rc;
 }
 
-
-rc_t ref_walker_walk( struct ref_walker * self, void * data )
-{
+rc_t ref_walker_walk( struct ref_walker * self, void * data ) {
     rc_t rc = 0;
-    if ( self == NULL )
+    if ( self == NULL ) {
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcNull );
-    else
-    {
-        if ( !self->prepared )
+    } else {
+        if ( !self->prepared ) {
             rc = ref_walker_prepare( self );
-
-        if ( rc == 0 && self->prepared )
-        {
+        }
+        if ( rc == 0 && self->prepared ) {
             const struct reference_region * region = get_first_ref_node( &self->regions );
-            while ( region != NULL && rc == 0 )
-            {
+            while ( region != NULL && rc == 0 ) {
                 ref_walker_data rwd;    /* this record will be passed to all the enter/exit callback's */
                 rwd.data = data;
 
                 rc = ref_walker_walk_ref_region( self, region, &rwd );
-                if ( rc == 0 )
+                if ( rc == 0 ) {
                     region = get_next_ref_node( region );
+                }
             }
         }
     }
@@ -888,14 +877,11 @@ rc_t ref_walker_walk( struct ref_walker * self, void * data )
 }
 
 
-rc_t ref_walker_destroy( struct ref_walker * self )
-{
+rc_t ref_walker_destroy( struct ref_walker * self ) {
     rc_t rc = 0;
-    if ( self != NULL )
-    {
+    if ( self != NULL ) {
         ref_walker_release( self );
         free( ( void * ) self );
     }
     return rc;
 }
-

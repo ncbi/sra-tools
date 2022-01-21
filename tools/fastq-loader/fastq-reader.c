@@ -680,7 +680,7 @@ rc_t CC FastqReaderFileMake( const ReaderFile **reader,
             self->pb.secondaryReadNumber = 0;
             self->pb.ignoreSpotGroups = ignoreSpotGroups;
 
-            rc = FASTQScan_yylex_init(& self->pb, false);
+            rc = FASTQScan_yylex_init(& self->pb, debugLex);
             if (rc == 0)
             {
                 *reader = (const ReaderFile *) self;

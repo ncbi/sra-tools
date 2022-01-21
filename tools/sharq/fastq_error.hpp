@@ -71,6 +71,7 @@ public:
 
     template<typename... Args> 
     fastq_error(int error_code, const std::string& message, Args... args) 
+        : m_error_code(error_code)
     {
         static const std::string err_code_prefix = "[code:{}] ";
         std::string str = err_code_prefix;
@@ -79,6 +80,7 @@ public:
     }
 
     fastq_error(int error_code) 
+        : m_error_code(error_code)
     {
         static const std::string err_code_prefix = "[code:{}] ";
         std::string str = err_code_prefix;
@@ -90,6 +92,11 @@ public:
     {
         return mMessage.c_str();
     }
+
+    int error_code() const 
+    {
+        return m_error_code;
+    } 
 
     const std::string& Message() const
     {
@@ -106,6 +113,7 @@ public:
     }    
 
 
+
     static void print_error_codes(std::ostream& os) 
     {
         os << fmt::format("{:-^80}", " SharQ error codes ") << "\n";
@@ -120,7 +128,9 @@ public:
         }
     }
 
+
 private:
+    int m_error_code{0};
     std::string mMessage;
 };
 

@@ -77,7 +77,7 @@ private:
     string mSpotGroup;            ///< spot group (barcode) 
     uint8_t mReadFilter{0};       ///< read filter 0, 1
     uint8_t mReadType{0};         ///< read type - SRA_READ_TYPE_TECHNICAL|SRA_READ_TYPE_BIOLOGICAL
-    string mSuffix;               ///< Illumina siffux
+    string mSuffix;               ///< Illumina suffix
     string mSequence;             ///< Sequence string
     string mQuality;              ///< Quality string as it comes from file adjusted to seq length
     vector<uint8_t> mQualScores;  ///< Numeric quality scores
@@ -102,11 +102,8 @@ void CFastqRead::Reset()
     mLineNumber = 0;
 }
 
-void CFastqRead::AddSequenceLine(const string_view& sequence) {
-    // check isalpha
-    if (std::any_of(sequence.begin(), sequence.end(), [](const char& c) { return !isalpha(c);})) {
-        throw fastq_error(160, "Read {}: invalid sequence characters", mSpot);
-    }
+void CFastqRead::AddSequenceLine(const string_view& sequence) 
+{
     mSequence.append(sequence.begin(), sequence.end());
 }
 

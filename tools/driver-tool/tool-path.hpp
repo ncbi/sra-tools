@@ -34,6 +34,7 @@
 #include <cstdlib>
 
 #include "../../shared/toolkit.vers.h"
+#include "debug.hpp"
 #include "util.hpp"
 
 namespace sratools {
@@ -77,6 +78,8 @@ public:
 #endif
     }
     bool executable() const {
+        if (logging_state::testing_level() > 0)
+            return true; ///< since we aren't going to ever actually try to run the thing, might as well let it slide.
 #if WINDOWS
         return true; ///< yeah Windows really doesn't know!!!
 #else // POSIX

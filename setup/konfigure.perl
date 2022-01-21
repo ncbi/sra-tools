@@ -550,8 +550,8 @@ foreach my $href (@REQ) {
     $href->{locbldpath} = expand($href->{locbldpath}) if ($href->{locbldpath});
 
     # found directories
-    my
-      ($found_itf, $found_bin, $found_lib, $found_ilib, $found_jar, $found_src);
+    my ($found_itf, $found_bin, $found_ilib, $found_jar, $found_src);
+    my $found_lib = '';
 
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
@@ -584,12 +584,12 @@ foreach my $href (@REQ) {
     }
     unless ($AUTORUN) {
         if ($need_source && $need_build) {
-            println
-               "checking for $a{name} package source files and build results..."
+            print
+              "checking for $a{name} package source files and build results... "
         } elsif ($need_source) {
-            println "checking for $a{name} package source files...";
+            print "checking for $a{name} package source files... ";
         } else {
-            println "checking for $a{name} package...";
+            print "checking for $a{name} package... ";
         }
     }
 println "---0 $a{name}" if ($TRS);
@@ -662,7 +662,7 @@ println "---3 $try" if ($TRS);
 
         $try = $a{usrpath};
         if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib)) {
-println "---4 $try if ($TRS)";
+println "---4 $try" if ($TRS);
             my ($fi, $fl) = find_in_dir($try, $inc, $lib);
             $found_itf  = $fi  if (! $found_itf  && $fi);
             $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -729,14 +729,15 @@ println "---B $try"if ($TRS);
                     if ($tolib && ! $found) {
                         (undef, $fl, $fil)
                             = find_in_dir($try, undef, $lib, $ilib);
-# removed because there are no need to check for ilib
-#                       my $resetLib = ! $found_lib;
-#                       if (! $found_ilib && $fil) {
-#                           $found_ilib = $fil;
-#                           ++$resetLib;
-#                       }
-                        $found_lib  = $fl if ( # $resetLib &&
-                                              $fl);
+                        my $resetLib = ! $found_lib;
+                        if ($need_build) {
+                            # there is a need to check for ilib
+                            if (! $found_ilib && $fil) {
+                               $found_ilib = $fil;
+                               ++$resetLib;
+                            }
+                        } else { ++$resetLib; }
+                        $found_lib  = $fl if ($resetLib && $fl);
                     }
                     if ($tobin && ! $found) {
                         (undef, $fl, $fil) =
@@ -764,6 +765,7 @@ println "---B $try"if ($TRS);
             push(@dependencies, "$a{aname}_INCDIR = $found_itf");
             println "includes: $found_itf";
         } else {
+            println "no";
             if ($OPT{'debug'}) {
                 $_ = "$a{name}: includes: ";
                 $found_itf = '' unless $found_itf;
@@ -786,15 +788,16 @@ println "---B $try"if ($TRS);
             exit 1;
         }
     } else {
+        println "yes";
         if ($found_itf) {
             $found_itf = abs_path($found_itf);
             push(@dependencies, "$a{aname}_INCDIR = $found_itf");
-            println "includes: $found_itf";
+            println "\tincludes: $found_itf";
         }
         if ($found_src) {
             $found_src = abs_path($found_src);
             push(@dependencies, "$a{aname}_SRCDIR = $found_src");
-            println "sources: $found_src";
+            println "\tsources: $found_src";
         }
         if ($found_lib) {
             $found_lib = abs_path($found_lib);
@@ -807,22 +810,22 @@ println "---B $try"if ($TRS);
                 $OPT{PYTHON_LIB_PATH} .= $found_lib;
             }
             push(@dependencies, "$a{aname}_LIBDIR = $found_lib");
-            println "libraries: $found_lib";
+            println "\tlibraries: $found_lib";
         }
         if ($ilib && $found_ilib) {
             $found_ilib = abs_path($found_ilib);
             push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
-            println "ilibraries: $found_ilib";
+            println "\tilibraries: $found_ilib";
         }
         if ($found_bin) {
             $found_bin = abs_path($found_bin);
             push(@dependencies, "$a{aname}_BINDIR = $found_bin");
-            println "bin: $found_bin";
+            println "\tbin: $found_bin";
         }
         if ($found_jar) {
             $found_jar = abs_path($found_jar);
             push(@dependencies, "$a{aname}_JAR = $found_jar");
-            println "jar: $found_jar";
+            println "\tjar: $found_jar";
         }
     }
 }
@@ -1404,23 +1407,23 @@ sub find_in_dir {
     }
     my ($found_inc, $found_lib, $found_ilib, $found_src);
     if ($include) {
-        print "\tincludes... " unless ($AUTORUN);
+        print "\tincludes... " if ($OPT{'debug'});
         if (-e "$dir/$include") {
-            println $dir unless ($AUTORUN);
+            println $dir if ($OPT{'debug'});
             $found_inc = $dir;
         } elsif (-e "$dir/include/$include") {
-            println $dir unless ($AUTORUN);
+            println $dir if ($OPT{'debug'});
             $found_inc = "$dir/include";
         } elsif (-e "$dir/interfaces/$include") {
-            println $dir unless ($AUTORUN);
+            println $dir if ($OPT{'debug'});
             $found_inc = "$dir/interfaces";
         } else {
             print "$dir: " if ($OPT{'debug'});
-            println 'no' unless ($AUTORUN);
+            println 'no' if ($OPT{'debug'});
         }
     }
     if ($lib || $ilib) {
-        print "\tlibraries... " unless ($AUTORUN);
+        print "\tlibraries... " if ($OPT{'debug'});
         if ($lib) {
             my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
             my $libdir  = File::Spec->catdir($builddir, 'lib');
@@ -1434,14 +1437,14 @@ sub find_in_dir {
                     my $f = File::Spec->catdir($ilibdir, $ilib);
                     print "\tchecking $f\n\t" if ($OPT{'debug'});
                     if (-e $f) {
-                        println $ilibdir;
+                        println $ilibdir if ($OPT{'debug'});
                         $found_ilib = $ilibdir;
                     } else {
-                        println 'no' unless ($AUTORUN);
+                        println 'no' if ($OPT{'debug'});
                         return;
                     }
                 } else {
-                    println $libdir;
+                    println $libdir if ($OPT{'debug'});
                 }
                 ++$found;
             }
@@ -1450,7 +1453,7 @@ sub find_in_dir {
                 my $f = File::Spec->catdir($libdir, $lib);
                 print "\tchecking $f\n\t" if ($OPT{'debug'});
                 if (-e $f) {
-                    println $libdir;
+                    println $libdir if ($OPT{'debug'});
                     $found_lib = $libdir;
                     ++$found;
                 }
@@ -1468,54 +1471,54 @@ sub find_in_dir {
                         my $f = File::Spec->catdir($ilibdir, $ilib);
                         print "\tchecking $f\n\t" if ($OPT{'debug'});
                         if (-e $f) {
-                            println $ilibdir;
+                            println $ilibdir if ($OPT{'debug'});
                             $found_ilib = $ilibdir;
                         } else {
-                            println 'no' unless ($AUTORUN);
+                            println 'no' if ($OPT{'debug'});
                             return;
                         }
                     } else {
-                        println $libdir;
+                        println $libdir if ($OPT{'debug'});
                     }
                     ++$found;
                 } else {
-                    println 'no' unless ($AUTORUN);
+                    println 'no' if ($OPT{'debug'});
                 }
             }
         }
         if ($found_lib && $ilib && ! $found_ilib) {
             println "\n\t\tfound $found_lib but no ilib/" if ($OPT{'debug'});
             print "\t" if ($OPT{'debug'});
-            println 'no' unless ($AUTORUN);
+            println 'no' if ($OPT{'debug'});
             undef $found_lib;
         }
     }
     if ($bin) {
-        print "\t... " unless ($AUTORUN);
+        print "\t... " if ($OPT{'debug'});
         my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
         my $bdir  = File::Spec->catdir($builddir, 'bin');
         my $f = File::Spec->catdir($bdir, $bin);
         print "\n\t\tchecking $f\n\t" if ($OPT{'debug'});
         if (-e $f) {
             $found_lib = $bdir;
-            println $bdir;
+            println $bdir if ($OPT{'debug'});
         } else {
-            println 'no' unless ($AUTORUN);
+            println 'no' if ($OPT{'debug'});
         }
     }
     if ($jar) {
-        print "\tjar... " unless ($AUTORUN);
+        print "\tjar... " if ($OPT{'debug'});
         my $try = "$dir/jar/$jar";
         if (-e "$try") {
-            println $try unless ($AUTORUN);
+            println $try if ($OPT{'debug'});
             $found_lib = $try;
         }
     }
     if ($src) {
-        print "\tsrc... " unless ($AUTORUN);
+        print "\tsrc... " if ($OPT{'debug'});
         my $try = "$dir/$src";
         if (-e "$try") {
-            println $dir unless ($AUTORUN);
+            println $dir if ($OPT{'debug'});
             $found_src = $dir;
         }
     }

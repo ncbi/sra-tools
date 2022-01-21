@@ -153,5 +153,9 @@ if ( NOT WIN32 )
 		COMMAND fasta_er.sh "${DIRTOTEST}" "fasta_er_unsorted" "--fasta-unsorted"
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+	add_test( NAME Test_Drivertool_2_accessions
+		COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
 endif()
 endif()

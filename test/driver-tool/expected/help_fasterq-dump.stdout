@@ -55,6 +55,11 @@ Options:
                                      seq-defline)
   -U|--only-unaligned              process only unaligned reads
   -a|--only-aligned                process only aligned reads
+     --size-check                  switch to control: on=perform size-check
+                                     (default), off=do not perform
+                                     size-check, only=perform size-check only
+     --disk-limit                  explicitly set disk limit
+     --disk-limit-tmp              explicitly set disk limit for temp. files
      --ngc <path>                  <path> to ngc file
      --perm <path>                 <path> to permission file
      --location <location>         location in cloud

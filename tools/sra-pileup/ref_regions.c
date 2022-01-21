@@ -39,12 +39,9 @@
 
 /* =========================================================================================== */
 
-
-static int cmp_pchar( const char * a, const char * b )
-{
+static int cmp_pchar( const char * a, const char * b ) {
     int res = 0;
-    if ( ( a != NULL )&&( b != NULL ) )
-    {
+    if ( ( a != NULL )&&( b != NULL ) ) {
         size_t len_a = string_size( a );
         size_t len_b = string_size( b );
         res = string_cmp ( a, len_a, b, len_b, ( len_a < len_b ) ? len_b : len_a );
@@ -52,41 +49,31 @@ static int cmp_pchar( const char * a, const char * b )
     return res;
 }
 
-
-struct skip_range
-{
+struct skip_range {
     uint64_t start;
     uint64_t end;
 } skip_range;
 
-
-static struct skip_range * make_skip_range( const uint64_t start, const uint64_t end )
-{
+static struct skip_range * make_skip_range( const uint64_t start, const uint64_t end ) {
     struct skip_range *res = calloc( 1, sizeof *res );
-    if ( res != NULL )
-    {
+    if ( res != NULL ) {
         res->start = start;
         res->end = end;
     }
     return res;
 }
 
-
 /* =========================================================================================== */
 
-struct reference_range
-{
+struct reference_range {
     uint64_t start;
     uint64_t end;
     Vector skip;
 } reference_range;
 
-
-static struct reference_range * make_range( const uint64_t start, const uint64_t end )
-{
+static struct reference_range * make_range( const uint64_t start, const uint64_t end ) {
     struct reference_range *res = calloc( 1, sizeof *res );
-    if ( res != NULL )
-    {
+    if ( res != NULL ) {
         res->start = start;
         res->end = end;
         VectorInit ( &res->skip, 0, 5 );
@@ -94,114 +81,101 @@ static struct reference_range * make_range( const uint64_t start, const uint64_t
     return res;
 }
 
-
 static void CC release_skip( void * item, void * data ) { free( item ); }
 
-static void free_range( struct reference_range * self )
-{
+static void free_range( struct reference_range * self ) {
     VectorWhack ( &self->skip, release_skip, NULL );
     free( self );
 }
 
 static int64_t cmp_range( const struct reference_range * a, const struct reference_range * b )
 {
-    if ( a != NULL && b != NULL )
-    {
-        if ( a->start < b->start )
+    if ( a != NULL && b != NULL ) {
+        if ( a -> start < b -> start ) {
             return -1;
-        else if ( a->start > b->start )
+        } else if ( a -> start > b -> start ) {
             return 1;
-        else if ( a->end < b->end )
+        } else if ( a -> end < b -> end ) {
             return -1;
-        else if ( a->end > b->end )
+        } else if ( a -> end > b -> end ) {
             return 1;
-        else
+        } else {
             return 0;
+        }
     }
     return 1; /* question from ukrainch: so, cmp_range cannot be used for sorting? */
 }
 
-
-static bool range_overlapp( const struct reference_range * a, const struct reference_range * b )
-{
-    if ( a != NULL && b != NULL )
-        return ( !( ( b->end < a->start ) || ( b->start > a->end ) ) );
+static bool range_overlapp( const struct reference_range * a, const struct reference_range * b ) {
+    if ( a != NULL && b != NULL ) {
+        return ( !( ( b -> end < a -> start ) || ( b -> start > a -> end ) ) );
+    }
     return false;
 }
 
-
-static uint64_t range_distance( const struct reference_range * a, const struct reference_range * b )
-{
-    if ( a != NULL && b != NULL )
-        return ( b->start - a->end );
+static uint64_t range_distance( const struct reference_range * a, const struct reference_range * b ) {
+    if ( a != NULL && b != NULL ) {
+        return ( b -> start - a -> end );
+    }
     return 0;
 }
 
 /* =========================================================================================== */
 
-struct reference_region
-{
+struct reference_region {
     BSTNode node;
     const char * name;
     Vector ranges;
 } reference_region;
 
-
-static struct reference_region * make_reference_region( const char *name )
-{
+static struct reference_region * make_reference_region( const char *name ) {
     struct reference_region *res = calloc( sizeof *res, 1 );
-    if ( res != NULL )
-    {
-        res->name = string_dup_measure ( name, NULL );
+    if ( res != NULL ) {
+        res -> name = string_dup_measure ( name, NULL );
         VectorInit ( &res->ranges, 0, 5 );
     }
     return res;
 }
 
+static int64_t CC cmp_range_wrapper( const void *item, const void *n ) {
+    return cmp_range( item, n );
+}
 
-static int64_t CC cmp_range_wrapper( const void *item, const void *n )
-{   return cmp_range( item, n ); }
-
-
-static rc_t add_ref_region_range( struct reference_region * self, const uint64_t start, const uint64_t end )
-{
+static rc_t add_ref_region_range( struct reference_region * self, const uint64_t start, const uint64_t end ) {
     rc_t rc = 0;
     struct reference_range *r = make_range( start, end );
-    if ( r == NULL )
+    if ( r == NULL ) {
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-    else
-    {
+    } else {
         rc = VectorInsert ( &self->ranges, r, NULL, cmp_range_wrapper );
-        if ( rc != 0 )
+        if ( rc != 0 ) {
             free( r );
+        }
     }
     return rc;
 }
-
 
 #define RR_NAME  1
 #define RR_START 2
 #define RR_END   3
 
-
-static void put_c( char *s, size_t size, size_t *dst, char c )
-{
-    if ( *dst < ( size - 1 ) )
+static void put_c( char *s, size_t size, size_t *dst, char c ) {
+    if ( *dst < ( size - 1 ) ) {
         s[ *dst ] = c;
+    }
     (*dst)++;
 }
 
-static void finish_txt( char *s, size_t size, size_t *dst )
-{
-    if ( *dst > size )
+static void finish_txt( char *s, size_t size, size_t *dst ) {
+    if ( *dst > size ) {
         s[ size - 1 ] = 0;
-    else
+    } else {
         s[ *dst ] = 0;
+    }
     *dst = 0;
 }
 
-static uint64_t finish_num( char *s, size_t size, size_t *dst )
-{
+static uint64_t finish_num( char *s, size_t size, size_t *dst ) {
     uint64_t res = 0;
     char *endp;
     finish_txt( s, size, dst );
@@ -209,57 +183,44 @@ static uint64_t finish_num( char *s, size_t size, size_t *dst )
     return res;
 }
 
-
 /* s = refname:1000-2000 */
 static void parse_definition( const char *s, char * name, size_t len,
-                              uint64_t *start, uint64_t *end )
-{
+                              uint64_t *start, uint64_t *end ) {
     size_t n = string_size( s );
 
     *start = 0;
     *end   = 0;
     name[ 0 ] = 0;
-    if ( n > 0 )
-    {
+    if ( n > 0 ) {
         size_t i, st, dst = 0;
         char tmp[ 4096 ];
         st = RR_NAME;
-        for ( i = 0; i < n; ++i )
-        {
+        for ( i = 0; i < n; ++i ) {
             char c = s[ i ];
-            switch( st )
-            {
-                case RR_NAME  : if ( c == ':' )
-                                {
+            switch( st ) {
+                case RR_NAME  : if ( c == ':' ) {
                                     finish_txt( name, len, &dst );
                                     st = RR_START;
-                                }
-                                else
-                                {
+                                } else {
                                     put_c( name, len, &dst, c );
                                 }
                                 break;
 
-                case RR_START : if ( c == '-' )
-                                {
+                case RR_START : if ( c == '-' ) {
                                     *start = finish_num( tmp, sizeof tmp, &dst );
                                     st = RR_END;
-                                }
-                                else if ( ( c >= '0' )&&( c <= '9' ) )
-                                {
+                                } else if ( ( c >= '0' )&&( c <= '9' ) ) {
                                     put_c( tmp, sizeof tmp, &dst, c );
                                 }
                                 break;
 
-                case RR_END   : if ( ( c >= '0' )&&( c <= '9' ) )
-                                {
+                case RR_END   : if ( ( c >= '0' )&&( c <= '9' ) ) {
                                     put_c( tmp, sizeof tmp, &dst, c );
                                 }
                                 break;
             }
         }
-        switch( st )
-        {
+        switch( st ) {
             case RR_NAME  : finish_txt( name, len, &dst );
                             break;
 
@@ -272,31 +233,24 @@ static void parse_definition( const char *s, char * name, size_t len,
     }
 }
 
-
 static void CC release_ranges_wrapper( void * item, void * data ) { free_range( item ); }
 
-static void free_reference_region( struct reference_region * self )
-{
+static void free_reference_region( struct reference_region * self ) {
     free( (void*)self->name );
     VectorWhack ( &self->ranges, release_ranges_wrapper, NULL );
     free( self );
 }
 
-
-static void merge_overlapping_ranges( struct reference_region * self )
-{
+static void merge_overlapping_ranges( struct reference_region * self ) {
     uint32_t n = VectorLength( &self->ranges );
     uint32_t i = 0;
     struct reference_range * a = NULL;
-    while ( i < n )
-    {
+    while ( i < n ) {
         struct reference_range * b = VectorGet ( &self->ranges, i );
         bool remove = false;
-        if ( a != NULL )
-        {
+        if ( a != NULL ) {
             remove = range_overlapp( a, b );
-            if ( remove )
-            {
+            if ( remove ) {
                 struct reference_range * r;
                 a->end = b->end;
                 VectorRemove ( &self->ranges, i, (void**)&r );
@@ -304,134 +258,114 @@ static void merge_overlapping_ranges( struct reference_region * self )
                 n--;
             }
         }
-        if ( !remove )
-        {
+        if ( !remove ) {
             a = b;
             ++i;
         }
     }
 }
 
-
-static void merge_close_ranges_and_create_filter( struct reference_region * self, uint64_t merge_diff )
-{
+static void merge_close_ranges_and_create_filter( struct reference_region * self, uint64_t merge_diff ) {
     uint32_t n = VectorLength( &self->ranges );
     uint32_t i = 0;
     struct reference_range * a = NULL;
-    while ( i < n )
-    {
+    while ( i < n ) {
         struct reference_range * b = VectorGet ( &self->ranges, i );
         bool remove = false;
-        if ( a != NULL )
-        {
+        if ( a != NULL ) {
             /* get the distance between a and b */
             uint64_t d = range_distance( a, b );
             remove = ( d < merge_diff );
-            if ( remove )
-            {
+            if ( remove ) {
                 struct reference_range * r;
 
                 /* add the gap to the skip-vector of a */
-                struct skip_range * sr = make_skip_range( a->end + 1, b->start - 1 );
-                VectorAppend ( &( a->skip ), NULL, sr );
+                struct skip_range * sr = make_skip_range( a -> end + 1, b -> start - 1 );
+                VectorAppend ( &( a -> skip ), NULL, sr );
 
                 /* expand a to merge with b */
-                a->end = b->end;
+                a -> end = b -> end;
 
                 /* remove b */
-                VectorRemove ( &self->ranges, i, (void**)&r );
+                VectorRemove ( &( self -> ranges ), i, (void**)&r );
                 free( r );
                 n--;
             }
         }
-        if ( !remove )
-        {
+        if ( !remove ) {
             a = b;
             ++i;
         }
     }
 }
 
-
 /* =========================================================================================== */
 
-static int64_t CC reference_vs_pchar_wrapper( const void *item, const BSTNode *n )
-{
+static int64_t CC reference_vs_pchar_wrapper( const void *item, const BSTNode *n ) {
     const struct reference_region * r = ( const struct reference_region * )n;
     return cmp_pchar( (const char *)item, r->name );
 }
 
-static struct reference_region * find_reference_region( BSTree * regions, const char * name )
-{
+static struct reference_region * find_reference_region( BSTree * regions, const char * name ) {
     return ( struct reference_region * ) BSTreeFind ( regions, name, reference_vs_pchar_wrapper );
 }
 
-static int64_t CC ref_vs_ref_wrapper( const BSTNode *item, const BSTNode *n )
-{
+static int64_t CC ref_vs_ref_wrapper( const BSTNode *item, const BSTNode *n ) {
    const struct reference_region * a = ( const struct reference_region * )item;
    const struct reference_region * b = ( const struct reference_region * )n;
    return cmp_pchar( a->name, b->name );
 }
 
-
-rc_t add_region( BSTree * regions, const char * name, const uint64_t start, const uint64_t end )
-{
+rc_t add_region( BSTree * regions, const char * name, const uint64_t start, const uint64_t end ) {
     rc_t rc;
 
     struct reference_region * r = find_reference_region( regions, name );
-    if ( r == NULL )
-    {
+    if ( r == NULL ) {
         r = make_reference_region( name );
-        if ( r == NULL )
+        if ( r == NULL ) {
             rc = RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        else
+        } else {
             rc = add_ref_region_range( r, start, end );
-        if ( rc == 0 )
+        }
+        if ( rc == 0 ) {
             rc = BSTreeInsert ( regions, (BSTNode *)r, ref_vs_ref_wrapper );
-        if ( rc != 0 )
+        }
+        if ( rc != 0 ) {
             free_reference_region( r );
-    }
-    else
-    {
+        }
+    } else {
         rc = add_ref_region_range( r, start, end );
     }
     return rc;
 }
 
-
-rc_t parse_and_add_region( BSTree * regions, const char * s )
-{
+rc_t parse_and_add_region( BSTree * regions, const char * s ) {
     uint64_t start, end;
     char name[ 4096 ];
     parse_definition( s, name, sizeof name, &start, &end );
-    if ( name[ 0 ] == 0 )
+    if ( name[ 0 ] == 0 ) {
         return RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-    else
+    } else {
         return add_region( regions, name, start, end );
+    }
 }
-
 
 /* =========================================================================================== */
 
-
-static void CC slice_report_wrapper( BSTNode *n, void *data )
-{
+static void CC slice_report_wrapper( BSTNode *n, void *data ) {
     const struct reference_region * r = ( const struct reference_region * )n;
     uint32_t nr = VectorLength( &( r->ranges ) );
 
     KOutMsg( "\n-[%s]:\n", r->name );
-    if ( nr == 0 )
+    if ( nr == 0 ) {
         KOutMsg( " no ranges!\n" );
-    else
-    {
+    } else {
         uint32_t i, j;
-        for ( i = 0; i < nr; ++i )
-        {
+        for ( i = 0; i < nr; ++i ) {
             const struct reference_range * rr = ( const struct reference_range * ) VectorGet ( &( r->ranges ), i );
             uint32_t ns = VectorLength( &( rr->skip ) );
             KOutMsg( "  %u ... %u\n", rr->start, rr->end );
-            for ( j = 0; j < ns; ++j )
-            {
+            for ( j = 0; j < ns; ++j ) {
                 const struct skip_range * sr = ( const struct skip_range * ) VectorGet ( &( rr->skip ), j );
                 KOutMsg( "  ___skip %u ... %u\n", sr->start, sr->end );
             }
@@ -439,86 +373,64 @@ static void CC slice_report_wrapper( BSTNode *n, void *data )
     }
 }
 
-
-void slice_report( BSTree * regions )
-{
+void slice_report( BSTree * regions ) {
     KOutMsg( "\n\nstart slice-report:\n" );
     BSTreeForEach ( regions, false, slice_report_wrapper, NULL );
     KOutMsg( "\nend slice-report\n\n" );
 }
 
-static void CC check_refrange_wrapper( BSTNode *n, void *data )
-{
+static void CC check_refrange_wrapper( BSTNode *n, void *data ) {
     struct reference_region * rr = ( struct reference_region * )n;
     uint64_t * merge_diff = data;
     merge_overlapping_ranges( rr );
-    if ( *merge_diff > 0 )
+    if ( *merge_diff > 0 ) {
         merge_close_ranges_and_create_filter( rr, *merge_diff );
+    }
 }
 
-
-void check_ref_regions( BSTree * regions, uint64_t merge_diff )
-{
+void check_ref_regions( BSTree * regions, uint64_t merge_diff ) {
     BSTreeForEach ( regions, false, check_refrange_wrapper, &merge_diff );
 }
 
-
 /* =========================================================================================== */
 
-
-static void CC release_ref_region_wrapper( BSTNode *n, void * data )
-{
+static void CC release_ref_region_wrapper( BSTNode *n, void * data ) {
     free_reference_region( ( struct reference_region * ) n );
 }
 
-
-void free_ref_regions( BSTree * regions )
-{    
+void free_ref_regions( BSTree * regions ) {    
     BSTreeWhack ( regions, release_ref_region_wrapper, NULL );
 }
 
-
 /* =========================================================================================== */
 
-
-static void CC count_ref_region_wrapper( BSTNode *n, void *data )
-{   
+static void CC count_ref_region_wrapper( BSTNode *n, void *data ) {   
     struct reference_region * r = ( struct reference_region * ) n;
     uint32_t * count = ( uint32_t * ) data;
     *count += VectorLength( &(r->ranges) );
 }
 
-
-uint32_t count_ref_regions( BSTree * regions )
-{
+uint32_t count_ref_regions( BSTree * regions ) {
     uint32_t res = 0;
     BSTreeForEach ( regions, false, count_ref_region_wrapper, &res );
     return res;
 }
 
-
 /* =========================================================================================== */
 
-
-typedef struct foreach_ref_region_func
-{
+typedef struct foreach_ref_region_func {
     rc_t ( CC * on_region ) ( const char * name, const struct reference_range * range, void *data );
     void * data;
     rc_t rc;
 } foreach_ref_region_func;
 
-
-static bool CC foreach_ref_region_wrapper( BSTNode *n, void *data )
-{   
+static bool CC foreach_ref_region_wrapper( BSTNode *n, void *data ) {   
     struct reference_region * r = ( struct reference_region * ) n;
     foreach_ref_region_func * func = ( foreach_ref_region_func * )data;
 
-    if ( func->rc == 0 )
-    {
+    if ( func->rc == 0 ) {
         uint32_t i, v_count = VectorLength( &( r->ranges ) );
-
-        for ( i = 0; i < v_count && func->rc == 0; ++i )
-        {
+        for ( i = 0; i < v_count && func->rc == 0; ++i ) {
             struct reference_range * rr = VectorGet ( &( r->ranges ), i );
             func->rc = func->on_region( r->name, rr, func->data );    
         }
@@ -526,11 +438,9 @@ static bool CC foreach_ref_region_wrapper( BSTNode *n, void *data )
     return ( func->rc != 0 );
 }
 
-
 rc_t foreach_ref_region( BSTree * regions,
     rc_t ( CC * on_region ) ( const char * name, const struct reference_range * range, void *data ), 
-    void *data )
-{
+    void *data ) {
     foreach_ref_region_func func;
 
     func.on_region = on_region;
@@ -540,72 +450,51 @@ rc_t foreach_ref_region( BSTree * regions,
     return func.rc;
 }
 
-
 /* =========================================================================================== */
 
-
-const struct reference_region * get_first_ref_node( const BSTree * regions )
-{
+const struct reference_region * get_first_ref_node( const BSTree * regions ) {
     return ( const struct reference_region * ) BSTreeFirst ( regions );
 }
 
-
-const struct reference_region * get_next_ref_node( const struct reference_region * node )
-{
+const struct reference_region * get_next_ref_node( const struct reference_region * node ) {
     return ( const struct reference_region * ) BSTNodeNext( ( const BSTNode * ) node );
 }
-    
 
-const char * get_ref_node_name( const struct reference_region * node )
-{
+const char * get_ref_node_name( const struct reference_region * node ) {
     return ( node->name );
 }
 
-
-uint32_t get_ref_node_range_count( const struct reference_region * node )
-{
+uint32_t get_ref_node_range_count( const struct reference_region * node ) {
     return VectorLength( &( node->ranges ) );
 }
 
-
-const struct reference_range * get_ref_range( const struct reference_region * node, uint32_t idx )
-{
+const struct reference_range * get_ref_range( const struct reference_region * node, uint32_t idx ) {
     const struct reference_range * res = NULL;
-    if ( node != NULL )
-    {
+    if ( node != NULL ) {
         uint32_t n = VectorLength( &( node->ranges ) );
-        if ( ( idx >=0 ) && ( idx < n ) )
-        {
+        if ( ( idx >=0 ) && ( idx < n ) ) {
             res = ( const struct reference_range * ) VectorGet ( &( node->ranges ), idx );
         }
     }
     return res;
 }
 
-
-uint64_t get_ref_range_start( const struct reference_range * range )
-{
+uint64_t get_ref_range_start( const struct reference_range * range ) {
     uint64_t res = 0;
-    if ( range != NULL )
-        res = range->start;
+    if ( range != NULL ) { res = range->start; }
     return res;
 }
 
 
-uint64_t get_ref_range_end( const struct reference_range * range )
-{
+uint64_t get_ref_range_end( const struct reference_range * range ) {
     uint64_t res = 0;
-    if ( range != NULL )
-        res = range->end;
+    if ( range != NULL ) { res = range -> end; }
     return res;
 }
-
 
 /* =========================================================================================== */
 
-
-struct skiplist_ref_node
-{
+struct skiplist_ref_node {
     BSTNode node;
     const char * name;
     int32_t current_id;
@@ -613,58 +502,46 @@ struct skiplist_ref_node
     Vector skip_ranges;     /* holds skip_range structs */
 } skiplist_ref_node;
 
-
-struct skiplist
-{
+struct skiplist {
     BSTree nodes;           /* a tree of skiplist_ref_node 's */
     uint32_t node_count;
     struct skiplist_ref_node * current;
 } skiplist;
 
-
 /* helper func to detect if the given reference_region has ranges to be skiped */
-static bool reference_region_has_skip_ranges( const struct reference_region * r )
-{
+static bool reference_region_has_skip_ranges( const struct reference_region * r ) {
     bool res = false;
-	if ( r != NULL )
-	{
-		uint32_t i, n = VectorLength( &r->ranges );
-		for ( i = 0; i < n && !res; ++i )
-		{
-			const struct reference_range * rr = VectorGet ( &( r->ranges ), i );
-			if ( rr != NULL )
-			{
-				if ( VectorLength( &rr->skip ) > 0 ) res = true;
-			}
-		}
-	}
+    if ( r != NULL ) {
+        uint32_t i, n = VectorLength( &r->ranges );
+        for ( i = 0; i < n && !res; ++i ) {
+            const struct reference_range * rr = VectorGet ( &( r->ranges ), i );
+            if ( rr != NULL ) {
+                if ( VectorLength( &rr->skip ) > 0 ) res = true;
+            }
+        }
+    }
     return res;
 }
 
-
 /* helper to create a skiplist-node, walk the given the ref-region fo find and enter all skip positions */
-static struct skiplist_ref_node * make_skiplist_ref_node( const struct reference_region * r )
-{
+static struct skiplist_ref_node * make_skiplist_ref_node( const struct reference_region * r ) {
     struct skiplist_ref_node * res = calloc( 1, sizeof *res );
-    if ( res != NULL )
-    {
+    if ( res != NULL ) {
         uint32_t i, n = VectorLength( &r->ranges );
         res->name = string_dup_measure ( r->name, NULL );
         VectorInit ( &res->skip_ranges, 0, 5 );
         /* walk the ranges-Vector of the reference-region */
-        for ( i = 0; i < n; ++i )
-        {
+        for ( i = 0; i < n; ++i ) {
             const struct reference_range * rr = VectorGet ( &( r->ranges ), i );
             /* walk the skip-Vector of the reference-range */
             uint32_t j, n1 = VectorLength( &rr->skip );
-            for ( j = 0; j < n1; ++j )
-            {
+            for ( j = 0; j < n1; ++j ) {
                 const struct skip_range * sr = VectorGet ( &( rr->skip ), j );
-                if ( sr != NULL )
-                {
+                if ( sr != NULL ) {
                     struct skip_range * csr = make_skip_range( sr->start, sr->end );
-                    if ( csr != NULL )
+                    if ( csr != NULL ) {
                         VectorAppend ( &( res->skip_ranges ), NULL, csr );
+                    }
                 }
             }
         }
@@ -674,29 +551,22 @@ static struct skiplist_ref_node * make_skiplist_ref_node( const struct reference
     return res;
 }
 
-
 /* helper call back for BSTreeInsert into skiplist->nodes */
-static int64_t CC srn_vs_srn_wrapper( const BSTNode *item, const BSTNode *n )
-{
+static int64_t CC srn_vs_srn_wrapper( const BSTNode *item, const BSTNode *n ) {
    const struct skiplist_ref_node * a = ( const struct skiplist_ref_node * )item;
    const struct skiplist_ref_node * b = ( const struct skiplist_ref_node * )n;
    return cmp_pchar( a->name, b->name );
 }
 
-
 /* call back for each reference-region to generate eventually a skiplist_ref_node */
-static void CC visit_region_node_for_skiplist( BSTNode *n, void *data )
-{
+static void CC visit_region_node_for_skiplist( BSTNode *n, void *data ) {
     const struct reference_region * r = ( const struct reference_region * ) n;
     struct skiplist * skl = ( struct skiplist * ) data;
-    if ( r != NULL && skl != NULL )
-    {
+    if ( r != NULL && skl != NULL ) {
         /* walk the reference-region, detect if we even have something to skip in here */
-        if ( reference_region_has_skip_ranges( r ) )
-        {
+        if ( reference_region_has_skip_ranges( r ) ) {
             struct skiplist_ref_node * srn = make_skiplist_ref_node( r );
-            if ( srn != NULL )
-            {
+            if ( srn != NULL ) {
                 BSTreeInsert ( &(skl->nodes), ( BSTNode * )srn, srn_vs_srn_wrapper );
                 skl->node_count++;
             }
@@ -704,19 +574,16 @@ static void CC visit_region_node_for_skiplist( BSTNode *n, void *data )
     }
 }
 
-struct skiplist * skiplist_make( BSTree * regions )
-{
+struct skiplist * skiplist_make( BSTree * regions ) {
     struct skiplist *res = calloc( 1, sizeof *res );
-    if ( res != NULL )
-    {
+    if ( res != NULL ) {
         BSTreeInit( &(res->nodes) );
         res->current = NULL;
         res->node_count = 0;
 
         /* walk the given regions-tree to generate the skip-list */
         BSTreeForEach ( regions, false, visit_region_node_for_skiplist, res );
-        if ( res->node_count == 0 )
-        {
+        if ( res -> node_count == 0 ) {
             skiplist_release( res );
             res = NULL;
         }
@@ -724,65 +591,50 @@ struct skiplist * skiplist_make( BSTree * regions )
     return res;
 }
 
-
-static void CC release_skiplist_entry( BSTNode * n, void * data )
-{
+static void CC release_skiplist_entry( BSTNode * n, void * data ) {
     struct skiplist_ref_node * node = ( struct skiplist_ref_node * )n;
     if ( node->name != NULL ) free( ( void * ) node->name );
     VectorWhack ( &node->skip_ranges, release_skip, NULL );     /* wrapper callback reused from above */
     free( ( void * ) node );
 }
 
-
-void skiplist_release( struct skiplist * list )
-{
-    if ( list != NULL )
-    {
+void skiplist_release( struct skiplist * list ) {
+    if ( list != NULL ) {
         BSTreeWhack ( &(list->nodes), release_skiplist_entry, NULL );
         free( ( void * ) list );
     }
 }
 
-
-static int64_t CC pchar_vs_srn_cmp( const void * item, const BSTNode * n )
-{
+static int64_t CC pchar_vs_srn_cmp( const void * item, const BSTNode * n ) {
    const char * name = item;
    const struct skiplist_ref_node * b = ( const struct skiplist_ref_node * )n;
    return cmp_pchar( name, b->name );
 
 }
 
-
-void skiplist_enter_ref( struct skiplist * list, const char * name1, const char * name2 )
-{
-    if ( list != NULL )
-    {
+void skiplist_enter_ref( struct skiplist * list, const char * name1, const char * name2 ) {
+    if ( list != NULL ) {
         struct skiplist_ref_node * cur_node = NULL;
-        if ( name1 != NULL )
+        if ( name1 != NULL ) {
             cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name1, pchar_vs_srn_cmp );
-        if ( cur_node == NULL && name2 != NULL )
+        }
+        if ( cur_node == NULL && name2 != NULL ) {
             cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name2, pchar_vs_srn_cmp );
-        
+        }
         list->current = cur_node;
-        if ( cur_node != NULL )
-        {
+        if ( cur_node != NULL ) {
             cur_node->current_id = 0;
             cur_node->current_skip_range = VectorGet ( &( cur_node->skip_ranges ), 0 );
         }
     }
 }
 
-
-bool skiplist_is_skip_position( struct skiplist * list, uint64_t pos )
-{
-    if ( list != NULL )
-    {
+bool skiplist_is_skip_position( struct skiplist * list, uint64_t pos ) {
+    if ( list != NULL ) {
         struct skiplist_ref_node * cur_node = list->current;
-        if ( cur_node != NULL )
-        {
+        if ( cur_node != NULL ) {
             const struct skip_range * curr_skip_range = cur_node->current_skip_range;
-            if ( curr_skip_range != NULL )
-            {
+            if ( curr_skip_range != NULL ) {
                 if ( pos < curr_skip_range->start ) return false;
                 if ( pos <= curr_skip_range->end ) return true;
                 cur_node->current_id++;
@@ -793,31 +645,24 @@ bool skiplist_is_skip_position( struct skiplist * list, uint64_t pos )
     return false;
 }
 
-
-static void CC skiplist_report_cb( BSTNode *n, void *data )
-{
+static void CC skiplist_report_cb( BSTNode *n, void *data ) {
     const struct skiplist_ref_node * node = ( const struct skiplist_ref_node * )n;
     uint32_t nr = VectorLength( &( node->skip_ranges ) );
 
     KOutMsg( "\n-[%s]:\n", node->name );
-    if ( n == 0 )
+    if ( n == 0 ) {
         KOutMsg( " no ranges!\n" );
-    else
-    {
+    } else {
         uint32_t i;
-        for ( i = 0; i < nr; ++i )
-        {
+        for ( i = 0; i < nr; ++i ) {
             const struct skip_range * sr = ( const struct skip_range * ) VectorGet ( &( node->skip_ranges ), i );
             KOutMsg( "  %u ... %u\n", sr->start, sr->end );
         }
     }
 }
 
-
-void skiplist_report( const struct skiplist * list )
-{
-    if ( list != NULL )
-    {
+void skiplist_report( const struct skiplist * list ) {
+    if ( list != NULL ) {
         KOutMsg( "\n\nstart skiplist-report:\n" );
         BSTreeForEach ( &( list->nodes ), false, skiplist_report_cb, NULL );
         KOutMsg( "\nend skiplist-report\n\n" );

@@ -25,15 +25,20 @@
 */
 
 #include "cg_tools.h"
-#include "debug.h"
-#include <klib/out.h>
 
-#include <klib/printf.h>
-#include <sysalloc.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#ifndef _tools_sam_dump_debug_h_
+#include "debug.h"    /* SAM_DUMP_DBG */
+#endif
+
+#ifndef _klib_out_h_
+#include <klib/out.h>     /* KOutMsg() */
+#endif
+
+#ifndef _klib_printf_h_
+#include <klib/printf.h>  /* string_printf() */
+#endif
+
+#include <ctype.h>    /* isdigit(), isalpha(), tolower(), toupper() */
 
 static void SetCigOp( CigOps * dst, char op, uint32_t oplen ) {
     dst->op    = op;

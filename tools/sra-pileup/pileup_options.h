@@ -31,8 +31,13 @@
 extern "C" {
 #endif
 
+#ifndef _h_ref_regions_
 #include "ref_regions.h"
+#endif
+
+#ifndef _h_cmdline_cmn_
 #include "cmdline_cmn.h"
+#endif
 
 typedef struct pileup_options
 {

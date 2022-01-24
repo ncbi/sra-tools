@@ -24,14 +24,27 @@
 *
 */
 
+#include "perf_log.h"
+
+#ifndef _h_klib_rc_
 #include <klib/rc.h>
+#endif
+
+#ifndef _h_time_rc_
 #include <klib/time.h>
+#endif
+
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
+#endif
 
+#ifndef _h_kfs_directory_
 #include <kfs/directory.h>
-#include <kfs/file.h>
+#endif
 
-#include <stdarg.h>
+#ifndef _h_kfs_file_
+#include <kfs/file.h>
+#endif
 
 typedef struct perf_log perf_log;
 struct perf_log {

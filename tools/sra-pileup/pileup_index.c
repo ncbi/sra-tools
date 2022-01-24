@@ -24,10 +24,19 @@
 *
 */
 
-#include <klib/out.h>
+#include "pileup_index.h"
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_ref_walker_0_
 #include "ref_walker_0.h"
+#endif
+
+#ifndef _h_4na_ascii_
 #include "4na_ascii.h"
+#endif
 
 static uint32_t percent( uint32_t v1, uint32_t v2 ) {
     uint32_t sum = v1 + v2;

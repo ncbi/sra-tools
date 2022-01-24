@@ -2,7 +2,6 @@ FROM alpine:latest AS build
 RUN apk add build-base util-linux linux-headers g++ ninja cmake git libquadmath
 RUN ln -fs /usr/lib/libquadmath.so.0.0.0 /usr/lib/libquadmath.so
 
-ARG CMAKE_BUILD_TYPE=Release
 ARG CMAKE_BUILD_SHARED_LIBS=1
 ARG VDB_BRANCH=engineering
 ARG SRA_BRANCH=${VDB_BRANCH}
@@ -13,7 +12,7 @@ RUN sed -e '/add_subdirectory\s*\(\s*vdb3\s*\)/ d' -i CMakeLists.txt && \
     sed -e '/^#undef memcpy/,/^#endif/ d' -i interfaces/kfc/defs.h && \
     sed -e '/gnu\/libc-version.h/ d' -e '/gnu_get_libc_version/ d' -i libs/kns/manager.c
 WORKDIR /root
-RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Debug \
+RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
           -S ncbi-vdb -B build/ncbi-vdb && \
     cmake --build build/ncbi-vdb
 RUN git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
@@ -21,7 +20,7 @@ WORKDIR sra-tools
 RUN sed -e'/execinfo.h/ s/^/\/\//' -e'/backtrace/ s/^/\/\//' -i tools/driver-tool/secure/except.cpp && \
     sed -e'/config->noInstallID/,/^\s*$/ d' -i tools/driver-tool/sratools.cpp
 WORKDIR /root
-RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Debug \
+RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
           -DVDB_INCDIR=/root/ncbi-vdb/interfaces \
           -DVDB_LIBDIR=/root/build/ncbi-vdb/lib \
           -S sra-tools -B build/sra-tools && \

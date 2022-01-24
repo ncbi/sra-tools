@@ -26,11 +26,25 @@
 
 #include "out_redir.h"
 
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
+
+#ifndef _h_kfs_directory_
 #include <kfs/directory.h>
+#endif
+
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
+#endif
+
+#ifndef _h_kfs_bzip_
 #include <kfs/bzip.h>
+#endif
+
+#ifndef _h_kfs_gzip_
 #include <kfs/gzip.h>
-#include <sysalloc.h>
+#endif
 
 static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufsize, size_t * num_writ ) {
     out_redir * redir = ( out_redir * )self;

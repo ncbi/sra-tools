@@ -44,6 +44,7 @@
 
 #include <kapp/main.h>
 
+#include <klib/log.h>
 #include <klib/out.h>
 #include <klib/printf.h>
 #include <klib/report.h>

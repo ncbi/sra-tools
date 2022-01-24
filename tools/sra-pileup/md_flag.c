@@ -24,15 +24,13 @@
 *
 */
 
-#include <klib/printf.h>
-#include <klib/out.h>
-
-#include <os-native.h>
-#include <sysalloc.h>
-#include <ctype.h>
-#include <string.h>
-
 #include "md_flag.h"
+
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#include <ctype.h>    /* isdigit() */
 
 struct cigar_t {
     char * op;

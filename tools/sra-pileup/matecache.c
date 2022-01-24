@@ -25,8 +25,14 @@
 */
 
 #include "matecache.h"
-#include <sysalloc.h>
-#include <stdlib.h>
+
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
 
 void release_matecache( matecache * const self ) {
     if ( self != NULL ) {

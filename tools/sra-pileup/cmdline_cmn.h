@@ -31,7 +31,9 @@
 extern "C" {
 #endif
 
+#ifndef _h_ref_regions_
 #include "ref_regions.h"
+#endif
 
 #ifndef _h_kapp_args_    
 #include <kapp/args.h>

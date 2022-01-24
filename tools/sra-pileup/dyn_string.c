@@ -25,9 +25,18 @@
 */
 
 #include "dyn_string.h"
+
+#ifndef _h_klib_text_
 #include <klib/text.h>
+#endif
+
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
+#endif
 
 typedef struct dyn_string {
     char * data;

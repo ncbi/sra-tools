@@ -31,7 +31,9 @@
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
 #include <klib/rc.h>
+#endif
 
 struct dyn_string;
 

@@ -25,16 +25,13 @@
 */
 #include "inputfiles.h"
 
-#include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
-#include <vdb/schema.h> /* VSchemaRelease */
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
 
-#include <kdb/manager.h>
-#include <kfs/file.h>
-#include <vfs/manager.h>
-#include <vfs/path.h>
-
-#include <sysalloc.h>
-#include <stdlib.h>
+#ifndef _h_kdb_manager_
+#include <kdb/manager.h>  /* kptDatabase, kptPrereleaseTbl, kptTable */
+#endif
 
 static void free_input_database( input_database * id ) {
     if ( id->path != NULL ) { free( id->path ); }

@@ -29,29 +29,27 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
+#ifndef _h_klib_vector_
 #include <klib/vector.h>
-#include <klib/out.h>
-#include <klib/text.h>
-#include <klib/rc.h>
-#include <klib/log.h>
+#endif
 
-#include <insdc/sra.h>
+#ifndef _h_insdc_sra_
+#include <insdc/sra.h>      /* INSDC_coord_* */
+#endif
 
-typedef struct matecache_stat
-{
+typedef struct matecache_stat {
     uint64_t count;
     uint64_t lookups;
     uint64_t finds;
     uint64_t inserts;
 } matecache_stat;
 
-
-typedef struct matecache_per_file
-{
+typedef struct matecache_per_file {
     KVector *same_ref_64;   /* ref-pos and ref-idx */
     KVector *same_ref_16;   /* flags */
 
@@ -63,14 +61,11 @@ typedef struct matecache_per_file
     uint64_t maxcount_same_ref;
 } matecache_per_file;
 
-
-typedef struct matecache
-{
+typedef struct matecache {
     matecache_per_file *per_file;
     uint32_t count;
     uint32_t flashes;
 } matecache;
-
 
 /* general cache functions */
 
@@ -115,5 +110,8 @@ rc_t foreach_unaligned_entry( const matecache * const self,
                               rc_t ( CC * f ) ( int64_t seq_id, int64_t al_id, void * user_data ),
                               void * user_data );
 
-
+#ifdef __cplusplus
+}
 #endif
+
+#endif /*  _h_matecache_ */

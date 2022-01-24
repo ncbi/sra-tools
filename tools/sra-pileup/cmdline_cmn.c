@@ -26,27 +26,21 @@
 
 #include "cmdline_cmn.h"
 
-#include <kapp/args.h>
-
+#ifndef _h_vdb_report_
 #include <vdb/report.h> /* ReportResetTable */
+#endif
 
-#include <klib/rc.h>
+#ifndef _h_klib_log_
 #include <klib/log.h>
-#include <klib/out.h>
+#endif
 
-#include <sra/srapath.h>
-
+#ifndef _h_vfs_manager_
 #include <vfs/manager.h>
-#include <vfs/path.h>
-#include <vfs/path-priv.h>
+#endif
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-
-#include <os-native.h>
-#include <sysalloc.h>
+#ifndef _h_vfs_path_priv_
+#include <vfs/path-priv.h>    /* VPathOption(), vpopt_readgroup */
+#endif
 
 const char * ref_usage[] = { "Filter by position on genome.",
                              "Name can either be file specific name",

@@ -33,28 +33,33 @@ extern "C" {
 
 #include "ref_regions.h"
 
+#ifndef _h_kapp_args_    
 #include <kapp/args.h>
+#endif
 
+#ifndef _h_klib_rc_    
 #include <klib/rc.h>
-#include <klib/log.h>
-#include <klib/text.h>
-#include <klib/container.h>
+#endif
 
+#ifndef _h_kfs_directory_
 #include <kfs/directory.h>
-/* #include <sra/srapath.h> */
+#endif
 
-#include <vdb/manager.h>
+#ifndef _h_vdb_schema_
 #include <vdb/schema.h>
+#endif
 
-#include <align/iterator.h>
+#ifndef _h_vdb_table_
+#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_cursor_
+#include <vdb/cursor.h>
+#endif
+
+#ifndef _h_align_reader_reference_
 #include <align/reference.h>
-
-#include <strtol.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <assert.h>
+#endif
 
 #define OPTION_REF     "aligned-region"
 #define ALIAS_REF      "r"
@@ -62,8 +67,7 @@ extern "C" {
 typedef uint8_t align_tab_select;
 enum { primary_ats = 1, secondary_ats = 2, evidence_ats = 4 };
 
-typedef struct common_options
-{
+typedef struct common_options {
     bool gzip_output;
     bool bzip_output;
     bool no_mt;
@@ -87,18 +91,14 @@ rc_t init_ref_regions( BSTree * regions, Args * args );
 rc_t foreach_argument( Args * args, KDirectory *dir, bool div_by_spotgrp, bool * empty,
     rc_t ( CC * on_argument ) ( const char * path, const char * spot_group, void * data ), void * data );
 
-
-typedef struct pileup_col_ids
-{
+typedef struct pileup_col_ids {
     uint32_t idx_quality;
     uint32_t idx_ref_orientation;
     uint32_t idx_read_filter;
     uint32_t idx_template_len;
 } pileup_col_ids;
 
-    
-typedef struct prepare_ctx
-{
+typedef struct prepare_ctx {
     ReferenceIterator *ref_iter;
     PlacementSetIterator *plset_iter;
     const VDatabase *db;
@@ -125,8 +125,6 @@ typedef struct prepare_ctx
     rc_t ( CC * on_section ) ( struct prepare_ctx * ctx, const struct reference_range * range );
 } prepare_ctx;
 
-
-
 rc_t prepare_ref_iter( prepare_ctx *ctx,
                        const VDBManager *vdb_mgr,
                        VSchema *vdb_schema,
@@ -138,7 +136,6 @@ rc_t prepare_plset_iter( prepare_ctx *ctx,
                          VSchema *vdb_schema,
                          const char * path,
                          BSTree * ranges );
-
 
 rc_t parse_inf_file( Args * args );
 

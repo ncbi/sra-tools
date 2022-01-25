@@ -234,6 +234,7 @@ typedef struct background_vector_merger_t {
     uint64_t total;                 /* how many entries have been merged... */
     uint64_t total_rowcount_prod;   /* updated by the producer, informs the vector-merger about the
                                        rowcount to be processed */
+    bool details;
 } background_vector_merger_t;
 
 static rc_t wait_for_background_vector_merger( background_vector_merger_t * self ) {
@@ -500,7 +501,8 @@ rc_t make_background_vector_merger( struct background_vector_merger_t ** merger,
         b -> gap = args -> gap;
         b -> total = 0;
         b -> total_rowcount_prod = 0;
-        
+        b -> details = args -> details;
+
         rc = KQueueMake ( &( b -> job_q ), args -> batch_size );
         if ( 0 == rc ) {
             rc = helper_make_thread( &( b -> thread ),
@@ -592,11 +594,12 @@ typedef struct background_file_merger_t {
     uint64_t total_rows;            /* how many rows have we processed */
     uint64_t total_rowcount_prod;   /* updated by the producer, informs the file-merger about the
                                        rowcount to be processed */
+    bool details;
 } background_file_merger_t;
 
 static void release_background_file_merger( background_file_merger_t * self ) {
     if ( NULL != self ) {
-        locked_file_list_release( &( self -> files ), self -> dir );
+        locked_file_list_release( &( self -> files ), self -> dir, self -> details );
         locked_value_release( &( self -> sealed ) );
         free( self );
     }
@@ -671,7 +674,7 @@ static rc_t process_background_file_merger( background_file_merger_t * self ) {
                 }
             }
             if ( 0 == rc ) {
-                rc = delete_files( self -> dir, batch_files );
+                rc = delete_files( self -> dir, batch_files, self -> details );
             }
             VNamelistRelease( batch_files );
         }
@@ -728,7 +731,7 @@ static rc_t process_final_background_file_merger( background_file_merger_t * sel
             }
         }
         if ( 0 == rc ) {
-            rc = delete_files( self -> dir, batch_files );
+            rc = delete_files( self -> dir, batch_files, self -> details );
         }
         VNamelistRelease( batch_files );
     }
@@ -794,6 +797,7 @@ rc_t make_background_file_merger( background_file_merger_t ** merger,
         b -> gap = args -> gap;
         b -> total_rows = 0;
         b -> total_rowcount_prod = 0;
+        b -> details = args -> details;
 
         rc = locked_file_list_init( &( b -> files ), 25  );
         if ( 0 == rc ) {

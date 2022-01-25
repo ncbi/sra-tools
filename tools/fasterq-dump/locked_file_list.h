@@ -54,10 +54,10 @@ typedef struct locked_file_list
 } locked_file_list_t;
 
 rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize );
-rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir );
+rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir, bool details );
 rc_t locked_file_list_append( const locked_file_list_t * self, const char * filename );
-rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self );
-rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self );
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self, bool details );
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self, bool details );
 rc_t locked_file_list_count( const locked_file_list_t * self, uint32_t * count );
 rc_t locked_file_list_pop( locked_file_list_t * self, const String ** item );
 

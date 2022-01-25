@@ -36,6 +36,7 @@ extern "C" {
 #endif
 
 rc_t ErrMsg( const char * fmt, ... );
+rc_t InfoMsg( const char * fmt, ... );
 
 #ifdef __cplusplus
 }

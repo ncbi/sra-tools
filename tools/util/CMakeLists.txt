@@ -85,8 +85,9 @@ add_executable( txt2kdb txt2kdb )
 target_link_libraries( txt2kdb ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( txt2kdb false )
 
-# add_executable( md5cp md5cp )
-# target_link_libraries( md5cp ${COMMON_LINK_LIBRARIES} ncbi-vdb )
+add_executable( md5cp md5cp )
+target_link_libraries( md5cp ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+MakeLinksExe( md5cp false )
 
 # add_executable( pseudo-aligner pseudo-aligner )
 # target_link_libraries( pseudo-aligner ) # ${COMMON_LINK_LIBRARIES} ncbi-wvdb )

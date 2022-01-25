@@ -34,9 +34,9 @@
 *
 * ===========================================================================
 */
-// command line 
+// command line
 #include "CLI11.hpp"
-//loging 
+//loging
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -62,21 +62,21 @@ using json = nlohmann::json;
 
 /**
  * @brief SharQ application class
- * 
+ *
  * After processing the command line arguments and input files,
  * the application builds a digest (json data structure) for the first 500K spots.
- * 
- * Digest captures the payload properties as well as identifies quality score encoding. 
- * 
+ *
+ * Digest captures the payload properties as well as identifies quality score encoding.
+ *
  * Parser and writer are set up using the digest data
  *
  * Witer's output (stdout) is expected to be piped in general_loader application.
- * 
+ *
  * --debug parameter can be used to send the output to stdout
  */
 class CFastqParseApp
 {
-public:    
+public:
     int AppMain(int argc, const char* argv[]);
 private:
     int Run();
@@ -85,8 +85,8 @@ private:
 
     void xSetupInput();
     void xSetupOutput();
-    
-    // check consistency of digest data 
+
+    // check consistency of digest data
     // verify the same platform, the same platform
     void xProcessDigest(json& data);
 
@@ -96,7 +96,7 @@ private:
     void xReportTelemetry();
 
     string mDestination;                ///< path to sra archive
-    bool mDebug{false};                 ///< Debug mode  
+    bool mDebug{false};                 ///< Debug mode
     bool mNoTimeStamp{false};           ///< No time stamp in debug mode
     vector<char> mReadTypes;            ///< ReadType paramter value
     using TInputFiles = vector<string>;
@@ -104,14 +104,14 @@ private:
     bool mDiscardNames{false};          ///< If set spot names are not written in the db, the same effect as mNameColumn = 'NONE'
     bool mAllowEarlyFileEnd{false};     ///< Flag to continue if one of the streams ends
     int mQuality{-1};                   ///< quality score interpretation (0, 33, 64)
-    int mDigest{0};                     ///< Numberof dogest lines to produce 
+    int mDigest{0};                     ///< Numberof dogest lines to produce
     string mTelemetryFile;              ///< Telemetry report file name
     string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
     string mNameColumn;                 ///< NAME column's name, ('NONE', 'NAME', 'RAW_NAME')
-    string mOutputFile;                 ///< Outut file name - not currently used 
-    ostream* mpOutStr{nullptr};         ///< Outpu stream pointer  = not currentl used 
-    shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer 
-    json  mReport;                      ///< Telemtry report 
+    string mOutputFile;                 ///< Outut file name - not currently used
+    ostream* mpOutStr{nullptr};         ///< Outpu stream pointer  = not currentl used
+    shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer
+    json  mReport;                      ///< Telemtry report
 
 
 };
@@ -132,7 +132,7 @@ void s_AddReadPairBatch(vector<string>& batch, vector<vector<string>>& out)
     }
 }
 
-static 
+static
 void s_split(const string& str, vector<string>& out, char c = ',')
 {
     if (str.empty())
@@ -146,7 +146,7 @@ void s_split(const string& str, vector<string>& out, char c = ',')
         if (it == end)
             break;
         begin = ++it;
-    } 
+    }
 }
 //  ----------------------------------------------------------------------------
 int CFastqParseApp::AppMain(int argc, const char* argv[])
@@ -162,7 +162,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         app.set_version_flag("--version,-v", SHARQ_VERSION);
 
-        app.add_option("--output", mDestination, "Output archive path");        
+        app.add_option("--output", mDestination, "Output archive path");
 
         string platform;
         app.add_option("--platform", platform, "Optional platform");
@@ -191,7 +191,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         app.add_flag("--digest{500000}", mDigest, "Report summary of input data (set optional value to indicate the number of spots to analyze)");
 
         mTelemetryFile.clear();
-        app.add_option("--telemetry,-t", mTelemetryFile, "Telemetry report file");        
+        app.add_option("--telemetry,-t", mTelemetryFile, "Telemetry report file");
 
         vector<string> read_pairs(4);
         app.add_option("--read1PairFiles", read_pairs[0], "Read 1 files");
@@ -218,7 +218,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
         mReport["version"] = SHARQ_VERSION;
         // save cmd args
-        for (int i = 1; i < argc; ++i) 
+        for (int i = 1; i < argc; ++i)
             mReport["args"].push_back(argv[i]);
 
         CLI11_PARSE(app, argc, argv);
@@ -228,9 +228,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         }
         if (mDigest < 0)
             mDigest = -1;
-        if (mDigest != 0) 
+        if (mDigest != 0)
             spdlog::set_level(spdlog::level::from_str("error"));
-        else    
+        else
             spdlog::set_level(spdlog::level::from_str(log_level));
 
         if (!hash_file.empty()) {
@@ -240,11 +240,11 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         vector<string> options2log = {"--platform", "--readTypes", "--useAndDiscardNames", "--allowEarlyFileEnd", "--name-column", "--quality"};
         for (const auto& opt_name : options2log) {
             auto opt = app.get_option(opt_name);
-            if (opt && *opt)  
+            if (opt && *opt)
                 mReport[opt_name] = opt->as<string>();
         }
 
-        if (mDiscardNames) 
+        if (mDiscardNames)
             mNameColumn = "NONE";
 
         xSetupOutput();
@@ -303,7 +303,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
 
 void CFastqParseApp::xReportTelemetry()
 {
-    if (mTelemetryFile.empty()) 
+    if (mTelemetryFile.empty())
         return;
     try {
         ofstream f(mTelemetryFile.c_str(), ios::out);
@@ -329,7 +329,7 @@ void CFastqParseApp::xCheckInputFiles(vector<string>& files)
                 spdlog::debug("File '{}': .bz2 extension added", f);
                 f += ".bz2";
                 not_found = false;
-            } 
+            }
         } else if (ext == ".gz" || ext == ".bz2") {
             auto new_fn = f.substr(0, f.size() - ext.string().size());
             if (fs::exists(new_fn)) {
@@ -339,7 +339,7 @@ void CFastqParseApp::xCheckInputFiles(vector<string>& files)
             }
 
         }
-        if (not_found) 
+        if (not_found)
             throw fastq_error(40, "File '{}' does not exist", f);
     }
 }
@@ -358,7 +358,7 @@ void CFastqParseApp::xProcessDigest(json& data)
     assert(data.contains("groups"));
     assert(data["groups"].front().contains("files"));
     const auto& first = data["groups"].front()["files"].front();
-    if (first["platform_code"].size() > 1)       
+    if (first["platform_code"].size() > 1)
         throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", first["platform_code"][0], first["platform_code"][1]);
     bool is10x = data["groups"].front()["is_10x"];
     int platform = first["platform_code"].front();
@@ -367,28 +367,28 @@ void CFastqParseApp::xProcessDigest(json& data)
         int max_reads = 0;
         int group_reads = 0;
         if (gr["is_10x"] != is10x)
-            throw fastq_error(80);// "Inconsistent submission: 10x submissions are mixed with different types.");            
+            throw fastq_error(80);// "Inconsistent submission: 10x submissions are mixed with different types.");
 
         auto& files = gr["files"];
         for (auto& f : files) {
-            if (mQuality != -1) 
+            if (mQuality != -1)
                 f["quality_encoding"] = mQuality; // Override quality
-            if (f["platform_code"].size() > 1)       
+            if (f["platform_code"].size() > 1)
                 throw fastq_error(70, "Input file has data from multiple platforms ({} != {})", f["platform_code"][0], f["platform_code"][1]);
-           if (platform != f["platform_code"].front()) 
+           if (platform != f["platform_code"].front())
                 throw fastq_error(70, "Input files have deflines from different platforms ({} != {})", platform, int(f["platform_code"].front()));
-            max_reads = max<int>(max_reads, f["max_reads"]); 
+            max_reads = max<int>(max_reads, f["max_reads"]);
             group_reads += (int)f["max_reads"];
 
-            // if read types are specified (mix of B and T) 
-            // and the reads in an interleaved file don't have read numbers 
+            // if read types are specified (mix of B and T)
+            // and the reads in an interleaved file don't have read numbers
             // and orphans are present
-            // then sharq should fail. 
-            if (!mReadTypes.empty() && max_reads > 1 && f["has_orphans"] && f["readNums"].empty()) 
+            // then sharq should fail.
+            if (!mReadTypes.empty() && max_reads > 1 && f["has_orphans"] && f["readNums"].empty())
                 throw fastq_error(190); // "Usupported interleaved file with orphans"
         }
 
-        // non10x, non interleaved files 
+        // non10x, non interleaved files
         // sort by readNumber
         if (is10x == false && max_reads == 1) {
             sort(files.begin(), files.end(), [](const auto& d1, const auto& d2){
@@ -398,32 +398,32 @@ void CFastqParseApp::xProcessDigest(json& data)
             });
         }
         if (!mReadTypes.empty()) {
-            if ((int)mReadTypes.size() != group_reads) 
+            if ((int)mReadTypes.size() != group_reads)
                 throw fastq_error(30, "readTypes number should match the number of reads ({})", group_reads);
         }
         total_reads = max<int>(group_reads, total_reads);
         gr["total_reads"] = total_reads;
-    } 
+    }
 
     if (mReadTypes.empty()) {
         //auto num_files = data["groups"].front().size();
-        if (is10x) 
+        if (is10x)
             mReadTypes.resize(total_reads, 'A');
         else if (total_reads < 3) {
             mReadTypes.resize(total_reads, 'B');
         } else {
             throw fastq_error(20); // "No readTypes provided");
         }
-    }    
+    }
 
     for (auto& gr : data["groups"]) {
         auto& files = gr["files"];
         int total_reads = gr["total_reads"];
         if ((int)mReadTypes.size() < total_reads)
             throw fastq_error(30, "readTypes number should match the number of reads");
-        int j = 0;   
+        int j = 0;
         // assign read types for each file
-        for (auto& f : files) { 
+        for (auto& f : files) {
             int num_reads = f["max_reads"];
             while (num_reads) {
                 f["readType"].push_back(char(mReadTypes[j]));
@@ -434,18 +434,18 @@ void CFastqParseApp::xProcessDigest(json& data)
     }
 
     switch ((int)first["quality_encoding"]) {
-    case 0: 
+    case 0:
         m_writer->set_attr("quality_expression", "(INSDC:quality:phred)QUALITY");
         break;
-    case 33: 
+    case 33:
         m_writer->set_attr("quality_expression", "(INSDC:quality:text:phred_33)QUALITY");
         break;
-    case 64: 
+    case 64:
         m_writer->set_attr("quality_expression", "(INSDC:quality:text:phred_64)QUALITY");
         break;
     default:
         throw runtime_error("Invaid quality encoding");
-    }    
+    }
     m_writer->set_attr("platform", to_string(first["platform_code"].front()));
 
 }
@@ -471,7 +471,7 @@ int CFastqParseApp::xRunDigest()
         error.erase(remove_if(error.begin(), error.end(),[](char c) { return !isprint(c); }), error.end());
         j["error"] = error;
     }
-    
+
     cout << j.dump(4, ' ', true) << endl;
     return 0;
 }
@@ -517,7 +517,7 @@ int CFastqParseApp::xRun()
 void CFastqParseApp::xSetupOutput()
 {
     mpOutStr = &cout;
-    if (mOutputFile.empty()) 
+    if (mOutputFile.empty())
         return;
     mpOutStr = dynamic_cast<ostream*>(new ofstream(mOutputFile, ios::binary));
     mpOutStr->exceptions(std::ofstream::badbit);
@@ -541,8 +541,7 @@ int main(int argc, const char* argv[])
     std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
     auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
     spdlog::set_default_logger(stderr_logger);
-    
+
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern (datetime, error level, error text)
     return CFastqParseApp().AppMain(argc, argv);
 }
-

@@ -53,7 +53,7 @@ rc_t locked_file_list_init( locked_file_list_t * self, uint32_t alloc_blocksize 
     return rc;
 }
 
-rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir ) {
+rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir, bool details ) {
     rc_t rc = 0;
     /* tolerates to be called with self == NULL */
     if ( NULL != self ) {
@@ -63,7 +63,7 @@ rc_t locked_file_list_release( locked_file_list_t * self, KDirectory * dir ) {
         } else {
             /* tolerates to be called with dir == NULL */
             if ( NULL != dir ) {
-                rc = delete_files( dir, self -> files );
+                rc = delete_files( dir, self -> files, details );
             }
         }
         {
@@ -105,7 +105,7 @@ rc_t locked_file_list_append( const locked_file_list_t * self, const char * file
     return rc;
 }
 
-rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self ) {
+rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self, bool details ) {
     rc_t rc = 0;
     if ( NULL == self || NULL == dir ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
@@ -115,7 +115,7 @@ rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self 
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_delete_files().KLockAcquire() -> %R", rc );
         } else {
-            rc = delete_files( dir, self -> files );
+            rc = delete_files( dir, self -> files, details );
             if ( 0 != rc ) {
                 ErrMsg( "locked_file_list_delete_files().delete_files() -> %R", rc );
             }
@@ -125,7 +125,7 @@ rc_t locked_file_list_delete_files( KDirectory * dir, locked_file_list_t * self 
     return rc;
 }
 
-rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self ) {
+rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self, bool details ) {
     rc_t rc = 0;
     if ( NULL == self || NULL == dir ) {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
@@ -135,7 +135,7 @@ rc_t locked_file_list_delete_dirs( KDirectory * dir, locked_file_list_t * self )
         if ( 0 != rc ) {
             ErrMsg( "locked_file_list_delete_dirs().KLockAcquire() -> %R", rc );
         } else {
-            rc = delete_dirs( dir, self -> files );
+            rc = delete_dirs( dir, self -> files, details );
             if ( 0 != rc ) {
                 ErrMsg( "locked_file_list_delete_dirs().delete_dirs() -> %R", rc );
             }

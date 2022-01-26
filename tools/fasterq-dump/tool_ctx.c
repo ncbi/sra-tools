@@ -612,7 +612,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
     /* create the cleanup-taks ( for modules to add file/directories to it ) and add the tem-dir to it */
     tool_ctx -> cleanup_task = NULL;
     if ( 0 == rc && tool_ctx -> fmt != ft_fasta_us_split_spot ) {
-        rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) ); /* cleanup_task.c */
+        rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ), tool_ctx -> show_details ); /* cleanup_task.c */
         if ( 0 == rc ) {
             rc = Add_Directory_to_Cleanup_Task ( tool_ctx -> cleanup_task, 
                     get_temp_dir( tool_ctx -> temp_dir ) ); /* cleanup_task.c */

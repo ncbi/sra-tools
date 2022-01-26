@@ -25,7 +25,10 @@
 */
 
 #include "ref_walker_0.h"
+
+#ifndef _h_klib_log_
 #include <klib/log.h>
+#endif
 
 rc_t CC Quitting( void );
 

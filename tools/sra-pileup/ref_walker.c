@@ -24,37 +24,55 @@
 *
 */
 
-#include "ref_regions.h"
 #include "ref_walker.h"
 
-#include <klib/rc.h>
-#include <klib/namelist.h>
+#ifndef _h_ref_regions_
+#include "ref_regions.h"
+#endif
+
+#ifndef _h_klib_vector_
 #include <klib/vector.h>
+#endif
+
+#ifndef _h_klib_log_
 #include <klib/log.h>
-#include <klib/out.h>
+#endif
 
-#include <kfs/directory.h>
+#ifndef _h_kfs_file_
 #include <kfs/file.h>
+#endif
 
+#ifndef _h_vfs_manager_
 #include <vfs/manager.h>
+#endif
+
+#ifndef _h_vfs_path_
 #include <vfs/path.h>
+#endif
 
-#include <kdb/manager.h>
+#ifndef _h_kdb_manager_
+#include <kdb/manager.h>      /* because kptDatabase */
+#endif
 
-#include <vdb/manager.h>
+#ifndef _h_vdb_schema_
 #include <vdb/schema.h>
+#endif
 
+#ifndef _h_align_manager_
 #include <align/manager.h>
+#endif
+
+#ifndef _h_align_reader_reference_
 #include <align/reference.h>
+#endif
+
+#ifndef _h_align_iterator_
 #include <align/iterator.h>
+#endif
 
+#ifndef _h_sra_sraschema_
 #include <sra/sraschema.h>
-
-#include <stdlib.h>
-#include <os-native.h>
-#include <sysalloc.h>
-
-#include <string.h>
+#endif
 
 /* ================================================================================================ */
 

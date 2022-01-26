@@ -29,18 +29,31 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
+#ifndef _h_sam_dump_opts_
 #include "sam-dump-opts.h"
+#endif
+
+#ifndef _h_inputfiles_
 #include "inputfiles.h"
+#endif
+    
+#ifndef _h_matecache_
 #include "matecache.h"
+#endif
 
 #define COL_READ "(INSDC:dna:text)READ"
 
 rc_t print_aligned_spots( const samdump_opts * const opts,
                           const input_files * const ifs,
                           matecache * const mc );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

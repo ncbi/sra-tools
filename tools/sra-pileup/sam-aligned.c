@@ -24,17 +24,25 @@
 *
 */
 
-#include <align/manager.h>
-#include <align/iterator.h>
-#include <kapp/main.h>
-#include <ctype.h>
-#include <sysalloc.h>
-
-#include "read_fkt.h"
-#include "cg_tools.h"
-#include "rna_splice_log.h"
 #include "sam-aligned.h"
+
+#ifndef _h_align_manager_
+#include <align/manager.h>
+#endif
+
+#ifndef _h_read_fkt_
+#include "read_fkt.h"
+#endif
+
+#ifndef _h_cgtools_
+#include "cg_tools.h"
+#endif
+
+#ifndef _h_md_flag_
 #include "md_flag.h"
+#endif
+
+rc_t Quitting( void );      /* instead of including <kapp/main.h> */
 
 const char * PRIM_TABLE = "PRIMARY_ALIGNMENT";
 const char * SEC_TABLE = "SECONDARY_ALIGNMENT";

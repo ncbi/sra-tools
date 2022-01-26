@@ -25,7 +25,10 @@
 */
 
 #include "read_fkt.h"
-#include <sysalloc.h>
+
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
 
 static const char * dflt_hint = "-";
 

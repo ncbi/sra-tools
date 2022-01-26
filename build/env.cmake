@@ -424,12 +424,16 @@ function(ExportShared lib install)
 endfunction()
 
 #
-# Create versioned names and symlinks for an executable.
 # Ensure static linking against C/C++ runtime.
+# Create versioned names and symlinks for an executable.
 #
 function(MakeLinksExe target install_via_driver)
-    if( SINGLE_CONFIG )
+
+    if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}" )
         target_link_options( ${target} PRIVATE -static-libgcc -static-libstdc++ )
+    endif()
+
+    if( SINGLE_CONFIG )
 
         add_custom_command(TARGET ${target}
             POST_BUILD

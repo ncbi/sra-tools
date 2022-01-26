@@ -24,13 +24,23 @@
 *
 */
 
-#include <klib/out.h>
-#include <kapp/args.h>
+#include "pileup_v2.h"
 
-#include "pileup_options.h"
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_dyn_string_
 #include "dyn_string.h"
+#endif
+
+#ifndef _h_ref_walker_
 #include "ref_walker.h"
+#endif
+
+#ifndef _h_4na_ascii_
 #include "4na_ascii.h"
+#endif
 
 /*
 static rc_t CC pileup_test_enter_ref( ref_walker_data * rwd ) {

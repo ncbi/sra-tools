@@ -23,58 +23,111 @@
 * ===========================================================================
 *
 */
+
+#ifndef _h_klib_report_
 #include <klib/report.h>
-#include <klib/container.h>
+#endif
+
+#ifndef _h_klib_log_
 #include <klib/log.h>
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <klib/text.h>
-#include <klib/status.h>
-#include <klib/rc.h>
+#endif
+
+#ifndef _h_klib_vector_
 #include <klib/vector.h>
+#endif
+
+#ifndef _h_klib_printf_
 #include <klib/printf.h>
-#include <klib/data-buffer.h>
+#endif
+
+#ifndef _h_vfs_manager_
 #include <vfs/manager.h>
-#include <vfs/path.h>
-#include <vfs/path-priv.h>
+#endif
+
+#ifndef _h_vfs_path_priv_
+#include <vfs/path-priv.h>    /* VPathOption() */
+#endif
+
+#ifndef _h_kfs_file_
 #include <kfs/file.h>
+#endif
+
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
+#endif
+
+#ifndef _h_kfs_gzip_
 #include <kfs/gzip.h>
+#endif
+
+#ifndef _h_kfs_bzip_
 #include <kfs/bzip.h>
+#endif
+
+#ifndef _h_kdb_meta_
 #include <kdb/meta.h>
-#include <kdb/namelist.h>
+#endif
+
+#ifndef _h_kdb_namelist_
+#include <kdb/namelist.h>     /* KMDataNodeListChild() */
+#endif
+
+#ifndef _h_kapp_main_
 #include <kapp/main.h>
-#include <kapp/args.h>
-#include <insdc/insdc.h>
+#endif
+
+#ifndef _h_insdc_sra_
 #include <insdc/sra.h>
+#endif
+
+#ifndef _h_vdb_report_
 #include <vdb/report.h>
-#include <vdb/manager.h>
-#include <vdb/database.h>
-#include <vdb/table.h>
+#endif
+
+#ifndef _h_vdb_cursor_
 #include <vdb/cursor.h>
+#endif
+
+#ifndef _h_vdb_vdb_priv_
 #include <vdb/vdb-priv.h>
+#endif
+
+#ifndef _h_vdb_schema_
 #include <vdb/schema.h>
-#include <vdb/dependencies.h>
+#endif
+
+#ifndef _h_vdb_dependencies_
+#include <vdb/dependencies.h>     /* UIError() / UIDatabaseLOGError() / UITableLOGError() */
+#endif
+
+#ifndef _h_sra_sraschema_
 #include <sra/sraschema.h>
-#include <sra/srapath.h>
+#endif
+
+#ifndef _h_align_dna_reverse_cmpl_
 #include <align/dna-reverse-cmpl.h>
-#include <align/iterator.h>
+#endif
+
+#ifndef _h_align_reader_reference_
 #include <align/reference.h>
+#endif
+
+#ifndef _h_align_quality_quantizer_
 #include <align/quality-quantizer.h>
+#endif
 
-#include <kfs/directory.h>
-#include <os-native.h>
-#include <sysalloc.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <limits.h>
-#include <string.h>
-#include <strtol.h>
-#include <ctype.h>
-#include <assert.h>
-
+#ifndef _tools_sam_dump_debug_h_
 #include "debug.h"
+#endif
+
+#include <stdio.h>      /* sprintf() */
+#include <limits.h>     /* UINT_MAX */
+#include <strtol.h>     /* strtou32() */
+#include <ctype.h>      /* tolower() / toupper() / isdigit() / isalpha() */
 
 #if _ARCH_BITS == 64
 #define USE_MATE_CACHE 1

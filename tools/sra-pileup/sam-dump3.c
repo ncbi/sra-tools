@@ -23,25 +23,64 @@
 * ===========================================================================
 *
 */
-#include <kapp/main.h>
-#include <vdb/report.h> /* ReportSetVDBManager */
-#include <vdb/vdb-priv.h> /* VDBManagerDisablePagemapThread() */
+
+#ifndef _h_klib_report_
 #include <klib/report.h>
+#endif
+
+#ifndef _h_klib_log_
 #include <klib/log.h>
+#endif
 
-#include <sysalloc.h>
-#include <stdio.h>
+#ifndef _h_vdb_report_
+#include <vdb/report.h> /* ReportSetVDBManager */
+#endif
 
+#ifndef _h_vdb_vdb_priv_
+#include <vdb/vdb-priv.h> /* VDBManagerDisablePagemapThread() */
+#endif
+
+#ifndef _h_kapp_main_
+#include <kapp/main.h>
+#endif
+
+#ifndef _h_sam_dump_opts_
 #include "sam-dump-opts.h"
-#include "inputfiles.h"
-#include "sam-hdr.h"
-#include "sam-hdr1.h"
-#include "matecache.h"
-#include "cg_tools.h"
-#include "out_redir.h"
-#include "sam-aligned.h"
-#include "sam-unaligned.h"
+#endif
 
+#ifndef _h_inputfiles_
+#include "inputfiles.h"
+#endif
+
+#ifndef _h_sam_headers_
+#include "sam-hdr.h"
+#endif
+
+#ifndef _h_sam_headers_1_
+#include "sam-hdr1.h"
+#endif
+
+#ifndef _h_matecache_
+#include "matecache.h"
+#endif
+
+#ifndef _h_cgtools_
+#include "cg_tools.h"
+#endif
+
+#ifndef _h_out_redir_
+#include "out_redir.h"
+#endif
+
+#ifndef _h_sam_aligned_
+#include "sam-aligned.h"
+#endif
+
+#ifndef _h_sam_unaligned_
+#include "sam-unaligned.h"
+#endif
+
+#include <stdio.h>
 
 char const *sd_unaligned_usage[]      = { "Output unaligned reads along with aligned reads",
                                        NULL };

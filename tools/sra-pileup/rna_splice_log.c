@@ -24,16 +24,23 @@
 *
 */
 
-#include <klib/rc.h>
-#include <klib/printf.h>
-#include <klib/vector.h>
-
-#include <kfs/directory.h>
-#include <kfs/file.h>
-
-#include <string.h>
-
 #include "rna_splice_log.h"
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_klib_printf_
+#include <klib/printf.h>
+#endif
+
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
+#endif
+
+#ifndef _h_kfs_file_
+#include <kfs/file.h>
+#endif
 
 typedef struct rna_splice_dict rna_splice_dict;
 struct rna_splice_dict {

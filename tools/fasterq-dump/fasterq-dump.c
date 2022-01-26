@@ -433,7 +433,8 @@ static rc_t produce_lookup_files( const tool_ctx_t * tool_ctx ) {
         vm_args . q_wait_time = queue_timeout;
         vm_args . buf_size = tool_ctx -> buf_size;
         vm_args . gap = gap;
-
+        vm_args . details = tool_ctx -> show_details;
+        
         rc = make_background_vector_merger( &bg_vec_merger, &vm_args ); /* merge_sorter.c */
     }
    

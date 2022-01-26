@@ -54,25 +54,28 @@ typedef struct KFastDumpCleanupTask_t {
     locked_file_list_t files_to_clean;
     locked_file_list_t dirs_to_clean;    
     KTaskTicket ticket;
+    bool details;
 } KFastDumpCleanupTask_t;
 
 
 static rc_t KFastDumpCleanupTask_Destroy( KFastDumpCleanupTask_t * self ) {
-    locked_file_list_release( & ( self -> files_to_clean ), NULL ); /* helper.c */
-    locked_file_list_release( & ( self -> dirs_to_clean ), NULL ); /* helper.c */
+    locked_file_list_release( & ( self -> files_to_clean ), NULL, self -> details ); /* helper.c */
+    locked_file_list_release( & ( self -> dirs_to_clean ), NULL, self -> details ); /* helper.c */
     free( self );
     return 0;
 }
 
 static rc_t KFastDumpCleanupTask_Execute( KFastDumpCleanupTask_t * self ) {
     KDirectory * dir;
-    rc_t rc = KDirectoryNativeDir( &dir );
+    rc_t rc;
+    if ( self -> details ) { InfoMsg( "CleanupTask: executing..." ); }
+    rc = KDirectoryNativeDir( &dir );
     if ( 0 != rc ) {
         ErrMsg( "cleanup_task.c KFastDumpCleanupTask_Execute().KDirectoryNativeDir() -> %R", rc );
     } else {
-        rc = locked_file_list_delete_files( dir, &self -> files_to_clean ); /* helper.c */
+        rc = locked_file_list_delete_files( dir, &self -> files_to_clean, self -> details ); /* helper.c */
         if ( 0 == rc ) {
-            rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean ); /* helper.c */
+            rc = locked_file_list_delete_dirs( dir, &self -> dirs_to_clean, self -> details ); /* helper.c */
         }
         {
             rc_t rc2 = KDirectoryRelease( dir );
@@ -107,6 +110,8 @@ static rc_t add_to_proc_mgr_cleanup( KFastDumpCleanupTask_t * task ) {
             if ( 0 != rc2 ) {
                 ErrMsg( "cleanup_task.c add_to_proc_mgr_cleanup().KTaskRelease() -> %R", rc2 );
             }
+        } else if ( task -> details ) {
+            InfoMsg( "CleanupTask: added to ProcManager" );
         }
         {
             rc_t rc2 = KProcMgrRelease ( proc_mgr );
@@ -119,12 +124,14 @@ static rc_t add_to_proc_mgr_cleanup( KFastDumpCleanupTask_t * task ) {
     return rc;
 }
 
-rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task ) {
+rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task, bool details ) {
     rc_t rc = 0;
     KFastDumpCleanupTask_t * t = malloc ( sizeof * t );
     if ( NULL == t ) {
         rc = RC ( rcPS, rcMgr, rcInitializing, rcMemory, rcExhausted );
     } else {
+        t -> details = details;
+        if ( details ) { InfoMsg( "CleanupTask: creating..." ); }
         rc = locked_file_list_init( &( t -> files_to_clean ), 25 ); /* helper.c */
         if ( 0 == rc ) {
             rc = locked_file_list_init( &( t -> dirs_to_clean ), 5 ); /* helper.c */
@@ -143,8 +150,8 @@ rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task ) {
         }
         
         if ( 0 != rc ) {
-            locked_file_list_release( &( t -> files_to_clean ), NULL ); /* helper.c */
-            locked_file_list_release( &( t -> dirs_to_clean ), NULL ); /* helper.c */            
+            locked_file_list_release( &( t -> files_to_clean ), NULL, details ); /* helper.c */
+            locked_file_list_release( &( t -> dirs_to_clean ), NULL, details ); /* helper.c */            
             free( ( void * ) t );
         } else {
             rc = add_to_proc_mgr_cleanup( *task ); /* above */
@@ -160,6 +167,7 @@ rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask_t * self, const char
         ErrMsg( "cleanup_task.c Add_File_to_Cleanup_Task() : %R", rc );
     } else {
         rc = locked_file_list_append( &( self -> files_to_clean ), filename ); /* helper.c */
+        if ( self -> details ) { InfoMsg( "CleanupTask: adding file '%s'", filename ); }
     }
     return rc;
 }
@@ -171,6 +179,7 @@ rc_t Add_Directory_to_Cleanup_Task ( struct KFastDumpCleanupTask_t * self, const
         ErrMsg( "cleanup_task.c Add_Directory_to_Cleanup_Task() : %R", rc );
     } else {
         rc = locked_file_list_append( &( self -> dirs_to_clean ), dirname ); /* helper.c */
+        if ( self -> details ) { InfoMsg( "CleanupTask: adding dir '%s'", dirname ); }
     }
     return rc;
 }
@@ -190,7 +199,9 @@ rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask_t * self ) {
             if ( 0 != rc ) {
                 ErrMsg( "cleanup_task.c Terminate_Cleanup_Task().KProcMgrRemoveCleanupTask() -> %R", rc );
             }
-
+            else if ( self -> details ) { 
+                InfoMsg( "CleanupTask: terminating ..." );
+            }
             {
                 rc_t rc2 = KProcMgrRelease ( proc_mgr );
                 if ( 0 != rc2 ) {

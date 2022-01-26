@@ -65,6 +65,7 @@ typedef struct vector_merger_args_t {
     uint32_t q_wait_time;
     size_t buf_size;
     struct bg_update_t * gap;
+    bool details;
 } vector_merger_args_t;
 
 
@@ -92,6 +93,7 @@ typedef struct file_merger_args_t {
     uint32_t wait_time;
     size_t buf_size;
     struct bg_update_t * gap;
+    bool details;
 } file_merger_args_t;
 
 rc_t make_background_file_merger( struct background_file_merger_t ** merger,

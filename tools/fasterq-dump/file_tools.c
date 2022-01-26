@@ -72,7 +72,7 @@ static bool check_expected_path_type( const KDirectory * dir, uint32_t expected,
     rc_t rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, args );
     if ( 0 == rc ) {
         uint32_t pt = KDirectoryPathType( dir, "%s", buffer );
-        res = ( pt == expected );
+        res = ( ( pt & expected ) == expected );
     }
     return res;
 }
@@ -95,7 +95,7 @@ bool dir_exists( const KDirectory * dir, const char * fmt, ... ) {
     return res;
 }
 
-rc_t delete_files( KDirectory * dir, const VNamelist * files ) {
+rc_t delete_files( KDirectory * dir, const VNamelist * files, bool details ) {
     uint32_t count;
     rc_t rc = VNameListCount( files, &count );
     if ( 0 != rc ) {
@@ -112,6 +112,8 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files ) {
                     rc = KDirectoryRemove( dir, true, "%s", filename );
                     if ( 0 != rc ) {
                         ErrMsg( "delete_files.KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                    } else if ( details ) {
+                        InfoMsg( "file deleted: '%s'", filename );
                     }
                 }
             }
@@ -120,7 +122,7 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files ) {
     return rc;
 }
 
-rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs ) {
+rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs, bool details ) {
     uint32_t count;
     rc_t rc = VNameListCount( dirs, &count );
     if ( 0 != rc ) {
@@ -140,6 +142,8 @@ rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs ) {
                     rc = KDirectoryRemove ( dir, true, "%s", dirname );
                     if ( 0 != rc ) {
                         ErrMsg( "delete_dirs().KDirectoryRemove( %s ) -> %R", dirname, rc );
+                    } else if ( details ) {
+                        InfoMsg( "dir deleted: '%s'", dirname );
                     }
                 }
             }

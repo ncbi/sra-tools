@@ -53,8 +53,8 @@ rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force );
 bool file_exists( const KDirectory * dir, const char * fmt, ... );
 bool dir_exists( const KDirectory * dir, const char * fmt, ... );
 
-rc_t delete_files( KDirectory * dir, const VNamelist * files );
-rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs );
+rc_t delete_files( KDirectory * dir, const VNamelist * files, bool details );
+rc_t delete_dirs( KDirectory * dir, const VNamelist * dirs, bool details );
 
 uint64_t file_size( const KDirectory * dir, const char * fmt, ... );
 uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );

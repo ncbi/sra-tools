@@ -45,6 +45,9 @@ struct FasterqParams final : CmnOptAndAccessions
     ncbi::String bases;
     ncbi::String seqDefline;
     ncbi::String qualDefline;
+    ncbi::String size_check;
+    ncbi::String disk_limit;
+    ncbi::String disk_limit_tmp;
     ncbi::U32 ThreadsCount;
     ncbi::U32 Threads;
     bool progress;
@@ -147,6 +150,11 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline.addOption(unaligned_only, "U", "only-unaligned", "process only unaligned reads");
         cmdline.addOption(aligned_only, "a", "only-aligned", "process only aligned reads");
 
+        cmdline . addOption ( size_check, nullptr, "", "size-check", "", "switch to control: on=perform size-check (default), off=do not perform size-check, only=perform size-check only");
+
+        cmdline . addOption ( disk_limit, nullptr, "", "disk-limit", "", "explicitly set disk limit");
+        cmdline . addOption ( disk_limit_tmp, nullptr, "", "disk-limit-tmp", "", "explicitly set disk limit for temp. files");
+
         CmnOptAndAccessions::add(cmdline);
     }
 
@@ -186,6 +194,9 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( !qualDefline.isEmpty() ) ss << "qual-defline: " << qualDefline << std::endl;
         if ( unaligned_only ) ss << "only-unaligned" << std::endl;
         if ( aligned_only ) ss << "only-aligned" << std::endl;
+        if (!disk_limit.isEmpty()) ss << "disk-limit: " << disk_limit << std::endl;
+        if (!disk_limit_tmp.isEmpty()) ss << "disk-limit-tmp: " << disk_limit_tmp << std::endl;
+        if (!size_check.isEmpty()) ss << "size-check: " << size_check << std::endl;
         return CmnOptAndAccessions::show(ss);
     }
 
@@ -232,6 +243,9 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( !qualDefline.isEmpty() ) builder.add_option("--qual-defline", qualDefline);
         if ( unaligned_only ) builder . add_option("-U");
         if ( aligned_only ) builder . add_option("-a");
+        if ( !size_check.isEmpty() ) builder.add_option("--size-check", size_check);
+        if (!disk_limit.isEmpty()) builder.add_option("--disk-limit", disk_limit);
+        if (!disk_limit_tmp.isEmpty()) builder.add_option("--disk-limit-tmp", disk_limit_tmp);
     }
 
     bool check() const override

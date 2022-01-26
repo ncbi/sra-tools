@@ -25,26 +25,34 @@
 */
 
 #include "report_deletes.h"
+
+#ifndef _h_cgtools_
 #include "cg_tools.h"
+#endif
 
-#include <klib/text.h>
+#ifndef _h_klib_log_
 #include <klib/log.h>
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
+#endif
+
+#ifndef _h_kfs_file_
 #include <kfs/file.h>
+#endif
 
+#ifndef _h_vfs_manager_
 #include <vfs/manager.h>
+#endif
+
+#ifndef _h_vfs_path_
 #include <vfs/path.h>
-#include <vfs/resolver.h>
+#endif
 
-#include <kdb/manager.h>
-#include <vdb/manager.h>
-#include <vdb/vdb-priv.h>
-#include <vdb/database.h>
-#include <vdb/table.h>
-#include <vdb/cursor.h>
-
-#include <sysalloc.h>
-#include <stdlib.h>
+#ifndef _h_kdb_manager_
+#include <kdb/manager.h>      /* because kptDatabase/kptTable */
+#endif
 
 rc_t CC Quitting ( void );
 

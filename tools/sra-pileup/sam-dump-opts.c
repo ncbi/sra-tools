@@ -24,15 +24,31 @@
 *
 */
 
-
 #include "sam-dump-opts.h"
-#include "perf_log.h"
 
-#include <klib/time.h>
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
+
+#ifndef _h_align_quality_quantizer_
 #include <align/quality-quantizer.h>
-#include <kfg/config.h> /* KConfigSetNgcFile */
+#endif
 
-#include <sysalloc.h>
+#ifndef _h_kfg_config_
+#include <kfg/config.h> /* KConfigSetNgcFile */
+#endif
+
+#ifndef _h_perf_log_
+#include "perf_log.h"
+#endif
+
+#ifndef _h_rna_splice_log_
+#include "rna_splice_log.h"
+#endif
 
 #define CURSOR_CACHE_SIZE 256*1024*1024
 

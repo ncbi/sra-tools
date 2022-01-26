@@ -27,7 +27,10 @@
 #include <vdb/report.h> /* ReportSetVDBManager */
 #include <vdb/vdb-priv.h> /* VDBManagerDisablePagemapThread() */
 #include <klib/report.h>
+#include <klib/log.h>
+
 #include <sysalloc.h>
+#include <stdio.h>
 
 #include "sam-dump-opts.h"
 #include "inputfiles.h"

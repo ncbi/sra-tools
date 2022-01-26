@@ -27,8 +27,14 @@
 #include "read_fkt.h"
 #include "sam-unaligned.h"
 #include <kapp/main.h>
+#include <klib/out.h>
+#include <klib/log.h>
 #include <sysalloc.h>
 #include <ctype.h>
+
+#ifndef _h_perf_log_
+#include "perf_log.h"
+#endif
 
 #define COL_READ "(INSDC:dna:text)READ"
 #define COL_REF_NAME "(ascii)REF_NAME"

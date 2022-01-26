@@ -29,11 +29,17 @@
 #include <kfs/filetools.h>
 #include <kdb/meta.h>
 #include <kdb/namelist.h>
+#include <klib/out.h>
+#include <klib/log.h>
 #include <align/reference.h>
 #include <sysalloc.h>
 
 #include "sam-dump-opts.h"
 #include "inputfiles.h"
+
+#ifndef _h_perf_log_
+#include "perf_log.h"
+#endif
 
 static rc_t print_headers_from_metadata( const VDatabase * db, bool * recalc, const char * path ) {
     const KMetadata * meta;

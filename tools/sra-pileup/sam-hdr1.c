@@ -30,6 +30,8 @@
 #include <kfs/filetools.h>
 #include <kdb/meta.h>
 #include <kdb/namelist.h>
+#include <klib/out.h>
+#include <klib/log.h>
 #include <sysalloc.h>
 
 #include "sam-hdr1.h"

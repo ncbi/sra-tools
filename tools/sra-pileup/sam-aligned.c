@@ -30,6 +30,14 @@
 #include <align/manager.h>
 #endif
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
+
 #ifndef _h_read_fkt_
 #include "read_fkt.h"
 #endif
@@ -40,6 +48,14 @@
 
 #ifndef _h_md_flag_
 #include "md_flag.h"
+#endif
+
+#ifndef _h_perf_log_
+#include "perf_log.h"
+#endif
+
+#ifndef _h_rna_splice_log_
+#include "rna_splice_log.h"
 #endif
 
 rc_t Quitting( void );      /* instead of including <kapp/main.h> */

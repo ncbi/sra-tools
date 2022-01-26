@@ -36,7 +36,7 @@ extern "C" {
 
 struct KFastDumpCleanupTask_t;
 
-rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task );
+rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask_t **task, bool details );
 
 rc_t Add_File_to_Cleanup_Task ( struct KFastDumpCleanupTask_t * self, const char * filename );
 

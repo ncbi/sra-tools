@@ -48,3 +48,18 @@ rc_t ErrMsg( const char * fmt, ... ) {
     va_end( list );
     return rc;
 } 
+
+rc_t InfoMsg( const char * fmt, ... ) {
+    rc_t rc;
+    char buffer[ 4096 ];
+    size_t num_writ;
+
+    va_list list;
+    va_start( list, fmt );
+    rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
+    if ( 0 == rc ) {
+        rc = pLogMsg( klogInfo, "$(M)", "M=%s", buffer );
+    }
+    va_end( list );
+    return rc;
+} 

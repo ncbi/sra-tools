@@ -25,17 +25,19 @@
 */
 #include "ref_regions.h"
 
-#include <klib/rc.h>
+#ifndef _h_klib_out_
 #include <klib/out.h>
+#endif
+
+#ifndef _h_klib_text_
 #include <klib/text.h>
+#endif
+
+#ifndef _h_klib_vector_
 #include <klib/vector.h>
-#include <klib/container.h>
+#endif
 
-#include <stdlib.h>
-
-#include <os-native.h>
-#include <sysalloc.h>
-#include <strtol.h>
+#include <strtol.h>     /* strtou64() */
 
 /* =========================================================================================== */
 

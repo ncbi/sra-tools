@@ -26,24 +26,35 @@
 
 #include "reref.h"
 
-#include <klib/text.h>
+#ifndef _h_klib_log_
 #include <klib/log.h>
+#endif
 
-#include <kfs/file.h>
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
 
+#ifndef _h_vfs_manager_
 #include <vfs/manager.h>
-#include <vfs/path.h>
+#endif
+
 #include <vfs/path-priv.h> /* VPathSetAccOfParentDb */
+
+#ifndef _h_vfs_resolver_
 #include <vfs/resolver.h>
+#endif
 
+#ifndef _h_align_reader_reference_
 #include <align/reference.h>
+#endif
 
-#include <vdb/manager.h>
-#include <vdb/vdb-priv.h>
-#include <kdb/manager.h>
+#ifndef _h_vdb_vdb_priv_
+#include <vdb/vdb-priv.h>     /*VDatabaseGetAccession() */
+#endif
 
-#include <sysalloc.h>
-#include <stdlib.h>
+#ifndef _h_kdb_manager_
+#include <kdb/manager.h>      /* kpt-enums */
+#endif
 
 #if 0
 

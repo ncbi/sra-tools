@@ -24,15 +24,10 @@
 *
 */
 
-#include "ref_regions.h"
-#include "cmdline_cmn.h"
 #include "out_redir.h"
-#include "pileup_options.h"
 #include "dyn_string.h"
 #include "reref.h"
 #include "report_deletes.h"
-#include "ref_walker_0.h"
-#include "ref_walker.h"
 #include "walk_debug.h"
 #include "4na_ascii.h"
 #include "pileup_counters.h"
@@ -42,36 +37,46 @@
 #include "pileup_stat.h"
 #include "pileup_v2.h"
 
+#ifndef _h_kapp_main_
 #include <kapp/main.h>
+#endif
 
+#ifndef _h_klib_log_
 #include <klib/log.h>
-#include <klib/out.h>
-#include <klib/printf.h>
+#endif
+
+#ifndef _h_klib_report_
 #include <klib/report.h>
+#endif
+
+#ifndef _h_klib_vector_
 #include <klib/vector.h>
+#endif
 
-#include <kfs/file.h>
-#include <kfs/buffile.h>
-#include <kfs/bzip.h>
-#include <kfs/gzip.h>
+#ifndef _h_kdb_manager_
+#include <kdb/manager.h>  /* kptDatabase */
+#endif
 
-#include <insdc/sra.h>
-
-#include <kdb/manager.h>
-
+#ifndef _h_kfg_config_
 #include <kfg/config.h> /* KConfigSetNgcFile */
+#endif
 
-#include <vdb/manager.h>
-#include <vdb/schema.h>
+#ifndef _h_vdb_report_
 #include <vdb/report.h> /* ReportSetVDBManager() */
+#endif
+
+#ifndef _h_vdb_vdb_priv_
 #include <vdb/vdb-priv.h> /* VDBManagerDisablePagemapThread() */
+#endif
 
+#ifndef _h_sra_sraschema_
 #include <sra/sraschema.h>
-#include <align/manager.h>
+#endif
 
-#include <os-native.h>
-#include <sysalloc.h>
-#include <string.h>
+#ifndef _h_align_manager_
+#include <align/manager.h>
+#endif
+
 #include <stdio.h>  /* because of fwrite() */
 
 #define COL_QUALITY "QUALITY"

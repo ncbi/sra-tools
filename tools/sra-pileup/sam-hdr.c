@@ -24,18 +24,27 @@
 *
 */
 
-#include <klib/time.h>
-#include <kfs/file.h>
-#include <kfs/filetools.h>
-#include <kdb/meta.h>
-#include <kdb/namelist.h>
-#include <klib/out.h>
-#include <klib/log.h>
-#include <align/reference.h>
-#include <sysalloc.h>
+#include "sam-hdr.h"
 
-#include "sam-dump-opts.h"
-#include "inputfiles.h"
+#ifndef _h_kfs_filetools_
+#include <kfs/filetools.h>
+#endif
+
+#ifndef _h_kdb_meta_
+#include <kdb/meta.h>
+#endif
+
+#ifndef _h_kdb_namelist_
+#include <kdb/namelist.h>
+#endif
+
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
 
 #ifndef _h_perf_log_
 #include "perf_log.h"

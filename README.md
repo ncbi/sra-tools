@@ -53,7 +53,7 @@ The ```make``` command inside the source tree supports several additional target
 
 ### macOS (Xcode)
 
-To generate an Xcode project, you will need to first checkout and build ncbi-vdb, then check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Click "Configure", then edit the entries for `VDB_BINDIR` and `VDB_INCDIR` to contain the paths for the CMake build directory for ncbi-vdb and the `interfaces` directory in the ncbi-vdb source directory, respectively. Choose "Xcode" as the generator and click "Configure" and then "Generate". Once the CMake generation succeeds, there will be an Xcode project file `ncbi-vdb.xcodeproj` in the build's binary directory. You can open it with Xcode and build from the IDE.
+To generate an Xcode project, you will need to first checkout and build ncbi-vdb, then check out sra-tools and run the standard CMake out-of-source build. For that, run CMake GUI and point it at the checkout directory. Click "Configure", then edit the entries for `VDB_BINDIR` and `VDB_INCDIR` to contain the paths for the CMake build directory for ncbi-vdb and the `interfaces` directory in the ncbi-vdb source directory, respectively. Choose "Xcode" as the generator and click "Configure" and then "Generate". Once the CMake generation succeeds, there will be an Xcode project file `sra-tools.xcodeproj` in the build's binary directory. You can open it with Xcode and build from the IDE.
 
 Alternatively, you can configure and build from the command line, in which case you would need to provide the 2 paths to the SDK's libraries and headers:
 

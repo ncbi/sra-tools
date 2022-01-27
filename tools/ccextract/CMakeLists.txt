@@ -44,5 +44,9 @@ if( LibXml2_FOUND )
 		        xml2
 		    )
 	endif()
+
+        if ( "mac" STREQUAL ${OS} )
+            target_link_libraries( ccextract iconv )
+        endif()
 	MakeLinksExe( ccextract false )
 endif()

@@ -37,13 +37,13 @@ if( LibXml2_FOUND )
 		loader
 	)
 
-   if (SINGLE_CONFIF )
+   if (SINGLE_CONFIG )
 	set( LOADER_LIB
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
 		${NCBI_VDB_LIBDIR}/libkxfs.${STLX}
 		${NCBI_VDB_LIBDIR}/libkxml.${STLX}
-		xml2
+		${LIBXML2_LIBRARIES}
 	)
    else()
 	set( LOADER_LIB

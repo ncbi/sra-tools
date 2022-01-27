@@ -147,7 +147,14 @@ message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" 
 find_package( FLEX 2.6 )
 find_package( BISON 3 )
 
-find_package( LibXml2 )
+if (XML2_LIBDIR)
+    find_library( LIBXML2_LIBRARIES libxml2.a HINTS ${XML2_LIBDIR} )
+    if ( LIBXML2_LIBRARIES )
+       set( LibXml2_FOUND true )
+    endif()
+else()
+    find_package( LibXml2 )
+endif()
 
 find_package(Java COMPONENTS Development)
 if( Java_FOUND AND NOT Java_VERSION )

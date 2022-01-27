@@ -24,17 +24,27 @@
 *
 */
 
-#include "read_fkt.h"
 #include "sam-unaligned.h"
-#include <kapp/main.h>
+
+#ifndef _h_read_fkt_
+#include "read_fkt.h"
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
+#endif
+
+#ifndef _h_klib_log_
 #include <klib/log.h>
-#include <sysalloc.h>
-#include <ctype.h>
+#endif
 
 #ifndef _h_perf_log_
 #include "perf_log.h"
 #endif
+
+#include <ctype.h>    /* isalpha() / islower() / tolower() / toupper() */
+
+rc_t Quitting( void );      /* instead of including <kapp/main.h> */
 
 #define COL_READ "(INSDC:dna:text)READ"
 #define COL_REF_NAME "(ascii)REF_NAME"

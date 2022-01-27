@@ -304,14 +304,14 @@ rc_t pileup_v2( Args * args, pileup_options *options ) {
         if ( rc == 0 ) {
             uint32_t interest = RW_INTEREST_INDEL | RW_INTEREST_BASE;
 
-            if ( options->process_dups ) { interest |= RW_INTEREST_DUPS; }
-            if ( !options->omit_qualities ) { interest |= RW_INTEREST_QUAL; }
-            if ( !options->no_skip ) { interest |= RW_INTEREST_SKIP; }
-            if ( options->show_id ) { interest |= RW_INTEREST_DEBUG; }
-            if ( options->use_seq_name ) { interest |= RW_INTEREST_SEQNAME; }
-            if ( options->cmn.tab_select & primary_ats ) { interest |= RW_INTEREST_PRIM; }
-            if ( options->cmn.tab_select & secondary_ats ) { interest |= RW_INTEREST_SEC; }
-            if ( options->cmn.tab_select & evidence_ats ) { interest |= RW_INTEREST_EV; }
+            if ( options -> process_dups ) { interest |= RW_INTEREST_DUPS; }
+            if ( !options -> cmn . omit_qualities ) { interest |= RW_INTEREST_QUAL; }
+            if ( !options -> no_skip ) { interest |= RW_INTEREST_SKIP; }
+            if ( options -> show_id ) { interest |= RW_INTEREST_DEBUG; }
+            if ( options -> use_seq_name ) { interest |= RW_INTEREST_SEQNAME; }
+            if ( options -> cmn . tab_select & primary_ats ) { interest |= RW_INTEREST_PRIM; }
+            if ( options -> cmn . tab_select & secondary_ats ) { interest |= RW_INTEREST_SEC; }
+            if ( options -> cmn . tab_select & evidence_ats ) { interest |= RW_INTEREST_EV; }
 
             rc = ref_walker_set_interest( walker, interest );
             if ( rc == 0 ) {
@@ -327,9 +327,9 @@ rc_t pileup_v2( Args * args, pileup_options *options ) {
             if ( rc == 0 ) {
                 rc = allocated_dyn_string ( &ctx.qual, 1000 );
                 if ( rc == 0 ) {
-                    ctx.print_qual = !options->omit_qualities;
-                    ctx.div_by_spotgrp = options->div_by_spotgrp;
-                    ctx.debug = options->show_id;
+                    ctx . print_qual = !( options -> cmn . omit_qualities );
+                    ctx . div_by_spotgrp = options -> div_by_spotgrp;
+                    ctx . debug = options -> show_id;
 
                     /***********************************/
                     rc = ref_walker_walk( walker, &ctx );

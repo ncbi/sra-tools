@@ -73,6 +73,7 @@ typedef struct common_options {
     bool gzip_output;
     bool bzip_output;
     bool no_mt;
+    bool omit_qualities;
     align_tab_select tab_select;
     const char * output_file;
     const char * input_file;

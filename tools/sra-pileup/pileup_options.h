@@ -43,7 +43,6 @@ typedef struct pileup_options
 {
     common_options cmn;     /* from cmdline_cmn.h */
     bool process_dups;
-    bool omit_qualities;
     bool read_tlen;
     bool no_skip;
     bool show_id;

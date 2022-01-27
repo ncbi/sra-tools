@@ -42,30 +42,35 @@
 #include <vfs/path-priv.h>    /* VPathOption(), vpopt_readgroup */
 #endif
 
-const char * ref_usage[] = { "Filter by position on genome.",
+static const char * noqual_usage[] = { "Omit qualities in output", NULL };
+
+static const char * ref_usage[] = { "Filter by position on genome.",
                              "Name can either be file specific name",
                              "(ex: \"chr1\" or \"1\").",
                              "\"from\" and \"to\" are 1-based coordinates",
                              NULL };
 
-const char * outf_usage[] = { "Output will be written to this file",
+static const char * outf_usage[] = { "Output will be written to this file",
                               "instead of std-out", NULL };
 
-const char * table_usage[] = { "Which alignment table(s) to use (p|s|e):", 
+static const char * table_usage[] = { "Which alignment table(s) to use (p|s|e):", 
                                "p - primary, s - secondary, e - evidence-interval", 
                                "(default = p)", NULL };
 
-const char * gzip_usage[] = { "Compress output using gzip", NULL };
+static const char * gzip_usage[] = { "Compress output using gzip", NULL };
 
-const char * bzip_usage[] = { "Compress output using bzip2", NULL };
+static const char * bzip_usage[] = { "Compress output using bzip2", NULL };
 
-const char * inf_usage[] = { "File with all input-parameters / options", NULL };
+static const char * inf_usage[] = { "File with all input-parameters / options", NULL };
 
-const char * schema_usage[] = { "optional schema-file to be used", NULL };
+static const char * schema_usage[] = { "optional schema-file to be used", NULL };
 
-const char * no_mt_usage[] = { "disable multithreading", NULL };
+static const char * no_mt_usage[] = { "disable multithreading", NULL };
 
-const char * timing_usage[] = { "write timing log-file", NULL };
+static const char * timing_usage[] = { "write timing log-file", NULL };
+
+#define OPTION_NOQUAL  "noqual"
+#define ALIAS_NOQUAL   "n"
 
 #define OPTION_OUTF    "outfile"
 #define ALIAS_OUTF     "o"
@@ -91,6 +96,7 @@ const char * timing_usage[] = { "write timing log-file", NULL };
 OptDef CommonOptions[] = {
     /*name,           alias,         hfkt, usage-help,    maxcount, needs value, required */
     { OPTION_REF,     ALIAS_REF,     NULL, ref_usage,     0,        true,        false },
+    { OPTION_NOQUAL,  ALIAS_NOQUAL,  NULL, noqual_usage,  1,        false,       false },
     { OPTION_OUTF,    ALIAS_OUTF,    NULL, outf_usage,    1,        true,        false },
     { OPTION_TABLE,   ALIAS_TABLE,   NULL, table_usage,   1,        true,        false },
     { OPTION_GZIP,    ALIAS_GZIP,    NULL, gzip_usage,    1,        false,       false },
@@ -146,6 +152,9 @@ rc_t get_common_options( Args * args, common_options *opts ) {
         rc = get_bool_option( args, OPTION_NO_MT, &opts->no_mt, false );
     }
     if ( rc == 0 ) {
+        rc = get_bool_option( args, OPTION_NOQUAL, &opts->omit_qualities, false );
+    }
+    if ( rc == 0 ) {
         rc = get_str_option( args, OPTION_SCHEMA, &opts->schema_file );
     }
     if ( rc == 0 ) {
@@ -182,6 +191,7 @@ void print_common_helplines( void ) {
     HelpOptionLine ( ALIAS_REF, OPTION_REF, "name[:from-to]", ref_usage );
     HelpOptionLine ( ALIAS_OUTF, OPTION_OUTF, "output-file", outf_usage );
     HelpOptionLine ( ALIAS_TABLE, OPTION_TABLE, "shortcut", table_usage );
+    HelpOptionLine ( ALIAS_NOQUAL, OPTION_NOQUAL, NULL, table_usage );
     HelpOptionLine ( ALIAS_BZIP, OPTION_BZIP, NULL, bzip_usage );
     HelpOptionLine ( ALIAS_GZIP, OPTION_GZIP, NULL, gzip_usage );
     HelpOptionLine ( NULL, OPTION_NO_MT, NULL, no_mt_usage );

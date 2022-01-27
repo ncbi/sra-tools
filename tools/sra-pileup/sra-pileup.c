@@ -125,9 +125,6 @@
 #define OPTION_DUPS    "duplicates"
 #define ALIAS_DUPS     "d"
 
-#define OPTION_NOQUAL  "noqual"
-#define ALIAS_NOQUAL   "n"
-
 #define OPTION_NOSKIP  "noskip"
 #define ALIAS_NOSKIP   "s"
 
@@ -183,8 +180,6 @@ static const char * minmapq_usage[]         = { "Minimum mapq-value, ",
 
 static const char * dups_usage[]            = { "process duplicates 0..off/1..on", NULL };
 
-static const char * noqual_usage[]          = { "Omit qualities in output", NULL };
-
 static const char * noskip_usage[]          = { "Does not skip reference-regions without alignments", NULL };
 
 static const char * showid_usage[]          = { "Shows alignment-id for every base", NULL };
@@ -200,8 +195,6 @@ static const char * min_m_usage[]           = { "min percent of mismatches used 
 static const char * merge_usage[]           = { "If adjacent slices are closer than this, ",
                                                 "they are merged and a skiplist is created. ", 
                                                 "a value of zero disables the feature, default is 10000", NULL };
-
-static const char * no_qual_usage[]         = { "omit qualities", NULL };
 
 static const char * func_ref_usage[]        = { "list references", NULL };
 static const char * func_ref_ex_usage[]     = { "list references + coverage", NULL };
@@ -228,7 +221,6 @@ OptDef MyOptions[] =
     /*name,           	alias,         	hfkt,	usage-help,		maxcount, needs value, required */
     { OPTION_MINMAPQ,	ALIAS_MINMAPQ,	NULL,	minmapq_usage,	1,        true,        false },
     { OPTION_DUPS,		ALIAS_DUPS,		NULL,	dups_usage,		1,        true,        false },
-    { OPTION_NOQUAL,	ALIAS_NOQUAL,	NULL,	noqual_usage,	1,        false,       false },
     { OPTION_NOSKIP,	ALIAS_NOSKIP,	NULL,	noskip_usage,	1,        false,       false },
     { OPTION_SHOWID,	ALIAS_SHOWID,	NULL,	showid_usage,	1,        false,       false },
     { OPTION_SPOTGRP,	ALIAS_SPOTGRP,	NULL,	spotgrp_usage,	1,        false,       false },
@@ -318,9 +310,6 @@ static rc_t get_pileup_options( Args * args, pileup_options *opts )
     }
     if ( rc == 0 ) {
         rc = get_bool_option( args, OPTION_DUPS, &opts->process_dups, false );
-    }
-    if ( rc == 0 ) {
-        rc = get_bool_option( args, OPTION_NOQUAL, &opts->omit_qualities, false );
     }
     if ( rc == 0 ) {
         rc = get_bool_option( args, OPTION_NOSKIP, &opts->no_skip, false );
@@ -419,7 +408,6 @@ rc_t CC Usage ( const Args * args ) {
     HelpOptionLine ( ALIAS_SEQNAME, OPTION_SEQNAME, NULL, seqname_usage );
     HelpOptionLine ( NULL, OPTION_MIN_M, NULL, min_m_usage );
     HelpOptionLine ( NULL, OPTION_MERGE, NULL, merge_usage );
-    HelpOptionLine ( ALIAS_NOQUAL, OPTION_NOQUAL, NULL, no_qual_usage );
 
     HelpOptionLine ( NULL, "function ref",      NULL, func_ref_usage );
     HelpOptionLine ( NULL, "function ref-ex",   NULL, func_ref_ex_usage );
@@ -576,7 +564,7 @@ static rc_t CC populate_tooldata( void *obj, const PlacementRecord *placement,
         }
     }
 
-    if ( rc == 0 && !( cb_data -> options -> omit_qualities ) )
+    if ( rc == 0 && !( cb_data -> options -> cmn . omit_qualities ) )
     {
         const uint8_t * quality;
 
@@ -616,7 +604,7 @@ static rc_t CC alloc_size( struct VCursor const *curs, int64_t row_id, size_t * 
     pileup_col_ids * col_ids = placement_ctx;
     *size = ( sizeof *rec );
 
-    if ( !( cb_data -> options -> omit_qualities ) ) {
+    if ( !( cb_data -> options -> cmn . omit_qualities ) ) {
         uint32_t q_len;
         rc = read_base_and_len( curs, col_ids -> idx_quality, row_id, NULL, &q_len );
         if ( rc == 0 ) { *size += q_len; }
@@ -635,7 +623,7 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
     tool_rec *xrec = ( tool_rec * ) PlacementRecordCast ( rec, placementRecordExtension1 );
     bool reverse = xrec->reverse;
 
-    if ( !( options -> omit_qualities ) ) {
+    if ( !( options -> cmn . omit_qualities ) ) {
         if ( seq_pos < xrec->quality_len ) {
             *qual = xrec->quality[ seq_pos ];
         } else {
@@ -665,7 +653,7 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
             } else {
                 rc = add_char_2_dyn_string( line, '>' );
             }
-            if ( !( options -> omit_qualities ) )
+            if ( !( options -> cmn . omit_qualities ) )
                 *qual = xrec -> quality[ seq_pos + 1 ];
         } else {
             if ( ( state & align_iter_match ) == align_iter_match ) {
@@ -739,7 +727,7 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
     
     add_dyn_string_2_dyn_string( line, events );
 
-    if ( !( options -> omit_qualities ) ) {
+    if ( !( options -> cmn . omit_qualities ) ) {
         uint32_t i;
         add_char_2_dyn_string( line, '\t' );
         for ( i = 0; i < depth; ++i ) {
@@ -1218,7 +1206,7 @@ static rc_t CC on_argument( const char * path, const char * spot_group, void * d
             } else {
                 prepare_ctx prep;   /* from cmdline_cmn.h */
 
-                prep . omit_qualities = ctx -> options -> omit_qualities;
+                prep . omit_qualities = ctx -> options -> cmn . omit_qualities;
                 prep . read_tlen = ctx -> options -> read_tlen;
                 prep . use_primary_alignments = ( ( ctx -> options -> cmn . tab_select & primary_ats ) == primary_ats );
                 prep . use_secondary_alignments = ( ( ctx -> options -> cmn . tab_select & secondary_ats ) == secondary_ats );
@@ -1329,30 +1317,30 @@ static rc_t pileup_main( Args * args, pileup_options *options ) {
 
     if ( rc == 0 ) {
         switch( options -> function ) {
-            case sra_pileup_counters    : options -> omit_qualities = true;
+            case sra_pileup_counters    : options -> cmn . omit_qualities = true;
                                           options -> read_tlen = false;
                                           break;
 
-            case sra_pileup_stat        : options -> omit_qualities = true;
+            case sra_pileup_stat        : options -> cmn . omit_qualities = true;
                                           options -> read_tlen = true;
                                           break;
 
-            case sra_pileup_debug       : options -> omit_qualities = true;
+            case sra_pileup_debug       : options -> cmn . omit_qualities = true;
                                           options -> read_tlen = true;
                                           break;
 
             case sra_pileup_samtools    : options -> read_tlen = false;
                                           break;
                                           
-            case sra_pileup_mismatch    : options -> omit_qualities = true;
+            case sra_pileup_mismatch    : options -> cmn . omit_qualities = true;
                                           options -> read_tlen = false;
                                           break;
 
-            case sra_pileup_index      :  options -> omit_qualities = true;
+            case sra_pileup_index      :  options -> cmn . omit_qualities = true;
                                           options -> read_tlen = false;
                                           break;
 
-            case sra_pileup_varcount   :  options -> omit_qualities = true;
+            case sra_pileup_varcount   :  options -> cmn . omit_qualities = true;
                                           options -> read_tlen = false;
                                           break;
         }

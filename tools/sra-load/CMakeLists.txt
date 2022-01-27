@@ -45,6 +45,7 @@ if( LibXml2_FOUND )
 		${NCBI_VDB_LIBDIR}/libkxml.${STLX}
 		${LIBXML2_LIBRARIES}
 	)
+
    else()
 	set( LOADER_LIB
         ${COMMON_LINK_LIBRARIES}
@@ -53,6 +54,10 @@ if( LibXml2_FOUND )
 		kxml
 		xml2
 	)
+   endif()
+
+   if ( "mac" STREQUAL ${OS} )
+      list( APPEND LOADER_LIB iconv )
    endif()
 
 	# External

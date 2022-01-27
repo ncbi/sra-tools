@@ -24,18 +24,53 @@
 *
 */
 
+#ifndef _h_out_redir_
 #include "out_redir.h"
+#endif
+
+#ifndef _h_dyn_string_
 #include "dyn_string.h"
+#endif
+
+#ifndef _h_reref_
 #include "reref.h"
+#endif
+
+#ifndef _h_report_deletes_
 #include "report_deletes.h"
+#endif
+
+#ifndef _h_walk_debug_
 #include "walk_debug.h"
+#endif
+
+#ifndef _h_4na_ascii_
 #include "4na_ascii.h"
+#endif
+
+#ifndef _h_pileup_counters_
 #include "pileup_counters.h"
+#endif
+
+#ifndef _h_pileup_index_
 #include "pileup_index.h"
+#endif
+
+#ifndef _h_pileup_varcount_
 #include "pileup_varcount.h"
+#endif
+
+#ifndef _h_pileup_indels_
 #include "pileup_indels.h"
+#endif
+
+#ifndef _h_pileup_stat_
 #include "pileup_stat.h"
+#endif
+
+#ifndef _h_pileup_v2_
 #include "pileup_v2.h"
+#endif
 
 #ifndef _h_kapp_main_
 #include <kapp/main.h>

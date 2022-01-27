@@ -24,11 +24,15 @@
 *
 */
 
-#include "ref_walker_0.h"
-#include "4na_ascii.h"
+#include "walk_debug.h"
 
+#ifndef _h_4na_ascii_
+#include "4na_ascii.h"
+#endif
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
-#include <klib/printf.h>
+#endif
 
 static rc_t CC walk_debug_enter_ref( walk_data * data ) {
     return KOutMsg( "ENTER REF '%s' ( start:%,u / len:%,u )\n", data->ref_name, data->ref_start, data->ref_len );

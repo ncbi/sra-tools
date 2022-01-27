@@ -128,6 +128,24 @@ if ( Java_FOUND )
             PACKAGES gov.nih.nlm.ncbi.ngs ngs
             SOURCEPATH ${CMAKE_CURRENT_SOURCE_DIR}
         )
-    endif()
 
+        if( Java_JAR_EXECUTABLE )
+            execute_process( COMMAND
+                bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ngs/ngs-java/javadoc"
+                WORKING_DIRECTORY "${TARGDIR}/obj"
+            )
+            foreach(f ${ITF_SRC})
+                set(SRC_FILES "${SRC_FILES} ${f}")
+            endforeach()
+
+            foreach(f ${NCBI_SRC})
+                set(SRC_FILES "${SRC_FILES} ${f}")
+            endforeach()
+
+            execute_process( COMMAND
+                bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar ${SRC_FILES}"
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            )
+        endif()
+    endif()
 endif()

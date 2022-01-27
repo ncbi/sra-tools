@@ -23,24 +23,28 @@
 * ===========================================================================
 *
 */
-#include <klib/report.h>
-#include <klib/container.h>
-#include <klib/log.h>
-#include <klib/debug.h>
-#include <klib/out.h>
-#include <klib/status.h>
-#include <kfs/file.h>
-#include <kfs/directory.h>
-#include <kfs/buffile.h>
-#include <kfs/gzip.h>
-#include <kfs/bzip.h>
-#include <kapp/main.h>
-#include <kapp/args.h>
-#include <os-native.h>
-#include <sysalloc.h>
 
-#include "cmdline_cmn.h"
 #include "writer.h"
+
+#ifndef _h_kfs_file_
+#include <kfs/file.h>
+#endif
+
+#ifndef _h_kfs_directory_
+#include <kfs/directory.h>
+#endif
+
+#ifndef _h_kfs_buffile_
+#include <kfs/buffile.h>
+#endif
+
+#ifndef _h_kfs_gzip_
+#include <kfs/gzip.h>
+#endif
+
+#ifndef _h_kfs_bzip_
+#include <kfs/bzip.h>
+#endif
 
 struct { KWrtWriter writer;
     void* data;

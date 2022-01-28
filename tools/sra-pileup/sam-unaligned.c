@@ -96,7 +96,6 @@ static rc_t prepare_prim_table_ctx( const samdump_opts * const opts,
 #define COL_READ_FILTER "(INSDC:SRA:read_filter)READ_FILTER"
 #define COL_READ_LEN "(INSDC:coord:len)READ_LEN"
 #define COL_READ_START "(INSDC:coord:zero)READ_START"
-/* #define COL_QUALITY "(INSDC:quality:text:phred_33)QUALITY" */
 #define COL_QUALITY "(INSDC:quality:phred)QUALITY"
 #define COL_SPOT_GROUP "(ascii)SPOT_GROUP"
 #define COL_NAME "(ascii)NAME"
@@ -145,8 +144,10 @@ static rc_t prepare_seq_table_ctx( const samdump_opts * const opts,
             if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ_LEN, &stx->read_len_idx ); }
             if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ_START, &stx->read_start_idx ); }
             if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ, &stx->read_idx ); }
-            if ( rc == 0 ) { rc = add_column( stx->cursor, COL_QUALITY, &stx->quality_idx ); }
             if ( rc == 0 ) { rc = add_column( stx->cursor, COL_SPOT_GROUP, &stx->spot_group_idx ); }
+            if ( rc == 0 && ( !( opts -> no_qual ) ) ) {
+                rc = add_column( stx->cursor, COL_QUALITY, &stx->quality_idx );
+            }
         }
         KNamelistRelease( available_columns );
     }
@@ -380,8 +381,14 @@ static rc_t print_sliced_quality( const samdump_opts * const opts,
                                   bool reverse,
                                   const INSDC_coord_zero * read_start,
                                   const INSDC_coord_len * read_len ) {
-    const char * ptr = quality + read_start[ read_idx ];
-    return dump_quality( opts, ptr, read_len[ read_idx ], reverse ); /* sam-dump-opts.c */
+    rc_t rc;
+    if ( !( opts -> no_qual ) ) {
+        const char * quality_ptr = quality + read_start[ read_idx ];
+        rc = dump_quality( opts, quality_ptr, read_len[ read_idx ], reverse ); /* sam-dump-opts.c */
+    } else {
+        rc = KOutMsg( "*" );
+    }
+    return rc;
 }
 
 
@@ -631,7 +638,7 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                             if ( rc == 0 && read == NULL ) {
                                 rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
                             }
-                            if ( rc == 0 && quality == NULL ) {
+                            if ( rc == 0 && quality == NULL && ( ! ( opts -> no_qual ) ) ) {
                                 rc = read_quality( stx, row_id, &quality, rd_len );
                             }
                             if ( rc == 0 && read_start == NULL ) {
@@ -807,7 +814,7 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
             if ( rc == 0 ) {
                 rc = KOutMsg( "\t" );
             }
-            if ( rc == 0 && quality == NULL ) {
+            if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                 rc = read_quality( stx, row_id, &quality, rd_len );
             }
             /* SAM-FIELD: QUAL      SRA-column: QUALITY, sliced by READ_START/READ_LEN */
@@ -937,7 +944,7 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
             if ( rc == 0 ) {
                 rc = KOutMsg( "\t" );
             }
-            if ( rc == 0 && quality == NULL ) {
+            if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                 rc = read_quality( stx, row_id, &quality, rd_len );
             }
             /* SAM-FIELD: QUAL      SRA-column: QUALITY, sliced by READ_START/READ_LEN */
@@ -1022,7 +1029,7 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                     if ( rc == 0 && read == NULL ) {
                         rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
                     }
-                    if ( rc == 0 && quality == NULL ) {
+                    if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                         rc = read_quality( stx, row_id, &quality, rd_len );
                     }
                     if ( rc == 0 && read_type == NULL ) {
@@ -1106,7 +1113,7 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
             if ( rc == 0 && read == NULL ) {
                 rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
             }
-            if ( rc == 0 && quality == NULL ) {
+            if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                 rc = read_quality( stx, row_id, &quality, rd_len );
             }
             if ( rc == 0 && read_type == NULL ) {
@@ -1187,7 +1194,7 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
             if ( rc == 0 && read == NULL ) {
                 rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
             }
-            if ( rc == 0 && quality == NULL ) {
+            if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                 rc = read_quality( stx, row_id, &quality, rd_len );
             }
             /*
@@ -1206,7 +1213,7 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
             }
             /* in case of fastq : the QUALITY-line */
             if ( rc == 0 && opts->output_format == of_fastq ) {
-                if ( quality == NULL ) {
+                if ( quality == NULL && ( !( opts -> no_qual ) ) ) {
                     rc = read_quality( stx, row_id, &quality, rd_len );
                 }
                 if ( rc == 0 ) {

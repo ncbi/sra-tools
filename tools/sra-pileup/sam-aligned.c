@@ -200,36 +200,36 @@ typedef struct align_table_context {
 } align_table_context;
 
 static void invalidate_all_cmn_column_idx( align_cmn_context * const actx ) {
-    actx->seq_spot_id_idx       = COL_NOT_AVAILABLE;
-    actx->cigar_idx             = COL_NOT_AVAILABLE;    
-    actx->cigar_len_idx         = COL_NOT_AVAILABLE;
-    actx->read_idx              = COL_NOT_AVAILABLE;
-    actx->read_len_idx          = COL_NOT_AVAILABLE;    
-    actx->edit_dist_idx         = COL_NOT_AVAILABLE;
-    actx->seq_spot_group_idx    = COL_NOT_AVAILABLE;
-    actx->seq_read_id_idx       = COL_NOT_AVAILABLE;
-    actx->raw_read_idx          = COL_NOT_AVAILABLE;
-    actx->sam_quality_idx       = COL_NOT_AVAILABLE;
-    actx->ref_orientation_idx   = COL_NOT_AVAILABLE;
-    actx->read_filter_idx       = COL_NOT_AVAILABLE;
-    actx->al_count_idx          = COL_NOT_AVAILABLE;
+    actx -> seq_spot_id_idx       = COL_NOT_AVAILABLE;
+    actx -> cigar_idx             = COL_NOT_AVAILABLE;    
+    actx -> cigar_len_idx         = COL_NOT_AVAILABLE;
+    actx -> read_idx              = COL_NOT_AVAILABLE;
+    actx -> read_len_idx          = COL_NOT_AVAILABLE;    
+    actx -> edit_dist_idx         = COL_NOT_AVAILABLE;
+    actx -> seq_spot_group_idx    = COL_NOT_AVAILABLE;
+    actx -> seq_read_id_idx       = COL_NOT_AVAILABLE;
+    actx -> raw_read_idx          = COL_NOT_AVAILABLE;
+    actx -> sam_quality_idx       = COL_NOT_AVAILABLE;
+    actx -> ref_orientation_idx   = COL_NOT_AVAILABLE;
+    actx -> read_filter_idx       = COL_NOT_AVAILABLE;
+    actx -> al_count_idx          = COL_NOT_AVAILABLE;
 }
 
 static void invalidate_all_column_idx( align_table_context * const atx ) {
-    atx->sam_flags_idx      = COL_NOT_AVAILABLE;
-    atx->mate_align_id_idx  = COL_NOT_AVAILABLE;
-    atx->mate_ref_name_idx  = COL_NOT_AVAILABLE;
-    atx->mate_ref_pos_idx   = COL_NOT_AVAILABLE;
-    atx->tlen_idx           = COL_NOT_AVAILABLE;
-    atx->rna_orientation_idx= COL_NOT_AVAILABLE;
-    atx->ploidy_idx         = COL_NOT_AVAILABLE;
-    atx->ev_alignments_idx  = COL_NOT_AVAILABLE;
-    atx->ref_pos_idx        = COL_NOT_AVAILABLE;
-    atx->ref_ploidy_idx     = COL_NOT_AVAILABLE;
-    atx->seq_name_idx       = COL_NOT_AVAILABLE;
-    atx->mapq_idx           = COL_NOT_AVAILABLE;
-    atx->al_group_idx       = COL_NOT_AVAILABLE;
-    atx->lnk_group_idx      = COL_NOT_AVAILABLE;
+    atx -> sam_flags_idx      = COL_NOT_AVAILABLE;
+    atx -> mate_align_id_idx  = COL_NOT_AVAILABLE;
+    atx -> mate_ref_name_idx  = COL_NOT_AVAILABLE;
+    atx -> mate_ref_pos_idx   = COL_NOT_AVAILABLE;
+    atx -> tlen_idx           = COL_NOT_AVAILABLE;
+    atx -> rna_orientation_idx= COL_NOT_AVAILABLE;
+    atx -> ploidy_idx         = COL_NOT_AVAILABLE;
+    atx -> ev_alignments_idx  = COL_NOT_AVAILABLE;
+    atx -> ref_pos_idx        = COL_NOT_AVAILABLE;
+    atx -> ref_ploidy_idx     = COL_NOT_AVAILABLE;
+    atx -> seq_name_idx       = COL_NOT_AVAILABLE;
+    atx -> mapq_idx           = COL_NOT_AVAILABLE;
+    atx -> al_group_idx       = COL_NOT_AVAILABLE;
+    atx -> lnk_group_idx      = COL_NOT_AVAILABLE;
     invalidate_all_cmn_column_idx( &atx->cmn );
     invalidate_all_cmn_column_idx( &atx->eval );
 }
@@ -237,10 +237,10 @@ static void invalidate_all_column_idx( align_table_context * const atx ) {
 static void init_align_table_context( align_table_context * const atx,
                                       const uint32_t db_idx,
                                       const ReferenceObj* ref_obj ) {
-    atx->db_idx = db_idx;
-    atx->ref_obj = ref_obj;
-    atx->cig_op_buffer = NULL;
-    atx->cig_op_buffer_len = 0;
+    atx -> db_idx = db_idx;
+    atx -> ref_obj = ref_obj;
+    atx -> cig_op_buffer = NULL;
+    atx -> cig_op_buffer_len = 0;
     invalidate_all_column_idx( atx );
 }
 
@@ -261,22 +261,22 @@ static rc_t adjust_align_table_context_cig_op_buffer( align_table_context * atx,
     uint32_t reqested = ( read_len * 3 );
     if ( reqested < 1024 ) { reqested = 1024; }
 
-    if ( atx->cig_op_buffer_len < reqested ) {
+    if ( atx -> cig_op_buffer_len < reqested ) {
         void * org_buffer = NULL;
 
-        if ( atx->cig_op_buffer == NULL ) {
-            atx->cig_op_buffer = malloc( reqested );
+        if ( atx -> cig_op_buffer == NULL ) {
+            atx -> cig_op_buffer = malloc( reqested );
         } else {
-            org_buffer = atx->cig_op_buffer;
-            atx->cig_op_buffer = realloc( org_buffer, reqested );
+            org_buffer = atx -> cig_op_buffer;
+            atx -> cig_op_buffer = realloc( org_buffer, reqested );
         }
-        if ( atx->cig_op_buffer == NULL ) {
+        if ( atx -> cig_op_buffer == NULL ) {
             rc = RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             (void)LOGERR( klogInt, rc, "cigar-op-buffer-allocation failed" );
             if ( org_buffer != NULL )
                 free( org_buffer );
         } else {
-            atx->cig_op_buffer_len = reqested;
+            atx -> cig_op_buffer_len = reqested;
         }
     }
     return rc;
@@ -292,56 +292,56 @@ static rc_t prepare_cmn_table_rows( const samdump_opts * const opts,
     const VCursor * cursor = cmn->cursor;
 
     if ( src == 'P' || src == 'S' ) {
-        rc = add_column( cursor, COL_SEQ_SPOT_ID, &cmn->seq_spot_id_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_SEQ_SPOT_ID, &( cmn -> seq_spot_id_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 ) {
-        if ( opts->use_long_cigar ) {
-            rc = add_column( cursor, COL_LONG_CIGAR, &cmn->cigar_idx ); /* read_fkt.c */
+        if ( opts -> use_long_cigar ) {
+            rc = add_column( cursor, COL_LONG_CIGAR, &( cmn -> cigar_idx ) ); /* read_fkt.c */
             if ( rc == 0 && ( src == 'I' || src == 'A' ) ) {
-                rc = add_column( cursor, COL_CIGAR_LONG_LEN, &cmn->cigar_len_idx ); /* read_fkt.c */
+                rc = add_column( cursor, COL_CIGAR_LONG_LEN, &( cmn -> cigar_len_idx ) ); /* read_fkt.c */
             }
         } else {
-            rc = add_column( cursor, COL_SHORT_CIGAR, &cmn->cigar_idx ); /* read_fkt.c */
+            rc = add_column( cursor, COL_SHORT_CIGAR, &( cmn -> cigar_idx ) ); /* read_fkt.c */
             if ( rc == 0 && ( src == 'I' || src == 'A' ) ) {
-                rc = add_column( cursor, COL_CIGAR_SHORT_LEN, &cmn->cigar_len_idx ); /* read_fkt.c */
+                rc = add_column( cursor, COL_CIGAR_SHORT_LEN, &( cmn -> cigar_len_idx ) ); /* read_fkt.c */
             }
         }
     }
 
     if ( rc == 0 ) {
-        if ( opts->print_matches_as_equal_sign ) {
-            rc = add_column( cursor, COL_MISMATCH_READ, &cmn->read_idx ); /* read_fkt.c */
+        if ( opts -> print_matches_as_equal_sign ) {
+            rc = add_column( cursor, COL_MISMATCH_READ, &( cmn -> read_idx ) ); /* read_fkt.c */
         } else {
-            rc = add_column( cursor, COL_READ, &cmn->read_idx ); /* read_fkt.c */
+            rc = add_column( cursor, COL_READ, &( cmn -> read_idx ) ); /* read_fkt.c */
         }
     }
 
     if ( rc == 0 ) {
-        rc = add_column( cursor, COL_READ_LEN, &cmn->read_len_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_READ_LEN, &( cmn -> read_len_idx ) ); /* read_fkt.c */
+    }
+    if ( rc == 0 && !( opts -> no_qual ) ) {
+        rc = add_column( cursor, COL_SAM_QUALITY, &( cmn -> sam_quality_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 ) {
-        rc = add_column( cursor, COL_SAM_QUALITY, &cmn->sam_quality_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_REF_ORIENTATION, &( cmn -> ref_orientation_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 ) {
-        rc = add_column( cursor, COL_REF_ORIENTATION, &cmn->ref_orientation_idx ); /* read_fkt.c */
-    }
-    if ( rc == 0 ) {
-        rc = add_column( cursor, COL_EDIT_DIST, &cmn->edit_dist_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_EDIT_DIST, &( cmn -> edit_dist_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 && ( src == 'P' || src == 'S' || src == 'A' ) ) {
-        rc = add_column( cursor, COL_SEQ_SPOT_GROUP, &cmn->seq_spot_group_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_SEQ_SPOT_GROUP, &( cmn -> seq_spot_group_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 && ( src == 'P' || src == 'S' || src == 'A' ) ) {
-        rc = add_column( cursor, COL_SEQ_READ_ID, &cmn->seq_read_id_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_SEQ_READ_ID, &( cmn -> seq_read_id_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 ) {
-        rc = add_column( cursor, COL_RAW_READ, &cmn->raw_read_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_RAW_READ, &( cmn -> raw_read_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 ) {
-        rc = add_column( cursor, COL_READ_FILTER, &cmn->read_filter_idx ); /* read_fkt.c */
+        rc = add_column( cursor, COL_READ_FILTER, &( cmn -> read_filter_idx ) ); /* read_fkt.c */
     }
     if ( rc == 0 && ( src == 'P' || src == 'S' || src == 'A' ) ) {
-        add_opt_column( cursor, available_columns, COL_AL_COUNT, &cmn->al_count_idx ); /* read_fkt.c */
+        add_opt_column( cursor, available_columns, COL_AL_COUNT, &( cmn -> al_count_idx ) ); /* read_fkt.c */
     }
     return rc;
 }
@@ -355,17 +355,17 @@ static rc_t prepare_prim_sec_table_cursor( const samdump_opts * const opts,
     if ( rc != 0 ) {
         (void)PLOGERR( klogInt, ( klogInt, rc, "VDatabaseOpenTableRead( $(tn) ) failed", "tn=%s", table_name ) );
     } else {
-        if ( opts->cursor_cache_size == 0 ) {
-            rc = VTableCreateCursorRead( tbl, &atx->cmn.cursor );
+        if ( opts -> cursor_cache_size == 0 ) {
+            rc = VTableCreateCursorRead( tbl, &( atx -> cmn.cursor ) );
         } else {
-            rc = VTableCreateCachedCursorRead( tbl, &atx->cmn.cursor, opts->cursor_cache_size );
+            rc = VTableCreateCachedCursorRead( tbl, &( atx -> cmn . cursor ), opts -> cursor_cache_size );
         }
         if ( rc != 0 ) {
             (void)PLOGERR( klogInt, ( klogInt, rc, "VTableCreateCursorRead( $(tn) ) failed", "tn=%s", table_name ) );
         } else {
             struct KNamelist * available_columns;
             char table_char = 'P';
-            const VCursor * cursor = atx->cmn.cursor;
+            const VCursor * cursor = atx -> cmn . cursor;
             
             if ( cmp_pchar( table_name, "SECONDARY_ALIGNMENT" ) == 0 ) {
                 table_char = 'S';
@@ -375,10 +375,10 @@ static rc_t prepare_prim_sec_table_cursor( const samdump_opts * const opts,
                 (void)PLOGERR( klogInt, ( klogInt, rc, 
                     "VTableListReadableColumns( $(src) ) failed", "src=%c", table_char ) );
             } else {
-                rc = prepare_cmn_table_rows( opts, tbl, &atx->cmn, table_char, available_columns );
+                rc = prepare_cmn_table_rows( opts, tbl, &( atx -> cmn ), table_char, available_columns );
 
                 if ( rc == 0 ) {
-                    rc = add_column( cursor, COL_SAM_FLAGS, &atx->sam_flags_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, COL_SAM_FLAGS, &( atx -> sam_flags_idx ) ); /* read_fkt.c */
                 }
                 /*  i don't have to add REF_NAME or REF_SEQ_ID, because i have it from the ref_obj later
                     i don't have to add REF_POS, because i have it from the iterator later
@@ -386,26 +386,28 @@ static rc_t prepare_prim_sec_table_cursor( const samdump_opts * const opts,
                         ... when walking the iterator ...
                 */
                 if ( rc == 0 ) {
-                    rc = add_column( cursor, COL_MATE_ALIGN_ID, &atx->mate_align_id_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, COL_MATE_ALIGN_ID, &( atx -> mate_align_id_idx ) ); /* read_fkt.c */
                 }
                 if ( rc == 0 ) {
-                    rc = add_column( cursor, opts->use_seqid_as_refname ? COL_MATE_REF_SEQ_ID : COL_MATE_REF_NAME, &atx->mate_ref_name_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, opts -> use_seqid_as_refname ? COL_MATE_REF_SEQ_ID : COL_MATE_REF_NAME,
+                                     &( atx -> mate_ref_name_idx ) ); /* read_fkt.c */
                 }
                 if ( rc == 0 ) {
-                    rc = add_column( cursor, COL_MATE_REF_POS, &atx->mate_ref_pos_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, COL_MATE_REF_POS, &( atx -> mate_ref_pos_idx ) ); /* read_fkt.c */
                 }
                 if ( rc == 0 ) {
-                    rc = add_column( cursor, COL_TEMPLATE_LEN, &atx->tlen_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, COL_TEMPLATE_LEN, &( atx -> tlen_idx ) ); /* read_fkt.c */
                 }
                 if ( rc == 0 ) {
-                    add_opt_column( cursor, available_columns, COL_RNA_ORIENTATION, &atx->rna_orientation_idx ); /* read_fkt.c */
+                    add_opt_column( cursor, available_columns, COL_RNA_ORIENTATION,
+                                    &( atx -> rna_orientation_idx ) ); /* read_fkt.c */
                 }
                 if ( table_char == 'P' ) {
                     if ( rc == 0 ) {
-                        add_opt_column( cursor, available_columns, COL_ALIGN_GROUP, &atx->al_group_idx ); /* read_fkt.c */
+                        add_opt_column( cursor, available_columns, COL_ALIGN_GROUP, &( atx -> al_group_idx ) ); /* read_fkt.c */
                     }
                     if ( rc == 0  ) {
-                        add_opt_column( cursor, available_columns, COL_LNK_GROUP, &atx->lnk_group_idx ); /* read_fkt.c */
+                        add_opt_column( cursor, available_columns, COL_LNK_GROUP, &( atx -> lnk_group_idx ) ); /* read_fkt.c */
                     }
                 }
                 KNamelistRelease( available_columns );
@@ -429,10 +431,12 @@ static rc_t prepare_sub_ev_alignment_table_cursor( const samdump_opts * const op
         if ( rc != 0 ) {
             (void)PLOGERR( klogInt, ( klogInt, rc, "VDatabaseOpenTableRead( $(tn) ) failed", "tn=%s", EV_AL_TABLE ) );
         } else {
-            if ( opts->cursor_cache_size == 0 ) {
-                rc = VTableCreateCursorRead( evidence_alignment_tbl, &atx->eval.cursor );
+            if ( opts -> cursor_cache_size == 0 ) {
+                rc = VTableCreateCursorRead( evidence_alignment_tbl, &( atx -> eval . cursor ) );
             } else {
-                rc = VTableCreateCachedCursorRead( evidence_alignment_tbl, &atx->eval.cursor, opts->cursor_cache_size );
+                rc = VTableCreateCachedCursorRead( evidence_alignment_tbl,
+                                                   &( atx -> eval . cursor ),
+                                                   opts -> cursor_cache_size );
             }
             if ( rc != 0 ) {
                 (void)PLOGERR( klogInt, ( klogInt, rc, "VTableCreateCursorRead( $(tn) ) failed", "tn=%s", EV_AL_TABLE ) );
@@ -444,24 +448,24 @@ static rc_t prepare_sub_ev_alignment_table_cursor( const samdump_opts * const op
                     (void)PLOGERR( klogInt, ( klogInt, rc, 
                         "VTableListReadableColumns( $(src) ) failed", "src=%c", 'A' ) );
                 } else {
-                    rc = prepare_cmn_table_rows( opts, evidence_alignment_tbl, &atx->eval,
+                    rc = prepare_cmn_table_rows( opts, evidence_alignment_tbl, &( atx -> eval ),
                                 'A', available_columns ); /* common to prim/sec/ev-align */
                     KNamelistRelease( available_columns );
                 }
                 if ( rc == 0 ) {
                     /* special to ev-align */
-                    rc = add_column( atx->eval.cursor, COL_REF_POS, &atx->ref_pos_idx ); /* read_fkt.c */
+                    rc = add_column( atx -> eval . cursor, COL_REF_POS, &( atx -> ref_pos_idx ) ); /* read_fkt.c */
                     if ( rc == 0 ) {
-                        rc = add_column( atx->eval.cursor, COL_REF_PLOIDY, &atx->ref_ploidy_idx ); /* read_fkt.c */
+                        rc = add_column( atx -> eval . cursor, COL_REF_PLOIDY, &( atx -> ref_ploidy_idx ) ); /* read_fkt.c */
                     }
                     if ( rc == 0 ) {
-                        rc = add_column( atx->eval.cursor, COL_SEQ_NAME, &atx->seq_name_idx ); /* read_fkt.c */
+                        rc = add_column( atx -> eval . cursor, COL_SEQ_NAME, &( atx -> seq_name_idx ) ); /* read_fkt.c */
                     }
                     if ( rc == 0 ) {
-                        rc = add_column( atx->eval.cursor, COL_MAPQ, &atx->mapq_idx ); /* read_fkt.c */
+                        rc = add_column( atx -> eval . cursor, COL_MAPQ, &( atx -> mapq_idx ) ); /* read_fkt.c */
                     }
                 }
-                rc = VCursorOpen( atx->eval.cursor );
+                rc = VCursorOpen( atx -> eval . cursor );
                 if ( rc != 0 ) {
                     (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( $(tn) ) failed", "tn=%s", EV_AL_TABLE ) );
                 }
@@ -481,10 +485,11 @@ static rc_t prepare_evidence_table_cursor( const samdump_opts * const opts,
     if ( rc != 0 ) {
         (void)PLOGERR( klogInt, ( klogInt, rc, "VDatabaseOpenTableRead( $(tn) ) failed", "tn=%s", table_name ) );
     } else {
-        if ( opts->cursor_cache_size == 0 ) {
-            rc = VTableCreateCursorRead( evidence_interval_tbl, &atx->cmn.cursor );
+        if ( opts -> cursor_cache_size == 0 ) {
+            rc = VTableCreateCursorRead( evidence_interval_tbl, &( atx -> cmn . cursor ) );
         } else {
-            rc = VTableCreateCachedCursorRead( evidence_interval_tbl, &atx->cmn.cursor, opts->cursor_cache_size );
+            rc = VTableCreateCachedCursorRead( evidence_interval_tbl, &( atx -> cmn . cursor ),
+                                               opts -> cursor_cache_size );
         }
         if ( rc != 0 ) {
             (void)PLOGERR( klogInt, ( klogInt, rc, "VTableCreateCursorRead( $(tn) ) failed", "tn=%s", table_name ) );
@@ -496,19 +501,19 @@ static rc_t prepare_evidence_table_cursor( const samdump_opts * const opts,
                 (void)PLOGERR( klogInt, ( klogInt, rc, 
                     "VTableListReadableColumns( $(src) ) failed", "src=%c", 'I' ) );
             } else {
-                rc = prepare_cmn_table_rows( opts, evidence_interval_tbl, &atx->cmn,
+                rc = prepare_cmn_table_rows( opts, evidence_interval_tbl, &( atx -> cmn ),
                             'I', available_columns ); /* common to prim/sec/ev-align */
                 KNamelistRelease( available_columns );
             }
         
             if ( rc == 0 ) {
-                rc = add_column( atx->cmn.cursor, COL_PLOIDY, &atx->ploidy_idx ); /* read_fkt.c */
+                rc = add_column( atx -> cmn . cursor, COL_PLOIDY, &( atx -> ploidy_idx ) ); /* read_fkt.c */
             }
-            if ( rc == 0 && ( opts->dump_cg_sam || opts->dump_cg_ev_dnb ) ) {
+            if ( rc == 0 && ( opts -> dump_cg_sam || opts -> dump_cg_ev_dnb ) ) {
                 rc = prepare_sub_ev_alignment_table_cursor( opts, db, atx );
             }
             if ( rc != 0 ) {
-                VCursorRelease( atx->cmn.cursor );
+                VCursorRelease( atx -> cmn . cursor );
             }
         }
         VTableRelease ( evidence_interval_tbl ); /* the cursor keeps the table alive */
@@ -536,27 +541,27 @@ static rc_t add_table_pl_iter( const samdump_opts * const opts,
         rc = RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         (void)PLOGERR( klogInt, ( klogInt, rc, "align-context-allocation for $(tn) failed", "tn=%s", table_name ) );
     } else {
-        init_align_table_context( atx, idb->db_idx, ref_obj );
-        rc = ReferenceObj_Idx( ref_obj, &atx->ref_idx );
+        init_align_table_context( atx, idb -> db_idx, ref_obj );
+        rc = ReferenceObj_Idx( ref_obj, &( atx -> ref_idx ) );
         if ( rc != 0 ) {
             (void)PLOGERR( klogInt, ( klogInt, rc, "failed to detect ref-idx for $(tn) failed", "tn=%s", table_name ) );
         } else {
             switch( id_src_selector ) {
-                case primary_align_ids   :  atx->align_table_type = att_primary;
-                                            rc = prepare_prim_sec_table_cursor( opts, idb->db, table_name, atx );
+                case primary_align_ids   :  atx -> align_table_type = att_primary;
+                                            rc = prepare_prim_sec_table_cursor( opts, idb -> db, table_name, atx );
                                             break;
 
-                case secondary_align_ids :  atx->align_table_type = att_secondary;
-                                            rc = prepare_prim_sec_table_cursor( opts, idb->db, table_name, atx );
+                case secondary_align_ids :  atx -> align_table_type = att_secondary;
+                                            rc = prepare_prim_sec_table_cursor( opts, idb -> db, table_name, atx );
                                             break;
 
-                case evidence_align_ids  :  atx->align_table_type = att_evidence;
-                                            rc = prepare_evidence_table_cursor( opts, idb->db, table_name, atx );
+                case evidence_align_ids  :  atx -> align_table_type = att_evidence;
+                                            rc = prepare_evidence_table_cursor( opts, idb -> db, table_name, atx );
                                             break;
             }
         }
         if ( rc == 0 ) {
-            ext_0.data = atx;
+            ext_0 . data = atx;
             /* we must put the atx-ptr into a global list, in order to close everything later at the end... */
         } else {
             free_align_table_context( atx );
@@ -570,17 +575,17 @@ static rc_t add_table_pl_iter( const samdump_opts * const opts,
         if ( opts -> use_min_mapq ) { min_mapq = opts -> min_mapq; }
 
         rc = ReferenceObj_MakePlacementIterator( ref_obj, /* the reference-obj it is made from */
-            &pl_iter,           /* the placement-iterator we want to make */
-            ref_pos,            /* where it starts on the reference */
-            ref_len,            /* the whole length of this reference/chromosome */
-            min_mapq,           /* no minimal mapping-quality to filter out */
-            NULL,               /* no special reference-cursor */
-            atx->cmn.cursor,    /* a cursor into the PRIMARY/SECONDARY/EVIDENCE-table */
-            id_src_selector,    /* what ID-source to select from REFERENCE-table (ref_obj) */
-            &ext_0,             /* placement-record extensions #0 with data-ptr pointing to cursor/index-struct */
-            NULL,               /* no placement-record extensions #1 */
-            spot_group,         /* optional spotgroup re-grouping */
-            NULL                /* source-cursor specific data/context */
+            &pl_iter,             /* the placement-iterator we want to make */
+            ref_pos,              /* where it starts on the reference */
+            ref_len,              /* the whole length of this reference/chromosome */
+            min_mapq,             /* no minimal mapping-quality to filter out */
+            NULL,                 /* no special reference-cursor */
+            atx -> cmn . cursor,  /* a cursor into the PRIMARY/SECONDARY/EVIDENCE-table */
+            id_src_selector,      /* what ID-source to select from REFERENCE-table (ref_obj) */
+            &ext_0,               /* placement-record extensions #0 with data-ptr pointing to cursor/index-struct */
+            NULL,                 /* no placement-record extensions #1 */
+            spot_group,           /* optional spotgroup re-grouping */
+            NULL                  /* source-cursor specific data/context */
             );
         if ( rc == 0 ) {
             rc = PlacementSetIteratorAddPlacementIterator ( set_iter, pl_iter );
@@ -610,23 +615,23 @@ static rc_t add_pl_iters( const samdump_opts * const opts,
                           const char * spot_group,
                           Vector * const context_list ) {
     KNamelist *tables;
-    rc_t rc = VDatabaseListTbl( idb->db, &tables );
+    rc_t rc = VDatabaseListTbl( idb -> db, &tables );
     if ( rc != 0 ) {
-        (void)PLOGERR( klogInt, ( klogInt, rc, "VDatabaseListTbl( $(tn) ) failed", "tn=%s", idb->path ) );
+        (void)PLOGERR( klogInt, ( klogInt, rc, "VDatabaseListTbl( $(tn) ) failed", "tn=%s", idb -> path ) );
     } else {
-        if ( opts->dump_primary_alignments && namelist_contains( tables, PRIM_TABLE ) ) { /* read_fkt.c */
+        if ( opts -> dump_primary_alignments && namelist_contains( tables, PRIM_TABLE ) ) { /* read_fkt.c */
             rc = add_table_pl_iter( opts, set_iter, ref_obj, idb, ref_pos, ref_len, spot_group, 
                                     PRIM_TABLE, primary_align_ids, context_list );
         }
-        if ( rc == 0 && opts->dump_secondary_alignments && namelist_contains( tables, SEC_TABLE ) ) {
+        if ( rc == 0 && opts -> dump_secondary_alignments && namelist_contains( tables, SEC_TABLE ) ) {
             rc = add_table_pl_iter( opts, set_iter, ref_obj, idb, ref_pos, ref_len, spot_group, 
                                     SEC_TABLE, secondary_align_ids, context_list );
         }
         if ( rc == 0 ) {
-            bool b0 = ( opts->dump_cg_evidence && 
+            bool b0 = ( opts -> dump_cg_evidence && 
                         namelist_contains( tables, EV_INT_TABLE ) );
 
-            bool b1 = ( ( opts->dump_cg_sam || opts->dump_cg_ev_dnb ) && 
+            bool b1 = ( ( opts -> dump_cg_sam || opts -> dump_cg_ev_dnb ) && 
                         namelist_contains( tables, EV_INT_TABLE ) &&
                         namelist_contains( tables, EV_AL_TABLE ) );
 
@@ -649,16 +654,16 @@ static rc_t prepare_whole_files( const samdump_opts * const opts,
     rc_t rc = 0;
     uint32_t db_idx;
     /* we now loop through all input-databases... */
-    for ( db_idx = 0; db_idx < ifs->database_count && rc == 0; ++db_idx ) {
-        const input_database * idb = VectorGet( &ifs->dbs, db_idx );
+    for ( db_idx = 0; db_idx < ifs -> database_count && rc == 0; ++db_idx ) {
+        const input_database * idb = VectorGet( &( ifs -> dbs ), db_idx );
         if ( idb != NULL ) {
             uint32_t refobj_count;
-            rc = ReferenceList_Count( idb->reflist, &refobj_count );
+            rc = ReferenceList_Count( idb -> reflist, &refobj_count );
             if ( rc == 0 && refobj_count > 0 ) {
                 uint32_t ref_idx;
                 for ( ref_idx = 0; ref_idx < refobj_count && rc == 0; ++ref_idx ) {
                     const ReferenceObj* ref_obj;
-                    rc = ReferenceList_Get( idb->reflist, &ref_obj, ref_idx );
+                    rc = ReferenceList_Get( idb -> reflist, &ref_obj, ref_idx );
                     if ( rc == 0 && ref_obj != NULL ) {
                         INSDC_coord_len ref_len;
                         rc = ReferenceObj_SeqLength( ref_obj, &ref_len );
@@ -697,33 +702,33 @@ static void CC on_region( BSTNode *n, void *data ) {
         const ReferenceObj * ref_obj;
         rctx -> rc = ReferenceList_Find( rctx -> idb -> reflist, &ref_obj, ref_rgn -> name, string_size( ref_rgn -> name ) );
         if ( rctx -> rc == 0 ) {
-            uint32_t range_idx, range_count = VectorLength( &ref_rgn->ranges );
-            for ( range_idx = 0; range_idx < range_count && rctx->rc == 0; ++range_idx ) {
+            uint32_t range_idx, range_count = VectorLength( &( ref_rgn -> ranges ) );
+            for ( range_idx = 0; range_idx < range_count && rctx -> rc == 0; ++range_idx ) {
                 range * r = VectorGet( &ref_rgn->ranges, range_idx );
                 if ( r != NULL ) {
                     INSDC_coord_len len;
-                    if ( r->start == 0 && r->end == 0 ) {
-                        r->start = 1;
-                        rctx->rc = ReferenceObj_SeqLength( ref_obj, &len );
-                        if ( rctx->rc == 0 ) {
-                            r->end = ( r->start + len );
+                    if ( r -> start == 0 && r->end == 0 ) {
+                        r -> start = 1;
+                        rctx -> rc = ReferenceObj_SeqLength( ref_obj, &len );
+                        if ( rctx -> rc == 0 ) {
+                            r->end = ( r -> start + len );
                         }
                     } else {
-                        len = ( r->end - r->start + 1 );
+                        len = ( r -> end - r -> start + 1 );
                     }
-                    if ( rctx->rc == 0 ) {
-                        rctx->rc = add_pl_iters( rctx->opts, rctx->set_iter, ref_obj, rctx->idb,
-                            r->start,           /* where the range starts on the reference */
+                    if ( rctx -> rc == 0 ) {
+                        rctx -> rc = add_pl_iters( rctx -> opts, rctx -> set_iter, ref_obj, rctx -> idb,
+                            r -> start,         /* where the range starts on the reference */
                             len,                /* the length of this range */
                             NULL,               /* no spotgroup re-grouping (yet) */
-                            rctx->context_list
+                            rctx -> context_list
                             );
                     }
                 }
             }
             ReferenceObj_Release( ref_obj );
         } else {
-            if ( GetRCState( rctx->rc ) == rcNotFound ) { rctx -> rc = 0; }
+            if ( GetRCState( rctx -> rc ) == rcNotFound ) { rctx -> rc = 0; }
         }
     }
 }
@@ -735,15 +740,15 @@ static rc_t prepare_regions( const samdump_opts * const opts,
     uint32_t db_idx;
     on_region_ctx rctx;
 
-    rctx.rc = 0;
-    rctx.opts = opts;
-    rctx.set_iter = set_iter;
-    rctx.context_list = context_list;
+    rctx . rc = 0;
+    rctx . opts = opts;
+    rctx . set_iter = set_iter;
+    rctx . context_list = context_list;
     /* we now loop through all input-databases... */
-    for ( db_idx = 0; db_idx < ifs->database_count && rctx.rc == 0; ++db_idx ) {
-        rctx.idb = VectorGet( &ifs->dbs, db_idx );
-        if ( rctx.idb != NULL ) {
-            BSTreeForEach( ( BSTree * ) &opts->regions, false, on_region, &rctx );
+    for ( db_idx = 0; db_idx < ifs -> database_count && rctx . rc == 0; ++db_idx ) {
+        rctx.idb = VectorGet( &( ifs -> dbs ), db_idx );
+        if ( rctx . idb != NULL ) {
+            BSTreeForEach( ( BSTree * ) &( opts -> regions ), false, on_region, &rctx );
         }
     }
     return rctx.rc;
@@ -816,13 +821,18 @@ static rc_t get_READ_QUALITY_EDIT_DIST( cg_cigar_output * cgc_output,
     rc_t rc = read_char_ptr( align_id, acc -> cursor, acc -> read_idx, &( cgc_output -> p_read . ptr ),
                              &( cgc_output -> p_read . len ), "READ" );
     if ( rc == 0 ) {
-        rc = read_char_ptr( align_id, acc -> cursor, acc -> sam_quality_idx, &( cgc_output -> p_quality . ptr ),
-                            &( cgc_output -> p_quality . len ), "SAM_QUALITY" );
+        if ( COL_NOT_AVAILABLE != acc -> sam_quality_idx ) {
+            rc = read_char_ptr( align_id, acc -> cursor, acc -> sam_quality_idx, &( cgc_output -> p_quality . ptr ),
+                                &( cgc_output -> p_quality . len ), "SAM_QUALITY" );
+        } else {
+            cgc_output -> p_quality . ptr = NULL;
+            cgc_output -> p_quality . len = 0;
+        }
     }
     if ( rc == 0 ) {
         rc = read_int32( align_id, acc -> cursor, acc -> edit_dist_idx, &( cgc_output -> edit_dist ), 0, "EDIT_DIST" );
     }
-    cgc_output->p_tags.len = 0;
+    cgc_output -> p_tags . len = 0;
     return rc;
 }
 
@@ -927,7 +937,7 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
                             &spot_group, &spot_group_len, "SEQ_SPOT_GROUP" );
     }
     if ( rc == 0 ) {
-        if ( opts->print_cg_names ) {
+        if ( opts -> print_cg_names ) {
             if ( spot_group_len > 0 ) {
                 /* SAM-FIELD: QNAME     constructed from spot-group/seq-name */
                 rc = KOutMsg( "%.*s-1:%.*s\t", spot_group_len, spot_group, seq_name_len, seq_name );
@@ -935,23 +945,23 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
         } else {
             if ( seq_name_len > 0 ) {
                 /* SAM-FIELD: QNAME     constructed from allel-id/sub-id */
-                rc = KOutMsg( "%.*s/ALLELE_%li.%u\t", seq_name_len, seq_name, rec->id, ploidy_idx );
+                rc = KOutMsg( "%.*s/ALLELE_%li.%u\t", seq_name_len, seq_name, rec -> id, ploidy_idx );
             }
         }
     }
     if ( rc == 0 ) {
-        rc = read_INSDC_coord_zero( align_id, cursor, atx->ref_pos_idx, &ref_pos, 0, "REF_POS" );
+        rc = read_INSDC_coord_zero( align_id, cursor, atx -> ref_pos_idx, &ref_pos, 0, "REF_POS" );
     }
     if ( rc == 0 ) {
-        rc = read_int32( align_id, cursor, atx->mapq_idx, &mapq, 0, "MAPQ" );
+        rc = read_int32( align_id, cursor, atx -> mapq_idx, &mapq, 0, "MAPQ" );
     }
     if ( rc == 0 ) {
         uint8_t ref_orient;
-        rc = read_uint8( align_id, cursor, atx->eval.ref_orientation_idx, &ref_orient, 0, "REF_ORIENT" );
+        rc = read_uint8( align_id, cursor, atx -> eval . ref_orientation_idx, &ref_orient, 0, "REF_ORIENT" );
         if ( rc == 0 ) {
             INSDC_coord_one seq_read_id;
             bool cmpl = ref_orient;
-            rc = read_INSDC_coord_one( align_id, cursor, atx->eval.seq_read_id_idx, &seq_read_id, 0, "SEQ_READ_ID" );
+            rc = read_INSDC_coord_one( align_id, cursor, atx -> eval . seq_read_id_idx, &seq_read_id, 0, "SEQ_READ_ID" );
             sam_flags = ( 1 | ( cmpl ? 0x10 : 0 ) | ( seq_read_id == 1 ? 0x40 : 0x80 ) );
         }
     }
@@ -964,7 +974,7 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
     }
     /* get READ, QUALITY and EIDT_DIST before cigar manipulation because we need/change these values */
     if ( rc == 0 ) {
-        rc = get_READ_QUALITY_EDIT_DIST( &cgc_output, align_id, &atx->eval );
+        rc = get_READ_QUALITY_EDIT_DIST( &cgc_output, align_id, &( atx -> eval ) );
     }
     /* SAM-FIELD: CIGAR     SRA-column: CIGAR_SHORT / with special treatment */
     if ( rc == 0 ) {
@@ -984,7 +994,7 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
     /* SAM-FIELD: TLEN      SRA-column: TEMPLATE_LEN '0' not in table */
     /* SAM-FIELD: SEQ       SRA-column: READ  */
     if ( rc == 0 ) {
-        rc = KOutMsg( "*\t0\t0\t%.*s\t", cgc_output.p_read.len, cgc_output.p_read.ptr );
+        rc = KOutMsg( "*\t0\t0\t%.*s\t", cgc_output . p_read . len, cgc_output . p_read . ptr );
     }
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
     if ( rc == 0 ) {
@@ -1001,7 +1011,7 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
     /* OPT SAM-FIELD: ZI     SRA-column: rec->id */
     /* OPT SAM-FIELD: ZA     SRA-column: ploidy_idx */
     if ( rc == 0 ) {
-        rc = KOutMsg( "\tZI:i:%li\tZA:i:%u", rec->id, ploidy_idx );
+        rc = KOutMsg( "\tZI:i:%li\tZA:i:%u", rec -> id, ploidy_idx );
     }
     /* OPT SAM-FIELD: NH     SRA-column: ALIGNMENT_COUNT */
     if ( rc == 0 && atx -> eval . al_count_idx != COL_NOT_AVAILABLE ) {
@@ -1015,10 +1025,10 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
     }
     /* OPT SAM-FIELD: NM     SRA-column: EDIT_DISTANCE */
     if ( rc == 0 ) {
-        rc = KOutMsg( "\tNM:i:%u", cgc_output.edit_dist );
+        rc = KOutMsg( "\tNM:i:%u", cgc_output . edit_dist );
     }
     /* OPT SAM-FIELD: XI     SRA-column: ALIGN_ID */
-    if ( rc == 0 && opts->print_alignment_id_in_column_xi ) {
+    if ( rc == 0 && opts -> print_alignment_id_in_column_xi ) {
         rc = KOutMsg( "\tXI:i:%u", align_id );
     }
     if ( rc == 0 ) {
@@ -1146,17 +1156,18 @@ static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
                                     const PlacementRecord * const rec,
                                     align_table_context * const atx ) {
     uint32_t ploidy;
-    const VCursor * cursor = atx->cmn.cursor;
-    rc_t rc = read_uint32( rec->id, cursor, atx->ploidy_idx, &ploidy, 0, "PLOIDY" );
+    const VCursor * cursor = atx -> cmn . cursor;
+    rc_t rc = read_uint32( rec -> id, cursor, atx -> ploidy_idx, &ploidy, 0, "PLOIDY" );
     if ( rc == 0 && ploidy > 0 ) {
-        uint32_t ploidy_idx, cigar_len_vector_len, read_len_vector_len, edit_dist_vector_len, cigar_str_len, read_len, quality_str_len;
+        uint32_t ploidy_idx, cigar_len_vector_len, read_len_vector_len, edit_dist_vector_len;
+        uint32_t cigar_str_len, read_len, quality_str_len;
         uint32_t quality_offset = 0;
         const uint32_t *cigar_len_vector, *read_len_vector, *edit_dist_vector;
         const char * cigar, *read, *quality;
         char * transformed_cigar = NULL;
         char * org_transformed_cigar = NULL;
         
-        rc = read_char_ptr( rec->id, cursor, atx->cmn.cigar_idx, &cigar, &cigar_str_len, "CIGAR" );
+        rc = read_char_ptr( rec -> id, cursor, atx -> cmn . cigar_idx, &cigar, &cigar_str_len, "CIGAR" );
         if ( rc == 0 ) {
             org_transformed_cigar = string_dup ( cigar, cigar_str_len );
             if ( org_transformed_cigar != NULL ) {
@@ -1168,38 +1179,42 @@ static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
             }
         }
         if ( rc == 0 ) {
-            rc = read_uint32_ptr( rec->id, cursor, atx->cmn.cigar_len_idx, &cigar_len_vector, &cigar_len_vector_len, "CIGAR_LEN" );
+            rc = read_uint32_ptr( rec -> id, cursor, atx -> cmn . cigar_len_idx, &cigar_len_vector,
+                                  &cigar_len_vector_len, "CIGAR_LEN" );
         }
         if ( rc == 0 ) {
-            rc = read_char_ptr( rec->id, cursor, atx->cmn.read_idx, &read, &read_len, "READ" );
+            rc = read_char_ptr( rec -> id, cursor, atx -> cmn . read_idx, &read, &read_len, "READ" );
         }
         if ( rc == 0 ) {
-            rc = read_uint32_ptr( rec->id, cursor, atx->cmn.read_len_idx, &read_len_vector, &read_len_vector_len, "READ_LEN" );
+            rc = read_uint32_ptr( rec -> id, cursor, atx -> cmn . read_len_idx, &read_len_vector,
+                                  &read_len_vector_len, "READ_LEN" );
         }
         if ( rc == 0 ) {
-            rc = read_char_ptr( rec->id, cursor, atx->cmn.sam_quality_idx, &quality, &quality_str_len, "QUALITY" );
+            rc = read_char_ptr( rec -> id, cursor, atx -> cmn . sam_quality_idx, &quality,
+                                &quality_str_len, "QUALITY" );
         }
         if ( rc == 0 ) {
-            rc = read_uint32_ptr( rec->id, cursor, atx->cmn.edit_dist_idx, &edit_dist_vector, &edit_dist_vector_len, "EDIT_DIST" );
+            rc = read_uint32_ptr( rec -> id, cursor, atx -> cmn . edit_dist_idx, &edit_dist_vector,
+                                  &edit_dist_vector_len, "EDIT_DIST" );
         }
         for ( ploidy_idx = 0; ploidy_idx < ploidy && rc == 0; ++ploidy_idx ) {
             uint32_t cigar_slice_len = cigar_len_vector[ ploidy_idx ];
             uint32_t read_slice_len = read_len_vector[ ploidy_idx ];
-            if ( opts->dump_cg_evidence ) {
+            if ( opts -> dump_cg_evidence ) {
                 /* SAM-FIELD: QNAME     SRA-column: eventually prefixed row-id into EVIDENCE_INTERVAL - table */
                 /* SAM-FIELD: FLAG      SRA-column: SAM_FLAGS ( uint32 ) */
                 /* SAM-FIELD: RNAME     SRA-column: REF_NAME / REF_SEQ_ID ( char * ) */
                 /* SAM-FIELD: POS       SRA-column: REF_POS + 1 */
                 /* SAM-FIELD: MAPQ      SRA-column: MAPQ */
                 if ( rc == 0 ) {
-                    if ( opts->print_cg_names ) {
+                    if ( opts -> print_cg_names ) {
                         rc = KOutMsg( "-1:0\t" );
                     } else {
-                        rc = KOutMsg( "ALLELE_%li.%u\t", rec->id, ploidy_idx + 1 );
+                        rc = KOutMsg( "ALLELE_%li.%u\t", rec -> id, ploidy_idx + 1 );
                     }
                 }
                 if ( rc == 0 ) {
-                    rc = KOutMsg( "0\t%s\t%u\t%d\t", ref_name, pos + 1, rec->mapq );
+                    rc = KOutMsg( "0\t%s\t%u\t%d\t", ref_name, pos + 1, rec -> mapq );
                 }
                 /* SAM-FIELD: CIGAR     SRA-column: CIGAR_SHORT / CIGAR_LONG sliced!!! */
                 if ( rc == 0 ) {
@@ -1215,7 +1230,8 @@ static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
                 /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY sliced!!! */
                 if ( rc == 0 ) {
                     if ( quality_str_len == read_slice_len )
-                        rc = print_qslice( opts, false, quality, quality_str_len, &quality_offset, read_len_vector, read_len_vector_len, ploidy_idx );
+                        rc = print_qslice( opts, false, quality, quality_str_len, &quality_offset,
+                                           read_len_vector, read_len_vector_len, ploidy_idx );
                     else
                         rc = KOutMsg( "*" );
                 }
@@ -1224,8 +1240,8 @@ static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
                     rc = KOutMsg( "\tRG:Z:ALLELE_%u", ploidy_idx + 1 );
                 }
                 /* OPT SAM-FIELD: XI     SRA-column: ALIGN_ID */
-                if ( rc == 0 && opts->print_alignment_id_in_column_xi ) {
-                    rc = KOutMsg( "\tXI:i:%u", rec->id );
+                if ( rc == 0 && opts -> print_alignment_id_in_column_xi ) {
+                    rc = KOutMsg( "\tXI:i:%u", rec -> id );
                 }
                 /* OPT SAM-FIELD: NM     SRA-column: EDIT_DISTANCE sliced!!! */
                 if ( rc == 0 && ( ploidy_idx < edit_dist_vector_len ) ) {
@@ -1237,24 +1253,27 @@ static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
             }
             /* we do that here per ALLEL-READ, not at the end per ALLEL, because we have to test which alignments
                fit the ploidy_idx */
-            if ( rc == 0 && ( opts->dump_cg_sam || opts->dump_cg_ev_dnb ) ) {
+            if ( rc == 0 && ( opts -> dump_cg_sam || opts -> dump_cg_ev_dnb ) ) {
                 const int64_t *ev_al_ids;
                 uint32_t ev_al_ids_count, read_id;
 
-                rc = read_int64_ptr( rec->id, atx->cmn.cursor, atx->ev_alignments_idx, &ev_al_ids, &ev_al_ids_count, "EV_ALIGNMENTS" );
+                rc = read_int64_ptr( rec -> id, atx -> cmn . cursor, atx -> ev_alignments_idx,
+                                     &ev_al_ids, &ev_al_ids_count, "EV_ALIGNMENTS" );
                 for ( read_id = 0; read_id < ev_al_ids_count && rc == 0; ++read_id ) {
                     uint32_t ref_ploidy;
                     int64_t align_id = ev_al_ids[ read_id ];
-                    rc = read_uint32( align_id, atx->eval.cursor, atx->ref_ploidy_idx, &ref_ploidy, 0, "PLOIDY" );
+                    rc = read_uint32( align_id, atx -> eval . cursor, atx -> ref_ploidy_idx, &ref_ploidy, 0, "PLOIDY" );
                     if ( rc == 0 && ( ref_ploidy == ( ploidy_idx + 1 ) ) ) {
-                        if ( rc == 0 && opts->dump_cg_sam ) {
+                        if ( rc == 0 && opts -> dump_cg_sam ) {
                             rc = adjust_align_table_context_cig_op_buffer( atx, read_slice_len );
                             if ( rc == 0 ) {
-                                int32_t ref_cig_len = ExplodeCIGAR( atx->cig_op_buffer, atx->cig_op_buffer_len, cigar, cigar_slice_len );
-                                rc = print_evidence_alignment_cg_sam( opts, rec, atx, align_id, ploidy_idx + 1, ref_name, pos, ref_cig_len );
+                                int32_t ref_cig_len = ExplodeCIGAR( atx -> cig_op_buffer, atx -> cig_op_buffer_len,
+                                                                    cigar, cigar_slice_len );
+                                rc = print_evidence_alignment_cg_sam( opts, rec, atx, align_id, ploidy_idx + 1,
+                                                                      ref_name, pos, ref_cig_len );
                             }
                         }
-                        if ( rc == 0 && opts->dump_cg_ev_dnb ) {
+                        if ( rc == 0 && opts -> dump_cg_ev_dnb ) {
                             rc = print_evidence_alignment_cg_ev_dnb( opts, rec, atx, align_id, ploidy_idx + 1 );
                         }
                     }
@@ -1335,19 +1354,20 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
                                     struct rna_splice_dict * splice_dict,
                                     const PlacementRecord * const rec,
                                     const align_table_context * const atx ) {
-    uint32_t sam_flags = 0, NM_adjustments = 0, seq_spot_id_len, mate_ref_pos_len = 0, mate_ref_name_len = string_size( ref_name );
+    uint32_t sam_flags = 0, NM_adjustments = 0, seq_spot_id_len, mate_ref_pos_len = 0;
+    uint32_t mate_ref_name_len = string_size( ref_name );
     INSDC_coord_zero mate_ref_pos = 0;
     INSDC_coord_len tlen = 0;
-    int64_t mate_align_id = 0, id = rec->id;
+    int64_t mate_align_id = 0, id = rec -> id;
     const int64_t * seq_spot_id;
     const char * mate_ref_name = ref_name;
-    const VCursor * cursor = atx->cmn.cursor;
+    const VCursor * cursor = atx -> cmn . cursor;
     cg_cigar_output cgc_output;
     rna_splice_candidates candidates; /* in cg_tools.h */
     bool rna_not_homogeneous_flag = false;
 
     /* SAM-FIELD: NONE      SRA-column: MATE_ALIGN_ID ( int64 ) ... for cache lookup's */
-    rc_t rc = read_int64( id, cursor, atx->mate_align_id_idx, &mate_align_id, 0, "MATE_ALIGN_ID" );
+    rc_t rc = read_int64( id, cursor, atx -> mate_align_id_idx, &mate_align_id, 0, "MATE_ALIGN_ID" );
 
     candidates.count = 0;
     candidates.fwd_matched = 0;
@@ -1355,27 +1375,29 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
 
     /* pre-read seq-spot-id, needed for unaligned cache and SAM-field QNAME */
     if ( rc == 0 ) {
-        rc = read_int64_ptr( id, cursor, atx->cmn.seq_spot_id_idx, &seq_spot_id, &seq_spot_id_len, "SEQ_SPOT_ID" );
+        rc = read_int64_ptr( id, cursor, atx -> cmn . seq_spot_id_idx, &seq_spot_id,
+                             &seq_spot_id_len, "SEQ_SPOT_ID" );
     }
     /* try to find the info about the mate in the CACHE... */
     if ( rc == 0 ) {
         if ( mate_align_id != 0 ) {
-            if ( opts->use_mate_cache && mc != NULL ) {
-                rc = matecache_lookup_same_ref( mc, atx->db_idx, mate_align_id, &mate_ref_pos, &sam_flags, &tlen );
+            if ( opts -> use_mate_cache && mc != NULL ) {
+                rc = matecache_lookup_same_ref( mc, atx -> db_idx, mate_align_id, &mate_ref_pos, &sam_flags, &tlen );
                 if ( rc == 0 ) {
                     /* we found it in the the sam-ref-matecache */
                     const INSDC_read_filter * read_filter;
                     uint32_t read_filter_len;
 
                     /* cache entry-found! (on the same reference) -> that means we have now mate_ref_pos, flags and tlen */
-                    matecache_remove_same_ref( mc, atx->db_idx, mate_align_id );
+                    matecache_remove_same_ref( mc, atx -> db_idx, mate_align_id );
                     mate_ref_name = equal_sign;
                     mate_ref_name_len = 1;
                     mate_ref_pos_len = 1;
 
                     /* read the read-filter column and adjust the sam-flags value to reflect the presense
                        of the flag SRA_READ_FILTER_REJECT, if it is there switch 0x200 on, of not switch 0x200 off */
-                    rc = read_INSDC_read_filter_ptr( id, cursor, atx->cmn.read_filter_idx, &read_filter, &read_filter_len, "RD_FILTER" );
+                    rc = read_INSDC_read_filter_ptr( id, cursor, atx -> cmn . read_filter_idx, &read_filter,
+                                                     &read_filter_len, "RD_FILTER" );
                     if ( rc == 0 && read_filter_len > 0 ) {
                         if ( ( read_filter[ 0 ] & READ_FILTER_REJECT ) == READ_FILTER_REJECT ) {
                             sam_flags |= 0x200;
@@ -1401,15 +1423,15 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
             /* no cache entry-found OR do not use mate-cache
                ---> that means we have to read it from the table... */
 
-            rc = read_char_ptr( id, cursor, atx->mate_ref_name_idx, &mate_ref_name, &mate_ref_name_len, "MATE_REF_NAME" );
+            rc = read_char_ptr( id, cursor, atx -> mate_ref_name_idx, &mate_ref_name, &mate_ref_name_len, "MATE_REF_NAME" );
             if ( rc == 0 ) {
-                rc = read_INSDC_coord_zero( id, cursor, atx->mate_ref_pos_idx, &mate_ref_pos, 0, "MATE_REF_POS" );
+                rc = read_INSDC_coord_zero( id, cursor, atx -> mate_ref_pos_idx, &mate_ref_pos, 0, "MATE_REF_POS" );
             }
             if ( rc == 0 ) {
-                rc = read_INSDC_coord_len( id, cursor, atx->tlen_idx, &tlen, 0, "TLEN" );
+                rc = read_INSDC_coord_len( id, cursor, atx -> tlen_idx, &tlen, 0, "TLEN" );
             }
             if ( rc == 0 ) {
-                rc = read_uint32( id, cursor, atx->sam_flags_idx, &sam_flags, 0, "SAM_FLAGS" );
+                rc = read_uint32( id, cursor, atx -> sam_flags_idx, &sam_flags, 0, "SAM_FLAGS" );
             }
             if ( rc == 0 ) {
                 int32_t cmp = -1;
@@ -1422,16 +1444,16 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
                         mate_ref_name_len = 1;
                     }
                 }
-                if ( opts->use_mate_cache ) {
+                if ( opts -> use_mate_cache ) {
                     if ( mate_align_id != 0 && mate_ref_name_len > 0 && cmp == 0 ) {
                         /* now that we have the data, store it in sam-ref-cache it the mate is on the same ref. */
                         uint32_t mate_flags = calc_mate_flags( sam_flags );
-                        rc = matecache_insert_same_ref( mc, atx->db_idx, id, pos, mate_flags, -tlen );
+                        rc = matecache_insert_same_ref( mc, atx -> db_idx, id, pos, mate_flags, -tlen );
                     }
                     if ( mate_align_id == 0 && mate_ref_name_len == 0 && opts->print_half_unaligned_reads &&
-                         atx->align_table_type == att_primary ) {
+                         atx -> align_table_type == att_primary ) {
                         int64_t key = id;
-                        rc = matecache_insert_unaligned( mc, atx->db_idx, key, pos, atx->ref_idx, *seq_spot_id );
+                        rc = matecache_insert_unaligned( mc, atx -> db_idx, key, pos, atx -> ref_idx, *seq_spot_id );
                     }
                 }
             }
@@ -1443,10 +1465,10 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
     /* SAM-FIELD: QNAME     SRA-column: SEQ_SPOT_ID ( int64 ) */
     if ( rc == 0 ) {
         if ( seq_spot_id_len > 0 ) {
-            if ( opts->print_spot_group_in_name | opts->print_cg_names ) {
+            if ( opts -> print_spot_group_in_name | opts -> print_cg_names ) {
                 const char * spot_group;
                 uint32_t spot_group_len;
-                rc = read_char_ptr( id, cursor, atx->cmn.seq_spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                rc = read_char_ptr( id, cursor, atx -> cmn . seq_spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
                 if ( rc == 0 ) {
                     rc = dump_name( opts, *seq_spot_id, spot_group, spot_group_len ); /* sam-dump-opts.c */
                 }
@@ -1461,7 +1483,7 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
         rc = KOutMsg( "\t" );
     }
     /* massage the sam-flag if we are not dumping unaligned reads... */
-    if ( !opts->dump_unaligned_reads    /** not going to dump unaligned **/
+    if ( !opts -> dump_unaligned_reads  /** not going to dump unaligned **/
          && ( sam_flags & 0x1 )         /** but we have sequenced multiple fragments **/
          && ( sam_flags & 0x8 ) ) {     /** and not all of them align **/
         /*** remove flags talking about multiple reads **/
@@ -1473,11 +1495,11 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
     /* SAM-FIELD: POS       SRA-column: REF_POS + 1 */
     /* SAM-FIELD: MAPQ      SRA-column: MAPQ */
     if ( rc == 0 ) {
-        rc = KOutMsg( "%u\t%s\t%u\t%d\t", sam_flags, ref_name, pos + 1, rec->mapq );
+        rc = KOutMsg( "%u\t%s\t%u\t%d\t", sam_flags, ref_name, pos + 1, rec -> mapq );
     }
     /* get READ, QUALITY and EIDT_DIST before cigar manipulation because we need/change these values */
     if ( rc == 0 ) {
-        rc = get_READ_QUALITY_EDIT_DIST( &cgc_output, id, &atx->cmn );
+        rc = get_READ_QUALITY_EDIT_DIST( &cgc_output, id, &( atx -> cmn ) );
     }
     /* SAM-FIELD: CIGAR     SRA-column: CIGAR_SHORT / with or without treatment */
     if ( rc == 0 ) {
@@ -1485,69 +1507,75 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
         char * temp_cigar = NULL;
         static char const *bogus_quality = "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
 
-        rc = read_char_ptr( id, cursor, atx->cmn.cigar_idx, &cgc_input.p_cigar.ptr, &cgc_input.p_cigar.len, "CIGAR" );
+        rc = read_char_ptr( id, cursor, atx -> cmn . cigar_idx, &( cgc_input . p_cigar . ptr ),
+                            &( cgc_input . p_cigar . len ), "CIGAR" );
         if ( rc == 0 ) {
-            if ( cgc_output.p_quality.len == 0 ) {
-                cgc_output.p_quality.ptr = bogus_quality;
-                cgc_output.p_quality.len = 35;
+            if ( cgc_output . p_quality . len == 0 ) {
+                cgc_output . p_quality . ptr = bogus_quality;
+                cgc_output . p_quality . len = 35;
             }
-            rc = cg_cigar_treatments( opts->cigar_treatment, &cgc_input, &cgc_output, id, &atx->cmn );
+            rc = cg_cigar_treatments( opts -> cigar_treatment, &cgc_input, &cgc_output, id, &( atx -> cmn ) );
         }
 
-        if ( opts->rna_splicing ) {
+        if ( opts -> rna_splicing ) {
             { /*** reset previous identification of N to D ***/
                 int i;
-                char *c = ( char * )cgc_output.p_cigar.ptr;
-                for( i = 0; i < cgc_output.p_cigar.len; i++ ) {
+                char *c = ( char * )cgc_output . p_cigar . ptr;
+                for( i = 0; i < cgc_output . p_cigar . len; i++ ) {
                     if ( c[ i ] == 'N' ) c[ i ] = 'D';
                 }
             }
             
             /* discover which cigar-operations could be a RNA-splice ( it is a D-operation with min length of 10 ) */
-            rc = discover_rna_splicing_candidates( cgc_output.p_cigar.len, cgc_output.p_cigar.ptr, 10, &candidates ); /* cg_tools.c */
-            if ( rc == 0 && candidates.count > 0 ) {
-                /* we discover by comparing against the reference if a candidate is a RNA-splice and if it is forward or reverse */
-                rc = check_rna_splicing_candidates_against_ref( rec->ref, opts->rna_splice_level, pos, &candidates ); /* cg_tools.c */
-                if ( rc == 0 && ( candidates.fwd_matched > 0 || candidates.rev_matched > 0 ) ) {
+            rc = discover_rna_splicing_candidates( cgc_output . p_cigar . len, cgc_output . p_cigar . ptr,
+                                                   10, &candidates ); /* cg_tools.c */
+            if ( rc == 0 && candidates . count > 0 ) {
+                /* we discover by comparing against the reference if a candidate is a RNA-splice
+                   and if it is forward or reverse */
+                rc = check_rna_splicing_candidates_against_ref( rec -> ref, opts -> rna_splice_level,
+                                                                pos, &candidates ); /* cg_tools.c */
+                if ( rc == 0 && ( candidates . fwd_matched > 0 || candidates . rev_matched > 0 ) ) {
                     /* set the warning-flag that we have an alignment with not homogeneous RNA-splices */
-                    if ( candidates.fwd_matched > 0 && candidates.rev_matched > 0 ) {
+                    if ( candidates . fwd_matched > 0 && candidates . rev_matched > 0 ) {
                         rna_not_homogeneous_flag = true;
                     }
-                    temp_cigar = malloc( cgc_output.p_cigar.len + 1 ); /* temp_cigar will be released at the end of this block */
+                    /* temp_cigar will be released at the end of this block */
+                    temp_cigar = malloc( cgc_output . p_cigar . len + 1 );
                     if ( temp_cigar != NULL ) {
                         /* create a new cigarstring by applying the candidates to the cigar-string */
-                        rc = change_rna_splicing_cigar( cgc_output.p_cigar.len, temp_cigar, &candidates, &NM_adjustments ); /* cg_tools.c */
+                        rc = change_rna_splicing_cigar( cgc_output . p_cigar . len, temp_cigar,
+                                                        &candidates, &NM_adjustments ); /* cg_tools.c */
                         if ( rc == 0 ) {
-                            cgc_output.p_cigar.ptr = temp_cigar;
+                            cgc_output . p_cigar . ptr = temp_cigar;
                         }
                     }
                 }
                 /* rna-splice-log */
-                if ( opts->rna_splice_log != NULL ) {
+                if ( opts -> rna_splice_log != NULL ) {
                     /* record all the candidates... */
                     uint32_t c_idx;
-                    for ( c_idx = 0; c_idx < candidates.count; c_idx++ ) {
+                    for ( c_idx = 0; c_idx < candidates . count; c_idx++ ) {
                         rna_splice_candidate * candidate = &( candidates.candidates[ c_idx ] );
                         splice_dict_entry entry;
-                        uint32_t intron_pos = pos + candidate->ref_offset;
-                        if ( rna_splice_dict_get( splice_dict, intron_pos, candidate->len, &entry ) ) {
+                        uint32_t intron_pos = pos + candidate -> ref_offset;
+                        if ( rna_splice_dict_get( splice_dict, intron_pos, candidate -> len, &entry ) ) {
                             entry.count += 1;
-                            rna_splice_dict_set( splice_dict, intron_pos, candidate->len, &entry );
+                            rna_splice_dict_set( splice_dict, intron_pos, candidate -> len, &entry );
                         } else {
-                            entry.count = 1;
-                            entry.intron_type = candidate->matched;
-                            rna_splice_dict_set( splice_dict, intron_pos, candidate->len, &entry );
+                            entry . count = 1;
+                            entry . intron_type = candidate -> matched;
+                            rna_splice_dict_set( splice_dict, intron_pos, candidate -> len, &entry );
                         }
                     }
                 }
 
             }
-            if ( candidates.cigops != NULL ) {
-                free( ( void * ) candidates.cigops );
+            if ( candidates . cigops != NULL ) {
+                free( ( void * ) candidates . cigops );
             }
         }
         if ( rc == 0 ) {
-            rc = KOutMsg( "%.*s\t", cgc_output.p_cigar.len, cgc_output.p_cigar.ptr );
+            rc = KOutMsg( "%.*s\t", cgc_output . p_cigar . len, cgc_output . p_cigar . ptr );
         }
         if ( temp_cigar != NULL ) { free( temp_cigar ); }
     }
@@ -1567,32 +1595,35 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
     }
     /* SAM-FIELD: SEQ       SRA-column: READ */
     if ( rc == 0 ) {
-        rc = KOutMsg( "%.*s\t", cgc_output.p_read.len, cgc_output.p_read.ptr );
+        rc = KOutMsg( "%.*s\t", cgc_output . p_read . len, cgc_output . p_read . ptr );
     }
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
     if ( rc == 0 ) {
-        rc = print_quality_or_star( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, cgc_output.p_read.len ); /* above */    
+        rc = print_quality_or_star( opts, cgc_output . p_quality . ptr, cgc_output . p_quality . len,
+                                    cgc_output . p_read . len ); /* above */    
     }
     /* OPT SAM-FIELD: RG     SRA-column: SPOT_GROUP */
-    if ( rc == 0 && ( atx->cmn.seq_spot_group_idx != COL_NOT_AVAILABLE ) ) {
-        rc = opt_field_spot_group( cursor, atx->cmn.seq_spot_group_idx, id );
+    if ( rc == 0 && ( atx -> cmn . seq_spot_group_idx != COL_NOT_AVAILABLE ) ) {
+        rc = opt_field_spot_group( cursor, atx -> cmn . seq_spot_group_idx, id );
     }
     /* OPT SAM-FIELD: BZ     SRA-column: LINKAGE_GROUP */
-    if ( rc == 0 && ( atx->lnk_group_idx != COL_NOT_AVAILABLE ) ) {
-        rc = opt_field_lnk_group( cursor, atx->lnk_group_idx, id );
+    if ( rc == 0 && ( atx -> lnk_group_idx != COL_NOT_AVAILABLE ) ) {
+        rc = opt_field_lnk_group( cursor, atx -> lnk_group_idx, id );
     }
-    if ( rc == 0 && cgc_output.p_tags.len > 0 ) {
-        rc = KOutMsg( "\t%.*s", cgc_output.p_tags.len, cgc_output.p_tags.ptr );
+    if ( rc == 0 && cgc_output . p_tags . len > 0 ) {
+        rc = KOutMsg( "\t%.*s", cgc_output . p_tags . len, cgc_output . p_tags . ptr );
     }
     /* OPT SAM-FIELD: XI     SRA-column: ALIGN_ID */
-    if ( rc == 0 && opts->print_alignment_id_in_column_xi ) {
+    if ( rc == 0 && opts -> print_alignment_id_in_column_xi ) {
         rc = KOutMsg( "\tXI:i:%u", id );
     }
     /* to match sam-tools output: in case we are dumping this in CG-mode.... */
-    if ( rc == 0 && ( opts->cigar_treatment != ct_unchanged ) && ( atx->al_group_idx != COL_NOT_AVAILABLE ) ) {
+    if ( rc == 0 &&
+        ( opts -> cigar_treatment != ct_unchanged ) &&
+        ( atx -> al_group_idx != COL_NOT_AVAILABLE ) ) {
         const char * align_grp;
         uint32_t align_grp_len;
-        rc = read_char_ptr( id, cursor, atx->al_group_idx, &align_grp, &align_grp_len, "ALIGN_GROUP" );
+        rc = read_char_ptr( id, cursor, atx -> al_group_idx, &align_grp, &align_grp_len, "ALIGN_GROUP" );
         if ( rc == 0 && align_grp_len > 0 ) {
             uint32_t i;
             for ( i = 0; rc == 0 && i < align_grp_len - 1; ++i ) {
@@ -1604,24 +1635,24 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
         }
     }
     /* OPT SAM-FIELD: NH     SRA-column: ALIGNMENT_COUNT */
-    if ( rc == 0 && atx->cmn.al_count_idx != COL_NOT_AVAILABLE ) {
+    if ( rc == 0 && atx -> cmn . al_count_idx != COL_NOT_AVAILABLE ) {
         const uint8_t * al_count;
         uint32_t al_count_len;
-        rc = read_uint8_ptr( id, cursor, atx->cmn.al_count_idx, &al_count, &al_count_len, "ALIGNMENT_COUNT" );
+        rc = read_uint8_ptr( id, cursor, atx -> cmn . al_count_idx, &al_count, &al_count_len, "ALIGNMENT_COUNT" );
         if ( rc == 0 && al_count_len > 0 ) {
             rc = KOutMsg( "\tNH:i:%u", *al_count );
         }
     }
     /* OPT SAM-FIELD: NM     SRA-column: EDIT_DISTANCE */
     if ( rc == 0 ) {
-        rc = KOutMsg( "\tNM:i:%u", ( cgc_output.edit_dist - NM_adjustments ) );
+        rc = KOutMsg( "\tNM:i:%u", ( cgc_output . edit_dist - NM_adjustments ) );
     }
     /* OPT SAM-FIELD: XS:A:+/-  SRA-column: RNA-SPLICING detected via computation, or from the RNA_ORIENTATION - column */
     if ( rc == 0 ) {
-        if ( opts->rna_splicing ) {
+        if ( opts -> rna_splicing ) {
             /* analysis of rna-splicing explicitly requested at the commandline */
-            if ( candidates.fwd_matched > 0 || candidates.rev_matched > 0 ) {
-                if ( candidates.fwd_matched > 0 ) {
+            if ( candidates . fwd_matched > 0 || candidates . rev_matched > 0 ) {
+                if ( candidates . fwd_matched > 0 ) {
                     rc = KOutMsg( "\tXS:A:+" );
                 } else {
                     rc = KOutMsg( "\tXS:A:-" );
@@ -1629,10 +1660,10 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
             }
         } else {
             /* have a look if we have a RNA_ORIENTATION - column available */
-            if ( atx->rna_orientation_idx != COL_NOT_AVAILABLE ) {
+            if ( atx -> rna_orientation_idx != COL_NOT_AVAILABLE ) {
                 const char * rna_orientation;
                 uint32_t rna_orientation_len;
-                rc = read_char_ptr( id, cursor, atx->rna_orientation_idx,
+                rc = read_char_ptr( id, cursor, atx -> rna_orientation_idx,
                                     &rna_orientation, &rna_orientation_len, "RNA_ORIENTATION" );
                 if ( rc == 0 && rna_orientation_len > 0 ) {
                     rc = KOutMsg( "\tXS:A:%c", rna_orientation[ 0 ] );
@@ -1641,16 +1672,16 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
         }
     }
     /* OPT SAM_FIELD: MD    reports Mismatches and Deletions */
-    if ( rc == 0 && opts->with_md_flag ) {
-        uint8_t * alig_ref = malloc( rec->len );
+    if ( rc == 0 && opts -> with_md_flag ) {
+        uint8_t * alig_ref = malloc( rec -> len );
         if ( alig_ref == NULL ) {
             rc = RC( rcExe, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
         } else {
             INSDC_coord_len ref_len;
-            rc = ReferenceObj_Read( rec->ref, pos, rec->len, alig_ref, &ref_len );
+            rc = ReferenceObj_Read( rec -> ref, pos, rec -> len, alig_ref, &ref_len );
             if ( rc == 0 ) {
-                rc = kout_md_tag_from_cigar_string( cgc_output.p_cigar.ptr, cgc_output.p_cigar.len, /* cigar */
-                        cgc_output.p_read.ptr, cgc_output.p_read.len,                               /* read */
+                rc = kout_md_tag_from_cigar_string( cgc_output . p_cigar.ptr, cgc_output . p_cigar . len, /* cigar */
+                        cgc_output . p_read . ptr, cgc_output . p_read . len,                             /* read */
                         alig_ref, ref_len );                                                        /* reference */
             }
             free( alig_ref );
@@ -1683,13 +1714,14 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
     const int64_t * seq_spot_id;
     uint32_t seq_spot_id_len;
 
-    rc_t rc = read_int64_ptr( rec->id, cursor, atx->cmn.seq_spot_id_idx, &seq_spot_id, &seq_spot_id_len, "SEQ_SPOT_ID" );
+    rc_t rc = read_int64_ptr( rec -> id, cursor, atx -> cmn . seq_spot_id_idx, &seq_spot_id,
+                              &seq_spot_id_len, "SEQ_SPOT_ID" );
 
     /* this is here to detect if the mate is aligned, if NOT, we want to put it into the unaligned-cache! */
-    if ( rc == 0 && opts->print_half_unaligned_reads ) {
-        rc = read_int64( rec->id, cursor, atx->mate_align_id_idx, &mate_align_id, 0, "MATE_ALIGN_ID" );
-        if ( rc == 0 && mate_align_id == 0 && mc != NULL && opts->use_mate_cache ) {
-            rc = matecache_insert_unaligned( mc, atx->db_idx, rec->id, pos, atx->ref_idx, *seq_spot_id );
+    if ( rc == 0 && opts -> print_half_unaligned_reads ) {
+        rc = read_int64( rec -> id, cursor, atx -> mate_align_id_idx, &mate_align_id, 0, "MATE_ALIGN_ID" );
+        if ( rc == 0 && mate_align_id == 0 && mc != NULL && opts -> use_mate_cache ) {
+            rc = matecache_insert_unaligned( mc, atx -> db_idx, rec -> id, pos, atx -> ref_idx, *seq_spot_id );
         }
     }
 
@@ -1702,10 +1734,11 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
     /* SAM-FIELD: QNAME     1.row: name */
     if ( rc == 0 ) {
         if ( seq_spot_id_len > 0 ) {
-            if ( opts->print_spot_group_in_name ) {
+            if ( opts -> print_spot_group_in_name ) {
                 const char * spot_grp;
                 uint32_t spot_grp_len;
-                rc = read_char_ptr( rec->id, cursor, atx->cmn.seq_spot_group_idx, &spot_grp, &spot_grp_len, "SEQ_SPOT_GROUP" );
+                rc = read_char_ptr( rec -> id, cursor, atx -> cmn . seq_spot_group_idx,
+                                    &spot_grp, &spot_grp_len, "SEQ_SPOT_GROUP" );
                 if ( rc == 0 ) {
                     rc = dump_name( opts, *seq_spot_id, spot_grp, spot_grp_len ); /* sam-dump-opts.c */
                 }
@@ -1717,7 +1750,7 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
         }
         if ( rc == 0 ) {
             uint32_t seq_read_id;
-            rc = read_uint32( rec->id, cursor, atx->cmn.seq_read_id_idx, &seq_read_id, 0, "SEQ_READ_ID" );
+            rc = read_uint32( rec -> id, cursor, atx -> cmn . seq_read_id_idx, &seq_read_id, 0, "SEQ_READ_ID" );
             if ( rc == 0 ) {
                 rc = KOutMsg( "/%u", seq_read_id );
             }
@@ -1726,11 +1759,11 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
 
     /* SRA-column: REF_ORIENTATION ( bool ) ... needed for quality */
     if ( rc == 0 ) {
-        rc = read_bool( rec->id, cursor, atx->cmn.ref_orientation_idx, &orientation, false, "REF_ORIENT" );
+        rc = read_bool( rec -> id, cursor, atx -> cmn . ref_orientation_idx, &orientation, false, "REF_ORIENT" );
     }
     /* source of the alignment: primary/secondary/evidence */
     if ( rc == 0 ) {
-        switch( atx->align_table_type ) {
+        switch( atx -> align_table_type ) {
             case att_primary    :   rc = KOutMsg( " primary" ); break;
             case att_secondary  :   rc = KOutMsg( " secondary" ); break;
             case att_evidence   :   rc = KOutMsg( " evidence" ); break;
@@ -1745,7 +1778,7 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
     if ( rc == 0 ) {
         const char * read;
         uint32_t read_size;
-        rc = read_char_ptr( rec->id, cursor, atx->cmn.raw_read_idx, &read, &read_size, "RAW_READ" );
+        rc = read_char_ptr( rec -> id, cursor, atx -> cmn . raw_read_idx, &read, &read_size, "RAW_READ" );
         if ( rc == 0 ) {
             if ( read_size > 0 ) {
                 rc = KOutMsg( "%.*s\n", read_size, read );
@@ -1756,12 +1789,12 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
     }
 
     /* QUALITY on a new line if in fastq-mode */
-    if ( rc == 0 && opts->output_format == of_fastq ) {
+    if ( rc == 0 && opts -> output_format == of_fastq ) {
         rc = KOutMsg( "+\n" );
         if ( rc == 0 ) {
             const char * quality;
             uint32_t quality_size;
-            rc = read_char_ptr( rec->id, cursor, atx->cmn.sam_quality_idx, &quality, &quality_size, "SAM_QUALITY" );
+            rc = read_char_ptr( rec -> id, cursor, atx -> cmn . sam_quality_idx, &quality, &quality_size, "SAM_QUALITY" );
             if ( rc == 0 ) {
                 if ( quality_size > 0 ) {
                     rc = dump_quality_33( opts, quality, quality_size, orientation );  /* sam-dump-opts.c */
@@ -1797,7 +1830,7 @@ static rc_t walk_position( const samdump_opts * const opts,
             } else {
 #if _DEBUGGING
                 if ( opts -> perf_log != NULL ) {
-                    perf_log_line( opts->perf_log, pos );
+                    perf_log_line( opts -> perf_log, pos );
                 }
 #endif
                 /* We have to do this here, becasue the nature of the iterator is to return all alignments that
@@ -1999,16 +2032,16 @@ static rc_t print_all_aligned_spots_0( const samdump_opts * const opts,
     rc_t rc = 0;
     uint32_t db_idx;
     /* we now loop through all input-databases... */
-    for ( db_idx = 0; db_idx < ifs->database_count && rc == 0; ++db_idx ) {
-        const input_database * ids = VectorGet( &ifs->dbs, db_idx );
+    for ( db_idx = 0; db_idx < ifs -> database_count && rc == 0; ++db_idx ) {
+        const input_database * ids = VectorGet( &( ifs -> dbs ), db_idx );
         if ( ids != NULL ) {
             uint32_t refobj_count;
-            rc = ReferenceList_Count( ids->reflist, &refobj_count );
+            rc = ReferenceList_Count( ids -> reflist, &refobj_count );
             if ( rc == 0 && refobj_count > 0 ) {
                 uint32_t ref_idx;
                 for ( ref_idx = 0; ref_idx < refobj_count && rc == 0; ++ref_idx ) {
                     const ReferenceObj * ref_obj;
-                    rc = ReferenceList_Get( ids->reflist, &ref_obj, ref_idx );
+                    rc = ReferenceList_Get( ids -> reflist, &ref_obj, ref_idx );
                     if ( rc == 0 && ref_obj != NULL ) {
                         rc = print_all_aligned_spots_of_this_reference( opts, ids, mc, a_mgr, ref_obj );
                         ReferenceObj_Release( ref_obj );
@@ -2099,8 +2132,8 @@ rc_t print_aligned_spots( const samdump_opts * const opts,
     const AlignMgr * a_mgr;
 
 #if _DEBUGGING
-    if ( opts->perf_log != NULL ) {
-        perf_log_start_section( opts->perf_log, "aligned spots" );
+    if ( opts -> perf_log != NULL ) {
+        perf_log_start_section( opts -> perf_log, "aligned spots" );
     }
 #endif
 
@@ -2123,8 +2156,8 @@ rc_t print_aligned_spots( const samdump_opts * const opts,
     }
 
 #if _DEBUGGING
-    if ( opts->perf_log != NULL ) {
-        perf_log_end_section( opts->perf_log );
+    if ( opts -> perf_log != NULL ) {
+        perf_log_end_section( opts -> perf_log );
     }
 #endif
     return rc;

@@ -53,6 +53,8 @@ extern "C" {
 
 #include <strtol.h>       /* strtou64() / strtou32() / strtoi32() */
 
+/* >>> these options are used in sam-dump3.c and in sam-dump-opts.c <<< */
+
 #define OPT_UNALIGNED   "unaligned"
 #define OPT_PRIM_ONLY   "primary"
 #define OPT_CIGAR_LONG  "cigar-long"
@@ -100,6 +102,7 @@ extern "C" {
 #define OPT_TIMING      "timing"
 #define OPT_MD_FLAG     "with-md-flag"
 #define OPT_NGC         "ngc"
+#define OPT_NOQUAL      "ommit-quality"
 
 typedef struct range {
     uint64_t start;
@@ -251,7 +254,8 @@ typedef struct samdump_opts {
 
     /* option to disable multi-threading */
     bool no_mt;
-    
+    bool no_qual;
+
 	bool with_md_flag;
 	
     uint8_t qual_quant_matrix[ 256 ];

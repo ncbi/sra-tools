@@ -191,7 +191,7 @@ void print_common_helplines( void ) {
     HelpOptionLine ( ALIAS_REF, OPTION_REF, "name[:from-to]", ref_usage );
     HelpOptionLine ( ALIAS_OUTF, OPTION_OUTF, "output-file", outf_usage );
     HelpOptionLine ( ALIAS_TABLE, OPTION_TABLE, "shortcut", table_usage );
-    HelpOptionLine ( ALIAS_NOQUAL, OPTION_NOQUAL, NULL, table_usage );
+    HelpOptionLine ( ALIAS_NOQUAL, OPTION_NOQUAL, NULL, noqual_usage );
     HelpOptionLine ( ALIAS_BZIP, OPTION_BZIP, NULL, bzip_usage );
     HelpOptionLine ( ALIAS_GZIP, OPTION_GZIP, NULL, gzip_usage );
     HelpOptionLine ( NULL, OPTION_NO_MT, NULL, no_mt_usage );

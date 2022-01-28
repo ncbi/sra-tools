@@ -707,6 +707,10 @@ static rc_t gather_flag_options( Args * args, samdump_opts * opts ) {
     rc = get_bool_option( args, OPT_MD_FLAG, &opts->with_md_flag );
     if ( rc != 0 ) { return rc; }
 
+    /* omit quality-values */ 
+    rc = get_bool_option( args, OPT_NOQUAL, &opts->no_qual );
+    if ( rc != 0 ) { return rc; }
+
     /* forcing to use the legacy code in case of Evidence-Dnb was requested */
     if ( rc == 0 ) {
         if ( opts->dump_cg_ev_dnb ) {
@@ -1139,22 +1143,23 @@ void report_options( const samdump_opts * opts ) {
         }
     }
 
-    KOutMsg( "mate-gap-cache-limit  : %u\n",  opts->mape_gap_cache_limit );
-    KOutMsg( "outputfile            : %s\n",  opts->outputfile );
-    KOutMsg( "outputbuffer-size     : %u\n",  opts->output_buffer_size );
-    KOutMsg( "cursor-cache-size     : %u\n",  opts->cursor_cache_size );
+    KOutMsg( "mate-gap-cache-limit  : %u\n",  opts -> mape_gap_cache_limit );
+    KOutMsg( "outputfile            : %s\n",  opts -> outputfile );
+    KOutMsg( "outputbuffer-size     : %u\n",  opts -> output_buffer_size );
+    KOutMsg( "cursor-cache-size     : %u\n",  opts -> cursor_cache_size );
 
-    KOutMsg( "use mate-cache        : %s\n",  opts->use_mate_cache ? "YES" : "NO" );
-    KOutMsg( "force legacy code     : %s\n",  opts->force_legacy ? "YES" : "NO" );
-    KOutMsg( "use min-mapq          : %s\n",  opts->use_min_mapq ? "YES" : "NO" );
-    KOutMsg( "min-mapq              : %i\n",  opts->min_mapq );
-    KOutMsg( "rna-splicing          : %s\n",  opts->rna_splicing ? "YES" : "NO" );
-    KOutMsg( "rna-splice-level      : %u\n",  opts->rna_splice_level );
-    KOutMsg( "rna-splice-log        : %s\n",  opts->rna_splice_log_file );
+    KOutMsg( "use mate-cache        : %s\n",  opts -> use_mate_cache ? "YES" : "NO" );
+    KOutMsg( "force legacy code     : %s\n",  opts -> force_legacy ? "YES" : "NO" );
+    KOutMsg( "use min-mapq          : %s\n",  opts -> use_min_mapq ? "YES" : "NO" );
+    KOutMsg( "min-mapq              : %i\n",  opts -> min_mapq );
+    KOutMsg( "rna-splicing          : %s\n",  opts -> rna_splicing ? "YES" : "NO" );
+    KOutMsg( "rna-splice-level      : %u\n",  opts -> rna_splice_level );
+    KOutMsg( "rna-splice-log        : %s\n",  opts -> rna_splice_log_file );
 
-    KOutMsg( "multithreading        : %s\n",  opts->no_mt ? "NO" : "YES" );  
-    KOutMsg( "with-MD-flag          : %s\n",  opts->with_md_flag ? "NO" : "YES" );
-	
+    KOutMsg( "multithreading        : %s\n",  opts -> no_mt ? "NO" : "YES" );  
+    KOutMsg( "with-MD-flag          : %s\n",  opts -> with_md_flag ? "YES" : "NO" );
+    KOutMsg( "omit-qualities        : %s\n",  opts -> no_qual ? "YES" : "NO" );
+    
 #if _DEBUGGING
     if ( opts->timing_file != NULL ) {
         KOutMsg( "timing-file           : '%s'\n",  opts->timing_file );

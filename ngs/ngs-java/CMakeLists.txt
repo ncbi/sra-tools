@@ -123,27 +123,31 @@ if ( Java_FOUND )
 
     ########################################
     # javadoc
-    if ( Java_JAVADOC_EXECUTABLE AND Java_JAR_EXECUTABLE )
-        execute_process( COMMAND
-            bash -c "${Java_JAVADOC_EXECUTABLE} -sourcepath ${CMAKE_CURRENT_SOURCE_DIR} -d ${TARGDIR}/obj/ngs/ngs-java/javadoc/ngs-doc gov.nih.nlm.ncbi.ngs ngs"
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    if ( Java_JAVADOC_EXECUTABLE )
+        create_javadoc( ngs-doc
+            PACKAGES gov.nih.nlm.ncbi.ngs ngs
+            SOURCEPATH ${CMAKE_CURRENT_SOURCE_DIR}
         )
-
-        execute_process( COMMAND
-            bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ngs/ngs-java/javadoc"
-            WORKING_DIRECTORY "${TARGDIR}/obj"
-        )
-        foreach(f ${ITF_SRC})
-            set(SRC_FILES "${SRC_FILES} ${f}")
-        endforeach()
-
-        foreach(f ${NCBI_SRC})
-            set(SRC_FILES "${SRC_FILES} ${f}")
-        endforeach()
-
-        execute_process( COMMAND
-            bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar ${SRC_FILES}"
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        )
+        if ( Java_JAR_EXECUTABLE )
+            add_custom_target(
+                ngs-doc-jar ALL COMMAND
+                bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ngs/ngs-java/javadoc"
+                DEPENDS ngs-doc_javadoc
+                WORKING_DIRECTORY "${TARGDIR}/obj"
+            )
+            foreach(f ${ITF_SRC})
+                set(SRC_FILES "${SRC_FILES} ${f}")
+            endforeach()
+    
+            foreach(f ${NCBI_SRC})
+                set(SRC_FILES "${SRC_FILES} ${f}")
+            endforeach()
+            add_custom_target(
+                ngs-src-jar ALL COMMAND
+                bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar ${SRC_FILES}"
+                DEPENDS ngs-doc_javadoc
+                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            )
+        endif()
     endif()
 endif()

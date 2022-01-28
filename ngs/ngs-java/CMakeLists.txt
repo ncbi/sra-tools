@@ -135,6 +135,7 @@ if ( Java_FOUND )
                 DEPENDS ngs-doc_javadoc
                 WORKING_DIRECTORY "${TARGDIR}/obj"
             )
+            install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
             foreach(f ${ITF_SRC})
                 set(SRC_FILES "${SRC_FILES} ${f}")
             endforeach()
@@ -148,6 +149,7 @@ if ( Java_FOUND )
                 DEPENDS ngs-doc_javadoc
                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             )
+            install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
         endif()
     endif()
 endif()

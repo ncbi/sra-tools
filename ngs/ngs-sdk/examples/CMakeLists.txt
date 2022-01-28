@@ -24,6 +24,7 @@
 
 include_directories( ${CMAKE_SOURCE_DIR}/ngs )
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
+include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi )
 
 if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:mainCRTStartup" )

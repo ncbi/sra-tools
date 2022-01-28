@@ -24,7 +24,7 @@
 *
 */
 
-#include <ncbi/NGS.hpp>
+#include <NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/ReadIterator.hpp>
@@ -49,32 +49,26 @@ public:
 
         cout << '>' << ref . getCanonicalName () << '\n';
 
-        try
+        for ( uint64_t offset = 0; offset < len; offset += 5000 )
         {
-            for ( uint64_t offset = 0; offset < len; offset += 5000 )
+            StringRef chunk = ref . getReferenceChunk ( offset, 5000 );
+            size_t chunk_len = chunk . size ();
+            for ( size_t chunk_idx = 0; chunk_idx < chunk_len; )
             {
-                StringRef chunk = ref . getReferenceChunk ( offset, 5000 );
-                size_t chunk_len = chunk . size ();
-                for ( size_t chunk_idx = 0; chunk_idx < chunk_len; )
-                {
-                    StringRef chunk_line = chunk . substr ( chunk_idx, 70 - line );
-                    line += chunk_line . size ();
-                    chunk_idx += chunk_line . size ();
+                StringRef chunk_line = chunk . substr ( chunk_idx, 70 - line );
+                line += chunk_line . size ();
+                chunk_idx += chunk_line . size ();
 
-                    cout << chunk_line;
-                    if ( line >= 70 )
-                    {
-                        cout << '\n';
-                        line = 0;
-                    }
+                cout << chunk_line;
+                if ( line >= 70 )
+                {
+                    cout << '\n';
+                    line = 0;
                 }
             }
-            if (line != 0)
-                cout << '\n';
         }
-        catch ( ErrorMsg x )
-        {
-        }
+        if (line != 0)
+            cout << '\n';
     }
 
     static void run ( const String & acc, const String & reference )

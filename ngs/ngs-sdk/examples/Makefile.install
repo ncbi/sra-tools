@@ -34,8 +34,9 @@ CXX ?= g++
 VDB_LIBDIR ?= $(abspath ../../../ncbi-vdb/lib64)
 NGS_LIBDIR      ?= $(abspath ../../lib64)
 NGS_INCDIR      ?= $(abspath ../../include)
+NCBI_NGS_INCDIR ?= $(abspath ../../include/ncbi-vdb)
 
-CPPFLAGS += -I$(NGS_INCDIR)
+CPPFLAGS += -I$(NGS_INCDIR) -I$(NCBI_NGS_INCDIR)
 
 #
 # These are the included example programs
@@ -144,7 +145,7 @@ RefTest: $(REF_TEST_SRC)
 # example runs
 
 run_frag:  FragTest
-		$(SETUP) ./$^ ERR225922 10000 2 $(REDIRECT)
+		$(SETUP) ./$^ ERR225922 20 $(REDIRECT)
 
 run_align: AlignTest
 		$(SETUP) ./$^ ERR225922 10000 2 $(REDIRECT)

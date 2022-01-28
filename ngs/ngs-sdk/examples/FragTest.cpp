@@ -24,8 +24,7 @@
 *
 */
 
-#include <ncbi/NGS.hpp>
-//#include <ngs-bam/ngs-bam.hpp>
+#include <NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/ReadIterator.hpp>
@@ -42,15 +41,15 @@ class FragTest
 {
 public:
 
-    static void run_common ( ReadCollection & run, int splitNum, int splitNo )
+    static void run ( const char * acc, int readCount )
     {
-
+        ReadCollection run = ncbi::NGS::openReadCollection ( acc );
         String run_name = run.getName ();
 
         ReadIterator it = run.getReads ( Read::all );
 
         long i;
-        for ( i = 0; it.nextRead (); ++ i )
+        for ( i = 0; it.nextRead () && i < readCount; ++ i )
         {
             cout << it.getReadId();
 
@@ -63,49 +62,18 @@ public:
 
         cerr << "Read " << i << " spots for " << run_name << '\n';
     }
-
-    static void run_csra ( String acc, int splitNum, int splitNo )
-    {
-        // open requested accession using SRA implementation of the API
-        ReadCollection run = ncbi::NGS::openReadCollection ( acc );
-        run_common ( run, splitNum, splitNo );
-    }
-
-    static void run_bam ( String acc, int splitNum, int splitNo )
-    {
-        // open requested accession using example BAM implementation of the API
-        //ReadCollection run = NGS_BAM::openReadCollection ( acc );
-        //run_common ( run, splitNum, splitNo );
-    }
-
-    static void run ( String acc, int splitNum, int splitNo )
-    {
-        size_t dot = acc . find_last_of ( '.' );
-        if ( dot != string :: npos )
-        {
-            String extension = acc . substr ( dot );
-            if ( extension == ".bam" || extension == ".BAM" )
-            {
-                //run_bam ( acc, splitNum, splitNo );
-                return;
-            }
-        }
-
-        run_csra ( acc, splitNum, splitNo );
-    }
-
 };
 
 int main (int argc, char const *argv[])
 {
-    if ( argc != 4 )
+    if ( argc != 3 )
     {
-        cerr << "Usage: FragTest accession NumChunks ChunkNo\n";
+        cerr << "Usage: FragTest accession ReadCount\n";
     }
     else try
     {
-        ncbi::NGS::setAppVersionString ( "FragTest.1.1.0" );
-        FragTest::run ( argv[1], atoi ( argv[2] ), atoi ( argv[3] ) );
+        ncbi::NGS::setAppVersionString ( "FragTest.1.2.0" );
+        FragTest::run ( argv[1], atoi ( argv[2] ) );
         return 0;
     }
     catch ( ErrorMsg & x )

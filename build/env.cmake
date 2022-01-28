@@ -382,24 +382,31 @@ endfunction()
 #
 function(MakeLinksShared target name install)
     if( SINGLE_CONFIG )
+        if( ${OS} STREQUAL "mac" )
+            set( LIBSUFFIX ".${VERSION}.${SHLX}" )
+            set( MAJLIBSUFFIX ".${MAJVERS}.${SHLX}" )
+        else()
+            set( LIBSUFFIX ".${SHLX}.${VERSION}" )
+            set( MAJLIBSUFFIX ".${SHLX}.${MAJVERS}" )
+        endif()
         add_custom_command(TARGET ${target}
             POST_BUILD
-            COMMAND rm -f lib${name}.${SHLX}.${VERSION}
-            COMMAND mv lib${name}.${SHLX} lib${name}.${SHLX}.${VERSION}
-            COMMAND ln -f -s lib${name}.${SHLX}.${VERSION} lib${name}.${SHLX}.${MAJVERS}
-            COMMAND ln -f -s lib${name}.${SHLX}.${MAJVERS} lib${name}.${SHLX}
+            COMMAND rm -f lib${name}${LIBSUFFIX}
+            COMMAND mv lib${name}.${SHLX} lib${name}${LIBSUFFIX}
+            COMMAND ln -f -s lib${name}${LIBSUFFIX} lib${name}${MAJLIBSUFFIX}
+            COMMAND ln -f -s lib${name}${MAJLIBSUFFIX} lib${name}.${SHLX}
             WORKING_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         )
 
         set_property(
             TARGET    ${target}
             APPEND
-            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${VERSION};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${MAJVERS};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}"
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}"
         )
 
         if ( ${install} )
-            install( PROGRAMS  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${VERSION}
-                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${MAJVERS}
+            install( PROGRAMS  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX}
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
         )

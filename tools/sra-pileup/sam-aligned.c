@@ -230,8 +230,8 @@ static void invalidate_all_column_idx( align_table_context * const atx ) {
     atx -> mapq_idx           = COL_NOT_AVAILABLE;
     atx -> al_group_idx       = COL_NOT_AVAILABLE;
     atx -> lnk_group_idx      = COL_NOT_AVAILABLE;
-    invalidate_all_cmn_column_idx( &atx->cmn );
-    invalidate_all_cmn_column_idx( &atx->eval );
+    invalidate_all_cmn_column_idx( &( atx -> cmn ) );
+    invalidate_all_cmn_column_idx( &( atx -> eval ) );
 }
 
 static void init_align_table_context( align_table_context * const atx,
@@ -246,11 +246,11 @@ static void init_align_table_context( align_table_context * const atx,
 
 static void free_align_table_context( align_table_context * atx ) {
     if ( atx != NULL ) {
-        if ( atx->cig_op_buffer != NULL ) {
-            free( atx->cig_op_buffer );
+        if ( atx -> cig_op_buffer != NULL ) {
+            free( atx -> cig_op_buffer );
         }
-        VCursorRelease( atx->cmn.cursor );
-        VCursorRelease( atx->eval.cursor );
+        VCursorRelease( atx -> cmn . cursor );
+        VCursorRelease( atx -> eval . cursor );
         free( atx );
     }
 }
@@ -289,7 +289,7 @@ static rc_t prepare_cmn_table_rows( const samdump_opts * const opts,
                                     char src,
                                     struct KNamelist * available_columns ) {
     rc_t rc = 0;
-    const VCursor * cursor = cmn->cursor;
+    const VCursor * cursor = cmn -> cursor;
 
     if ( src == 'P' || src == 'S' ) {
         rc = add_column( cursor, COL_SEQ_SPOT_ID, &( cmn -> seq_spot_id_idx ) ); /* read_fkt.c */
@@ -424,7 +424,7 @@ static rc_t prepare_prim_sec_table_cursor( const samdump_opts * const opts,
 static rc_t prepare_sub_ev_alignment_table_cursor( const samdump_opts * const opts,
                                                    const VDatabase * db,
                                                    align_table_context * const atx ) {
-    rc_t rc = add_column( atx->cmn.cursor, COL_EV_ALIGNMENTS, &atx->ev_alignments_idx );
+    rc_t rc = add_column( atx -> cmn . cursor, COL_EV_ALIGNMENTS, &( atx -> ev_alignments_idx ) );
     if ( rc == 0 ) {
         const VTable *evidence_alignment_tbl;
         rc = VDatabaseOpenTableRead( db, &evidence_alignment_tbl, EV_AL_TABLE );
@@ -704,14 +704,14 @@ static void CC on_region( BSTNode *n, void *data ) {
         if ( rctx -> rc == 0 ) {
             uint32_t range_idx, range_count = VectorLength( &( ref_rgn -> ranges ) );
             for ( range_idx = 0; range_idx < range_count && rctx -> rc == 0; ++range_idx ) {
-                range * r = VectorGet( &ref_rgn->ranges, range_idx );
+                range * r = VectorGet( &( ref_rgn -> ranges ), range_idx );
                 if ( r != NULL ) {
                     INSDC_coord_len len;
-                    if ( r -> start == 0 && r->end == 0 ) {
+                    if ( r -> start == 0 && r -> end == 0 ) {
                         r -> start = 1;
                         rctx -> rc = ReferenceObj_SeqLength( ref_obj, &len );
                         if ( rctx -> rc == 0 ) {
-                            r->end = ( r -> start + len );
+                            r -> end = ( r -> start + len );
                         }
                     } else {
                         len = ( r -> end - r -> start + 1 );
@@ -849,10 +849,10 @@ static rc_t read_ref_orientation_and_seq_read_id( cg_cigar_input * cgc_input,
 }
 
 /* this function expects:
-    READ        in : cgc_output->p_read.ptr, cgc_output->p_read.len
-    SAM_QUALITY in : cgc_output->p_quality.ptr, cgc_output->p_quality.len
-    CIGAR       in : cgc_input->p_cigar.ptr, cgc_input->p_cigar.len
-    EDIT_DIST   in : cgc_output->edit_dist
+    READ        in : cgc_output -> p_read.ptr, cgc_output -> p_read . len
+    SAM_QUALITY in : cgc_output -> p_quality.ptr, cgc_output -> p_quality . len
+    CIGAR       in : cgc_input -> p_cigar.ptr, cgc_input -> p_cigar . len
+    EDIT_DIST   in : cgc_output -> edit_dist
 */
 static rc_t cg_cigar_treatments( enum cigar_treatment what_treatment,
                                  cg_cigar_input * cgc_input,
@@ -924,7 +924,7 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
                                              const char * ref_name,
                                              INSDC_coord_zero allele_pos,
                                              int32_t ref_cig_len ) {
-    const VCursor * cursor = atx->eval.cursor;
+    const VCursor * cursor = atx -> eval . cursor;
     INSDC_coord_zero ref_pos;
     uint32_t seq_name_len, sam_flags, spot_group_len = 0;
     const char * seq_name, * spot_group;
@@ -1008,7 +1008,7 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
     if ( rc == 0 && cgc_output . p_tags . len > 0 ) {
         rc = KOutMsg( "\t%.*s", cgc_output . p_tags . len, cgc_output . p_tags . ptr );
     }
-    /* OPT SAM-FIELD: ZI     SRA-column: rec->id */
+    /* OPT SAM-FIELD: ZI     SRA-column: rec -> id */
     /* OPT SAM-FIELD: ZA     SRA-column: ploidy_idx */
     if ( rc == 0 ) {
         rc = KOutMsg( "\tZI:i:%li\tZA:i:%u", rec -> id, ploidy_idx );
@@ -1043,14 +1043,14 @@ static rc_t print_evidence_alignment_cg_ev_dnb( const samdump_opts * const opts,
                                                 const align_table_context * const atx,
                                                 int64_t align_id,
                                                 uint32_t ploidy_idx ) {
-    const VCursor * cursor = atx->eval.cursor;
+    const VCursor * cursor = atx -> eval.cursor;
     INSDC_coord_zero ref_pos;
     uint32_t seq_name_len, sam_flags, spot_group_len = 0;
     int32_t mapq;
     const char * seq_name, * spot_group;
     cg_cigar_output cgc_output;
 
-    rc_t rc = read_char_ptr( align_id, cursor, atx->seq_name_idx, &seq_name, &seq_name_len, "SEQ_NAME" );
+    rc_t rc = read_char_ptr( align_id, cursor, atx -> seq_name_idx, &seq_name, &seq_name_len, "SEQ_NAME" );
     if ( rc == 0 && atx -> eval . seq_spot_group_idx != COL_NOT_AVAILABLE ) {
         rc = read_char_ptr( align_id, cursor, atx -> eval . seq_spot_group_idx,
                             &spot_group, &spot_group_len, "SEQ_SPOT_GROUP" );
@@ -1064,23 +1064,23 @@ static rc_t print_evidence_alignment_cg_ev_dnb( const samdump_opts * const opts,
         } else {
             if ( seq_name_len > 0 ) {
                 /* SAM-FIELD: QNAME     constructed from allel-id/sub-id */
-                rc = KOutMsg( "%.*s/ALLELE_%li.%u\t", seq_name_len, seq_name, rec->id, ploidy_idx );
+                rc = KOutMsg( "%.*s/ALLELE_%li.%u\t", seq_name_len, seq_name, rec -> id, ploidy_idx );
             }
         }
     }
     if ( rc == 0 ) {
-        rc = read_INSDC_coord_zero( align_id, cursor, atx->ref_pos_idx, &ref_pos, 0, "REF_POS" );
+        rc = read_INSDC_coord_zero( align_id, cursor, atx -> ref_pos_idx, &ref_pos, 0, "REF_POS" );
     }
     if ( rc == 0 ) {
-        rc = read_int32( align_id, cursor, atx->mapq_idx, &mapq, 0, "MAPQ" );
+        rc = read_int32( align_id, cursor, atx -> mapq_idx, &mapq, 0, "MAPQ" );
     }
     if ( rc == 0 ) {
         uint8_t ref_orient;
-        rc = read_uint8( align_id, cursor, atx->eval.ref_orientation_idx, &ref_orient, 0, "REF_ORIENT" );
+        rc = read_uint8( align_id, cursor, atx -> eval . ref_orientation_idx, &ref_orient, 0, "REF_ORIENT" );
         if ( rc == 0 ) {
             INSDC_coord_one seq_read_id;
             bool cmpl = ref_orient;
-            rc = read_INSDC_coord_one( align_id, cursor, atx->eval.seq_read_id_idx, &seq_read_id, 0, "SEQ_READ_ID" );
+            rc = read_INSDC_coord_one( align_id, cursor, atx -> eval . seq_read_id_idx, &seq_read_id, 0, "SEQ_READ_ID" );
             sam_flags = ( 1 | ( cmpl ? 0x10 : 0 ) | ( seq_read_id == 1 ? 0x40 : 0x80 ) );
         }
     }
@@ -1089,18 +1089,19 @@ static rc_t print_evidence_alignment_cg_ev_dnb( const samdump_opts * const opts,
     /* SAM-FIELD: POS       SRA-column: REF_POS + 1 */
     /* SAM-FIELD: MAPQ      SRA-column: MAPQ ( from evidence-alignment-table, not from allel! ) */
     if ( rc == 0 ) {
-        rc = KOutMsg( "%u\tALLELE_%li.%u\t%i\t%d\t", sam_flags, rec->id, ploidy_idx, ref_pos + 1, mapq );
+        rc = KOutMsg( "%u\tALLELE_%li.%u\t%i\t%d\t", sam_flags, rec -> id, ploidy_idx, ref_pos + 1, mapq );
     }
     /* get READ, QUALITY and EIDT_DIST before cigar manipulation because we need/change these values */
     if ( rc == 0 ) {
-        rc = get_READ_QUALITY_EDIT_DIST( &cgc_output, align_id, &atx->eval );
+        rc = get_READ_QUALITY_EDIT_DIST( &cgc_output, align_id, &( atx -> eval ) );
     }
     /* SAM-FIELD: CIGAR     SRA-column: CIGAR_SHORT / with or without treatment */
     if ( rc == 0 ) {
         cg_cigar_input cgc_input;
-        rc = read_char_ptr( align_id, cursor, atx->eval.cigar_idx, &cgc_input.p_cigar.ptr, &cgc_input.p_cigar.len, "CIGAR" );
+        rc = read_char_ptr( align_id, cursor, atx -> eval . cigar_idx,
+                            &( cgc_input . p_cigar . ptr ), &( cgc_input . p_cigar . len ), "CIGAR" );
         if ( rc == 0 ) {
-            rc = cg_cigar_treatments( opts->cigar_treatment, &cgc_input, &cgc_output, align_id, &atx->eval );
+            rc = cg_cigar_treatments( opts -> cigar_treatment, &cgc_input, &cgc_output, align_id, &( atx -> eval ) );
         }
         if ( rc == 0 ) {
             rc = cg_canonical_print_cigar( cgc_output . p_cigar . ptr, cgc_output . p_cigar . len );
@@ -1129,7 +1130,7 @@ static rc_t print_evidence_alignment_cg_ev_dnb( const samdump_opts * const opts,
     if ( rc == 0 && atx -> eval . al_count_idx != COL_NOT_AVAILABLE ) {
         const uint8_t * al_count;
         uint32_t al_count_len;
-        rc = read_uint8_ptr( align_id, cursor, atx->eval.al_count_idx, &al_count, &al_count_len, "ALIGNMENT_COUNT" );
+        rc = read_uint8_ptr( align_id, cursor, atx -> eval . al_count_idx, &al_count, &al_count_len, "ALIGNMENT_COUNT" );
         if ( rc == 0 && al_count_len > 0 ) {
             rc = KOutMsg( "\tNH:i:%u", *al_count );
         }
@@ -1450,7 +1451,7 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
                         uint32_t mate_flags = calc_mate_flags( sam_flags );
                         rc = matecache_insert_same_ref( mc, atx -> db_idx, id, pos, mate_flags, -tlen );
                     }
-                    if ( mate_align_id == 0 && mate_ref_name_len == 0 && opts->print_half_unaligned_reads &&
+                    if ( mate_align_id == 0 && mate_ref_name_len == 0 && opts -> print_half_unaligned_reads &&
                          atx -> align_table_type == att_primary ) {
                         int64_t key = id;
                         rc = matecache_insert_unaligned( mc, atx -> db_idx, key, pos, atx -> ref_idx, *seq_spot_id );
@@ -1709,7 +1710,7 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
                                    const PlacementRecord * const rec,
                                    const align_table_context * const atx ) {
     bool orientation;
-    const VCursor *cursor = atx->cmn.cursor;
+    const VCursor *cursor = atx -> cmn . cursor;
     int64_t mate_align_id;
     const int64_t * seq_spot_id;
     uint32_t seq_spot_id_len;
@@ -1772,7 +1773,7 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
 
     /* against what reference aligned, at what position, with what mapping-quality */
     if ( rc == 0 ) {
-        rc = KOutMsg( " ref=%s pos=%u mapq=%i\n", ref_name, pos + 1, rec->mapq );
+        rc = KOutMsg( " ref=%s pos=%u mapq=%i\n", ref_name, pos + 1, rec -> mapq );
     }
     /* READ at a new line */
     if ( rc == 0 ) {
@@ -1842,8 +1843,8 @@ static rc_t walk_position( const samdump_opts * const opts,
                         rc = RC( rcExe, rcNoTarg, rcReading, rcParam, rcNull );
                         LOGERR( klogInt, rc, "no placement-record-context available" );
                     } else {
-                        if ( opts->output_format == of_sam ) {
-                            if ( atx->align_table_type == att_evidence ) {
+                        if ( opts -> output_format == of_sam ) {
+                            if ( atx -> align_table_type == att_evidence ) {
                                 rc = print_alignment_sam_ev( opts, ref_name, pos, rec, atx );
                             } else {
                                 rc = print_alignment_sam_ps( opts, ref_name, pos, mc, splice_dict, rec, atx );
@@ -2142,9 +2143,9 @@ rc_t print_aligned_spots( const samdump_opts * const opts,
     if ( rc != 0 ) {
         (void)LOGERR( klogErr, rc, "cannot create alignment-manager" );
     } else {
-        if ( opts->region_count == 0 ) {
+        if ( opts -> region_count == 0 ) {
             /* the user did not specify regions to be printed ==> print all alignments */
-            switch( opts->dump_mode ) {
+            switch( opts -> dump_mode ) {
                 case dm_one_ref_at_a_time : rc = print_all_aligned_spots_0( opts, ifs, mc, a_mgr ); break;
                 case dm_prepare_all_refs  : rc = print_all_aligned_spots_1( opts, ifs, mc, a_mgr ); break;
             }

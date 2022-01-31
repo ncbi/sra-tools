@@ -31,6 +31,18 @@
 extern "C" {
 #endif
 
+#ifndef _h_inputfiles_
+#include "inputfiles.h"     /* for sam_dump_ctx */
+#endif
+    
+#ifndef _h_matecache_
+#include "matecache.h"      /* for sam_dump_ctx */
+#endif
+
+#ifndef _h_dyn_string_
+#include "dyn_string.h"     /* for sam_dump_ctx */
+#endif
+
 #ifndef _h_klib_rc_
 #include <klib/rc.h>
 #endif
@@ -294,6 +306,13 @@ rc_t dump_name_legacy( const samdump_opts * opts, const char * name, size_t name
 rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual_len, bool reverse );
 
 rc_t dump_quality_33( const samdump_opts * opts, char const *quality, uint32_t qual_len, bool reverse );
+
+typedef struct samdump_ctx {
+    const samdump_opts * const opts;
+    const input_files * const ifs;
+    matecache * mc;
+    struct dyn_string * ds;
+} sam_dump_ctx;
 
 #ifdef __cplusplus
 }

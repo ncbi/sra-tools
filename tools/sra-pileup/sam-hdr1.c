@@ -245,7 +245,7 @@ static rc_t Load_Namelist_From_Node( VNamelist * dst, const KMDataNode * node ) 
     return rc;
 }
 
-static rc_t collect_from_BAM_HEADER( headers * h, int hdr_idx, input_files * ifs ) {
+static rc_t collect_from_BAM_HEADER( headers * h, int hdr_idx, const input_files * ifs ) {
     rc_t rc = 0;
     if ( ifs->database_count > 0 ) {
         uint32_t idx;
@@ -323,7 +323,7 @@ static rc_t collect_from_spotgroup_stats( headers * h, int hdr_idx, const KMData
     return rc;
 }
 
-static rc_t collect_from_stats( headers * h, int hdr_idx, input_files * ifs ) {
+static rc_t collect_from_stats( headers * h, int hdr_idx, const input_files * ifs ) {
     rc_t rc = 0;
     if ( ifs->database_count > 0 ) {
         uint32_t idx;
@@ -388,7 +388,7 @@ static rc_t collect_from_file( headers * h, int hdr_idx, const char * filename )
     return rc;
 }
 
-static rc_t collect_from_references( headers * h, int hdr_idx, input_files * ifs , bool use_seqid) {
+static rc_t collect_from_references( headers * h, int hdr_idx, const input_files * ifs , bool use_seqid) {
     rc_t rc = 0;
     uint32_t i;
     for ( i = 0; i < ifs->database_count && rc == 0; ++i ) {
@@ -613,7 +613,7 @@ static rc_t merge_header_tags_of_2_lists( VNamelist ** lines_1, const VNamelist 
     return rc;
 }
 
-static rc_t collect_from_bam_hdr( headers * dst, input_files * ifs, bool use_seqid ) {
+static rc_t collect_from_bam_hdr( headers * dst, const input_files * ifs, bool use_seqid ) {
     uint32_t count;
     rc_t rc = collect_from_BAM_HEADER( dst, 1, ifs );
     if ( rc == 0 ) {
@@ -631,7 +631,7 @@ static rc_t collect_from_bam_hdr( headers * dst, input_files * ifs, bool use_seq
     return rc;
 }
 
-static rc_t collect_by_recalc( headers * h, input_files * ifs, bool use_seqid ) {
+static rc_t collect_by_recalc( headers * h, const input_files * ifs, bool use_seqid ) {
     rc_t rc = collect_from_references( h, 1, ifs, use_seqid );
     if ( rc == 0 ) {
         rc = collect_from_stats( h, 1, ifs );
@@ -639,7 +639,7 @@ static rc_t collect_by_recalc( headers * h, input_files * ifs, bool use_seqid ) 
     return rc;
 }
 
-static rc_t collect_from_src_and_files( headers * h, input_files * ifs, const char * filename, bool use_seqid ) {
+static rc_t collect_from_src_and_files( headers * h, const input_files * ifs, const char * filename, bool use_seqid ) {
     rc_t rc = collect_from_bam_hdr( h, ifs, use_seqid );
     if ( rc == 0 && filename != NULL ) {
         rc = collect_from_file( h, 3, filename );
@@ -692,7 +692,7 @@ static rc_t merge_and_print( VNamelist ** L1, const VNamelist * L2, bool print_L
     return rc;
 }
 
-rc_t print_headers_1( const samdump_opts * opts, input_files * ifs ) {
+rc_t print_headers_1( const samdump_opts * opts, const input_files * ifs ) {
     headers h;
     rc_t rc = init_headers( &h, 25 );
     if ( rc == 0 ) {

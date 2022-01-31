@@ -1422,59 +1422,59 @@ static rc_t print_unaligned_table( const samdump_opts * const opts,
 }
 
 /* entry point from sam-dump3.c */
-rc_t print_unaligned_spots( const samdump_opts * const opts,
-                            const input_files * const ifs,
-                            const matecache * const mc ) {
+rc_t print_unaligned_spots( const sam_dump_ctx * sam_ctx ) {
     rc_t rc = 0;
 
 #if _DEBUGGING
-    if ( opts->perf_log != NULL ) {
-        perf_log_start_section( opts->perf_log, "unaligned spots" );
+    if ( sam_ctx -> opts -> perf_log != NULL ) {
+        perf_log_start_section( sam_ctx -> opts -> perf_log, "unaligned spots" );
     }
 #endif
-    if ( ( ifs->database_count > 0 ) && ( opts->dump_unaligned_reads || opts->dump_unaligned_only ) ) {
+    if ( ( sam_ctx -> ifs -> database_count > 0 ) &&
+         ( sam_ctx -> opts -> dump_unaligned_reads ||
+           sam_ctx -> opts -> dump_unaligned_only ) ) {
         uint32_t db_idx;
-        for ( db_idx = 0; db_idx < ifs->database_count && rc == 0; ++db_idx ) {
-            const input_database * ids = VectorGet( &ifs->dbs, db_idx );
+        for ( db_idx = 0; db_idx < sam_ctx -> ifs -> database_count && rc == 0; ++db_idx ) {
+            const input_database * ids = VectorGet( &( sam_ctx -> ifs -> dbs ), db_idx );
             if ( ids != NULL ) {
                 input_table seq;
 
-                seq.path = ids->path;
-                rc = VDatabaseOpenTableRead( ids->db, &seq.tab, "SEQUENCE" );
+                seq . path = ids -> path;
+                rc = VDatabaseOpenTableRead( ids -> db, &seq.tab, "SEQUENCE" );
                 if ( rc != 0 ) {
-                    (void)PLOGERR( klogInt, ( klogInt, rc, "cannot open table SEQUENCE for $(tn)", "tn=%s", ids->path ) );
+                    (void)PLOGERR( klogInt, ( klogInt, rc, "cannot open table SEQUENCE for $(tn)", "tn=%s", ids -> path ) );
                 } else {
                     input_table prim;
-                    prim.path = ids->path;
-                    rc = VDatabaseOpenTableRead( ids->db, &prim.tab, "PRIMARY_ALIGNMENT" );
+                    prim . path = ids -> path;
+                    rc = VDatabaseOpenTableRead( ids -> db, &( prim . tab ), "PRIMARY_ALIGNMENT" );
                     if ( rc != 0 ) {
-                        (void)PLOGERR( klogInt, ( klogInt, rc, "cannot open table PRIMARY_ALIGNMENT $(tn)", "tn=%s", ids->path ) );
+                        (void)PLOGERR( klogInt, ( klogInt, rc, "cannot open table PRIMARY_ALIGNMENT $(tn)", "tn=%s", ids -> path ) );
                     } else {
-                        if ( opts->region_count > 0 ) {
-                            rc = print_unaligned_database_filtered( opts, &seq, &prim, mc, ids );
+                        if ( sam_ctx -> opts -> region_count > 0 ) {
+                            rc = print_unaligned_database_filtered( sam_ctx -> opts, &seq, &prim, sam_ctx -> mc, ids );
                         } else {
-                            rc = print_unaligned_database_full( opts, &seq, &prim, mc, ids );
+                            rc = print_unaligned_database_full( sam_ctx -> opts, &seq, &prim, sam_ctx -> mc, ids );
                         }
-                        VTableRelease( prim.tab );
+                        VTableRelease( prim . tab );
                     }
-                    VTableRelease( seq.tab );
+                    VTableRelease( seq . tab );
                 }
             }
         }
     }
-    if ( rc == 0 && ifs->table_count > 0 ) {
+    if ( rc == 0 && sam_ctx -> ifs -> table_count > 0 ) {
         uint32_t tab_idx;
-        for ( tab_idx = 0; tab_idx < ifs->table_count && rc == 0; ++tab_idx ) {
-            input_table * itab = VectorGet( &ifs->tabs, tab_idx );
+        for ( tab_idx = 0; tab_idx < sam_ctx -> ifs -> table_count && rc == 0; ++tab_idx ) {
+            input_table * itab = VectorGet( &( sam_ctx -> ifs -> tabs ), tab_idx );
             if ( itab != NULL ) {
-                rc = print_unaligned_table( opts, itab );
+                rc = print_unaligned_table( sam_ctx -> opts, itab );
             }
         }
     }
 
 #if _DEBUGGING
-    if ( opts->perf_log != NULL ) {
-        perf_log_end_section( opts->perf_log );
+    if ( sam_ctx -> opts -> perf_log != NULL ) {
+        perf_log_end_section( sam_ctx -> opts -> perf_log );
     }
 #endif
     return rc;

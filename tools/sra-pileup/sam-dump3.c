@@ -390,12 +390,12 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
         if ( rc != 0 ) {
             (void)LOGERR( klogErr, rc, "cannot create vdb-manager" );
         } else {
-            input_files * ifs; /* input_files.h */
+            sam_dump_ctx sam_ctx = { opts, NULL, NULL, NULL };
             uint32_t reflist_opt = tabsel_2_ReferenceList_Options( opts );
 
             ReportSetVDBManager( mgr ); /**/
 
-            if ( opts->no_mt ) {
+            if ( opts -> no_mt ) {
                 rc = VDBManagerDisablePagemapThread ( mgr );
                 if ( rc != 0 ) {
                     LOGERR( klogInt, rc, "VDBManagerDisablePagemapThread() failed" );
@@ -403,53 +403,68 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
             }
 
             if ( rc == 0 ) {
-                rc = discover_input_files( &ifs, mgr, opts->input_files, reflist_opt ); /* inputfiles.c */
+                rc = discover_input_files( ( input_files ** )&( sam_ctx . ifs ), 
+                                           mgr,
+                                           opts -> input_files,
+                                           reflist_opt ); /* inputfiles.c */
                 if ( rc == 0 ) {
-                    if ( ifs->database_count == 0 && ifs->table_count == 0 ) {
+                    if ( sam_ctx . ifs -> database_count == 0 &&
+                         sam_ctx . ifs -> table_count == 0 ) {
                         rc = RC( rcExe, rcFile, rcReading, rcItem, rcNotFound );
                         (void)LOGERR( klogErr, rc, "input object(s) not found" );
                     } else {
-                        matecache * mc = NULL;
-
-                        if ( opts->use_mate_cache )
-                            rc = make_matecache( &mc, ifs->database_count );
+                        if ( opts -> use_mate_cache )
+                            rc = make_matecache( ( matecache **)&( sam_ctx . mc ),
+                                                 sam_ctx . ifs -> database_count );
 
                         if ( rc == 0 ) {
+                            /* create a dynamic string to be optionally used by
+                               aligned and unaligned spots */
+                            rc = allocate_dyn_string( &( sam_ctx . ds ), 4096 );
+                            if ( rc != 0 ) {
+                                LOGERR( klogInt, rc, "cannot create dynamic string" );
+                            }
+
                             /* print output of header */
-                            if ( ( opts->output_format == of_sam )  &&
-                                 ( ifs->database_count > 0 )        &&
-                                 ( opts->header_mode != hm_none )   &&
-                                 !opts->dump_unaligned_only ) {
+                            if ( rc == 0 &&
+                                 ( opts -> output_format == of_sam )     &&
+                                 ( sam_ctx . ifs -> database_count > 0 ) &&
+                                 ( opts -> header_mode != hm_none )      &&
+                                 !( opts -> dump_unaligned_only ) ) {
                                 /* ------------------------------------------------------ */
-                                rc = print_headers_1( opts, ifs ); /* sam-hdr.c */
+                                rc = print_headers_1( opts, sam_ctx . ifs ); /* sam-hdr.c */
                                 /* ------------------------------------------------------ */
                             }
 
                             /* print output of aligned reads */
                             if ( rc == 0 && 
-                                 ifs->database_count > 0 && 
-                                 !opts->dump_unaligned_only ) {
+                                 sam_ctx . ifs -> database_count > 0 && 
+                                 !( opts -> dump_unaligned_only ) ) {
                                 /* ------------------------------------------------------ */
-                                rc = print_aligned_spots( opts, ifs, mc ); /* sam-aligned.c */
+                                rc = print_aligned_spots( &sam_ctx ); /* sam-aligned.c */
                                 /* ------------------------------------------------------ */
                             }
 
                             /* print output of unaligned reads */
                             if ( rc == 0 ) {
                                 /* ------------------------------------------------------ */
-                                rc = print_unaligned_spots( opts, ifs, mc ); /* sam-unaligned.c */
+                                rc = print_unaligned_spots( &sam_ctx ); /* sam-unaligned.c */
                                 /* ------------------------------------------------------ */
                             }
 
-                            if ( opts->use_mate_cache ) {
-                                if ( opts->report_cache ) {
-                                    rc = matecache_report( mc ); /* matecache.c */
+                            if ( sam_ctx . mc != NULL ) {
+                                if ( opts -> report_cache ) {
+                                    rc = matecache_report( sam_ctx . mc ); /* matecache.c */
                                 }
-                                release_matecache( mc ); /* matecache.c */
+                                release_matecache( sam_ctx . mc ); /* matecache.c */
+                            }
+                            
+                            if ( NULL != sam_ctx . ds ) {
+                                free_dyn_string( sam_ctx . ds );
                             }
                         }
                     }
-                    release_input_files( ifs ); /* inputfiles.c */
+                    release_input_files( ( input_files * )sam_ctx . ifs ); /* inputfiles.c */
                 }
             }
             VDBManagerRelease( mgr );
@@ -458,7 +473,6 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
     }
     return rc;
 }
-
 
 static rc_t perform_cigar_test( const samdump_opts * const opts ) {
     rc_t rc;

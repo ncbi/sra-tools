@@ -38,19 +38,9 @@ extern "C" {
 #include "sam-dump-opts.h"
 #endif
 
-#ifndef _h_inputfiles_
-#include "inputfiles.h"
-#endif
-    
-#ifndef _h_matecache_
-#include "matecache.h"
-#endif
-
 #define COL_READ "(INSDC:dna:text)READ"
 
-rc_t print_aligned_spots( const samdump_opts * const opts,
-                          const input_files * const ifs,
-                          matecache * const mc );
+rc_t print_aligned_spots( const sam_dump_ctx * sam_ctx );
 
 #ifdef __cplusplus
 }

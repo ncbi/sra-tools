@@ -42,7 +42,7 @@ extern "C" {
 #include "inputfiles.h"
 #endif
 
-rc_t print_headers( const samdump_opts * opts, input_files * ifs );
+rc_t print_headers( const samdump_opts * opts, const input_files * ifs );
 
 #ifdef __cplusplus
 }

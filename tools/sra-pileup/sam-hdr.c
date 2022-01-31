@@ -156,7 +156,7 @@ static rc_t add_seq_id_node( BSTree * tree, const char * seq_id, const char * na
     return rc;
 }
 
-static rc_t build_seq_id_tree( BSTree * tree, input_files * ifs ) {
+static rc_t build_seq_id_tree( BSTree * tree, const input_files * ifs ) {
     rc_t rc = 0;
     uint32_t i;
     for ( i = 0; i < ifs->database_count && rc == 0; ++i ) {
@@ -411,7 +411,7 @@ static rc_t extract_spotgroups_from_bam_hdr( VNamelist * spotgroups, input_datab
     return rc;
 }
 
-static rc_t extract_spotgroups( VNamelist * spotgroups, input_files * ifs, bool from_stats ) {
+static rc_t extract_spotgroups( VNamelist * spotgroups, const input_files * ifs, bool from_stats ) {
     rc_t rc = 0;
     uint32_t i;
     for ( i = 0; i < ifs->database_count && rc == 0; ++i ) {
@@ -472,7 +472,7 @@ static rc_t print_spotgroups( VNamelist * spotgroups, bool from_stats ) {
     return rc;
 }
 
-static rc_t print_headers_by_recalculating( const samdump_opts * opts, input_files * ifs ) {
+static rc_t print_headers_by_recalculating( const samdump_opts * opts, const input_files * ifs ) {
     rc_t rc = KOutMsg( "@HD\tVN:1.3\n" );
     if ( rc == 0 ) {
         BSTree tree;
@@ -555,7 +555,7 @@ static rc_t print_headers_from_file( const samdump_opts * opts ) {
     return rc;
 }
 
-static rc_t print_org_headers( const samdump_opts * opts, input_files * ifs ) {
+static rc_t print_org_headers( const samdump_opts * opts, const input_files * ifs ) {
     rc_t rc = 0;
     bool recalc = ( ifs->database_count > 1 );
     if ( !recalc ) {
@@ -568,7 +568,7 @@ static rc_t print_org_headers( const samdump_opts * opts, input_files * ifs ) {
     return rc;
 }
 
-rc_t print_headers( const samdump_opts * opts, input_files * ifs ) {
+rc_t print_headers( const samdump_opts * opts, const input_files * ifs ) {
     rc_t rc = 0;
 
 #if _DEBUGGING

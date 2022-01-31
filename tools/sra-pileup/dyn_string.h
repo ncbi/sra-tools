@@ -37,12 +37,13 @@ extern "C" {
 
 struct dyn_string;
 
-rc_t allocated_dyn_string ( struct dyn_string **self, size_t size );
+rc_t allocate_dyn_string ( struct dyn_string **self, size_t size );
 void free_dyn_string ( struct dyn_string *self );
 
 void reset_dyn_string( struct dyn_string *self );
 rc_t expand_dyn_string( struct dyn_string *self, size_t new_size );
 rc_t add_char_2_dyn_string( struct dyn_string *self, const char c );
+rc_t repeat_char_2_dyn_string( struct dyn_string *self, const char c, uint32_t n );
 char * dyn_string_char( struct dyn_string *self, uint32_t idx );
 rc_t add_string_2_dyn_string( struct dyn_string *self, const char * s );
 rc_t add_dyn_string_2_dyn_string( struct dyn_string *self, struct dyn_string *other );

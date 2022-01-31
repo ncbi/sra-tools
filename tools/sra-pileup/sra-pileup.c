@@ -842,13 +842,13 @@ static rc_t walk_reference( ReferenceIterator *ref_iter,
                             const char * refname,
                             pileup_options *options ) {
     struct dyn_string * line;
-    rc_t rc = allocated_dyn_string ( &line, 4096 );
+    rc_t rc = allocate_dyn_string ( &line, 4096 );
     if ( rc == 0 ) {
         struct dyn_string * events;
-        rc_t rc = allocated_dyn_string ( &events, 4096 );
+        rc_t rc = allocate_dyn_string ( &events, 4096 );
         if ( rc == 0 ) {
             struct dyn_string * qualities;
-            rc = allocated_dyn_string ( &qualities, 4096 );
+            rc = allocate_dyn_string ( &qualities, 4096 );
             if ( rc == 0 ) {
                 while ( rc == 0 ) {
                     rc = Quitting ();

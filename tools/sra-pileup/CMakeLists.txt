@@ -65,6 +65,7 @@ add_executable( sam-dump
 	cg_tools
 	sam-dump
 	sam-dump3
+	dyn_string
 )
 target_link_libraries( sam-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( sam-dump true )

@@ -323,9 +323,9 @@ rc_t pileup_v2( Args * args, pileup_options *options ) {
         if ( rc == 0 ) {
             pileup_v2_ctx ctx;
             memset( &ctx, 0, sizeof ctx );
-            rc = allocated_dyn_string ( &ctx.bases, 1000 );
+            rc = allocate_dyn_string ( &ctx.bases, 1000 );
             if ( rc == 0 ) {
-                rc = allocated_dyn_string ( &ctx.qual, 1000 );
+                rc = allocate_dyn_string ( &ctx.qual, 1000 );
                 if ( rc == 0 ) {
                     ctx . print_qual = !( options -> cmn . omit_qualities );
                     ctx . div_by_spotgrp = options -> div_by_spotgrp;

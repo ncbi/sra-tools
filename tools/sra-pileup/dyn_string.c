@@ -44,19 +44,19 @@ typedef struct dyn_string {
     size_t data_len;
 } dyn_string;
 
-rc_t allocated_dyn_string ( struct dyn_string **self, size_t size ) {
+rc_t allocate_dyn_string( struct dyn_string **self, size_t size ) {
     rc_t rc = 0;
     struct dyn_string * res = malloc( sizeof *res );
     *self = NULL;
     if ( res == NULL ) {
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     } else {
-        res->data_len = 0;
-        res->data = malloc( size );
-        if ( res->data != NULL ) {
-            res->allocated = size;
+        res -> data_len = 0;
+        res -> data = malloc( size );
+        if ( res -> data != NULL ) {
+            res -> allocated = size;
         } else {
-            res->allocated = 0;
+            res -> allocated = 0;
             rc = RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         }
         if ( rc != 0 ) {
@@ -70,26 +70,26 @@ rc_t allocated_dyn_string ( struct dyn_string **self, size_t size ) {
 }
 
 void free_dyn_string ( struct dyn_string *self ) {
-    free( self->data );
-    self->data = NULL;
-    self->allocated = 0;
-    self->data_len = 0;
+    free( self -> data );
+    self -> data = NULL;
+    self -> allocated = 0;
+    self -> data_len = 0;
     free( ( void * ) self );
 }
 
 void reset_dyn_string( struct dyn_string *self ) {
-    self->data_len = 0;
+    self -> data_len = 0;
 }
 
 rc_t expand_dyn_string( struct dyn_string *self, size_t new_size ) {
     rc_t rc = 0;
-    if ( new_size > self->allocated ) {
-        self->data = realloc ( self->data, new_size );
-        if ( self->data != NULL ) {
-            self->allocated = new_size;
+    if ( new_size > self -> allocated ) {
+        self -> data = realloc ( self -> data, new_size );
+        if ( self -> data != NULL ) {
+            self -> allocated = new_size;
         } else {
-            self->allocated = 0;
-            self->data_len = 0;
+            self -> allocated = 0;
+            self -> data_len = 0;
             rc = RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         }
     }
@@ -98,42 +98,54 @@ rc_t expand_dyn_string( struct dyn_string *self, size_t new_size ) {
 
 rc_t add_char_2_dyn_string( struct dyn_string *self, const char c ) {
     /* does nothing if self->data_len + 2 < self->allocated */
-    rc_t rc = expand_dyn_string( self, self->data_len + 2 );
+    rc_t rc = expand_dyn_string( self, self -> data_len + 2 );
     if ( rc == 0 ) {
-        self->data[ self->data_len++ ] = c;
-        self->data[ self->data_len ] = 0;
+        self->data[ self -> data_len++ ] = c;
+        self->data[ self -> data_len ] = 0; /* terminate */
+    }
+    return rc;
+}
+
+rc_t repeat_char_2_dyn_string( struct dyn_string *self, const char c, uint32_t n ) {
+    /* does nothing if self->data_len + 2 < self->allocated */
+    rc_t rc = expand_dyn_string( self, self -> data_len + n + 1 );
+    if ( rc == 0 ) {
+        uint32_t i;
+        for ( i = 0; i < n; ++i ) {
+            self -> data[ self -> data_len++ ] = c;
+        }
+        self -> data[ self -> data_len ] = 0; /* terminate */
     }
     return rc;
 }
 
 char * dyn_string_char( struct dyn_string *self, uint32_t idx ) {
-    return( &self->data[ idx ] );
+    return( &( self -> data[ idx ] ) );
 }
-
 
 rc_t add_string_2_dyn_string( struct dyn_string *self, const char * s ) {
     rc_t rc;
     size_t size = string_size ( s );
     /* does nothing if self->data_len + size + 1 < self->allocated */
-    rc = expand_dyn_string( self, self->data_len + size + 1 );
+    rc = expand_dyn_string( self, self -> data_len + size + 1 );
     if ( rc == 0 ) {
-        string_copy ( &(self->data[ self->data_len ]), self->allocated, s, size );
-        self->data_len += size;
-        self->data[ self->data_len ] = 0;
+        string_copy( &( self -> data[ self -> data_len ] ), self -> allocated, s, size );
+        self -> data_len += size;
+        self -> data[ self -> data_len ] = 0;
     }
     return rc;
 }
 
 rc_t add_dyn_string_2_dyn_string( struct dyn_string *self, struct dyn_string *other ) {
     rc_t rc = 0;
-    size_t size = other->data_len;
+    size_t size = other -> data_len;
     if ( size > 0 )	{
         /* does nothing if self->data_len + size + 1 < self->allocated */
-        rc = expand_dyn_string( self, self->data_len + size + 1 );
+        rc = expand_dyn_string( self, self -> data_len + size + 1 );
         if ( rc == 0 ) {
-            string_copy ( &(self->data[ self->data_len ]), self->allocated, other->data, size );
-            self->data_len += size;
-            self->data[ self->data_len ] = 0;
+            string_copy( &( self -> data[ self -> data_len ] ), self -> allocated, other -> data, size );
+            self -> data_len += size;
+            self -> data[ self -> data_len ] = 0;
         }
     }
     return rc;
@@ -147,20 +159,20 @@ rc_t print_2_dyn_string( struct dyn_string * self, const char *fmt, ... ) {
         size_t num_writ;
         va_list args;
         va_start ( args, fmt );
-        rc = string_vprintf ( &(self->data[ self->data_len ]), 
-                              self->allocated - ( self->data_len + 1 ),
+        rc = string_vprintf ( &( self -> data[ self -> data_len ] ), 
+                              self -> allocated - ( self -> data_len + 1 ),
                               &num_writ,
                               fmt,
                               args );
         va_end ( args );
 
         if ( rc == 0 ) {
-            self->data_len += num_writ;
-            self->data[ self->data_len ] = 0;
+            self -> data_len += num_writ;
+            self -> data[ self -> data_len ] = 0;
         }
         not_enough = ( GetRCState( rc ) == rcInsufficient );
         if ( not_enough ) {
-            rc = expand_dyn_string( self, self->allocated + ( num_writ * 2 ) );
+            rc = expand_dyn_string( self, self -> allocated + ( num_writ * 2 ) );
         }
     } while ( not_enough && rc == 0 );
     return rc;
@@ -168,7 +180,7 @@ rc_t print_2_dyn_string( struct dyn_string * self, const char *fmt, ... ) {
 
 rc_t print_dyn_string( struct dyn_string * self ) {
     if ( self != NULL ) {
-        return KOutMsg( "%.*s", self->data_len, self->data );
+        return KOutMsg( "%.*s", self -> data_len, self -> data );
     } else {
         return 0;
     }
@@ -176,7 +188,7 @@ rc_t print_dyn_string( struct dyn_string * self ) {
 
 size_t dyn_string_len( struct dyn_string * self ) {
     if ( self != NULL ) {
-        return self->data_len;
+        return self -> data_len;
     } else {
         return 0;
     }

@@ -37,19 +37,20 @@ extern "C" {
 
 struct dyn_string;
 
-rc_t allocate_dyn_string ( struct dyn_string **self, size_t size );
-void free_dyn_string ( struct dyn_string *self );
+rc_t ds_allocate( struct dyn_string **self, size_t size );
+void ds_free( struct dyn_string *self );
 
-void reset_dyn_string( struct dyn_string *self );
-rc_t expand_dyn_string( struct dyn_string *self, size_t new_size );
-rc_t add_char_2_dyn_string( struct dyn_string *self, const char c );
-rc_t repeat_char_2_dyn_string( struct dyn_string *self, const char c, uint32_t n );
-char * dyn_string_char( struct dyn_string *self, uint32_t idx );
-rc_t add_string_2_dyn_string( struct dyn_string *self, const char * s );
-rc_t add_dyn_string_2_dyn_string( struct dyn_string *self, struct dyn_string *other );
-rc_t print_2_dyn_string( struct dyn_string * self, const char *fmt, ... );
-rc_t print_dyn_string( struct dyn_string * self );
-size_t dyn_string_len( struct dyn_string * self );
+void ds_reset( struct dyn_string *self );
+rc_t ds_expand( struct dyn_string *self, size_t new_size );
+rc_t ds_add_char( struct dyn_string *self, const char c );
+rc_t ds_repeat_char( struct dyn_string *self, const char c, uint32_t n );
+char * ds_get_char( struct dyn_string *self, uint32_t idx );
+rc_t ds_add_str( struct dyn_string *self, const char * s );
+rc_t ds_add_ds( struct dyn_string *self, struct dyn_string *other );
+rc_t ds_add_fmt( struct dyn_string * self, const char *fmt, ... );
+rc_t ds_print( struct dyn_string * self );
+size_t ds_len( struct dyn_string * self );
+rc_t ds_print_char_n( struct dyn_string *self, const char c, uint32_t n );
 
 #ifdef __cplusplus
 }

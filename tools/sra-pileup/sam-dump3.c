@@ -420,7 +420,7 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
                         if ( rc == 0 ) {
                             /* create a dynamic string to be optionally used by
                                aligned and unaligned spots */
-                            rc = allocate_dyn_string( &( sam_ctx . ds ), 4096 );
+                            rc = ds_allocate( &( sam_ctx . ds ), 4096 );
                             if ( rc != 0 ) {
                                 LOGERR( klogInt, rc, "cannot create dynamic string" );
                             }
@@ -459,9 +459,7 @@ static rc_t print_samdump( const samdump_opts * const opts ) {
                                 release_matecache( sam_ctx . mc ); /* matecache.c */
                             }
                             
-                            if ( NULL != sam_ctx . ds ) {
-                                free_dyn_string( sam_ctx . ds );
-                            }
+                            ds_free( sam_ctx . ds );    /* tolerates NULL-ptr */
                         }
                     }
                     release_input_files( ( input_files * )sam_ctx . ifs ); /* inputfiles.c */

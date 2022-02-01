@@ -632,7 +632,7 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
     }
 
     if ( ( state & align_iter_invalid ) == align_iter_invalid ) {
-        return add_char_2_dyn_string( line, '?' );
+        return ds_add_char( line, '?' );
     }
 
     if ( ( state & align_iter_first ) == align_iter_first ) {
@@ -643,23 +643,23 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
         s[ 0 ] = '^';
         s[ 1 ] = c;
         s[ 2 ] = 0;
-        rc = add_string_2_dyn_string( line, s );
+        rc = ds_add_str( line, s );
     }
 
     if ( rc == 0 ) {
         if ( ( state & align_iter_skip ) == align_iter_skip ) {
             if ( reverse ) {
-                rc = add_char_2_dyn_string( line, '<' );
+                rc = ds_add_char( line, '<' );
             } else {
-                rc = add_char_2_dyn_string( line, '>' );
+                rc = ds_add_char( line, '>' );
             }
             if ( !( options -> cmn . omit_qualities ) )
                 *qual = xrec -> quality[ seq_pos + 1 ];
         } else {
             if ( ( state & align_iter_match ) == align_iter_match ) {
-                rc = add_char_2_dyn_string( line, ( reverse ? ',' : '.' ) );
+                rc = ds_add_char( line, ( reverse ? ',' : '.' ) );
             } else {
-                rc = add_char_2_dyn_string( line, _4na_to_ascii( state, reverse ) );
+                rc = ds_add_char( line, _4na_to_ascii( state, reverse ) );
             }
         }
     }
@@ -669,9 +669,9 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
         uint32_t i;
         uint32_t n = ReferenceIteratorBasesInserted ( ref_iter, &bases );
         
-        rc = print_2_dyn_string( line, "+%u", n );
+        rc = ds_add_fmt( line, "+%u", n );
         for ( i = 0; i < n && rc == 0; ++i ) {
-            rc = add_char_2_dyn_string( line, _4na_to_ascii( bases[ i ], reverse ) );
+            rc = ds_add_char( line, _4na_to_ascii( bases[ i ], reverse ) );
         }
     }
 
@@ -681,21 +681,21 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
         uint32_t n = ReferenceIteratorBasesDeleted ( ref_iter, &ref_pos, &bases );
         if ( bases != NULL ) {
             uint32_t i;
-            rc = print_2_dyn_string( line, "-%u", n );
+            rc = ds_add_fmt( line, "-%u", n );
             for ( i = 0; i < n && rc == 0; ++i )  {
-                rc = add_char_2_dyn_string( line, _4na_to_ascii( bases[ i ], reverse ) );
+                rc = ds_add_char( line, _4na_to_ascii( bases[ i ], reverse ) );
             }
             free( (void *) bases );
         }
     }
 
     if ( ( ( state & align_iter_last ) == align_iter_last )&& ( rc == 0 ) ) {
-        rc = add_char_2_dyn_string( line, '$' );
+        rc = ds_add_char( line, '$' );
     }
     
     if ( options -> show_id ) {
-        rc = print_2_dyn_string( line, "(%,lu:%,d-%,d/%u)",
-                                 rec -> id, rec -> pos + 1, rec -> pos + rec -> len, seq_pos );
+        rc = ds_add_fmt( line, "(%,lu:%,d-%,d/%u)",
+                         rec -> id, rec -> pos + 1, rec -> pos + rec -> len, seq_pos );
     }
 
     return rc;
@@ -709,12 +709,12 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
     uint32_t depth = 0;
     rc_t rc;
 
-    reset_dyn_string( events );
+    ds_reset( events );
     do {
         const PlacementRecord *rec;
         rc = ReferenceIteratorNextPlacement ( ref_iter, &rec );
         if ( rc == 0 ) {
-            rc = walk_ref_position( ref_iter, rec, events, dyn_string_char( qualities, depth++ ), options );
+            rc = walk_ref_position( ref_iter, rec, events, ds_get_char( qualities, depth++ ), options );
         }
         if ( rc == 0 ) {
             rc = Quitting();
@@ -722,17 +722,19 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
     } while ( rc == 0 );
 
     if ( options -> depth_per_spotgrp ) {
-        print_2_dyn_string( line, "%d\t", depth );
+        rc = ds_add_fmt( line, "%d\t", depth );
     }
     
-    add_dyn_string_2_dyn_string( line, events );
-
-    if ( !( options -> cmn . omit_qualities ) ) {
+    if ( 0 == rc ) {
+        rc = ds_add_ds( line, events );
+    }
+    
+    if ( 0 == rc && !( options -> cmn . omit_qualities ) ) {
         uint32_t i;
-        add_char_2_dyn_string( line, '\t' );
-        for ( i = 0; i < depth; ++i ) {
-            char * c = dyn_string_char( qualities, i );
-            add_char_2_dyn_string( line, *c + 33 );
+        rc = ds_add_char( line, '\t' );
+        for ( i = 0; 0 == rc && i < depth; ++i ) {
+            char * c = ds_get_char( qualities, i );
+            rc = ds_add_char( line, *c + 33 );
         }
     }
 
@@ -746,12 +748,12 @@ static rc_t walk_spot_groups( ReferenceIterator *ref_iter,
                               struct dyn_string *qualities,
                               pileup_options *options ) {
     rc_t rc;
-    reset_dyn_string( events );
+    ds_reset( events );
     do
     {
         rc = ReferenceIteratorNextSpotGroup ( ref_iter, NULL, NULL );
         if ( rc == 0 ) {
-            add_char_2_dyn_string( line, '\t' );
+            rc = ds_add_char( line, '\t' );
         }
         if ( rc == 0 ) {
             rc = walk_alignments( ref_iter, line, events, qualities, options );
@@ -781,20 +783,20 @@ static rc_t walk_position( ReferenceIterator *ref_iter,
     else if ( ( depth > 0 )||( options -> no_skip ) ) {
         bool skip = skiplist_is_skip_position( options -> skiplist, pos + 1 );
         if ( !skip ) {
-            rc = expand_dyn_string( line, ( 5 * depth ) + 100 );
+            rc = ds_expand( line, ( 5 * depth ) + 100 );
             if ( rc == 0 ) {
-                rc = expand_dyn_string( events, ( 5 * depth ) + 100 );
+                rc = ds_expand( events, ( 5 * depth ) + 100 );
                 if ( rc == 0 ) {
-                    rc = expand_dyn_string( qualities, depth + 100 );
+                    rc = ds_expand( qualities, depth + 100 );
                     if ( rc == 0 ) {
                         char c = _4na_to_ascii( base, false );
 
-                        reset_dyn_string( line );
+                        ds_reset( line );
                     
-                        if ( options->depth_per_spotgrp ) {
-                            rc = print_2_dyn_string( line, "%s\t%u\t%c", refname, pos + 1, c );
+                        if ( options -> depth_per_spotgrp ) {
+                            rc = ds_add_fmt( line, "%s\t%u\t%c", refname, pos + 1, c );
                         } else {
-                            rc = print_2_dyn_string( line, "%s\t%u\t%c\t%u", refname, pos + 1, c, depth );
+                            rc = ds_add_fmt( line, "%s\t%u\t%c\t%u", refname, pos + 1, c, depth );
                         }
                         if ( rc == 0 ) {
                             if ( depth > 0 ) {
@@ -802,7 +804,7 @@ static rc_t walk_position( ReferenceIterator *ref_iter,
                             }
                             /* only one KOutMsg() per line... */
                             if ( rc == 0 ) {
-                                rc = KOutMsg( "%s\n", dyn_string_char( line, 0 ) );
+                                rc = KOutMsg( "%s\n", ds_get_char( line, 0 ) );
                             }
                             if ( GetRCState( rc ) == rcDone ) { rc = 0; }
                         }
@@ -842,13 +844,13 @@ static rc_t walk_reference( ReferenceIterator *ref_iter,
                             const char * refname,
                             pileup_options *options ) {
     struct dyn_string * line;
-    rc_t rc = allocate_dyn_string ( &line, 4096 );
+    rc_t rc = ds_allocate( &line, 4096 );
     if ( rc == 0 ) {
         struct dyn_string * events;
-        rc_t rc = allocate_dyn_string ( &events, 4096 );
+        rc_t rc = ds_allocate( &events, 4096 );
         if ( rc == 0 ) {
             struct dyn_string * qualities;
-            rc = allocate_dyn_string ( &qualities, 4096 );
+            rc = ds_allocate( &qualities, 4096 );
             if ( rc == 0 ) {
                 while ( rc == 0 ) {
                     rc = Quitting ();
@@ -865,11 +867,11 @@ static rc_t walk_reference( ReferenceIterator *ref_iter,
                         }
                     }
                 }
-                free_dyn_string ( qualities );
+                ds_free( qualities );
             }
-            free_dyn_string( events );
+            ds_free( events );
         }
-        free_dyn_string ( line );
+        ds_free( line );
     }
     if ( GetRCState( rc ) == rcDone ) { rc = 0; }
     return rc;

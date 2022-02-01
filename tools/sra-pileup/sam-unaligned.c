@@ -65,24 +65,26 @@ static rc_t prepare_prim_table_ctx( const samdump_opts * const opts,
     rc_t rc;
 
     if ( opts->cursor_cache_size == 0 ) {
-        rc = VTableCreateCursorRead( itab->tab, &ptx->cursor );
+        rc = VTableCreateCursorRead( itab -> tab, &( ptx -> cursor ) );
     } else {
-        rc = VTableCreateCachedCursorRead( itab->tab, &ptx->cursor, opts->cursor_cache_size );
+        rc = VTableCreateCachedCursorRead( itab -> tab, &( ptx -> cursor ), opts -> cursor_cache_size );
     }
     if ( rc != 0 ) {
-        (void)PLOGERR( klogInt, ( klogInt, rc, "VTableCreateCursorRead( PRIMARY_ALIGNMENT ) for $(tn) failed", "tn=%s", itab->path ) );
+        (void)PLOGERR( klogInt, ( klogInt, rc, "VTableCreateCursorRead( PRIMARY_ALIGNMENT ) for $(tn) failed",
+                                  "tn=%s", itab -> path ) );
     } else {
-        rc = add_column( ptx->cursor, COL_REF_NAME, &ptx->ref_name_idx );
+        rc = add_column( ptx -> cursor, COL_REF_NAME, &( ptx -> ref_name_idx ) );
         if ( rc == 0 ) {
-            rc = add_column( ptx->cursor, COL_REF_SEQ_ID, &ptx->ref_seq_id_idx );
+            rc = add_column( ptx -> cursor, COL_REF_SEQ_ID, &( ptx -> ref_seq_id_idx ) );
         }
         if ( rc == 0 ) {
-            rc = add_column( ptx->cursor, COL_REF_POS, &ptx->ref_pos_idx );
+            rc = add_column( ptx -> cursor, COL_REF_POS, &( ptx -> ref_pos_idx ) );
         }
         if ( rc == 0 ) {
-            rc = VCursorOpen( ptx->cursor );
+            rc = VCursorOpen( ptx -> cursor );
             if ( rc != 0 ) {
-                (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( PRIMARY_ALIGNMENT ) for $(tn) failed", "tn=%s", itab->path ) );
+                (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( PRIMARY_ALIGNMENT ) for $(tn) failed",
+                                          "tn=%s", itab -> path ) );
             }
         }
     }
@@ -121,32 +123,33 @@ static rc_t prepare_seq_table_ctx( const samdump_opts * const opts,
                                    const input_table * const itab,
                                    seq_table_ctx * const stx ) {
     struct KNamelist * available_columns;
-    rc_t rc = VTableListReadableColumns ( itab->tab, &available_columns );
+    rc_t rc = VTableListReadableColumns ( itab -> tab, &available_columns );
     if ( rc != 0 ) {
         (void)PLOGERR( klogInt, ( klogInt, rc, 
-            "VTableListReadableColumns( SEQUENCE ) for $(tn) failed", "tn=%s", itab->path ) );
+            "VTableListReadableColumns( SEQUENCE ) for $(tn) failed", "tn=%s", itab -> path ) );
     } else {
-        if ( opts->cursor_cache_size == 0 ) {
-            rc = VTableCreateCursorRead( itab->tab, &stx->cursor );
+        if ( opts -> cursor_cache_size == 0 ) {
+            rc = VTableCreateCursorRead( itab -> tab, &( stx -> cursor ) );
         } else {
-            rc = VTableCreateCachedCursorRead( itab->tab, &stx->cursor, opts->cursor_cache_size );
+            rc = VTableCreateCachedCursorRead( itab -> tab, &( stx -> cursor ), opts -> cursor_cache_size );
         }
         if ( rc != 0 ) {
-            (void)PLOGERR( klogInt, ( klogInt, rc, "VTableCreateCursorRead( SEQUENCE ) for $(tn) failed", "tn=%s", itab->path ) );
+            (void)PLOGERR( klogInt, ( klogInt, rc, "VTableCreateCursorRead( SEQUENCE ) for $(tn) failed",
+                                      "tn=%s", itab -> path ) );
         } else {
-            add_opt_column( stx->cursor, available_columns, COL_ALIGN_COUNT, &stx->align_count_idx ); /* read_fkt.c */
-            add_opt_column( stx->cursor, available_columns, COL_PRIM_AL_ID, &stx->prim_al_id_idx );
-            add_opt_column( stx->cursor, available_columns, COL_NAME, &stx->name_idx );
-            add_opt_column( stx->cursor, available_columns, COL_LNK_GROUP, &stx->lnk_group_idx );
+            add_opt_column( stx -> cursor, available_columns, COL_ALIGN_COUNT, &( stx -> align_count_idx ) ); /* read_fkt.c */
+            add_opt_column( stx -> cursor, available_columns, COL_PRIM_AL_ID, &( stx -> prim_al_id_idx ) );
+            add_opt_column( stx -> cursor, available_columns, COL_NAME, &( stx -> name_idx ) );
+            add_opt_column( stx -> cursor, available_columns, COL_LNK_GROUP, &( stx -> lnk_group_idx ) );
             
-            if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ_TYPE, &stx->read_type_idx ); } /* read_fkt.c */
-            if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ_FILTER, &stx->read_filter_idx ); }
-            if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ_LEN, &stx->read_len_idx ); }
-            if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ_START, &stx->read_start_idx ); }
-            if ( rc == 0 ) { rc = add_column( stx->cursor, COL_READ, &stx->read_idx ); }
-            if ( rc == 0 ) { rc = add_column( stx->cursor, COL_SPOT_GROUP, &stx->spot_group_idx ); }
+            if ( rc == 0 ) { rc = add_column( stx -> cursor, COL_READ_TYPE, &( stx -> read_type_idx ) ); } /* read_fkt.c */
+            if ( rc == 0 ) { rc = add_column( stx -> cursor, COL_READ_FILTER, &( stx -> read_filter_idx ) ); }
+            if ( rc == 0 ) { rc = add_column( stx -> cursor, COL_READ_LEN, &( stx -> read_len_idx ) ); }
+            if ( rc == 0 ) { rc = add_column( stx -> cursor, COL_READ_START, &( stx -> read_start_idx ) ); }
+            if ( rc == 0 ) { rc = add_column( stx -> cursor, COL_READ, &( stx -> read_idx ) ); }
+            if ( rc == 0 ) { rc = add_column( stx -> cursor, COL_SPOT_GROUP, &( stx -> spot_group_idx ) ); }
             if ( rc == 0 && ( !( opts -> no_qual ) ) ) {
-                rc = add_column( stx->cursor, COL_QUALITY, &stx->quality_idx );
+                rc = add_column( stx -> cursor, COL_QUALITY, &( stx -> quality_idx ) );
             }
         }
         KNamelistRelease( available_columns );
@@ -174,20 +177,21 @@ static rc_t read_seq_row( const samdump_opts * const opts,
                           seq_row * const row ) {
     rc_t rc = 0;
 
-    if ( stx->align_count_idx == INVALID_COLUMN ) {
+    if ( stx -> align_count_idx == INVALID_COLUMN ) {
         const INSDC_read_type *ptr;
 
-        row->fully_unaligned = true;
-        row->partly_unaligned = false;
-        row->filtered_out = false;
-        rc = read_INSDC_read_type_ptr( row_id, stx->cursor, stx->read_type_idx, &ptr, &row->nreads, "READ_TYPE" );
+        row -> fully_unaligned = true;
+        row -> partly_unaligned = false;
+        row -> filtered_out = false;
+        rc = read_INSDC_read_type_ptr( row_id, stx -> cursor, stx -> read_type_idx, &ptr,
+                                       &( row -> nreads ), "READ_TYPE" );
     } else {
         const uint8_t * u8ptr;
         uint32_t len;
 
         /* ALIGNMENT_COUNT ... only to detect if reads are unaligned, could be done with PRIMARY_ALINGMENT too,
            but this one is only 8 bit instead of 64 bit, that means faster */
-        rc = read_uint8_ptr( row_id, stx->cursor, stx->align_count_idx, &u8ptr, &len, "ALIGN_COUNT" );
+        rc = read_uint8_ptr( row_id, stx -> cursor, stx -> align_count_idx, &u8ptr, &len, "ALIGN_COUNT" );
         if ( rc == 0 ) {
             uint32_t i, n;
 
@@ -195,15 +199,15 @@ static rc_t read_seq_row( const samdump_opts * const opts,
             for ( i = 0, n = 0; i < len; ++i ) {
                 if ( u8ptr[ i ] != 0 ) { n++; }
             }
-            row->fully_unaligned = ( n == 0 );
-            row->partly_unaligned = ( n < len && n > 0 );
+            row -> fully_unaligned = ( n == 0 );
+            row -> partly_unaligned = ( n < len && n > 0 );
 
-            if ( row->partly_unaligned ) {
-                row->filtered_out = !opts->print_half_unaligned_reads;
-            } else if ( row->fully_unaligned ) {
-                row->filtered_out = !opts->print_fully_unaligned_reads;
+            if ( row -> partly_unaligned ) {
+                row -> filtered_out = !( opts -> print_half_unaligned_reads );
+            } else if ( row -> fully_unaligned ) {
+                row -> filtered_out = !( opts -> print_fully_unaligned_reads );
             } else {
-                row->filtered_out = true;
+                row -> filtered_out = true;
             }
         }
     }
@@ -304,18 +308,20 @@ static rc_t get_mate_info( const prim_table_ctx * const ptx,
     if ( mate_id != 0 ) {
         uint32_t ref_idx;
         int64_t seq_spot_id;
-        rc = matecache_lookup_unaligned( mc, ids->db_idx, mate_id, mate_ref_pos, &ref_idx, &seq_spot_id );
+        rc = matecache_lookup_unaligned( mc, ids -> db_idx, mate_id, mate_ref_pos, &ref_idx, &seq_spot_id );
         if ( rc == 0 ) {
             const ReferenceObj* refobj;
             *mate_ref_pos += 1;
             /* now we have to lookup the reference-name based on it's index into the ids->reflist */
-            rc = ReferenceList_Get( ids->reflist, &refobj, ref_idx );
+            rc = ReferenceList_Get( ids -> reflist, &refobj, ref_idx );
             if ( rc != 0 ) {
-                (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)", "rn=%ld,rx=%ld", mate_id, row_id ) );
+                (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)",
+                                          "rn=%ld,rx=%ld", mate_id, row_id ) );
             } else {
                 rc = ReferenceObj_Name( refobj, mate_ref_name );
                 if ( rc != 0 ) {
-                    (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)", "rn=%ld,rx=%ld", mate_id, row_id ) );
+                    (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)",
+                                              "rn=%ld,rx=%ld", mate_id, row_id ) );
                 } else {
                     *mate_ref_name_len = string_size( *mate_ref_name );
                 }
@@ -325,14 +331,14 @@ static rc_t get_mate_info( const prim_table_ctx * const ptx,
             const char * ptr;
             uint32_t len;
 
-            rc = read_char_ptr( mate_id, ptx->cursor, ptx->ref_name_idx, &ptr, &len, "REF_NAME" );
+            rc = read_char_ptr( mate_id, ptx -> cursor, ptx -> ref_name_idx, &ptr, &len, "REF_NAME" );
             if ( rc == 0 && len > 0 ) {
                 *mate_ref_name = ptr;
                 *mate_ref_name_len = len;
             }
             if ( rc == 0 ) {
                 INSDC_coord_zero pos;
-                rc = read_INSDC_coord_zero( mate_id, ptx->cursor, ptx->ref_pos_idx, &pos, 0, "REF_POS" );
+                rc = read_INSDC_coord_zero( mate_id, ptx -> cursor, ptx -> ref_pos_idx, &pos, 0, "REF_POS" );
                 if ( rc == 0 ) {
                     *mate_ref_pos = ( pos + 1 );
                 }
@@ -375,22 +381,31 @@ static rc_t print_sliced_read( const INSDC_dna_text * read,
     return rc;
 }
 
-static rc_t print_sliced_quality( const samdump_opts * const opts,
+static rc_t print_sliced_quality( const sam_dump_ctx * sam_ctx,
                                   const char * quality,
                                   uint32_t read_idx,
                                   bool reverse,
                                   const INSDC_coord_zero * read_start,
                                   const INSDC_coord_len * read_len ) {
+    const samdump_opts * opts = sam_ctx -> opts;
     rc_t rc;
-    if ( !( opts -> no_qual ) ) {
+    if ( opts -> no_qual ) {
+        /* here we have to act based on output_format: sam->*, fastq->'????'(n=read_len) */
+        if ( opts -> output_format == of_fastq ) {
+            /* fill sam_ctx -> ds with read_len[ read_idx ] '?' chars */
+            uint32_t n = read_len[ read_idx ];
+            if ( n > 0 ) {
+                rc = ds_print_char_n( sam_ctx -> ds, '?', n );
+            }
+        } else {
+            rc = KOutMsg( "*" );
+        }
+    } else {
         const char * quality_ptr = quality + read_start[ read_idx ];
         rc = dump_quality( opts, quality_ptr, read_len[ read_idx ], reverse ); /* sam-dump-opts.c */
-    } else {
-        rc = KOutMsg( "*" );
     }
     return rc;
 }
-
 
 static rc_t dump_the_other_read( const seq_table_ctx * const stx,
                                  const prim_table_ctx * const ptx,
@@ -400,12 +415,15 @@ static rc_t dump_the_other_read( const seq_table_ctx * const stx,
     const int64_t *prim_al_id_ptr;
 
     /* read from the SEQUENCE-table the value of the colum "PRIMARY_ALIGNMENT_ID"[ mate_idx ] */
-    rc_t rc = read_int64_ptr( row_id, stx->cursor, stx->prim_al_id_idx, &prim_al_id_ptr, &row_len, "PRIM_AL_ID" );
+    rc_t rc = read_int64_ptr( row_id, stx -> cursor, stx -> prim_al_id_idx,
+                              &prim_al_id_ptr, &row_len, "PRIM_AL_ID" );
     if ( rc == 0 ) {
         if ( row_len == 0 ) {
-            (void)PLOGERR( klogInt, ( klogInt, rc, "rowlen zero in row $(rn) of SEQUENCE.PRIMARY_ALIGNMENT_ID", "rn=%ld", row_id ) );
+            (void)PLOGERR( klogInt, ( klogInt, rc, "rowlen zero in row $(rn) of SEQUENCE.PRIMARY_ALIGNMENT_ID",
+                                      "rn=%ld", row_id ) );
         } else if ( mate_idx >= row_len ) {
-            (void)PLOGERR( klogInt, ( klogInt, rc, "mate_idx invalid in row $(rn) of SEQUENCE.PRIMARY_ALIGNMENT_ID", "rn=%ld", row_id ) );
+            (void)PLOGERR( klogInt, ( klogInt, rc, "mate_idx invalid in row $(rn) of SEQUENCE.PRIMARY_ALIGNMENT_ID",
+                                      "rn=%ld", row_id ) );
         } else {
             /* read from the PRIMARY_ALIGNMENT_TABLE the value of the columns "REF_NAME" and "REF_POS" */
             int64_t a_row_id = prim_al_id_ptr[ mate_idx ];
@@ -414,13 +432,16 @@ static rc_t dump_the_other_read( const seq_table_ctx * const stx,
             } else {
                 const char * ref_name;
                 uint32_t ref_name_len;
-                rc = read_char_ptr( a_row_id, ptx->cursor, ptx->ref_name_idx, &ref_name, &ref_name_len, "REF_NAME" );
+                rc = read_char_ptr( a_row_id, ptx -> cursor, ptx -> ref_name_idx, &ref_name,
+                                    &ref_name_len, "REF_NAME" );
                 if ( rc == 0 ) {
                     if ( ref_name_len == 0 ) {
-                        (void)PLOGERR( klogInt, ( klogInt, rc, "rowlen zero in row $(rn) of PRIM.REF_NAME", "rn=%ld", a_row_id ) );
+                        (void)PLOGERR( klogInt, ( klogInt, rc, "rowlen zero in row $(rn) of PRIM.REF_NAME",
+                                                  "rn=%ld", a_row_id ) );
                     } else {
                         const INSDC_coord_zero *ref_pos;
-                        rc = read_INSDC_coord_zero_ptr( a_row_id, ptx->cursor, ptx->ref_pos_idx, &ref_pos, &row_len, "REF_POS" );
+                        rc = read_INSDC_coord_zero_ptr( a_row_id, ptx -> cursor, ptx -> ref_pos_idx,
+                                                        &ref_pos, &row_len, "REF_POS" );
                         if ( rc == 0 ) {
                             rc = KOutMsg( "%.*s\t%i\t", ref_name_len, ref_name, ref_pos[ 0 ] + 1 );
                         }
@@ -445,7 +466,7 @@ static rc_t read_quality( const seq_table_ctx * const stx,
                           const char **quality,
                           const uint32_t read_len ) {
     uint32_t quality_len;
-    rc_t rc = read_char_ptr( row_id, stx->cursor, stx->quality_idx, quality, &quality_len, "QUALITY" );
+    rc_t rc = read_char_ptr( row_id, stx -> cursor, stx -> quality_idx, quality, &quality_len, "QUALITY" );
     if ( rc == 0 && read_len != quality_len ) {
         rc = complain_size_diff( row_id, "QUALITY" );
     }
@@ -457,7 +478,8 @@ static rc_t read_read_type( const seq_table_ctx * const stx,
                             const INSDC_read_type **read_type,
                             const uint32_t read_len ) {
     uint32_t read_type_len;
-    rc_t rc = read_INSDC_read_type_ptr( row_id, stx->cursor, stx->read_type_idx, read_type, &read_type_len, "READ_TYPE" );
+    rc_t rc = read_INSDC_read_type_ptr( row_id, stx -> cursor, stx -> read_type_idx, read_type,
+                                        &read_type_len, "READ_TYPE" );
     if ( rc == 0 && read_type_len != read_len ) {
         rc = complain_size_diff( row_id, "READ_TYPE" );
     }
@@ -469,7 +491,8 @@ static rc_t read_read_filter( const seq_table_ctx * const stx,
                               const INSDC_read_filter **read_filter,
                               const uint32_t read_len ) {
     uint32_t read_filter_len;
-    rc_t rc = read_INSDC_read_filter_ptr( row_id, stx->cursor, stx->read_filter_idx, read_filter, &read_filter_len, "READ_FILTER" );
+    rc_t rc = read_INSDC_read_filter_ptr( row_id, stx -> cursor, stx -> read_filter_idx,
+                                          read_filter, &read_filter_len, "READ_FILTER" );
     if ( rc == 0 && read_filter_len != read_len ) {
         rc = complain_size_diff( row_id, "READ_FILTER" );
     }
@@ -481,7 +504,8 @@ static rc_t read_read_start( const seq_table_ctx * const stx,
                              const INSDC_coord_zero **read_start,
                              const uint32_t nreads ) {
     uint32_t read_start_len;
-    rc_t rc = read_INSDC_coord_zero_ptr( row_id, stx->cursor, stx->read_start_idx, read_start, &read_start_len, "READ_START" );
+    rc_t rc = read_INSDC_coord_zero_ptr( row_id, stx -> cursor, stx -> read_start_idx,
+                                         read_start, &read_start_len, "READ_START" );
     if ( rc == 0 && nreads != read_start_len ) {
         rc = complain_size_diff( row_id, "READ_START" );
     }
@@ -493,7 +517,8 @@ static rc_t read_read_len( const seq_table_ctx * const stx,
                            const INSDC_coord_len **read_len,
                            const uint32_t nreads ) {
     uint32_t read_len_len;
-    rc_t rc = read_INSDC_coord_len_ptr( row_id, stx->cursor, stx->read_len_idx, read_len, &read_len_len, "READ_LEN" );
+    rc_t rc = read_INSDC_coord_len_ptr( row_id, stx -> cursor, stx -> read_len_idx,
+                                        read_len, &read_len_len, "READ_LEN" );
     if ( rc == 0 && nreads != read_len_len ) {
         rc = complain_size_diff( row_id, "READ_LEN" );
     }
@@ -513,7 +538,8 @@ static bool calc_reverse_flag( const samdump_opts * const opts,
 static rc_t opt_field_spot_group( const seq_table_ctx * const stx, int64_t row_id ) {
     const char * spot_group = NULL;
     uint32_t spot_group_len;    
-    rc_t rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+    rc_t rc = read_char_ptr( row_id, stx -> cursor, stx -> spot_group_idx, &spot_group,
+                             &spot_group_len, "SPOT_GROUP" );
     if ( rc == 0 && spot_group_len > 0 ) {
         rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
     }
@@ -523,21 +549,21 @@ static rc_t opt_field_spot_group( const seq_table_ctx * const stx, int64_t row_i
 static rc_t opt_field_lnk_group( const seq_table_ctx * const stx, int64_t row_id ) {
     const char * lnk_grp;
     uint32_t lnk_grp_len;
-    rc_t rc = read_char_ptr( row_id, stx->cursor, stx->lnk_group_idx, &lnk_grp, &lnk_grp_len, "LINKAGE_GROUP" );
+    rc_t rc = read_char_ptr( row_id, stx -> cursor, stx -> lnk_group_idx, &lnk_grp,
+                             &lnk_grp_len, "LINKAGE_GROUP" );
     if ( rc == 0 && lnk_grp_len > 0 ) {
         rc = KOutMsg( "\tBX:Z:%.*s", lnk_grp_len, lnk_grp );
     }
     return rc;
 }
 
-static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
+static rc_t dump_seq_row_sam_filtered( const sam_dump_ctx * sam_ctx,
                                        const seq_table_ctx * const stx,
                                        const prim_table_ctx * const ptx,
-                                       const matecache * const mc,
                                        const input_database * const ids,
                                        const int64_t row_id,
                                        const uint32_t nreads ) {
-    uint32_t read_idx, rd_len, prim_align_ids_len;
+    const samdump_opts * opts = sam_ctx -> opts;
     const int64_t * prim_align_ids;
     const char * quality = NULL;
     const INSDC_dna_text * read = NULL;
@@ -545,8 +571,10 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
     const INSDC_read_filter * read_filter = NULL;
     const INSDC_coord_zero * read_start = NULL;
     const INSDC_coord_len * read_len;
-
-    rc_t rc = read_int64_ptr( row_id, stx->cursor, stx->prim_al_id_idx, &prim_align_ids, &prim_align_ids_len, "PRIM_AL_ID" );
+    uint32_t read_idx, rd_len, prim_align_ids_len;
+    
+    rc_t rc = read_int64_ptr( row_id, stx -> cursor, stx -> prim_al_id_idx, &prim_align_ids,
+                              &prim_align_ids_len, "PRIM_AL_ID" );
     if ( rc == 0 && nreads != prim_align_ids_len ) {
         rc = complain_size_diff( row_id, "PRIMARY_ALIGNMENT_ID" );
     }
@@ -570,18 +598,21 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                 INSDC_coord_zero mate_ref_pos;
                 int64_t seq_spot_id;
                 /* this is the filter: we look up in the mate-cache! */
-                rc = matecache_lookup_unaligned( mc, ids->db_idx, align_id, &mate_ref_pos, &ref_idx, &seq_spot_id );
+                rc = matecache_lookup_unaligned( sam_ctx -> mc, ids -> db_idx, align_id,
+                                                 &mate_ref_pos, &ref_idx, &seq_spot_id );
                 if ( rc == 0 ) {
                     const ReferenceObj* refobj;
                     /* now we have to lookup the reference-name based on it's index into the ids->reflist */
-                    rc = ReferenceList_Get( ids->reflist, &refobj, ref_idx );
+                    rc = ReferenceList_Get( ids -> reflist, &refobj, ref_idx );
                     if ( rc != 0 ) {
-                        (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)", "rn=%ld,rx=%ld", mate_idx, row_id ) );
+                        (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)",
+                                                  "rn=%ld,rx=%ld", mate_idx, row_id ) );
                     } else {
                         const char * mate_ref_name;
                         rc = ReferenceObj_Name( refobj, &mate_ref_name );
                         if ( rc != 0 ) {
-                            (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)", "rn=%ld,rx=%ld", mate_idx, row_id ) );
+                            (void)PLOGERR( klogInt, ( klogInt, rc, "in row $(rn) of SEQUENCE.$(rx)",
+                                                      "rn=%ld,rx=%ld", mate_idx, row_id ) );
                         } else {
                             bool reverse = false;
 
@@ -589,10 +620,11 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                             if ( rc == 0 ) {
                                 bool print_just_seq_spot_id = true;
                                 
-                                if ( opts->print_spot_group_in_name ) {
+                                if ( opts -> print_spot_group_in_name ) {
                                     const char * spot_group;
                                     uint32_t spot_group_len;
-                                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                                    rc = read_char_ptr( row_id, stx -> cursor, stx -> spot_group_idx,
+                                                        &spot_group, &spot_group_len, "SPOT_GROUP" );
                                     if ( rc == 0 && spot_group_len > 0 ) {
                                         rc = KOutMsg( "%ld.%.*s\t", seq_spot_id, spot_group_len, spot_group );
                                         print_just_seq_spot_id = false;
@@ -615,7 +647,7 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                             /* SAM-FIELD: FLAG      SRA-column: calculated from READ_TYPE, READ_FILTER etc. */
                             if ( rc == 0 ) {
                                 uint32_t sam_flags = calculate_unaligned_sam_flags_db( nreads, read_idx, mate_idx, 
-                                                                                    align_id, read_type, reverse, read_filter );
+                                                                       align_id, read_type, reverse, read_filter );
                                 rc = KOutMsg( "%u\t", sam_flags );
                             }
 
@@ -636,7 +668,8 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                                 rc = KOutMsg( "0\t" );
                             }
                             if ( rc == 0 && read == NULL ) {
-                                rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
+                                rc = read_INSDC_dna_text_ptr( row_id, stx -> cursor, stx -> read_idx,
+                                                              &read, &rd_len, "READ" );
                             }
                             if ( rc == 0 && quality == NULL && ( ! ( opts -> no_qual ) ) ) {
                                 rc = read_quality( stx, row_id, &quality, rd_len );
@@ -653,18 +686,18 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                             }
                             /* SAM-FIELD: QUAL      SRA-column: QUALITY, sliced by READ_START/READ_LEN */
                             if ( rc == 0 ) {
-                                rc = print_sliced_quality( opts, quality, read_idx, reverse, read_start, read_len );
+                                rc = print_sliced_quality( sam_ctx, quality, read_idx, reverse, read_start, read_len );
                             }
                             /* OPT SAM-FIELD:       SRA-column: ALIGN_ID */
-                            if ( rc == 0 && opts->print_alignment_id_in_column_xi ) {
+                            if ( rc == 0 && opts -> print_alignment_id_in_column_xi ) {
                                 rc = KOutMsg( "\tXI:i:%u", row_id );
                             }
                             /* OPT SAM-FIELD:      SRA-column: SPOT_GROUP */
-                            if ( rc == 0 && stx->spot_group_idx != COL_NOT_AVAILABLE ) {
+                            if ( rc == 0 && stx -> spot_group_idx != COL_NOT_AVAILABLE ) {
                                 rc = opt_field_spot_group( stx, row_id );
                             }
                             /* OPT SAM-FIELD:       SRA-column: LINKAGE_GROUP */
-                            if ( rc == 0 && stx->lnk_group_idx != COL_NOT_AVAILABLE ) {
+                            if ( rc == 0 && stx -> lnk_group_idx != COL_NOT_AVAILABLE ) {
                                 rc = opt_field_lnk_group( stx, row_id );
                             }
                             if ( rc == 0 ) {
@@ -681,14 +714,13 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
     return rc;
 }
 
-static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
+static rc_t dump_seq_prim_row_sam( const sam_dump_ctx * sam_ctx,
                                    const seq_table_ctx * const stx,
                                    const prim_table_ctx * const ptx,
-                                   const matecache * const mc,
                                    const input_database * const ids,
                                    const int64_t row_id,
                                    const uint32_t nreads ) {
-    uint32_t read_idx, rd_len, prim_align_ids_len;
+    const samdump_opts * opts = sam_ctx -> opts;
     const int64_t * prim_align_ids;
     const char * quality = NULL;
     const INSDC_dna_text * read = NULL;
@@ -696,8 +728,10 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
     const INSDC_read_filter * read_filter = NULL;
     const INSDC_coord_zero * read_start = NULL;
     const INSDC_coord_len * read_len;
-
-    rc_t rc = read_int64_ptr( row_id, stx->cursor, stx->prim_al_id_idx, &prim_align_ids, &prim_align_ids_len, "PRIM_AL_ID" );
+    uint32_t read_idx, rd_len, prim_align_ids_len;
+    
+    rc_t rc = read_int64_ptr( row_id, stx -> cursor, stx -> prim_al_id_idx, &prim_align_ids,
+                              &prim_align_ids_len, "PRIM_AL_ID" );
     if ( rc == 0 && nreads != prim_align_ids_len ) {
         rc = complain_size_diff( row_id, "PRIMARY_ALIGNMENT_ID" );
     }
@@ -739,7 +773,8 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
                 if ( opts -> print_spot_group_in_name ) {
                     const char * spot_group;
                     uint32_t spot_group_len;
-                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                    rc = read_char_ptr( row_id, stx -> cursor, stx -> spot_group_idx,
+                                        &spot_group, &spot_group_len, "SPOT_GROUP" );
                     if ( rc == 0 && spot_group_len > 0 ) {
                         rc = KOutMsg( "%ld.%.*s\t", row_id, spot_group_len, spot_group );
                         print_just_seq_spot_id = false;
@@ -753,7 +788,7 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
             /* SAM-FIELD: FLAG      SRA-column: calculated from READ_TYPE, READ_FILTER etc. */
             if ( rc == 0 ) {
                 uint32_t sam_flags;
-                if ( stx->prim_al_id_idx != INVALID_COLUMN ) {
+                if ( stx -> prim_al_id_idx != INVALID_COLUMN ) {
                     uint32_t temp_nreads = nreads;
                     if ( mate_id == 0 && read_len[ mate_idx ] == 0 ) temp_nreads--;
                     sam_flags = calculate_unaligned_sam_flags_db( temp_nreads, read_idx, mate_idx, 
@@ -781,12 +816,13 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
                 if ( ptx == NULL || !mate_available ) {
                     rc = KOutMsg( "*\t0\t" );   /* no way to get that without PRIM_ALIGN-table */
                 } else {
-                    if ( opts->use_mate_cache && mc != NULL && ids != NULL ) {
+                    if ( opts -> use_mate_cache && sam_ctx -> mc != NULL && ids != NULL ) {
                         const char * mate_ref_name;
                         uint32_t mate_ref_name_len;
                         INSDC_coord_zero mate_ref_pos;
 
-                        rc = get_mate_info( ptx, mc, ids, row_id, mate_id, nreads, &mate_ref_name, &mate_ref_name_len, &mate_ref_pos );
+                        rc = get_mate_info( ptx, sam_ctx -> mc, ids, row_id, mate_id, nreads,
+                                            &mate_ref_name, &mate_ref_name_len, &mate_ref_pos );
                         if ( rc == 0 ) {
                             rc = KOutMsg( "%.*s\t%li\t", mate_ref_name_len, mate_ref_name, mate_ref_pos );
                         }
@@ -802,7 +838,7 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
                 rc = KOutMsg( "0\t" );
             }
             if ( rc == 0 && read == NULL ) {
-                rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
+                rc = read_INSDC_dna_text_ptr( row_id, stx -> cursor, stx -> read_idx, &read, &rd_len, "READ" );
             }
             if ( rc == 0 && read_start == NULL ) {
                 rc = read_read_start( stx, row_id, &read_start, nreads );
@@ -819,14 +855,14 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
             }
             /* SAM-FIELD: QUAL      SRA-column: QUALITY, sliced by READ_START/READ_LEN */
             if ( rc == 0 ) {
-                rc = print_sliced_quality( opts, quality, read_idx, reverse, read_start, read_len );
+                rc = print_sliced_quality( sam_ctx, quality, read_idx, reverse, read_start, read_len );
             }
             /* OPT SAM-FIIELD:      SRA-column: ALIGN_ID */
-            if ( rc == 0 && opts->print_alignment_id_in_column_xi ) {
+            if ( rc == 0 && opts -> print_alignment_id_in_column_xi ) {
                 rc = KOutMsg( "\tXI:i:%u", row_id );
             }
             /* OPT SAM-FIIELD:      SRA-column: SPOT_GROUP */
-            if ( rc == 0 && stx->spot_group_idx != COL_NOT_AVAILABLE ) {
+            if ( rc == 0 && stx -> spot_group_idx != COL_NOT_AVAILABLE ) {
                 rc = opt_field_spot_group( stx, row_id );
             }
             /* OPT SAM-FIELD:       SRA-column: LINKAGE_GROUP */
@@ -842,11 +878,11 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
 }
 
 /* called if we are dumping from a legacy table instead from a database */
-static rc_t dump_seq_row_sam( const samdump_opts * const opts,
+static rc_t dump_seq_row_sam( const sam_dump_ctx * sam_ctx,
                               const seq_table_ctx * const stx,
                               const int64_t row_id,
                               const uint32_t nreads ) {
-    uint32_t read_idx, rd_len, name_len;
+    const samdump_opts * opts = sam_ctx -> opts;
     const char * quality = NULL;
     const char * name = NULL;
     const INSDC_dna_text * read = NULL;
@@ -854,11 +890,13 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
     const INSDC_read_filter * read_filter = NULL;
     const INSDC_coord_zero * read_start = NULL;
     const INSDC_coord_len * read_len;
+    uint32_t read_idx, rd_len, name_len;
 
     rc_t rc = read_read_len( stx, row_id, &read_len, nreads );
     if ( rc == 0 ) {
-        if ( stx->name_idx != COL_NOT_AVAILABLE ) {
-            rc = read_char_ptr( row_id, stx->cursor, stx->name_idx, &name, &name_len, "NAME" );
+        if ( stx -> name_idx != COL_NOT_AVAILABLE ) {
+            rc = read_char_ptr( row_id, stx -> cursor, stx -> name_idx,
+                                &name, &name_len, "NAME" );
         } else {
             name_len = 0;
         }
@@ -890,10 +928,11 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
             if ( rc == 0 ) {
                 bool print_just_seq_spot_id = true;
                 
-                if ( opts->print_spot_group_in_name ) {
+                if ( opts -> print_spot_group_in_name ) {
                     const char * spot_group;
                     uint32_t spot_group_len;
-                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                    rc = read_char_ptr( row_id, stx -> cursor, stx -> spot_group_idx,
+                                        &spot_group, &spot_group_len, "SPOT_GROUP" );
                     if ( rc == 0 && spot_group_len > 0 ) {
                         if ( name != NULL && name_len > 0 ) {
                             rc = KOutMsg( "%.*s.%.*s\t", name_len, name, spot_group_len, spot_group );
@@ -932,7 +971,8 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
                 rc = KOutMsg( "*\t0\t0\t*\t*\t0\t0\t" );
             }
             if ( rc == 0 && read == NULL ) {
-                rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
+                rc = read_INSDC_dna_text_ptr( row_id, stx -> cursor, stx -> read_idx,
+                                              &read, &rd_len, "READ" );
             }
             if ( rc == 0 && read_start == NULL ) {
                 rc = read_read_start( stx, row_id, &read_start, nreads );
@@ -949,18 +989,18 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
             }
             /* SAM-FIELD: QUAL      SRA-column: QUALITY, sliced by READ_START/READ_LEN */
             if ( rc == 0 ) {
-                rc = print_sliced_quality( opts, quality, read_idx, reverse, read_start, read_len );
+                rc = print_sliced_quality( sam_ctx, quality, read_idx, reverse, read_start, read_len );
             }
             /* OPT SAM-FIIELD:      SRA-column: ALIGN_ID */
-            if ( rc == 0 && opts->print_alignment_id_in_column_xi ) {
+            if ( rc == 0 && opts -> print_alignment_id_in_column_xi ) {
                 rc = KOutMsg( "\tXI:i:%u", row_id );
             }
             /* OPT SAM-FIIELD:      SRA-column: SPOT_GROUP */
-            if ( rc == 0 && stx->spot_group_idx != COL_NOT_AVAILABLE ) {
+            if ( rc == 0 && stx -> spot_group_idx != COL_NOT_AVAILABLE ) {
                 rc = opt_field_spot_group( stx, row_id );
             }
             /* OPT SAM-FIELD:       SRA-column: LINKAGE_GROUP */
-            if ( rc == 0 && stx->lnk_group_idx != COL_NOT_AVAILABLE ) {
+            if ( rc == 0 && stx -> lnk_group_idx != COL_NOT_AVAILABLE ) {
                 rc = opt_field_lnk_group( stx, row_id );
             }
             if ( rc == 0 ) {
@@ -971,15 +1011,13 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
     return rc;
 }
 
-
-static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
+static rc_t dump_seq_row_fastx_filtered( const sam_dump_ctx * sam_ctx,
                                          const seq_table_ctx * const stx,
                                          const prim_table_ctx * const ptx,
-                                         const matecache * const mc,
                                          const input_database * const ids,
                                          const int64_t row_id,
                                          const uint32_t nreads ) {
-    uint32_t read_idx, rd_len, prim_align_ids_len, spot_group_len = 0;
+    const samdump_opts * opts = sam_ctx -> opts;
     const int64_t * prim_align_ids;
     const char * quality = NULL;
     const INSDC_dna_text * read = NULL;
@@ -987,8 +1025,10 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
     const INSDC_read_type * read_type = NULL;
     const INSDC_coord_zero * read_start = NULL;
     const INSDC_coord_len * read_len;
-
-    rc_t rc = read_int64_ptr( row_id, stx->cursor, stx->prim_al_id_idx, &prim_align_ids, &prim_align_ids_len, "PRIM_AL_ID" );
+    uint32_t read_idx, rd_len, prim_align_ids_len, spot_group_len = 0;
+    
+    rc_t rc = read_int64_ptr( row_id, stx -> cursor, stx -> prim_al_id_idx, &prim_align_ids,
+                              &prim_align_ids_len, "PRIM_AL_ID" );
     if ( rc == 0 && nreads != prim_align_ids_len ) {
         rc = complain_size_diff( row_id, "PRIMARY_ALIGNMENT_ID" );
     }
@@ -1004,19 +1044,21 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                 uint32_t ref_idx;
                 INSDC_coord_zero mate_ref_pos;
                 int64_t seq_spot_id;
-                rc = matecache_lookup_unaligned( mc, ids->db_idx, align_id, &mate_ref_pos, &ref_idx, &seq_spot_id );
+                rc = matecache_lookup_unaligned( sam_ctx -> mc, ids -> db_idx, align_id, &mate_ref_pos,
+                                                 &ref_idx, &seq_spot_id );
                 if ( rc == 0 ) {
                     /* bool reverse; */
 
                     /* the NAME */
-                    if ( opts->output_format == of_fastq ) {
+                    if ( opts -> output_format == of_fastq ) {
                         rc = KOutMsg( "@" );
                     } else {
                         rc = KOutMsg( ">" );
                     }
                     if ( rc == 0 ) {
-                        if ( opts->print_spot_group_in_name && spot_group == NULL ) {
-                            rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                        if ( opts -> print_spot_group_in_name && spot_group == NULL ) {
+                            rc = read_char_ptr( row_id, stx -> cursor, stx -> spot_group_idx,
+                                                &spot_group, &spot_group_len, "SPOT_GROUP" );
                         }
                         if ( rc == 0 ) {
                             rc = dump_name( opts, seq_spot_id, spot_group, spot_group_len ); /* sam-dump-opts.c */
@@ -1027,7 +1069,7 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                     }
 
                     if ( rc == 0 && read == NULL ) {
-                        rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
+                        rc = read_INSDC_dna_text_ptr( row_id, stx -> cursor, stx -> read_idx, &read, &rd_len, "READ" );
                     }
                     if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                         rc = read_quality( stx, row_id, &quality, rd_len );
@@ -1035,10 +1077,6 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                     if ( rc == 0 && read_type == NULL ) {
                         rc = read_read_type( stx, row_id, &read_type, nreads );
                     }
-                    /*
-                    if ( rc == 0 )
-                        reverse = ( ( read_type[ read_idx ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
-                    */
                     if ( rc == 0 && read_start == NULL ) {
                         rc = read_read_start( stx, row_id, &read_start, nreads );
                     }
@@ -1050,10 +1088,10 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                         rc = KOutMsg( "\n" );
                     }
                     /* in case of fastq : the QUALITY-line */
-                    if ( rc == 0 && opts->output_format == of_fastq ) {
+                    if ( rc == 0 && opts -> output_format == of_fastq ) {
                         rc = KOutMsg( "+\n" );
                         if ( rc == 0 ) {
-                            rc = print_sliced_quality( opts, quality, read_idx, /* reverse */ false, read_start, read_len );
+                            rc = print_sliced_quality( sam_ctx, quality, read_idx, /* reverse */ false, read_start, read_len );
                         }
                         if ( rc == 0 ) {
                             rc = KOutMsg( "\n" );
@@ -1068,11 +1106,11 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
     return rc;
 }
 
-static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
+static rc_t dump_seq_row_fastx( const sam_dump_ctx * sam_ctx,
                                 const seq_table_ctx * const stx,
                                 const int64_t row_id,
                                 const uint32_t nreads ) {
-    uint32_t read_idx, rd_len, prim_align_ids_len, spot_group_len = 0;
+    const samdump_opts * opts = sam_ctx -> opts;
     const int64_t * prim_align_ids;
     const char * quality = NULL;
     const INSDC_dna_text * read = NULL ;
@@ -1080,8 +1118,10 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
     const INSDC_read_type * read_type = NULL;
     const INSDC_coord_zero * read_start = NULL;
     const INSDC_coord_len * read_len;
-
-    rc_t rc = read_int64_ptr( row_id, stx->cursor, stx->prim_al_id_idx, &prim_align_ids, &prim_align_ids_len, "PRIM_AL_IDS" );
+    uint32_t read_idx, rd_len, prim_align_ids_len, spot_group_len = 0;
+    
+    rc_t rc = read_int64_ptr( row_id, stx -> cursor, stx -> prim_al_id_idx, &prim_align_ids,
+                              &prim_align_ids_len, "PRIM_AL_IDS" );
     if ( rc == 0 && nreads != prim_align_ids_len ) {
         rc = complain_size_diff( row_id, "PRIMARY_ALIGNMENT_ID" );
     }
@@ -1094,14 +1134,15 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
             /* bool reverse; */
 
             /* the NAME */
-            if ( opts->output_format == of_fastq ) {
+            if ( opts -> output_format == of_fastq ) {
                 rc = KOutMsg( "@" );
             } else {
                 rc = KOutMsg( ">" );
             }
             if ( rc == 0 ) {
-                if ( opts->print_spot_group_in_name && spot_group == NULL ) {
-                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                if ( opts -> print_spot_group_in_name && spot_group == NULL ) {
+                    rc = read_char_ptr( row_id, stx -> cursor, stx -> spot_group_idx,
+                                        &spot_group, &spot_group_len, "SPOT_GROUP" );
                 }
                 if ( rc == 0 ) {
                     rc = dump_name( opts, row_id, spot_group, spot_group_len ); /* sam-dump-opts.c */
@@ -1111,7 +1152,7 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
                 }
             }
             if ( rc == 0 && read == NULL ) {
-                rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
+                rc = read_INSDC_dna_text_ptr( row_id, stx -> cursor, stx -> read_idx, &read, &rd_len, "READ" );
             }
             if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                 rc = read_quality( stx, row_id, &quality, rd_len );
@@ -1119,10 +1160,6 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
             if ( rc == 0 && read_type == NULL ) {
                 rc = read_read_type( stx, row_id, &read_type, nreads );
             }
-            /*
-            if ( rc == 0 )
-                reverse = ( ( read_type[ read_idx ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
-            */
             if ( rc == 0 && read_start == NULL ) {
                 rc = read_read_start( stx, row_id, &read_start, nreads );
             }
@@ -1134,10 +1171,10 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
                 rc = KOutMsg( "\n" );
             }
             /* in case of fastq : the QUALITY-line */
-            if ( rc == 0 && opts->output_format == of_fastq ) {
+            if ( rc == 0 && opts -> output_format == of_fastq ) {
                 rc = KOutMsg( "+\n" );
                 if ( rc == 0 ) {
-                    rc = print_sliced_quality( opts, quality, read_idx, /*reverse*/ false, read_start, read_len );
+                    rc = print_sliced_quality( sam_ctx, quality, read_idx, /*reverse*/ false, read_start, read_len );
                 }
                 if ( rc == 0 ) {
                     rc = KOutMsg( "\n" );
@@ -1148,11 +1185,11 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
     return rc;
 }
 
-static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
+static rc_t dump_seq_tab_row_fastx( const sam_dump_ctx * sam_ctx,
                                     const seq_table_ctx * const stx,
                                     const int64_t row_id,
                                     const uint32_t nreads ) {
-    uint32_t read_idx, rd_len, name_len, spot_group_len = 0;
+    const samdump_opts * opts = sam_ctx -> opts;
     const char * quality = NULL;
     const char * name;
     const INSDC_dna_text * read = NULL ;
@@ -1160,10 +1197,11 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
     const INSDC_read_type * read_type;
     const INSDC_coord_zero * read_start = NULL;
     const INSDC_coord_len * read_len;
-
+    uint32_t read_idx, rd_len, name_len, spot_group_len = 0;
+    
     rc_t rc = read_read_len( stx, row_id, &read_len, nreads );
     if ( rc == 0 ) {
-        rc = read_char_ptr( row_id, stx->cursor, stx->name_idx, &name, &name_len, "NAME" );
+        rc = read_char_ptr( row_id, stx -> cursor, stx -> name_idx, &name, &name_len, "NAME" );
     }
     if ( rc == 0 ) {
         rc = read_read_type( stx, row_id, &read_type, nreads );
@@ -1171,17 +1209,16 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
     for ( read_idx = 0; ( read_idx < nreads ) && ( rc == 0 ); ++read_idx ) {
         if ( ( read_len[ read_idx ] > 0 ) &&            /* has a length! */
              ( ( read_type[ read_idx ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) ) {
-            /* bool reverse; */
-
             /* the NAME */
-            if ( opts->output_format == of_fastq ) {
+            if ( opts -> output_format == of_fastq ) {
                 rc = KOutMsg( "@" );
             } else {
                 rc = KOutMsg( ">" );
             }
             if ( rc == 0 ) {
-                if ( opts->print_spot_group_in_name && spot_group == NULL ) {
-                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                if ( opts -> print_spot_group_in_name && spot_group == NULL ) {
+                    rc = read_char_ptr( row_id, stx -> cursor, stx -> spot_group_idx,
+                                        &spot_group, &spot_group_len, "SPOT_GROUP" );
                 }
                 if ( rc == 0 ) {
                     rc = dump_name_legacy( opts, name, name_len, spot_group, spot_group_len ); /* sam-dump-opts.c */
@@ -1192,15 +1229,11 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
             }
 
             if ( rc == 0 && read == NULL ) {
-                rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
+                rc = read_INSDC_dna_text_ptr( row_id, stx -> cursor, stx -> read_idx, &read, &rd_len, "READ" );
             }
             if ( rc == 0 && quality == NULL && ( !( opts -> no_qual ) ) ) {
                 rc = read_quality( stx, row_id, &quality, rd_len );
             }
-            /*
-            if ( rc == 0 )
-                reverse = ( ( read_type[ read_idx ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
-            */
             if ( rc == 0 && read_start == NULL ) {
                 rc = read_read_start( stx, row_id, &read_start, nreads );
             }
@@ -1212,7 +1245,7 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
                 rc = KOutMsg( "\n" );
             }
             /* in case of fastq : the QUALITY-line */
-            if ( rc == 0 && opts->output_format == of_fastq ) {
+            if ( rc == 0 && opts -> output_format == of_fastq ) {
                 if ( quality == NULL && ( !( opts -> no_qual ) ) ) {
                     rc = read_quality( stx, row_id, &quality, rd_len );
                 }
@@ -1220,7 +1253,7 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
                     rc = KOutMsg( "+\n" );
                 }
                 if ( rc == 0 ) {
-                    rc = print_sliced_quality( opts, quality, read_idx, /* reverse */ false, read_start, read_len );
+                    rc = print_sliced_quality( sam_ctx, quality, read_idx, /* reverse */ false, read_start, read_len );
                 }
                 if ( rc == 0 ) {
                     rc = KOutMsg( "\n" );
@@ -1232,9 +1265,8 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
 }
 
 typedef struct unaligned_callback_ctx {
-    const samdump_opts * opts;
+    const sam_dump_ctx * sam_ctx;
     const input_database * ids;
-    const matecache * mc;
     seq_table_ctx * stx;
     prim_table_ctx * ptx;
 } unaligned_callback_ctx;
@@ -1244,27 +1276,30 @@ static rc_t CC on_unaligned_seq_id( int64_t seq_id, int64_t al_id, void * user_d
     if ( rc == 0 ) {
         seq_row row;
         unaligned_callback_ctx * u_ctx = user_data;
-        rc = read_seq_row( u_ctx->opts, u_ctx->stx, seq_id, &row );
+        const samdump_opts * opts = u_ctx -> sam_ctx -> opts;
+        rc = read_seq_row( opts, u_ctx -> stx, seq_id, &row );
         if ( rc == 0 && !row.filtered_out ) {
-            switch( u_ctx->opts->output_format ) {
-                case of_sam   : rc = dump_seq_row_sam_filtered( u_ctx->opts, u_ctx->stx, u_ctx->ptx, u_ctx->mc, u_ctx->ids, seq_id, row.nreads ); break;
+            switch( opts -> output_format ) {
+                case of_sam   : rc = dump_seq_row_sam_filtered( u_ctx -> sam_ctx, u_ctx -> stx,
+                                    u_ctx -> ptx, u_ctx -> ids, seq_id, row . nreads ); break;
                 case of_fasta : /* fall through intended ! */
-                case of_fastq : rc = dump_seq_row_fastx_filtered( u_ctx->opts, u_ctx->stx, u_ctx->ptx, u_ctx->mc, u_ctx->ids, seq_id, row.nreads ); break;
+                case of_fastq : rc = dump_seq_row_fastx_filtered( u_ctx -> sam_ctx, u_ctx -> stx,
+                                    u_ctx -> ptx, u_ctx -> ids, seq_id, row . nreads ); break;
             }
         }
     }
     return rc;
 }
 
-static rc_t print_unaligned_database_filtered_2( const samdump_opts * const opts,
-                                                 const input_table * const seq,
-                                                 const input_table * const prim,
-                                                 const matecache * const mc,
-                                                 const input_database * const ids ) {
+static rc_t print_unaligned_database_filtered( const sam_dump_ctx * sam_ctx,
+                                               const input_table * const seq,
+                                               const input_table * const prim,
+                                               const input_database * const ids ) {
+    const samdump_opts * opts = sam_ctx -> opts;
     seq_table_ctx stx;
     rc_t rc = prepare_seq_table_ctx( opts, seq, &stx );
     if ( rc == 0 ) {
-        rc = VCursorOpen( stx.cursor );
+        rc = VCursorOpen( stx . cursor );
         if ( rc != 0 ) {
             (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( SEQUENCE ) for $(tn) failed", "tn=%s", seq->path ) );
         } else {
@@ -1272,133 +1307,91 @@ static rc_t print_unaligned_database_filtered_2( const samdump_opts * const opts
             rc = prepare_prim_table_ctx( opts, prim, &ptx );
             if ( rc == 0 ) {
                 unaligned_callback_ctx u_ctx;
-                u_ctx.opts = opts;
-                u_ctx.ids = ids;
-                u_ctx.mc = mc;
-                u_ctx.stx = &stx;
-                u_ctx.ptx = &ptx;
-                rc = foreach_unaligned_entry( mc, ids->db_idx, on_unaligned_seq_id, &u_ctx );
-                VCursorRelease( ptx.cursor );
+                u_ctx . sam_ctx = sam_ctx;
+                u_ctx . ids = ids;
+                u_ctx . stx = &stx;
+                u_ctx . ptx = &ptx;
+                rc = foreach_unaligned_entry( sam_ctx -> mc, ids -> db_idx, on_unaligned_seq_id, &u_ctx );
+                VCursorRelease( ptx . cursor );
             }
         }
     }
     return rc;
-}
-
-/* we are printing from a sra-database, we print half aligned reads only if we find them in the mate-cache */
-static rc_t print_unaligned_database_filtered( const samdump_opts * const opts,
-                                               const input_table * const seq,
-                                               const input_table * const prim,
-                                               const matecache * const mc,
-                                               const input_database * const ids ) {
-    return print_unaligned_database_filtered_2( opts, seq, prim, mc, ids );
-#if 0
-    seq_table_ctx stx;
-    rc_t rc = prepare_seq_table_ctx( opts, seq, &stx );
-    if ( rc == 0 ) {
-        rc = VCursorOpen( stx.cursor );
-        if ( rc != 0 ) {
-            (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( SEQUENCE ) for $(tn) failed", "tn=%s", seq->path ) );
-        } else {
-            int64_t first_row;
-            uint64_t row_count;
-            rc = VCursorIdRange( stx.cursor, stx.prim_al_id_idx, &first_row, &row_count );
-            if ( rc != 0 ) {
-                (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorIdRange( SEQUENCE ) for $(tn) failed", "tn=%s", seq->path ) );
-            } else {
-                prim_table_ctx ptx;
-                rc = prepare_prim_table_ctx( opts, prim, &ptx );
-                if ( rc == 0 ) {
-                    int64_t row_id;
-                    seq_row row;
-
-                    for ( row_id = first_row; ( ( row_id - first_row ) < row_count ) && rc == 0; ++row_id ) {
-                        rc = Quitting();
-                        if ( rc == 0 ) {
-                            rc = read_seq_row( opts, &stx, row_id, &row );
-                            if ( rc == 0 && !row.filtered_out ) {
-                                switch( opts->output_format ) {
-                                    case of_sam   : rc = dump_seq_row_sam_filtered( opts, &stx, &ptx, mc, ids, row_id, row.nreads ); break;
-                                    case of_fasta : /* fall through intended ! */
-                                    case of_fastq : rc = dump_seq_row_fastx_filtered( opts, &stx, &ptx, mc, ids, row_id, row.nreads ); break;
-                                }
-                            }
-                        }
-                    }
-                    VCursorRelease( ptx.cursor );
-                }
-            }
-        }
-        VCursorRelease( stx.cursor );
-    }
-    return rc;
-#endif
 }
 
 /* we are printing from a sra-database, we print all unaligned read we can find */
-static rc_t print_unaligned_database_full( const samdump_opts * const opts,
+static rc_t print_unaligned_database_full( const sam_dump_ctx * sam_ctx,
                                            const input_table * const seq,
                                            const input_table * const prim,
-                                           const matecache * const mc,
                                            const input_database * const ids ) {
+    const samdump_opts * opts = sam_ctx -> opts;
     seq_table_ctx stx;
     rc_t rc = prepare_seq_table_ctx( opts, seq, &stx );
     if ( rc == 0 ) {
-        rc = VCursorOpen( stx.cursor );
+        rc = VCursorOpen( stx . cursor );
         if ( rc != 0 ) {
             (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( SEQUENCE ) for $(tn) failed", "tn=%s", seq->path ) );
         } else {
             prim_table_ctx ptx;
-            if ( opts->output_format == of_sam ) {
+            if ( opts -> output_format == of_sam ) {
                 rc = prepare_prim_table_ctx( opts, prim, &ptx );
             }
             if ( rc == 0 ) {
                 int64_t first_row, row_id;
                 uint64_t row_count;
-                rc = VCursorIdRange( stx.cursor, stx.read_type_idx, &first_row, &row_count );
+                rc = VCursorIdRange( stx . cursor, stx . read_type_idx, &first_row, &row_count );
                 if ( rc != 0 ) {
-                    (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorIdRange( SEQUENCE ) for $(tn) failed", "tn=%s", seq->path ) );
+                    (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorIdRange( SEQUENCE ) for $(tn) failed",
+                                              "tn=%s", seq -> path ) );
                 } else {
                     seq_row row;
                     for ( row_id = first_row; ( ( row_id - first_row ) < row_count ) && rc == 0; ++row_id ) {
                         rc = Quitting();
                         if ( rc == 0 ) {
                             rc = read_seq_row( opts, &stx, row_id, &row );
-                            if ( rc == 0 && !row.filtered_out ) {
-                                switch( opts->output_format ) {
-                                    case of_sam   : rc = dump_seq_prim_row_sam( opts, &stx, &ptx, mc, ids, row_id, row.nreads ); break;
+                            if ( rc == 0 && !( row . filtered_out ) ) {
+                                switch( opts -> output_format ) {
+                                    case of_sam   : rc = dump_seq_prim_row_sam( sam_ctx, &stx, &ptx,
+                                                            ids, row_id, row . nreads );
+                                                    break;
+
                                     case of_fasta : /* fall through intended ! */
-                                    case of_fastq : rc = dump_seq_row_fastx( opts, &stx, row_id, row.nreads ); break;
+                                    case of_fastq : rc = dump_seq_row_fastx( sam_ctx, &stx, row_id,
+                                                            row . nreads );
+                                                    break;
                                 }
                             }
                         }
                     }
                 }
-                if ( opts->output_format == of_sam ) {
-                    VCursorRelease( ptx.cursor );
+                if ( opts -> output_format == of_sam ) {
+                    VCursorRelease( ptx . cursor );
                 }
             }
         }
-        VCursorRelease( stx.cursor );
+        VCursorRelease( stx . cursor );
     }
     return rc;
 }
 
 /* we are printing from a (legacy) table not from a database! */
-static rc_t print_unaligned_table( const samdump_opts * const opts,
+static rc_t print_unaligned_table( const sam_dump_ctx * sam_ctx,
                                    const input_table * const seq ) {
+    const samdump_opts * opts = sam_ctx -> opts;
     seq_table_ctx stx;
     rc_t rc = prepare_seq_table_ctx( opts, seq, &stx );
     if ( rc == 0 ) {
         rc = VCursorOpen( stx.cursor );
         if ( rc != 0 ) {
-            (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( SEQUENCE ) for $(tn) failed", "tn=%s", seq->path ) );
+            (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorOpen( SEQUENCE ) for $(tn) failed",
+                                      "tn=%s", seq -> path ) );
         } else {
             int64_t first_row, row_id;
             uint64_t row_count;
             rc = VCursorIdRange( stx.cursor, stx.read_type_idx, &first_row, &row_count );
             if ( rc != 0 ) {
-                (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorIdRange( SEQUENCE ) for $(tn) failed", "tn=%s", seq->path ) );
+                (void)PLOGERR( klogInt, ( klogInt, rc, "VCursorIdRange( SEQUENCE ) for $(tn) failed",
+                                          "tn=%s", seq -> path ) );
             } else {
                 seq_row row;
                 for ( row_id = first_row; ( ( row_id - first_row ) < row_count ) && rc == 0; ++row_id ) {
@@ -1406,33 +1399,34 @@ static rc_t print_unaligned_table( const samdump_opts * const opts,
                     if ( rc == 0 ) {
                         rc = read_seq_row( opts, &stx, row_id, &row );
                         if ( rc == 0 && !row.filtered_out ) {
-                            switch( opts->output_format ) {
-                                case of_sam   : rc = dump_seq_row_sam( opts, &stx, row_id, row.nreads ); break;
+                            switch( opts -> output_format ) {
+                                case of_sam   : rc = dump_seq_row_sam( sam_ctx, &stx, row_id, row . nreads ); break;
                                 case of_fasta : /* fall through intended ! */
-                                case of_fastq : rc = dump_seq_tab_row_fastx( opts, &stx, row_id, row.nreads ); break;
+                                case of_fastq : rc = dump_seq_tab_row_fastx( sam_ctx, &stx, row_id, row . nreads ); break;
                             }
                         }
                     }
                 }
             }
         }
-        VCursorRelease( stx.cursor );
+        VCursorRelease( stx . cursor );
     }
     return rc;
 }
 
 /* entry point from sam-dump3.c */
 rc_t print_unaligned_spots( const sam_dump_ctx * sam_ctx ) {
+    const samdump_opts * opts = sam_ctx -> opts;
     rc_t rc = 0;
 
 #if _DEBUGGING
-    if ( sam_ctx -> opts -> perf_log != NULL ) {
-        perf_log_start_section( sam_ctx -> opts -> perf_log, "unaligned spots" );
+    if ( opts -> perf_log != NULL ) {
+        perf_log_start_section( opts -> perf_log, "unaligned spots" );
     }
 #endif
     if ( ( sam_ctx -> ifs -> database_count > 0 ) &&
-         ( sam_ctx -> opts -> dump_unaligned_reads ||
-           sam_ctx -> opts -> dump_unaligned_only ) ) {
+         ( opts -> dump_unaligned_reads ||
+           opts -> dump_unaligned_only ) ) {
         uint32_t db_idx;
         for ( db_idx = 0; db_idx < sam_ctx -> ifs -> database_count && rc == 0; ++db_idx ) {
             const input_database * ids = VectorGet( &( sam_ctx -> ifs -> dbs ), db_idx );
@@ -1451,9 +1445,9 @@ rc_t print_unaligned_spots( const sam_dump_ctx * sam_ctx ) {
                         (void)PLOGERR( klogInt, ( klogInt, rc, "cannot open table PRIMARY_ALIGNMENT $(tn)", "tn=%s", ids -> path ) );
                     } else {
                         if ( sam_ctx -> opts -> region_count > 0 ) {
-                            rc = print_unaligned_database_filtered( sam_ctx -> opts, &seq, &prim, sam_ctx -> mc, ids );
+                            rc = print_unaligned_database_filtered( sam_ctx, &seq, &prim, ids );
                         } else {
-                            rc = print_unaligned_database_full( sam_ctx -> opts, &seq, &prim, sam_ctx -> mc, ids );
+                            rc = print_unaligned_database_full( sam_ctx, &seq, &prim, ids );
                         }
                         VTableRelease( prim . tab );
                     }
@@ -1467,14 +1461,14 @@ rc_t print_unaligned_spots( const sam_dump_ctx * sam_ctx ) {
         for ( tab_idx = 0; tab_idx < sam_ctx -> ifs -> table_count && rc == 0; ++tab_idx ) {
             input_table * itab = VectorGet( &( sam_ctx -> ifs -> tabs ), tab_idx );
             if ( itab != NULL ) {
-                rc = print_unaligned_table( sam_ctx -> opts, itab );
+                rc = print_unaligned_table( sam_ctx, itab );
             }
         }
     }
 
 #if _DEBUGGING
-    if ( sam_ctx -> opts -> perf_log != NULL ) {
-        perf_log_end_section( sam_ctx -> opts -> perf_log );
+    if ( opts -> perf_log != NULL ) {
+        perf_log_end_section( opts -> perf_log );
     }
 #endif
     return rc;

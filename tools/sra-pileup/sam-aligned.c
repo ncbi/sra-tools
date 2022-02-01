@@ -1149,13 +1149,14 @@ static rc_t print_evidence_alignment_cg_ev_dnb( const samdump_opts * const opts,
 
 /* print minimal one alignment from the EVIDENCE-INTERVAL / EVIDENCE-ALIGNMENT - table(s) 
    triggered by option "--CG-SAM / --CG-evidence / --CG-evidence-dnb */
-static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
+static rc_t print_alignment_sam_ev( const sam_dump_ctx * sam_ctx,
                                     const char * ref_name,
                                     INSDC_coord_zero pos,
                                     const PlacementRecord * const rec,
                                     align_table_context * const atx ) {
-    uint32_t ploidy;
+    const samdump_opts * opts = sam_ctx -> opts;
     const VCursor * cursor = atx -> cmn . cursor;
+    uint32_t ploidy;
     rc_t rc = read_uint32( rec -> id, cursor, atx -> ploidy_idx, &ploidy, 0, "PLOIDY" );
     if ( rc == 0 && ploidy > 0 ) {
         uint32_t ploidy_idx, cigar_len_vector_len, read_len_vector_len, edit_dist_vector_len;
@@ -1346,13 +1347,14 @@ static rc_t opt_field_lnk_group( const VCursor * cursor, uint32_t col_id, int64_
     return rc;
 }
 
-static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
+static rc_t print_alignment_sam_ps( const sam_dump_ctx * sam_ctx,
                                     const char * ref_name,
                                     INSDC_coord_zero pos,
-                                    matecache * const mc,
                                     struct rna_splice_dict * splice_dict,
                                     const PlacementRecord * const rec,
                                     const align_table_context * const atx ) {
+    const samdump_opts * opts = sam_ctx -> opts;
+    const VCursor * cursor = atx -> cmn . cursor;
     uint32_t sam_flags = 0, NM_adjustments = 0, seq_spot_id_len, mate_ref_pos_len = 0;
     uint32_t mate_ref_name_len = string_size( ref_name );
     INSDC_coord_zero mate_ref_pos = 0;
@@ -1360,7 +1362,6 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
     int64_t mate_align_id = 0, id = rec -> id;
     const int64_t * seq_spot_id;
     const char * mate_ref_name = ref_name;
-    const VCursor * cursor = atx -> cmn . cursor;
     cg_cigar_output cgc_output;
     rna_splice_candidates candidates; /* in cg_tools.h */
     bool rna_not_homogeneous_flag = false;
@@ -1380,15 +1381,16 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
     /* try to find the info about the mate in the CACHE... */
     if ( rc == 0 ) {
         if ( mate_align_id != 0 ) {
-            if ( opts -> use_mate_cache && mc != NULL ) {
-                rc = matecache_lookup_same_ref( mc, atx -> db_idx, mate_align_id, &mate_ref_pos, &sam_flags, &tlen );
+            if ( opts -> use_mate_cache && sam_ctx -> mc != NULL ) {
+                rc = matecache_lookup_same_ref( sam_ctx -> mc, atx -> db_idx, mate_align_id,
+                                                &mate_ref_pos, &sam_flags, &tlen );
                 if ( rc == 0 ) {
                     /* we found it in the the sam-ref-matecache */
                     const INSDC_read_filter * read_filter;
                     uint32_t read_filter_len;
 
                     /* cache entry-found! (on the same reference) -> that means we have now mate_ref_pos, flags and tlen */
-                    matecache_remove_same_ref( mc, atx -> db_idx, mate_align_id );
+                    matecache_remove_same_ref( sam_ctx -> mc, atx -> db_idx, mate_align_id );
                     mate_ref_name = equal_sign;
                     mate_ref_name_len = 1;
                     mate_ref_pos_len = 1;
@@ -1447,12 +1449,13 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
                     if ( mate_align_id != 0 && mate_ref_name_len > 0 && cmp == 0 ) {
                         /* now that we have the data, store it in sam-ref-cache it the mate is on the same ref. */
                         uint32_t mate_flags = calc_mate_flags( sam_flags );
-                        rc = matecache_insert_same_ref( mc, atx -> db_idx, id, pos, mate_flags, -tlen );
+                        rc = matecache_insert_same_ref( sam_ctx -> mc, atx -> db_idx, id, pos, mate_flags, -tlen );
                     }
                     if ( mate_align_id == 0 && mate_ref_name_len == 0 && opts -> print_half_unaligned_reads &&
                          atx -> align_table_type == att_primary ) {
                         int64_t key = id;
-                        rc = matecache_insert_unaligned( mc, atx -> db_idx, key, pos, atx -> ref_idx, *seq_spot_id );
+                        rc = matecache_insert_unaligned( sam_ctx -> mc, atx -> db_idx, key, pos,
+                                                         atx -> ref_idx, *seq_spot_id );
                     }
                 }
             }
@@ -1843,9 +1846,9 @@ static rc_t walk_position( const sam_dump_ctx * sam_ctx,
                     } else {
                         if ( fmt == of_sam ) {
                             if ( atx -> align_table_type == att_evidence ) {
-                                rc = print_alignment_sam_ev( sam_ctx -> opts, ref_name, pos, rec, atx );
+                                rc = print_alignment_sam_ev( sam_ctx, ref_name, pos, rec, atx );
                             } else {
-                                rc = print_alignment_sam_ps( sam_ctx -> opts, ref_name, pos, sam_ctx -> mc, splice_dict, rec, atx );
+                                rc = print_alignment_sam_ps( sam_ctx, ref_name, pos, splice_dict, rec, atx );
                             }
                         } else {
                             rc = print_alignment_fastx( sam_ctx, ref_name, pos, rec, atx );
@@ -1889,14 +1892,15 @@ static rc_t walk_reference( const sam_dump_ctx * sam_ctx,
                             PlacementSetIterator * const set_iter,
                             struct ReferenceObj const * ref_obj,
                             const char * ref_name ) {
-    rc_t rc = 0;
     struct rna_splice_dict * splice_dict = NULL;
+    const samdump_opts * opts = sam_ctx -> opts;
+    rc_t rc = 0;
 
-    if ( sam_ctx -> opts -> rna_splicing ) {
+    if ( opts -> rna_splicing ) {
         splice_dict = make_rna_splice_dict();
         /* rna-splice-log */
-        if ( sam_ctx -> opts -> rna_splice_log != NULL ) {
-            rna_splice_log_enter_ref( sam_ctx -> opts -> rna_splice_log, ref_name, ref_obj );
+        if ( opts -> rna_splice_log != NULL ) {
+            rna_splice_log_enter_ref( opts -> rna_splice_log, ref_name, ref_obj );
         }
     }
 
@@ -1917,13 +1921,13 @@ static rc_t walk_reference( const sam_dump_ctx * sam_ctx,
     }
     if ( GetRCState( rc ) == rcDone ) { rc = 0; }
 
-    if ( rc == 0 && sam_ctx -> mc != NULL && sam_ctx -> opts -> use_mate_cache ) {
+    if ( rc == 0 && sam_ctx -> mc != NULL && opts -> use_mate_cache ) {
         rc = matecache_clear_same_ref( sam_ctx -> mc );
     }
     if ( splice_dict != NULL ) {
         /* rna-splice-log */
-        if ( sam_ctx -> opts -> rna_splice_log != NULL ) {
-            rna_splice_log_exit_ref( sam_ctx -> opts -> rna_splice_log, splice_dict );
+        if ( opts -> rna_splice_log != NULL ) {
+            rna_splice_log_exit_ref( opts -> rna_splice_log, splice_dict );
         }
         free_rna_splice_dict( splice_dict );
     }
@@ -1933,6 +1937,7 @@ static rc_t walk_reference( const sam_dump_ctx * sam_ctx,
 
 static rc_t walk_placements( const sam_dump_ctx * sam_ctx,
                              PlacementSetIterator * const set_iter ) {
+    const samdump_opts * opts = sam_ctx -> opts;
     rc_t rc = 0;
     while ( rc == 0 ) {
         struct ReferenceObj const * ref_obj;
@@ -1940,25 +1945,25 @@ static rc_t walk_placements( const sam_dump_ctx * sam_ctx,
         if ( rc == 0 ) {
             if ( ref_obj != NULL ) {
                 const char * ref_name = NULL;
-                if ( sam_ctx -> opts -> use_seqid_as_refname ) {
+                if ( opts -> use_seqid_as_refname ) {
                     rc = ReferenceObj_SeqId( ref_obj, &ref_name );
                 } else {
                     rc = ReferenceObj_Name( ref_obj, &ref_name );
                 }
                 if ( rc == 0 ) {
 #if _DEBUGGING
-                    if ( sam_ctx -> opts -> perf_log != NULL ) {
-                        perf_log_start_sub_section( sam_ctx -> opts -> perf_log, ref_name );
+                    if ( opts -> perf_log != NULL ) {
+                        perf_log_start_sub_section( opts -> perf_log, ref_name );
                     }
 #endif
                     rc = walk_reference( sam_ctx, set_iter, ref_obj, ref_name );
 #if _DEBUGGING
-                    if ( sam_ctx -> opts -> perf_log != NULL ) {
-                        perf_log_end_sub_section( sam_ctx -> opts -> perf_log );
+                    if ( opts -> perf_log != NULL ) {
+                        perf_log_end_sub_section( opts -> perf_log );
                     }
 #endif
                 } else {
-                    if ( sam_ctx -> opts -> use_seqid_as_refname ) {
+                    if ( opts -> use_seqid_as_refname ) {
                         (void)LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
                     } else {
                         (void)LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
@@ -2118,12 +2123,13 @@ static rc_t print_selected_aligned_spots( const sam_dump_ctx * sam_ctx,
    ---> only entry into this module <--- 
 */
 rc_t print_aligned_spots( const sam_dump_ctx * sam_ctx ) {
-    rc_t rc;
     const AlignMgr * a_mgr;
-
+    const samdump_opts * opts = sam_ctx -> opts;
+    rc_t rc;
+    
 #if _DEBUGGING
-    if ( sam_ctx -> opts -> perf_log != NULL ) {
-        perf_log_start_section( sam_ctx -> opts -> perf_log, "aligned spots" );    /* perf_log.c */
+    if ( opts -> perf_log != NULL ) {
+        perf_log_start_section( opts -> perf_log, "aligned spots" );    /* perf_log.c */
     }
 #endif
 
@@ -2132,9 +2138,9 @@ rc_t print_aligned_spots( const sam_dump_ctx * sam_ctx ) {
     if ( rc != 0 ) {
         (void)LOGERR( klogErr, rc, "cannot create alignment-manager" );
     } else {
-        if ( sam_ctx -> opts -> region_count == 0 ) {
+        if ( opts -> region_count == 0 ) {
             /* the user did not specify regions to be printed ==> print all alignments */
-            switch( sam_ctx -> opts -> dump_mode ) {
+            switch( opts -> dump_mode ) {
                 case dm_one_ref_at_a_time : rc = print_all_aligned_spots_0( sam_ctx, a_mgr ); /* above */
                                             break;
                 case dm_prepare_all_refs  : rc = print_all_aligned_spots_1( sam_ctx, a_mgr ); /* above */
@@ -2148,8 +2154,8 @@ rc_t print_aligned_spots( const sam_dump_ctx * sam_ctx ) {
     }
 
 #if _DEBUGGING
-    if ( sam_ctx -> opts -> perf_log != NULL ) {
-        perf_log_end_section( sam_ctx -> opts -> perf_log ); /* perf_log.c */
+    if ( opts -> perf_log != NULL ) {
+        perf_log_end_section( opts -> perf_log ); /* perf_log.c */
     }
 #endif
     return rc;

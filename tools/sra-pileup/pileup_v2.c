@@ -145,17 +145,17 @@ typedef struct pileup_v2_ctx {
 } pileup_v2_ctx;
 
 static rc_t CC pileup_v2_enter_ref_pos( ref_walker_data * rwd ) {
-    pileup_v2_ctx * ctx = rwd->data;
+    pileup_v2_ctx * ctx = rwd -> data;
     /* make shure that bases/qual have the necessary length ( depth * 2 ) */
-    uint32_t l = ( rwd->depth * 2 );
-    rc_t rc = expand_dyn_string( ctx->bases, l );
+    uint32_t l = ( rwd -> depth * 2 );
+    rc_t rc = ds_expand( ctx -> bases, l );
     if ( rc == 0 ) {
-        reset_dyn_string( ctx->bases );
+        ds_reset( ctx -> bases );
     }
-    if ( rc == 0 && ctx->print_qual ) {
-        rc = expand_dyn_string( ctx->qual, l );
+    if ( rc == 0 && ctx -> print_qual ) {
+        rc = ds_expand( ctx -> qual, l );
         if ( rc == 0 ) {
-            reset_dyn_string( ctx->qual );
+            ds_reset( ctx -> qual );
         }
     }
     return rc;
@@ -165,12 +165,12 @@ static rc_t CC pileup_v2_exit_ref_pos( ref_walker_data * rwd ) {
     pileup_v2_ctx * ctx = rwd->data;
     rc_t rc = KOutMsg( "%s\t%u\t%c\t%u\t", rwd->ref_name, rwd->pos + 1, rwd->ascii_ref_base, rwd->depth );
     if ( rc == 0 ) {
-        rc = print_dyn_string( ctx->bases );
+        rc = ds_print( ctx -> bases );
     }
-    if ( rc == 0 && ctx->print_qual ) {
+    if ( rc == 0 && ctx -> print_qual ) {
         rc = KOutMsg( "\t" );
         if ( rc == 0 ) {
-            rc = print_dyn_string( ctx->qual );
+            rc = ds_print( ctx -> qual );
         }
     }
     if ( rc == 0 ) {
@@ -181,13 +181,13 @@ static rc_t CC pileup_v2_exit_ref_pos( ref_walker_data * rwd ) {
 
 static rc_t CC pileup_v2_enter_spot_group( ref_walker_data * rwd ) {
     rc_t rc = 0;
-    pileup_v2_ctx * ctx = rwd->data;
-    if ( ctx->div_by_spotgrp ) {
-        if ( dyn_string_len( ctx->bases ) > 0 ) {
-            rc = add_char_2_dyn_string( ctx->bases, '\t' );
+    pileup_v2_ctx * ctx = rwd -> data;
+    if ( ctx -> div_by_spotgrp ) {
+        if ( ds_len( ctx -> bases ) > 0 ) {
+            rc = ds_add_char( ctx -> bases, '\t' );
         }
-        if ( rc == 0 && ctx->print_qual && dyn_string_len( ctx->qual ) > 0 ) {
-            rc = add_char_2_dyn_string( ctx->qual, '\t' );
+        if ( rc == 0 && ctx -> print_qual && ds_len( ctx -> qual ) > 0 ) {
+            rc = ds_add_char( ctx -> qual, '\t' );
         }
     }
     return rc;
@@ -197,10 +197,10 @@ static rc_t CC pileup_v2_alignment( ref_walker_data * rwd ) {
     rc_t rc = 0;
     pileup_v2_ctx * ctx = rwd->data;
 
-    if ( !rwd->valid ) {
-        rc = add_char_2_dyn_string( ctx->bases, '?' );
-        if ( rc == 0 && ctx->print_qual ) {
-            rc = add_char_2_dyn_string( ctx->qual, '?' );
+    if ( !( rwd -> valid ) ) {
+        rc = ds_add_char( ctx -> bases, '?' );
+        if ( rc == 0 && ctx -> print_qual ) {
+            rc = ds_add_char( ctx -> qual, '?' );
         }
     } else {
         if ( rwd->first ) {
@@ -211,45 +211,45 @@ static rc_t CC pileup_v2_alignment( ref_walker_data * rwd ) {
             s[ 0 ] = '^';
             s[ 1 ] = c;
             s[ 2 ] = 0;
-            rc = add_string_2_dyn_string( ctx->bases, s );
+            rc = ds_add_str( ctx -> bases, s );
         }
 
         if ( rc == 0 ) {
-            if ( rwd->skip ) {
-                if ( rwd->reverse ) {
-                    rc = add_char_2_dyn_string( ctx->bases, '<' );
+            if ( rwd -> skip ) {
+                if ( rwd -> reverse ) {
+                    rc = ds_add_char( ctx -> bases, '<' );
                 } else {
-                    rc = add_char_2_dyn_string( ctx->bases, '>' );
+                    rc = ds_add_char( ctx -> bases, '>' );
                 }
             } else {
-                if ( rwd->match ) {
-                    rc = add_char_2_dyn_string( ctx->bases, ( rwd->reverse ? ',' : '.' ) );
+                if ( rwd -> match ) {
+                    rc = ds_add_char( ctx -> bases, ( rwd -> reverse ? ',' : '.' ) );
                 } else {
-                    rc = add_char_2_dyn_string( ctx->bases, rwd->ascii_alignment_base );
+                    rc = ds_add_char( ctx -> bases, rwd -> ascii_alignment_base );
                 }
             }
         }
-        if ( rc == 0 && rwd->ins ) {
-            uint32_t i, n = rwd->ins_bases_count;
+        if ( rc == 0 && rwd -> ins ) {
+            uint32_t i, n = rwd -> ins_bases_count;
             
-            rc = print_2_dyn_string( ctx->bases, "+%u", rwd->ins_bases_count );
+            rc = ds_add_fmt( ctx -> bases, "+%u", rwd -> ins_bases_count );
             for ( i = 0; i < n && rc == 0; ++i ) {
-                rc = add_char_2_dyn_string( ctx->bases, _4na_to_ascii( rwd->ins_bases[ i ], rwd->reverse ) );
+                rc = ds_add_char( ctx -> bases, _4na_to_ascii( rwd->ins_bases[ i ], rwd -> reverse ) );
             }
         }
-        if ( rc == 0 && rwd->del && rwd->del_bases_count > 0 && rwd->del_bases != NULL ) {
-            uint32_t i, n = rwd->del_bases_count;
-            rc = print_2_dyn_string( ctx->bases, "-%u", n );
+        if ( rc == 0 && rwd -> del && rwd -> del_bases_count > 0 && rwd -> del_bases != NULL ) {
+            uint32_t i, n = rwd -> del_bases_count;
+            rc = ds_add_fmt( ctx -> bases, "-%u", n );
             for ( i = 0; i < n && rc == 0; ++i ) {
-                rc = add_char_2_dyn_string( ctx->bases, _4na_to_ascii( rwd->del_bases[ i ], rwd->reverse ) );
+                rc = ds_add_char( ctx -> bases, _4na_to_ascii( rwd -> del_bases[ i ], rwd -> reverse ) );
             }
         }
 
-        if ( rc == 0 && rwd->last ) {
-            rc = add_char_2_dyn_string( ctx->bases, '$' );
+        if ( rc == 0 && rwd -> last ) {
+            rc = ds_add_char( ctx->bases, '$' );
         }
-        if ( rc == 0 && ctx->print_qual ) {
-            rc = add_char_2_dyn_string( ctx->qual, rwd->quality );
+        if ( rc == 0 && ctx -> print_qual ) {
+            rc = ds_add_char( ctx -> qual, rwd -> quality );
         }
     }
     return rc;
@@ -323,9 +323,9 @@ rc_t pileup_v2( Args * args, pileup_options *options ) {
         if ( rc == 0 ) {
             pileup_v2_ctx ctx;
             memset( &ctx, 0, sizeof ctx );
-            rc = allocate_dyn_string ( &ctx.bases, 1000 );
+            rc = ds_allocate( &ctx.bases, 1000 );
             if ( rc == 0 ) {
-                rc = allocate_dyn_string ( &ctx.qual, 1000 );
+                rc = ds_allocate( &ctx.qual, 1000 );
                 if ( rc == 0 ) {
                     ctx . print_qual = !( options -> cmn . omit_qualities );
                     ctx . div_by_spotgrp = options -> div_by_spotgrp;
@@ -335,9 +335,9 @@ rc_t pileup_v2( Args * args, pileup_options *options ) {
                     rc = ref_walker_walk( walker, &ctx );
                     /***********************************/
 
-                    free_dyn_string ( ctx.qual );
+                    ds_free( ctx.qual );
                 }
-                free_dyn_string ( ctx.bases );
+                ds_free( ctx.bases );
             }
         }
         /* destroy the walker */

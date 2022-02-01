@@ -422,6 +422,11 @@ function(MakeLinksShared target name install)
                      RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+
+        if (WIN32)
+            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+        endif()
+
     endif()
 endfunction()
 
@@ -498,13 +503,6 @@ function(MakeLinksExe target install_via_driver)
 
         if ( install_via_driver )
 
-                if (WIN32)
-                    add_custom_command(TARGET ${target}
-                        POST_BUILD
-                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver${EXE}
-                    )
-                endif()
-
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
                          DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
@@ -513,8 +511,27 @@ function(MakeLinksExe target install_via_driver)
                          RENAME ${target}${EXE}
                          DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
                 )
+
+                if (WIN32)
+                    # plug in the driver tool as soon as the target builds
+                    add_custom_command(TARGET ${target}
+                        POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver${EXE}
+                    )
+                    # on install, copy/rename the .pdf files if any
+                    install(FILES $<TARGET_PDB_FILE:${target}>
+                            RENAME ${target}-orig.pdb
+                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                endif()
+
         else()
+
             install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+
+            if (WIN32) # copy the .pdf files if any
+                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+            endif()
+
         endif()
 
     endif()

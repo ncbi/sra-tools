@@ -518,9 +518,13 @@ function(MakeLinksExe target install_via_driver)
                         POST_BUILD
                         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver${EXE}
                     )
-                    # on install, copy/rename the .pdf files if any
+                    # on install, copy/rename the .pdb files if any
                     install(FILES $<TARGET_PDB_FILE:${target}>
                             RENAME ${target}-orig.pdb
+                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                    # add the driver-tool's .pdb
+                    install(FILES $<TARGET_PDB_FILE:sratools>
+                            RENAME ${target}.pdb
                             DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
                 endif()
 
@@ -528,7 +532,7 @@ function(MakeLinksExe target install_via_driver)
 
             install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
 
-            if (WIN32) # copy the .pdf files if any
+            if (WIN32) # copy the .pdb files if any
                 install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
             endif()
 

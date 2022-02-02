@@ -128,7 +128,7 @@ if ( Java_FOUND )
             PACKAGES gov.nih.nlm.ncbi.ngs ngs
             SOURCEPATH ${CMAKE_CURRENT_SOURCE_DIR}
         )
-        if ( Java_JAR_EXECUTABLE )
+        if ( Java_JAR_EXECUTABLE AND NOT (${OS} STREQUAL "windows") )
             add_custom_target(
                 ngs-doc-jar ALL COMMAND
                 bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ."

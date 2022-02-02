@@ -1135,11 +1135,14 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             bool has_orphans = false;
             string spot_name;
             set<string> read_names;
-            bool has_reads;
-            try {
-                has_reads = reader.get_next_spot<>(spot_name, reads);
-            } catch (fastq_error& e) {
-                error_checker(e);
+            bool has_reads = false;
+            while (has_reads == false && num_reads_to_check > 0) {
+                try {
+                    has_reads = reader.get_next_spot<>(spot_name, reads);
+                    --num_reads_to_check;
+                } catch (fastq_error& e) {
+                    error_checker(e);
+                }
             }
             if (!has_reads)
                 throw fastq_error(50 , "File '{}' has no reads", fn);

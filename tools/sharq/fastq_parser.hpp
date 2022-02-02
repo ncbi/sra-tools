@@ -40,7 +40,6 @@
 * ===========================================================================
 */
 
-#define LOCALDEBUG
 
 #include "fastq_read.hpp"
 #include "fastq_error.hpp"
@@ -69,6 +68,22 @@ typedef bm::bvector<> bvector_type;
 typedef bm::str_sparse_vector<char, bvector_type, 32> str_sv_type;
 using json = nlohmann::json;
 
+/**
+ * @brief Validator types
+ * 
+ */
+enum EScoreValidator {
+    eNoValidator,  
+    eNumeric,      
+    ePhred} ;
+
+template <EScoreValidator validator_type = eNoValidator, int min_score_ = 0, int max_score_ = 0>
+struct validator_options
+{
+    static constexpr EScoreValidator type() { return validator_type; }          ///< Flag for compact mode: counts of unique tax_id sets
+    static constexpr int min_score() { return min_score_; }   ///< Flag for presence of counts
+    static constexpr int max_score() { return max_score_; }   ///< Flag for presence of counts
+};
 
 class fastq_reader
 /// FASTQ reader
@@ -88,7 +103,6 @@ public:
         : m_file_name(file_name)
         , m_stream(_stream)
         , m_read_type(read_type)
-        , m_validator(eNoValidator)
         , m_read_type_sz(m_read_type.size())
         , m_curr_platform(platform)
     {
@@ -114,7 +128,16 @@ public:
      * 
      * @throws fastq_error on parsing failures
      */
+    template<typename ScoreValidator = validator_options<>>
     bool parse_read(CFastqRead& read);
+
+    /**
+     * @brief basic read validation, throws fastq_error on invalid read
+     * 
+     * @param read 
+     */
+    template<typename ScoreValidator = validator_options<>>
+    void validate_read(CFastqRead& read);
 
     /**
      * @brief Parses and validates read
@@ -125,6 +148,7 @@ public:
      * 
      * @throws fastq_error on parsing failures
      */
+    template<typename ScoreValidator = validator_options<>>
     bool get_read(CFastqRead& read);
 
 
@@ -135,6 +159,7 @@ public:
      * @param[out] reads vector of reads belonging to the spot 
      * @return false if readers reaches EOF
      */
+    template<typename ScoreValidator = validator_options<>>
     bool get_next_spot(string& spot_name, vector<CFastqRead>& reads);
 
     /**
@@ -147,16 +172,9 @@ public:
      * @param[out] reads vector of reads for the spot 
      * @return true if reads are found 
      */
+    template<typename ScoreValidator = validator_options<>>
     bool get_spot(const string& spot_name, vector<CFastqRead>& reads);
 
-    /**
-     * @brief Set reader's validation parameters 
-     * 
-     * @param[in] is_numeric true if quality score is expected to be numeric
-     * @param[in] min_score quality score min value
-     * @param[in] max_score quality score max value 
-     */
-    void set_validator(bool is_numeric, int min_score, int max_score);
 
     bool eof() const { return m_buffered_spot.empty() && m_stream->eof();}  ///< Returns true if file has no more reads
 
@@ -195,21 +213,14 @@ public:
      */
     static void cluster_files(const vector<string>& files, vector<vector<string>>& batches);
 
-    void dummy_validator(CFastqRead& read);      ///< dummy read validator, no validation 
+    template<typename ScoreValidator>
     void num_qual_validator(CFastqRead& read);   ///< Numeric quality score validatot
+    
+    template<typename ScoreValidator>
     void char_qual_validator(CFastqRead& read);  ///< Character (PHRED) quality score validator
 
 
 private:
-    /**
-     * @brief Validator types
-     * 
-     */
-    enum EValidator {
-        eNoValidator,  
-        eNumeric,      
-        ePhred} ;
-
     CDefLineParser      m_defline_parser;       ///< Defline parser 
     string              m_file_name;            ///< Corresponding file name
     shared_ptr<istream> m_stream;               ///< reader's stream
@@ -218,10 +229,6 @@ private:
     string              m_buffered_defline;     ///< Defline already read from the stream but not placed in a read
     vector<CFastqRead>  m_buffered_spot;        ///< Spot already read from the stream but no returned to the consumer
     vector<CFastqRead>  m_pending_spot;         ///< Partial spot with the first read only 
-    bool                m_is_qual_score_numeric = true;  ///< Quality score is numeric and qual score size == sequence size
-    using TQualScoreRange = pair<int, int>;
-    TQualScoreRange     m_qual_score_range = {33, 126};  ///< Expected quality score range
-    EValidator          m_validator{eNoValidator};  ///< Validator types
     string              m_line;                     ///< Temporary variable to hold current line 
     string_view         m_line_view;                ///< Temporary variable to hold string_view to the current line 
     string              m_tmp_str;                  ///< Temporary string holder
@@ -288,8 +295,11 @@ public:
     /**
      * @brief read from a group of readers, assembles the spot and send it to the writer
      * 
+     * @tparam ErrorChecker 
+     * @param err_checker - lambda invoked on fastq_error during read parsing
      */
-    void parse();
+    template<typename ScoreValidator, typename ErrorChecker>
+    void parse(ErrorChecker&& err_checker);
 
     /**
      * @brief Collation check
@@ -320,6 +330,7 @@ private:
         bool is_early_end = false;
         size_t number_of_spots = 0;
         size_t number_of_reads = 0;
+        size_t rejected_spots = 0;
         int    reads_per_spot = 0;
         size_t number_of_spots_with_orphans = 0;
         size_t max_sequence_size = 0;
@@ -398,6 +409,7 @@ if (getline(stream, line).eof()) { \
 }\
 
 //  ----------------------------------------------------------------------------    
+template<typename ScoreValidator>
 bool fastq_reader::parse_read(CFastqRead& read) 
 {
     if (m_stream->eof())
@@ -427,18 +439,19 @@ bool fastq_reader::parse_read(CFastqRead& read)
         read.AddSequenceLine(m_line_view);
         GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
     }
-    auto sequence_size = read.Sequence().size();
-    if (sequence_size == 0) 
-        throw fastq_error(110, "Read {}: no sequence data", read.Spot());
 
     if (!m_line_view.empty() && m_line_view[0] == '+') { // quality score defline
         // quality score defline is expected to start with '+'
         // we skip it
         GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
         if (!m_line_view.empty()) {
+            size_t sequence_size = read.Sequence().size();
+            if constexpr (ScoreValidator::type() == eNumeric) {
+                sequence_size *= 4;
+            }
             do {
                 read.AddQualityLine(m_line_view);
-                if (m_is_qual_score_numeric && read.Quality().size() >= sequence_size)
+                if (read.Quality().size() >= sequence_size)
                     break;
                 GET_LINE(*m_stream, m_line, m_line_view, m_line_number);
                 if (m_line_view.empty())
@@ -450,28 +463,17 @@ bool fastq_reader::parse_read(CFastqRead& read)
             } while (true);
         }
     }
-    if (read.Quality().empty())
-        throw fastq_error(111, "Read {}: no quality scores", read.Spot());
     return true;
 }
 
 //  ----------------------------------------------------------------------------    
-inline
+template<typename ScoreValidator>
 bool fastq_reader::get_read(CFastqRead& read) 
 {
     try {
-        if (!parse_read(read))
+        if (!parse_read<ScoreValidator>(read))
             return false;
-        switch (m_validator) {
-            case eNumeric:
-                num_qual_validator(read);
-                break;
-            case ePhred:
-                char_qual_validator(read);
-                break;
-            default:
-                dummy_validator(read);
-        }
+        validate_read<ScoreValidator>(read);
     } catch (fastq_error& e) {
         e.set_file(m_file_name, read.LineNumber());
         throw;
@@ -479,7 +481,26 @@ bool fastq_reader::get_read(CFastqRead& read)
     return true;
 }
 
+template<typename ScoreValidator>
+void fastq_reader::validate_read(CFastqRead& read) 
+{
+    if (read.Sequence().empty()) 
+        throw fastq_error(110, "Read {}: no sequence data", read.Spot());
+    if (read.Quality().empty())
+        throw fastq_error(111, "Read {}: no quality scores", read.Spot());
+    // check isalpha
+    if (std::any_of(read.Sequence().begin(), read.Sequence().end(), [](const char& c) { return !isalpha(c);})) 
+        throw fastq_error(160, "Read {}: invalid sequence characters", read.Spot());
+
+    if constexpr (ScoreValidator::type() == eNumeric) {
+        num_qual_validator<ScoreValidator>(read);
+    } else if constexpr (ScoreValidator::type() == ePhred) {
+        char_qual_validator<ScoreValidator>(read);
+    }
+}
+
 //  ----------------------------------------------------------------------------    
+template<typename ScoreValidator>
 bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
 {
     reads.clear();
@@ -490,21 +511,21 @@ bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
     }
     CFastqRead read;
     if (m_pending_spot.empty()) {
-        if (!get_read(read))
+        if (!get_read<ScoreValidator>(read))
             return false;
         spot_name = read.Spot();
-        reads.emplace_back(move(read));
+        reads.push_back(move(read));
     } else {
         reads.swap(m_pending_spot);
         spot_name = reads.front().Spot();
     }
 
-    while (get_read(read)) {
+    while (get_read<ScoreValidator>(read)) {
         if (read.Spot() == spot_name) {
-            reads.emplace_back(move(read));
+            reads.push_back(move(read));
             continue;
         }
-        m_pending_spot.emplace_back(move(read));
+        m_pending_spot.push_back(move(read));
         break;
     }
 
@@ -523,31 +544,29 @@ bool fastq_reader::get_next_spot(string& spot_name, vector<CFastqRead>& reads)
 }
 
 //  ----------------------------------------------------------------------------    
+template<typename ScoreValidator>
 bool fastq_reader::get_spot(const string& spot_name, vector<CFastqRead>& reads)
 {
     
     string spot;
     vector<CFastqRead> next_reads;
-    if (!get_next_spot(spot, next_reads)) 
+    if (!get_next_spot<ScoreValidator>(spot, next_reads)) 
         return false;
     if (spot == spot_name) {
         swap(next_reads, reads);
         return true; 
     }
     if (!m_pending_spot.empty() && m_pending_spot.front().Spot() == spot_name) {
-        get_next_spot(spot, reads);
+        get_next_spot<ScoreValidator>(spot, reads);
         swap(m_buffered_spot, next_reads);
         return true;
     }
     return false;
 }
 
-void fastq_reader::dummy_validator(CFastqRead& read) 
-{
-    return;
-}
 
 //  ----------------------------------------------------------------------------    
+template<typename ScoreValidator>
 void fastq_reader::num_qual_validator(CFastqRead& read)
 {
     if (m_curr_platform != m_defline_parser.GetPlatform()) 
@@ -555,11 +574,16 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
 
     m_tmp_str.clear();
     read.mQualScores.clear();
+    uint8_t score;
     for (auto c : read.mQuality) {
         if (isspace(c)) {
             if (!m_tmp_str.empty()) {
-                uint8_t score = stoi(m_tmp_str);
-                if (!(score >= m_qual_score_range.first && score <= m_qual_score_range.second)) 
+                try {
+                    score = stoi(m_tmp_str);
+                } catch (invalid_argument&) {
+                    throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), m_tmp_str);
+                }
+                if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score())) 
                     throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
                 read.mQualScores.push_back(score);
                 m_tmp_str.clear();
@@ -569,8 +593,12 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
         m_tmp_str.append(1, c);
     }
     if (!m_tmp_str.empty()) {
-        int score = stoi(m_tmp_str);
-        if (!(score >= m_qual_score_range.first && score <= m_qual_score_range.second)) 
+        try {
+            score = stoi(m_tmp_str);
+        } catch (invalid_argument&) {
+            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), m_tmp_str);
+        }
+        if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score())) 
             throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
         read.mQualScores.push_back(score);
     }
@@ -582,14 +610,15 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
 
     while (qual_size < sz) {
         read.mQuality += " ";
-        read.mQuality += to_string(m_qual_score_range.first + 30);
-        read.mQualScores.push_back(m_qual_score_range.first + 30);
+        read.mQuality += to_string(ScoreValidator::min_score() + 30);
+        read.mQualScores.push_back(ScoreValidator::min_score() + 30);
         ++qual_size;
     }
 }
 
 
 //  ----------------------------------------------------------------------------    
+template<typename ScoreValidator>
 void fastq_reader::char_qual_validator(CFastqRead& read)
 {
     if (m_curr_platform != m_defline_parser.GetPlatform()) 
@@ -605,23 +634,14 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
 
     for (auto c : read.mQuality) {
         int score = int(c);
-        if (!(score >= m_qual_score_range.first && score <= m_qual_score_range.second)) 
+        if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score())) 
             throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
     }
     if (qual_size < sz) {
         if (qual_size == 0)
             throw fastq_error(111, "Read {}: no quality scores", read.Spot());
-        read.mQuality.append(sz - qual_size,  char(m_qual_score_range.first + 30));
+        read.mQuality.append(sz - qual_size,  char(ScoreValidator::min_score() + 30));
     }
-}
-
-
-//  ----------------------------------------------------------------------------    
-void fastq_reader::set_validator(bool is_numeric, int min_score, int max_score) 
-{
-    m_qual_score_range = pair<int, int>(min_score, max_score);
-    m_is_qual_score_numeric = is_numeric;
-    m_validator = is_numeric ? eNumeric : ePhred; 
 }
 
 
@@ -644,22 +664,20 @@ void serialize_vec(const string& file_name, str_sv_type& vec)
 }
 
 
-
 /**
  * gets top spot spot name for each reader 
  * and retrieves next reads belonging to the same spot from other readers
  * to assembly the spot
  */
 template<typename TWriter>
-void fastq_parser<TWriter>::parse() 
+template<typename ScoreValidator, typename ErrorChecker>
+void fastq_parser<TWriter>::parse(ErrorChecker&& error_checker) 
 {
-#ifdef LOCALDEBUG
     size_t spotCount = 0;
     size_t readCount = 0;
     size_t currCount = 0;
     spdlog::stopwatch sw;
     spdlog::info("Parsing from {} files", m_readers.size());
-#endif
 
     int num_readers = m_readers.size();
     vector<CFastqRead> curr_reads;
@@ -674,48 +692,53 @@ void fastq_parser<TWriter>::parse()
     do {
         has_spots = false;
         early_end = 0;
-        for (int i = 0; i < num_readers; ++i) {
-            if (!m_readers[i].get_next_spot(spot, spot_reads[i])) {
+        for (int i = 0; i < num_readers; ++i) 
+        try {
+            if (!m_readers[i].get_next_spot<ScoreValidator>(spot, spot_reads[i])) {
                 ++early_end;
                 check_readers = num_readers > 1 && m_allow_early_end == false;
                 continue;
             }
 
             has_spots = true;
+
             for (int j = 0; j < num_readers; ++j) {
                 if (j == i) continue;
-                m_readers[j].get_spot(spot, spot_reads[j]);
+                m_readers[j].get_spot<ScoreValidator>(spot, spot_reads[j]);
             }
 
             assembled_spot.clear();
             for (auto& r : spot_reads) {
                 if (!r.empty()) {
                     move(r.begin(), r.end(), back_inserter(assembled_spot));
-#ifdef LOCALDEBUG
                     readCount += r.size();
                     currCount += r.size();
-#endif  
                     r.clear();
                 }
             }
             assert(assembled_spot.empty() == false);
             auto spot_size = assembled_spot.size();
             if (spot_size > 0) {
-                if (spot_size > 4)
+                if (spot_size > 4) {
                     throw fastq_error(210, "Spot {} has more than 4 reads", assembled_spot.front().Spot());
-                m_writer->write_spot(assembled_spot);
-                spot_names_bi = assembled_spot.front().Spot();
-                update_telemetry(assembled_spot);
-#ifdef LOCALDEBUG
-                ++spotCount;
-                if (currCount >= 10e6) {
-                    //m_writer->progressMessage(fmt::format("spots: {:L}, reads: {:L}", spotCount, readCount));
-                    spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
-                    currCount = 0;
+                } else {
+                    m_writer->write_spot(assembled_spot);
+                    spot_names_bi = assembled_spot.front().Spot();
+                    update_telemetry(assembled_spot);
+                    ++spotCount;
+                    if (currCount >= 10e6) {
+                        //m_writer->progressMessage(fmt::format("spots: {:L}, reads: {:L}", spotCount, readCount));
+                        spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
+                        currCount = 0;
+                    }
                 }
-#endif  
             }
-        }
+        } catch (fastq_error& e) {
+            error_checker(e);
+            has_spots = true;  /// we don't want interrupt too early in case of an exception
+            ++m_telemetry.groups.back().rejected_spots;
+       }
+
         if (has_spots == false)
             break;
 
@@ -739,10 +762,10 @@ void fastq_parser<TWriter>::parse()
     } while (true);
 
 
-#ifdef LOCALDEBUG
     spdlog::info("spots: {:L}, reads: {:L}", spotCount, readCount);
+    if (m_telemetry.groups.back().rejected_spots > 0)
+        spdlog::info("rejected spots: {:L}", m_telemetry.groups.back().rejected_spots);
     spdlog::debug("parsing time: {}", sw);
-#endif
     spot_names_bi.flush();
     // update telemetry
     for(const auto& reader : m_readers) {
@@ -963,12 +986,12 @@ void fastq_reader::cluster_files(const vector<string>& files, vector<vector<stri
         if (placed[i]) continue;
         placed[i] = 1;
         string spot;
-        if (!readers[i].get_next_spot(spot, reads))
+        if (!readers[i].get_next_spot<>(spot, reads))
             throw fastq_error(50 , "File '{}' has no reads", readers[i].file_name());
         vector<string> batch{readers[i].file_name()};
         for (size_t j = 0; j < files.size(); ++j) {
             if (placed[j]) continue;
-            if (readers[j].get_spot(spot, reads)) {
+            if (readers[j].get_spot<>(spot, reads)) {
                 placed[j] = 1;
                 batch.push_back(readers[j].file_name());
             }
@@ -1069,7 +1092,8 @@ void check_hash_file(const string& hash_file)
  * @param[in] input_batches input group pf files
  * @param[in] num_reads_to_check
  */
-void get_digest(json& j, const vector<vector<string>>& input_batches, int num_reads_to_check = 250000) 
+template<typename ErrorChecker>
+void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorChecker&& error_checker, int num_reads_to_check = 250000) 
 {
     assert(!input_batches.empty());
     // Run first num_reads_to_check to check for consistency 
@@ -1111,8 +1135,15 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
             bool has_orphans = false;
             string spot_name;
             set<string> read_names;
-            if (!reader.get_next_spot(spot_name, reads))
+            bool has_reads;
+            try {
+                has_reads = reader.get_next_spot<>(spot_name, reads);
+            } catch (fastq_error& e) {
+                error_checker(e);
+            }
+            if (!has_reads)
                 throw fastq_error(50 , "File '{}' has no reads", fn);
+
             f["is_compressed"] = reader.is_compressed();
             max_reads = reads.size();   
             reads_processed += reads.size();
@@ -1125,7 +1156,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                     s_check_qual_score(read, params);
                 } catch (fastq_error& e) {
                     e.set_file(fn, read.LineNumber());
-                    throw;
+                    error_checker(e);
                 }
             }
             string suffix = reads.empty() ? "" : reads.front().Suffix();
@@ -1146,8 +1177,12 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                         break;
                 }
                 reads.clear();
-                if (!reader.get_next_spot(spot_name, reads))
-                    break;
+                try {
+                    if (!reader.get_next_spot<>(spot_name, reads))
+                        break;
+                } catch(fastq_error& e) {
+                    error_checker(e);
+                }
                 ++spots_processed;
                 reads_processed += reads.size();
                 if (max_reads > (int)reads.size()) {
@@ -1163,7 +1198,7 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, int num_re
                         s_check_qual_score(read, params);
                     } catch (fastq_error& e) {
                         e.set_file(fn, read.LineNumber());
-                        throw;
+                        error_checker(e);
                     }
                 }
                 //if (platform != reader.platform()) 
@@ -1242,20 +1277,6 @@ void fastq_parser<TWriter>::set_readers(json& group)
     for (auto& data : group["files"]) {
         const string& name = data["file_path"];
         m_readers.emplace_back(name, s_OpenStream(name, (1024 * 1024) * 10), data["readType"], data["platform_code"].front());
-        auto& reader = m_readers.back();
-        switch ((int)data["quality_encoding"]) {
-            case 0: 
-                reader.set_validator(true, -5, 40); 
-                break;
-            case 33: 
-                reader.set_validator(false, 33, 126); 
-                break;
-            case 64: 
-                reader.set_validator(false, 64, 126); 
-                break;
-            default:
-                throw runtime_error("Invaid quality encoding");
-        }    
     }
     set_telemetry(group);
 }
@@ -1274,6 +1295,7 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         g["is_early_end"] = gr.is_early_end;
         g["number_of_spots"] = gr.number_of_spots;
         g["number_of_reads"] = gr.number_of_reads;
+        g["rejected_spots"] = gr.rejected_spots;
         g["is_interleaved"] = gr.is_interleaved;
         g["has_read_names"] = gr.has_read_names;
         g["defline_type"] = gr.defline_types;
@@ -1282,8 +1304,8 @@ void fastq_parser<TWriter>::report_telemetry(json& j)
         g["max_sequence_size"] = gr.max_sequence_size;
         g["min_sequence_size"] = gr.min_sequence_size;
     }
-
 }
+
 
 #endif
 

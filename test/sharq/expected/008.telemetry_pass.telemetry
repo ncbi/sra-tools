@@ -29,7 +29,8 @@
             "number_of_reads": 9,
             "number_of_spots": 3,
             "number_of_spots_with_orphans": 0,
-            "reads_per_spot": 3
+            "reads_per_spot": 3,
+            "rejected_spots": 0
         },
         {
             "defline_type": [
@@ -49,7 +50,8 @@
             "number_of_reads": 9,
             "number_of_spots": 3,
             "number_of_spots_with_orphans": 0,
-            "reads_per_spot": 3
+            "reads_per_spot": 3,
+            "rejected_spots": 0
         },
         {
             "defline_type": [
@@ -69,7 +71,8 @@
             "number_of_reads": 9,
             "number_of_spots": 3,
             "number_of_spots_with_orphans": 0,
-            "reads_per_spot": 3
+            "reads_per_spot": 3,
+            "rejected_spots": 0
         }
     ],
     "platform_code": 2,

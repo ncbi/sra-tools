@@ -75,7 +75,7 @@ FIXTURE_TEST_CASE(EmptyFile, LoaderFixture)
     CFastqRead read;
     REQUIRE(read.Spot().empty());
     REQUIRE(read.LineNumber() == 0);
-    REQUIRE(reader.parse_read(read) == false);
+    REQUIRE(reader.parse_read<>(read) == false);
     REQUIRE(reader.eof());
 }
 
@@ -86,7 +86,7 @@ FIXTURE_TEST_CASE(EndLines, LoaderFixture)
     //*ss << "\n\n";
     fastq_reader reader("test", create_stream("\n\n"));
     CFastqRead read;
-    REQUIRE(reader.parse_read(read) == false);
+    REQUIRE(reader.parse_read<>(read) == false);
     REQUIRE(reader.eof());
 }
 
@@ -95,7 +95,7 @@ FIXTURE_TEST_CASE(InvalidDefline, LoaderFixture)
 {
     fastq_reader reader("test", create_stream("qqq abcd"));
     CFastqRead read;
-    REQUIRE_THROW(reader.parse_read(read));
+    REQUIRE_THROW(reader.parse_read<>(read));
 }
 
 
@@ -104,7 +104,7 @@ FIXTURE_TEST_CASE(InvalidDeflineError, LoaderFixture)
     fastq_reader reader("test", create_stream("qqq abcd"));
     CFastqRead read;
     try {
-        reader.parse_read(read);
+        reader.parse_read<>(read);
         FAIL("Should not reach this point");
     } catch (fastq_error& err) {
         CHECK_EQ(err.Message(), string("[code:100] Defline 'qqq abcd' not recognized"));
@@ -133,7 +133,7 @@ FIXTURE_TEST_CASE(GoodRead, LoaderFixture)
 {   // a good record 
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, cSEQ, cQUAL)));
-    REQUIRE(reader.parse_read(read));
+    REQUIRE(reader.parse_read<>(read));
     REQUIRE(reader.platform()== 2);
     REQUIRE_EQ(read.Spot(), cSPOT1);
     REQUIRE_EQ(read.ReadNum(), string("1"));
@@ -148,15 +148,15 @@ FIXTURE_TEST_CASE(GoodReadFollowedByJunk, LoaderFixture)
     //string cREAD = CREATE_READ(cDEFLINE1, cSEQ, cQUAL);
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, cSEQ, cQUAL) + "qqq abcd"));
-    REQUIRE(reader.parse_read(read));
-    REQUIRE_THROW(reader.parse_read(read));
+    REQUIRE(reader.parse_read<>(read));
+    REQUIRE_THROW(reader.parse_read<>(read));
 }
 
 FIXTURE_TEST_CASE(MultiLineRead, LoaderFixture)
 {   // multiline record 
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, cSEQ_MULTILINE, cQUAL_MULTILINE)));
-    REQUIRE(reader.parse_read(read));
+    REQUIRE(reader.parse_read<>(read));
     CHECK_EQ(read.Sequence(), cSEQ);
     CHECK_EQ(read.Quality(), cQUAL);
 }
@@ -166,8 +166,8 @@ FIXTURE_TEST_CASE(NoLastLF, LoaderFixture)
     fastq_reader reader("test", create_stream(
         _READ(cDEFLINE1, "GATT", cQUAL) + "@" + cDEFLINE2  + "\nACGTACGT\n+\n!''*!''*"));
     CFastqRead read;
-    REQUIRE(reader.parse_read(read));
-    REQUIRE(reader.parse_read(read));
+    REQUIRE(reader.parse_read<>(read));
+    REQUIRE(reader.parse_read<>(read));
     REQUIRE_EQ(read.LineNumber(), 5lu);
     REQUIRE_EQ(read.Quality().size(), 8lu);
     REQUIRE(reader.eof());
@@ -178,7 +178,8 @@ FIXTURE_TEST_CASE(InvalidSequence, LoaderFixture)
 {   // invalid sequence character 
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, "GA^TT", cQUAL)));
-    REQUIRE_THROW(reader.parse_read(read));
+    REQUIRE(reader.parse_read<>(read));
+    REQUIRE_THROW(reader.validate_read<>(read));
 }
 
 FIXTURE_TEST_CASE(EmptyQuality, LoaderFixture)
@@ -546,10 +547,10 @@ FIXTURE_TEST_CASE(Quality33TooLow, LoaderFixture)
     // source: SRR016872
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
         "GAAACCCCCTATTAGANNNNCNNNNCNATCATGTCA", "II IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")), {}, 2);
-    reader.set_validator(false, 33, 74);
+    //reader.set_validator(false, 33, 74);
     CFastqRead read;
     try {
-        reader.get_read(read);
+        reader.get_read<validator_options<ePhred, 33, 74>>(read);
         FAIL("Should not reach this point");
     } catch (fastq_error& err) {
         REQUIRE(err.Message().find("unexpected quality score value") != string::npos);
@@ -562,9 +563,9 @@ FIXTURE_TEST_CASE(Quality33Adjusteed, LoaderFixture)
     // source: SRR016872
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
         "GAAA", "II")), {}, 2);
-    reader.set_validator(false, 33, 74);
+    //reader.set_validator(false, 33, 74);
     CFastqRead read;
-    REQUIRE(reader.get_read(read));
+    REQUIRE((reader.get_read<validator_options<ePhred, 33, 74>>(read)));
     REQUIRE_EQ(read.Quality(), string("II??"));
 }
 
@@ -573,10 +574,10 @@ FIXTURE_TEST_CASE(Quality64TooLow, LoaderFixture)
 {   
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
         "GGGGTTAGTGGCAGGGGGGGGGTCTCGGGGGGGGGG", "IIIIIIIIIIIIIIIIII;IIIIIIIIIIIIIIIII")), {}, 2);
-    reader.set_validator(false, 64, 105);
+    //reader.set_validator(false, 64, 105);
     CFastqRead read;
     try {
-        reader.get_read(read);
+        reader.get_read<validator_options<ePhred, 64, 105>>(read);
         FAIL("Should not reach this point");
     } catch (fastq_error& err) {
         REQUIRE(err.Message().find("unexpected quality score value '59'") != string::npos);
@@ -587,9 +588,9 @@ FIXTURE_TEST_CASE(Quality64Adjusted, LoaderFixture)
 {   
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
         "GGGG", "II")), {}, 2);
-    reader.set_validator(false, 64, 105);
+    //reader.set_validator(false, 64, 105);
     CFastqRead read;
-    REQUIRE(reader.get_read(read));
+    REQUIRE((reader.get_read<validator_options<ePhred, 64, 105>>(read)));
     REQUIRE_EQ(read.Quality(), string("II^^"));
 }
 
@@ -600,9 +601,9 @@ FIXTURE_TEST_CASE(TextQualityRejected, LoaderFixture)
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
         "GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN", 
         "40 3 1 22 17 18 34 8 13 21 3 7 5 0 0 5 1 0 7 3 2 3 3 3 1 1 4 5 5 2 2 5 0 1 5 5")), {}, 2);
-    reader.set_validator(false, -5, 40);
+    //reader.set_validator(false, -5, 40);
     CFastqRead read;
-    REQUIRE_THROW(reader.get_read(read));
+    REQUIRE_THROW((reader.get_read<validator_options<ePhred, -5, 40>>(read)));
 }
 
 
@@ -613,9 +614,9 @@ FIXTURE_TEST_CASE(TextQualityAccepted, LoaderFixture)
 
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
         "GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN", cNUM_QUAL)), {}, 2);
-    reader.set_validator(true, -5, 40);
+    //reader.set_validator(true, -5, 40);
     CFastqRead read;
-    REQUIRE(reader.get_read(read));
+    REQUIRE((reader.get_read<validator_options<eNumeric, -5, 40>>(read)));
     REQUIRE_EQ(read.Quality(), cNUM_QUAL);
     vector<uint8_t> qual_scores_out;
     read.GetQualScores(qual_scores_out);
@@ -627,9 +628,9 @@ FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
 {
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
         "GTCG", "40 3")), {}, 2);
-    reader.set_validator(true, -5, 40);
+    //reader.set_validator(true, -5, 40);
     CFastqRead read;
-    REQUIRE(reader.get_read(read));
+    REQUIRE((reader.get_read<validator_options<eNumeric, -5, 40>>(read)));
     REQUIRE_EQ(read.Quality(), string("40 3 25 25"));
     vector<uint8_t> qual_scores_in{40, 3, 25 , 25};
     vector<uint8_t> qual_scores_out;

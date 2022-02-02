@@ -509,6 +509,11 @@ static size_t GetFixedNameLength(char const name[], size_t const namelen)
     return namelen;
 }
 
+/* START VDB-4770 simple CSV text dump of spot assembly reads */
+static const char * SPOT_LOG_FILENAME = "spot_log.csv";
+static FILE * spot_log = NULL;
+/* END VDB-4770 */
+
 static
 rc_t GetKeyID(KeyToID *const ctx,
               uint64_t *const rslt,
@@ -518,6 +523,13 @@ rc_t GetKeyID(KeyToID *const ctx,
               size_t const o_namelen)
 {
     size_t const namelen = GetFixedNameLength(name, o_namelen);
+
+    /* START VDB-4770 simple CSV text dump of spot assembly reads */
+    if ( NULL != spot_log ) {
+        int nl = namelen;
+        fprintf( spot_log, "%s\t%.*s\n", key, nl, name );
+    }
+    /* END VDB-4770 */
 
     if (ctx->key2id_max == 1)
         return GetKeyIDOld(ctx, rslt, wasInserted, key, name, namelen);
@@ -3055,6 +3067,12 @@ rc_t run(char const progName[],
     rc_t rc2;
     char const *db_type = G.expectUnsorted ? "NCBI:align:db:alignment_unsorted" : "NCBI:align:db:alignment_sorted";
 
+    /* START VDB-4770 simple CSV text dump of spot assembly reads */
+    if ( NULL == spot_log ) {
+        spot_log = fopen ( SPOT_LOG_FILENAME, "w+" );
+    }
+    /* END VDB-4770 */
+
     rc = VDBManagerMakeUpdate(&mgr, NULL);
     if (rc) {
         (void)LOGERR (klogErr, rc, "failed to create VDB Manager!");
@@ -3174,5 +3192,13 @@ rc_t run(char const progName[],
         if (rc == 0)
             rc = rc2;
     }
+
+/* START VDB-4770 simple CSV text dump of spot assembly reads */
+        if ( NULL != spot_log ) {
+        fclose( spot_log );
+        spot_log = NULL;
+    }
+/* END VDB-4770 */
+
     return rc;
 }

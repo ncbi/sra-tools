@@ -135,11 +135,16 @@ if ( Java_FOUND )
         foreach(f ${ITF_SRC})
             set(SRC_FILES "${SRC_FILES} ${f}")
         endforeach()
-    
+
         foreach(f ${NCBI_SRC})
             set(SRC_FILES "${SRC_FILES} ${f}")
         endforeach()
 
+        if( ${OS} STREQUAL "windows" )
+            set( NGS_JAVADOC_DIR ${TARGDIR} )
+        else()
+            set( NGS_JAVADOC_DIR ${TARGDIR}/obj )
+        endif()
         if ( Java_JAR_EXECUTABLE AND NOT (${OS} STREQUAL "windows") )
             add_custom_target(
                 ngs-doc-jar ALL COMMAND

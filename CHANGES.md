@@ -22,7 +22,7 @@
   **latf-load**: will no longer accept duplicate read names  
   **ngs**: clients will not download dynamic libraries anymore  
   **prefetch**: fixed checking of dependencies for absolute path  
-  **prefetch, vdb**: fixed to downloads reference sequences into "Accession-Directory" when zero-quality is preferred  
+  **prefetch, vdb**: fixed downloading reference sequences into "Accession-Directory" when zero-quality is preferred  
   **remote-fuser**: was retired  
   **sratools**: seq-defline and qual-defline options now work  
   **sratools**: tries harder to find the executable path on macOS  

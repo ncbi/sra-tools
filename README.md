@@ -9,6 +9,8 @@ Visit our [download page](https://github.com/ncbi/sra-tools/wiki/01.-Downloading
 ### Change Log
 Please check the [CHANGES.md](CHANGES.md) file for change history.
 
+----
+
 ## The SRA Toolkit
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
@@ -23,27 +25,27 @@ This change also includes the structure of GitHub repositories, which underwent 
 
 #### **Affected repositories**
 
-1) ncbi/ngs (https://github.com/ncbi/ngs)
+1) [ncbi/ngs](https://github.com/ncbi/ngs)
 
    This repository is frozen. All future development will take place in GitHub repository ncbi/sra-tools (this repository), under subdirectory `ngs/`.
 
-2) ncbi/ncbi-vdb (https://github.com/ncbi/ncbi-vdb)
+2) [ncbi/ncbi-vdb](https://github.com/ncbi/ncbi-vdb)
 
-   This project's build system is based on CMake. The libraries supporting access to VDB data via NGS API have moved to GitHub repository
-   ncbi/sra-tools.
+   This project's build system is based on CMake. The libraries providing access to SRA data in VDB format via the NGS API have moved to GitHub repository
+   [ncbi/sra-tools](https://github.com/ncbi/ncbi-vdb).
 
    | Old (base URL: https://github.com/ncbi/ncbi-vdb) | New (base URL: https://github.com/ncbi/sra-tools) |
    | -------------------------------------------------| ------------------------------------------------- |
-   | libs/ngs | ngs/ncbi/ngs |
-   | libs/ngs-c++ | ngs/ncbi/ngs-c++ |
-   | libs/ngs-jni | ngs/ncbi/ngs-jni |
-   | libs/ngs-py | ngs/ncbi/ngs-py |
-   | libs/vdb-sqlite | libs/vdb-sqlite |
-   | test/ngs-java | test/ngs-java |
-   | test/ngs-python | test/ngs-python |
+   | `libs/ngs`        | `ngs/ncbi/ngs`     |
+   | `libs/ngs-c++`    | `ngs/ncbi/ngs-c++` |
+   | `libs/ngs-jni`    | `ngs/ncbi/ngs-jni` |
+   | `libs/ngs-py`     | `ngs/ncbi/ngs-py`  |
+   | `libs/vdb-sqlite` | `libs/vdb-sqlite`  |
+   | `test/ngs-java`   | `test/ngs-java`    |
+   | `test/ngs-python` | `test/ngs-python`  |
 
 
-3) ncbi/sra-tools (https://github.com/ncbi/sra-tools)
+3) [ncbi/sra-tools](https://github.com/ncbi/sra-tools) (This repository)
 
    This project's build system is based on CMake. The project acquired some new components, as listed in the table above.
 

@@ -659,7 +659,7 @@ FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
 // # @1dc51069-f61f-45db-b624-56c857c4e2a8_Basecall_2D_000_2d oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand_twodirections:CORNELL_Oxford_Nanopore/oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand.fast5 (SRR2848544 - nanopore3)
 // # @ae74c4fb-2c1d-4176-9584-3dfcc6dce41e_Basecall_2D_2d UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch93_read2620_strand NB06\UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch93_read2620_strand.fast5 (SRR5085901 - nanopore3)
 // # @ddb7d987-73c0-4d9a-8ac0-ac0dbc462ab5_Basecall_2D_2d UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch100_read4767_strand1 NB06\UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch100_read4767_strand1.fast5 (SRR5085901 - nanopore3)
-// # @f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand
+// # @f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand (nanopore5)
 // # @channel_101_read_1.1C|1T|2D (ERR1121618 bam converted to fastq)
 // # @channel_100_read_20_twodirections:/Users/blbrown/Documents/DATA/Biology Stuff/New Building/Oxford Nanopore/Pan-MAP/VCUEGLequalFAA23773/reads/downloads/pass/Bonnie_PC_VCUEGLequalFAA23773_2353_1_ch100_file20_strand.fast5 (SRR3473970)
 // # @5f8415e3-46ae-48fc-9092-a291b8b6a9b9 run_id=47b8d024d71eef532d676f4aa32d8867a259fc1b read=279 mux=3 ch=87 start_time=2017-01-20T16:26:27Z (SRR5621803 - nanopore4)
@@ -679,21 +679,26 @@ FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
 //
 // NANOPORE regular expressions from fastq-load.py
 //
-// "[@>+]+?(channel_)(\d+)(_read_)?(\d+)?([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)?(:[!-~ ]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)"
-// "[@>+]([!-~]*?ch)(\d+)(_file)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)(:[!-~ ]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)"
-// "[@>+]([!-~]*?)[: ]?([!-~]+?Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?|)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D|)[: ]([!-~]*?)[: ]?([!-~ ]+?_ch)_?(\d+)(_read|_file)_?(\d+)(_strand\d*.fast5|_strand\d*.*|)(\s+|$)"
-// "[@>+]([!-~]+?)[: ]?([!-~]+?Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?|)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D|)[: ]([!-~]*?)[: ]?([!-~ ]+?_read_)(\d+)(_ch_)(\d+)(_strand\d*.fast5|_strand\d*.*)(\s+|$)"
-// "[@>+]([!-~]*?\S{8}-\S{4}-\S{4}-\S{4}-\S{12}\S*[_]?\d?)[\s+[!-~ ]*?|]$"
+// nanopore="[@>+]+?(channel_)(\d+)(_read_)?(\d+)?([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)?(:[!-~ ]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)"
+// nanopore2="[@>+]([!-~]*?ch)(\d+)(_file)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)(:[!-~ ]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)"
+// nanopore3="[@>+]([!-~]*?)[: ]?([!-~]+?Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?|)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D|)[: ]([!-~]*?)[: ]?([!-~ ]+?_ch)_?(\d+)(_read|_file)_?(\d+)(_strand\d*.fast5|_strand\d*.*|)(\s+|$)"
+// nanopore3_1="[@>+]([!-~]+?)[: ]?([!-~]+?Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?|)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D|)[: ]([!-~]*?)[: ]?([!-~ ]+?_read_)(\d+)(_ch_)(\d+)(_strand\d*.fast5|_strand\d*.*)(\s+|$)"
+// nanopore4="[@>+]([!-~]*?\S{8}-\S{4}-\S{4}-\S{4}-\S{12}\S*[_]?\d?)[\s+[!-~ ]*?|]$"
+// nanopore5="[@>+]([!-~]*?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)\S*?($)"
 
-// "[@>+]([!-~]*?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)\S*?($)"
-FIXTURE_TEST_CASE(Nanopore, LoaderFixture)
+FIXTURE_TEST_CASE(Nanopore3, LoaderFixture)
 {
-    fastq_reader reader("test", create_stream(_READ("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template",
+    fastq_reader reader("test", create_stream(_READ("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand",
         "AAGT", "IIII")), {}, 2);
     CFastqRead read;
     REQUIRE( reader.get_read(read) );
     REQUIRE( reader.platform() == SRA_PLATFORM_OXFORD_NANOPORE );
-    //TODO: verify the parts of the read
+    REQUIRE_EQ( read.Spot(), string( "f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall" ) );
+    REQUIRE_EQ( read.Suffix(), string( "_Alignment" ) );
+    REQUIRE_EQ( read.ReadNum(), string() );
+    REQUIRE( read.SpotGroup().empty() );
+    REQUIRE_EQ( read.Sequence(), string( "AAGT" ) );
+    REQUIRE_EQ( read.Quality(), string( "IIII" ) );
 }
 
 int main (int argc, char *argv [])

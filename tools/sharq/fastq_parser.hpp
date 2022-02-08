@@ -43,7 +43,6 @@
 
 #include "fastq_read.hpp"
 #include "fastq_error.hpp"
-#include "fastq_defline_parser.hpp"
 #include "hashing.hpp"
 // input streams
 #include "bxzstr/bxzstr.hpp"
@@ -60,6 +59,8 @@
 #include <json.hpp>
 #include <set>
 #include <limits>
+
+#include "fastq_defline_parser.hpp"
 
 using namespace std;
 

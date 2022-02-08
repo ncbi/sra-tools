@@ -58,7 +58,7 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
     )
     set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
     add_executable(test-sharq-parser test-sharq-parser.cpp )
-    add_dependencies(test-sharq-parser RE2_)
+    add_dependencies(test-sharq-parser RE2_ sharq)
     target_include_directories(test-sharq-parser PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
@@ -129,6 +129,8 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
     SharqTest(010.errors.invalid_seq_pass2 0 "--max-err-count 5 ${IN}010.errors.invalid_seq.fq")
     SharqTest(010.errors.invalid_seq_fail 1 "--max-err-count 3 ${IN}010.errors.invalid_seq.fq")
 
-endif()
+    SharqTest(011.nanopore.3 0 "--max-err-count 0 ${IN}011.nanopore.3.fq")
+
+    endif()
 
 endif()

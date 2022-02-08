@@ -9,6 +9,7 @@
 
 #include "fastq_read.hpp"
 #include <re2/re2.h>
+#include <insdc/sra.h>
 
 using namespace std;
 
@@ -148,7 +149,7 @@ public:
     }
 
     uint8_t GetPlatform() const override {
-        return 2; //SRA_PLATFORM_UNDEFINED
+        return SRA_PLATFORM_ILLUMINA;
     };
 
     virtual void GetMatch(CFastqRead& read) override
@@ -173,7 +174,7 @@ public:
     }
 
     uint8_t GetPlatform() const override {
-        return 2; //SRA_PLATFORM_ILLUMINA;
+        return SRA_PLATFORM_ILLUMINA;
     };
 
     virtual void GetMatch(CFastqRead& read) override
@@ -342,25 +343,50 @@ public:
 
     virtual void GetMatch(CFastqRead& read) override
     {
-        //TODO
-
         //  0         1     2       3    4       5       6     7        8           9         10         11
         //  flowcell, lane, column, row, readNo, suffix, sep1, readNum, filterRead, reserved, spotGroup, endSep
-        // string spot;
-        // match[0].AppendToString(&spot); //flowcell
-        // match[1].AppendToString(&spot); //lane
-        // match[2].AppendToString(&spot); //column
-        // match[3].AppendToString(&spot); //row
-        // match[4].AppendToString(&spot); // readNo
-        // read.SetSpot(spot);
+        string spot;
+        match[0].AppendToString(&spot); //flowcell
+        match[1].AppendToString(&spot); //lane
+        match[2].AppendToString(&spot); //column
+        match[3].AppendToString(&spot); //row
+        match[4].AppendToString(&spot); // readNo
+        read.SetSpot(spot);
 
-        // read.SetSuffix(match[5]);
+        read.SetSuffix(match[5]);
 
-        // read.SetReadNum(match[7]);
+        read.SetReadNum(match[7]);
 
-        // read.SetSpotGroup(match[10]);
+        read.SetSpotGroup(match[10]);
 
-        // read.SetReadFilter(match[8] == "Y" ? 1 : 0);
+        read.SetReadFilter(match[8] == "Y" ? 1 : 0);
+    }
+};
+
+class CDefLineMatcherNanopore : public CDefLineMatcher
+{
+public:
+    CDefLineMatcherNanopore() :
+        CDefLineMatcher(
+            "Nanopore3",
+            R"([@>+]([!-~]*?)[: ]?([!-~]+?Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?|)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D|)[: ]([!-~]*?)[: ]?([!-~ ]+?_ch)_?(\d+)(_read|_file)_?(\d+)(_strand\d*.fast5|_strand\d*.*|)(\s+|$))"
+        )
+    {}
+
+    uint8_t GetPlatform() const override {
+        return SRA_PLATFORM_OXFORD_NANOPORE;
+    };
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+//for( auto m : match ) cout << m << endl;
+        //  0    1    2      3    4       5       6     7        8           9         10         11
+        //       name suffix poreRead
+        read.SetSpot( match[1] );
+        read.SetSuffix( match[2] );
+        // For now, poreRead is expected to be "_template", other variants will be passed to the regular fastq-load.py
+        //TODO: ch match[6]
+        //TODO: read match[8]
     }
 };
 

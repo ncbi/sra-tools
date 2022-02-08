@@ -577,7 +577,10 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
             }
         }
         catch (std::domain_error const &de) {
-            assert(de.what() == std::string("No query"));
+            if (de.what() && strcmp(de.what(), "No query") == 0)
+                ;
+            else
+                throw de;
         }
         catch (vdb::exception const &e) {
             LOG(1) << "Failed to talk to SDL" << std::endl;

@@ -253,7 +253,7 @@ echo "Downloading --cart <kart> ordered by default (size)"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch -+VFS --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn" \
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn" \
                                                     || exit 892
 cd ${work_dir}                                      || exit 893
 rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 894

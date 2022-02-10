@@ -47,6 +47,19 @@ Options:
                                      overwriting it
      --fasta                       produce FASTA output
      --fasta-unsorted              produce FASTA output, unsorted
+     --seq-defline                 custom defline for sequence:
+                                     $ac=accession, $sn=spot-name,
+                                     $sg=spot-group, $si=spot-id,
+                                     $ri=read-id, $rl=read-length
+     --qual-defline                custom defline for qualities (see
+                                     seq-defline)
+  -U|--only-unaligned              process only unaligned reads
+  -a|--only-aligned                process only aligned reads
+     --size-check                  switch to control: on=perform size-check
+                                     (default), off=do not perform
+                                     size-check, only=perform size-check only
+     --disk-limit                  explicitly set disk limit
+     --disk-limit-tmp              explicitly set disk limit for temp. files
      --ngc <path>                  <path> to ngc file
      --perm <path>                 <path> to permission file
      --location <location>         location in cloud

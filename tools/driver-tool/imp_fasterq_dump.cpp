@@ -43,6 +43,11 @@ struct FasterqParams final : CmnOptAndAccessions
     ncbi::String temp;
     ncbi::String table;
     ncbi::String bases;
+    ncbi::String seqDefline;
+    ncbi::String qualDefline;
+    ncbi::String size_check;
+    ncbi::String disk_limit;
+    ncbi::String disk_limit_tmp;
     ncbi::U32 ThreadsCount;
     ncbi::U32 Threads;
     bool progress;
@@ -63,6 +68,8 @@ struct FasterqParams final : CmnOptAndAccessions
     bool append;
     bool fasta;
     bool fastaUnsorted;
+    bool unaligned_only;
+    bool aligned_only;
 
     explicit FasterqParams(WhatImposter const &what)
     : CmnOptAndAccessions(what)
@@ -86,6 +93,8 @@ struct FasterqParams final : CmnOptAndAccessions
     , append( false )
     , fasta(false)
     , fastaUnsorted(false)
+    , unaligned_only(false)
+    , aligned_only(false)
     {
     }
 
@@ -135,6 +144,17 @@ struct FasterqParams final : CmnOptAndAccessions
         cmdline.addOption(fasta, "", "fasta", "produce FASTA output");
         cmdline.addOption(fastaUnsorted, "", "fasta-unsorted", "produce FASTA output, unsorted");
 
+        cmdline.addOption(seqDefline, nullptr, "", "seq-defline", "", "custom defline for sequence: $ac=accession, $sn=spot-name, $sg=spot-group, $si=spot-id, $ri=read-id, $rl=read-length");
+        cmdline.addOption(qualDefline, nullptr, "", "qual-defline", "", "custom defline for qualities (see seq-defline)");
+
+        cmdline.addOption(unaligned_only, "U", "only-unaligned", "process only unaligned reads");
+        cmdline.addOption(aligned_only, "a", "only-aligned", "process only aligned reads");
+
+        cmdline . addOption ( size_check, nullptr, "", "size-check", "", "switch to control: on=perform size-check (default), off=do not perform size-check, only=perform size-check only");
+
+        cmdline . addOption ( disk_limit, nullptr, "", "disk-limit", "", "explicitly set disk limit");
+        cmdline . addOption ( disk_limit_tmp, nullptr, "", "disk-limit-tmp", "", "explicitly set disk limit for temp. files");
+
         CmnOptAndAccessions::add(cmdline);
     }
 
@@ -170,6 +190,13 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( append ) ss << "append" << std::endl;
         if ( fasta ) ss << "fasta" << std::endl;
         if ( fastaUnsorted ) ss << "fasta-unsorted" << std::endl;
+        if ( !seqDefline.isEmpty() ) ss << "seq-defline: " << seqDefline << std::endl;
+        if ( !qualDefline.isEmpty() ) ss << "qual-defline: " << qualDefline << std::endl;
+        if ( unaligned_only ) ss << "only-unaligned" << std::endl;
+        if ( aligned_only ) ss << "only-aligned" << std::endl;
+        if (!disk_limit.isEmpty()) ss << "disk-limit: " << disk_limit << std::endl;
+        if (!disk_limit_tmp.isEmpty()) ss << "disk-limit-tmp: " << disk_limit_tmp << std::endl;
+        if (!size_check.isEmpty()) ss << "size-check: " << size_check << std::endl;
         return CmnOptAndAccessions::show(ss);
     }
 
@@ -212,6 +239,13 @@ struct FasterqParams final : CmnOptAndAccessions
         if ( append ) builder . add_option( "-A" );
         if ( fasta ) builder . add_option("--fasta");
         if ( fastaUnsorted ) builder . add_option("--fasta-unsorted");
+        if ( !seqDefline.isEmpty() ) builder.add_option("--seq-defline", seqDefline);
+        if ( !qualDefline.isEmpty() ) builder.add_option("--qual-defline", qualDefline);
+        if ( unaligned_only ) builder . add_option("-U");
+        if ( aligned_only ) builder . add_option("-a");
+        if ( !size_check.isEmpty() ) builder.add_option("--size-check", size_check);
+        if (!disk_limit.isEmpty()) builder.add_option("--disk-limit", disk_limit);
+        if (!disk_limit_tmp.isEmpty()) builder.add_option("--disk-limit-tmp", disk_limit_tmp);
     }
 
     bool check() const override

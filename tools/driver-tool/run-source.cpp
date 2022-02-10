@@ -134,6 +134,9 @@ static void forEach(ncbi::JSONObject const &obj, char const *member, F && f)
 
 static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
 {
+    if (runs.empty())
+        throw std::domain_error("No query");
+    
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
     
@@ -504,71 +507,80 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
     have_ce_token = canSendCE && !ceToken.empty();
     if (have_ce_token) ce_token_ = ceToken;
     auto not_processed = std::set<std::string>(runs.begin(), runs.end());
-
     auto const service = Service::make();
-    auto run_query = [&](std::vector<std::string> const &terms) {
-        auto const &response = get_SDL_response(service, terms, have_ce_token);
-        LOG(8) << "SDL response:\n" << response << std::endl;
 
-        auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
-        auto const &obj = jvRef->toObject();
-        auto const version = getString(obj, "version");
-        auto const version_is = [&](std::string const &vers) {
-            return version == vers || (version == "unstable" && vers == resolver::unstable_version());
-        };
+    if (withSDL) {
+        std::set<std::string> seen;
+        std::vector<std::string> terms;
 
-        if (version_is("2")) {
-            auto const &raw = Response2(obj);
-            LOG(7) << "Parsed SDL Response" << std::endl;
+        for (auto && i : runs) {
+            if (!seen.insert(i).second) continue;
+            if (pathExists(i)) continue;
 
-            for (auto &sdl_result : raw.result) {
-                auto const &query = sdl_result.query;
+            terms.emplace_back(i);
+        }
+        try {
+            auto const &response = get_SDL_response(service, terms, have_ce_token);
+            LOG(8) << "SDL response:\n" << response << std::endl;
 
-                LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
-                if (sdl_result.status == "200") {
-                    unsigned added = 0;
+            auto const jvRef = ncbi::JSON::parse(ncbi::String(response.responseText()));
+            auto const &obj = jvRef->toObject();
+            auto const version = getString(obj, "version");
+            auto const version_is = [&](std::string const &vers) {
+                return version == vers || (version == "unstable" && vers == resolver::unstable_version());
+            };
 
-                    sdl_result.process(query, response, [&](data_source &&source) {
-                        if (havePerm && source.encrypted()) {
-                            std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
+            if (version_is("2")) {
+                auto const &raw = Response2(obj);
+                LOG(7) << "Parsed SDL Response" << std::endl;
+
+                for (auto &sdl_result : raw.result) {
+                    auto const &query = sdl_result.query;
+
+                    LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
+                    if (sdl_result.status == "200") {
+                        unsigned added = 0;
+                        auto encrypted = false;
+
+                        sdl_result.process(query, response, [&](data_source &&source) {
+                            if (havePerm && source.encrypted()) {
+                                encrypted = true;
+                                std::cerr << "Accession " << source.accession() << " is encrypted for " << source.projectId() << std::endl;
+                            }
+                            else {
+                                addSource(std::move(source));
+                                added += 1;
+                            }
+                        });
+                        if (added == 0) {
+                            std::cerr << "No usable source for " << query << " was found.\n" <<
+                                query << " might be available in a different region or on a different cloud provider." << std::endl;
+                            if (encrypted)
+                                std::cerr << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
                         }
                         else {
-                            addSource(std::move(source));
-                            added += 1;
+                            auto const localInfo = not_processed.find(query);
+                            not_processed.erase(localInfo); // remove since we found and processed it
                         }
-                    });
-                    if (added == 0) {
-                        std::cerr
-                        << "Accession " << query << " might be available in a different region or on a different cloud provider." << std::endl
-                        << "Or you can get an ngc file from dbGaP, and rerun with --ngc <file>." << std::endl;
+                    }
+                    else if (sdl_result.status == "404") {
+                        // use the local data (see below)
+                        LOG(5) << "Query '" << query << "' 404 " << sdl_result.message << std::endl;
                     }
                     else {
-                        auto const localInfo = not_processed.find(query);
-                        not_processed.erase(localInfo); // remove since we found and processed it
+                        std::cerr << "Query " << query << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
                     }
                 }
-                else if (sdl_result.status == "404") {
-                    // use the local data (see below)
-                    LOG(5) << "Query '" << query << "' 404 " << sdl_result.message << std::endl;
-                }
-                else {
-                    std::cerr << "Query " << query << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
-                }
+            }
+            else {
+                throw SDL_unexpected_error(std::string("unexpected version ") + version);
             }
         }
-        else {
-            throw SDL_unexpected_error(std::string("unexpected version ") + version);
-        }
-    };
-    if (withSDL) {
-        try {
-            std::set<std::string> seen;
-            for (auto && i : runs) {
-                if (!seen.insert(i).second) continue;
-                if (pathExists(i)) continue;
-
-                run_query({i});
-            }
+        catch (std::domain_error const &de) {
+            if (de.what() && strcmp(de.what(), "No query") == 0)
+                ;
+            else
+                throw de;
         }
         catch (vdb::exception const &e) {
             LOG(1) << "Failed to talk to SDL" << std::endl;

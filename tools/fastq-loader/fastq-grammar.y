@@ -36,7 +36,7 @@
     #define YYLEX_PARAM pb->scanner
     #define YYDEBUG 1
 
-    #include "fastq-tokens.h"
+    #include "fastq-grammar.h"
 
     static void SetReadNumber ( FASTQParseBlock * pb, const FASTQToken * token );
 
@@ -55,16 +55,19 @@
     static void SaveSpotName(FASTQParseBlock* pb);
     static void RevertSpotName(FASTQParseBlock* pb);
 
-    #define UNLEX do { if (yychar != YYEMPTY && yychar != YYEOF) FASTQ_unlex(pb, & yylval); } while (0)
+    #define UNLEX do { if (yychar != YYEMPTY && yychar != fqENDOFTEXT) FASTQ_unlex(pb, & yylval); } while (0)
 
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 %}
 
-%pure-parser
+%define api.pure
+%define parse.error verbose
+%define api.value.type {FASTQToken}
+
+%name-prefix="FASTQ_"
+
 %parse-param {FASTQParseBlock* pb }
 %lex-param {FASTQParseBlock* pb }
-%error-verbose
-%name-prefix "FASTQ_"
 
 %token fqRUNDOTSPOT
 %token fqSPOTGROUP
@@ -154,16 +157,23 @@ tagLine
 
     | nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
 
-    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); }
+    | nameSpotGroup readNumber fqWS fqNUMBER { FASTQScan_skip_to_eol(pb); } opt_fqWS
+    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); } opt_fqWS
     | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); }
 
     | nameSpotGroup fqWS  { ExpandSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
     | nameSpotGroup fqWS  { ExpandSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
-    | runSpotRead fqWS  { FASTQScan_skip_to_eol(pb); }
-    | runSpotRead       { FASTQScan_skip_to_eol(pb); }
+
+    | runSpotRead { FASTQScan_skip_to_eol(pb); } opt_fqWS
+
     | name readNumber
     | name readNumber fqWS  { FASTQScan_skip_to_eol(pb); }
     | name
+    ;
+
+opt_fqWS
+    : fqWS
+    |
     ;
 
 nameSpotGroup
@@ -213,15 +223,27 @@ name
 
 readNumber
     : '/'
-        {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
-            if (IS_PACBIO(pb)) pb->spotNameDone = false;
-            ExpandSpotName(pb, &$1);
+        {
+            /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
+            if ( IS_PACBIO(pb) )
+            {
+                ExpandSpotName(pb, &$1);
+            }
+            else
+            {
+                StopSpotName(pb);
+            }
         }
       fqNUMBER
         {
-            if (!IS_PACBIO(pb)) SetReadNumber(pb, &$3);
-            ExpandSpotName(pb, &$3);
-            StopSpotName(pb);
+            if ( IS_PACBIO(pb) )
+            {
+                ExpandSpotName(pb, &$3);
+            }
+            else
+            {
+                SetReadNumber(pb, &$3);
+            }
         }
 
     | readNumber '/'

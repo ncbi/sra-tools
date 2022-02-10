@@ -1,0 +1,1794 @@
+Terminals unused in grammar
+
+    fqUNRECOGNIZED
+
+
+Grammar
+
+    0 $accept: sequence fqENDOFTEXT
+
+    1 sequence: readLines qualityLines
+    2         | readLines
+
+    3 $@1: %empty
+
+    4 $@2: %empty
+
+    5 $@3: %empty
+
+    6 sequence: name fqCOORDS $@1 ':' $@2 inlineRead ':' $@3 quality
+    7         | fqALPHANUM error endline
+    8         | endfile
+
+    9 endfile: fqENDOFTEXT
+   10        | endline endfile
+
+   11 endline: fqENDLINE
+
+   12 readLines: header endline read
+   13          | header endline error endline
+   14          | error endline read
+   15          | error endline
+
+   16 $@4: %empty
+
+   17 header: '@' $@4 tagLine
+
+   18 $@5: %empty
+
+   19 header: '@' fqWS $@5 tagLine
+
+   20 $@6: %empty
+
+   21 header: '>' $@6 tagLine
+
+   22 read: baseRead
+   23     | csRead
+
+   24 baseRead: fqBASESEQ
+   25         | baseRead endline fqBASESEQ
+   26         | baseRead endline
+
+   27 $@7: %empty
+
+   28 csRead: fqCOLORSEQ $@7 endline
+
+   29 $@8: %empty
+
+   30 csRead: csRead fqCOLORSEQ $@8 endline
+
+   31 inlineRead: fqBASESEQ
+   32           | fqCOLORSEQ
+
+   33 tagLine: nameSpotGroup
+   34        | nameSpotGroup readNumber
+   35        | nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
+
+   36 $@9: %empty
+
+   37 tagLine: nameSpotGroup readNumber fqWS fqNUMBER $@9 opt_fqWS
+
+   38 $@10: %empty
+
+   39 tagLine: nameSpotGroup readNumber fqWS fqALPHANUM $@10 opt_fqWS
+   40        | nameSpotGroup readNumber fqWS
+
+   41 $@11: %empty
+
+   42 tagLine: nameSpotGroup fqWS $@11 casava1_8
+
+   43 $@12: %empty
+
+   44 tagLine: nameSpotGroup fqWS $@12 fqALPHANUM
+
+   45 $@13: %empty
+
+   46 tagLine: runSpotRead $@13 opt_fqWS
+   47        | name readNumber
+   48        | name readNumber fqWS
+   49        | name
+
+   50 opt_fqWS: fqWS
+   51         | %empty
+
+   52 nameSpotGroup: nameWithCoords
+   53              | nameWithCoords fqSPOTGROUP
+
+   54 $@14: %empty
+
+   55 nameSpotGroup: name $@14 fqSPOTGROUP
+   56              | nameWS nameWithCoords
+   57              | nameWS nameWithCoords fqSPOTGROUP
+   58              | nameWS fqALPHANUM '='
+
+   59 nameWS: name fqWS
+
+   60 nameWithCoords: name fqCOORDS
+
+   61 $@15: %empty
+
+   62 nameWithCoords: name fqCOORDS '_' $@15 casava1_8
+
+   63 $@16: %empty
+
+   64 nameWithCoords: name fqCOORDS ':' $@16 name
+
+   65 $@17: %empty
+
+   66 nameWithCoords: name fqCOORDS '.' $@17 name
+
+   67 $@18: %empty
+
+   68 nameWithCoords: name fqCOORDS ':' '.' $@18 name
+   69               | name fqCOORDS ':'
+
+   70 name: fqALPHANUM
+   71     | fqNUMBER
+   72     | name '_'
+   73     | name '-'
+   74     | name '.'
+   75     | name ':'
+   76     | name fqALPHANUM
+   77     | name fqNUMBER
+
+   78 $@19: %empty
+
+   79 readNumber: '/' $@19 fqNUMBER
+
+   80 $@20: %empty
+
+   81 readNumber: readNumber '/' $@20 name
+
+   82 casava1_8: fqNUMBER
+
+   83 $@21: %empty
+
+   84 $@22: %empty
+
+   85 $@23: %empty
+
+   86 $@24: %empty
+
+   87 $@25: %empty
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM $@23 ':' $@24 fqNUMBER $@25 indexSequence
+
+   89 $@26: %empty
+
+   90 indexSequence: ':' $@26 index
+   91              | %empty
+
+   92 index: fqBASESEQ
+   93      | fqNUMBER
+   94      | %empty
+
+   95 runSpotRead: fqRUNDOTSPOT '.' fqNUMBER
+   96            | fqRUNDOTSPOT '/' fqNUMBER
+   97            | fqRUNDOTSPOT
+
+   98 qualityLines: qualityHeader endline quality
+   99             | qualityHeader endline error endline
+
+  100 qualityHeader: '+'
+  101              | qualityHeader fqTOKEN
+
+  102 quality: fqASCQUAL
+  103        | quality endline fqASCQUAL
+  104        | quality endline
+
+
+Terminals, with rules where they appear
+
+    fqENDOFTEXT (0) 0 9
+    '+' (43) 100
+    '-' (45) 73
+    '.' (46) 66 68 74 95
+    '/' (47) 79 81 96
+    ':' (58) 6 35 64 68 69 75 88 90
+    '=' (61) 58
+    '>' (62) 21
+    '@' (64) 17 19
+    '_' (95) 62 72
+    error (256) 7 13 14 15 99
+    fqRUNDOTSPOT (258) 95 96 97
+    fqSPOTGROUP (259) 53 55 57
+    fqNUMBER (260) 35 37 71 77 79 82 88 93 95 96
+    fqALPHANUM (261) 7 35 39 44 58 70 76 88
+    fqWS (262) 19 35 37 39 40 42 44 48 50 59
+    fqENDLINE (263) 11
+    fqBASESEQ (264) 24 25 31 92
+    fqCOLORSEQ (265) 28 30 32
+    fqTOKEN (266) 101
+    fqASCQUAL (267) 102 103
+    fqCOORDS (268) 6 60 62 64 66 68 69
+    fqUNRECOGNIZED (269)
+
+
+Nonterminals, with rules where they appear
+
+    $accept (24)
+        on left: 0
+    sequence (25)
+        on left: 1 2 6 7 8
+        on right: 0
+    $@1 (26)
+        on left: 3
+        on right: 6
+    $@2 (27)
+        on left: 4
+        on right: 6
+    $@3 (28)
+        on left: 5
+        on right: 6
+    endfile (29)
+        on left: 9 10
+        on right: 8 10
+    endline (30)
+        on left: 11
+        on right: 7 10 12 13 14 15 25 26 28 30 98 99 103 104
+    readLines (31)
+        on left: 12 13 14 15
+        on right: 1 2
+    header (32)
+        on left: 17 19 21
+        on right: 12 13
+    $@4 (33)
+        on left: 16
+        on right: 17
+    $@5 (34)
+        on left: 18
+        on right: 19
+    $@6 (35)
+        on left: 20
+        on right: 21
+    read (36)
+        on left: 22 23
+        on right: 12 14
+    baseRead (37)
+        on left: 24 25 26
+        on right: 22 25 26
+    csRead (38)
+        on left: 28 30
+        on right: 23 30
+    $@7 (39)
+        on left: 27
+        on right: 28
+    $@8 (40)
+        on left: 29
+        on right: 30
+    inlineRead (41)
+        on left: 31 32
+        on right: 6
+    tagLine (42)
+        on left: 33 34 35 37 39 40 42 44 46 47 48 49
+        on right: 17 19 21
+    $@9 (43)
+        on left: 36
+        on right: 37
+    $@10 (44)
+        on left: 38
+        on right: 39
+    $@11 (45)
+        on left: 41
+        on right: 42
+    $@12 (46)
+        on left: 43
+        on right: 44
+    $@13 (47)
+        on left: 45
+        on right: 46
+    opt_fqWS (48)
+        on left: 50 51
+        on right: 37 39 46
+    nameSpotGroup (49)
+        on left: 52 53 55 56 57 58
+        on right: 33 34 35 37 39 40 42 44
+    $@14 (50)
+        on left: 54
+        on right: 55
+    nameWS (51)
+        on left: 59
+        on right: 56 57 58
+    nameWithCoords (52)
+        on left: 60 62 64 66 68 69
+        on right: 52 53 56 57
+    $@15 (53)
+        on left: 61
+        on right: 62
+    $@16 (54)
+        on left: 63
+        on right: 64
+    $@17 (55)
+        on left: 65
+        on right: 66
+    $@18 (56)
+        on left: 67
+        on right: 68
+    name (57)
+        on left: 70 71 72 73 74 75 76 77
+        on right: 6 47 48 49 55 59 60 62 64 66 68 69 72 73 74 75 76 77 81
+    readNumber (58)
+        on left: 79 81
+        on right: 34 35 37 39 40 47 48 81
+    $@19 (59)
+        on left: 78
+        on right: 79
+    $@20 (60)
+        on left: 80
+        on right: 81
+    casava1_8 (61)
+        on left: 82 88
+        on right: 42 62
+    $@21 (62)
+        on left: 83
+        on right: 88
+    $@22 (63)
+        on left: 84
+        on right: 88
+    $@23 (64)
+        on left: 85
+        on right: 88
+    $@24 (65)
+        on left: 86
+        on right: 88
+    $@25 (66)
+        on left: 87
+        on right: 88
+    indexSequence (67)
+        on left: 90 91
+        on right: 35 88
+    $@26 (68)
+        on left: 89
+        on right: 90
+    index (69)
+        on left: 92 93 94
+        on right: 90
+    runSpotRead (70)
+        on left: 95 96 97
+        on right: 46
+    qualityLines (71)
+        on left: 98 99
+        on right: 1
+    qualityHeader (72)
+        on left: 100 101
+        on right: 98 99 101
+    quality (73)
+        on left: 102 103 104
+        on right: 6 98 103 104
+
+
+State 0
+
+    0 $accept: . sequence fqENDOFTEXT
+
+    fqENDOFTEXT  shift, and go to state 1
+    error        shift, and go to state 2
+    fqNUMBER     shift, and go to state 3
+    fqALPHANUM   shift, and go to state 4
+    fqENDLINE    shift, and go to state 5
+    '@'          shift, and go to state 6
+    '>'          shift, and go to state 7
+
+    sequence   go to state 8
+    endfile    go to state 9
+    endline    go to state 10
+    readLines  go to state 11
+    header     go to state 12
+    name       go to state 13
+
+
+State 1
+
+    9 endfile: fqENDOFTEXT .
+
+    $default  reduce using rule 9 (endfile)
+
+
+State 2
+
+   14 readLines: error . endline read
+   15          | error . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    endline  go to state 14
+
+
+State 3
+
+   71 name: fqNUMBER .
+
+    $default  reduce using rule 71 (name)
+
+
+State 4
+
+    7 sequence: fqALPHANUM . error endline
+   70 name: fqALPHANUM .
+
+    error  shift, and go to state 15
+
+    fqNUMBER    reduce using rule 70 (name)
+    fqALPHANUM  reduce using rule 70 (name)
+    fqCOORDS    reduce using rule 70 (name)
+    ':'         reduce using rule 70 (name)
+    '_'         reduce using rule 70 (name)
+    '.'         reduce using rule 70 (name)
+    '-'         reduce using rule 70 (name)
+
+
+State 5
+
+   11 endline: fqENDLINE .
+
+    $default  reduce using rule 11 (endline)
+
+
+State 6
+
+   17 header: '@' . $@4 tagLine
+   19       | '@' . fqWS $@5 tagLine
+
+    fqWS  shift, and go to state 16
+
+    $default  reduce using rule 16 ($@4)
+
+    $@4  go to state 17
+
+
+State 7
+
+   21 header: '>' . $@6 tagLine
+
+    $default  reduce using rule 20 ($@6)
+
+    $@6  go to state 18
+
+
+State 8
+
+    0 $accept: sequence . fqENDOFTEXT
+
+    fqENDOFTEXT  shift, and go to state 19
+
+
+State 9
+
+    8 sequence: endfile .
+
+    $default  reduce using rule 8 (sequence)
+
+
+State 10
+
+   10 endfile: endline . endfile
+
+    fqENDOFTEXT  shift, and go to state 1
+    fqENDLINE    shift, and go to state 5
+
+    endfile  go to state 20
+    endline  go to state 10
+
+
+State 11
+
+    1 sequence: readLines . qualityLines
+    2         | readLines .
+
+    '+'  shift, and go to state 21
+
+    $default  reduce using rule 2 (sequence)
+
+    qualityLines   go to state 22
+    qualityHeader  go to state 23
+
+
+State 12
+
+   12 readLines: header . endline read
+   13          | header . endline error endline
+
+    fqENDLINE  shift, and go to state 5
+
+    endline  go to state 24
+
+
+State 13
+
+    6 sequence: name . fqCOORDS $@1 ':' $@2 inlineRead ':' $@3 quality
+   72 name: name . '_'
+   73     | name . '-'
+   74     | name . '.'
+   75     | name . ':'
+   76     | name . fqALPHANUM
+   77     | name . fqNUMBER
+
+    fqNUMBER    shift, and go to state 25
+    fqALPHANUM  shift, and go to state 26
+    fqCOORDS    shift, and go to state 27
+    ':'         shift, and go to state 28
+    '_'         shift, and go to state 29
+    '.'         shift, and go to state 30
+    '-'         shift, and go to state 31
+
+
+State 14
+
+   14 readLines: error endline . read
+   15          | error endline .
+
+    fqBASESEQ   shift, and go to state 32
+    fqCOLORSEQ  shift, and go to state 33
+
+    $default  reduce using rule 15 (readLines)
+
+    read      go to state 34
+    baseRead  go to state 35
+    csRead    go to state 36
+
+
+State 15
+
+    7 sequence: fqALPHANUM error . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    endline  go to state 37
+
+
+State 16
+
+   19 header: '@' fqWS . $@5 tagLine
+
+    $default  reduce using rule 18 ($@5)
+
+    $@5  go to state 38
+
+
+State 17
+
+   17 header: '@' $@4 . tagLine
+
+    fqRUNDOTSPOT  shift, and go to state 39
+    fqNUMBER      shift, and go to state 3
+    fqALPHANUM    shift, and go to state 40
+
+    tagLine         go to state 41
+    nameSpotGroup   go to state 42
+    nameWS          go to state 43
+    nameWithCoords  go to state 44
+    name            go to state 45
+    runSpotRead     go to state 46
+
+
+State 18
+
+   21 header: '>' $@6 . tagLine
+
+    fqRUNDOTSPOT  shift, and go to state 39
+    fqNUMBER      shift, and go to state 3
+    fqALPHANUM    shift, and go to state 40
+
+    tagLine         go to state 47
+    nameSpotGroup   go to state 42
+    nameWS          go to state 43
+    nameWithCoords  go to state 44
+    name            go to state 45
+    runSpotRead     go to state 46
+
+
+State 19
+
+    0 $accept: sequence fqENDOFTEXT .
+
+    $default  accept
+
+
+State 20
+
+   10 endfile: endline endfile .
+
+    $default  reduce using rule 10 (endfile)
+
+
+State 21
+
+  100 qualityHeader: '+' .
+
+    $default  reduce using rule 100 (qualityHeader)
+
+
+State 22
+
+    1 sequence: readLines qualityLines .
+
+    $default  reduce using rule 1 (sequence)
+
+
+State 23
+
+   98 qualityLines: qualityHeader . endline quality
+   99             | qualityHeader . endline error endline
+  101 qualityHeader: qualityHeader . fqTOKEN
+
+    fqENDLINE  shift, and go to state 5
+    fqTOKEN    shift, and go to state 48
+
+    endline  go to state 49
+
+
+State 24
+
+   12 readLines: header endline . read
+   13          | header endline . error endline
+
+    error       shift, and go to state 50
+    fqBASESEQ   shift, and go to state 32
+    fqCOLORSEQ  shift, and go to state 33
+
+    read      go to state 51
+    baseRead  go to state 35
+    csRead    go to state 36
+
+
+State 25
+
+   77 name: name fqNUMBER .
+
+    $default  reduce using rule 77 (name)
+
+
+State 26
+
+   76 name: name fqALPHANUM .
+
+    $default  reduce using rule 76 (name)
+
+
+State 27
+
+    6 sequence: name fqCOORDS . $@1 ':' $@2 inlineRead ':' $@3 quality
+
+    $default  reduce using rule 3 ($@1)
+
+    $@1  go to state 52
+
+
+State 28
+
+   75 name: name ':' .
+
+    $default  reduce using rule 75 (name)
+
+
+State 29
+
+   72 name: name '_' .
+
+    $default  reduce using rule 72 (name)
+
+
+State 30
+
+   74 name: name '.' .
+
+    $default  reduce using rule 74 (name)
+
+
+State 31
+
+   73 name: name '-' .
+
+    $default  reduce using rule 73 (name)
+
+
+State 32
+
+   24 baseRead: fqBASESEQ .
+
+    $default  reduce using rule 24 (baseRead)
+
+
+State 33
+
+   28 csRead: fqCOLORSEQ . $@7 endline
+
+    $default  reduce using rule 27 ($@7)
+
+    $@7  go to state 53
+
+
+State 34
+
+   14 readLines: error endline read .
+
+    $default  reduce using rule 14 (readLines)
+
+
+State 35
+
+   22 read: baseRead .
+   25 baseRead: baseRead . endline fqBASESEQ
+   26         | baseRead . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    $default  reduce using rule 22 (read)
+
+    endline  go to state 54
+
+
+State 36
+
+   23 read: csRead .
+   30 csRead: csRead . fqCOLORSEQ $@8 endline
+
+    fqCOLORSEQ  shift, and go to state 55
+
+    $default  reduce using rule 23 (read)
+
+
+State 37
+
+    7 sequence: fqALPHANUM error endline .
+
+    $default  reduce using rule 7 (sequence)
+
+
+State 38
+
+   19 header: '@' fqWS $@5 . tagLine
+
+    fqRUNDOTSPOT  shift, and go to state 39
+    fqNUMBER      shift, and go to state 3
+    fqALPHANUM    shift, and go to state 40
+
+    tagLine         go to state 56
+    nameSpotGroup   go to state 42
+    nameWS          go to state 43
+    nameWithCoords  go to state 44
+    name            go to state 45
+    runSpotRead     go to state 46
+
+
+State 39
+
+   95 runSpotRead: fqRUNDOTSPOT . '.' fqNUMBER
+   96            | fqRUNDOTSPOT . '/' fqNUMBER
+   97            | fqRUNDOTSPOT .
+
+    '.'  shift, and go to state 57
+    '/'  shift, and go to state 58
+
+    $default  reduce using rule 97 (runSpotRead)
+
+
+State 40
+
+   70 name: fqALPHANUM .
+
+    $default  reduce using rule 70 (name)
+
+
+State 41
+
+   17 header: '@' $@4 tagLine .
+
+    $default  reduce using rule 17 (header)
+
+
+State 42
+
+   33 tagLine: nameSpotGroup .
+   34        | nameSpotGroup . readNumber
+   35        | nameSpotGroup . readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
+   37        | nameSpotGroup . readNumber fqWS fqNUMBER $@9 opt_fqWS
+   39        | nameSpotGroup . readNumber fqWS fqALPHANUM $@10 opt_fqWS
+   40        | nameSpotGroup . readNumber fqWS
+   42        | nameSpotGroup . fqWS $@11 casava1_8
+   44        | nameSpotGroup . fqWS $@12 fqALPHANUM
+
+    fqWS  shift, and go to state 59
+    '/'   shift, and go to state 60
+
+    $default  reduce using rule 33 (tagLine)
+
+    readNumber  go to state 61
+
+
+State 43
+
+   56 nameSpotGroup: nameWS . nameWithCoords
+   57              | nameWS . nameWithCoords fqSPOTGROUP
+   58              | nameWS . fqALPHANUM '='
+
+    fqNUMBER    shift, and go to state 3
+    fqALPHANUM  shift, and go to state 62
+
+    nameWithCoords  go to state 63
+    name            go to state 64
+
+
+State 44
+
+   52 nameSpotGroup: nameWithCoords .
+   53              | nameWithCoords . fqSPOTGROUP
+
+    fqSPOTGROUP  shift, and go to state 65
+
+    $default  reduce using rule 52 (nameSpotGroup)
+
+
+State 45
+
+   47 tagLine: name . readNumber
+   48        | name . readNumber fqWS
+   49        | name .
+   55 nameSpotGroup: name . $@14 fqSPOTGROUP
+   59 nameWS: name . fqWS
+   60 nameWithCoords: name . fqCOORDS
+   62               | name . fqCOORDS '_' $@15 casava1_8
+   64               | name . fqCOORDS ':' $@16 name
+   66               | name . fqCOORDS '.' $@17 name
+   68               | name . fqCOORDS ':' '.' $@18 name
+   69               | name . fqCOORDS ':'
+   72 name: name . '_'
+   73     | name . '-'
+   74     | name . '.'
+   75     | name . ':'
+   76     | name . fqALPHANUM
+   77     | name . fqNUMBER
+
+    fqNUMBER    shift, and go to state 25
+    fqALPHANUM  shift, and go to state 26
+    fqWS        shift, and go to state 66
+    fqCOORDS    shift, and go to state 67
+    ':'         shift, and go to state 28
+    '_'         shift, and go to state 29
+    '.'         shift, and go to state 30
+    '-'         shift, and go to state 31
+    '/'         shift, and go to state 60
+
+    fqSPOTGROUP  reduce using rule 54 ($@14)
+    $default     reduce using rule 49 (tagLine)
+
+    $@14        go to state 68
+    readNumber  go to state 69
+
+
+State 46
+
+   46 tagLine: runSpotRead . $@13 opt_fqWS
+
+    $default  reduce using rule 45 ($@13)
+
+    $@13  go to state 70
+
+
+State 47
+
+   21 header: '>' $@6 tagLine .
+
+    $default  reduce using rule 21 (header)
+
+
+State 48
+
+  101 qualityHeader: qualityHeader fqTOKEN .
+
+    $default  reduce using rule 101 (qualityHeader)
+
+
+State 49
+
+   98 qualityLines: qualityHeader endline . quality
+   99             | qualityHeader endline . error endline
+
+    error      shift, and go to state 71
+    fqASCQUAL  shift, and go to state 72
+
+    quality  go to state 73
+
+
+State 50
+
+   13 readLines: header endline error . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    endline  go to state 74
+
+
+State 51
+
+   12 readLines: header endline read .
+
+    $default  reduce using rule 12 (readLines)
+
+
+State 52
+
+    6 sequence: name fqCOORDS $@1 . ':' $@2 inlineRead ':' $@3 quality
+
+    ':'  shift, and go to state 75
+
+
+State 53
+
+   28 csRead: fqCOLORSEQ $@7 . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    endline  go to state 76
+
+
+State 54
+
+   25 baseRead: baseRead endline . fqBASESEQ
+   26         | baseRead endline .
+
+    fqBASESEQ  shift, and go to state 77
+
+    $default  reduce using rule 26 (baseRead)
+
+
+State 55
+
+   30 csRead: csRead fqCOLORSEQ . $@8 endline
+
+    $default  reduce using rule 29 ($@8)
+
+    $@8  go to state 78
+
+
+State 56
+
+   19 header: '@' fqWS $@5 tagLine .
+
+    $default  reduce using rule 19 (header)
+
+
+State 57
+
+   95 runSpotRead: fqRUNDOTSPOT '.' . fqNUMBER
+
+    fqNUMBER  shift, and go to state 79
+
+
+State 58
+
+   96 runSpotRead: fqRUNDOTSPOT '/' . fqNUMBER
+
+    fqNUMBER  shift, and go to state 80
+
+
+State 59
+
+   42 tagLine: nameSpotGroup fqWS . $@11 casava1_8
+   44        | nameSpotGroup fqWS . $@12 fqALPHANUM
+
+    fqALPHANUM  reduce using rule 43 ($@12)
+    $default    reduce using rule 41 ($@11)
+
+    $@11  go to state 81
+    $@12  go to state 82
+
+
+State 60
+
+   79 readNumber: '/' . $@19 fqNUMBER
+
+    $default  reduce using rule 78 ($@19)
+
+    $@19  go to state 83
+
+
+State 61
+
+   34 tagLine: nameSpotGroup readNumber .
+   35        | nameSpotGroup readNumber . fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
+   37        | nameSpotGroup readNumber . fqWS fqNUMBER $@9 opt_fqWS
+   39        | nameSpotGroup readNumber . fqWS fqALPHANUM $@10 opt_fqWS
+   40        | nameSpotGroup readNumber . fqWS
+   81 readNumber: readNumber . '/' $@20 name
+
+    fqWS  shift, and go to state 84
+    '/'   shift, and go to state 85
+
+    $default  reduce using rule 34 (tagLine)
+
+
+State 62
+
+   58 nameSpotGroup: nameWS fqALPHANUM . '='
+   70 name: fqALPHANUM .
+
+    '='  shift, and go to state 86
+
+    $default  reduce using rule 70 (name)
+
+
+State 63
+
+   56 nameSpotGroup: nameWS nameWithCoords .
+   57              | nameWS nameWithCoords . fqSPOTGROUP
+
+    fqSPOTGROUP  shift, and go to state 87
+
+    $default  reduce using rule 56 (nameSpotGroup)
+
+
+State 64
+
+   60 nameWithCoords: name . fqCOORDS
+   62               | name . fqCOORDS '_' $@15 casava1_8
+   64               | name . fqCOORDS ':' $@16 name
+   66               | name . fqCOORDS '.' $@17 name
+   68               | name . fqCOORDS ':' '.' $@18 name
+   69               | name . fqCOORDS ':'
+   72 name: name . '_'
+   73     | name . '-'
+   74     | name . '.'
+   75     | name . ':'
+   76     | name . fqALPHANUM
+   77     | name . fqNUMBER
+
+    fqNUMBER    shift, and go to state 25
+    fqALPHANUM  shift, and go to state 26
+    fqCOORDS    shift, and go to state 67
+    ':'         shift, and go to state 28
+    '_'         shift, and go to state 29
+    '.'         shift, and go to state 30
+    '-'         shift, and go to state 31
+
+
+State 65
+
+   53 nameSpotGroup: nameWithCoords fqSPOTGROUP .
+
+    $default  reduce using rule 53 (nameSpotGroup)
+
+
+State 66
+
+   59 nameWS: name fqWS .
+
+    $default  reduce using rule 59 (nameWS)
+
+
+State 67
+
+   60 nameWithCoords: name fqCOORDS .
+   62               | name fqCOORDS . '_' $@15 casava1_8
+   64               | name fqCOORDS . ':' $@16 name
+   66               | name fqCOORDS . '.' $@17 name
+   68               | name fqCOORDS . ':' '.' $@18 name
+   69               | name fqCOORDS . ':'
+
+    ':'  shift, and go to state 88
+    '_'  shift, and go to state 89
+    '.'  shift, and go to state 90
+
+    $default  reduce using rule 60 (nameWithCoords)
+
+
+State 68
+
+   55 nameSpotGroup: name $@14 . fqSPOTGROUP
+
+    fqSPOTGROUP  shift, and go to state 91
+
+
+State 69
+
+   47 tagLine: name readNumber .
+   48        | name readNumber . fqWS
+   81 readNumber: readNumber . '/' $@20 name
+
+    fqWS  shift, and go to state 92
+    '/'   shift, and go to state 85
+
+    $default  reduce using rule 47 (tagLine)
+
+
+State 70
+
+   46 tagLine: runSpotRead $@13 . opt_fqWS
+
+    fqWS  shift, and go to state 93
+
+    $default  reduce using rule 51 (opt_fqWS)
+
+    opt_fqWS  go to state 94
+
+
+State 71
+
+   99 qualityLines: qualityHeader endline error . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    endline  go to state 95
+
+
+State 72
+
+  102 quality: fqASCQUAL .
+
+    $default  reduce using rule 102 (quality)
+
+
+State 73
+
+   98 qualityLines: qualityHeader endline quality .
+  103 quality: quality . endline fqASCQUAL
+  104        | quality . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    $default  reduce using rule 98 (qualityLines)
+
+    endline  go to state 96
+
+
+State 74
+
+   13 readLines: header endline error endline .
+
+    $default  reduce using rule 13 (readLines)
+
+
+State 75
+
+    6 sequence: name fqCOORDS $@1 ':' . $@2 inlineRead ':' $@3 quality
+
+    $default  reduce using rule 4 ($@2)
+
+    $@2  go to state 97
+
+
+State 76
+
+   28 csRead: fqCOLORSEQ $@7 endline .
+
+    $default  reduce using rule 28 (csRead)
+
+
+State 77
+
+   25 baseRead: baseRead endline fqBASESEQ .
+
+    $default  reduce using rule 25 (baseRead)
+
+
+State 78
+
+   30 csRead: csRead fqCOLORSEQ $@8 . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    endline  go to state 98
+
+
+State 79
+
+   95 runSpotRead: fqRUNDOTSPOT '.' fqNUMBER .
+
+    $default  reduce using rule 95 (runSpotRead)
+
+
+State 80
+
+   96 runSpotRead: fqRUNDOTSPOT '/' fqNUMBER .
+
+    $default  reduce using rule 96 (runSpotRead)
+
+
+State 81
+
+   42 tagLine: nameSpotGroup fqWS $@11 . casava1_8
+
+    fqNUMBER  shift, and go to state 99
+
+    casava1_8  go to state 100
+
+
+State 82
+
+   44 tagLine: nameSpotGroup fqWS $@12 . fqALPHANUM
+
+    fqALPHANUM  shift, and go to state 101
+
+
+State 83
+
+   79 readNumber: '/' $@19 . fqNUMBER
+
+    fqNUMBER  shift, and go to state 102
+
+
+State 84
+
+   35 tagLine: nameSpotGroup readNumber fqWS . fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
+   37        | nameSpotGroup readNumber fqWS . fqNUMBER $@9 opt_fqWS
+   39        | nameSpotGroup readNumber fqWS . fqALPHANUM $@10 opt_fqWS
+   40        | nameSpotGroup readNumber fqWS .
+
+    fqNUMBER    shift, and go to state 103
+    fqALPHANUM  shift, and go to state 104
+
+    $default  reduce using rule 40 (tagLine)
+
+
+State 85
+
+   81 readNumber: readNumber '/' . $@20 name
+
+    $default  reduce using rule 80 ($@20)
+
+    $@20  go to state 105
+
+
+State 86
+
+   58 nameSpotGroup: nameWS fqALPHANUM '=' .
+
+    $default  reduce using rule 58 (nameSpotGroup)
+
+
+State 87
+
+   57 nameSpotGroup: nameWS nameWithCoords fqSPOTGROUP .
+
+    $default  reduce using rule 57 (nameSpotGroup)
+
+
+State 88
+
+   64 nameWithCoords: name fqCOORDS ':' . $@16 name
+   68               | name fqCOORDS ':' . '.' $@18 name
+   69               | name fqCOORDS ':' .
+
+    '.'  shift, and go to state 106
+
+    fqNUMBER    reduce using rule 63 ($@16)
+    fqALPHANUM  reduce using rule 63 ($@16)
+    $default    reduce using rule 69 (nameWithCoords)
+
+    $@16  go to state 107
+
+
+State 89
+
+   62 nameWithCoords: name fqCOORDS '_' . $@15 casava1_8
+
+    $default  reduce using rule 61 ($@15)
+
+    $@15  go to state 108
+
+
+State 90
+
+   66 nameWithCoords: name fqCOORDS '.' . $@17 name
+
+    $default  reduce using rule 65 ($@17)
+
+    $@17  go to state 109
+
+
+State 91
+
+   55 nameSpotGroup: name $@14 fqSPOTGROUP .
+
+    $default  reduce using rule 55 (nameSpotGroup)
+
+
+State 92
+
+   48 tagLine: name readNumber fqWS .
+
+    $default  reduce using rule 48 (tagLine)
+
+
+State 93
+
+   50 opt_fqWS: fqWS .
+
+    $default  reduce using rule 50 (opt_fqWS)
+
+
+State 94
+
+   46 tagLine: runSpotRead $@13 opt_fqWS .
+
+    $default  reduce using rule 46 (tagLine)
+
+
+State 95
+
+   99 qualityLines: qualityHeader endline error endline .
+
+    $default  reduce using rule 99 (qualityLines)
+
+
+State 96
+
+  103 quality: quality endline . fqASCQUAL
+  104        | quality endline .
+
+    fqASCQUAL  shift, and go to state 110
+
+    $default  reduce using rule 104 (quality)
+
+
+State 97
+
+    6 sequence: name fqCOORDS $@1 ':' $@2 . inlineRead ':' $@3 quality
+
+    fqBASESEQ   shift, and go to state 111
+    fqCOLORSEQ  shift, and go to state 112
+
+    inlineRead  go to state 113
+
+
+State 98
+
+   30 csRead: csRead fqCOLORSEQ $@8 endline .
+
+    $default  reduce using rule 30 (csRead)
+
+
+State 99
+
+   82 casava1_8: fqNUMBER .
+   88          | fqNUMBER . $@21 ':' $@22 fqALPHANUM $@23 ':' $@24 fqNUMBER $@25 indexSequence
+
+    ':'       reduce using rule 83 ($@21)
+    $default  reduce using rule 82 (casava1_8)
+
+    $@21  go to state 114
+
+
+State 100
+
+   42 tagLine: nameSpotGroup fqWS $@11 casava1_8 .
+
+    $default  reduce using rule 42 (tagLine)
+
+
+State 101
+
+   44 tagLine: nameSpotGroup fqWS $@12 fqALPHANUM .
+
+    $default  reduce using rule 44 (tagLine)
+
+
+State 102
+
+   79 readNumber: '/' $@19 fqNUMBER .
+
+    $default  reduce using rule 79 (readNumber)
+
+
+State 103
+
+   35 tagLine: nameSpotGroup readNumber fqWS fqNUMBER . ':' fqALPHANUM ':' fqNUMBER indexSequence
+   37        | nameSpotGroup readNumber fqWS fqNUMBER . $@9 opt_fqWS
+
+    ':'  shift, and go to state 115
+
+    $default  reduce using rule 36 ($@9)
+
+    $@9  go to state 116
+
+
+State 104
+
+   39 tagLine: nameSpotGroup readNumber fqWS fqALPHANUM . $@10 opt_fqWS
+
+    $default  reduce using rule 38 ($@10)
+
+    $@10  go to state 117
+
+
+State 105
+
+   81 readNumber: readNumber '/' $@20 . name
+
+    fqNUMBER    shift, and go to state 3
+    fqALPHANUM  shift, and go to state 40
+
+    name  go to state 118
+
+
+State 106
+
+   68 nameWithCoords: name fqCOORDS ':' '.' . $@18 name
+
+    $default  reduce using rule 67 ($@18)
+
+    $@18  go to state 119
+
+
+State 107
+
+   64 nameWithCoords: name fqCOORDS ':' $@16 . name
+
+    fqNUMBER    shift, and go to state 3
+    fqALPHANUM  shift, and go to state 40
+
+    name  go to state 120
+
+
+State 108
+
+   62 nameWithCoords: name fqCOORDS '_' $@15 . casava1_8
+
+    fqNUMBER  shift, and go to state 99
+
+    casava1_8  go to state 121
+
+
+State 109
+
+   66 nameWithCoords: name fqCOORDS '.' $@17 . name
+
+    fqNUMBER    shift, and go to state 3
+    fqALPHANUM  shift, and go to state 40
+
+    name  go to state 122
+
+
+State 110
+
+  103 quality: quality endline fqASCQUAL .
+
+    $default  reduce using rule 103 (quality)
+
+
+State 111
+
+   31 inlineRead: fqBASESEQ .
+
+    $default  reduce using rule 31 (inlineRead)
+
+
+State 112
+
+   32 inlineRead: fqCOLORSEQ .
+
+    $default  reduce using rule 32 (inlineRead)
+
+
+State 113
+
+    6 sequence: name fqCOORDS $@1 ':' $@2 inlineRead . ':' $@3 quality
+
+    ':'  shift, and go to state 123
+
+
+State 114
+
+   88 casava1_8: fqNUMBER $@21 . ':' $@22 fqALPHANUM $@23 ':' $@24 fqNUMBER $@25 indexSequence
+
+    ':'  shift, and go to state 124
+
+
+State 115
+
+   35 tagLine: nameSpotGroup readNumber fqWS fqNUMBER ':' . fqALPHANUM ':' fqNUMBER indexSequence
+
+    fqALPHANUM  shift, and go to state 125
+
+
+State 116
+
+   37 tagLine: nameSpotGroup readNumber fqWS fqNUMBER $@9 . opt_fqWS
+
+    fqWS  shift, and go to state 93
+
+    $default  reduce using rule 51 (opt_fqWS)
+
+    opt_fqWS  go to state 126
+
+
+State 117
+
+   39 tagLine: nameSpotGroup readNumber fqWS fqALPHANUM $@10 . opt_fqWS
+
+    fqWS  shift, and go to state 93
+
+    $default  reduce using rule 51 (opt_fqWS)
+
+    opt_fqWS  go to state 127
+
+
+State 118
+
+   72 name: name . '_'
+   73     | name . '-'
+   74     | name . '.'
+   75     | name . ':'
+   76     | name . fqALPHANUM
+   77     | name . fqNUMBER
+   81 readNumber: readNumber '/' $@20 name .
+
+    fqNUMBER    shift, and go to state 25
+    fqALPHANUM  shift, and go to state 26
+    ':'         shift, and go to state 28
+    '_'         shift, and go to state 29
+    '.'         shift, and go to state 30
+    '-'         shift, and go to state 31
+
+    $default  reduce using rule 81 (readNumber)
+
+
+State 119
+
+   68 nameWithCoords: name fqCOORDS ':' '.' $@18 . name
+
+    fqNUMBER    shift, and go to state 3
+    fqALPHANUM  shift, and go to state 40
+
+    name  go to state 128
+
+
+State 120
+
+   64 nameWithCoords: name fqCOORDS ':' $@16 name .
+   72 name: name . '_'
+   73     | name . '-'
+   74     | name . '.'
+   75     | name . ':'
+   76     | name . fqALPHANUM
+   77     | name . fqNUMBER
+
+    fqNUMBER    shift, and go to state 25
+    fqALPHANUM  shift, and go to state 26
+    ':'         shift, and go to state 28
+    '_'         shift, and go to state 29
+    '.'         shift, and go to state 30
+    '-'         shift, and go to state 31
+
+    $default  reduce using rule 64 (nameWithCoords)
+
+
+State 121
+
+   62 nameWithCoords: name fqCOORDS '_' $@15 casava1_8 .
+
+    $default  reduce using rule 62 (nameWithCoords)
+
+
+State 122
+
+   66 nameWithCoords: name fqCOORDS '.' $@17 name .
+   72 name: name . '_'
+   73     | name . '-'
+   74     | name . '.'
+   75     | name . ':'
+   76     | name . fqALPHANUM
+   77     | name . fqNUMBER
+
+    fqNUMBER    shift, and go to state 25
+    fqALPHANUM  shift, and go to state 26
+    ':'         shift, and go to state 28
+    '_'         shift, and go to state 29
+    '.'         shift, and go to state 30
+    '-'         shift, and go to state 31
+
+    $default  reduce using rule 66 (nameWithCoords)
+
+
+State 123
+
+    6 sequence: name fqCOORDS $@1 ':' $@2 inlineRead ':' . $@3 quality
+
+    $default  reduce using rule 5 ($@3)
+
+    $@3  go to state 129
+
+
+State 124
+
+   88 casava1_8: fqNUMBER $@21 ':' . $@22 fqALPHANUM $@23 ':' $@24 fqNUMBER $@25 indexSequence
+
+    $default  reduce using rule 84 ($@22)
+
+    $@22  go to state 130
+
+
+State 125
+
+   35 tagLine: nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM . ':' fqNUMBER indexSequence
+
+    ':'  shift, and go to state 131
+
+
+State 126
+
+   37 tagLine: nameSpotGroup readNumber fqWS fqNUMBER $@9 opt_fqWS .
+
+    $default  reduce using rule 37 (tagLine)
+
+
+State 127
+
+   39 tagLine: nameSpotGroup readNumber fqWS fqALPHANUM $@10 opt_fqWS .
+
+    $default  reduce using rule 39 (tagLine)
+
+
+State 128
+
+   68 nameWithCoords: name fqCOORDS ':' '.' $@18 name .
+   72 name: name . '_'
+   73     | name . '-'
+   74     | name . '.'
+   75     | name . ':'
+   76     | name . fqALPHANUM
+   77     | name . fqNUMBER
+
+    fqNUMBER    shift, and go to state 25
+    fqALPHANUM  shift, and go to state 26
+    ':'         shift, and go to state 28
+    '_'         shift, and go to state 29
+    '.'         shift, and go to state 30
+    '-'         shift, and go to state 31
+
+    $default  reduce using rule 68 (nameWithCoords)
+
+
+State 129
+
+    6 sequence: name fqCOORDS $@1 ':' $@2 inlineRead ':' $@3 . quality
+
+    fqASCQUAL  shift, and go to state 72
+
+    quality  go to state 132
+
+
+State 130
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 . fqALPHANUM $@23 ':' $@24 fqNUMBER $@25 indexSequence
+
+    fqALPHANUM  shift, and go to state 133
+
+
+State 131
+
+   35 tagLine: nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' . fqNUMBER indexSequence
+
+    fqNUMBER  shift, and go to state 134
+
+
+State 132
+
+    6 sequence: name fqCOORDS $@1 ':' $@2 inlineRead ':' $@3 quality .
+  103 quality: quality . endline fqASCQUAL
+  104        | quality . endline
+
+    fqENDLINE  shift, and go to state 5
+
+    $default  reduce using rule 6 (sequence)
+
+    endline  go to state 96
+
+
+State 133
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM . $@23 ':' $@24 fqNUMBER $@25 indexSequence
+
+    $default  reduce using rule 85 ($@23)
+
+    $@23  go to state 135
+
+
+State 134
+
+   35 tagLine: nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER . indexSequence
+
+    ':'  shift, and go to state 136
+
+    $default  reduce using rule 91 (indexSequence)
+
+    indexSequence  go to state 137
+
+
+State 135
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM $@23 . ':' $@24 fqNUMBER $@25 indexSequence
+
+    ':'  shift, and go to state 138
+
+
+State 136
+
+   90 indexSequence: ':' . $@26 index
+
+    $default  reduce using rule 89 ($@26)
+
+    $@26  go to state 139
+
+
+State 137
+
+   35 tagLine: nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence .
+
+    $default  reduce using rule 35 (tagLine)
+
+
+State 138
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM $@23 ':' . $@24 fqNUMBER $@25 indexSequence
+
+    $default  reduce using rule 86 ($@24)
+
+    $@24  go to state 140
+
+
+State 139
+
+   90 indexSequence: ':' $@26 . index
+
+    fqNUMBER   shift, and go to state 141
+    fqBASESEQ  shift, and go to state 142
+
+    $default  reduce using rule 94 (index)
+
+    index  go to state 143
+
+
+State 140
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM $@23 ':' $@24 . fqNUMBER $@25 indexSequence
+
+    fqNUMBER  shift, and go to state 144
+
+
+State 141
+
+   93 index: fqNUMBER .
+
+    $default  reduce using rule 93 (index)
+
+
+State 142
+
+   92 index: fqBASESEQ .
+
+    $default  reduce using rule 92 (index)
+
+
+State 143
+
+   90 indexSequence: ':' $@26 index .
+
+    $default  reduce using rule 90 (indexSequence)
+
+
+State 144
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM $@23 ':' $@24 fqNUMBER . $@25 indexSequence
+
+    $default  reduce using rule 87 ($@25)
+
+    $@25  go to state 145
+
+
+State 145
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM $@23 ':' $@24 fqNUMBER $@25 . indexSequence
+
+    ':'  shift, and go to state 136
+
+    $default  reduce using rule 91 (indexSequence)
+
+    indexSequence  go to state 146
+
+
+State 146
+
+   88 casava1_8: fqNUMBER $@21 ':' $@22 fqALPHANUM $@23 ':' $@24 fqNUMBER $@25 indexSequence .
+
+    $default  reduce using rule 88 (casava1_8)

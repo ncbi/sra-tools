@@ -25,26 +25,6 @@
 default: runtests
 
 TOP ?= $(abspath ../..)
-
 MODULE = test/align-info
 
-TEST_TOOLS = \
-
 include $(TOP)/build/Makefile.env
-
-DIRTOTEST ?= $(BINDIR)
-
-$(TEST_TOOLS): makedirs
-	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
-
-.PHONY: $(TEST_TOOLS)
-
-clean: stdclean
-
-#-------------------------------------------------------------------------------
-# runtests
-runtests: cmdline
-
-cmdline:
-	# make sure align-info -h does not crash
-	@ $(DIRTOTEST)/align-info -h > /dev/null

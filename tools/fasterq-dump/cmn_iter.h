@@ -43,6 +43,17 @@ extern "C" {
 #include "helper.h"
 #endif
 
+typedef struct cmn_iter_params
+{
+    const KDirectory * dir;
+    const VDBManager * vdb_mgr;
+    const char * accession_short;
+    const char * accession_path;
+    int64_t first_row;
+    uint64_t row_count;
+    size_t cursor_cache;
+} cmn_iter_params_t;
+
 struct cmn_iter_t;
 
 void destroy_cmn_iter( struct cmn_iter_t * self );
@@ -69,12 +80,6 @@ rc_t cmn_read_uint8_array( struct cmn_iter_t * self, uint32_t col_id, uint8_t **
                            uint32_t * values_read );
                             
 rc_t cmn_read_String( struct cmn_iter_t * self, uint32_t col_id, String *value );
-
-typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
-
-rc_t cmn_get_acc_type( KDirectory * dir, const VDBManager * vdb_mgr,
-                       const char * accession_short,
-                       const char * accession_paht, acc_type_t * acc_type );
 
 rc_t cmn_check_tbl_column( KDirectory * dir, const VDBManager * vdb_mgr,
                            const char * accession_short, const char * accession_path,

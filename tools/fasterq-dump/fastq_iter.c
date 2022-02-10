@@ -25,9 +25,14 @@
 */
 
 #include "fastq_iter.h"
-#include "helper.h"
 
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_klib_data_buffer_
 #include <klib/data-buffer.h>
+#endif
 
 static void init_qual_to_ascii( char * q2a, size_t size ) {
     uint32_t idx;

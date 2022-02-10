@@ -29,6 +29,8 @@
     a clean new config tool in c++ with interactive interface...
 */
 
+#include <cmath>
+
 #include <tui/tui.hpp>
 
 #include <klib/rc.h>

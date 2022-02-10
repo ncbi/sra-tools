@@ -22,70 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-copy
 
-INT_TOOLS = \
-
-EXT_TOOLS = \
-	vdb-copy
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vdb-copy
-#  vdb copy tool
-#
-$(BINDIR)/vdb-copy: $(NCBIDIR)/vdb-copy.kfg 
-
-$(NCBIDIR)/vdb-copy.kfg: $(SRCDIR)/vdb-copy.kfg
-	cp $^ $@
-
-VDB_COPY_SRC = \
-	context \
-	helper \
-	coldefs \
-	get_platform \
-	namelist_tools \
-	copy_meta \
-	type_matcher \
-	redactval \
-	config_values \
-	vdb-copy
-
-VDB_COPY_OBJ = \
-	$(addsuffix .$(OBJX),$(VDB_COPY_SRC))
-
-VDB_COPY_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-wvdb \
-	-lm
-
-$(BINDIR)/vdb-copy: $(VDB_COPY_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_COPY_LIB)

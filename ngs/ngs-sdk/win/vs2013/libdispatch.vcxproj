@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{06FA485F-8AA9-4F3B-B1E3-D8CF1993637B}</ProjectGuid>
+    <ProjectName>libngs-disp</ProjectName>
+  </PropertyGroup>
+  <Import Project="lib-project.props" />
+  <Import Project="..\libdispatch.files" />
+</Project>

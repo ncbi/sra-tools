@@ -32,7 +32,7 @@
 
 // main is at the end of the file
 
-#if __cplusplus < 201103L
+#if __cplusplus < 201103L && 0
 #error c++11 or higher is needed
 #else
 
@@ -174,10 +174,10 @@ namespace sratools {
                 abort();
             }
         }
-        catch (sratools2::WhatImposter::InvalidToolException const &e) {
+        catch (sratools2::WhatImposter::InvalidToolException) {
             std::cerr << "An error occured: unrecognized tool " << toolpath.basename() << std::endl << error_continues_message << std::endl;
         }
-        catch (sratools2::WhatImposter::InvalidVersionException const &e) {
+        catch (sratools2::WhatImposter::InvalidVersionException) {
             std::cerr << "An error occured: unrecognized version " << toolpath.version() << ", expected " << toolpath.toolkit_version() << std::endl << error_continues_message << std::endl;
         }
         catch (std::exception const &e) {
@@ -229,9 +229,22 @@ namespace sratools {
     {
 #if MAC
         if (extra) {
+            auto path = extra[0];
             for (auto i = extra; *i; ++i) {
                 if (starts_with("executable_path=", *i)) {
-                    return *i + 16;
+                    path = *i + 16;
+                    break;
+                }
+            }
+            if (path) {
+                if (path[0] == '/')
+                    return path;
+
+                auto cwd = getcwd(NULL, 0); ///< passing NULL is non-standard but documented in the man page.
+                if (cwd) {
+                    auto result = std::string(cwd) + "/" + path;
+                    free(cwd);
+                    return result;
                 }
             }
         }

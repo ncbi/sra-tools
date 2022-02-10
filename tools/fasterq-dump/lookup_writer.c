@@ -25,10 +25,26 @@
 */
 
 #include "lookup_writer.h"
-#include "helper.h"
 
-#include <kfs/file.h>
+#ifndef _h_err_msg_
+#include "err_msg.h"
+#endif
+
+#ifndef _h_sbuffer_
+#include "sbuffer.h"
+#endif
+
+#ifndef _h_helper_
+#include "helper.h"   /* make_key() */
+#endif
+
+#ifndef _h_file_tools_
+#include "file_tools.h"
+#endif
+
+#ifndef _h_kfs_buffile_
 #include <kfs/buffile.h>
+#endif
 
 typedef struct lookup_writer_t {
     struct KFile * f;
@@ -40,10 +56,7 @@ typedef struct lookup_writer_t {
 void release_lookup_writer( struct lookup_writer_t * writer ) {
     if ( NULL != writer ) {
         if ( NULL != writer -> f ) {
-            rc_t rc = KFileRelease( writer -> f );
-            if ( 0 != rc ) {
-                ErrMsg( "release_lookup_writer().KFileRelease() -> %R", rc );                
-            }
+            release_file( writer -> f, "release_lookup_writer()" );
         }
         release_SBuffer( &( writer -> buf ) );
         free( ( void * ) writer );
@@ -90,20 +103,14 @@ rc_t make_lookup_writer( KDirectory *dir, struct index_writer_t * idx,
             if ( 0 != rc ) {
                 ErrMsg( "make_lookup_writer().KBufFileMakeWrite() -> %R", rc );
             } else {
-                rc_t rc1 = KFileRelease( f );
-                if ( 0 != rc1 ) {
-                    ErrMsg( "make_lookup_writer().KFileRelease().1 -> %R", rc );
-                }
+                release_file( f, "make_lookup_writer().1" );
                 f = temp_file;
             }
         }
         if ( 0 == rc ) {
             rc = make_lookup_writer_obj( writer, idx, f );
             if ( 0 != rc ) {
-                rc_t rc1 = KFileRelease( f );
-                if ( 0 != rc1 ) {
-                    ErrMsg( "make_lookup_writer().KFileRelease().2 -> %R", rc );
-                }
+                release_file( f, "make_lookup_writer().2" );
             }
         }
     }
@@ -143,6 +150,40 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer_t * writer,
                 rc = write_key( writer -> idx, key, start_pos );
             }
             writer -> pos += num_writ;
+        }
+    }
+    return rc;
+}
+
+static rc_t pack_4na( const String * unpacked, SBuffer_t * packed ) {
+    rc_t rc = 0;
+    if ( unpacked -> len < 1 ) {
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    } else {
+        if ( unpacked -> len > 0xFFFF ) {
+            rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        } else {
+            uint32_t i;
+            uint8_t * src = ( uint8_t * )unpacked -> addr;
+            uint8_t * dst = ( uint8_t * )packed -> S . addr;
+            uint16_t dna_len = ( unpacked -> len & 0xFFFF );
+            uint32_t len = 0;
+            dst[ len++ ] = ( dna_len >> 8 );
+            dst[ len++ ] = ( dna_len & 0xFF );
+            for ( i = 0; i < unpacked -> len; ++i ) {
+                if ( len < packed -> buffer_size ) {
+                    uint8_t base = ( src[ i ] & 0x0F );
+                    if ( 0 == ( i & 0x01 ) ) {
+                        dst[ len ] = ( base << 4 );
+                    } else {
+                        dst[ len++ ] |= base;
+                    }
+                }
+            }
+            if ( unpacked -> len & 0x01 ) {
+                len++;
+            }
+            packed -> S . size = packed -> S . len = len;
         }
     }
     return rc;

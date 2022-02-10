@@ -22,74 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/rd-filter-redact
 
-INT_TOOLS = \
-	test-read-write-cursor
-
-EXT_TOOLS = \
-	read-filter-redact
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# read-filter-redact
-#
-READ_FILTER_REDACT_SRC = \
-	read-filter-redact \
-
-READ_FILTER_REDACT_OBJ = \
-	$(addsuffix .$(OBJX),$(READ_FILTER_REDACT_SRC))
-
-READ_FILTER_REDACT_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-wvdb \
-	-lm
-
-$(BINDIR)/read-filter-redact: $(READ_FILTER_REDACT_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(READ_FILTER_REDACT_LIB)
-
-#-------------------------------------------------------------------------------
-# test-read-write-cursor
-#
-TEST_READ_WRITE_CURSOR_SRC = \
-	test-read-write-cursor \
-
-TEST_READ_WRITE_CURSOR_OBJ = \
-	$(addsuffix .$(OBJX),$(TEST_READ_WRITE_CURSOR_SRC))
-
-TEST_READ_WRITE_CURSOR_LIB = \
-	-lkapp \
-	-stk-version \
-	-sncbi-wvdb \
-
-$(BINDIR)/test-read-write-cursor: $(TEST_READ_WRITE_CURSOR_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TEST_READ_WRITE_CURSOR_LIB)
-

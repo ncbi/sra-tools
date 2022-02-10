@@ -32,9 +32,10 @@
     #include <klib/log.h>
 
     #include "fastq-parse.h"
-    #include "fastq-tokens.h"
+    #include "fastq-grammar.h"
 
     #define YYSTYPE FASTQToken
+    #define YY_BUF_SIZE 16777216
 
     /* code to populate token with internal values */
 	static void ConsumeToken(FASTQToken* token, FASTQParseBlock* pb);
@@ -79,6 +80,7 @@ eol         (\r\n|\r|\n)
 
 /* there are more: =ACMGRSVTWYHKDBN. plus lowercase */
 base [ACGTacgtNn.]
+basePlus [ACGTacgtNn.+]
 cskey [ACGTacgt]
 color   [0-3.]
 
@@ -115,8 +117,8 @@ ascqual   [\x0E-\x1F \x21-\x7F]+
 }
 
 <INLINE_SEQUENCE>
-{
-    {base}+                     { BEGIN 0; return fqBASESEQ; }
+{   /* this mode is used for inline reads and barcodes; barcodes may include '+' (VDB-4533) */
+    {basePlus}+                 { BEGIN 0; return fqBASESEQ; }
     {cskey}{color}+             { BEGIN 0; return fqCOLORSEQ; }
     {digits}                    { BEGIN 0; return fqNUMBER; }
     {eol}                       { BEGIN 0; ENDLINE; }

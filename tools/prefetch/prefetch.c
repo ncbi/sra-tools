@@ -2638,9 +2638,14 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
             KPathType type
                 = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
             if (type == kptFile) {
-                local = true;
-                rc = VFSManagerMakePath((VFSManager*)1, &path,
-                    "./%s", self->desc);
+                char resolved[PATH_MAX] = "";
+                rc = KDirectoryResolvePath(dir, true, resolved, sizeof resolved,
+                    "%s", self->desc);
+                if (rc == 0) {
+                    local = true;
+                    rc = VFSManagerMakePath((VFSManager*)1, &path,
+                        "%s", resolved);
+                } /* else rc is ignored */
             }
             else if (type == kptDir) {
                 if ((KDirectoryPathType(dir, "%s/%s.sra",

@@ -1,0 +1,87 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
+
+# TARGET_OBJECTS doesn't work for XCode, this is why we build NGS libraries from sources
+function( GetTargetSources targets out_name_src_files out_name_incl_dirs out_name_compile_definitions )
+    set( out_src_files "" )
+    set( out_incl_dirs "" )
+    set( out_compile_defs "" )
+
+    foreach( target ${targets})
+        get_target_property(TARGET_SRC_DIR ${target} SOURCE_DIR)
+        get_target_property(TARGET_SRC ${target} SOURCES)
+        get_target_property(TARGET_INCLUDE_DIRS ${target} INCLUDE_DIRECTORIES)
+        get_target_property(TARGET_COMPILE_DEFS ${target} COMPILE_DEFINITIONS)
+
+        foreach( src_file ${TARGET_SRC})
+            list( APPEND out_src_files "${TARGET_SRC_DIR}/${src_file}" )
+        endforeach()
+
+        foreach( i ${TARGET_INCLUDE_DIRS})
+            list( APPEND out_incl_dirs "${i}" )
+        endforeach()
+
+        if(NOT "TARGET_COMPILE_DEFS-NOTFOUND" STREQUAL ${TARGET_COMPILE_DEFS})
+            foreach( i ${TARGET_COMPILE_DEFS})
+                list( APPEND out_compile_defs "${i}" )
+            endforeach()
+        endif()
+    endforeach()
+
+    list( REMOVE_DUPLICATES out_src_files )
+    list( REMOVE_DUPLICATES out_incl_dirs )
+    list( REMOVE_DUPLICATES out_compile_defs )
+
+    set( ${out_name_src_files} "${out_src_files}" PARENT_SCOPE )
+    set( ${out_name_incl_dirs} "${out_incl_dirs}" PARENT_SCOPE )
+    set( ${out_name_compile_definitions} "${out_compile_defs}" PARENT_SCOPE )
+endfunction()
+
+####################################
+GetTargetSources( "${NGS_CPP_TARGETS}" all_src all_incl_dirs all_compile_defs )
+add_library( ngs-c++ STATIC ${all_src} )
+target_include_directories( ngs-c++ PUBLIC ${all_incl_dirs} )
+target_compile_definitions( ngs-c++ PUBLIC ${all_compile_defs} )
+
+#----------------------------------
+add_library( ngs-c++-shared SHARED ${all_src} )
+target_include_directories( ngs-c++-shared PUBLIC ${all_incl_dirs} )
+target_compile_definitions( ngs-c++-shared PUBLIC ${all_compile_defs} )
+set_target_properties( ngs-c++-shared PROPERTIES OUTPUT_NAME ngs-c++ )
+
+####################################
+GetTargetSources( "${NGS_SDK_TARGETS}" all_src all_incl_dirs all_compile_defs )
+add_library( ncbi-ngs STATIC ${all_src} )
+target_include_directories( ncbi-ngs PUBLIC ${all_incl_dirs} )
+target_compile_definitions( ncbi-ngs PUBLIC ${all_compile_defs} )
+
+#----------------------------------
+add_library( ncbi-ngs-shared SHARED ${all_src} )
+target_include_directories( ncbi-ngs-shared PUBLIC ${all_incl_dirs} )
+target_compile_definitions( ncbi-ngs-shared PUBLIC ${all_compile_defs} )
+target_link_libraries( ncbi-ngs-shared ncbi-vdb ${COMMON_LINK_LIBRARIES} )
+set_target_properties( ncbi-ngs-shared PROPERTIES OUTPUT_NAME ncbi-ngs )

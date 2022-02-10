@@ -22,66 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-dump
 
-INT_TOOLS = \
-
-EXT_TOOLS = \
-	vdb-dump
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
-
 include $(TOP)/build/Makefile.env
-
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
-
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vdb-dump
-#  vdb dump tool
-#
-VDB_DUMP_SRC = \
-	vdb-dump-context \
-	vdb-dump-coldefs \
-	vdb-dump-tools \
-	vdb-dump-str \
-	vdb-dump-helper \
-	vdb-dump-formats \
-	vdb-dump-redir \
-	vdb-dump-fastq \
-	vdb_info \
-	vdb-dump
-
-VDB_DUMP_OBJ = \
-	$(addsuffix .$(OBJX),$(VDB_DUMP_SRC))
-
-VDB_DUMP_LIB = \
-	-skapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/vdb-dump: $(VDB_DUMP_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_DUMP_LIB)
-

@@ -297,7 +297,8 @@ rc_t DirPairCopyAlias ( const DirPair *self, const ctx_t *ctx,
     rc_t rc;
 
 #if WINDOWS
-    rc = RC ( rcExe, rcAlias, rcCopying, rcFunction, rcUnsupported );
+    //rc = RC ( rcExe, rcAlias, rcCopying, rcFunction, rcUnsupported );
+    rc = RC ( rcExe, rcAliasing, rcCopying, rcFunction, rcUnsupported );
     ERROR ( rc, "Windows... failed to create alias 'dst.%.*s%s'",
             self -> owner_spec_size, self -> full_spec, relpath );
 #else

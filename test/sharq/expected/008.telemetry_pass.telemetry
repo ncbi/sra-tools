@@ -1,0 +1,80 @@
+{
+    "--readTypes": "BBT",
+    "args": [
+        "--debug",
+        "--no-timestamp",
+        "--readTypes=BBT",
+        "--read1PairFiles=input/003.t_R1.fastq.gz,input/003.t2_R1.fastq,input/003.t3_R1.fastq",
+        "--read2PairFiles=input/003.t_R2.fastq.gz,input/003.t2_R2.fastq,input/003.t3_R2.fastq",
+        "--read3PairFiles=input/003.t_I1.fastq.gz,input/003.t2_I1.fastq,input/003.t3_I1.fastq",
+        "-t",
+        "./actual/008.telemetry_pass/telemetry"
+    ],
+    "groups": [
+        {
+            "defline_type": [
+                "illuminaNew"
+            ],
+            "files": [
+                "input/003.t_R1.fastq",
+                "input/003.t_R2.fastq",
+                "input/003.t_I1.fastq"
+            ],
+            "has_read_names": true,
+            "is_10x": true,
+            "is_early_end": false,
+            "is_interleaved": false,
+            "max_sequence_size": 146,
+            "min_sequence_size": 18,
+            "number_of_reads": 9,
+            "number_of_spots": 3,
+            "number_of_spots_with_orphans": 0,
+            "reads_per_spot": 3,
+            "rejected_spots": 0
+        },
+        {
+            "defline_type": [
+                "illuminaNew"
+            ],
+            "files": [
+                "input/003.t2_R1.fastq.gz",
+                "input/003.t2_R2.fastq.gz",
+                "input/003.t2_I1.fastq.gz"
+            ],
+            "has_read_names": true,
+            "is_10x": true,
+            "is_early_end": false,
+            "is_interleaved": false,
+            "max_sequence_size": 146,
+            "min_sequence_size": 18,
+            "number_of_reads": 9,
+            "number_of_spots": 3,
+            "number_of_spots_with_orphans": 0,
+            "reads_per_spot": 3,
+            "rejected_spots": 0
+        },
+        {
+            "defline_type": [
+                "illuminaNew"
+            ],
+            "files": [
+                "input/003.t3_R1.fastq.bz2",
+                "input/003.t3_R2.fastq.bz2",
+                "input/003.t3_I1.fastq.bz2"
+            ],
+            "has_read_names": true,
+            "is_10x": true,
+            "is_early_end": false,
+            "is_interleaved": false,
+            "max_sequence_size": 146,
+            "min_sequence_size": 18,
+            "number_of_reads": 9,
+            "number_of_spots": 3,
+            "number_of_spots_with_orphans": 0,
+            "reads_per_spot": 3,
+            "rejected_spots": 0
+        }
+    ],
+    "platform_code": 2,
+    "quality_code": 33,
+}

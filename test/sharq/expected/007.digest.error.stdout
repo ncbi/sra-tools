@@ -1,0 +1,3 @@
+{
+    "error": "[code:140] Read V300047012L3C001R0010000001: quality score contains unexpected character '83' [001.read.invalid_quality0.fq:1]"
+}

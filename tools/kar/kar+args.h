@@ -88,7 +88,7 @@ struct Params
     bool force;
 
     /* output to stdout */
-    bool stdout;
+    bool my_stdout;
     
     /*modifier to create mode to create an md5sum compatible auxilary file*/
     bool md5sum;

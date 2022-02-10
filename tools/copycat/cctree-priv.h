@@ -246,13 +246,13 @@ rc_t CCTreeMake ( CCTree **t );
  * NB - '..' is not allowed in this implementation.
  */
 rc_t CCTreeInsert ( CCTree *self, KTime_t mtime,
-    enum CCType type, const void *entry, const char *path, ... );
+    enum CCType type, const void *entry, const char *path );
 
 /* Find
  *  find a named node
  *  returns NULL if not found
  */
-const CCName *CCTreeFind ( const CCTree *self, const char *path, ... );
+const CCName *CCTreeFind ( const CCTree *self, const char *path );
 
 
 /* Link

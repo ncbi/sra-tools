@@ -4,10 +4,10 @@
 /**
  * @file fastq_writer.hpp
  * @brief FASTQ Writer
- * 
+ *
  */
 
-/* 
+/*
 * ===========================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
@@ -43,16 +43,19 @@
 #include "fastq_read.hpp"
 #include "fastq_error.hpp"
 #include "sra-tools/writer.hpp"
+#include <spdlog/spdlog.h>
 #include "spdlog/sinks/base_sink.h"
+#include <spdlog/sinks/stdout_sinks.h>
+#include <insdc/sra.h>
 #define LOCALDEBUG
 
 /**
  * @brief Generic writer with std output
- * 
+ *
  */
 class generic_writer
 {
-public: 
+public:
     void set_platform(uint8_t platform) {}
     void write_spot(const vector<CFastqRead>& reads)
     {
@@ -73,14 +76,14 @@ public:
 
 /**
  * @brief Redirects spdlog logging messages to general-loader
- * 
- * @tparam Mutex 
+ *
+ * @tparam Mutex
  */
 template<typename Mutex>
 class general_writer_sink : public spdlog::sinks::base_sink<Mutex>
 {
-public:    
-    general_writer_sink(shared_ptr<Writer2>& writer_) 
+public:
+    general_writer_sink(shared_ptr<Writer2>& writer_)
         : //spdlog::sinks::base_sink<Mutex>(logger_name)
         writer(writer_)
     {}
@@ -88,7 +91,7 @@ protected:
     void sink_it_(const spdlog::details::log_msg& msg) override {
         spdlog::memory_buf_t formatted;
         spdlog::sinks::base_sink<Mutex>::formatter_->format(msg, formatted);
-        if (msg.level >= SPDLOG_LEVEL_ERROR) 
+        if (msg.level >= SPDLOG_LEVEL_ERROR)
             writer->errorMessage(fmt::to_string(formatted));
         else
             writer->logMessage(fmt::to_string(formatted));
@@ -101,12 +104,12 @@ protected:
 using general_writer_sink_mt = general_writer_sink<std::mutex>;
 
 /**
- * @brief Create MT logger with general-loader sinker 
- * 
- * @tparam Factory 
- * @param logger_name 
- * @param writer 
- * @return std::shared_ptr<spdlog::logger> 
+ * @brief Create MT logger with general-loader sinker
+ *
+ * @tparam Factory
+ * @param logger_name
+ * @param writer
+ * @return std::shared_ptr<spdlog::logger>
  */
 template<typename Factory = spdlog::synchronous_factory>
 inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::string &logger_name, shared_ptr<Writer2>& writer)
@@ -117,10 +120,10 @@ inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::strin
     // this logger uses two sinke: stderr and general-loader
     // each sinker has its own formatting pattern
     auto stderr_sinker = make_shared<spdlog::sinks::stderr_sink_mt>();
-    stderr_sinker->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); 
-    
+    stderr_sinker->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
+
     auto gl_sinker = make_shared<general_writer_sink_mt>(writer);
-    gl_sinker->set_pattern("%v"); 
+    gl_sinker->set_pattern("%v");
 
     auto gw_logger = make_shared<spdlog::logger>("multi_sink", spdlog::sinks_init_list({
         stderr_sinker,
@@ -132,31 +135,31 @@ inline std::shared_ptr<spdlog::logger> general_writer_logger_mt(const std::strin
 
 
 /**
- * @brief FASTQ Write Base class 
- * 
+ * @brief FASTQ Write Base class
+ *
  * fastq_parser uses open(), close() and write_spot() methods
  */
-class fastq_writer 
+class fastq_writer
 {
-public: 
+public:
     fastq_writer() {};
     virtual ~fastq_writer() = default;
 
     virtual void open() {};
     virtual void close() {};
-    
+
     /**
-     * @brief Write the list of reads as one spot 
-     * 
-     * @param[in] reads 
+     * @brief Write the list of reads as one spot
+     *
+     * @param[in] reads
      */
     virtual void write_spot(const vector<CFastqRead>& reads);
 
     /**
-     * @brief Set user-defined attributes 
-     * 
-     * @param[in] name 
-     * @param[in] value 
+     * @brief Set user-defined attributes
+     *
+     * @param[in] name
+     * @param[in] value
      */
     void set_attr(const string& name, const string& value) {
         m_attr[name] = value;
@@ -168,7 +171,7 @@ protected:
 };
 
 
-void fastq_writer::write_spot(const vector<CFastqRead>& reads) 
+void fastq_writer::write_spot(const vector<CFastqRead>& reads)
 {
     if (reads.empty())
         return;
@@ -184,26 +187,27 @@ void fastq_writer::write_spot(const vector<CFastqRead>& reads)
         cout << read.Quality() << endl;
     }
 }
- 
+
 
 /**
  * @brief VDB Writer implementaion
- * 
+ *
  * Constructor redirects logging to general_loader
  * Open() method sets up the VDB table using user defin attributes
- * 
- * 
+ *
+ *
  */
 class fastq_writer_vdb : public fastq_writer
 {
-public: 
-    fastq_writer_vdb(ostream& stream);
+public:
+    fastq_writer_vdb(ostream& stream, shared_ptr<Writer2> writer );
     ~fastq_writer_vdb();
 
     void open() override;
     void close() override;
     void write_spot(const vector<CFastqRead>& reads) override;
 
+    const Writer2 & get_writer() const { return * m_writer; }
 private:
     shared_ptr<Writer2> m_writer;    ///< VDB Writer
     std::shared_ptr<spdlog::logger> m_default_logger; ///< Saved default loger
@@ -217,14 +221,23 @@ private:
     Writer2::Column c_READ_LEN;
     Writer2::Column c_READ_TYPE;
     Writer2::Column c_READ_FILTER;
+    Writer2::Column c_CHANNEL;
+    Writer2::Column c_READ_NUMBER;
     uint8_t m_platform{0};
     bool m_is_writing{false};  ///< Flag to indicate if writing was initiated
 };
 
 //  -----------------------------------------------------------------------------
-fastq_writer_vdb::fastq_writer_vdb(ostream& stream) 
+fastq_writer_vdb::fastq_writer_vdb(ostream& stream, shared_ptr<Writer2> writer = shared_ptr<Writer2>() )
 {
-    m_writer.reset(new Writer2(stream));
+    if ( writer.get() == nullptr )
+    {
+        m_writer.reset( new Writer2(stream) );
+    }
+    else
+    {
+        m_writer = writer;
+    }
 
     m_default_logger = spdlog::default_logger();
     auto logger = general_writer_logger_mt("general_writer", m_writer);
@@ -232,21 +245,21 @@ fastq_writer_vdb::fastq_writer_vdb(ostream& stream)
 }
 
 //  -----------------------------------------------------------------------------
-fastq_writer_vdb::~fastq_writer_vdb() 
+fastq_writer_vdb::~fastq_writer_vdb()
 {
     if (m_is_writing) {
         close();
     }
-    
+
 }
 
 //  -----------------------------------------------------------------------------
-void fastq_writer_vdb::open() 
+void fastq_writer_vdb::open()
 {
     static const string cSCHEMA = "sra/generic-fastq.vschema";
     static const string cGENERIC_DB = "NCBI:SRA:GenericFastq:db";
     static const string cILLUMINA_DB = "NCBI:SRA:Illumina:db";
-    
+    static const string cNANOPORE_DB = "NCBI:SRA:GenericFastqNanopore:db";
 
     string name_column_expression = "RAW_NAME";
     string name_column = "RAW_NAME";
@@ -278,10 +291,17 @@ void fastq_writer_vdb::open()
     }
 
     string db = cGENERIC_DB;
-    // use Illumina DB for illumina with standard NAME column
-    if (m_platform == 2 && name_column == "NAME") //SRA_PLATFORM_ILLUMINA = 2
-        db = cILLUMINA_DB;
-    
+    switch ( m_platform )
+    {
+    case SRA_PLATFORM_ILLUMINA:
+        // use Illumina DB for illumina with standard NAME column
+        if (name_column == "NAME")
+            db = cILLUMINA_DB;
+        break;
+    case SRA_PLATFORM_OXFORD_NANOPORE:
+        db = cNANOPORE_DB;
+        break;
+    }
 
     string destination{"sra.out"};
     {
@@ -299,12 +319,12 @@ void fastq_writer_vdb::open()
         }
     }
 
-    m_writer->destination(destination); 
+    m_writer->destination(destination);
     m_writer->schema(cSCHEMA, db);
     m_writer->info("sharq", version);
 
     m_writer->addTable("SEQUENCE", {
-        { "READ",               sizeof(char) }, // sequence literals 
+        { "READ",               sizeof(char) }, // sequence literals
 //        { "CSREAD",             sizeof(char) }, // string
 //        { "CS_KEY",             sizeof(char) }, // one character
         { "READ_START",         sizeof(int32_t) }, //one per read
@@ -319,9 +339,9 @@ void fastq_writer_vdb::open()
 //        { "LABEL",              sizeof(char) }, // concatenated labe string eg. 'FR'
 //        { "LABEL_START",        sizeof(int32_t) }, // one per read
 //        { "LABEL_LEN",          sizeof(int32_t) }, // one per read
-        { "PLATFORM",           sizeof(char) } // platform code
-        //{ "CHANNEL",            sizeof(int32_t) }, // nanopore
-        //{ "READ_NO",            sizeof(int32_t) } // nanopore
+        { "PLATFORM",           sizeof(char) }, // platform code
+        { "CHANNEL",            sizeof(uint32_t) }, // nanopore
+        { "READ_NUMBER",        sizeof(uint32_t) } // nanopore
     });
     SEQUENCE_TABLE = move(m_writer->table("SEQUENCE"));
     c_NAME = move(SEQUENCE_TABLE.column("NAME"));
@@ -333,6 +353,8 @@ void fastq_writer_vdb::open()
     c_READ_LEN = move(SEQUENCE_TABLE.column("READ_LEN"));
     c_READ_TYPE = move(SEQUENCE_TABLE.column("READ_TYPE"));
     c_READ_FILTER = move(SEQUENCE_TABLE.column("READ_FILTER"));
+    c_CHANNEL = move(SEQUENCE_TABLE.column("CHANNEL"));
+    c_READ_NUMBER = move(SEQUENCE_TABLE.column("READ_NUMBER"));
 
     m_writer->beginWriting();
     m_is_writing = true;
@@ -340,13 +362,13 @@ void fastq_writer_vdb::open()
 }
 
 //  -----------------------------------------------------------------------------
-void fastq_writer_vdb::close() 
+void fastq_writer_vdb::close()
 {
     if (m_is_writing && m_writer) {
         m_writer->endWriting();
         m_is_writing = false;
         m_writer->flush();
-        spdlog::set_default_logger(m_default_logger);    
+        spdlog::set_default_logger(m_default_logger);
         //spdlog::set_default_logger(m_default_logger);
         //m_writer.reset();
     }
@@ -356,11 +378,11 @@ void fastq_writer_vdb::close()
 typedef INSDC_SRA_xread_type INSDC_read_type;
 enum
 {
-    // read_type 
+    // read_type
     SRA_READ_TYPE_TECHNICAL  = 0,
     SRA_READ_TYPE_BIOLOGICAL = 1,
 
-    // orientation - applied as bits, e.g.: type = READ_TYPE_BIOLOGICAL | READ_TYPE_REVERSE 
+    // orientation - applied as bits, e.g.: type = READ_TYPE_BIOLOGICAL | READ_TYPE_REVERSE
     SRA_READ_TYPE_FORWARD = 2,
     SRA_READ_TYPE_REVERSE = 4,
 };
@@ -385,6 +407,8 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     int32_t read_len[read_num];
     char read_type[read_num];
     char read_filter[read_num];
+    uint32_t channel[read_num];
+    uint32_t read_no[read_num];
 
     read_num = 0;
     for (const auto& read : reads) {
@@ -398,6 +422,11 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
         //SRA_READ_TYPE_BIOLOGICAL = 1;
         read_type[read_num] = read.Type();
         read_filter[read_num] = (char)read.ReadFilter();
+        if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
+        {
+            channel[read_num] = stoul( read.Channel() );
+            read_no[read_num] = stoul( read.NanoporeReadNo() );
+        }
         ++read_num;
     }
     std::transform(sequence.begin(), sequence.end(), sequence.begin(), ::toupper);
@@ -407,6 +436,11 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
     c_READ_LEN.setValue(read_num, sizeof(int32_t), read_len);
     c_READ_TYPE.setValue(read_num, sizeof(char), read_type);
     c_READ_FILTER.setValue(read_num, sizeof(char), read_filter);
+    if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
+    {
+        c_CHANNEL.setValue(read_num, sizeof(uint32_t), channel);
+        c_READ_NUMBER.setValue(read_num, sizeof(uint32_t), read_no);
+    }
     SEQUENCE_TABLE.closeRow();
 }
 

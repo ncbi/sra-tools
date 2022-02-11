@@ -380,15 +380,14 @@ public:
     virtual void GetMatch(CFastqRead& read) override
     {
 //for( auto m : match ) cout << m << endl;
-        //  0    1    2      3    4       5       6     7        8           9         10         11
-        //       name suffix poreRead
+        //  0    1    2      3          4   5       6     7        8           9         10         11
+        //       name suffix poreRead               channel        readNo
         read.SetSpot( match[1] );
         read.SetSuffix( match[2] );
         // For now, poreRead is expected to be "_template", other variants will be passed to the regular fastq-load.py
-        //TODO: ch match[6]
-        //TODO: read match[8]
+        read.SetChannel( match[6] );
+        read.SetNanoporeReadNo( match[8] );
     }
 };
 
 #endif
-

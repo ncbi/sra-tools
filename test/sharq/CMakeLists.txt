@@ -57,15 +57,22 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
         -DCMAKE_INSTALL_MESSAGE:STRING=LAZY
     )
     set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
-    add_executable(test-sharq-parser test-sharq-parser.cpp )
-    add_dependencies(test-sharq-parser RE2_ sharq)
-    target_include_directories(test-sharq-parser PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
+
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
     endif()
-    target_link_libraries(test-sharq-parser ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
+    add_executable(test-sharq-parser test-sharq-parser.cpp )
+    add_dependencies(test-sharq-parser RE2_ sharq)
+    target_include_directories(test-sharq-parser PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
+    target_link_libraries(test-sharq-parser ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
     add_test( NAME Test_sharq_parser COMMAND test-sharq-parser WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+    add_executable(test-sharq-writer test-sharq-writer.cpp )
+    add_dependencies(test-sharq-writer sharq)
+    target_include_directories(test-sharq-writer PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
+    target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
+    add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     macro(SharqTest TestName Result TestParams)
     add_test( NAME Test_${TestName}

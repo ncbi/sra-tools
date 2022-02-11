@@ -699,10 +699,11 @@ FIXTURE_TEST_CASE(Nanopore3, LoaderFixture)
     REQUIRE( read.SpotGroup().empty() );
     REQUIRE_EQ( read.Sequence(), string( "AAGT" ) );
     REQUIRE_EQ( read.Quality(), string( "IIII" ) );
+    REQUIRE_EQ( read.Channel(), string( "143" ) );
+    REQUIRE_EQ( read.NanoporeReadNo(), string( "16010" ) );
 }
 
 int main (int argc, char *argv [])
 {
     return SharQParserTestSuite(argc, argv);
 }
-

@@ -64,10 +64,8 @@ public:
         return ss;
     }
     string filename;
-
 };
 
-#if 0
 ///////////////////////////////////////////////// SHARQ test cases
 FIXTURE_TEST_CASE(EmptyFile, LoaderFixture)
 {
@@ -110,7 +108,7 @@ FIXTURE_TEST_CASE(InvalidDeflineError, LoaderFixture)
         CHECK_EQ(err.Message(), string("[code:100] Defline 'qqq abcd' not recognized"));
     }
 }
-#endif
+
 const string cSPOT1 = "NB501550:336:H75GGAFXY:2:11101:10137:1038";
 const string cSPOT_GROUP = "CTAGGTGA";
 const string cDEFLINE1 = cSPOT1 + " 1:N:0:" + cSPOT_GROUP;
@@ -130,7 +128,6 @@ const string cQUAL_MULTILINE = "!'\n'*";
 #define _READ(defline, sequence, quality)\
     string("@" + string(defline)  + "\n" + sequence  + "\n+\n" + quality + "\n")\
 
-#if 0
 FIXTURE_TEST_CASE(GoodRead, LoaderFixture)
 {   // a good record
     CFastqRead read;
@@ -640,7 +637,6 @@ FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
     REQUIRE(qual_scores_in == qual_scores_out);
 
 }
-#endif
 
 // ############################################################
 // # Nanopore/MinION fastq
@@ -686,22 +682,154 @@ FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
 // nanopore4="[@>+]([!-~]*?\S{8}-\S{4}-\S{4}-\S{4}-\S{12}\S*[_]?\d?)[\s+[!-~ ]*?|]$"
 // nanopore5="[@>+]([!-~]*?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)\S*?($)"
 
-FIXTURE_TEST_CASE(Nanopore3, LoaderFixture)
+class NanoporeFixture : public LoaderFixture
 {
-    fastq_reader reader("test", create_stream(_READ("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand",
-        "AAGT", "IIII")), {}, 2);
-    CFastqRead read;
-    REQUIRE( reader.get_read(read) );
-    REQUIRE( reader.platform() == SRA_PLATFORM_OXFORD_NANOPORE );
-    REQUIRE_EQ( read.Spot(), string( "f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall" ) );
-    REQUIRE_EQ( read.Suffix(), string( "_Alignment" ) );
-    REQUIRE_EQ( read.ReadNum(), string() );
-    REQUIRE( read.SpotGroup().empty() );
-    REQUIRE_EQ( read.Sequence(), string( "AAGT" ) );
-    REQUIRE_EQ( read.Quality(), string( "IIII" ) );
-    REQUIRE_EQ( read.Channel(), string( "143" ) );
-    REQUIRE_EQ( read.NanoporeReadNo(), string( "16010" ) );
+public:
+    void Nanopore( const string & defline )
+    {
+        fastq_reader reader("test", create_stream(_READ(defline,"AAGT", "IIII")), {}, 2);
+        THROW_ON_FALSE( reader.get_read(m_read) );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_OXFORD_NANOPORE );
+        m_type = reader.defline_type();
+    }
+
+    string m_type;
+    CFastqRead m_read;
+};
+
+FIXTURE_TEST_CASE(Nanopore1_readno_early, NanoporeFixture)
+{
+    Nanopore("channel_108_read_11_twodirections:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5");
+    REQUIRE_EQ( string("Nanopore1"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "channel_108_read_11" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "108" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "11" ) );
 }
+
+FIXTURE_TEST_CASE(Nanopore1_readno_late, NanoporeFixture)
+{
+    Nanopore("channel_181_b44bbc58-3753-46d6-882c-0021c0697b55_template pass/6/Athena_20170324_FNFAF13858_MN19255_sequencing_run_fc2_real1_0_53723_ch181_read15475_strand.fast5");
+    REQUIRE_EQ( string("Nanopore1"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "channel_181_b44bbc58-3753-46d6-882c-0021c0697b55" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "181" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "15475" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore2, NanoporeFixture)
+{
+    Nanopore("ch120_file13-1D");
+    REQUIRE_EQ( string("Nanopore2"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "ch120_file13" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "120" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "0" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore3, NanoporeFixture)
+{
+    Nanopore("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand");
+    REQUIRE_EQ( string("Nanopore3"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall" ) );
+    REQUIRE_EQ( m_read.Suffix(), string( "_Alignment" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "143" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "16010" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore3_1, NanoporeFixture)
+{
+    Nanopore("08441923-cb1a-490c-89b4-d209e234eb30_Basecall_1D_template GPBE6_F39_20170913_FAH26527_MN19835_sequencing_run_R265_r1_FAH26527_96320_read_2345_ch_440_strand fast5/GPBE6_F39_20170913_FAH26527_MN19835_sequencing_run_R265_r1_FAH26527_96320_read_2345_ch_440_strand.fast5");
+    REQUIRE_EQ( string("Nanopore3_1"), m_type );
+
+    //NB: the leading 0 is matched against the prefix "([!-~]+?)" - ask Bob
+    REQUIRE_EQ( m_read.Spot(), string( "8441923-cb1a-490c-89b4-d209e234eb30_Basecall" ) );
+    REQUIRE_EQ( m_read.Suffix(), string( "_1D" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "440" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "2345" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore4, NanoporeFixture)
+{
+    Nanopore("5f8415e3-46ae-48fc-9092-a291b8b6a9b9 run_id=47b8d024d71eef532d676f4aa32d8867a259fc1b m_read=279 mux=3 ch=87 start_time=2017-01-20T16:26:27Z");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "5f8415e3-46ae-48fc-9092-a291b8b6a9b9" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "279" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "87" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore4_WithBarcode, NanoporeFixture)
+{
+    Nanopore("aba5dfd4-af02-46d1-9bce-3b62557aa8c1 runid=91c917caaf7b201766339e506ba26eddaf8c06d9 read=29 ch=350 start_time=2018-03-02T16:12:39Z barcode=barcode01");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "aba5dfd4-af02-46d1-9bce-3b62557aa8c1" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "29" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "350" ) );
+    REQUIRE_EQ( m_read.SpotGroup(), string( "barcode01" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore4_WithBarcodeUnclassified, NanoporeFixture)
+{
+    Nanopore("aba5dfd4-af02-46d1-9bce-3b62557aa8c1 runid=91c917caaf7b201766339e506ba26eddaf8c06d9 read=29 ch=350 start_time=2018-03-02T16:12:39Z barcode=unclassified");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.SpotGroup(), string() );
+}
+
+#if 0
+//TODO: ask Bob: this is marked as nanopore5 but is recognized by nanopore3
+FIXTURE_TEST_CASE(Nanopore5, NanoporeFixture)
+{
+    Nanopore("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand");
+    REQUIRE_EQ( string("Nanopore5"), m_type );
+
+    //TODO: verify components
+}
+#endif
+
+FIXTURE_TEST_CASE(Nanopore_DefaultReadno, NanoporeFixture)
+{
+    Nanopore("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_strand");
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "0" ) );
+}
+FIXTURE_TEST_CASE(Nanopore_ReadNoIsAFile, NanoporeFixture)
+{
+    Nanopore("1dc51069-f61f-45db-b624-56c857c4e2a8_Basecall_2D_000_2d oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand_twodirections:CORNELL_Oxford_Nanopore/oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand.fast5");
+
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "0" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore_ReadFilter_Default, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( (int)m_read.ReadFilter(), 0 );
+}
+FIXTURE_TEST_CASE(Nanopore_ReadFilter_Pass, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:pass\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( (int)m_read.ReadFilter(), 0 );
+}
+FIXTURE_TEST_CASE(Nanopore_ReadFilter_Fail, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:fail\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( (int)m_read.ReadFilter(), 1 );
+}
+
+FIXTURE_TEST_CASE(Nanopore_Barcode_BC, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:BC01\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( m_read.SpotGroup(), string( "BC01") );
+}
+FIXTURE_TEST_CASE(Nanopore_Barcode_Edit, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:barcode01\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( m_read.SpotGroup(), string( "BC01") );
+}
+
+////////////////////////////////////////////
 
 int main (int argc, char *argv [])
 {

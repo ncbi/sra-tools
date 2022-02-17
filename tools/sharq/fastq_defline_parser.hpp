@@ -103,7 +103,12 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
-    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3_1);
+    //mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore5); // before Nanopore4, to match fastq-load.py
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore4);
 }
 
 CDefLineParser::~CDefLineParser()
@@ -170,4 +175,3 @@ const string& CDefLineParser::GetDeflineType() const
 
 
 #endif
-

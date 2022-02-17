@@ -62,6 +62,11 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
         set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
     endif()
 
+    add_executable(test-regexpr test-regexpr.cpp )
+    target_include_directories(test-regexpr PUBLIC ${LOCAL_INCDIR})
+    target_link_libraries(test-regexpr ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${RE2_STATIC_LIBRARIES})
+    add_test( NAME Test_regexpr COMMAND test-regexpr WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
     add_executable(test-sharq-parser test-sharq-parser.cpp )
     add_dependencies(test-sharq-parser RE2_ sharq)
     target_include_directories(test-sharq-parser PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)

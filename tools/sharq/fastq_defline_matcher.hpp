@@ -406,7 +406,6 @@ public:
             }
         }
 
-
     //     # Split poreFile on '/' or '\' if present
 
     //     poreFileChunks = re.split(r'[/\\]',self.poreFile)
@@ -420,8 +419,8 @@ public:
 
     // # Check for missing poreRead (from R-based poRe fastq dump) and normalize read type
 
-    if ( poreRead.empty() )
-    {
+    // if ( poreRead.empty() )
+    // {
     //TODO: where does filename come from? (ask Bob)
         //     if self.filename:
         //         if self.pore2Dpresent.search(self.filename):
@@ -453,7 +452,8 @@ public:
     // if ( not self.deflineType and
     //      self.saveDeflineType ):
     //     self.deflineType = self.NANOPORE
-    }
+    // }
+    //TODO: ... and then self.poreRead does not seem to be used anywhere (ask Bob)
 
     re2::StringPiece poreMid;
     string poreFile;

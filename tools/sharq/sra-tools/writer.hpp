@@ -460,7 +460,7 @@ public:
     , nextColumn(0)
     {
     }
-    void addTable(char const *name, std::initializer_list<ColumnDefinition> const &list)
+    void addTable(char const *name, std::vector<ColumnDefinition> const &list)
     {
         decltype(tables.begin()->second.second) columns;
         auto const tableNo = ++nextTable;

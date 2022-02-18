@@ -323,7 +323,7 @@ void fastq_writer_vdb::open()
     m_writer->schema(cSCHEMA, db);
     m_writer->info("sharq", version);
 
-    m_writer->addTable("SEQUENCE", {
+    vector<Writer2::ColumnDefinition> SequenceCols = {
         { "READ",               sizeof(char) }, // sequence literals
 //        { "CSREAD",             sizeof(char) }, // string
 //        { "CS_KEY",             sizeof(char) }, // one character
@@ -339,10 +339,15 @@ void fastq_writer_vdb::open()
 //        { "LABEL",              sizeof(char) }, // concatenated labe string eg. 'FR'
 //        { "LABEL_START",        sizeof(int32_t) }, // one per read
 //        { "LABEL_LEN",          sizeof(int32_t) }, // one per read
-        { "PLATFORM",           sizeof(char) }, // platform code
-        { "CHANNEL",            sizeof(uint32_t) }, // nanopore
-        { "READ_NUMBER",        sizeof(uint32_t) } // nanopore
-    });
+        { "PLATFORM",           sizeof(char) } // platform code
+    };
+    if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
+    {
+        SequenceCols.push_back( Writer2::ColumnDefinition( "CHANNEL", sizeof(uint32_t) ) );
+        SequenceCols.push_back( Writer2::ColumnDefinition( "READ_NUMBER", sizeof(uint32_t) ) );
+    };
+
+    m_writer->addTable("SEQUENCE", SequenceCols);
     SEQUENCE_TABLE = move(m_writer->table("SEQUENCE"));
     c_NAME = move(SEQUENCE_TABLE.column("NAME"));
     c_SPOT_GROUP = move(SEQUENCE_TABLE.column("SPOT_GROUP"));
@@ -353,8 +358,11 @@ void fastq_writer_vdb::open()
     c_READ_LEN = move(SEQUENCE_TABLE.column("READ_LEN"));
     c_READ_TYPE = move(SEQUENCE_TABLE.column("READ_TYPE"));
     c_READ_FILTER = move(SEQUENCE_TABLE.column("READ_FILTER"));
-    c_CHANNEL = move(SEQUENCE_TABLE.column("CHANNEL"));
-    c_READ_NUMBER = move(SEQUENCE_TABLE.column("READ_NUMBER"));
+    if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
+    {
+        c_CHANNEL = move(SEQUENCE_TABLE.column("CHANNEL"));
+        c_READ_NUMBER = move(SEQUENCE_TABLE.column("READ_NUMBER"));
+    }
 
     m_writer->beginWriting();
     m_is_writing = true;

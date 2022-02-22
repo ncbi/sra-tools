@@ -165,64 +165,132 @@ static bool filter( join_stats_t * stats,
     return process;
 }
 
-static rc_t print_fastq_1_read( join_stats_t * stats,
+static rc_t print_fastq_1_read_unaligned( join_stats_t * stats,
                                 const fastq_rec_t * rec,
                                 join_t * j,
                                 const join_options_t * jo ) {
+    /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
     rc_t rc = 0;
-    int64_t row_id = rec -> row_id;
-    
-    bool process = filter( stats, rec, jo, 0 );
-    if ( !process ) { return rc; }
+    if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
+        if ( rec -> read . len != rec -> quality . len ) {
+            ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", rec -> row_id,
+                    rec -> read . len, rec -> quality . len );
+            stats -> reads_invalid++;
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
+        if ( rec -> read . len > 0 ) {
+            flex_printer_data_t data;
+            data . row_id = rec -> row_id;
+            data . read_id = 1;
+            data . dst_id = 0;
+            data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
+            data . spotgroup = &( rec -> spotgroup );
+            data . read1 = &( rec -> read );
+            data . read2 = NULL;
+            data . quality = &( rec -> quality );
+            rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
+            if ( 0 == rc ) { stats -> reads_written++; }
+        }
+    }
+    return rc;
+}
 
-    if ( 0 == rec -> prim_alig_id[ 0 ] ) {
-        /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
-            if ( rec -> read . len != rec -> quality . len ) {
-                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (A)\n", row_id,
-                        rec -> read . len, rec -> quality . len );
+static rc_t print_fastq_1_read_aligned( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo ) {
+    /* read is aligned, ( 1 lookup ) */
+    rc_t rc = 0;
+    bool reverse = is_reverse( rec, 0 ); /* above */
+    rc = lookup_bases( j -> lookup, rec -> row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
+    if ( 0 == rc ) {
+        if ( filter_2na_1( j -> filter, &( j -> B1 . S ) ) ) {/* join-results.c */
+            if ( j -> B1 . S . len != rec -> quality . len ) {
+                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", rec -> row_id,
+                            j -> B1 . S . len, rec -> quality . len );
                 stats -> reads_invalid++;
                 return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
             }
-            if ( rec -> read . len > 0 ) {
+            if ( j -> B1 . S . len > 0 ) {
                 flex_printer_data_t data;
-                data . row_id = row_id;
+                data . row_id = rec -> row_id;
                 data . read_id = 1;
                 data . dst_id = 0;
                 data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
                 data . spotgroup = &( rec -> spotgroup );
-                data . read1 = &( rec -> read );
+                data . read1 = &( j -> B1 . S );
                 data . read2 = NULL;
                 data . quality = &( rec -> quality );
                 rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
                 if ( 0 == rc ) { stats -> reads_written++; }
             }
         }
-    } else {
-        /* read is aligned, ( 1 lookup ) */    
-        bool reverse = is_reverse( rec, 0 );
-        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
-        if ( 0 == rc ) {
-            if ( filter_2na_1( j -> filter, &( j -> B1 . S ) ) ) {/* join-results.c */
-                if ( j -> B1 . S . len != rec -> quality . len ) {
-                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (B)\n", row_id,
-                             j -> B1 . S . len, rec -> quality . len );
-                    stats -> reads_invalid++;
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                }
-                if ( j -> B1 . S . len > 0 ) {
-                    flex_printer_data_t data;
-                    data . row_id = row_id;
-                    data . read_id = 1;
-                    data . dst_id = 0;
-                    data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = &( rec -> spotgroup );
-                    data . read1 = &( j -> B1 . S );
-                    data . read2 = NULL;
-                    data . quality = &( rec -> quality );
-                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
-                    if ( 0 == rc ) { stats -> reads_written++; }
-                }
+    }
+    return rc;
+}
+
+static rc_t print_fastq_1_read( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo ) {
+    rc_t rc = 0;
+    bool process = filter( stats, rec, jo, 0 ); /* above */
+    if ( process ) {
+        if ( 0 == rec -> prim_alig_id[ 0 ] ) {
+            rc = print_fastq_1_read_unaligned( stats, rec, j, jo );
+        } else {
+            rc = print_fastq_1_read_aligned( stats, rec, j, jo );
+        }
+    }
+    return rc;
+}
+
+static rc_t print_fasta_1_read_unaligned( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo ) {
+    /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
+    rc_t rc = 0;
+    if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
+        if ( rec -> read . len > 0 ) {
+            flex_printer_data_t data;
+            data . row_id = rec -> row_id;
+            data . read_id = 1;
+            data . dst_id = 0;
+            data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
+            data . spotgroup = &( rec -> spotgroup );
+            data . read1 = &( rec -> read );
+            data . read2 = NULL;
+            data . quality = &( rec -> quality );
+            rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
+            if ( 0 == rc ) { stats -> reads_written++; }
+        }
+    }
+    return rc;
+}
+
+static rc_t print_fasta_1_read_aligned( join_stats_t * stats,
+                                const fastq_rec_t * rec,
+                                join_t * j,
+                                const join_options_t * jo ) {
+    /* read is aligned, ( 1 lookup ) */
+    rc_t rc = 0;
+    bool reverse = is_reverse( rec, 0 ); /* above */
+    rc = lookup_bases( j -> lookup, rec -> row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
+    if ( 0 == rc ) {
+        if ( filter_2na_1( j -> filter, &( j -> B1 . S ) ) ) { /* join-results.c */
+            if ( j -> B1 . S . len > 0 ) {
+                flex_printer_data_t data;
+                data . row_id = rec -> row_id;
+                data . read_id = 1;
+                data . dst_id = 0;
+                data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
+                data . spotgroup = &( rec -> spotgroup );
+                data . read1 = &( j -> B1 . S );
+                data . read2 = NULL;
+                data . quality = NULL;
+                rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
+                if ( 0 == rc ) { stats -> reads_written++; }
             }
         }
     }
@@ -234,48 +302,12 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
                                 join_t * j,
                                 const join_options_t * jo ) {
     rc_t rc = 0;
-    int64_t row_id = rec -> row_id;
-    
-    bool process = filter( stats, rec, jo, 0 );
-    if ( !process ) { return rc; }
-
-    if ( 0 == rec -> prim_alig_id[ 0 ] ) {
-        /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
-            if ( rec -> read . len > 0 ) {
-                flex_printer_data_t data;
-                data . row_id = row_id;
-                data . read_id = 1;
-                data . dst_id = 0;
-                data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                data . spotgroup = &( rec -> spotgroup );
-                data . read1 = &( rec -> read );
-                data . read2 = NULL;
-                data . quality = &( rec -> quality );
-                rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
-                if ( 0 == rc ) { stats -> reads_written++; }
-            }
-        }
-    } else {
-        /* read is aligned, ( 1 lookup ) */    
-        bool reverse = is_reverse( rec, 0 );
-        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
-        if ( 0 == rc ) {
-            if ( filter_2na_1( j -> filter, &( j -> B1 . S ) ) ) { /* join-results.c */
-                if ( j -> B1 . S . len > 0 ) {
-                    flex_printer_data_t data;
-                    data . row_id = row_id;
-                    data . read_id = 1;
-                    data . dst_id = 0;
-                    data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = &( rec -> spotgroup );
-                    data . read1 = &( j -> B1 . S );
-                    data . read2 = NULL;
-                    data . quality = NULL;
-                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
-                    if ( 0 == rc ) { stats -> reads_written++; }
-                }
-            }
+    bool process = filter( stats, rec, jo, 0 ); /* above */
+    if ( process ) {
+        if ( 0 == rec -> prim_alig_id[ 0 ] ) {
+            rc = print_fasta_1_read_unaligned( stats, rec, j, jo );
+        } else {
+            rc = print_fasta_1_read_aligned( stats, rec, j, jo );
         }
     }
     return rc;
@@ -283,118 +315,155 @@ static rc_t print_fasta_1_read( join_stats_t * stats,
 
 /* ------------------------------------------------------------------------------------------ */
 
+static rc_t print_fastq_2_reads_unaligned( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo ) {
+    /* >>>>> FULLY UNALIGNED <<<<<
+        print what is in rec -> read ( no lookups! ) */
+    rc_t rc = 0;    
+    if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
+        if ( rec -> read . len != rec -> quality . len ) {
+            ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", rec -> row_id,
+                    rec -> read . len, rec -> quality . len );
+            stats -> reads_invalid++;
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        }
+        flex_printer_data_t data;
+        data . row_id = rec -> row_id;
+        data . read_id = 1;
+        data . dst_id = 1;
+        data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
+        data . spotgroup = &( rec -> spotgroup );
+        data . read1 = &( rec -> read );
+        data . read2 = NULL;
+        data . quality = &( rec -> quality );
+        rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
+        if ( 0 == rc ) { stats -> reads_written += 2; }
+    }
+    return rc;
+}
+
+static rc_t print_fastq_2_reads_half_aligned_1( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo ) {
+    /* >>>>> HALF ALIGNED <<<<<
+        A0 is unaligned ( read and quality from rec )
+        A1 is aligned   ( read form j -> lookup, quality from rec ) */
+    bool reverse = is_reverse( rec, 1 ); /* above */
+    rc_t rc = lookup_bases( j -> lookup, rec->row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
+    if ( 0 == rc ) {
+        if ( filter_2na_2( j -> filter, &( rec -> read ), &( j -> B2 . S ) ) ) { /* join-results.c */
+            if ( j -> B2 . S. len + rec -> read . len != rec -> quality . len ) {
+                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", rec -> row_id,
+                        j -> B2 . S. len, rec -> quality . len );
+                stats -> reads_invalid++;
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+            flex_printer_data_t data;
+            data . row_id = rec -> row_id;
+            data . read_id = 1;
+            data . dst_id = 1;
+            data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
+            data . spotgroup = &( rec -> spotgroup );
+            data . read1 = &( rec -> read );
+            data . read2 = &( j -> B2 . S );
+            data . quality = &( rec -> quality );
+            rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
+            if ( 0 == rc ) { stats -> reads_written += 2; }
+        }
+    }
+    return rc;
+}
+
+static rc_t print_fastq_2_reads_half_aligned_2( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo ) {
+    /* >>>>> HALF ALIGNED <<<<<
+        A0 is aligned ( read and quality from rec )
+        A1 is unaligned ( read form lookup quality from rec */
+    bool reverse = is_reverse( rec, 0 ); /* above */
+    rc_t rc = lookup_bases( j -> lookup, rec -> row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
+    if ( 0 == rc ) {
+        if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( rec -> read ) ) ) { /* join-results.c */
+            uint32_t rl = j -> B1 . S . len + rec -> read . len;
+            if ( rl != rec -> quality . len ) {
+                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (E)\n", rec -> row_id,
+                        rl, rec -> quality . len );
+                stats -> reads_invalid++;
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+            flex_printer_data_t data;
+            data . row_id = rec -> row_id;
+            data . read_id = 1;
+            data . dst_id = 1;
+            data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
+            data . spotgroup = &( rec -> spotgroup );
+            data . read1 = &( j -> B1 . S );
+            data . read2 = &( rec -> read );
+            data . quality = &( rec -> quality );
+            rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
+            if ( 0 == rc ) { stats -> reads_written += 2; }
+        }
+    }
+    return rc;
+}
+
+static rc_t print_fastq_2_reads_aligned( join_stats_t * stats,
+                                 const fastq_rec_t * rec,
+                                 join_t * j,
+                                 const join_options_t * jo ) {
+    /* >>>>> FULLY ALIGNED <<<<<
+        2 lookups! */
+    bool reverse1 = is_reverse( rec, 0 );
+    bool reverse2 = is_reverse( rec, 1 );
+    rc_t rc = lookup_bases( j -> lookup, rec -> row_id, 1, &( j -> B1 ), reverse1 ); /* lookup_reader.c */
+    if ( 0 == rc ) {
+        rc = lookup_bases( j -> lookup, rec -> row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
+    }
+    if ( 0 == rc ) {
+        if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( j -> B2 . S ) ) ) {/* join-results.c */
+            uint32_t rl = j -> B1 . S . len + j -> B2 . S . len;
+            if ( rl != rec -> quality . len ) {
+                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (F)\n", rec -> row_id,
+                        rl, rec -> quality . len );
+                stats -> reads_invalid++;
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+            flex_printer_data_t data;
+            data . row_id = rec -> row_id;
+            data . read_id = 1;
+            data . dst_id = 1;
+            data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
+            data . spotgroup = &( rec -> spotgroup );
+            data . read1 = &( j -> B1 . S );
+            data . read2 = &( j -> B2 . S );
+            data . quality = &( rec -> quality );
+            rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
+            if ( 0 == rc ) { stats -> reads_written += 2; }
+        }
+    }
+    return rc;
+}
+
 static rc_t print_fastq_2_reads( join_stats_t * stats,
                                  const fastq_rec_t * rec,
                                  join_t * j,
                                  const join_options_t * jo ) {
     rc_t rc = 0;
-    int64_t row_id = rec -> row_id;
-   
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            /* both unaligned, print what is in row->read (no lookup)*/        
-            if ( filter_2na_1( j -> filter, &( rec -> read ) ) ) { /* join-results.c */
-                if ( rec -> read . len != rec -> quality . len ) {
-                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (C)\n", row_id,
-                            rec -> read . len, rec -> quality . len );
-                    stats -> reads_invalid++;
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                }
-                flex_printer_data_t data;
-                data . row_id = row_id;
-                data . read_id = 1;
-                data . dst_id = 1;
-                data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                data . spotgroup = &( rec -> spotgroup );
-                data . read1 = &( rec -> read );
-                data . read2 = NULL;
-                data . quality = &( rec -> quality );
-                rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
-                if ( 0 == rc ) { stats -> reads_written += 2; }
-            }
+            rc = print_fastq_2_reads_unaligned( stats, rec, j, jo );
         } else {
-            /* A0 is unaligned / A1 is aligned (lookup) */
-            bool reverse = is_reverse( rec, 1 );
-            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
-            if ( 0 == rc ) {
-                if ( filter_2na_2( j -> filter, &( rec -> read ), &( j -> B2 . S ) ) ) { /* join-results.c */
-                    if ( j -> B2 . S. len + rec -> read . len != rec -> quality . len ) {
-                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (D)\n", row_id,
-                                j -> B2 . S. len, rec -> quality . len );
-                        stats -> reads_invalid++;
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
-                    flex_printer_data_t data;
-                    data . row_id = row_id;
-                    data . read_id = 1;
-                    data . dst_id = 1;
-                    data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = &( rec -> spotgroup );
-                    data . read1 = &( rec -> read );
-                    data . read2 = &( j -> B2 . S );
-                    data . quality = &( rec -> quality );
-                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
-                    if ( 0 == rc ) { stats -> reads_written += 2; }
-                }
-            }
+            rc = print_fastq_2_reads_half_aligned_1( stats, rec, j, jo );
         }
     } else {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            /* A0 is aligned (lookup) / A1 is unaligned */
-            bool reverse = is_reverse( rec, 0 );
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
-            if ( 0 == rc ) {
-                if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( rec -> read ) ) ) { /* join-results.c */
-                    uint32_t rl = j -> B1 . S . len + rec -> read . len;
-                    if ( rl != rec -> quality . len ) {
-                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (E)\n", row_id,
-                                rl, rec -> quality . len );
-                        stats -> reads_invalid++;
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
-                    flex_printer_data_t data;
-                    data . row_id = row_id;
-                    data . read_id = 1;
-                    data . dst_id = 1;
-                    data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = &( rec -> spotgroup );
-                    data . read1 = &( j -> B1 . S );
-                    data . read2 = &( rec -> read );
-                    data . quality = &( rec -> quality );
-                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
-                    if ( 0 == rc ) { stats -> reads_written += 2; }
-                }
-            }
+            rc = print_fastq_2_reads_half_aligned_2( stats, rec, j, jo );
         } else {
-            /* A0 and A1 are aligned (2 lookups)*/
-            bool reverse1 = is_reverse( rec, 0 );
-            bool reverse2 = is_reverse( rec, 1 );
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse1 ); /* lookup_reader.c */
-            if ( 0 == rc ) {
-                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
-            }
-            if ( 0 == rc ) {
-                if ( filter_2na_2( j -> filter, &( j -> B1 . S ), &( j -> B2 . S ) ) ) {/* join-results.c */
-                    uint32_t rl = j -> B1 . S . len + j -> B2 . S . len;
-                    if ( rl != rec -> quality . len ) {
-                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u) (F)\n", row_id,
-                                rl, rec -> quality . len );
-                        stats -> reads_invalid++;
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                    }
-                    flex_printer_data_t data;
-                    data . row_id = row_id;
-                    data . read_id = 1;
-                    data . dst_id = 1;
-                    data . spotname = jo -> rowid_as_name ? NULL : &( rec -> name );
-                    data . spotgroup = &( rec -> spotgroup );
-                    data . read1 = &( j -> B1 . S );
-                    data . read2 = &( j -> B2 . S );
-                    data . quality = &( rec -> quality );
-                    rc = flex_print( j -> flex_printer, &data ); /* flex_printer.c */
-                    if ( 0 == rc ) { stats -> reads_written += 2; }
-                }
-            }
+            rc = print_fastq_2_reads_aligned( stats, rec, j, jo );
         }
     }
     return rc;

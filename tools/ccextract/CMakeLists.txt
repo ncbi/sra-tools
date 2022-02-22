@@ -33,7 +33,7 @@ if( LibXml2_FOUND )
 		        ${NCBI_VDB_LIBDIR}/libkxfs.${STLX}
 		        ${NCBI_VDB_LIBDIR}/libkxml.${STLX}
 		        ${COMMON_LIBS_READ}
-		        xml2
+		        ${LIBXML2_LIBRARIES}
 		    )
 	else()
 		target_link_libraries( ccextract
@@ -44,5 +44,9 @@ if( LibXml2_FOUND )
 		        xml2
 		    )
 	endif()
+
+        if ( "mac" STREQUAL ${OS} )
+            target_link_libraries( ccextract iconv )
+        endif()
 	MakeLinksExe( ccextract false )
 endif()

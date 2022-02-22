@@ -147,7 +147,14 @@ message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" 
 find_package( FLEX 2.6 )
 find_package( BISON 3 )
 
-find_package( LibXml2 )
+if (XML2_LIBDIR)
+    find_library( LIBXML2_LIBRARIES libxml2.a HINTS ${XML2_LIBDIR} )
+    if ( LIBXML2_LIBRARIES )
+       set( LibXml2_FOUND true )
+    endif()
+else()
+    find_package( LibXml2 )
+endif()
 
 find_package(Java COMPONENTS Development)
 if( Java_FOUND AND NOT Java_VERSION )
@@ -375,24 +382,31 @@ endfunction()
 #
 function(MakeLinksShared target name install)
     if( SINGLE_CONFIG )
+        if( ${OS} STREQUAL "mac" )
+            set( LIBSUFFIX ".${VERSION}.${SHLX}" )
+            set( MAJLIBSUFFIX ".${MAJVERS}.${SHLX}" )
+        else()
+            set( LIBSUFFIX ".${SHLX}.${VERSION}" )
+            set( MAJLIBSUFFIX ".${SHLX}.${MAJVERS}" )
+        endif()
         add_custom_command(TARGET ${target}
             POST_BUILD
-            COMMAND rm -f lib${name}.${SHLX}.${VERSION}
-            COMMAND mv lib${name}.${SHLX} lib${name}.${SHLX}.${VERSION}
-            COMMAND ln -f -s lib${name}.${SHLX}.${VERSION} lib${name}.${SHLX}.${MAJVERS}
-            COMMAND ln -f -s lib${name}.${SHLX}.${MAJVERS} lib${name}.${SHLX}
+            COMMAND rm -f lib${name}${LIBSUFFIX}
+            COMMAND mv lib${name}.${SHLX} lib${name}${LIBSUFFIX}
+            COMMAND ln -f -s lib${name}${LIBSUFFIX} lib${name}${MAJLIBSUFFIX}
+            COMMAND ln -f -s lib${name}${MAJLIBSUFFIX} lib${name}.${SHLX}
             WORKING_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         )
 
         set_property(
             TARGET    ${target}
             APPEND
-            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${VERSION};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${MAJVERS};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}"
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX};${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}"
         )
 
         if ( ${install} )
-            install( FILES  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${VERSION}
-                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}.${MAJVERS}
+            install( PROGRAMS  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX}
+                            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
         )
@@ -408,6 +422,11 @@ function(MakeLinksShared target name install)
                      RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+
+        if (WIN32)
+            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+        endif()
+
     endif()
 endfunction()
 
@@ -424,10 +443,21 @@ function(ExportShared lib install)
 endfunction()
 
 #
-# create versioned names and symlinks for an executable
+# Ensure static linking against C/C++ runtime.
+# Create versioned names and symlinks for an executable.
 #
 function(MakeLinksExe target install_via_driver)
+
+    if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}" )
+        target_link_options( ${target} PRIVATE -static-libgcc -static-libstdc++ )
+    endif()
+
+    if ( install_via_driver )
+        add_dependencies( ${target} sratools )
+    endif()
+
     if( SINGLE_CONFIG )
+
         add_custom_command(TARGET ${target}
             POST_BUILD
             COMMAND rm -f ${target}.${VERSION}
@@ -470,7 +500,9 @@ function(MakeLinksExe target install_via_driver)
             )
         endif()
     else()
+
         if ( install_via_driver )
+
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
                          DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
@@ -479,8 +511,31 @@ function(MakeLinksExe target install_via_driver)
                          RENAME ${target}${EXE}
                          DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
                 )
+
+                if (WIN32)
+                    # plug in the driver tool as soon as the target builds
+                    add_custom_command(TARGET ${target}
+                        POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver${EXE}
+                    )
+                    # on install, copy/rename the .pdb files if any
+                    install(FILES $<TARGET_PDB_FILE:${target}>
+                            RENAME ${target}-orig.pdb
+                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                    # add the driver-tool's .pdb
+                    install(FILES $<TARGET_PDB_FILE:sratools>
+                            RENAME ${target}.pdb
+                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                endif()
+
         else()
+
             install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+
+            if (WIN32) # copy the .pdb files if any
+                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+            endif()
+
         endif()
 
     endif()

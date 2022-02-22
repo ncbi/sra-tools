@@ -76,5 +76,6 @@ if ( Java_FOUND )
         install(FILES expected.txt
             DESTINATION ${INSTALL_DEST} )
     endif()
+    install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
 
 endif()

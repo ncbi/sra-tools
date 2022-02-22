@@ -24,7 +24,7 @@
 *
 */
 
-#include <ncbi/NGS.hpp>
+#include <NGS.hpp>
 //#include <ngs-bam/ngs-bam.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>

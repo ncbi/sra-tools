@@ -30,5 +30,5 @@ endif()
 add_subdirectory( ngs-py )
 
 install( FILES NGS.hpp
-         DESTINATION ${CMAKE_INSTALL_PREFIX}/include/ncbi
+         DESTINATION ${CMAKE_INSTALL_PREFIX}/include/ncbi-vdb
 )

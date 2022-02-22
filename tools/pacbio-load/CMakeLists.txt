@@ -24,10 +24,23 @@
 
 if( NOT WIN32 )
 
-    find_package( HDF5 COMPONENTS C )
+    if( HDF5_LIBDIR )
+        find_library( HDF5_LIBRARIES libhdf5.a HINTS ${HDF5_LIBDIR} )
+        if ( HDF5_LIBRARIES )
+            set( HDF5_FOUND true )
+            if ( HDF5_INCDIR )
+                set( HDF5_INCLUDE_DIR ${HDF5_INCDIR} )
+            endif()
+        endif()
+    else()
+        find_package( HDF5 COMPONENTS C )
+    endif()
 
-    # External
     if( HDF5_FOUND )
+
+        message( HDF5_INCLUDE_DIRS=${HDF5_C_INCLUDE_DIRS} )
+        message( HDF5_LIBRARIES=${HDF5_LIBRARIES} )
+
         add_compile_definitions( __mod__="tools/pacbio-load" )
         add_executable( pacbio-load
             pl-context

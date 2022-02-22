@@ -56,6 +56,7 @@ To be built, the executables require some external libraries and the correspondi
         -- VDB_LIBDIR - the location of libncvi-vdb.a (default ../../../ncbi-vdb/lib64). Used for static linking only
         -- NGS_LIBDIR - the location of NGS object libraries (default ../../lib64)
         -- NGS_INCDIR - the location of NGS C++ headers (default ../../include)
+        -- NCBI_NGS_INCDIR - the location of NBCI-specific NGS C++ headers (default ../../include/ncbi-vdb)
 
 8. Clean
     - run "make clean" to remove the executables.

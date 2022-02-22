@@ -134,6 +134,9 @@ static void forEach(ncbi::JSONObject const &obj, char const *member, F && f)
 
 static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
 {
+    if (runs.empty())
+        throw std::domain_error("No query");
+    
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
     
@@ -572,6 +575,12 @@ data_sources::data_sources(std::vector<std::string> const &runs, bool withSDL)
             else {
                 throw SDL_unexpected_error(std::string("unexpected version ") + version);
             }
+        }
+        catch (std::domain_error const &de) {
+            if (de.what() && strcmp(de.what(), "No query") == 0)
+                ;
+            else
+                throw de;
         }
         catch (vdb::exception const &e) {
             LOG(1) << "Failed to talk to SDL" << std::endl;

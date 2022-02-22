@@ -94,6 +94,7 @@ private:
     void xCheckInputFiles(vector<string>& files);
 
     void xReportTelemetry();
+    void xCheckErrorLimits(fastq_error& e);
 
     string mDestination;                ///< path to sra archive
     bool mDebug{false};                 ///< Debug mode
@@ -104,16 +105,17 @@ private:
     bool mDiscardNames{false};          ///< If set spot names are not written in the db, the same effect as mNameColumn = 'NONE'
     bool mAllowEarlyFileEnd{false};     ///< Flag to continue if one of the streams ends
     int mQuality{-1};                   ///< quality score interpretation (0, 33, 64)
-    int mDigest{0};                     ///< Numberof dogest lines to produce
+    int mDigest{0};                     ///< Number of digest lines to produce
     string mTelemetryFile;              ///< Telemetry report file name
     string mSpotFile;                   ///< Spot_name file, optional request to serialize  all spot names
     string mNameColumn;                 ///< NAME column's name, ('NONE', 'NAME', 'RAW_NAME')
     string mOutputFile;                 ///< Outut file name - not currently used
-    ostream* mpOutStr{nullptr};         ///< Outpu stream pointer  = not currentl used
+    ostream* mpOutStr{nullptr};         ///< Output stream pointer  = not currently used
     shared_ptr<fastq_writer> m_writer;  ///< FASTQ writer
-    json  mReport;                      ///< Telemtry report
-
-
+    json  mReport;                      ///< Telemetry report
+    uint32_t mMaxErrCount{100};         ///< Maximum numbers of errors allowed when parsing reads
+    uint32_t mErrorCount{0};            ///< Global error counter
+    set<int> mErrorSet = { 100, 110, 111, 120, 130, 140, 160, 190}; ///< Error codes that will be allowed up to mMaxErrCount
 };
 
 
@@ -198,6 +200,9 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         app.add_option("--read2PairFiles", read_pairs[1], "Read 2 files");
         app.add_option("--read3PairFiles", read_pairs[2], "Read 3 files");
         app.add_option("--read4PairFiles", read_pairs[3], "Read 4 files");
+        app.add_option("--max-err-count", mMaxErrCount, "Maximum number of errors allowed")
+            ->default_val(100)
+            ->check(CLI::Range(uint32_t(0), numeric_limits<uint32_t>::max()));
 
         vector<string> input_files;
         app.add_option("files", input_files, "FastQ files to parse");
@@ -460,7 +465,7 @@ int CFastqParseApp::xRunDigest()
     json j;
     string error;
     try {
-        get_digest(j, mInputBatches, mDigest);
+        get_digest(j, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);}, mDigest);
     } catch (fastq_error& e) {
         error = e.Message();
     } catch(std::exception const& e) {
@@ -485,18 +490,33 @@ int CFastqParseApp::xRun()
         parser.set_spot_file(mSpotFile);
     parser.set_allow_early_end(mAllowEarlyFileEnd);
     json data;
-    get_digest(data, mInputBatches);
+    get_digest(data, mInputBatches, [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);});
     xProcessDigest(data);
+    mErrorCount = 0; //Reset error counts after initial digets
 
     m_writer->set_attr("name_column", mNameColumn);
     m_writer->set_attr("destination", mDestination);
     m_writer->set_attr("version", SHARQ_VERSION);
 
     m_writer->open();
-
+    auto err_checker = [this](fastq_error& e) { CFastqParseApp::xCheckErrorLimits(e);};
     for (auto& group : data["groups"]) {
         parser.set_readers(group);
-        parser.parse();
+        if (!group["files"].empty()) {
+            switch ((int)group["files"].front()["quality_encoding"]) {
+                case 0: 
+                    parser.parse<validator_options<eNumeric, -5, 40>>(err_checker);
+                    break;
+                case 33: 
+                    parser.parse<validator_options<ePhred, 33, 126>>(err_checker);
+                    break;
+                case 64: 
+                    parser.parse<validator_options<ePhred, 64, 126>>(err_checker);
+                    break;
+                default:
+                    throw runtime_error("Invaid quality encoding");
+            }    
+        }
     }
     spdlog::stopwatch sw;
     parser.check_duplicates();
@@ -533,6 +553,17 @@ void CFastqParseApp::xBreakdownOutput()
     }
 }
 
+void CFastqParseApp::xCheckErrorLimits(fastq_error& e ) 
+{
+    if (mMaxErrCount == 0)
+        throw e;
+    auto it = mErrorSet.find(e.error_code()); 
+    if (it == mErrorSet.end())
+        throw e;
+    spdlog::warn(e.Message());
+    if (++mErrorCount >= mMaxErrCount) 
+        throw fastq_error("Exceeded maximum number of errors (code:{})", e.error_code());
+}
 
 //  ----------------------------------------------------------------------------
 int main(int argc, const char* argv[])

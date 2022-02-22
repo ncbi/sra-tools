@@ -24,7 +24,7 @@
 *
 */
 
-#include <ncbi/NGS.hpp>
+#include <NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/Reference.hpp>
@@ -63,7 +63,7 @@ public:
             String base;
             cout         << it.getReferenceSpec ()
                  << '\t' << ( it.getReferencePosition () + 1 )
-                 << '\t' << it.getReferenceBase () 
+                 << '\t' << it.getReferenceBase ()
                  << '\t' << it.getPileupDepth ();
             while(it.nextPileupEvent())
             {
@@ -92,7 +92,7 @@ public:
                         }
                         *b='\0';
                     }
-                    else 
+                    else
                         sprintf(buf,"%d%.*s",c,c,ibases.data());
                     base += buf;
                 }

@@ -24,7 +24,7 @@
 *
 */
 
-#include <ncbi/NGS.hpp>
+#include <NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/ReadIterator.hpp>

@@ -17,7 +17,7 @@ using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
 
-February 10, 2022
+February 10, 2022 : SRA Toolkit 3.0.0
 
 NCBI's SRA changed the source build system to use CMake in toolkit release 3.0.0. This change is an important step to improve developers' productivity as it provides unified cross platform access to support multiple build systems. This change affects developers building NCBI SRA tools from source. Old makefiles and build systems are no longer supported.
 
@@ -48,6 +48,7 @@ This change also includes the structure of GitHub repositories, which underwent 
 3) [ncbi/sra-tools](https://github.com/ncbi/sra-tools) (This repository)
 
    This project's build system is based on CMake. The project acquired some new components, as listed in the table above.
+
 
 ----
 

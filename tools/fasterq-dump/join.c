@@ -707,16 +707,16 @@ static rc_t print_fastq_splitted_half_aligned_1( join_stats_t * stats,
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-    uint32_t combined_len = Q1 -> len + Q2 -> len;
 
     /* special case: CMP_READ contains both! */
-    if ( CMP_READ -> len == combined_len ) {
+    if ( CMP_READ -> len == spot_len( rec ) ) {
         slice_read( rec, &sliced, NULL );
         CMP_READ = &sliced;
     }
     if ( process_0 ) {
         if ( CMP_READ -> len != Q1 -> len ) {
-            ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", rec -> row_id, CMP_READ -> len, Q1 -> len );
+            ErrMsg( "fastq.splitted.half1 row #%ld : CMP_READ.len(%u) != Q1.len(%u) / spotlen=%u\n",
+                    rec -> row_id, CMP_READ -> len, Q1 -> len, spot_len( rec ) );
             stats -> reads_invalid++;
             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }
@@ -728,7 +728,8 @@ static rc_t print_fastq_splitted_half_aligned_1( join_stats_t * stats,
         rc = lookup2( j, rec, &LOOKED_UP ); /* above */
         if ( 0 == rc ) {
             if ( LOOKED_UP -> len != Q2 -> len ) {
-                ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", rec -> row_id, LOOKED_UP -> len, Q2 -> len );
+                ErrMsg( "fastq.splitted.half1 row #%ld : LOOKED_UP.len(%u) != Q2.len(%u) / spotlen=%u\n",
+                        rec -> row_id, LOOKED_UP -> len, Q2 -> len, spot_len( rec ) );
                 stats -> reads_invalid++;
                 return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
             }
@@ -774,10 +775,9 @@ static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-    uint32_t combined_len = Q1 -> len + Q2 -> len;
 
     /* special case: CMP_READ contains both! */
-    if ( CMP_READ -> len == combined_len ) {
+    if ( CMP_READ -> len == spot_len( rec ) ) {
         slice_read( rec, NULL, &sliced );
         CMP_READ = &sliced;
     }
@@ -785,7 +785,8 @@ static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
         rc = lookup1( j, rec, &LOOKED_UP ); /* above */
         if ( 0 == rc ) {
             if ( LOOKED_UP -> len != Q1 -> len ) {
-                ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", rec -> row_id, LOOKED_UP -> len, Q1 -> len );
+                ErrMsg( "fastq.splitted.half2 row #%ld : LOOKED_UP.len(%u) != Q1.len(%u) / spotlen=%u\n",
+                        rec -> row_id, LOOKED_UP -> len, Q1 -> len, spot_len( rec ) );
                 stats -> reads_invalid++;
                 return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
             }
@@ -795,7 +796,8 @@ static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
     if ( !process_0 ) { dst_id = 0; }
     if ( process_1 ) {
         if ( CMP_READ -> len != Q2 -> len ) {
-            ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", rec -> row_id, CMP_READ -> len, Q2 -> len );
+            ErrMsg( "fastq.splitted.half2 row #%ld : CMP_READ.len(%u) != Q2.len(%u) / spotlen=%u\n",
+                    rec -> row_id, CMP_READ -> len, Q2 -> len, spot_len( rec ) );
             stats -> reads_invalid++;
             return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
         }

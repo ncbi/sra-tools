@@ -432,8 +432,22 @@ void fastq_writer_vdb::write_spot(const vector<CFastqRead>& reads)
         read_filter[read_num] = (char)read.ReadFilter();
         if ( m_platform == SRA_PLATFORM_OXFORD_NANOPORE )
         {
-            channel[read_num] = stoul( read.Channel() );
-            read_no[read_num] = stoul( read.NanoporeReadNo() );
+            if ( read.Channel().empty() )
+            {
+                channel[read_num] = 0;
+            }
+            else
+            {
+                channel[read_num] = stoul( read.Channel() );
+            }
+            if ( read.NanoporeReadNo().empty() )
+            {
+                read_no[read_num] = 0;
+            }
+            else
+            {
+                read_no[read_num] = stoul( read.NanoporeReadNo() );
+            }
         }
         ++read_num;
     }

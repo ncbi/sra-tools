@@ -182,7 +182,12 @@ static void slice_rec( const String * src, String * S1, String * S2, uint32_t * 
 }
 
 static uint32_t spot_len( const fastq_rec_t * rec ) {
-    return rec -> read_len[ 0 ] + rec -> read_len[ 1 ];
+    uint32_t res = 0;
+    uint32_t i;
+    for ( i = 0; i < rec -> num_read_len; i++ ) {
+        res += rec -> read_len[ i ];
+    }
+    return res;
 }
 
 static void slice_read( const fastq_rec_t * rec, String * S1, String * S2 ) {
@@ -560,6 +565,7 @@ static rc_t print_fasta_whole_spot_half_aligned_2( join_stats_t * stats,
                                  const join_options_t * jo ) {
     /* A0 is aligned (lookup) / A1 is unaligned */
     const String * LOOKED_UP = NULL;
+
     rc_t rc = lookup1( j, rec, &LOOKED_UP ); /* above */
     if ( 0 == rc ) {
         const String * CMP_READ = &( rec -> read );
@@ -610,15 +616,15 @@ static rc_t print_fasta_whole_spot( join_stats_t * stats,
     rc_t rc = 0;
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            rc = print_fasta_whole_spot_unaligned( stats, rec, j, jo );
+            rc = print_fasta_whole_spot_unaligned( stats, rec, j, jo );         /* UU */
         } else {
-            rc = print_fasta_whole_spot_half_aligned_1( stats, rec, j, jo );
+            rc = print_fasta_whole_spot_half_aligned_1( stats, rec, j, jo );    /* UA */
         }
     } else {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            rc = print_fasta_whole_spot_half_aligned_2( stats, rec, j, jo );
+            rc = print_fasta_whole_spot_half_aligned_2( stats, rec, j, jo );    /* AU */
         } else {
-            rc = print_fasta_whole_spot_aligned( stats, rec, j, jo );
+            rc = print_fasta_whole_spot_aligned( stats, rec, j, jo );           /* AA */
         }
     }
     return rc;
@@ -1412,7 +1418,7 @@ static rc_t perform_fasta_whole_spot_join( cmn_iter_params_t * cp,
     rc_t rc;
     struct fastq_csra_iter_t * iter;
     fastq_iter_opt_t opt;
-    opt . with_read_len = false;
+    opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;

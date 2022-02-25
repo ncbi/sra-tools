@@ -40,13 +40,10 @@
 #include <cstring>
 #include <cstdarg>
 
-#warning "TESTING TESTING TESTING TESTING TESTING TESTING"
-#ifdef HAVE_CXXABI_H
-#warning HAVE_CXXABI_H
+#if HAVE_CXXABI_H
 #include <cxxabi.h>
 #endif
 #if HAVE_EXECINFO_H
-#warning HAVE_EXECINFO_H
 #include <execinfo.h>
 #endif
 
@@ -427,7 +424,7 @@ namespace ncbi
         , rc ( status )
     {
         // capture stack
-#ifndef WINDOWS
+#if HAVE_CXXABI_F
         stack_frames = backtrace ( callstack, sizeof callstack / sizeof callstack [ 0 ] );
 #endif
 
@@ -631,7 +628,7 @@ namespace ncbi
     {
         if ( x . stack_frames > 0 )
         {
-#ifndef WINDOWS
+#if HAVE_CXXABI_F
             frames = backtrace_symbols ( x . callstack, x . stack_frames );
 #endif
             if ( frames != nullptr )

@@ -1,4 +1,5 @@
 /*==============================================================================
+/*==============================================================================
  *
  *                            PUBLIC DOMAIN NOTICE
  *               National Center for Biotechnology Information
@@ -39,8 +40,13 @@
 #include <cstring>
 #include <cstdarg>
 
-#ifndef WINDOWS
+#warning "TESTING TESTING TESTING TESTING TESTING TESTING"
+#ifdef HAVE_CXXABI_H
+#warning HAVE_CXXABI_H
 #include <cxxabi.h>
+#endif
+#if HAVE_EXECINFO_H
+#warning HAVE_EXECINFO_H
 #include <execinfo.h>
 #endif
 

@@ -23,6 +23,7 @@
 # ===========================================================================
 
 add_compile_definitions( __mod__="tools/driver-tool" )
+#add_compile_definitions( HAVE_CXXABI_H="1" )
 
 add_subdirectory( json )
 add_subdirectory( secure )
@@ -62,4 +63,51 @@ endif()
 
 add_executable( sratools "${SRATOOLS_SRC}" )
 target_link_libraries( sratools ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} )
+
+include(CheckIncludeFileCXX)
+# unset(HAVE_CXXABI_H CACHE)
+# unset(HAVE_EXECINFO_H CACHE)
+# unset(HAVE_CXXABI_F CACHE)
+check_include_file_cxx(cxxabi.h HAVE_CXXABI_H)
+check_include_file_cxx(execinfo.h HAVE_EXECINFO_H)
+
+if ( HAVE_CXXABI_H AND HAVE_EXECINFO_H )
+    include(CheckCXXSourceRuns)
+    check_cxx_source_runs("
+#include <stdio.h>
+#include <cxxabi.h>
+#include <execinfo.h>
+
+int main(int argc, char *argv[]) {
+    void * callstack [ 128 ];
+    int stack_frames;
+    stack_frames = backtrace ( callstack, sizeof callstack / sizeof callstack [ 0 ] );
+    printf ( \"stack_frames: %d\", stack_frames );
+
+    int status;
+    char* res = abi::__cxa_demangle ( \"main\", NULL, NULL, &status );
+    printf ( \"res=%p, status=%d\", res, status );
+
+    return 0;
+}
+" HAVE_CXXABI_F)
+endif()
+
+
+if( HAVE_CXXABI_H )
+	message("HAVE_CXXABI_H: ${HAVE_CXXABI_H}")
+    target_compile_definitions( sratools PRIVATE HAVE_CXXABI_H )
+endif()
+if( HAVE_EXECINFO_H )
+	message("HAVE_EXECINFO_H: ${HAVE_EXECINFO_H}")
+    target_compile_definitions( sratools PRIVATE HAVE_EXECINFO_H )
+endif()
+if( HAVE_CXXABI_F )
+	message("HAVE_CXXABI_F: ${HAVE_CXXABI_F}")
+    target_compile_definitions( sratools PRIVATE HAVE_CXXABI_F )
+endif()
+
+# add_executable( cxxabi_test cxxabi_test )
+# target_link_libraries( cxxabi_test ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} )
+
 MakeLinksExe( sratools false )

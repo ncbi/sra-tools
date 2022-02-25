@@ -24,7 +24,7 @@
 *
 */
 
-#include "join.h"
+#include "db_join.h"
 
 #ifndef _h_err_msg_
 #include "err_msg.h"

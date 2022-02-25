@@ -48,8 +48,8 @@
 #include "sorter.h"
 #endif
 
-#ifndef _h_join_
-#include "join.h"
+#ifndef _h_db_join_
+#include "db_join.h"
 #endif
 
 #ifndef _h_tbl_join_

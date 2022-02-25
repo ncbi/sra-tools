@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_join_
-#define _h_join_
+#ifndef _h_db_join_
+#define _h_db_join_
 
 #ifdef __cplusplus
 extern "C" {

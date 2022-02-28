@@ -533,7 +533,7 @@ namespace ncbi
             int status;
             char save = name [ i ];
             ( ( char * ) name ) [ i ] = 0;
-#ifndef WINDOWS
+#if HAVE_CXXABI_F
             char * real_name = abi :: __cxa_demangle ( & name [ k ], 0, 0, & status );
 #else
             char * real_name = strdup ( & name[k] );

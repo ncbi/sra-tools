@@ -126,9 +126,9 @@ static rc_t init_join( cmn_iter_params_t * cp,
         }
     }
     if ( 0 == rc ) {
-        rc = make_SBuffer( &( j -> looked_up_bases_1 ), 4096 );  /* helper.c */
+        rc = make_SBuffer( &( j -> looked_up_bases_2 ), 4096 );  /* helper.c */
         if ( 0 != rc ) {
-            ErrMsg( "init_join().make_SBuffer( looked_up_bases_1 ) -> %R", rc );
+            ErrMsg( "init_join().make_SBuffer( looked_up_bases_2 ) -> %R", rc );
         }
     }
 
@@ -1751,7 +1751,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data ) {
             }
             release_join_ctx( &j );
         }
-    release_flex_printer( flex_printer ); /* flex_printer.c */
+        release_flex_printer( flex_printer ); /* flex_printer.c */
     }
     release_2na_filter( filter );   /* helper.c */
     return rc;

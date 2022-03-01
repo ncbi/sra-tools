@@ -539,7 +539,7 @@ static rc_t produce_final_db_output( const tool_ctx_t * tool_ctx ) {
     if ( rc == 0 ) {
         rc = execute_db_join( &args ); /* join.c */
     }
-
+    
     /* from now on we do not need the lookup-file and it's index any more... */
     if ( 0 != tool_ctx -> lookup_filename[ 0 ] ) {
         KDirectoryRemove( tool_ctx -> dir, true, "%s", &tool_ctx -> lookup_filename[ 0 ] );

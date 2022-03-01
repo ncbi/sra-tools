@@ -236,6 +236,8 @@ static rc_t lookup2( join_t * j, const fastq_rec_t * rec, const String ** res ) 
     return rc;
 }
 
+typedef enum split_mode_t { sm_none, sm_file, sm_3 } split_mode_t;
+
 /* ------------------------------------------------------------------------------------------ */
 
 static rc_t print_fastq_1_read_unaligned( join_stats_t * stats,
@@ -632,10 +634,28 @@ static rc_t print_fasta_whole_spot( join_stats_t * stats,
 
 /* ------------------------------------------------------------------------------------------ */
 
+static uint32_t calc_dst_id_1( split_mode_t sm, bool process_0, bool process_1 ) {
+    switch ( sm ) {
+        case sm_none  : return 0; break;
+        case sm_file  : return 1; break;
+        case sm_3 : return ( process_0 && process_1 ) ? 1 : 0; break;
+    }
+    return 0;
+}
+
+static uint32_t calc_dst_id_2( split_mode_t sm, bool process_0, bool process_1 ) {
+    switch ( sm ) {
+        case sm_none  : return 0; break;
+        case sm_file  : return 2; break;
+        case sm_3 : return ( process_0 && process_1 ) ? 2 : 0; break;
+    }
+    return 0;    
+}
+
 static rc_t print_fastq_splitted_unaligned( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1,
@@ -643,7 +663,6 @@ static rc_t print_fastq_splitted_unaligned( join_stats_t * stats,
                                   String * Q2 ) {
     /* fully unaligned */    
     rc_t rc = 0;
-    uint32_t dst_id = 1;
     String CMP_READ1, CMP_READ2;
     slice_read( rec, &CMP_READ1, &CMP_READ2 ); /* above */
     if ( process_0 ) {
@@ -654,8 +673,6 @@ static rc_t print_fastq_splitted_unaligned( join_stats_t * stats,
         }
         process_0 = ( CMP_READ1 . len > 0 );
     }
-    if ( !process_0 ) { dst_id = 0; }
-
     if ( process_1 ) {
         if ( CMP_READ2 . len != Q2 -> len ) {
             ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", rec -> row_id, CMP_READ2 . len, Q2 -> len );
@@ -664,30 +681,26 @@ static rc_t print_fastq_splitted_unaligned( join_stats_t * stats,
         }
         process_1 = ( CMP_READ2 . len > 0 );
     }
-    if ( !process_1 ) { dst_id = 0; }
-
+    process_0 = process_0 && filter_2na_1( j -> filter, &CMP_READ1 ); /* join-results.c */
+    process_1 = process_1 && filter_2na_1( j -> filter, &CMP_READ2 );
     /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
     if ( process_0 ) {
-        if ( filter_2na_1( j -> filter, &CMP_READ1 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ &CMP_READ1,
-                            /* R2 */ NULL,
-                            /* Q  */ Q1 ); /* above */
-            if ( 0 == rc ) {
-                stats -> reads_written ++;
-                if ( split_file && dst_id > 0 ) { dst_id++; }
-            }
-        }
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ &CMP_READ1,
+                         /* R2 */ NULL,
+                        /* Q  */ Q1 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++;  }
     }
-
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, &CMP_READ2 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ &CMP_READ2,
-                            /* R2 */ NULL,
-                            /* Q  */ Q2 ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-        }
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ &CMP_READ2,
+                         /* R2 */ NULL,
+                         /* Q  */ Q2 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
     return rc;
 }
@@ -695,7 +708,7 @@ static rc_t print_fastq_splitted_unaligned( join_stats_t * stats,
 static rc_t print_fastq_splitted_half_aligned_1( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1,
@@ -703,11 +716,9 @@ static rc_t print_fastq_splitted_half_aligned_1( join_stats_t * stats,
                                   String * Q2 ) {
     /* A0 is unaligned / A1 is aligned (lookup) */
     rc_t rc = 0;
-    uint32_t dst_id = 1;
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-
     /* special case: CMP_READ contains both! */
     if ( CMP_READ -> len == spot_len( rec ) ) {
         slice_read( rec, &sliced, NULL );
@@ -722,8 +733,6 @@ static rc_t print_fastq_splitted_half_aligned_1( join_stats_t * stats,
         }
         process_0 = ( CMP_READ -> len > 0 );
     }
-    if ( !process_0 ) { dst_id = 0; }
-
     if ( process_1 ) {
         rc = lookup2( j, rec, &LOOKED_UP ); /* above */
         if ( 0 == rc ) {
@@ -736,26 +745,25 @@ static rc_t print_fastq_splitted_half_aligned_1( join_stats_t * stats,
             process_1 = ( LOOKED_UP -> len > 0 );
         }
     }
-    if ( !process_1 ) { dst_id = 0; }
-
-    if ( 0 == rc && process_0 ) {
-        if ( filter_2na_1( j -> filter, CMP_READ ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ NULL,
-                            /* Q  */ Q1 ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-            if ( split_file && dst_id > 0 ) { dst_id++; }
-        }
+    process_0 = process_0 && ( 0 == rc ) && filter_2na_1( j -> filter, CMP_READ );
+    process_1 = process_1 && ( 0 == rc ) && filter_2na_1( j -> filter, LOOKED_UP );
+    if ( process_0 ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ CMP_READ,
+                         /* R2 */ NULL,
+                         /* Q  */ Q1 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP,
-                            /* R2 */ NULL,
-                            /* Q  */ Q2 ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-        }
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP,
+                         /* R2 */ NULL,
+                         /* Q  */ Q2 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
     return rc;
 }
@@ -763,7 +771,7 @@ static rc_t print_fastq_splitted_half_aligned_1( join_stats_t * stats,
 static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1,
@@ -771,11 +779,9 @@ static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
                                   String * Q2 ) {
     /* A0 is aligned (lookup) / A1 is unaligned */
     rc_t rc = 0;
-    uint32_t dst_id = 1;
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-
     /* special case: CMP_READ contains both! */
     if ( CMP_READ -> len == spot_len( rec ) ) {
         slice_read( rec, NULL, &sliced );
@@ -793,7 +799,6 @@ static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
             process_0 = ( LOOKED_UP -> len > 0 );
         }
     }
-    if ( !process_0 ) { dst_id = 0; }
     if ( process_1 ) {
         if ( CMP_READ -> len != Q2 -> len ) {
             ErrMsg( "fastq.splitted.half2 row #%ld : CMP_READ.len(%u) != Q2.len(%u) / spotlen=%u\n",
@@ -803,26 +808,25 @@ static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
         }
         process_1 = ( CMP_READ -> len > 0 );
     }
-    if ( !process_1 ) { dst_id = 0; }
-
-    if ( 0 == rc && process_0 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP,
-                            /* R2 */ NULL,
-                            /* Q  */ Q1 ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-            if ( split_file && dst_id > 0 ) { dst_id++; }
-        }
+    process_0 = process_0 && ( 0 == rc ) && filter_2na_1( j -> filter, LOOKED_UP );
+    process_1 = process_1 && ( 0 == rc ) && filter_2na_1( j -> filter, CMP_READ );
+    if ( process_0 ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP,
+                         /* R2 */ NULL,
+                         /* Q  */ Q1 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, CMP_READ ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ NULL,
-                            /* Q  */ Q2 ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-        }
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ CMP_READ,
+                         /* R2 */ NULL,
+                         /* Q  */ Q2 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
     return rc;
 }
@@ -830,7 +834,7 @@ static rc_t print_fastq_splitted_half_aligned_2( join_stats_t * stats,
 static rc_t print_fastq_splitted_aligned( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1,
@@ -838,10 +842,8 @@ static rc_t print_fastq_splitted_aligned( join_stats_t * stats,
                                   String * Q2 ) {
     /* A0 and A1 are aligned (2 lookups) */
     rc_t rc = 0;
-    uint32_t dst_id = 1;
     const String * LOOKED_UP1 = NULL;
     const String * LOOKED_UP2 = NULL;
-
     if ( process_0 ) {
         rc = lookup1( j, rec, &LOOKED_UP1 ); /* above */
         if ( 0 == rc ) {
@@ -853,8 +855,6 @@ static rc_t print_fastq_splitted_aligned( join_stats_t * stats,
             process_0 = ( LOOKED_UP1 -> len > 0 );
         }
     }
-    if ( !process_0 ) { dst_id = 0; }
-
     if ( 0 == rc && process_1 ) {
         rc = lookup2( j, rec, &LOOKED_UP2 ); /* above */
         if ( 0 == rc ) {
@@ -866,26 +866,25 @@ static rc_t print_fastq_splitted_aligned( join_stats_t * stats,
             process_1 =( LOOKED_UP2 -> len > 0 );
         }
     }
-    if ( !process_1 ) { dst_id = 0; }
-
-    if ( 0 == rc && process_0 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP1 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP1,
-                            /* R2 */ NULL,
-                            /* Q  */ Q1 ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-            if ( split_file && dst_id > 0 ) { dst_id++; }
-        }
+    process_0 = process_0 && ( 0 == rc ) && filter_2na_1( j -> filter, LOOKED_UP1 );
+    process_1 = process_1 && ( 0 == rc ) && filter_2na_1( j -> filter, LOOKED_UP2 );
+    if ( process_0 ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP1,
+                         /* R2 */ NULL,
+                         /* Q  */ Q1 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP2 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP2,
-                            /* R2 */ NULL,
-                            /* Q  */ Q2 ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-        }
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP2,
+                         /* R2 */ NULL,
+                         /* Q  */ Q2 ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
     return rc;
 }
@@ -893,14 +892,14 @@ static rc_t print_fastq_splitted_aligned( join_stats_t * stats,
 static rc_t print_fastq_splitted( join_stats_t * stats,
                                   const fastq_rec_t * rec,
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo ) {
     rc_t rc = 0;
     String Q1, Q2;
     bool process_0 = true;
     bool process_1 = true;
     
-    if ( !split_file && jo -> skip_tech ) {
+    if ( sm != sm_none && jo -> skip_tech ) {
         process_0 = filter( stats, rec, jo, 0 ); /* above */
         process_1 = filter( stats, rec, jo, 1 ); /* above */
     }
@@ -918,18 +917,18 @@ static rc_t print_fastq_splitted( join_stats_t * stats,
 
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            rc = print_fastq_splitted_unaligned( stats, rec, j, split_file, jo,
+            rc = print_fastq_splitted_unaligned( stats, rec, j, sm, jo,
                                                  process_0, process_1, &Q1, &Q2 );
         } else {
-            rc = print_fastq_splitted_half_aligned_1( stats, rec, j, split_file, jo,
+            rc = print_fastq_splitted_half_aligned_1( stats, rec, j, sm, jo,
                                                  process_0, process_1, &Q1, &Q2 );
         }
     } else {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            rc = print_fastq_splitted_half_aligned_2( stats, rec, j, split_file, jo,
+            rc = print_fastq_splitted_half_aligned_2( stats, rec, j, sm, jo,
                                                  process_0, process_1, &Q1, &Q2 );
         } else {
-            rc = print_fastq_splitted_aligned( stats, rec, j, split_file, jo,
+            rc = print_fastq_splitted_aligned( stats, rec, j, sm, jo,
                                                 process_0, process_1, &Q1, &Q2 );
         }
     }
@@ -939,47 +938,35 @@ static rc_t print_fastq_splitted( join_stats_t * stats,
 static rc_t print_fasta_splitted_unaligned( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1 ) {
     /* fully unaligned */
     rc_t rc = 0;
-    uint32_t dst_id = 1;
     String CMP_READ1;
     String CMP_READ2;    
     slice_read( rec, &CMP_READ1, &CMP_READ2 ); /* above */
-    if ( process_0 ) {
-        process_0 = ( CMP_READ1 . len > 0 );
-    }
-    if ( !process_0 ) { dst_id = 0; }
-    if ( process_1 ) {
-        process_1 = ( CMP_READ2 . len > 0 );
-    }
-    if ( !process_1 ) { dst_id = 0; }
-
+    process_0 = process_0 && ( CMP_READ1 . len > 0 ) && filter_2na_1( j -> filter, &CMP_READ1 );
+    process_1 = process_1 && ( CMP_READ2 . len > 0 ) && filter_2na_1( j -> filter, &CMP_READ2 );
     /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
     if ( process_0 ) {
-        if ( filter_2na_1( j -> filter, &CMP_READ1 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ &CMP_READ1,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
-            if ( 0 == rc ) {
-                stats -> reads_written ++;
-                if ( split_file && dst_id > 0 ) { dst_id++; }
-            }
-        }
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ &CMP_READ1,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
-
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, &CMP_READ2 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ &CMP_READ2,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ &CMP_READ2,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
             if ( 0 == rc ) { stats -> reads_written ++; }
-        }
     }
     return rc;
 }
@@ -987,52 +974,46 @@ static rc_t print_fasta_splitted_unaligned( join_stats_t * stats,
 static rc_t print_fasta_splitted_half_aligned_1( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1 ) {
     /* A0 is unaligned / A1 is aligned (lookup) */
     rc_t rc = 0;
-    uint32_t dst_id = 1;            
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-
     /* test for special case: CMP_READ contains BOTH halfs: */
     if ( CMP_READ -> len == spot_len( rec ) ) {
         slice_read( rec, &sliced, NULL );
         CMP_READ = &sliced;
     }
-
     if ( process_0 ) { process_0 = ( CMP_READ -> len > 0 ); }
-    if ( !process_0 ) { dst_id = 0; }
-
     if ( process_1 ) {
         rc = lookup2( j, rec, &LOOKED_UP ); /* above */
         if ( 0 == rc ) {
             process_1 = ( LOOKED_UP -> len > 0 );
         }
     }
-    if ( !process_1 ) { dst_id = 0; }
-
-    if ( 0 == rc && process_0 ) {
-        if ( filter_2na_1( j -> filter, CMP_READ ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
-            if ( 0 == rc ) { stats -> reads_written++; }
-            if ( split_file && dst_id > 0 ) { dst_id++; }
-        }
+    process_0 = process_0 && ( 0 == rc ) && filter_2na_1( j -> filter, CMP_READ );
+    process_1 = process_1 && ( 0 == rc ) && filter_2na_1( j -> filter, LOOKED_UP );
+    if ( process_0 ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ CMP_READ,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
+        if ( 0 == rc ) { stats -> reads_written++; }
     }
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-        }
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
     return rc;
 }
@@ -1040,51 +1021,45 @@ static rc_t print_fasta_splitted_half_aligned_1( join_stats_t * stats,
 static rc_t print_fasta_splitted_half_aligned_2( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1 ) {
     /* A0 is aligned (lookup) / A1 is unaligned */
     rc_t rc = 0;
-    uint32_t dst_id = 1;
     const String * CMP_READ = &( rec -> read );
     const String * LOOKED_UP = NULL;
     String sliced;
-
     /* test for special case: CMP_READ contains BOTH halfs: */
     if ( CMP_READ -> len == spot_len( rec ) ) {
         slice_read( rec, NULL, &sliced );
         CMP_READ = &sliced;
     }
-
     if ( process_0 ) {
         rc = lookup1( j, rec, &LOOKED_UP ); /* above */
         if ( 0 == rc ) {
             process_0 = ( LOOKED_UP -> len > 0 );
         }
     }
-    if ( !process_0 ) { dst_id = 0; }
-    if ( process_1 ) { process_1 = ( CMP_READ -> len > 0 ); }
-    if ( !process_1 ) { dst_id = 0; }
-
-    if ( 0 == rc && process_0 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-            if ( split_file && dst_id > 0 ) { dst_id++; }
-        }
+    process_0 = process_0 && ( 0 == rc ) && ( LOOKED_UP -> len > 0 ) && filter_2na_1( j -> filter, LOOKED_UP );
+    process_1 = process_1 && ( 0 == rc ) && ( CMP_READ -> len > 0 ) && filter_2na_1( j -> filter, CMP_READ );
+    if ( process_0 ) {
+        rc = print_data( j -> flex_printer, rec, jo, 
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, CMP_READ ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ CMP_READ,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-        }
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ CMP_READ,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
     return rc;
 }
@@ -1092,50 +1067,45 @@ static rc_t print_fasta_splitted_half_aligned_2( join_stats_t * stats,
 static rc_t print_fasta_splitted_aligned( join_stats_t * stats,
                                   const fastq_rec_t * rec, /* fastq_iter.h */
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo,
                                   bool process_0,
                                   bool process_1 ) {
     /* A0 and A1 are aligned (2 lookups)*/
     rc_t rc = 0;
-    uint32_t dst_id = 1;            
     const String * LOOKED_UP1 = NULL;
     const String * LOOKED_UP2 = NULL;
-
     if ( process_0 ) {
         rc = lookup1( j, rec, &LOOKED_UP1 ); /* above */
         if ( 0 == rc ) {
             process_0 = ( LOOKED_UP1 -> len > 0 );
         }
     }
-    if ( !process_0 ) { dst_id = 0; }
-
     if ( 0 == rc && process_1 ) {
         rc = lookup2( j, rec, &LOOKED_UP2 ); /* above */
         if ( 0 == rc ) {
             process_1 =( LOOKED_UP2 -> len > 0 );
         }
     }
-    if ( !process_1 ) { dst_id = 0; }
-
-    if ( 0 == rc && process_0 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP1 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 1, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP1,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-            if ( split_file && dst_id > 0 ) { dst_id++; }
-        }
+    process_0 = process_0 && ( 0 == rc ) && ( LOOKED_UP1 -> len > 0 ) && filter_2na_1( j -> filter, LOOKED_UP1 );
+    process_1 = process_1 && ( 0 == rc ) && ( LOOKED_UP2 -> len > 0 ) && filter_2na_1( j -> filter, LOOKED_UP2 );
+    if ( process_0 ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 1,
+                         /* dst_id */ calc_dst_id_1( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP1,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
-    if ( 0 == rc && process_1 ) {
-        if ( filter_2na_1( j -> filter, LOOKED_UP2 ) ) { /* join-results.c */
-            rc = print_data( j -> flex_printer, rec, jo, /* read_id */ 2, /* dst_id */ dst_id,
-                            /* R1 */ LOOKED_UP2,
-                            /* R2 */ NULL,
-                            /* Q  */ NULL ); /* above */
-            if ( 0 == rc ) { stats -> reads_written ++; }
-        }
+    if ( process_1 && 0 == rc ) {
+        rc = print_data( j -> flex_printer, rec, jo,
+                         /* read_id */ 2,
+                         /* dst_id */ calc_dst_id_2( sm, process_0, process_1 ),
+                         /* R1 */ LOOKED_UP2,
+                         /* R2 */ NULL,
+                         /* Q  */ NULL ); /* above */
+        if ( 0 == rc ) { stats -> reads_written ++; }
     }
     return rc;
 }
@@ -1143,31 +1113,31 @@ static rc_t print_fasta_splitted_aligned( join_stats_t * stats,
 static rc_t print_fasta_splitted( join_stats_t * stats,
                                   const fastq_rec_t * rec,
                                   join_t * j,
-                                  bool split_file,
+                                  split_mode_t sm,
                                   const join_options_t * jo ) {
     rc_t rc = 0;
     bool process_0 = true;
     bool process_1 = true;
     
-    if ( !split_file && jo -> skip_tech ) {
+    if ( sm != sm_none && jo -> skip_tech ) {
         process_0 = filter( stats, rec, jo, 0 ); /* above */
         process_1 = filter( stats, rec, jo, 1 ); /* above */
     }
 
     if ( 0 == rec -> prim_alig_id[ 0 ] ) {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            rc = print_fasta_splitted_unaligned( stats, rec, j, split_file, jo,
+            rc = print_fasta_splitted_unaligned( stats, rec, j, sm, jo,
                                                  process_0, process_1 );
         } else {
-            rc = print_fasta_splitted_half_aligned_1( stats, rec, j, split_file, jo,
+            rc = print_fasta_splitted_half_aligned_1( stats, rec, j, sm, jo,
                                                  process_0, process_1 );
         }
     } else {
         if ( 0 == rec -> prim_alig_id[ 1 ] ) {
-            rc = print_fasta_splitted_half_aligned_2( stats, rec, j, split_file, jo,
+            rc = print_fasta_splitted_half_aligned_2( stats, rec, j, sm, jo,
                                                  process_0, process_1 );
         } else {
-            rc = print_fasta_splitted_aligned( stats, rec, j, split_file, jo,
+            rc = print_fasta_splitted_aligned( stats, rec, j, sm, jo,
                                                  process_0, process_1 );
         }
     }
@@ -1287,7 +1257,7 @@ static rc_t perform_fastq_split_spot_join( cmn_iter_params_t * cp,
                 if ( 1 == rec . num_alig_id ) {
                     rc = print_fastq_1_read( stats, &rec, j, jo ); /* above */
                 } else {
-                    rc = print_fastq_splitted( stats, &rec, j, false, jo ); /* above */
+                    rc = print_fastq_splitted( stats, &rec, j, sm_none, jo ); /* above */
                 }
 
                 if ( 0 == rc ) {
@@ -1340,7 +1310,7 @@ static rc_t perform_fastq_split_file_join( cmn_iter_params_t * cp,
                 if ( 1 == rec . num_alig_id ) {
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt );
                 } else {
-                    rc = print_fastq_splitted( stats, &rec, j, true, &local_opt );
+                    rc = print_fastq_splitted( stats, &rec, j, sm_file, &local_opt );
                 }
 
                 if ( 0 == rc ) {
@@ -1394,7 +1364,7 @@ static rc_t perform_fastq_split_3_join( cmn_iter_params_t * cp,
                 if ( 1 == rec . num_alig_id ) {
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt );
                 } else {
-                    rc = print_fastq_splitted( stats, &rec, j, true, &local_opt );
+                    rc = print_fastq_splitted( stats, &rec, j, sm_3, &local_opt );
                 }
 
                 if ( 0 == rc ) {
@@ -1493,7 +1463,7 @@ static rc_t perform_fasta_split_spot_join( cmn_iter_params_t * cp,
                 if ( 1 == rec . num_alig_id ) {
                     rc = print_fasta_1_read( stats, &rec, j, jo ); /* above */
                 } else {
-                    rc = print_fasta_splitted( stats, &rec, j, false, jo ); /* above */
+                    rc = print_fasta_splitted( stats, &rec, j, sm_none, jo ); /* above */
                 }
                 if ( 0 == rc ) {
                     j -> loop_nr ++;
@@ -1546,7 +1516,7 @@ static rc_t perform_fasta_split_file_join( cmn_iter_params_t * cp,
                 if ( 1 == rec . num_alig_id ) {
                     rc = print_fasta_1_read( stats, &rec, j, &local_opt );
                 } else {
-                    rc = print_fasta_splitted( stats, &rec, j, true, &local_opt );
+                    rc = print_fasta_splitted( stats, &rec, j, sm_file, &local_opt );
                 }
 
                 if ( 0 == rc ) {
@@ -1604,7 +1574,7 @@ static rc_t perform_fasta_split_3_join( cmn_iter_params_t * cp,
                 if ( 1 == rec . num_alig_id ) {
                     rc = print_fasta_1_read( stats, &rec, j, &local_opt );
                 } else {
-                    rc = print_fasta_splitted( stats, &rec, j, true, &local_opt );
+                    rc = print_fasta_splitted( stats, &rec, j, sm_3, &local_opt );
                 }
 
                 if ( 0 == rc ) {

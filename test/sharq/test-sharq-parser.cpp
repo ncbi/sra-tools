@@ -779,6 +779,16 @@ FIXTURE_TEST_CASE(Nanopore4_WithBarcodeUnclassified, NanoporeFixture)
     REQUIRE_EQ( m_read.SpotGroup(), string() );
 }
 
+FIXTURE_TEST_CASE(Nanopore_EmptyChannel, NanoporeFixture)
+{
+    Nanopore("a69dd3c2-c98f-4f17-9da5-fe64f97494f6_Basecall_1D_template:1D_000:template");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.Channel(), string("0") );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string("0") );
+    REQUIRE( m_read.SpotGroup().empty() );
+}
+
 #if 0
 //TODO: ask Bob: this is marked as nanopore5 but is recognized by nanopore3
 FIXTURE_TEST_CASE(Nanopore5, NanoporeFixture)
@@ -828,6 +838,7 @@ FIXTURE_TEST_CASE(Nanopore_Barcode_Edit, NanoporeFixture)
     Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:barcode01\\77_2_1650_1_ch100_file16_strand.fast5");
     REQUIRE_EQ( m_read.SpotGroup(), string( "BC01") );
 }
+
 
 ////////////////////////////////////////////
 

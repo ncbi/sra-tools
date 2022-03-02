@@ -370,6 +370,15 @@ public:
     void PostProcess( CFastqRead& read )
     {   // Common Nanopore processing (done after parsing the defline)
 
+        if ( read.Channel().empty() )
+        {
+            read.SetChannel( "0" );
+        }
+        if ( read.NanoporeReadNo().empty() )
+        {
+            read.SetNanoporeReadNo( "0" );
+        }
+
         // Set readNum to None if actually a file number or missing
         if ( poreMid == "_file" ||
              read.NanoporeReadNo().empty() )

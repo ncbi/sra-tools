@@ -231,6 +231,7 @@ static void CC on_merge( void *item, void *data ) {
 }
 
 /* -------------------------------------------------------------------- */
+
 rc_t temp_registry_merge( temp_registry_t * self,
                           KDirectory * dir,
                           const char * output_filename,
@@ -257,25 +258,12 @@ rc_t temp_registry_merge( temp_registry_t * self,
         if ( 0 == rc ) {
             uint32_t first;
             uint32_t count = count_valid_entries( &self -> lists, &first ); /* above */
-            if ( 1 == count ) {
-                /* we have only ONE set of files... */
-                VNamelist * l = VectorGet ( &self -> lists, first );
-                VNamelistReorder ( l, false );
-                rc = execute_concat( dir,
-                    output_filename,
-                    l,
-                    buf_size,
-                    progress,
-                    force,
-                    append ); /* concatenator.c */
-            } else if ( count > 1 ) {
-                /* we have MULTIPLE sets of files... */
-                cmn_merge_t cmn = { dir, output_filename, buf_size, progress, force, append };
-                on_merge_ctx_t omc = { &cmn, 0 };
-                VectorInit( &omc . threads, 0, count );
-                VectorForEach ( &self -> lists, false, on_merge, &omc );
-                join_and_release_threads( &omc . threads ); /* helper.c */
-            }
+            /* we have MULTIPLE sets of files... */
+            cmn_merge_t cmn = { dir, output_filename, buf_size, progress, force, append };
+            on_merge_ctx_t omc = { &cmn, 0 };
+            VectorInit( &omc . threads, 0, count );
+            VectorForEach ( &self -> lists, false, on_merge, &omc );
+            join_and_release_threads( &omc . threads ); /* helper.c */
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }

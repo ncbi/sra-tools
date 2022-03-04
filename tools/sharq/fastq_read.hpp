@@ -112,9 +112,28 @@ void CFastqRead::Reset()
     mLineNumber = 0;
 }
 
+static
+char
+translate( char ch )
+{   // '-uUX?' -> 'NtTNN'
+    switch( ch )
+    {
+        case 'u':
+        case 'U':
+            return 'T';
+        case '-':
+        case 'X':
+        case '?':
+            return 'N';
+        default:
+            return ch;
+    }
+}
+
 void CFastqRead::AddSequenceLine(const string_view& sequence)
-{
-    mSequence.append(sequence.begin(), sequence.end());
+{   // self.transDashUridineX = str.maketrans('-uUX?', 'NtTNN')
+    std::transform(sequence.begin(), sequence.end(), std::back_inserter(mSequence), translate);
+    //mSequence.append(sequence.begin(), sequence.end());
 }
 
 

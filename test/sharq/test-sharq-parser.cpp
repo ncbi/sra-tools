@@ -216,6 +216,13 @@ FIXTURE_TEST_CASE(TestSequence_Multi, LoaderFixture)
     REQUIRE_EQ(read.Sequence().size(), 9lu);
 }
 
+FIXTURE_TEST_CASE(UridineTranslation, LoaderFixture)
+{
+    CFastqRead read;
+    fastq_reader reader("test", create_stream(_READ(cDEFLINE1, "U", cQUAL)));
+    REQUIRE(reader.get_read(read));
+    REQUIRE_EQ(read.Sequence(), string("T"));
+}
 
 //////////////////// tag line parsing
 
@@ -838,7 +845,6 @@ FIXTURE_TEST_CASE(Nanopore_Barcode_Edit, NanoporeFixture)
     Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:barcode01\\77_2_1650_1_ch100_file16_strand.fast5");
     REQUIRE_EQ( m_read.SpotGroup(), string( "BC01") );
 }
-
 
 ////////////////////////////////////////////
 

@@ -791,6 +791,7 @@ FIXTURE_TEST_CASE(Nanopore_EmptyChannel, NanoporeFixture)
     Nanopore("a69dd3c2-c98f-4f17-9da5-fe64f97494f6_Basecall_1D_template:1D_000:template");
     REQUIRE_EQ( string("Nanopore4"), m_type );
 
+    REQUIRE_EQ( m_read.Spot(), string( "a69dd3c2-c98f-4f17-9da5-fe64f97494f6_Basecall_1D" ) );
     REQUIRE_EQ( m_read.Channel(), string("0") );
     REQUIRE_EQ( m_read.NanoporeReadNo(), string("0") );
     REQUIRE( m_read.SpotGroup().empty() );

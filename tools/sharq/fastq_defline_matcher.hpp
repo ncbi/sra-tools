@@ -676,4 +676,25 @@ public:
     CRegExprMatcher getPoreBarcode;
 };
 
+class CDefLineMatcherNanopore5 : public CDefLineMatcherNanoporeBase
+{
+public:
+    CDefLineMatcherNanopore5() :
+        CDefLineMatcherNanoporeBase(
+            "Nanopore5",
+            R"([@>+]([!-~]*?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)\S*?$)"
+        )
+    {}
+
+    virtual void GetMatch(CFastqRead& read) override
+    {
+        // 0 self.name
+        // 1 self.suffix
+        // 2 self.poreRead    }
+        read.SetSpot( re.GetMatch()[0] );
+        read.SetSuffix( re.GetMatch()[1] );
+        read.SetNanoporeReadNo( re.GetMatch()[2] );
+    }
+};
+
 #endif

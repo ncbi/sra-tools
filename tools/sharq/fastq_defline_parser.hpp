@@ -107,7 +107,7 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3_1);
-    //mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore5); // before Nanopore4, to match fastq-load.py
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore5); // before Nanopore4, to match fastq-load.py
     mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore4);
 }
 

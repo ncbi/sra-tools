@@ -74,7 +74,7 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
     add_test( NAME Test_sharq_parser COMMAND test-sharq-parser WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_executable(test-sharq-writer test-sharq-writer.cpp )
-    add_dependencies(test-sharq-writer sharq)
+    add_dependencies(test-sharq-writer RE2_ sharq)
     target_include_directories(test-sharq-writer PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
     target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
     add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

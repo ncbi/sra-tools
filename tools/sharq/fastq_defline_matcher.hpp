@@ -694,6 +694,8 @@ public:
         read.SetSpot( re.GetMatch()[0] );
         read.SetSuffix( re.GetMatch()[1] );
         // For now, poreRead is expected to be "_template", other variants will be passed to the regular fastq-load.py
+
+        PostProcess( read );
     }
 };
 

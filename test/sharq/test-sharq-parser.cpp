@@ -803,7 +803,6 @@ FIXTURE_TEST_CASE(Nanopore5, NanoporeFixture)
 
     REQUIRE_EQ( string( "a69dd3c2-c98f-4f17-9da5-fe64f97494f6_Basecall" ), m_read.Spot() );
     REQUIRE_EQ( string("_1D"), m_read.Suffix());
-    REQUIRE_EQ( string("_template"), m_read.NanoporeReadNo() );
 }
 
 FIXTURE_TEST_CASE(Nanopore_DefaultReadno, NanoporeFixture)

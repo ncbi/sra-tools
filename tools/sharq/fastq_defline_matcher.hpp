@@ -693,7 +693,7 @@ public:
         // 2 self.poreRead    }
         read.SetSpot( re.GetMatch()[0] );
         read.SetSuffix( re.GetMatch()[1] );
-        read.SetNanoporeReadNo( re.GetMatch()[2] );
+        // For now, poreRead is expected to be "_template", other variants will be passed to the regular fastq-load.py
     }
 };
 

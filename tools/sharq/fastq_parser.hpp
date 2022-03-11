@@ -606,7 +606,10 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
     int qual_size = read.mQualScores.size();
     int sz = read.mSequence.size();
     if (qual_size > sz) {
-        throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+        // quality line too long; warn and truncate
+        fastq_error e(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+        spdlog::warn(e.Message());
+        read.mQualScores.resize( sz );
     }
 
     while (qual_size < sz) {
@@ -630,8 +633,12 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
 
     auto qual_size = read.mQuality.size();
     auto sz = read.mSequence.size();
-    if (qual_size > sz)
-        throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+    if (qual_size > sz) {
+        // quality line too long; warn and truncate
+        fastq_error e(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+        spdlog::warn(e.Message());
+        read.mQuality.resize( sz );
+    }
 
     for (auto c : read.mQuality) {
         int score = int(c);

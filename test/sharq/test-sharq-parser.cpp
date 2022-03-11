@@ -601,17 +601,18 @@ FIXTURE_TEST_CASE(Quality64Adjusted, LoaderFixture)
 }
 
 
-
-FIXTURE_TEST_CASE(TextQualityRejected, LoaderFixture)
-{
+FIXTURE_TEST_CASE(TextQualityTruncated, LoaderFixture)
+{   // quality lines longer than corresponding reads get truncated with a warning
+    string cNUM_QUAL = "40 3 1 22 17 18 34 8 13 21 3 7 5 0 0 5 1 0 7 3 2 3 3 3 1 1 4 5 5 2 2 5 0 1 5 5";
+    vector<uint8_t> cNUM_QUAL_VEC{40,3,1,22};
     fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
-        "GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN",
-        "40 3 1 22 17 18 34 8 13 21 3 7 5 0 0 5 1 0 7 3 2 3 3 3 1 1 4 5 5 2 2 5 0 1 5 5")), {}, 2);
-    //reader.set_validator(false, -5, 40);
+        "GTCG", cNUM_QUAL)), {}, 2);
     CFastqRead read;
-    REQUIRE_THROW((reader.get_read<validator_options<ePhred, -5, 40>>(read)));
+    REQUIRE((reader.get_read<validator_options<eNumeric, -5, 40>>(read)));
+    vector<uint8_t> qual_scores_out;
+    read.GetQualScores(qual_scores_out);
+    REQUIRE(cNUM_QUAL_VEC == qual_scores_out);
 }
-
 
 FIXTURE_TEST_CASE(TextQualityAccepted, LoaderFixture)
 {
@@ -644,6 +645,17 @@ FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
     REQUIRE(qual_scores_in == qual_scores_out);
 
 }
+
+FIXTURE_TEST_CASE(QualityTooLongTruncated, LoaderFixture)
+{   // quality lines longer than corresponding reads get truncated with a warning
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
+        "GAAA", "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")), {}, 2);
+    //reader.set_validator(false, 33, 74);
+    CFastqRead read;
+    REQUIRE( (reader.get_read<validator_options<ePhred, 33, 74>>(read)) );
+    REQUIRE_EQ( read.Quality(), string("IIII") );
+}
+
 
 // ############################################################
 // # Nanopore/MinION fastq

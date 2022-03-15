@@ -26,7 +26,7 @@ env NCBI_SETTINGS="${SETTINGS_FILE}" \
 diff -q expected/testing.stderr actual/testing.stderr >/dev/null || diff -q expected/testing-cloudy.stderr actual/testing.stderr >/dev/null
 res=$?
 
-rm -rf "${NCBI_SETTINGS}"
+rm -rf "${SETTINGS_FILE}"
 [ ${res} -eq 0 ] && { echo "Driver tool test 'testing' finished."; exit 0; }
 
 echo "Driver tool test 'testing' FAILED!"

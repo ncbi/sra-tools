@@ -66,7 +66,10 @@ print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
 
-$SRR = `NCBI_SETTINGS=/ $BINDIR/srapath $SRAC`;
+`echo '/libs/cloud/report_instance_identity = "false"' > tmp.mkfg`;
+die if $?;
+
+$SRR = `NCBI_SETTINGS=tmp.mkfg $BINDIR/srapath $SRAC`;
 die 'Is there BINDIR?' if $?;
 chomp $SRR;
 

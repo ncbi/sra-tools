@@ -499,10 +499,11 @@ echo Testing quality
 mkdir -p tmp                                                         || exit 1134
 echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k   || exit 1135
 #	@ cd tmp && NCBI_SETTINGS=k PATH='${bin_dir}:$(BINDIR):${PATH}' \
-				perl ../test-quality.pl
-cd ${work_dir}                                                       || exit 1138
-rm -r tmp                                                            || exit 1139
+				perl test-quality.pl
 
 echo ad_not_cwd:
 echo Testing prefetch into output directory and using results
-PATH="${bin_dir}:${PATH}" perl test-ad-not-cwd.pl                    || exit 1143
+cd tmp && NCBI_SETTINGS=k PATH="${bin_dir}:${PATH}" perl ../test-ad-not-cwd.pl || exit 1143
+
+cd ${work_dir}                                                       || exit 1138
+rm -r tmp                                                            || exit 1139

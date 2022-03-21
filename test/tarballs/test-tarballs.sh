@@ -137,7 +137,7 @@ then
     exit 9
 fi
 
-if [ "$4" != "nojava" ]
+if [ "$4" = "yesjava" ]
 then
 
 ############################### GenomeAnalysisTK ###############################

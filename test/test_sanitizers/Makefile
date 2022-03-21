@@ -22,5 +22,9 @@
 #
 # ===========================================================================
 
-# SRA-TOOLS and library version
-VERSION = 3.0.1
+default: runtests
+
+TOP ?= $(abspath ../..)
+MODULE = test/test_sanitizers
+
+include $(TOP)/build/Makefile.env

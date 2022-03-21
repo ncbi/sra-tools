@@ -41,7 +41,7 @@ if ( NOT WIN32 )
 		COMMAND perl out_dir_and_file.pl ${DIRTOTEST} ${BINDIR}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-	add_test( NAME SlowTest_Prefetch
+	add_test( NAME SlowTest_Prefetch_dflt
 		COMMAND
             ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
             bash -c "sh runtests.sh ${CMAKE_BINARY_DIR}/test-bin/SlowTest_Prefetch ${DIRTOTEST}"

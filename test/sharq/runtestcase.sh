@@ -25,10 +25,11 @@
 #echo "$0 $*"
 
 # $1 - path sharq binary 
-# $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $3 - test case ID
-# $3 - expected result code from sharq
-# $4, $5, ... - command line options for fastq-load.3
+# $2 - name of the sharq binary
+# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $4 - test case ID
+# $4 - expected result code from sharq
+# $5, $6, ... - command line options for fastq-load.3
 #
 # return codes:
 # 0 - passed
@@ -37,15 +38,16 @@
 # 3 - outputs differ
 
 BINDIR=$1
-WORKDIR=$2
-CASEID=$3
-RC=$4
-TELEMETRY_RPT=$5
-shift 5
+SHARQ_BINARY=$2
+WORKDIR=$3
+CASEID=$4
+RC=$5
+TELEMETRY_RPT=$6
+shift 6
 CMDLINE=$*
 
 DUMP="$BINDIR/vdb-dump"
-LOAD="$BINDIR/sharq"
+LOAD="$BINDIR/${SHARQ_BINARY}"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
 if [ "$(uname)" == "Darwin" ]; then

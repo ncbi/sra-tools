@@ -1087,7 +1087,11 @@ static size_t insp_est_seq_defline_len( const inspector_estimate_input_t * input
     defl_est_inp . acc = input -> acc;
     defl_est_inp . avg_name_len = input -> avg_name_len;
     defl_est_inp . row_count = input -> insp -> seq . row_count;
-    defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    if ( input -> insp -> seq .row_count > 0 ) {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    } else {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input );
+    }
     defl_est_inp . defline = input -> seq_defline;
 
     return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
@@ -1099,7 +1103,11 @@ static size_t insp_est_qual_defline_len( const inspector_estimate_input_t * inpu
     defl_est_inp . acc = input -> acc;
     defl_est_inp . avg_name_len = input -> avg_name_len;
     defl_est_inp . row_count = input -> insp -> seq . row_count;
-    defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    if ( input -> insp -> seq . row_count > 0 ) {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    } else {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input );
+    }
     defl_est_inp . defline = input -> qual_defline;    
     
     return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */

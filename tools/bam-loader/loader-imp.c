@@ -323,6 +323,11 @@ static void MMArrayClear(MMArray *self)
 
 static void MMArrayWhack(MMArray *self)
 {
+    if ( self == NULL )
+    {
+        return;
+    }
+
     size_t const chunk = MMA_SUBCHUNK_SIZE * self->elemSize;
     unsigned i;
 
@@ -812,7 +817,7 @@ static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
         rc = BAM_FileMake(bam, defer, G.headerText, "%s", bamFile);
     }
     KFileRelease(defer); /* it was retained by BAM file */
-    
+
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }
@@ -899,7 +904,7 @@ static bool EditAlignedQualities(uint8_t qual[], bool const hasMismatch[], unsig
     for (i = 0; i < readlen; ++i) {
         uint8_t const q_0 = qual[i];
         uint8_t const q_1= hasMismatch[i] ? G.alignedQualValue : q_0;
-        
+
         if (q_0 != q_1) {
             changed = true;
             break;
@@ -926,7 +931,7 @@ static bool EditUnalignedQualities(uint8_t qual[], bool const hasMismatch[], uns
     for (i = 0; i < readlen; ++i) {
         uint8_t const q_0 = qual[i];
         uint8_t const q_1 = (q_0 & 0x7F) | (hasMismatch[i] ? 0x80 : 0);
-        
+
         if (q_0 != q_1) {
             changed = true;
             break;
@@ -1087,7 +1092,7 @@ static void RecordLowMatchCount(void *Ctx, char const name[], unsigned const cou
             ctx->rc = KMDataNodeWriteAttr(sub, "REFNAME", name);
             if (ctx->rc == 0)
                 ctx->rc = KMDataNodeWriteB32(sub, &count_temp);
-            
+
             KMDataNodeRelease(sub);
         }
     }
@@ -1272,12 +1277,12 @@ static rc_t RecordChange(KMDataNode *const node,
         rc_t const rc_attr1 = KMDataNodeWriteAttr(sub, "change", what);
         rc_t const rc_attr2 = KMDataNodeWriteAttr(sub, "reason", why);
         rc_t const rc_value = KMDataNodeWriteB32(sub, &count_temp);
-        
+
         KMDataNodeRelease(sub);
         if (rc_attr1) return rc_attr1;
         if (rc_attr2) return rc_attr2;
         if (rc_value) return rc_value;
-        
+
         return 0;
     }
 }
@@ -1619,7 +1624,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     if (ctx->keyToID.key2id_max == 0) {
         uint32_t rgcount;
         unsigned rgi;
-        
+
         BAM_FileGetReadGroupCount(bam, &rgcount);
         if (rgcount > (sizeof(ctx->keyToID.key2id)/sizeof(ctx->keyToID.key2id[0]) - 1))
             ctx->keyToID.key2id_max = 1;
@@ -1691,7 +1696,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         char const *linkageGroup;
 
         ++recordsRead;
-        
+
         BAM_AlignmentGetReadName2(rec, &name, &namelen);
 
         keyId = rec->keyId;
@@ -2283,7 +2288,7 @@ WRITE_SEQUENCE:
                     int64_t pnext = 0;
 
                     if (!isPrimary) {
-                        if ( (!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) { 
+                        if ( (!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                             goto WRITE_ALIGNMENT;
                         }
                         (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2317,7 +2322,7 @@ WRITE_SEQUENCE:
                         goto LOOP_END;
                     }
                     /*printf("IN:%10d\tcnt2=%ld\tcnt1=%ld\n",value->fragmentId,fcountBoth,fcountOne);*/
-                    
+
                     rc = KDataBufferResize(&fragBuf, sz);
                     if (rc) {
                         (void)LOGERR(klogErr, rc, "Failed to resize fragment buffer");
@@ -2325,7 +2330,7 @@ WRITE_SEQUENCE:
                     }
                     {{
                         uint8_t *dst = (uint8_t*) fragBuf.base;
-                        
+
                         memmove(dst,&fi,sizeof(fi));
                         dst += sizeof(fi);
                         memmove(dst, seqBuffer.base, readlen);
@@ -2353,20 +2358,20 @@ WRITE_SEQUENCE:
                     {
                         size_t size1;
                         size_t size2;
-                        
+
                         rc = MemBankSize(ctx->frags, fragmentId, &size1);
                         if (rc) {
                             (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
                             goto LOOP_END;
                         }
-                        
+
                         rc = KDataBufferResize(&fragBuf, size1);
                         fip = (FragmentInfo *)fragBuf.base;
                         if (rc) {
                             (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
                             goto LOOP_END;
                         }
-                        
+
                         rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, size1, &size2);
                         if (rc) {
                             (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
@@ -2654,7 +2659,7 @@ WRITE_ALIGNMENT:
     }
     KThreadRelease(bamread_thread);
     KQueueRelease(bamq);
-    
+
     if (rc) {
         if (   (GetRCModule(rc) == rcCont && (int)GetRCObject(rc) == rcData && GetRCState(rc) == rcDone)
             || (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound))
@@ -3154,7 +3159,7 @@ rc_t run(char const progName[],
                                     rc = WriteLoaderSignature(meta, progName);
                                     if (rc == 0) {
                                         KMDataNode *changes = NULL;
-                                        
+
                                         rc = KMetadataOpenNodeUpdate(meta, &changes, "CHANGES");
                                         if (rc == 0)
                                             RecordChanges(changes, "CHANGE");

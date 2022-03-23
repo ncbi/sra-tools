@@ -67,6 +67,7 @@ add_subdirectory(vdb-diff) # was not included in runtests
 add_subdirectory(vdb-dump)
 add_subdirectory(vdb-validate)
 add_subdirectory(test_sanitizers)
+add_subdirectory(bam-load)
 
 # add_subdirectory(fuse) # retired
 # add_subdirectory(network-test) # broken now

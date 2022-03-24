@@ -26,22 +26,34 @@ add_compile_definitions( __mod__="tools/copycat" )
 
 # External
 if( ${OS} STREQUAL "linux" )
-    add_executable( copycat
-        copycat
-        ccfileformat
-        cccat
-        cctree
-        cctree-dump
-        cctar
-        ccsra
-        ccsubchunk
-        ccfile
-    )
-    target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${NCBI_VDB_LIBDIR}/libkff.${STLX} ${NCBI_VDB_LIBDIR}/libmagic.${STLX} )
-    MakeLinksExe( copycat false )
 
-    # copy/install the magic file
-    configure_file( magic ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/magic COPYONLY )
-    install( FILES magic DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+    find_library( HAVE_MAGIC libmagic.a )
 
-endif()
+    if ( NOT ${HAVE_MAGIC} STREQUAL "HAVE_MAGIC-NOTFOUND" )
+
+        set( KFF_SRC
+            kff/fileformat.c
+            kff/ffext.c
+            kff/ffkey.c
+            kff/ffmagic.c
+        )
+
+        add_executable( copycat
+            copycat
+            ccfileformat
+            cccat
+            cctree
+            cctree-dump
+            cctar
+            ccsra
+            ccsubchunk
+            ccfile
+            ${KFF_SRC}
+        )
+        target_include_directories( copycat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} )
+        target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} magic )
+        MakeLinksExe( copycat false )
+
+    endif()
+
+ endif()

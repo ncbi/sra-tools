@@ -32,7 +32,7 @@ if( NOT WIN32 )
             COMMAND
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                bash -c "${BINDIR}/bam-load --accept-dups -Q0 --cache-size 2000000 --tmpfs try_SRR6668252/TMP --xml-log log.xml -o out.sra test.sam"
+                bash -c "${BINDIR}/bam-load -o out.sra test.sam"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )

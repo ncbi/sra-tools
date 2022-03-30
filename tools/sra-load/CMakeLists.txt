@@ -41,8 +41,7 @@ if( LibXml2_FOUND )
 	set( LOADER_LIB
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
-		${NCBI_VDB_LIBDIR}/libkxfs.${STLX}
-		${NCBI_VDB_LIBDIR}/libkxml.${STLX}
+		kxml
 		${LIBXML2_LIBRARIES}
 	)
 
@@ -50,7 +49,6 @@ if( LibXml2_FOUND )
 	set( LOADER_LIB
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
-		kxfs
 		kxml
 		xml2
 	)

@@ -303,6 +303,7 @@ elseif( "windows" STREQUAL ${OS} )
 endif()
 
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
+include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
 
 # ===========================================================================
 

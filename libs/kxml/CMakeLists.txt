@@ -22,24 +22,12 @@
 #
 # ===========================================================================
 
-if( Python3_EXECUTABLE )
+if( LibXml2_FOUND )
 
-if ( NOT WIN32 )
+    include_directories( ${LIBXML2_INCLUDE_DIR} )
 
-    add_test( NAME Test_Kget
-        COMMAND
-        ${CMAKE_COMMAND} -E env PATH=${DIRTOTEST}
-        ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_COMMAND} -E env NCBI_VDB_RELIABLE=y
-        ${Python3_EXECUTABLE} test_kget.py
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-    add_test( NAME SlowTest_Kget_DiffVsWget
-        COMMAND diff-vs-wget.sh ${DIRTOTEST}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-
-else()
-#TODO: make run on Windows
-endif()
+    set( SRC_XML xml.c xtoc-parsexml.c xtoc.c )
+    GenerateStaticLibs( kxml "${SRC_XML}" )
+    target_compile_definitions( kxml PRIVATE __mod__="libs/kxml")
 
 endif()

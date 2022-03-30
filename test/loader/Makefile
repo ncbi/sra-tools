@@ -22,34 +22,9 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/bam-loader" )
+default: runtests
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
+TOP ?= $(abspath ../..)
+MODULE = test/loader
 
-# Internal
-add_executable( samview
-	bam
-	sam
-	samview
-)
-target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( samview false )
-
-# External
-if( NOT WIN32)
-	add_executable( bam-load
-		bam-loader
-		bam
-		sam
-		alignment-writer
-		reference-writer
-		sequence-writer
-		loader-imp
-		mem-bank
-		low-match-count
-	)
-	target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-	target_link_libraries( bam-load loader ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
-
-	MakeLinksExe( bam-load false )
-endif()
+include $(TOP)/build/Makefile.env

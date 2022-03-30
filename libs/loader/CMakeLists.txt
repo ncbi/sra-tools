@@ -22,34 +22,20 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/bam-loader" )
-
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
-
-# Internal
-add_executable( samview
-	bam
-	sam
-	samview
+set( SRC
+    progressbar
+    loader-file
+    loader-meta
+    queue-file
+    alignment-writer
+    common-reader
+    common-writer
+    mmarray
+    reference-writer
+    sequence-writer
 )
-target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( samview false )
 
-# External
-if( NOT WIN32)
-	add_executable( bam-load
-		bam-loader
-		bam
-		sam
-		alignment-writer
-		reference-writer
-		sequence-writer
-		loader-imp
-		mem-bank
-		low-match-count
-	)
-	target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-	target_link_libraries( bam-load loader ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
+GenerateStaticLibs( loader "${SRC}" )
+target_include_directories( loader PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
 
-	MakeLinksExe( bam-load false )
-endif()
+add_compile_definitions (__mod__="libs/loader")

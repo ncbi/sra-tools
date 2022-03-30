@@ -22,34 +22,16 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/bam-loader" )
+add_compile_definitions( __mod__="test/loader" )
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
-
-# Internal
-add_executable( samview
-	bam
-	sam
-	samview
-)
-target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( samview false )
-
-# External
-if( NOT WIN32)
-	add_executable( bam-load
-		bam-loader
-		bam
-		sam
-		alignment-writer
-		reference-writer
-		sequence-writer
-		loader-imp
-		mem-bank
-		low-match-count
-	)
-	target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-	target_link_libraries( bam-load loader ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
-
-	MakeLinksExe( bam-load false )
+if( WIN32 )
+    set( ADDITIONAL_LIBS Crypt32 )
+else()
+    set( ADDITIONAL_LIBS "" )
 endif()
+
+include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
+
+AddExecutableTest( Test_KAPP_qfile  "qfiletest"             "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};" )
+AddExecutableTest( Test_LOADERFILE  "test-loaderfile.cpp"   "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+AddExecutableTest( Test_LOADER      "loadertest"            "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};${ADDITIONAL_LIBS}" )

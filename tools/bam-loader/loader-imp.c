@@ -58,15 +58,16 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
-#include <kapp/loader-file.h>
-#include <kapp/loader-meta.h>
 #include <kapp/log-xml.h>
-#include <kapp/progressbar.h>
 
 #include <kproc/queue.h>
 #include <kproc/thread.h>
 #include <kproc/timeout.h>
 #include <os-native.h>
+
+#include <loader/loader-file.h>
+#include <loader/loader-meta.h>
+#include <loader/progressbar.h>
 
 #include <sysalloc.h>
 #include <atomic32.h>

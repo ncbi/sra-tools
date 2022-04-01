@@ -34,7 +34,7 @@
 
 #include <kdb/btree.h>
 
-#include <kapp/progressbar.h>
+#include <loader/progressbar.h>
 
 #include "sequence-writer.h"
 

@@ -50,6 +50,6 @@ set( CGLOAD_SRC
 )
 
 add_executable( cg-load ${CGLOAD_SRC} )
-
-target_link_libraries( cg-load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+target_include_directories( cg-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+target_link_libraries( cg-load loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 MakeLinksExe( cg-load false )

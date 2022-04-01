@@ -28,10 +28,11 @@ if( NOT WIN32 )
     add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)
 
-    AddExecutableTest( SlowTest_FastqLoader_id2name "test-id2name.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastq "wb-test-fastq.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqParse "wb-test-fastq-parse.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqLoader "test-fastq-loader.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    set( LIBS )
+    AddExecutableTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_FastqLoader_WbFastq         "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    AddExecutableTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
     set_tests_properties( Test_FastqLoader_WbFastqLoader
         PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )

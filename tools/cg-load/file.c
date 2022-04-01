@@ -29,13 +29,13 @@
 #include "factory-file.h"
 #include "file.h"
 
-#include <kapp/loader-file.h>
-
 #include <kfs/directory.h>
 
 #include <klib/log.h>
 #include <klib/rc.h>
 #include <klib/status.h>
+
+#include <loader/loader-file.h>
 
 #include <strtol.h>
 #include <sysalloc.h>

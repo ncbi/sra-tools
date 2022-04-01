@@ -34,6 +34,8 @@ else()
 	set( COMMON_LINK_LIBRARIES ${COMMON_LINK_LIBRARIES} ${NCBI_VDB_LIBDIR}/libktst.${STLX} )
 endif()
 
+add_subdirectory(loader)
+
 add_subdirectory(align)
 add_subdirectory(align-cache)
 add_subdirectory(align-info)

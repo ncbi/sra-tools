@@ -30,5 +30,6 @@ set( SRC
 )
 
 add_executable( align-cache ${SRC} )
-target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+target_include_directories( align-cache PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} loader ${COMMON_LIBS_WRITE} )
 MakeLinksExe( align-cache false )

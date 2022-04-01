@@ -24,13 +24,10 @@
 *
 */
 
-#include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
-
 #include <vdb/manager.h> /* VDBManager */
 #include <vdb/database.h> /* VDatabase */
 #include <vdb/dependencies.h> /* VDBDependencies */
 #include <vdb/table.h> /* VTable */
-#include <vdb/schema.h> /* VSchema */
 #include <vdb/cursor.h> /* VCursor */
 #include <vdb/vdb-priv.h> /* VDBManagerOpenKDBManagerRead */
 
@@ -117,7 +114,7 @@ rc_t CC UsageSummary (const char * progname) {
 
 static const char* param_usage[] = { "Path to the database", NULL };
 
-rc_t CC Usage(const Args* args) { 
+rc_t CC Usage(const Args* args) {
     rc_t rc = 0 ;
 
     const char* progname = UsageDefaultName;
@@ -347,7 +344,6 @@ static rc_t align_info(const Params* prm) {
     const VDatabase* db = NULL;
     const VDBManager* mgr = NULL;
     const KDBManager *kmgr = NULL;
-    VSchema* schema = NULL;
     bool is_db = false;
 
     if (prm == NULL)
@@ -364,12 +360,7 @@ static rc_t align_info(const Params* prm) {
     }
 
     if (rc == 0) {
-        rc = VDBManagerMakeSRASchema(mgr, &schema);
-        DISP_RC(rc, "while calling VDBManagerMakeSRASchema");
-    }
-
-    if (rc == 0) {
-        rc = VDBManagerOpenDBRead(mgr, &db, schema, "%s", prm->dbPath);
+        rc = VDBManagerOpenDBRead(mgr, &db, NULL, "%s", prm->dbPath);
         if (rc == 0) {
             is_db = true;
         }
@@ -476,7 +467,6 @@ static rc_t align_info(const Params* prm) {
 
     }
 
-    DESTRUCT(VSchema, schema);
     DESTRUCT(KDBManager, kmgr);
     DESTRUCT(VDBManager, mgr);
     DESTRUCT(VDatabase, db);

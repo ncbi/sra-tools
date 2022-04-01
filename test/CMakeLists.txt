@@ -43,7 +43,6 @@ add_subdirectory(fasterq-dump)
 add_subdirectory(fastq-loader)
 add_subdirectory(kar)
 add_subdirectory(kdbmeta)
-add_subdirectory(kget)
 add_subdirectory(make-read-filter)
 add_subdirectory(ngs-java)
 add_subdirectory(ngs-pileup)
@@ -73,3 +72,4 @@ add_subdirectory(bam-load)
 # add_subdirectory(network-test) # broken now
 # add_subdirectory(dump-test) # tools/fastq-dump is abandoned
 # add_subdirectory(pileup-stats) # moved to ngs-tools, delete
+# add_subdirectory(kget) VDB-4809 moved to ncbi-vdb, then retired (branch VDB-4809-preserving-vdb-get-aka-kget)

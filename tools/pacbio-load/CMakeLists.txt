@@ -55,15 +55,16 @@ if( NOT WIN32 )
             pl-progress
             pacbio-load
         )
-
+        target_include_directories( pacbio-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc )
         if ( SINGLE_CONFIG )
            target_link_libraries( pacbio-load ${NCBI_VDB_LIBDIR}/libkdf5.${STLX} )
         else()
            target_link_libraries( pacbio-load kdf5 )
         endif()
-        target_link_libraries( pacbio-load ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+        target_link_libraries( pacbio-load loader ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 
         MakeLinksExe( pacbio-load false )
     endif()
 
 endif()
+

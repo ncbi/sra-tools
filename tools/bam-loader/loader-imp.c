@@ -863,7 +863,10 @@ static rc_t VerifyReferences(BAM_File const *bam, Reference const *ref)
 
         rc = ReferenceVerify(ref, refSeq->name, refSeq->length, refSeq->checksum);
         if (rc) {
-            if (GetRCObject(rc) == rcChecksum && GetRCState(rc) == rcUnequal) {
+            if (GetRCObject(rc) == rcId && GetRCState(rc) == rcUndefined) {
+                (void)PLOGMSG(klogInfo, (klogInfo, "Reference: '$(name)' is unmapped", "name=%s", refSeq->name));
+            }
+            else if (GetRCObject(rc) == rcChecksum && GetRCState(rc) == rcUnequal) {
 #if NCBI
                 (void)PLOGMSG(klogWarn, (klogWarn, "Reference: '$(name)', Length: $(len); checksums do not match", "name=%s,len=%u", refSeq->name, (unsigned)refSeq->length));
 #endif

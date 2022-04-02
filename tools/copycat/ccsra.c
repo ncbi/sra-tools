@@ -73,6 +73,23 @@ static bool CCNodeSraDirLegalPath (const CCNodeSraDir * self, const char * path)
         return (strncmp (self->sub_name, path, self->name_size + 1) == 0);
 }
 
+static rc_t CCNodeSraDirVLegalPath (const CCNodeSraDir * self,
+                                    const char *path_fmt,
+                                    va_list args)
+{
+    char buffer[4096];
+    char const *const path = strchr(path_fmt, '%') == NULL ? path_fmt : buffer;
+    
+    if (path != path_fmt) {
+        int const size = vsnprintf ( buffer, sizeof buffer, path_fmt, args );
+        if ( size < 0 || size >= (int) sizeof buffer )
+            return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
+    }
+    return CCNodeSraDirLegalPath(self, path)
+        ? 0
+        : RC(rcFS, rcNoTarg, rcAccessing, rcPath, rcNotFound);
+}
+
 /* ----------------------------------------------------------------------
  * CCNodeSraDirDestroy
  */
@@ -208,12 +225,15 @@ static rc_t CC CCNodeSraDirResolvePath (const CCNodeSraDir *self,
                                         const char *path_fmt,
                                         va_list args)
 {
-    char path[4096];
-    int size = args ?
-        vsnprintf ( path, sizeof path, path_fmt, args ) :
-        snprintf  ( path, sizeof path, "%s", path_fmt );
-    if ( size < 0 || size >= (int) sizeof path )
-        return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
+    char buffer[4096];
+    bool const needFmt = strchr(path_fmt, '%') != NULL;
+    char const *const path = needFmt ? buffer : path_fmt;
+    
+    if (needFmt) {
+        int const size = vsnprintf ( buffer, sizeof buffer, path_fmt, args );
+        if ( size < 0 || size >= (int) sizeof buffer )
+            return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
+    }
     if (absolute && (path[0] != '/'))
     {
         string_printf (resolved, rsize, NULL, "/%s", path);
@@ -431,33 +451,17 @@ rc_t CC CCNodeSraDirOpenFileRead	(const CCNodeSraDir *self,
 					 const char *path_fmt,
 					 va_list args)
 {
-    rc_t	rc;
-    char path[4096];
-    int size;
+    rc_t rc = CCNodeSraDirVLegalPath(self, path_fmt, args);
 
-    assert (self != NULL);
-    assert (f != NULL);
-    assert (path_fmt != NULL);
-
-    size = args ?
-        vsnprintf ( path, sizeof path, path_fmt, args ) :
-        snprintf  ( path, sizeof path, "%s", path_fmt );
-    if ( size < 0 || size >= (int) sizeof path )
-        return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
-
-    if (CCNodeSraDirLegalPath (self, path))
+    *f = NULL;
+    if (rc == 0)
     {
         rc = KFileAddRef (self->file);
         if (rc == 0)
         {
             *f = self->file;
-            return 0;
         }
-        return rc;
     }
-    else
-        rc = RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcNotFound);
-    *f = NULL;
     return rc;
 }
 
@@ -535,23 +539,12 @@ rc_t CC CCNodeSraDirFileLocator		(const CCNodeSraDir *self,
 					 const char *path_fmt,
 					 va_list args)
 {
-    char path[4096];
-    int size;
-
     assert (self != NULL);
     assert (locator != NULL);
     assert (path_fmt != NULL);
 
-    size = args ?
-        vsnprintf ( path, sizeof path, path_fmt, args ) :
-        snprintf  ( path, sizeof path, "%s", path_fmt );
-    if ( size < 0 || size >= (int) sizeof path )
-        return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
-
     *locator = 0;       /* undefined for this situation */
-    if (CCNodeSraDirLegalPath (self, path))
-        return 0;
-    return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcNotFound);
+    return CCNodeSraDirVLegalPath(self, path_fmt, args);
 }
 
 /* ----------------------------------------------------------------------
@@ -570,24 +563,16 @@ rc_t CC CCNodeSraDirFileSize		(const CCNodeSraDir *self,
 					 const char *path_fmt,
 					 va_list args)
 {
-    char path[4096];
-    int path_size;
-
+    rc_t rc = 0;
+    
     assert (self != NULL);
     assert (size != NULL);
     assert (path_fmt != NULL);
 
-    path_size = args ?
-        vsnprintf ( path, sizeof path, path_fmt, args ) :
-        snprintf  ( path, sizeof path, "%s", path_fmt );
-    if ( path_size < 0 || path_size >= (int) sizeof path )
-        return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
-
-    if (CCNodeSraDirLegalPath (self, path))
-        return (KFileSize (self->file, size)); /* we have to assume physical and logical size are the same */
-
     *size = 0;
-    return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcNotFound);
+    if ((rc = CCNodeSraDirVLegalPath(self, path_fmt, args)) == 0)
+        rc = (KFileSize (self->file, size)); /* we have to assume physical and logical size are the same */
+    return rc;
 }
 
 /* ----------------------------------------------------------------------
@@ -606,24 +591,7 @@ rc_t CC CCNodeSraDirFilePhysicalSize (const CCNodeSraDir *self,
                                       const char *path_fmt,
                                       va_list args)
 {
-    char path[4096];
-    int path_size;
-
-    assert (self != NULL);
-    assert (size != NULL);
-    assert (path_fmt != NULL);
-
-    path_size = args ?
-        vsnprintf ( path, sizeof path, path_fmt, args ) :
-        snprintf  ( path, sizeof path, "%s", path_fmt );
-    if ( path_size < 0 || path_size >= (int) sizeof path )
-        return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
-
-    if (CCNodeSraDirLegalPath (self, path))
-        return (KFileSize (self->file, size)); /* we have to assume physical and logical size are the same */
-
-    *size = 0;
-    return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcNotFound);
+    return CCNodeSraDirFileSize(self, size, path_fmt, args);
 }
 
 /* ----------------------------------------------------------------------
@@ -750,26 +718,14 @@ rc_t CC CCNodeSraDirFileContiguous (const CCNodeSraDir *self,
                                     const char *path_fmt,
                                     va_list args)
 {
-    char path[4096];
-    int size;
-
+    rc_t rc = 0;
+    
     assert (self);
     assert (contiguous);
     assert (path_fmt);
 
-    size = args ?
-        vsnprintf ( path, sizeof path, path_fmt, args ) :
-        snprintf  ( path, sizeof path, "%s", path_fmt );
-    if ( size < 0 || size >= (int) sizeof path )
-        return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcExcessive );
-
-    if (CCNodeSraDirLegalPath (self, path))
-    {
-        *contiguous = true;
-        return 0;
-    }
-    *contiguous = false;
-    return RC (rcFS, rcNoTarg, rcAccessing, rcPath, rcNotFound);
+    *contiguous = (rc = CCNodeSraDirVLegalPath(self, path_fmt, args)) == 0)
+    return rc;
 }
 
 
@@ -1022,8 +978,8 @@ rc_t list_action (const KDirectory * dir, const char * path, void * _adata)
 
     if (type & kptAlias)
     {
-        rc = KDirectoryVResolveAlias (dir, false, link, sizeof (link),
-                                      path, NULL);
+        rc = KDirectoryResolveAlias (dir, false, link, sizeof (link),
+                                      "%s", path);
         if (rc == 0)
             linklen = strlen (link);
     }

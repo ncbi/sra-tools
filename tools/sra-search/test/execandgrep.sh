@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,39 +23,12 @@
 #
 # ===========================================================================
 
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINDIR} )
+#
+# A helper script to grep output of a command line (useful in CMake which does not do redirections on its own)
+#
+# $1 - the command line
+# $2 - pattern to grep for
+#
+# return code: as returned by $1 > grep $2
 
-add_subdirectory( driver-tool )
-add_subdirectory( util )
-add_subdirectory( align-cache )
-add_subdirectory( align-info )
-add_subdirectory( bam-loader )
-add_subdirectory( rd-filter-redact )
-add_subdirectory( prefetch )
-add_subdirectory( vdb-config )
-add_subdirectory( kar )
-add_subdirectory( copycat )
-add_subdirectory( sra-dump )
-add_subdirectory( sra-sort )
-add_subdirectory( sra-pileup )
-add_subdirectory( fastq-loader )
-add_subdirectory( fasterq-dump )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-validate )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( srapath )
-add_subdirectory( sra-stat )
-add_subdirectory( sharq )
-add_subdirectory( cache-mgr )
-add_subdirectory( sra-load )
-add_subdirectory( ccextract )
-add_subdirectory( pacbio-load )
-add_subdirectory( vdb-diff )
-add_subdirectory( ngs-pileup )
-add_subdirectory( vdb-sql )
-add_subdirectory( cg-load )
-add_subdirectory( general-loader )
-add_subdirectory( ref-variation )
-add_subdirectory( sra-search )
-add_subdirectory( pileup-stats )
+$1 | grep $2

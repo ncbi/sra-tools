@@ -22,39 +22,63 @@
 #
 # ===========================================================================
 
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINDIR} )
+default: prepare_test_data  \
+        check_test_result
 
-add_subdirectory( driver-tool )
-add_subdirectory( util )
-add_subdirectory( align-cache )
-add_subdirectory( align-info )
-add_subdirectory( bam-loader )
-add_subdirectory( rd-filter-redact )
-add_subdirectory( prefetch )
-add_subdirectory( vdb-config )
-add_subdirectory( kar )
-add_subdirectory( copycat )
-add_subdirectory( sra-dump )
-add_subdirectory( sra-sort )
-add_subdirectory( sra-pileup )
-add_subdirectory( fastq-loader )
-add_subdirectory( fasterq-dump )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-validate )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( srapath )
-add_subdirectory( sra-stat )
-add_subdirectory( sharq )
-add_subdirectory( cache-mgr )
-add_subdirectory( sra-load )
-add_subdirectory( ccextract )
-add_subdirectory( pacbio-load )
-add_subdirectory( vdb-diff )
-add_subdirectory( ngs-pileup )
-add_subdirectory( vdb-sql )
-add_subdirectory( cg-load )
-add_subdirectory( general-loader )
-add_subdirectory( ref-variation )
-add_subdirectory( sra-search )
-add_subdirectory( pileup-stats )
+TOP ?= $(abspath ../../..)
+
+MODULE = test/general-loader/VDB-3250
+
+TEST_TOOLS = \
+	prepare_test_data   \
+	check_test_result   \
+
+ALL_TOOLS = \
+	$(TEST_TOOLS) \
+
+include $(TOP)/build/Makefile.env
+
+INCDIRS += -I$(TOP)/tools/general-loader
+
+$(ALL_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
+
+#-------------------------------------------------------------------------------
+# chuck
+#
+
+PREPARE_DATA_SRC = \
+	prepare_test_data
+
+PREPARE_DATA_OBJ = \
+	$(addsuffix .$(OBJX),$(PREPARE_DATA_SRC))
+
+PREPARE_DATA_LIB =   \
+	-sgeneral-writer  \
+	-sncbi-vdb
+
+$(TEST_BINDIR)/prepare_test_data: $(PREPARE_DATA_OBJ)
+	$(LP) --exe -o $@ $^ $(PREPARE_DATA_LIB)
+
+
+#-------------------------------------------------------------------------------
+# chuck
+#
+
+CHECK_RESULT_SRC = \
+	check_test_result
+
+CHECK_RESULT_OBJ = \
+	$(addsuffix .$(OBJX),$(CHECK_RESULT_SRC))
+
+CHECK_RESULT_LIB =   \
+	-sncbi-vdb
+
+$(TEST_BINDIR)/check_test_result: $(CHECK_RESULT_OBJ)
+	$(LP) --exe -o $@ $^ $(CHECK_RESULT_LIB)
+
+

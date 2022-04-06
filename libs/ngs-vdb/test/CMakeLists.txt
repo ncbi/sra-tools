@@ -22,7 +22,9 @@ target_link_libraries ( ngs-makedb
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${COMMON_LIBS_WRITE}
 )
-add_test ( NAME Ngs_MakeDB COMMAND ngs-makedb WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data )
+set(DATADIR ${CMAKE_CURRENT_SOURCE_DIR}/data)
+file( MAKE_DIRECTORY ${DATADIR} )
+add_test ( NAME Ngs_MakeDB COMMAND ngs-makedb WORKING_DIRECTORY ${DATADIR} )
 set_property(TEST Ngs_MakeDB PROPERTY FIXTURES_SETUP MakeDB)
 
 add_definitions(-D__mod__="NGS_TEST")

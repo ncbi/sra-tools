@@ -41,7 +41,7 @@ target_link_libraries ( makeinputs
 
 if ( NOT WIN32)
     #TODO: simplify
-    set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vdb-dump ${VDB_CONFIG} ${CMAKE_CURRENT_SOURCE_DIR} )
+    set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vdb-dump ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
     file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
                 "/vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"\n")

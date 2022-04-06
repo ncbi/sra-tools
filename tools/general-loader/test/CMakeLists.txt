@@ -117,7 +117,7 @@ if ( NOT WIN32)
 
     # tests depending on kdbmeta
     #TODO: simplify
-    set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kdbmeta  ${VDB_CONFIG} ${CMAKE_CURRENT_SOURCE_DIR} )
+    set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kdbmeta  {CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test ( NAME GeneralLoader-6.0-SoftwareName-Unpacked
             COMMAND ${CMD} 6 0 "-L=info -I${VDB_INCDIR}" SOFTWARE/formatter

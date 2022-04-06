@@ -436,25 +436,33 @@ static bool inspect_db_platform( const inspector_input_t * input, const VDatabas
             } else {
                 rc = VCursorOpen( curs );
                 if ( 0 != rc ) {
-                    ErrMsg( "inspector.c inspect_db_platform()().VCursorOpen( '%s' ) -> %R\n",
+                    ErrMsg( "inspector.c inspect_db_platform().VCursorOpen( '%s' ) -> %R\n",
                             input -> accession_short, rc );
                 } else {
                     int64_t first;
                     uint64_t count;
                     rc = VCursorIdRange( curs, idx, &first, &count );
                     if ( 0 != rc ) {
-                        ErrMsg( "inspector.c inspect_db_platform()().VCursorIdRange( '%s' ) -> %R\n",
+                        ErrMsg( "inspector.c inspect_db_platform().VCursorIdRange( '%s' ) -> %R\n",
                                 input -> accession_short, rc );
-                    } else if ( count > 0 ) {
+                    } else if ( count == 0 ) {
+                        /* most likely the PLATFORM-column is static, that means count==0 */
+                        first = 1;
+                    }
+                    if ( 0 == rc ) {
                         uint32_t elem_bits, boff, row_len;
                         uint8_t *values;
                         rc = VCursorCellDataDirect( curs, first, idx, &elem_bits, (const void **)&values, &boff, &row_len );
                         if ( 0 != rc ) {
-                            ErrMsg( "inspector.c inspect_db_platform()().VCursorCellDataDirect( '%s' ) -> %R\n",
+                            ErrMsg( "inspector.c inspect_db_platform().VCursorCellDataDirect( '%s' ) -> %R\n",
                                     input -> accession_short, rc );
-                        } else if ( NULL != values && 0 == elem_bits && 0 == boff && row_len > 0 ) {
+                        } else if ( NULL != values && 8 == elem_bits && 0 == boff && row_len > 0 ) {
                             *pf = values[ 0 ];
                             res = true;
+                        } else {
+                            ErrMsg( "inspector.c inspect_db_platform().VCursorCellDataDirect( '%s' ) -> unexpected\n",
+                                    input -> accession_short );
+                            
                         }
                     }
                 }
@@ -480,8 +488,12 @@ static bool inspect_db_platform( const inspector_input_t * input, const VDatabas
     return res;
 }
 
-static const char * SEQ_TBL_NAME = "SEQUENCE";
+static const char * PRIM_TBL_NAME = "PRIMARY_ALIGNMENT";
+static const char * REF_TBL_NAME  = "REFERENCE";
+static const char * SEQ_TBL_NAME  = "SEQUENCE";
 static const char * CONS_TBL_NAME = "CONSENSUS";
+static const char * ZMW_TBL_NAME  = "ZMW_METRICS";
+static const char * PASS_TBL_NAME = "PASSES";
 
 static acc_type_t inspect_db_type( const inspector_input_t * input,
                                    inspector_output_t * output ) {
@@ -503,29 +515,38 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
             } else {
                 if ( contains( tables, SEQ_TBL_NAME ) )
                 {
+                    bool has_prim_tbl = contains( tables, PRIM_TBL_NAME );
+                    bool has_ref_tbl = contains( tables, REF_TBL_NAME );
+
                     res = acc_sra_db;
                     output -> seq . tbl_name = SEQ_TBL_NAME;
-                    
                     /* we have at least a SEQUENCE-table */
-                    if ( contains( tables, "PRIMARY_ALIGNMENT" ) &&
-                         contains( tables, "REFERENCE" ) ) {
+                    if ( has_prim_tbl && has_ref_tbl ) {
                         /* we have a SEQUENCE-, PRIMARY_ALIGNMENT-, and REFERENCE-table */
                         res = acc_csra;
                     } else {
-                        bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
-                        if ( has_cons_tbl ||
-                             contains( tables, "ZMW_METRICS" ) ||
-                             contains( tables, "PASSES" ) ) {
-                            if ( has_cons_tbl ) {
-                                output -> seq . tbl_name = CONS_TBL_NAME;                                
-                            }
-                            res = acc_pacbio;
-                        } else {
-                            /* last resort try to find out what the database-type is 
-                             * ... the enums are in ncbi-vdb/interfaces/insdc/sra.h
-                             */
-                            uint8_t pf = SRA_PLATFORM_UNDEFINED;
-                            if ( inspect_db_platform( input, db, &pf ) ) {
+                        uint8_t pf = SRA_PLATFORM_UNDEFINED;
+                        if ( !inspect_db_platform( input, db, &pf ) ) {
+                            pf = SRA_PLATFORM_UNDEFINED;                            
+                        }
+                        
+                        KOutMsg( "\nPF=%d\n", pf );
+
+                        if ( SRA_PLATFORM_OXFORD_NANOPORE != pf )
+                        {
+                            bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
+                            bool has_zmw_tbl = contains( tables, ZMW_TBL_NAME );
+                            bool has_pass_tbl = contains( tables, PASS_TBL_NAME );
+
+                            if ( has_cons_tbl || has_zmw_tbl || has_pass_tbl ) {
+                                if ( has_cons_tbl ) {
+                                    output -> seq . tbl_name = CONS_TBL_NAME;                             
+                                }
+                                res = acc_pacbio;
+                            } else {
+                                /* last resort try to find out what the database-type is 
+                                * ... the enums are in ncbi-vdb/interfaces/insdc/sra.h
+                                */
                                 if ( SRA_PLATFORM_PACBIO_SMRT == pf ) {
                                     res = acc_pacbio;
                                 }

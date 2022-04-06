@@ -529,9 +529,6 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
                         if ( !inspect_db_platform( input, db, &pf ) ) {
                             pf = SRA_PLATFORM_UNDEFINED;                            
                         }
-                        
-                        KOutMsg( "\nPF=%d\n", pf );
-
                         if ( SRA_PLATFORM_OXFORD_NANOPORE != pf )
                         {
                             bool has_cons_tbl = contains( tables, CONS_TBL_NAME );

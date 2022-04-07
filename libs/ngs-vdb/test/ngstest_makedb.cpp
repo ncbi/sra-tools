@@ -22,6 +22,9 @@
 //
 // ===========================================================================
 
+#include <sstream>
+#include <cstdlib>
+
 #include <vdb/manager.h> // VDBManager
 #include <vdb/table.h>
 #include <vdb/cursor.h>
@@ -39,8 +42,6 @@
 
 #include <sysalloc.h>
 
-#include <sstream>
-#include <cstdlib>
 
 using namespace std;
 

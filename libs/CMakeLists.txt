@@ -27,5 +27,8 @@ add_compile_definitions( _LIBRARY )
 
 add_subdirectory(loader)
 add_subdirectory(vdb-sqlite)
-add_subdirectory(general-writer)
 add_subdirectory(ngs-vdb)
+
+if( NOT WIN32 )
+	add_subdirectory(general-writer)
+endif()

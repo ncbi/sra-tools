@@ -24,9 +24,10 @@
 *
 */
 
+#include <iostream>
+
 #include "vdb-search.hpp"
 
-#include <iostream>
 #include <queue>
 #include <atomic>
 

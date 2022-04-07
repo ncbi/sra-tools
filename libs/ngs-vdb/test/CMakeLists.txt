@@ -6,6 +6,7 @@ set ( TEST_LIBS
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
     ncbi-ngs
     ${COMMON_LIBS_READ}
+    ${COMMON_LINK_LIBRARIES} 
 )
 
 if (WIN32)
@@ -20,6 +21,7 @@ add_executable ( ngs-makedb ngstest_makedb.cpp )
 target_link_libraries ( ngs-makedb
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    ${COMMON_LINK_LIBRARIES}
     ${COMMON_LIBS_WRITE}
 )
 set(DATADIR ${CMAKE_CURRENT_SOURCE_DIR}/data)

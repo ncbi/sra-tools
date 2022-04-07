@@ -20,7 +20,8 @@ target_link_libraries ( sra-search
     ncbi-ngs
     tk-version
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
-	${COMMON_LIBS_READ}
+    ${COMMON_LIBS_READ}
+    ${COMMON_LINK_LIBRARIES} 
 )
 
 MakeLinksExe ( sra-search false )

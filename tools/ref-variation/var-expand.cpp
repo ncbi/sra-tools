@@ -1,7 +1,8 @@
+#include <iostream>
+
 #include <kapp/main.h>
 #include <klib/rc.h>
 
-#include <iostream>
 #include <stdio.h>
 
 #include <ngs/ncbi/NGS.hpp>

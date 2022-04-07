@@ -11,6 +11,7 @@ link_libraries (
     ncbi-ngs
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
 	${COMMON_LIBS_READ}
+    ${COMMON_LINK_LIBRARIES} 
 )
 
 add_executable ( test-sra-search

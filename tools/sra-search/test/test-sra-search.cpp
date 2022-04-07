@@ -24,9 +24,9 @@
 *
 */
 
-#include "VdbSearchFixture.hpp"
-
 #include <ktst/unit_test.hpp>
+
+#include "VdbSearchFixture.hpp"
 
 using namespace std;
 using namespace ncbi::NK;

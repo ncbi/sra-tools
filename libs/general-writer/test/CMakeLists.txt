@@ -1,5 +1,3 @@
-include_directories ( ${CMAKE_SOURCE_DIR}/libs/inc/general-writer )
-
 add_executable ( test-general-writer test-general-writer.cpp )
 add_dependencies ( test-general-writer general-writer )
 

@@ -5,13 +5,13 @@ if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup ")
 endif ()
 
-include_directories ( ${CMAKE_SOURCE_DIR}/libs/inc ${CMAKE_SOURCE_DIR}/ngs )
+include_directories ( ${CMAKE_SOURCE_DIR}/ngs )
 link_libraries (
     ngs-vdb
     ncbi-ngs
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
 	${COMMON_LIBS_READ}
-    ${COMMON_LINK_LIBRARIES} 
+    ${COMMON_LINK_LIBRARIES}
 )
 
 add_executable ( test-sra-search

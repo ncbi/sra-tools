@@ -24,8 +24,8 @@
 *
 */
 
-#include "general-writer.h"
-#include "utf8-like-int-codec.h"
+#include <general-writer/general-writer.h>
+#include <general-writer/utf8-like-int-codec.h>
 
 #include <kfs/defs.h>
 
@@ -1318,7 +1318,7 @@ namespace gw_dump
      */
     template < class D, class T > static
     void dump_metadata_node ( FILE * in, const D & e, metadata_node_root const mnr )
-    {        
+    {
         T eh;
         init ( eh, e );
 
@@ -1335,7 +1335,7 @@ namespace gw_dump
 
         switch (display) {
         case 1:
-            std :: cout 
+            std :: cout
                 << event_num << ": metadata-node\n"
                    "  metadata_node [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
                    "  value [ " << size2 ( eh ) << " ] = \"" << value << "\"\n";
@@ -1408,7 +1408,7 @@ namespace gw_dump
      */
     template < class D, class T > static
     void dump_add_mbr ( FILE * in, const D & e )
-    {        
+    {
         T eh;
         init ( eh, e );
 
@@ -1458,7 +1458,7 @@ namespace gw_dump
 
         switch (display) {
         case 1:
-            std :: cout 
+            std :: cout
                 << event_num << ": add-member\n"
                 << "  db_id [ " << dbid << " ]\n"
                 << "  add_mbr  [ " << size1 ( eh ) << " ] = \"" << member_name << "\"\n"
@@ -1684,9 +1684,9 @@ namespace gw_dump
      *    id == 0
      *  all:
      *    length ( msg ) != 0
-     *    pid != 0 
+     *    pid != 0
      *    timestamp > 0
-     *    version > 0 
+     *    version > 0
      *    percent > 0 && < 100
      */
     template < class T > static

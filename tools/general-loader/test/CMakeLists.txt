@@ -1,4 +1,4 @@
-include_directories (".." ${CMAKE_SOURCE_DIR}/libs/inc )
+include_directories (".." )
 
 add_executable ( test-general-loader
     test-general-loader

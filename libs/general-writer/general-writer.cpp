@@ -24,8 +24,8 @@
 *
 */
 
-#include "general-writer.hpp"
-#include "utf8-like-int-codec.h"
+#include <general-writer/general-writer.hpp>
+#include <general-writer/utf8-like-int-codec.h>
 
 #include <iterator>
 #include <cstdlib>
@@ -171,12 +171,12 @@ namespace ncbi
         internal_write ( name . data (), str1_size );
         internal_write ( version . data (), str2_size );
 
-        state = new_state;        
+        state = new_state;
     }
 
 
     int GeneralWriter :: addTable ( const std :: string &table_name )
-    {        
+    {
         stream_state new_state = uninitialized;
 
         switch ( state )
@@ -205,9 +205,9 @@ namespace ncbi
             throw "maximum number of tables exceeded";
 
         // make sure we never record a table name twice under the same db
-        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result = 
+        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result =
             table_name_idx.insert ( std :: pair < int_dbtbl, int > ( tbl, id ) );
-        
+
         // if first time
         if ( result.second )
         {
@@ -225,11 +225,11 @@ namespace ncbi
 
             state = new_state;
         }
-        
+
         // 1 based table id
         return result.first->second;
     }
-    
+
     int GeneralWriter :: addColumn ( int table_id,
         const std :: string &column_name, uint32_t elem_bits, uint8_t flag_bits )
     {
@@ -244,10 +244,10 @@ namespace ncbi
         default:
             throw "state violation adding column";
         }
-        
+
         if ( table_id <= 0 || ( size_t ) table_id > tables.size () )
             throw "Invalid table id";
-        
+
         // the thing to insert into map
         // even if the caller wants us to use integer compaction,
         // it must be with a size we know how to use
@@ -274,7 +274,7 @@ namespace ncbi
         // make sure we never record a column-spec twice
         std :: pair < std :: map < int_stream, int > :: iterator, bool > result =
             column_name_idx.insert ( std :: pair < int_stream, int > ( stream, id ) );
-        
+
         // if first time
         if ( result.second )
         {
@@ -298,12 +298,12 @@ namespace ncbi
 
             state = new_state;
         }
-        
+
         // 1 based stream id
         return result.first->second;
     }
 
-    int GeneralWriter :: dbAddDatabase ( int db_id, const std :: string &mbr_name, 
+    int GeneralWriter :: dbAddDatabase ( int db_id, const std :: string &mbr_name,
                                           const std :: string &db_name, uint8_t create_mode )
     {
         stream_state new_state = uninitialized;
@@ -322,7 +322,7 @@ namespace ncbi
         default:
             throw "state violation adding db";
         }
-        
+
         // zero ( 0 ) is a valid db_id
         if ( db_id < 0 || ( size_t ) db_id > dbs.size () )
             throw "Invalid database id";
@@ -335,9 +335,9 @@ namespace ncbi
             throw "maximum number of databases exceeded";
 
         // make sure we never record a table name twice under the same db
-        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result = 
+        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result =
             db_name_idx.insert ( std :: pair < int_dbtbl, int > ( db, id ) );
-        
+
         // if first time
         if ( result.second )
         {
@@ -356,19 +356,19 @@ namespace ncbi
             set_db_id ( hdr, db_id );
             set_size1 ( hdr, mbr_name.size () );
             set_size2 ( hdr, db_name.size () );
-            set_create_mode ( hdr, create_mode );            
+            set_create_mode ( hdr, create_mode );
             write_event ( & hdr . dad, sizeof hdr );
             internal_write ( mbr_name.data (), mbr_name.size () );
             internal_write ( db_name.data (), db_name.size () );
 
             state = new_state;
         }
-        
+
         // 1 based db id
         return result.first->second;
     }
-    
-    int GeneralWriter :: dbAddTable ( int db_id, const std :: string &mbr_name, 
+
+    int GeneralWriter :: dbAddTable ( int db_id, const std :: string &mbr_name,
                                        const std :: string &table_name, uint8_t create_mode )
     {
         stream_state new_state = uninitialized;
@@ -387,7 +387,7 @@ namespace ncbi
         default:
             throw "state violation adding db_table";
         }
-        
+
         // zero ( 0 ) is a valid db_id
         if ( db_id < 0 || ( size_t ) db_id > dbs.size () )
             throw "Invalid database id";
@@ -403,9 +403,9 @@ namespace ncbi
             throw "maximum number of tables exceeded";
 
         // make sure we never record a table name twice under the same db
-        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result = 
+        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result =
             table_name_idx.insert ( std :: pair < int_dbtbl, int > ( tbl, id ) );
-        
+
         // if first time
         if ( result.second )
         {
@@ -431,13 +431,13 @@ namespace ncbi
 
             state = new_state;
         }
-        
+
         // 1 based table id
         return result.first->second;
     }
 
- 
-    
+
+
     void GeneralWriter :: open ()
     {
         stream_state new_state = uninitialized;
@@ -456,7 +456,7 @@ namespace ncbi
         gwp_evt_hdr hdr;
         init ( hdr, 0, evt_open_stream );
 
-        // write header        
+        // write header
         write_event ( & hdr, sizeof hdr );
 
         state = new_state;
@@ -577,7 +577,7 @@ namespace ncbi
         internal_write ( value . data (), str2_size );
     }
 
-    
+
     void GeneralWriter :: columnDefault ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count )
     {
         switch ( state )
@@ -595,7 +595,7 @@ namespace ncbi
 
         if ( elem_bits == 0 )
             return;
-        
+
         if ( data == 0 && elem_count != 0 )
             throw "Invalid data ptr";
 
@@ -726,7 +726,7 @@ namespace ncbi
 
         if ( elem_bits == 0 || elem_count == 0 )
             return;
-        
+
         if ( data == 0 )
             throw "Invalid data ptr";
 
@@ -736,7 +736,7 @@ namespace ncbi
             throw "Invalid elem_bits";
 
         bool compact_int = ( s . flag_bits & 1 ) != 0;
-        
+
         const uint8_t * dp = ( const uint8_t * ) data;
 
         if ( compact_int )
@@ -810,7 +810,7 @@ namespace ncbi
                 set_size ( chunk, num_bytes );
                 write_event ( & chunk . dad, sizeof chunk );
             }
-            
+
             internal_write ( data, num_bytes );
         }
     }
@@ -937,7 +937,7 @@ namespace ncbi
         default:
             return;
         }
-        
+
         size_t str_size = name . size ();
         if ( str_size == 0 )
             throw "zero-length app-name";
@@ -951,7 +951,7 @@ namespace ncbi
             throw "illegal total value: would divide by zero";
         if ( done > total )
             throw "illegal done value: greater than total";
-        
+
         // calculate percentage done
         double fpercent = ( double ) done / total;
         assert ( fpercent >= 0.0 && fpercent <= 100.0 );
@@ -999,7 +999,7 @@ namespace ncbi
         flush ();
     }
 
-    
+
     // Constructors
     GeneralWriter :: GeneralWriter ( const std :: string &out_path )
         : out ( out_path.c_str(), std::ofstream::binary )
@@ -1017,7 +1017,7 @@ namespace ncbi
         writeHeader ();
     }
 
-    
+
     // Constructors
     GeneralWriter :: GeneralWriter ( int _out_fd, size_t buffer_size )
         : evt_count ( 0 )
@@ -1034,7 +1034,7 @@ namespace ncbi
         output_buffer = new uint8_t [ buffer_size ];
         writeHeader ();
     }
-    
+
     GeneralWriter :: ~GeneralWriter ()
     {
         try
@@ -1058,7 +1058,7 @@ namespace ncbi
             return table_id < s.table_id;
         return column_name.compare ( s.column_name ) < 0;
     }
-    
+
     GeneralWriter :: int_stream :: int_stream ( int _table_id, const std :: string &_column_name, uint32_t _elem_bits, uint8_t _flag_bits )
         : table_id ( _table_id )
         , column_name ( _column_name )

@@ -48,6 +48,8 @@ if( NOT WIN32)
 		mem-bank
 		low-match-count
 	)
-	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
+	target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+	target_link_libraries( bam-load loader ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
+
 	MakeLinksExe( bam-load false )
 endif()

@@ -24,6 +24,8 @@
 
 add_compile_definitions( __mod__="tools/sra-load" )
 
+include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
+
 if( LibXml2_FOUND )
 
 	set( LOADER_SRC
@@ -39,6 +41,7 @@ if( LibXml2_FOUND )
 
    if (SINGLE_CONFIG )
 	set( LOADER_LIB
+        loader
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
 		kxml
@@ -47,6 +50,7 @@ if( LibXml2_FOUND )
 
    else()
 	set( LOADER_LIB
+        loader
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
 		kxml

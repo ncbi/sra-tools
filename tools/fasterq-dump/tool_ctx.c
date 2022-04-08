@@ -97,8 +97,7 @@ static rc_t print_tool_ctx( const tool_ctx_t * tool_ctx ) {
                     NULL != tool_ctx -> output_dirname ? tool_ctx -> output_dirname : "." );
     }
     if ( 0 == rc ) {
-        rc = KOutMsg( "output       : '%s'\n", 
-                    NULL != tool_ctx -> dflt_output ? tool_ctx -> dflt_output : "-" );
+        rc = KOutMsg( "output       : '%s'\n", tool_ctx -> dflt_output ); /* cannot be NULL */
     }
     if ( 0 == rc ) {
         rc = KOutMsg( "append-mode  : '%s'\n", yes_or_no( tool_ctx -> append ) );
@@ -626,7 +625,7 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
         tool_ctx -> insp_input . accession_short = tool_ctx -> accession_short;
         tool_ctx -> insp_input . accession_path = tool_ctx -> accession_path;
 
-        rc = inspect( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) );
+        rc = inspect( &( tool_ctx -> insp_input ), &( tool_ctx -> insp_output ) ); /* inspector.c */
     }
 
     /* create seq/qual deflines ( if they are not given at the commandline ) */

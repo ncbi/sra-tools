@@ -495,6 +495,7 @@ static const char * CONS_TBL_NAME = "CONSENSUS";
 static const char * ZMW_TBL_NAME  = "ZMW_METRICS";
 static const char * PASS_TBL_NAME = "PASSES";
 
+
 static acc_type_t inspect_db_type( const inspector_input_t * input,
                                    inspector_output_t * output ) {
     acc_type_t res = acc_none;
@@ -526,11 +527,16 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
                         res = acc_csra;
                     } else {
                         uint8_t pf = SRA_PLATFORM_UNDEFINED;
-                        if ( !inspect_db_platform( input, db, &pf ) ) {
+                        if ( !inspect_db_platform( input, db, &pf ) ) { /* above */
                             pf = SRA_PLATFORM_UNDEFINED;                            
                         }
-                        if ( SRA_PLATFORM_OXFORD_NANOPORE != pf )
-                        {
+
+                        if ( SRA_PLATFORM_OXFORD_NANOPORE == pf ) {
+                            bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
+                            if ( has_cons_tbl ) {
+                                output -> seq . tbl_name = CONS_TBL_NAME;
+                            }
+                        }  else {
                             bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
                             bool has_zmw_tbl = contains( tables, ZMW_TBL_NAME );
                             bool has_pass_tbl = contains( tables, PASS_TBL_NAME );

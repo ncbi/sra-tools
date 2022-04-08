@@ -1697,12 +1697,15 @@ rc_t execute_db_join( const execute_db_join_args_t * args ) {
     if ( rc == 0 ) {
         uint64_t seq_row_count = 0;
         bool name_column_present, cmp_read_column_present;
+        const char * seq_tbl_name = args -> insp_output -> seq . tbl_name;
 
-        rc = cmn_check_db_column( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                  "SEQUENCE", "NAME", &name_column_present ); /* cmn_iter.c */
+        rc = cmn_check_db_column( args -> dir, args -> vdb_mgr, args -> accession_short,
+                                  args -> accession_path, seq_tbl_name,
+                                  "NAME", &name_column_present ); /* cmn_iter.c */
         if ( 0 == rc ) {
-            rc = cmn_check_db_column( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                      "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
+            rc = cmn_check_db_column( args -> dir, args -> vdb_mgr, args -> accession_short,
+                                      args -> accession_path, seq_tbl_name,
+                                      "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
         }
 
         rc = extract_seq_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
@@ -2175,9 +2178,10 @@ rc_t execute_unsorted_fasta_db_join( const execute_unsorted_fasta_db_join_args_t
         uint64_t seq_row_count = 0;
         uint64_t align_row_count = 0;
         bool cmp_read_column_present;
+        const char * seq_tbl_name = args -> insp_output -> seq . tbl_name;
 
         rc = cmn_check_db_column( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,
-                                  "SEQUENCE", "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
+                                  seq_tbl_name, "CMP_READ", &cmp_read_column_present ); /* cmn_iter.c */
 
         if ( 0 == rc && !( args -> only_aligned ) ) {
             rc = extract_seq_row_count( args -> dir, args -> vdb_mgr, args -> accession_short, args -> accession_path,

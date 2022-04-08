@@ -24,14 +24,14 @@
 *
 */
 
-#include "general-writer.hpp"
+#include <general-writer/general-writer.hpp>
 
-#include <ngs/ncbi/NGS.hpp>
-#include <ngs/ReadCollection.hpp>
-#include <ngs/Reference.hpp>
-#include <ngs/Alignment.hpp>
-#include <ngs/Pileup.hpp>
-#include <ngs/PileupEvent.hpp>
+#include <ncbi/NGS.hpp>
+#include <ngs-sdk/ngs/ReadCollection.hpp>
+#include <ngs-sdk/ngs/Reference.hpp>
+#include <ngs-sdk/ngs/Alignment.hpp>
+#include <ngs-sdk/ngs/Pileup.hpp>
+#include <ngs-sdk/ngs/PileupEvent.hpp>
 
 #include <kapp/main.h>
 #include <klib/printf.h>

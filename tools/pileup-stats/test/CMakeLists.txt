@@ -1,6 +1,6 @@
 add_test ( PileupStats-Version
     sh -c "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pileup-stats -V |
-        grep --quiet `head -n 1 ${CMAKE_SOURCE_DIR}/libs/tk-version/toolkit.vers`"
+        grep --quiet `head -n 1 ${CMAKE_SOURCE_DIR}/shared/toolkit.vers`"
     )
 add_test ( PileupStats-Help
     sh -c "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/pileup-stats -h | grep --quiet Usage"

@@ -630,14 +630,15 @@ rc_t populate_tool_ctx( tool_ctx_t * tool_ctx ) {
 
     /* create seq/qual deflines ( if they are not given at the commandline ) */
     if ( 0 == rc ) {
-        bool use_name = tool_ctx -> insp_output . seq . has_name_column;
+        bool has_name = tool_ctx -> insp_output . seq . has_name_column;
+        bool use_name = true;
         bool use_read_id = false;
 
         if ( NULL == tool_ctx -> seq_defline ) {
-            tool_ctx -> seq_defline  = dflt_seq_defline( use_name, use_read_id, fasta );
+            tool_ctx -> seq_defline  = dflt_seq_defline( has_name, use_name, use_read_id, fasta );
         }
         if ( NULL == tool_ctx -> qual_defline && !fasta ) {
-            tool_ctx -> qual_defline = dflt_qual_defline( use_name, use_read_id );
+            tool_ctx -> qual_defline = dflt_qual_defline( has_name, use_name, use_read_id );
         }
     }
 

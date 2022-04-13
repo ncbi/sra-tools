@@ -1,5 +1,3 @@
-include_directories ( ${CMAKE_SOURCE_DIR}/libs/inc/general-writer )
-
 # libgeneral-writer
 add_library ( general-writer
                 general-writer.cpp

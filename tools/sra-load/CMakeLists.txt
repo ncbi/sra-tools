@@ -24,8 +24,6 @@
 
 add_compile_definitions( __mod__="tools/sra-load" )
 
-include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
-
 if( LibXml2_FOUND )
 
 	set( LOADER_SRC

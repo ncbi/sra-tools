@@ -1,6 +1,5 @@
 if ( NOT WIN32)
 
-    include_directories ( ${CMAKE_SOURCE_DIR}/libs/inc )
     #TODO: simplify
     set ( CMD ${CMAKE_CURRENT_SOURCE_DIR}/runtestcase.sh
                 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/general-loader

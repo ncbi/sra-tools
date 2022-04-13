@@ -24,7 +24,7 @@
  *
  */
 
-#include "general-writer.hpp"
+#include <general-writer/general-writer.hpp>
 
 #include <iostream>
 #include <string>

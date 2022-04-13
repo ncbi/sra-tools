@@ -24,7 +24,7 @@
 *
 */
 
-#include "utf8-like-int-codec.h"
+#include <general-writer/utf8-like-int-codec.h>
 
 #define NOT_ENCODED_SEQUENCE 0xFFu
 
@@ -95,7 +95,7 @@ int decode_uint16 ( uint8_t const* buf_start, uint8_t const* buf_xend, uint16_t*
     /*
             neg_ch                |  buf_start[0]
         invalid: 01nnnnnn >= 0x40 | 10xxxxxx < 0xC0
-        valid:   
+        valid:
         2-byte:  001nnnnn >= 0x20 | 110xxxxx < 0xE0
         3-byte:  0001nnnn >= 0x10 | 1110xxxx < 0xF0
         4-byte:  00001nnn >= 0x08 | 11110xxx < 0xF8
@@ -225,7 +225,7 @@ int decode_uint32 ( uint8_t const* buf_start, uint8_t const* buf_xend, uint32_t*
     /*
             neg_ch                |  buf_start[0]
         invalid: 01nnnnnn >= 0x40 | 10xxxxxx < 0xC0
-        valid:   
+        valid:
         2-byte:  001nnnnn >= 0x20 | 110xxxxx < 0xE0
         3-byte:  0001nnnn >= 0x10 | 1110xxxx < 0xF0
         4-byte:  00001nnn >= 0x08 | 11110xxx < 0xF8
@@ -459,7 +459,7 @@ int decode_uint64 ( uint8_t const* buf_start, uint8_t const* buf_xend, uint64_t*
     /*
             neg_ch                |  buf_start[0]
         invalid: 01nnnnnn >= 0x40 | 10xxxxxx < 0xC0
-        valid:   
+        valid:
         2-byte:  001nnnnn >= 0x20 | 110xxxxx < 0xE0
         3-byte:  0001nnnn >= 0x10 | 1110xxxx < 0xF0
         4-byte:  00001nnn >= 0x08 | 11110xxx < 0xF8

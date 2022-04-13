@@ -22,14 +22,12 @@
 #
 # ===========================================================================
 
-set( CMAKE_POSITION_INDEPENDENT_CODE True )
-add_compile_definitions( _LIBRARY )
+if( LibXml2_FOUND )
 
-add_subdirectory(kxml)
-add_subdirectory(loader)
-add_subdirectory(vdb-sqlite)
-add_subdirectory(ngs-vdb)
+    include_directories( ${LIBXML2_INCLUDE_DIR} )
 
-if( NOT WIN32 )
-	add_subdirectory(general-writer)
+    set( SRC_XML xml.c xtoc-parsexml.c xtoc.c )
+    GenerateStaticLibs( kxml "${SRC_XML}" )
+    target_compile_definitions( kxml PRIVATE __mod__="libs/kxml")
+
 endif()

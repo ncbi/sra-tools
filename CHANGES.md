@@ -2,7 +2,7 @@
 
 
 ## SRA Toolkit 3.0.0
-**February 7, 2022**
+**February 10, 2022**
 
   **blast**: BLAST tools are now distributed by Blast team  
   **build**: clarified the output of the configure script  
@@ -22,12 +22,13 @@
   **latf-load**: will no longer accept duplicate read names  
   **ngs**: clients will not download dynamic libraries anymore  
   **prefetch**: fixed checking of dependencies for absolute path  
-  **prefetch, vdb**: fixed to downloads reference sequences into "Accession-Directory" when zero-quality is preferred  
+  **prefetch, vdb**: fixed downloading reference sequences into "Accession-Directory" when zero-quality is preferred  
   **remote-fuser**: was retired  
   **sratools**: seq-defline and qual-defline options now work  
   **sratools**: tries harder to find the executable path on macOS  
   **vdb-decrypt**: remove "_dbGaP" suffix when decrypting protected run  
   **vdb-dump**: exits with non-zero return code when reference sequences are not found  
+  **kfs, sra-tools**: fixed a bug in handling of long URLs on Windows  
 
 
 ## SRA Toolkit 2.11.3

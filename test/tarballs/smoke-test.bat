@@ -100,41 +100,7 @@ if "%FAILED%" NEQ "" (
     exit /B 1
 )
 
-echo Toolkit tarball smoke test successful
-
-echo.
-
-set JAR=..\GenomeAnalysisTK.jar
-
-echo Smoke testing %JAR% ...
-
-set PWD=%CD%
-
-set LOG=-Dvdb.log=FINEST
-set LOG=
-
-set ARGS=-Dvdb.System.loadLibrary=1 -Duser.home=%PWD%
-
-set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
-echo %cmd%
-%cmd% 2> NUL
-if '%errorlevel%'=='1' goto skip
-set FAILED=%FAILED% GenomeAnalysisTK.jar with disabled smart dll search;
-:skip
-
-set ARGS=-Duser.home=%PWD%
-
-set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
-echo %cmd%
-%cmd% > NUL 2>&1
-if errorlevel 1 ( call set FAILED=%%FAILED%% GenomeAnalysisTK.jar; )
-
-if "%FAILED%" NEQ "" (
-    echo "Failed: %FAILED%"
-    exit /B 1
-)
-
-echo %JAR% smoke test successful
+echo Toolkit tarball smoke test successfull
 
 exit /B 0
 

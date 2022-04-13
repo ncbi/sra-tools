@@ -30,7 +30,6 @@
 
 #include <kapp/log-xml.h> /* XMLLogger */
 #include <kapp/main.h>
-#include <kapp/progressbar.h> /* KLoadProgressbar */
 
 #include <kdb/database.h> /* KDatabase */
 #include <kdb/kdb-priv.h>
@@ -70,6 +69,8 @@
 #include <vfs/resolver.h> /* VResolver */
 
 #include <os-native.h> /* strtok_r on Windows */
+
+#include <loader/progressbar.h> /* KLoadProgressbar */
 
 #include <assert.h>
 #include <ctype.h> /* isprint */

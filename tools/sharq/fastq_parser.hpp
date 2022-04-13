@@ -582,10 +582,11 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
                 try {
                     score = stoi(m_tmp_str);
                 } catch (invalid_argument&) {
-                    throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), m_tmp_str);
+                    throw fastq_error(120, "Read {}: invalid quality score value '{}'", read.Spot(), m_tmp_str);
                 }
                 if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
-                    throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
+                    throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
+                            read.Spot(), score, ScoreValidator::min_score(), ScoreValidator::max_score());
                 read.mQualScores.push_back(score);
                 m_tmp_str.clear();
             }
@@ -597,10 +598,11 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
         try {
             score = stoi(m_tmp_str);
         } catch (invalid_argument&) {
-            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), m_tmp_str);
+            throw fastq_error(120, "Read {}: invalid quality score value '{}'", read.Spot(), m_tmp_str);
         }
         if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
-            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
+            throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
+                    read.Spot(), score, ScoreValidator::min_score(), ScoreValidator::max_score());
         read.mQualScores.push_back(score);
     }
     int qual_size = read.mQualScores.size();
@@ -643,7 +645,8 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
     for (auto c : read.mQuality) {
         int score = int(c);
         if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
-            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
+            throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
+                    read.Spot(), score, ScoreValidator::min_score(), ScoreValidator::max_score());
     }
     if (qual_size < sz) {
         if (qual_size == 0)

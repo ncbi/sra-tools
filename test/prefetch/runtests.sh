@@ -253,7 +253,7 @@ echo "Downloading --cart <kart> ordered by default (size)"
 cd tmp && printf "ding 'SRR1219879'\nding 'SRR1219880'\nding 'SRR1257493'"|\
 NCBI_SETTINGS=/ VDB_CONFIG=. \
 perl ../check-prefetch-out.pl 0 0 \
- "${bin_dir}/prefetch -+VFS --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn" \
+ "${bin_dir}/prefetch --ngc ../data/prj_phs710EA_test.ngc --cart ../data/3-dbGaP-0.krt -Cn" \
                                                     || exit 892
 cd ${work_dir}                                      || exit 893
 rm     tmp/SRR1219879/SRR1219879_dbGaP-0.sra*       || exit 894
@@ -499,10 +499,11 @@ echo Testing quality
 mkdir -p tmp                                                         || exit 1134
 echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k   || exit 1135
 #	@ cd tmp && NCBI_SETTINGS=k PATH='${bin_dir}:$(BINDIR):${PATH}' \
-				perl ../test-quality.pl
-cd ${work_dir}                                                       || exit 1138
-rm -r tmp                                                            || exit 1139
+				perl test-quality.pl
 
 echo ad_not_cwd:
 echo Testing prefetch into output directory and using results
-PATH="${bin_dir}:${PATH}" perl test-ad-not-cwd.pl                    || exit 1143
+cd tmp && NCBI_SETTINGS=k PATH="${bin_dir}:${PATH}" perl ../test-ad-not-cwd.pl || exit 1143
+
+cd ${work_dir}                                                       || exit 1138
+rm -r tmp                                                            || exit 1139

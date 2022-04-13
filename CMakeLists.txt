@@ -28,12 +28,18 @@ if (WIN32)
 	set (CMAKE_SYSTEM_VERSION 10.0 CACHE STRING INTERNAL FORCE)
 endif()
 
+# set( CMAKE_DISABLE_SOURCE_CHANGES ON ) # Cannot use with bison
+# set( CMAKE_DISABLE_IN_SOURCE_BUILD ON )
+
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 
 set( CMAKE_VERBOSE_MAKEFILE ON )
 
 # best to use at the top
 project ( sra-tools )
+if( PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR )
+    message(FATAL_ERROR "In-source builds are not allowed")
+endif()
 
 # this has to follow the project() command!
 set(CMAKE_MODULE_PATH

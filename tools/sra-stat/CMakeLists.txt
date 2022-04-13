@@ -30,5 +30,6 @@ add_executable( sra-stat
 	sra
 	sra-stat
 )
-target_link_libraries( sra-stat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+target_include_directories( sra-stat PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+target_link_libraries( sra-stat loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 MakeLinksExe( sra-stat false )

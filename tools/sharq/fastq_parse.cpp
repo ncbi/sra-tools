@@ -560,7 +560,7 @@ void CFastqParseApp::xCheckErrorLimits(fastq_error& e )
         throw e;
     spdlog::warn(e.Message());
     if (++mErrorCount >= mMaxErrCount)
-        throw fastq_error("Exceeded maximum number of errors (code:{})", e.error_code());
+        throw fastq_error("Exceeded maximum number of errors {} (code:{})", mMaxErrCount, e.error_code());
 }
 
 //  ----------------------------------------------------------------------------

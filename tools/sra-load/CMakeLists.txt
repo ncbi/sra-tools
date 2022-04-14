@@ -39,18 +39,18 @@ if( LibXml2_FOUND )
 
    if (SINGLE_CONFIG )
 	set( LOADER_LIB
+        loader
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
-		${NCBI_VDB_LIBDIR}/libkxfs.${STLX}
-		${NCBI_VDB_LIBDIR}/libkxml.${STLX}
+		kxml
 		${LIBXML2_LIBRARIES}
 	)
 
    else()
 	set( LOADER_LIB
+        loader
         ${COMMON_LINK_LIBRARIES}
 		${COMMON_LIBS_WRITE}
-		kxfs
 		kxml
 		xml2
 	)

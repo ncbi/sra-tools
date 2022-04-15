@@ -1220,9 +1220,9 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             }
             if (params.space_delimited) {
                 f["quality_encoding"] = 0;
-            } else if (params.min_score >= 64 && params.max_score <= 126) {
+            } else if (params.min_score >= 64 && params.max_score > 78) {
                 f["quality_encoding"] = 64;
-            } else if (params.min_score >= 33 && params.max_score <= 126) {
+            } else if (params.min_score >= 33 /*&& params.max_score <= 78*/) {
                 f["quality_encoding"] = 33;
             } else {
                 fastq_error e("Invaid quality encoding (min: {}, max: {}), {}:{}", params.min_score, params.max_score, fn, read.LineNumber());

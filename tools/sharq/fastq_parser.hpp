@@ -1104,7 +1104,7 @@ void check_hash_file(const string& hash_file)
  * @param[in] num_reads_to_check
  */
 template<typename ErrorChecker>
-void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorChecker&& error_checker, int num_reads_to_check = 250000)
+void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorChecker&& error_checker, int p_num_reads_to_check = 250000)
 {
     assert(!input_batches.empty());
     // Run first num_reads_to_check to check for consistency
@@ -1147,6 +1147,8 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             string spot_name;
             set<string> read_names;
             bool has_reads = false;
+            int num_reads_to_check = p_num_reads_to_check;
+
             while (has_reads == false && num_reads_to_check > 0) {
                 try {
                     has_reads = reader.get_next_spot<>(spot_name, reads);

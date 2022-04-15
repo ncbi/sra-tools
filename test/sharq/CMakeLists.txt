@@ -221,7 +221,8 @@ if( SINGLE_CONFIG )
         SharqTest(010.errors.invalid_seq_fail 1 "--max-err-count 3 ${IN}010.errors.invalid_seq.fq")
 
         SharqTest(011.nanopore.3 0 "--max-err-count 0 ${IN}011.nanopore.3.fq")
-        # VDB-4745 sharqTest(012.qualities 0 "--max-err-count 0 -q 33 ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq") # fails if "-q 33" removed
+        SharqTest(012.qualities 0 "--max-err-count 0 ${IN}012.test_I1_001.fastq ${IN}012.test_R1_001.fastq ${IN}012.test_R2_001.fastq ${IN}012.test2_I1_001.fastq ${IN}012.test2_R1_001.fastq ${IN}012.test2_R2_001.fastq")
+        SharqTest(013.no-reads 0 "--max-err-count 0 ${IN}013.t_I1.fastq ${IN}013.t_I2.fastq ${IN}013.t_R1.fastq ${IN}013.t_R2.fastq")
 
     endif()
 

@@ -160,9 +160,12 @@ print "$CMD\n" if $VERBOSE;
 `rm index.html`    ; die if $?;
 chdir $CWD        or die;
 
+`echo '/libs/cloud/report_instance_identity = "false"' > tmp.mkfg`;
+die if $?;
+
 $SRAC = 'SRR053325';
 
-$SRR=`NCBI_SETTINGS=/ $BINDIR/srapath $SRAC`;
+$SRR=`NCBI_SETTINGS=tmp.mkfg $BINDIR/srapath $SRAC`;
 die 'Is there BINDIR?' if $?;
 chomp $SRR;
 
@@ -170,6 +173,7 @@ print "prefetch $SRR when there is no kfg\n";
 `rm -fr $SRAC`; die if $?;
 $CMD = "NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=$CWD/tmp " .
        "$DIRTOTEST/prefetch $SRR";
+print "$CMD\n" if $VERBOSE;
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`        ; die if $?;
 `rm    $SRAC/SRR053325.sra`; die if $?;

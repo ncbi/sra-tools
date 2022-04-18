@@ -40,7 +40,7 @@
         <get src="${version.url}" dest="${workdir}\version" />
         <loadfile property="version" srcFile="${workdir}\version"/>
 
-        <get src="${sdk_url}/${jar}" dest="${workdir}\${tk_targetname}" />
+        <!-- get src="${sdk_url}/${jar}" dest="${workdir}\${tk_targetname}" / -->
 
         <echo message="version=${version}"/>
         <echo message="smoke-test.bat ${workdir}\${tk_targetname}\bin ${antfile.dir}\grep.pl ${workdir}\${ngs_targetname} ${version}"/>

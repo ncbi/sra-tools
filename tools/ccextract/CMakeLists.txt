@@ -30,15 +30,13 @@ if( LibXml2_FOUND )
 	if( SINGLE_CONFIG )
 		target_link_libraries( ccextract
 		        ${COMMON_LINK_LIBRARIES}
-		        ${NCBI_VDB_LIBDIR}/libkxfs.${STLX}
-		        ${NCBI_VDB_LIBDIR}/libkxml.${STLX}
+		        kxml
 		        ${COMMON_LIBS_READ}
 		        ${LIBXML2_LIBRARIES}
 		    )
 	else()
 		target_link_libraries( ccextract
 		        ${COMMON_LINK_LIBRARIES}
-		        kxfs
 		        kxml
 		        ${COMMON_LIBS_READ}
 		        xml2

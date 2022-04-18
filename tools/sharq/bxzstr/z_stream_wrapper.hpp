@@ -61,8 +61,7 @@ class z_stream_wrapper : public z_stream, public stream_wrapper {
     z_stream_wrapper(const bool _is_input = true,
 		     const int _level = Z_DEFAULT_COMPRESSION, const int = 0)
 	    : is_input(_is_input) {
-	z_stream::next_in = new uint8_t();
-	z_stream::next_out = new uint8_t();
+	next_out_first_allocated = z_stream::next_out = new uint8_t();
 	this->zalloc = Z_NULL;
 	this->zfree = Z_NULL;
 	this->opaque = Z_NULL;
@@ -71,6 +70,7 @@ class z_stream_wrapper : public z_stream, public stream_wrapper {
 	    z_stream::next_in = Z_NULL;
 	    ret = inflateInit2(this, 15+32);
 	} else {
+		z_stream::next_in = new uint8_t();
 	    ret = deflateInit2(this, _level, Z_DEFLATED, 15+16, 8, Z_DEFAULT_STRATEGY);
 	}
 	if (ret != Z_OK) throw zException(this, ret);
@@ -81,6 +81,7 @@ class z_stream_wrapper : public z_stream, public stream_wrapper {
 	} else {
 	    deflateEnd(this);
 	}
+		delete next_out_first_allocated;
     }
 
     int decompress(const int _flags = Z_NO_FLUSH) override {
@@ -110,6 +111,7 @@ class z_stream_wrapper : public z_stream, public stream_wrapper {
   private:
     bool is_input;
     int ret;
+    uint8_t* next_out_first_allocated;
 }; // class bz_stream_wrapper
 } // namespace detail
 } // namespace bxz

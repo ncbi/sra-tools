@@ -2024,16 +2024,16 @@ extern "C"
           -r NC_011752.1 -p 5000 --query CA -l 0
 
        find insertion:
-          ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
+          ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 SRR793062.pileup SRR795251.pileup
           NEW: -r NC_000013.10 -p 100635036 --query ACC -l 0 SRR793062 SRR795251
 
-       windows example: -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
+       windows example: -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR618508.pileup
 
        -r NC_000002.11 -p 73613071 --query "C" -l 1
        -vv -t 16 -r NC_000007.13 -p 117292900 --query "-" -l 4
 
-       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
-       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR867061.pileup ..\..\..\tools\ref-variation\SRR867131.pileup
+       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR867061.pileup SRR867131.pileup
+       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR867061.pileup SRR867131.pileup
 
        -vvv -c --count-strand counteraligned -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR867061 SRR867131
 

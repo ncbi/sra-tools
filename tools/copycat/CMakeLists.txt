@@ -29,7 +29,7 @@ if( ${OS} STREQUAL "linux" )
 
     find_library( HAVE_MAGIC libmagic.a )
 
-    if ( NOT ${HAVE_MAGIC} STREQUAL "HAVE_MAGIC-NOTFOUND" )
+    if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
 
         set( KFF_SRC
             kff/fileformat.c

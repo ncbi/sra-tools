@@ -31,7 +31,7 @@ Stand-alone BLAST searches against SRA runs in their native format.
 
 blastn_vdb and tblastn_vdb binaries are now distributed and supported
 by Blast team.
-A new release is being prepared.
+BLAST+ 2.13.0 was released on March 11, 2022.
 
 See https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/
 E-mail blast-help@ncbi.nlm.nih.gov with questions or comments.

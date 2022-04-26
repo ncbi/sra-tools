@@ -342,7 +342,7 @@ diff-exclude TEMPLATE_LEN
 ### Environment definition section.
 ### Syntax: NAME=VALUE
 ### Please, do not allow spaces between parameters
-# DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
+# DELITE_BIN_DIR=/place/with/precompiled/files
 # USE_OWN_TEMPDIR=1
 ### That is for docker, and please do not modify it by yourself
 # DELITE_GUID=

@@ -14,7 +14,7 @@ function ref_unsorted_fasta {
         #run fastq-dump as reference
         run "$REFTOOL $1 -B --split-spot --skip-technical --fasta 0"
 		SORTED="${2}.fasta.sorted"
-        ./fasta_2_line.py "${2}.fasta" | sort > "$SORTED"
+        ./fasta_2_line.py "${2}.fasta" | LC_COLLATE=POSIX sort > "$SORTED"
         rm -f "${2}.fasta"
         MD5_REF_VALUE=`md5_of_file "$SORTED"`
 		set_md5 "$KEY" "$MD5_REF_VALUE"
@@ -36,7 +36,7 @@ function test_unsorted_fasta {
     run "$TOOL $1 $OPTIONS -o $FASTA_OUT 2>/dev/null"
     if [ -f "$FASTA_OUT" ]; then
 		SORTED="${FASTA_OUT}.sorted"
-    	./fasta_2_line.py "$FASTA_OUT" | sort > "$SORTED"
+    	./fasta_2_line.py "$FASTA_OUT" | LC_COLLATE=POSIX sort > "$SORTED"
    		rm "$FASTA_OUT"
 		MD5_VALUE=`md5_of_file "$SORTED"`
 		compare_md5 "$MD5_REF_VALUE" "$MD5_VALUE" "UNSORTED-FASTA.$SACC"
@@ -66,7 +66,7 @@ function test_unsorted_fasta_parts {
     fi
     rm -f "${SACC}.only_aligned" "${SACC}.only_unaligned"
 	SORTED="${SACC}.faster.fasta.sorted"
-    ./fasta_2_line.py "$COMBINED" | sort > "$SORTED"
+    ./fasta_2_line.py "$COMBINED" | LC_COLLATE=POSIX sort > "$SORTED"
     rm "$COMBINED"
 	MD5_VALUE=`md5_of_file "$SORTED"`
 	compare_md5 "$MD5_REF_VALUE" "$MD5_VALUE" "UNSORTED-FASTA-PARTS.$SACC"

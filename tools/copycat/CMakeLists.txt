@@ -27,7 +27,12 @@ add_compile_definitions( __mod__="tools/copycat" )
 # External
 if( ${OS} STREQUAL "linux" )
 
+    # look for static libmagic
     find_library( HAVE_MAGIC libmagic.a )
+    if ( HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
+        # fall back to dynamic linking
+        find_library( HAVE_MAGIC magic )
+    endif()
 
     if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
 

@@ -627,7 +627,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 &self->reccount
             );
 
-        while ( Quitting() == 0 /*&& rr->type != rr_fileDone*/ )
+        while ( Quitting() == 0  && rr->type != rr_fileDone )
         {
             timeout_t tm;
             TimeoutInit(&tm, 10000);

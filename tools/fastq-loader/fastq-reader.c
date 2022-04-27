@@ -567,12 +567,6 @@ rc_t FastqReaderFileGetRecord ( const FastqReaderFile *f, const Record** result 
         rc = KLoaderFile_Read( self->reader, self->pb.length, 0, (const void**)& self->recordStart, & length);
         if (rc != 0)
             LogErr(klogErr, rc, "FastqReaderFileGetRecord failed");
-        if ( length == 0 )
-        {   // processing cancelled
-            RecordRelease((const Record*)self->pb.record);
-            *result = 0;
-            return 0;
-        }
         self->curPos -= self->pb.length;
     }
 
@@ -617,10 +611,6 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
         LogErr(klogErr, rc, "FASTQ_input failed");
         return 0;
     }
-    // if( length == 0 )
-    // {   // processing cancelled
-    //     return 0; /* signal EOF to flex */
-    // }
 
     length -= self->curPos;
     if ( length == 0 ) /* nothing new read = end of file */

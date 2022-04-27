@@ -64,4 +64,5 @@ if( NOT WIN32 ) # sys/mman.h
 	target_include_directories( latf-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
 	target_link_libraries( latf-load loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 	MakeLinksExe( latf-load false )
+    add_dependencies( latf-load loader fastqloader )
 endif()

@@ -90,17 +90,18 @@ static join_printer_t * make_join_printer_from_filename( KDirectory * dir, const
     return res;
 }
 
-static join_printer_t * make_join_printer( file_printer_args_t * file_args, uint32_t read_id ) {
+static join_printer_t * make_join_printer( file_printer_args_t * file_args, uint32_t dst_id ) {
     join_printer_t * res = NULL;
     char filename[ 4096 ];
     size_t num_writ;
-    rc_t rc = string_printf( filename, sizeof filename, &num_writ, "%s.%u", file_args -> output_base, read_id );
+    rc_t rc = string_printf( filename, sizeof filename, &num_writ,
+                             "%s.%u", file_args -> output_base, dst_id );
     if ( 0 != rc ) {
         ErrMsg( "make_join_printer().string_printf() -> %R", rc );
     } else {
         res = make_join_printer_from_filename( file_args -> dir, filename, file_args -> buffer_size );
         if ( NULL != res ) {
-            rc = register_temp_file( file_args -> registry, read_id, filename );
+            rc = register_temp_file( file_args -> registry, dst_id, filename );
             if ( 0 != rc ) {
                 destroy_join_printer( res, NULL );
                 res = NULL;
@@ -311,12 +312,12 @@ struct flex_printer_t * make_flex_printer_2( struct multi_writer_t * multi_write
     return self;
 }
     
-static join_printer_t * get_or_make_join_printer( Vector * v, uint32_t read_id,
+static join_printer_t * get_or_make_join_printer( Vector * v, uint32_t dst_id,
                                                   file_printer_args_t * file_args ) {
-    join_printer_t * res = VectorGet ( v, read_id );
+    join_printer_t * res = VectorGet ( v, dst_id );
     if ( NULL == res ) {
-        res = make_join_printer( file_args, read_id );
-        if ( NULL != res ) { VectorSet ( v, read_id, res ); }
+        res = make_join_printer( file_args, dst_id );
+        if ( NULL != res ) { VectorSet ( v, dst_id, res ); }
     }
     return res;
 }

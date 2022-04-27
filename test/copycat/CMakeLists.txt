@@ -24,20 +24,32 @@
 
 add_compile_definitions( __mod__="test/copycat" )
 
-if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/magic )
+if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/copycat )
 
-    add_test( NAME Test_Copycat_Help
-        COMMAND ${DIRTOTEST}/copycat -h
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
 
-    add_test( NAME Test_Copycat_Bad_Name
-        COMMAND ./test-bad-name.sh ${DIRTOTEST}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set( SRC_DIR ${CMAKE_SOURCE_DIR}/tools/copycat)
+        set( KFF_SRC
+                ${SRC_DIR}/kff/ffext.c
+                ${SRC_DIR}/kff/ffkey.c
+                ${SRC_DIR}/kff/fileformat.c
+                ${SRC_DIR}/kff/ffmagic.c
+        )
+        AddExecutableTest( Test_KFF "kfftest.cpp;${KFF_SRC}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" )
+        target_include_directories(Test_KFF PRIVATE ${SRC_DIR} )
 
-    add_test( NAME Test_Copycat_IdenticalCopy
-        COMMAND ./test-copy.sh ${DIRTOTEST}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        add_test( NAME Test_Copycat_Help
+            COMMAND ${DIRTOTEST}/copycat -h
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+        add_test( NAME Test_Copycat_Bad_Name
+            COMMAND ./test-bad-name.sh ${DIRTOTEST}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        add_test( NAME Test_Copycat_IdenticalCopy
+            COMMAND ./test-copy.sh ${DIRTOTEST}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 else()
 #TODO: make run on Windows
 endif()

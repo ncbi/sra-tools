@@ -38,11 +38,11 @@ if( NOT WIN32 )
 
     if( HDF5_FOUND )
 
-        message( HDF5_INCLUDE_DIRS=${HDF5_C_INCLUDE_DIRS} )
-        message( HDF5_LIBRARIES=${HDF5_LIBRARIES} )
-
         add_compile_definitions( __mod__="tools/pacbio-load" )
         add_executable( pacbio-load
+            hdf5/hdf5arrayfile.c
+            hdf5/hdf5dir.c
+            hdf5/hdf5file.c
             pl-context
             pl-tools
             pl-zmw
@@ -55,13 +55,9 @@ if( NOT WIN32 )
             pl-progress
             pacbio-load
         )
-        target_include_directories( pacbio-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc )
-        if ( SINGLE_CONFIG )
-           target_link_libraries( pacbio-load ${NCBI_VDB_LIBDIR}/libkdf5.${STLX} )
-        else()
-           target_link_libraries( pacbio-load kdf5 )
-        endif()
-        target_link_libraries( pacbio-load loader ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+
+        target_include_directories( pacbio-load PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${HDF5_C_INCLUDE_DIRS})
+        target_link_libraries( pacbio-load loader ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} ${HDF5_LIBRARIES} )
 
         MakeLinksExe( pacbio-load false )
     endif()

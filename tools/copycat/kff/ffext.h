@@ -24,39 +24,25 @@
 *
 */
 
-#ifndef _h_dflt_defline_
-#define _h_dflt_defline_
+#ifndef _h_kfs_fileformat_ext_
+#define _h_kfs_fileformat_ext_
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stddef.h>
+#ifndef _h_kfs_extern_
+#include <kfs/extern.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-const char * dflt_seq_defline( bool has_name, bool use_name, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( bool has_name, bool use_name, bool use_read_id );
+struct KFileFormat;
 
-/* ------------------------------------------------------------------------------------------- */
-
-bool spot_group_requested( const char * seq_defline, const char * qual_defline );
-
-/* ------------------------------------------------------------------------------------------- */
-
-typedef struct defline_estimator_input_t
-{
-    const char * defline;
-    const char * acc;
-    uint32_t avg_name_len;
-    uint32_t avg_seq_len;
-    size_t row_count;
-} defline_estimator_input_t;
-
-size_t estimate_defline_length( const defline_estimator_input_t * input );
+KFS_EXTERN rc_t CC KExtFileFormatMake (struct KFileFormat ** pft,
+                                       const char* ext, size_t extlen,
+                                       const char * typeAndClass, size_t tclen);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* _h_kfs_fileformat_ext_ */

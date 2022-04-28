@@ -24,39 +24,56 @@
 *
 */
 
-#ifndef _h_dflt_defline_
-#define _h_dflt_defline_
-
-#include <stdbool.h>
-#include <stdint.h>
-#include <stddef.h>
+#ifndef _h_hdf5arrayfile_priv_
+#define _h_hdf5arrayfile_priv_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-const char * dflt_seq_defline( bool has_name, bool use_name, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( bool has_name, bool use_name, bool use_read_id );
+#ifndef _h_kfs_extern_
+#include <kfs/extern.h>
+#endif
 
-/* ------------------------------------------------------------------------------------------- */
+#ifndef _h_kfs_impl_
+#include <kfs/impl.h>
+#endif
 
-bool spot_group_requested( const char * seq_defline, const char * qual_defline );
+#ifndef _HDF5_H
+#include <hdf5.h>
+#endif
 
-/* ------------------------------------------------------------------------------------------- */
-
-typedef struct defline_estimator_input_t
+/* object structure */
+struct HDF5ArrayFile
 {
-    const char * defline;
-    const char * acc;
-    uint32_t avg_name_len;
-    uint32_t avg_seq_len;
-    size_t row_count;
-} defline_estimator_input_t;
+    KArrayFile dad;
 
-size_t estimate_defline_length( const defline_estimator_input_t * input );
+    KFile * parent;
+    /* the handle of the dataset, equivalent of the file-handle
+       opened in  */
+    hid_t dataset_handle;
+
+    /* the handle of the datatype of the elemens */
+    hid_t datatype_handle;
+    /* the enum of the datatype-class */
+    H5T_class_t datatype_class;
+    /* the actual size in bytes of the datatype */
+    size_t element_size;
+
+    /* the handle of the table-layout of the data in this dataset */
+    hid_t dataspace_handle;
+    uint8_t dimensionality;
+    hsize_t * extents;
+    uint64_t total_elements;
+    uint64_t total_bytes;
+
+    /* the handle of the buffer-layout of the dest. buffer */
+    hid_t dst_dataspace_handle;
+};
+
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* _h_hdf5arrayfile_priv_ */

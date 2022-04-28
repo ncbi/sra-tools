@@ -24,39 +24,18 @@
 *
 */
 
-#ifndef _h_dflt_defline_
-#define _h_dflt_defline_
+#ifndef _h_hdf5_extern_
+#define _h_hdf5_extern_
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <stddef.h>
-
-#ifdef __cplusplus
-extern "C" {
+#if ! defined EXPORT_LATCH && defined _LIBRARY
+#define HDF5_EXTERN LIB_EXPORT
+#define EXPORT_LATCH 1
+#else
+#define HDF5_EXTERN LIB_IMPORT
 #endif
 
-const char * dflt_seq_defline( bool has_name, bool use_name, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( bool has_name, bool use_name, bool use_read_id );
-
-/* ------------------------------------------------------------------------------------------- */
-
-bool spot_group_requested( const char * seq_defline, const char * qual_defline );
-
-/* ------------------------------------------------------------------------------------------- */
-
-typedef struct defline_estimator_input_t
-{
-    const char * defline;
-    const char * acc;
-    uint32_t avg_name_len;
-    uint32_t avg_seq_len;
-    size_t row_count;
-} defline_estimator_input_t;
-
-size_t estimate_defline_length( const defline_estimator_input_t * input );
-
-#ifdef __cplusplus
-}
+#ifndef _h_klib_extern_
+#include <klib/extern.h>
 #endif
 
-#endif
+#endif /* _h_hdf5_extern_ */

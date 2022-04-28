@@ -622,10 +622,6 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
             self->lastEol = true;
             return 1;
         }
-        // else
-        // {
-        //     return 0; /* signal EOF to flex */
-        // }
     }
 
     if ( memchr( self->recordStart + self->curPos, 0, length ) != NULL )

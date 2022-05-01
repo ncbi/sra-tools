@@ -14,4 +14,7 @@ target_link_libraries ( gw-dumper
     general-writer
 	${COMMON_LIBS_READ}
 )
-add_subdirectory ( test )
+
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()

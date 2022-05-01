@@ -14,4 +14,6 @@ target_link_libraries ( pileup-stats
 
 MakeLinksExe ( pileup-stats false )
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()

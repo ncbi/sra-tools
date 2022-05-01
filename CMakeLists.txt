@@ -31,6 +31,8 @@ endif()
 # set( CMAKE_DISABLE_SOURCE_CHANGES ON ) # Cannot use with bison
 # set( CMAKE_DISABLE_IN_SOURCE_BUILD ON )
 
+option(TOOLS_ONLY "Generate tools targets only" ON)
+
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 
 set( CMAKE_VERBOSE_MAKEFILE ON )
@@ -57,7 +59,9 @@ add_subdirectory( ngs )
 add_subdirectory( libs )
 add_subdirectory( tools )
 
-add_subdirectory( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()
 
 set ( CPACK_PACKAGE_NAME sra-tools )
 set ( CPACK_PACKAGE_VERSION 0.1 )

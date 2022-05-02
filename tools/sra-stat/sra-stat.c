@@ -2399,9 +2399,14 @@ void srastatmeta_print(const MetaDataStats* meta_stats, srastat_parms *pb)
                         ss->BASE_COUNT, ss->BIO_BASE_COUNT));
                 }
             }
-            pb->total.spot_count += ss->spot_count;
+
+            pb->total.spot_count += ss->spot_count;      /* eTOTAL_SPOT_COUNT */
             pb->total.BASE_COUNT += ss->BASE_COUNT;
+
+            /* eTOTAL_BIO_BASE_COUNT */
             pb->total.BIO_BASE_COUNT += ss->BIO_BASE_COUNT;
+
+            /* eTOTAL_CMP_BASE_COUNT */
             pb->total.total_cmp_len += ss->CMP_BASE_COUNT;
         }
     }
@@ -2451,7 +2456,10 @@ void CC srastat_print( BSTNode* n, void* data )
     pb->total.spot_count_mates += ss->spot_count_mates;
     pb->total.BIO_BASE_COUNT += ss->bio_len;
     pb->total.bio_len_mates += ss->bio_len_mates;
+
+    /* eTOTAL_BASE_COUNT SRR1215779 */
     pb->total.BASE_COUNT += ss->total_len;
+
     pb->total.bad_spot_count += ss->bad_spot_count;
     pb->total.bad_bio_len += ss->bad_bio_len;
     pb->total.filtered_spot_count += ss->filtered_spot_count;
@@ -2726,7 +2734,22 @@ rc_t print_results(const Ctx* ctx)
     rc_t rc = 0;
     rc_t rc2 = 0;
 
-    bool mismatch = false;
+    uint64_t mismatch = 0;
+    enum {
+        eBASE_COUNT           =      1,
+        eBIO_BASE_COUNT       =      2,
+        eCMP_BASE_COUNT       =      4 ,
+        eNO_SPOT_GROUP        =      8,
+        eSG_BASE_COUNT        =   0x10,
+        eSG_BIO_BASE_COUNT    =   0x20,
+        eSG_CMP_BASE_COUNT    =   0x40,
+        eSG_SPOT_COUNT        =   0x80,
+        eSPOT_COUNT           =  0x100,
+        eTOTAL_BASE_COUNT     =  0x200,
+        eTOTAL_BIO_BASE_COUNT =  0x400,
+        eTOTAL_CMP_BASE_COUNT =  0x800,
+        eTOTAL_SPOT_COUNT     = 0x1000,
+    };
 
     /*
     mismatchCMP_BASE_COUNT is ignored.
@@ -2734,10 +2757,16 @@ rc_t print_results(const Ctx* ctx)
     that are DBs with a single SEQUENCE but no no references, e.g. SRR6336685.
     The currect schema used during load
     is recording CMP_BASE_COUNT == BIO_BASE_COUNT
-    even though the run does not have any referecne
-    and CMP_BASE_COUNT doesn't make any sense and should be equal to 0
+    even though the run does not have any reference
+    and CMP_BASE_COUNT doesn't make any sense and should be equal to 0.
     */
     bool mismatchCMP_BASE_COUNT = false;
+
+    SraStats* ssDfl = NULL;
+    SraStats* ssNxt = NULL;
+    const SraStatsMeta* mDfl = NULL;
+    const SraStatsMeta* mNxt = NULL;
+    const char* spot_group = "";
 
     assert(ctx && ctx->pb
         && ctx->tr && ctx->sizes && ctx->info && ctx->meta_stats && ctx->total);
@@ -2754,56 +2783,60 @@ rc_t print_results(const Ctx* ctx)
     }
 
     if (ctx->meta_stats->found && ! ctx->pb->quick) {
-        SraStats* ss = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
-        const SraStatsMeta* m = &ctx->meta_stats->table;
-        if (ctx->total->BASE_COUNT != m->BASE_COUNT)
-        { mismatch = true; }
-        if (ctx->total->BIO_BASE_COUNT != m->BIO_BASE_COUNT)
-        { mismatch = true; }
-        if (ctx->total->spot_count != m->spot_count)
-        { mismatch = true; }
-        if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT) {
+        ssDfl = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
+        mDfl = &ctx->meta_stats->table;
+        if (ctx->total->BASE_COUNT != mDfl->BASE_COUNT)
+            mismatch |= eBASE_COUNT;
+        if (ctx->total->BIO_BASE_COUNT != mDfl->BIO_BASE_COUNT)
+            mismatch |= eBIO_BASE_COUNT;
+        if (ctx->total->spot_count != mDfl->spot_count)
+            mismatch |= eSPOT_COUNT;
+        if (ctx->total->total_cmp_len != mDfl->CMP_BASE_COUNT) {
             if (ctx->total->total_cmp_len == 0 &&
-                ctx->total->BASE_COUNT == m->CMP_BASE_COUNT &&
+                ctx->total->BASE_COUNT == mDfl->CMP_BASE_COUNT &&
                 ctx->db != NULL)
             {
                 mismatchCMP_BASE_COUNT = true;
             }
             else
-                mismatch = true;
+                mismatch |= eCMP_BASE_COUNT;
         }
-        if (ss != NULL) {
-            const SraStatsMeta* m = &ctx->meta_stats->table;
+        if (ssDfl != NULL) {
             uint32_t i = 0;
             for (i = 0; i < ctx->meta_stats->spotGroupN && !mismatch; ++i) {
-                const char* spot_group = "";
-                m = &ctx->meta_stats->spotGroup[i];
-                assert(m);
-                if (strcmp("default", m->spot_group) != 0)
-                {   spot_group = m->spot_group; }
-                ss = (SraStats*)BSTreeFind(ctx->tr, spot_group, srastats_cmp);
-                if (ss == NULL) {
-                    mismatch = true;
+                spot_group = "";
+                mNxt = &ctx->meta_stats->spotGroup[i];
+                assert(mNxt);
+                if (strcmp("default", mNxt->spot_group) != 0)
+                    spot_group = mDfl->spot_group;
+                ssNxt = (SraStats*)
+                    BSTreeFind(ctx->tr, spot_group, srastats_cmp);
+                if (ssNxt == NULL) {
+                    mismatch |= eNO_SPOT_GROUP;
                     break;
                 }
-                if (ss->total_cmp_len != m->CMP_BASE_COUNT)
-                {
+                if (ssNxt->total_cmp_len != mNxt->CMP_BASE_COUNT) {
                     if (ctx->total->total_cmp_len == 0 &&
-                        ss->total_len == m->CMP_BASE_COUNT &&
+                        ssNxt->total_len == mNxt->CMP_BASE_COUNT &&
                         ctx->db != NULL)
                     {
                         mismatchCMP_BASE_COUNT = true;
                     }
                     else {
-                        mismatch = true;
+                        mismatch |= eSG_CMP_BASE_COUNT;
                         break;
                     }
                 }
-                if (ss->total_len != m->BASE_COUNT
-                    || ss->bio_len != m->BIO_BASE_COUNT
-                    || ss->spot_count != m->spot_count)
-                {
-                    mismatch = true;
+                if (ssNxt->total_len != mNxt->BASE_COUNT) {
+                    mismatch |= eSG_BASE_COUNT;
+                    break;
+                }
+                if (ssNxt->bio_len != mNxt->BIO_BASE_COUNT) {
+                    mismatch |= eSG_BIO_BASE_COUNT;
+                    break;
+                }
+                if (ssNxt->spot_count != mNxt->spot_count) {
+                    mismatch |= eSG_SPOT_COUNT;
                     break;
                 }
             }
@@ -2879,12 +2912,12 @@ rc_t print_results(const Ctx* ctx)
         BSTreeForEach(ctx->tr, false, srastat_print, ctx->pb);
         if (ctx->meta_stats->found) {
             const SraStatsMeta* m = &ctx->meta_stats->table;
-            if (ctx->pb->total.BASE_COUNT != m->BASE_COUNT
-                || ctx->pb->total.BIO_BASE_COUNT != m->BIO_BASE_COUNT
-                || ctx->pb->total.spot_count != m->spot_count)
-            {
-                mismatch = true;
-            }
+            if (ctx->pb->total.BASE_COUNT != m->BASE_COUNT)
+                mismatch |= eTOTAL_BASE_COUNT;
+            if (ctx->pb->total.BIO_BASE_COUNT != m->BIO_BASE_COUNT)
+                mismatch |= eTOTAL_BIO_BASE_COUNT;
+            if (ctx->pb->total.spot_count != m->spot_count)
+                mismatch |= eTOTAL_SPOT_COUNT;
             if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT) {
                 if (ctx->pb->total.total_cmp_len == 0 &&
                     ctx->pb->total.BASE_COUNT == m->CMP_BASE_COUNT &&
@@ -2893,7 +2926,7 @@ rc_t print_results(const Ctx* ctx)
                     mismatchCMP_BASE_COUNT = true;
                 }
                 else
-                    mismatch = true;
+                    mismatch |= eTOTAL_CMP_BASE_COUNT;
             }
         }
         if (ctx->pb->total.spot_count != ctx->total->spot_count ||
@@ -2906,7 +2939,13 @@ rc_t print_results(const Ctx* ctx)
             ctx->pb->total.filtered_spot_count
                 != ctx->total->filtered_spot_count ||
             ctx->pb->total.filtered_bio_len != ctx->total->filtered_bio_len ||
-            ctx->pb->total.total_cmp_len != ctx->total->total_cmp_len)
+            ctx->pb->total.total_cmp_len != ctx->total->total_cmp_len
+            || ( mDfl && 
+                (  ctx->total->BASE_COUNT != mDfl->BASE_COUNT ||
+                   ctx->total->BIO_BASE_COUNT != mDfl->BIO_BASE_COUNT ||
+                   ctx->total->spot_count != mDfl->spot_count ||
+                    mismatch | eCMP_BASE_COUNT)
+            ))
         {
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
         }
@@ -3007,12 +3046,94 @@ rc_t print_results(const Ctx* ctx)
     if (mismatchCMP_BASE_COUNT != 0) /* ignore it */;
     if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
         /* check mismatch just when no --start, --stop specified */
-        LOGMSG(klogWarn,
-            "Mismatch between calculated and recorded statistics");
+
+        assert(mDfl);
+
+        if (mismatch & eBASE_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "sum{READ_LEN}($(C)) != STATS/TABLE/BASE_COUNT($(R))",
+                "C=%lu,R=%lu", ctx->total->BASE_COUNT, mDfl->BASE_COUNT));
+
+        if (mismatch & eBIO_BASE_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "sum{READ_LEN}[SRA_READ_TYPE_BIOLOGICAL]($(C)) != "
+                "STATS/TABLE/BIO_BASE_COUNT($(R))",
+                "C=%lu,R=%lu",
+                ctx->total->BIO_BASE_COUNT, mDfl->BIO_BASE_COUNT));
+
+        if (mismatch & eCMP_BASE_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "sum{READ_LEN}[CMP]($(C)) != "
+                "STATS/TABLE/CMP_BASE_COUNT($(R))",
+                "C=%lu,R=%lu",
+                ctx->total->total_cmp_len, mDfl->CMP_BASE_COUNT));
+
+        if (mismatch & eSPOT_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "number-of-spots($(C)) != "
+                "STATS/TABLE/SPOT_COUNT($(R))",
+                "C=%lu,R=%lu",
+                ctx->total->spot_count, mDfl->spot_count));
+
+        if (mismatch & eNO_SPOT_GROUP)
+            LOGMSG(klogWarn, "Mismatch between calculated and recorded "
+                "statistics: spot_group not found");
+
+        if (mismatch & eSG_BASE_COUNT) {
+            LOGMSG(klogWarn, "Mismatch between calculated and recorded "
+                "statistics: BASE_COUNT in spot_group");
+        }
+
+        if (mismatch & eSG_BIO_BASE_COUNT)
+            LOGMSG(klogWarn, "Mismatch between calculated and recorded "
+                "statistics: BIO_BASE_COUNT in spot_group");
+
+        if (mismatch & eSG_CMP_BASE_COUNT)
+            LOGMSG(klogWarn, "Mismatch between calculated and recorded "
+                "statistics: CMP_BASE_COUNT in spot_group");
+
+        if (mismatch & eSG_SPOT_COUNT)
+            LOGMSG(klogWarn, "Mismatch between calculated and recorded "
+                "statistics: SPOT_COUNT in spot_group");
+
+        if (mismatch & eTOTAL_BASE_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "foreach SPOT_GROUP sum{READ_LEN}($(C))"
+                              " != STATS/TABLE/BASE_COUNT($(R))", "C=%lu,R=%lu",
+                ctx->pb->total.BASE_COUNT, ctx->meta_stats->table.BASE_COUNT));
+
+        if (mismatch & eTOTAL_BIO_BASE_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "foreach SPOT_GROUP sum{READ_LEN}[SRA_READ_TYPE_BIOLOGICAL]"
+                "($(C)) != STATS/TABLE/BIO_BASE_COUNT($(R))",
+                "C=%lu,R=%lu", ctx->pb->total.BIO_BASE_COUNT,
+                ctx->meta_stats->table.BIO_BASE_COUNT));
+
+        if (mismatch & eTOTAL_CMP_BASE_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "foreach SPOT_GROUP sum{READ_LEN}[CMP]($(C))"
+                               " != STATS/TABLE/CMP_BASE_COUNT($(R))",
+                "C=%lu,R=%lu", ctx->pb->total.total_cmp_len,
+                ctx->meta_stats->table.CMP_BASE_COUNT));
+
+        if (mismatch & eTOTAL_SPOT_COUNT)
+            PLOGMSG(klogWarn, (klogWarn,
+                "Mismatch between calculated and recorded statistics: "
+                "foreach SPOT_GROUP number-of-spots($(C))"
+                              " != STATS/TABLE/SPOT_COUNT($(R))", "C=%lu,R=%lu",
+                ctx->pb->total.spot_count, ctx->meta_stats->table.spot_count));
     }
-    if (rc == 0 && rc2 != 0) {
+
+    if (rc == 0 && rc2 != 0)
         rc = rc2;
-    }
+
     return rc;
 }
 
@@ -3551,9 +3672,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         const int64_t* pii = base;
                                         assert(nreads);
                                         for (i = 0; i < nreads; ++i) {
-                                            if (pii[i] == 0) {
-                                                cmp_len += dREAD_LEN[i];
-                                            }
+                                            if (pii[i] == 0)
+/* eCMP_BASE_COUNT SRR12544267 */               cmp_len += dREAD_LEN[i];
                                         }
                                     }
                                 }
@@ -3573,10 +3693,10 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                             (tr, (BSTNode*)ss, srastats_sort);
                                     }
                                 }
-                                ++ss->spot_count;
-                                ++total->spot_count;
+     /* eSG_SPOT_COUNT */       ++ss->spot_count;
+     /* eSPOT_COUNT */          ++total->spot_count;
 
-                                ss->total_cmp_len += cmp_len;
+     /* eSG_CMP_BASE_COUNT */   ss->total_cmp_len += cmp_len;
                                 total->total_cmp_len += cmp_len;
 
                                 if (pb->statistics) {
@@ -3604,8 +3724,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
 
                                     if (dREAD_LEN[i] > 0) {
                                         bool biological = false;
-                                        ss->total_len += dREAD_LEN[i];
-                                        total->BASE_COUNT += dREAD_LEN[i];
+             /* eSG_BASE_COUNT */       ss->total_len += dREAD_LEN[i];
+             /* eBASE_COUNT */          total->BASE_COUNT += dREAD_LEN[i];
                                         if ((dREAD_TYPE[i]
                                             & SRA_READ_TYPE_BIOLOGICAL) != 0)
                                         {
@@ -3650,8 +3770,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         }
                                     }
                                 }
-                                ss->bio_len += bio_len;
-                                total->BIO_BASE_COUNT += bio_len;
+     /* eSG_BIO_BASE_COUNT */   ss->bio_len += bio_len;
+     /* eBIO_BASE_COUNT */      total->BIO_BASE_COUNT += bio_len;
                                 if (bio_count > 1) {
                                     ++ss->spot_count_mates;
                                     ++total->spot_count_mates;

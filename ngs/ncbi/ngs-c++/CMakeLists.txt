@@ -22,21 +22,30 @@
 #
 # ===========================================================================
 
-add_compile_definitions (__mod__="ngs/ncbi/ngs-c++")
-
 set( NGS_SRC
 	NCBI-NGS
 )
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/klib )
-include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs )
-include_directories( ${CMAKE_SOURCE_DIR} )
-
-GenerateStaticLibs( ncbi-ngs-c++ "${NGS_SRC}" )
+set( INC_DIRS
+	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
+	${CMAKE_SOURCE_DIR}
+)
+GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
 target_link_libraries( ncbi-ngs-c++ ngs )
 ExportStatic( ncbi-ngs-c++ true )
+if( RUN_SANITIZER_TESTS )
+	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
+	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+endif()
 
 if( NOT WIN32 )
 	add_executable( testy-the-bear testy-the-bear )
 	target_link_libraries( testy-the-bear ${COMMON_LINK_LIBRARIES} ncbi-ngs-c++ ncbi-ngs  )
+	if( RUN_SANITIZER_TESTS )
+		add_executable( testy-the-bear-asan testy-the-bear )
+		target_link_libraries( testy-the-bear-asan ${COMMON_LINK_LIBRARIES} ncbi-ngs-c++-asan ncbi-ngs-asan  )
+
+		add_executable( testy-the-bear-tsan testy-the-bear )
+		target_link_libraries( testy-the-bear-tsan ${COMMON_LINK_LIBRARIES} ncbi-ngs-c++-tsan ncbi-ngs-tsan )
+	endif()
 endif()

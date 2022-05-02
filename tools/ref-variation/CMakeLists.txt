@@ -17,16 +17,14 @@ endif()
 
 ### ref-variation
 
-add_executable ( ref-variation common.cpp helper.cpp ref-variation.cpp  )
-
+GenerateExecutableWithDefs( ref-variation "common.cpp;helper.cpp;ref-variation.cpp" "__mod__=\"tools/ref-variation\"" "" "" )
 # add_dependencies ( ref-variation ngs-vdb )
 
 MakeLinksExe ( ref-variation false )
 
 ### var-expand
 
-add_executable ( var-expand common.cpp helper.cpp var-expand.cpp )
-
+GenerateExecutableWithDefs( var-expand "common.cpp;helper.cpp;var-expand.cpp" "__mod__=\"tools/var-expand\"" "" "" )
 MakeLinksExe ( var-expand false )
 
 ### common

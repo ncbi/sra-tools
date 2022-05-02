@@ -42,8 +42,7 @@ if( ${OS} STREQUAL "linux" )
             kff/ffkey.c
             kff/ffmagic.c
         )
-
-        add_executable( copycat
+        set( SRC
             copycat
             ccfileformat
             cccat
@@ -55,8 +54,7 @@ if( ${OS} STREQUAL "linux" )
             ccfile
             ${KFF_SRC}
         )
-        target_include_directories( copycat PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} )
-        target_link_libraries( copycat ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} magic )
+        GenerateExecutableWithDefs( copycat "${SRC}" "" "${CMAKE_CURRENT_SOURCE_DIR}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" )
         MakeLinksExe( copycat false )
 
     endif()

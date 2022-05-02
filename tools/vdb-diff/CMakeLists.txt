@@ -22,10 +22,8 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/vdb-diff" )
-
 # External
-add_executable( vdb-diff
+set( SRC
 	namelist_tools
 	coldefs
 	vdb-diff-context
@@ -34,5 +32,5 @@ add_executable( vdb-diff
 	col_by_col
 	vdb-diff
 )
-target_link_libraries( vdb-diff ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( vdb-diff "${SRC}" "__mod__=\"tools/vdb-diff\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-diff false )

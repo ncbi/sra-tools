@@ -22,9 +22,7 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/vdb-copy" )
-
-add_executable( vdb-copy
+set( SRC
 	context
 	helper
 	coldefs
@@ -36,7 +34,7 @@ add_executable( vdb-copy
 	config_values
 	vdb-copy
 )
-target_link_libraries( vdb-copy ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+GenerateExecutableWithDefs( vdb-copy "${SRC}" "__mod__=\"tools/vdb-copy\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( vdb-copy false )
 
 add_custom_command( TARGET vdb-copy POST_BUILD

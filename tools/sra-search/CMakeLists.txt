@@ -2,7 +2,7 @@ if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
 endif ()
 
-add_executable ( sra-search
+set( SRC
     main.cpp
     searchblock.cpp
     fragmentmatchiterator.cpp
@@ -11,11 +11,7 @@ add_executable ( sra-search
     vdb-search.cpp
 )
 
-target_include_directories ( sra-search PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc ${CMAKE_SOURCE_DIR}/ngs )
-
-add_dependencies ( sra-search ngs-vdb ncbi-ngs tk-version )
-
-target_link_libraries ( sra-search
+set( LIBS
     ngs-vdb
     ncbi-ngs
     tk-version
@@ -24,6 +20,13 @@ target_link_libraries ( sra-search
     ${COMMON_LINK_LIBRARIES} 
 )
 
+GenerateExecutableWithDefs( sra-search "${SRC}" "__mod__=\"tools/sra-search\"" "${CMAKE_SOURCE_DIR}/libs/inc;${CMAKE_SOURCE_DIR}/ngs" "${LIBS}" )
+
+add_dependencies ( sra-search ngs-vdb ncbi-ngs tk-version )
+if( RUN_SANITIZER_TESTS )
+    add_dependencies ( sra-search-asan ngs-vdb ncbi-ngs tk-version )
+    add_dependencies ( sra-search-tsan ngs-vdb ncbi-ngs tk-version )
+endif()
 MakeLinksExe ( sra-search false )
 
 add_subdirectory ( test )

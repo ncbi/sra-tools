@@ -2944,7 +2944,7 @@ rc_t print_results(const Ctx* ctx)
                 (  ctx->total->BASE_COUNT != mDfl->BASE_COUNT ||
                    ctx->total->BIO_BASE_COUNT != mDfl->BIO_BASE_COUNT ||
                    ctx->total->spot_count != mDfl->spot_count ||
-                    mismatch | eCMP_BASE_COUNT)
+                    mismatch & eCMP_BASE_COUNT)
             ))
         {
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);

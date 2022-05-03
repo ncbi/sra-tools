@@ -28,7 +28,9 @@ if( NOT WIN32 )
     AddExecutableTest( Test_Align_samextract "test-samextract" "sam-extract;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 endif()
 
+include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
+
 add_executable( test-estimator pileup_estimator )
-include_directories( ${CMAKE_SOURCE_DIR} )
+include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ )
 target_link_libraries( test-estimator ncbi-ngs-c++ ngs-c++ ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 add_test( NAME SlowTest_Align_estimator COMMAND test-estimator WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )

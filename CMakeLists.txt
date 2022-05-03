@@ -35,7 +35,7 @@ option(TOOLS_ONLY "Generate tools targets only" ON)
 
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 
-set( CMAKE_VERBOSE_MAKEFILE ON )
+#set( CMAKE_VERBOSE_MAKEFILE ON )
 
 # best to use at the top
 project ( sra-tools )

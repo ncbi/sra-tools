@@ -512,7 +512,7 @@ function(MakeLinksExe target install_via_driver)
     else()
 
         if ( install_via_driver )
-
+                # on Windows/XCode, ${target}-orig file names have no version attached
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
                          DESTINATION ${CMAKE_INSTALL_PREFIX}/bin

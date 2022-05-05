@@ -2903,8 +2903,8 @@ rc_t print_results(const Ctx* ctx)
             ctx->pb->total.total_cmp_len != ctx->meta_stats->table.CMP_BASE_COUNT)
         {
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
+            assert(rc == 0);
         }
-        assert(rc == 0);
     }
     else {
         memset(&ctx->pb->total, 0, sizeof ctx->pb->total);
@@ -2929,7 +2929,7 @@ rc_t print_results(const Ctx* ctx)
                     mismatch |= eTOTAL_CMP_BASE_COUNT;
             }
         }
-        if (ctx->pb->total.spot_count != ctx->total->spot_count ||
+/*      if (ctx->pb->total.spot_count != ctx->total->spot_count ||
             ctx->pb->total.spot_count_mates != ctx->total->spot_count_mates ||
             ctx->pb->total.BIO_BASE_COUNT != ctx->total->BIO_BASE_COUNT ||
             ctx->pb->total.bio_len_mates != ctx->total->bio_len_mates ||
@@ -2945,11 +2945,10 @@ rc_t print_results(const Ctx* ctx)
                    ctx->total->BIO_BASE_COUNT != mDfl->BIO_BASE_COUNT ||
                    ctx->total->spot_count != mDfl->spot_count ||
                     mismatch & eCMP_BASE_COUNT)
-            ))
+            || mismatch ))
         {
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
-        }
-        assert(rc == 0);
+        } */
     }
 
     if (ctx->pb->xml) {
@@ -3129,6 +3128,9 @@ rc_t print_results(const Ctx* ctx)
                 "foreach SPOT_GROUP number-of-spots($(C))"
                               " != STATS/TABLE/SPOT_COUNT($(R))", "C=%lu,R=%lu",
                 ctx->pb->total.spot_count, ctx->meta_stats->table.spot_count));
+
+        if (rc == 0)
+            rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
     }
 
     if (rc == 0 && rc2 != 0)

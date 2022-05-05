@@ -10,4 +10,6 @@ add_library ( ngs-vdb
                 VdbAlignment.cpp
                 NGS-VDB.cpp )
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()

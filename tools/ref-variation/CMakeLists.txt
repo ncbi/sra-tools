@@ -31,5 +31,8 @@ MakeLinksExe ( var-expand false )
 
 ### common
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()
+
 

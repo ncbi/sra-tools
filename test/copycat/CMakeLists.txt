@@ -60,8 +60,8 @@ if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/copycat )
             add_test( NAME Test_Copycat_IdenticalCopy-asan
                 COMMAND ./test-copy.sh ${DIRTOTEST} copycat-asan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            add_test( NAME Test_Copycat_IdenticalCopy-asan
-                COMMAND ./test-copy.sh ${DIRTOTEST} copycat-asan
+            add_test( NAME Test_Copycat_IdenticalCopy-tsan
+                COMMAND ./test-copy.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
     endif()

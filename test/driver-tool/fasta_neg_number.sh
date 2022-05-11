@@ -1,8 +1,9 @@
 #!/bin/bash
 
 bin_dir=$1
+sratools=$2
 
-echo "testing expected output for fastq-dump --fasta -<number> <run>"
+echo "testing expected output for fastq-dump --fasta -<number> <run> via ${sratools}"
 
 TEMPDIR=.
 
@@ -12,12 +13,13 @@ output=$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
 	PATH="${bin_dir}:$PATH" \
 	SRATOOLS_TESTING=2 \
 	SRATOOLS_IMPERSONATE=fastq-dump \
-	${bin_dir}/sratools --fasta -75 SRR390728 2>actual/fasta_neg_number.stderr ; \
+	${bin_dir}/${sratools} --fasta -75 SRR390728 2>actual/fasta_neg_number.stderr ; \
 	diff expected/fasta_neg_number.stderr actual/fasta_neg_number.stderr)
 
 res=$?
 if [ "$res" != "0" ];
-	then echo "Driver tool test fasta_neg_number FAILED, res=$res output=$output" && exit 1;
+	then echo "Driver tool test fasta_neg_number via ${sratools} FAILED, res=$res output=$output" && exit 1;
 fi
+rm -rf actual/fasta_neg_number.stderr
 
-echo Driver tool test fasta_neg_number is finished
+echo Driver tool test fasta_neg_number via ${sratools} is finished

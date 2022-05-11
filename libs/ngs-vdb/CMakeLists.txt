@@ -1,5 +1,3 @@
-set( INC_DIRS ${CMAKE_SOURCE_DIR}/ngs )
-
 set( SRC
 	VdbReadCollection.cpp
 	FragmentBlobIterator.cpp
@@ -11,6 +9,6 @@ set( SRC
 	NGS-VDB.cpp
 )
 
-GenerateStaticLibsWithDefs( ngs-vdb "${SRC}" "" "${INC_DIRS}" )
+GenerateStaticLibsWithDefs( ngs-vdb "${SRC}" "" "${CMAKE_SOURCE_DIR}/ngs" )
 
 add_subdirectory ( test )

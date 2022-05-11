@@ -52,7 +52,7 @@ set( FASTQ_SRC
 # Internal
 # libfastqloader
 if( NOT WIN32 ) # sys/mman.h
-	GenerateStaticLibsWithDefs( fastqloader ${FASTQ_SRC} "" "${CMAKE_SOURCE_DIR}/libs/inc" )
+	GenerateStaticLibsWithDefs( fastqloader "${FASTQ_SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" )
 
 # External
 	GenerateExecutableWithDefs( latf-load "${FASTQ_SRC};fastq-loader;loader-imp" "" "${CMAKE_SOURCE_DIR}/libs/inc" "" )

@@ -559,17 +559,6 @@ if( WIN32 )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
 endif()
 
-function( BuildExecutableForTest exe_name sources libraries )
-	add_executable( ${exe_name} ${sources} )
-	target_link_libraries( ${exe_name} ${libraries} )
-endfunction()
-
-function( AddExecutableTest test_name sources libraries )
-	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
-	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endfunction()
-
-
 if ( SINGLE_CONFIG )
     # standard kfg files
     install( SCRIPT CODE
@@ -694,4 +683,13 @@ function( GenerateExecutableWithDefs target_name sources compile_defs include_di
             target_link_libraries( "${target_name}-tsan" "${link_libs}" )
         endif()
     endif()
+endfunction()
+
+function( AddExecutableTest test_name sources libraries include_dirs )
+	GenerateExecutableWithDefs( "${test_name}" "${sources}" "" "${include_dirs}" "${libraries}" )
+	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME "${test_name}-asan" COMMAND "${test_name}-asan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME "${test_name}-tsan" COMMAND "${test_name}-tsan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 endfunction()

@@ -6251,7 +6251,8 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
     {
       bail_on_error = 1;
     }
-    else if ( strcmp( z, "-version" ) == 0 )
+    else if ( strcmp( z, "-version" ) == 0
+           || strcmp( z, "-V"       ) == 0  )
     {
       printf( "%s %s\n", sqlite3_libversion(), sqlite3_sourceid() );
       return 0;
@@ -6320,7 +6321,8 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
     {
       i+=2;
     }
-    else if ( strcmp( z, "-help" ) == 0 )
+    else if ( strcmp( z, "-help" ) == 0
+           || strcmp( z, "-h"    ) == 0 )
     {
       usage( 1 );
     }

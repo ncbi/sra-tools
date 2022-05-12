@@ -62,9 +62,12 @@ rc_t CC KMain(int argc, char* argv[])
             case 'h':
 	        HelpVersion ( UsageDefaultName, KAppVersion () );
                 return 0;
+            case 'V':
+                HelpVersion ( UsageDefaultName, KAppVersion () );
+                return 0;
             default:
                 PLOGERR(klogErr, (klogErr, rc, "Invalid argument: $(A)",
-		                  "A=%s", arg [ 1 ]));
+		                  "A=%s", arg ));
                 return 1;
 	}
     }

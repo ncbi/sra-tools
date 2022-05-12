@@ -24,7 +24,10 @@
 
 add_compile_definitions( __mod__="tools/bam-loader" )
 
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
+include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ./) # zlib.h
+
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+find_package(OpenSSL REQUIRED)
 
 # Internal
 add_executable( samview
@@ -37,17 +40,22 @@ MakeLinksExe( samview false )
 
 # External
 if( NOT WIN32)
-	add_executable( bam-load
-		bam-loader
-		bam
-		sam
-		alignment-writer
-		reference-writer
-		sequence-writer
-		loader-imp
-		mem-bank
-		low-match-count
-	)
-	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
-	MakeLinksExe( bam-load false )
+    add_executable( bam-load
+        bam-loader
+        bam
+        sam
+        alignment-writer
+        reference-writer
+        sequence-writer
+        loader-imp
+        mem-bank
+        low-match-count
+    )
+    set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )    
+    set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )    
+    set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
+    target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
+    target_link_libraries( bam-load  OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} jemalloc)
+    MakeLinksExe( bam-load false )
+
 endif()

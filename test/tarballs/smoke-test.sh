@@ -79,12 +79,12 @@ TK_INSTALL_DIR=$1
 if [ -d "${TK_INSTALL_DIR}/bin" ]
 then
     BIN_DIR=${TK_INSTALL_DIR}/bin
-    KFG=${BIN_DIR}/ncbi/local.kfg
+    KFG=${BIN_DIR}/ncbi/tmp.kfg
 else
     BIN_DIR=${TK_INSTALL_DIR}/usr/local/ncbi/sra-tools/bin
     KFG=${TK_INSTALL_DIR}/etc/ncbi
     export VDB_CONFIG=${KFG}
-    KFG=${KFG}/local.kfg
+    KFG=${KFG}/tmp.kfg
 fi
 
 if [ "$2" == "" ]
@@ -99,7 +99,7 @@ FAILED=""
 
 ################################ TEST sratoolkit ###############################
 
-echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" >./${KFG}
+echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" > ${KFG}
 
 echo
 echo "Smoke testing ${BIN_DIR} ..."

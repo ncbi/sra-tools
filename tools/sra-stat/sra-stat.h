@@ -52,7 +52,7 @@ typedef struct TableCounts {
 } TableCounts;
 
 typedef struct Ctx {
-    const struct BSTree* tr;
+    const struct BSTree* tr; /* tree[SPOT_GROUP] */
     const struct MetaDataStats* meta_stats;
     const struct SraMeta* info;
     const struct SraSizeStats* sizes;

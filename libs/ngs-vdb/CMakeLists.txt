@@ -11,4 +11,6 @@ set( SRC
 
 GenerateStaticLibsWithDefs( ngs-vdb "${SRC}" "" "${CMAKE_SOURCE_DIR}/ngs" )
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()

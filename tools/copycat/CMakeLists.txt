@@ -27,12 +27,8 @@ add_compile_definitions( __mod__="tools/copycat" )
 # External
 if( ${OS} STREQUAL "linux" )
 
-    # look for static libmagic
-    find_library( HAVE_MAGIC libmagic.a )
-    if ( HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
-        # fall back to dynamic linking
-        find_library( HAVE_MAGIC magic )
-    endif()
+    # always link against shared libmagic
+    find_library( HAVE_MAGIC libmagic.so )
 
     if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
 
@@ -54,7 +50,7 @@ if( ${OS} STREQUAL "linux" )
             ccfile
             ${KFF_SRC}
         )
-        GenerateExecutableWithDefs( copycat "${SRC}" "" "${CMAKE_CURRENT_SOURCE_DIR}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" )
+        GenerateExecutableWithDefs( copycat "${SRC}" "" "${CMAKE_CURRENT_SOURCE_DIR}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};${HAVE_MAGIC}" )
         MakeLinksExe( copycat false )
 
     endif()

@@ -31,4 +31,6 @@ if( RUN_SANITIZER_TESTS )
 	)
 endif()
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()

@@ -17,7 +17,7 @@ set( LIBS
     tk-version
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${COMMON_LIBS_READ}
-    ${COMMON_LINK_LIBRARIES} 
+    ${COMMON_LINK_LIBRARIES}
 )
 
 GenerateExecutableWithDefs( sra-search "${SRC}" "__mod__=\"tools/sra-search\"" "${CMAKE_SOURCE_DIR}/libs/inc;${CMAKE_SOURCE_DIR}/ngs" "${LIBS}" )
@@ -29,4 +29,6 @@ if( RUN_SANITIZER_TESTS )
 endif()
 MakeLinksExe ( sra-search false )
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()

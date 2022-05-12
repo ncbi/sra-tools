@@ -22,8 +22,6 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/vdb-dump" )
-
 set( SRC
 	vdb-dump-context
 	vdb-dump-coldefs
@@ -37,20 +35,5 @@ set( SRC
 	vdb-dump
 )
 
-add_executable( vdb-dump ${SRC} )
-target_link_libraries( vdb-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( vdb-dump "${SRC}" "__mod__=\"tools/vdb-dump\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-dump true )
-
-if( RUN_SANITIZER_TESTS )
-	set( asan_defs "-fsanitize=address" )
-	add_executable( vdb-dump-asan ${SRC} )
-	target_link_libraries( vdb-dump-asan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-	target_compile_options( vdb-dump-asan PRIVATE ${asan_defs} )
-	target_link_options( vdb-dump-asan PRIVATE ${asan_defs} )
-
-	set( tsan_defs "-fsanitize=thread" )
-	add_executable( vdb-dump-tsan ${SRC} )
-	target_link_libraries( vdb-dump-tsan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-	target_compile_options( vdb-dump-tsan PRIVATE ${tsan_defs} )
-	target_link_options( vdb-dump-tsan PRIVATE ${tsan_defs} )
-endif()

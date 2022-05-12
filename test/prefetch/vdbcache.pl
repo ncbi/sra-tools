@@ -22,7 +22,7 @@
 #
 # ===========================================================================
 
-($DIRTOTEST) = @ARGV;
+($DIRTOTEST, $PREFETCH) = @ARGV;
 
 #$VERBOSE = 1;
 
@@ -38,7 +38,7 @@ $ACC = 'SRR6667190';
 die if $?;
 
 print "download sra and vdbcache\n" if $VERBOSE;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD $DIRTOTEST/prefetch $ACC";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD $DIRTOTEST/$PREFETCH $ACC";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`        ; die 'Is there DIRTOTEST?' if $?;
 `ls $ACC/$ACC.sra`         ; die if $?;

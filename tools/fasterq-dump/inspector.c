@@ -436,25 +436,33 @@ static bool inspect_db_platform( const inspector_input_t * input, const VDatabas
             } else {
                 rc = VCursorOpen( curs );
                 if ( 0 != rc ) {
-                    ErrMsg( "inspector.c inspect_db_platform()().VCursorOpen( '%s' ) -> %R\n",
+                    ErrMsg( "inspector.c inspect_db_platform().VCursorOpen( '%s' ) -> %R\n",
                             input -> accession_short, rc );
                 } else {
                     int64_t first;
                     uint64_t count;
                     rc = VCursorIdRange( curs, idx, &first, &count );
                     if ( 0 != rc ) {
-                        ErrMsg( "inspector.c inspect_db_platform()().VCursorIdRange( '%s' ) -> %R\n",
+                        ErrMsg( "inspector.c inspect_db_platform().VCursorIdRange( '%s' ) -> %R\n",
                                 input -> accession_short, rc );
-                    } else if ( count > 0 ) {
+                    } else if ( count == 0 ) {
+                        /* most likely the PLATFORM-column is static, that means count==0 */
+                        first = 1;
+                    }
+                    if ( 0 == rc ) {
                         uint32_t elem_bits, boff, row_len;
                         uint8_t *values;
                         rc = VCursorCellDataDirect( curs, first, idx, &elem_bits, (const void **)&values, &boff, &row_len );
                         if ( 0 != rc ) {
-                            ErrMsg( "inspector.c inspect_db_platform()().VCursorCellDataDirect( '%s' ) -> %R\n",
+                            ErrMsg( "inspector.c inspect_db_platform().VCursorCellDataDirect( '%s' ) -> %R\n",
                                     input -> accession_short, rc );
-                        } else if ( NULL != values && 0 == elem_bits && 0 == boff && row_len > 0 ) {
+                        } else if ( NULL != values && 8 == elem_bits && 0 == boff && row_len > 0 ) {
                             *pf = values[ 0 ];
                             res = true;
+                        } else {
+                            ErrMsg( "inspector.c inspect_db_platform().VCursorCellDataDirect( '%s' ) -> unexpected\n",
+                                    input -> accession_short );
+                            
                         }
                     }
                 }
@@ -480,8 +488,13 @@ static bool inspect_db_platform( const inspector_input_t * input, const VDatabas
     return res;
 }
 
-static const char * SEQ_TBL_NAME = "SEQUENCE";
+static const char * PRIM_TBL_NAME = "PRIMARY_ALIGNMENT";
+static const char * REF_TBL_NAME  = "REFERENCE";
+static const char * SEQ_TBL_NAME  = "SEQUENCE";
 static const char * CONS_TBL_NAME = "CONSENSUS";
+static const char * ZMW_TBL_NAME  = "ZMW_METRICS";
+static const char * PASS_TBL_NAME = "PASSES";
+
 
 static acc_type_t inspect_db_type( const inspector_input_t * input,
                                    inspector_output_t * output ) {
@@ -503,29 +516,40 @@ static acc_type_t inspect_db_type( const inspector_input_t * input,
             } else {
                 if ( contains( tables, SEQ_TBL_NAME ) )
                 {
+                    bool has_prim_tbl = contains( tables, PRIM_TBL_NAME );
+                    bool has_ref_tbl = contains( tables, REF_TBL_NAME );
+
                     res = acc_sra_db;
                     output -> seq . tbl_name = SEQ_TBL_NAME;
-                    
                     /* we have at least a SEQUENCE-table */
-                    if ( contains( tables, "PRIMARY_ALIGNMENT" ) &&
-                         contains( tables, "REFERENCE" ) ) {
+                    if ( has_prim_tbl && has_ref_tbl ) {
                         /* we have a SEQUENCE-, PRIMARY_ALIGNMENT-, and REFERENCE-table */
                         res = acc_csra;
                     } else {
-                        bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
-                        if ( has_cons_tbl ||
-                             contains( tables, "ZMW_METRICS" ) ||
-                             contains( tables, "PASSES" ) ) {
+                        uint8_t pf = SRA_PLATFORM_UNDEFINED;
+                        if ( !inspect_db_platform( input, db, &pf ) ) { /* above */
+                            pf = SRA_PLATFORM_UNDEFINED;                            
+                        }
+
+                        if ( SRA_PLATFORM_OXFORD_NANOPORE == pf ) {
+                            bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
                             if ( has_cons_tbl ) {
-                                output -> seq . tbl_name = CONS_TBL_NAME;                                
+                                output -> seq . tbl_name = CONS_TBL_NAME;
                             }
-                            res = acc_pacbio;
-                        } else {
-                            /* last resort try to find out what the database-type is 
-                             * ... the enums are in ncbi-vdb/interfaces/insdc/sra.h
-                             */
-                            uint8_t pf = SRA_PLATFORM_UNDEFINED;
-                            if ( inspect_db_platform( input, db, &pf ) ) {
+                        }  else {
+                            bool has_cons_tbl = contains( tables, CONS_TBL_NAME );
+                            bool has_zmw_tbl = contains( tables, ZMW_TBL_NAME );
+                            bool has_pass_tbl = contains( tables, PASS_TBL_NAME );
+
+                            if ( has_cons_tbl || has_zmw_tbl || has_pass_tbl ) {
+                                if ( has_cons_tbl ) {
+                                    output -> seq . tbl_name = CONS_TBL_NAME;                             
+                                }
+                                res = acc_pacbio;
+                            } else {
+                                /* last resort try to find out what the database-type is 
+                                * ... the enums are in ncbi-vdb/interfaces/insdc/sra.h
+                                */
                                 if ( SRA_PLATFORM_PACBIO_SMRT == pf ) {
                                     res = acc_pacbio;
                                 }
@@ -1087,7 +1111,11 @@ static size_t insp_est_seq_defline_len( const inspector_estimate_input_t * input
     defl_est_inp . acc = input -> acc;
     defl_est_inp . avg_name_len = input -> avg_name_len;
     defl_est_inp . row_count = input -> insp -> seq . row_count;
-    defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    if ( input -> insp -> seq .row_count > 0 ) {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    } else {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input );
+    }
     defl_est_inp . defline = input -> seq_defline;
 
     return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */
@@ -1099,7 +1127,11 @@ static size_t insp_est_qual_defline_len( const inspector_estimate_input_t * inpu
     defl_est_inp . acc = input -> acc;
     defl_est_inp . avg_name_len = input -> avg_name_len;
     defl_est_inp . row_count = input -> insp -> seq . row_count;
-    defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    if ( input -> insp -> seq . row_count > 0 ) {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input ) / input -> insp -> seq . row_count;
+    } else {
+        defl_est_inp . avg_seq_len = insp_est_base_count( input );
+    }
     defl_est_inp . defline = input -> qual_defline;    
     
     return estimate_defline_length( &defl_est_inp ); /* dflt_defline.c */

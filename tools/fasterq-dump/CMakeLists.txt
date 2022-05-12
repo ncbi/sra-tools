@@ -50,7 +50,7 @@ set( TOOLS_SRC
 	raw_read_iter
 	special_iter
 	fastq_iter
-	join
+	db_join
 	tbl_join
 	temp_registry
 	copy_machine

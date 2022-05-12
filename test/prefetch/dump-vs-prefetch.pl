@@ -23,5 +23,13 @@
 # ==============================================================================
 
 #print `vdb-config -on repository`; die if $?;
-`vdb-dump -CREAD -R1 SRR619505 -+VFS`; die if $?;
-`prefetch            SRR619505 -+VFS`; die if $?;
+$VFS = "-+VFS";
+$VFS = '';
+
+`echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp.kfg`;
+die if $?;
+
+`NCBI_SETTINGS=tmp.kfg vdb-dump -CREAD -R1 SRR619505 $VFS`; die if $?;
+`NCBI_SETTINGS=tmp.kfg prefetch            SRR619505 $VFS`; die if $?;
+
+`rm -r tmp.kfg` ; die if $?;

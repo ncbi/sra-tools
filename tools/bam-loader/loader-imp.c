@@ -60,15 +60,16 @@ extern "C" {
 
 #include <kapp/main.h>
 #include <kapp/args.h>
-#include <kapp/loader-file.h>
-#include <kapp/loader-meta.h>
 #include <kapp/log-xml.h>
-#include <kapp/progressbar.h>
 
 #include <kproc/queue.h>
 #include <kproc/thread.h>
 #include <kproc/timeout.h>
 #include <os-native.h>
+
+#include <loader/loader-file.h>
+#include <loader/loader-meta.h>
+#include <loader/progressbar.h>
 
 #include <sysalloc.h>
 #include <atomic32.h>
@@ -493,40 +494,6 @@ typedef struct context_t {
 
 
 
-//    spdlog::info(#buffer" {:L}", sz); \
-
-#define _REPORT_REF_BUFF(buffer, total) \
-{ \
-    auto sz = KDataBufferMemorySize(&buffer);\
-    total += sz; \
-} \
-\
-
-void ReferenceReport(Reference *ref) 
-{
-/*    
-    KDataBuffer coverage;
-    KDataBuffer mismatches;
-    KDataBuffer indels;
-    KDataBuffer pri_align;
-    KDataBuffer sec_align;
-    KDataBuffer pri_overlap;
-    KDataBuffer sec_overlap;
-    KDataBuffer ref_names;
-    KDataBuffer ref_info;
-*/
-    size_t total_buffers = 0;
-    _REPORT_REF_BUFF(ref->coverage, total_buffers)    
-    _REPORT_REF_BUFF(ref->mismatches, total_buffers)
-    _REPORT_REF_BUFF(ref->indels, total_buffers)    
-    _REPORT_REF_BUFF(ref->pri_align, total_buffers)
-    _REPORT_REF_BUFF(ref->sec_align, total_buffers)
-    _REPORT_REF_BUFF(ref->pri_overlap, total_buffers)
-    _REPORT_REF_BUFF(ref->sec_overlap, total_buffers)
-    _REPORT_REF_BUFF(ref->ref_names, total_buffers)
-    _REPORT_REF_BUFF(ref->ref_info, total_buffers)
-    spdlog::info("Total Ref Buffers {:L}", total_buffers);
-}
 
 
 #if 0
@@ -675,6 +642,11 @@ static void MMArrayClear(MMArray *self)
 
 static void MMArrayWhack(MMArray *self)
 {
+    if ( self == NULL )
+    {
+        return;
+    }
+
     size_t const chunk = MMA_SUBCHUNK_SIZE * self->elemSize;
     unsigned i;
 
@@ -1170,7 +1142,7 @@ static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
         rc = BAM_FileMake(bam, defer, G.headerText, "%s", bamFile);
     }
     KFileRelease(defer); /* it was retained by BAM file */
-    
+
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }
@@ -1215,7 +1187,10 @@ static rc_t VerifyReferences(BAM_File const *bam, Reference const *ref)
 
         rc = ReferenceVerify(ref, refSeq->name, refSeq->length, refSeq->checksum);
         if (rc) {
-            if (GetRCObject(rc) == rcChecksum && GetRCState(rc) == rcUnequal) {
+            if (GetRCObject(rc) == rcId && GetRCState(rc) == rcUndefined) {
+                (void)PLOGMSG(klogInfo, (klogInfo, "Reference: '$(name)' is unmapped", "name=%s", refSeq->name));
+            }
+            else if (GetRCObject(rc) == rcChecksum && GetRCState(rc) == rcUnequal) {
 #if NCBI
                 (void)PLOGMSG(klogWarn, (klogWarn, "Reference: '$(name)', Length: $(len); checksums do not match", "name=%s,len=%u", refSeq->name, (unsigned)refSeq->length));
 #endif
@@ -1257,7 +1232,7 @@ static bool EditAlignedQualities(uint8_t qual[], bool const hasMismatch[], unsig
     for (i = 0; i < readlen; ++i) {
         uint8_t const q_0 = qual[i];
         uint8_t const q_1= hasMismatch[i] ? G.alignedQualValue : q_0;
-        
+
         if (q_0 != q_1) {
             changed = true;
             break;
@@ -1284,7 +1259,7 @@ static bool EditUnalignedQualities(uint8_t qual[], bool const hasMismatch[], uns
     for (i = 0; i < readlen; ++i) {
         uint8_t const q_0 = qual[i];
         uint8_t const q_1 = (q_0 & 0x7F) | (hasMismatch[i] ? 0x80 : 0);
-        
+
         if (q_0 != q_1) {
             changed = true;
             break;
@@ -1375,7 +1350,7 @@ static void RecordLowMatchCount(void *Ctx, char const name[], unsigned const cou
             ctx->rc = KMDataNodeWriteAttr(sub, "REFNAME", name);
             if (ctx->rc == 0)
                 ctx->rc = KMDataNodeWriteB32(sub, &count_temp);
-            
+
             KMDataNodeRelease(sub);
         }
     }
@@ -1560,12 +1535,12 @@ static rc_t RecordChange(KMDataNode *const node,
         rc_t const rc_attr1 = KMDataNodeWriteAttr(sub, "change", what);
         rc_t const rc_attr2 = KMDataNodeWriteAttr(sub, "reason", why);
         rc_t const rc_value = KMDataNodeWriteB32(sub, &count_temp);
-        
+
         KMDataNodeRelease(sub);
         if (rc_attr1) return rc_attr1;
         if (rc_attr2) return rc_attr2;
         if (rc_value) return rc_value;
-        
+
         return 0;
     }
 }
@@ -2000,6 +1975,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
 
     {
         uint32_t rgcount;
+
         BAM_FileGetReadGroupCount(bam, &rgcount);
         ctx->no_groups = rgcount >= MAX_GROUPS_ALLOWED; // TODO
         if (ctx->no_groups) {
@@ -2995,6 +2971,7 @@ WRITE_SEQUENCE:
 #endif
                     bool const spotHasFragmentInfo = (fragmentId != 0);
                     bool const spotIsFirstSeen = spotHasFragmentInfo ? false : true;
+
 
                     if (spotIsFirstSeen) {
 
@@ -4902,7 +4879,7 @@ rc_t run(char const progName[],
                                     rc = WriteLoaderSignature(meta, progName);
                                     if (rc == 0) {
                                         KMDataNode *changes = NULL;
-                                        
+
                                         rc = KMetadataOpenNodeUpdate(meta, &changes, "CHANGES");
                                         if (rc == 0)
                                             RecordChanges(changes, "CHANGE");

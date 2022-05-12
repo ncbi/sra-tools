@@ -35,8 +35,8 @@
 extern "C" {
 #endif
 
-const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta );
-const char * dflt_qual_defline( bool use_name, bool use_read_id );
+const char * dflt_seq_defline( bool has_name, bool use_name, bool use_read_id, bool fasta );
+const char * dflt_qual_defline( bool has_name, bool use_name, bool use_read_id );
 
 /* ------------------------------------------------------------------------------------------- */
 

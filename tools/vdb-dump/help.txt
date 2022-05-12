@@ -10,7 +10,7 @@ vdb-dump extended help
 
         a) absolute or relative path to a vdb-table (a directory)
 
-            on linux:   vdb-dump /panfs/traces/sra0/SRR/000000/SRR000001
+            on linux:   vdb-dump /path/to//SRR000001
 
 
             on windows: vdb-dump \\data\sra\sra0\SRR\000000\SRR000001

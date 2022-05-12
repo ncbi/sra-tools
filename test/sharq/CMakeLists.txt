@@ -64,23 +64,87 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
         set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
     endif()
     target_link_libraries(test-sharq-parser ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-
     add_test( NAME Test_sharq_parser COMMAND test-sharq-parser WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-    macro(SharqTest TestName Result TestParams)
+    if( RUN_SANITIZER_TESTS )
+        set( asan_defs "-fsanitize=address" )
+        add_executable(test-sharq-parser-asan test-sharq-parser.cpp )
+        add_dependencies(test-sharq-parser-asan RE2_)
+        add_dependencies(test-sharq-parser-asan sharq-asan)
+        target_include_directories(test-sharq-parser-asan PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+            set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
+        endif()
+        target_link_libraries(test-sharq-parser-asan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+        target_compile_options( test-sharq-parser-asan PRIVATE ${asan_defs} )
+        target_link_options( test-sharq-parser-asan PRIVATE ${asan_defs} )
+        add_test( NAME Test_sharq_parser_asan COMMAND test-sharq-parser-asan WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        set( tsan_defs "-fsanitize=thread" )
+        add_executable(test-sharq-parser-tsan test-sharq-parser.cpp )
+        add_dependencies(test-sharq-parser-tsan RE2_)
+        add_dependencies(test-sharq-parser-tsan sharq-tsan)
+        target_include_directories(test-sharq-parser-tsan PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+            set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
+        endif()
+        target_link_libraries(test-sharq-parser-tsan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+        target_compile_options( test-sharq-parser-tsan PRIVATE ${tsan_defs} )
+        target_link_options( test-sharq-parser-tsan PRIVATE ${tsan_defs} )
+        add_test( NAME Test_sharq_parser_tsan COMMAND test-sharq-parser-tsan WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+
+    macro(SharqTestImpl TestName Result TestParams SharqBinary CaseId)
     add_test( NAME Test_${TestName}
         COMMAND
-            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
+            "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "0" "--debug" "--no-timestamp" "${TestParams}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
     endmacro()
+    macro(SharqTestNormal TestName Result TestParams)
+        SharqTestImpl(${TestName} ${Result} ${TestParams} "sharq" ${TestName})
+    endmacro()
+    if( RUN_SANITIZER_TESTS )
+        macro(SharqTestAsan TestName Result TestParams)
+            SharqTestImpl("${TestName}-asan" ${Result} ${TestParams} "sharq-asan" ${TestName})
+        endmacro()
+        macro(SharqTestTsan TestName Result TestParams)
+            SharqTestImpl("${TestName}-tsan" ${Result} ${TestParams} "sharq-tsan" ${TestName})
+        endmacro()
+    endif()
+    macro(SharqTest TestName Result TestParams)
+        SharqTestNormal(${TestName} ${Result} ${TestParams})
+        if( RUN_SANITIZER_TESTS )
+            SharqTestAsan(${TestName} ${Result} ${TestParams})
+            SharqTestTsan(${TestName} ${Result} ${TestParams})
+        endif()
+    endmacro()
 
-    macro(SharqTestWithTelemetry TestName Result TestParams)
+
+    macro(SharqTestWithTelemetryImpl TestName Result TestParams SharqBinary CaseId)
     add_test( NAME Test_${TestName}
         COMMAND
-            "./runtestcase.sh" "${BINDIR}" "." "${TestName}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
+            "./runtestcase.sh" "${BINDIR}" ${SharqBinary} "." "${CaseId}" "${Result}" "1" "--debug" "--no-timestamp" "${TestParams}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    endmacro()
+    macro(SharqTestWithTelemetryNormal TestName Result TestParams)
+        SharqTestWithTelemetryImpl(${TestName} ${Result} ${TestParams} "sharq" ${TestName})
+    endmacro()
+    if( RUN_SANITIZER_TESTS )
+        macro(SharqTestWithTelemetryAsan TestName Result TestParams)
+            SharqTestWithTelemetryImpl("${TestName}-asan" ${Result} ${TestParams} "sharq-asan" ${TestName})
+        endmacro()
+        macro(SharqTestWithTelemetryTsan TestName Result TestParams)
+            SharqTestWithTelemetryImpl("${TestName}-tsan" ${Result} ${TestParams} "sharq-tsan" ${TestName})
+        endmacro()
+    endif()
+    macro(SharqTestWithTelemetry TestName Result TestParams)
+        SharqTestWithTelemetryNormal(${TestName} ${Result} ${TestParams})
+        if( RUN_SANITIZER_TESTS )
+            SharqTestWithTelemetryAsan(${TestName} ${Result} ${TestParams})
+            SharqTestWithTelemetryTsan(${TestName} ${Result} ${TestParams})
+        endif()
     endmacro()
 
     #set(IN "${CMAKE_CURRENT_SOURCE_DIR}/input/")
@@ -128,6 +192,7 @@ if ( ZLIB_FOUND AND BZip2_FOUND AND Threads_FOUND )
     SharqTest(010.errors.invalid_seq_pass1 0 "${IN}010.errors.invalid_seq.fq")
     SharqTest(010.errors.invalid_seq_pass2 0 "--max-err-count 5 ${IN}010.errors.invalid_seq.fq")
     SharqTest(010.errors.invalid_seq_fail 1 "--max-err-count 3 ${IN}010.errors.invalid_seq.fq")
+
 
 endif()
 

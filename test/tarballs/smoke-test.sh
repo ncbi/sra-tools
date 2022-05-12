@@ -24,6 +24,9 @@
 
 #echo $0 $*
 
+export NCBI_VDB_NO_ETC_NCBI_KFG=1
+export NCBI_SETTINGS=/
+
 # ===========================================================================
 # run basic tests on an installation of sra-tools
 #   $1 - installation directory
@@ -72,7 +75,17 @@ then
     exit 1
 fi
 TK_INSTALL_DIR=$1
-BIN_DIR=${TK_INSTALL_DIR}bin
+
+if [ -d "${TK_INSTALL_DIR}/bin" ]
+then
+    BIN_DIR=${TK_INSTALL_DIR}/bin
+    KFG=${BIN_DIR}/ncbi/local.kfg
+else
+    BIN_DIR=${TK_INSTALL_DIR}/usr/local/ncbi/sra-tools/bin
+    KFG=${TK_INSTALL_DIR}/etc/ncbi
+    export VDB_CONFIG=${KFG}
+    KFG=${KFG}/local.kfg
+fi
 
 if [ "$2" == "" ]
 then
@@ -85,6 +98,8 @@ VERSION=$2
 FAILED=""
 
 ################################ TEST sratoolkit ###############################
+
+echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" >./${KFG}
 
 echo
 echo "Smoke testing ${BIN_DIR} ..."
@@ -138,3 +153,23 @@ then
     echo
     exit 4
 fi
+
+# run an example
+EXAMPLE="${BIN_DIR}/vdb-dump SRR000001 -R 1"
+$EXAMPLE | grep -q EM7LVYS02FOYNU
+if [ "$?" != "0" ]
+then
+    echo "The example failed: $EXAMPLE"
+    exit 9
+fi
+
+# test a run with a vdbcache
+EXAMPLE="${BIN_DIR}/vdb-dump --table_enum SRR390728"
+$EXAMPLE | grep -q SEQUENCE
+if [ "$?" != "0" ]
+then
+    echo "The example failed: $EXAMPLE"
+    exit 9
+fi
+
+rm ${KFG}

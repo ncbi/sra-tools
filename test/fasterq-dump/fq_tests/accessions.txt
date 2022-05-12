@@ -1,0 +1,68 @@
+#table, layout='B', seq-rows=1002
+#there is a difference in output-file-naming (numbered vs not numbered)
+#ERR1006142
+
+#table, layout='T', seq-rows=3003
+#( these accessions seems to be faulty, they might have to be reloaded )
+#SRR922296
+
+#table, layout='BB', seq-rows=1002, read_lens[ >0, >0 ]
+SRR8048975
+
+#table, layout='BB', seq-rows=1104, read_lens[ 0, >0 ]
+ERR1103629
+
+#table, layout='BB', seq-rows=1182, read_lens[ >0, 0 ]
+ERR1103630
+
+#table, layout='BT', seq-rows=3769, read_lens[ >0, >0 ]
+SRR045129
+
+#table, layout='BT', seq-rows=1037 read_lens[ >0, 0 ]
+ERR045126
+
+#table, layout='TB', seq-rows=1002 read_lens[ >0, >0 ]
+SRR1930601
+
+#table, layout='TB', seq-rows=1564 read_lens[ 0, >0 ]
+SRR1777647
+
+#table, layout='TB', seq-rows=10.901 read_lens[ >0, 0 ]
+SRR833398
+
+#table, layout='BBB', seq-rows=9641 read_lens[ >0, >0, >0 ]
+#( these accessions seems to be faulty, they might have to be reloaded )
+#SRR727492
+#there are no TBB and BBT found!
+
+#table, layout='BTB', seq-rows=125 read_lens[ >0, >0, >0 ]
+ERR038032
+
+#table, layout='BTB', seq-rows=303 read_lens[ >0, 0, >0 ]
+#to be examined - why the 2 tools disagree...
+#ERR026004
+
+#table, layout='BTB', seq-rows=15594 read_lens[ >0, 0, 0 ]
+SRR2134402
+
+#database, layout='BB', seq-rows=1002 (ILLUMINA)
+SRR3656257
+
+#database, layout='BB', seq-rows=1002 (OXFORD-NANOPORE) has no name in CONSENSUS-table!
+#so far this does not agree about the defline!
+#SRR2513320
+
+#database, layout='BB', seq-rows=1002 (UNDEFINED)
+SRR6694081
+
+#database, layout='BB', seq-rows=1008 (454)
+SRR9064703
+
+#database, layout='BB', seq-rows=1008 (Absolid)
+SRR619553
+
+#database, layout='BB', seq-rows=5000 (Complete Genomics)
+SRR11283991
+
+#database, layout='BB', seq-rows=14426 (ION_TORRENT)
+SRR12847907

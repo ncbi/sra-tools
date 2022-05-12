@@ -43,11 +43,13 @@ if ( Java_FOUND )
     )
 
     if ( SINGLE_CONFIG )
+        # LOGLEVEL values: WARNING (default), OFF, INFO, FINE, FINER, FINEST
+        set( LOGLEVEL OFF )
         macro( RunAndDiff TestName TestParams )
             add_test(
                 NAME Test_NgsJavaExamples_${TestName}
                 COMMAND bash -c
-                    "${Java_JAVA_EXECUTABLE} -Dvdb.log=FINEST -cp ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-java.jar -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} examples.${TestName} ${TestParams} > ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName} && diff ${CMAKE_CURRENT_SOURCE_DIR}/expected/${TestName} ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName}"
+                    "${Java_JAVA_EXECUTABLE} -Dvdb.log=${LOGLEVEL} -cp ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar:${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-java.jar -Djava.library.path=${CMAKE_LIBRARY_OUTPUT_DIRECTORY} examples.${TestName} ${TestParams} > ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName} && diff ${CMAKE_CURRENT_SOURCE_DIR}/expected/${TestName} ${CMAKE_CURRENT_SOURCE_DIR}/actual/${TestName}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                 COMMAND_EXPAND_LISTS
             )
@@ -76,5 +78,6 @@ if ( Java_FOUND )
         install(FILES expected.txt
             DESTINATION ${INSTALL_DEST} )
     endif()
+    install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-examples.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
 
 endif()

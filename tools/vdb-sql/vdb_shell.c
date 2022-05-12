@@ -5827,7 +5827,7 @@ static void usage(int showDetail){
   }else{
     raw_printf(stderr, "Use the -help option for additional information\n");
   }
-  exit(1);
+  exit(0);
 }
 
 /*

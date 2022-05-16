@@ -172,4 +172,4 @@ then
     exit 9
 fi
 
-rm ${KFG}
+rm -f ${KFG}

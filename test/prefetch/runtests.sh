@@ -426,7 +426,7 @@ cd ${work_dir}                                                       || exit 105
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info SRR353827 \
 	| grep -v 'false,remote::https:'                     > /dev/null || exit 1061
 cd ${work_dir}                                                       || exit 1062
-ls tmp/SRR353827/SRR353827.sra tmp/wgs/AAAB01            > /dev/null || exit 1063
+ls tmp/SRR353827/SRR353827.sralite tmp/wgs/AAAB01            > /dev/null || exit 1063
 rm -r tmp                                                            || exit 1064
 
 echo lots_wgs:

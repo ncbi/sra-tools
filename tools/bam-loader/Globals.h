@@ -36,22 +36,22 @@ typedef struct globals
     char const *outname;
     char const *firstOut;
     char const *tmpfs;
-    
+
     struct KFile *noMatchLog;
-    
+
     char const *schemaPath;
     char const *schemaIncludePath;
-    
+
     char const *refXRefPath;
-    
+
     char const *QualQuantizer;
-    
+
     char const *refFilter;
 
     char const** refFiles; /* NULL-terminated array pointing to argv */
-    
+
     char const *headerText;
-    
+
     uint64_t maxAlignCount;
     size_t cache_size;
 
@@ -88,6 +88,8 @@ typedef struct globals
     bool allowMultiMapping; /* allow multiple reference names to map to the same real reference */
     bool assembleWithSecondary;
     bool deferSecondary;
+
+    bool compressRead;
 } Globals;
 
 extern Globals G;

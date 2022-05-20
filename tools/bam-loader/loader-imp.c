@@ -3001,7 +3001,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     if (rc == 0)
         rc = rc2;
 
-    SequenceWhack(&seq, rc == 0);
+    SequenceWhack(&seq, rc == 0, G.compressRead);
 
     ContextRelease(ctx, continuing);
 
@@ -3090,6 +3090,19 @@ rc_t run(char const progName[],
                     rc = VSchemaParseFile(schema, "%s", G.schemaPath);
                     if (rc) {
                         (void)PLOGERR(klogErr, (klogErr, rc, "failed to parse schema file $(file)", "file=%s", G.schemaPath));
+                    }
+                    else if (G.compressRead) {
+                        VDatabase *db;
+                        rc = VDBManagerOpenDBUpdate ( mgr, &db, schema, "%s", G.outpath );
+                        if (rc == 0) {
+                            VTable *tbl;
+                            VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
+                            int64_t rows[2] = {0, 0};
+                            extern rc_t CompressREAD_int(VTable *vtbl, int64_t *const buffer, bool notSavingRead);
+                            CompressREAD_int(tbl, rows, false);
+                            VTableRelease( tbl );
+                        }
+                        VDatabaseRelease(db);
                     }
                     else {
                         VDatabase *db;

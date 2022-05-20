@@ -83,7 +83,7 @@ rc_t SequenceUpdateAlignData(Sequence *self, int64_t row, unsigned nreads,
                              const int64_t primeId[/* nreads */],
                              const uint8_t alignCount[/* nreads */]);
 
-void SequenceWhack(Sequence *self, bool commit);
+void SequenceWhack(Sequence *self, bool commit, bool compressRead);
 
 
 #endif /* ndef BAM_LOAD_SEQUENCE_WRITER_H_ */

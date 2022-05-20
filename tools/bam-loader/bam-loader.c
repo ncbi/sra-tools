@@ -149,6 +149,7 @@ static char const option_accept_hard_clip[] = "accept-hard-clip";
 static char const option_allow_multi_map[] = "allow-multi-map";
 static char const option_allow_secondary[] = "make-spots-with-secondary";
 static char const option_defer_secondary[] = "defer-secondary";
+static char const option_compress_reads[] = "compress-reads";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -174,6 +175,7 @@ static char const option_defer_secondary[] = "defer-secondary";
 #define OPTION_ALLOW_MULTI_MAP option_allow_multi_map
 #define OPTION_ALLOW_SECONDARY option_allow_secondary
 #define OPTION_DEFER_SECONDARY option_defer_secondary
+#define OPTION_COMPRESS_READS option_compress_reads
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -188,28 +190,28 @@ static char const option_defer_secondary[] = "defer-secondary";
 #define ALIAS_REF_FILE "r"
 
 static
-char const * input_usage[] = 
+char const * input_usage[] =
 {
     "Path where to get fasta files from.",
     NULL
 };
 
 static
-char const * output_usage[] = 
+char const * output_usage[] =
 {
     "Path and Name of the output database.",
     NULL
 };
 
 static
-char const * tmpfs_usage[] = 
+char const * tmpfs_usage[] =
 {
     "Path to be used for scratch files.",
     NULL
 };
 
 static
-char const * config_usage[] = 
+char const * config_usage[] =
 {
     "Path to configuration file:",
     "maps the input BAM file's reference names to the equivalent GenBank accession.",
@@ -220,21 +222,21 @@ char const * config_usage[] =
 };
 
 static
-char const * min_mapq_usage[] = 
+char const * min_mapq_usage[] =
 {
     "Filter secondary alignments by minimum mapping quality.",
     NULL
 };
 
 static
-char const * qcomp_usage[] = 
+char const * qcomp_usage[] =
 {
     "Quality scores quantization level, can be a number (0: none, 1: 2bit, 2: 1bit), or a string like '1:10,10:20,20:30,30:-' (which is equivalent to 1) (nb. the endpoint is exclusive).",
     NULL
 };
 
 static
-char const * unsorted_usage[] = 
+char const * unsorted_usage[] =
 {
     "Tell the loader to expect unsorted input (requires more memory)",
     NULL
@@ -248,154 +250,154 @@ char const * sorted_usage[] =
 };
 
 static
-char const * cache_size_usage[] = 
+char const * cache_size_usage[] =
 {
     "Set the cache size in MB for the temporary indices",
     NULL
 };
 
 static
-char const * mrc_usage[] = 
+char const * mrc_usage[] =
 {
     "Set the maximum number of records to process from the BAM file",
     NULL
 };
 
 static
-char const * mec_usage[] = 
+char const * mec_usage[] =
 {
     "Set the maximum number of errors to ignore from the BAM file",
     NULL
 };
 
 static
-char const * no_verify_usage[] = 
+char const * no_verify_usage[] =
 {
     "Skip verify existence of references from the BAM file",
     NULL
 };
 
 static
-char const * only_verify_usage[] = 
+char const * only_verify_usage[] =
 {
     "Exit after verifying existence of references from the BAM file",
     NULL
 };
 
 static
-char const * use_QUAL_usage[] = 
+char const * use_QUAL_usage[] =
 {
     "use QUAL column for quality values (default is to use OQ if it is available)",
     NULL
 };
 
 static
-char const * use_ref_filter[] = 
+char const * use_ref_filter[] =
 {
     "Only process alignments to the given reference",
     NULL
 };
 
 static
-char const * use_ref_config[] = 
+char const * use_ref_config[] =
 {
     "Only process alignments to references in the config file",
     NULL
 };
 
 static
-char const * use_edit_aligned_qual[] = 
+char const * use_edit_aligned_qual[] =
 {
     "Convert quality at aligned positions to this value",
     NULL
 };
 
 static
-char const * use_keep_mismatch_qual[] = 
+char const * use_keep_mismatch_qual[] =
 {
     "Don't quantized quality at mismatched positions",
     NULL
 };
 
 static
-char const * use_unaligned[] = 
+char const * use_unaligned[] =
 {
     "Specify file without aligned reads",
     NULL
 };
 
 static
-char const * use_accept_dups[] = 
+char const * use_accept_dups[] =
 {
     "Accept spots inconsistent PCR duplicate flags",
     NULL
 };
 
 static
-char const * use_accept_nomatch[] = 
+char const * use_accept_nomatch[] =
 {
     "Accept alignments with no matching bases",
     NULL
 };
 
 static
-char const * use_nomatch_log[] = 
+char const * use_nomatch_log[] =
 {
     "Where to write info for alignments with no matching bases",
     NULL
 };
 
 static
-char const * use_min_match[] = 
+char const * use_min_match[] =
 {
     "minimum number of matches for an alignment",
     NULL
 };
 
 static
-char const * use_header[] = 
+char const * use_header[] =
 {
     "path to a file containing the SAM header to store in the resulting cSRA, recommended in case of multiple input BAMs",
     NULL
 };
 
 static
-char const * use_no_cs[] = 
+char const * use_no_cs[] =
 {
     "turn off awareness of colorspace",
     NULL
 };
 
 static
-char const * use_no_secondary[] = 
+char const * use_no_secondary[] =
 {
     "ignore alignments marked as secondary",
     NULL
 };
 
 static
-char const * use_ref_file[] = 
+char const * use_ref_file[] =
 {
     "path to a fasta file with references",
     NULL
 };
 
 static
-char const * use_TI[] = 
+char const * use_TI[] =
 {
     "for trace alignments",
     NULL
 };
 
 static
-char const * use_max_dup_warnings[] = 
+char const * use_max_dup_warnings[] =
 {
     "set limit for number of duplicate flag mismatch warnings",
     NULL
 };
 
 static
-char const * use_accept_hard_clip[] = 
+char const * use_accept_hard_clip[] =
 {
     "accept hard clipping in CIGAR",
     NULL
@@ -423,7 +425,14 @@ char const * use_defer_secondary[] =
     NULL
 };
 
-OptDef Options[] = 
+static
+char const * use_compress_reads[] =
+{
+    "comrpess READ column into CMP_READ",
+    NULL
+};
+
+OptDef Options[] =
 {
     /* order here is same as in param array below!!! */
     { OPTION_INPUT, ALIAS_INPUT,  NULL,  input_usage, 1, true,  false },
@@ -458,7 +467,8 @@ OptDef Options[] =
     { OPTION_ACCEPT_HARD_CLIP, NULL, NULL, use_accept_hard_clip, 1, false, false },
     { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false },
     { OPTION_ALLOW_SECONDARY, NULL, NULL, use_allow_secondary, 1, false, false },
-    { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false }
+    { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false },
+    { OPTION_COMPRESS_READS, NULL, NULL, use_compress_reads, 1, false, false }
 };
 
 const char* OptHelpParam[] =
@@ -496,7 +506,8 @@ const char* OptHelpParam[] =
     NULL,				/* allow hard clipping */
     NULL,				/* allow multimapping */
     NULL,				/* allow secondary */
-    NULL				/* defer secondary */
+    NULL,				/* defer secondary */
+    NULL				/* compress READ */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -572,7 +583,7 @@ static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char con
     size_t const plen = strlen(path);
     bool const hasBase = base && base[0];
     bool const isBareName = strchr(path, '/') == NULL;
-    
+
     if (isBareName && hasBase) {
         if (string_printf(rslt, sz, NULL, "%s/%s", base, path) == 0)
             return 0;
@@ -592,10 +603,10 @@ static rc_t OpenFile(KFile const **kf, char const path[], char const base[])
 {
     char fname[4096];
     rc_t rc = PathWithBasePath(fname, sizeof(fname), path, base);
-    
+
     if (rc == 0) {
         KDirectory *dir;
-        
+
         rc = KDirectoryNativeDir(&dir);
         if (rc == 0) {
             rc = KDirectoryOpenFileRead(dir, kf, "%s", fname);
@@ -609,14 +620,14 @@ static rc_t LoadHeader(char const **rslt, char const path[], char const base[])
 {
     KFile const *kf;
     rc_t rc = OpenFile(&kf, path, base);
-    
+
     *rslt = NULL;
     if (rc == 0) {
         uint64_t fsize;
         rc = KFileSize(kf, &fsize);
         if (rc == 0) {
             char *fdata = malloc(fsize+1);
-            
+
             if (fdata) {
                 size_t nread;
                 rc = KFileRead(kf, 0, fdata, fsize, &nread);
@@ -690,22 +701,22 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
         if (rc)
             break;
         G.onlyVerifyReferences |= (pcount > 0);
-        
+
         rc = ArgsOptionCount(args, option_no_verify, &pcount);
         if (rc)
             break;
         G.noVerifyReferences |= (pcount > 0);
-        
+
         rc = ArgsOptionCount(args, option_use_qual, &pcount);
         if (rc)
             break;
         G.useQUAL |= (pcount > 0);
-        
+
         rc = ArgsOptionCount(args, option_ref_config, &pcount);
         if (rc)
             break;
         G.limit2config |= (pcount > 0);
-        
+
         rc = ArgsOptionCount(args, OPTION_REF_FILE, &pcount);
         if (rc)
             break;
@@ -743,7 +754,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             MiniUsage (args);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_INPUT, &pcount);
         if (rc)
             break;
@@ -760,7 +771,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             MiniUsage (args);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, option_ref_filter, &pcount);
         if (rc)
             break;
@@ -777,7 +788,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             MiniUsage (args);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_CONFIG, &pcount);
         if (rc)
             break;
@@ -794,7 +805,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             MiniUsage (args);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_OUTPUT, &pcount);
         if (rc)
             break;
@@ -822,7 +833,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             MiniUsage (args);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_MINMAPQ, &pcount);
         if (rc)
             break;
@@ -833,7 +844,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             G.minMapQual = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_QCOMP, &pcount);
         if (rc)
             break;
@@ -861,7 +872,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             }
             G.editAlignedQual = true;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_CACHE_SIZE, &pcount);
         if (rc)
             break;
@@ -878,7 +889,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             }
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_MAX_WARN_DUP_FLAG, &pcount);
         if (rc)
             break;
@@ -889,17 +900,17 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             G.maxWarnCount_DupConflict = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, option_unsorted, &pcount);
         if (rc)
             break;
         G.expectUnsorted |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, option_sorted, &pcount);
         if (rc)
             break;
         G.requireSorted |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_MAX_REC_COUNT, &pcount);
         if (rc)
             break;
@@ -910,7 +921,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             G.maxAlignCount = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_MAX_ERR_COUNT, &pcount);
         if (rc)
             break;
@@ -921,7 +932,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             G.maxErrCount = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_MIN_MATCH, &pcount);
         if (rc)
             break;
@@ -932,64 +943,69 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 break;
             G.minMatchCount = strtoul(value, &dummy, 0);
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_ACCEPT_DUP, &pcount);
         if (rc)
             break;
         G.acceptBadDups |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_ACCEPT_NOMATCH, &pcount);
         if (rc)
             break;
         G.acceptNoMatch |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, option_keep_mismatch_qual, &pcount);
         if (rc)
             break;
         G.keepMismatchQual |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_NO_CS, &pcount);
         if (rc)
             break;
         G.noColorSpace |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_NO_SECONDARY, &pcount);
         if (rc)
             break;
         G.noSecondary |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_TI, &pcount);
         if (rc)
             break;
         G.hasTI |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_ACCEPT_HARD_CLIP, &pcount);
         if (rc)
             break;
         G.acceptHardClip |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_ALLOW_MULTI_MAP, &pcount);
         if (rc)
             break;
         G.allowMultiMapping |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_ALLOW_SECONDARY, &pcount);
         if (rc)
             break;
         G.assembleWithSecondary |= (pcount > 0);
-        
+
         rc = ArgsOptionCount (args, OPTION_DEFER_SECONDARY, &pcount);
         if (rc)
             break;
         G.deferSecondary |= (pcount > 0);
-        
+
+        rc = ArgsOptionCount (args, OPTION_COMPRESS_READS, &pcount);
+        if (rc)
+            break;
+        G.compressRead |= (pcount > 0);
+
         rc = ArgsOptionCount (args, OPTION_NOMATCH_LOG, &pcount);
         if (rc)
             break;
         if (pcount == 1)
         {
             KDirectory *dir;
-            
+
             rc = ArgsOptionValue (args, OPTION_NOMATCH_LOG, 0, (const void **)&value);
             if (rc) break;
             rc = KDirectoryNativeDir(&dir);
@@ -998,7 +1014,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             KDirectoryRelease(dir);
             if (rc) break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_HEADER, &pcount);
         if (rc)
             break;
@@ -1009,7 +1025,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             rc = LoadHeader(&G.headerText, value, G.inpath);
             if (rc) break;
         }
-        
+
         rc = ArgsParamCount (args, &pcount);
         if (rc) break;
         if (pcount == 0)
@@ -1027,7 +1043,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
         else {
             unsigned need = G.inpath ? (strlen(G.inpath) + 1) * pcount : 0;
             unsigned i;
-            
+
             for (i = 0; i < pcount; ++i) {
                 rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
@@ -1035,7 +1051,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             }
             nbsz = need;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_UNALIGNED, &pcount);
         if (rc)
             break;
@@ -1043,7 +1059,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
         {
             unsigned need = G.inpath ? (strlen(G.inpath) + 1) * pcount : 0;
             unsigned i;
-            
+
             for (i = 0; i < pcount; ++i) {
                 rc = ArgsOptionValue(args, OPTION_UNALIGNED, i, (const void **)&value);
                 if (rc) break;
@@ -1052,21 +1068,21 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             if (rc) break;
             nbsz += need;
         }
-        
+
         name_buffer = malloc(nbsz);
         if (name_buffer == NULL) {
             rc = RC(rcApp, rcArgv, rcAccessing, rcMemory, rcExhausted);
             break;
         }
-        
+
         rc = ArgsOptionCount (args, OPTION_UNALIGNED, &pcount);
         if (rc == 0) {
             unsigned i;
-            
+
             for (i = 0; i < pcount; ++i) {
                 rc = ArgsOptionValue(args, OPTION_UNALIGNED, i, (const void **)&value);
                 if (rc) break;
-                
+
                 unalgnd[n_unalgnd++] = name_buffer + next_name;
                 rc = PathWithBasePath(name_buffer + next_name, nbsz - next_name, value, G.inpath);
                 if (rc) break;
@@ -1076,15 +1092,15 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
         }
         else
             break;
-        
+
         rc = ArgsParamCount (args, &pcount);
         if (rc == 0) {
             unsigned i;
-            
+
             for (i = 0; i < pcount; ++i) {
                 rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
-                
+
                 aligned[n_aligned++] = name_buffer + next_name;
                 rc = PathWithBasePath(name_buffer + next_name, nbsz - next_name, value, G.inpath);
                 if (rc) break;
@@ -1248,7 +1264,7 @@ rc_t CC KMain(int argc, char *argv[])
     G.cache_size = ((size_t)16) << 30;
     G.maxErrCount = 1000;
     G.minMatchCount = 10;
-    
+
     set_pid();
 
     for (arglast = 1; arglast < argc; ++arglast) {

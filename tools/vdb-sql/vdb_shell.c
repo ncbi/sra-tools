@@ -12,6 +12,9 @@
 ** This file contains code to implement the "sqlite" command line
 ** utility for accessing SQLite databases.
 */
+
+#include <kapp/main.h> /* KAppVersion */
+
 #if (defined(_WIN32) || defined(WIN32)) && !defined(_CRT_SECURE_NO_WARNINGS)
 /* This needs to come before any includes for MSVC compiler */
 #define _CRT_SECURE_NO_WARNINGS
@@ -5892,7 +5895,7 @@ static char *cmdline_option_value( int argc, char **argv, int i )
 #endif
 
 #if SQLITE_SHELL_IS_UTF8
-int SQLITE_CDECL main( int argc, char **argv )
+int SQLITE_CDECL smain( int argc, char **argv )
 {
 #else
 int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
@@ -6251,10 +6254,13 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
     {
       bail_on_error = 1;
     }
-    else if ( strcmp( z, "-version" ) == 0
-           || strcmp( z, "-V"       ) == 0  )
+    else if ( strcmp( z, "-version" ) == 0 )
     {
       printf( "%s %s\n", sqlite3_libversion(), sqlite3_sourceid() );
+      return 0;
+    }
+    else if ( strcmp( z, "-V" ) == 0 ) {
+      HelpVersion ( UsageDefaultName, KAppVersion () );
       return 0;
     }
     else if ( strcmp( z, "-interactive" ) == 0 )
@@ -6502,4 +6508,12 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   sqlite3_free( argv );
 #endif
   return rc;
+}
+
+const char UsageDefaultName[] = "vdb-sql";
+rc_t CC UsageSummary (const char * progname) { return 0; }
+rc_t CC Usage(const Args* args) { return 0; }
+rc_t CC KMain ( int argc, char *argv [] ) {
+ int i = smain( argc, argv );
+ return i;
 }

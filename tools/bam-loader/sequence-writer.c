@@ -480,7 +480,7 @@ void SequenceWhack(Sequence *self, bool commit, bool compressRead) {
     if (self->tbl == NULL)
         return;
 
-    (void)TableWriterSeq_Whack(self->tbl, commit, &dummyRows, compressRead);
+    (void)TableWriterSeq_Whack(self->tbl, commit, &dummyRows);
     if (G.mode == mode_Remap) {
         /* This only happens for the second and subsequent loads.
          * Cleaning up the first load is handled by the bam-load itself

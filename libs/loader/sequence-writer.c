@@ -231,7 +231,7 @@ void SequenceWhack(SequenceWriter *self, bool commit) {
     if (self->tbl == NULL)
         return;
 
-    /* rc = */ TableWriterSeq_Whack(self->tbl, commit, &dummyRows, true);
+    /* rc = */ TableWriterSeq_Whack(self->tbl, commit, &dummyRows);
 }
 
 /* MARK: SequenceRecord Object */

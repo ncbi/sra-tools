@@ -3099,7 +3099,7 @@ rc_t run(char const progName[],
                             VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
                             int64_t rows[2] = {0, 0};
                             extern rc_t CompressREAD_int(VTable *vtbl, int64_t *const buffer, bool notSavingRead);
-                            CompressREAD_int(tbl, rows, false);
+                            CompressREAD_int(tbl, rows, true);
                             VTableRelease( tbl );
                         }
                         VDatabaseRelease(db);

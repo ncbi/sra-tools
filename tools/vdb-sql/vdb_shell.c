@@ -5898,9 +5898,14 @@ static char *cmdline_option_value( int argc, char **argv, int i )
 int SQLITE_CDECL smain( int argc, char **argv )
 {
 #else
+int SQLITE_CDECL smain( int argc, char **argv )
+/*
 int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
+*/
 {
+/*
   char **argv;
+*/
 #endif
   char *zErrMsg = NULL;
   ShellState data;
@@ -5933,6 +5938,7 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   }
 #endif
   main_init( &data );
+/*
 #if !SQLITE_SHELL_IS_UTF8
   sqlite3_initialize();
   argv = sqlite3_malloc64( sizeof( argv[0] ) * argc );
@@ -5951,6 +5957,7 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
     }
   }
 #endif
+*/
   assert( argc >= 1 && argv && argv[ 0 ] );
   Argv0 = argv[ 0 ];
 

@@ -148,7 +148,7 @@ if ( Java_FOUND )
         if ( Java_JAR_EXECUTABLE AND NOT (${OS} STREQUAL "windows") )
             add_custom_target(
                 ngs-doc-jar ALL COMMAND
-                bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ."
+                bash -c "${Java_JAR_EXECUTABLE} -cf ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ."
                 DEPENDS ngs-doc_javadoc
                 WORKING_DIRECTORY "${NGS_JAVADOC_DIR}/ngs/ngs-java/javadoc/ngs-doc"
             )
@@ -156,7 +156,7 @@ if ( Java_FOUND )
 
             add_custom_target(
                 ngs-src-jar ALL COMMAND
-                bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar ${SRC_FILES}"
+                bash -c "${Java_JAR_EXECUTABLE} -cf ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar ${SRC_FILES}"
                 DEPENDS ngs-doc_javadoc
                 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             )
@@ -164,7 +164,7 @@ if ( Java_FOUND )
         elseif ( Java_JAR_EXECUTABLE AND ${OS} STREQUAL "windows" )
             add_custom_target(
                 ngs-doc-jar ALL COMMAND
-                "${Java_JAR_EXECUTABLE}" -cfv "${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar" .
+                "${Java_JAR_EXECUTABLE}" -cf "${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar" .
                 DEPENDS ngs-doc_javadoc
                 WORKING_DIRECTORY "${NGS_JAVADOC_DIR}/ngs/ngs-java/javadoc/ngs-doc"
             )
@@ -173,7 +173,7 @@ if ( Java_FOUND )
             # https://jira.ncbi.nlm.nih.gov/browse/VDB-4761 - temporarily disabling
             # add_custom_target(
                 # ngs-src-jar ALL COMMAND
-                # "${Java_JAR_EXECUTABLE}" -cfv "${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar" ${SRC_FILES}
+                # "${Java_JAR_EXECUTABLE}" -cf "${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar" ${SRC_FILES}
                 # WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
             # )
             # install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-src.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )

@@ -22,14 +22,10 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/align-cache" )
-
 set( SRC
     align-cache
     helper
 )
 
-add_executable( align-cache ${SRC} )
-target_include_directories( align-cache PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-target_link_libraries ( align-cache ${COMMON_LINK_LIBRARIES} loader ${COMMON_LIBS_WRITE} )
+GenerateExecutableWithDefs( align-cache "${SRC}" "__mod__=\"tools/align-cache\"" "${CMAKE_SOURCE_DIR}/libs/inc" "${COMMON_LINK_LIBRARIES};loader;${COMMON_LIBS_WRITE}" )
 MakeLinksExe( align-cache false )

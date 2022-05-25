@@ -37,28 +37,28 @@ if( LibXml2_FOUND )
 		loader
 	)
 
-   if (SINGLE_CONFIG )
-	set( LOADER_LIB
-        loader
-        ${COMMON_LINK_LIBRARIES}
-		${COMMON_LIBS_WRITE}
-		kxml
-		${LIBXML2_LIBRARIES}
-	)
+	if (SINGLE_CONFIG )
+		set( LOADER_LIB
+			loader
+			${COMMON_LINK_LIBRARIES}
+			${COMMON_LIBS_WRITE}
+			kxml
+			${LIBXML2_LIBRARIES}
+		)
 
-   else()
-	set( LOADER_LIB
-        loader
-        ${COMMON_LINK_LIBRARIES}
-		${COMMON_LIBS_WRITE}
-		kxml
-		xml2
-	)
-   endif()
+	else()
+		set( LOADER_LIB
+			loader
+			${COMMON_LINK_LIBRARIES}
+			${COMMON_LIBS_WRITE}
+			kxml
+			xml2
+		)
+	endif()
 
-   if ( "mac" STREQUAL ${OS} )
-      list( APPEND LOADER_LIB iconv )
-   endif()
+	if ( "mac" STREQUAL ${OS} )
+		list( APPEND LOADER_LIB iconv )
+	endif()
 
 	# External
 
@@ -69,8 +69,7 @@ if( LibXml2_FOUND )
 		sff-fmt
 	)
 
-	add_executable( sff-load ${SFF_LOAD_SRC} )
-	target_link_libraries( sff-load ${LOADER_LIB} )
+	GenerateExecutableWithDefs( sff-load "${SFF_LOAD_SRC}" "" "" "${LOADER_LIB}" )
 	MakeLinksExe( sff-load false )
 
 
@@ -82,8 +81,7 @@ if( LibXml2_FOUND )
 		fastq-fmt
 	)
 
-	add_executable( fastq-load ${FASTQ_LOAD_SRC} )
-	target_link_libraries( fastq-load ${LOADER_LIB} )
+	GenerateExecutableWithDefs( fastq-load "${FASTQ_LOAD_SRC}" "" "" "${LOADER_LIB}" )
 	MakeLinksExe( fastq-load false )
 
 
@@ -100,8 +98,7 @@ if( LibXml2_FOUND )
 		srf-absolid
 	)
 
-	add_executable( srf-load ${SRF_LOAD_SRC} )
-	target_link_libraries( srf-load ${LOADER_LIB} )
+	GenerateExecutableWithDefs( srf-load "${SRF_LOAD_SRC}" "" "" "${LOADER_LIB}" )
 	MakeLinksExe( srf-load false )
 
 
@@ -111,8 +108,7 @@ if( LibXml2_FOUND )
 		absolid-fmt
 	)
 
-	add_executable( abi-load ${ABSOLID_LOAD_SRC} )
-	target_link_libraries( abi-load ${LOADER_LIB} )
+	GenerateExecutableWithDefs( abi-load "${ABSOLID_LOAD_SRC}" "" "" "${LOADER_LIB}" )
 	MakeLinksExe( abi-load false )
 
 
@@ -122,8 +118,7 @@ if( LibXml2_FOUND )
 		illumina-fmt
 	)
 
-	add_executable( illumina-load ${ILLUMINA_LOAD_SRC} )
-	target_link_libraries( illumina-load ${LOADER_LIB} )
+	GenerateExecutableWithDefs( illumina-load "${ILLUMINA_LOAD_SRC}" "" "" "${LOADER_LIB}" )
 	MakeLinksExe( illumina-load false )
 
 
@@ -133,8 +128,7 @@ if( LibXml2_FOUND )
 		helicos-fmt
 	)
 
-	add_executable( helicos-load ${HELICOS_LOAD_SRC} )
-	target_link_libraries( helicos-load ${LOADER_LIB} )
+	GenerateExecutableWithDefs( helicos-load "${HELICOS_LOAD_SRC}" "" "" "${LOADER_LIB}" )
 	MakeLinksExe( helicos-load false )
 
 
@@ -143,8 +137,7 @@ if( LibXml2_FOUND )
 		pacbio-fmt
 	)
 
-	add_executable( pacbio-loadxml ${PACBIO_LOADXML_SRC} )
-	target_link_libraries( pacbio-loadxml ${LOADER_LIB} )
+	GenerateExecutableWithDefs( pacbio-loadxml "${PACBIO_LOADXML_SRC}" "" "" "${LOADER_LIB}" )
 	MakeLinksExe( pacbio-loadxml false )
 
 endif()

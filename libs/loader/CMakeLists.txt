@@ -35,7 +35,4 @@ set( SRC
     sequence-writer
 )
 
-GenerateStaticLibs( loader "${SRC}" )
-target_include_directories( loader PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-
-add_compile_definitions (__mod__="libs/loader")
+GenerateStaticLibsWithDefs( loader "${SRC}" "__mod__=\"libs/loader\"" "${CMAKE_SOURCE_DIR}/libs/inc" )

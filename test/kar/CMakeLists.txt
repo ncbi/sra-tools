@@ -30,6 +30,20 @@ if ( NOT WIN32 )
             bash -c "./kar-ntest.sh ${DIRTOTEST}/kar ${DIRTOTEST}/prefetch"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_Kar-asan
+            COMMAND
+                ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
+                bash -c "./kar-ntest.sh ${DIRTOTEST}/kar-asan ${DIRTOTEST}/prefetch"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        add_test( NAME Test_Kar-tsan
+            COMMAND
+                ${CMAKE_COMMAND} -E env ${CONFIGTOUSE}=/
+                bash -c "./kar-ntest.sh ${DIRTOTEST}/kar-tsan ${DIRTOTEST}/prefetch"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+
 else()
 #TODO: make run on Windows
 endif()

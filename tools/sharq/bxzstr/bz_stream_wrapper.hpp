@@ -72,8 +72,7 @@ class bz_stream_wrapper : public bz_stream, public stream_wrapper {
   public:
     bz_stream_wrapper(const bool _is_input = true, const int _level = 9, const int _wf = 30)
             : is_input(_is_input) {
-	bz_stream::next_in = new char();
-	bz_stream::next_out = new char();
+	next_out_first_allocated = bz_stream::next_out = new char();
 	this->bzalloc = NULL;
 	this->bzfree = NULL;
 	this->opaque = NULL;
@@ -82,6 +81,7 @@ class bz_stream_wrapper : public bz_stream, public stream_wrapper {
 	    bz_stream::next_in = NULL;
 	    ret = BZ2_bzDecompressInit(this, 0, 0);
 	} else {
+		bz_stream::next_in = new char();
 	    ret = BZ2_bzCompressInit(this, _level, 0, _wf);
 	}
 	if (ret != BZ_OK) throw bzException(ret);
@@ -92,6 +92,7 @@ class bz_stream_wrapper : public bz_stream, public stream_wrapper {
 	} else {
 	    BZ2_bzCompressEnd(this);
 	}
+		delete next_out_first_allocated;
     }
 
     int decompress(const int) override {
@@ -120,6 +121,7 @@ class bz_stream_wrapper : public bz_stream, public stream_wrapper {
   private:
     bool is_input;
     int ret;
+    char* next_out_first_allocated;
 }; // class bz_stream_wrapper
 } // namespace detail
 } // namespace bxz

@@ -52,14 +52,15 @@ set( FASTQ_SRC
 # Internal
 # libfastqloader
 if( NOT WIN32 ) # sys/mman.h
-	add_library( fastqloader ${FASTQ_SRC} )
+	GenerateStaticLibsWithDefs( fastqloader "${FASTQ_SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" )
 
 # External
-	add_executable( latf-load
-		${FASTQ_SRC}
-		fastq-loader
-		loader-imp
-	)
-	target_link_libraries( latf-load ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+	GenerateExecutableWithDefs( latf-load "${FASTQ_SRC};fastq-loader;loader-imp" "" "${CMAKE_SOURCE_DIR}/libs/inc" "" )
+
+	target_link_libraries( latf-load loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+	if( RUN_SANITIZER_TESTS )
+		target_link_libraries( latf-load-asan loader-asan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+		target_link_libraries( latf-load-tsan loader-tsan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+	endif()
 	MakeLinksExe( latf-load false )
 endif()

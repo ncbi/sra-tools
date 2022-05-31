@@ -1,8 +1,9 @@
 #!/bin/bash
 
 bin_dir=$1
+read_filter_redact=$2
 
-echo Testing read-filter-redact from ${bin_dir}
+echo Testing ${read_filter_redact} from ${bin_dir}
 
 
 # rm -rf actual
@@ -34,7 +35,7 @@ if ${bin_dir}/kdbmeta tmp-read-filter-redact-test-run \
 	then echo "error: HISTORY found in source metadata"; exit 1; fi
 
 # read-filter-redact
-${bin_dir}/read-filter-redact -F${FLT} ${RUN} > /dev/null 2>&1
+${bin_dir}/${read_filter_redact} -F${FLT} ${RUN} > /dev/null 2>&1
 
 # make sure HISTORY meta was created
 ${bin_dir}/kdbmeta tmp-read-filter-redact-test-run -TSEQUENCE HISTORY | \

@@ -48,8 +48,8 @@
 #include "sorter.h"
 #endif
 
-#ifndef _h_join_
-#include "join.h"
+#ifndef _h_db_join_
+#include "db_join.h"
 #endif
 
 #ifndef _h_tbl_join_
@@ -303,7 +303,7 @@ rc_t CC Usage ( const Args * args ) {
 
 /* -------------------------------------------------------------------------------------------- */
 
-static const char * dflt_seq_tabl_name = "SEQUENCE";
+static const char * dflt_requested_seq_tabl_name = "SEQUENCE";
 
 #define DFLT_CUR_CACHE ( 5 * 1024 * 1024 )
 #define DFLT_BUF_SIZE ( 1024 * 1024 )
@@ -361,7 +361,7 @@ static rc_t get_user_input( tool_ctx_t * tool_ctx, const Args * args ) {
         ErrMsg( "invalid check-mode -> %R", rc );
     }
     
-    tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
+    tool_ctx -> requested_seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_requested_seq_tabl_name );
     tool_ctx -> append = get_bool_option( args, OPTION_APPEND );
     tool_ctx -> use_stdout = get_bool_option( args, OPTION_STDOUT );
 
@@ -539,7 +539,7 @@ static rc_t produce_final_db_output( const tool_ctx_t * tool_ctx ) {
     if ( rc == 0 ) {
         rc = execute_db_join( &args ); /* join.c */
     }
-
+    
     /* from now on we do not need the lookup-file and it's index any more... */
     if ( 0 != tool_ctx -> lookup_filename[ 0 ] ) {
         KDirectoryRemove( tool_ctx -> dir, true, "%s", &tool_ctx -> lookup_filename[ 0 ] );
@@ -643,6 +643,8 @@ static rc_t process_table_in_seq_order( const tool_ctx_t * tool_ctx, const char 
 
     rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
 
+    //KOutMsg( "\ntbl-name=%s\n", tbl_name );
+    
     if ( 0 == rc ) {
         
         execute_tbl_join_args_t args; /* tbl_join.h */
@@ -772,7 +774,8 @@ rc_t CC KMain ( int argc, char *argv [] ) {
 
                 rc = get_user_input( &tool_ctx, args ); /* above: get argument and options from args */
                 if ( 0 == rc ) {
-                    rc = populate_tool_ctx( &tool_ctx ); /* tool_ctx.c */
+                    rc = populate_tool_ctx( &tool_ctx ); /* tool_ctx.c !includes inspector! */
+                    /* returns rc != 0 if inspection failed, because of check-mode */
                 }
 
                 if ( 0 == rc && !( cmt_only == tool_ctx . check_mode ) ) {

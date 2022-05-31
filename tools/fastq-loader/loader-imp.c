@@ -36,7 +36,6 @@
 #include <kdb/manager.h>
 #include <kdb/database.h>
 
-#include <kapp/loader-meta.h>
 #include <kapp/main.h>
 
 #include <kfs/directory.h>
@@ -46,6 +45,8 @@
 #include <vdb/database.h>
 #include <vdb/vdb-priv.h>
 #include <insdc/sra.h>
+
+#include <loader/loader-meta.h>
 
 #include "common-reader.h"
 #include "common-writer.h"

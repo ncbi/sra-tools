@@ -22,10 +22,8 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/srapath" )
-
 # External
-add_executable( srapath
+set( SRC
 	helper
 	line_iter
 	repository-mgr
@@ -33,5 +31,5 @@ add_executable( srapath
 	cgi_request
 	srapath
 )
-target_link_libraries( srapath ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( srapath "${SRC}" "__mod__=\"tools/srapath\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( srapath true )

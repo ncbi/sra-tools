@@ -162,7 +162,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mOutputFile.clear();
         mDestination = "sra.out";
 
-        app.set_version_flag("--version,-v", SHARQ_VERSION);
+        app.set_version_flag("--version,-V", SHARQ_VERSION);
 
         app.add_option("--output", mDestination, "Output archive path");
 

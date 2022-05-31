@@ -40,10 +40,11 @@ typedef struct FastqSequence    FastqSequence;
 #include <assert.h>
 #include <string.h>
 
-#include <kapp/loader-file.h>
 #include <kfs/directory.h>
 #include <klib/log.h>
 #include <klib/rc.h>
+
+#include <loader/loader-file.h>
 
 static rc_t FastqSequenceInit(FastqSequence* self);
 

@@ -23,21 +23,24 @@
 # ===========================================================================
 
 if ( Java_FOUND )
-	add_compile_definitions (__mod__="ngs/ncbi/ngs-jni")
-
 	set( SRC
 		jni_Manager
 		jni_String
 		jni_ErrorMsg
 	)
 
-	include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/libs/klib ) #TODO: remove
-	include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-jni )
-	include_directories( ${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs )
-	include_directories( ${CMAKE_SOURCE_DIR} )
+	set( INC_DIRS
+		${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs-jni
+		${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
+		${CMAKE_SOURCE_DIR}
+	)
 
-	GenerateStaticLibs( ngs-jni "${SRC}" )
-    if ( JNI_FOUND )
-    	add_dependencies( ngs-jni ngs-jni-headers )
-    endif()
+	GenerateStaticLibsWithDefs( ngs-jni "${SRC}" "__mod__=\"ngs/ncbi/ngs-jni\"" "${INC_DIRS}" )
+	if ( JNI_FOUND )
+		add_dependencies( ngs-jni ngs-jni-headers )
+		if( RUN_SANITIZER_TESTS )
+			add_dependencies( ngs-jni-asan ngs-jni-headers )
+			add_dependencies( ngs-jni-tsan ngs-jni-headers )
+		endif()
+	endif()
 endif()

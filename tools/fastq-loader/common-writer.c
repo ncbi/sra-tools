@@ -35,11 +35,12 @@
 #include <kfs/file.h>
 
 #include <kapp/main.h>
-#include <kapp/progressbar.h>
 
 #include <kproc/queue.h>
 #include <kproc/thread.h>
 #include <kproc/timeout.h>
+
+#include <loader/progressbar.h>
 
 #include "common-reader-priv.h"
 #include "spot-assembler.h"

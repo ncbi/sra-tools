@@ -103,6 +103,6 @@ if [ "$rc" != "0" ] ; then
     exit 4
 fi
 
-#rm -rf $TEMPDIR
+rm -rf $TEMPDIR
 
 exit 0

@@ -58,15 +58,16 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
-#include <kapp/loader-file.h>
-#include <kapp/loader-meta.h>
 #include <kapp/log-xml.h>
-#include <kapp/progressbar.h>
 
 #include <kproc/queue.h>
 #include <kproc/thread.h>
 #include <kproc/timeout.h>
 #include <os-native.h>
+
+#include <loader/loader-file.h>
+#include <loader/loader-meta.h>
+#include <loader/progressbar.h>
 
 #include <sysalloc.h>
 #include <atomic32.h>
@@ -862,7 +863,10 @@ static rc_t VerifyReferences(BAM_File const *bam, Reference const *ref)
 
         rc = ReferenceVerify(ref, refSeq->name, refSeq->length, refSeq->checksum);
         if (rc) {
-            if (GetRCObject(rc) == rcChecksum && GetRCState(rc) == rcUnequal) {
+            if (GetRCObject(rc) == rcId && GetRCState(rc) == rcUndefined) {
+                (void)PLOGMSG(klogInfo, (klogInfo, "Reference: '$(name)' is unmapped", "name=%s", refSeq->name));
+            }
+            else if (GetRCObject(rc) == rcChecksum && GetRCState(rc) == rcUnequal) {
 #if NCBI
                 (void)PLOGMSG(klogWarn, (klogWarn, "Reference: '$(name)', Length: $(len); checksums do not match", "name=%s,len=%u", refSeq->name, (unsigned)refSeq->length));
 #endif

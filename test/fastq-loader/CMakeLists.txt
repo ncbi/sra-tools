@@ -28,10 +28,11 @@ if( NOT WIN32 )
     add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)
 
-    AddExecutableTest( SlowTest_FastqLoader_id2name "test-id2name.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastq "wb-test-fastq.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqParse "wb-test-fastq-parse.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqLoader "test-fastq-loader.cpp" "fastqloader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    set( LIBS )
+    AddExecutableTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_FastqLoader_WbFastq         "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+    AddExecutableTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )
     set_tests_properties( Test_FastqLoader_WbFastqLoader
         PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )
@@ -50,6 +51,25 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED LatfTest )
+        if( RUN_SANITIZER_TESTS )
+            add_test( NAME Test_FastqLoader_${TestName}-asan
+                COMMAND
+                    ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                    ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                    "./runtestcase.sh" "${BINDIR}/vdb-dump-asan ${DumpParams}" "${BINDIR}/latf-load-asan ${LoadParams}" "." "${TestName}" "${Result}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+            set_tests_properties( Test_FastqLoader_${TestName}-asan PROPERTIES FIXTURES_REQUIRED LatfTest )
+
+            add_test( NAME Test_FastqLoader_${TestName}-tsan
+                COMMAND
+                    ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                    ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                    "./runtestcase.sh" "${BINDIR}/vdb-dump-tsan ${DumpParams}" "${BINDIR}/latf-load-tsan ${LoadParams}" "." "${TestName}" "${Result}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+            set_tests_properties( Test_FastqLoader_${TestName}-tsan PROPERTIES FIXTURES_REQUIRED LatfTest )
+        endif()
     endmacro()
 
     # default dump params
@@ -106,6 +126,20 @@ if( NOT WIN32 )
             bash -c "${DIRTOTEST}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_FastqLoader_4.1-asan
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${DIRTOTEST}/latf-load-asan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        add_test( NAME Test_FastqLoader_4.1-tsan
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${DIRTOTEST}/latf-load-tsan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+    endif()
     #           4.2 --qual-quant        quality values are quantized as specified
     LatfTest( 4.2 0 "input/4.fastq --qual-quant 1:10,10:20,20:30,30:- --quality PHRED_33" )
     #           4.3.1 --cache-size      rejected if invalid

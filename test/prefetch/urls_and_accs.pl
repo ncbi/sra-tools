@@ -24,7 +24,7 @@
 
 #$VERBOSE = 1;
 
-($DIRTOTEST, $BINDIR) = @ARGV;
+($DIRTOTEST, $BINDIR, $PREFETCH) = @ARGV;
 
 `mkdir -p tmp   tmp2`         ; die if $?;
 `rm   -fr tmp/* tmp2/* *.lock`; die if $?;
@@ -36,7 +36,7 @@ print "prefetch URL-1 when there is no kfg\n";
 `rm -f wiki`; die if $?;
 $URL = 'https://github.com/ncbi/ngs/wiki';
 $CWD = `pwd`; die if $?; chomp $CWD;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $URL";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $URL";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die 'Is there DIRTOTEST?' if $?;
 `rm wiki`          ; die if $?;
@@ -44,7 +44,7 @@ print "$CMD\n" if $VERBOSE;
 print "prefetch URL-2/2 when there is no kfg\n";
 `rm -f index.html`; die if $?;
 $URL = 'https://github.com/ncbi/';
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $URL";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $URL";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm index.html`    ; die if $?;
@@ -56,7 +56,7 @@ $NCBI = $? == 0;
 if ($NCBI) {
     `rm -f index.html`; die if $?;
     $CMD =
-        "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch http://$INT/";
+        "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH http://$INT/";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`; die if $?;
     `rm index.html`    ; die if $?;
@@ -69,7 +69,7 @@ print "prefetch URL-2/3 when there is no kfg\n";
 if ($NCBI) {
     `rm -f $HTTPFILE`; die if $?;
     $CMD =
-       "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $HTTP_URL";
+       "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $HTTP_URL";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`; die if $?;
     `rm $HTTPFILE`    ; die if $?;
@@ -107,7 +107,7 @@ if ($NCBI) {
     `rm -f $CWD/tmp2/index.html`; die if $?;
     chdir "$CWD/tmp2" or die;
     $URL = 'http://intranet/';
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $URL";
+    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $URL";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`; die if $?;
     `ls index.html`    ; die if $?;
@@ -128,7 +128,7 @@ print "URL download when user repository is configured\n";
 chdir "$CWD/tmp2" or die;
 `rm -f wiki`; die if $?;
 $URL = 'https://github.com/ncbi/ngs/wiki';
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $URL";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $URL";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`  ; die if $?;
 `ls wiki`; die if $?;
@@ -146,7 +146,7 @@ print "URL/ download when user repository is configured\n";
 chdir "$CWD/tmp2" or die;
 `rm -f index.html`; die if $?;
 $URL = 'https://github.com/ncbi/';
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $URL";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $URL";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `ls index.html`    ; die if $?;
@@ -172,7 +172,7 @@ chomp $SRR;
 print "prefetch $SRR when there is no kfg\n";
 `rm -fr $SRAC`; die if $?;
 $CMD = "NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch $SRR";
+       "$DIRTOTEST/$PREFETCH $SRR";
 print "$CMD\n" if $VERBOSE;
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`        ; die if $?;
@@ -201,7 +201,7 @@ $REFSEQF = "$SRAF:data/sracloud/traces/refseq/$REFSEQC";
 
 print "prefetch $REFSEQ when there is no kfg\n";
 `rm -f $REFSEQC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQ";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQ";
 print "$CMD\n" if $VERBOSE;
 #print `$CMD 2>&1`; die if $?;
 `$CMD 2> /dev/null`; die if $?;
@@ -225,7 +225,7 @@ $KMER  =                "$SRA/traces/nannot01/kmer/000/390/$KMERC";
 $KMERF = "$SRAF:data/sracloud/traces/nannot01/kmer/000/390/$KMERC";
 
 print "$KMER HTTP download when there is no kfg\n";
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $KMER";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $KMER";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`;
 die "$KMER HTTP download when there is no kfg has to fail" unless $?;
@@ -250,7 +250,7 @@ $NANTC = 'NA000000007.1';
 $NANT  = "$SRA/traces/nannot01/000/000/$NANTC";
 
 print "$NANT download when there is no kfg\n";
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $NANT";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $NANT";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`;
 die "$NANT download when there is no kfg has to fail" unless $?;
@@ -271,7 +271,7 @@ $WGSF = "$SRAF:/data/sracloud/traces/wgs03/WGS/AF/VF/$WGSC";
 
 print "prefetch $WGS when there is no kfg\n";
 `rm -f $WGSC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $WGS";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $WGS";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm $WGSC`         ; die if $?;
@@ -290,7 +290,7 @@ unless ($?)
 if ($HAVE_NCBI_ASCP) {
     print "REFSEQ FASP download when user repository is configured\n";
     `rm -f tmp/refseq/$REFSEQC`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQF";
+    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQF";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`     ; die if $?;
     `rm tmp/refseq/$REFSEQC`; die if $?;
@@ -299,7 +299,7 @@ if ($HAVE_NCBI_ASCP) {
 if ($HAVE_NCBI_ASCP) {
    print "NANNOT FASP download when user repository is configured\n";
    `rm -f tmp/nannot/$KMERC`; die if $?;
-   $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $KMERF";
+   $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $KMERF";
    print "$CMD\n" if $VERBOSE;
    `$CMD 2> /dev/null`   ; die if $?;
    `rm tmp/nannot/$KMERC`; die if $?;
@@ -308,7 +308,7 @@ if ($HAVE_NCBI_ASCP) {
 if ($HAVE_NCBI_ASCP) {
     print "WGS FASP download when user repository is configured\n";
     `rm -f tmp/wgs/$WGSC`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $WGSF";
+    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $WGSF";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`   ; die if $?;
     `rm tmp/wgs/$WGSC`; die if $?;
@@ -321,7 +321,7 @@ die if $?;
 
 print "SRR accession download\n";
 `rm -f tmp/sra/$SRAC.sra`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $SRAC";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $SRAC";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`   ; die if $?;
 `rm tmp/sra/$SRAC.sra`; die if $?;
@@ -329,7 +329,7 @@ print "$CMD\n" if $VERBOSE;
 print "prefetch run with refseqs\n";
 $ACC = 'SRR619505';
 `rm -fr $ACC tmp/sra/$ACC.sra tmp/refseq/NC_000005.8`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $ACC";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $ACC";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`        ; die if $?;
 `rm tmp/sra/$ACC.sra`      ; die if $?;
@@ -337,14 +337,14 @@ print "$CMD\n" if $VERBOSE;
 
 print "REFSEQ accession download\n";
 `rm -f tmp/refseq/$REFSEQC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQC";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQC";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`     ; die if $?;
 `rm tmp/refseq/$REFSEQC`; die if $?;
 
 print "NANNOT accession download\n";
 `rm -f tmp/nannot/$KMERC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $KMERC";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $KMERC";
 #print `$CMD 2>&1`   ; die if $?;
 `$CMD 2> /dev/null`   ; die if $?;
 `rm tmp/nannot/$KMERC`; die if $?;
@@ -352,7 +352,7 @@ $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $KMERC";
 print "WGS accession download\n";
 $ACC = 'AFVF01';
 `rm -f $ACC tmp/wgs/$ACC`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $ACC";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $ACC";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`   ; die if $?;
 `rm tmp/wgs/$ACC`; die if $?;
@@ -360,7 +360,7 @@ print "$CMD\n" if $VERBOSE;
 `ascp -h > /dev/null`;
 if ($?) {
     print "prefetch ASCP URL\n";
-    $CMD = "$DIRTOTEST/prefetch $REFSEQF -fy";
+    $CMD = "$DIRTOTEST/$PREFETCH $REFSEQF -fy";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`;
     unless ($?) { die 'prefetch ASCP URL when ascp is not found has to fail' }

@@ -53,11 +53,12 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
-#include <kapp/loader-meta.h>
 
 #include <hdf5/kdf5.h>
 
 #include <kfs/arrayfile.h>
+
+#include <loader/loader-meta.h>
 
 #include <sysalloc.h>
 
@@ -79,10 +80,10 @@ rc_t CC UsageSummary ( const char * progname )
 static const char* schema_usage[] = { "schema-name to be used", NULL };
 static const char* output_usage[] = { "target to be created", NULL };
 static const char* force_usage[] = { "forces an existing target to be overwritten", NULL };
-static const char* tabs_usage[] = { "load only these tabs (SCPM), dflt=all", 
+static const char* tabs_usage[] = { "load only these tabs (SCPM), dflt=all",
                                      " S...Sequence",
-                                     " C...Consensus", 
-                                     " P...Passes", 
+                                     " C...Consensus",
+                                     " P...Passes",
                                      " M...Metrics", NULL };
 static const char* progress_usage[] = { "show load-progress", NULL };
 
@@ -109,7 +110,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_SCHEMA, OPTION_SCHEMA, "schema", schema_usage );
     HelpOptionLine ( ALIAS_FORCE, OPTION_FORCE, "force", force_usage );
     HelpOptionLine ( ALIAS_TABS, OPTION_TABS, "tabs", tabs_usage );
-    HelpOptionLine ( ALIAS_WITH_PROGRESS, OPTION_WITH_PROGRESS, 
+    HelpOptionLine ( ALIAS_WITH_PROGRESS, OPTION_WITH_PROGRESS,
                      "load-progress", progress_usage );
     XMLLogger_Usage();
     HelpOptionsStandard ();
@@ -367,7 +368,7 @@ static rc_t pacbio_get_MultiParts( KDirectory * hdf5_src, VNamelist * parts )
 
 
 static rc_t pacbio_load_multipart( context * ctx, KDirectory * wd, VDatabase * database,
-                                   KDirectory ** hdf5_src, bool * consensus_present, 
+                                   KDirectory ** hdf5_src, bool * consensus_present,
                                    ld_context * lctx, uint32_t count )
 {
     seq_con_pas_met dst;
@@ -428,7 +429,7 @@ static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const 
             cmode |= kcmInit;
         else
             cmode |= kcmCreate;
-        rc = VDBManagerCreateDB( vdb_mgr, &database, schema, 
+        rc = VDBManagerCreateDB( vdb_mgr, &database, schema,
                                  PACBIO_SCHEMA_DB, cmode, "%s", ctx->dst_path );
         if ( rc != 0 )
             PLOGERR( klogErr, ( klogErr, rc, "cannot create output-database '$(dst)'",
@@ -439,7 +440,7 @@ static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const 
     /* creates the 4 output vdb tables... SEQUENCE, CONSENSUS, PASSES and METRICS */
     if ( rc == 0 )
     {
-        bool consensus_present = false;    
+        bool consensus_present = false;
         VNamelist * to_process;
         rc = VNamelistMake ( &to_process, 5 );
         if ( rc == 0 )
@@ -462,7 +463,7 @@ static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const 
                             rc = pacbio_get_MultiParts( hdf5_src, parts );
                             if ( rc == 0 )
                             {
-                                uint32_t p_count, p_idx;                            
+                                uint32_t p_count, p_idx;
                                 rc = VNameListCount ( parts, &p_count );
                                 for ( p_idx = 0; rc == 0 && p_idx < p_count; ++p_idx )
                                     rc = add_unique_to_namelist( parts, to_process, p_idx );
@@ -477,7 +478,7 @@ static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const 
             }
             VNamelistRelease ( ctx->src_paths );
             ctx->src_paths = to_process;
-            
+
             if ( rc == 0 )
             {
                 rc = VNameListCount ( ctx->src_paths, &count );
@@ -489,9 +490,9 @@ static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const 
                         rc = pacbio_load_multipart( ctx, wd, database, &hdf5_src, &consensus_present, lctx, count );
                 }
             }
-        
+
         }
-        
+
         if ( !consensus_present )
             VDatabaseDropTable ( database, "CONSENSUS" );
     }

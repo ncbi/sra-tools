@@ -27,17 +27,12 @@ add_compile_definitions( __mod__="tools/bam-loader" )
 include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
 
 # Internal
-add_executable( samview
-	bam
-	sam
-	samview
-)
-target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( samview false )
 
 # External
 if( NOT WIN32)
-	add_executable( bam-load
+	set( SRC
 		bam-loader
 		bam
 		sam
@@ -48,6 +43,8 @@ if( NOT WIN32)
 		mem-bank
 		low-match-count
 	)
-	target_link_libraries( bam-load ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
+
+	GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+
 	MakeLinksExe( bam-load false )
 endif()

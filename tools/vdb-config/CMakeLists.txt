@@ -34,7 +34,7 @@ else() # XCode
 	set( TUI_LIBS tui_cpp tui)
 endif()
 
-add_executable( vdb-config
+set( SRC
 	configure
 	util
 	vdb-config
@@ -42,7 +42,8 @@ add_executable( vdb-config
 	interactive2
 	vdb-config-model
 )
-target_link_libraries ( vdb-config ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+
+GenerateExecutableWithDefs( vdb-config "${SRC}" "" "" "${TUI_LIBS};${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-config false )
 
 add_custom_command( TARGET vdb-config POST_BUILD

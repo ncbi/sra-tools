@@ -22,8 +22,6 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/fasterq-dump" )
-
 set( TOOLS_SRC
 	helper
 	arg_helper
@@ -50,7 +48,7 @@ set( TOOLS_SRC
 	raw_read_iter
 	special_iter
 	fastq_iter
-	join
+	db_join
 	tbl_join
 	temp_registry
 	copy_machine
@@ -58,6 +56,5 @@ set( TOOLS_SRC
 	fasterq-dump
 )
 
-add_executable( fasterq-dump "${TOOLS_SRC}" )
-target_link_libraries( fasterq-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( fasterq-dump "${TOOLS_SRC}" "__mod__=\"tools/fasterq-dump\"" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( fasterq-dump true )

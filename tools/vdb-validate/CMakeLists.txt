@@ -25,10 +25,8 @@
 add_compile_definitions( __mod__="tools/vdb-validate" )
 
 # External
-add_executable( vdb-validate vdb-validate )
-target_link_libraries( vdb-validate ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( vdb-validate "vdb-validate" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-validate false )
 
-add_executable( check-corrupt check-corrupt )
-target_link_libraries( check-corrupt ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( check-corrupt "check-corrupt" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( check-corrupt false )

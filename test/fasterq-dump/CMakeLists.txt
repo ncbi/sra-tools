@@ -33,6 +33,26 @@ if ( NOT WIN32 )
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters PROPERTIES WILL_FAIL TRUE)
 
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_FasterqDump_Help-asan
+            COMMAND ${BINDIR}/fasterq-dump-asan -h
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        add_test( NAME Test_FasterqDump_NotZeroWithoutParameters-asan
+            COMMAND ${BINDIR}/fasterq-dump-asan
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-asan PROPERTIES WILL_FAIL TRUE)
+
+        add_test( NAME Test_FasterqDump_Help-tsan
+            COMMAND ${BINDIR}/fasterq-dump-tsan -h
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+        add_test( NAME Test_FasterqDump_NotZeroWithoutParameters-tsan
+            COMMAND ${BINDIR}/fasterq-dump-tsan
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        set_tests_properties(Test_FasterqDump_NotZeroWithoutParameters-tsan PROPERTIES WILL_FAIL TRUE)
+    endif()
+
 else()
 #TODO: make run on Windows
 endif()

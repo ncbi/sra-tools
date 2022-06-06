@@ -1066,6 +1066,9 @@ rc_t CC KMain ( int argc, char *argv [] )
     //assert(!KDbgSetString("KFG"));
     //assert(!KDbgSetString("VFS"));
     KConfigDisableUserSettings();
+
+    putenv((char*)"NCBI_VDB_QUALITY=R");
+
     rc_t ret=NgsSraTestSuite(argc, argv);
     NGS_C_Fixture::ReleaseCache();
     return ret ;

@@ -447,6 +447,9 @@ rc_t CC KMain ( int argc, char *argv [] )
 /*const char * p = getenv("http_proxy");
 cerr << "http_proxy = '" << ( p == NULL ? "NULL" : p ) << "'\n";*/
     KConfigDisableUserSettings();
+
+    putenv((char*)"NCBI_VDB_QUALITY=R");
+
     rc_t rc=NgsSraCppTestSuite(argc, argv);
     NgsFixture::ReleaseCache();
     return rc;

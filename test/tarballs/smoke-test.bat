@@ -29,21 +29,21 @@ set FAILED=
 echo Smoke testing ngs tarball in %3 ...
 
 if exist %3\ngs-java\ngs-java.jar (
-    echo ngs-java.jar exists
+    rem ngs-java.jar exists
 ) else (
-    set FAILED=%FAILED% ngs-java.jar doesn't exist;
+    echo FAILED=%FAILED% ngs-java.jar doesn't exist;
 )
 
 if exist %3\ngs-java\ngs-doc.jar (
     rem ngs-doc.jar exists
 ) else (
-    set FAILED=%FAILED% ngs-doc.jar doesn't exist;
+    echo FAILED=%FAILED% ngs-doc.jar doesn't exist;
 )
 
 if exist %3\ngs-java\ngs-src.jar (
     rem ngs-src.jar exists
 ) else (
-    set FAILED=%FAILED% ngs-src.jar doesn't exist;
+    echo FAILED=%FAILED% ngs-src.jar doesn't exist;
 )
 
 if "%FAILED%" NEQ "" (

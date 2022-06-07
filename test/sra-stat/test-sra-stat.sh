@@ -19,7 +19,7 @@ fi
 echo SRR600096 is a small non-cSRA DB
 rm -rf actual
 mkdir -p actual
-NCBI_SETTINGS=/ ${bin_dir}/${sra_stat} -x SRR600096 > actual/SRR600096
+NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R ${bin_dir}/${sra_stat} -x SRR600096 > actual/SRR600096
 output=$(diff actual/SRR600096 expected/SRR600096)
 res=$?
 if [ "$res" != "0" ];
@@ -51,7 +51,7 @@ if [ "$res" != "0" ];
 fi
 
 echo SRR1985136 is a small cSRA with a local reference and 0-length tech-rd
-NCBI_SETTINGS=/ ${bin_dir}/${sra_stat} -x SRR1985136 | perl -w strip-path.pl > actual/SRR1985136
+NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R ${bin_dir}/${sra_stat} -x SRR1985136 | perl -w strip-path.pl > actual/SRR1985136
 output=$(diff actual/SRR1985136 expected/SRR1985136-with-Changes)
 res=$?
 if [ "$res" != "0" ];

@@ -44,7 +44,6 @@ project(sharq)
 
 # prefer static linkage
 set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so .dylib)
-set(ZLIB_LIBRARY /)
 find_package(ZLIB)
 find_package(BZip2)
 find_package (Threads)

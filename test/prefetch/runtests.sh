@@ -404,7 +404,7 @@ cd ${work_dir}                                                       || exit 103
 ls tmp/SRR619505/SRR619505.sra tmp/SRR619505/NC_000005.8 > /dev/null || exit 1016
 rm -r tmp/[NS]*                                                      || exit 1039
 
-echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                 >> tmp/k  || exit 1041
+echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k  || exit 1041
 echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
 	                                                       >> tmp/k  || exit 1043
 echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k \
@@ -437,7 +437,7 @@ mkdir  tmp                                                           || exit 106
 #pwd
 echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"'   > tmp/k || exit 1072
 echo '/repository/site/disabled = "true"'                   >> tmp/k || exit 1073
-echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"'                  >> tmp/k || exit 1074
+echo '/repository/remote/main/SDL.2/resolver-cgi = "https://locate.ncbi.nlm.nih.gov/sdl/2/retrieve"' >> tmp/k || exit 1074
 echo '/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"' \
 	                                                        >> tmp/k || exit 1076
 echo '/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"' >> tmp/k \
@@ -454,7 +454,7 @@ echo '      ... align-infoing...'
 cd tmp && NCBI_SETTINGS=/ VDB_CONFIG=k ${bin_dir}/align-info ERR3091357 \
 	| grep -v 'false,remote::https:'                     > /dev/null || exit 1089
 cd ${work_dir}                                                       || exit 1090
-ls tmp/ERR3091357/ERR3091357.sra tmp/wgs/JTFH01 tmp/refseq/KN707955.1 \
+ls tmp/ERR3091357/ERR3091357.sralite tmp/wgs/JTFH01 tmp/refseq/KN707955.1 \
                                                          > /dev/null || exit 1092
 
 rm -r tmp                                                            || exit 1094
@@ -499,8 +499,7 @@ echo quality: std
 echo Testing quality
 mkdir -p tmp                                                         || exit 1134
 echo '/LIBS/GUID = "8test002-6ab7-41b2-bfd0-prefetchpref"' > tmp/k   || exit 1135
-#	@ cd tmp && NCBI_SETTINGS=k PATH='${bin_dir}:$(BINDIR):${PATH}' \
-				perl test-quality.pl
+#	@ cd tmp && NCBI_SETTINGS=k PATH='${bin_dir}:$(BINDIR):${PATH}' perl test-quality.pl
 
 echo ad_not_cwd:
 echo Testing prefetch into output directory and using results

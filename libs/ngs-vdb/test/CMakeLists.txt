@@ -101,6 +101,7 @@ set_tests_properties( SlowTest_Ngs_CPP_CSRA1 PROPERTIES ENVIRONMENT "NCBI_VDB_QU
 add_executable ( test-ngs_csra1pileup++ CSRA1PileupTest.cpp )
 target_link_libraries ( test-ngs_csra1pileup++ ${TEST_LIBS})
 add_test ( NAME SlowTest_Ngs_CPP_CSRA1Pileup COMMAND test-ngs_csra1pileup++ WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+set_tests_properties( SlowTest_Ngs_CPP_CSRA1Pileup PROPERTIES ENVIRONMENT "NCBI_VDB_QUALITY=R" )
 
 #-------------------------------------------------------------------------------
 # tests for this library, ngs-vdb

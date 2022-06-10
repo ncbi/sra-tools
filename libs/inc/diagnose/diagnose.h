@@ -47,7 +47,7 @@ struct KConfig;
 struct KFile;
 struct KNSManager;
 struct VFSManager;
-
+struct KEndPoint;
 
 typedef struct KDiagnose KDiagnose;
 typedef struct KDiagnoseError KDiagnoseError;
@@ -223,7 +223,7 @@ DIAGNOSE_EXTERN rc_t CC KDiagnoseTestState ( const KDiagnoseTest * self,
 DIAGNOSE_EXTERN rc_t CC KDiagnoseTestNext ( const KDiagnoseTest * self,
                                             const KDiagnoseTest ** test );
 
-DIAGNOSE_EXTERN rc_t CC KDiagnoseTestChild ( const KDiagnoseTest * self, 
+DIAGNOSE_EXTERN rc_t CC KDiagnoseTestChild ( const KDiagnoseTest * self,
                                uint32_t idx, const KDiagnoseTest ** test );
 
 /********************************** Anvanced **********************************/
@@ -311,7 +311,7 @@ DIAGNOSE_EXTERN rc_t CC KDiagnoseAdvanced ( KDiagnose * self, uint64_t tests );
  * Diagnose user system, projects with 'projectId' can be accessed.
  * The last 'projectId' in the argument list is 0
  *
- * Configuration WILL BE checked for VALIDIRY of 
+ * Configuration WILL BE checked for VALIDIRY of
  * projectId's project and access to gbGaP servers.
  * KDiagnoseDbGap WILL FAIL if configuration is not complete or no gbGaP server
  * can be accessed.
@@ -377,6 +377,7 @@ DIAGNOSE_EXTERN rc_t CC KDiagnoseTestDescChild ( const KDiagnoseTestDesc * self,
 DIAGNOSE_EXTERN rc_t CC KDiagnoseTestDescDepends (
     const KDiagnoseTestDesc * self, const KDiagnoseTestDesc * depends );*/
 
+DIAGNOSE_EXTERN rc_t endpoint_to_string ( char * buffer, size_t buflen, struct KEndPoint * ep );
 
 #ifdef __cplusplus
 }

@@ -9,11 +9,13 @@ TEMPDIR=.
 
 mkdir -p actual
 
+echo ${bin_dir}/${sratools} SRR850901
+
 output=$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
 	PATH="${bin_dir}:$PATH" \
 	SRATOOLS_TESTING=5 \
 	SRATOOLS_IMPERSONATE=vdb-dump \
-	${bin_dir}/${sratools} SRR390728 2>actual/vdbcache.stderr ; \
+	${bin_dir}/${sratools} SRR850901 2>actual/vdbcache.stderr ; \
 	diff expected/vdbcache.stderr actual/vdbcache.stderr)
 
 res=$?

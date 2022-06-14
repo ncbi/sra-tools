@@ -192,8 +192,8 @@ die unless $?;
 
 # prefetch into out-dir
 `NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q 2> /dev/null`; die if $?;
-`ls Q/$d/$d.sra` ; if ($?) { `ls Q/$d/$d.sralite`; die if $? }
-`ls Q/$d/$d.sra.vdbcache` ; die 'no $d.sra.vdbcache' if $?;
+`ls Q/$d/$d.sra          2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite`         ; die if $? }
+`ls Q/$d/$d.sra.vdbcache 2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
 `ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
 `ls Q/$d/NC_011752.1` ; die 'no NC_011752.1' if $?;
 
@@ -201,8 +201,8 @@ die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d`; die if $?;
 
 # remove refseq: expect failures
-`rm Q/$d/NC_011748.1` ; die if $?;
-`rm Q/$d/$d.sra.vdbcache` ; die if $?;
+`rm Q/$d/NC_011748.1`     ; die if $?;
+`rm Q/$d/$d.sra*.vdbcache`; die if $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2> /dev/null`;
 die unless $?;
@@ -210,7 +210,7 @@ die unless $?;
 # prefetch refseq into out-dir
 `NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q 2> /dev/null`; die if $?;
 `ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
-`ls Q/$d/$d.sra.vdbcache` ; die 'no $d.sra.vdbcache' if $?;
+`ls Q/$d/$d.sra.vdbcache 2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
 
 # prefetch into user repo
 `NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;

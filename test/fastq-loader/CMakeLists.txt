@@ -29,10 +29,16 @@ if( NOT WIN32 )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)
 
     set( LIBS )
-    AddExecutableTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
-    AddExecutableTest( Test_FastqLoader_WbFastq         "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
-    AddExecutableTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
-    AddExecutableTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" "" )
+    macro(LatfExeTest TestName Sources Libraries)
+        AddExecutableTest( ${TestName} "${Sources}" "${Libraries}" "" )
+        add_dependencies( ${TestName} loader fastqloader )
+    endmacro()
+
+    LatfExeTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    LatfExeTest( Test_FastqLoader_WbFastq         "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    LatfExeTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
+    LatfExeTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
     set_tests_properties( Test_FastqLoader_WbFastqLoader
         PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )
@@ -149,8 +155,11 @@ if( NOT WIN32 )
     #           4.5 --max-err-count     stops after the specified # of errors
     LatfTest( 4.5 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.fastq --max-err-count 2 --quality PHRED_33" )
     #           4.5.1 --max-err-pct     fails if % of error records is too high
-#    LatfTest( 4.5.1 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.1.fastq --quality PHRED_33 --max-err-count 10 --max-err-pct 20" ) TODO: adjust for extra output on stderr
-    #           4.6 --platform          saves correct value in the PLATFORM column
+    #    LatfTest( 4.5.1 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.1.fastq --quality PHRED_33 --max-err-count 10 --max-err-pct 20" ) TODO: adjust for extra output on stderr
+    #           4.5.2 --max-err-count   VDB-4839: hangs after the specified # of errors
+    LatfTest( 4.5.2 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.2.fastq --platform ILLUMINA --quality PHRED_33 --max-err-count 2" )
+
+#           4.6 --platform          saves correct value in the PLATFORM column
     LatfTest( 4.6 0 "input/4.fastq -p LS454 --quality PHRED_33" )
     #           4.6.1 --platform        rejects invalid values
     LatfTest( 4.6.1 3 "input/4.fastq -p SOMETHINGELSE --quality PHRED_33" )
@@ -201,5 +210,7 @@ if( NOT WIN32 )
 
     # VDB-4746: file padded with \0s
     LatfTest_OneInputPhred33( 17.0 3 )
+
+    # VDB-4839: hangs on reaching max errors
 
 endif()

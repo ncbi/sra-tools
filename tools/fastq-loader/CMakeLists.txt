@@ -63,4 +63,5 @@ if( NOT WIN32 ) # sys/mman.h
 		target_link_libraries( latf-load-tsan loader-tsan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
 	endif()
 	MakeLinksExe( latf-load false )
+    add_dependencies( latf-load loader fastqloader )
 endif()

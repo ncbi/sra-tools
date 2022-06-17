@@ -160,6 +160,7 @@ static char const option_allow_secondary[] = "make-spots-with-secondary";
 static char const option_defer_secondary[] = "defer-secondary";
 static char const option_spot_batch_size[] = "batch-size";
 static char const option_threads[] = "threads";
+static char const option_extra_logging[] = "extra-logging";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -187,6 +188,7 @@ static char const option_threads[] = "threads";
 #define OPTION_DEFER_SECONDARY option_defer_secondary
 #define OPTION_SPOT_BATCH_SIZE option_spot_batch_size
 #define OPTION_THREADS option_threads
+#define OPTION_EXTRA_LOGGING option_extra_logging
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -450,6 +452,12 @@ char const * number_of_threads[] =
     NULL
 };
 
+static
+char const * is_extra_logging[] =
+{
+    "extra_logging",
+    NULL
+};
 
 OptDef Options[] = 
 {
@@ -488,7 +496,8 @@ OptDef Options[] =
     { OPTION_ALLOW_SECONDARY, NULL, NULL, use_allow_secondary, 1, false, false },
     { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false },
     { OPTION_SPOT_BATCH_SIZE, NULL, NULL, spot_batch_size, 1, true, false },
-    { OPTION_THREADS, NULL, NULL, number_of_threads, 1, true, false }
+    { OPTION_THREADS, NULL, NULL, number_of_threads, 1, true, false },
+    { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false }
 };
 
 const char* OptHelpParam[] =
@@ -527,7 +536,9 @@ const char* OptHelpParam[] =
     NULL,				/* allow multimapping */
     NULL,				/* allow secondary */
     NULL,				/* defer secondary */
-    NULL				/* defer search batch size */
+    NULL,				/* search batch size */
+    NULL,				/* threads */
+    NULL				/* extra logging */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -1152,6 +1163,11 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             if (G.numThreads == 0)
                 G.numThreads = 8;
         }
+
+        rc = ArgsOptionCount (args, OPTION_EXTRA_LOGGING, &pcount);
+        if (rc)
+            break;
+        G.hasExtraLogging |= (pcount > 0);
 
 
         rc = run(argv[0], n_aligned, (char const **)aligned, n_unalgnd, (char const **)unalgnd, continuing);

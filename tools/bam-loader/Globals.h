@@ -90,6 +90,7 @@ typedef struct globals
     bool deferSecondary;
     uint32_t searchBatchSize;   ///< Max search batch size
     uint32_t numThreads;        ///< Max number of threads for batch search
+    bool hasExtraLogging;       ///< Additional logging enabled
 } Globals;
 
 extern Globals G;

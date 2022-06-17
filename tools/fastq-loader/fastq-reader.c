@@ -623,17 +623,19 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
             return 1;
         }
     }
-
-    if ( memchr( self->recordStart + self->curPos, 0, length ) != NULL )
+    else
     {
-        LogErr(klogErr, RC( RC_MODULE, rcData, rcReading, rcData, rcIncomplete), "Premature EOF, FASTQ_input failed");
-        return 0;
+        if ( memchr( self->recordStart + self->curPos, 0, length ) != NULL )
+        {
+            LogErr(klogErr, RC( RC_MODULE, rcData, rcReading, rcData, rcIncomplete), "Premature EOF, FASTQ_input failed");
+            return 0;
+        }
+
+        memmove(buf, self->recordStart + self->curPos, length);
+
+        self->lastEol = ( buf[length-1] == '\n' );
+        self->curPos += length;
     }
-
-    memmove(buf, self->recordStart + self->curPos, length);
-
-    self->lastEol = ( buf[length-1] == '\n' );
-    self->curPos += length;
 
     return length;
 }

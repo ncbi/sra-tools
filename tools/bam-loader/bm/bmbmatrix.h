@@ -1006,7 +1006,7 @@ template<typename BV>
 typename basic_bmatrix<BV>::bvector_type_ptr
 basic_bmatrix<BV>::construct_row(size_type row)
 {
-    if (row > rsize_)
+    if (row >= rsize_)
         allocate_rows(row + 8);
     BM_ASSERT(row < rsize_);
     bvector_type_ptr bv = bv_rows_[row];
@@ -1021,7 +1021,7 @@ template<typename BV>
 typename basic_bmatrix<BV>::bvector_type_ptr
 basic_bmatrix<BV>::construct_row(size_type row, const bvector_type& bv_src)
 {
-    if (row > rsize_)
+    if (row >= rsize_)
         allocate_rows(row + 8);
     BM_ASSERT(row < rsize_);
     bvector_type_ptr bv = bv_rows_[row];

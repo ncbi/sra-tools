@@ -479,7 +479,6 @@ void aligned_free(void* ptr) BMNOEXCEPT
 
 
 
-#undef BM_ALLOC_ALIGN
 
 } // namespace bm
 

@@ -197,24 +197,25 @@ public:
     size_t capacity() const BMNOEXCEPT { return capacity_; }
 
     /// adjust current size (buffer content preserved)
-    void resize(size_t new_size, bool copy_content = true)
+    unsigned char* resize(size_t new_size, bool copy_content = true)
     {
         if (new_size <= capacity_)
         {
             this->size_ = new_size;
-            return;
+            return data();
         }
         byte_buffer tmp_buffer(new_size); // temp with new capacity
         if (copy_content)
             tmp_buffer = *this;
         this->swap(tmp_buffer);
-        
         this->size_ = new_size;
+        return data();
     }
 
     /// adjust current size (no need to reallocate)
     void resize_no_check(size_t new_size) BMNOEXCEPT
     {
+        BM_ASSERT(new_size < capacity_ || !new_size);
         this->size_ = new_size;
     }
 
@@ -496,11 +497,22 @@ public:
         @brief resize without content preservation
         @internal
      */
-    void resize_no_copy(size_type new_size)
+    value_type* resize_no_copy(size_type new_size)
     {
         size_type v_size = value_size();
-        buffer_.resize(new_size * v_size, false /*no copy content*/);
+        return (value_type*) buffer_.resize(new_size * v_size, false /*no copy content*/);
     }
+
+    /**
+        @brief resize without content preservation or capacity verification
+        @internal
+     */
+    void resize_no_check(size_type new_size)
+    {
+        size_type v_size = value_size();
+        buffer_.resize_no_check(new_size * v_size);
+    }
+
 
     /**
         @brief Add element to the end of the vector, return reference

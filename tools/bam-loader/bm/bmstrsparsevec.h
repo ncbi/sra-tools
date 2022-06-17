@@ -765,6 +765,10 @@ public:
     */
     int compare(size_type idx, const value_type* str) const BMNOEXCEPT;
 
+    static
+    int compare_str(const value_type* str1, const value_type* str2) BMNOEXCEPT;
+
+
     /**
         \brief Compare two vector elements
 
@@ -1843,6 +1847,31 @@ void str_sparse_vector<CharType, BV, STR_SIZE>::calc_stat(
 //---------------------------------------------------------------------
 
 template<class CharType, class BV, unsigned STR_SIZE>
+int str_sparse_vector<CharType, BV, STR_SIZE>::compare_str(
+        const value_type* str1, const value_type* str2)  BMNOEXCEPT
+{
+    BM_ASSERT(str1 && str2);
+    int res = 0;
+    for (unsigned i = 0; true; ++i)
+    {
+        CharType octet2 = str2[i];
+        CharType octet1 = str1[i];
+        if (!octet1)
+        {
+            res = -octet2; // -1 || 0
+            break;
+        }
+        res = (octet1 > octet2) - (octet1 < octet2);
+        if (res || !octet2)
+            break;
+    } // for i
+    return res;
+}
+
+
+//---------------------------------------------------------------------
+
+template<class CharType, class BV, unsigned STR_SIZE>
 int str_sparse_vector<CharType, BV, STR_SIZE>::compare_remap(
                 size_type idx, const value_type* str) const BMNOEXCEPT
 {
@@ -1860,7 +1889,7 @@ int str_sparse_vector<CharType, BV, STR_SIZE>::compare_remap(
             break;
         }
         const unsigned char* remap_row = remap_matrix1_.row(i);
-        unsigned char remap_value1 = remap_row[unsigned(octet1)];
+        CharType remap_value1 = (CharType)remap_row[unsigned(octet1)];
         BM_ASSERT(remap_value1);
         res = (remap_value1 > octet2) - (remap_value1 < octet2);
         if (res || !octet2)

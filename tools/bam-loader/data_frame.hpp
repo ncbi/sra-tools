@@ -87,7 +87,6 @@ typedef svector_u64 u64_t;
 typedef bm::bvector<> bit_t;
 typedef typename bm::str_sparse_vector<char,  bm::bvector<>, 32> str_t;
 
-BM_DECLARE_TEMP_BLOCK(TB)
 
 class CDataFrame 
 {
@@ -195,6 +194,7 @@ public:
     */
     size_t Optimize() {
         size_t total_memory = 0;
+        BM_DECLARE_TEMP_BLOCK(TB)
         for (auto& col : m_Columns) {
             std::visit([&total_memory, &TB](auto&& c) {
                 using T = std::decay_t<decltype(c)>;

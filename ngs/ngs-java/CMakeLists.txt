@@ -133,7 +133,7 @@ if ( Java_FOUND )
                 ngs-doc-jar ALL COMMAND
                 bash -c "${Java_JAR_EXECUTABLE} -cfv ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar ."
                 DEPENDS ngs-doc_javadoc
-                WORKING_DIRECTORY "${TARGDIR}/obj/ngs/ngs-java/javadoc/ngs-doc"
+                WORKING_DIRECTORY "${TARGDIR}/ngs/ngs-java/javadoc/ngs-doc"
             )
             install( FILES ${CMAKE_JAR_OUTPUT_DIRECTORY}/ngs-doc.jar DESTINATION ${CMAKE_INSTALL_PREFIX}/jar/ )
 

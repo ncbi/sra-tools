@@ -137,7 +137,7 @@ public:
  */
 struct spot_batch 
 {
-    typedef bm::sparse_vector_scanner<str_sv_type, 32> scanner_t;
+    typedef bm::sparse_vector_scanner<str_sv_type, 64> scanner_t;
     unique_ptr<array_map_t> m_spot_map;  ///< 'hot' spot name map while pack_job is running
     size_t m_offset = 0;                 ///< Metadata global offset
     size_t m_batch_size = 0;             ///< Number of spots in the batch 
@@ -255,7 +255,7 @@ struct spot_assembly
         size_t row_id{0}; ///< Metadata row
     } spot_rec_t;
 
-    spot_rec_t rec;
+    spot_rec_t m_rec;
 
     /**
      * @brief Implements spot search and returns populate spot_rec_t
@@ -480,8 +480,7 @@ spot_assembly::~spot_assembly()
     });
 }
 
-
-const typename spot_assembly::spot_rec_t& spot_assembly::find(const char* name, int namelen) 
+const spot_assembly::spot_rec_t& spot_assembly::find(const char* name, int namelen) 
 {
 #if defined (COLLECT_STATS)    
     static size_t count = 0;
@@ -490,7 +489,7 @@ const typename spot_assembly::spot_rec_t& spot_assembly::find(const char* name, 
     static size_t hot_found = 0;
     static size_t batch_found = 0;
 #endif    
-    rec.wasInserted = true;
+    m_rec.wasInserted = true;
     if (m_key_filter->seen_before(name, namelen)) {
         auto it = m_spot_map->find_ks(name, namelen, m_key_filter->get_name_hash());
 
@@ -498,10 +497,11 @@ const typename spot_assembly::spot_rec_t& spot_assembly::find(const char* name, 
 #if defined (COLLECT_STATS)    
             ++hot_found;
 #endif            
-            rec.pos = m_offset + *it;
-            rec.wasInserted = false;
-            rec.row_id = *it;
-            rec.metadata = m_metadata.get();
+            m_rec.wasInserted = false;
+            m_rec.row_id = *it;
+            m_rec.pos = m_rec.row_id + m_offset;
+            m_rec.metadata = m_metadata.get();
+            return m_rec;
         } else if (m_batches.size() > 1) {
             m_taskflow.clear();
             m_search_done = false;
@@ -512,20 +512,20 @@ const typename spot_assembly::spot_rec_t& spot_assembly::find(const char* name, 
                     str_sv_type::size_type pos = 0;
                     if (batch->m_scanner->bfind_eq_str(name, namelen, pos)) { 
                         m_search_done = true;
-                        rec.wasInserted = false;
-                        rec.row_id = batch->m_index->get(pos);
-                        rec.pos = rec.row_id + batch->m_offset;
-                        rec.metadata = batch->m_metadata.get();
+                        m_rec.wasInserted = false;
+                        m_rec.row_id = batch->m_index->get(pos);
+                        m_rec.pos = m_rec.row_id + batch->m_offset;
+                        m_rec.metadata = batch->m_metadata.get();
                     } 
 
                 } else {
                     auto it = batch->m_spot_map->find_ks(name, namelen, m_key_filter->get_name_hash());
                     if (it != batch->m_spot_map->end()) {
                         m_search_done = true;
-                        rec.wasInserted = false;
-                        rec.row_id = *it;
-                        rec.pos = rec.row_id + batch->m_offset;
-                        rec.metadata = batch->m_metadata.get();
+                        m_rec.wasInserted = false;
+                        m_rec.row_id = *it;
+                        m_rec.pos = m_rec.row_id + batch->m_offset;
+                        m_rec.metadata = batch->m_metadata.get();
                     } 
                     if (batch->m_data_ready) {
                         batch->m_use_scanner = true;
@@ -542,19 +542,20 @@ const typename spot_assembly::spot_rec_t& spot_assembly::find(const char* name, 
             auto& b = *m_batches.front();
             if (b.m_use_scanner) {
                 str_sv_type::size_type pos = 0;
-                if (b.m_scanner->bfind_eq_str(name, namelen, pos)) { 
-                    rec.wasInserted = false;
-                    rec.row_id = b.m_index->get(pos);
-                    rec.pos = rec.row_id + b.m_offset;
-                    rec.metadata = b.m_metadata.get();
+                if (b.m_scanner->bfind_eq_str(name, namelen,  pos)) { 
+                    m_rec.wasInserted = false;
+                    m_rec.row_id = b.m_index->get(pos);
+                    m_rec.pos = m_rec.row_id + b.m_offset;
+                    m_rec.metadata = b.m_metadata.get();
+                    return m_rec;
                 } 
             } else {
                 auto it = b.m_spot_map->find_ks(name, namelen, m_key_filter->get_name_hash());
                 if (it != b.m_spot_map->end()) {
-                    rec.wasInserted = false;
-                    rec.row_id = *it;
-                    rec.pos = rec.row_id + b.m_offset;
-                    rec.metadata = b.m_metadata.get();
+                    m_rec.wasInserted = false;
+                    m_rec.row_id = *it;
+                    m_rec.pos = m_rec.row_id + b.m_offset;
+                    m_rec.metadata = b.m_metadata.get();
                 } 
                 if (b.m_data_ready) {
                     b.m_use_scanner = true;
@@ -567,11 +568,11 @@ const typename spot_assembly::spot_rec_t& spot_assembly::find(const char* name, 
             ++bloom_collisions;
 #endif            
     } 
-    if (rec.wasInserted) {
+    if (m_rec.wasInserted) {
         m_spot_map->insert_ks_hash(m_key_filter->get_name_hash(), name, namelen, m_curr_row); 
-        rec.row_id = m_curr_row;
-        rec.metadata = m_metadata.get();
-        rec.pos = m_curr_row + m_offset;
+        m_rec.row_id = m_curr_row;
+        m_rec.pos = m_curr_row + m_offset;
+        m_rec.metadata = m_metadata.get();
         ++m_total_spots;
         ++m_curr_row;
 #if defined (COLLECT_STATS)    
@@ -584,13 +585,10 @@ const typename spot_assembly::spot_rec_t& spot_assembly::find(const char* name, 
         new_rec = bloom_collisions = hot_found = batch_found = 0;
     }
 #endif    
-    return rec;
+    return m_rec;
 }
 
 
-//template<typename metadata_t>
-//template<typename F>
-//void spot_assembly<metadata_t>::visit_metadata(F&& f, unsigned group_id) 
 template<typename F>
 void spot_assembly::visit_metadata(F&& f, unsigned group_id) 
 {
@@ -606,9 +604,6 @@ void spot_assembly::visit_metadata(F&& f, unsigned group_id)
 }
 #if defined(HAS_CTX_VALUE)
 
-//template<typename metadata_t>
-//template<typename F>
-//void spot_assembly<metadata_t>::visit_keyId(F&& f, unsigned group_id, unsigned GROUPID_SHIFT, unsigned col_index) 
 template<typename F>
 void spot_assembly::visit_keyId(F&& f, unsigned group_id, unsigned GROUPID_SHIFT, unsigned col_index) 
 {
@@ -633,9 +628,6 @@ void spot_assembly::visit_keyId(F&& f, unsigned group_id, unsigned GROUPID_SHIFT
 #endif
 
 
-//template<typename metadata_t>
-//template<typename F>
-//void spot_assembly<metadata_t>::visit_spots(F&& f) 
 template<typename F>
 void spot_assembly::visit_spots(F&& f) 
 {

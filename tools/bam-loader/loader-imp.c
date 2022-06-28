@@ -290,7 +290,7 @@ typedef struct context_t {
     }
 
     /**
-     * @brief Set bloom filter based on the estamated number of spots
+     * @brief Set bloom filter based on the estimated number of spots
      * >9e9 spots - sha256
      * >2e9 - sha242
      * >1e9 - sha1
@@ -303,7 +303,7 @@ typedef struct context_t {
         static bool is_set = false;
         if (is_set)
             return;
-        if (num_spots > 9e9 && dynamic_cast<sha256_filter*>(m_key_filter.get()) == 0) {
+        if (num_spots > 3e9 && dynamic_cast<sha256_filter*>(m_key_filter.get()) == 0) {
             spdlog::stopwatch sw;
             m_key_filter.reset(new sha256_filter);
             for(auto& gr : m_read_groups) {

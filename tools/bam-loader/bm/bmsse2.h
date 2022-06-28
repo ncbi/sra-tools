@@ -590,6 +590,85 @@ bool sse2_and_digest_5way(__m128i* BMRESTRICT dst,
      return z1 & z2;
 }
 
+/*!
+    @brief AND block digest stride
+    @return true if stide is all zero
+    @ingroup SSE2
+*/
+inline
+bool sse2_and_digest_3way(__m128i* BMRESTRICT dst,
+                          const __m128i* BMRESTRICT src1,
+                          const __m128i* BMRESTRICT src2) BMNOEXCEPT
+{
+    __m128i m1A, m1B, m1C, m1D;
+//    __m128i m1E, m1F, m1G, m1H;
+
+    m1A = _mm_and_si128(_mm_load_si128(src1+0), _mm_load_si128(src2+0));
+    m1B = _mm_and_si128(_mm_load_si128(src1+1), _mm_load_si128(src2+1));
+    m1C = _mm_and_si128(_mm_load_si128(src1+2), _mm_load_si128(src2+2));
+    m1D = _mm_and_si128(_mm_load_si128(src1+3), _mm_load_si128(src2+3));
+/*
+    m1E = _mm_and_si128(_mm_load_si128(src3+0), _mm_load_si128(src4+0));
+    m1F = _mm_and_si128(_mm_load_si128(src3+1), _mm_load_si128(src4+1));
+    m1G = _mm_and_si128(_mm_load_si128(src3+2), _mm_load_si128(src4+2));
+    m1H = _mm_and_si128(_mm_load_si128(src3+3), _mm_load_si128(src4+3));
+
+    m1A = _mm_and_si128(m1A, m1E);
+    m1B = _mm_and_si128(m1B, m1F);
+    m1C = _mm_and_si128(m1C, m1G);
+    m1D = _mm_and_si128(m1D, m1H);
+*/
+    m1A = _mm_and_si128(m1A, _mm_load_si128(dst+0));
+    m1B = _mm_and_si128(m1B, _mm_load_si128(dst+1));
+    m1C = _mm_and_si128(m1C, _mm_load_si128(dst+2));
+    m1D = _mm_and_si128(m1D, _mm_load_si128(dst+3));
+
+    _mm_store_si128(dst+0, m1A);
+    _mm_store_si128(dst+1, m1B);
+    _mm_store_si128(dst+2, m1C);
+    _mm_store_si128(dst+3, m1D);
+
+    m1A = _mm_or_si128(m1A, m1B);
+    m1C = _mm_or_si128(m1C, m1D);
+    m1A = _mm_or_si128(m1A, m1C);
+
+    bool z1 = (_mm_movemask_epi8(_mm_cmpeq_epi8(m1A, _mm_setzero_si128())) == 0xFFFF);
+
+    m1A = _mm_and_si128(_mm_load_si128(src1+4), _mm_load_si128(src2+4));
+    m1B = _mm_and_si128(_mm_load_si128(src1+5), _mm_load_si128(src2+5));
+    m1C = _mm_and_si128(_mm_load_si128(src1+6), _mm_load_si128(src2+6));
+    m1D = _mm_and_si128(_mm_load_si128(src1+7), _mm_load_si128(src2+7));
+/*
+    m1E = _mm_and_si128(_mm_load_si128(src3+4), _mm_load_si128(src4+4));
+    m1F = _mm_and_si128(_mm_load_si128(src3+5), _mm_load_si128(src4+5));
+    m1G = _mm_and_si128(_mm_load_si128(src3+6), _mm_load_si128(src4+6));
+    m1H = _mm_and_si128(_mm_load_si128(src3+7), _mm_load_si128(src4+7));
+
+    m1A = _mm_and_si128(m1A, m1E);
+    m1B = _mm_and_si128(m1B, m1F);
+    m1C = _mm_and_si128(m1C, m1G);
+    m1D = _mm_and_si128(m1D, m1H);
+*/
+    m1A = _mm_and_si128(m1A, _mm_load_si128(dst+4));
+    m1B = _mm_and_si128(m1B, _mm_load_si128(dst+5));
+    m1C = _mm_and_si128(m1C, _mm_load_si128(dst+6));
+    m1D = _mm_and_si128(m1D, _mm_load_si128(dst+7));
+
+    _mm_store_si128(dst+4, m1A);
+    _mm_store_si128(dst+5, m1B);
+    _mm_store_si128(dst+6, m1C);
+    _mm_store_si128(dst+7, m1D);
+
+     m1A = _mm_or_si128(m1A, m1B);
+     m1C = _mm_or_si128(m1C, m1D);
+     m1A = _mm_or_si128(m1A, m1C);
+
+     bool z2 = (_mm_movemask_epi8(_mm_cmpeq_epi8(m1A, _mm_setzero_si128())) == 0xFFFF);
+
+     return z1 & z2;
+}
+
+
 
 /*!
     @brief AND block digest stride
@@ -821,6 +900,87 @@ bool sse2_sub_digest_5way(__m128i* BMRESTRICT dst,
 
      return z1 & z2;
 }
+
+
+/*!
+    @brief SUB block digest stride
+    @return true if stide is all zero
+    @ingroup SSE4
+*/
+inline
+bool sse2_sub_digest_3way(__m128i* BMRESTRICT dst,
+                          const __m128i* BMRESTRICT src1,
+                          const __m128i* BMRESTRICT src2) BMNOEXCEPT
+{
+    __m128i m1A, m1B, m1C, m1D;
+//    __m128i m1E, m1F, m1G, m1H;
+    __m128i maskFF  = _mm_set1_epi32(~0u);
+
+    m1A = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+0)), _mm_xor_si128(maskFF,_mm_load_si128(src2+0)));
+    m1B = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+1)), _mm_xor_si128(maskFF,_mm_load_si128(src2+1)));
+    m1C = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+2)), _mm_xor_si128(maskFF,_mm_load_si128(src2+2)));
+    m1D = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+3)), _mm_xor_si128(maskFF,_mm_load_si128(src2+3)));
+/*
+    m1E = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+0)), _mm_xor_si128(maskFF,_mm_load_si128(src4+0)));
+    m1F = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+1)), _mm_xor_si128(maskFF,_mm_load_si128(src4+1)));
+    m1G = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+2)), _mm_xor_si128(maskFF,_mm_load_si128(src4+2)));
+    m1H = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+3)), _mm_xor_si128(maskFF,_mm_load_si128(src4+3)));
+
+    m1A = _mm_and_si128(m1A, m1E);
+    m1B = _mm_and_si128(m1B, m1F);
+    m1C = _mm_and_si128(m1C, m1G);
+    m1D = _mm_and_si128(m1D, m1H);
+*/
+    m1A = _mm_and_si128(m1A, _mm_load_si128(dst+0));
+    m1B = _mm_and_si128(m1B, _mm_load_si128(dst+1));
+    m1C = _mm_and_si128(m1C, _mm_load_si128(dst+2));
+    m1D = _mm_and_si128(m1D, _mm_load_si128(dst+3));
+
+    _mm_store_si128(dst+0, m1A);
+    _mm_store_si128(dst+1, m1B);
+    _mm_store_si128(dst+2, m1C);
+    _mm_store_si128(dst+3, m1D);
+
+     m1A = _mm_or_si128(m1A, m1B);
+     m1C = _mm_or_si128(m1C, m1D);
+     m1A = _mm_or_si128(m1A, m1C);
+
+    const __m128i maskz = _mm_setzero_si128();
+    bool z1 = (_mm_movemask_epi8(_mm_cmpeq_epi8(m1A, maskz)) == 0xFFFF);
+
+    m1A = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+4)), _mm_xor_si128(maskFF,_mm_load_si128(src2+4)));
+    m1B = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+5)), _mm_xor_si128(maskFF,_mm_load_si128(src2+5)));
+    m1C = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+6)), _mm_xor_si128(maskFF,_mm_load_si128(src2+6)));
+    m1D = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src1+7)), _mm_xor_si128(maskFF,_mm_load_si128(src2+7)));
+/*
+    m1E = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+4)), _mm_xor_si128(maskFF,_mm_load_si128(src4+4)));
+    m1F = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+5)), _mm_xor_si128(maskFF,_mm_load_si128(src4+5)));
+    m1G = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+6)), _mm_xor_si128(maskFF,_mm_load_si128(src4+6)));
+    m1H = _mm_and_si128(_mm_xor_si128(maskFF,_mm_load_si128(src3+7)), _mm_xor_si128(maskFF,_mm_load_si128(src4+7)));
+
+    m1A = _mm_and_si128(m1A, m1E);
+    m1B = _mm_and_si128(m1B, m1F);
+    m1C = _mm_and_si128(m1C, m1G);
+    m1D = _mm_and_si128(m1D, m1H);
+*/
+    m1A = _mm_and_si128(m1A, _mm_load_si128(dst+4));
+    m1B = _mm_and_si128(m1B, _mm_load_si128(dst+5));
+    m1C = _mm_and_si128(m1C, _mm_load_si128(dst+6));
+    m1D = _mm_and_si128(m1D, _mm_load_si128(dst+7));
+
+    _mm_store_si128(dst+4, m1A);
+    _mm_store_si128(dst+5, m1B);
+    _mm_store_si128(dst+6, m1C);
+    _mm_store_si128(dst+7, m1D);
+
+     m1A = _mm_or_si128(m1A, m1B);
+     m1C = _mm_or_si128(m1C, m1D);
+     m1A = _mm_or_si128(m1A, m1C);
+
+     bool z2 = (_mm_movemask_epi8(_mm_cmpeq_epi8(m1A, maskz)) == 0xFFFF);
+     return z1 & z2;
+}
+
 
 
 
@@ -1216,7 +1376,8 @@ SSE4.2 check for one to two (variable len) 128 bit SSE lines for gap search resu
 \internal
 */
 inline
-unsigned sse2_gap_find(const bm::gap_word_t* BMRESTRICT pbuf, const bm::gap_word_t pos, const unsigned size)
+unsigned sse2_gap_find(const bm::gap_word_t* BMRESTRICT pbuf,
+                       const bm::gap_word_t pos, unsigned size)
 {
     BM_ASSERT(size <= 16);
     BM_ASSERT(size);
@@ -1224,13 +1385,10 @@ unsigned sse2_gap_find(const bm::gap_word_t* BMRESTRICT pbuf, const bm::gap_word
     const unsigned unroll_factor = 8;
     if (size < 4) // for very short vector use conventional scan
     {
-        unsigned j;
-        for (j = 0; j < size; ++j)
-        {
-            if (pbuf[j] >= pos)
-                break;
-        }
-        return j;
+        if      (pbuf[0] >= pos) { size = 0; }
+        else if (pbuf[1] >= pos) { size = 1; }
+        else                     { size = 2; BM_ASSERT(pbuf[2] >= pos); }
+        return size;
     }
 
     __m128i m1, mz, maskF, maskFL;
@@ -1263,7 +1421,7 @@ unsigned sse2_gap_find(const bm::gap_word_t* BMRESTRICT pbuf, const bm::gap_word
     BM_ASSERT(pbuf2 > pbuf); // assert in place to make sure GCC warning is indeed false
 
     m1 = _mm_loadu_si128((__m128i*)(pbuf2)); // load next elements (with possible overlap)
-    mge_mask = _mm_cmpeq_epi16(_mm_subs_epu16(mp, m1), mz); // m1 >= mp        
+    mge_mask = _mm_cmpeq_epi16(_mm_subs_epu16(mp, m1), mz); // m1 >= mp
     mi = _mm_movemask_epi8(mge_mask);
     if (mi)
     {
@@ -1289,39 +1447,26 @@ unsigned sse2_gap_bfind(const unsigned short* BMRESTRICT buf,
 {
     unsigned start = 1;
     unsigned end = 1 + ((*buf) >> 3);
-    unsigned dsize = end - start;
 
-    if (dsize < 17)
+    const unsigned arr_end = end;
+    BM_ASSERT(start != end);
+    unsigned size = end - start;
+    for (; size >= 16; size = end - start)
     {
-        start = bm::sse2_gap_find(buf+1, (bm::gap_word_t)pos, dsize);
-        *is_set = ((*buf) & 1) ^ (start & 1);
-        BM_ASSERT(buf[start+1] >= pos);
-        BM_ASSERT(buf[start] < pos || (start==0));
-
-        return start+1;
-    }
-    unsigned arr_end = end;
-    while (start != end)
-    {
-        unsigned curr = (start + end) >> 1;
-        if (buf[curr] < pos)
-            start = curr + 1;
+        if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
+            start = mid + 1;
         else
-            end = curr;
+            end = mid;
+        if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
+            start = mid + 1;
+        else
+            end = mid;
+    } // for
 
-        unsigned size = end - start;
-        if (size < 16)
-        {
-            size += (end != arr_end);
-            unsigned idx =
-                bm::sse2_gap_find(buf + start, (bm::gap_word_t)pos, size);
-            start += idx;
-
-            BM_ASSERT(buf[start] >= pos);
-            BM_ASSERT(buf[start - 1] < pos || (start == 1));
-            break;
-        }
-    }
+    size += (end != arr_end);
+    start += bm::sse2_gap_find(buf + start, (bm::gap_word_t)pos, size);
+    BM_ASSERT(buf[start] >= pos);
+    BM_ASSERT(buf[start - 1] < pos || (start == 1));
 
     *is_set = ((*buf) & 1) ^ ((start-1) & 1);
     return start;
@@ -1383,6 +1528,9 @@ unsigned sse2_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos)
 #define VECT_AND_DIGEST_5WAY(dst, src1, src2, src3, src4) \
     sse2_and_digest_5way((__m128i*) dst, (const __m128i*) (src1), (const __m128i*) (src2), (const __m128i*) (src3), (const __m128i*) (src4))
 
+#define VECT_AND_DIGEST_3WAY(dst, src1, src2) \
+    sse2_and_digest_3way((__m128i*) dst, (const __m128i*) (src1), (const __m128i*) (src2))
+
 #define VECT_AND_DIGEST_2WAY(dst, src1, src2) \
     sse2_and_digest_2way((__m128i*) dst, (const __m128i*) (src1), (const __m128i*) (src2))
 
@@ -1409,6 +1557,9 @@ unsigned sse2_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos)
 
 #define VECT_SUB_DIGEST_5WAY(dst, src1, src2, src3, src4) \
     sse2_sub_digest_5way((__m128i*) dst, (const __m128i*) (src1), (const __m128i*) (src2), (const __m128i*) (src3), (const __m128i*) (src4))
+
+#define VECT_SUB_DIGEST_3WAY(dst, src1, src2) \
+    sse2_sub_digest_3way((__m128i*) dst, (const __m128i*) (src1), (const __m128i*) (src2))
 
 #define VECT_XOR_BLOCK(dst, src) \
     sse2_xor_block((__m128i*) dst, (__m128i*) (src))
@@ -1464,6 +1615,9 @@ unsigned sse2_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos)
 
 #define VECT_GAP_BFIND(buf, pos, is_set) \
     sse2_gap_bfind(buf, pos, is_set)
+
+#define VECT_GAP_TEST(buf, pos) \
+    sse2_gap_test(buf, pos)
 
 } // namespace
 

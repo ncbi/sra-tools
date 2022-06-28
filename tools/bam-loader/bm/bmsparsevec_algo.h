@@ -525,8 +525,15 @@ public:
     /// find range (binary)
     /// @internal
     bool bfind_range(const value_type* search_str,
+                     size_t            in_len,
                      size_type&        l,
                      size_type&        r) const BMNOEXCEPT;
+
+    /// find common prefix between index elements and search string
+    ///
+    size_type common_prefix_length(const value_type* search_str,
+                                   size_t in_len,
+                                   size_type l, size_type r) const BMNOEXCEPT;
 
 
     /**
@@ -536,13 +543,18 @@ public:
                       size_type&        l,
                       size_type&        r) const BMNOEXCEPT;
 
+    /// Return length of minimal indexed string
+    size_t get_min_len() const BMNOEXCEPT { return min_key_len_; }
+
+
 
 private:
     heap_matrix_type      s_cache_; ///< cache for SV sampled elements
     unsigned              s_factor_ = 0;
-    size_type             sv_size_ = 0; ///< original sv size
-    size_type             idx_size_ = 0; ///< index size
+    size_type             sv_size_ = 0;       ///< original sv size
+    size_type             idx_size_ = 0;      ///< index size
     bool                  idx_unique_ = true; ///< inx value unique or there are dups?
+    size_t                min_key_len_ = 0;   ///< minimal key size in index
 };
 
 
@@ -1033,7 +1045,9 @@ protected:
 
     template<bool BOUND>
     bool bfind_eq_str_impl(const SV& sv,
-                           const value_type* str, size_type& pos);
+                           const value_type* str, size_t in_len,
+                           bool remaped,
+                           size_type& pos);
 
 
     /// Remap input value into SV char encodings
@@ -1062,8 +1076,10 @@ protected:
     /// find first string value (may include NULL indexes)
     bool find_first_eq(const SV&          sv,
                        const value_type*  str,
+                       size_t             in_len,
                        size_type&         idx,
-                       bool               remaped);
+                       bool               remaped,
+                       unsigned           prefix_len);
 
     /// find EQ str / prefix impl
     bool find_eq_str_impl(const SV&                      sv,
@@ -1110,6 +1126,13 @@ protected:
             return 1; // last plane
         else
             return 0;
+    }
+
+    void resize_buffers()
+    {
+        value_vect_.resize_no_copy(effective_str_max_ * 2);
+        remap_value_vect_.resize_no_copy(effective_str_max_ * 2);
+        remap_prefix_vect_.resize_no_copy(effective_str_max_ * 2);
     }
 
 
@@ -1580,45 +1603,11 @@ void sparse_vector_scanner<SV, S_FACTOR>::bind(const SV&  sv, bool sorted)
     if constexpr (SV::is_str()) // bindings for the string sparse vector
     {
         effective_str_max_ = sv.effective_vector_max();
-
-        value_vect_.reserve(effective_str_max_ * 2);
-        remap_value_vect_.reserve(effective_str_max_ * 2);
-        remap_prefix_vect_.reserve(effective_str_max_ * 2);
+        resize_buffers();
 
         if (sorted)
         {
             range_idx_.construct(sv, S_FACTOR);
-
-/*
-            size_type sv_sz = sv.size();
-            BM_ASSERT(sv_sz);
-            size_type total_nb = sv_sz / bm::gap_max_bits + 1;
-
-            block_l0_cache_.init_resize(total_nb + 8, effective_str_max_+1);
-            block_l0_cache_.resize(total_nb, effective_str_max_+1, false);
-            block_l0_cache_.set_zero();
-
-            block_l1_cache_.init_resize(total_nb * (sub_bfind_block_cnt-1) + 8,
-                                   effective_str_max_+1);
-            block_l1_cache_.resize(total_nb * (sub_bfind_block_cnt-1),
-                                   effective_str_max_+1, false);
-            block_l1_cache_.set_zero();
-
-            // fill in elements cache
-            for (size_type i = 0; i < sv_sz; i+= bm::gap_max_bits)
-            {
-                size_type nb = (i >> bm::set_block_shift);
-                value_type* s0 = block_l0_cache_.row(nb);
-                sv.get(i, s0, size_type(block_l0_cache_.cols()));
-
-                for (size_type k = 0; k < sub_bfind_block_cnt-1; ++k)
-                {
-                    value_type* s1 = block_l1_cache_.row(nb * (sub_bfind_block_cnt-1) + k);
-                    size_type idx = i + ((k+1) * sub_block_l1_size);
-                    sv.get(idx, s1, size_type(block_l1_cache_.cols()));
-                } // for k
-            } // for i
-*/
         }
         // pre-calculate vector plane masks
         //
@@ -1756,50 +1745,72 @@ template<typename SV, unsigned S_FACTOR>
 bool sparse_vector_scanner<SV, S_FACTOR>::find_first_eq(
                                 const SV&                       sv,
                                 const value_type*               str,
+                                size_t                          in_len,
                                 size_type&                      idx,
-                                bool                            remaped)
+                                bool                            remaped,
+                                unsigned                        prefix_len)
 {
-    BM_ASSERT(*str);
+    BM_ASSERT(*str && in_len);
+    BM_ASSERT(in_len == ::strlen(str));
 
-    if (sv.empty())
-        return false; // nothing to do
     if (!*str)
         return false;
     agg_.reset();
     unsigned common_prefix_len = 0;
 
+    value_type* pref = remap_prefix_vect_.data();
     if (mask_set_) // it is assumed that the sv is SORTED so common prefix check
     {
+        // if in range is exactly one block
         if (/*bool one_nb = */agg_.set_range_hint(mask_from_, mask_to_))
         {
-            value_type* pref = remap_prefix_vect_.data();
-            common_prefix_len =
-                sv.common_prefix_length(mask_from_, mask_to_, pref);
-            if (common_prefix_len)
+            if (prefix_len == ~0u) // not valid (uncalculated) prefix len
             {
-                // compare remapped search string with the prefix
-                // to make sure it has a match. No match - string not found.
-                //
-                if (remaped)
-                    str = remap_value_vect_.data();
-                for (unsigned i = 0; i < common_prefix_len; ++i)
+                common_prefix_len =
+                    sv.template common_prefix_length<true>(mask_from_, mask_to_, pref);
+                if (common_prefix_len)
                 {
-                    if (str[i] != pref[i])
-                        return false;
-                } // for i
-                auto in_len = ::strlen(str);
-                // this is important to include first (always match) char
-                // into search to avoid false-negative searches
-                if (in_len == common_prefix_len)
-                    common_prefix_len--;
+                    if (remaped)
+                        str = remap_value_vect_.data();
+                    // next comparison is in the remapped form
+                    for (unsigned i = 0; i < common_prefix_len; ++i)
+                        if (str[i] != pref[i])
+                            return false;
+                }
+            }
+            else
+            {
+                unsigned pl; (void)pl;
+                BM_ASSERT(prefix_len <=
+                                (pl=sv.template common_prefix_length<true>(
+                                                mask_from_, mask_to_, pref)));
+                common_prefix_len = prefix_len;
             }
         } // if one block hit
+        else
+        {
+            if (prefix_len != ~0u) // not valid (uncalculated) prefix len
+            {
+                unsigned pl; (void)pl;
+                BM_ASSERT(prefix_len <=
+                                (pl=sv.template common_prefix_length<true>(
+                                                mask_from_, mask_to_, pref)));
+                common_prefix_len = prefix_len;
+            }
+        }
+    }
+
+    // prefix len checks
+    if (common_prefix_len && (in_len <= common_prefix_len))
+    {
+        if (in_len == common_prefix_len)
+            --common_prefix_len;
+        else // (in_len < common_prefix_len)
+            return false;
     }
 
     if (remaped)
-    {
         str = remap_value_vect_.data();
-    }
     else
     {
         if (sv.is_remap() && (str != remap_value_vect_.data()))
@@ -1813,10 +1824,9 @@ bool sparse_vector_scanner<SV, S_FACTOR>::find_first_eq(
     }
     
     bool found = prepare_and_sub_aggregator(sv, str, common_prefix_len, true);
-    if (!found)
-        return found;
-    
-    found = agg_.find_first_and_sub(idx);
+    if (found)
+        found = agg_.find_first_and_sub(idx);
+
     agg_.reset();
     return found;
 }
@@ -1839,9 +1849,6 @@ bool sparse_vector_scanner<SV, S_FACTOR>::prepare_and_sub_aggregator(
     // octet_start is the common prefix length (end index)
     for (int octet_idx = len-1; octet_idx >= int(octet_start); --octet_idx)
     {
-//        if (unsigned(octet_idx) < octet_start) // common prefix
-//            break;
-
         unsigned value = unsigned(str[octet_idx]) & 0xFFu;
         BM_ASSERT(value != 0);
         bm::id64_t planes_mask;
@@ -1860,9 +1867,9 @@ bool sparse_vector_scanner<SV, S_FACTOR>::prepare_and_sub_aggregator(
     //
     if (prefix_sub)
     {
-        unsigned plane_idx = unsigned(len * 8);
         typename SV::size_type planes = sv.get_bmatrix().rows_not_null();
-        for (; plane_idx < planes; ++plane_idx)
+        for (unsigned plane_idx = unsigned(len * 8);
+                            plane_idx < planes; ++plane_idx)
         {
             if (bvector_type_const_ptr bv = sv.get_slice(plane_idx))
                 agg_.add(bv, 1); // agg to SUB group
@@ -2328,9 +2335,10 @@ bool sparse_vector_scanner<SV, S_FACTOR>::find_eq_str(
                 str = remap_value_vect_.data();
             }
         }
-    
+
+        size_t in_len = ::strlen(str);
         size_type found_pos;
-        found = find_first_eq(sv, str, found_pos, remaped);
+        found = find_first_eq(sv, str, in_len, found_pos, remaped, ~0u);
         if (found)
         {
             pos = found_pos;
@@ -2463,33 +2471,18 @@ template<bool BOUND>
 bool sparse_vector_scanner<SV, S_FACTOR>::bfind_eq_str_impl(
                                     const SV&                      sv,
                                     const typename SV::value_type* str,
+                                    size_t                         in_len,
+                                    bool                           remaped,
                                     typename SV::size_type&        pos)
 {
     bool found = false;
     if (sv.empty())
         return found;
-    auto in_len = ::strlen(str);
 
-    if (*str)
+    unsigned prefix_len = ~0u;
+
+    if (in_len)
     {
-        bool remaped = false;
-        auto sv_max_len = sv.effective_vector_max();
-        remap_prefix_vect_.resize_no_copy(sv_max_len);
-
-        // test search pre-condition based on remap tables
-        if constexpr (SV::is_remap_support::value)
-        {
-            if (sv.is_remap() && (str != remap_value_vect_.data()))
-            {
-                if (in_len > sv_max_len)
-                    return false; // impossible value
-                remap_value_vect_.resize_no_copy(sv_max_len);
-                remaped = sv.remap_tosv(remap_value_vect_.data(), sv_max_len, str);
-                if (!remaped)
-                    return remaped;
-            }
-        }
-        
         reset_search_range();
         
         size_type l, r;
@@ -2497,9 +2490,20 @@ bool sparse_vector_scanner<SV, S_FACTOR>::bfind_eq_str_impl(
 
         if constexpr (BOUND)
         {
-            found = range_idx_.bfind_range(str, l, r);
+            found = range_idx_.bfind_range(str, in_len, l, r);
             if (!found)
                 return found;
+
+            prefix_len =
+                (unsigned) range_idx_.common_prefix_length(str, in_len, l, r);
+
+            if ((l == r) && (in_len == prefix_len))
+            {
+                range_idx_.recalc_range(str, l, r);
+                pos = l;
+                return found;
+            }
+
             range_idx_.recalc_range(str, l, r);
             set_search_range(l, r); // r := r-1 (may happen here) [l..r] interval
 
@@ -2601,7 +2605,7 @@ bool sparse_vector_scanner<SV, S_FACTOR>::bfind_eq_str_impl(
         }
 
         // use linear search (range is set)
-        found = find_first_eq(sv, str, found_pos, remaped);
+        found = find_first_eq(sv, str, in_len, found_pos, remaped, prefix_len);
         if (found)
         {
             pos = found_pos;
@@ -2626,7 +2630,26 @@ template<typename SV, unsigned S_FACTOR>
 bool sparse_vector_scanner<SV, S_FACTOR>::bfind_eq_str(const SV& sv,
                                     const value_type* str, size_type& pos)
 {
-    return bfind_eq_str_impl<false>(sv, str, pos);
+    size_t len = ::strlen(str);
+    effective_str_max_ = sv.effective_max_str();
+    if (len > effective_str_max_)
+        return false; // impossible value
+
+    resize_buffers();
+
+    bool remaped = false;
+    if constexpr (SV::is_remap_support::value)
+    {
+        if (sv.is_remap())
+        {
+            remap_value_vect_.resize_no_copy(len);
+            remaped = sv.remap_tosv(remap_value_vect_.data(),
+                                        effective_str_max_, str);
+            if (!remaped)
+                return remaped;
+        }
+    }
+    return bfind_eq_str_impl<false>(sv, str, len, remaped, pos);
 }
 
 //----------------------------------------------------------------------------
@@ -2637,23 +2660,60 @@ bool sparse_vector_scanner<SV, S_FACTOR>::bfind_eq_str(
                                             typename SV::size_type&        pos)
 {
     BM_ASSERT(bound_sv_); // this function needs prior bind()
-    return bfind_eq_str_impl<true>(*bound_sv_, str, pos);
+    size_t len = ::strlen(str);
+    if (len > effective_str_max_)
+        return false; // impossible value
+    bool remaped = false;
+    if constexpr (SV::is_remap_support::value)
+    {
+        if (bound_sv_->is_remap())
+        {
+            remaped = bound_sv_->remap_tosv(remap_value_vect_.data(),
+                                                 effective_str_max_, str);
+            if (!remaped)
+                return remaped;
+        }
+    }
+    return bfind_eq_str_impl<true>(*bound_sv_, str, len, remaped, pos);
 }
 
 //----------------------------------------------------------------------------
 
 template<typename SV, unsigned S_FACTOR>
 bool sparse_vector_scanner<SV, S_FACTOR>::bfind_eq_str(
-                        const value_type* str, size_t len, size_type& pos)
+                        const value_type* str, size_t in_len, size_type& pos)
 {
     BM_ASSERT(str);
-    value_vect_.resize_no_copy(len+1);
-    value_type* s = value_vect_.data(); // copy to temp buffer, put zero end
-    for (size_t i = 0; i < len && *str; ++i)
-        s[i] = str[i];
-    s[len] = value_type(0);
+    BM_ASSERT(bound_sv_);
 
-    return bfind_eq_str(s, pos);
+    if (in_len > effective_str_max_)
+        return false; // impossible value
+
+    value_type* s = value_vect_.data(); // copy to temp buffer, put zero end
+
+    bool remaped = false;
+    // test search pre-condition based on remap tables
+    if constexpr (SV::is_remap_support::value)
+    {
+        if (bound_sv_->is_remap())
+        {
+            remaped = bound_sv_->remap_n_tosv_2way(
+                                            remap_value_vect_.data(),
+                                            s,
+                                            effective_str_max_,
+                                            str,
+                                            in_len);
+            if (!remaped)
+                return remaped;
+        }
+    }
+    if (!remaped) // copy string, make sure it is zero terminated
+    {
+        for (size_t i = 0; i < in_len && *str; ++i)
+            s[i] = str[i];
+        s[in_len] = value_type(0);
+    }
+    return bfind_eq_str_impl<true>(*bound_sv_, s, in_len, remaped, pos);
 }
 
 //----------------------------------------------------------------------------
@@ -3292,13 +3352,23 @@ void sv_sample_index<SV>::construct(const SV& sv, unsigned s_factor)
         }
     } // for i
 
-    // find index duplicates
+    size_t min_len = 0;
+    {
+        const value_type* s = s_cache_.row(0);
+        min_len = ::strlen(s);
+    }
+
+    // find index duplicates, minimum key size, ...
     //
     idx_unique_ = true;
     const value_type* str_prev = s_cache_.row(0);
     for(size_type i = 1; i < idx_size_; ++i)
     {
         const value_type* str_curr = s_cache_.row(i);
+        size_t curr_len = ::strlen(str_curr);
+        if (curr_len < min_len)
+            min_len = curr_len;
+
         int cmp = SV::compare_str(str_prev, str_curr);
         BM_ASSERT(cmp <= 0);
         if (cmp == 0) // duplicate
@@ -3309,12 +3379,15 @@ void sv_sample_index<SV>::construct(const SV& sv, unsigned s_factor)
         str_prev = str_curr;
     } // for i
 
+    min_key_len_ = min_len;
+
 }
 
 //----------------------------------------------------------------------------
 
 template<typename SV>
 bool sv_sample_index<SV>::bfind_range(const value_type* search_str,
+                                      size_t            in_len,
                                       size_type&        l,
                                       size_type&        r) const BMNOEXCEPT
 {
@@ -3324,15 +3397,19 @@ bool sv_sample_index<SV>::bfind_range(const value_type* search_str,
     l = 0; r = idx_size_ - 1;
     int cmp;
 
+    size_t min_len = this->min_key_len_;
+    if (in_len < min_len)
+        min_len = in_len;
+
     // check the left-right boundaries
     {
         const value_type* str = s_cache_.row(l);
-        cmp = SV::compare_str(search_str, str);
+        cmp = SV::compare_str(search_str, str, min_len);
         if (cmp < 0)
             return false;
 
         str = s_cache_.row(r);
-        cmp = SV::compare_str(search_str, str);
+        cmp = SV::compare_str(search_str, str, min_len);
         if (cmp > 0)
             return false;
     }
@@ -3345,18 +3422,19 @@ bool sv_sample_index<SV>::bfind_range(const value_type* search_str,
             for (size_type i = l+1; i < r; ++i)
             {
                 const value_type* str_i = s_cache_.row(i);
-                cmp = SV::compare_str(search_str, str_i);
+                cmp = SV::compare_str(search_str, str_i, min_len);
+                if (cmp > 0) // |----i-*--|----|
+                {            // |----*----|----|
+                    l = i;
+                    continue; // continue searching
+                }
+                /*
                 if (cmp == 0)   // |----*----|----|
                 {
                     l = r = i;
                     return true;
                 }
-                if (cmp > 0) // |----i-*--|----|
-                {
-                    l = i;
-                    continue;
-                }
-                // not yet, continue searching...
+                */
                 // |--*-i----|----|
                 BM_ASSERT(i);
                 r = i;
@@ -3367,13 +3445,14 @@ bool sv_sample_index<SV>::bfind_range(const value_type* search_str,
 
         size_type mid = (r-l) / 2 + l;
         const value_type* str_m = s_cache_.row(mid);
-        cmp = SV::compare_str(str_m, search_str);
+        cmp = SV::compare_str(str_m, search_str, min_len);
+/*
         if (cmp == 0)
         {
             l = r = mid;
             return true;
-        }
-        if (cmp < 0) // str_m < search_str
+        } */
+        if (cmp <= 0) // str_m < search_str
             l = mid;
         else         // str_m > search_str
             r = mid;
@@ -3381,6 +3460,51 @@ bool sv_sample_index<SV>::bfind_range(const value_type* search_str,
     } // while
 
     return true;
+}
+
+//----------------------------------------------------------------------------
+
+template<typename SV>
+typename sv_sample_index<SV>::size_type
+sv_sample_index<SV>::common_prefix_length(const value_type* str_s,
+                                          size_t            in_len,
+                                          size_type l,
+                                          size_type r) const BMNOEXCEPT
+{
+    const value_type* str_l = s_cache_.row(l);
+    const value_type* str_r = s_cache_.row(r);
+
+    size_t min_len = (in_len < min_key_len_) ? in_len : min_key_len_;
+    size_type i = 0;
+    if (min_len >= 4)
+    {
+        for (; i < min_len-3; i+=4)
+        {
+            unsigned i2, i1;
+            ::memcpy(&i2, &str_l[i], sizeof(i2));
+            ::memcpy(&i1, &str_r[i], sizeof(i1));
+            BM_ASSERT(!bm::has_zero_byte_u64(
+                                bm::id64_t(i2) | (bm::id64_t(i1) << 32)));
+            if (i1 != i2)
+                break;
+            ::memcpy(&i2, &str_s[i], sizeof(i2));
+            BM_ASSERT(!bm::has_zero_byte_u64(
+                                bm::id64_t(i2) | (bm::id64_t(i1) << 32)));
+            if (i1 != i2)
+                break;
+        } // for i
+    }
+
+    for (; true; ++i)
+    {
+        auto ch1 = str_l[i]; auto ch2 = str_r[i];
+        if (ch1 != ch2 || (!(ch1|ch2))) // chars not the same or both zero
+            break;
+        auto chs = str_s[i];
+        if (ch1 != chs)
+            break;
+    } // for i
+    return i;
 }
 
 
@@ -3401,14 +3525,16 @@ void sv_sample_index<SV>::recalc_range(const value_type* search_str,
     const size_type s_step = bm::gap_max_bits / s_factor_;
     if (r == idx_size_-1) // last element
     {
+        l *= s_step;
         if (l == r)
         {
-            l *= s_step;
             r = sv_size_-1;
             BM_ASSERT(l <= r);
             return;
         }
         r = sv_size_-1;
+        if (l > r)
+            l = 0;
     }
     else
     {
@@ -3428,6 +3554,11 @@ void sv_sample_index<SV>::recalc_range(const value_type* search_str,
             BM_ASSERT(cmp <= 0);
             if (cmp != 0)
                 r -= (r && idx_unique_); // -1 correct
+            else
+                if (idx_unique_)
+                {
+                    l = r;
+                }
         }
     }
     BM_ASSERT(r <= sv_size_);

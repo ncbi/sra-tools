@@ -768,6 +768,8 @@ public:
     static
     int compare_str(const value_type* str1, const value_type* str2) BMNOEXCEPT;
 
+    static
+    int compare_str(const value_type* str1, const value_type* str2, size_t min_len) BMNOEXCEPT;
 
     /**
         \brief Compare two vector elements
@@ -786,8 +788,9 @@ public:
         @param prefix_buf - optional param for keeping the common prefix string (without remap decode)
         \return size of common prefix
     */
+    template<bool USE_PREFIX_BUF = false>
     unsigned common_prefix_length(size_type idx1, size_type idx2,
-                                  value_type* prefix_buf =0) const BMNOEXCEPT;
+                                  value_type* prefix_buf=0) const BMNOEXCEPT;
 
     /**
         Variant of compare for remapped vectors. Caller MUST guarantee vector is remapped.
@@ -1019,7 +1022,22 @@ public:
                     const value_type* BMRESTRICT str,
                     const slice_octet_matrix_type& BMRESTRICT octet_remap_matrix2
                     ) BMNOEXCEPT;
-    
+    /*!
+        remap string from external (ASCII) system to matrix internal code
+        also creates a zero terminated copy string
+        @return true if remapping was ok, false if found incorrect value
+                for the plane
+        @internal
+    */
+    static
+    bool remap_n_tosv_2way(
+       value_type*   BMRESTRICT     sv_str,
+       value_type*   BMRESTRICT     str_cp,
+       size_type                    buf_size,
+       const value_type* BMRESTRICT str,
+       size_t                       in_len,
+       const slice_octet_matrix_type& BMRESTRICT octet_remap_matrix2) BMNOEXCEPT;
+
     /*!
         remap string from external (ASCII) system to matrix internal code
         @internal
@@ -1030,6 +1048,22 @@ public:
     {
         return remap_tosv(sv_str, buf_size, str, remap_matrix2_);
     }
+
+    /*!
+        remap string from external (ASCII) system to matrix internal code
+        @internal
+    */
+    bool remap_n_tosv_2way(
+                   value_type*   BMRESTRICT     sv_str,
+                   value_type*   BMRESTRICT     str_cp,
+                   size_type                    buf_size,
+                   const value_type* BMRESTRICT str,
+                   size_t                       in_len) const BMNOEXCEPT
+    {
+        return remap_n_tosv_2way(
+                    sv_str, str_cp, buf_size, str, in_len, remap_matrix2_);
+    }
+
     /*!
         remap string from internal code to external (ASCII) system
         @return true if remapping was ok, false if found incorrect value
@@ -1868,6 +1902,81 @@ int str_sparse_vector<CharType, BV, STR_SIZE>::compare_str(
     return res;
 }
 
+//---------------------------------------------------------------------
+
+template<class CharType, class BV, unsigned STR_SIZE>
+int str_sparse_vector<CharType, BV, STR_SIZE>::compare_str(
+    const value_type* str1, const value_type* str2, size_t min_len) BMNOEXCEPT
+{
+    BM_ASSERT(str1 && str2);
+
+    int res = 0;
+    size_t i = 0;
+
+    CharType octet2, octet1;
+    if (min_len >= 4)
+    {
+        for (; i < min_len-3; i+=4)
+        {
+            unsigned i2, i1;
+            ::memcpy(&i2, &str2[i], sizeof(i2));
+            ::memcpy(&i1, &str1[i], sizeof(i1));
+            BM_ASSERT(!bm::has_zero_byte_u64(bm::id64_t(i2) | (bm::id64_t(i1) << 32)));
+            if (i1 != i2)
+            {
+                octet2 = str2[i];
+                octet1 = str1[i];
+                res = (octet1 > octet2) - (octet1 < octet2);
+                if (res)
+                    return res;
+                octet2 = str2[i+1];
+                octet1 = str1[i+1];
+                res = (octet1 > octet2) - (octet1 < octet2);
+                if (res)
+                    return res;
+                octet2 = str2[i+2];
+                octet1 = str1[i+2];
+                res = (octet1 > octet2) - (octet1 < octet2);
+                if (res)
+                    return res;
+                octet2 = str2[i+3];
+                octet1 = str1[i+3];
+                res = (octet1 > octet2) - (octet1 < octet2);
+                if (res)
+                    return res;
+                BM_ASSERT(0);
+                break;
+            }
+        } // for i
+    }
+
+
+    for (; i < min_len; ++i)
+    {
+        octet2 = str2[i];
+        octet1 = str1[i];
+        BM_ASSERT(octet1 && octet2);
+        res = (octet1 > octet2) - (octet1 < octet2);
+        if (res)
+            return res;
+    } // for i
+
+    for (; true; ++i)
+    {
+        octet2 = str2[i];
+        octet1 = str1[i];
+        if (!octet1)
+        {
+            res = -octet2; // -1 || 0
+            break;
+        }
+        res = (octet1 > octet2) - (octet1 < octet2);
+        if (res || !octet2)
+            break;
+    } // for i
+    return res;
+}
+
 
 //---------------------------------------------------------------------
 
@@ -1993,26 +2102,29 @@ int str_sparse_vector<CharType, BV, STR_SIZE>::compare(
 //---------------------------------------------------------------------
 
 template<class CharType, class BV, unsigned STR_SIZE>
+template<bool USE_PREFIX_BUF>
 unsigned str_sparse_vector<CharType, BV, STR_SIZE>::common_prefix_length(
                                 size_type idx1, size_type idx2,
                                 value_type* prefix_buf) const BMNOEXCEPT
 {
+    BM_ASSERT (!(prefix_buf && !USE_PREFIX_BUF));
     unsigned i = 0;
     CharType ch1 = CharType(this->bmatr_.get_octet(idx1, i));
     CharType ch2 = CharType(this->bmatr_.get_octet(idx2, i));
     if (ch1 == ch2 && (ch1|ch2))
     {
-        if (prefix_buf)
+        if constexpr(USE_PREFIX_BUF)
+        {
+            BM_ASSERT(prefix_buf);
             *prefix_buf++ = ch1;
+        }
         for (++i; true; ++i)
         {
             ch1 = CharType(this->bmatr_.get_octet(idx1, i));
             ch2 = CharType(this->bmatr_.get_octet(idx2, i));
-            if (ch1 != ch2)
+            if (ch1 != ch2 || (!(ch1|ch2))) // chs not the same or both zero
                 return i;
-            if (!(ch1|ch2)) // both zeroes
-                return i;
-            if (prefix_buf)
+            if constexpr(USE_PREFIX_BUF)
                 *prefix_buf++ = ch1;
         } // for i
     }
@@ -2154,7 +2266,8 @@ bool str_sparse_vector<CharType, BV, STR_SIZE>::remap_tosv(
        const value_type* BMRESTRICT str,
        const slice_octet_matrix_type& BMRESTRICT octet_remap_matrix2) BMNOEXCEPT
 {
-    for (unsigned i = 0; i < buf_size; ++i)
+    const unsigned char* remap_row = octet_remap_matrix2.row(0);
+    for (unsigned i = 0; i < buf_size; ++i, remap_row += 256)
     {
         CharType ch = str[i];
         if (!ch)
@@ -2162,14 +2275,43 @@ bool str_sparse_vector<CharType, BV, STR_SIZE>::remap_tosv(
             sv_str[i] = ch;
             break;
         }
-        const unsigned char* remap_row = octet_remap_matrix2.row(i);
+//        const unsigned char* remap_row = octet_remap_matrix2.row(i);
         unsigned char remap_value = remap_row[unsigned(ch)];
+        sv_str[i] = CharType(remap_value);
         if (!remap_value) // unknown dictionary element
             return false;
-        sv_str[i] = CharType(remap_value);
     } // for i
     return true;
 }
+
+//---------------------------------------------------------------------
+
+template<class CharType, class BV, unsigned STR_SIZE>
+bool str_sparse_vector<CharType, BV, STR_SIZE>::remap_n_tosv_2way(
+       value_type*   BMRESTRICT     sv_str,
+       value_type*   BMRESTRICT     str_cp,
+       size_type                    buf_size,
+       const value_type* BMRESTRICT str,
+       size_t                       in_len,
+       const slice_octet_matrix_type& BMRESTRICT octet_remap_matrix2) BMNOEXCEPT
+{
+    BM_ASSERT(in_len <= buf_size); (void) buf_size;
+
+    const unsigned char* remap_row = octet_remap_matrix2.row(0);
+    for (unsigned i = 0; i < in_len; ++i, remap_row += 256)
+    {
+        CharType ch = str[i];
+        str_cp[i] = value_type(ch);
+        BM_ASSERT(ch);
+        unsigned char remap_value = remap_row[unsigned(ch)];
+        sv_str[i] = CharType(remap_value);
+        if (!remap_value) // unknown dictionary element
+            return false;
+    } // for i
+    sv_str[in_len] = str_cp[in_len] = 0; // gurantee zero termination
+    return true;
+}
+
 
 //---------------------------------------------------------------------
 
@@ -2181,7 +2323,8 @@ bool str_sparse_vector<CharType, BV, MAX_STR_SIZE>::remap_fromsv(
          const slice_octet_matrix_type& BMRESTRICT octet_remap_matrix1
          ) BMNOEXCEPT
 {
-    for (unsigned i = 0; i < buf_size; ++i)
+    const unsigned char* remap_row = octet_remap_matrix1.row(0);
+    for (unsigned i = 0; i < buf_size; ++i, remap_row += 256)
     {
         CharType ch = sv_str[i];
         if (!ch)
@@ -2189,11 +2332,10 @@ bool str_sparse_vector<CharType, BV, MAX_STR_SIZE>::remap_fromsv(
             str[i] = ch;
             break;
         }
-        const unsigned char* remap_row = octet_remap_matrix1.row(i);
         unsigned char remap_value = remap_row[unsigned(ch)];
+        str[i] = CharType(remap_value);
         if (!remap_value) // unknown dictionary element
             return false;
-        str[i] = CharType(remap_value);
     } // for i
     return true;
 }

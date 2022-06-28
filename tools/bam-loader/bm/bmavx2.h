@@ -1,7 +1,7 @@
 #ifndef BMAVX2__H__INCLUDED__
 #define BMAVX2__H__INCLUDED__
 /*
-Copyright(c) 2002-2017 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
+Copyright(c) 2002-2022 Anatoliy Kuznetsov(anatoliy_kuznetsov at yahoo.com)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -720,6 +720,54 @@ bool avx2_and_digest_5way(__m256i* BMRESTRICT dst,
 }
 
 /*!
+    @brief AND block digest stride
+    @ingroup AVX2
+*/
+inline
+bool avx2_and_digest_3way(__m256i* BMRESTRICT dst,
+                          const __m256i* BMRESTRICT src1,
+                          const __m256i* BMRESTRICT src2)
+{
+    __m256i m1A, m1B, m1C, m1D;
+
+    {
+        __m256i s1_0, s2_0, s1_1, s2_1;
+
+        s1_0 = _mm256_load_si256(src1 + 0); s2_0 = _mm256_load_si256(src2 + 0);
+        s1_1 = _mm256_load_si256(src1 + 1); s2_1 = _mm256_load_si256(src2 + 1);
+        m1A = _mm256_and_si256(s1_0, s2_0);
+        m1B = _mm256_and_si256(s1_1, s2_1);
+        s1_0 = _mm256_load_si256(src1 + 2); s2_0 = _mm256_load_si256(src2 + 2);
+        s1_1 = _mm256_load_si256(src1 + 3); s2_1 = _mm256_load_si256(src2 + 3);
+        m1C = _mm256_and_si256(s1_0, s2_0);
+        m1D = _mm256_and_si256(s1_1, s2_1);
+    }
+    {
+        __m256i dst0, dst1;
+        dst0 = _mm256_load_si256(dst + 0); dst1 = _mm256_load_si256(dst + 1);
+
+        m1A = _mm256_and_si256(m1A, dst0);
+        m1B = _mm256_and_si256(m1B, dst1);
+
+        dst0 = _mm256_load_si256(dst + 2); dst1 = _mm256_load_si256(dst + 3);
+
+        m1C = _mm256_and_si256(m1C, dst0);
+        m1D = _mm256_and_si256(m1D, dst1);
+    }
+    _mm256_store_si256(dst + 0, m1A);
+    _mm256_store_si256(dst + 1, m1B);
+    _mm256_store_si256(dst + 2, m1C);
+    _mm256_store_si256(dst + 3, m1D);
+
+    m1A = _mm256_or_si256(m1A, m1B);
+    m1C = _mm256_or_si256(m1C, m1D);
+    m1A = _mm256_or_si256(m1A, m1C);
+
+    return _mm256_testz_si256(m1A, m1A);
+}
+
+
+/*!
     @brief AND array elements against another array (unaligned)
     *dst &= *src
     @return 0 if destination does not have any bits
@@ -1315,6 +1363,88 @@ bool avx2_sub_digest_5way(__m256i* BMRESTRICT dst,
 
         m1C = _mm256_and_si256(m1C, m1G);
         m1D = _mm256_and_si256(m1D, m1H);
+        m1A = _mm256_and_si256(m1A, dst0);
+        m1B = _mm256_and_si256(m1B, dst1);
+
+        dst0 = _mm256_load_si256(dst + 2); dst1 = _mm256_load_si256(dst + 3);
+
+        m1C = _mm256_and_si256(m1C, dst0);
+        m1D = _mm256_and_si256(m1D, dst1);
+    }
+    _mm256_store_si256(dst + 0, m1A);
+    _mm256_store_si256(dst + 1, m1B);
+    _mm256_store_si256(dst + 2, m1C);
+    _mm256_store_si256(dst + 3, m1D);
+
+    m1A = _mm256_or_si256(m1A, m1B);
+    m1C = _mm256_or_si256(m1C, m1D);
+    m1A = _mm256_or_si256(m1A, m1C);
+
+    return _mm256_testz_si256(m1A, m1A);
+}
+
+
+/*!
+    @brief SUB block digest stride
+    @ingroup AVX2
+*/
+inline
+bool avx2_sub_digest_3way(__m256i* BMRESTRICT dst,
+                          const __m256i* BMRESTRICT src1,
+                          const __m256i* BMRESTRICT src2)
+{
+    __m256i m1A, m1B, m1C, m1D;
+//    __m256i m1E, m1F, m1G, m1H;
+    const __m256i maskF = _mm256_set1_epi32(~0u); // brosdcast 0xFF
+
+    {
+        __m256i s1_0, s2_0, s1_1, s2_1;
+
+        s1_0 = _mm256_load_si256(src1 + 0); s2_0 = _mm256_load_si256(src2 + 0);
+        s1_1 = _mm256_load_si256(src1 + 1); s2_1 = _mm256_load_si256(src2 + 1);
+        s1_0 = _mm256_xor_si256(s1_0, maskF);s2_0 = _mm256_xor_si256(s2_0, maskF);
+        s1_1 = _mm256_xor_si256(s1_1, maskF);s2_1 = _mm256_xor_si256(s2_1, maskF);
+
+        m1A = _mm256_and_si256(s1_0, s2_0); m1B = _mm256_and_si256(s1_1, s2_1);
+
+        s1_0 = _mm256_load_si256(src1 + 2); s2_0 = _mm256_load_si256(src2 + 2);
+        s1_1 = _mm256_load_si256(src1 + 3); s2_1 = _mm256_load_si256(src2 + 3);
+        s1_0 = _mm256_xor_si256(s1_0, maskF);s2_0 = _mm256_xor_si256(s2_0, maskF);
+        s1_1 = _mm256_xor_si256(s1_1, maskF);s2_1 = _mm256_xor_si256(s2_1, maskF);
+
+        m1C = _mm256_and_si256(s1_0, s2_0);
+        m1D = _mm256_and_si256(s1_1, s2_1);
+    }
+    /*
+    {
+        __m256i s3_0, s4_0, s3_1, s4_1;
+
+        s3_0 = _mm256_load_si256(src3 + 0); s4_0 = _mm256_load_si256(src4 + 0);
+        s3_1 = _mm256_load_si256(src3 + 1); s4_1 = _mm256_load_si256(src4 + 1);
+        s3_0 = _mm256_xor_si256(s3_0, maskF);s4_0 = _mm256_xor_si256(s4_0, maskF);
+        s3_1 = _mm256_xor_si256(s3_1, maskF);s4_1 = _mm256_xor_si256(s4_1, maskF);
+
+        m1E = _mm256_and_si256(s3_0, s4_0);
+        m1F = _mm256_and_si256(s3_1, s4_1);
+
+        m1A = _mm256_and_si256(m1A, m1E);
+        m1B = _mm256_and_si256(m1B, m1F);
+
+        s3_0 = _mm256_load_si256(src3 + 2); s4_0 = _mm256_load_si256(src4 + 2);
+        s3_1 = _mm256_load_si256(src3 + 3); s4_1 = _mm256_load_si256(src4 + 3);
+        s3_0 = _mm256_xor_si256(s3_0, maskF);s4_0 = _mm256_xor_si256(s4_0, maskF);
+        s3_1 = _mm256_xor_si256(s3_1, maskF);s4_1 = _mm256_xor_si256(s4_1, maskF);
+
+        m1G = _mm256_and_si256(s3_0, s4_0);
+        m1H = _mm256_and_si256(s3_1, s4_1);
+    }
+    */
+    {
+        __m256i dst0, dst1;
+        dst0 = _mm256_load_si256(dst + 0); dst1 = _mm256_load_si256(dst + 1);
+
+//        m1C = _mm256_and_si256(m1C, m1G);
+//        m1D = _mm256_and_si256(m1D, m1H);
         m1A = _mm256_and_si256(m1A, dst0);
         m1B = _mm256_and_si256(m1B, dst1);
 
@@ -2791,6 +2921,7 @@ int avx2_cmpge_u16(__m256i vect16, unsigned short value)
     return -1;
 }
 
+
 /**
     Hybrid binary search, starts as binary, then switches to scan
 
@@ -2800,15 +2931,15 @@ int avx2_cmpge_u16(__m256i vect16, unsigned short value)
    \param buf - GAP buffer pointer.
    \param pos - index of the element.
    \param is_set - output. GAP value (0 or 1).
-   \return GAP index.
+   \return GAP index OR bit-test
 
     @ingroup AVX2
 */
-inline
+template<bool RET_TEST=false>
 unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
                         unsigned pos, unsigned* BMRESTRICT is_set)
 {
-    BM_ASSERT(is_set);
+    BM_ASSERT(is_set || RET_TEST);
 
     const unsigned linear_cutoff = 48;
     const unsigned unroll_factor = 16;
@@ -2817,27 +2948,20 @@ unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
 
     unsigned res;
     unsigned start = 1;
-    unsigned end = 1 + ((*buf) >> 3);
-    unsigned arr_end = end;
+    unsigned end = start + ((*buf) >> 3);
 
-    if (end - start < unroll_factor) // too small for a full AVX stride
+    const unsigned arr_end = end;
+    if (unsigned dsize = end - start; dsize < unroll_factor) // too small for a full AVX stride
     {
         for (; start < end; ++start)
-        {
             if (buf[start] >= pos)
-            {
-                res = ((*buf) & 1) ^ ((start-1) & 1);
-                *is_set = res;
-                return start;
-            }
-        } // for
+                goto ret;
         BM_ASSERT(0);
     }
 
-    while (start != end)
+    do
     {
-        unsigned dsize = end - start;
-        if (dsize < linear_cutoff)
+        if (unsigned dsize = end - start; dsize < linear_cutoff)
         {
             // set wider scan window to possibly over-read the range,
             // but stay within allocated block memory
@@ -2848,54 +2972,57 @@ unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
             __m256i mPos  = _mm256_set1_epi16((unsigned short)pos);
             __m256i vect16, mSub, mge_mask;
 
-            unsigned len_unr = start + (dsize - (dsize % unroll_factor));
-            for (; start < len_unr; start += unroll_factor)
+            for (unsigned len_unr = start + (dsize - (dsize % unroll_factor));
+                        start < len_unr; start += unroll_factor)
             {
-                vect16 = _mm256_loadu_si256((__m256i*)(&buf[start])); // 16x u16s
+                vect16 = _mm256_loadu_si256((__m256i*)(&buf[start])); //16x u16s
                 mSub = _mm256_subs_epu16(mPos, vect16);
                 mge_mask = _mm256_cmpeq_epi16(mSub, mZ);
-                int mask = _mm256_movemask_epi8(mge_mask);
-                if (mask)
+
+                if (int mask = _mm256_movemask_epi8(mge_mask); mask)
                 {
-                    int lz = _tzcnt_u32(mask) / 2;
-                    start += lz;
-                    res = ((*buf) & 1) ^ ((start-1) & 1);
-                    *is_set = res;
-                    return start;
+                    int lz = _tzcnt_u32(mask);
+                    start += (lz >> 1);
+                    goto ret;
                 }
-            } // for k
-            unsigned tail = unroll_factor - (end - start);
-            if (start > tail+1)
+            } // for
+            if (unsigned tail = unroll_factor-(end-start); start > tail+1)
             {
                 start -= tail; // rewind back, but stay within block
-                vect16 = _mm256_loadu_si256((__m256i*)(&buf[start])); // 16x u16s
+                vect16 = _mm256_loadu_si256((__m256i*)(&buf[start])); //16x u16s
                 mSub = _mm256_subs_epu16(mPos, vect16);
                 mge_mask = _mm256_cmpeq_epi16(mSub, mZ);
                 int mask = _mm256_movemask_epi8(mge_mask);
-                BM_ASSERT(mask); // the rersult MUST be here at this point
+                BM_ASSERT(mask); // the result MUST be here at this point
 
-                int lz = _tzcnt_u32(mask) / 2;
-                start += lz;
-                res = ((*buf) & 1) ^ ((start-1) & 1);
-                *is_set = res;
-                return start;
+                int lz = _tzcnt_u32(mask);
+                start += (lz >> 1);
+                goto ret;
             }
             for (; start < end; ++start)
-            {
                 if (buf[start] >= pos)
-                    break;
-            } // for
-            break;
+                    goto ret;
+            BM_ASSERT(0);
         }
-        unsigned curr = (start + end) >> 1;
-        if (buf[curr] < pos)
-            start = curr + 1;
+
+        if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
+            start = mid + 1;
         else
-            end = curr;
-    } // while
+            end = mid;
+        if (unsigned mid = (start + end) >> 1; buf[mid] < pos)
+            start = mid + 1;
+        else
+            end = mid;
+    } while (1);
+ret:
     res = ((*buf) & 1) ^ ((start-1) & 1);
-    *is_set = res;
-    return start;
+    if constexpr(RET_TEST)
+        return res;
+    else
+    {
+        *is_set = res;
+        return start;
+    }
 }
 
 
@@ -2906,9 +3033,7 @@ unsigned avx2_gap_bfind(const unsigned short* BMRESTRICT buf,
 inline
 unsigned avx2_gap_test(const unsigned short* BMRESTRICT buf, unsigned pos)
 {
-    unsigned is_set;
-    bm::avx2_gap_bfind(buf, pos, &is_set);
-    return is_set;
+    return bm::avx2_gap_bfind<true>(buf, pos, 0);
 }
 
 /**
@@ -3320,6 +3445,9 @@ void avx2_bit_block_xor_2way(bm::word_t* target_block,
 #define VECT_AND_DIGEST_5WAY(dst, src1, src2, src3, src4) \
     avx2_and_digest_5way((__m256i*) dst, (const __m256i*) (src1), (const __m256i*) (src2), (const __m256i*) (src3), (const __m256i*) (src4))
 
+#define VECT_AND_DIGEST_3WAY(dst, src1, src2) \
+    avx2_and_digest_3way((__m256i*) dst, (const __m256i*) (src1), (const __m256i*) (src2))
+
 #define VECT_OR_BLOCK(dst, src) \
     avx2_or_block((__m256i*) dst, (__m256i*) (src))
 
@@ -3346,6 +3474,9 @@ void avx2_bit_block_xor_2way(bm::word_t* target_block,
 
 #define VECT_SUB_DIGEST_5WAY(dst, src1, src2, src3, src4) \
     avx2_sub_digest_5way((__m256i*) dst, (const __m256i*) (src1), (const __m256i*) (src2), (const __m256i*) (src3), (const __m256i*) (src4))
+
+#define VECT_SUB_DIGEST_3WAY(dst, src1, src2) \
+    avx2_sub_digest_3way((__m256i*) dst, (const __m256i*) (src1), (const __m256i*) (src2))
 
 #define VECT_XOR_BLOCK(dst, src) \
     avx2_xor_block((__m256i*) dst, (__m256i*) (src))
@@ -3424,6 +3555,10 @@ void avx2_bit_block_xor_2way(bm::word_t* target_block,
 
 #define VECT_GAP_BFIND(buf, pos, is_set) \
     avx2_gap_bfind(buf, pos, is_set)
+
+#define VECT_GAP_TEST(buf, pos) \
+    avx2_gap_test(buf, pos)
+
 
 #define VECT_BIT_COUNT_DIGEST(blk, d) \
     avx2_bit_block_count(blk, d)

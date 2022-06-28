@@ -86,6 +86,7 @@ For more information please visit:  http://bitmagic.io
 #undef VECT_AND_DIGEST_2WAY
 #undef VECT_AND_OR_DIGEST_2WAY
 #undef VECT_AND_DIGEST_5WAY
+#undef VECT_AND_DIGEST_3WAY
 #undef VECT_BLOCK_SET_DIGEST
 
 #undef VECT_SUB_DIGEST
@@ -101,6 +102,7 @@ For more information please visit:  http://bitmagic.io
 #undef VECT_BIT_FIND_FIRST_IF_1
 
 #undef VECT_GAP_BFIND
+#undef VECT_GAP_TEST
 
 #undef BMI1_SELECT64
 #undef BMI2_SELECT64

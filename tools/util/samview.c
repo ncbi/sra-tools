@@ -61,6 +61,8 @@ void samview(char const file[])
     LOGERR(klogWarn, rc, "Final RC");
 }
 
+const char UsageDefaultName[] = "samview-util";
+
 rc_t CC UsageSummary(char const *name)
 {
     return 0;
@@ -74,7 +76,14 @@ rc_t CC Usage(Args const *args)
 rc_t CC KMain(int argc, char *argv[])
 {
     while (--argc) {
-        samview(*++argv);
+        const char * arg = *++argv;
+        if ( arg [ 0 ] == '-' ) {
+            if (arg [ 1 ] == 'V') {
+                HelpVersion ( UsageDefaultName, KAppVersion () );
+                return 0;
+            }
+        }
+        samview(*argv);
     }
     return 0;
 }

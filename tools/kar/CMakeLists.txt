@@ -25,31 +25,14 @@
 add_compile_definitions( __mod__="tools/kar" )
 
 # External
-add_executable( kar
-	kar-path
-	kar-args
-	kar
-)
-target_link_libraries( kar ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( kar "kar-path;kar-args;kar" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( kar false )
 
-add_executable( kar+
-	kar-path
-	kar+args
-	kar+print
-	kar+util
-	kar+
-)
-target_link_libraries( kar+ ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( kar+ "kar-path;kar+args;kar+print;kar+util;kar+" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( kar+ false )
 
-add_executable( kar+meta
-	kar+util
-	kar+meta
-)
-target_link_libraries( kar+meta ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+GenerateExecutableWithDefs( kar+meta "kar+util;kar+meta" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( kar+meta false )
 
 # # ?
-# add_executable( sra-kar sra-kar )
-# target_link_libraries( sra-kar ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+# GenerateExecutableWithDefs( sra-kar "sra-kar" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )

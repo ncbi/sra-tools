@@ -1,16 +1,17 @@
 #!/bin/bash
 
 bin_dir=$1
+srapath=$2
 
 
 #CONFIGTOUSE=NCBI_SETTINGS Not needed?
 
-echo Testing srapath from ${bin_dir} # CONFIGTOUSE=${CONFIGTOUSE}
+echo Testing ${srapath} from ${bin_dir} # CONFIGTOUSE=${CONFIGTOUSE}
 
 # SRP:
-# TODO: TEMPORARELY DISABLED:	$(BINDIR)/srapath SRP000001 -+VFS # works & does not crash
+# TODO: TEMPORARELY DISABLED:	$(BINDIR)/${srapath} SRP000001 -+VFS # works & does not crash
 #${CONFIGTOUSE}=/
-output=$(NCBI_SETTINGS=../LIBS-GUID.mkfg ${bin_dir}/srapath SRR000001 -fnames > /dev/null)
+output=$(NCBI_SETTINGS=../LIBS-GUID.mkfg ${bin_dir}/${srapath} SRR000001 -fnames > /dev/null)
 
 res=$?
 if [ "$res" != "0" ];
@@ -20,7 +21,7 @@ fi
 echo SRP test is finished
 
 # vdbcache:
-output=$(NCBI_SETTINGS=../LIBS-GUID.mkfg ${bin_dir}/srapath SRR1557953 | wc -l | perl check-cnt.pl)
+output=$(NCBI_SETTINGS=../LIBS-GUID.mkfg ${bin_dir}/${srapath} SRR1557953 | wc -l | perl check-cnt.pl)
 
 res=$?
 if [ "$res" != "0" ];

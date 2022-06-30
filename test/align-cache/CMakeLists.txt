@@ -26,8 +26,16 @@ add_compile_definitions( __mod__="test/align-cache" )
 
 if ( NOT WIN32 )
     add_test( NAME Test_Align_Cache
-          COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR}
+          COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache
           WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_Align_Cache-asan
+              COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache-asan
+              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        add_test( NAME Test_Align_Cache-tsan
+              COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache-tsan
+              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 else()
 #TODO: make run on Windows
 endif()

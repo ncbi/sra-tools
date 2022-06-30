@@ -35,20 +35,35 @@ if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/copycat )
                 ${SRC_DIR}/kff/fileformat.c
                 ${SRC_DIR}/kff/ffmagic.c
         )
-        AddExecutableTest( Test_KFF "kfftest.cpp;${KFF_SRC}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" )
-        target_include_directories(Test_KFF PRIVATE ${SRC_DIR} )
+        AddExecutableTest( Test_KFF "kfftest.cpp;${KFF_SRC}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};magic" "${SRC_DIR}" )
 
         add_test( NAME Test_Copycat_Help
             COMMAND ${DIRTOTEST}/copycat -h
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test( NAME Test_Copycat_Bad_Name
-            COMMAND ./test-bad-name.sh ${DIRTOTEST}
+            COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if( RUN_SANITIZER_TESTS )
+            add_test( NAME Test_Copycat_Bad_Name-asan
+                COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat-asan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            add_test( NAME Test_Copycat_Bad_Name-tsan
+                COMMAND ./test-bad-name.sh ${DIRTOTEST} copycat-tsan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
 
         add_test( NAME Test_Copycat_IdenticalCopy
-            COMMAND ./test-copy.sh ${DIRTOTEST}
+            COMMAND ./test-copy.sh ${DIRTOTEST} copycat
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        if( RUN_SANITIZER_TESTS )
+            add_test( NAME Test_Copycat_IdenticalCopy-asan
+                COMMAND ./test-copy.sh ${DIRTOTEST} copycat-asan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+            add_test( NAME Test_Copycat_IdenticalCopy-tsan
+                COMMAND ./test-copy.sh ${DIRTOTEST} copycat-tsan
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        endif()
     endif()
 else()
 #TODO: make run on Windows

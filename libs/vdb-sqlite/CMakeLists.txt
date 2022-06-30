@@ -28,6 +28,4 @@ set( SRC
     sqlite3.c
     sqlite3vdb.c
 )
-GenerateStaticLibs( vdb-sqlite "${SRC}" )
-
-add_compile_definitions (__mod__="libs/vdb-sqlite")
+GenerateStaticLibsWithDefs( vdb-sqlite "${SRC}" "__mod__=\"libs/vdb-sqlite\"" "" )

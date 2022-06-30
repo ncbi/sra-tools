@@ -37,6 +37,14 @@ endif()
 
 if ( NOT WIN32 )
 	add_test( NAME Test_Read_filter_redact
-		COMMAND runtests.sh ${DIRTOTEST}
+		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME Test_Read_filter_redact-asan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-asan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME Test_Read_filter_redact-tsan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-tsan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 endif()

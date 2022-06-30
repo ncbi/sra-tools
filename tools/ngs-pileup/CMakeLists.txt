@@ -22,13 +22,7 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/ngs-pileup" )
-
-include_directories( ${CMAKE_SOURCE_DIR} )
-
 # Internal
-add_executable( ngs-pileup ngs-pileup main )
-
 set( NGS_PILEUP_LIBS
 	ncbi-ngs-c++
 	ngs-c++
@@ -36,5 +30,5 @@ set( NGS_PILEUP_LIBS
 	${COMMON_LIBS_READ}
 )
 
-target_link_libraries( ngs-pileup ${NGS_PILEUP_LIBS} ${COMMON_LINK_LIBRARIES} )
+GenerateExecutableWithDefs( ngs-pileup "ngs-pileup;main" "__mod__=\"tools/ngs-pileup\"" "${CMAKE_SOURCE_DIR}" "${NGS_PILEUP_LIBS};${COMMON_LINK_LIBRARIES}" )
 MakeLinksExe( ngs-pileup false )

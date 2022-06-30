@@ -90,7 +90,7 @@ $a = 'SRR619505';
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
 
 # prefetch into cwd/AD
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a`; die if $?;
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
 `ls $a/$a.sra` ; die 'no $a.sra' if $?;
 `ls $a/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
@@ -107,13 +107,13 @@ $a = 'SRR619505';
 `rm $a/NC_000005.8` ; die if $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K fastq-dump $a 2> /dev/null`; die unless $?;
-`NCBI_SETTINGS=$rn VDB_CONFIG=$K fastqer-dump $a 2> /dev/null`; die unless $?;
+`NCBI_SETTINGS=$rn VDB_CONFIG=$K fasterq-dump $a 2> /dev/null`; die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K sam-dump $a 2> /dev/null`; die unless $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 | grep "can't open NC_000005.8"`; die if $?;
 
 # prefetch refseq into cwd/AD
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a`; die if $?;
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
 `ls $a/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
 `rm -fr $a`; die if $?;
@@ -126,7 +126,7 @@ $a = 'SRR619505';
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump $a 2> /dev/null`; die unless $?;
 
 # prefetch into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q`; die if $?;
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q 2> /dev/null`; die if $?;
 `ls Q/$a/$a.sra` ; die 'no $a.sra' if $?;
 `ls Q/$a/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
@@ -164,7 +164,7 @@ die if $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K vdb-dump -R1 -CREAD out/Q/$a/$a.sra 2>&1 | grep "can't open NC_000005.8"`; die if $?;
 
 # prefetch refseq into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q`; die if $?;
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $a -O Q 2> /dev/null`; die if $?;
 `ls Q/$a/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
 `rm -fr out r`; die if $?;
@@ -191,9 +191,9 @@ $d = 'SRR341578';
 die unless $?;
 
 # prefetch into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q`; die if $?;
-`ls Q/$d/$d.sra` ; die 'no $d.sra' if $?;
-`ls Q/$d/$d.sra.vdbcache` ; die 'no $d.sra.vdbcache' if $?;
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q 2> /dev/null`; die if $?;
+`ls Q/$d/$d.sra          2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite`         ; die if $? }
+`ls Q/$d/$d.sra.vdbcache 2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
 `ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
 `ls Q/$d/NC_011752.1` ; die 'no NC_011752.1' if $?;
 
@@ -201,19 +201,19 @@ die unless $?;
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d`; die if $?;
 
 # remove refseq: expect failures
-`rm Q/$d/NC_011748.1` ; die if $?;
-`rm Q/$d/$d.sra.vdbcache` ; die if $?;
+`rm Q/$d/NC_011748.1`     ; die if $?;
+`rm Q/$d/$d.sra*.vdbcache`; die if $?;
 
 `NCBI_SETTINGS=$rn VDB_CONFIG=$K sra-pileup --function ref Q/$d 2> /dev/null`;
 die unless $?;
 
 # prefetch refseq into out-dir
-`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q`; die if $?;
+`NCBI_SETTINGS=$ry VDB_CONFIG=$K prefetch $d -O Q 2> /dev/null`; die if $?;
 `ls Q/$d/NC_011748.1` ; die 'no NC_011748.1' if $?;
-`ls Q/$d/$d.sra.vdbcache` ; die 'no $d.sra.vdbcache' if $?;
+`ls Q/$d/$d.sra.vdbcache 2> /dev/null`; if ($?) { `ls Q/$d/$d.sralite.vdbcache`; die if $? }
 
 # prefetch into user repo
-`NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a`; die if $?;
+`NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
 `ls $root/tmp/r/sra/$a.sra` ; die 'no $a.sra' if $?;
 `ls $root/tmp/r/refseq/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
@@ -236,7 +236,7 @@ die unless $?;
 `NCBI_SETTINGS=$rnu VDB_CONFIG=$K vdb-dump -R1 -CREAD $a 2>&1 | grep "can't open NC_000005.8"`; die if $?;
 
 # prefetch refseq into user repo
-`NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a`; die if $?;
+`NCBI_SETTINGS=$ryu VDB_CONFIG=$K prefetch $a 2> /dev/null`; die if $?;
 `ls $root/tmp/r/refseq/NC_000005.8` ; die 'no NC_000005.8' if $?;
 
 `rm -r $root/tmp` ; die if $?;

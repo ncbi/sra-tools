@@ -38,8 +38,7 @@ if( NOT WIN32 )
 
     if( HDF5_FOUND )
 
-        add_compile_definitions( __mod__="tools/pacbio-load" )
-        add_executable( pacbio-load
+        set( SRC
             hdf5/hdf5arrayfile.c
             hdf5/hdf5dir.c
             hdf5/hdf5file.c
@@ -56,8 +55,8 @@ if( NOT WIN32 )
             pacbio-load
         )
 
-        target_include_directories( pacbio-load PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${HDF5_C_INCLUDE_DIRS})
-        target_link_libraries( pacbio-load loader ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} ${HDF5_LIBRARIES} )
+        set( LIBS loader ${HDF5_LIBRARIES} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_WRITE} )
+        GenerateExecutableWithDefs( pacbio-load "${SRC}" "__mod__=\"tools/pacbio-load\"" "${CMAKE_CURRENT_SOURCE_DIR};${HDF5_C_INCLUDE_DIRS}" "${LIBS}" )
 
         MakeLinksExe( pacbio-load false )
     endif()

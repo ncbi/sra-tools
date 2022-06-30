@@ -32,7 +32,7 @@ if( Python3_EXECUTABLE )
         set_tests_properties( SlowTest_NgsPython
             PROPERTIES
                 DEPENDS Test_NGS_Python_install
-                ENVIRONMENT "NGS_PY_DOWNLOAD_LIBRARY=0;PYTHONUSERBASE=${PythonUserBase};NGS_PY_LIBRARY_PATH=${LIBDIR};LD_LIBRARY_PATH=${NCBI_VDB_LIBDIR}"
+                ENVIRONMENT "LD_LIBRARY_PATH=${NCBI_VDB_LIBDIR};NCBI_VDB_QUALITY=R;NGS_PY_LIBRARY_PATH=${LIBDIR};PYTHONUSERBASE=${PythonUserBase}"
         )
     elseif( WIN32 )
         add_test( NAME SlowTest_NgsPython
@@ -43,7 +43,7 @@ if( Python3_EXECUTABLE )
         set_tests_properties( SlowTest_NgsPython
             PROPERTIES
                 DEPENDS Test_NGS_Python_install
-                ENVIRONMENT "NGS_PY_DOWNLOAD_LIBRARY=0;PYTHONUSERBASE=${PythonUserBase};NGS_PY_LIBRARY_PATH=${BINDIR}"
+                ENVIRONMENT "NCBI_VDB_QUALITY=R;NGS_PY_LIBRARY_PATH=${BINDIR};PYTHONUSERBASE=${PythonUserBase}"
         )
     endif()
 endif()

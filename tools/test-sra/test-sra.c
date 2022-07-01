@@ -36,7 +36,7 @@
 
 #include <klib/time.h> /* KTimeMsStamp */
 
-#include <kns/ascp.h> /* ascp_locate */
+#include <ascp/ascp.h> /* ascp_locate */
 #include <kns/endpoint.h> /* KEndPoint */
 #include <kns/http.h>
 #include <kns/http-priv.h> /* KClientHttpResultFormatMsg */

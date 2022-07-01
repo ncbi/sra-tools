@@ -22,10 +22,10 @@
 #
 # ===========================================================================
 
-set ( UNIX_SRC unix/PrintOS.c unix/syspass.c )
+set ( UNIX_SRC unix/syspass.c )
 set ( LINUX_SRC ${UNIX_SRC} )
-set ( MAC_SRC unix/PrintOS.c mac/syspass.c )
-set ( WIN_SRC win/PrintOS.c win/syspass.c )
+set ( MAC_SRC mac/syspass.c )
+set ( WIN_SRC win/syspass.c )
 
 if ( "windows" STREQUAL ${OS} )
     set ( OS_SPECIFIC_SRC ${WIN_SRC} )
@@ -93,9 +93,6 @@ MakeLinksExe( vdb-lock false )
 
 GenerateExecutableWithDefs( vdb-unlock vdb-unlock "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
 MakeLinksExe( vdb-unlock false )
-
-GenerateExecutableWithDefs( test-sra "test-sra;${OS_SPECIFIC_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-MakeLinksExe( test-sra false )
 
 GenerateExecutableWithDefs( vdb-passwd "vdb-passwd;${OS_SPECIFIC_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( vdb-passwd false )

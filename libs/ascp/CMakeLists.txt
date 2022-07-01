@@ -22,43 +22,27 @@
 #
 # ===========================================================================
 
-set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BINDIR} )
+set ( UNIX_SRC unix/connect.c )
+set ( LINUX_SRC ${UNIX_SRC} linux/ascp-path.c )
+set ( MAC_SRC ${UNIX_SRC} mac/ascp-path.c )
+set ( WIN_SRC win/connect.c win/ascp-path.c )
 
-add_subdirectory( driver-tool )
-add_subdirectory( util )
-add_subdirectory( align-cache )
-add_subdirectory( align-info )
-add_subdirectory( bam-loader )
-add_subdirectory( rd-filter-redact )
-add_subdirectory( prefetch )
-add_subdirectory( vdb-config )
-add_subdirectory( kar )
-add_subdirectory( copycat )
-add_subdirectory( sra-dump )
-add_subdirectory( sra-sort )
-add_subdirectory( sra-pileup )
-add_subdirectory( fastq-loader )
-add_subdirectory( fasterq-dump )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-copy )
-add_subdirectory( vdb-validate )
-add_subdirectory( vdb-decrypt )
-add_subdirectory( srapath )
-add_subdirectory( sra-stat )
-add_subdirectory( sharq )
-add_subdirectory( cache-mgr )
-add_subdirectory( sra-load )
-add_subdirectory( ccextract )
-add_subdirectory( pacbio-load )
-add_subdirectory( vdb-diff )
-add_subdirectory( ngs-pileup )
-add_subdirectory( vdb-sql )
-add_subdirectory( cg-load )
-add_subdirectory( ref-variation )
-add_subdirectory( sra-search )
-add_subdirectory( test-sra )
-
-if( NOT WIN32 )
-	add_subdirectory( general-loader )
-    add_subdirectory( pileup-stats )
+if ( "windows" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${WIN_SRC} )
+elseif( "linux" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${LINUX_SRC} )
+elseif( "mac" STREQUAL ${OS} )
+    set ( OS_SPECIFIC_SRC ${MAC_SRC} )
 endif()
+
+set( SRC
+    ascp.c
+    ${OS_SPECIFIC_SRC}
+)
+
+GenerateStaticLibs(ascp
+    "${SRC}"
+)
+
+add_compile_definitions( __mod__="libs/ascp" )
+include_directories( BEFORE ${CMAKE_CURRENT_SOURCE_DIR} )

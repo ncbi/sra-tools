@@ -3799,8 +3799,10 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
     atomic<bool> gather_done{false};
     atomic<size_t> num_gathered = 0;
     atomic<size_t> num_updated = 0;
-    size_t num_queued = 0;
-    size_t num_dequeued = 0;
+
+    size_t batches_processed = 0;
+    size_t batches_gathered = 0;
+    size_t batches_updated = 0;
     ReaderWriterQueue<key_batch_t> gather_queue{12};
     ReaderWriterQueue<key_batch_t> update_queue{4};
 
@@ -3814,11 +3816,12 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
      * Update task works on update queue and updates VDB
      * 
      */
+    size_t expected_batches = (ctx->spotId/BUFFER_SIZE) + 1;
     auto gather_task = ctx->m_executor->async([&]() {
         key_batch_t batch;
         while (exit_on_error == false) {
             if (gather_queue.try_dequeue(batch)) {
-                ++num_dequeued;
+                ++batches_gathered;
 
                 spdlog::stopwatch sw;
                 auto sz = batch.keys.size();
@@ -3855,7 +3858,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                     if (exit_on_error)
                         break;
                 };
-            } else if (queue_done) {
+            } else if (batches_gathered >= expected_batches) {
                 break;
             }
         }
@@ -3867,6 +3870,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         rc = 0;
         while (true) {
             if (update_queue.try_dequeue(batch)) {
+                ++batches_updated;
                 spdlog::stopwatch sw;
                 for (size_t i = 0; i < batch.keys.size(); ++i) {
                     ++num_updated;
@@ -3893,7 +3897,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                 }
                 //spdlog::info("Finished updating batch {} in {:3} sec", batch.keys.size(), sw);
 
-            } else if (gather_done) {
+            } else if (batches_updated >= expected_batches) {
                 break;
             }
         }
@@ -3930,7 +3934,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
                 if (exit_on_error)
                     break;
             };
-            ++num_queued;
+            ++batches_processed;
             if (exit_on_error)
                 break;
             KLoadProgressbar_Process(ctx->progress[ctx->pass - 1], 1, false);
@@ -3946,18 +3950,24 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
             if (exit_on_error)
                 break;
         };
-        ++num_queued;
+        ++batches_processed;
     }
-    while (gather_queue.peek() != nullptr)
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    //while (gather_queue.peek() != nullptr)
+    //   std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    assert(gather_task.valid());
     queue_done = true;
-    if (gather_task.valid())
-        gather_task.get();
+    gather_task.get();
 
-    if (update_task.valid())
-        update_task.get();
+    assert(update_task.valid());
+    update_task.get();
+
+    assert(exit_on_error || num_gathered == num_updated);
+    assert(exit_on_error || batches_processed == expected_batches); 
+    assert(exit_on_error || batches_gathered == expected_batches);
+    assert(exit_on_error || batches_updated == expected_batches);
+
     spdlog::info("Gathered: {:L}, updated: {:L}", num_gathered, num_updated);
-    spdlog::info("Queued: {:L}, Dequeued: {:L}", num_queued, num_dequeued);
+    spdlog::info("Queued: {:L}, Dequeued: {:L}", batches_gathered, batches_updated);
     spdlog::info("Align Info: {:.3} sec, memory: {:L}", sw, getCurrentRSS());
     return rc;
 }

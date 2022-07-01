@@ -1170,6 +1170,7 @@ update_block_digest0(const bm::word_t* const block, bm::id64_t digest) BMNOEXCEP
 
         unsigned wave = bm::word_bitcount64(t - 1);
         unsigned off = wave * bm::set_block_digest_wave_size;
+        d = bm::bmi_bslr_u64(d); // d &= d - 1;
 
         #if defined(VECT_IS_DIGEST_ZERO)
             bool all_zero = VECT_IS_DIGEST_ZERO(&block[off]);
@@ -1188,10 +1189,9 @@ update_block_digest0(const bm::word_t* const block, bm::id64_t digest) BMNOEXCEP
             digest &= w64 ? digest : ~(mask << wave);
         #endif
         
-        d = bm::bmi_bslr_u64(d); // d &= d - 1;
     } // while
 
-    BM_ASSERT(bm::calc_block_digest0(block) == digest);
+//    BM_ASSERT(bm::calc_block_digest0(block) == digest);
     return digest;
 }
 

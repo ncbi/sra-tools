@@ -134,7 +134,7 @@ bm::id_t sse42_bit_count_digest(const bm::word_t* BMRESTRICT block,
     while (d)
     {
         const bm::id64_t t = bm::bmi_blsi_u64(d); // d & -d;
-        const unsigned wave = _mm_popcnt_u64(t - 1);
+        const unsigned wave = (unsigned)_mm_popcnt_u64(t - 1);
         const unsigned off = wave * bm::set_block_digest_wave_size;
 
         const bm::bit_block_t::bunion_t* BMRESTRICT src_u =

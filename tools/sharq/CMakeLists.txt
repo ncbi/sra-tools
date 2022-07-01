@@ -43,7 +43,7 @@ cmake_minimum_required(VERSION 3.16)
 project(sharq)
 
 # prefer static linkage
-set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so)
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so .dylib)
 find_package(ZLIB)
 find_package(BZip2)
 find_package (Threads)

@@ -204,7 +204,7 @@ multi_bark $KAR_B --extract $WORK_ACCN --directory $OUT1
 ## Forth we download data and un-kar it locally
 ##
 multi_bark $PRE_B $WORK_ACCN 2> /dev/null
-POUT=$WORK_ACCN/${WORK_ACCN}.sralite
+POUT=$WORK_ACCN/${WORK_ACCN}.sra
 if [ ! -f "$POUT" ]
 then
     echo Error: can not stat result of prefetch command $POUT >&2

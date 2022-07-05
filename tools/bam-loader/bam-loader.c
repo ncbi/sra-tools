@@ -23,6 +23,11 @@
  * ===========================================================================
  *
  */
+#include <malloc.h>
+
+#ifdef __cplusplus
+extern "C" { 
+#endif
 
 #include <kapp/main.h>
 #include <kapp/args.h>
@@ -45,6 +50,10 @@
 #include <limits.h>
 
 #include "Globals.h"
+#ifdef __cplusplus
+}
+#endif
+
 #include "loader-imp.h"
 
 /*: ARGS
@@ -149,6 +158,9 @@ static char const option_accept_hard_clip[] = "accept-hard-clip";
 static char const option_allow_multi_map[] = "allow-multi-map";
 static char const option_allow_secondary[] = "make-spots-with-secondary";
 static char const option_defer_secondary[] = "defer-secondary";
+static char const option_spot_batch_size[] = "batch-size";
+static char const option_threads[] = "threads";
+static char const option_extra_logging[] = "extra-logging";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -174,6 +186,9 @@ static char const option_defer_secondary[] = "defer-secondary";
 #define OPTION_ALLOW_MULTI_MAP option_allow_multi_map
 #define OPTION_ALLOW_SECONDARY option_allow_secondary
 #define OPTION_DEFER_SECONDARY option_defer_secondary
+#define OPTION_SPOT_BATCH_SIZE option_spot_batch_size
+#define OPTION_THREADS option_threads
+#define OPTION_EXTRA_LOGGING option_extra_logging
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -423,6 +438,27 @@ char const * use_defer_secondary[] =
     NULL
 };
 
+static
+char const * spot_batch_size[] =
+{
+    "optional maximum size of the spot batches (default: 240e6)",
+    NULL
+};
+
+static
+char const * number_of_threads[] =
+{
+    "number of threads (default: 8)",
+    NULL
+};
+
+static
+char const * is_extra_logging[] =
+{
+    "extra_logging",
+    NULL
+};
+
 OptDef Options[] = 
 {
     /* order here is same as in param array below!!! */
@@ -458,7 +494,10 @@ OptDef Options[] =
     { OPTION_ACCEPT_HARD_CLIP, NULL, NULL, use_accept_hard_clip, 1, false, false },
     { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false },
     { OPTION_ALLOW_SECONDARY, NULL, NULL, use_allow_secondary, 1, false, false },
-    { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false }
+    { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false },
+    { OPTION_SPOT_BATCH_SIZE, NULL, NULL, spot_batch_size, 1, true, false },
+    { OPTION_THREADS, NULL, NULL, number_of_threads, 1, true, false },
+    { OPTION_EXTRA_LOGGING, NULL, NULL, is_extra_logging, 1, false, false }
 };
 
 const char* OptHelpParam[] =
@@ -496,7 +535,10 @@ const char* OptHelpParam[] =
     NULL,				/* allow hard clipping */
     NULL,				/* allow multimapping */
     NULL,				/* allow secondary */
-    NULL				/* defer secondary */
+    NULL,				/* defer secondary */
+    NULL,				/* search batch size */
+    NULL,				/* threads */
+    NULL				/* extra logging */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -515,6 +557,7 @@ rc_t UsageSummary (char const * progname)
 }
 
 char const UsageDefaultName[] = "bam-load";
+static const unsigned DEFAULT_BATCH_SIZE = 240e6;
 
 rc_t CC Usage (const Args * args)
 {
@@ -615,7 +658,7 @@ static rc_t LoadHeader(char const **rslt, char const path[], char const base[])
         uint64_t fsize;
         rc = KFileSize(kf, &fsize);
         if (rc == 0) {
-            char *fdata = malloc(fsize+1);
+            char *fdata = (char*)malloc(fsize+1);
             
             if (fdata) {
                 size_t nread;
@@ -663,7 +706,7 @@ static rc_t getArgValue(Args *const args, char const *name, int index, char cons
     rc_t const rc = ArgsOptionValue(args, name, index, &value);
     if (rc) return rc;
     free((void *)*result);
-    *result = strdup(value);
+    *result = strdup((const char*)value);
     assert(*result);
     return 0;
 }
@@ -716,7 +759,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
                 free((void *)G.refFiles[i]);
             free((void *)G.refFiles);
         }
-        G.refFiles = calloc(pcount + 1, sizeof(*(G.refFiles)));
+        G.refFiles = (const char**)calloc(pcount + 1, sizeof(*(G.refFiles)));
         if (!G.refFiles) {
             rc = RC(rcApp, rcArgv, rcAccessing, rcMemory, rcExhausted);
             break;
@@ -1053,7 +1096,7 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
             nbsz += need;
         }
         
-        name_buffer = malloc(nbsz);
+        name_buffer = (char*)malloc(nbsz);
         if (name_buffer == NULL) {
             rc = RC(rcApp, rcArgv, rcAccessing, rcMemory, rcExhausted);
             break;
@@ -1093,6 +1136,39 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
         }
         else
             break;
+
+        rc = ArgsOptionCount (args, OPTION_SPOT_BATCH_SIZE, &pcount);
+        if (rc)
+            break;
+        if (pcount == 1)
+        {
+            rc = ArgsOptionValue (args, OPTION_SPOT_BATCH_SIZE, 0, (const void **)&value);
+            if (rc)
+                break;
+            G.searchBatchSize = strtoul(value, &dummy, 0);
+            if (G.searchBatchSize == 0)
+                G.searchBatchSize = DEFAULT_BATCH_SIZE;
+
+        }
+
+        rc = ArgsOptionCount (args, OPTION_THREADS, &pcount);
+        if (rc)
+            break;
+        if (pcount == 1)
+        {
+            rc = ArgsOptionValue (args, OPTION_THREADS, 0, (const void **)&value);
+            if (rc)
+                break;
+            G.numThreads = strtoul(value, &dummy, 0);
+            if (G.numThreads == 0)
+                G.numThreads = 8;
+        }
+
+        rc = ArgsOptionCount (args, OPTION_EXTRA_LOGGING, &pcount);
+        if (rc)
+            break;
+        G.hasExtraLogging |= (pcount > 0);
+
 
         rc = run(argv[0], n_aligned, (char const **)aligned, n_unalgnd, (char const **)unalgnd, continuing);
         break;
@@ -1248,7 +1324,8 @@ rc_t CC KMain(int argc, char *argv[])
     G.cache_size = ((size_t)16) << 30;
     G.maxErrCount = 1000;
     G.minMatchCount = 10;
-    
+    G.searchBatchSize = DEFAULT_BATCH_SIZE;
+    G.numThreads = 8;
     set_pid();
 
     for (arglast = 1; arglast < argc; ++arglast) {

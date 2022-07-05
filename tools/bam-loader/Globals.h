@@ -88,6 +88,9 @@ typedef struct globals
     bool allowMultiMapping; /* allow multiple reference names to map to the same real reference */
     bool assembleWithSecondary;
     bool deferSecondary;
+    uint32_t searchBatchSize;   ///< Max search batch size
+    uint32_t numThreads;        ///< Max number of threads for batch search
+    bool hasExtraLogging;       ///< Additional logging enabled
 } Globals;
 
 extern Globals G;

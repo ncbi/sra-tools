@@ -23,12 +23,20 @@
  * ===========================================================================
  *
  */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #include <klib/defs.h>
 #include <klib/rc.h>
 #include <klib/data-buffer.h>
 #include <klib/log.h>
 #include <sysalloc.h>
+#ifdef __cplusplus
+}
+#endif
+
 
 #include <math.h>
 #include <ctype.h>
@@ -1165,6 +1173,7 @@ DEF_PARSER_FUNCTION(EXTRA_B_u, EXTRA)
 
 DEF_PARSER_FUNCTION_INLINE(EXTRA_B_i)
 {
+    size_t cp;
     switch (self->state) {
     case 1:
         if (ch < 0)
@@ -1187,7 +1196,7 @@ DEF_PARSER_FUNCTION_INLINE(EXTRA_B_i)
         if ((ch < 0 || ch == ',') && self->numeric.ok) {
             int32_t value;
             if (number_parser_get_exact_i32(&self->numeric, &value)) {
-                size_t const cp = check_size(self, 4, rc);
+                cp = check_size(self, 4, rc);
                 if (cp > 0) {
                     bam_alignment_set_i32(&self->rslt->raw[cp], value);
                     bam_alignment_inc_i32(&self->rslt->raw[self->extraArrayCountPos]);
@@ -1270,7 +1279,7 @@ static bool SAM2BAM_Parser_grow(SAM2BAM_Parser *const self, rc_t *rc)
         *rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
         return false;
     }
-    self->rslt = tmp;
+    self->rslt = (bam_alignment*)tmp;
     self->max_size = size;
     return true;
 }
@@ -1329,11 +1338,11 @@ static SAM2BAM_Parser *init(  SAM2BAM_Parser *const self
 {
     memset(self, 0, sizeof(*self));
     if (static_buffer && buffer_size) {
-        self->rslt = self->static_buffer = static_buffer;
+        self->rslt = self->static_buffer = (bam_alignment*)static_buffer;
         self->max_size = buffer_size;
     }
     else {
-        self->rslt = malloc(self->max_size = 64 * 1024);
+        self->rslt = (bam_alignment*)malloc(self->max_size = 64 * 1024);
         if (self->rslt == NULL) return NULL;
     }
     self->lookup = lookup;
@@ -1354,7 +1363,7 @@ static SAM2BAM_Parser *parse(  char const *const data
                              , rc_t *rc
                              )
 {
-    SAM2BAM_Parser *const self = malloc(sizeof(*self));
+    SAM2BAM_Parser *const self = (SAM2BAM_Parser*)malloc(sizeof(*self));
     
     if (self == NULL)
         goto OUT_OF_MEMORY;

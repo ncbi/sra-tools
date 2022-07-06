@@ -33,29 +33,10 @@ if( SINGLE_CONFIG )
         set(CMAKE_CXX_STANDARD 17)
         add_definitions(-msse4.2 -DBMSSE42OPT)
 
-        set(LOCAL_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/libs)
+        # assume tools/sharq built libre2
+        set(LOCAL_BUILD_DIR ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
         set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)
         set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
-
-        # Google RE2 release
-        set(RE2_TAG 2021-09-01)
-
-        include (ExternalProject)
-        ExternalProject_Add(RE2_
-        PREFIX RE2
-        GIT_REPOSITORY https://github.com/google/re2.git
-        GIT_TAG ${RE2_TAG}
-        BUILD_IN_SOURCE 1
-        UPDATE_COMMAND "" # No update as we use specific tag
-        CMAKE_ARGS
-            -DCMAKE_BUILD_TYPE:STRING=Release
-            -DRE2_BUILD_TESTING:BOOL=OFF
-            -DCMAKE_INSTALL_PREFIX:PATH=${LOCAL_BUILD_DIR}
-            -DCMAKE_VERBOSE_MAKEFILE:BOOL=OFF
-            -DCMAKE_INSTALL_LIBDIR:PATH=lib
-            -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=ON
-            -DCMAKE_INSTALL_MESSAGE:STRING=LAZY
-        )
         set(RE2_STATIC_LIBRARIES -L${LOCAL_LIBDIR} -lre2 )
 
         if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -64,20 +45,21 @@ if( SINGLE_CONFIG )
 
         # test-regexpr
         add_executable(test-regexpr test-regexpr.cpp )
+        add_dependencies(test-regexpr RE2)
         target_include_directories(test-regexpr PUBLIC ${LOCAL_INCDIR})
         target_link_libraries(test-regexpr ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${RE2_STATIC_LIBRARIES})
         add_test( NAME Test_regexpr COMMAND test-regexpr WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         # test-sharq-parser
         add_executable(test-sharq-parser test-sharq-parser.cpp )
-        add_dependencies(test-sharq-parser RE2_ sharq)
+        add_dependencies(test-sharq-parser RE2 sharq)
         target_include_directories(test-sharq-parser PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
         target_link_libraries(test-sharq-parser ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
         add_test( NAME Test_sharq_parser COMMAND test-sharq-parser WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         # test-sharq-writer
         add_executable(test-sharq-writer test-sharq-writer.cpp )
-        add_dependencies(test-sharq-writer RE2_ sharq)
+        add_dependencies(test-sharq-writer RE2 sharq)
         target_include_directories(test-sharq-writer PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
         target_link_libraries(test-sharq-writer ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ})
         add_test( NAME Test_sharq_writer COMMAND test-sharq-writer WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -91,7 +73,7 @@ if( SINGLE_CONFIG )
             set( asan_defs "-fsanitize=address" )
 
             add_executable(test-sharq-parser-asan test-sharq-parser.cpp )
-            add_dependencies(test-sharq-parser-asan RE2_ sharq-asan)
+            add_dependencies(test-sharq-parser-asan RE2 sharq-asan)
             target_include_directories(test-sharq-parser-asan PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
             target_compile_options( test-sharq-parser-asan PRIVATE ${asan_defs} )
             target_link_libraries(test-sharq-parser-asan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
@@ -103,7 +85,7 @@ if( SINGLE_CONFIG )
             set( tsan_defs "-fsanitize=thread" )
 
             add_executable(test-sharq-parser-tsan test-sharq-parser.cpp )
-            add_dependencies(test-sharq-parser-tsan RE2_ sharq-tsan)
+            add_dependencies(test-sharq-parser-tsan RE2 sharq-tsan)
             target_include_directories(test-sharq-parser-tsan PUBLIC ${LOCAL_INCDIR} ../../tools/sharq)
             target_compile_options( test-sharq-parser-tsan PRIVATE ${tsan_defs} )
             target_link_libraries(test-sharq-parser-tsan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

@@ -31,6 +31,20 @@ sam-format-computation.*    ... graphical explanation of the algorithm to
                                 produce SAM with lookup-tables
                                 
 acc.sh              ... helper script to download accession if not present
-
 prefetch.sh         ... helper script to locate the prefetch-binary
 vdb-dump.sh         ... helper script to locate the vdb-dump-binary
+cleanup.sh          ... deletes all files, that should not be in git
+
+--------------------------------------------------------------------
+
+how to execute:
+
+1) run "./acc.sh"   ... to download the accession to be used
+                        ( to not include the download-time into the measurement )
+
+2) run "time ./full.sh"   ... performs the conversion into SAM
+                        ( output-file: SRR_TST.SAM )
+                        
+The renaming into SRRXXXXXXa, and the deletion of the vdb-cache-file
+is neccessary to avoid triggering the schema-functions into using a vdb-cache-file.
+

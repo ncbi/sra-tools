@@ -23,8 +23,14 @@
 # ===========================================================================
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-if ( NOT WIN32 )
-
+if ( WIN32 )
+    add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )
+    target_include_directories( Drivertool_Win32_Args_Parsing_Test
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/driver-tool
+    )
+    add_test( NAME Test_Drivertool_Win32_Args_Parsing COMMAND Drivertool_Win32_Args_Parsing_Test )
+else ()
 	# GOOD
 	add_test( NAME Test_Drivertool_Fastq_dump
 		COMMAND good_test.sh fastq-dump "${DIRTOTEST}"

@@ -31,28 +31,29 @@
  */
 
 #pragma once
+
+#if WINDOWS
+#else
+
 #include <string>
 #include <vector>
 #include <map>
 
 #include <signal.h>
 #include <sys/wait.h>
+#include <sysexits.h>
 
-#include "parse_args.hpp"
 #include "util.hpp"
+#include "file-path.hpp"
+#include "command-line.hpp"
 
-extern char **environ; // why!!!
+namespace POSIX {
 
-namespace sratools {
-
-struct process {
-    bool is_self() const { return pid == 0; }
-    pid_t get_pid() const { return pid; }
-    
+struct Process {
     /// @brief the result of wait if child did terminate in some way
-    struct exit_status {
+    struct ExitStatus {
         /// @brief child called exit
-        bool exited() const {
+        bool didExit() const {
             return WIFEXITED(value) ? true : false;
         }
         /// @brief child exit code
@@ -60,13 +61,12 @@ struct process {
         /// Only available exited() == true.
         ///
         /// @return The low 8-bits of the value passed to exit.
-        int exit_code() const {
-            assert(exited());
+        int exitCode() const {
             return WEXITSTATUS(value);
         }
 
         /// @brief child was signaled
-        bool signaled() const {
+        bool wasSignaled() const {
             return WIFSIGNALED(value) ? true : false;
         }
         /// @brief the signal that terminated the child
@@ -74,8 +74,7 @@ struct process {
         /// Only available signaled() == true
         ///
         /// @return the signal that terminated the child
-        int termsig() const {
-            assert(signaled());
+        int signal() const {
             return WTERMSIG(value);
         }
         /// @brief the symbolic name of the signal that terminated the child
@@ -83,55 +82,19 @@ struct process {
         /// Only available signaled() == true
         ///
         /// @return the symbolic name of the signal that terminated the child
-        char const *termsigname() const {
-            // list taken from https://pubs.opengroup.org/onlinepubs/009695399/basedefs/signal.h.html
-            // removed entries that were not defined on CentOS Linux release 7.8.2003
-            switch (termsig()) {
-            case SIGHUP   : return "SIGHUP";
-            case SIGINT   : return "SIGINT";
-            case SIGQUIT  : return "SIGQUIT";
-            case SIGILL   : return "SIGILL";
-            case SIGTRAP  : return "SIGTRAP";
-            case SIGABRT  : return "SIGABRT";
-            case SIGBUS   : return "SIGBUS";
-            case SIGFPE   : return "SIGFPE";
-            case SIGKILL  : return "SIGKILL";
-            case SIGUSR1  : return "SIGUSR1";
-            case SIGSEGV  : return "SIGSEGV";
-            case SIGUSR2  : return "SIGUSR2";
-            case SIGPIPE  : return "SIGPIPE";
-            case SIGALRM  : return "SIGALRM";
-            case SIGTERM  : return "SIGTERM";
-            case SIGCHLD  : return "SIGCHLD";
-            case SIGCONT  : return "SIGCONT";
-            case SIGSTOP  : return "SIGSTOP";
-            case SIGTSTP  : return "SIGTSTP";
-            case SIGTTIN  : return "SIGTTIN";
-            case SIGTTOU  : return "SIGTTOU";
-            case SIGURG   : return "SIGURG";
-            case SIGXCPU  : return "SIGXCPU";
-            case SIGXFSZ  : return "SIGXFSZ";
-            case SIGVTALRM: return "SIGVTALRM";
-            case SIGPROF  : return "SIGPROF";
-            case SIGWINCH : return "SIGWINCH";
-            case SIGIO    : return "SIGIO";
-            case SIGSYS   : return "SIGSYS";
-            default:
-                return nullptr;
-            }
-        }
+        char const *signalName() const;
+        
         /// @brief a coredump was generated
         ///
         /// Only available signaled() == true
         ///
         /// @return true if a coredump was generated
-        bool coredump() const {
-            assert(signaled());
+        bool didCoreDump() const {
             return WCOREDUMP(value) ? true : false;
         }
 
         /// @brief the child is stopped, like in a debugger
-        bool stopped() const {
+        bool isStopped() const {
             return WIFSTOPPED(value) ? true : false;
         }
         /// @brief the signal that stopped the child
@@ -139,49 +102,41 @@ struct process {
         /// Only available stopped() == true
         ///
         /// @return the signal that stopped the child
-        int stopsig() const {
-            assert(stopped());
+        int stopSignal() const {
             return WSTOPSIG(value);
         }
 
-        /// @brief did child exit(0)
-        bool normal() const {
-            return exited() && exit_code() == 0;
-        }
-        operator bool() const {
-            return normal();
-        }
-
-        exit_status(exit_status const &other) : value(other.value) {}
-        exit_status &operator =(exit_status const &other) {
-            value = other.value;
-            return *this;
-        }
+        ExitStatus(ExitStatus const &) = default;
+        ExitStatus &operator =(ExitStatus const &) = default;
+        ExitStatus(ExitStatus &&) = default;
+        ExitStatus &operator =(ExitStatus &&) = default;
     private:
         int value;
-        friend struct process;
-        exit_status(int status) : value(status) {}
+        friend struct Process;
+        ExitStatus(int status) : value(status) {}
     };
 
       /// @brief wait for this process to finish
       /// @return exit status
       /// @throw system_error if wait fails
-    exit_status wait() const;
+    ExitStatus wait() const;
 
-    static void run_child(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env = {});
-    static exit_status run_child_and_wait(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env = {});
-    static exit_status run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, bool const for_real = false, Dictionary const &env = {});
+    static void runChild [[noreturn]] (::FilePath const &toolpath, std::string const &toolname, char const *const *argv, Dictionary const &env);
+    static ExitStatus runChildAndWait(::FilePath const &toolpath, std::string const &toolname, char const *const *argv, Dictionary const &env);
 
-    process(process const &other) : pid(other.pid) {}
-    process &operator =(process const &other) {
-        pid = other.pid;
-        return *this;
-    }
-protected:
-    static process self() { return process(0); }
-    process(pid_t pid) : pid(pid) {}
-    
+    Process(Process const &) = default;
+    Process &operator =(Process const &) = default;
+    Process(Process &&) = default;
+    Process &operator =(Process &&) = default;
+
+    static Process self() { return Process(0); }
+    Process(pid_t pid) : pid(pid) {}
+private:
     pid_t pid;
 };
 
-} // namespace sratools
+} // namespace POSIX
+
+using PlatformProcess = POSIX::Process;
+
+#endif // ! WINDOWS

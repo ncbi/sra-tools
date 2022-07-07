@@ -26,202 +26,105 @@
 
 #pragma once
 
-#include <windows.h>
+#if WINDOWS
+
+#if _MSC_VER
+#define MS_Visual_C 1
+#endif
+
+#pragma warning(disable: 4668)
+
+#if __INTELLISENSE__
+#define MS_Visual_C 1
+#endif
+
+#define NOMINMAX 1
+
+#if MS_Visual_C
+// Need to turn off all sorts of useless noise
+#pragma warning(disable: 5039)
+#pragma warning(disable: 4267)
+#pragma warning(disable: 4365)
+#pragma warning(disable: 4458)
+#pragma warning(disable: 4514)
+#pragma warning(disable: 4505)
+#pragma warning(disable: 5245)
+#pragma warning(disable: 5045)
+#pragma warning(disable: 4820) // REALLY!? You are going to complain about having to do aligning! Like the standard requires!? Lazy garbage! So typical
+#pragma warning(disable: 4464)
+#endif
+
+#include <Windows.h>
 #include <stringapiset.h>
+#include <Fileapi.h>
+#include <Shlwapi.h>
+#include <pathcch.h>
+#include <errhandlingapi.h>
+#include <WinNls.h>
+
 #include <memory.h>
 #include <limits.h>
-
 #include <map>
 #include <cassert>
+#include <system_error>
 
-typedef SSIZE_T ssize_t;
+#include "wide-char.hpp"
+#include "opt_string.hpp"
 
 static inline std::error_code error_code_from_errno()
 {
     return std::error_code((int)GetLastError(), std::system_category());
 }
 
-struct Win32Shim {
-    /// Convert UTF8 string to Windows wide char string
-    /// Note: if len == -1, the returned count includes the nil-terminator
-    /// @param wstr buffer to recieve converted string
-    /// @param wlen max number of wide chars that wstr can hold, NB. not size in bytes
-    /// @param str the string to convert
-    /// @param len the length of str or -1 if nil-terminated
-    /// @return number of wide chars placed into wstr (including any nil-terminator)
-    static ssize_t widen(wchar_t *wstr, size_t wlen, char const *str, ssize_t len = -((ssize_t)1))
-    {
-        assert((0 <= len && len <= INT_MAX) || len == -((ssize_t)1));
-        assert(0 <= wlen && wlen <= INT_MAX);
-        return (ssize_t)MultiByteToWideChar(CP_UTF8, 0, str, (int)len, wstr, (int)wlen);
-    }
-
-    /// Get the number of wide chars needed to hold a converted string
-    /// Note: if len == -1, the returned count includes the nil-terminator
-    /// @param str the string to measure
-    /// @param len the length of str or -1 if nil-terminated
-    /// @return number of wide chars needed to hold converted str
-    static ssize_t wideSize(char const *str, ssize_t len = -((ssize_t)1))
-    {
-        assert((0 <= len && len <= INT_MAX) || len == -((ssize_t)1));
-        wchar_t wdummy[1];
-        return (ssize_t)widen(wdummy, 0, str, len);
-    }
-
-    /// Convert nil-terminated UTF8 string to Windows nil-terminated wide char string
-    /// @param str the string to convert
-    /// @return a new wide char string, deallocate with free
-    static wchar_t *makeWide(char const *str)
-    {
-        auto const wlen = wideSize(str);
-        if (wlen > 0) {
-            auto const wvalue = (wchar_t *)malloc(wlen * sizeof(wchar_t));
-            if (wvalue != NULL) {
-                widen(wvalue, wlen, str);
-                return wvalue;
-            }
-        }
-        return NULL;
-    }
-
-    /// Convert Windows wide char string to a UTF8 string
-    /// Note: if len == -1, the returned count includes the nil-terminator
-    /// @param str buffer to recieve converted string
-    /// @param len max number of chars that str can hold
-    /// @param wstr the string to convert
-    /// @param wlen the length of wstr or -1 if nil-terminated
-    /// @return number of chars placed into str (including any nil-terminator)
-    static ssize_t unwiden(char *str, ssize_t len, wchar_t const *wstr, ssize_t wlen = -((ssize_t)1))
-    {
-        assert(0 <= len && len <= INT_MAX);
-        assert((0 <= wlen && wlen <= INT_MAX) || wlen == -((ssize_t)1));
-        return (ssize_t)WideCharToMultiByte(CP_UTF8, 0, wstr, (int)wlen, str, (int)len, NULL, NULL);
-    }
-
-    /// Get the number of chars needed to hold a converted wide string
-    /// Note: if srclen == -1, the returned count includes the nil-terminator
-    /// @param wstr the string to measure
-    /// @param wlen the length of wstr or -1 if nil-terminated
-    /// @return number of chars needed to hold converted wstr
-    static ssize_t unwideSize(wchar_t const *wstr, ssize_t wlen = -((ssize_t)1))
-    {
-        assert((0 <= wlen && wlen <= INT_MAX) || wlen == -((ssize_t)1));
-        char dummy[1];
-        return (ssize_t)unwiden(dummy, 0, wstr, wlen);
-    }
-
-    /// Convert Windows nil-terminated wide char string to nil-terminated UTF8 string
-    /// @param wvalue the wide string to convert
-    /// @return a new char string, deallocate with free
-    static char *makeUnwide(wchar_t const *wvalue)
-    {
-        auto const len = unwideSize(wvalue);
-        if (len > 0) {
-            auto const value = (char *)malloc(len * sizeof(char));
-            if (value != NULL) {
-                unwiden(value, len, wvalue);
-                return value;
-            }
-        }
-        return NULL;
-    }
-};
-
-class DeleterFree
-{
-public:
-    void operator() (void* ptr) 
-    { 
-        free(ptr); 
-    }
-};
-
-static DeleterFree deleterFree;
-
-static char *GetFullPathToExe()
-{
-    for (DWORD size = 4096; ; size *= 2) {
-        auto const wbuffer = std::unique_ptr<wchar_t, decltype(deleterFree)>((wchar_t *)malloc(((size_t)size) * sizeof(wchar_t)), deleterFree);
-        if (!wbuffer)
-            return NULL;
-        if (GetModuleFileNameW(NULL, wbuffer.get(), (DWORD)size) < size)
-            return Win32Shim::makeUnwide(wbuffer.get());
-    }
-}
-
-static bool pathExists(std::string const &path) {
-    auto const wpath = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(path.c_str()), deleterFree);
-    assert(wpath);
-    auto const attr = GetFileAttributesW(wpath.get());
-    return attr != INVALID_FILE_ATTRIBUTES;
-}
-
-class EnvironmentVariables {
-public:
-    class Value : public std::string {
-        bool notSet;
-    public:
-        Value(std::string const &value) : notSet(false), std::string(value) {}
-        Value() : notSet(true) {}
-        operator bool() const { return !notSet; }
-        bool operator !() const { return notSet; }
-    };
-    using Set = std::map<std::string, Value>;
-
-    static Value get(std::string const &name) {
-        char * val = getenv(name.c_str());
-        if (val == nullptr)
-        {
-            return Value();
-        }
-        return Value(val);
-#if 0
+namespace Win32 {
+struct EnvironmentVariables {
+#if USE_WIDE_API
+    static opt_string get(char const *name) {
+        opt_string result;
         wchar_t wdummy[4];
-        auto const wname = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(name.c_str()), deleterFree);
+        auto const wname = Win32Support::makeWide(name);
         assert(wname);
 
         auto const wvaluelen = GetEnvironmentVariableW(wname.get(), wdummy, 0);
         if (wvaluelen > 0) {
-            auto const wbuffer = std::unique_ptr<wchar_t, decltype(deleterFree)>((wchar_t *)malloc((wvaluelen + 1) * sizeof(wchar_t)), deleterFree);
-            assert(wbuffer);
-
+            auto const wbuffer = Win32Support::auto_free_wide_ptr((wchar_t *)malloc(sizeof(wchar_t) * (wvaluelen + 1)));
+            if (!wbuffer)
+                throw std::bad_alloc();
             GetEnvironmentVariableW(wname.get(), wbuffer.get(), 0);
 
-            auto const value = std::unique_ptr<char, decltype(deleterFree)>(Win32Shim::makeUnwide(wbuffer.get()), deleterFree);
-            assert(value);
-            return Value(std::string(value.get()));
-        }
-        return Value();
-#endif
-    }
-    static void set(std::string const &name, Value const &value) {
-        auto const wname = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(name.c_str()), deleterFree);
-        assert(wname);
-
-        if (value) {
-            auto const wvalue = std::unique_ptr<wchar_t, decltype(deleterFree)>(Win32Shim::makeWide(value.c_str()), deleterFree);
-            assert(wvalue);
-
-            SetEnvironmentVariableW(wname.get(), wvalue.get());
-        }
-        else {
-            SetEnvironmentVariableW(wname.get(), NULL);
-        }
-    }
-    static Set set_with_restore(std::map<std::string, std::string> const &vars) {
-        auto result = Set();
-        for (auto && v : vars) {
-            result[v.first] = get(v.first);
-            set(v.first, v.second.empty() ? Value() : v.second);
+            result = Win32Support::makeUnwideString(wbuffer.get());
         }
         return result;
     }
-    static void restore(Set const &save) {
-        for (auto && v : save) {
-            set(v.first, v.second);
+    static void set(char const *name, char const *value) {
+        auto const wname = Win32Support::makeWide(name);
+        if (value) {
+            auto const wvalue = Win32Support::makeWide(value);
+            SetEnvironmentVariableW(wname.get(), wvalue.get());
         }
+        else
+            SetEnvironmentVariableW(wname.get(), NULL);
     }
-    static char const *impersonate() {
-        return getenv("SRATOOLS_IMPERSONATE");
+#else
+    static opt_string get(char const *name) {
+        opt_string result;
+        char dummy[4];
+        auto const valuelen = GetEnvironmentVariableA(name.c_str(), dummy, 0);
+        if (valuelen > 0) {
+            auto value = std::string(valuelen + 1, '\0');
+            GetEnvironmentVariableA(name.c_str(), value.data(), 0);
+            value.resize(valuelen);
+            result = value;
+        }
+        return result;
     }
+    static void set(char const *name, char const *value) {
+        SetEnvironmentVariableA(name, value);
+    }
+#endif
 };
+}
+
+using PlatformEnvironmentVariables = Win32::EnvironmentVariables;
+
+#endif

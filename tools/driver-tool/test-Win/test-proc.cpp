@@ -22,38 +22,17 @@
  *
  * ===========================================================================
  *
+ * Project:
+ *  sratools command line tool
+ *
+ * Purpose:
+ *  testing Windows command line parsing
+ *
  */
 
-#pragma once
+#include "proc.hpp"
+#include "proc.hpp"
 
-#if WINDOWS
-#else
-
-#include <unistd.h>
-#include <cerrno>
-#include <string>
-#include <utility>
-#include "opt_string.hpp"
-
-static inline std::error_code error_code_from_errno()
-{
-    return std::error_code(errno, std::system_category());
+int wmain(int argc, wchar_t const *argv[]) {
+    return 0;
 }
-
-namespace POSIX {
-struct EnvironmentVariables {
-    static opt_string get(char const *name) {
-        return opt_string(getenv(name));
-    }
-    static void set(char const *name, char const *value) {
-        if (value)
-            setenv(name, value, 1);
-        else
-            unsetenv(name);
-    }
-};
-}
-
-using PlatformEnvironmentVariables = POSIX::EnvironmentVariables;
-
-#endif

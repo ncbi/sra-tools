@@ -30,19 +30,18 @@
 *
 */
 
-#include "config.hpp"
-#include <kfg/config.h>
-#include <klib/text.h>
+#include "util.hpp"
 
 #include <iostream>
 #include <cctype>
 #include <set>
 #include <cstdlib>
 
-#include "support2.hpp"
+#include "config.hpp"
+#include <kfg/config.h>
+#include <klib/text.h>
+
 #include "proc.hpp"
-#include "tool-path.hpp"
-#include "util.hpp"
 #include "debug.hpp"
 
 /**
@@ -53,12 +52,12 @@
  */
 static opt_string makeFromKString(String *str)
 {
+    opt_string result;
     if (str) {
-        auto result = std::string(str->addr, str->size);
+        result = std::string(str->addr, str->size);
         free(str);
-        return result;
     }
-    return opt_string();
+    return result;
 }
 
 namespace sratools {
@@ -72,7 +71,7 @@ opt_string Config::get(const char *const key) const
 
 bool Config::noInstallID() const
 {
-    return get("/LIBS/GUID").has_value() ? false : true;
+    return installID().has_value() ? false : true;
 }
 
 Config::~Config()
@@ -80,8 +79,7 @@ Config::~Config()
     KConfigRelease((KConfig *)obj);
 }
 
-Config::Config(ToolPath const &runpath) {
-    (void)runpath;
+Config::Config() {
     obj = NULL;
     rc_t rc = KConfigMake((KConfig **)&obj, NULL);
     if (rc != 0) {
@@ -93,8 +91,8 @@ Config::Config(ToolPath const &runpath) {
 #if DEBUG || _DEBUGGING
 static bool forceInstallID(void)
 {
-    auto const &force = EnvironmentVariables::get("SRATOOLS_FORCE_INSTALL");
-    return force ? !force.empty() && force != "0" : false;
+    auto const &force = EnvironmentVariables::get("SRATOOLS_FORCE_INSTALL").value_or("");
+    return !force.empty() && force != "0";
 }
 static opt_string fakeID(void) {
     return forceInstallID() ? opt_string("8badf00d-1111-4444-8888-deaddeadbeef") : opt_string();

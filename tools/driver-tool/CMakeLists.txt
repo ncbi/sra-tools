@@ -22,44 +22,73 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/driver-tool" )
+add_executable(sratools)
+target_compile_definitions( sratools PRIVATE __mod__="tools/driver-tool" )
 
-add_subdirectory( json )
-add_subdirectory( secure )
-add_subdirectory( utf8proc )
-
-include_directories( inc )
-
-set( SRATOOLS_SRC
-	sratools
-	sratools2
-	imp_fasterq_dump
-	imp_fastq_dump
-	imp_prefetch
-	imp_sam_dump
-	imp_sra_pileup
-	imp_srapath
-	imp_vdb_dump
-	cmdline
-	config
-	proc
-	run-source
-	uuid
-	service
-    support2
+target_sources(sratools
+    PRIVATE
+        sratools.cpp
+        sratools.hpp
+        config.cpp
+		config.hpp
+        command-line.cpp
+        command-line.hpp
+        run-source.cpp
+        run-source.hpp
+        proc.cpp
+        proc.hpp
+        uuid.cpp
+        uuid.hpp
+        service.cpp
+        service.hpp
+        json-parse.cpp
+        json-parse.hpp
+        SDL-response.cpp
+        SDL-response.hpp
+        tool-args.cpp
+        tool-args.hpp
+        globals.hpp
+        constants.hpp
+        debug.hpp
+        utf8-16.hpp
+        util.hpp
+        file-path.hpp
+        opt_string.hpp
+        tool-arguments.h
 )
-
-if( WIN32 )
-    set( ADDITIONAL_LIBS
-            libcmt$<$<CONFIG:Debug>:d>
-            libcpmt$<$<CONFIG:Debug>:d>
-            libucrt$<$<CONFIG:Debug>:d>
-            libvcruntime$<$<CONFIG:Debug>:d>
-    )
+if(WIN32)
+	target_sources(sratools PRIVATE
+        file-path.win32.cpp
+        file-path.win32.hpp
+        proc.win32.cpp
+        proc.win32.hpp
+        util.win32.hpp
+        wide-char.hpp
+        win32-cmdline.hpp
+        win32-cmdline.cpp		
+	)
 else()
-	set( ADDITIONAL_LIBS m )
+	target_sources(sratools PRIVATE
+        file-path.posix.cpp
+        file-path.posix.hpp
+        proc.posix.cpp
+        proc.posix.hpp
+        util.posix.hpp
+	)
 endif()
-
-add_executable( sratools "${SRATOOLS_SRC}" )
-target_link_libraries( sratools ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} )
+target_link_libraries( sratools
+    ncbi-vdb
+)
+if(WIN32)
+    target_compile_definitions(sratools PRIVATE USE_WIDE_API=1)
+    target_link_libraries(sratools PRIVATE
+        libcmt$<$<CONFIG:Debug>:d>
+        libcpmt$<$<CONFIG:Debug>:d>
+        libucrt$<$<CONFIG:Debug>:d>
+        libvcruntime$<$<CONFIG:Debug>:d>
+		Ws2_32 Crypt32 ShLwApi Pathcch
+    )
+elseif(LINUX)
+    target_link_libraries(sratools PRIVATE m)
+endif()
 MakeLinksExe( sratools false )

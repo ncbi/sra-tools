@@ -28,4 +28,5 @@ tmp.kfg
 .gdb_history
 .vs
 (null)
-/test/copycat/actual/
+a.out
+a.out.dSYM

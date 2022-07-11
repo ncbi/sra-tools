@@ -114,7 +114,7 @@ extern "C" {
 #define OPT_TIMING      "timing"
 #define OPT_MD_FLAG     "with-md-flag"
 #define OPT_NGC         "ngc"
-#define OPT_NOQUAL      "ommit-quality"
+#define OPT_NOQUAL      "omit-quality"
 
 typedef struct range {
     uint64_t start;

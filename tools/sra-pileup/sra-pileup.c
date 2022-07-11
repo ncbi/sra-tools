@@ -707,21 +707,28 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
                              struct dyn_string *qualities,
                              pileup_options *options ) {
     uint32_t depth = 0;
-    rc_t rc;
-
+    rc_t rc = 0;
+    bool done = false;
+    
     ds_reset( events );
     do {
         const PlacementRecord *rec;
-        rc = ReferenceIteratorNextPlacement ( ref_iter, &rec );
-        if ( rc == 0 ) {
+        /* double purpose of rc2 !!! signals done as well as errors... */
+        rc_t rc2 = ReferenceIteratorNextPlacement ( ref_iter, &rec );
+        if ( 0 == rc2 ) {
             rc = walk_ref_position( ref_iter, rec, events, ds_get_char( qualities, depth++ ), options );
+        } else if ( GetRCState( rc2 ) == rcDone ) {
+            done = true;
+        } else {
+            rc = rc2;
         }
-        if ( rc == 0 ) {
-            rc = Quitting();
-        }
-    } while ( rc == 0 );
+    } while ( rc == 0 && !done );
 
-    if ( options -> depth_per_spotgrp ) {
+    if ( 0 == rc ) {
+        rc = Quitting();
+    }
+    
+    if ( 0 == rc && options -> depth_per_spotgrp ) {
         rc = ds_add_fmt( line, "%d\t", depth );
     }
     
@@ -738,7 +745,6 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
         }
     }
 
-    if ( GetRCState( rc ) == rcDone ) { rc = 0; }
     return rc;
 }
 
@@ -747,20 +753,26 @@ static rc_t walk_spot_groups( ReferenceIterator *ref_iter,
                               struct dyn_string *events,
                               struct dyn_string *qualities,
                               pileup_options *options ) {
-    rc_t rc;
+    rc_t rc = 0;
+    bool done = false;
+
     ds_reset( events );
     do
     {
-        rc = ReferenceIteratorNextSpotGroup ( ref_iter, NULL, NULL );
-        if ( rc == 0 ) {
+        /* double purpose of rc2 !!! signals done as well as errors... */
+        rc_t rc2 = ReferenceIteratorNextSpotGroup ( ref_iter, NULL, NULL );
+        if ( 0 == rc2 ) {
             rc = ds_add_char( line, '\t' );
+            if ( rc == 0 ) {
+                rc = walk_alignments( ref_iter, line, events, qualities, options );
+            }
+        } else if ( GetRCState( rc2 ) == rcDone ) {
+            done = true;
+        } else {
+            rc = rc2;
         }
-        if ( rc == 0 ) {
-            rc = walk_alignments( ref_iter, line, events, qualities, options );
-        }
-    } while ( rc == 0 );
+    } while ( rc == 0 && !done );
 
-    if ( GetRCState( rc ) == rcDone ) { rc = 0; }
     return rc;
 }
 
@@ -774,13 +786,13 @@ static rc_t walk_position( ReferenceIterator *ref_iter,
     uint32_t depth;
     INSDC_4na_bin base;
 
+    /* double purpose of rc !!! signals done as well as errors... */
     rc_t rc = ReferenceIteratorPosition ( ref_iter, &pos, &depth, &base );
     if ( rc != 0 ) {
         if ( GetRCState( rc ) != rcDone ) {
             LOGERR( klogInt, rc, "ReferenceIteratorNextPos() failed" );
         }
-    }
-    else if ( ( depth > 0 )||( options -> no_skip ) ) {
+    } else if ( ( depth > 0 )||( options -> no_skip ) ) {
         bool skip = skiplist_is_skip_position( options -> skiplist, pos + 1 );
         if ( !skip ) {
             rc = ds_expand( line, ( 5 * depth ) + 100 );

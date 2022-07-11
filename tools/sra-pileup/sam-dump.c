@@ -850,7 +850,11 @@ static int64_t CC ReadGroup_sort( BSTNode const *item, BSTNode const *node ) {
 
 static rc_t ReadGroup_print( char const *nm ) {
     rc_t rc = 0;
+#if WINDOWS
+    if ( nm[ 0 ] != '\0' && _stricmp( nm, "default" ) ) {    
+#else
     if ( nm[ 0 ] != '\0' && strcasecmp( nm, "default" ) ) {
+#endif
         rc = KOutMsg( "@RG\tID:%s\n", nm );
     }
     return rc;

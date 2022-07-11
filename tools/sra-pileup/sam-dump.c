@@ -4058,7 +4058,11 @@ static rc_t GetDistance( Args const *const args, struct params_s *const parms, u
             if ( rc != 0 ) {
                 break;
             }
+#if WINDOWS
+            if ( _stricmp( valstr, "unknown" ) == 0 ) {
+#else
             if ( strcasecmp( valstr, "unknown" ) == 0 ) {
+#endif
                 parms->mp_dist_unknown = true;
                 continue;
             }

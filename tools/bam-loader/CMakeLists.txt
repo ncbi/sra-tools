@@ -22,22 +22,21 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/bam-loader" )
-
-include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ) # zlib.h
-
-# Internal
-add_executable( samview
-	bam
-	sam
-	samview
-)
-target_link_libraries( samview ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( samview false )
-
 # External
 if( NOT WIN32)
-	add_executable( bam-load
+
+	add_compile_definitions( __mod__="tools/bam-loader" )
+
+	include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ./) # zlib.h
+
+	#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+	find_package(OpenSSL REQUIRED)
+
+	# Internal
+	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	MakeLinksExe( samview false )
+
+	set( SRC
 		bam-loader
 		bam
 		sam
@@ -47,9 +46,15 @@ if( NOT WIN32)
 		loader-imp
 		mem-bank
 		low-match-count
-	)
-	target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-	target_link_libraries( bam-load loader ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE} )
+    )
+    set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
+    set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
+
+	GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
+    target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
+    target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+    target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
 
 	MakeLinksExe( bam-load false )
 endif()

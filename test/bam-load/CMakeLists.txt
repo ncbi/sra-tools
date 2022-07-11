@@ -37,4 +37,25 @@ if( NOT WIN32 )
     )
     set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
 
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_BamLoader_1_asan
+                COMMAND
+                    ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                    ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                    bash -c "${BINDIR}/bam-load-asan -o out.sra test.sam"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        set_tests_properties( Test_BamLoader_1_asan PROPERTIES FIXTURES_REQUIRED BamTest )
+
+        add_test( NAME Test_BamLoader_1_tsan
+                COMMAND
+                    ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                    ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                    bash -c "${BINDIR}/bam-load-tsan -o out.sra test.sam"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
+    endif()
+
+
 endif()

@@ -27,7 +27,6 @@ if( LibXml2_FOUND )
     include_directories( ${LIBXML2_INCLUDE_DIR} )
 
     set( SRC_XML xml.c xtoc-parsexml.c xtoc.c )
-    GenerateStaticLibs( kxml "${SRC_XML}" )
-    target_compile_definitions( kxml PRIVATE __mod__="libs/kxml")
+    GenerateStaticLibsWithDefs( kxml "${SRC_XML}" "__mod__=\"libs/kxml\"" "" )
 
 endif()

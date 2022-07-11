@@ -527,6 +527,7 @@ const char UsageDefaultName[] = "test-ngs_sradb-c++";
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    putenv("NCBI_VDB_QUALITY=R");
     KConfigDisableUserSettings();
     rc_t rc=NgsSradbCppTestSuite(argc, argv);
     NgsFixture::ReleaseCache();

@@ -1,13 +1,16 @@
-include_directories ( ${CMAKE_SOURCE_DIR}/ngs )
+set( SRC
+	VdbReadCollection.cpp
+	FragmentBlobIterator.cpp
+	FragmentBlob.cpp
+	VdbReference.cpp
+	ReferenceBlob.cpp
+	ReferenceBlobIterator.cpp
+	VdbAlignment.cpp
+	NGS-VDB.cpp
+)
 
-add_library ( ngs-vdb
-                VdbReadCollection.cpp
-                FragmentBlobIterator.cpp
-                FragmentBlob.cpp
-                VdbReference.cpp
-                ReferenceBlob.cpp
-                ReferenceBlobIterator.cpp
-                VdbAlignment.cpp
-                NGS-VDB.cpp )
+GenerateStaticLibsWithDefs( ngs-vdb "${SRC}" "" "${CMAKE_SOURCE_DIR}/ngs" )
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()

@@ -22,14 +22,16 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="tools/sra-stat" )
-
 # External
-add_executable( sra-stat
+set( SRC
 	assembly-statistics
 	sra
 	sra-stat
 )
-target_include_directories( sra-stat PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+GenerateExecutableWithDefs( sra-stat "${SRC}" "__mod__=\"tools/sra-stat\"" "${CMAKE_SOURCE_DIR}/libs/inc" "" )
 target_link_libraries( sra-stat loader ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+if ( RUN_SANITIZER_TESTS )
+	target_link_libraries( sra-stat-asan loader-asan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+	target_link_libraries( sra-stat-tsan loader-tsan ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+endif()
 MakeLinksExe( sra-stat false )

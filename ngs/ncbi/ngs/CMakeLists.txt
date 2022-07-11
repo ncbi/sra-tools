@@ -61,7 +61,9 @@ set( SRC
 	VByteBlob
 )
 
-GenerateStaticLibs( ngs "${SRC}" )
+GenerateStaticLibsWithDefs( ngs "${SRC}" "__mod__=\"ngs/ncbi/ngs\"" "" )
 target_link_libraries( ngs ${COMMON_LIBS_READ} )
-
-add_compile_definitions (__mod__="ngs/ncbi/ngs")
+if( RUN_SANITIZER_TESTS )
+	target_link_libraries( ngs-asan ${COMMON_LIBS_READ} )
+	target_link_libraries( ngs-tsan ${COMMON_LIBS_READ} )
+endif()

@@ -1,4 +1,5 @@
 /*==============================================================================
+/*==============================================================================
  *
  *                            PUBLIC DOMAIN NOTICE
  *               National Center for Biotechnology Information
@@ -39,8 +40,10 @@
 #include <cstring>
 #include <cstdarg>
 
-#ifndef WINDOWS
+#if HAVE_CXXABI_H
 #include <cxxabi.h>
+#endif
+#if HAVE_EXECINFO_H
 #include <execinfo.h>
 #endif
 
@@ -421,7 +424,7 @@ namespace ncbi
         , rc ( status )
     {
         // capture stack
-#ifndef WINDOWS
+#if HAVE_CXXABI_F
         stack_frames = backtrace ( callstack, sizeof callstack / sizeof callstack [ 0 ] );
 #endif
 
@@ -530,7 +533,7 @@ namespace ncbi
             int status;
             char save = name [ i ];
             ( ( char * ) name ) [ i ] = 0;
-#ifndef WINDOWS
+#if HAVE_CXXABI_F
             char * real_name = abi :: __cxa_demangle ( & name [ k ], 0, 0, & status );
 #else
             char * real_name = strdup ( & name[k] );
@@ -625,7 +628,7 @@ namespace ncbi
     {
         if ( x . stack_frames > 0 )
         {
-#ifndef WINDOWS
+#if HAVE_CXXABI_F
             frames = backtrace_symbols ( x . callstack, x . stack_frames );
 #endif
             if ( frames != nullptr )

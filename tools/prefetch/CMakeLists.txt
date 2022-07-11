@@ -28,12 +28,13 @@ if (WIN32)
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
 endif()
 
-add_executable( prefetch
+set( SRC
 	kfile-no-q
 	PrfMain
 	prefetch
 	PrfRetrier
 	PrfOutFile
 )
-target_link_libraries ( prefetch ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+
+GenerateExecutableWithDefs( prefetch "${SRC}" "" "" "ascp;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( prefetch true )

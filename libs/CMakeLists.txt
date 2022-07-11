@@ -29,6 +29,8 @@ add_subdirectory(kxml)
 add_subdirectory(loader)
 add_subdirectory(vdb-sqlite)
 add_subdirectory(ngs-vdb)
+add_subdirectory(ascp)
+add_subdirectory(diagnose)
 
 if( NOT WIN32 )
 	add_subdirectory(general-writer)

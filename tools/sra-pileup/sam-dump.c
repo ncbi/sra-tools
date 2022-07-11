@@ -3639,18 +3639,30 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
                     /* cut off [.lite].[c]sra[.nenc||.ncbi_enc] if any */
                     ext = string_rchr( basename, zz, '.' );
                     if ( ext != NULL ) {
+#if WINDOWS
+                        if ( _stricmp( ext, ".nenc" ) == 0 || _stricmp( ext, ".ncbi_enc" ) == 0 ) {
+#else
                         if ( strcasecmp( ext, ".nenc" ) == 0 || strcasecmp( ext, ".ncbi_enc" ) == 0 ) {
+#endif
                             zz -= ext - basename;
                             *ext = '\0';
                             ext = string_rchr( basename, zz, '.' );
                         }
 
                         if ( ext != NULL ) {
+#if WINDOWS
+                            if ( _stricmp( ext, ".sra" ) == 0 || _stricmp( ext, ".csra" ) == 0 ) {
+#else
                             if ( strcasecmp( ext, ".sra" ) == 0 || strcasecmp( ext, ".csra" ) == 0 ) {
+#endif
                                 zz -= ext - basename;
                                 *ext = '\0';
                                 ext = string_rchr( basename, zz, '.' );
+#if WINDOWS
+                                if ( ext != NULL && _stricmp( ext, ".lite" ) == 0 ) {
+#else
                                 if ( ext != NULL && strcasecmp( ext, ".lite" ) == 0 ) {
+#endif
                                     *ext = '\0';
                                 }
                             }

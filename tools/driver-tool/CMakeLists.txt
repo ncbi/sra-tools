@@ -55,6 +55,7 @@ target_sources(sratools
         file-path.hpp
         opt_string.hpp
         tool-arguments.h
+        fastq-dump-arguments.h
 )
 if(WIN32)
 	target_sources(sratools PRIVATE

@@ -51,6 +51,7 @@
 #include <functional>
 
 #include <cstdlib>
+#include <cstring>
 
 #include "globals.hpp"
 #include "constants.hpp"
@@ -111,7 +112,7 @@ static void handleFileArgument(Argument const &arg, int *const count, char const
         *count = 0;
     
     if (++*count > 1) {
-        LOG(1) << "--" << arg.def.name << " given more than once";
+        LOG(1) << "--" << arg.def->name << " given more than once";
         if (strcmp(*value, arg.argument) == 0) {
             arg.reason = Argument::duplicate;
             --*count;
@@ -244,6 +245,42 @@ static bool containsIdentifier(char const *whole, char const *const query)
     }
 }
 
+static void setLogLevel(char const *logLevelString)
+{
+    auto const logLevelStrings = KLogGetParamStrings();
+    int level = klogLevelMax + 1;
+    
+    if (isdigit(*logLevelString)) {
+        while (isdigit(*logLevelString))
+            level = (level * 10) + ((*logLevelString++) - '0');
+    }
+    else if (*logLevelString == '-' || *logLevelString == '+') {
+        level = klogLevelMin;
+        for ( ; ; ) {
+            auto const ch = *logLevelString++;
+            
+            if (ch == '-')
+                --level;
+            else if (ch == '+')
+                ++level;
+            else
+                break;
+        }
+    }
+    else {
+        for (int i = klogLevelMin; i <= klogLevelMax; ++i) {
+            auto const n = strlen(logLevelStrings[i]);
+            if (std::strncmp(logLevelString, logLevelStrings[i], n) == 0) {
+                logLevelString += n;
+                level = i;
+                break;
+            }
+        }
+    }
+    if (*logLevelString == '\0')
+        KLogLevelSet(level);
+}
+
 static bool vdbDumpPrefersLiteFormat(Arguments const &args)
 {
     // Is vdb-dump skipping QUALITY column?
@@ -316,6 +353,21 @@ static int main(CommandLine const &argv)
     
     test(); ///< needs to be outside of any try/catch; it needs to be able to go BANG!!!
 
+#if DEBUG || _DEBUGGING
+    if (argv.toolName == "sratools") {
+        if (argv.argc > 1 && std::string(argv.argv[1]) == "help") {
+            std::cerr << "usage: sratools print-argbits | help" << std::endl;
+            exit(EXIT_SUCCESS);
+        }
+        if (argv.argc > 1 && std::string(argv.argv[1]) == "print-argbits") {
+            printArgumentBitmasks(std::cout);
+            exit(EXIT_SUCCESS);
+        }
+        std::cerr << "usage: sratools print-argbits | help" << std::endl;
+        exit(EX_USAGE);
+    }
+#endif
+    
     // MARK: Check for special tools
     if (argv.toolName == "prefetch" || argv.toolName == "srapath")
         Process::reexec(argv);
@@ -328,6 +380,10 @@ static int main(CommandLine const &argv)
         // MARK: Get and set verbosity.
         auto const verbosity = parsed.countMatching("verbose");
         KStsLevelSet(verbosity);
+        
+        parsed.each("log-level", [&](Argument const &arg) {
+            setLogLevel(arg.argument);
+        });
         
         // MARK: Set debug flags
         parsed.each("debug", [](Argument const &arg) {

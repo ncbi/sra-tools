@@ -39,18 +39,20 @@
 #include "util.hpp"
 #define USE_TOOL_HELP 0
 
+struct ParamDefinitions_Common;
 struct ParamDefinitions;
 struct CommandLine;
 
 struct ParameterDefinition {
-    char const *name;
-    char const *aliases;
-    bool hasArgument;
-    uint64_t bitMask;
 #if USE_TOOL_HELP
     std::vector<char const *> helpText;
 #endif
-    
+    char const *name;
+    char const *aliases;
+    uint64_t bitMask;
+    bool hasArgument;
+    bool argumentIsOptional;
+
     /// @brief The argument appears to be a parameter, but it is not in the list of known parameters for the tool. It does not take an argument.
     static ParameterDefinition const &unknownParameter();
     
@@ -107,27 +109,25 @@ struct Argument {
     static constexpr Ignore const duplicate = { "duplicate" };
     static constexpr Ignore const notCurrent = { "not the current tool argument" };
 
-#if MS_Visual_C
-    ParameterDefinition def;
-#else
-    ParameterDefinition const &def;
-#endif
+    ParameterDefinition const *def;
     char const *argument;
     int argind;
     mutable Ignore reason;
     
-    bool operator ==(ParameterDefinition const &other) const { return def == other; }
-    bool operator ==(char const *name) const { return def == name; }
-    bool isArgument() const { return def.isArgument(); }
+    bool operator ==(ParameterDefinition const &other) const { return def->operator==(other); }
+    bool operator ==(char const *name) const { return def->operator==(name); }
+    bool isArgument() const { return def->isArgument(); }
 
     friend std::ostream &operator <<(std::ostream &out, Argument const &arg);
 };
 
 class Arguments {
-    friend ParamDefinitions;
-
+public:
     using Container = std::vector<Argument>;
-    
+
+private:
+    friend ParamDefinitions_Common;
+
     Container container;
     uint64_t argsBits;
     unsigned parameters;
@@ -171,13 +171,13 @@ public:
     template <typename F>
     void each(char const *matching, F && call) const {
         for (auto & arg : container)
-            if (arg.reason == nullptr && arg.def == matching)
+            if (arg.reason == nullptr && arg == matching)
                 call(arg);
     }
     template <typename F>
     void first(char const *matching, F && call) const {
         for (auto & arg : container)
-            if (arg.reason == nullptr && arg.def == matching) {
+            if (arg.reason == nullptr && arg == matching) {
                 call(arg);
                 return;
             }
@@ -185,7 +185,7 @@ public:
     template <typename F>
     bool firstWhere(char const *matching, F && call) const {
         for (auto & arg : container)
-            if (arg.reason == nullptr && arg.def == matching && call(arg))
+            if (arg.reason == nullptr && arg == matching && call(arg))
                 return true;
         return false;
     }
@@ -199,13 +199,13 @@ public:
     unsigned countMatching(char const *name) const {
         unsigned result = 0;
         for (auto & arg : container)
-            if (arg.reason == nullptr && arg.def == name)
+            if (arg.reason == nullptr && arg == name)
                 ++result;
         return result;
     }
     bool any(char const *name) const {
         for (auto & arg : container)
-            if (arg.reason == nullptr && arg.def == name)
+            if (arg.reason == nullptr && arg == name)
                 return true;
         return false;
     }
@@ -232,3 +232,4 @@ public:
 
 struct UnknownToolException {};
 Arguments argumentsParsed(CommandLine const &);
+void printArgumentBitmasks(std::ostream &out);

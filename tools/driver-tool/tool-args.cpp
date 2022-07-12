@@ -53,9 +53,11 @@
 #endif
 #define TOOL_ARGS(...) {__VA_ARGS__}
 #if USE_TOOL_HELP
-#define TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, ARG, 0, HELP}
+#define TOOL_ARG(LONG, ALIAS, ARG, HELP) {HELP, LONG, ALIAS, 0, ARG, false}
+#define FQD_TOOL_ARG(LONG, ALIAS, ARG, HELP) {HELP, LONG, ALIAS, 0, (ARG) != 0, (ARG) < 0}
 #else
-#define TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, ARG, 0}
+#define TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, 0, ARG, false}
+#define FQD_TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, 0, (ARG) != 0, (ARG) < 0}
 #endif
 
 #define TOOL_ARGS_COMMON TOOL_ARGS ( \
@@ -73,6 +75,7 @@
     TOOL_ARG("ncbi_error_report", "", true, TOOL_HELP("Control program execution environment report generation (if implemented).", "One of (never|error|always). Default is error.", 0)), \
     TOOL_ARG(0, 0, 0, TOOL_HELP(0)))
 
+#include "fastq-dump-arguments.h"
 #include "tool-arguments.h"
 
 ParameterDefinition const &ParameterDefinition::unknownParameter() {
@@ -139,18 +142,17 @@ struct ArgvIterator {
     }
 };
 
-template <typename INDEX>
-struct CharIndexElement : public std::pair<char, INDEX>
+struct CharIndexElement : public std::pair<char, unsigned>
 {
-    using Base = std::pair<char, INDEX>;
+    using Base = std::pair<char, unsigned>;
 
     CharIndexElement(CharIndexElement const &other) = default;
     CharIndexElement(Base const &base)
     : Base(base)
     {};
     
-    bool operator< (char query) const {
-        return this->first < query;
+    bool operator< (char const &query) const {
+        return first < query;
     }
     friend bool operator< (char const &a, CharIndexElement const &b) {
         return a < b.first;
@@ -158,25 +160,105 @@ struct CharIndexElement : public std::pair<char, INDEX>
 };
 
 /// \brief Indexed Argument Definitions for a tool.
-struct ParamDefinitions {
+struct ParamDefinitions_Common {
     using Container = UniqueOrderedList<ParameterDefinition>;
     using LongIndex = std::map<std::string, Container::Index>;
-    using ShortIndexElement = CharIndexElement<Container::Index>;
-    using ShortIndex = UniqueOrderedList<ShortIndexElement>;
+    using ShortIndex = UniqueOrderedList<CharIndexElement>;
+
+    static ParamDefinitions_Common const &commonParams;
     
     std::string tool;
     Container container;
     ShortIndex shortIndex;
-    
+
+    ParamDefinitions_Common(std::string const &name, size_t capacity)
+    : tool(name)
+    , container(capacity)
+    {}
+
+    /// \Returns true if the collection of definitions contains the query definition.
     bool contains(ParameterDefinition const &def) const {
         auto const fnd = container.find(def);
         return fnd.first != fnd.second;
     }
+    
+    /// \brief Update indices and assign bit masks.
+    void finalize() {
+        auto i = 0;
+        uint64_t mask = 1;
+        for (auto &def : container) {
+            if (def.aliases) {
+                for (auto ch : std::string(def.aliases)) {
+                    shortIndex.insert(CharIndexElement({ch, i}));
+                }
+            }
+            if (!commonParams.contains(def)) {
+                def.bitMask = mask;
+                mask <<= 1;
+            }
+            ++i;
+        }
+    }
+    
+    void printArgumentBitmasks(std::ostream &out) const {
+        for (auto &def : container) {
+            if (def.isArgument() || def.bitMask == 0)
+                continue;
+            
+            int shift = 0;
+            uint64_t mask = def.bitMask;
+            
+            while (mask > 1) {
+                mask >>= 1;
+                shift += 1;
+            }
+            
+            out << tool << '\t' << "(1 << " << shift << ") " << def.bitMask << '\t' << def.name << std::endl;
+        }
+    }
 
     /// \brief Find the index of the definition.
     ///
-    /// Also, returns pointer to parameter's argument if it is attached to the string.
-    std::pair<int, char const *> findLong(char const *const arg) const
+    /// \Returns index of definition and a pointer to parameter's argument if it is attached to the string.
+    virtual std::pair< int, char const * > findLong(char const *arg) const = 0;
+
+    virtual bool parseArg(Arguments::Container &dst, ArgvIterator &iter) const = 0;
+    
+    Arguments parseArgv(ArgvIterator &iter) const {
+        Arguments::Container result;
+        uint64_t argsHash = 0;
+
+        result.reserve(iter.parent.argc);
+        
+        while (parseArg(result, iter))
+            ;
+
+        for (auto const &used : result)
+            argsHash |= used.def->bitMask;
+        
+        return Arguments(result, argsHash);
+    }
+};
+
+#define TOOL_DEFINE(SELF, NAME) \
+    static inline SELF make_ ## NAME () { \
+        ParameterDefinition const defs[] = TOOL_ARGS_ ## NAME ; \
+        auto result = SELF(TOOL_NAME_ ## NAME, sizeof(defs)/sizeof(defs[0]) - 1 + commonParams.container.size()); \
+        for (auto &def : commonParams.container) result.container.insert(def); \
+        for (auto def = defs; def->name != nullptr; ++def) \
+            result.container.insert(*def); \
+        result.finalize(); \
+        return result; \
+    }
+
+
+struct ParamDefinitions final : public ParamDefinitions_Common
+{
+    ParamDefinitions(std::string const &name, size_t capacity)
+    : ParamDefinitions_Common(name, capacity)
+    {}
+    
+    std::pair< int, char const * > findLong(char const *const arg) const override
     {
         auto const fnd = container.find(arg);
         if (fnd.first != fnd.second)
@@ -191,53 +273,109 @@ struct ParamDefinitions {
         
         return {-1, nullptr};
     }
+    
+    bool parseArg(Arguments::Container &dst, ArgvIterator &i) const override {
+        auto nextIsArg = 0;
+        auto index = -1;
 
-    /// \brief Update indices and assign bit masks.
-    void finalize() {
-        auto i = 0;
-        uint64_t mask = 1;
-        for (auto &def : container) {
-            if (def.aliases) {
-                for (auto ch : std::string(def.aliases)) {
-                    shortIndex.insert(ShortIndexElement({ch, i}));
+        for ( ; ; ) {
+            switch (i.next()) {
+            case 0:
+                if (nextIsArg) {
+                    dst.emplace_back(Argument({&container[index], nullptr, -1}));
+                    return true;
                 }
+                return false;
+            case 1:
+                if (nextIsArg) {
+                    dst.emplace_back(Argument({&container[index], i.get(), i.argind - 1}));
+                    return true;
+                }
+                else {
+                    auto const arg = i.get();
+                    
+                    if (arg[0] != '-') {
+                        dst.emplace_back(Argument({&ParameterDefinition::argument(), arg, i.argind}));
+                        return true;
+                    }
+                    if (arg[1] == '-') {
+                        auto const f = findLong(arg + 2);
+                        if (f.first >= 0) {
+                            index = f.first;
+                            auto const &def = container[index];
+                            if (f.second && def.hasArgument) {
+                                dst.emplace_back(Argument({&def, f.second, i.argind}));
+                                return true;
+                            }
+                            if (!f.second && !def.hasArgument) {
+                                dst.emplace_back(Argument({&def, nullptr, i.argind}));
+                                return true;
+                            }
+                            if (def.hasArgument) {
+                                ++nextIsArg;
+                                continue;
+                            }
+                        }
+                        dst.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.argind}));
+                        return true;
+                    }
+                }
+                // fallthrough;
+            case -1:
+                {
+                    auto const arg = i.getChar();
+                    switch (nextIsArg) {
+                    case 0:
+                        {
+                            auto const f = shortIndex.find(*arg);
+                            if (f.first != f.second) {
+                                index = f.first->second;
+                                auto const &def = container[index];
+                                if (def.hasArgument) {
+                                    ++nextIsArg;
+                                    continue;
+                                }
+                                dst.emplace_back(Argument({&def, arg, i.argind}));
+                                return true;
+                            }
+                            dst.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.argind}));
+                            return true;
+                        }
+                    case 1:
+                        if (*arg == '=') {
+                            ++nextIsArg;
+                            continue;
+                        }
+                        // fallthrough;
+                    case 2:
+                        dst.emplace_back(Argument({&container[index], arg, i.argind}));
+                        i.advance();
+                        return true;
+                    default:
+                        assert(!"reachable");
+                    }
+                }
+                break;
+            default:
+                assert(!"reachable");
             }
-            if (!commonParams.contains(def)) {
-                def.bitMask = mask;
-                mask <<= 1;
-            }
-            ++i;
         }
     }
 
-    Arguments parseArgv(ArgvIterator &) const;
-    static Arguments parseArgvForFastqDump(ArgvIterator &);
-    
-    /// \brief Parse the next parameter/argument from argv and add it to the container
-    ///
-    /// \returns false when done.
-    bool parseArg(Arguments::Container &dst, ArgvIterator &i) const;
-    
-    static ParamDefinitions const commonParams;
-    
-#define TOOL_DEFINE(NAME) \
-    static ParamDefinitions make_ ## NAME () { \
-        ParameterDefinition const defs[] = TOOL_ARGS_ ## NAME ; \
-        ParamDefinitions result = {TOOL_NAME_ ## NAME, Container(sizeof(defs)/sizeof(defs[0]) - 1 + commonParams.container.size())} ; \
-        for (auto &def : commonParams.container) result.container.insert(def); \
-        for (auto def = defs; def->name != nullptr; ++def) \
-            result.container.insert(*def); \
-        result.finalize(); \
-        return result; \
+    static inline ParamDefinitions makeCommonParams() {
+        static ParameterDefinition const defs[] = TOOL_ARGS_COMMON;
+        ParamDefinitions result("", sizeof(defs)/sizeof(defs[0]) - 1);
+        
+        for (auto def = defs; def->name != nullptr; ++def)
+            result.container.insert(*def);
+
+        return result;
     }
     
-    /// MARK: add tools here
-    TOOL_DEFINE(FASTERQ_DUMP)
-    TOOL_DEFINE(SAM_DUMP)
-    TOOL_DEFINE(SRA_PILEUP)
-    TOOL_DEFINE(VDB_DUMP)
-
-#undef TOOL_DEFINE
+    TOOL_DEFINE(ParamDefinitions, FASTERQ_DUMP)
+    TOOL_DEFINE(ParamDefinitions, SAM_DUMP)
+    TOOL_DEFINE(ParamDefinitions, VDB_DUMP)
+    TOOL_DEFINE(ParamDefinitions, SRA_PILEUP)
     
     static inline ParamDefinitions toolFor(std::string const &name) {
         /// MARK: and here
@@ -251,346 +389,111 @@ struct ParamDefinitions {
             return make_VDB_DUMP();
         throw UnknownToolException();
     }
-    static inline ParamDefinitions makeCommonParams() {
-        static ParameterDefinition const defs[] = TOOL_ARGS_COMMON;
-        ParamDefinitions result;
-        
-        for (auto def = defs; def->name != nullptr; ++def)
-            result.container.insert(*def);
-
-        return result;
-    }
 };
 
-ParamDefinitions const ParamDefinitions::commonParams(ParamDefinitions::makeCommonParams());
+ParamDefinitions_Common const &ParamDefinitions_Common::commonParams = ParamDefinitions::makeCommonParams();
 
-bool ParamDefinitions::parseArg(Arguments::Container &dst, ArgvIterator &i) const
+struct ParamDefinitions_FQD : public ParamDefinitions_Common
 {
-    auto nextIsArg = 0;
-    auto index = -1;
+    ParamDefinitions_FQD(std::string const &name, size_t capacity)
+    : ParamDefinitions_Common(name, capacity)
+    {}
+    
+    std::pair< int, char const * > findLong(char const *const arg) const override
+    {
+        auto const fnd = container.find(arg);
+        if (fnd.first != fnd.second)
+            return {container.begin() - fnd.first, nullptr};
 
-    for ( ; ; ) {
-        switch (i.next()) {
-        case 0:
-            if (nextIsArg) {
-                dst.emplace_back(Argument({container[index], nullptr, -1}));
-                return true;
-            }
-            return false;
-        case 1:
-            if (nextIsArg) {
-                dst.emplace_back(Argument({container[index], i.get(), i.argind - 1}));
-                return true;
-            }
-            else {
-                auto const arg = i.get();
-                
-                if (arg[0] != '-') {
-                    dst.emplace_back(Argument({container[index], arg, i.argind}));
-                    return true;
+        return {-1, nullptr};
+    }
+    bool parseArg(Arguments::Container &result, ArgvIterator &iter) const override {
+        int index = -1;
+        bool nextMayBeArg = false;
+        bool nextMustBeArg = false;
+        
+        for ( ; ; ) {
+            switch (iter.next()) {
+            case 0:
+                if (nextMayBeArg) {
+                    // optional argument did not show up
+                    assert(index >= 0 && index < container.size());
+                    result.emplace_back(Argument({&container[index], nullptr, iter.argind - 1}));
                 }
-                if (arg[1] == '-') {
-                    auto const f = findLong(arg + 2);
-                    if (f.first >= 0) {
-                        index = f.first;
-                        auto const &def = container[index];
-                        if (f.second && def.hasArgument) {
-                            dst.emplace_back(Argument({def, f.second, i.argind}));
-                            return true;
-                        }
-                        if (!f.second && !def.hasArgument) {
-                            dst.emplace_back(Argument({def}));
-                            return true;
-                        }
-                        if (def.hasArgument) {
-                            ++nextIsArg;
-                            continue;
-                        }
-                    }
-                    dst.emplace_back(Argument({ParameterDefinition::unknownParameter(), arg, i.argind}));
-                    return true;
-                }
-            }
-            // fallthrough;
-        case -1:
-            {
-                auto const arg = i.getChar();
-                switch (nextIsArg) {
-                case 0:
-                    {
-                        auto const f = shortIndex.find(*arg);
-                        if (f.first != f.second) {
-                            index = f.first->second;
-                            auto const &def = container[index];
-                            if (def.hasArgument) {
-                                ++nextIsArg;
-                                continue;
-                            }
-                            dst.emplace_back(Argument({def, arg, i.argind}));
-                            return true;
-                        }
-                        dst.emplace_back(Argument({ParameterDefinition::unknownParameter(), arg, i.argind}));
+                return false;
+            case 1:
+                {
+                    auto const arg = iter.get();
+                    if (nextMustBeArg || (arg[0] != '-' && nextMayBeArg)) {
+                        assert(index >= 0 && index < container.size());
+                        result.emplace_back(Argument({&container[index], arg, iter.argind - 1}));
                         return true;
                     }
-                case 1:
-                    if (*arg == '=') {
-                        ++nextIsArg;
+                    if (arg[0] == '-') {
+                        if (nextMayBeArg) {
+                            // optional argument did not show up
+                            assert(index >= 0 && index < container.size());
+                            result.emplace_back(Argument({&container[index], nullptr, iter.argind - 1}));
+                        }
+                        if (arg[1] == '-') {
+                            auto const f = findLong(arg + 2);
+                            if (f.first < 0) {
+                                result.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.argind}));
+                                return true;
+                            }
+                            index = f.first;
+                        }
+                        else {
+                            auto const f = shortIndex.find(arg[1]);
+                            if (f.first == f.second) {
+                                result.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.argind}));
+                                return true;
+                            }
+                            index = f.first->second;
+                        }
+                        auto const &def = container[index];
+                        if (!def.hasArgument) {
+                            result.emplace_back(Argument({&def, nullptr, iter.argind}));
+                            return true;
+                        }
+                        nextMayBeArg = true;
+                        nextMustBeArg = !def.argumentIsOptional;
                         continue;
                     }
-                    // fallthrough;
-                case 2:
-                    dst.emplace_back(Argument({container[index], arg, i.argind}));
-                    i.advance();
+                    result.emplace_back(Argument({&ParameterDefinition::argument(), arg, iter.argind}));
                     return true;
-                default:
-                    assert(!"reachable");
                 }
-            }
-            break;
-        default:
-            assert(!"reachable");
-        }
-    }
-}
-
-Arguments ParamDefinitions::parseArgv(ArgvIterator &iter) const
-{
-    Arguments::Container result;
-    uint64_t argsHash = 0;
-
-    result.reserve(iter.parent.argc);
-    
-    while (parseArg(result, iter))
-        ;
-
-    for (auto const &used : result)
-        argsHash |= used.def.bitMask;
-    
-    return Arguments(result, argsHash);
-}
-
-class FastqDumpParameterInfo {
-public:
-    struct Definition {
-        ParameterDefinition def;
-        bool argumentIsRequired;
-        bool argumentIsOptional;
-    };
-private:
-    std::array<Definition, 64> definitionTable;
-    std::array<Definition, 64>::iterator end;
-    unsigned shortToLong[256];
-public:
-    Definition const &operator[](std::string const &name) const {
-        auto const i = lowerBound(definitionTable, name, [](Definition const &a, std::string const &b) {
-            return !(b <= a.def.name);
-        });
-        return i->def.name == name ? *i : *end;
-    }
-    Definition const &operator[](char ch) const {
-        return ch > 0 ? definitionTable[shortToLong[unsigned(ch)]] : *end;
-    }
-    FastqDumpParameterInfo()
-    {
-        // in alphabetical order
-        static constexpr char const *longNames[] {
-            "accession",
-            "clip",
-            "dumpbase",
-            "dumpcs",
-            "group-in-dirs",
-            "keep-empty-files",
-            "log-level",
-            "maxSpotId",
-            "minReadLen",
-            "minSpotId",
-            "offset",
-            "origfmt",
-            "outdir",
-            "qual-filter",
-            "read-filter",
-            "readids",
-            "spot-group",
-            "stdout",
-            "version",
-            nullptr
-        };
-        /// Note: 1-to-1 correspondence with longNames array
-        static constexpr char aliases[] = {
-            'A', '\0',
-            'W', '\0',
-            'B', '\0',
-            'C', '\0',
-            'T', '\0',
-            'K', '\0',
-            'L', '\0',
-            'X', '\0',
-            'M', '\0',
-            'N', '\0',
-            'Q', '\0',
-            'F', '\0',
-            'O', '\0',
-            'E', '\0',
-            'R', '\0',
-            'I', '\0',
-            'G', '\0',
-            'Z', '\0',
-            'V', '\0',
-            '\0'
-        };
-        // in alphabetical order
-        static constexpr char const *const required[] = {
-            "accession",
-            "aligned-region",
-            "defline-qual",
-            "defline-seq",
-            "matepair-distance",
-            "maxSpotId",
-            "minReadLen",
-            "minSpotId",
-            "offset",
-            "outdir",
-            "read-filter",
-            "spot-groups",
-            "table",
-            nullptr
-        };
-        // in alphabetical order
-        static constexpr char const *const optional[] = {
-            "dumpcs",
-            "fasta",
-            nullptr
-        };
-        auto il = 0; /// iterates over longNames
-        auto ir = 0; /// iterates over required
-        auto io = 0; /// iterates over optional
-
-        end = definitionTable.begin();
-        for ( ; ; ) {
-            auto next = longNames[il];
-            if (next == nullptr || (required[ir] != nullptr && strcmp(next, required[ir]) > 0))
-                next = required[ir];
-            if (next == nullptr || (optional[io] != nullptr && strcmp(next, optional[io]) > 0))
-                next = optional[io];
-            auto const alias = (longNames[il] && strcmp(next, longNames[il]) == 0) ? &aliases[il * 2] : nullptr;
-            auto const argReq = (required[ir] && strcmp(next, required[ir]) == 0);
-            auto const argOpt = (optional[io] && strcmp(next, optional[io]) == 0);
-
-            assert(alias != nullptr || argReq || argOpt); // we are only keeping track of the minimum
-            *end++ = { {next, alias, argReq || argOpt }, argReq, argOpt };
-            *end = { {nullptr, nullptr, false}, false, false };
-            assert(iterDistance(definitionTable.begin(), end) < 64);
-
-            if (alias)
-                ++il;
-            if (argReq)
-                ++ir;
-            if (argOpt)
-                ++io;
-            if (longNames[il] == nullptr && required[ir] == nullptr && optional[io] == nullptr)
                 break;
+            }
         }
-
-        auto const n = iterDistance(definitionTable.begin(), end);
-        for (auto i = 0; i < 256; ++i)
-            shortToLong[i] = n;
-        for (auto i = 0; i != n; ++i) {
-            auto const alias = definitionTable[i].def.aliases;
-            if (alias)
-                shortToLong[(uint8_t)(alias[0])] = i;
-        }
-        // spot checks
-        assert(definitionTable[shortToLong[(unsigned)'A']].def == "accession");
-        assert(definitionTable[shortToLong[(unsigned)'V']].def == "version");
-        assert(definitionTable[shortToLong[(unsigned)'Z']].def == "stdout");
+        return false;
     }
+    TOOL_DEFINE(ParamDefinitions_FQD, FASTQ_DUMP)
 };
-static FastqDumpParameterInfo const fastqDumpParameterInfo;
-
-Arguments ParamDefinitions::parseArgvForFastqDump(ArgvIterator &iter)
-{
-    auto const &none = fastqDumpParameterInfo['\0'];
-    Arguments::Container result;
-    auto current = fastqDumpParameterInfo['\0'];
-
-    result.reserve(iter.parent.argc);
-    
-    for ( ; ; ) {
-        switch (iter.next()) {
-        case 1:
-            {
-                auto const arg = iter.get();
-                if (current.argumentIsRequired) {
-                    // it is unconditionally an argument
-                    assert(!!current.def);
-                    result.emplace_back(Argument({current.def, arg, iter.argind - 1}));
-                    current = none;
-                    break;
-                }
-                if (arg[0] == '-') {
-                    if (current.argumentIsOptional) {
-                        // the optional argument did not show up
-                        result.emplace_back(Argument({current.def, nullptr, iter.argind - 1}));
-                        current = none;
-                    }
-                    if (arg[1] == '-') {
-                        // it's a long parameter
-                        current = fastqDumpParameterInfo[arg + 2];
-                        if (!current.def) {
-                            // long parameters can be unknown, but not if they take an argument
-                            result.emplace_back(Argument({ParameterDefinition({arg + 2}), nullptr, iter.argind}));
-                            current = none;
-                            break;
-                        }
-                    }
-                    else {
-                        // it's a short parameter
-                        current = fastqDumpParameterInfo[arg[1]];
-                        assert(!!current.def);
-                    }
-                    if (current.argumentIsOptional || current.argumentIsRequired)
-                        /* expect an argument */;
-                    else {
-                        result.emplace_back(Argument({current.def, nullptr, iter.argind}));
-                        current = none;
-                    }
-                    break;
-                }
-                if (current.argumentIsOptional) {
-                    // this is the optional argument
-                    result.emplace_back(Argument({current.def, arg, iter.argind - 1}));
-                }
-                else {
-                    result.emplace_back(Argument({ParameterDefinition::argument(), arg, iter.argind}));
-                }
-                current = none;
-            }
-            break;
-        default:
-            if (current.argumentIsRequired || current.argumentIsOptional) {
-                // the optional? argument did not show up
-                result.emplace_back(Argument({current.def, nullptr, iter.argind - 1}));
-            }
-            return Arguments(result, 0);
-        }
-    }
-}
 
 Arguments argumentsParsed(CommandLine const &cmdLine)
 {
     auto iter = ArgvIterator(cmdLine);
     if (cmdLine.toolName == "fastq-dump")
-        return ParamDefinitions::parseArgvForFastqDump(iter);
+        return ParamDefinitions_FQD::make_FASTQ_DUMP().parseArgv(iter);
     return ParamDefinitions::toolFor(cmdLine.toolName).parseArgv(iter);
 }
 
 std::ostream &operator <<(std::ostream &out, Argument const &arg) {
     if (arg.isArgument())
         return out << arg.argument;
-    if (!arg.def.hasArgument)
-        return out << arg.def.name;
+    if (!arg.def->hasArgument)
+        return out << arg.def->name;
     if (!arg.argument)
-        return out << arg.def.name << " (null)";
+        return out << arg.def->name << " (null)";
     else
-        return out << arg.def.name << " " << arg.argument;
+        return out << arg.def->name << " " << arg.argument;
+}
+
+void printArgumentBitmasks(std::ostream &out) {
+    ParamDefinitions_FQD::make_FASTQ_DUMP().printArgumentBitmasks(out);
+    ParamDefinitions::make_FASTERQ_DUMP().printArgumentBitmasks(out);
+    ParamDefinitions::make_SAM_DUMP().printArgumentBitmasks(out);
+    ParamDefinitions::make_SRA_PILEUP().printArgumentBitmasks(out);
+    ParamDefinitions::make_VDB_DUMP().printArgumentBitmasks(out);
 }

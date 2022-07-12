@@ -29,6 +29,7 @@
 #if WINDOWS
 #else
 
+#include <system_error>
 #include <unistd.h>
 #include <cerrno>
 #include <string>

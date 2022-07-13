@@ -22,18 +22,24 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
+add_compile_definitions( __mod__="test/internal/align-cache" )
 
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+if ( NOT WIN32 )
+    add_test( NAME Test_Align_Cache
+          COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache
+          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_Align_Cache-asan
+              COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache-asan
+              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        add_test( NAME Test_Align_Cache-tsan
+              COMMAND runtest.sh ${VDB_INTERFACES_DIR} ${BINDIR} align-cache-tsan
+              WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
+else()
+#TODO: make run on Windows
 endif()
+
+# vg: $(DIRTOTEST)/align-cache
+# 	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress \
+# 	 $(DIRTOTEST)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache

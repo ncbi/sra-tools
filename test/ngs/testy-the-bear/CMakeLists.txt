@@ -22,18 +22,8 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
-
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+if( NOT WIN32 )
+	GenerateExecutableWithDefs( testy-the-bear "testy-the-bear" "__mod__=\"test/ngs/testy-the-bear\"" "" "${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" )
+	#add_compile_definitions( __mod__="test/ngs/testy-the-bear" )
+	#AddExecutableTest( testy-the-bear "testy-the-bear" "${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" "" )
 endif()

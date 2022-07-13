@@ -22,18 +22,14 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
+add_compile_definitions( __mod__="test/loaders/loader" )
 
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+if( WIN32 )
+    set( ADDITIONAL_LIBS Crypt32 )
+else()
+    set( ADDITIONAL_LIBS "" )
 endif()
+
+AddExecutableTest( Test_KAPP_qfile  "qfiletest"             "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};" "" )
+AddExecutableTest( Test_LOADERFILE  "test-loaderfile.cpp"   "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+AddExecutableTest( Test_LOADER      "loadertest"            "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE};${ADDITIONAL_LIBS}" "" )

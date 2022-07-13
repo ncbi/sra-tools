@@ -22,18 +22,37 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
+add_compile_definitions( __mod__="tools/internal/copycat" )
 
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
-endif()
+# External
+if( ${OS} STREQUAL "linux" )
+
+    # always link against shared libmagic
+    find_library( HAVE_MAGIC libmagic.so )
+
+    if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
+
+        set( KFF_SRC
+            kff/fileformat.c
+            kff/ffext.c
+            kff/ffkey.c
+            kff/ffmagic.c
+        )
+        set( SRC
+            copycat
+            ccfileformat
+            cccat
+            cctree
+            cctree-dump
+            cctar
+            ccsra
+            ccsubchunk
+            ccfile
+            ${KFF_SRC}
+        )
+        GenerateExecutableWithDefs( copycat "${SRC}" "" "${CMAKE_CURRENT_SOURCE_DIR}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};${HAVE_MAGIC}" )
+        MakeLinksExe( copycat false )
+
+    endif()
+
+ endif()

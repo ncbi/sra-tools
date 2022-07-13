@@ -22,18 +22,22 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
-
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
-endif()
+add_subdirectory( driver-tool )
+add_subdirectory( prefetch )
+add_subdirectory( vdb-config )
+add_subdirectory( sra-dump )
+add_subdirectory( sra-pileup )
+add_subdirectory( fasterq-dump )
+add_subdirectory( vdb-dump )
+add_subdirectory( vdb-validate )
+add_subdirectory( vdb-decrypt )
+add_subdirectory( srapath )
+add_subdirectory( sra-stat )
+add_subdirectory( ngs-pileup )
+add_subdirectory( rcexplain )
+add_subdirectory( kdbmeta )
+add_subdirectory( align-info )
+add_subdirectory( ref-variation )
+add_subdirectory( sra-search )
+add_subdirectory( test-sra )
+add_subdirectory( cache-mgr ) # obsolete

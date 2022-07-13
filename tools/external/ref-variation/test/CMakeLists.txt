@@ -22,18 +22,7 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
-
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+if ( NOT WIN32)
+	add_test ( NAME Ref-Variation-1.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./have-access.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ref-variation )
+	add_test ( NAME Var-Expand-1.0    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./have-access.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} var-expand )
 endif()

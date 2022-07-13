@@ -22,18 +22,29 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
+add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
+    add_test( NAME Test_Read_filter_redact_Check_exit_code
+        COMMAND
+            ${Python3_EXECUTABLE}
+                ${CMAKE_SOURCE_DIR}/build/check-exit-code.py
+                ${DIRTOTEST}/vdb-unlock${EXE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMAND_EXPAND_LISTS
+    )
+endif()
+
+if ( NOT WIN32 )
+	add_test( NAME Test_Read_filter_redact
+		COMMAND runtests.sh ${DIRTOTEST} read-filter-redact
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME Test_Read_filter_redact-asan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-asan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME Test_Read_filter_redact-tsan
+			COMMAND runtests.sh ${DIRTOTEST} read-filter-redact-tsan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 endif()

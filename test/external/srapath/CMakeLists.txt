@@ -22,18 +22,34 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
+add_compile_definitions( __mod__="test/external/srapath" )
 
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
-)
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+if( Python3_EXECUTABLE )
+    add_test( NAME Test_Srapath_Check_exit_code
+        COMMAND
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=../..
+            ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/srapath${EXE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+endif()
+
+
+if ( NOT WIN32 )
+    add_test( NAME Test_Srapath
+        COMMAND
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=../..
+            bash -c "./test-srapath.sh ${DIRTOTEST} srapath"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_Srapath-asan
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=../..
+                bash -c "./test-srapath.sh ${DIRTOTEST} srapath-asan"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+        add_test( NAME Test_Srapath-tsan
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=../..
+                bash -c "./test-srapath.sh ${DIRTOTEST} srapath-tsan"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    endif()
 endif()

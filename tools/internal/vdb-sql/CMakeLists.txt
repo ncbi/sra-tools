@@ -22,18 +22,25 @@
 #
 # ===========================================================================
 
-set( NGS_SRC
-	NCBI-NGS
-)
+add_compile_definitions( __mod__="tools/internal/vdb-sql" )
 
-set( INC_DIRS
-	${CMAKE_SOURCE_DIR}/ngs/ncbi/ngs
-	${CMAKE_SOURCE_DIR}
+# External
+set( VDB_SQL_LIB
+	vdb-sqlite
+	ngs
+	${COMMON_LIBS_READ}
 )
-GenerateStaticLibsWithDefs( ncbi-ngs-c++ "${NGS_SRC}" "__mod__=\"ngs/ncbi/ngs-c++\"" "${INC_DIRS}" )
-target_link_libraries( ncbi-ngs-c++ ngs )
-ExportStatic( ncbi-ngs-c++ true )
-if( RUN_SANITIZER_TESTS )
-	target_link_libraries( ncbi-ngs-c++-asan ngs-asan )
-	target_link_libraries( ncbi-ngs-c++-tsan ngs-tsan )
+if( WIN32 )
+	list( APPEND VDB_SQL_LIB
+        libcmt$<$<CONFIG:Debug>:d>
+        libcpmt$<$<CONFIG:Debug>:d>
+        libucrt$<$<CONFIG:Debug>:d>
+        libvcruntime$<$<CONFIG:Debug>:d>
+    )
 endif()
+
+GenerateExecutableWithDefs( vdb-sql "vdb_shell" "" "" "${VDB_SQL_LIB};${COMMON_LINK_LIBRARIES}" )
+MakeLinksExe( vdb-sql false )
+
+GenerateExecutableWithDefs( fastconv "fastconv" "" "" "${COMMON_LINK_LIBRARIES};${VDB_SQL_LIB}" )
+MakeLinksExe( fastconv false )

@@ -87,10 +87,12 @@ static const char magictable [] =
     "Standard Flowgram Format (SFF)\tStandardFlowgramFormat\n"
     "NCBI kar sequence read archive\tSequenceReadArchive\n"
     "tar archive\tTapeArchive\n"
-    "XML document text\tExtensibleMarkupLanguage\n"
+    "XML document\tExtensibleMarkupLanguage\n"
+    "XML 1.0 document\tExtensibleMarkupLanguage\n"
     "bzip2 compressed data\tBzip\n"
     "Zip archive data\tWinZip\n"
     "gzip compressed data\tGnuZip\n"
+    "Hierarchical Data Format (version 5) data\tHD5\n"
 };
 static const char exttable [] =
 {
@@ -127,7 +129,7 @@ static const char formattable [] =
     "SequenceReadArchive\tArchive\n"
     "StandardFlowgramFormat\tRead\n"
     "TapeArchive\tArchive\n"
-    "HD5\tArchive\n"
+    "HD5\tRead\n"
     "PacBioBAMIndex\tRead\n"
 };
 

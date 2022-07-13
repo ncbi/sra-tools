@@ -40,11 +40,13 @@
 #include <iostream>
 
 #include <cstdlib>
+#include <cinttypes>
 
 #include "globals.hpp"
 #include "debug.hpp"
 #include "tool-args.hpp"
 #include "command-line.hpp"
+#include "build-version.hpp"
 
 #if USE_TOOL_HELP
 #define TOOL_HELP(...) {__VA_ARGS__}
@@ -200,11 +202,19 @@ struct ParamDefinitions_Common {
         }
     }
     
-    void printArgumentBitmasks(std::ostream &out) const {
+    /** Print tool's parameter bits; format is tab-delimited.
+     *
+     * Fields: tool name, '(' bit shift ')' decimal value, parameter long name
+     */
+    void printParameterBitmasks(std::ostream &out) const {
+        char buffer[32]; // e.g. "0x0000000000000001 (1 <<  0)"
+        
         for (auto &def : container) {
-            if (def.isArgument() || def.bitMask == 0)
+            if (def.isArgument()) // obviously, doesn't apply to tool arguments.
                 continue;
-            
+            if (def.bitMask == 0) // common tool parameters don't have bits assigned to them.
+                continue;
+
             int shift = 0;
             uint64_t mask = def.bitMask;
             
@@ -213,8 +223,14 @@ struct ParamDefinitions_Common {
                 shift += 1;
             }
             
-            out << tool << '\t' << "(1 << " << shift << ") " << def.bitMask << '\t' << def.name << std::endl;
+            auto const n = snprintf(buffer, sizeof(buffer), "0x%016" PRIx64 " (1 << %2u)", def.bitMask, shift);
+            assert(n <= sizeof(buffer));
+            out << tool << '\t'
+                << sratools::Version::current << '\t'
+                << buffer << '\t'
+                << def.name << '\n';
         }
+        out << std::flush;
     }
 
     /// \brief Find the index of the definition.
@@ -490,10 +506,10 @@ std::ostream &operator <<(std::ostream &out, Argument const &arg) {
         return out << arg.def->name << " " << arg.argument;
 }
 
-void printArgumentBitmasks(std::ostream &out) {
-    ParamDefinitions_FQD::make_FASTQ_DUMP().printArgumentBitmasks(out);
-    ParamDefinitions::make_FASTERQ_DUMP().printArgumentBitmasks(out);
-    ParamDefinitions::make_SAM_DUMP().printArgumentBitmasks(out);
-    ParamDefinitions::make_SRA_PILEUP().printArgumentBitmasks(out);
-    ParamDefinitions::make_VDB_DUMP().printArgumentBitmasks(out);
+void printParameterBitmasks(std::ostream &out) {
+    ParamDefinitions_FQD::make_FASTQ_DUMP().printParameterBitmasks(out);
+    ParamDefinitions::make_FASTERQ_DUMP().printParameterBitmasks(out);
+    ParamDefinitions::make_SAM_DUMP().printParameterBitmasks(out);
+    ParamDefinitions::make_SRA_PILEUP().printParameterBitmasks(out);
+    ParamDefinitions::make_VDB_DUMP().printParameterBitmasks(out);
 }

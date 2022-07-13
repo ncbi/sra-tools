@@ -51,7 +51,7 @@ struct ParameterDefinition {
     char const *aliases;
     uint64_t bitMask;
     bool hasArgument;
-    bool argumentIsOptional;
+    bool argumentIsOptional; ///< only fastq-dump has parameters with optional arguments, other tools do not.
 
     /// @brief The argument appears to be a parameter, but it is not in the list of known parameters for the tool. It does not take an argument.
     static ParameterDefinition const &unknownParameter();
@@ -232,4 +232,4 @@ public:
 
 struct UnknownToolException {};
 Arguments argumentsParsed(CommandLine const &);
-void printArgumentBitmasks(std::ostream &out);
+void printParameterBitmasks(std::ostream &out);

@@ -47,6 +47,8 @@ target_sources(sratools
         SDL-response.hpp
         tool-args.cpp
         tool-args.hpp
+        build-version.cpp
+        build-version.hpp
         globals.hpp
         constants.hpp
         debug.hpp

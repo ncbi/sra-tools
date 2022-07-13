@@ -360,7 +360,7 @@ static int main(CommandLine const &argv)
             exit(EXIT_SUCCESS);
         }
         if (argv.argc > 1 && std::string(argv.argv[1]) == "print-argbits") {
-            printArgumentBitmasks(std::cout);
+            printParameterBitmasks(std::cout);
             exit(EXIT_SUCCESS);
         }
         std::cerr << "usage: sratools print-argbits | help" << std::endl;

@@ -146,7 +146,7 @@ static rc_t KTUIDlgDestroy ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgMake ( struct KTUI * tui, struct KTUIDlg ** self, struct KTUIDlg * parent,
+ rc_t CC KTUIDlgMake ( struct KTUI * tui, struct KTUIDlg ** self, struct KTUIDlg * parent,
                     struct KTUIPalette * palette, tui_rect * r )
 {
     rc_t rc = 0;
@@ -236,7 +236,7 @@ LIB_EXPORT rc_t CC KTUIDlgMake ( struct KTUI * tui, struct KTUIDlg ** self, stru
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddRef ( const struct KTUIDlg * self )
+ rc_t CC KTUIDlgAddRef ( const struct KTUIDlg * self )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -261,7 +261,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddRef ( const struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgRelease ( const struct KTUIDlg * self )
+ rc_t CC KTUIDlgRelease ( const struct KTUIDlg * self )
 {
     rc_t rc = 0;
     if ( self != NULL )
@@ -285,14 +285,14 @@ LIB_EXPORT rc_t CC KTUIDlgRelease ( const struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT void CC KTUIDlgSetData ( struct KTUIDlg * self, void * data )
+ void CC KTUIDlgSetData ( struct KTUIDlg * self, void * data )
 {
     if ( self != NULL )
         self->data = data;
 }
 
 
-LIB_EXPORT void * CC KTUIDlgGetData ( struct KTUIDlg * self )
+ void * CC KTUIDlgGetData ( struct KTUIDlg * self )
 {
     if ( self != NULL )
         return self->data;
@@ -301,14 +301,14 @@ LIB_EXPORT void * CC KTUIDlgGetData ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT void CC KTUIDlgSetDone ( struct KTUIDlg * self, bool done )
+ void CC KTUIDlgSetDone ( struct KTUIDlg * self, bool done )
 {
     if ( self != NULL )
         self->done = done;
 }
 
 
-LIB_EXPORT bool CC KTUIDlgGetDone ( struct KTUIDlg * self )
+ bool CC KTUIDlgGetDone ( struct KTUIDlg * self )
 {
     if ( self != NULL )
         return self->done;
@@ -316,14 +316,14 @@ LIB_EXPORT bool CC KTUIDlgGetDone ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT void CC KTUIDlgSetChanged ( struct KTUIDlg * self )
+ void CC KTUIDlgSetChanged ( struct KTUIDlg * self )
 {
     if ( self != NULL )
         self->changed = true;
 }
 
 
-LIB_EXPORT void CC KTUIDlgClearChanged ( struct KTUIDlg * self )
+ void CC KTUIDlgClearChanged ( struct KTUIDlg * self )
 {
     if ( self != NULL )
     {
@@ -340,7 +340,7 @@ LIB_EXPORT void CC KTUIDlgClearChanged ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT bool CC KTUIDlgGetChanged ( struct KTUIDlg * self )
+ bool CC KTUIDlgGetChanged ( struct KTUIDlg * self )
 {
     if ( self != NULL )
         return self->changed;
@@ -348,7 +348,7 @@ LIB_EXPORT bool CC KTUIDlgGetChanged ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT struct KTUI * CC KTUIDlgGetTui ( struct KTUIDlg * self )
+ struct KTUI * CC KTUIDlgGetTui ( struct KTUIDlg * self )
 {
     if ( self != NULL )
         return self->tui;
@@ -357,7 +357,7 @@ LIB_EXPORT struct KTUI * CC KTUIDlgGetTui ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT struct KTUIPalette * CC KTUIDlgGetPalette ( struct KTUIDlg * self )
+ struct KTUIPalette * CC KTUIDlgGetPalette ( struct KTUIDlg * self )
 {
     if ( self != NULL )
         return self->palette;
@@ -366,7 +366,7 @@ LIB_EXPORT struct KTUIPalette * CC KTUIDlgGetPalette ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT struct KTUIDlg * CC KTUIDlgGetParent ( struct KTUIDlg * self )
+ struct KTUIDlg * CC KTUIDlgGetParent ( struct KTUIDlg * self )
 {
     if ( self != NULL )
         return self->parent;
@@ -375,7 +375,7 @@ LIB_EXPORT struct KTUIDlg * CC KTUIDlgGetParent ( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetCaption ( struct KTUIDlg * self, const char * caption )
+ rc_t CC KTUIDlgSetCaption ( struct KTUIDlg * self, const char * caption )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -394,7 +394,7 @@ LIB_EXPORT rc_t CC KTUIDlgSetCaption ( struct KTUIDlg * self, const char * capti
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgGetRect ( struct KTUIDlg * self, tui_rect * r )
+ rc_t CC KTUIDlgGetRect ( struct KTUIDlg * self, tui_rect * r )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -407,7 +407,7 @@ LIB_EXPORT rc_t CC KTUIDlgGetRect ( struct KTUIDlg * self, tui_rect * r )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetRect ( struct KTUIDlg * self, const tui_rect * r, bool redraw )
+ rc_t CC KTUIDlgSetRect ( struct KTUIDlg * self, const tui_rect * r, bool redraw )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -424,7 +424,7 @@ LIB_EXPORT rc_t CC KTUIDlgSetRect ( struct KTUIDlg * self, const tui_rect * r, b
 }
 
 
-LIB_EXPORT bool CC KTUIDlgGetMenuActive ( const struct KTUIDlg * self )
+ bool CC KTUIDlgGetMenuActive ( const struct KTUIDlg * self )
 {
     bool res = false;
     if ( self != NULL )
@@ -433,7 +433,7 @@ LIB_EXPORT bool CC KTUIDlgGetMenuActive ( const struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetMenuActive ( struct KTUIDlg * self, bool active )
+ rc_t CC KTUIDlgSetMenuActive ( struct KTUIDlg * self, bool active )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -449,7 +449,7 @@ LIB_EXPORT rc_t CC KTUIDlgSetMenuActive ( struct KTUIDlg * self, bool active )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetMenu ( struct KTUIDlg * self, struct KTUI_Menu * menu )
+ rc_t CC KTUIDlgSetMenu ( struct KTUIDlg * self, struct KTUI_Menu * menu )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -465,7 +465,7 @@ LIB_EXPORT rc_t CC KTUIDlgSetMenu ( struct KTUIDlg * self, struct KTUI_Menu * me
     return rc;
 }
 
-LIB_EXPORT rc_t CC KTUIDlgSetActivePage ( struct KTUIDlg * self, uint32_t page_id )
+ rc_t CC KTUIDlgSetActivePage ( struct KTUIDlg * self, uint32_t page_id )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -508,7 +508,7 @@ LIB_EXPORT rc_t CC KTUIDlgSetActivePage ( struct KTUIDlg * self, uint32_t page_i
     return rc;
 }
 
-LIB_EXPORT rc_t CC KTUIDlgGetActivePage ( struct KTUIDlg * self, uint32_t * page_id )
+ rc_t CC KTUIDlgGetActivePage ( struct KTUIDlg * self, uint32_t * page_id )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -523,7 +523,7 @@ LIB_EXPORT rc_t CC KTUIDlgGetActivePage ( struct KTUIDlg * self, uint32_t * page
 
 /* ****************************************************************************************** */
 
-LIB_EXPORT void KTUIDlgPushEvent( struct KTUIDlg * self,
+ void KTUIDlgPushEvent( struct KTUIDlg * self,
                        KTUIDlg_event_type event_type, uint32_t widget_id,
                        uint64_t value_1, uint64_t value_2, void * ptr_0 )
 {
@@ -567,7 +567,7 @@ static void KTUIDlgAbsoluteDlgRect( struct KTUIDlg * self, tui_rect * dst, tui_r
     dst->h = src->h;
 }
 
-LIB_EXPORT rc_t KTUIDlgAbsoluteRect ( struct KTUIDlg * self, tui_rect * dst, tui_rect * src )
+ rc_t KTUIDlgAbsoluteRect ( struct KTUIDlg * self, tui_rect * dst, tui_rect * src )
 {
     dst->top_left.x = src->top_left.x;
     dst->top_left.y = src->top_left.y;
@@ -622,7 +622,7 @@ static rc_t KTUIDlgAddWidget( struct KTUIDlg * self, uint32_t id, KTUI_Widget_ty
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddLabel( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
+ rc_t CC KTUIDlgAddLabel( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_label, r, draw_label, event_label, NULL );
     if ( rc == 0 )
@@ -632,7 +632,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddLabel( struct KTUIDlg * self, uint32_t id, const tu
     return rc;
 }
 
-LIB_EXPORT rc_t CC KTUIDlgAddTabHdr( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
+ rc_t CC KTUIDlgAddTabHdr( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_tabhdr, r, draw_tabhdr, event_tabhdr, NULL );
     if ( rc == 0 && caption != NULL )
@@ -640,7 +640,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddTabHdr( struct KTUIDlg * self, uint32_t id, const t
     return rc;
 }
 
-LIB_EXPORT rc_t CC KTUIDlgAddLabel2( struct KTUIDlg * self, uint32_t id,
+ rc_t CC KTUIDlgAddLabel2( struct KTUIDlg * self, uint32_t id,
                                      uint32_t x, uint32_t y, uint32_t w, const char * caption )
 {
     tui_rect r;
@@ -649,7 +649,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddLabel2( struct KTUIDlg * self, uint32_t id,
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddBtn ( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
+ rc_t CC KTUIDlgAddBtn ( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_button, r, draw_button, event_button, NULL );
     if ( rc == 0 && caption != NULL )
@@ -658,7 +658,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddBtn ( struct KTUIDlg * self, uint32_t id, const tui
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddBtn2 ( struct KTUIDlg * self, uint32_t id,
+ rc_t CC KTUIDlgAddBtn2 ( struct KTUIDlg * self, uint32_t id,
                                     uint32_t x, uint32_t y, uint32_t w, const char * caption )
 {
     tui_rect r;
@@ -667,7 +667,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddBtn2 ( struct KTUIDlg * self, uint32_t id,
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddCheckBox ( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
+ rc_t CC KTUIDlgAddCheckBox ( struct KTUIDlg * self, uint32_t id, const tui_rect * r, const char * caption )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_checkbox, r, draw_checkbox, event_checkbox, NULL );
     if ( rc == 0 && caption != NULL )
@@ -676,7 +676,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddCheckBox ( struct KTUIDlg * self, uint32_t id, cons
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddInput ( struct KTUIDlg * self, uint32_t id, const tui_rect * r,
+ rc_t CC KTUIDlgAddInput ( struct KTUIDlg * self, uint32_t id, const tui_rect * r,
                                      const char * txt, size_t length )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_input, r, draw_inputline, event_inputline, init_inputline );
@@ -688,19 +688,19 @@ LIB_EXPORT rc_t CC KTUIDlgAddInput ( struct KTUIDlg * self, uint32_t id, const t
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddRadioBox ( struct KTUIDlg * self, uint32_t id, const tui_rect * r )
+ rc_t CC KTUIDlgAddRadioBox ( struct KTUIDlg * self, uint32_t id, const tui_rect * r )
 {
     return KTUIDlgAddWidget( self, id, KTUIW_radiobox, r, draw_radiobox, event_radiobox, NULL );
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddList ( struct KTUIDlg * self, uint32_t id, const tui_rect * r )
+ rc_t CC KTUIDlgAddList ( struct KTUIDlg * self, uint32_t id, const tui_rect * r )
 {
     return KTUIDlgAddWidget( self, id, KTUIW_list, r, draw_list, event_list, NULL );
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetHScroll ( struct KTUIDlg * self, uint32_t id, bool enabled )
+ rc_t CC KTUIDlgSetHScroll ( struct KTUIDlg * self, uint32_t id, bool enabled )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -721,7 +721,7 @@ LIB_EXPORT rc_t CC KTUIDlgSetHScroll ( struct KTUIDlg * self, uint32_t id, bool 
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddProgress ( struct KTUIDlg * self, uint32_t id,
+ rc_t CC KTUIDlgAddProgress ( struct KTUIDlg * self, uint32_t id,
                                         const tui_rect * r, int32_t percent, int32_t precision )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_progress, r, draw_progress, NULL, NULL );
@@ -735,7 +735,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddProgress ( struct KTUIDlg * self, uint32_t id,
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddSpinEdit ( struct KTUIDlg * self, uint32_t id,
+ rc_t CC KTUIDlgAddSpinEdit ( struct KTUIDlg * self, uint32_t id,
                                         const tui_rect * r, int64_t value, int64_t min, int64_t max )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_spinedit, r, draw_spinedit, event_spinedit, NULL );
@@ -753,7 +753,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddSpinEdit ( struct KTUIDlg * self, uint32_t id,
 /* ****************************************************************************************** */
 
 
-LIB_EXPORT rc_t CC KTUIDlgAddGrid ( struct KTUIDlg * self, uint32_t id,
+ rc_t CC KTUIDlgAddGrid ( struct KTUIDlg * self, uint32_t id,
                                     const tui_rect * r, TUIWGrid_data * grid_data, bool cached )
 {
     rc_t rc = KTUIDlgAddWidget( self, id, KTUIW_grid, r, draw_grid, event_grid, NULL );
@@ -763,7 +763,7 @@ LIB_EXPORT rc_t CC KTUIDlgAddGrid ( struct KTUIDlg * self, uint32_t id,
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgGetGridCol( struct KTUIDlg * self, uint32_t id, uint64_t *col )
+ rc_t CC KTUIDlgGetGridCol( struct KTUIDlg * self, uint32_t id, uint64_t *col )
 {
     rc_t rc = 0;
     if ( col == NULL )
@@ -780,7 +780,7 @@ LIB_EXPORT rc_t CC KTUIDlgGetGridCol( struct KTUIDlg * self, uint32_t id, uint64
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetGridCol( struct KTUIDlg * self, uint32_t id, uint64_t col )
+ rc_t CC KTUIDlgSetGridCol( struct KTUIDlg * self, uint32_t id, uint64_t col )
 {
     rc_t rc = 0;
     KTUIWidget * w = KTUIDlgGetWidgetById( self, id );
@@ -792,7 +792,7 @@ LIB_EXPORT rc_t CC KTUIDlgSetGridCol( struct KTUIDlg * self, uint32_t id, uint64
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgGetGridRow( struct KTUIDlg * self, uint32_t id, uint64_t *row )
+ rc_t CC KTUIDlgGetGridRow( struct KTUIDlg * self, uint32_t id, uint64_t *row )
 {
     rc_t rc = 0;
     if ( row == NULL )
@@ -809,7 +809,7 @@ LIB_EXPORT rc_t CC KTUIDlgGetGridRow( struct KTUIDlg * self, uint32_t id, uint64
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetGridRow( struct KTUIDlg * self, uint32_t id, uint64_t row )
+ rc_t CC KTUIDlgSetGridRow( struct KTUIDlg * self, uint32_t id, uint64_t row )
 {
     rc_t rc = 0;
     KTUIWidget * w = KTUIDlgGetWidgetById( self, id );
@@ -835,7 +835,7 @@ static void KTUIDlgVectorReIndex ( struct KTUIDlg * self )
     }
 }
 
-LIB_EXPORT rc_t CC KTUIDlgRemove ( struct KTUIDlg * self, uint32_t id )
+ rc_t CC KTUIDlgRemove ( struct KTUIDlg * self, uint32_t id )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -873,7 +873,7 @@ static rc_t draw_caption( struct KTUI * tui, const tui_ac * capt_ac, const tui_r
     return rc;
 }
 
-LIB_EXPORT rc_t CC KTUIDlgDrawCaption( struct KTUIDlg * self )
+ rc_t CC KTUIDlgDrawCaption( struct KTUIDlg * self )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -891,7 +891,7 @@ LIB_EXPORT rc_t CC KTUIDlgDrawCaption( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgDraw( struct KTUIDlg * self, bool forced )
+ rc_t CC KTUIDlgDraw( struct KTUIDlg * self, bool forced )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -935,7 +935,7 @@ LIB_EXPORT rc_t CC KTUIDlgDraw( struct KTUIDlg * self, bool forced )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgDrawWidget( struct KTUIDlg * self, uint32_t id )
+ rc_t CC KTUIDlgDrawWidget( struct KTUIDlg * self, uint32_t id )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -953,35 +953,35 @@ LIB_EXPORT rc_t CC KTUIDlgDrawWidget( struct KTUIDlg * self, uint32_t id )
 /* ****************************************************************************************** */
 
 
-LIB_EXPORT const char * CC KTUIDlgGetWidgetCaption ( struct KTUIDlg * self, uint32_t id )
+ const char * CC KTUIDlgGetWidgetCaption ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetCaption ( KTUIDlgGetWidgetById( self, id ) );   }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetCaption ( struct KTUIDlg * self, uint32_t id, const char * caption )
+ rc_t CC KTUIDlgSetWidgetCaption ( struct KTUIDlg * self, uint32_t id, const char * caption )
 {   return SetWidgetCaption ( KTUIDlgGetWidgetById( self, id ), caption );  }
 
 
-LIB_EXPORT struct KTUIPalette * CC KTUIDlgNewWidgetPalette ( struct KTUIDlg * self, uint32_t id )
+ struct KTUIPalette * CC KTUIDlgNewWidgetPalette ( struct KTUIDlg * self, uint32_t id )
 {   return CopyWidgetPalette( KTUIDlgGetWidgetById( self, id ) );   }
-LIB_EXPORT rc_t CC KTUIDlgReleaseWidgetPalette ( struct KTUIDlg * self, uint32_t id )
+ rc_t CC KTUIDlgReleaseWidgetPalette ( struct KTUIDlg * self, uint32_t id )
 {   return ReleaseWidgetPalette( KTUIDlgGetWidgetById( self, id ) );    }
 
 
-LIB_EXPORT rc_t CC KTUIDlgGetWidgetRect ( struct KTUIDlg * self, uint32_t id, tui_rect * r )
+ rc_t CC KTUIDlgGetWidgetRect ( struct KTUIDlg * self, uint32_t id, tui_rect * r )
 {   return GetWidgetRect( KTUIDlgGetWidgetById( self, id ), r );    }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetRect ( struct KTUIDlg * self, uint32_t id, const tui_rect * r, bool redraw )
+ rc_t CC KTUIDlgSetWidgetRect ( struct KTUIDlg * self, uint32_t id, const tui_rect * r, bool redraw )
 {   return SetWidgetRect( KTUIDlgGetWidgetById( self, id ), r, redraw );    }
 
-LIB_EXPORT rc_t CC KTUIDlgGetWidgetPageId ( struct KTUIDlg * self, uint32_t id, uint32_t * page_id )
+ rc_t CC KTUIDlgGetWidgetPageId ( struct KTUIDlg * self, uint32_t id, uint32_t * page_id )
 {   return GetWidgetPageId( KTUIDlgGetWidgetById( self, id ), page_id );    }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetPageId ( struct KTUIDlg * self, uint32_t id, uint32_t page_id )
+ rc_t CC KTUIDlgSetWidgetPageId ( struct KTUIDlg * self, uint32_t id, uint32_t page_id )
 {   return SetWidgetPageId( KTUIDlgGetWidgetById( self, id ), page_id );    }
 
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetCanFocus ( struct KTUIDlg * self, uint32_t id, bool can_focus )
+ rc_t CC KTUIDlgSetWidgetCanFocus ( struct KTUIDlg * self, uint32_t id, bool can_focus )
 {   return SetWidgetCanFocus( KTUIDlgGetWidgetById( self, id ), can_focus );    }
 
 
-LIB_EXPORT bool KTUIDlgGetWidgetVisible ( struct KTUIDlg * self, uint32_t id )
+ bool KTUIDlgGetWidgetVisible ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetVisible ( KTUIDlgGetWidgetById( self, id ) );   }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetVisible ( struct KTUIDlg * self, uint32_t id, bool visible )
+ rc_t CC KTUIDlgSetWidgetVisible ( struct KTUIDlg * self, uint32_t id, bool visible )
 {
     bool redraw = false;
     rc_t rc = SetWidgetVisible ( KTUIDlgGetWidgetById( self, id ), visible, &redraw );
@@ -990,99 +990,99 @@ LIB_EXPORT rc_t CC KTUIDlgSetWidgetVisible ( struct KTUIDlg * self, uint32_t id,
 }
 
 
-LIB_EXPORT bool CC KTUIDlgGetWidgetChanged ( struct KTUIDlg * self, uint32_t id )
+ bool CC KTUIDlgGetWidgetChanged ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetChanged ( KTUIDlgGetWidgetById( self, id ) );   }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetChanged ( struct KTUIDlg * self, uint32_t id, bool changed )
+ rc_t CC KTUIDlgSetWidgetChanged ( struct KTUIDlg * self, uint32_t id, bool changed )
 {   return SetWidgetChanged ( KTUIDlgGetWidgetById( self, id ), changed );  }
 
 
-LIB_EXPORT bool CC KTUIDlgGetWidgetBoolValue ( struct KTUIDlg * self, uint32_t id )
+ bool CC KTUIDlgGetWidgetBoolValue ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetBoolValue ( KTUIDlgGetWidgetById( self, id ) ); }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetBoolValue ( struct KTUIDlg * self, uint32_t id, bool value )
+ rc_t CC KTUIDlgSetWidgetBoolValue ( struct KTUIDlg * self, uint32_t id, bool value )
 {   return SetWidgetBoolValue ( KTUIDlgGetWidgetById( self, id ), value );  }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetBg ( struct KTUIDlg * self, uint32_t id, KTUI_color value )
+ rc_t CC KTUIDlgSetWidgetBg ( struct KTUIDlg * self, uint32_t id, KTUI_color value )
 {   return SetWidgetBg ( KTUIDlgGetWidgetById( self, id ), value );  }
-LIB_EXPORT rc_t CC KTUIDlgReleaseWidgetBg ( struct KTUIDlg * self, uint32_t id )
+ rc_t CC KTUIDlgReleaseWidgetBg ( struct KTUIDlg * self, uint32_t id )
 {   return ReleaseWidgetBg ( KTUIDlgGetWidgetById( self, id ) );  }
 
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetFg ( struct KTUIDlg * self, uint32_t id, KTUI_color value )
+ rc_t CC KTUIDlgSetWidgetFg ( struct KTUIDlg * self, uint32_t id, KTUI_color value )
 {   return SetWidgetFg ( KTUIDlgGetWidgetById( self, id ), value );  }
-LIB_EXPORT rc_t CC KTUIDlgReleaseWidgetFg ( struct KTUIDlg * self, uint32_t id )
+ rc_t CC KTUIDlgReleaseWidgetFg ( struct KTUIDlg * self, uint32_t id )
 {   return ReleaseWidgetFg ( KTUIDlgGetWidgetById( self, id ) );  }
 
-LIB_EXPORT int64_t CC KTUIDlgGetWidgetInt64Value ( struct KTUIDlg * self, uint32_t id )
+ int64_t CC KTUIDlgGetWidgetInt64Value ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetInt64Value ( KTUIDlgGetWidgetById( self, id ) );    }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetInt64Value ( struct KTUIDlg * self, uint32_t id, int64_t value )
+ rc_t CC KTUIDlgSetWidgetInt64Value ( struct KTUIDlg * self, uint32_t id, int64_t value )
 {   return SetWidgetInt64Value ( KTUIDlgGetWidgetById( self, id ), value ); }
 
 
-LIB_EXPORT int64_t CC KTUIDlgGetWidgetInt64Min ( struct KTUIDlg * self, uint32_t id )
+ int64_t CC KTUIDlgGetWidgetInt64Min ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetInt64Min ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetInt64Min ( struct KTUIDlg * self, uint32_t id, int64_t value )
+ rc_t CC KTUIDlgSetWidgetInt64Min ( struct KTUIDlg * self, uint32_t id, int64_t value )
 {   return SetWidgetInt64Min ( KTUIDlgGetWidgetById( self, id ), value ); }
 
 
-LIB_EXPORT int64_t CC KTUIDlgGetWidgetInt64Max ( struct KTUIDlg * self, uint32_t id )
+ int64_t CC KTUIDlgGetWidgetInt64Max ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetInt64Max ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetInt64Max ( struct KTUIDlg * self, uint32_t id, int64_t value )
+ rc_t CC KTUIDlgSetWidgetInt64Max ( struct KTUIDlg * self, uint32_t id, int64_t value )
 {   return SetWidgetInt64Max ( KTUIDlgGetWidgetById( self, id ), value ); }
 
 
-LIB_EXPORT int32_t CC KTUIDlgGetWidgetPercent ( struct KTUIDlg * self, uint32_t id )
+ int32_t CC KTUIDlgGetWidgetPercent ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetPercent ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetPercent ( struct KTUIDlg * self, uint32_t id, int32_t value )
+ rc_t CC KTUIDlgSetWidgetPercent ( struct KTUIDlg * self, uint32_t id, int32_t value )
 {   return SetWidgetPercent ( KTUIDlgGetWidgetById( self, id ), value ); }
 
-LIB_EXPORT int32_t CC KTUIDlgGetWidgetPrecision ( struct KTUIDlg * self, uint32_t id )
+ int32_t CC KTUIDlgGetWidgetPrecision ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetPrecision ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetPrecision( struct KTUIDlg * self, uint32_t id, int32_t value )
+ rc_t CC KTUIDlgSetWidgetPrecision( struct KTUIDlg * self, uint32_t id, int32_t value )
 {   return SetWidgetPrecision ( KTUIDlgGetWidgetById( self, id ), value ); }
 
-LIB_EXPORT int32_t CC KTUIDlgCalcPercent ( int64_t value, int64_t max, uint32_t precision )
+ int32_t CC KTUIDlgCalcPercent ( int64_t value, int64_t max, uint32_t precision )
 {   return CalcWidgetPercent( value, max, precision ); }
 
 
-LIB_EXPORT const char * CC KTUIDlgGetWidgetText( struct KTUIDlg * self, uint32_t id )
+ const char * CC KTUIDlgGetWidgetText( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetText ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetText ( struct KTUIDlg * self, uint32_t id, const char * value )
+ rc_t CC KTUIDlgSetWidgetText ( struct KTUIDlg * self, uint32_t id, const char * value )
 {   return SetWidgetText ( KTUIDlgGetWidgetById( self, id ), value ); }
-LIB_EXPORT size_t CC KTUIDlgGetWidgetTextLenght( struct KTUIDlg * self, uint32_t id )
+ size_t CC KTUIDlgGetWidgetTextLenght( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetTextLength ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetTextLength ( struct KTUIDlg * self, uint32_t id, size_t value )
+ rc_t CC KTUIDlgSetWidgetTextLength ( struct KTUIDlg * self, uint32_t id, size_t value )
 {   return SetWidgetTextLength ( KTUIDlgGetWidgetById( self, id ), value ); }
 
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetCarretPos ( struct KTUIDlg * self, uint32_t id, size_t value )
+ rc_t CC KTUIDlgSetWidgetCarretPos ( struct KTUIDlg * self, uint32_t id, size_t value )
 {   return SetWidgetCarretPos ( KTUIDlgGetWidgetById( self, id ), value ); }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetAlphaMode ( struct KTUIDlg * self, uint32_t id, uint32_t value )
+ rc_t CC KTUIDlgSetWidgetAlphaMode ( struct KTUIDlg * self, uint32_t id, uint32_t value )
 {   return SetWidgetAlphaMode ( KTUIDlgGetWidgetById( self, id ), value ); }
 
-LIB_EXPORT rc_t CC KTUIDlgAddWidgetString ( struct KTUIDlg * self, uint32_t id, const char * txt )
+ rc_t CC KTUIDlgAddWidgetString ( struct KTUIDlg * self, uint32_t id, const char * txt )
 {   return AddWidgetString ( KTUIDlgGetWidgetById( self, id ), txt );  }
-LIB_EXPORT rc_t CC KTUIDlgAddWidgetStrings ( struct KTUIDlg * self, uint32_t id, VNamelist * src )
+ rc_t CC KTUIDlgAddWidgetStrings ( struct KTUIDlg * self, uint32_t id, VNamelist * src )
 {   return AddWidgetStrings ( KTUIDlgGetWidgetById( self, id ), src );  }
-LIB_EXPORT const char * CC KTUIDlgGetWidgetStringByIdx ( struct KTUIDlg * self, uint32_t id, uint32_t idx )
+ const char * CC KTUIDlgGetWidgetStringByIdx ( struct KTUIDlg * self, uint32_t id, uint32_t idx )
 {   return GetWidgetStringByIdx ( KTUIDlgGetWidgetById( self, id ), idx );  }
-LIB_EXPORT rc_t CC KTUIDlgRemoveWidgetStringByIdx ( struct KTUIDlg * self, uint32_t id, uint32_t idx )
+ rc_t CC KTUIDlgRemoveWidgetStringByIdx ( struct KTUIDlg * self, uint32_t id, uint32_t idx )
 {   return RemoveWidgetStringByIdx ( KTUIDlgGetWidgetById( self, id ), idx );  }
-LIB_EXPORT rc_t CC KTUIDlgRemoveAllWidgetStrings ( struct KTUIDlg * self, uint32_t id )
+ rc_t CC KTUIDlgRemoveAllWidgetStrings ( struct KTUIDlg * self, uint32_t id )
 {   return RemoveAllWidgetStrings ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT uint32_t CC KTUIDlgGetWidgetStringCount ( struct KTUIDlg * self, uint32_t id )
+ uint32_t CC KTUIDlgGetWidgetStringCount ( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetStringCount ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT uint32_t CC KTUIDlgHasWidgetString( struct KTUIDlg * self, uint32_t id, const char * txt )
+ uint32_t CC KTUIDlgHasWidgetString( struct KTUIDlg * self, uint32_t id, const char * txt )
 {   return HasWidgetString ( KTUIDlgGetWidgetById( self, id ), txt );  }
-LIB_EXPORT uint32_t CC KTUIDlgGetWidgetSelectedString( struct KTUIDlg * self, uint32_t id )
+ uint32_t CC KTUIDlgGetWidgetSelectedString( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetSelectedString ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetSelectedString ( struct KTUIDlg * self, uint32_t id, uint32_t selection )
+ rc_t CC KTUIDlgSetWidgetSelectedString ( struct KTUIDlg * self, uint32_t id, uint32_t selection )
 {   return SetWidgetSelectedString ( KTUIDlgGetWidgetById( self, id ), selection );  }
 
-LIB_EXPORT bool CC KTUIDlgHasWidget ( struct KTUIDlg * self, uint32_t id )
+ bool CC KTUIDlgHasWidget ( struct KTUIDlg * self, uint32_t id )
 {   return ( KTUIDlgGetWidgetById( self, id ) != NULL );  }
 
-LIB_EXPORT TUIWGrid_data * CC KTUIDlgGetWidgetGridData( struct KTUIDlg * self, uint32_t id )
+ TUIWGrid_data * CC KTUIDlgGetWidgetGridData( struct KTUIDlg * self, uint32_t id )
 {   return GetWidgetGridData ( KTUIDlgGetWidgetById( self, id ) );  }
-LIB_EXPORT rc_t CC KTUIDlgSetWidgetGridData( struct KTUIDlg * self, uint32_t id, TUIWGrid_data * grid_data, bool cached )
+ rc_t CC KTUIDlgSetWidgetGridData( struct KTUIDlg * self, uint32_t id, TUIWGrid_data * grid_data, bool cached )
 {   return SetWidgetGridData ( KTUIDlgGetWidgetById( self, id ), grid_data, cached );  }
 
 
@@ -1149,7 +1149,7 @@ static rc_t KTUIDlgSetFocusTo( struct KTUIDlg * self, KTUIWidget * w )
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgSetFocus( struct KTUIDlg * self, uint32_t id )
+ rc_t CC KTUIDlgSetFocus( struct KTUIDlg * self, uint32_t id )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -1207,7 +1207,7 @@ static uint32_t KTUIDlgGetNextWidget( struct KTUIDlg * self, uint32_t id, bool f
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgMoveFocus( struct KTUIDlg * self, bool forward )
+ rc_t CC KTUIDlgMoveFocus( struct KTUIDlg * self, bool forward )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -1221,7 +1221,7 @@ LIB_EXPORT rc_t CC KTUIDlgMoveFocus( struct KTUIDlg * self, bool forward )
 }
 
 
-LIB_EXPORT bool CC KTUIDlgFocusValid( struct KTUIDlg * self )
+ bool CC KTUIDlgFocusValid( struct KTUIDlg * self )
 {
     if ( self == NULL )
         return false;
@@ -1230,7 +1230,7 @@ LIB_EXPORT bool CC KTUIDlgFocusValid( struct KTUIDlg * self )
 }
 
 
-LIB_EXPORT uint32_t CC KTUIDlgGetFocusId( struct KTUIDlg * self )
+ uint32_t CC KTUIDlgGetFocusId( struct KTUIDlg * self )
 {
     if ( self == NULL )
         return 0;
@@ -1261,7 +1261,7 @@ static KTUIWidget * KTUIDlgWidgetAtPoint( struct KTUIDlg * self, tui_point * rel
     return res;
 }
 
-LIB_EXPORT void KTUIDlgEnableCursorNavigation( struct KTUIDlg * self, bool enabled )
+ void KTUIDlgEnableCursorNavigation( struct KTUIDlg * self, bool enabled )
 {
     if ( self != NULL )
         self -> cursor_navigation = enabled;
@@ -1367,7 +1367,7 @@ static KTUIWidget * GetWidgetByHotKey( struct KTUIDlg * self, tui_event * event 
     return res;
 }
 
-LIB_EXPORT rc_t CC KTUIDlgHandleEvent( struct KTUIDlg * self, tui_event * event )
+ rc_t CC KTUIDlgHandleEvent( struct KTUIDlg * self, tui_event * event )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -1412,7 +1412,7 @@ LIB_EXPORT rc_t CC KTUIDlgHandleEvent( struct KTUIDlg * self, tui_event * event 
 }
 
 
-LIB_EXPORT rc_t CC KTUIDlgGet ( struct KTUIDlg * self, tuidlg_event * event )
+ rc_t CC KTUIDlgGet ( struct KTUIDlg * self, tuidlg_event * event )
 {
     rc_t rc = 0;
     if ( self == NULL )

@@ -106,35 +106,16 @@ echo Current version: "${VERSION}"
 
 ################################## smoke-test ##################################
 
-echo "/LIBS/GUID = \"8badf00d-1111-4444-8888-deaddeadbeef\"" >./${TK_PACKAGE}bin/ncbi/local.kfg
 VDB_CONFIG_FILE=`pwd`/${TK_PACKAGE}bin/ncbi
-echo VDB_CONFIG=${VDB_CONFIG_FILE} $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
+echo $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
 #ls `pwd`/${TK_PACKAGE}/bin/ncbi
-     VDB_CONFIG=${VDB_CONFIG_FILE} $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
+     $HOMEDIR/smoke-test.sh ./${TK_PACKAGE} ${VERSION}
 RC=$?
 
 if [ "${RC}" != "0" ]
 then
     echo "Smoke test returned ${RC}"
     exit 8
-fi
-
-# run an example
-EXAMPLE="./${TK_PACKAGE}/bin/vdb-dump SRR000001 -R 1 "
-VDB_CONFIG=${VDB_CONFIG_FILE} $EXAMPLE | grep -q EM7LVYS02FOYNU
-if [ "$?" != "0" ]
-then
-    echo "The example failed: $EXAMPLE"
-    exit 9
-fi
-
-# test a run with a vdbcache
-EXAMPLE="./${TK_PACKAGE}/bin/vdb-dump --table_enum SRR390728 "
-VDB_CONFIG=${VDB_CONFIG_FILE} $EXAMPLE | grep -q SEQUENCE
-if [ "$?" != "0" ]
-then
-    echo "The example failed: $EXAMPLE"
-    exit 9
 fi
 
 if [ "$4" = "yesjava" ]

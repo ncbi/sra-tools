@@ -63,3 +63,7 @@ install( DIRECTORY ngs
          DESTINATION ${CMAKE_INSTALL_PREFIX}/include
 )
 
+#TODO:
+# if ( NOT TOOLS_ONLY )
+#     add_subdirectory( test )
+# endif()

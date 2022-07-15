@@ -31,15 +31,20 @@
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
 #include <klib/rc.h>
+#endif
+
+#ifndef _h_insdc_insdc_
 #include <insdc/insdc.h>
+#endif
 
 rc_t kout_md_tag_from_cigar_string( const char * cigar_str,
-									const size_t cigar_len,
-									const char * read,
-									const size_t read_len,
-									const uint8_t * ref,
-									const INSDC_coord_len ref_len );
+                                    const size_t cigar_len,
+                                    const char * read,
+                                    const size_t read_len,
+                                    const uint8_t * ref,
+                                    const INSDC_coord_len ref_len );
 
 #ifdef __cplusplus
 }

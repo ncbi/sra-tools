@@ -31,14 +31,18 @@
 extern "C" {
 #endif
 
+#ifndef _h_ref_regions_
 #include "ref_regions.h"
+#endif
+
+#ifndef _h_cmdline_cmn_
 #include "cmdline_cmn.h"
+#endif
 
 typedef struct pileup_options
 {
     common_options cmn;     /* from cmdline_cmn.h */
     bool process_dups;
-    bool omit_qualities;
     bool read_tlen;
     bool no_skip;
     bool show_id;

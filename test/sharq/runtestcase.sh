@@ -24,11 +24,12 @@
 # ===========================================================================
 #echo "$0 $*"
 
-# $1 - path sharq binary 
+# $1 - path sharq binary
 # $2 - name of the sharq binary
 # $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
 # $4 - test case ID
-# $4 - expected result code from sharq
+# $5 - expected result code from sharq
+# $6 - telemetry testing (0 - off)
 # $5, $6, ... - command line options for fastq-load.3
 #
 # return codes:

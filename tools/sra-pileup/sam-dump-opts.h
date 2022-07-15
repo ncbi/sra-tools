@@ -30,28 +30,42 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_inputfiles_
+#include "inputfiles.h"     /* for sam_dump_ctx */
+#endif
+    
+#ifndef _h_matecache_
+#include "matecache.h"      /* for sam_dump_ctx */
 #endif
 
-#include <klib/container.h>
-#include <klib/vector.h>
-#include <klib/out.h>
-#include <klib/text.h>
+#ifndef _h_dyn_string_
+#include "dyn_string.h"     /* for sam_dump_ctx */
+#endif
+
+#ifndef _h_klib_rc_
 #include <klib/rc.h>
-#include <klib/log.h>
+#endif
+
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
+#endif
+
+#ifndef _h_klib_container_
+#include <klib/container.h>
+#endif
+    
+#ifndef _h_klib_namelist_
 #include <klib/namelist.h>
+#endif
 
+#ifndef _h_kapp_args_
 #include <kapp/args.h>
-#include "perf_log.h"
-#include "rna_splice_log.h"
+#endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <strtol.h>
+#include <strtol.h>       /* strtou64() / strtou32() / strtoi32() */
 
+/* >>> these options are used in sam-dump3.c and in sam-dump-opts.c <<< */
 
 #define OPT_UNALIGNED   "unaligned"
 #define OPT_PRIM_ONLY   "primary"
@@ -100,62 +114,51 @@ extern "C" {
 #define OPT_TIMING      "timing"
 #define OPT_MD_FLAG     "with-md-flag"
 #define OPT_NGC         "ngc"
+#define OPT_NOQUAL      "ommit-quality"
 
-typedef struct range
-{
+typedef struct range {
     uint64_t start;
     uint64_t end;
 } range;
 
-
-typedef struct reference_region
-{
+typedef struct reference_region {
     BSTNode node;
     const char * name;      /* the name of the reference */
     Vector ranges;          /* what regions on this reference */
 } reference_region;
 
-
-enum header_mode
-{
+enum header_mode {
     hm_none = 0,    /* do not dump the headers at all */
     hm_recalc,      /* recalculate the headers */
     hm_dump,        /* dump the header found in metadata */
     hm_file         /* take the complete header part from a file */
 };
 
-enum output_format
-{
+enum output_format {
     of_sam = 0,     /* use sam-tools format */
     of_fasta,       /* use fasta-format */
     of_fastq        /* use fastq-format */
 };
 
-enum output_compression
-{
+enum output_compression {
     oc_none = 0,    /* do not compress output */
     oc_gzip,        /* compress output with gzip */
     oc_bzip2        /* compress output with bzip2 */
 };
 
-enum cigar_treatment
-{
+enum cigar_treatment {
     ct_unchanged = 0,   /* use the cigar-string as it is stored */
     ct_cg_style,        /* transform cigar into cg-style ( has B/N ) */
     ct_cg_merge         /* transform cg-data(length of read/patterns in cigar) into valid SAM (cigar/READ/QUALITY) */
 };
 
-
-enum dump_mode
-{
+enum dump_mode {
     /* in case of: aligned reads requested + no regions given */
     dm_one_ref_at_a_time = 0,   /* create a set-iter each for every reference sequentially, put only one reference into it */
     dm_prepare_all_refs         /* create only ONE set-iter, put ALL references into it */
 };
 
-
-typedef struct samdump_opts
-{
+typedef struct samdump_opts {
     /* tree with regions, each node has a sorted vector of ranges, can be empty ... */
     BSTree regions;     /* contains reference_region structs */
 
@@ -263,15 +266,15 @@ typedef struct samdump_opts
 
     /* option to disable multi-threading */
     bool no_mt;
-    
+    bool no_qual;
+
 	bool with_md_flag;
 	
     uint8_t qual_quant_matrix[ 256 ];
 } samdump_opts;
 
 
-typedef struct foreach_reference_func
-{
+typedef struct foreach_reference_func {
     rc_t ( CC * on_reference ) ( const char * name, Vector *ranges, void *data );
     const char * name;
     void * data;
@@ -303,5 +306,16 @@ rc_t dump_name_legacy( const samdump_opts * opts, const char * name, size_t name
 rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual_len, bool reverse );
 
 rc_t dump_quality_33( const samdump_opts * opts, char const *quality, uint32_t qual_len, bool reverse );
+
+typedef struct samdump_ctx {
+    const samdump_opts * const opts;
+    const input_files * const ifs;
+    matecache * mc;
+    struct dyn_string * ds;
+} sam_dump_ctx;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

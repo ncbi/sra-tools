@@ -2,8 +2,8 @@
 
 [ $# -gt 0 ] || { echo "Usage: $0 <binaries directory>"; exit 1; }
 
-SRATOOLS="$1/sratools"
-[ -x "${SRATOOLS}" ] || { echo "no sratools in '$1'"; exit 1; }
+SRATOOLS="$1/$2"
+[ -x "${SRATOOLS}" ] || { echo "no sratools ($2) in '$1'"; exit 1; }
 
 SETTINGS=$(cat << 'EOF'
 /LIBS/GUID = "c1d99592-6ab7-41b2-bfd0-8aeba5ef8498"
@@ -33,4 +33,4 @@ diff -q expected/testing-cloudy.stderr actual/testing.stderr >/dev/null || \
     exit 1
 }
 
-echo "Driver tool test 'testing' finished."
+echo "Driver tool test 'testing' via $2 finished."

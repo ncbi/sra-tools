@@ -29,13 +29,19 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
+#ifndef _h_kapp_args_
 #include <kapp/args.h>
-#include <klib/rc.h>
+#endif
 
 rc_t report_deletes( Args * args, uint32_t min_len );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -40,7 +40,7 @@ namespace VDB {
             badEvent = 0,
             errMessage,
             endStream,
-            
+
             remotePath,
             useSchema,
             newTable,
@@ -49,7 +49,7 @@ namespace VDB {
             cellDefault,
             cellData,
             nextRow,
-            
+
             moveAhead,
             errMessage2,
             remotePath2,
@@ -58,9 +58,9 @@ namespace VDB {
             cellDflt2,
             cellData2,
             emptyDflt,
-            
+
             writerName,
-            
+
             dbMeta,
             tableMeta,
             columnMeta,
@@ -77,7 +77,7 @@ namespace VDB {
         };
         ostream& stream;
         ///FILE *stream;
-        
+
         class StreamHeader {
             friend Writer;
             bool write(ostream& stream) const
@@ -96,7 +96,7 @@ namespace VDB {
         public:
             StreamHeader() {};
         };
-        
+
         class SimpleEvent {
             friend Writer;
             uint32_t eid;
@@ -108,7 +108,7 @@ namespace VDB {
         public:
             SimpleEvent(EventCode const code, unsigned const id) : eid((code << 24) + id) {}
         };
-        
+
         class String1Event {
             friend Writer;
             uint32_t eid;
@@ -130,12 +130,12 @@ namespace VDB {
             , str(str)
             {}
         };
-        
+
         class String2Event {
             friend Writer;
             uint32_t eid;
             std::string const &str1;
-            std::string const &str2; 
+            std::string const &str2;
             bool write(ostream& stream) const {
                 uint32_t const zero = 0;
                 auto const size1 = (uint32_t)str1.size();
@@ -158,7 +158,7 @@ namespace VDB {
             , str2(str_2)
             {}
         };
-        
+
         class ColumnEvent {
             friend Writer;
             uint32_t eid;
@@ -199,7 +199,7 @@ namespace VDB {
             stream.write((const char*)&count, sizeof(count));
             stream.write((const char*)data, elsize * count);
             stream.write((const char*)&zero, padding);
-            return true;    
+            return true;
         }
         template <typename T>
         bool write(EventCode const code, unsigned const cid, uint32_t const count, T const *data) const
@@ -247,37 +247,37 @@ namespace VDB {
         {
             return String1Event(errMessage, 0, message).write(stream);
         }
-        
-        bool destination(std::string const &remoteDb) const
+
+        virtual bool destination(std::string const &remoteDb) const
         {
             return String1Event(remotePath, 0, remoteDb).write(stream);
         }
-        
-        bool schema(std::string const &file, std::string const &dbSpec) const
+
+        virtual bool schema(std::string const &file, std::string const &dbSpec) const
         {
             return String2Event(useSchema, 0, file, dbSpec).write(stream);
         }
-        
+
         bool info(std::string const &name, std::string const &version) const
         {
             return String2Event(writerName, 0, name, version).write(stream);
         }
-        
+
         bool openTable(unsigned const tid, std::string const &name) const
         {
             return String1Event(newTable, tid, name).write(stream);
         }
-        
+
         bool openColumn(unsigned const cid, unsigned const tid, unsigned const elemBits, std::string const &colSpec) const
         {
             return ColumnEvent(newColumn, cid, tid, elemBits, colSpec).write(stream);
         }
-        
+
         bool beginWriting() const
         {
             return SimpleEvent(openStream, 0).write(stream);
         }
-        
+
         template <typename T>
         bool defaultValue(unsigned const cid, uint32_t const count, T const *data) const
         {
@@ -292,7 +292,7 @@ namespace VDB {
         {
             return write(cellDefault, cid, data);
         }
-        
+
         bool value(unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
         {
             return write(cellData, cid, count, elsize, data);
@@ -311,12 +311,12 @@ namespace VDB {
         {
             return write(cellData, cid, data);
         }
-        
+
         bool closeRow(unsigned const tid) const
         {
             return SimpleEvent(nextRow, tid).write(stream);
         }
-        
+
         enum MetaNodeRoot {
             database, table, column
         };
@@ -328,7 +328,7 @@ namespace VDB {
                             : badEvent;
             return String2Event(code, oid, name, value).write(stream);
         }
-        
+
         bool endWriting() const
         {
             return SimpleEvent(endStream, 0).write(stream);
@@ -336,7 +336,7 @@ namespace VDB {
         void flush() const {
             stream.flush();
         }
-        
+
     };
 }
 
@@ -375,7 +375,7 @@ public:
         , elemSize(elemSize)
         {}
     };
-    
+
     class Column;
     class Table {
         friend Writer2;
@@ -453,14 +453,14 @@ public:
     Table table(std::string const &table) const {
         return Table(*this, table);
     }
-    
+
     Writer2(ostream& stream)
     : VDB::Writer(stream)
     , nextTable(0)
     , nextColumn(0)
     {
     }
-    void addTable(char const *name, std::initializer_list<ColumnDefinition> const &list)
+    void addTable(char const *name, std::vector<ColumnDefinition> const &list)
     {
         decltype(tables.begin()->second.second) columns;
         auto const tableNo = ++nextTable;

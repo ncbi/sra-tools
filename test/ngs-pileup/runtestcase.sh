@@ -37,13 +37,14 @@
 # 4 - outputs differ
 
 BINDIR=$1
-WORKDIR=$2
-CASEID=$3
-shift 3
+BINARY_SUFFIX=$2
+WORKDIR=$3
+CASEID=$4
+shift 4
 CMDLINE=$*
 
-SRA_PILEUP="$BINDIR/sra-pileup"
-NGS_PILEUP="$BINDIR/ngs-pileup"
+SRA_PILEUP="$BINDIR/sra-pileup${BINARY_SUFFIX}"
+NGS_PILEUP="$BINDIR/ngs-pileup${BINARY_SUFFIX}"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
 printf "running $CASEID: "

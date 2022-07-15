@@ -23,10 +23,30 @@
 * ===========================================================================
 *
 */
+
+#ifndef _h_writer_
+#define _h_writer_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef _h_klib_rc_
 #include <klib/rc.h>
+#endif
+    
+#ifndef _h_cmdline_cmn_
+#include "cmdline_cmn.h"
+#endif
 
-rc_t BufferedWriterMake(const common_options* opt);
+rc_t BufferedWriterMake( const common_options* opt );
 
-void BufferedWriterRelease(bool flush);
+void BufferedWriterRelease( bool flush );
 
-rc_t OUTSTR_(const char* buf, size_t buf_sz);
+rc_t OUTSTR_( const char* buf, size_t buf_sz );
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /*  _h_walk_debug_ */

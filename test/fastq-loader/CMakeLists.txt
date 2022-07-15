@@ -29,10 +29,16 @@ if( NOT WIN32 )
     set_tests_properties(LatfTestSetup PROPERTIES FIXTURES_SETUP LatfTest)
 
     set( LIBS )
-    AddExecutableTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastq         "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-    AddExecutableTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+    macro(LatfExeTest TestName Sources Libraries)
+        AddExecutableTest( ${TestName} "${Sources}" "${Libraries}" "" )
+        add_dependencies( ${TestName} loader fastqloader )
+    endmacro()
+
+    LatfExeTest( SlowTest_FastqLoader_id2name     "test-id2name.cpp"          "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    LatfExeTest( Test_FastqLoader_WbFastq_dflt    "wb-test-fastq.cpp"         "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+    LatfExeTest( Test_FastqLoader_WbFastqParse    "wb-test-fastq-parse.cpp"   "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+
+    LatfExeTest( Test_FastqLoader_WbFastqLoader   "test-fastq-loader.cpp"     "fastqloader;loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
     set_tests_properties( Test_FastqLoader_WbFastqLoader
         PROPERTIES ENVIRONMENT "NCBI_SETTINGS=/;VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}"
     )
@@ -51,6 +57,25 @@ if( NOT WIN32 )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         set_tests_properties( Test_FastqLoader_${TestName} PROPERTIES FIXTURES_REQUIRED LatfTest )
+        if( RUN_SANITIZER_TESTS )
+            add_test( NAME Test_FastqLoader_${TestName}-asan
+                COMMAND
+                    ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                    ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                    "./runtestcase.sh" "${BINDIR}/vdb-dump-asan ${DumpParams}" "${BINDIR}/latf-load-asan ${LoadParams}" "." "${TestName}" "${Result}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+            set_tests_properties( Test_FastqLoader_${TestName}-asan PROPERTIES FIXTURES_REQUIRED LatfTest )
+
+            add_test( NAME Test_FastqLoader_${TestName}-tsan
+                COMMAND
+                    ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                    ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                    "./runtestcase.sh" "${BINDIR}/vdb-dump-tsan ${DumpParams}" "${BINDIR}/latf-load-tsan ${LoadParams}" "." "${TestName}" "${Result}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            )
+            set_tests_properties( Test_FastqLoader_${TestName}-tsan PROPERTIES FIXTURES_REQUIRED LatfTest )
+        endif()
     endmacro()
 
     # default dump params
@@ -107,6 +132,20 @@ if( NOT WIN32 )
             bash -c "${DIRTOTEST}/latf-load ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_FastqLoader_4.1-asan
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${DIRTOTEST}/latf-load-asan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        add_test( NAME Test_FastqLoader_4.1-tsan
+            COMMAND
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${DIRTOTEST}/latf-load-tsan ./input/4.fastq --tmpfs ./actual -v -o actual/4.1.obj --quality PHRED_33 2>&1 | grep \"Path for scratch files: ./actual/key2id\""
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+    endif()
     #           4.2 --qual-quant        quality values are quantized as specified
     LatfTest( 4.2 0 "input/4.fastq --qual-quant 1:10,10:20,20:30,30:- --quality PHRED_33" )
     #           4.3.1 --cache-size      rejected if invalid
@@ -116,8 +155,11 @@ if( NOT WIN32 )
     #           4.5 --max-err-count     stops after the specified # of errors
     LatfTest( 4.5 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.fastq --max-err-count 2 --quality PHRED_33" )
     #           4.5.1 --max-err-pct     fails if % of error records is too high
-#    LatfTest( 4.5.1 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.1.fastq --quality PHRED_33 --max-err-count 10 --max-err-pct 20" ) TODO: adjust for extra output on stderr
-    #           4.6 --platform          saves correct value in the PLATFORM column
+    #    LatfTest( 4.5.1 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.1.fastq --quality PHRED_33 --max-err-count 10 --max-err-pct 20" ) TODO: adjust for extra output on stderr
+    #           4.5.2 --max-err-count   VDB-4839: hangs after the specified # of errors
+    LatfTest( 4.5.2 3 "${CMAKE_CURRENT_SOURCE_DIR}/input/4.5.2.fastq --platform ILLUMINA --quality PHRED_33 --max-err-count 2" )
+
+#           4.6 --platform          saves correct value in the PLATFORM column
     LatfTest( 4.6 0 "input/4.fastq -p LS454 --quality PHRED_33" )
     #           4.6.1 --platform        rejects invalid values
     LatfTest( 4.6.1 3 "input/4.fastq -p SOMETHINGELSE --quality PHRED_33" )
@@ -168,5 +210,7 @@ if( NOT WIN32 )
 
     # VDB-4746: file padded with \0s
     LatfTest_OneInputPhred33( 17.0 3 )
+
+    # VDB-4839: hangs on reaching max errors
 
 endif()

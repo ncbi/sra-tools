@@ -4,7 +4,7 @@
 /**
  * @file fastq_defline_parser.hpp
  * @brief Defline Parser
- * 
+ *
  */
 
 #include <string_view>
@@ -22,34 +22,34 @@ class CDefLineParser
 public:
     /**
      * @brief Construct a new CDefLineParser object
-     * 
+     *
      * Registers a list of supported matchers
      */
     CDefLineParser();
 
     /**
      * @brief Destroy the CDefLineParser object
-     * 
+     *
      */
     ~CDefLineParser();
 
     /**
      * @brief Reset internal state
-     * 
+     *
      */
     void Reset();
 
     /**
      * @brief Parse defline into CFastqRead object
-     * 
+     *
      * @param[in] defline defline string_view to parse
-     * @param[in, out] read CFastqRead with populated defline related field 
+     * @param[in, out] read CFastqRead with populated defline related field
      */
     void Parse(const string_view& defline, CFastqRead& read);
 
     /**
      * @brief Check if parser can match a given defline
-     * 
+     *
      * @param[in] defline defline string_view to parse
      * @param[in] strict if true Matchall pattern cannot be used, otherwise it will match any defline
      * @return true if defline can be parsed
@@ -58,42 +58,42 @@ public:
     bool Match(const string_view& defline, bool strict = false);
 
     /**
-     * @brief Enable MatchAll pattern 
-     * 
+     * @brief Enable MatchAll pattern
+     *
      */
     void SetMatchAll();
 
     /**
      * @brief Get last matched defline type
-     * 
+     *
      * @return const string& defline type
      */
     const string& GetDeflineType() const;
 
     /**
      * @brief Get last matched platform code
-     * 
+     *
      * @return uint8_t platform code
      */
     uint8_t GetPlatform() const;
 
     /**
-     * @brief Get all defline type there were matched 
-     * 
-     * @return const set<string>& 
+     * @brief Get all defline type there were matched
+     *
+     * @return const set<string>&
      */
     const set<string>& AllDeflineTypes() const { return mDeflineTypes;}
 private:
-    std::vector<std::shared_ptr<CDefLineMatcher>> mDefLineMatchers; ///< Vector of all registered Defline matchers 
+    std::vector<std::shared_ptr<CDefLineMatcher>> mDefLineMatchers; ///< Vector of all registered Defline matchers
     size_t mIndexLastSuccessfulMatch = 0; ///< Index of the last sucessfull matcher
     size_t mAllMatchIndex = -1;           ///< Index of Match everything matcher
     std::set<string> mDeflineTypes;       ///< Set of deflines types processed by this reader
 };
 
 
-CDefLineParser::CDefLineParser() 
-{ 
-    Reset(); 
+CDefLineParser::CDefLineParser()
+{
+    Reset();
     mDefLineMatchers.emplace_back(new CDefLineMatcher_NoMatch);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiNew);
     mDefLineMatchers.emplace_back(new CDefLineMatcherBgiOld);
@@ -103,9 +103,15 @@ CDefLineParser::CDefLineParser()
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithPeriods);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewWithUnderscores);
     mDefLineMatchers.emplace_back(new CDefLineMatcherIlluminaNewDataGroup);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore1);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore2);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore3_1);
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore5); // before Nanopore4, to match fastq-load.py
+    mDefLineMatchers.emplace_back(new CDefLineMatcherNanopore4);
 }
 
-CDefLineParser::~CDefLineParser() 
+CDefLineParser::~CDefLineParser()
 {
 
 }
@@ -117,12 +123,12 @@ void CDefLineParser::SetMatchAll()
 }
 
 
-void CDefLineParser::Reset() 
+void CDefLineParser::Reset()
 {
     mIndexLastSuccessfulMatch = 0;
 }
 
-bool CDefLineParser::Match(const string_view& defline, bool strict) 
+bool CDefLineParser::Match(const string_view& defline, bool strict)
 {
     if (mDefLineMatchers[mIndexLastSuccessfulMatch]->Matches(defline)) {
         return true;
@@ -145,7 +151,7 @@ bool CDefLineParser::Match(const string_view& defline, bool strict)
 }
 
 
-void CDefLineParser::Parse(const string_view& defline, CFastqRead& read) 
+void CDefLineParser::Parse(const string_view& defline, CFastqRead& read)
 {
     if (Match(defline)) {
         mDefLineMatchers[mIndexLastSuccessfulMatch]->GetMatch(read);
@@ -155,7 +161,7 @@ void CDefLineParser::Parse(const string_view& defline, CFastqRead& read)
 }
 
 inline
-uint8_t CDefLineParser::GetPlatform() const 
+uint8_t CDefLineParser::GetPlatform() const
 {
     return mDefLineMatchers[mIndexLastSuccessfulMatch]->GetPlatform();
 }
@@ -169,4 +175,3 @@ const string& CDefLineParser::GetDeflineType() const
 
 
 #endif
-

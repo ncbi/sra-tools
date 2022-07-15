@@ -19,4 +19,7 @@ target_link_libraries ( general-loader
 
 MakeLinksExe ( general-loader false )
 
-add_subdirectory ( test )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( test )
+endif()
+

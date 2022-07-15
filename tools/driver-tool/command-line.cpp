@@ -35,7 +35,7 @@
 #include "tool-args.hpp"
 #include "file-path.hpp"
 #include "proc.hpp"
-#include "../../shared/toolkit.vers.h"
+#include "build-version.hpp"
 
 #include <cstdlib>
 #include <cstring>
@@ -47,134 +47,6 @@
 #if WINDOWS
 #else
 #undef USE_WIDE_API
-#endif
-
-#if WINDOWS
-#else
-static uint32_t removeVersion(std::string &name) {
-    uint32_t result = 0;
-    int state = 0;
-    auto versAt = name.size();
-    auto versEnd = name.size();
-    
-    for (auto i = 0; i < name.size(); ++i) {
-        switch (state) {
-        case 0:
-            if (name[i] == '.') {
-                versAt = i;
-                ++state;
-            }
-            break;
-        case 1:
-            if (isdigit(name[i])) {
-                ++state;
-                result = (name[i] - '0') << 24;
-            }
-            else {
-        NO_VERS:
-                versAt = name.size();
-                state = 0;
-            }
-            break;
-        case 2:
-            if (name[i] == '.') {
-                ++state;
-                break;
-            }
-            if (!isdigit(name[i]))
-                goto NO_VERS;
-            result = (((result >> 24) * 10 + (name[i] - '0')) << 24);
-            break;
-        case 3:
-            if (isdigit(name[i])) {
-                ++state;
-                result += ((name[i] - '0') << 16);
-            }
-            else
-                goto NO_VERS;
-            break;
-        case 4:
-            if (name[i] == '.') {
-                ++state;
-                break;
-            }
-            if (!isdigit(name[i]))
-                goto NO_VERS;
-            result = (result & 0xFF000000) + ((((result & 0x00FF0000) >> 16) + (name[i] - '0')) << 16);
-            break;
-        case 5:
-            if (isdigit(name[i])) {
-                ++state;
-                result += name[i] - '0';
-            }
-            else
-                goto NO_VERS;
-            break;
-        case 6:
-            if (!isdigit(name[i])) {
-                ++state;
-                versEnd = i;
-            }
-            else
-                result = (result & 0xFFFF0000) + ((result & 0xFFFF) + (name[i] - '0'));
-            break;
-        default:
-            break;
-        }
-    }
-    if (state >= 6) {
-        name = name.substr(0, versAt) + name.substr(versEnd);
-        return result;
-    }
-    return 0;
-}
-
-static uint32_t getVersion(std::string const &name) {
-    std::string dup = name;
-    return removeVersion(dup);
-}
-
-#if DEBUG || _DEBUGGING
-struct removeVersionTest {
-    static void test1() {
-        std::string versString = "foo.3.2.1";
-        auto const vers = removeVersion(versString);
-        assert(vers == 0x03020001);
-        assert(versString == "foo");
-    }
-    static void test2() {
-        std::string versString = "foo.3.2.1.exe";
-        auto const vers = removeVersion(versString);
-        assert(vers == 0x03020001);
-        assert(versString == "foo.exe");
-    }
-    static void test3() {
-        std::string versString = "foo";
-        auto const vers = removeVersion(versString);
-        assert(vers == 0);
-        assert(versString == "foo");
-    }
-    static void test4() {
-        std::string versString = "foo.exe";
-        auto const vers = removeVersion(versString);
-        assert(vers == 0);
-        assert(versString == "foo.exe");
-    }
-    static void test5() {
-        std::string versString = "foo.1";
-        auto const vers = removeVersion(versString);
-        assert(vers == 0);
-        assert(versString == "foo.1");
-    }
-    removeVersionTest() {
-        test1();
-        test2();
-        test3();
-        test4();
-        test5();
-    }
-} static const removeVersionTest;
-#endif
 #endif
 
 #if USE_WIDE_API
@@ -228,6 +100,8 @@ static char const *const *convertWStrings(wchar_t *collection[])
 
 #endif // WINDOWS && USE_WIDE_API
 
+using Version = sratools::Version;
+
 #if USE_WIDE_API
 /// Used by wmain
 CommandLine::CommandLine(int argc, wchar_t **wargv, wchar_t **wenvp, char **extra)
@@ -249,7 +123,7 @@ CommandLine::CommandLine(int argc, char **argv, char **envp, char **extra)
 #endif
 , fullPathToExe(FilePath::fullPathToExecutable(argv, envp, extra))
 , argc(argc)
-, buildVersion(TOOLKIT_VERS)
+, buildVersion(Version::current.packed)
 {
     {
         auto const p = fullPathToExe.split();
@@ -262,8 +136,8 @@ CommandLine::CommandLine(int argc, char **argv, char **envp, char **extra)
     }
 #if WINDOWS
 #else
-    versionFromName = getVersion(realName);
-    runAsVersion = getVersion(baseName);
+    versionFromName = Version::fromName(realName);
+    runAsVersion = Version::fromName(baseName);
 #endif 
 
     toolName = baseName;
@@ -288,78 +162,10 @@ CommandLine::~CommandLine() {
 #endif
 }
 
-#if WINDOWS
-#else
-static std::string versionFromU32(uint32_t const version)
-{
-               // "255.255.65535"
-    char buffer[3 + 1 + 3 + 1 + 5 + 1];
-    char *out = buffer + sizeof(buffer);
-    {
-        auto vers = version & 0xFFFF;
-        
-        *--out = '\0';
-        do {
-            *--out = '0' + vers % 10;
-            vers /= 10;
-        } while (vers != 0);
-        
-        *--out = '.';
-    }
-    {
-        auto vers = (version >> 16) & 0xFF;
-        do {
-            *--out = '0' + vers % 10;
-            vers /= 10;
-        } while (vers != 0);
-        
-        *--out = '.';
-    }
-    {
-        auto vers = (version >> 24) & 0xFF;
-        do {
-            *--out = '0' + vers % 10;
-            vers /= 10;
-        } while (vers != 0);
-    }
-    return out;
-}
-#if DEBUG || _DEBUGGING
-struct testVersionFromU32 {
-    testVersionFromU32() {
-        {
-            auto const result = versionFromU32(0);
-            assert(result == "0.0.0");
-        }
-        {
-            auto const result = versionFromU32(1);
-            assert(result == "0.0.1");
-        }
-        {
-            auto const result = versionFromU32(0x00010000);
-            assert(result == "0.1.0");
-        }
-        {
-            auto const result = versionFromU32(0x01000000);
-            assert(result == "1.0.0");
-        }
-        {
-            auto const result = versionFromU32(0x01020003);
-            assert(result == "1.2.3");
-        }
-        {
-            auto const result = versionFromU32(0xFFFFFFFF);
-            assert(result == "255.255.65535");
-        }
-    }
-} static testVersionFromU32;
-#endif
-
 static std::string versionFromU32(uint32_t fromName, uint32_t runAs, uint32_t fromBuild)
 {
-    return versionFromU32(fromName ? fromName : runAs ? runAs : fromBuild);
+    return Version(fromName ? fromName : runAs ? runAs : fromBuild);
 }
-#endif
 
 FilePath CommandLine::getToolPath() const {
 #if WINDOWS

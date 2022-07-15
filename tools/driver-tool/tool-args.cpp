@@ -226,17 +226,12 @@ struct ParamDefinitions_Common {
             auto const n = snprintf(buffer, sizeof(buffer), "0x%016" PRIx64 " (1 << %2u)", def.bitMask, shift);
             assert(n <= sizeof(buffer));
             out << tool << '\t'
-                << sratools::Version::current << '\t'
+                << sratools::Version::currentString << '\t'
                 << buffer << '\t'
                 << def.name << '\n';
         }
         out << std::flush;
     }
-
-    /// \brief Find the index of the definition.
-    ///
-    /// \Returns index of definition and a pointer to parameter's argument if it is attached to the string.
-    virtual std::pair< int, char const * > findLong(char const *arg) const = 0;
 
     virtual bool parseArg(Arguments::Container &dst, ArgvIterator &iter) const = 0;
     
@@ -274,19 +269,17 @@ struct ParamDefinitions final : public ParamDefinitions_Common
     : ParamDefinitions_Common(name, capacity)
     {}
     
-    std::pair< int, char const * > findLong(char const *const arg) const override
+    /// \brief Find the index of the definition.
+    ///
+    /// \Returns index of definition and a pointer to parameter's argument if it is attached to the string.
+    std::pair< int, char const * > findLong(char const *const arg) const
     {
-        auto const fnd = container.find(arg);
-        if (fnd.first != fnd.second)
-            return {container.begin() - fnd.first, nullptr};
-
         auto const eq = strchr(arg, '=');
-        if (eq) {
-            auto const fnd = container.find(std::string(arg, eq - arg));
-            if (fnd.first != fnd.second)
-                return {container.begin() - fnd.first, eq + 1};
-        }
-        
+        auto const fnd = container.find(eq ? std::string(arg, eq - arg) : std::string(arg));
+
+        if (fnd.first != fnd.second)
+            return {iterDistance(container.begin(), fnd.first), eq + 1};
+
         return {-1, nullptr};
     }
     
@@ -414,15 +407,7 @@ struct ParamDefinitions_FQD : public ParamDefinitions_Common
     ParamDefinitions_FQD(std::string const &name, size_t capacity)
     : ParamDefinitions_Common(name, capacity)
     {}
-    
-    std::pair< int, char const * > findLong(char const *const arg) const override
-    {
-        auto const fnd = container.find(arg);
-        if (fnd.first != fnd.second)
-            return {container.begin() - fnd.first, nullptr};
 
-        return {-1, nullptr};
-    }
     bool parseArg(Arguments::Container &result, ArgvIterator &iter) const override {
         int index = -1;
         bool nextMayBeArg = false;
@@ -452,12 +437,12 @@ struct ParamDefinitions_FQD : public ParamDefinitions_Common
                             result.emplace_back(Argument({&container[index], nullptr, iter.argind - 1}));
                         }
                         if (arg[1] == '-') {
-                            auto const f = findLong(arg + 2);
-                            if (f.first < 0) {
+                            auto const f = container.find(arg + 2);
+                            if (f.first == f.second) {
                                 result.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.argind}));
                                 return true;
                             }
-                            index = f.first;
+                            index = iterDistance(container.begin(), f.first);
                         }
                         else {
                             auto const f = shortIndex.find(arg[1]);

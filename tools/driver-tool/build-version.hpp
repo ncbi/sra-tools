@@ -41,9 +41,7 @@ struct Version {
     uint32_t packed;
     operator std::string() const noexcept;
     
-    friend std::ostream &operator <<(std::ostream &os, Version const &vers) {
-        return os << vers.major() << '.' << vers.minor() << '.' << vers.revision();
-    }
+    std::ostream &write(std::ostream &os) const noexcept;
     
     bool operator <(Version const &rhs) const { return packed < rhs.packed; }
     bool operator >(Version const &rhs) const { return packed > rhs.packed; }
@@ -52,22 +50,56 @@ struct Version {
     bool operator ==(Version const &other) const { return packed == other.packed; }
     bool operator !=(Version const &other) const { return packed != other.packed; }
 
+    /// The current build version.
     static Version const &current;
+    /// The current build version, as a string.
+    static std::string const &currentString;
+
+    Version() noexcept : packed(0) {}
+    operator bool() const noexcept { return packed != 0; }
     
-    explicit Version(uint32_t const pckd)
+    explicit Version(uint32_t const pckd) noexcept
     : packed(pckd)
     {}
     
-    Version(uint8_t const major, uint8_t const minor, uint16_t const revision)
+    Version(char const *string, char const *strEnd);
+    
+    explicit Version(char const *string)
+    : Version(string, string + strlen(string))
+    {}
+    
+    explicit Version(std::string const &string)
+    : Version(string.data(), string.data() + string.size())
+    {}
+    
+    Version(uint8_t const major, uint8_t const minor, uint16_t const revision) noexcept
     : packed((((uint32_t)major) << 24) | (((uint32_t)minor) << 16) | ((uint32_t)revision))
     {}
     
-    unsigned major() const { return packed >> 24; }
-    unsigned minor() const { return (packed >> 16) & 0xFF; }
-    unsigned revision() const { return packed & 0xFFFF; }
+    unsigned major() const noexcept { return packed >> 24; }
+    unsigned minor() const noexcept { return (packed >> 16) & 0xFF; }
+    unsigned revision() const noexcept { return packed & 0xFFFF; }
     
-    Version nextMinor() const { return Version(major(), minor() + 1, 0); }
-    Version nextMajor() const { return Version(major() + 1, 0, 0); }
+    Version nextMinor() const noexcept { return Version(major(), minor() + 1, 0); }
+    Version nextMajor() const noexcept { return Version(major() + 1, 0, 0); }
+    
+    /// \brief Scan the name for a version string; if found, remove it.
+    /// \Returns The found version or `Version()`.
+    static Version removeVersion(std::string &name) noexcept;
+    /// \brief Scan the name for a version string; if found, return it.
+    /// \Returns The found version or `Version()`.
+
+    static Version fromName(std::string const &name) noexcept {
+        auto tmp = std::string(name);
+        return removeVersion(tmp);
+    }
+    
+    template< typename T >
+    static std::pair< Version, T > make(T begin, T end, unsigned *parts) noexcept;
 };
 
 } // namespace sratools
+
+static inline std::ostream &operator <<(std::ostream &os, sratools::Version const &vers) {
+    return vers.write(os);
+}

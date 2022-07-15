@@ -156,7 +156,7 @@ static void write_default_values ( struct KTUIPalette * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteMake ( struct KTUIPalette ** self )
+ rc_t CC KTUIPaletteMake ( struct KTUIPalette ** self )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -177,7 +177,7 @@ LIB_EXPORT rc_t CC KTUIPaletteMake ( struct KTUIPalette ** self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteAddRef ( const struct KTUIPalette * self )
+ rc_t CC KTUIPaletteAddRef ( const struct KTUIPalette * self )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -202,7 +202,7 @@ LIB_EXPORT rc_t CC KTUIPaletteAddRef ( const struct KTUIPalette * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteRelease ( const struct KTUIPalette * self )
+ rc_t CC KTUIPaletteRelease ( const struct KTUIPalette * self )
 {
     rc_t rc = 0;
     if ( self != NULL )
@@ -229,7 +229,7 @@ LIB_EXPORT rc_t CC KTUIPaletteRelease ( const struct KTUIPalette * self )
 static tui_ac invalid_entry = { INVALID_ATTR, INVALID_FG, INVALID_BG };
 
 
-LIB_EXPORT const tui_ac * CC KTUIPaletteGet ( const struct KTUIPalette * self, KTUIPa_entry what )
+ const tui_ac * CC KTUIPaletteGet ( const struct KTUIPalette * self, KTUIPa_entry what )
 {
     if ( self != NULL && what >= ktuipa_dlg && what < ktuipa_last )
         return &self->entry[ what ];
@@ -238,7 +238,7 @@ LIB_EXPORT const tui_ac * CC KTUIPaletteGet ( const struct KTUIPalette * self, K
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteSet ( struct KTUIPalette * self, KTUIPa_entry what, const tui_ac * ac )
+ rc_t CC KTUIPaletteSet ( struct KTUIPalette * self, KTUIPa_entry what, const tui_ac * ac )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -253,7 +253,7 @@ LIB_EXPORT rc_t CC KTUIPaletteSet ( struct KTUIPalette * self, KTUIPa_entry what
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteSet_fg ( struct KTUIPalette * self, KTUIPa_entry what, KTUI_color fg )
+ rc_t CC KTUIPaletteSet_fg ( struct KTUIPalette * self, KTUIPa_entry what, KTUI_color fg )
 {
     rc_t rc = 0;
 
@@ -267,7 +267,7 @@ LIB_EXPORT rc_t CC KTUIPaletteSet_fg ( struct KTUIPalette * self, KTUIPa_entry w
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteSet_bg ( struct KTUIPalette * self, KTUIPa_entry what, KTUI_color bg )
+ rc_t CC KTUIPaletteSet_bg ( struct KTUIPalette * self, KTUIPa_entry what, KTUI_color bg )
 {
     rc_t rc = 0;
 
@@ -281,7 +281,7 @@ LIB_EXPORT rc_t CC KTUIPaletteSet_bg ( struct KTUIPalette * self, KTUIPa_entry w
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteDefault ( struct KTUIPalette * self )
+ rc_t CC KTUIPaletteDefault ( struct KTUIPalette * self )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -292,7 +292,7 @@ LIB_EXPORT rc_t CC KTUIPaletteDefault ( struct KTUIPalette * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUIPaletteCopy ( struct KTUIPalette * dst, const struct KTUIPalette * src )
+ rc_t CC KTUIPaletteCopy ( struct KTUIPalette * dst, const struct KTUIPalette * src )
 {
     rc_t rc = 0;
     if ( dst == NULL )

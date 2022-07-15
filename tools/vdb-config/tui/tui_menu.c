@@ -208,7 +208,7 @@ static bool find_node_by_id ( KTUI_Menu_Node * node, uint32_t id, KTUI_Menu_Node
 }
 
 
-LIB_EXPORT rc_t CC KTUI_Menu_Make ( struct KTUI_Menu ** self )
+ rc_t CC KTUI_Menu_Make ( struct KTUI_Menu ** self )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -230,7 +230,7 @@ LIB_EXPORT rc_t CC KTUI_Menu_Make ( struct KTUI_Menu ** self )
 }
 
 
-LIB_EXPORT rc_t CC KTUI_Menu_AddRef ( const struct KTUI_Menu * self )
+ rc_t CC KTUI_Menu_AddRef ( const struct KTUI_Menu * self )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -255,7 +255,7 @@ LIB_EXPORT rc_t CC KTUI_Menu_AddRef ( const struct KTUI_Menu * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUI_Menu_Release ( struct KTUI_Menu * self )
+ rc_t CC KTUI_Menu_Release ( struct KTUI_Menu * self )
 {
     rc_t rc = 0;
     if ( self != NULL )
@@ -318,7 +318,7 @@ static rc_t decompose_path( const char * path, VNamelist * segments )
 }
 
 
-LIB_EXPORT rc_t CC KTUI_Menu_Add ( struct KTUI_Menu * self, const char * path, uint32_t id, char shortcut )
+ rc_t CC KTUI_Menu_Add ( struct KTUI_Menu * self, const char * path, uint32_t id, char shortcut )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -383,7 +383,7 @@ static bool find_index_of_child( KTUI_Menu_Node * node, uint32_t child_id, uint3
 }
 
 
-LIB_EXPORT rc_t CC KTUI_Menu_Remove_Id ( struct KTUI_Menu * self, uint32_t id )
+ rc_t CC KTUI_Menu_Remove_Id ( struct KTUI_Menu * self, uint32_t id )
 {
     rc_t rc = 0;
     if ( self == NULL )

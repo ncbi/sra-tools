@@ -111,7 +111,7 @@ static rc_t make_dlg_with_bg( struct KTUIDlg ** dlg,
 }
 
 
-LIB_EXPORT rc_t CC TUI_ShowMessage ( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
+ rc_t CC TUI_ShowMessage ( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
                        const char * txt, uint32_t x, uint32_t y, uint32_t w, KTUI_color bg1, KTUI_color bg2 )
 {
     rc_t rc;
@@ -152,7 +152,7 @@ LIB_EXPORT rc_t CC TUI_ShowMessage ( struct KTUI * tui, struct KTUIDlg * parent,
 /* ****************************************************************************************** */
 
 
-LIB_EXPORT rc_t CC TUI_YesNoDlg ( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
+ rc_t CC TUI_YesNoDlg ( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
                     const char * question, uint32_t x, uint32_t y, uint32_t w, bool * yes, KTUI_color bg1, KTUI_color bg2 )
 {
     rc_t rc;
@@ -194,7 +194,7 @@ LIB_EXPORT rc_t CC TUI_YesNoDlg ( struct KTUI * tui, struct KTUIDlg * parent, co
 /* ****************************************************************************************** */
 
 
-LIB_EXPORT rc_t CC TUI_ShowFile( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
+ rc_t CC TUI_ShowFile( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
                    const char * filename, tui_rect *r, KTUI_color bg1, KTUI_color bg2 )
 {
     struct KTUIPalette * pal;
@@ -240,7 +240,7 @@ LIB_EXPORT rc_t CC TUI_ShowFile( struct KTUI * tui, struct KTUIDlg * parent, con
 /* ****************************************************************************************** */
 
 
-LIB_EXPORT rc_t CC TUI_EditBuffer( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
+ rc_t CC TUI_EditBuffer( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
                      char * buffer, size_t buflen, uint32_t x, uint32_t y, uint32_t w, bool * selected, 
                      KTUI_color bg1, KTUI_color bg2 )
 {
@@ -302,7 +302,7 @@ LIB_EXPORT rc_t CC TUI_EditBuffer( struct KTUI * tui, struct KTUIDlg * parent, c
 
 /* ****************************************************************************************** */
 
-LIB_EXPORT rc_t CC TUI_PickFromList( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
+ rc_t CC TUI_PickFromList( struct KTUI * tui, struct KTUIDlg * parent, const char * caption,
         const VNamelist * list, uint32_t * selection, tui_rect * r, bool * selected,
         KTUI_color bg1, KTUI_color bg2 )
 {

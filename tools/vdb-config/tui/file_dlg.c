@@ -349,7 +349,7 @@ static rc_t make_dlg_with_bg( struct KTUIDlg ** dlg,
 }
 
 
-LIB_EXPORT rc_t CC FileDlg ( struct KTUI * tui,
+rc_t CC FileDlg ( struct KTUI * tui,
                              struct KTUIDlg * parent,
                              char * buffer,             /* if empty ... local path */
                              uint32_t buffer_size,

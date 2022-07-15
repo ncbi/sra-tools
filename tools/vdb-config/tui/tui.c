@@ -44,7 +44,7 @@
 /* static const char tuimanager_classname [] = "TUIManager"; */
 static const char tui_classname [] = "TUI_Implementation";
 
-LIB_EXPORT rc_t CC KTUIMake ( const KTUIMgr * mgr, struct KTUI ** self, uint32_t timeout )
+rc_t CC KTUIMake ( const KTUIMgr * mgr, struct KTUI ** self, uint32_t timeout )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -79,7 +79,7 @@ LIB_EXPORT rc_t CC KTUIMake ( const KTUIMgr * mgr, struct KTUI ** self, uint32_t
 }
 
 
-LIB_EXPORT rc_t CC KTUIAddRef ( const struct KTUI * self )
+rc_t CC KTUIAddRef ( const struct KTUI * self )
 {
     rc_t rc = 0;
     if ( self != NULL )
@@ -114,7 +114,7 @@ static rc_t CC KTUIDestroy ( struct KTUI * self )
 
 
 /* not platform specific */
-LIB_EXPORT rc_t CC KTUIRelease ( const struct KTUI * self )
+rc_t CC KTUIRelease ( const struct KTUI * self )
 {
     rc_t rc = 0;
     if ( self != NULL )
@@ -138,7 +138,7 @@ LIB_EXPORT rc_t CC KTUIRelease ( const struct KTUI * self )
 }
 
 
-LIB_EXPORT rc_t CC KTUISetTimeout ( struct KTUI * self, uint32_t timeout )
+rc_t CC KTUISetTimeout ( struct KTUI * self, uint32_t timeout )
 {
     rc_t rc = 0;
 
@@ -151,7 +151,7 @@ LIB_EXPORT rc_t CC KTUISetTimeout ( struct KTUI * self, uint32_t timeout )
 }
 
 
-LIB_EXPORT rc_t CC KTUIPrint( struct KTUI * self, const tui_point * p,
+rc_t CC KTUIPrint( struct KTUI * self, const tui_point * p,
                               const tui_ac * ac, const char * s, uint32_t l )
 {
     rc_t rc = 0;
@@ -168,7 +168,7 @@ LIB_EXPORT rc_t CC KTUIPrint( struct KTUI * self, const tui_point * p,
 }
 
 
-LIB_EXPORT rc_t CC KTUIRect ( struct KTUI * self, const tui_rect * r,
+rc_t CC KTUIRect ( struct KTUI * self, const tui_rect * r,
                               const tui_ac * ac, const char c )
 {
     rc_t rc = 0;
@@ -189,7 +189,7 @@ LIB_EXPORT rc_t CC KTUIRect ( struct KTUI * self, const tui_rect * r,
 }
 
 
-LIB_EXPORT rc_t CC KTUIFlush ( struct KTUI * self, bool forced )
+rc_t CC KTUIFlush ( struct KTUI * self, bool forced )
 {
     rc_t rc = 0;
 
@@ -213,7 +213,7 @@ LIB_EXPORT rc_t CC KTUIFlush ( struct KTUI * self, bool forced )
 
 
 /* not platform specific, except the call to platform specific read_from_stdin() */
-LIB_EXPORT rc_t CC KTUIGet ( struct KTUI * self, tui_event * event )
+rc_t CC KTUIGet ( struct KTUI * self, tui_event * event )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -240,7 +240,7 @@ LIB_EXPORT rc_t CC KTUIGet ( struct KTUI * self, tui_event * event )
 
 
 /* not platform specific, just returns values from self-struct */
-LIB_EXPORT rc_t CC KTUIGetExtent ( struct KTUI * self, int * cols, int * lines )
+rc_t CC KTUIGetExtent ( struct KTUI * self, int * cols, int * lines )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -256,7 +256,7 @@ LIB_EXPORT rc_t CC KTUIGetExtent ( struct KTUI * self, int * cols, int * lines )
 }
 
 
-LIB_EXPORT rc_t CC KTUIClrScr( struct KTUI * self, KTUI_color bg )
+rc_t CC KTUIClrScr( struct KTUI * self, KTUI_color bg )
 {
     tui_ac ac;
     set_ac( &ac, KTUI_a_none, bg, bg );
@@ -265,7 +265,7 @@ LIB_EXPORT rc_t CC KTUIClrScr( struct KTUI * self, KTUI_color bg )
 }
 
 
-LIB_EXPORT void set_ac( tui_ac * dst, KTUI_attrib attr, KTUI_color fg, KTUI_color bg )
+void set_ac( tui_ac * dst, KTUI_attrib attr, KTUI_color fg, KTUI_color bg )
 {
     if ( dst != NULL )
     {
@@ -276,7 +276,7 @@ LIB_EXPORT void set_ac( tui_ac * dst, KTUI_attrib attr, KTUI_color fg, KTUI_colo
 }
 
 
-LIB_EXPORT void copy_ac( tui_ac * dst, const tui_ac * src )
+void copy_ac( tui_ac * dst, const tui_ac * src )
 {
     if ( dst != NULL && src != NULL )
     {
@@ -287,7 +287,7 @@ LIB_EXPORT void copy_ac( tui_ac * dst, const tui_ac * src )
 }
 
 
-LIB_EXPORT void inverse_ac( tui_ac * dst, const tui_ac * src )
+void inverse_ac( tui_ac * dst, const tui_ac * src )
 {
     if ( dst != NULL && src != NULL )
     {
@@ -298,7 +298,7 @@ LIB_EXPORT void inverse_ac( tui_ac * dst, const tui_ac * src )
 }
 
 
-LIB_EXPORT void set_rect( tui_rect * dst, int x, int y, int w, int h )
+void set_rect( tui_rect * dst, int x, int y, int w, int h )
 {
     if ( dst != NULL )
     {
@@ -310,7 +310,7 @@ LIB_EXPORT void set_rect( tui_rect * dst, int x, int y, int w, int h )
 }
 
 
-LIB_EXPORT void copy_rect( tui_rect * dst, const tui_rect * src )
+void copy_rect( tui_rect * dst, const tui_rect * src )
 {
     if ( dst != NULL && src != NULL )
     {
@@ -363,7 +363,7 @@ void CC put_mouse_event( struct KTUI * self, unsigned int x, unsigned int y,
 }
 
 
-LIB_EXPORT bool CC is_alpha_key( tui_event * event, char c )
+bool CC is_alpha_key( tui_event * event, char c )
 {
     return ( event != NULL &&
               event->event_type == ktui_event_kb &&
@@ -372,7 +372,7 @@ LIB_EXPORT bool CC is_alpha_key( tui_event * event, char c )
 }
 
 
-LIB_EXPORT bool CC is_key_code( tui_event * event, KTUI_key k )
+bool CC is_key_code( tui_event * event, KTUI_key k )
 {
     return ( event != NULL &&
               event->event_type == ktui_event_kb &&

@@ -748,6 +748,11 @@ public:
     {
         return equalRange(container, value);
     }
+    template <typename U>
+    bool contains(U const &value) const {
+        auto const fnd = find(value);
+        return fnd.first != fnd.second;
+    }
     OrderedList() = default;
     explicit OrderedList(size_t capacity)
     {

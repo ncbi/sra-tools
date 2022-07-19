@@ -53,7 +53,9 @@
 #else
 #define TOOL_HELP(...) {}
 #endif
+
 #define TOOL_ARGS(...) {__VA_ARGS__}
+
 #if USE_TOOL_HELP
 #define TOOL_ARG(LONG, ALIAS, ARG, HELP) {HELP, LONG, ALIAS, 0, ARG, false}
 #define FQD_TOOL_ARG(LONG, ALIAS, ARG, HELP) {HELP, LONG, ALIAS, 0, (ARG) != 0, (ARG) < 0}
@@ -62,6 +64,7 @@
 #define FQD_TOOL_ARG(LONG, ALIAS, ARG, HELP) {LONG, ALIAS, 0, (ARG) != 0, (ARG) < 0}
 #endif
 
+#define TOOL_NAME_COMMON ""
 #define TOOL_ARGS_COMMON TOOL_ARGS ( \
     TOOL_ARG("ngc", "", true, TOOL_HELP("PATH to ngc file.", 0)), \
     TOOL_ARG("cart", "", true, TOOL_HELP("To read a kart file.", 0)), \
@@ -90,13 +93,15 @@ ParameterDefinition const &ParameterDefinition::argument() {
     return y;
 }
 
+/// Used by `ParamDefinitions` to traverse the command line arguments.
 struct ArgvIterator {
-    CommandLine const &parent;
-    int argind;
-    int indarg;
-
+private:
+    CommandLine const *parent;
+    mutable int argind;
+    mutable int indarg;
+public:
     ArgvIterator(CommandLine const &parent)
-    : parent(parent)
+    : parent(&parent)
     , argind(0)
     , indarg(0)
     {}
@@ -107,21 +112,21 @@ struct ArgvIterator {
     /// In shortArg mode, moves to next short arg, or switches back to normal mode if no more shortArgs.
     ///
     /// \returns 0 if there are no more, 1 if in normal mode, -1 if in shortArg mode.
-    int next() {
-        if (argind == parent.argc) return 0;
+    int next() const {
+        if (argind == parent->argc) return 0;
         if (indarg > 0) {
             ++indarg;
-            if (parent.argv[argind][indarg] != '\0')
+            if (parent->argv[argind][indarg] != '\0')
                 return -1;
             indarg = 0;
         }
         ++argind;
-        return argind < parent.argc ? 1 : 0;
+        return argind < parent->argc ? 1 : 0;
     }
 
     /// \brief The current element of argv.
     char const *get() const {
-        return parent.argv[argind];
+        return parent->argv[argind];
     }
 
     /// \brief The index in argv of current element of argv.
@@ -130,14 +135,14 @@ struct ArgvIterator {
     }
 
     /// \brief Switch to shortArg mode and return the current parameter.
-    char const *getChar() {
+    char const *getChar() const {
         if (indarg == 0)
             indarg = 1;
         return get() + indarg;
     }
 
     /// \brief End shortArg mode and advance to next parameter.
-    void advance() {
+    void advance() const {
         assert(indarg > 0);
         indarg = 0;
         ++argind;
@@ -167,34 +172,34 @@ struct ParamDefinitions_Common {
     using LongIndex = std::map<std::string, Container::Index>;
     using ShortIndex = UniqueOrderedList<CharIndexElement>;
 
-    static ParamDefinitions_Common const &commonParams;
-    
-    std::string tool;
     Container container;
     ShortIndex shortIndex;
-
-    ParamDefinitions_Common(std::string const &name, size_t capacity)
-    : tool(name)
-    , container(capacity)
-    {}
-
-    /// \Returns true if the collection of definitions contains the query definition.
-    bool contains(ParameterDefinition const &def) const {
-        auto const fnd = container.find(def);
-        return fnd.first != fnd.second;
+    
+    ParamDefinitions_Common(size_t count, ParameterDefinition const *defs)
+    : container(count)
+    {
+        for (auto cur = defs; cur != defs + count; ++cur)
+            container.insert(*cur);
     }
     
-    /// \brief Update indices and assign bit masks.
-    void finalize() {
-        auto i = 0;
+    ParamDefinitions_Common(ParamDefinitions_Common const &common, size_t count, ParameterDefinition const *defs)
+    : container(common.container.size() + count)
+    {
+        for (auto def : common.container)
+            container.insert(def);
+        
+        for (auto cur = defs; cur != defs + count; ++cur)
+            container.insert(*cur);
+        
+        // Update indices and assign bit masks.
+        unsigned i = 0;
         uint64_t mask = 1;
         for (auto &def : container) {
             if (def.aliases) {
-                for (auto ch : std::string(def.aliases)) {
+                for (auto const &ch : std::string(def.aliases))
                     shortIndex.insert(CharIndexElement({ch, i}));
-                }
             }
-            if (!commonParams.contains(def)) {
+            if (!common.container.contains(def)) {
                 def.bitMask = mask;
                 mask <<= 1;
             }
@@ -206,43 +211,56 @@ struct ParamDefinitions_Common {
      *
      * Fields: tool name, '(' bit shift ')' decimal value, parameter long name
      */
-    void printParameterBitmasks(std::ostream &out) const {
-        char buffer[32]; // e.g. "0x0000000000000001 (1 <<  0)"
-        
+    void printParameterBitmasks(std::string const &tool, std::ostream &out) const {
+        char buffer[] = "0x0000000000000001 (1 <<  0)";
+        char *const numAt = buffer + 17, *const shiftAt = numAt + 9;
+
+        assert(*numAt == '1');
+        assert(*shiftAt == '0');
         for (auto &def : container) {
             if (def.isArgument()) // obviously, doesn't apply to tool arguments.
                 continue;
             if (def.bitMask == 0) // common tool parameters don't have bits assigned to them.
                 continue;
 
-            int shift = 0;
+            unsigned shift = 0;
             uint64_t mask = def.bitMask;
             
             while (mask > 1) {
                 mask >>= 1;
                 shift += 1;
             }
+
+            auto const xdigit = numAt - (shift / 4);
             
-            auto const n = snprintf(buffer, sizeof(buffer), "0x%016" PRIx64 " (1 << %2u)", def.bitMask, shift);
-            assert(n <= sizeof(buffer));
+            *xdigit = '0' + (1 << (shift % 4));
+            if (shift > 9)
+                shiftAt[-1] = (shift / 10) % 10 + '0';
+            shiftAt[0] = shift % 10 + '0';
+
             out << tool << '\t'
                 << sratools::Version::currentString << '\t'
                 << buffer << '\t'
                 << def.name << '\n';
+            
+            *xdigit = '0';
+            shiftAt[-1] = shiftAt[0] = ' ';
         }
         out << std::flush;
     }
 
-    virtual bool parseArg(Arguments::Container &dst, ArgvIterator &iter) const = 0;
+    virtual bool parseArg(Arguments::Container *dst, ArgvIterator const &iter) const = 0;
     
-    Arguments parseArgv(ArgvIterator &iter) const {
+    Arguments parse(CommandLine const &cmdLine) const {
         Arguments::Container result;
-        uint64_t argsHash = 0;
+        auto iter = ArgvIterator(cmdLine);
 
-        result.reserve(iter.parent.argc);
+        result.reserve(cmdLine.argc);
         
-        while (parseArg(result, iter))
+        while (parseArg(&result, iter))
             ;
+
+        uint64_t argsHash = 0;
 
         for (auto const &used : result)
             argsHash |= used.def->bitMask;
@@ -251,22 +269,15 @@ struct ParamDefinitions_Common {
     }
 };
 
-#define TOOL_DEFINE(SELF, NAME) \
-    static inline SELF make_ ## NAME () { \
-        ParameterDefinition const defs[] = TOOL_ARGS_ ## NAME ; \
-        auto result = SELF(TOOL_NAME_ ## NAME, sizeof(defs)/sizeof(defs[0]) - 1 + commonParams.container.size()); \
-        for (auto &def : commonParams.container) result.container.insert(def); \
-        for (auto def = defs; def->name != nullptr; ++def) \
-            result.container.insert(*def); \
-        result.finalize(); \
-        return result; \
-    }
-
-
 struct ParamDefinitions final : public ParamDefinitions_Common
 {
-    ParamDefinitions(std::string const &name, size_t capacity)
-    : ParamDefinitions_Common(name, capacity)
+private:
+    ParamDefinitions(size_t count, ParameterDefinition const *defs)
+    : ParamDefinitions_Common(count, defs)
+    {}
+public:
+    ParamDefinitions(ParamDefinitions_Common const &common, size_t count, ParameterDefinition const *defs)
+    : ParamDefinitions_Common(common, count, defs)
     {}
     
     /// \brief Find the index of the definition.
@@ -283,7 +294,7 @@ struct ParamDefinitions final : public ParamDefinitions_Common
         return {-1, nullptr};
     }
     
-    bool parseArg(Arguments::Container &dst, ArgvIterator &i) const override {
+    bool parseArg(Arguments::Container *dst, ArgvIterator const &i) const override {
         auto nextIsArg = 0;
         auto index = -1;
 
@@ -291,20 +302,20 @@ struct ParamDefinitions final : public ParamDefinitions_Common
             switch (i.next()) {
             case 0:
                 if (nextIsArg) {
-                    dst.emplace_back(Argument({&container[index], nullptr, -1}));
+                    dst->emplace_back(Argument({&container[index], nullptr, -1}));
                     return true;
                 }
                 return false;
             case 1:
                 if (nextIsArg) {
-                    dst.emplace_back(Argument({&container[index], i.get(), i.argind - 1}));
+                    dst->emplace_back(Argument({&container[index], i.get(), i.index() - 1}));
                     return true;
                 }
                 else {
                     auto const arg = i.get();
                     
                     if (arg[0] != '-') {
-                        dst.emplace_back(Argument({&ParameterDefinition::argument(), arg, i.argind}));
+                        dst->emplace_back(Argument({&ParameterDefinition::argument(), arg, i.index()}));
                         return true;
                     }
                     if (arg[1] == '-') {
@@ -313,11 +324,11 @@ struct ParamDefinitions final : public ParamDefinitions_Common
                             index = f.first;
                             auto const &def = container[index];
                             if (f.second && def.hasArgument) {
-                                dst.emplace_back(Argument({&def, f.second, i.argind}));
+                                dst->emplace_back(Argument({&def, f.second, i.index()}));
                                 return true;
                             }
                             if (!f.second && !def.hasArgument) {
-                                dst.emplace_back(Argument({&def, nullptr, i.argind}));
+                                dst->emplace_back(Argument({&def, nullptr, i.index()}));
                                 return true;
                             }
                             if (def.hasArgument) {
@@ -325,7 +336,7 @@ struct ParamDefinitions final : public ParamDefinitions_Common
                                 continue;
                             }
                         }
-                        dst.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.argind}));
+                        dst->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.index()}));
                         return true;
                     }
                 }
@@ -344,10 +355,10 @@ struct ParamDefinitions final : public ParamDefinitions_Common
                                     ++nextIsArg;
                                     continue;
                                 }
-                                dst.emplace_back(Argument({&def, arg, i.argind}));
+                                dst->emplace_back(Argument({&def, arg, i.index()}));
                                 return true;
                             }
-                            dst.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.argind}));
+                            dst->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, i.index()}));
                             return true;
                         }
                     case 1:
@@ -357,7 +368,7 @@ struct ParamDefinitions final : public ParamDefinitions_Common
                         }
                         // fallthrough;
                     case 2:
-                        dst.emplace_back(Argument({&container[index], arg, i.argind}));
+                        dst->emplace_back(Argument({&container[index], arg, i.index()}));
                         i.advance();
                         return true;
                     default:
@@ -373,42 +384,17 @@ struct ParamDefinitions final : public ParamDefinitions_Common
 
     static inline ParamDefinitions makeCommonParams() {
         static ParameterDefinition const defs[] = TOOL_ARGS_COMMON;
-        ParamDefinitions result("", sizeof(defs)/sizeof(defs[0]) - 1);
-        
-        for (auto def = defs; def->name != nullptr; ++def)
-            result.container.insert(*def);
-
-        return result;
-    }
-    
-    TOOL_DEFINE(ParamDefinitions, FASTERQ_DUMP)
-    TOOL_DEFINE(ParamDefinitions, SAM_DUMP)
-    TOOL_DEFINE(ParamDefinitions, VDB_DUMP)
-    TOOL_DEFINE(ParamDefinitions, SRA_PILEUP)
-    
-    static inline ParamDefinitions toolFor(std::string const &name) {
-        /// MARK: and here
-        if (name == TOOL_NAME_FASTERQ_DUMP)
-            return make_FASTERQ_DUMP();
-        if (name == TOOL_NAME_SAM_DUMP)
-            return make_SAM_DUMP();
-        if (name == TOOL_NAME_SRA_PILEUP)
-            return make_SRA_PILEUP();
-        if (name == TOOL_NAME_VDB_DUMP)
-            return make_VDB_DUMP();
-        throw UnknownToolException();
+        return ParamDefinitions(sizeof(defs)/sizeof(defs[0]) - 1, defs);
     }
 };
 
-ParamDefinitions_Common const &ParamDefinitions_Common::commonParams = ParamDefinitions::makeCommonParams();
-
-struct ParamDefinitions_FQD : public ParamDefinitions_Common
+struct ParamDefinitions_FQD final : public ParamDefinitions_Common
 {
-    ParamDefinitions_FQD(std::string const &name, size_t capacity)
-    : ParamDefinitions_Common(name, capacity)
+    ParamDefinitions_FQD(ParamDefinitions_Common const &common, size_t count, ParameterDefinition const *defs)
+    : ParamDefinitions_Common(common, count, defs)
     {}
 
-    bool parseArg(Arguments::Container &result, ArgvIterator &iter) const override {
+    bool parseArg(Arguments::Container *result, ArgvIterator const &iter) const override {
         int index = -1;
         bool nextMayBeArg = false;
         bool nextMustBeArg = false;
@@ -419,7 +405,7 @@ struct ParamDefinitions_FQD : public ParamDefinitions_Common
                 if (nextMayBeArg) {
                     // optional argument did not show up
                     assert(index >= 0 && index < container.size());
-                    result.emplace_back(Argument({&container[index], nullptr, iter.argind - 1}));
+                    result->emplace_back(Argument({&container[index], nullptr, iter.index() - 1}));
                 }
                 return false;
             case 1:
@@ -427,19 +413,19 @@ struct ParamDefinitions_FQD : public ParamDefinitions_Common
                     auto const arg = iter.get();
                     if (nextMustBeArg || (arg[0] != '-' && nextMayBeArg)) {
                         assert(index >= 0 && index < container.size());
-                        result.emplace_back(Argument({&container[index], arg, iter.argind - 1}));
+                        result->emplace_back(Argument({&container[index], arg, iter.index() - 1}));
                         return true;
                     }
                     if (arg[0] == '-') {
                         if (nextMayBeArg) {
                             // optional argument did not show up
                             assert(index >= 0 && index < container.size());
-                            result.emplace_back(Argument({&container[index], nullptr, iter.argind - 1}));
+                            result->emplace_back(Argument({&container[index], nullptr, iter.index() - 1}));
                         }
                         if (arg[1] == '-') {
                             auto const f = container.find(arg + 2);
                             if (f.first == f.second) {
-                                result.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.argind}));
+                                result->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.index()}));
                                 return true;
                             }
                             index = iterDistance(container.begin(), f.first);
@@ -447,21 +433,21 @@ struct ParamDefinitions_FQD : public ParamDefinitions_Common
                         else {
                             auto const f = shortIndex.find(arg[1]);
                             if (f.first == f.second) {
-                                result.emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.argind}));
+                                result->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.index()}));
                                 return true;
                             }
                             index = f.first->second;
                         }
                         auto const &def = container[index];
                         if (!def.hasArgument) {
-                            result.emplace_back(Argument({&def, nullptr, iter.argind}));
+                            result->emplace_back(Argument({&def, nullptr, iter.index()}));
                             return true;
                         }
                         nextMayBeArg = true;
                         nextMustBeArg = !def.argumentIsOptional;
                         continue;
                     }
-                    result.emplace_back(Argument({&ParameterDefinition::argument(), arg, iter.argind}));
+                    result->emplace_back(Argument({&ParameterDefinition::argument(), arg, iter.index()}));
                     return true;
                 }
                 break;
@@ -469,15 +455,47 @@ struct ParamDefinitions_FQD : public ParamDefinitions_Common
         }
         return false;
     }
-    TOOL_DEFINE(ParamDefinitions_FQD, FASTQ_DUMP)
 };
+
+static ParamDefinitions_Common const &commonParams = ParamDefinitions::makeCommonParams();
+
+#define DEFINE_ARGS(NAME, PARSE_TYPE) \
+namespace NAME { \
+    using Parser = PARSE_TYPE; \
+    static auto const toolName = TOOL_NAME_ ## NAME; \
+    static ParameterDefinition const defs[] = TOOL_ARGS_ ## NAME; \
+    static ParamDefinitions_Common const &parser = Parser(commonParams, sizeof(defs)/sizeof(defs[0]) - 1, defs); \
+}
+
+DEFINE_ARGS(FASTERQ_DUMP, ParamDefinitions)
+DEFINE_ARGS(SAM_DUMP, ParamDefinitions)
+DEFINE_ARGS(VDB_DUMP, ParamDefinitions)
+DEFINE_ARGS(SRA_PILEUP, ParamDefinitions)
+DEFINE_ARGS(FASTQ_DUMP, ParamDefinitions_FQD)
+
+static ParamDefinitions_Common const &parserForTool(std::string const &toolName)
+{
+    if (toolName == FASTERQ_DUMP::toolName)
+        return FASTERQ_DUMP::parser;
+    
+    if (toolName == FASTQ_DUMP::toolName)
+        return FASTQ_DUMP::parser;
+    
+    if (toolName == VDB_DUMP::toolName)
+        return VDB_DUMP::parser;
+
+    if (toolName == SAM_DUMP::toolName)
+        return SAM_DUMP::parser;
+    
+    if (toolName == SRA_PILEUP::toolName)
+        return SRA_PILEUP::parser;
+    
+    throw UnknownToolException();
+}
 
 Arguments argumentsParsed(CommandLine const &cmdLine)
 {
-    auto iter = ArgvIterator(cmdLine);
-    if (cmdLine.toolName == "fastq-dump")
-        return ParamDefinitions_FQD::make_FASTQ_DUMP().parseArgv(iter);
-    return ParamDefinitions::toolFor(cmdLine.toolName).parseArgv(iter);
+    return parserForTool(cmdLine.toolName).parse(cmdLine);
 }
 
 std::ostream &operator <<(std::ostream &out, Argument const &arg) {
@@ -492,9 +510,9 @@ std::ostream &operator <<(std::ostream &out, Argument const &arg) {
 }
 
 void printParameterBitmasks(std::ostream &out) {
-    ParamDefinitions_FQD::make_FASTQ_DUMP().printParameterBitmasks(out);
-    ParamDefinitions::make_FASTERQ_DUMP().printParameterBitmasks(out);
-    ParamDefinitions::make_SAM_DUMP().printParameterBitmasks(out);
-    ParamDefinitions::make_SRA_PILEUP().printParameterBitmasks(out);
-    ParamDefinitions::make_VDB_DUMP().printParameterBitmasks(out);
+    FASTERQ_DUMP::parser.printParameterBitmasks(FASTERQ_DUMP::toolName, out);
+    FASTQ_DUMP::parser.printParameterBitmasks(FASTQ_DUMP::toolName, out);
+    SAM_DUMP::parser.printParameterBitmasks(SAM_DUMP::toolName, out);
+    SRA_PILEUP::parser.printParameterBitmasks(SRA_PILEUP::toolName, out);
+    VDB_DUMP::parser.printParameterBitmasks(VDB_DUMP::toolName, out);
 }

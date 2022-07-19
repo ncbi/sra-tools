@@ -23,7 +23,7 @@
 # ===========================================================================
 
 # External
-if( "linux" STREQUAL ${OS} )
+if( NOT WIN32)
 
 	add_compile_definitions( __mod__="tools/bam-loader" )
 
@@ -31,6 +31,10 @@ if( "linux" STREQUAL ${OS} )
 
 	#set(CMAKE_BUILD_TYPE RelWithDebInfo)
 	find_package(OpenSSL REQUIRED)
+	set( EXTRA_LIBS OpenSSL::SSL )
+	if ( "mac" STREQUAL ${OS} )
+		list(APPEND EXTRA_LIBS crypto )
+	endif()
 
 	# Internal
 	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
@@ -54,7 +58,7 @@ if( "linux" STREQUAL ${OS} )
     set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
     target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
     target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-    target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
+    target_link_libraries( bam-load  loader ${EXTRA_LIBS} ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
 
 	MakeLinksExe( bam-load false )
 endif()

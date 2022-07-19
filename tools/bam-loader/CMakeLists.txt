@@ -23,7 +23,7 @@
 # ===========================================================================
 
 # External
-if( NOT WIN32)
+if( "linux" STREQUAL ${OS} )
 
 	add_compile_definitions( __mod__="tools/bam-loader" )
 
@@ -54,7 +54,7 @@ if( NOT WIN32)
     set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
     target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
     target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-    target_link_libraries( bam-load  loader OpenSSL::SSL crypto ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
+    target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
 
 	MakeLinksExe( bam-load false )
 endif()

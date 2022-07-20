@@ -32,6 +32,10 @@
 #include <klib/log.h>
 #endif
 
+#ifndef _h_klib_status_
+#include <klib/status.h>
+#endif
+
 #ifndef _h_klib_out_
 #include <klib/out.h>
 #endif
@@ -850,7 +854,11 @@ static int64_t CC ReadGroup_sort( BSTNode const *item, BSTNode const *node ) {
 
 static rc_t ReadGroup_print( char const *nm ) {
     rc_t rc = 0;
+#if WINDOWS
+    if ( nm[ 0 ] != '\0' && _stricmp( nm, "default" ) ) {    
+#else
     if ( nm[ 0 ] != '\0' && strcasecmp( nm, "default" ) ) {
+#endif
         rc = KOutMsg( "@RG\tID:%s\n", nm );
     }
     return rc;
@@ -3635,18 +3643,30 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] ) {
                     /* cut off [.lite].[c]sra[.nenc||.ncbi_enc] if any */
                     ext = string_rchr( basename, zz, '.' );
                     if ( ext != NULL ) {
+#if WINDOWS
+                        if ( _stricmp( ext, ".nenc" ) == 0 || _stricmp( ext, ".ncbi_enc" ) == 0 ) {
+#else
                         if ( strcasecmp( ext, ".nenc" ) == 0 || strcasecmp( ext, ".ncbi_enc" ) == 0 ) {
+#endif
                             zz -= ext - basename;
                             *ext = '\0';
                             ext = string_rchr( basename, zz, '.' );
                         }
 
                         if ( ext != NULL ) {
+#if WINDOWS
+                            if ( _stricmp( ext, ".sra" ) == 0 || _stricmp( ext, ".csra" ) == 0 ) {
+#else
                             if ( strcasecmp( ext, ".sra" ) == 0 || strcasecmp( ext, ".csra" ) == 0 ) {
+#endif
                                 zz -= ext - basename;
                                 *ext = '\0';
                                 ext = string_rchr( basename, zz, '.' );
+#if WINDOWS
+                                if ( ext != NULL && _stricmp( ext, ".lite" ) == 0 ) {
+#else
                                 if ( ext != NULL && strcasecmp( ext, ".lite" ) == 0 ) {
+#endif
                                     *ext = '\0';
                                 }
                             }
@@ -4042,7 +4062,11 @@ static rc_t GetDistance( Args const *const args, struct params_s *const parms, u
             if ( rc != 0 ) {
                 break;
             }
+#if WINDOWS
+            if ( _stricmp( valstr, "unknown" ) == 0 ) {
+#else
             if ( strcasecmp( valstr, "unknown" ) == 0 ) {
+#endif
                 parms->mp_dist_unknown = true;
                 continue;
             }

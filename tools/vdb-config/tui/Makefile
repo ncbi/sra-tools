@@ -22,30 +22,9 @@
 #
 # ===========================================================================
 
-if (WIN32)
-    set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartupNoPathConversion" )
-endif()
+# tui = Text User Interface ( different from GUI ... )
 
-set( TUI_LIBS tui_cpp tui)
+TOP ?= $(abspath ../..)
+MODULE = libs/tui
 
-add_subdirectory( tui )
-
-add_compile_definitions( __mod__="tools/vdb-config" )
-
-add_executable( vdb-config
-	configure
-	util
-	vdb-config
-	interactive
-	interactive2
-	vdb-config-model
-)
-
-add_dependencies( vdb-config tui )
-target_include_directories( vdb-config PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} )
-target_link_libraries ( vdb-config ${TUI_LIBS} ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
-MakeLinksExe( vdb-config false )
-
-add_custom_command( TARGET vdb-config POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy ${VDB_INCDIR}/kfg/ncbi/default.kfg ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/ncbi/default.kfg
-)
+include $(TOP)/build/Makefile.env

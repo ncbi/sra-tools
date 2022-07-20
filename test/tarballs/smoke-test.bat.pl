@@ -30,32 +30,39 @@ unless ( $BIN_DIR && $VERSION_CHECKER && $VERSION ) {
 
 my $FAILED='';
 
+my $VERBOSE;
+
 if ( $NGS_DIR ) {
-    print "Smoke testing ngs tarball in $NGS_DIR ...\n";
-    if ( -e "$NGS_DIR/ngs-java/ngs-java.jar" ) {
-        print "ngs-java.jar exists\n";
+    if ( $NGS_DIR eq '-v' ) {
+        ++ $VERBOSE
     } else {
-        $FAILED = "$FAILED ngs-java.jar doesn't exist;"
-    }
+        print "Smoke testing ngs tarball in $NGS_DIR ...\n";
 
-    if ( -e "$NGS_DIR/ngs-java/ngs-doc.jar" ) {
-        print "ngs-doc.jar exists\n";
-    } else {
-        $FAILED = "$FAILED ngs-doc.jar doesn't exist;"
-    }
+        if ( -e "$NGS_DIR/ngs-java/ngs-java.jar" ) {
+            print "ngs-java.jar exists\n";
+        } else {
+            $FAILED = "$FAILED ngs-java.jar doesn't exist;"
+        }
 
-    if ( -e "$NGS_DIR/ngs-java/ngs-src.jar" ) {
-        print "ngs-src.jar exists\n";
-    } else {
-        $FAILED = "$FAILED ngs-src.jar doesn't exist;"
-    }
+        if ( -e "$NGS_DIR/ngs-java/ngs-doc.jar" ) {
+            print "ngs-doc.jar exists\n";
+        } else {
+            $FAILED = "$FAILED ngs-doc.jar doesn't exist;"
+        }
 
-    if ( $FAILED ) {
-        print "Failed: $FAILED\n";
-        exit 1
-    }
+        if ( -e "$NGS_DIR/ngs-java/ngs-src.jar" ) {
+            print "ngs-src.jar exists\n";
+        } else {
+            $FAILED = "$FAILED ngs-src.jar doesn't exist;"
+        }
 
-    print "Ngs tarball smoke test successful\n"
+        if ( $FAILED ) {
+            print "Failed: $FAILED\n";
+            exit 1
+        }
+
+        print "Ngs tarball smoke test successful\n"
+    }
 } else {
     print "Skipped smoke testing ngs tarball.\n";
 }
@@ -110,12 +117,13 @@ print "\n";
 
 # run some key tools, check return codes
 my $cmd;
-$cmd = 'test-sra'                      ; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'vdb-config'                    ; $FAILED .= " $cmd" if RunTool ( $cmd );
 $cmd = 'prefetch SRR002749'            ; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'vdb-dump SRR000001 -R 1'       ; $FAILED .= " $cmd" if RunTool ( $cmd );
+$cmd = 'sam-dump SRR002749'            ; $FAILED .= " $cmd" if RunTool ( $cmd );
 $cmd = 'fastq-dump SRR002749 -fasta -Z'; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'sam-dump SRR002749 '           ; $FAILED .= " $cmd" if RunTool ( $cmd );
+$VERBOSE = 0; # shut up ; to much words will follow
+$cmd = 'vdb-dump SRR000001 -R 1'       ; $FAILED .= " $cmd" if RunTool ( $cmd );
+$cmd = 'vdb-config'                    ; $FAILED .= " $cmd" if RunTool ( $cmd );
+$cmd = 'test-sra'                      ; $FAILED .= " $cmd" if RunTool ( $cmd );
 $cmd = 'sra-pileup SRR619505 --quiet'  ; $FAILED .= " $cmd" if RunTool ( $cmd );
 
 if ( $FAILED ) {
@@ -129,7 +137,12 @@ exit 0;
 sub RunTool {
     my ( $cmd ) = @_;
     print "$cmd\n";
-    $cmd .= ' >NUL 2>&1';
-    `$cmd`;
+    if ( $VERBOSE ) {
+        $cmd .= ' 2>&1'
+    } else {
+        $cmd .= ' >NUL 2>&1'
+    }
+    my $out = `$cmd`;
+    print $out if $VERBOSE;
     return $?;
 }

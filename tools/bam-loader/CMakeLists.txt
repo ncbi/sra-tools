@@ -33,6 +33,7 @@ if( NOT WIN32)
 	find_package(OpenSSL REQUIRED)
 	set( EXTRA_LIBS OpenSSL::SSL )
 	if ( "mac" STREQUAL ${OS} )
+		link_directories( /sw/lib )
 		list(APPEND EXTRA_LIBS crypto )
 	endif()
 

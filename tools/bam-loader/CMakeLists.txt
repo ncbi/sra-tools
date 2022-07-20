@@ -30,8 +30,6 @@ if( NOT WIN32)
 	include_directories( ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ ./) # zlib.h
 
 	#set(CMAKE_BUILD_TYPE RelWithDebInfo)
-	find_package(OpenSSL REQUIRED)
-	set( EXTRA_LIBS OpenSSL::SSL )
 	if (APPLE)
 		# This is a bug in CMake that causes it to prefer the system version over
 		# the one in the specified ROOT folder.
@@ -41,6 +39,7 @@ if( NOT WIN32)
 		set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib CACHE FILEPATH "" FORCE)
 		set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
 	endif()
+	find_package(OpenSSL REQUIRED)
 
 	# Internal
 	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )

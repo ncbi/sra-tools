@@ -438,7 +438,9 @@ static int main(CommandLine const &argv)
         parsed.each("location", [](Argument const &arg) { arg.reason = "used"; });
 
         all_sources.set_ce_token_env_var();
-        all_sources.set_param_bits_env_var(parsed.argsUsed());
+        
+        // TODO: UNCOMMENT WHEN READY; SEE JIRA VDB-5001
+        // all_sources.set_param_bits_env_var(parsed.argsUsed());
 
         for (auto const &arg : parsed) {
             if (!arg.isArgument()) continue;

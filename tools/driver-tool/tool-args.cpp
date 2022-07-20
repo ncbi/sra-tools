@@ -213,27 +213,20 @@ struct ParamDefinitions_Common {
      */
     void printParameterBitmasks(std::string const &tool, std::ostream &out) const {
         char buffer[] = "0x0000000000000001 (1 <<  0)";
-        char *const numAt = buffer + 17, *const shiftAt = numAt + 9;
+        char *numAt = buffer + 17, *const shiftAt = numAt + 9;
+        unsigned shift = 0;
 
-        assert(*numAt == '1');
-        assert(*shiftAt == '0');
+        assert(numAt[0] == '1' && numAt[1] == ' ');
+        assert(shiftAt[0] = '0' && shiftAt[1] == ')');
         for (auto &def : container) {
             if (def.isArgument()) // obviously, doesn't apply to tool arguments.
                 continue;
             if (def.bitMask == 0) // common tool parameters don't have bits assigned to them.
                 continue;
 
-            unsigned shift = 0;
-            uint64_t mask = def.bitMask;
+            *numAt = "1248"[shift % 4];
+            assert(std::stoul(buffer, nullptr, 0) == def.bitMask);
             
-            while (mask > 1) {
-                mask >>= 1;
-                shift += 1;
-            }
-
-            auto const xdigit = numAt - (shift / 4);
-            
-            *xdigit = '0' + (1 << (shift % 4));
             if (shift > 9)
                 shiftAt[-1] = (shift / 10) % 10 + '0';
             shiftAt[0] = shift % 10 + '0';
@@ -243,7 +236,9 @@ struct ParamDefinitions_Common {
                 << buffer << '\t'
                 << def.name << '\n';
             
-            *xdigit = '0';
+            ++shift;
+            if ((shift % 4) == 0)
+                *numAt-- = '0';
             shiftAt[-1] = shiftAt[0] = ' ';
         }
         out << std::flush;

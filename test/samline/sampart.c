@@ -23,7 +23,7 @@
 * ===========================================================================
 *
 */
-#include "sampart.vers.h"
+/* #include "sampart.vers.h" */
 
 #include <kapp/main.h>
 #include <kapp/args.h>
@@ -132,10 +132,12 @@ rc_t CC Usage ( const Args * args )
  *      mm = minor release
  *    rrrr = bug-fix release
  */
+/*
 ver_t CC KAppVersion ( void )
 {
-    return SAMPART_VERS;
+    return 0x030000001;
 }
+*/
 
 static const char * get_str_option( const Args * args, const char * name, uint32_t idx, const char * dflt )
 {

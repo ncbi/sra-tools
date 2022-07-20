@@ -51,7 +51,7 @@ add_subdirectory(ngs-pileup)
 add_subdirectory(ngs-python)
 add_subdirectory(prefetch) # TODO ascp ?
 add_subdirectory(read-filter-redact)
-# # add_subdirectory(samline) # command line tool; needs arguments to become a test?
+add_subdirectory(samline)
 add_subdirectory(scripts)
 add_subdirectory(sharq)
 add_subdirectory(sra-pileup)

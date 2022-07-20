@@ -22,9 +22,24 @@
 #
 # ===========================================================================
 
-default: runtests
+if( NOT WIN32 )
 
-TOP ?= $(abspath ../..)
-MODULE = test/samline
+    # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
+    #add_test(NAME LatfTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
-include $(TOP)/build/Makefile.env
+    # build the 2 helper-tools used in scripted tests:
+    add_executable( samline refbases.c cigar.c alig-gen.c )
+    add_executable( sampart refbases.c cigar.c sampart.c )
+
+    # link agains libs 
+    target_link_libraries( samline ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+    target_link_libraries( sampart ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+
+    add_test( NAME Test_Samline
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                "./simple_test.sh" "${TESTBINDIR}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+endif()

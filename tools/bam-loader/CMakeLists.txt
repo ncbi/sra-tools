@@ -32,9 +32,14 @@ if( NOT WIN32)
 	#set(CMAKE_BUILD_TYPE RelWithDebInfo)
 	find_package(OpenSSL REQUIRED)
 	set( EXTRA_LIBS OpenSSL::SSL )
-	if ( "mac" STREQUAL ${OS} )
-		link_directories( /sw/lib )
-		list(APPEND EXTRA_LIBS crypto )
+	if (APPLE)
+		# This is a bug in CMake that causes it to prefer the system version over
+		# the one in the specified ROOT folder.
+		if ( NOT OPENSSL_ROOT_DIR )
+			set(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR} /usr/local/Cellar/openssl@1.1/1.1.1q)
+		endif()
+		set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib CACHE FILEPATH "" FORCE)
+		set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
 	endif()
 
 	# Internal
@@ -59,7 +64,7 @@ if( NOT WIN32)
     set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
     target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
     target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-    target_link_libraries( bam-load  loader ${EXTRA_LIBS} ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
+    target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
 
 	MakeLinksExe( bam-load false )
 endif()

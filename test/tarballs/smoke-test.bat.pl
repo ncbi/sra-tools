@@ -102,6 +102,7 @@ foreach ( @TOOLS ) {
     {
         $VERSION_OPTION = '-version';
     }
+    print `dir $_`;
     $_ .= " $VERSION_OPTION";
     print "$_\n";
     `$_`;

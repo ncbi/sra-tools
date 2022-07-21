@@ -74,9 +74,9 @@ chdir $BIN_DIR or die;
 
 my @TOOLS;
 foreach ( @_ ) {
-    next if ( /^DumpReferenceFASTA.exe$/ );
-    next if ( /^sratools.exe$/ );
-    next if ( /^vdb-passwd.exe$/ );
+    next if ( /^.*DumpReferenceFASTA.exe$/ );
+    next if ( /^.*sratools.exe$/ );
+    next if ( /^.*vdb-passwd.exe$/ );
     next if ( /^.+-driver.exe$/ );
     next if ( /^.+Test.exe$/ );
     push @TOOLS, $_
@@ -85,7 +85,7 @@ foreach ( @_ ) {
 print "Smoke testing $VERSION toolkit tarball ...\n\n";
 
 foreach ( @TOOLS ) {
-    my $cmd = "$_ -h";
+    my $cmd = "$BIN_DIR\$_ -h";
     print "\n>$cmd<\n\n";
     $FAILED .= " $cmd" if ( RunTool ( $cmd ) );
 }

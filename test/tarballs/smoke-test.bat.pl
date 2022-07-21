@@ -86,6 +86,7 @@ print "Smoke testing $VERSION toolkit tarball ...\n\n";
 
 foreach ( @TOOLS ) {
     my $cmd = "$_ -h";
+    print "\n>$cmd<\n\n";
     $FAILED .= " $cmd" if ( RunTool ( $cmd ) );
 }
 print "\n";

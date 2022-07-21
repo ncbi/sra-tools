@@ -724,7 +724,7 @@ rc_t CC CCNodeSraDirFileContiguous (const CCNodeSraDir *self,
     assert (contiguous);
     assert (path_fmt);
 
-    *contiguous = (rc = CCNodeSraDirVLegalPath(self, path_fmt, args)) == 0)
+    *contiguous = ((rc = CCNodeSraDirVLegalPath(self, path_fmt, args)) == 0);
     return rc;
 }
 

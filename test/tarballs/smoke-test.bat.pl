@@ -85,7 +85,7 @@ foreach ( @_ ) {
 print "Smoke testing $VERSION toolkit tarball ...\n\n";
 
 foreach ( @TOOLS ) {
-    my $cmd = "$BIN_DIR\$_ -h";
+    my $cmd = "$BIN_DIR\\$_ -h";
     print "\n>$cmd<\n\n";
     $FAILED .= " $cmd" if ( RunTool ( $cmd ) );
 }

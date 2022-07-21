@@ -157,7 +157,8 @@ void CDefLineParser::Parse(const string_view& defline, CFastqRead& read)
         mDefLineMatchers[mIndexLastSuccessfulMatch]->GetMatch(read);
         return;
     }
-    throw fastq_error(100, "Defline '{}' not recognized", defline);
+    // VDB-4970: do not include the bad defline's text since it may contain XML-breaking characters
+    throw fastq_error(100, "Defline not recognized");
 }
 
 inline

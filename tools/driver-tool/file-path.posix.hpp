@@ -36,11 +36,13 @@
 #else
 
 #include <system_error>
+#include <cstring>
+#include <cassert>
 
 namespace POSIX {
 
 struct FilePath {
-    
+
     /// creates a non-owning object
     FilePath(FilePath const &other)
     : path(other.path)
@@ -48,10 +50,10 @@ struct FilePath {
     , owns(false)
     , isCwd(other.isCwd)
     {}
-    
+
     FilePath &operator= (FilePath const &other) {
         assert(other.owns == false); // this needs to be a move assignment
-        
+
         auto const oldpath = owns ? path : nullptr;
         owns = false;
         path = other.path;
@@ -78,7 +80,7 @@ struct FilePath {
     FilePath &operator= (FilePath &&other) {
         if (!other.owns)
             return *this = (FilePath const &)other;
-        
+
         auto const oldpath = owns ? path : nullptr;
         path = other.path;
         length = other.length;
@@ -88,10 +90,10 @@ struct FilePath {
 
         if (oldpath && oldpath != path)
             free(oldpath);
-        
+
         return *this;
     }
-    
+
     ~FilePath() {
         if (owns)
             free(path);
@@ -109,7 +111,7 @@ struct FilePath {
     FilePath copy() const {
         return FilePath(length < 0 ? strlen(path) : length, path);
     }
-    
+
     bool removeSuffix(size_t const count);
     bool removeSuffix(char const *const suffix, size_t length);
     bool removeSuffix(FilePath const &baseName) {
@@ -137,10 +139,10 @@ struct FilePath {
     static bool exists(FilePath const &name);
 
     static FilePath cwd();
-    
+
     void makeCurrentDirectory(FilePath const &haveCwd) const;
     FilePath makeCurrentDirectory() const;
-    
+
     std::pair<FilePath, FilePath> split() const
     {
         auto const sep = lastSep();
@@ -151,7 +153,7 @@ struct FilePath {
         else
             return {FilePath(path, sep), FilePath(path + sep + 1)};
     }
-    
+
     FilePath append(FilePath const &leaf) const;
 
     static FilePath fullPathToExecutable(char const *const *const argv, char const *const *const envp, char const *const *const extra = nullptr);
@@ -167,7 +169,7 @@ private:
     /// \returns index in path of the next separator at or after pos
     size_t nextSep(size_t pos) const
     {
-        for (auto i = pos; i < length || length < 0; ++i) {
+        for (ssize_t i = pos; i < length || length < 0; ++i) {
             auto const ch = path[i];
             switch (ch) {
             case '/':
@@ -180,7 +182,7 @@ private:
 
     ssize_t lastSep() const {
         ssize_t result = -1;
-        for (auto i = nextSep(0); (i < length || length < 0) && path[i]; i = nextSep(i + 1))
+        for (ssize_t i = nextSep(0); (i < length || length < 0) && path[i]; i = nextSep(i + 1))
             result = i;
         return result;
     }

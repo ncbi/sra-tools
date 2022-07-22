@@ -55,11 +55,7 @@ static inline bool isvalue(int const ch) {
     case 'n': // null
         return true;
     default:
-#if MS_Visual_C
-        return ch >= '0' && ch <= '9';
-#else
-        return isnumber(ch);
-#endif
+    return ch >= '0' && ch <= '9';
     }
 }
 
@@ -198,7 +194,7 @@ protected:
     uint8_t complete = 0;
     Unichar(UnicharBasic const &u) : UnicharBasic(u) {};
     Unichar(UnicharBasic &&u) : UnicharBasic(std::move(u)) {};
-    
+
 public:
     using UnicharBasic::is_valid_as_UTF8;
 
@@ -257,7 +253,7 @@ public:
             // we might have stashed the first surrogate in the high 16 bits, make sure not to damage it.
             UnicharBasic const hi{codepoint >> 16};
             UnicharBasic lo{codepoint & 0xFFFF};
-            
+
             lo.codepoint = (lo.codepoint << 4) | val;
             assert(lo.codepoint < 0x10000);
 
@@ -344,7 +340,7 @@ JSONString::operator std::string() const {
 
     for (auto chi : value) {
         assert(chi != 0);
-        
+
         if (!escape && chi == '\\') {
             if (hex == 0 && !utf) {
                 escape = true;
@@ -429,7 +425,7 @@ JSONString::operator std::string() const {
 
 struct Randoms {
     uint64_t some[4];
-    
+
     Randoms() {
         FILE *fp = fopen("/dev/urandom", "r");
         if (fp == NULL)
@@ -444,11 +440,11 @@ struct Randoms {
 struct JSONParserTests {
     char const *failed = nullptr;
     operator bool() const { return failed == nullptr; }
-    
+
     bool parsed(char const *json) const {
         auto dummy = JSONValueDelegate<void>();
         auto parser = JSONParser(json, &dummy);
-        
+
         parser.parse();
         return !!dummy;
     }
@@ -549,7 +545,7 @@ struct JSONParserTests {
         std::string torture = "";
         std::string torture2 = "";
         Randoms const randoms;
-        
+
         for (auto i = 0; i < 4; ++i) {
             auto rval = randoms.some[i];
             int depth = 0;
@@ -567,7 +563,7 @@ struct JSONParserTests {
         auto depth = torture2.size();
         smallest = std::min(smallest, (unsigned)depth);
         biggest = std::max(biggest, (unsigned)depth);
-        
+
         torture.append(torture2.rbegin(), torture2.rend());
         assert(parsed(torture));
     }
@@ -637,7 +633,7 @@ void JSONParser::runTests() {
 
 struct UnicharTests {
     char buffer[5];
-    
+
     void encode(Unichar u) {
         buffer[u.utf8(buffer)] = '\0';
     }
@@ -1301,7 +1297,7 @@ void JSONBool::runTests() {
         }
         auto const T = JSONBool(StringView("true"));
         auto const F = JSONBool(StringView("false"));
-        
+
         assert(!F);
         assert(!!T);
         LOG(8) << "All JSON bool tests passed." << std::endl;

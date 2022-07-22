@@ -123,7 +123,7 @@
 /// }
 /// @endcode
 struct JSONParser {
-    
+
     /// @brief `Error` is thrown if the JSON string is unparsable.
     struct Error {};
     struct EndOfInput : Error {};
@@ -168,7 +168,7 @@ struct JSONParser {
     {
         assert(delegate != nullptr);
     }
-    
+
     /// @brief Determine if a scalar a string value.
     /// @note The value is not validated. Assumes the parameter is a value that accompanied an `evt_scalar` event, else the behavior is undefined.
     /// @param scalar The scalar to examine.
@@ -176,28 +176,28 @@ struct JSONParser {
     static bool scalarIsString(StringView const &scalar) {
         return scalar.front() == '"';
     }
-    
+
     /// @brief Determine if a scalar a JSON null.
     /// @param scalar The scalar to examine.
     /// @returns `true` if the scalar is a JSON null.
     static bool scalarIsNull(StringView const &scalar) {
         return scalar == "null";
     }
-    
+
     /// @brief Determine if a scalar a JSON boolean `true`.
     /// @param scalar The scalar to examine.
     /// @returns `true` if the scalar is a JSON boolean `true`.
     static bool scalarIsTrue(StringView const &scalar) {
         return scalar == "true";
     }
-    
+
     /// @brief Determine if a scalar a JSON boolean `false`.
     /// @param scalar The scalar to examine.
     /// @returns `true` if the scalar is a JSON boolean `false`.
     static bool scalarIsFalse(StringView const &scalar) {
         return scalar == "false";
     }
-    
+
     /// @brief Determine if a scalar a JSON numeric value.
     /// @note The value is not parsed or validated. Assumes the parameter is a value that accompanied an `evt_scalar` event. The behavior is undefined elsewise.
     /// @param scalar The scalar to examine.
@@ -218,13 +218,13 @@ private:
     {
         auto const delegate = delegates.back();
         auto const nd = delegate->receive(type, StringView(start, end));
-        
+
         if (nd == nullptr)
             delegates.pop_back();
         else if (nd != delegate)
             delegates.push_back(nd);
     }
-    
+
     // MARK: Parsing state
     void push_state(bool is_object) {
         auto &state = pstack.back();
@@ -253,7 +253,7 @@ private:
         auto state = pstack.back();
         return state > 1 && (state & 1) != 0;
     }
-    
+
     // MARK: Parsing primitives
     /// @brief Get next character (byte) from input string.
     int next() {
@@ -265,7 +265,7 @@ private:
         DEBUG_OUT << "unexpected end of input" << std::endl;
         throw EndOfInput();
     }
-    
+
     /// @brief Get next non-whitespace character (byte) from input string.
     int not_space() {
         for ( ; ; ) {
@@ -274,7 +274,7 @@ private:
                 return ch;
         }
     }
-    
+
     /// @brief Check the next non-whitespace character and consume the character if it is equal to some particular character.
     bool expect(int const ch) {
         if (not_space() == ch)
@@ -282,15 +282,15 @@ private:
         --cur;
         return false;
     }
-    
+
     // MARK: productions
-    
+
     /// @brief Parse a value.
     ///
     /// @discussion This is the function that loops through the input and generates the events.
     /// It subsumes the `object` and `array` productions.
     void value();
-    
+
     /// @brief Parse an array.
     void string();
 
@@ -391,11 +391,11 @@ struct JSONNumber {
 /// @brief Represents JSON `true` and `false`; used to convert to `bool`.
 struct JSONBool {
     bool value;
-    
+
     static bool decode(StringView const &value) {
         if (value == "true")
             return true;
-        
+
         if (value == "false")
             return false;
 
@@ -483,7 +483,7 @@ private:
     virtual JSONParser::Delegate *receive(JSONParser::EventType type, StringView const &value)
     {
         TRACE(type);
-        
+
         switch (type) {
         case JSONParser::evt_array:
         case JSONParser::evt_object:
@@ -531,16 +531,16 @@ private:
     RCVR rcvr;
     bool wasSet = false; ///< becomes true when the array start event is received.
     bool haveObject = false;
-    
+
     void collect() {
         collection.emplace_back(rcvr.get(collection.size() + 1));
         rcvr.unset();
     }
-    
+
     virtual JSONParser::Delegate *receive(JSONParser::EventType type, StringView const &value)
     {
         TRACE(type);
-        
+
         switch (type) {
         case JSONParser::evt_array:
             wasSet = true;
@@ -584,11 +584,11 @@ private:
     Dictionary members;
     Dictionary::iterator member, noMember;
     bool wasSet = false;
-    
+
     virtual JSONParser::Delegate *receive(JSONParser::EventType type, StringView const &value)
     {
         TRACE(type);
-        
+
         switch (type) {
         case JSONParser::evt_end:
             return nullptr;
@@ -612,14 +612,14 @@ public:
     ObjectDelegate(std::initializer_list<char const *> const &membrs)
     {
         for (auto & str : membrs)
-            members.emplace({std::string(str), StringView()});
+            members[str] = StringView();
         noMember = members.end();
         member = noMember;
     }
     ObjectDelegate(std::vector<std::string> const &membrs)
     {
         for (auto & str : membrs)
-            members.emplace({str, StringView()});
+            members[str] = StringView();
         noMember = members.end();
         member = noMember;
     }
@@ -639,11 +639,11 @@ struct JSONTopLevelObjectError {};
 struct TopLevelObjectDelegate final : public JSONParser::Delegate {
 private:
     JSONParser::Delegate *mainDelegate;
-    
+
     virtual JSONParser::Delegate *receive(JSONParser::EventType type, StringView const &value)
     {
         TRACE(type);
-        
+
         switch (type) {
         case JSONParser::evt_object:
             return mainDelegate;

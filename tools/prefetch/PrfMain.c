@@ -35,7 +35,7 @@
 #include <klib/status.h> /* STSMSG */
 #include <klib/text.h> /* string_dup_measure */
 
-#include <kns/ascp.h> /* ascp_locate */
+#include <ascp/ascp.h> /* ascp_locate */
 #include <kns/http.h> /* KNSManagerMakeHttpFile */
 #include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableHttpFile */
 #include <kns/manager.h> /* KNSManagerRelease */

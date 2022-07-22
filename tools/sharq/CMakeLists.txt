@@ -43,7 +43,7 @@ cmake_minimum_required(VERSION 3.16)
 project(sharq)
 
 # prefer static linkage
-set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so)
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so .dylib)
 find_package(ZLIB)
 find_package(BZip2)
 find_package (Threads)
@@ -55,7 +55,7 @@ set(CMAKE_CXX_STANDARD 17)
 #specific to BitMagic
 add_definitions(-msse4.2 -DBMSSE42OPT)
 
-set(LOCAL_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/libs)
+set(LOCAL_BUILD_DIR ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 set(LOCAL_INCDIR ${LOCAL_BUILD_DIR}/include)
 set(LOCAL_LIBDIR ${LOCAL_BUILD_DIR}/lib)
 
@@ -69,7 +69,7 @@ ExternalProject_Add(RE2
   GIT_TAG ${RE2_TAG}
   BUILD_IN_SOURCE 1
   UPDATE_COMMAND "" # No update as we use specific tag
-  #INSTALL_DIR ${LOCAL_BUILD_DIR}
+  INSTALL_DIR ${LOCAL_BUILD_DIR}
   CMAKE_ARGS
     -DCMAKE_BUILD_TYPE:STRING=Release
     -DRE2_BUILD_TESTING:BOOL=OFF
@@ -105,9 +105,6 @@ if( RUN_SANITIZER_TESTS )
 	add_executable(sharq-asan fastq_parse )
 	add_dependencies(sharq-asan RE2 sharq.py)
 	target_include_directories(sharq-asan PUBLIC ${LOCAL_INCDIR} ./ ../../)
-	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-			set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
-	endif()
 	target_link_libraries(sharq-asan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 	target_compile_options( sharq-asan PRIVATE ${asan_defs} )
 	target_link_options( sharq-asan PRIVATE ${asan_defs} )
@@ -116,9 +113,6 @@ if( RUN_SANITIZER_TESTS )
 	add_executable(sharq-tsan fastq_parse )
 	add_dependencies(sharq-tsan RE2 sharq.py)
 	target_include_directories(sharq-tsan PUBLIC ${LOCAL_INCDIR} ./ ../../)
-	if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-			set(CXX_FILESYSTEM_LIBRARIES "stdc++fs")
-	endif()
 	target_link_libraries(sharq-tsan ${CXX_FILESYSTEM_LIBRARIES} ZLIB::ZLIB ${BZIP2_LIBRARIES} ${RE2_STATIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 	target_compile_options( sharq-tsan PRIVATE ${tsan_defs} )
 	target_link_options( sharq-tsan PRIVATE ${tsan_defs} )

@@ -35,7 +35,7 @@ if [ "$res" != "0" ];
 fi
 
 echo SRR413283 is a small cSRA with local references
-NCBI_SETTINGS=/ ${bin_dir}/${sra_stat} -x SRR413283 > actual/SRR413283
+NCBI_SETTINGS=/ NCBI_VDB_QUALITY=R ${bin_dir}/${sra_stat} -x SRR413283 > actual/SRR413283
 output=$(diff actual/SRR413283 expected/SRR413283-with-AssemblyStatistics)
 res=$?
 if [ "$res" != "0" ];

@@ -31,18 +31,24 @@
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_align_reader_reference_
+#include <align/reference.h>
+#endif
+
+#ifndef _h_pileup_options_
 #include "pileup_options.h"
+#endif
 
+#ifndef _h_insdc_insdc_
 #include <insdc/sra.h>
-
-#include <stdlib.h>
-#include <sysalloc.h>
-#include <string.h>
-#include <os-native.h>
+#endif
 
 typedef struct tool_rec tool_rec;
-struct tool_rec
-{
+struct tool_rec {
     bool reverse;   /* orientation towards reference ( false...in ref-orientation / true...reverse) */
     int32_t tlen;   /* template-len, for statistical analysis */
     uint32_t quality_len;
@@ -51,8 +57,7 @@ struct tool_rec
 
 
 typedef struct walk_data walk_data;
-struct walk_data
-{
+struct walk_data {
     void *data;                             /* opaque pointer to data passed to each function */
     ReferenceIterator *ref_iter;            /* the global reference-iter */
     pileup_options *options;                /* the tool-options */
@@ -73,10 +78,8 @@ struct walk_data
     INSDC_coord_zero seq_pos;               /* position inside the alignment at the current ref-pos */
 };
 
-
 typedef struct walk_funcs walk_funcs;
-struct walk_funcs
-{
+struct walk_funcs {
     /* changing reference */
     rc_t ( CC * on_enter_ref ) ( walk_data * data );
     rc_t ( CC * on_exit_ref ) ( walk_data * data );
@@ -96,7 +99,6 @@ struct walk_funcs
     /* on each alignment */
     rc_t ( CC * on_placement ) ( walk_data * data );
 };
-
 
 rc_t walk_0( walk_data * data, walk_funcs * funcs );
 

@@ -74,7 +74,7 @@ if ( NOT WIN32)
 	add_test ( NAME SlowTest_SraSearch-3.0-single-run-default WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 3.0-single-run-default            --args "AGCTAGCTAGCT -T 1 SRR000001" )
 	add_test ( NAME SraSearch-3.05-single-run-default-WGS WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01" )
+				${SRA_SEARCH} 3.05-single-run-default-WGS --sort --args "AGCTAGCTA ALAI01" )
 	add_test ( NAME SlowTest_SraSearch-3.1-single-run-fgrep-standard WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 3.1-single-run-fgrep-standard     --args "AGCTAGCTAGCT -T 1 -a FgrepStandard SRR000001" )
 	add_test ( NAME SlowTest_SraSearch-3.2-single-run-fgrep-boyer-moore WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh

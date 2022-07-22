@@ -64,9 +64,7 @@ public:
         return ss;
     }
     string filename;
-
 };
-
 
 ///////////////////////////////////////////////// SHARQ test cases
 FIXTURE_TEST_CASE(EmptyFile, LoaderFixture)
@@ -110,6 +108,7 @@ FIXTURE_TEST_CASE(InvalidDeflineError, LoaderFixture)
         CHECK_EQ(err.Message(), string("[code:100] Defline 'qqq abcd' not recognized"));
     }
 }
+
 const string cSPOT1 = "NB501550:336:H75GGAFXY:2:11101:10137:1038";
 const string cSPOT_GROUP = "CTAGGTGA";
 const string cDEFLINE1 = cSPOT1 + " 1:N:0:" + cSPOT_GROUP;
@@ -130,7 +129,7 @@ const string cQUAL_MULTILINE = "!'\n'*";
     string("@" + string(defline)  + "\n" + sequence  + "\n+\n" + quality + "\n")\
 
 FIXTURE_TEST_CASE(GoodRead, LoaderFixture)
-{   // a good record 
+{   // a good record
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, cSEQ, cQUAL)));
     REQUIRE(reader.parse_read<>(read));
@@ -153,7 +152,7 @@ FIXTURE_TEST_CASE(GoodReadFollowedByJunk, LoaderFixture)
 }
 
 FIXTURE_TEST_CASE(MultiLineRead, LoaderFixture)
-{   // multiline record 
+{   // multiline record
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, cSEQ_MULTILINE, cQUAL_MULTILINE)));
     REQUIRE(reader.parse_read<>(read));
@@ -175,7 +174,7 @@ FIXTURE_TEST_CASE(NoLastLF, LoaderFixture)
 
 
 FIXTURE_TEST_CASE(InvalidSequence, LoaderFixture)
-{   // invalid sequence character 
+{   // invalid sequence character
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, "GA^TT", cQUAL)));
     REQUIRE(reader.parse_read<>(read));
@@ -183,13 +182,13 @@ FIXTURE_TEST_CASE(InvalidSequence, LoaderFixture)
 }
 
 FIXTURE_TEST_CASE(EmptyQuality, LoaderFixture)
-{   // invalid quality scores 
+{   // invalid quality scores
     CFastqRead read;
     fastq_reader reader("test", create_stream(string("@" + cDEFLINE1  + "\nGATT\n+")));
     REQUIRE_THROW(reader.get_read(read));
 }
 FIXTURE_TEST_CASE(EmptyQuality2, LoaderFixture)
-{   // invalid quality scores 
+{   // invalid quality scores
     CFastqRead read;
     fastq_reader reader("test", create_stream(string("\
 @NB501550:336:H75GGAFXY:2:11101:10137:1038 1:N:0:CTAGGTGA\n\
@@ -203,7 +202,7 @@ FIXTURE_TEST_CASE(TestSequence, LoaderFixture)
 {
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, cSEQ, cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(read.Sequence(), cSEQ);
     REQUIRE_EQ(read.Sequence().size(), 4lu);
 }
@@ -212,11 +211,18 @@ FIXTURE_TEST_CASE(TestSequence_Multi, LoaderFixture)
 {
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ(cDEFLINE1, "GATT\nTAGGA", cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(read.Sequence(), string("GATTTAGGA"));
     REQUIRE_EQ(read.Sequence().size(), 9lu);
 }
 
+FIXTURE_TEST_CASE(UridineTranslation, LoaderFixture)
+{
+    CFastqRead read;
+    fastq_reader reader("test", create_stream(_READ(cDEFLINE1, "U", cQUAL)));
+    REQUIRE(reader.get_read(read));
+    REQUIRE_EQ(read.Sequence(), string("T"));
+}
 
 //////////////////// tag line parsing
 
@@ -267,7 +273,7 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode, LoaderFixture)
 {
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ("HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG", cSEQ, cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(string("ATCACG"), read.SpotGroup());
 }
 
@@ -276,7 +282,7 @@ FIXTURE_TEST_CASE(BarCode_Plus, LoaderFixture)
 {
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ("M05096:131:000000000-C9DF2:1:1101:16623:1990 2:N:0:TAAGGCGA+CCTGCATA", cSEQ, cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(string("TAAGGCGA+CCTGCATA"), read.SpotGroup());
 }
 
@@ -285,7 +291,7 @@ FIXTURE_TEST_CASE(BarCode_Underscore, LoaderFixture)
 {
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ("M05096:131:000000000-C9DF2:1:1101:16623:1990 2:N:0:TAAGGCGA_CCTGCATA", cSEQ, cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(string("TAAGGCGA_CCTGCATA"), read.SpotGroup());
 }
 
@@ -305,7 +311,7 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroupUnderscore, LoaderFixture)
 {
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ("HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG_AGCTCGGT", cSEQ, cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(string("ATCACG_AGCTCGGT"), read.SpotGroup());
 }
 
@@ -314,7 +320,7 @@ FIXTURE_TEST_CASE(RetainIlluminaSuffix, LoaderFixture)
     // VDB-4614
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ("MISEQ:36:000000000-A5BCL:1:1101:13252:2382;smpl=12;brcd=ACTTTCCCTCGA 1:N:0:ACTTTCCCTCGA", cSEQ, cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(string("MISEQ:36:000000000-A5BCL:1:1101:13252:2382"), read.Spot());
     REQUIRE_EQ(string(";smpl=12;brcd=ACTTTCCCTCGA"), read.Suffix());
     REQUIRE_EQ(string("ACTTTCCCTCGA"), read.SpotGroup());
@@ -325,7 +331,7 @@ FIXTURE_TEST_CASE(RetainBgiSuffix, LoaderFixture)
     // VDB-4614
     CFastqRead read;
     fastq_reader reader("test", create_stream(_READ("V300103666L2C001R0010000000:0:0:0:0 1:N:0:ATAGTCTC", cSEQ, cQUAL)));
-    REQUIRE(reader.get_read(read));    
+    REQUIRE(reader.get_read(read));
     REQUIRE_EQ(string("V300103666L2C001R0010000000"), read.Spot());
     REQUIRE_EQ(string(":0:0:0:0"), read.Suffix());
     REQUIRE_EQ(string("ATAGTCTC"), read.SpotGroup());
@@ -444,9 +450,9 @@ FIXTURE_TEST_CASE(Test_get_spot_match_multi_skip_2, LoaderFixture)
 {
     vector<CFastqRead> reads;
     auto ss = create_stream(
-        _READ(cDEFLINE2_1, "GATTTAGGA", cQUAL) 
+        _READ(cDEFLINE2_1, "GATTTAGGA", cQUAL)
         + _READ(cDEFLINE2_2, "GATTTAGGA", cQUAL)
-        + _READ(cDEFLINE1, "GATTTAGGA", cQUAL) 
+        + _READ(cDEFLINE1, "GATTTAGGA", cQUAL)
         + _READ(cDEFLINE2, "GATTTAGGA", cQUAL));
     fastq_reader reader("test", ss, {'B', 'B'});
     REQUIRE(reader.get_spot(cSPOT1, reads));
@@ -464,7 +470,7 @@ FIXTURE_TEST_CASE(Test_get_spot_match_multi_skip_2, LoaderFixture)
 
 // Illumina spot names
 FIXTURE_TEST_CASE(IlluminaCasava_1_8, LoaderFixture)
-{ 
+{
     // source: SAMN01860354.fastq
     fastq_reader reader("test", create_stream(_READ("HWI-ST273:315:C0LKAACXX:7:1101:1487:2221 2:Y:0:GGCTAC", "AACA", "$.%0")));
     string spot;
@@ -491,7 +497,7 @@ FIXTURE_TEST_CASE(IlluminaCasava_1_8_SpotGroupNumber, LoaderFixture)
 
 FIXTURE_TEST_CASE(IlluminaCasava_1_8_SpotGroup_MoreMadness, LoaderFixture)
 { // source: SRR1106612
-    
+
     fastq_reader reader("test", create_stream(_READ("HWI-ST808:130:H0B8YADXX:1:1101:1914:2223 1:N:0:NNNNNN.GGTCCA.AAAA", "AACA", "$.%0")));
     string spot;
     vector<CFastqRead> reads;
@@ -545,7 +551,7 @@ FIXTURE_TEST_CASE(BgiNew8Digit, LoaderFixture)
 FIXTURE_TEST_CASE(Quality33TooLow, LoaderFixture)
 {   // negative qualities are not allowed for Phred33
     // source: SRR016872
-    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
         "GAAACCCCCTATTAGANNNNCNNNNCNATCATGTCA", "II IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")), {}, 2);
     //reader.set_validator(false, 33, 74);
     CFastqRead read;
@@ -561,7 +567,7 @@ FIXTURE_TEST_CASE(Quality33TooLow, LoaderFixture)
 FIXTURE_TEST_CASE(Quality33Adjusteed, LoaderFixture)
 {   // negative qualities are not allowed for Phred33
     // source: SRR016872
-    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
         "GAAA", "II")), {}, 2);
     //reader.set_validator(false, 33, 74);
     CFastqRead read;
@@ -571,8 +577,8 @@ FIXTURE_TEST_CASE(Quality33Adjusteed, LoaderFixture)
 
 
 FIXTURE_TEST_CASE(Quality64TooLow, LoaderFixture)
-{   
-    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
+{
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
         "GGGGTTAGTGGCAGGGGGGGGGTCTCGGGGGGGGGG", "IIIIIIIIIIIIIIIIII;IIIIIIIIIIIIIIIII")), {}, 2);
     //reader.set_validator(false, 64, 105);
     CFastqRead read;
@@ -585,8 +591,8 @@ FIXTURE_TEST_CASE(Quality64TooLow, LoaderFixture)
 }
 
 FIXTURE_TEST_CASE(Quality64Adjusted, LoaderFixture)
-{   
-    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
+{
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
         "GGGG", "II")), {}, 2);
     //reader.set_validator(false, 64, 105);
     CFastqRead read;
@@ -595,24 +601,25 @@ FIXTURE_TEST_CASE(Quality64Adjusted, LoaderFixture)
 }
 
 
-
-FIXTURE_TEST_CASE(TextQualityRejected, LoaderFixture)
-{
-    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
-        "GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN", 
-        "40 3 1 22 17 18 34 8 13 21 3 7 5 0 0 5 1 0 7 3 2 3 3 3 1 1 4 5 5 2 2 5 0 1 5 5")), {}, 2);
-    //reader.set_validator(false, -5, 40);
+FIXTURE_TEST_CASE(TextQualityTruncated, LoaderFixture)
+{   // quality lines longer than corresponding reads get truncated with a warning
+    string cNUM_QUAL = "40 3 1 22 17 18 34 8 13 21 3 7 5 0 0 5 1 0 7 3 2 3 3 3 1 1 4 5 5 2 2 5 0 1 5 5";
+    vector<uint8_t> cNUM_QUAL_VEC{40,3,1,22};
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
+        "GTCG", cNUM_QUAL)), {}, 2);
     CFastqRead read;
-    REQUIRE_THROW((reader.get_read<validator_options<ePhred, -5, 40>>(read)));
+    REQUIRE((reader.get_read<validator_options<eNumeric, -5, 40>>(read)));
+    vector<uint8_t> qual_scores_out;
+    read.GetQualScores(qual_scores_out);
+    REQUIRE(cNUM_QUAL_VEC == qual_scores_out);
 }
-
 
 FIXTURE_TEST_CASE(TextQualityAccepted, LoaderFixture)
 {
     string cNUM_QUAL = "40 3 1 22 17 18 34 8 13 21 3 7 5 0 0 5 1 0 7 3 2 3 3 3 1 1 4 5 5 2 2 5 0 1 5 5";
     vector<uint8_t> cNUM_QUAL_VEC{40,3,1,22,17,18,34,8,13,21,3,7,5,0,0,5,1,0,7,3,2,3,3,3,1,1,4,5,5,2,2,5,0,1,5,5};
 
-    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
         "GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN", cNUM_QUAL)), {}, 2);
     //reader.set_validator(true, -5, 40);
     CFastqRead read;
@@ -626,7 +633,7 @@ FIXTURE_TEST_CASE(TextQualityAccepted, LoaderFixture)
 
 FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
 {
-    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG", 
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
         "GTCG", "40 3")), {}, 2);
     //reader.set_validator(true, -5, 40);
     CFastqRead read;
@@ -639,10 +646,221 @@ FIXTURE_TEST_CASE(TextQualityAdjusted, LoaderFixture)
 
 }
 
+FIXTURE_TEST_CASE(QualityTooLongTruncated, LoaderFixture)
+{   // quality lines longer than corresponding reads get truncated with a warning
+    fastq_reader reader("test", create_stream(_READ("DG7PMJN1:293:D12THACXX:2:1101:1161:1968_2:N:0:GATCAG",
+        "GAAA", "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")), {}, 2);
+    //reader.set_validator(false, 33, 74);
+    CFastqRead read;
+    REQUIRE( (reader.get_read<validator_options<ePhred, 33, 74>>(read)) );
+    REQUIRE_EQ( read.Quality(), string("IIII") );
+}
 
 
-int main (int argc, char *argv []) 
+// ############################################################
+// # Nanopore/MinION fastq
+// #
+// # @77_2_1650_1_ch100_file0_strand_twodirections (XXX2761339)
+// # @77_2_1650_1_ch100_file16_strand_twodirections:pass\77_2_1650_1_ch100_file16_strand.fast5 (SRR2761339)
+// # @channel_108_read_11_twodirections:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5 (XXX637417 or YYY637417)
+// # @channel_108_read_11_complement:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5 (XXX637417 or YYY637417)
+// # @channel_108_read_11_template:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5 (XXX637417 or YYY637417)
+// # @channel_346_read_183-1D (SRR1747417)
+// # @channel_346_read_183-complement (SRR1747417)
+// # @channel_346_read_183-2D (SRR1747417)
+// # @ch120_file13-1D (SRR1980822)
+// # @ch120_file13-2D (SRR1980822)
+// # @channel_108_read_8:LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file18_strand.fast5 (R-based poRe fastq requires filename, too) (WWW000025)
+// # @1dc51069-f61f-45db-b624-56c857c4e2a8_Basecall_2D_000_2d oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand_twodirections:CORNELL_Oxford_Nanopore/oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand.fast5 (SRR2848544 - nanopore3)
+// # @ae74c4fb-2c1d-4176-9584-3dfcc6dce41e_Basecall_2D_2d UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch93_read2620_strand NB06\UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch93_read2620_strand.fast5 (SRR5085901 - nanopore3)
+// # @ddb7d987-73c0-4d9a-8ac0-ac0dbc462ab5_Basecall_2D_2d UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch100_read4767_strand1 NB06\UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch100_read4767_strand1.fast5 (SRR5085901 - nanopore3)
+// # @f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand (nanopore5)
+// # @channel_101_read_1.1C|1T|2D (ERR1121618 bam converted to fastq)
+// # @channel_100_read_20_twodirections:/Users/blbrown/Documents/DATA/Biology Stuff/New Building/Oxford Nanopore/Pan-MAP/VCUEGLequalFAA23773/reads/downloads/pass/Bonnie_PC_VCUEGLequalFAA23773_2353_1_ch100_file20_strand.fast5 (SRR3473970)
+// # @5f8415e3-46ae-48fc-9092-a291b8b6a9b9 run_id=47b8d024d71eef532d676f4aa32d8867a259fc1b read=279 mux=3 ch=87 start_time=2017-01-20T16:26:27Z (SRR5621803 - nanopore4)
+// # >85d5c1f1-fbc7-4dbf-bf17-215992eb7a08_Basecall_Barcoding_2d MinION2_MinION2_PoreCamp_FAA81710_GrpB2_1140_1_ch103_file54_strand /mnt/data/bioinformatics/Projects/MINion/Aureus_2998-174/Data/minion_run2(demultiplexed)/pass//MinION2_MinION2_PoreCamp_FAA81710_GrpB2_1140_1_ch103_file54_strand.fast5 (ERR1424936 - nanopore3)
+// # @2ba6978b-759c-47a5-a3b9-77f03ca3ba66_Basecall_2D_template UNC_MJ0127RV_20160907_FN028_MN17984_sequencing_run_hansen_pool_32604_ch468_read5754_strand (SRR5817721 - nanopore3)
+// # >9f328492-d6be-43b1-b2c9-3bf524508841_Basecall_Alignment_template minion_20160730_FNFAD16610_MN17211_sequencing_run_rhodotorula_36861_ch234_read302508_strand pass/minion_20160730_FNFAD16610_MN17211_sequencing_run_rhodotorula_36861_ch234_read302508_strand.fast5 (SRR5821557 - nanopore3)
+// # >9f328492-d6be-43b1-b2c9-3bf524508841_Basecall_2D_2d minion_20160730_FNFAD16610_MN17211_sequencing_run_rhodotorula_36861_ch234_read302508_strand pass/minion_20160730_FNFAD16610_MN17211_sequencing_run_rhodotorula_36861_ch234_read302508_strand.fast5 (SRR5821557 - nanopore3)
+// # @dd6189de-1023-4092-b1e9-76b291c07723_Basecall_1D_template Kelvin_20170412_FNFAF12973_MN19810_sequencing_run_170412_fungus_scedo_29052_ch239_read26_strand (SRR5812844 - nanopore3)
+// # @channel_181_b44bbc58-3753-46d6-882c-0021c0697b55_template pass/6/Athena_20170324_FNFAF13858_MN19255_sequencing_run_fc2_real1_0_53723_ch181_read15475_strand.fast5 (SRR6329415 - nanopore3)
+// # @channel_95_2663511f-6459-4e8b-8201-2360d199b9d8_template (SRR6329415 - nanopore)
+// # @08441923-cb1a-490c-89b4-d209e234eb30_Basecall_1D_template GPBE6_F39_20170913_FAH26527_MN19835_sequencing_run_R265_r1_FAH26527_96320_read_2345_ch_440_strand fast5/GPBE6_F39_20170913_FAH26527_MN19835_sequencing_run_R265_r1_FAH26527_96320_read_2345_ch_440_strand.fast5 (SRR6377102 - nanopore3_1)
+// # @d1aa0fa2-0e49-4030-b9c3-2785d2efd8ed_Basecall_1D_template ifik_cm401_20170420_FNFAE22716_MN16142_sequencing_run_CFsamplesB2bis_15133_ch74_read12210_strand
+// # @6bbe187c-50a2-457e-997e-6be564f5980a_Basecall_2D 9B93VG2_20170410_FNFAF20574_MN19395_sequencing_run_AML_001_run2_82880_ch166_read9174_strand (WWW000050 - nanopore3 with no poreRead specified)
+// # @aba5dfd4-af02-46d1-9bce-3b62557aa8c1 runid=91c917caaf7b201766339e506ba26eddaf8c06d9 read=29 ch=350 start_time=2018-03-02T16:12:39Z barcode=barcode01(SRR8695851 - nanopore4)
+// # @72ad9b11-af72-4a2f-b943-650c9d88962f protocol_group_id=NASA_WCR_PCR_BC_083019 ch=503 barcode=BC08 read=17599 start_time=2019-08-30T21:26:18Z flow_cell_id=FAK67070 runid=4976f978bd6496df7a0ff30873137235afba9834 sample_id=NASA_WCR_083019 (SRR10303645 - nanopore4)
+// ############################################################
+//
+// NANOPORE regular expressions from fastq-load.py
+//
+// nanopore="[@>+]+?(channel_)(\d+)(_read_)?(\d+)?([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)?(:[!-~ ]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)"
+// nanopore2="[@>+]([!-~]*?ch)(\d+)(_file)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)(:[!-~ ]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)"
+// nanopore3="[@>+]([!-~]*?)[: ]?([!-~]+?Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?|)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D|)[: ]([!-~]*?)[: ]?([!-~ ]+?_ch)_?(\d+)(_read|_file)_?(\d+)(_strand\d*.fast5|_strand\d*.*|)(\s+|$)"
+// nanopore3_1="[@>+]([!-~]+?)[: ]?([!-~]+?Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?|)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D|)[: ]([!-~]*?)[: ]?([!-~ ]+?_read_)(\d+)(_ch_)(\d+)(_strand\d*.fast5|_strand\d*.*)(\s+|$)"
+// nanopore4="[@>+]([!-~]*?\S{8}-\S{4}-\S{4}-\S{4}-\S{12}\S*[_]?\d?)[\s+[!-~ ]*?|]$"
+// nanopore5="[@>+]([!-~]*?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}_Basecall)(_[12]D[_0]*?|_Alignment[_0]*?|_Barcoding[_0]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)\S*?($)"
+
+class NanoporeFixture : public LoaderFixture
+{
+public:
+    void Nanopore( const string & defline )
+    {
+        fastq_reader reader("test", create_stream(_READ(defline,"AAGT", "IIII")), {}, 2);
+        THROW_ON_FALSE( reader.get_read(m_read) );
+        THROW_ON_FALSE( reader.platform() == SRA_PLATFORM_OXFORD_NANOPORE );
+        m_type = reader.defline_type();
+    }
+
+    string m_type;
+    CFastqRead m_read;
+};
+
+FIXTURE_TEST_CASE(Nanopore1_readno_early, NanoporeFixture)
+{
+    Nanopore("channel_108_read_11_twodirections:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5");
+    REQUIRE_EQ( string("Nanopore1"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "channel_108_read_11" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "108" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "11" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore1_readno_late, NanoporeFixture)
+{
+    Nanopore("channel_181_b44bbc58-3753-46d6-882c-0021c0697b55_template pass/6/Athena_20170324_FNFAF13858_MN19255_sequencing_run_fc2_real1_0_53723_ch181_read15475_strand.fast5");
+    REQUIRE_EQ( string("Nanopore1"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "channel_181_b44bbc58-3753-46d6-882c-0021c0697b55" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "181" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "15475" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore2, NanoporeFixture)
+{
+    Nanopore("ch120_file13-1D");
+    REQUIRE_EQ( string("Nanopore2"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "ch120_file13" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "120" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "0" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore3, NanoporeFixture)
+{
+    Nanopore("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_ch143_read16010_strand");
+    REQUIRE_EQ( string("Nanopore3"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall" ) );
+    REQUIRE_EQ( m_read.Suffix(), string( "_Alignment" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "143" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "16010" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore3_1, NanoporeFixture)
+{
+    Nanopore("08441923-cb1a-490c-89b4-d209e234eb30_Basecall_1D_template GPBE6_F39_20170913_FAH26527_MN19835_sequencing_run_R265_r1_FAH26527_96320_read_2345_ch_440_strand fast5/GPBE6_F39_20170913_FAH26527_MN19835_sequencing_run_R265_r1_FAH26527_96320_read_2345_ch_440_strand.fast5");
+    REQUIRE_EQ( string("Nanopore3_1"), m_type );
+
+    //NB: the leading 0 is matched against the prefix "([!-~]+?)" - ask Bob
+    REQUIRE_EQ( m_read.Spot(), string( "8441923-cb1a-490c-89b4-d209e234eb30_Basecall" ) );
+    REQUIRE_EQ( m_read.Suffix(), string( "_1D" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "440" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "2345" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore4, NanoporeFixture)
+{
+    Nanopore("5f8415e3-46ae-48fc-9092-a291b8b6a9b9 run_id=47b8d024d71eef532d676f4aa32d8867a259fc1b m_read=279 mux=3 ch=87 start_time=2017-01-20T16:26:27Z");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "5f8415e3-46ae-48fc-9092-a291b8b6a9b9" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "279" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "87" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore4_WithBarcode, NanoporeFixture)
+{
+    Nanopore("aba5dfd4-af02-46d1-9bce-3b62557aa8c1 runid=91c917caaf7b201766339e506ba26eddaf8c06d9 read=29 ch=350 start_time=2018-03-02T16:12:39Z barcode=barcode01");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.Spot(), string( "aba5dfd4-af02-46d1-9bce-3b62557aa8c1" ) );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "29" ) );
+    REQUIRE_EQ( m_read.Channel(), string( "350" ) );
+    REQUIRE_EQ( m_read.SpotGroup(), string( "barcode01" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore4_WithBarcodeUnclassified, NanoporeFixture)
+{
+    Nanopore("aba5dfd4-af02-46d1-9bce-3b62557aa8c1 runid=91c917caaf7b201766339e506ba26eddaf8c06d9 read=29 ch=350 start_time=2018-03-02T16:12:39Z barcode=unclassified");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.SpotGroup(), string() );
+}
+
+FIXTURE_TEST_CASE(Nanopore4_EmptyChannel, NanoporeFixture)
+{
+    Nanopore("aba5dfd4-af02-46d1-9bce-3b62557aa8c1 runid=91c917caaf7b201766339e506ba26eddaf8c06d9 start_time=2018-03-02T16:12:39Z barcode=unclassified");
+    REQUIRE_EQ( string("Nanopore4"), m_type );
+
+    REQUIRE_EQ( m_read.Channel(), string("0") );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string("0") );
+    REQUIRE( m_read.SpotGroup().empty() );
+}
+
+FIXTURE_TEST_CASE(Nanopore5, NanoporeFixture)
+{
+    Nanopore("a69dd3c2-c98f-4f17-9da5-fe64f97494f6_Basecall_1D_template:1D_000:template");
+    REQUIRE_EQ( string("Nanopore5"), m_type );
+
+    REQUIRE_EQ( string( "a69dd3c2-c98f-4f17-9da5-fe64f97494f6_Basecall" ), m_read.Spot() );
+    REQUIRE_EQ( string("_1D"), m_read.Suffix());
+    REQUIRE_EQ( m_read.Channel(), string("0") );
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string("0") );
+}
+
+FIXTURE_TEST_CASE(Nanopore_DefaultReadno, NanoporeFixture)
+{
+    Nanopore("f286a4e1-fb27-4ee7-adb8-60c863e55dbb_Basecall_Alignment_template MINICOL235_20170120_FN__MN16250_sequencing_throughput_ONLL3135_25304_strand");
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "0" ) );
+}
+FIXTURE_TEST_CASE(Nanopore_ReadNoIsAFile, NanoporeFixture)
+{
+    Nanopore("1dc51069-f61f-45db-b624-56c857c4e2a8_Basecall_2D_000_2d oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand_twodirections:CORNELL_Oxford_Nanopore/oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand.fast5");
+
+    REQUIRE_EQ( m_read.NanoporeReadNo(), string( "0" ) );
+}
+
+FIXTURE_TEST_CASE(Nanopore_ReadFilter_Default, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( (int)m_read.ReadFilter(), 0 );
+}
+FIXTURE_TEST_CASE(Nanopore_ReadFilter_Pass, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:pass\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( (int)m_read.ReadFilter(), 0 );
+}
+FIXTURE_TEST_CASE(Nanopore_ReadFilter_Fail, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:fail\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( (int)m_read.ReadFilter(), 1 );
+}
+
+FIXTURE_TEST_CASE(Nanopore_Barcode_BC, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:BC01\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( m_read.SpotGroup(), string( "BC01") );
+}
+FIXTURE_TEST_CASE(Nanopore_Barcode_Edit, NanoporeFixture)
+{
+    Nanopore("77_2_1650_1_ch100_file16_strand_twodirections:barcode01\\77_2_1650_1_ch100_file16_strand.fast5");
+    REQUIRE_EQ( m_read.SpotGroup(), string( "BC01") );
+}
+
+////////////////////////////////////////////
+
+int main (int argc, char *argv [])
 {
     return SharQParserTestSuite(argc, argv);
 }
-

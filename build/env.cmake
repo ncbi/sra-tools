@@ -177,8 +177,22 @@ endif()
 find_package( Python3 COMPONENTS Interpreter )
 
 # ===========================================================================
+# testing
 
 enable_testing()
+
+option(COVERAGE "Generate test coverage" OFF)
+
+if( COVERAGE AND "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    message( COVERAGE=${COVERAGE} )
+
+    SET(GCC_COVERAGE_COMPILE_FLAGS "-coverage -fprofile-arcs -ftest-coverage")
+    SET(GCC_COVERAGE_LINK_FLAGS    "-coverage -lgcov")
+
+    SET( CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}" )
+endif()
 
 # ===========================================================================
 # singfle vs. multitarget generators, ncbi-vdb binaries

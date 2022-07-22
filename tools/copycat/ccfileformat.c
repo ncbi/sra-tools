@@ -87,10 +87,12 @@ static const char magictable [] =
     "Standard Flowgram Format (SFF)\tStandardFlowgramFormat\n"
     "NCBI kar sequence read archive\tSequenceReadArchive\n"
     "tar archive\tTapeArchive\n"
-    "XML document text\tExtensibleMarkupLanguage\n"
+    "XML document\tExtensibleMarkupLanguage\n"
+    "XML 1.0 document\tExtensibleMarkupLanguage\n"
     "bzip2 compressed data\tBzip\n"
     "Zip archive data\tWinZip\n"
     "gzip compressed data\tGnuZip\n"
+    "Hierarchical Data Format (version 5) data\tHD5\n"
 };
 static const char exttable [] =
 {
@@ -105,6 +107,7 @@ static const char exttable [] =
     "tar\tTapeArchive\n"
     "xml\tExtensibleMarkupLanguage\n"
     "h5\tHD5\n"
+    "pbi\tPacBioBAMIndex\n"
 };
 
 static const char classtable [] =
@@ -126,7 +129,8 @@ static const char formattable [] =
     "SequenceReadArchive\tArchive\n"
     "StandardFlowgramFormat\tRead\n"
     "TapeArchive\tArchive\n"
-    "HD5\tArchive\n"
+    "HD5\tRead\n"
+    "PacBioBAMIndex\tRead\n"
 };
 
 rc_t CCFileFormatAddRef (const CCFileFormat * self)
@@ -284,9 +288,17 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
                                      (klogWarn, "File '$(path)' is in unzupported winzip/pkzip format",
                                       "path=%s", path));
                         }
-                        else if (!strcmp("BinaryAlignmentMap", etypebuf) && !strcmp ("GnuZip", mtypebuf))
+                        else if (strcmp("BinaryAlignmentMap", etypebuf) == 0 && strcmp ("GnuZip", mtypebuf) == 0)
                         {
                             /* bam files have gnuzip magic, we need to treat them as data files ***/
+                            strcpy (mclassbuf, eclassbuf );
+                            strcpy (mtypebuf, etypebuf);
+                            mtype = etype;
+                            mclass = eclass;
+                        }
+                        else if (strcmp("PacBioBAMIndex", etypebuf) == 0 && strcmp("GnuZip", mtypebuf) == 0)
+                        {
+                            /* pbi files have gnuzip magic, we need to treat them as data files ***/
                             strcpy (mclassbuf, eclassbuf );
                             strcpy (mtypebuf, etypebuf);
                             mtype = etype;

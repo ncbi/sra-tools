@@ -48,7 +48,7 @@
 #include <vfs/resolver-priv.h> /* VResolverQueryWithDir */
 #include <vfs/services-priv.h> /* KServiceNamesQueryExt */
 
-#include <kns/ascp.h> /* AscpOptions */
+#include <ascp/ascp.h> /* AscpOptions */
 #include <kns/manager.h>
 #include <kns/stream.h> /* KStreamRelease */
 #include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
@@ -119,7 +119,7 @@ typedef struct {
 
     Resolved resolved;
     int number;
-    
+
     bool isDependency;
     char * seq_id;
 
@@ -750,7 +750,7 @@ static rc_t _VResolverRemote(VResolver *self, Resolved * resolved,
             rc = StringCopy(cache, &path_str);
             DISP_RC2(rc, "StringCopy(VResolverCache)", name);
         }
-    
+
         /* resolved->path is initialized with cache location */
         if (rc == 0)
             rc = VPathStrInit(&resolved->path, vcache);
@@ -1107,7 +1107,7 @@ static rc_t ResolvedLocal(const Resolved *self,
                 VQuality qCache = VPathGetQuality(self->path.path);
 
                 VQuality qLocal = VPathGetQuality(self->local.path);
-                
+
                 if (qCache != eQualDefault && qCache == qLocal)
                     STSMSG(STAT_ALWAYS, (
                         "%s (%,lu) is incomplete. Expected size is %,lu. "
@@ -1338,7 +1338,7 @@ static rc_t PrfMainDownloadHttpFile(Resolved *self,
             }
         }
     }
-    
+
     if (rc == 0)
         STSMSG(lvl, ("%S -> %s", &src, pof->tmpName));
     else
@@ -1509,14 +1509,14 @@ static rc_t PrfMainDownloadCacheFile(Resolved *self,
             return rc;
         }
     }
-    
+
     rc = KDirectoryMakeCacheTee(mane->dir, &out, self->file, 0, "%s", to);
     if (rc != 0) {
         PLOGERR(klogInt, (klogInt, rc, "failed to open cache file for $(path)",
                           "path=%S", to));
         return rc;
     }
-    
+
     STSMSG(STS_INFO, ("%S -> %s", remote -> str, to));
 
     rc = KSraReadCacheFile( out, elimQuals );
@@ -1524,15 +1524,15 @@ static rc_t PrfMainDownloadCacheFile(Resolved *self,
         PLOGERR(klogInt, (klogInt, rc, "failed to read cache file at $(path)",
                           "path=%S", to));
     }
-  
+
     RELEASE(KFile, out);
-    
+
     if (rc != 0)
         return rc;
-    
+
     if (rc == 0)
         STSMSG(STS_INFO, ("%s", to));
-    
+
     return rc;
 }
 
@@ -2058,7 +2058,7 @@ static rc_t PrfMainDownload(Resolved *self, const Item * item,
     }
 
     RELEASE(KFile, flock);
-    
+
     if (rc == 0) {
         KStsLevel lvl = STS_DBG;
         if (mane->dryRun)
@@ -2766,7 +2766,7 @@ static void logMaxSize(size_t maxSize) {
     if (maxSzPrntd) {
         return;
     }
-        
+
     maxSzPrntd = true;
 
     if (maxSize == 0) {
@@ -3307,7 +3307,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
                     "bad string_printf($(s)?vdb-ctx=refseq) result",
                     "s=%s", seq_id));
             }
-    
+
             if (rc == 0) {
                 Item *ditem = calloc(1, sizeof *ditem);
                 if (ditem == NULL)
@@ -3411,7 +3411,7 @@ static rc_t ItemMkDesc(const Item * self, KPathType type) {
         rc = 0;
 
         q = VPathGetQuality(self->resolved.path.path);
-        
+
         if (q >= eQualLast)
             q = VPath_DetectQuality(self->resolved.path.path, type,
                 self->mane->mgr);

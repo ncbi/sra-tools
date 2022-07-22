@@ -27,10 +27,16 @@
 #ifndef _h_ref_regions_
 #define _h_ref_regions_
 
-#include <klib/container.h>
-
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_klib_container_
+#include <klib/container.h>
 #endif
 
 struct reference_range;

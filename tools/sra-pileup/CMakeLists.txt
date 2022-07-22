@@ -65,6 +65,7 @@ set( SAM_DUMP_SRC
 	cg_tools
 	sam-dump
 	sam-dump3
+	dyn_string
 )
 GenerateExecutableWithDefs( sam-dump "${SAM_DUMP_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( sam-dump true )

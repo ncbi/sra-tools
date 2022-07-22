@@ -26,7 +26,9 @@
 #ifndef _tools_sam_dump_debug_h_
 #define _tools_sam_dump_debug_h_
 
+#ifndef _h_klib_debug_
 #include <klib/debug.h>
+#endif
 
 #define SAM_DUMP_DBG_PASTE(a,b) a##b
 #define SAM_DUMP_DBG(flag,msg) DBGMSG(DBG_APP,DBG_FLAG(SAM_DUMP_DBG_PASTE(DBG_APP_,flag)), msg)

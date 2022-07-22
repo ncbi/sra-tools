@@ -29,18 +29,18 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
-#include <klib/vector.h>
-#include <klib/out.h>
-#include <klib/text.h>
-#include <klib/rc.h>
-#include <klib/log.h>
-
+#ifndef _h_vdb_cursor_
 #include <vdb/cursor.h>
+#endif
+    
+#ifndef _h_insdc_insdc_
 #include <insdc/sra.h>
+#endif
 
 #define COL_NOT_AVAILABLE 0xFFFFFFFF
 #define INVALID_COLUMN 0xFFFFFFFF
@@ -78,5 +78,9 @@ rc_t read_INSDC_dna_text_ptr( int64_t row_id, const VCursor * cursor, uint32_t i
 bool namelist_contains( const KNamelist * names, const char * a_name );
 rc_t add_column( const VCursor * cursor, const char *colname, uint32_t * idx );
 void add_opt_column( const VCursor * cursor, const KNamelist *names, const char *colname, uint32_t * idx );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

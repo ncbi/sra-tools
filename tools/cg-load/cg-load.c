@@ -30,7 +30,6 @@
 #include "formats.h" /* get_cg_reads_ngaps */
 
 #include <kapp/log-xml.h> /* XMLLogger */
-#include <kapp/loader-meta.h> /* KLoaderMeta_Write */
 #include <kapp/main.h> /* KAppVersion */
 
 #include <kdb/manager.h> /* kptDatabase */
@@ -44,6 +43,8 @@
 #include <klib/status.h> /* STSMSG */
 
 #include <vdb/schema.h> /* VDBManagerMakeSchema */
+
+#include <loader/loader-meta.h> /* KLoaderMeta_Write */
 
 #include <sysalloc.h> /* malloc */
 

@@ -31,6 +31,18 @@
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_align_reader_reference_
+#include <align/reference.h>
+#endif
+
+#ifndef _h_pileup_options_
+#include "pileup_options.h"
+#endif
+
 rc_t walk_stat( ReferenceIterator *ref_iter, pileup_options *options );
 
 #ifdef __cplusplus

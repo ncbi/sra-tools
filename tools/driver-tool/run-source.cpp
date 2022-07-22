@@ -69,6 +69,9 @@ static std::string config_or_default(char const *const config_node, char const *
 
 static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
 {
+    if (runs.empty())
+        throw std::domain_error("No query");
+    
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
 
@@ -581,6 +584,12 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
         }
         catch (std::domain_error const &e) {
             assert(e.what() == std::string("No query"));
+        }
+        catch (std::domain_error const &de) {
+            if (de.what() && strcmp(de.what(), "No query") == 0)
+                ;
+            else
+                throw de;
         }
         catch (vdb::exception const &e) {
             LOG(1) << "Failed to talk to SDL" << std::endl;

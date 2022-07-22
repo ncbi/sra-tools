@@ -32,6 +32,8 @@ if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
     cmake_policy(SET CMP0115 OLD)
 endif()
 
+option( RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF )
+
 set( VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shared/toolkit.vers")
 file( READ ${VERSION_FILE} VERSION )
 string( STRIP ${VERSION} VERSION )
@@ -110,7 +112,7 @@ endif()
 if     ( "mac-x86_84" STREQUAL ${OS}-${ARCH})
 elseif ( "linux-x86_64" STREQUAL ${OS}-${ARCH})
 elseif ( "linux-armv7l" STREQUAL ${OS}-${ARCH})
-elseif ( "linux-aarch64" STREQUAL ${OS}-${ARCH})
+elseif ( "linux-arm64" STREQUAL ${OS}-${ARCH})
     add_compile_definitions( __float128=_Float128 )
 endif()
 
@@ -142,7 +144,7 @@ if ( SINGLE_TARGET )
     message("CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 endif()
 
-message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
+#message( "OS=" ${OS} " ARCH=" ${ARCH} " CXX=" ${CMAKE_CXX_COMPILER} " LMCHECK=" ${LMCHECK} " BITS=" ${BITS} " CMAKE_C_COMPILER_ID=" ${CMAKE_C_COMPILER_ID} " CMAKE_CXX_COMPILER_ID=" ${CMAKE_CXX_COMPILER_ID} )
 
 # ===========================================================================
 # 3d party packages
@@ -154,10 +156,17 @@ find_package( BISON 3 )
 if (XML2_LIBDIR)
     find_library( LIBXML2_LIBRARIES libxml2.a HINTS ${XML2_LIBDIR} )
     if ( LIBXML2_LIBRARIES )
-       set( LibXml2_FOUND true )
+        set( LibXml2_FOUND true )
+        if ( XML2_INCDIR )
+            set( LIBXML2_INCLUDE_DIR ${XML2_INCDIR} )
+        endif()
     endif()
 else()
     find_package( LibXml2 )
+endif()
+if( LibXml2_FOUND )
+    message( LIBXML2_INCLUDE_DIR=${LIBXML2_INCLUDE_DIR} )
+    message( LIBXML2_LIBRARIES=${LIBXML2_LIBRARIES} )
 endif()
 
 find_package(Java COMPONENTS Development)
@@ -172,8 +181,22 @@ endif()
 find_package( Python3 COMPONENTS Interpreter )
 
 # ===========================================================================
+# testing
 
 enable_testing()
+
+option(COVERAGE "Generate test coverage" OFF)
+
+if( COVERAGE AND "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    message( COVERAGE=${COVERAGE} )
+
+    SET(GCC_COVERAGE_COMPILE_FLAGS "-coverage -fprofile-arcs -ftest-coverage")
+    SET(GCC_COVERAGE_LINK_FLAGS    "-coverage -lgcov")
+
+    SET( CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}" )
+endif()
 
 # ===========================================================================
 # singfle vs. multitarget generators, ncbi-vdb binaries
@@ -305,6 +328,7 @@ elseif( "windows" STREQUAL ${OS} )
 endif()
 
 include_directories( ${CMAKE_SOURCE_DIR}/ngs/ngs-sdk )
+include_directories( ${CMAKE_SOURCE_DIR}/libs/inc )
 
 # ===========================================================================
 
@@ -327,17 +351,6 @@ endif()
 #
 # Common functions for creation of build artefacts
 #
-
-function( GenerateStaticLibsWithDefs target_name sources compile_defs )
-    add_library( ${target_name} STATIC ${sources} )
-    if( NOT "" STREQUAL "${compile_defs}" )
-        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
-    endif()
-endfunction()
-
-function( GenerateStaticLibs target_name sources )
-    GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" )
-endfunction()
 
 function( ExportStatic name install )
     # the output goes to .../lib
@@ -506,7 +519,7 @@ function(MakeLinksExe target install_via_driver)
     else()
 
         if ( install_via_driver )
-
+                # on Windows/XCode, ${target}-orig file names have no version attached
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
                          DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
@@ -547,12 +560,12 @@ endfunction()
 
 
 if( NOT SINGLE_CONFIG )
-    set( COMMON_LINK_LIBRARIES kapp load tk-version )
+    set( COMMON_LINK_LIBRARIES kapp tk-version )
     set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} )
     set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
-    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} ${NCBI_VDB_LIBDIR}/libload.${STLX} tk-version )
+    set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} tk-version )
     set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
     set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
 endif()
@@ -563,17 +576,6 @@ if( WIN32 )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
     set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
 endif()
-
-function( BuildExecutableForTest exe_name sources libraries )
-	add_executable( ${exe_name} ${sources} )
-	target_link_libraries( ${exe_name} ${libraries} )
-endfunction()
-
-function( AddExecutableTest test_name sources libraries )
-	BuildExecutableForTest( "${test_name}" "${sources}" "${libraries}" )
-	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-endfunction()
-
 
 if ( SINGLE_CONFIG )
     # standard kfg files
@@ -590,3 +592,122 @@ if ( SINGLE_CONFIG )
             \" )"
     )
 endif()
+
+if( NOT SINGLE_CONFIG )
+	if( RUN_SANITIZER_TESTS )
+		message( "RUN_SANITIZER_TESTS (${RUN_SANITIZER_TESTS}) cannot be turned on in a non single config mode - overriding to OFF" )
+	endif()
+	set( RUN_SANITIZER_TESTS OFF )
+endif()
+
+if( RUN_SANITIZER_TESTS )
+	find_program(LSB_RELEASE_EXEC lsb_release)
+	execute_process(COMMAND ${LSB_RELEASE_EXEC} -is
+		OUTPUT_VARIABLE LSB_RELEASE_ID_SHORT
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	message("LSB_RELEASE_ID_SHORT: ${LSB_RELEASE_ID_SHORT}")
+	if( LSB_RELEASE_ID_SHORT STREQUAL "Ubuntu" )
+		message("Disabling sanitizer tests on Ubuntu...")
+		set( RUN_SANITIZER_TESTS OFF )
+	endif()
+endif()
+
+if( RUN_SANITIZER_TESTS_OVERRIDE )
+	message("Overriding sanitizer tests due to RUN_SANITIZER_TESTS_OVERRIDE: ${RUN_SANITIZER_TESTS_OVERRIDE}")
+	set( RUN_SANITIZER_TESTS ON )
+endif()
+message( "RUN_SANITIZER_TESTS: ${RUN_SANITIZER_TESTS}" )
+
+function( GenerateStaticLibsWithDefs target_name sources compile_defs include_dirs )
+    add_library( ${target_name} STATIC ${sources} )
+    if( NOT "" STREQUAL "${compile_defs}" )
+        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
+    endif()
+    if( NOT "" STREQUAL "${include_dirs}" )
+        target_include_directories( ${target_name} PUBLIC "${include_dirs}" )
+    endif()
+
+    if( RUN_SANITIZER_TESTS )
+        set( asan_defs "-fsanitize=address" )
+        add_library( "${target_name}-asan" STATIC ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-asan" PRIVATE ${compile_defs} )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-asan" PUBLIC "${include_dirs}" )
+        endif()
+        target_compile_options( "${target_name}-asan" PRIVATE ${asan_defs} )
+        target_link_options( "${target_name}-asan" PRIVATE ${asan_defs} )
+
+        set( tsan_defs "-fsanitize=thread" )
+        add_library( "${target_name}-tsan" STATIC ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-tsan" PRIVATE ${compile_defs} )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-tsan" PUBLIC "${include_dirs}" )
+        endif()
+        target_compile_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
+        target_link_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
+    endif()
+endfunction()
+
+function( GenerateStaticLibs target_name sources )
+    GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" "" )
+endfunction()
+
+function( GenerateExecutableWithDefs target_name sources compile_defs include_dirs link_libs )
+    add_executable( ${target_name} ${sources} )
+    if( NOT "" STREQUAL "${compile_defs}" )
+        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
+    endif()
+    if( NOT "" STREQUAL "${include_dirs}" )
+        target_include_directories( ${target_name} PUBLIC "${include_dirs}" )
+    endif()
+
+    if( NOT "" STREQUAL "${link_libs}" )
+        target_link_libraries( ${target_name} "${link_libs}" )
+    endif()
+
+    if( RUN_SANITIZER_TESTS )
+        set( asan_defs "-fsanitize=address" )
+        add_executable( "${target_name}-asan" ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-asan" PRIVATE ${compile_defs} )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-asan" PUBLIC "${include_dirs}" )
+        endif()
+        target_compile_options( "${target_name}-asan" PRIVATE ${asan_defs} )
+        target_link_options( "${target_name}-asan" PRIVATE ${asan_defs} )
+
+        if( NOT "" STREQUAL "${link_libs}" )
+            target_link_libraries( "${target_name}-asan" "${link_libs}" )
+        endif()
+
+        set( tsan_defs "-fsanitize=thread" )
+        add_executable( "${target_name}-tsan" ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-tsan" PRIVATE ${compile_defs} )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-tsan" PUBLIC "${include_dirs}" )
+        endif()
+        target_compile_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
+        target_link_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
+
+        if( NOT "" STREQUAL "${link_libs}" )
+            target_link_libraries( "${target_name}-tsan" "${link_libs}" )
+        endif()
+    endif()
+endfunction()
+
+function( AddExecutableTest test_name sources libraries include_dirs )
+	GenerateExecutableWithDefs( "${test_name}" "${sources}" "" "${include_dirs}" "${libraries}" )
+	add_test( NAME ${test_name} COMMAND ${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME "${test_name}-asan" COMMAND "${test_name}-asan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME "${test_name}-tsan" COMMAND "${test_name}-tsan" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
+endfunction()

@@ -1,1 +1,2 @@
-[error] Invaid quality encoding (min: 33, max: 102) [001.read.invalid_quality64.fq]
+[info] Parsing from 1 files
+[error] [code:120] Read CL100048465L2C001R015_402436: unexpected quality score value '33' ( valid range: [64..126] ) [001.read.invalid_quality64.fq:1]

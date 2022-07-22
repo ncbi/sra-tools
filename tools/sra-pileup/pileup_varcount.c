@@ -24,13 +24,21 @@
 *
 */
 
+#include "pileup_varcount.h"
+
+#ifndef _h_klib_out_
 #include <klib/out.h>
+#endif
 
+#ifndef _h_ref_walker_0_
 #include "ref_walker_0.h"
-#include "4na_ascii.h"
+#endif
 
-typedef struct var_counters
-{
+#ifndef _h_4na_ascii_
+#include "4na_ascii.h"
+#endif
+
+typedef struct var_counters {
     uint32_t coverage;
     uint32_t base_counts[ 4 ];      /* 0...A, 1...C, 2...G, 3...T */
     uint32_t deletes;
@@ -38,24 +46,18 @@ typedef struct var_counters
     uint32_t insert_after[ 4 ];     /* 0...A, 1...C, 2...G, 3...T */
 } var_counters;
 
-
-static rc_t CC walk_varcount_enter_ref_pos( walk_data * data )
-{
+static rc_t CC walk_varcount_enter_ref_pos( walk_data * data ) {
     var_counters * vc = data->data;
     memset( vc, 0, sizeof *vc );
     return 0;
 }
 
-
-static rc_t CC walk_varcount_exit_ref_pos( walk_data * data )
-{
-    if ( data->depth == 0 )
+static rc_t CC walk_varcount_exit_ref_pos( walk_data * data ) {
+    if ( data->depth == 0 ) {
         return 0;
-    else
-    {
+    } else {
         var_counters * vc = data->data;
         char ref_base = _4na_to_ascii( data->ref_base, false );
-
 /*
         A ... ref-name
         B ... ref-pos
@@ -86,22 +88,19 @@ static rc_t CC walk_varcount_exit_ref_pos( walk_data * data )
     }
 }
 
-
 static rc_t CC walk_varcount_placement( walk_data * data )
 {
     int32_t state = data->state;
-    if ( ( state & align_iter_invalid ) != align_iter_invalid )
-    {
+    if ( ( state & align_iter_invalid ) != align_iter_invalid ) {
         var_counters * vc = data->data;
         uint32_t idx = _4na_to_index( state );
 
-        if ( ( state & align_iter_skip ) == align_iter_skip )
+        if ( ( state & align_iter_skip ) == align_iter_skip ) {
             ( vc->deletes ) ++;
-        else if ( ( state & align_iter_match ) != align_iter_match )
+        } else if ( ( state & align_iter_match ) != align_iter_match ) {
             vc->base_counts[ idx ] ++;
-
-        if ( ( state & align_iter_insert ) == align_iter_insert )
-        {
+        }
+        if ( ( state & align_iter_insert ) == align_iter_insert ) {
             ( vc->inserts )++;
             vc->insert_after[ idx ] ++;
         }
@@ -109,9 +108,7 @@ static rc_t CC walk_varcount_placement( walk_data * data )
     return 0;
 }
 
-
-rc_t walk_varcount( ReferenceIterator *ref_iter, pileup_options * options )
-{
+rc_t walk_varcount( ReferenceIterator *ref_iter, pileup_options * options ) {
     walk_data data;
     walk_funcs funcs;
 

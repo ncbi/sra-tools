@@ -27,13 +27,17 @@
 #ifndef _h_rna_splice_log_
 #define _h_rna_splice_log_
 
-#include <insdc/insdc.h>
-#include <align/reference.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifndef _h_insdc_insdc_
+#include <insdc/insdc.h>
+#endif
+    
+#ifndef _h_align_reader_reference_
+#include <align/reference.h>
+#endif
 
 #define INTRON_UNKNOWN 0
 #define INTRON_FWD 1

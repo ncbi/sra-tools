@@ -37,8 +37,9 @@
 #include <kfs/file.h>
 #include <kfs/directory.h>
 #include <kdb/meta.h>
-#include <kapp/loader-meta.h>
 #include <sra/wsradb.h>
+
+#include <loader/loader-meta.h>
 
 #include <os-native.h>
 
@@ -684,7 +685,7 @@ typedef struct SInputOpen_TarVisitData_struct {
     uint32_t alloc;
     char** files;
     uint32_t count;
-    
+
 } SInputOpen_TarVisitData;
 
 static
@@ -706,7 +707,7 @@ rc_t SInputOpen_TarVisit(const KDirectory *dir, uint32_t type, const char *name,
         }
         if( rc == 0 ) {
             char buf[1024];
-            if( (rc = KDirectoryResolvePath(dir, true, buf, sizeof(buf), "%s", name)) == 0 ) { 
+            if( (rc = KDirectoryResolvePath(dir, true, buf, sizeof(buf), "%s", name)) == 0 ) {
                 d->files[d->count++] = strdup(buf);
                 if( d->files[d->count - 1] == NULL ) {
                     rc = RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
@@ -1069,7 +1070,7 @@ rc_t KMain(int argc, char *argv[])
                             if(percentage > allowed ||
                                (feInput.spots_bad_allowed >= 0 && bad_spot_count > feInput.spots_bad_allowed)) {
                                 rc = RC(rcExe, rcTable, rcClosing, rcData, rcInvalid);
-                                PLOGERR(klogErr, 
+                                PLOGERR(klogErr,
                                         (klogErr, rc,
                                          "Too many bad spots: "
                                          "spots: $(spots), bad spots: $(bad_spots), "

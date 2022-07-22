@@ -43,7 +43,6 @@
 
 #include "fastq_read.hpp"
 #include "fastq_error.hpp"
-#include "fastq_defline_parser.hpp"
 #include "hashing.hpp"
 // input streams
 #include "bxzstr/bxzstr.hpp"
@@ -60,6 +59,8 @@
 #include <json.hpp>
 #include <set>
 #include <limits>
+
+#include "fastq_defline_parser.hpp"
 
 using namespace std;
 
@@ -581,10 +582,11 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
                 try {
                     score = stoi(m_tmp_str);
                 } catch (invalid_argument&) {
-                    throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), m_tmp_str);
+                    throw fastq_error(120, "Read {}: invalid quality score value '{}'", read.Spot(), m_tmp_str);
                 }
                 if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
-                    throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
+                    throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
+                            read.Spot(), score, ScoreValidator::min_score(), ScoreValidator::max_score());
                 read.mQualScores.push_back(score);
                 m_tmp_str.clear();
             }
@@ -596,16 +598,20 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
         try {
             score = stoi(m_tmp_str);
         } catch (invalid_argument&) {
-            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), m_tmp_str);
+            throw fastq_error(120, "Read {}: invalid quality score value '{}'", read.Spot(), m_tmp_str);
         }
         if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
-            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
+            throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
+                    read.Spot(), score, ScoreValidator::min_score(), ScoreValidator::max_score());
         read.mQualScores.push_back(score);
     }
     int qual_size = read.mQualScores.size();
     int sz = read.mSequence.size();
     if (qual_size > sz) {
-        throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+        // quality line too long; warn and truncate
+        fastq_error e(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+        spdlog::warn(e.Message());
+        read.mQualScores.resize( sz );
     }
 
     while (qual_size < sz) {
@@ -629,13 +635,18 @@ void fastq_reader::char_qual_validator(CFastqRead& read)
 
     auto qual_size = read.mQuality.size();
     auto sz = read.mSequence.size();
-    if (qual_size > sz)
-        throw fastq_error(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+    if (qual_size > sz) {
+        // quality line too long; warn and truncate
+        fastq_error e(130, "Read {}: quality score length exceeds sequence length", read.Spot());
+        spdlog::warn(e.Message());
+        read.mQuality.resize( sz );
+    }
 
     for (auto c : read.mQuality) {
         int score = int(c);
         if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
-            throw fastq_error(120, "Read {}: unexpected quality score value '{}'", read.Spot(), score);
+            throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
+                    read.Spot(), score, ScoreValidator::min_score(), ScoreValidator::max_score());
     }
     if (qual_size < sz) {
         if (qual_size == 0)
@@ -1093,7 +1104,7 @@ void check_hash_file(const string& hash_file)
  * @param[in] num_reads_to_check
  */
 template<typename ErrorChecker>
-void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorChecker&& error_checker, int num_reads_to_check = 250000)
+void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorChecker&& error_checker, int p_num_reads_to_check = 250000)
 {
     assert(!input_batches.empty());
     // Run first num_reads_to_check to check for consistency
@@ -1136,6 +1147,8 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
             string spot_name;
             set<string> read_names;
             bool has_reads = false;
+            int num_reads_to_check = p_num_reads_to_check;
+
             while (has_reads == false && num_reads_to_check > 0) {
                 try {
                     has_reads = reader.get_next_spot<>(spot_name, reads);
@@ -1211,10 +1224,10 @@ void get_digest(json& j, const vector<vector<string>>& input_batches, ErrorCheck
                 f["quality_encoding"] = 0;
             } else if (params.min_score >= 64 && params.max_score > 78) {
                 f["quality_encoding"] = 64;
-            } else if (params.min_score >= 33 && params.max_score <= 78) {
+            } else if (params.min_score >= 33 /*&& params.max_score <= 78*/) {
                 f["quality_encoding"] = 33;
             } else {
-                fastq_error e("Invaid quality encoding (min: {}, max: {})", params.min_score, params.max_score);
+                fastq_error e("Invaid quality encoding (min: {}, max: {}), {}:{}", params.min_score, params.max_score, fn, read.LineNumber());
                 e.set_file(fn, read.LineNumber());
                 throw e;
 

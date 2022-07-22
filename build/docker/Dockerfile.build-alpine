@@ -1,24 +1,40 @@
 FROM alpine:latest AS build
-RUN apk add build-base util-linux linux-headers g++ ninja cmake git libquadmath
-RUN ln -fs /usr/lib/libquadmath.so.0.0.0 /usr/lib/libquadmath.so
+RUN apk add build-base util-linux linux-headers g++ ninja cmake git perl zlib-dev bzip2-dev
 
 ARG CMAKE_BUILD_SHARED_LIBS=1
+ARG CMAKE_BUILD_TYPE=Release
 ARG VDB_BRANCH=engineering
 ARG SRA_BRANCH=${VDB_BRANCH}
 WORKDIR /root
-RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git
+RUN git clone -b ${VDB_BRANCH} --depth 1 https://github.com/ncbi/ncbi-vdb.git && \
+    git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
 WORKDIR ncbi-vdb
-RUN sed -e '/add_subdirectory\s*\(\s*vdb3\s*\)/ d' -i CMakeLists.txt && \
-    sed -e '/^#undef memcpy/,/^#endif/ d' -i interfaces/kfc/defs.h && \
-    sed -e '/gnu\/libc-version.h/ d' -e '/gnu_get_libc_version/ d' -i libs/kns/manager.c
+RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ktst\s*)\s*$/ d' libs/CMakeLists.txt && \
+    sed -i.orig -e '/\bARCH\b/ s/\baarch64\b/arm64/' build/env.cmake
 WORKDIR /root
 RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
           -S ncbi-vdb -B build/ncbi-vdb && \
     cmake --build build/ncbi-vdb
-RUN git clone -b ${SRA_BRANCH} --depth 1 https://github.com/ncbi/sra-tools.git
 WORKDIR sra-tools
-RUN sed -e'/execinfo.h/ s/^/\/\//' -e'/backtrace/ s/^/\/\//' -i tools/driver-tool/secure/except.cpp && \
-    sed -e'/config->noInstallID/,/^\s*$/ d' -i tools/driver-tool/sratools.cpp
+RUN sed -i.orig -e '/^\s*add_subdirectory\s*(\s*test\s*)\s*$/ d' CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*copycat\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*sharq\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*.*-load*\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*kget\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*cache-mgr\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*util\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-sql\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ngs-pileup\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-diff\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*ccextract\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*align-.*\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*.*-redact\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-sort\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*vdb-copy\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/^\s*add_subdirectory\s*(\s*.*-stat\s*)\s*$/ d' tools/CMakeLists.txt && \
+    sed -i.orig -e '/\bARCH\b/ s/\baarch64\b/arm64/' build/env.cmake && \
+    sed -i.orig -e'/execinfo.h/ s/^/\/\//' -e'/backtrace/ s/^/\/\//' tools/driver-tool/secure/except.cpp
 WORKDIR /root
 RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
           -DVDB_INCDIR=/root/ncbi-vdb/interfaces \
@@ -26,9 +42,9 @@ RUN cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
           -S sra-tools -B build/sra-tools && \
     cmake --build build/sra-tools
 RUN cmake -P build/sra-tools/cmake_install.cmake
-RUN mkdir -p /root/.ncbi
-RUN printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` > /root/.ncbi/user-settings.mkfg && \
-    printf '/libs/cloud/report_instance_identity = "true"\n' >> /root/.ncbi/user-settings.mkfg
+RUN mkdir -p /etc/ncbi
+RUN printf '/LIBS/IMAGE_GUID = "%s"\n' `uuidgen` > /etc/ncbi/settings.kfg && \
+    printf '/libs/cloud/report_instance_identity = "true"\n' >> /etc/ncbi/settings.kfg
 
 FROM alpine:latest
 LABEL author="Kenneth Durbrow" \
@@ -40,8 +56,6 @@ LABEL author="Kenneth Durbrow" \
       notice="WHEN USING THIS IMAGE IN A CLOUD ENVIRONMENT, YOU WILL BE SENDING YOUR CLOUD INSTANCE IDENTITY TO NCBI."
 RUN apk add --no-cache libstdc++ libgcc
 COPY --from=build /usr/local/bin /usr/local/bin
-COPY --from=build /root/.ncbi /root/.ncbi
-# everyone needs to be able to list and read it
-RUN chmod go+rx /root /root/.ncbi && chmod go+r /root/.ncbi/user-settings.mkfg
-#  very basic smoke test to check if runnable
-RUN touch foo && srapath ./foo >/dev/null 2>/dev/null && rm foo
+COPY --from=build /etc/ncbi /etc/ncbi
+# very basic smoke test to check if runnable
+# touch foo && srapath ./foo && rm foo

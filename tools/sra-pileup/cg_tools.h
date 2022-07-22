@@ -30,28 +30,29 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#if 0
-}
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
 #endif
 
-#include <klib/rc.h>
-#include <insdc/sra.h>
-#include <insdc/sra.h>
-#include <align/reference.h>
+#ifndef _h_insdc_insdc_
+#include <insdc/insdc.h>        /* INSDC_coord_* */
+#endif
+
+#ifndef _h_align_reader_reference_
+#include <align/reference.h>    /* ReferenceObj */
+#endif
 
 #define MAX_CG_CIGAR_LEN ( ( 11 * 35 ) + 1 )
 #define MAX_GC_LEN ( ( 11 * 3 ) + 1 )
 #define MAX_READ_LEN ( 35 )
 
-
-typedef struct ptr_len
-{
+typedef struct ptr_len {
     const char * ptr;
     uint32_t len;
 } ptr_len;
 
-typedef struct cg_cigar_input
-{
+typedef struct cg_cigar_input {
     ptr_len p_cigar;
     ptr_len p_read;
     ptr_len p_quality;
@@ -62,9 +63,7 @@ typedef struct cg_cigar_input
     int32_t edit_dist;
 } cg_cigar_input;
 
-
-typedef struct cg_cigar_output
-{
+typedef struct cg_cigar_output {
     char cigar[ MAX_CG_CIGAR_LEN ];
     uint32_t cigar_len;
 
@@ -80,20 +79,16 @@ typedef struct cg_cigar_output
     int32_t edit_dist;
 } cg_cigar_output;
 
-
 rc_t make_cg_cigar( const cg_cigar_input * input, cg_cigar_output * output );
 
 rc_t make_cg_merge( const cg_cigar_input * input, cg_cigar_output * output );
 
-
-typedef struct CigOps
-{
+typedef struct CigOps {
     char op;
     int8_t   ref_sign; /* 0;+1;-1; ref_offset = ref_sign * offset */
     int8_t   seq_sign; /* 0;+1;-1; seq_offset = seq_sign * offset */
     uint32_t oplen;
 } CigOps;
-
 
 int32_t ExplodeCIGAR( CigOps dst[], uint32_t len, char const cigar[], uint32_t ciglen );
 
@@ -104,34 +99,37 @@ uint32_t CombineCIGAR( char dst[], CigOps const seqOp[], uint32_t seq_len,
 #define RNA_SPLICE_FWD 1
 #define RNA_SPLICE_REV 2
 
-typedef struct rna_splice_candidate
-{
+typedef struct rna_splice_candidate {
     uint32_t ref_offset;
     uint32_t len;
     uint32_t op_idx;
     uint32_t matched;   /* 0..unknown, 1..fwd, 2..rev */
 } rna_splice_candidate;
 
-
 #define MAX_RNA_SPLICE_CANDIDATES 20
 
-typedef struct rna_splice_candidates
-{
+typedef struct rna_splice_candidates {
     rna_splice_candidate candidates[ MAX_RNA_SPLICE_CANDIDATES ];
     CigOps * cigops;
     uint32_t count, fwd_matched, rev_matched, cigops_len;
     int32_t n_cigops;
 } rna_splice_candidates;
 
-
-rc_t discover_rna_splicing_candidates( uint32_t cigar_len, const char * cigar, uint32_t min_len, rna_splice_candidates * candidates );
+rc_t discover_rna_splicing_candidates( uint32_t cigar_len, const char * cigar,
+                                       uint32_t min_len, rna_splice_candidates * candidates );
 
 rc_t check_rna_splicing_candidates_against_ref( struct ReferenceObj const * ref_obj,
                                                 uint32_t splice_level,
                                                 INSDC_coord_zero pos,
                                                 rna_splice_candidates * candidates );
 
-rc_t change_rna_splicing_cigar( uint32_t cigar_len, char * cigar, rna_splice_candidates * candidates, uint32_t * NM_adjustment );
+rc_t change_rna_splicing_cigar( uint32_t cigar_len, char * cigar,
+                                rna_splice_candidates * candidates, uint32_t * NM_adjustment );
+
 rc_t cg_canonical_print_cigar( const char * cigar, size_t cigar_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

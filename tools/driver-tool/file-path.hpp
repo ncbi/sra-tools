@@ -61,11 +61,11 @@ struct FilePath_ : protected FilePathImpl {
     : FilePathImpl(path.data(), path.size())
     {}
 #endif
-    
+
 #if MS_Visual_C
     /// creates a non-owning object
     FilePath_(FilePath_ const& other) noexcept : FilePathImpl(other) {}
-    FilePath_& operator= (FilePath_ const& other) noexcept { 
+    FilePath_& operator= (FilePath_ const& other) noexcept {
         static_cast<FilePathImpl &>(*this) = static_cast<FilePathImpl const &>(other);
         return *this;
     }
@@ -78,8 +78,8 @@ struct FilePath_ : protected FilePathImpl {
     }
 #else
     /// creates a non-owning object
-    FilePath_(FilePath_ const &other) noexcept = default;
-    FilePath_ &operator= (FilePath_ const &other) noexcept = default;
+    FilePath_(FilePath_ const &other) = default;
+    FilePath_ &operator= (FilePath_ const &other) = default;
 
     /// other loses any ownership it may have had
     FilePath_(FilePath_ &&other) noexcept = default;
@@ -88,7 +88,7 @@ struct FilePath_ : protected FilePathImpl {
 
     /// A new `FilePath_` that owns its path.
     FilePath_ copy() const { return FilePathImpl::copy(); }
-    
+
     /// A new `FilePath_` with a canonical copy of the path.
     FilePath_ canonical() const { return FilePathImpl::canonical(); }
 
@@ -97,16 +97,16 @@ struct FilePath_ : protected FilePathImpl {
         auto both = FilePathImpl::split();
         return {both.first, both.second};
     }
-    
+
     FilePath_ baseName() const {
         return split().second;
     }
-    
+
     /// A new `FilePath_` with path seperator and path element appended
     FilePath_ append(FilePath_ const &element) const {
         return FilePathImpl::append(element);
     }
-    
+
     /// Remove `count` code units from end of last path element
     bool removeSuffix(size_t const count) { return FilePathImpl::removeSuffix(count); }
 
@@ -136,16 +136,16 @@ struct FilePath_ : protected FilePathImpl {
     /// @NOTE The result has POSIX path seperators even on Windows
     operator std::string() const {
         auto result = FilePathImpl::operator std::string();
-        
+
         while (result.size() > 1 && result.back() == '/')
             result.pop_back();
-        
+
         return result;
     }
 #if USE_WIDE_API
     operator std::wstring() const { return std::wstring(implementation()); }
 #endif
-    
+
     /// @returns the number of code units in the path
     size_t size() const { return FilePathImpl::size(); }
 
@@ -187,7 +187,7 @@ struct FilePath_ : protected FilePathImpl {
         return FilePathImpl::fullPathToExecutable(argv, envp, extra);
     }
 #endif
-    
+
     /// @returns the platform specific implementation of this object
     FilePathImpl const &implementation() const {
         return *static_cast<FilePathImpl const *>(this);

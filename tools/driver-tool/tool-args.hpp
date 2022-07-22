@@ -35,6 +35,7 @@
 #include <vector>
 #include <string>
 #include <iosfwd>
+#include <cstring>
 
 #include "util.hpp"
 #define USE_TOOL_HELP 0
@@ -55,7 +56,7 @@ struct ParameterDefinition {
 
     /// @brief The argument appears to be a parameter, but it is not in the list of known parameters for the tool. It does not take an argument.
     static ParameterDefinition const &unknownParameter();
-    
+
     /// @brief The query is not a parameter for the tool, it is an argument.
     static ParameterDefinition const &argument();
 
@@ -63,27 +64,27 @@ struct ParameterDefinition {
     operator bool() const {
         return !!name;
     }
-    
+
     bool isArgument() const {
         return name == nullptr && hasArgument;
     }
-    
+
     bool operator== (ParameterDefinition const &other) const {
         return name == other.name || strcmp(name, other.name) == 0;
     }
-    
+
     bool operator== (char const *name) const {
         return this->name != nullptr && strcmp(this->name, name) == 0;
     }
-    
+
     bool operator== (std::string const &name) const {
         return this->name != nullptr && name == this->name;
     }
-    
+
     bool operator< (ParameterDefinition const &other) const {
         return strcmp(this->name, other.name) < 0;
     }
-    
+
     bool operator< (std::string const &name) const {
         return !(name <= this->name);
     }
@@ -91,7 +92,7 @@ struct ParameterDefinition {
     bool operator< (char const *name) const {
         return strcmp(this->name, name) < 0;
     }
-    
+
     friend bool operator< (std::string const &a, ParameterDefinition const &b) {
         return a < b.name;
     }
@@ -113,7 +114,7 @@ struct Argument {
     char const *argument;
     int argind;
     mutable Ignore reason;
-    
+
     bool operator ==(ParameterDefinition const &other) const { return def->operator==(other); }
     bool operator ==(char const *name) const { return def->operator==(name); }
     bool isArgument() const { return def->isArgument(); }
@@ -132,9 +133,9 @@ private:
     uint64_t argsBits;
     unsigned parameters;
     unsigned arguments;
-    
+
     Arguments() {}
-    
+
     Arguments(Container const &args, uint64_t argsBits)
     : container(args)
     , argsBits(argsBits)
@@ -213,7 +214,7 @@ public:
     UniqueOrderedList<int> keep(char const *keep) const
     {
         auto result = UniqueOrderedList<int>(arguments - 1);
-        
+
         for (auto & arg : container) {
             if (arg.isArgument()) {
                 if (arg.argument == keep || strcmp(arg.argument, keep) == 0)

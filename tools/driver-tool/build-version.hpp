@@ -34,15 +34,16 @@
 #include <string>
 #include <iosfwd>
 #include <cstdint>
+#include <cstring>
 
 namespace sratools {
 
 struct Version {
     uint32_t packed;
     operator std::string() const noexcept;
-    
+
     std::ostream &write(std::ostream &os) const noexcept;
-    
+
     bool operator <(Version const &rhs) const { return packed < rhs.packed; }
     bool operator >(Version const &rhs) const { return packed > rhs.packed; }
     bool operator <=(Version const &rhs) const { return packed <= rhs.packed; }
@@ -57,32 +58,32 @@ struct Version {
 
     Version() noexcept : packed(0) {}
     operator bool() const noexcept { return packed != 0; }
-    
+
     explicit Version(uint32_t const pckd) noexcept
     : packed(pckd)
     {}
-    
+
     Version(char const *string, char const *strEnd);
-    
+
     explicit Version(char const *string)
     : Version(string, string + strlen(string))
     {}
-    
+
     explicit Version(std::string const &string)
     : Version(string.data(), string.data() + string.size())
     {}
-    
+
     Version(uint8_t const major, uint8_t const minor, uint16_t const revision) noexcept
     : packed((((uint32_t)major) << 24) | (((uint32_t)minor) << 16) | ((uint32_t)revision))
     {}
-    
+
     unsigned major() const noexcept { return packed >> 24; }
     unsigned minor() const noexcept { return (packed >> 16) & 0xFF; }
     unsigned revision() const noexcept { return packed & 0xFFFF; }
-    
+
     Version nextMinor() const noexcept { return Version(major(), minor() + 1, 0); }
     Version nextMajor() const noexcept { return Version(major() + 1, 0, 0); }
-    
+
     /// \brief Scan the name for a version string; if found, remove it.
     /// \Returns The found version or `Version()`.
     static Version removeVersion(std::string &name) noexcept;
@@ -93,7 +94,7 @@ struct Version {
         auto tmp = std::string(name);
         return removeVersion(tmp);
     }
-    
+
     template< typename T >
     static std::pair< Version, T > make(T begin, T end, unsigned *parts) noexcept;
 };

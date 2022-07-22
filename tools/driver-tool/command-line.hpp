@@ -67,14 +67,14 @@ struct CommandLine {
 
     ///< the full path to directory containing the executable.
     FilePath fullPath;
-    
+
     FilePath toolPath;
 
     ///< the actual name of the executable, i.e. sratools.3.0.1
     std::string realName;
 
     int argc;
-    
+
     uint32_t buildVersion;
 #if WINDOWS
 #else
@@ -85,7 +85,8 @@ struct CommandLine {
 #if USE_WIDE_API
         return FilePath(wargv[index]);
 #else
-        return FilePath(argv[index]);
+        FilePath f(argv[index]);
+        return FilePath(f);
 #endif
     }
     FilePath pathForArgument(Argument const &arg) const {
@@ -102,9 +103,9 @@ struct CommandLine {
     /// and reused for launching the child process.
     CommandLine(int argc, wchar_t *wargv[], wchar_t *wenvp[], char *extra[]);
 #endif
-    
+
     ~CommandLine();
-    
+
 #if WINDOWS
     // fakeName not used on Windows
 #if USE_WIDE_API
@@ -127,7 +128,7 @@ private:
 #else
     std::string versionString() const;
 #endif
-    
+
     FilePath getToolPath() const;
 
 #if WINDOWS

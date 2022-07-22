@@ -105,12 +105,12 @@ FilePath FilePath::makeCurrentDirectory() const
 
     assert(length < 0 || path[length] == '\0');
     changeDirectory(path);
-    
+
     return cur;
 }
 
 static size_t countTrailingSep(size_t length, char const *str) {
-    auto n = 0;
+    size_t n = 0;
     while (n < length && str[length - (n + 1)] == '/')
         ++n;
     return n;
@@ -135,7 +135,7 @@ static size_t countLeadingSep(size_t length, char const *str, bool protectRoot) 
 
 FilePath FilePath::append(FilePath const &leaf) const {
     FilePath result;
-    
+
     auto path = this->path;
     auto length = this->length < 0 ? strlen(path) : (size_t)this->length;
     {
@@ -150,7 +150,7 @@ FilePath FilePath::append(FilePath const &leaf) const {
     }
     if (len == 0)
         return *this;
-    
+
     result.path = (char *)malloc(length + 1 + len + 1);
     if (result.path != nullptr) {
         result.owns = true;
@@ -159,7 +159,7 @@ FilePath FilePath::append(FilePath const &leaf) const {
         memcpy(result.path + length, str, len); length += len;
         result.path[length] = '\0';
         result.length = length;
-        
+
         return result;
     }
     throw std::bad_alloc();
@@ -169,7 +169,7 @@ FilePath::FilePath(size_t length, char const *path)
 {
     auto const leading = countLeadingSep(length, path, true);
     length = withoutTrailingSep(length - leading, path += leading);
-    
+
     this->path = (char *)malloc(length + 1);
     assert(this->path != nullptr);
     if (this->path) {

@@ -1,1 +1,1 @@
-[error] [code:140] Read V300047012L3C001R0010000001: quality score contains unexpected character 'ABC' [001.read.bad_quality0.fq:1]
+[error] [code:140] Read V300047012L3C001R0010000001: quality score contains unexpected character [001.read.bad_quality0.fq:1]

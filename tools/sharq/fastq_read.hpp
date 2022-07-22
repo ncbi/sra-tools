@@ -175,7 +175,7 @@ void CFastqRead::SetType(char readType)
             mReadType = Sequence().size() < 40 ? SRA_READ_TYPE_TECHNICAL: SRA_READ_TYPE_BIOLOGICAL;
         break;
     default:
-        throw fastq_error(150, "Read {}: invalid readtType '{}'", mSpot, readType);
+        throw fastq_error(150, "Read {}: invalid readType '{}'", mSpot, readType);
     }
 }
 

@@ -2,34 +2,52 @@ import subprocess
 import os
 import shutil
 
+def get_tool( env_name, tool_name ) :
+    env_dir = os.environ[ env_name ]
+    if len( env_dir ) == 0 :
+        env_ir = "."
+    return os.path.join( env_dir, tool_name )
+
+def try_cmd( cmd, err ) :
+    try :
+        res = subprocess.check_output( cmd, shell = True )
+        return res.decode( 'utf-8' )
+    except Exception as e:
+        print( f"{err} -> {e}" )
+    return None
+
 '''---------------------------------------------------------------
 helper function: generate READ from cigar,refname,refpos
 ---------------------------------------------------------------'''
 def cigar2read( cigar, pos, ref ):
-    cmd = "sampart -f read -c %s -p %d -r %s"%( cigar, pos, ref )
-    return subprocess.check_output( cmd, shell = True )
-
+    tool = get_tool( "TESTBINDIR", "sampart" )
+    cmd = f"{tool} -f read -c {cigar} -p {pos} -r {ref}"
+    return try_cmd( cmd, "sam.py:cigar2read()" )
+    
 '''---------------------------------------------------------------
 helper function: generate random QUALITY of given length
 ---------------------------------------------------------------'''
 def rnd_qual( l ):
-    cmd = "sampart -f qual -l %d -s 7"%( l )
-    return subprocess.check_output( cmd, shell = True )
+    tool = get_tool( "TESTBINDIR", "sampart" )
+    cmd = f"{tool} -f qual -l {l} -s 7"
+    return try_cmd( cmd, "sam.py:rnd_qual()" )
 
 '''---------------------------------------------------------------
 helper function: transform cigar with given inserts into
 a 'clean' cigar, bam-load does accept
 ---------------------------------------------------------------'''
 def merge_cigar( cigar ):
-    cmd = "sampart -f cigar -c %s"%( cigar )
-    return subprocess.check_output( cmd, shell = True )
+    tool = get_tool( "TESTBINDIR", "sampart" )
+    cmd = f"{tool} -f cigar -c {cigar}"
+    return try_cmd( cmd, "sam.py:merge_cigar()" )
 
 '''---------------------------------------------------------------
 helper function: to get length of a reference ( from the RefSeq-Acc )
 ---------------------------------------------------------------'''
 def ref_len( ref ):
-    cmd = "sampart -f rlen -r %s"%( ref )
-    return int( subprocess.check_output( cmd, shell = True ) )
+    tool = get_tool( "TESTBINDIR", "sampart" )
+    cmd = f"{tool} -f rlen -r {ref}"
+    return try_cmd( cmd, "sam.py:ref_len()" )
 
 '''---------------------------------------------------------------
 helper function: remove a file, without error if it does not exist
@@ -58,15 +76,17 @@ def load_file( filename ) :
 def print_file( filename ) :
     s = load_file( filename )
     if len( s ) > 0 :
-        print s
+        print( s )
 
 def print_txt( txt ) :
-    if len( txt ) > 0 :
-        print txt
+    if txt != None :
+        if len( txt ) > 0 :
+            print( txt )
 
-def print_txt_list( list ) :
-    for a in list :
-        print_txt( a )
+def print_txt_list( lst ) :
+    for a in lst :
+        if a != None :
+            print_txt( a )
 
 '''===============================================================
 preform a bam-load on a python-list of SAM-objects
@@ -82,29 +102,28 @@ preform a bam-load on a python-list of SAM-objects
     keep_files... False/True for debugging temp. files
 ==============================================================='''
 def bam_load( list, output, params, keep_files = False ) :
-    res = 0
-    txt1=""
-    txt2=""
-    try :
+    rm_dir( "x_csra" )
+    rm_file( output )
+    rm_file( "err.txt" )
+    save_sam( list, "x.sam" )
+    save_config( list, "x.kfg" )
+
+    tool = get_tool( "BINDIR", "bam-load" )
+    cmd = f"{tool} {params} -o x_csra -k x.kfg x.sam 2>err.txt"
+    txt1 = try_cmd( cmd, "sam.py:bam_load( bam-load )" )
+
+    tool = get_tool( "BINDIR", "kar" )
+    cmd = f"{tool} --create {output} -d x_csra -f 2>err.txt"
+    txt2 = try_cmd( cmd, "sam.py:bam_load( kar )" )
+
+    if not keep_files :
         rm_dir( "x_csra" )
-        rm_file( output )
-        rm_file( "err.txt" )
-        save_sam( list, "x.sam" )
-        save_config( list, "x.kfg" )
-        cmd = "bam-load %s -o x_csra -k x.kfg x.sam 2>err.txt"%( params )
-        txt1 = subprocess.check_output( cmd, shell=True )
-        cmd = "kar --create %s -d x_csra -f 2>err.txt"%( output )
-        txt2 = subprocess.check_output( cmd, shell=True )
-        if not keep_files :
-            rm_dir( "x_csra" )
-            rm_file( "x.sam" )
-            rm_file( "x.kfg" )
-        res = 1
-    except :
-        pass
+        rm_file( "x.sam" )
+        rm_file( "x.kfg" )
+
     print_txt_list( [ load_file( "err.txt" ), txt1, txt2 ] )
     rm_file( "err.txt" )
-    return res
+    return 1
 
 
 '''===============================================================
@@ -119,45 +138,46 @@ preform a sra-sort on a given cSRA-file
     keep_files... False/True for debugging temp. files
 ==============================================================='''
 def sra_sort( input, output, params = "", keep_files = False ) :
-    res = 0
-    txt1 = ""
-    txt2 = ""
-    try :
+    rm_dir( "s_csra" )
+    rm_file( output )
+    rm_file( "err.txt" )
+
+    tool = get_tool( "BINDIR", "sra-sort" )
+    cmd = f"{tool} {input} s_csra -f {params} 2>err.txt"
+    txt1 = try_cmd( cmd, "sam.py:sra_sort( sra-sort )" )
+
+    tool = get_tool( "BINDIR", "kar" )
+    cmd = f"{tool} --create {output} -d s_csra -f 2>err.txt"
+    txt2 = try_cmd( cmd, "sam.py:sra_sort( kar )" )
+    if not keep_files :
         rm_dir( "s_csra" )
-        rm_file( output )
-        rm_file( "err.txt" )
-        cmd = "sra-sort %s s_csra -f %s 2>err.txt"%( input, params )
-        txt1 = subprocess.check_output( cmd, shell=True )
-        cmd = "kar --create %s -d s_csra -f 2>err.txt"%( output )
-        txt2 = subprocess.check_output( cmd, shell=True )
-        if not keep_files :
-            rm_dir( "s_csra" )
-        res = 1
-    except :
-        pass
     print_txt_list( [ load_file( "err.txt" ), txt1, txt2 ] )
     rm_file( "err.txt" )
-    return res
+    return 1
 
 
 def vdb_dump( accession, params = "" ) :
     try :
-        cmd = "vdb-dump %s %s"%( accession, params )
+        tool = get_tool( "BINDIR", "vdb-dump" )
+        cmd = f"{tool} {accession} {params}"
         txt = subprocess.check_output( cmd, stderr=subprocess.STDOUT, shell=True )
-        print txt
+        s = txt.decode( "utf-8" )
+        print( f"{s}" )
         return 1
-    except :
-        pass
+    except Exception as e:
+        print( f"sam.py:vdb_dump() -> {e}" )
     return 0
 
 def sam_dump( accession, params = "" ) :
     try :
-        cmd = "sam-dump %s %s"%( accession, params )
+        tool = get_tool( "BINDIR", "sam-dump" )
+        cmd = f"sam-dump {accession} {params}"
         txt = subprocess.check_output( cmd, stderr=subprocess.STDOUT, shell=True )
-        print txt
+        s = txt.encode( "utf-8" )
+        print( f"{s}" )
         return 1
-    except :
-        pass
+    except Exception as e:
+        print( f"sam.py:sam_dump() -> {e}" )
     return 0
 
 '''===============================================================
@@ -220,7 +240,7 @@ def extract_headers( list ) :
     res = [ "@HD\tVN:1.3" ]
     for k, v in reflist.items():
         l = ref_len( v )
-        res.append( "@SQ\tSN:%s\tAS:%s\tLN:%d"%( k, k, l ) )
+        res.append( f"@SQ\tSN:{k}\tAS:{k}\tLN:{l}" )
     return res
 
 '''---------------------------------------------------------------
@@ -233,7 +253,7 @@ def produce_config( list ) :
     res = []
     for k, v in reflist.items():
         if k != "*" and k != "-" :
-            res.append( "%s\t%s"%( k, v ) )
+            res.append( f"{k}\t{v}" )
     return res
 
 '''---------------------------------------------------------------
@@ -243,27 +263,27 @@ helper function: save config file created from list of SAM-objects
 def save_config( list, filename ) :
     with open( filename, "w" ) as f:
         for s in produce_config( list ) :
-            f.write( "%s\n"%( s ) )
+            f.write( f"{s}\n" )
 
 '''---------------------------------------------------------------
 helper function: prints a list of SAM-objects
 ---------------------------------------------------------------'''
 def print_sam( list ):
     for s in extract_headers( list ) :
-        print s
+        print( s )
     for s in list :
-        print s
+        print( s )
 
 '''---------------------------------------------------------------
 helper function: save a list of SAM-objects as file
     used in bam_load
 ---------------------------------------------------------------'''
-def save_sam( list, filename ) :
+def save_sam( lst, filename ) :
     with open( filename, "w" ) as f:
-        for s in extract_headers( list ) :
-            f.write( "%s\n"%( s ) )
-        for s in list :
-            f.write( "%s\n"%( s ) )
+        for s in extract_headers( lst ) :
+            f.write( f"{s}\n" )
+        for s in lst :
+            f.write( f"{s}\n" )
 
 '''===============================================================
     SAM-object
@@ -285,15 +305,17 @@ class SAM:
         self.tlen = 0
         self.tags = tags
 
-    def __str__( self ):
-        if len( self.tags ) > 0 :
-            return "%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s"%( self.qname,
-                self.flags, self.refalias, self.pos, self.mapq, self.cigar, self.nxt_ref,
-                self.nxt_pos, self.tlen, self.seq, self.qual, self.tags )
-        else :
-            return "%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s"%( self.qname,
-                self.flags, self.refalias, self.pos, self.mapq, self.cigar, self.nxt_ref,
-                self.nxt_pos, self.tlen, self.seq, self.qual )
+    def __str__( self ) :
+        res = ""
+        try :
+            res = f"{self.qname}\t{self.flags}\t{self.refalias}\t{self.pos}\t{self.mapq}\t"
+            res = res + f"{self.cigar}\t{self.nxt_ref}\t{self.nxt_pos}\t{self.tlen}\t"
+            res = res + f"{self.seq}\t{self.qual}"
+            if len( self.tags ) > 0 :
+                res = res + f"\t{self.tags}"
+        except Exception as e:
+            print( f"sam.py:SAM.__str__() -> {e}" )
+        return res
 
     def set_flag( self, flagbit, state ) :
         if state :

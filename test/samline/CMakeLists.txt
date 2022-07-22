@@ -35,11 +35,17 @@ if( NOT WIN32 )
     target_link_libraries( samline ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
     target_link_libraries( sampart ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
 
+    #add_test( NAME Test_Samline
+    #        COMMAND
+    #            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+    #            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+    #            "./simple_test.sh" "${BINDIR}" "${TESTBINDIR}"
+    #        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    #    )
+
     add_test( NAME Test_Samline
-            COMMAND
-                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
-                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                "./simple_test.sh" "${TESTBINDIR}"
+            COMMAND "./simple_test.sh" "${BINDIR}" "${TESTBINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
+
 endif()

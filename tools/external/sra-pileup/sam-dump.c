@@ -32,6 +32,10 @@
 #include <klib/log.h>
 #endif
 
+#ifndef _h_klib_status_
+#include <klib/status.h>
+#endif
+
 #ifndef _h_klib_out_
 #include <klib/out.h>
 #endif

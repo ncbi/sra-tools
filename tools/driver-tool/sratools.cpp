@@ -110,7 +110,7 @@ static void handleFileArgument(Argument const &arg, int *const count, char const
     }
     if (*value == nullptr)
         *count = 0;
-    
+
     if (++*count > 1) {
         LOG(1) << "--" << arg.def->name << " given more than once";
         if (strcmp(*value, arg.argument) == 0) {
@@ -131,7 +131,7 @@ static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::s
     char const *lperm = nullptr;
     char const *lngc = nullptr;
     char const *lcart = nullptr;
-    
+
     args.each([&](Argument const &arg) {
         if (arg == "perm") {
             handleFileArgument(arg, &permCount, &lperm);
@@ -146,7 +146,7 @@ static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::s
             return;
         }
     });
-    
+
     if (permCount > 1) {
         ++problems;
         std::cerr << "Only one --perm file can be used at a time." << std::endl;
@@ -194,15 +194,15 @@ static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::s
 
     if (lngc)
         gNGC->assign(lngc);
-    
+
     if (problems == 0)
         return true;
-    
+
     if (logging_state::is_dry_run()) {
         std::cerr << "Problems allowed for testing purposes!" << std::endl;
         return true;
     }
-    
+
     return false;
 }
 
@@ -222,18 +222,18 @@ static bool isCharacterClassIdentifier(char const ch)
 static bool containsIdentifier(char const *whole, char const *const query)
 {
     assert(whole != nullptr && query != nullptr);
-    
+
     auto canStartMatching = true;
     for ( ; ; ++whole) {
         auto const ch = *whole;
-        
+
         if (ch == '\0')
             return false;
-        
+
         if (canStartMatching && ch == *query) {
             auto w = whole + 1;
             auto q = query + 1;
-            
+
             for ( ; *w != '\0' && *q != '\0' && *w == *q; ++w, ++q)
                 ;
             if (*q == '\0' && !isCharacterClassIdentifier(*w))
@@ -249,7 +249,7 @@ static void setLogLevel(char const *logLevelString)
 {
     auto const logLevelStrings = KLogGetParamStrings();
     int level = klogLevelMax + 1;
-    
+
     if (isdigit(*logLevelString)) {
         while (isdigit(*logLevelString))
             level = (level * 10) + ((*logLevelString++) - '0');
@@ -258,7 +258,7 @@ static void setLogLevel(char const *logLevelString)
         level = klogLevelMin;
         for ( ; ; ) {
             auto const ch = *logLevelString++;
-            
+
             if (ch == '-')
                 --level;
             else if (ch == '+')
@@ -343,14 +343,14 @@ static int main(CommandLine const &argv)
     enableLogging(argv.toolName.c_str());
 #endif
     LOG(7) << "executable path: " << (std::string)argv.fullPathToExe << std::endl;
-    
+
     config = new Config();
     struct Defer { ~Defer() { delete config; config = nullptr; } } freeConfig;
 
     std::string auto_perm, auto_ngc, auto_location;
     auto const sessionID = uuid();
     EnvironmentVariables::set(ENV_VAR_SESSION_ID, sessionID);
-    
+
     test(); ///< needs to be outside of any try/catch; it needs to be able to go BANG!!!
 
 #if DEBUG || _DEBUGGING
@@ -367,7 +367,7 @@ static int main(CommandLine const &argv)
         exit(EX_USAGE);
     }
 #endif
-    
+
     // MARK: Check for special tools
     if (argv.toolName == "prefetch" || argv.toolName == "srapath")
         Process::reexec(argv);
@@ -380,11 +380,11 @@ static int main(CommandLine const &argv)
         // MARK: Get and set verbosity.
         auto const verbosity = parsed.countMatching("verbose");
         KStsLevelSet(verbosity);
-        
+
         parsed.each("log-level", [&](Argument const &arg) {
             setLogLevel(arg.argument);
         });
-        
+
         // MARK: Set debug flags
         parsed.each("debug", [](Argument const &arg) {
             KDbgSetString(arg.argument);
@@ -393,7 +393,7 @@ static int main(CommandLine const &argv)
         // MARK: Check for special parameters that trigger immediate tool execution.
         if (parsed.any("help"))
             Process::execHelp(argv);
-        
+
         if (parsed.any("version"))
             Process::execVersion(argv);
 
@@ -406,12 +406,12 @@ static int main(CommandLine const &argv)
 
         if (!auto_ngc.empty())
             ngc = &auto_ngc;
-        
+
         parsed.first("location", [&](Argument const &arg) {
             auto_location.assign(arg.argument);
             location = &auto_location;
         });
-        
+
         // MARK: Get QUALITY type preference.
         auto const qualityPreference = data_sources::qualityPreference();
         if (verbosity > 0 && qualityPreference.isSet) {
@@ -430,7 +430,7 @@ static int main(CommandLine const &argv)
 
         // MARK: Look for tool arguments in the file system or ask SDL about them.
         auto const all_sources = data_sources::preload(argv, parsed);
-        
+
         perm = ngc = location = nullptr;
         parsed.each("perm", [](Argument const &arg) { arg.reason = "used"; });
         parsed.each("ngc", [](Argument const &arg) { arg.reason = "used"; });
@@ -438,17 +438,17 @@ static int main(CommandLine const &argv)
         parsed.each("location", [](Argument const &arg) { arg.reason = "used"; });
 
         all_sources.set_ce_token_env_var();
-        
+
         // TODO: UNCOMMENT WHEN READY; SEE JIRA VDB-5001
         // all_sources.set_param_bits_env_var(parsed.argsUsed());
 
         for (auto const &arg : parsed) {
             if (!arg.isArgument()) continue;
-            
+
             auto const &acc = arg.argument;
             auto const sources = all_sources[acc];
             auto success = false;
-            
+
             for (auto src : sources) {
                 if (verbosity > 0 && src.haveQualityType()) {
                     auto const name = src.haveFullQuality() ? fullQualityName : zeroQualityName;
@@ -512,26 +512,26 @@ Accession::Accession(std::string const &value)
     static auto constexpr max_digit = 9;
 
     auto const size = value.size();
-    
+
     while (alphas < size) {
         auto const ch = value[alphas];
-        
+
         if (!isalpha(ch))
             break;
-        
+
         ++alphas;
         if (alphas > max_alpha)
             return;
     }
     if (alphas < min_alpha)
         return;
-    
+
     while (digits + alphas < size) {
         auto const ch = value[digits + alphas];
-        
+
         if (!isdigit(ch))
             break;
-        
+
         ++digits;
         if (digits > max_digit)
             return;
@@ -590,11 +590,11 @@ std::vector<std::pair<unsigned, unsigned>> Accession::sraExtensions() const
 {
     auto result = allExtensions();
     auto i = result.begin();
-    
+
     while (i != result.end()) {
         auto const &ext = value.substr(i->first, i->second);
         auto found = false;
-        
+
         for (auto j = 0; j < 4; ++j) {
             if (ext != extensions[j])
                 continue;
@@ -608,14 +608,14 @@ std::vector<std::pair<unsigned, unsigned>> Accession::sraExtensions() const
         else
             i = result.erase(i);
     }
-    
+
     return result;
 }
 
 std::vector<std::pair<unsigned, unsigned>> Accession::allExtensions() const
 {
     std::vector<std::pair<unsigned, unsigned>> result;
-    
+
     for (auto i = digits + alphas; i < value.size(); ++i) {
         if (vers <= i + 1 && i + 1 < vers + verslen)
             continue;
@@ -635,21 +635,21 @@ static AccessionType accessionType(std::string const &accession)
 {
     return Accession(accession).type();
 }
- 
+
 static void testAccessionType() {
     // asserts because these are all hard-coded values
     assert(accessionType("SRR000000") == run);
     assert(accessionType("ERR000000") == run);
     assert(accessionType("DRR000000") == run);
     assert(accessionType("srr000000") == run);
-    
+
     assert(accessionType("SRA000000") == submitter);
     assert(accessionType("SRP000000") == project);
     assert(accessionType("SRS000000") == study);
     assert(accessionType("SRX000000") == experiment);
-    
+
     assert(accessionType("SRR000000.2") == run); // not certain of this one
-    
+
     assert(accessionType("SRR00000") == unknown); // too short
     assert(accessionType("SRF000000") == unknown); // bad type
     assert(accessionType("ZRR000000") == unknown); // bad issuer
@@ -668,7 +668,6 @@ static void test() {
 #if (DEBUG || _DEBUGGING) && !WINDOWS
         testAccessionType();
         uuid_test();
-        Response2::test(); ///< mostly likely to fail due to changes in SDL invalidating the tests
 #endif
         exit(0);
     }

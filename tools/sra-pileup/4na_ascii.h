@@ -31,8 +31,9 @@
 extern "C" {
 #endif
 
-#include <os-native.h>
+#ifndef _h_insdc_sra_
 #include <insdc/sra.h>
+#endif
 
 char _4na_to_ascii( INSDC_4na_bin c, bool reverse );
 uint32_t _4na_to_index( INSDC_4na_bin c );

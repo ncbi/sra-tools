@@ -32,8 +32,8 @@
 #include <string.h>
 
 
-const char * consensus_tab_names[] = 
-{ 
+const char * consensus_tab_names[] =
+{
     /* base-space */
     "READ",
     "QUALITY",
@@ -61,7 +61,9 @@ static bool check_Consensus_totalcount( BaseCalls_cmn *tab, const uint64_t expec
 {
     bool res = check_table_count( &tab->Basecall, "Basecall", expected );
     if ( res )
+    {
         res = check_table_count( &tab->QualityValue, "QualityValue", expected );
+    }
 
 	if ( res )
 	{
@@ -87,7 +89,7 @@ static bool check_Consensus_totalcount( BaseCalls_cmn *tab, const uint64_t expec
 
 static rc_t consensus_load_zero_bases( VCursor *cursor, const uint32_t *col_idx )
 {
-    uint32_t dummy_src; 
+    uint32_t dummy_src;
     INSDC_SRA_read_filter filter = SRA_READ_FILTER_CRITERIA;
 
     rc_t rc = vdb_write_value( cursor, col_idx[ consensus_tab_READ ],
@@ -122,7 +124,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
 {
     rc_t rc = 0;
 	uint32_t column_idx, dummy_src;
-	
+
     /* we make a buffer to store NumEvent 8-bit-values
       (that is so far the biggest value we have to read per DNA-BASE) */
     char * buffer = malloc( spot->NumEvent );
@@ -140,7 +142,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
         rc = transfer_bits( cursor, col_idx[ consensus_tab_QUALITY ],
             &tab->QualityValue, buffer, spot->offset, spot->NumEvent,
             QUALITY_VALUE_BITSIZE, "consensus.QualityValue" );
-			
+
     if ( rc == 0 )
 	{
 		column_idx = col_idx[ consensus_tab_INSERTION_QV ];
@@ -152,7 +154,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
 			rc = vdb_write_value( cursor, column_idx,
 					&dummy_src, INSERTION_QV_BITSIZE, 0, "consensus.InsertionQV" );
 	}
-	
+
     if ( rc == 0 )
 	{
 		column_idx = col_idx[ consensus_tab_DELETION_QV ];
@@ -164,7 +166,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
 			rc = vdb_write_value( cursor, column_idx,
 				   &dummy_src, DELETION_QV_BITSIZE, 0, "consensus.DeletionQV" );
 	}
-	
+
     if ( rc == 0 )
 	{
 		column_idx = col_idx[ consensus_tab_DELETION_TAG ];
@@ -176,7 +178,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
 			rc = vdb_write_value( cursor, column_idx,
 				   &dummy_src, DELETION_TAG_BITSIZE, 0, "consensus.DeletionTag" );
 	}
-	
+
     if ( rc == 0 )
 	{
 		column_idx = col_idx[ consensus_tab_SUBSTITUTION_QV ];
@@ -188,7 +190,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
 			rc = vdb_write_value( cursor, column_idx,
 					&dummy_src, SUBSTITUTION_QV_BITZISE, 0, "consensus.SubstitutionQV" );
 	}
-	
+
     if ( rc == 0 )
 	{
 		column_idx = col_idx[ consensus_tab_SUBSTITUTION_TAG ];
@@ -200,7 +202,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
 			rc = vdb_write_value( cursor, column_idx,
 				   &dummy_src, SUBSTITUTION_TAG_BITSIZE, 0, "consensus.SubstitutionTag" );
 	}
-	
+
     if ( buffer != NULL )
         free( buffer );
     return rc;
@@ -208,7 +210,7 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
 
 
 static rc_t consensus_load_spot( VCursor *cursor, const uint32_t *col_idx,
-                                 region_type_mapping *mapping, zmw_row * spot, 
+                                 region_type_mapping *mapping, zmw_row * spot,
                                  void * data )
 {
 	rc_t rc = 0;
@@ -340,8 +342,8 @@ static rc_t consensus_loader( ld_context *lctx, KDirectory * hdf5_src, VCursor *
 
 
 /* HDF5-Groups and tables used to load the CONSENSUS-table */
-static const char * consensus_groups_to_check[] = 
-{ 
+static const char * consensus_groups_to_check[] =
+{
     "PulseData",
     "PulseData/ConsensusBaseCalls",
     "PulseData/ConsensusBaseCalls/ZMW",
@@ -350,8 +352,8 @@ static const char * consensus_groups_to_check[] =
 };
 
 
-static const char * consensus_tables_to_check[] = 
-{ 
+static const char * consensus_tables_to_check[] =
+{
     "PulseData/ConsensusBaseCalls/Basecall",
     "PulseData/ConsensusBaseCalls/DeletionQV",
     "PulseData/ConsensusBaseCalls/DeletionTag",
@@ -423,7 +425,7 @@ rc_t load_consensus_src( con_ctx * sctx, KDirectory * hdf5_src )
 
     rc_t rc = 0;
     if ( sctx->lctx->check_src_obj )
-        rc = check_src_objects( hdf5_src, consensus_groups_to_check, 
+        rc = check_src_objects( hdf5_src, consensus_groups_to_check,
                                 consensus_tables_to_check, false );
     if ( rc == 0 )
         rc = open_BaseCalls_cmn( hdf5_src, &ConsensusTab, true,
@@ -463,10 +465,10 @@ rc_t load_consensus( VDatabase * database, KDirectory * hdf5_src, ld_context *lc
 {
     rc_t rc = 0;
     if ( lctx->check_src_obj )
-        rc = check_src_objects( hdf5_src, consensus_groups_to_check, 
+        rc = check_src_objects( hdf5_src, consensus_groups_to_check,
                                 consensus_tables_to_check, false );
     if ( rc == 0 )
-        rc = load_table( database, hdf5_src, lctx, consensus_schema_template, 
+        rc = load_table( database, hdf5_src, lctx, consensus_schema_template,
                          consensus_table_to_create, consensus_loader );
     return rc;
 }

@@ -44,7 +44,7 @@ extern "C" {
 #include <kfs/arrayfile.h>
 #include <hdf5/kdf5.h>
 #include <kapp/log-xml.h>
-#include <kapp/progressbar.h>
+#include <loader/progressbar.h>
 
 /* for zmw */
 #define HOLE_NUMBER_BITSIZE 32
@@ -192,7 +192,7 @@ void lctx_free( ld_context * lctx );
 
 
 rc_t check_src_objects( const KDirectory *hdf5_dir,
-                        const char ** groups, 
+                        const char ** groups,
                         const char **tables,
                         bool show_not_found );
 
@@ -211,7 +211,7 @@ typedef struct af_data
 void init_array_file( af_data * af );
 void free_array_file( af_data * af );
 
-rc_t open_array_file( const KDirectory *dir, 
+rc_t open_array_file( const KDirectory *dir,
                       const char *name,
                       af_data * af,
                       const uint64_t expected_element_bits,
@@ -221,9 +221,9 @@ rc_t open_array_file( const KDirectory *dir,
                       bool supress_err_msg );
 
 rc_t open_element( const KDirectory *hdf5_dir,
-                   af_data *element, 
+                   af_data *element,
                    const char * path,
-                   const char * name, 
+                   const char * name,
                    const uint64_t expected_element_bits,
                    const uint64_t expected_cols,
                    bool disp_wrong_bitsize,
@@ -267,7 +267,7 @@ rc_t vdb_write_float32( VCursor *cursor, const uint32_t col_idx,
 typedef rc_t (*loader_func)( ld_context *lctx,
                              KDirectory * hdf5_src, VCursor * cursor,
                              const char * table_name );
-                        
+
 rc_t prepare_table( VDatabase * database, VCursor ** cursor,
                     const char * template_name,
                     const char * table_name );

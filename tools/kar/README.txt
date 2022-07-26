@@ -150,7 +150,7 @@ There is example of configuration file :
         diff-exclude SAM_QUALITY
 
         ### Environment definition section.
-        # DELITE_BIN_DIR=/panfs/pan1/trace_work/iskhakov/Tundra/KAR+TST/bin
+        # DELITE_BIN_DIR=/place/with/precompiled/files
         # USE_OWN_TEMPDIR=1
 
 Each line of configuration file is a separate entty. Script does not support

@@ -30,7 +30,7 @@
 #include <klib/log.h>
 #include <kfs/file.h>
 #include <kfs/directory.h>
-#include <kapp/loader-file.h>
+#include <loader/loader-file.h>
 
 #include "run-xml.h"
 

@@ -31,19 +31,19 @@ echo Smoke testing ngs tarball in %3 ...
 if exist %3\ngs-java\ngs-java.jar (
     echo ngs-java.jar exists
 ) else (
-    set FAILED=%FAILED% ngs-java.jar doesn't exist;
+    FAILED=%FAILED% ngs-java.jar doesn't exist;
 )
 
 if exist %3\ngs-java\ngs-doc.jar (
-    rem ngs-doc.jar exists
+    echo ngs-doc.jar exists
 ) else (
-    set FAILED=%FAILED% ngs-doc.jar doesn't exist;
+    FAILED=%FAILED% ngs-doc.jar doesn't exist;
 )
 
 if exist %3\ngs-java\ngs-src.jar (
-    rem ngs-src.jar exists
+    echo ngs-src.jar exists
 ) else (
-    set FAILED=%FAILED% ngs-src.jar doesn't exist;
+    FAILED=%FAILED% ngs-src.jar doesn't exist;
 )
 
 if "%FAILED%" NEQ "" (
@@ -100,41 +100,7 @@ if "%FAILED%" NEQ "" (
     exit /B 1
 )
 
-echo Toolkit tarball smoke test successful
-
-echo.
-
-set JAR=..\GenomeAnalysisTK.jar
-
-echo Smoke testing %JAR% ...
-
-set PWD=%CD%
-
-set LOG=-Dvdb.log=FINEST
-set LOG=
-
-set ARGS=-Dvdb.System.loadLibrary=1 -Duser.home=%PWD%
-
-set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
-echo %cmd%
-%cmd% 2> NUL
-if '%errorlevel%'=='1' goto skip
-set FAILED=%FAILED% GenomeAnalysisTK.jar with disabled smart dll search;
-:skip
-
-set ARGS=-Duser.home=%PWD%
-
-set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
-echo %cmd%
-%cmd% > NUL 2>&1
-if errorlevel 1 ( call set FAILED=%%FAILED%% GenomeAnalysisTK.jar; )
-
-if "%FAILED%" NEQ "" (
-    echo "Failed: %FAILED%"
-    exit /B 1
-)
-
-echo %JAR% smoke test successful
+echo Toolkit tarball smoke test successfull
 
 exit /B 0
 

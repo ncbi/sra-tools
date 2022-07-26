@@ -23,22 +23,64 @@
 * ===========================================================================
 *
 */
-#include <kapp/main.h>
-#include <vdb/report.h> /* ReportSetVDBManager */
-#include <vdb/vdb-priv.h> /* VDBManagerDisablePagemapThread() */
+
+#ifndef _h_klib_report_
 #include <klib/report.h>
-#include <sysalloc.h>
+#endif
 
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
+
+#ifndef _h_vdb_report_
+#include <vdb/report.h> /* ReportSetVDBManager */
+#endif
+
+#ifndef _h_vdb_vdb_priv_
+#include <vdb/vdb-priv.h> /* VDBManagerDisablePagemapThread() */
+#endif
+
+#ifndef _h_kapp_main_
+#include <kapp/main.h>
+#endif
+
+#ifndef _h_sam_dump_opts_
 #include "sam-dump-opts.h"
-#include "inputfiles.h"
-#include "sam-hdr.h"
-#include "sam-hdr1.h"
-#include "matecache.h"
-#include "cg_tools.h"
-#include "out_redir.h"
-#include "sam-aligned.h"
-#include "sam-unaligned.h"
+#endif
 
+#ifndef _h_inputfiles_
+#include "inputfiles.h"
+#endif
+
+#ifndef _h_sam_headers_
+#include "sam-hdr.h"
+#endif
+
+#ifndef _h_sam_headers_1_
+#include "sam-hdr1.h"
+#endif
+
+#ifndef _h_matecache_
+#include "matecache.h"
+#endif
+
+#ifndef _h_cgtools_
+#include "cg_tools.h"
+#endif
+
+#ifndef _h_out_redir_
+#include "out_redir.h"
+#endif
+
+#ifndef _h_sam_aligned_
+#include "sam-aligned.h"
+#endif
+
+#ifndef _h_sam_unaligned_
+#include "sam-unaligned.h"
+#endif
+
+#include <stdio.h>
 
 char const *sd_unaligned_usage[]      = { "Output unaligned reads along with aligned reads",
                                        NULL };
@@ -164,12 +206,13 @@ char const *rna_splice_log_usage[]    = { "file, into which rna-splice events ar
 
 char const *no_mt_usage[]             = { "disable multithreading", NULL };
 
+char const *no_qual_usage[]           = { "omit qualities", NULL };
+
 char const *with_md_flag_usage[]      = { "print MD-flag", NULL };
                             
 char const *ngc_usage[]               = { "PATH to ngc file", NULL };
 
-OptDef SamDumpArgs[] =
-{
+OptDef SamDumpArgs[] = {
     { OPT_UNALIGNED,     "u", NULL, sd_unaligned_usage,      0, false, false },  /* print unaligned reads */
     { OPT_PRIM_ONLY,     "1", NULL, sd_primaryonly_usage,    0, false, false },  /* print only primary alignments */
     { OPT_CIGAR_LONG,    "c", NULL, sd_cigartype_usage,      0, false, false },  /* use long cigar-string instead of short */
@@ -209,8 +252,9 @@ OptDef SamDumpArgs[] =
     { OPT_RNA_SPLICE,   NULL, NULL, rna_splice_usage,        0, false, false },  /* detect rna-splicing in sequence */
     { OPT_RNA_SPLICEL,  NULL, NULL, rna_splicel_usage,       0, true,  false },  /* level of rna-splicing detection */
     { OPT_RNA_SPLICE_LOG,  NULL, NULL, rna_splice_log_usage, 0, true,  false },  /* filename to log rna-splice events into */
-    { OPT_NO_MT,        NULL, NULL, no_mt_usage,              0, false, false },   /* force new code-path */    
-    { OPT_MD_FLAG,		NULL, NULL, with_md_flag_usage,       0, false, false },    /* print the MD-flag */	
+    { OPT_NO_MT,        NULL, NULL, no_mt_usage,             0, false, false },  /* force new code-path */
+    { OPT_NOQUAL,       "o",  NULL, no_qual_usage,           0, false, false },  /* ommit qualities */
+    { OPT_MD_FLAG,      NULL, NULL, with_md_flag_usage,      0, false, false },  /* print the MD-flag */	
     { OPT_DUMP_MODE,    NULL, NULL, NULL,                    0, true,  false },  /* how to produce aligned reads if no regions given */
     { OPT_CIGAR_TEST,   NULL, NULL, NULL,                    0, true,  false },  /* test cg-treatment of cigar string */
     { OPT_LEGACY,       NULL, NULL, NULL,                    0, false, false },  /* force legacy code-path */
@@ -219,8 +263,7 @@ OptDef SamDumpArgs[] =
     { OPT_TIMING,       NULL, NULL, NULL,                    0, true, false }    /* optional timing */
 };
 
-char const *sd_usage_params[] =
-{
+char const *sd_usage_params[] = {
     NULL,                       /* unaligned */
     NULL,                       /* primaryonly */
     NULL,                       /* cigartype */
@@ -261,7 +304,8 @@ char const *sd_usage_params[] =
     NULL,                       /* level of rna-splicing detection */
     NULL,                       /* file to log rna-splice-events into */
     NULL,                       /* no-mt */
-    NULL,                       /* with-md-flag */	
+    NULL,                       /* no-qualities */
+    NULL,                       /* with-md-flag */
     NULL,                       /* dump_mode */
     NULL,                       /* cigar test */
     NULL,                       /* force legacy code path */
@@ -273,15 +317,13 @@ char const *sd_usage_params[] =
 const char UsageDefaultName[] = "sam-dump";
 
 
-rc_t CC UsageSummary( char const *progname )
-{
+rc_t CC UsageSummary( char const *progname ) {
     return KOutMsg( "Usage:\n"
         "\t%s [options] path-to-run[ path-to-run ...]\n\n", progname );
 }
 
 
-rc_t CC Usage( Args const *args )
-{
+rc_t CC Usage( Args const *args ) {
     char const *progname = UsageDefaultName;
     char const *fullpath = UsageDefaultName;
     rc_t rc;
@@ -295,10 +337,8 @@ rc_t CC Usage( Args const *args )
 
     n = sizeof( SamDumpArgs ) / sizeof( SamDumpArgs[ 0 ] );
     n--; /* do not print the last option in the SamDumpArgs as help */
-    for( i = 0; i < n; i++ )
-    {
-        if ( SamDumpArgs[ i ].help != NULL )
-        {
+    for( i = 0; i < n; i++ ) {
+        if ( SamDumpArgs[ i ].help != NULL ) {
             HelpOptionLine( SamDumpArgs[ i ].aliases, SamDumpArgs[ i ].name,
                             sd_usage_params[ i ], SamDumpArgs[ i ].help );
         }
@@ -315,8 +355,7 @@ rc_t CC Usage( Args const *args )
 /* =========================================================================================== */
 
 
-static rc_t CC write_to_FILE( void *f, const char *buffer, size_t bytes, size_t *num_writ )
-{
+static rc_t CC write_to_FILE( void *f, const char *buffer, size_t bytes, size_t *num_writ ) {
     * num_writ = fwrite ( buffer, 1, bytes, f );
     if ( * num_writ != bytes )
         return RC( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
@@ -327,8 +366,7 @@ static rc_t CC write_to_FILE( void *f, const char *buffer, size_t bytes, size_t 
 /* =========================================================================================== */
 
 
-static uint32_t tabsel_2_ReferenceList_Options( const samdump_opts * opts )
-{
+static uint32_t tabsel_2_ReferenceList_Options( const samdump_opts * opts ) {
     uint32_t res = 0;
     if ( opts->dump_primary_alignments )
         res |= ereferencelist_usePrimaryIds;
@@ -340,94 +378,91 @@ static uint32_t tabsel_2_ReferenceList_Options( const samdump_opts * opts )
 }
 
 
-static rc_t print_samdump( const samdump_opts * const opts )
-{
+static rc_t print_samdump( const samdump_opts * const opts ) {
     KDirectory *dir;
 
     rc_t rc = KDirectoryNativeDir( &dir );
-    if ( rc != 0 )
-    {
+    if ( rc != 0 ) {
         (void)LOGERR( klogErr, rc, "cannot create native directory" );
-    }
-    else
-    {
+    } else {
         const VDBManager *mgr;
         rc = VDBManagerMakeRead( &mgr, dir );
-        if ( rc != 0 )
-        {
+        if ( rc != 0 ) {
             (void)LOGERR( klogErr, rc, "cannot create vdb-manager" );
-        }
-        else
-        {
-            input_files * ifs; /* input_files.h */
+        } else {
+            sam_dump_ctx sam_ctx = { opts, NULL, NULL, NULL };
             uint32_t reflist_opt = tabsel_2_ReferenceList_Options( opts );
 
             ReportSetVDBManager( mgr ); /**/
 
-            if ( opts->no_mt )
-            {
+            if ( opts -> no_mt ) {
                 rc = VDBManagerDisablePagemapThread ( mgr );
-                if ( rc != 0 )
-                {
+                if ( rc != 0 ) {
                     LOGERR( klogInt, rc, "VDBManagerDisablePagemapThread() failed" );
                 }
             }
 
-            if ( rc == 0 )
-            {
-                rc = discover_input_files( &ifs, mgr, opts->input_files, reflist_opt ); /* inputfiles.c */
-                if ( rc == 0 )
-                {
-                    if ( ifs->database_count == 0 && ifs->table_count == 0 )
-                    {
+            if ( rc == 0 ) {
+                rc = discover_input_files( ( input_files ** )&( sam_ctx . ifs ), 
+                                           mgr,
+                                           opts -> input_files,
+                                           reflist_opt ); /* inputfiles.c */
+                if ( rc == 0 ) {
+                    if ( sam_ctx . ifs -> database_count == 0 &&
+                         sam_ctx . ifs -> table_count == 0 ) {
                         rc = RC( rcExe, rcFile, rcReading, rcItem, rcNotFound );
                         (void)LOGERR( klogErr, rc, "input object(s) not found" );
-                    }
-                    else
-                    {
-                        matecache * mc = NULL;
+                    } else {
+                        if ( opts -> use_mate_cache )
+                            rc = make_matecache( ( matecache **)&( sam_ctx . mc ),
+                                                 sam_ctx . ifs -> database_count );
 
-                        if ( opts->use_mate_cache )
-                            rc = make_matecache( &mc, ifs->database_count );
+                        if ( rc == 0 ) {
+                            /* create a dynamic string to be optionally used by
+                               aligned and unaligned spots */
+                            rc = ds_allocate( &( sam_ctx . ds ), 4096 );
+                            if ( rc != 0 ) {
+                                LOGERR( klogInt, rc, "cannot create dynamic string" );
+                            }
 
-                        if ( rc == 0 )
-                        {
                             /* print output of header */
-                            if ( ( opts->output_format == of_sam )  &&
-                                 ( ifs->database_count > 0 )        &&
-                                 ( opts->header_mode != hm_none )   &&
-                                 !opts->dump_unaligned_only ) 
-                            /* ------------------------------------------------------ */
-                                rc = print_headers_1( opts, ifs ); /* sam-hdr.c */
-                            /* ------------------------------------------------------ */
-
+                            if ( rc == 0 &&
+                                 ( opts -> output_format == of_sam )     &&
+                                 ( sam_ctx . ifs -> database_count > 0 ) &&
+                                 ( opts -> header_mode != hm_none )      &&
+                                 !( opts -> dump_unaligned_only ) ) {
+                                /* ------------------------------------------------------ */
+                                rc = print_headers_1( opts, sam_ctx . ifs ); /* sam-hdr.c */
+                                /* ------------------------------------------------------ */
+                            }
 
                             /* print output of aligned reads */
                             if ( rc == 0 && 
-                                 ifs->database_count > 0 && 
-                                 !opts->dump_unaligned_only )
-                            /* ------------------------------------------------------ */
-                                rc = print_aligned_spots( opts, ifs, mc ); /* sam-aligned.c */
-                            /* ------------------------------------------------------ */
-
+                                 sam_ctx . ifs -> database_count > 0 && 
+                                 !( opts -> dump_unaligned_only ) ) {
+                                /* ------------------------------------------------------ */
+                                rc = print_aligned_spots( &sam_ctx ); /* sam-aligned.c */
+                                /* ------------------------------------------------------ */
+                            }
 
                             /* print output of unaligned reads */
-                            if ( rc == 0 )
-                            {
+                            if ( rc == 0 ) {
                                 /* ------------------------------------------------------ */
-                                rc = print_unaligned_spots( opts, ifs, mc ); /* sam-unaligned.c */
+                                rc = print_unaligned_spots( &sam_ctx ); /* sam-unaligned.c */
                                 /* ------------------------------------------------------ */
                             }
 
-                            if ( opts->use_mate_cache )
-                            {
-                                if ( opts->report_cache )
-                                    rc = matecache_report( mc ); /* matecache.c */
-                                release_matecache( mc ); /* matecache.c */
+                            if ( sam_ctx . mc != NULL ) {
+                                if ( opts -> report_cache ) {
+                                    rc = matecache_report( sam_ctx . mc ); /* matecache.c */
+                                }
+                                release_matecache( sam_ctx . mc ); /* matecache.c */
                             }
+                            
+                            ds_free( sam_ctx . ds );    /* tolerates NULL-ptr */
                         }
                     }
-                    release_input_files( ifs ); /* inputfiles.c */
+                    release_input_files( ( input_files * )sam_ctx . ifs ); /* inputfiles.c */
                 }
             }
             VDBManagerRelease( mgr );
@@ -437,9 +472,7 @@ static rc_t print_samdump( const samdump_opts * const opts )
     return rc;
 }
 
-
-static rc_t perform_cigar_test( const samdump_opts * const opts )
-{
+static rc_t perform_cigar_test( const samdump_opts * const opts ) {
     rc_t rc;
     cg_cigar_input input;
     cg_cigar_output output;
@@ -451,12 +484,9 @@ static rc_t perform_cigar_test( const samdump_opts * const opts )
     input.p_cigar.ptr = opts->cigar_test;
 
     rc = make_cg_cigar( &input, &output );
-    if ( rc == 0 )
-    {
+    if ( rc == 0 ) {
         KOutMsg( "%s\n", output.cigar );
-    }
-    else
-    {
+    } else {
         (void)PLOGERR( klogErr, ( klogErr, rc, "error testing cg-cigar treatment '$(t)'", 
                                   "t=%s", opts->cigar_test ) );
     }
@@ -471,37 +501,27 @@ static rc_t samdump_main( Args * args, const samdump_opts * const opts )
     out_redir redir; /* from out_redir.h */
     enum out_redir_mode mode;
 
-    switch( opts->output_compression )
-    {
+    switch( opts -> output_compression ) {
         case oc_none  : mode = orm_uncompressed; break;
         case oc_gzip  : mode = orm_gzip; break;
         case oc_bzip2 : mode = orm_bzip2; break;
     }
 
     rc = init_out_redir( &redir, mode, opts->outputfile, opts->output_buffer_size ); /* from out_redir.c */
-    if ( rc == 0 )
-    {
-        if ( opts->report_options )
-        {
+    if ( rc == 0 ) {
+        if ( opts->report_options ) {
             report_options( opts ); /* from sam-dump-opts.c */
-        }
-        else if ( opts->cigar_test != NULL )
-        {
+        } else if ( opts->cigar_test != NULL ) {
             rc = perform_cigar_test( opts );
-        }
-        else
-        {
-            if ( opts->input_file_count < 1 )
-            {
+        } else {
+            if ( opts->input_file_count < 1 ) {
                 rc = RC( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
                 (void)LOGERR( klogErr, rc, "no inputfiles given at commandline" );
                 Usage( args );
-            }
-            else
-            {
-            /* ------------------------------------------------------ */
+            } else {
+                /* ------------------------------------------------------ */
                 rc = print_samdump( opts );
-            /* ------------------------------------------------------ */
+                /* ------------------------------------------------------ */
             }
         }
         release_out_redir( &redir ); /* from out_redir.c */
@@ -514,33 +534,26 @@ static rc_t samdump_main( Args * args, const samdump_opts * const opts )
 rc_t CC Legacy_KMain( int argc, char* argv[] );
 
 
-rc_t CC KMain( int argc, char *argv [] )
-{
+rc_t CC KMain( int argc, char *argv [] ) {
     bool call_legacy_dumper = false;
 
     rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
-    if ( rc != 0 )
-    {
+    if ( rc != 0 ) {
         LOGERR( klogInt, rc, "KOutHandlerSet() failed" );
-    }
-    else
-    {
+    } else {
         Args * args;
 
         KLogHandlerSetStdErr();
         rc = ArgsMakeAndHandle( &args, argc, argv, 1, 
                                 SamDumpArgs, sizeof SamDumpArgs / sizeof SamDumpArgs [ 0 ] );
-        if ( rc == 0 )
-        {
+        if ( rc == 0 ) {
             samdump_opts opts; /* from sam-dump-opts.h */
 
             memset( &opts, 0, sizeof opts );
             rc = gather_options( args, &opts ); /* from sam-dump-opts.c */
-            if ( rc == 0 )
-            {
+            if ( rc == 0 ) {
                 call_legacy_dumper = opts.force_legacy;
-                if ( !call_legacy_dumper )
-                {
+                if ( !call_legacy_dumper ) {
                     ReportBuildDate( __DATE__ );
                     rc = samdump_main( args, &opts );
                 }
@@ -552,16 +565,12 @@ rc_t CC KMain( int argc, char *argv [] )
     }
 
     /* trick to call the legacy sam-dump code if cg-functionality is requested */
-    if ( call_legacy_dumper )
-    {
+    if ( call_legacy_dumper ) {
         rc = Legacy_KMain( argc, argv );
-    }
-    else
-    {
+    } else {
         /* Report execution environment if necessary */
         rc_t rc2 = ReportFinalize( rc );
-        if ( rc == 0 )
-            rc = rc2;
+        if ( rc == 0 ) { rc = rc2; }
     }
     return rc;
 }

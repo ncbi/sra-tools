@@ -26,96 +26,83 @@
 
 #include "ref_walker_0.h"
 
+#ifndef _h_klib_log_
+#include <klib/log.h>
+#endif
+
 rc_t CC Quitting( void );
 
-static rc_t walk_placements( walk_data * data, walk_funcs * funcs )
-{
+static rc_t walk_placements( walk_data * data, walk_funcs * funcs ) {
     rc_t rc;
-    do
-    {
+    do {
         rc = ReferenceIteratorNextPlacement ( data->ref_iter, &data->rec );
-        if ( GetRCState( rc ) != rcDone )
-        {
-            if ( rc != 0 )
-            {
+        if ( GetRCState( rc ) != rcDone ) {
+            if ( rc != 0 ) {
                 LOGERR( klogInt, rc, "ReferenceIteratorNextPlacement() failed" );
-            }
-            else
-            {
+            } else {
                 data->state = ReferenceIteratorState ( data->ref_iter, &data->seq_pos );
                 data->xrec = ( tool_rec * ) PlacementRecordCast ( data->rec, placementRecordExtension1 );
-                if ( funcs->on_placement != NULL )
+                if ( funcs->on_placement != NULL ) {
                     rc = funcs->on_placement( data );
-            }
-        }
-    } while ( rc == 0 );
-    if ( GetRCState( rc ) == rcDone ) { rc = 0; }
-    return rc;
-}
-
-
-static rc_t walk_spot_group( walk_data * data, walk_funcs * funcs )
-{
-    rc_t rc;
-    do
-    {
-        rc = ReferenceIteratorNextSpotGroup ( data->ref_iter, &data->spotgroup, &data->spotgroup_len );
-        if ( GetRCState( rc ) != rcDone )
-        {
-            if ( rc != 0 )
-            {
-                LOGERR( klogInt, rc, "ReferenceIteratorNextPos() failed" );
-            }
-            else
-            {
-                if ( funcs->on_enter_spotgroup != NULL )
-                    rc = funcs->on_enter_spotgroup( data );
-                if ( rc == 0 )
-                    rc = walk_placements( data, funcs );
-                if ( rc == 0 && funcs->on_exit_spotgroup != NULL )
-                    rc = funcs->on_exit_spotgroup( data );
-            }
-        }
-    } while ( rc == 0 );
-    if ( GetRCState( rc ) == rcDone ) { rc = 0; }
-    return rc;
-}
-
-
-static rc_t walk_ref_pos( walk_data * data, walk_funcs * funcs )
-{
-    rc_t rc;
-    do
-    {
-        rc = ReferenceIteratorNextPos ( data->ref_iter, !data->options->no_skip );
-        if ( GetRCState( rc ) != rcDone )
-        {
-            if ( rc != 0 )
-            {
-                LOGERR( klogInt, rc, "ReferenceIteratorNextPos() failed" );
-            }
-            else
-            {
-                rc = ReferenceIteratorPosition ( data->ref_iter, &data->ref_pos, &data->depth, &data->ref_base );
-                if ( rc != 0 )
-                {
-                    LOGERR( klogInt, rc, "ReferenceIteratorPosition() failed" );
                 }
-                else if ( data->depth > 0 )
-                {
+            }
+        }
+    } while ( rc == 0 );
+    if ( GetRCState( rc ) == rcDone ) { rc = 0; }
+    return rc;
+}
+
+static rc_t walk_spot_group( walk_data * data, walk_funcs * funcs ) {
+    rc_t rc;
+    do {
+        rc = ReferenceIteratorNextSpotGroup ( data->ref_iter, &data->spotgroup, &data->spotgroup_len );
+        if ( GetRCState( rc ) != rcDone ) {
+            if ( rc != 0 ) {
+                LOGERR( klogInt, rc, "ReferenceIteratorNextPos() failed" );
+            } else {
+                if ( funcs->on_enter_spotgroup != NULL ) {
+                    rc = funcs->on_enter_spotgroup( data );
+                }
+                if ( rc == 0 ) {
+                    rc = walk_placements( data, funcs );
+                }
+                if ( rc == 0 && funcs->on_exit_spotgroup != NULL ) {
+                    rc = funcs->on_exit_spotgroup( data );
+                }
+            }
+        }
+    } while ( rc == 0 );
+    if ( GetRCState( rc ) == rcDone ) { rc = 0; }
+    return rc;
+}
+
+static rc_t walk_ref_pos( walk_data * data, walk_funcs * funcs ) {
+    rc_t rc;
+    do {
+        rc = ReferenceIteratorNextPos ( data->ref_iter, !data->options->no_skip );
+        if ( GetRCState( rc ) != rcDone ) {
+            if ( rc != 0 ) {
+                LOGERR( klogInt, rc, "ReferenceIteratorNextPos() failed" );
+            } else {
+                rc = ReferenceIteratorPosition ( data->ref_iter, &data->ref_pos, &data->depth, &data->ref_base );
+                if ( rc != 0 ) {
+                    LOGERR( klogInt, rc, "ReferenceIteratorPosition() failed" );
+                }  else if ( data->depth > 0 ) {
                     bool skip = false;
 
-                    if ( data->options->skiplist != NULL )
-                        skip = skiplist_is_skip_position( data->options->skiplist, data->ref_pos + 1 );
-
-                    if ( !skip )
-                    {
-                        if ( funcs->on_enter_ref_pos != NULL )
+                    if ( data -> options -> skiplist != NULL ) {
+                        skip = skiplist_is_skip_position( data -> options -> skiplist, data -> ref_pos + 1 );
+                    }
+                    if ( !skip ) {
+                        if ( funcs->on_enter_ref_pos != NULL ) {
                             rc = funcs->on_enter_ref_pos( data );
-                        if ( rc == 0 )
+                        }
+                        if ( rc == 0 ) {
                             rc = walk_spot_group( data, funcs );
-                        if ( rc == 0 && funcs->on_exit_ref_pos != NULL )
+                        }
+                        if ( rc == 0 && funcs->on_exit_ref_pos != NULL ) {
                             rc = funcs->on_exit_ref_pos( data );
+                        }
                     }
                 }
             }
@@ -126,27 +113,23 @@ static rc_t walk_ref_pos( walk_data * data, walk_funcs * funcs )
     return rc;
 }
 
-
-static rc_t walk_ref_window( walk_data * data, walk_funcs * funcs )
-{
+static rc_t walk_ref_window( walk_data * data, walk_funcs * funcs ) {
     rc_t rc;
-    do
-    {
+    do {
         rc = ReferenceIteratorNextWindow ( data->ref_iter, &data->ref_window_start, &data->ref_window_len );
-        if ( GetRCState( rc ) != rcDone )
-        {
-            if ( rc != 0 )
-            {
+        if ( GetRCState( rc ) != rcDone ) {
+            if ( rc != 0 ) {
                 LOGERR( klogInt, rc, "ReferenceIteratorNextWindow() failed" );
-            }
-            else
-            {
-                if ( funcs->on_enter_ref_window != NULL )
+            } else {
+                if ( funcs->on_enter_ref_window != NULL ) {
                     rc = funcs->on_enter_ref_window( data );
-                if ( rc == 0 )
+                }
+                if ( rc == 0 ) {
                     rc = walk_ref_pos( data, funcs );
-                if ( rc == 0 && funcs->on_exit_ref_window != NULL )
+                }
+                if ( rc == 0 && funcs->on_exit_ref_window != NULL ) {
                     rc = funcs->on_exit_ref_window( data );
+                }
             }
         }
     } while ( rc == 0 );
@@ -154,72 +137,59 @@ static rc_t walk_ref_window( walk_data * data, walk_funcs * funcs )
     return rc;
 }
 
-
-rc_t walk_0( walk_data * data, walk_funcs * funcs )
-{
+rc_t walk_0( walk_data * data, walk_funcs * funcs ) {
     rc_t rc;
 
-    data->ref_start = 0;
-    data->ref_len = 0;
-    data->ref_name = NULL;
-    data->ref_obj = NULL;
-    data->ref_window_start = 0;
-    data->ref_window_len = 0;
-    data->ref_pos = 0;
-    data->depth = 0;
-    data->ref_base = 0;
-    data->spotgroup = NULL;
-    data->spotgroup_len = 0;
-    data->rec = NULL;
-    data->xrec = NULL;
-    data->state = 0;
-    data->seq_pos = 0;
+    data -> ref_start = 0;
+    data -> ref_len = 0;
+    data -> ref_name = NULL;
+    data -> ref_obj = NULL;
+    data -> ref_window_start = 0;
+    data -> ref_window_len = 0;
+    data -> ref_pos = 0;
+    data -> depth = 0;
+    data -> ref_base = 0;
+    data -> spotgroup = NULL;
+    data -> spotgroup_len = 0;
+    data -> rec = NULL;
+    data -> xrec = NULL;
+    data -> state = 0;
+    data -> seq_pos = 0;
 
-    do
-    {
+    do {
         rc = ReferenceIteratorNextReference( data->ref_iter, &data->ref_start, &data->ref_len, &data->ref_obj );
-        if ( GetRCState( rc ) != rcDone )
-        {
-            if ( rc != 0 )
-            {
+        if ( GetRCState( rc ) != rcDone ) {
+            if ( rc != 0 ) {
                 LOGERR( klogInt, rc, "ReferenceIteratorNextReference() failed" );
-            }
-            else if ( data->ref_obj != NULL )
-            {
+            } else if ( data->ref_obj != NULL ) {
                 const char * seq_name;
                 rc = ReferenceObj_Name( data->ref_obj, &seq_name );
-                if ( rc != 0 )
-                {
+                if ( rc != 0 ) {
                     LOGERR( klogInt, rc, "ReferenceObj_Name() failed" );
-                }
-                else
-                {
+                } else {
                     const char * seq_id;
                     rc = ReferenceObj_SeqId( data->ref_obj, &seq_id );
-                    if ( rc != 0 )
-                    {
+                    if ( rc != 0 ) {
                         LOGERR( klogInt, rc, "ReferenceObj_SeqId() failed" );
-                    }
-                    else
-                    {
+                    } else {
                         data->ref_name = data->options->use_seq_name ? seq_name : seq_id;
 
-                        if ( data->options->skiplist != NULL )
+                        if ( data->options->skiplist != NULL ) {
                             skiplist_enter_ref( data->options->skiplist, seq_name, seq_id );
-
-                        rc = ReferenceObj_SeqLength( data->ref_obj, &data->ref_len );
-                        if ( rc != 0 )
-                        {
-                            LOGERR( klogInt, rc, "ReferenceObj_SeqLength() failed" );
                         }
-                        else
-                        {
-                            if ( funcs->on_enter_ref != NULL )
+                        rc = ReferenceObj_SeqLength( data->ref_obj, &data->ref_len );
+                        if ( rc != 0 ) {
+                            LOGERR( klogInt, rc, "ReferenceObj_SeqLength() failed" );
+                        } else {
+                            if ( funcs->on_enter_ref != NULL ) {
                                 rc = funcs->on_enter_ref( data );
-                            if ( rc == 0 )
+                            }
+                            if ( rc == 0 ) {
                                 rc = walk_ref_window( data, funcs );
-                            if ( rc == 0 && funcs->on_exit_ref != NULL )
+                            }
+                            if ( rc == 0 && funcs->on_exit_ref != NULL ) {
                                 rc = funcs->on_exit_ref( data );
+                            }
                         }
                     }
                 }

@@ -36,10 +36,8 @@
 */
 // command line
 #include "CLI11.hpp"
-//loging
+// logging
 #include <spdlog/fmt/fmt.h>
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_sinks.h>
 
 #include "version.h"
 #include "fastq_error.hpp"
@@ -162,7 +160,7 @@ int CFastqParseApp::AppMain(int argc, const char* argv[])
         mOutputFile.clear();
         mDestination = "sra.out";
 
-        app.set_version_flag("--version,-v", SHARQ_VERSION);
+        app.set_version_flag("--version,-V", SHARQ_VERSION);
 
         app.add_option("--output", mDestination, "Output archive path");
 
@@ -504,18 +502,18 @@ int CFastqParseApp::xRun()
         parser.set_readers(group);
         if (!group["files"].empty()) {
             switch ((int)group["files"].front()["quality_encoding"]) {
-                case 0: 
+                case 0:
                     parser.parse<validator_options<eNumeric, -5, 40>>(err_checker);
                     break;
-                case 33: 
+                case 33:
                     parser.parse<validator_options<ePhred, 33, 126>>(err_checker);
                     break;
-                case 64: 
+                case 64:
                     parser.parse<validator_options<ePhred, 64, 126>>(err_checker);
                     break;
                 default:
                     throw runtime_error("Invaid quality encoding");
-            }    
+            }
         }
     }
     spdlog::stopwatch sw;
@@ -553,16 +551,16 @@ void CFastqParseApp::xBreakdownOutput()
     }
 }
 
-void CFastqParseApp::xCheckErrorLimits(fastq_error& e ) 
+void CFastqParseApp::xCheckErrorLimits(fastq_error& e )
 {
     if (mMaxErrCount == 0)
         throw e;
-    auto it = mErrorSet.find(e.error_code()); 
+    auto it = mErrorSet.find(e.error_code());
     if (it == mErrorSet.end())
         throw e;
     spdlog::warn(e.Message());
-    if (++mErrorCount >= mMaxErrCount) 
-        throw fastq_error("Exceeded maximum number of errors (code:{})", e.error_code());
+    if (++mErrorCount >= mMaxErrCount)
+        throw fastq_error("Exceeded maximum number of errors {} (code:{})", mMaxErrCount, e.error_code());
 }
 
 //  ----------------------------------------------------------------------------

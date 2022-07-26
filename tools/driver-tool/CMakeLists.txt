@@ -25,39 +25,38 @@
 add_executable(sratools)
 target_compile_definitions( sratools PRIVATE __mod__="tools/driver-tool" )
 
-target_sources(sratools
-    PRIVATE
-        sratools.cpp
-        sratools.hpp
-        config.cpp
-		config.hpp
-        command-line.cpp
-        command-line.hpp
-        run-source.cpp
-        run-source.hpp
-        proc.cpp
-        proc.hpp
-        uuid.cpp
-        uuid.hpp
-        service.cpp
-        service.hpp
-        json-parse.cpp
-        json-parse.hpp
-        SDL-response.cpp
-        SDL-response.hpp
-        tool-args.cpp
-        tool-args.hpp
-        build-version.cpp
-        build-version.hpp
-        globals.hpp
-        constants.hpp
-        debug.hpp
-        utf8-16.hpp
-        util.hpp
-        file-path.hpp
-        opt_string.hpp
-        tool-arguments.h
-        fastq-dump-arguments.h
+target_sources(sratools PRIVATE
+    sratools.cpp
+    sratools.hpp
+    config.cpp
+    config.hpp
+    command-line.cpp
+    command-line.hpp
+    run-source.cpp
+    run-source.hpp
+    proc.cpp
+    proc.hpp
+    uuid.cpp
+    uuid.hpp
+    service.cpp
+    service.hpp
+    json-parse.cpp
+    json-parse.hpp
+    SDL-response.cpp
+    SDL-response.hpp
+    tool-args.cpp
+    tool-args.hpp
+    build-version.cpp
+    build-version.hpp
+    globals.hpp
+    constants.hpp
+    debug.hpp
+    utf8-16.hpp
+    util.hpp
+    file-path.hpp
+    opt_string.hpp
+    tool-arguments.h
+    fastq-dump-arguments.h
 )
 if(WIN32)
 	target_sources(sratools PRIVATE
@@ -68,7 +67,7 @@ if(WIN32)
         util.win32.hpp
         wide-char.hpp
         win32-cmdline.hpp
-        win32-cmdline.cpp		
+        win32-cmdline.cpp
 	)
 else()
 	target_sources(sratools PRIVATE
@@ -95,3 +94,4 @@ elseif(LINUX)
     target_link_libraries(sratools PRIVATE m)
 endif()
 MakeLinksExe( sratools false )
+GenerateSanitizerTests( sratools )

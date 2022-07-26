@@ -49,6 +49,8 @@ rc_t CC KMain(int argc, char* argv[])
     LogLevelSet("info");
 
     for (i = 1; i < argc; ++i) {
+      const char * arg = argv [ i ];
+      if ( arg [ 0 ] == '-' )
         if (!strcmp(argv[i], "-+")) {
             if (++i <= argc) {
 #if _DEBUGGING
@@ -56,6 +58,18 @@ rc_t CC KMain(int argc, char* argv[])
 #endif
 	    }
         }
+	switch ( arg [ 1 ] ) {
+            case 'h':
+	        HelpVersion ( UsageDefaultName, KAppVersion () );
+                return 0;
+            case 'V':
+                HelpVersion ( UsageDefaultName, KAppVersion () );
+                return 0;
+            default:
+                PLOGERR(klogErr, (klogErr, rc, "Invalid argument: $(A)",
+		                  "A=%s", arg ));
+                return 1;
+	}
     }
 
   /*KDbgSetString("VDB");*/

@@ -31,6 +31,18 @@
 extern "C" {
 #endif
 
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_pileup_options_
+#include "pileup_options.h"
+#endif
+
+#ifndef _h_kapp_args_
+#include <kapp/args.h>
+#endif
+
 rc_t pileup_v2( Args * args, pileup_options *options );
 
 #ifdef __cplusplus

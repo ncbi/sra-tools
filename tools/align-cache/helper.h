@@ -38,8 +38,9 @@
 #include <klib/printf.h>
 #include <klib/vector.h>
 #include <kapp/args.h>
-#include <kapp/progressbar.h>
 #include <kapp/log-xml.h>
+
+#include <loader/progressbar.h>
 
 
 #ifndef countof

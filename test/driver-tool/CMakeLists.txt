@@ -22,6 +22,9 @@
 #
 # ===========================================================================
 
+AddExecutableTest( Drivertool_JsonParsing "test-json-parse.cpp" "" )
+target_include_directories( Drivertool_JsonParsing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/driver-tool)
+
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 if ( WIN32 )
     add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )

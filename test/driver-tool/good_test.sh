@@ -2,6 +2,7 @@
 
 tool=$1
 bin_dir=$2
+set -x
 
 echo "testing expected output for dry run of" ${tool}
 
@@ -9,12 +10,14 @@ TEMPDIR=.
 
 mkdir -p actual
 
-output=$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
+output="$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
 PATH="${bin_dir}:$PATH" \
 SRATOOLS_TESTING=2 \
 SRATOOLS_IMPERSONATE=${tool} \
 ${bin_dir}/sratools SRR000001 ERR000001 DRR000001 2>actual/${tool}.stderr && \
-diff expected/${tool}.stderr actual/${tool}.stderr)
+diff expected/${tool}.stderr actual/${tool}.stderr)"
+echo $output
+eval $output
 
 res=$?
 if [ "$res" != "0" ];

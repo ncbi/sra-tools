@@ -105,7 +105,7 @@ FIXTURE_TEST_CASE(InvalidDeflineError, LoaderFixture)
         reader.parse_read<>(read);
         FAIL("Should not reach this point");
     } catch (fastq_error& err) {
-        CHECK_EQ(err.Message(), string("[code:100] Defline 'qqq abcd' not recognized"));
+        CHECK_EQ(err.Message(), string("[code:100] Defline not recognized"));
     }
 }
 

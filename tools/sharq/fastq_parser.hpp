@@ -582,7 +582,7 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
                 try {
                     score = stoi(m_tmp_str);
                 } catch (invalid_argument&) {
-                    throw fastq_error(120, "Read {}: invalid quality score value '{}'", read.Spot(), m_tmp_str);
+                    throw fastq_error(120, "Read {}: invalid quality score value", read.Spot());
                 }
                 if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
                     throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
@@ -598,7 +598,7 @@ void fastq_reader::num_qual_validator(CFastqRead& read)
         try {
             score = stoi(m_tmp_str);
         } catch (invalid_argument&) {
-            throw fastq_error(120, "Read {}: invalid quality score value '{}'", read.Spot(), m_tmp_str);
+            throw fastq_error(120, "Read {}: invalid quality score value", read.Spot());
         }
         if (!(score >= ScoreValidator::min_score() && score <= ScoreValidator::max_score()))
             throw fastq_error(120, "Read {}: unexpected quality score value '{}' ( valid range: [{}..{}] )",
@@ -936,10 +936,10 @@ void s_check_qual_score(const CFastqRead& read, qual_score_params& params)
             try {
                 score = stoi(str);
             } catch (exception& e) {
-                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), str);
+                throw fastq_error(140, "Read {}: quality score contains unexpected character", read.Spot());
             }
             if (!params.set_score(score))
-                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), str);
+                throw fastq_error(140, "Read {}: quality score contains unexpected character '{}'", read.Spot(), score);
             str.clear();
         };
         string str;

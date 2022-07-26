@@ -45,20 +45,20 @@ private:
     // 255.255.65535\0
     char buffer[3 + 1 + 3 + 1 + 5 + 1];
     char *begin;
-    
+
     char *end() noexcept { return &buffer[sizeof(buffer)]; }
-    
+
     static inline char *utoa(unsigned x, char const suffix, char *dst) noexcept {
         *--dst = suffix;
         do { *--dst = (x % 10) + '0'; } while ((x /= 10) != 0);
         return dst;
     }
-    
+
 public:
     char const *formatted() const noexcept {
         return begin;
     }
-    
+
     VersionBuffer(sratools::Version const &vers) noexcept {
         begin = utoa(vers.major(), '.', utoa(vers.minor(), '.', utoa(vers.revision(), '\0', end())));
     }
@@ -69,7 +69,7 @@ struct Range
 {
     T begin;
     T end;
-    
+
     T size() const noexcept { return end - begin; }
 };
 
@@ -105,10 +105,10 @@ Version Version::removeVersion(std::string &name) noexcept {
     Version result;
     unsigned mparts = 0;
     auto region = Range<std::string::const_iterator>();
-    
+
     for (auto i = name.cbegin(); i != name.cend(); ++i) {
         if (*i != '.') continue;
-        
+
         unsigned parts = 0;
         auto const parseResult = make(i + 1, name.cend(), &parts);
         if (parts > 0 && parts >= mparts) {
@@ -130,7 +130,7 @@ template< typename T >
 std::pair< Version, T > Version::make(T begin, T endp, unsigned *parts) noexcept
 {
     int maj = -1, mnr = -1, rev = -1;
-    
+
     *parts = 0;
     auto const s1 = parse_int(begin, endp, &maj);
     if (0 <= maj && maj < 0x100) {
@@ -166,110 +166,3 @@ Version::Version(char const *string, char const *const endp)
 
 } // namespace sratools
 
-#if DEBUG || _DEBUGGING
-struct Test_Version {
-    using Version = sratools::Version;
-    
-    void test_exe_lin() {
-        std::string name{"sratools.3.0.1"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(3, 0, 1))) throw __FUNCTION__;
-        if (!(name == "sratools")) throw __FUNCTION__;
-    }
-    void test_exe_win() {
-        std::string name{"sratools.3.0.1.exe"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(3, 0, 1))) throw __FUNCTION__;
-        if (!(name == "sratools.exe")) throw __FUNCTION__;
-    }
-    void test_so0() {
-        std::string name{"libncbi-vdb.so"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version())) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.so")) throw __FUNCTION__;
-    }
-    void test_dylib0() {
-        std::string name{"libncbi-vdb.dylib"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version())) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.dylib")) throw __FUNCTION__;
-    }
-    void test_dylib1() {
-        std::string name{"libncbi-vdb.1.dylib"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(1, 0, 0))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.dylib")) throw __FUNCTION__;
-    }
-    void test_so_1() {
-        std::string name{"libncbi-vdb.so.1"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(1, 0, 0))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.so")) throw __FUNCTION__;
-    }
-    void test_dylib2() {
-        std::string name{"libncbi-vdb.1.3.dylib"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(1, 3, 0))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.dylib")) throw __FUNCTION__;
-    }
-    void test_so_2() {
-        std::string name{"libncbi-vdb.so.1.3"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(1, 3, 0))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.so")) throw __FUNCTION__;
-    }
-    void test_dylib3() {
-        std::string name{"libncbi-vdb.1.3.2.dylib"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(1, 3, 2))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.dylib")) throw __FUNCTION__;
-    }
-    void test_so_3() {
-        std::string name{"libncbi-vdb.so.1.3.2"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(1, 3, 2))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.so")) throw __FUNCTION__;
-    }
-    void test_dylib4() {
-        std::string name{"libncbi-vdb.1.3.2.4.dylib"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(3, 2, 4))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.1.dylib")) throw __FUNCTION__;
-    }
-    void test_so_4() {
-        std::string name{"libncbi-vdb.so.1.3.2.4"};
-        auto const vers = Version::removeVersion(name);
-        if (!(vers == Version(3, 2, 4))) throw __FUNCTION__;
-        if (!(name == "libncbi-vdb.so.1")) throw __FUNCTION__;
-    }
-    void test_to_string() {
-        auto const vers = Version(1, 2, 3);
-        auto const versString = (std::string)vers;
-        if (!(versString == "1.2.3")) throw __FUNCTION__;
-    }
-    Test_Version() {
-        try {
-            test_exe_win();
-            test_exe_lin();
-            test_so0();
-            test_dylib1();
-            test_dylib2();
-            test_dylib3();
-            test_dylib4();
-            test_so_1();
-            test_so_2();
-            test_so_3();
-            test_so_4();
-            test_to_string();
-            std::cerr << __FUNCTION__ << " passed." << std::endl;
-        }
-        catch (char const *func) {
-            std::cerr << func << " failed!" << std::endl;
-        }
-        catch (...) {
-            std::cerr << __FUNCTION__ << " failed: unknown exception!" << std::endl;
-        }
-    }
-};
-static Test_Version const test_Version;
-#endif

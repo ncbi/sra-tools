@@ -579,7 +579,7 @@ if ( SINGLE_CONFIG )
         "execute_process( COMMAND /bin/bash -c \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
-                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
+                ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy  \
                 ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
                 ${CMAKE_INSTALL_PREFIX}/bin         \

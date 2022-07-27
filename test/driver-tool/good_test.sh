@@ -10,7 +10,7 @@ TEMPDIR=.
 
 mkdir -p actual
 
-output=$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
+output="$(NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg \
 PATH="${bin_dir}:$PATH" \
 SRATOOLS_TESTING=2 \
 SRATOOLS_IMPERSONATE=${tool} \

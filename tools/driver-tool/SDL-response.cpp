@@ -72,7 +72,7 @@ bool Response2::ResultEntry::FileEntryData::operator <(Response2::ResultEntry::F
 std::vector<Response2::ResultEntry::Flat> Response2::ResultEntry::flatten() const
 {
     auto result = std::vector<Flat>();
-    
+
     for (int i = 0; i < (int)files.size(); ++i) {
         auto const &file = files[i];
         for (int j = 0; j < (int)file.locations.size(); ++j)
@@ -81,7 +81,7 @@ std::vector<Response2::ResultEntry::Flat> Response2::ResultEntry::flatten() cons
     std::sort(result.begin(), result.end(), [this](Flat const &a, Flat const &b) {
         auto const fileA = files[a.first];
         auto const fileB = files[b.first];
-        
+
         if (fileA < fileB)
             return true;
         if (fileB < fileA)
@@ -149,7 +149,7 @@ struct Response2 : public ::Response2 {
     using Base = ::Response2;
     struct DecodingError : public ::Response2::DecodingError {
         using Base = ::Response2::DecodingError;
-        
+
         DecodingError(Base const &other)
         : Base(other)
         {}
@@ -194,7 +194,7 @@ struct Response2 : public ::Response2 {
             query = bundle;
             return *this;
         }
-        
+
         DecodingError setCause(std::string const &field) const {
             return DecodingError(*this).setCause(field);
         }
@@ -226,13 +226,13 @@ struct Response2 : public ::Response2 {
 
     struct ResultEntry : public ::Response2::ResultEntry {
         using Base = ::Response2::ResultEntry;
-        
+
         struct FileEntry : public ::Response2::ResultEntry::FileEntry {
             using Base = ::Response2::ResultEntry::FileEntry;
-            
+
             struct LocationEntry : public ::Response2::ResultEntry::FileEntry::LocationEntry {
                 using Base = ::Response2::ResultEntry::FileEntry::LocationEntry;
-                
+
                 struct Delegate final : public JSONParser::Delegate {
                     JSONValueDelegate<std::string> link, service, region, expirationDate, projectId;
                     JSONValueDelegate<bool> ceRequired, payRequired;
@@ -283,18 +283,18 @@ struct Response2 : public ::Response2 {
                         ceRequired.unset();
                         payRequired.unset();
                     }
-                    
+
                     Base get(unsigned ordinal)
                     {
                         auto error = DecodingError({
                             DecodingError::missing, DecodingError::locations
                         });
-                        
+
                         if (!wasSet)
                             throw error.setLocation(ordinal);
                         if (!service)
                             throw error.setLocation(ordinal).setVictim("service");
-                        
+
                         auto const &service = this->service.get();
                         error.setLocation(service);
                         if (!link)
@@ -407,24 +407,24 @@ struct Response2 : public ::Response2 {
                     noqual.unset();
                     locations.unset();
                 }
-                
+
                 Base get(unsigned ordinal)
                 {
                     auto error = DecodingError({
                         DecodingError::missing, DecodingError::files
                     });
-                    
+
                     if (!wasSet)
                         throw error.setFile(ordinal);
                     if (!name)
                         throw error.setFile(ordinal).setVictim("name");
-                    
+
                     auto const name = this->name.get();
                     error.setFile(name);
-                    
+
                     if (!type && !object)
                         throw error.setVictim("type").setCause("object");
-                    
+
                     try {
                         return {
                             {
@@ -494,7 +494,7 @@ struct Response2 : public ::Response2 {
             ArrayDelegate<FileEntry, Base::Files> files;
 
             bool wasSet = false;
-        
+
             JSONParser::Delegate *member(std::string const &name)
             {
                 if (name == "status")
@@ -530,7 +530,7 @@ struct Response2 : public ::Response2 {
                 message.unset();
                 files.unset();
             }
-            
+
             Base get(unsigned ordinal) const
             {
                 auto error = DecodingError({
@@ -541,9 +541,9 @@ struct Response2 : public ::Response2 {
                     throw error.setQuery(ordinal);
                 if (!query)
                     throw error.setQuery(ordinal).setVictim("bundle");
-                
+
                 error.setQuery(query.get());
-                
+
                 if (!status)
                     throw error.setVictim("status");
                 if (!message)
@@ -569,13 +569,13 @@ struct Response2 : public ::Response2 {
             }
         };
     };
-    
+
     struct Delegate final : public JSONParser::Delegate {
         JSONValueDelegate<std::string> version, status, message, nextToken;
         ArrayDelegate<ResultEntry, Base::Results> results;
 
         bool wasSet = false; ///< becomes true if we received at least one member event
-    
+
         JSONParser::Delegate *member(std::string const &name)
         {
             if (name == "version")
@@ -606,7 +606,7 @@ struct Response2 : public ::Response2 {
         bool isSet() const { return wasSet; }
         operator bool() const { return isSet(); }
         void unset() { wasSet = false; }
-        
+
         Base get()
         {
             auto error = DecodingError(DecodingError::Base {
@@ -616,7 +616,7 @@ struct Response2 : public ::Response2 {
                 throw error;
             if (!version)
                 throw error.setVictim("version");
-            
+
             auto const version = this->version.get();
             if (version == "2" || version.substr(0, 2) == "2.")
                 ;
@@ -669,7 +669,7 @@ Response2 Response2::makeFrom(char const *json) {
     auto result = impl::Response2::Delegate();
     auto tlo = TopLevelObjectDelegate(&result);
     auto parser = JSONParser(json, &tlo);
-    
+
     parser.parse();
     return result.get();
 }
@@ -698,7 +698,7 @@ static RESPONSE makeFrom(char const *json)
     auto delegate = DELEGATE();
     auto topLevel = TopLevelObjectDelegate(&delegate);
     auto parser = JSONParser(json, &topLevel);
-    
+
     parser.parse();
     return delegate.get(1);
 }
@@ -1340,7 +1340,6 @@ struct Response2Tests {
         }
     } child;
     Response2Tests() {
-        JSONParser::runTests();
         // These are expected to throw.
         try {
             child.runTests();
@@ -1480,15 +1479,12 @@ struct Response2Tests {
 };
 
 void Response2::test()  {
-    JSONBool::runTests();
-    JSONNull::runTests();
-    JSONString::runTests();
     test_vdbcache();
 }
 
 void Response2::test_vdbcache() {
     Response2Tests response2Tests;
-    
+
     auto const testJSON = R"###(
 {
     "version": "unstable",
@@ -1564,7 +1560,7 @@ void Response2::test_vdbcache() {
 }
 )###";
     auto const &raw = Response2::makeFrom(testJSON);
-    
+
     assert(raw.results.size() == 1);
     auto passed = false;
     auto const files = raw.results[0].files.size();
@@ -1593,7 +1589,7 @@ void Response2::test_vdbcache() {
     assert(sras == 2);
     assert(srrs == 1);
     assert(passed);
-    
+
     LOG(8) << "vdbcache location matching passed." << std::endl;
 }
 #endif // DEBUG || _DEBUGGING

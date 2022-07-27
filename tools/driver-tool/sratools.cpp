@@ -630,33 +630,6 @@ std::vector<std::pair<unsigned, unsigned>> Accession::allExtensions() const
     return result;
 }
 
-#if DEBUG || _DEBUGGING
-static AccessionType accessionType(std::string const &accession)
-{
-    return Accession(accession).type();
-}
-
-static void testAccessionType() {
-    // asserts because these are all hard-coded values
-    assert(accessionType("SRR000000") == run);
-    assert(accessionType("ERR000000") == run);
-    assert(accessionType("DRR000000") == run);
-    assert(accessionType("srr000000") == run);
-
-    assert(accessionType("SRA000000") == submitter);
-    assert(accessionType("SRP000000") == project);
-    assert(accessionType("SRS000000") == study);
-    assert(accessionType("SRX000000") == experiment);
-
-    assert(accessionType("SRR000000.2") == run); // not certain of this one
-
-    assert(accessionType("SRR00000") == unknown); // too short
-    assert(accessionType("SRF000000") == unknown); // bad type
-    assert(accessionType("ZRR000000") == unknown); // bad issuer
-    assert(accessionType("SRRR00000") == unknown); // not digits
-}
-#endif
-
 /**
  * @brief Runs internal tests
  *
@@ -666,7 +639,6 @@ static void testAccessionType() {
 static void test() {
     if (logging_state::testing_level() == 1) {
 #if (DEBUG || _DEBUGGING) && !WINDOWS
-        testAccessionType();
         uuid_test();
 #endif
         exit(0);
@@ -675,34 +647,38 @@ static void test() {
 
 } // namespace sratools
 
-#if MAC
-int main(int argc, char *argv[], char *envp[], char *apple[])
-{
-    auto const invocation = CommandLine(argc, argv, envp, apple);
-    return sratools::main(invocation);
-}
-#endif
-#if LINUX
-int main(int argc, char *argv[], char *envp[])
-{
-    auto const invocation = CommandLine(argc, argv, envp, nullptr);
-    return sratools::main(invocation);
-}
-#endif
-#if WINDOWS
-#if USE_WIDE_API
-int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
-{
-    auto const invocation = CommandLine(argc, argv, envp, nullptr);
-    return sratools::main(invocation);
-}
-#else
-int main(int argc, char *argv[], char *envp[])
-{
-    auto const invocation = CommandLine(argc, argv, envp, nullptr);
-    return sratools::main(invocation);
-}
-#endif
+#if ( ! defined(NOMAIN) )
+
+    #if MAC
+    int main(int argc, char *argv[], char *envp[], char *apple[])
+    {
+        auto const invocation = CommandLine(argc, argv, envp, apple);
+        return sratools::main(invocation);
+    }
+    #endif
+    #if LINUX
+    int main(int argc, char *argv[], char *envp[])
+    {
+        auto const invocation = CommandLine(argc, argv, envp, nullptr);
+        return sratools::main(invocation);
+    }
+    #endif
+    #if WINDOWS
+    #if USE_WIDE_API
+    int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+    {
+        auto const invocation = CommandLine(argc, argv, envp, nullptr);
+        return sratools::main(invocation);
+    }
+    #else
+    int main(int argc, char *argv[], char *envp[])
+    {
+        auto const invocation = CommandLine(argc, argv, envp, nullptr);
+        return sratools::main(invocation);
+    }
+    #endif
+    #endif
+
 #endif
 
 #endif // c++11

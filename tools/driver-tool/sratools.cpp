@@ -81,8 +81,6 @@ char const *Accession::qualityTypes[] = { "Full", "Lite" };
 char const *Accession::qualityTypeForFull = qualityTypes[0];
 char const *Accession::qualityTypeForLite = qualityTypes[1];
 
-static void test();
-
 static void enableLogging(char const *argv0)
 {
     auto const rc = KWrtInit(argv0, TOOLKIT_VERS);
@@ -351,7 +349,7 @@ static int main(CommandLine const &argv)
     auto const sessionID = uuid();
     EnvironmentVariables::set(ENV_VAR_SESSION_ID, sessionID);
 
-    test(); ///< needs to be outside of any try/catch; it needs to be able to go BANG!!!
+//    test(); ///< needs to be outside of any try/catch; it needs to be able to go BANG!!!
 
 #if DEBUG || _DEBUGGING
     if (argv.toolName == "sratools") {
@@ -628,21 +626,6 @@ std::vector<std::pair<unsigned, unsigned>> Accession::allExtensions() const
             ++i.second;
     }
     return result;
-}
-
-/**
- * @brief Runs internal tests
- *
- * Does nothing if the environment variable is not set.
- * Does not return if the environment variable is set (but the tests can throw).
- */
-static void test() {
-    if (logging_state::testing_level() == 1) {
-#if (DEBUG || _DEBUGGING) && !WINDOWS
-        uuid_test();
-#endif
-        exit(0);
-    }
 }
 
 } // namespace sratools

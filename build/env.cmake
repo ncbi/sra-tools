@@ -575,11 +575,14 @@ endif()
 
 if ( SINGLE_CONFIG )
     # standard kfg files
+    if ( BUILD_TOOLS_INTERNAL )
+        set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
+    endif()
     install( SCRIPT CODE
         "execute_process( COMMAND /bin/bash -c \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
-                ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy  \
+                '${VDB_COPY_DIR}'  \
                 ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
                 ${CMAKE_INSTALL_PREFIX}/bin         \

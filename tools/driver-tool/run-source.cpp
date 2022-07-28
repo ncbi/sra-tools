@@ -582,9 +582,6 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
         catch (Response2::DecodingError const &err) {
             LOG(1) << err << std::endl;
         }
-        catch (std::domain_error const &e) {
-            assert(e.what() == std::string("No query"));
-        }
         catch (std::domain_error const &de) {
             if (de.what() && strcmp(de.what(), "No query") == 0)
                 ;

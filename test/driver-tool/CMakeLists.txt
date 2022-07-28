@@ -24,9 +24,9 @@
 
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/driver-tool)
 
-AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" )
-AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" )
-AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" )
+AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "")
+AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "")
+AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "")
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 if ( WIN32 )

@@ -38,6 +38,7 @@
 #include <utility>
 
 #include "opt_string.hpp"
+#include "util.hpp"
 
 /// @brief holds SDL version 2 response
 /// @Note member names generally match the corresponding member names in the SDL response JSON
@@ -60,7 +61,7 @@ struct Response2 {
         std::string location;   ///< "service" field or locations array ordinal.
         std::string file;       ///< "name" field or files array ordinal.
         std::string query;      ///< "bundle" field or result array ordinal.
-        
+
         bool haveVictim() const { return !victim.empty(); }
         bool haveCause() const { return !field.empty(); }
         bool haveCauseValue() const { return !value.empty(); }
@@ -76,7 +77,7 @@ struct Response2 {
             std::string type, name;
             opt_string object, size, md5, format, modificationDate;
             bool noqual;
-            
+
             opt_string objectType() const {
                 auto result = opt_string();
                 if (object) {
@@ -99,13 +100,13 @@ struct Response2 {
                 std::string link, service, region;
                 opt_string expirationDate, projectId;
                 bool ceRequired, payRequired;
-                
+
                 bool operator <(LocationEntry const &other) const;
             };
 
             using Locations = std::vector<LocationEntry>;
             Locations locations;
-            
+
             FileEntry(FileEntryData &&base, Locations &&locations)
             : FileEntryData(std::move(base))
             , locations(std::move(locations))
@@ -115,14 +116,14 @@ struct Response2 {
             , locations(locations)
             {}
         };
-        
+
         using Files = std::vector<FileEntry>;
         using Flat = std::pair<unsigned, unsigned>; // files index, and files location index
         std::string query;
         std::string status;
         std::string message;
         Files files;
-        
+
         std::vector<Flat> flattened;
         std::vector<Flat> flatten() const;
         using Flattened = std::pair<FileEntryData const &, FileEntry::LocationEntry const &>;
@@ -136,7 +137,7 @@ struct Response2 {
         TypeIndex byType;
         TypeIndex indexTypes() const;
         std::vector<Flattened> getByType(std::string const &key) const;
-        
+
         /// \brief The cache file can come from either the same location, or it can come from NCBI if it is encrypted for the same project or is not encrypted.
         /// \returns -1 if none found, else index in flattened.
         int getCacheFor(Flattened const &match) const;
@@ -150,7 +151,7 @@ struct Response2 {
         , byType(indexTypes())
         {}
     };
-    
+
     using Results = std::vector<ResultEntry>;
     std::string status;
     std::string message;

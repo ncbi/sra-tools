@@ -22,16 +22,14 @@
 #
 # ===========================================================================
 
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/driver-tool)
+
 AddExecutableTest( Drivertool_JsonParsing "test-json-parse.cpp" "" )
-target_include_directories( Drivertool_JsonParsing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/driver-tool)
+AddExecutableTest( Drivertool_SDLResponse "test-sdl-response.cpp" "" )
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 if ( WIN32 )
     add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )
-    target_include_directories( Drivertool_Win32_Args_Parsing_Test
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/driver-tool
-    )
     add_test( NAME Test_Drivertool_Win32_Args_Parsing COMMAND Drivertool_Win32_Args_Parsing_Test )
 else ()
 	# GOOD

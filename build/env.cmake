@@ -177,8 +177,22 @@ endif()
 find_package( Python3 COMPONENTS Interpreter )
 
 # ===========================================================================
+# testing
 
 enable_testing()
+
+option(COVERAGE "Generate test coverage" OFF)
+
+if( COVERAGE AND "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    message( COVERAGE=${COVERAGE} )
+
+    SET(GCC_COVERAGE_COMPILE_FLAGS "-coverage -fprofile-arcs -ftest-coverage")
+    SET(GCC_COVERAGE_LINK_FLAGS    "-coverage -lgcov")
+
+    SET( CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
+    SET( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}" )
+endif()
 
 # ===========================================================================
 # singfle vs. multitarget generators, ncbi-vdb binaries
@@ -457,23 +471,18 @@ function(MakeLinksExe target install_via_driver)
 
     if( SINGLE_CONFIG )
 
-        add_custom_command(TARGET ${target}
-            POST_BUILD
-            COMMAND rm -f ${target}.${VERSION}
-            COMMAND mv ${target} ${target}.${VERSION}
-            COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
-            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
-            COMMAND ln -f -s sratools.${VERSION} ${target}-driver
-            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-        )
-
-        set_property(
-            TARGET    ${target}
-            APPEND
-            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
-        )
-
         if ( install_via_driver )
+
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                COMMAND ln -f -s sratools.${VERSION} ${target}-driver
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
             install(
                 PROGRAMS
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
@@ -492,12 +501,28 @@ function(MakeLinksExe target install_via_driver)
             )
 
         else()
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
             install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+
+        set_property(
+            TARGET    ${target}
+            APPEND
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
+        )
+
     else()
 
         if ( install_via_driver )
@@ -581,11 +606,14 @@ endif()
 
 if ( SINGLE_CONFIG )
     # standard kfg files
+    if ( BUILD_TOOLS_INTERNAL )
+        set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
+    endif()
     install( SCRIPT CODE
         "execute_process( COMMAND /bin/bash -c \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
-                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
+                '${VDB_COPY_DIR}'  \
                 ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
                 ${CMAKE_INSTALL_PREFIX}/bin         \

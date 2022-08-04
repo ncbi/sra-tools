@@ -1,4 +1,0 @@
-[warning] [code:160] Read NB501550:336:H75GGAFXY:2:11101:9721:1038: invalid sequence characters [010.errors.invalid_seq.fq:1]
-[warning] [code:160] Read NB501550:337:H75GGAFXY:2:11101:9721:1038: invalid sequence characters [010.errors.invalid_seq.fq:13]
-[warning] [code:160] Read NB501550:338:H75GGAFXY:2:11101:9721:1038: invalid sequence characters [010.errors.invalid_seq.fq:17]
-[error] Exceeded maximum number of errors (code:160)

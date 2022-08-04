@@ -427,7 +427,7 @@ function(MakeLinksShared target name install)
         if ( ${install} )
             install( TARGETS ${target}
                      ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR}
-                     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
         endif()
 

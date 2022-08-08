@@ -43,9 +43,14 @@ if( NOT WIN32 )
     #        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     #    )
 
-    add_test( NAME Test_Samline
-            COMMAND "./simple_test.sh" "${BINDIR}" "${TESTBINDIR}"
+    #add_test( NAME Test_Samline
+    #        COMMAND "./simple_test.sh" "${BINDIR}" "${TESTBINDIR}"
+    #        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    #    )
+
+    add_test( NAME Test_SamBuild
+            COMMAND "./1.sh" "${BINDIR}" "${TESTBINDIR}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
-
+    
 endif()

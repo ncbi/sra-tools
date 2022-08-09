@@ -91,7 +91,7 @@ namespace vdb {
         }
         std::string token() const {
             auto result = std::string();
-            
+
             String const *s;
             auto const rc = CloudMakeComputeEnvironmentToken(obj, &s);
             if (rc == 0 && s) {
@@ -227,7 +227,7 @@ namespace vdb {
     Service::Response::~Response() {
         KSrvResponseRelease((KSrvResponse const *)(obj));
     }
-    
+
     std::ostream &operator <<(std::ostream &os, Service::Response const &rhs) {
         return os << rhs.text;
     }
@@ -243,11 +243,11 @@ namespace vdb {
         catch (exception const &e) {
             switch (e.resultCode()) {
             case 3017889624:
-                LOG(2) << "No cloud token, not in a cloud." << std::endl;
+                DT_LOG(2) << "No cloud token, not in a cloud." << std::endl;
                 break;
             default:
-                LOG(1) << "Failed to get cloud token" << std::endl;
-                LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+                DT_LOG(1) << "Failed to get cloud token" << std::endl;
+                DT_LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
                 break;
             }
             return "";

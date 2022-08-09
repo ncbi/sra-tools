@@ -81,7 +81,7 @@ struct Response2Tests {
                             }
                             )###");
                         assert(obj.payRequired == true);
-                        LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
                     catch (JSONParser::Error const &e) {
@@ -108,7 +108,7 @@ struct Response2Tests {
                                 "payRequired": false
                             }
                             )###");
-                        LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
                     catch (JSONParser::Error const &e) {
@@ -138,7 +138,7 @@ struct Response2Tests {
                         throw __FUNCTION__;
                     }
                     catch (JSONScalarConversionError const &e) {
-                        LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError" << std::endl;
                     }
                 }
                 void nullCER() {
@@ -154,7 +154,7 @@ struct Response2Tests {
                         throw __FUNCTION__;
                     }
                     catch (JSONScalarConversionError const &e) {
-                        LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful, got JSONScalarConversionError" << std::endl;
                     }
                 }
                 void haveCERTestTrue() {
@@ -168,7 +168,7 @@ struct Response2Tests {
                             }
                             )###");
                         assert(obj.ceRequired == true);
-                        LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
                     catch (JSONParser::Error const &e) {
@@ -195,7 +195,7 @@ struct Response2Tests {
                                 "ceRequired": false
                             }
                             )###");
-                        LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
                     catch (JSONParser::Error const &e) {
@@ -223,7 +223,7 @@ struct Response2Tests {
                             }
                             )###");
                         assert(obj.projectId && obj.projectId.value() == "phs-1234");
-                        LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
                     catch (JSONParser::Error const &e) {
@@ -251,7 +251,7 @@ struct Response2Tests {
                             }
                             )###");
                         assert(obj.expirationDate && obj.expirationDate.value() == "2012-01-19T20:14:00Z");
-                        LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
                     catch (JSONParser::Error const &e) {
@@ -277,7 +277,7 @@ struct Response2Tests {
                             }
                             )###");
                         assert(obj.region == "be-md");
-                        LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                         return;
                     }
                     catch (JSONParser::Error const &e) {
@@ -305,7 +305,7 @@ struct Response2Tests {
                         throw __FUNCTION__;
                     }
                     catch (Response2::DecodingError const &e) {
-                        LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                     }
                 }
                 void missingLinkTest() {
@@ -316,7 +316,7 @@ struct Response2Tests {
                         throw __FUNCTION__;
                     }
                     catch (Response2::DecodingError const &e) {
-                        LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                     }
                 }
                 void missingServiceTest() {
@@ -325,7 +325,7 @@ struct Response2Tests {
                         throw __FUNCTION__;
                     }
                     catch (Response2::DecodingError const &e) {
-                        LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                     }
                 }
                 void emptyObjectTest() {
@@ -334,7 +334,7 @@ struct Response2Tests {
                         throw __FUNCTION__;
                     }
                     catch (Response2::DecodingError const &e) {
-                        LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                        DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                     }
                 }
             } child;
@@ -367,7 +367,7 @@ struct Response2Tests {
                         }
                         )###");
                     assert(obj.format && obj.format.value() == "text/fasta");
-                    LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
                 catch (JSONParser::Error const &e) {
@@ -395,7 +395,7 @@ struct Response2Tests {
                         }
                         )###");
                     assert(obj.noqual == true);
-                    LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
                 catch (JSONParser::Error const &e) {
@@ -423,7 +423,7 @@ struct Response2Tests {
                         }
                         )###");
                     assert(obj.modificationDate && obj.modificationDate.value() == "2016-11-20T07:38:19Z");
-                    LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
                 catch (JSONParser::Error const &e) {
@@ -451,7 +451,7 @@ struct Response2Tests {
                         }
                         )###");
                     assert(obj.md5 && obj.md5.value() == "323d0b76f741ae0b71aeec0176645301");
-                    LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
                 catch (JSONParser::Error const &e) {
@@ -479,7 +479,7 @@ struct Response2Tests {
                         }
                         )###");
                     assert(obj.size && obj.size.value() == "842809");
-                    LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
                 catch (JSONParser::Error const &e) {
@@ -505,7 +505,7 @@ struct Response2Tests {
                         }
                         )###");
                     assert(obj.type == "sra");
-                    LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
                 catch (JSONParser::Error const &e) {
@@ -532,7 +532,7 @@ struct Response2Tests {
                         }
                         )###");
                     assert(obj.locations.empty());
-                    LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                     return;
                 }
                 catch (JSONParser::Error const &e) {
@@ -558,7 +558,7 @@ struct Response2Tests {
                     throw __FUNCTION__;
                 }
                 catch (Response2::DecodingError const &e) {
-                    LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                 }
             }
             void missingTypeTest() {
@@ -567,7 +567,7 @@ struct Response2Tests {
                     throw __FUNCTION__;
                 }
                 catch (Response2::DecodingError const &e) {
-                    LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                 }
             }
             void missingNameTest() {
@@ -576,7 +576,7 @@ struct Response2Tests {
                     throw __FUNCTION__;
                 }
                 catch (Response2::DecodingError const &e) {
-                    LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                 }
             }
             void emptyObjectTest() {
@@ -585,7 +585,7 @@ struct Response2Tests {
                     throw __FUNCTION__;
                 }
                 catch (Response2::DecodingError const &e) {
-                    LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                    DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
                 }
             }
         } child;
@@ -613,7 +613,7 @@ struct Response2Tests {
                 assert(obj.query == "SRR867664");
                 assert(obj.status == "404");
                 assert(obj.message == "No data at given location.region");
-                LOG(9) << __FUNCTION__ << " successful" << std::endl;
+                DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
                 return;
             }
             catch (JSONParser::Error const &e) {
@@ -641,7 +641,7 @@ struct Response2Tests {
                 throw __FUNCTION__;
             }
             catch (Response2::DecodingError const &e) {
-                LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
             }
         }
         void missingBundleTest() {
@@ -655,7 +655,7 @@ struct Response2Tests {
                 throw __FUNCTION__;
             }
             catch (Response2::DecodingError const &e) {
-                LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
             }
         }
         void missingStatusTest() {
@@ -669,7 +669,7 @@ struct Response2Tests {
                 throw __FUNCTION__;
             }
             catch (Response2::DecodingError const &e) {
-                LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
             }
         }
         void emptyObjectTest() {
@@ -678,7 +678,7 @@ struct Response2Tests {
                 throw __FUNCTION__;
             }
             catch (Response2::DecodingError const &e) {
-                LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+                DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
             }
         }
     } child;
@@ -694,7 +694,7 @@ struct Response2Tests {
             testGoodResponse();
             testNoResult();
 
-            LOG(8) << "All SDL response parsing tests passed." << std::endl;
+            DT_LOG(8) << "All SDL response parsing tests passed." << std::endl;
             return;
         }
         catch (char const *function) {
@@ -708,7 +708,7 @@ struct Response2Tests {
             throw __FUNCTION__;
         }
         catch (Response2::DecodingError const &e) {
-            LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+            DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
         }
     }
     static void testBadVersion() {
@@ -718,7 +718,7 @@ struct Response2Tests {
             throw __FUNCTION__;
         }
         catch (JSONScalarConversionError const &e) {
-            LOG(9) << __FUNCTION__ << " successful, got: JSONScalarConversionError" << std::endl;
+            DT_LOG(9) << __FUNCTION__ << " successful, got: JSONScalarConversionError" << std::endl;
         }
     }
     static void testBadVersion2() {
@@ -730,13 +730,13 @@ struct Response2Tests {
         catch (Response2::DecodingError const &e) {
             assert(e.object == Response2::DecodingError::topLevel);
             assert(e.haveCause("version"));
-            LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+            DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
         }
     }
     static void testNoResult() {
         try {
             Response2::makeFrom(R"###({ "version": "2" })###");
-            LOG(9) << __FUNCTION__ << " successful" << std::endl;
+            DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
             return;
         }
         catch (JSONParser::Error const &e) {
@@ -764,7 +764,7 @@ struct Response2Tests {
         }
         catch (Response2::DecodingError const &e) {
             assert(e.object == Response2::DecodingError::result);
-            LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
+            DT_LOG(9) << __FUNCTION__ << " successful, got: " << e << std::endl;
         }
     }
     static void testErrorResponse() {
@@ -776,7 +776,7 @@ struct Response2Tests {
                     "message": "Internal Server Error"
                 })###");
             assert(response.status == "500" && response.message == "Internal Server Error");
-            LOG(9) << __FUNCTION__ << " successful" << std::endl;
+            DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
         }
         catch (JSONParser::Error const &e) {
             std::cerr << __FUNCTION__ << " failed, got: JSONParser::Error" << std::endl;
@@ -804,7 +804,7 @@ struct Response2Tests {
                         }
                     ]
                 })###");
-            LOG(9) << __FUNCTION__ << " successful" << std::endl;
+            DT_LOG(9) << __FUNCTION__ << " successful" << std::endl;
         }
         catch (JSONParser::Error const &e) {
             std::cerr << __FUNCTION__ << " failed, got: JSONParser::Error" << std::endl;
@@ -933,7 +933,7 @@ void Response2::test_vdbcache() {
     assert(srrs == 1);
     assert(passed);
 
-    LOG(8) << "vdbcache location matching passed." << std::endl;
+    DT_LOG(8) << "vdbcache location matching passed." << std::endl;
 }
 #endif
 

@@ -34,7 +34,6 @@
 #else
 #include <limits.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include "file-path.posix.hpp"
@@ -191,7 +190,7 @@ FilePath FilePath::canonical() const
         result.owns = true;
         return result;
     }
-    throw std::system_error(std::error_code(errno, std::system_category()), std::string("realpath: ") + path);
+    throw std::system_error(std::error_code(errno, std::system_category()), std::string("realpath: ") + ( path ? path : "<null>" ) );
 }
 
 static char const *findThisExecutable(char const *argv0, char const *const *const extra)
@@ -221,7 +220,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
         result = FilePath(findThisExecutable(argv[0], extra)).canonical();
     }
     catch (std::system_error const &e) {
-        LOG(2) << "unable to get full path to executable " << argv[0] << std::endl;
+        DT_LOG(2) << "unable to get full path to executable " << argv[0] << std::endl;
     }
     return result;
 }

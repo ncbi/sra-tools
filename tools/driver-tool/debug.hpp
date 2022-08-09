@@ -105,4 +105,4 @@ private:
 #endif
 
 #define DEBUG_OUT if (!logging_state::is_debug()) {} else std::cerr << "DEBUG: "
-#define LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr << "LOG(" STRINGIFY(LEVEL) "): "
+#define DT_LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr << "LOG(" STRINGIFY(LEVEL) "): "

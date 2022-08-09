@@ -39,6 +39,8 @@
 #include <cstring>
 #include <cassert>
 
+#include <unistd.h>
+
 namespace POSIX {
 
 struct FilePath {
@@ -118,7 +120,7 @@ struct FilePath {
         return removeSuffix(baseName.path, baseName.length < 0 ? strlen(baseName.path) : baseName.length);
     }
 
-    size_t size() const { return length < 0 ? strlen(path) : (size_t)length; }
+    size_t size() const { return length < 0 ? ( path ? strlen(path) : 0 ) : (size_t)length; }
 
     operator std::string() const { return std::string(path, path + size()); }
 
@@ -157,6 +159,8 @@ struct FilePath {
     FilePath append(FilePath const &leaf) const;
 
     static FilePath fullPathToExecutable(char const *const *const argv, char const *const *const envp, char const *const *const extra = nullptr);
+
+    bool getOwns() const { return owns; }
 
 private:
     char *path = nullptr;

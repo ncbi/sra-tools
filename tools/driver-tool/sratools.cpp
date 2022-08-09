@@ -112,7 +112,7 @@ static void handleFileArgument(Argument const &arg, int *const count, char const
         *count = 0;
 
     if (++*count > 1) {
-        LOG(1) << "--" << arg.def->name << " given more than once";
+        DT_LOG(1) << "--" << arg.def->name << " given more than once";
         if (strcmp(*value, arg.argument) == 0) {
             arg.reason = Argument::duplicate;
             --*count;
@@ -342,7 +342,7 @@ static int main(CommandLine const &argv)
 #else
     enableLogging(argv.toolName.c_str());
 #endif
-    LOG(7) << "executable path: " << (std::string)argv.fullPathToExe << std::endl;
+    DT_LOG(7) << "executable path: " << (std::string)argv.fullPathToExe << std::endl;
 
     config = new Config();
     struct Defer { ~Defer() { delete config; config = nullptr; } } freeConfig;
@@ -459,13 +459,13 @@ static int main(CommandLine const &argv)
                 auto const result = Process::runTool(argv, parsed.keep(acc), src.environment);
                 if (result.didExitNormally()) {
                     success = true;
-                    LOG(2) << "Processed " << acc << " with data from " << src.service << std::endl;
+                    DT_LOG(2) << "Processed " << acc << " with data from " << src.service << std::endl;
                     break;
                 }
                 if (result.didExit()) {
                     auto const exit_code = result.exitCode();
                     if (exit_code == EX_TEMPFAIL) {
-                        LOG(1) << "Failed to get data for " << acc << " from " << src.service << std::endl;
+                        DT_LOG(1) << "Failed to get data for " << acc << " from " << src.service << std::endl;
                         continue;
                     }
                     std::cerr << argv.toolName << " quit with error code " << exit_code << std::endl;

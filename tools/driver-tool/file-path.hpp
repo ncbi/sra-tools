@@ -120,7 +120,7 @@ struct FilePath_ : protected FilePathImpl {
     }
     /// Remove `suffix` from end of last path element
     bool removeSuffix(FilePath_ const &suffix) {
-        return FilePathImpl::removeSuffix(suffix.impl);
+        return FilePathImpl::removeSuffix(suffix.implementation());
     }
 #if USE_WIDE_API
     /// Remove `suffix` from end of last path element

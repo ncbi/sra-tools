@@ -33,7 +33,7 @@
 #include "json-parse.cpp"
 #include "SDL-response.cpp"
 
-#if !WINDOWS
+//#if !WINDOWS
 
 template <typename IMPL, typename RESPONSE = typename IMPL::Base, typename DELEGATE = typename IMPL::Delegate>
 static RESPONSE makeFrom(char const *json)
@@ -935,6 +935,10 @@ void Response2::test_vdbcache() {
 
     DT_LOG(8) << "vdbcache location matching passed." << std::endl;
 }
+//#endif
+
+#if WIN32
+#define main wmain
 #endif
 
 int main ( int argc, char *argv [] )

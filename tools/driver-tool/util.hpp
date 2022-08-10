@@ -38,7 +38,10 @@
 #include <stdexcept>
 #include <system_error>
 #include <iterator>
+
+#undef min
 #include <algorithm>
+
 #include <type_traits>
 #include <string>
 #include <map>

@@ -299,6 +299,7 @@ FilePath::FilePath(size_t length, bool isWide, bool isFromOS, void const *path)
     this->owns = true;
     this->isFromOS = isFromOS;
     memcpy(this->path, path, length * elem_bytes);
+    owns = true;
     if (isWide)
         WIDE_PATH[length] = NUL_W;
     else
@@ -309,7 +310,7 @@ FilePath::FilePath(size_t length, bool isWide, bool isFromOS, void const *path)
 FilePath FilePath::canonical() const
 {
     if (path == nullptr || length == 0)
-        return *this;
+        throw std::logic_error(std::string("FilePath::canonical() called with an empty path"));
 
 #if USE_WIDE_API
     if (!isWide)
@@ -355,6 +356,7 @@ FilePath::operator std::string() const
     return result;
 }
 
+#if USE_WIDE_API
 FilePath::operator std::wstring() const
 {
     if (path == nullptr || length == 0)
@@ -370,6 +372,7 @@ FilePath::operator std::wstring() const
         return std::wstring(wide());
     }
 }
+#endif
 
 bool FilePath::exists() const {
     if (path == nullptr || length == 0)
@@ -742,6 +745,8 @@ FilePath FilePath::append(FilePath const &leaf) const {
 }
 
 bool FilePath::removeSuffix(size_t count) {
+    if (!owns || count == 0) return false;
+
     auto len = measure();
     if (len < (ssize_t)count) return false;
 
@@ -765,6 +770,8 @@ bool FilePath::removeSuffix(size_t count) {
             --len;
             --count;
         }
+        if (count != 0)
+            return false;
         while (len > 1 && path[len - 1] == SEP_N)
             --len;
         length = len;
@@ -790,6 +797,8 @@ static ssize_t remove_suffix(T const *const suffix, size_t length, T const *cons
 }
 
 bool FilePath::removeSuffix(char const *const suffix, size_t length) {
+    if (!owns) return false;
+
     if (isWide) {
         // we are wide, change the suffix to match us
         auto const wlen = Win32Support::wideSize(suffix, length);
@@ -805,6 +814,8 @@ bool FilePath::removeSuffix(char const *const suffix, size_t length) {
 }
 
 bool FilePath::removeSuffix(wchar_t const *const suffix, size_t length) {
+    if (!owns) return false;
+
     if (isWide) {
         auto const newlen = remove_suffix(suffix, length, WIDE_CONST_PATH, measure(), SEP_W);
         if (newlen < 0)

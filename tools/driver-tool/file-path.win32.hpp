@@ -34,6 +34,9 @@
 
 #if WINDOWS
 
+#include <Windows.h>
+typedef SSIZE_T ssize_t;
+
 namespace Win32 {
 
 struct FilePath {
@@ -70,6 +73,7 @@ struct FilePath {
         
         auto const oldpath = owns ? path : nullptr;
         owns = false;
+        isFromOS = other.isFromOS;
         path = other.path;
         length = other.length;
         isWide = other.isWide;
@@ -88,6 +92,7 @@ struct FilePath {
     : path(other.path)
     , length(other.length)
     , owns(other.owns)
+    , isFromOS(other.isFromOS)
     , isWide(other.isWide)
     , isCwd(other.isCwd)
     {
@@ -123,6 +128,10 @@ struct FilePath {
 
     size_t size() const {
         auto const sz = measure();
+        if (sz == -1)
+        {
+            return 0;
+        }
         assert(sz >= 0);
         return (size_t)sz;
     }
@@ -196,7 +205,9 @@ struct FilePath {
             return removeSuffix(reinterpret_cast<char const *>(baseName.path), baseName.measure());
     }
 #endif
-    
+
+    bool getOwns() const { return owns; }
+
 private:
     void *path = nullptr;
     ssize_t length = -1; // number of code units (not bytes or characters)

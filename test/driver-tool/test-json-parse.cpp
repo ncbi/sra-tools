@@ -32,7 +32,7 @@
 
 #include "json-parse.cpp"
 
-#if ( !WINDOWS )
+//#if ( !WINDOWS )
 // MARK: Tests start here.
 #include <cstdio>
 
@@ -929,6 +929,10 @@ void JSONNull::runTests() {
     DT_LOG(8) << "All JSON null tests passed." << std::endl;
 }
 
+//#endif
+
+#if WIN32
+#define main wmain
 #endif
 
 int main ( int argc, char *argv [] )

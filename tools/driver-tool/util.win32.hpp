@@ -109,10 +109,10 @@ struct EnvironmentVariables {
     static opt_string get(char const *name) {
         opt_string result;
         char dummy[4];
-        auto const valuelen = GetEnvironmentVariableA(name.c_str(), dummy, 0);
+        auto const valuelen = GetEnvironmentVariableA(name, dummy, 0);
         if (valuelen > 0) {
             auto value = std::string(valuelen + 1, '\0');
-            GetEnvironmentVariableA(name.c_str(), value.data(), 0);
+            GetEnvironmentVariableA(name, const_cast<LPSTR>(value.data()), 0);
             value.resize(valuelen);
             result = value;
         }

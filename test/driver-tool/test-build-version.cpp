@@ -137,6 +137,10 @@ struct Test_Version {
     }
 };
 
+#if WIN32
+#define main wmain
+#endif
+
 int main ( int argc, char *argv [] )
 {
     try {

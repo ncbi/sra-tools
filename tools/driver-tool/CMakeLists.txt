@@ -78,6 +78,7 @@ else()
         util.posix.hpp
 	)
 endif()
+
 if(WIN32)
     target_compile_definitions(sratools PRIVATE USE_WIDE_API=1)
     target_link_libraries(sratools PRIVATE
@@ -88,8 +89,8 @@ if(WIN32)
         libvcruntime$<$<CONFIG:Debug>:d>
 		Ws2_32 Crypt32 ShLwApi Pathcch
     )
-elseif(LINUX)
-    target_link_libraries(sratools PRIVATE ncbi-vdb m)
+elseif(${OS} STREQUAL "linux")
+    target_link_libraries(sratools ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} m)
 endif()
 MakeLinksExe( sratools false )
 GenerateSanitizerTests( sratools )

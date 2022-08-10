@@ -348,6 +348,15 @@ endif()
 # Common functions for creation of build artefacts
 #
 
+# provide ability to override installation directories
+if ( NOT CMAKE_INSTALL_BINDIR )
+    set( CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_PREFIX}/bin )
+endif()
+
+if ( NOT CMAKE_INSTALL_LIBDIR )
+    set( CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib64 )
+endif()
+
 function( ExportStatic name install )
     # the output goes to .../lib
     if( SINGLE_CONFIG )
@@ -375,7 +384,7 @@ function( ExportStatic name install )
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${MAJVERS}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}-static.a
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
             )
          endif()
     else()
@@ -384,7 +393,7 @@ function( ExportStatic name install )
         set_target_properties( ${name} PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
-            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64 )
+            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
         endif()
     endif()
 endfunction()
@@ -421,7 +430,7 @@ function(MakeLinksShared target name install)
             install( PROGRAMS  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
         endif()
     else()
@@ -431,13 +440,13 @@ function(MakeLinksShared target name install)
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
             install( TARGETS ${target}
-                     ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-                     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                     ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR}
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
         endif()
 
         if (WIN32)
-            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
         endif()
 
     endif()
@@ -487,17 +496,17 @@ function(MakeLinksExe target install_via_driver)
                 PROGRAMS
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
             install(
                 PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                 RENAME ${target}-orig.${VERSION}
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
             install(
                 PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver
                 RENAME ${target}.${VERSION}
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
 
         else()
@@ -513,7 +522,7 @@ function(MakeLinksExe target install_via_driver)
             install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                    DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
         endif()
 
@@ -529,11 +538,11 @@ function(MakeLinksExe target install_via_driver)
                 # on Windows/XCode, ${target}-orig file names have no version attached
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE}
                          RENAME ${target}${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
 
                 if (WIN32)
@@ -545,19 +554,19 @@ function(MakeLinksExe target install_via_driver)
                     # on install, copy/rename the .pdb files if any
                     install(FILES $<TARGET_PDB_FILE:${target}>
                             RENAME ${target}-orig.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                     # add the driver-tool's .pdb
                     install(FILES $<TARGET_PDB_FILE:sratools>
                             RENAME ${target}.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                 endif()
 
         else()
 
-            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
             if (WIN32) # copy the .pdb files if any
-                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
             endif()
 
         endif()
@@ -594,10 +603,10 @@ if ( SINGLE_CONFIG )
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
                 '${VDB_COPY_DIR}'  \
-                ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
+                ${CMAKE_INSTALL_BINDIR}/ncbi              \
                 /etc/ncbi                           \
-                ${CMAKE_INSTALL_PREFIX}/bin         \
-                ${CMAKE_INSTALL_PREFIX}/lib64       \
+                ${CMAKE_INSTALL_BINDIR}                   \
+                ${CMAKE_INSTALL_LIBDIR}                   \
                 ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
             \" )"
     )

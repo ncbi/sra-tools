@@ -123,7 +123,21 @@ if ( ${OS}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-GNU"  )
 endif()
 
 add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
+
+# global compiler warnings settings
 add_definitions( -Wall )
+if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
+elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
+    # Warning C4820: 'XXX': 'N' bytes padding added after data member 'YYY'
+    # Warning C5045 Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    # Warning C4668	'XX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+    # Warning C5105	macro expansion producing 'defined' has undefined behavior
+    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105")
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS}" )
+    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS}" )
+endif()
 
 # assume debug build by default
 if ( "${CMAKE_BUILD_TYPE}" STREQUAL "" )

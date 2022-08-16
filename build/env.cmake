@@ -134,7 +134,8 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # Warning C5045 Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
     # Warning C4668	'XX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
     # Warning C5105	macro expansion producing 'defined' has undefined behavior
-    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105")
+    # Warning C4514: 'std::chrono::system_clock::now': unreferenced inline function has been removed
+    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514")
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS}" )
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS}" )
 endif()

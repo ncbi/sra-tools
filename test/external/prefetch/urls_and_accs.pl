@@ -45,9 +45,8 @@ print "prefetch URL-2/2 when there is no kfg\n";
 `rm -f index.html`; die if $?;
 $URL = 'https://github.com/ncbi/';
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $URL";
-print "$CMD\n";# if $VERBOSE;
-print `$CMD 2>&1`; die if $?;
-#`$CMD 2> /dev/null`; die if $?;
+print "$CMD\n" if $VERBOSE;
+`$CMD 2> /dev/null`; die if $?;
 `rm index.html`    ; die if $?;
 
 print "prefetch URL-2/1 when there is no kfg\n";

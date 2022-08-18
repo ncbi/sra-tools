@@ -132,10 +132,15 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
     # Warning C4820: 'XXX': 'N' bytes padding added after data member 'YYY'
     # Warning C5045 Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
-    # Warning C4668	'XX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+    # Warning C4668	'XXX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
     # Warning C5105	macro expansion producing 'defined' has undefined behavior
-    # Warning C4514: 'std::chrono::system_clock::now': unreferenced inline function has been removed
-    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514")
+    # Warning C4514: 'XXX': unreferenced inline function has been removed
+    # warning C4623: 'XXX': default constructor was implicitly defined as deleted
+    # warning C4625: 'XXX': copy constructor was implicitly defined as deleted
+    # warning C4626: 'XXX': assignment operator was implicitly defined as deleted
+    # warning C5026: 'XXX': move constructor was implicitly defined as deleted
+    # warning C5027: 'XXX': move assignment operator was implicitly defined as deleted
+    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027")
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS}" )
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS}" )
 endif()

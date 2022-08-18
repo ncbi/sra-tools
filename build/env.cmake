@@ -140,7 +140,9 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # warning C4626: 'XXX': assignment operator was implicitly defined as deleted
     # warning C5026: 'XXX': move constructor was implicitly defined as deleted
     # warning C5027: 'XXX': move assignment operator was implicitly defined as deleted
-    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027")
+    # warning C4571: Informational: catch(...) semantics changed since Visual C++ 7.1; structured exceptions (SEH) are no longer caught
+    # warning C4774: '_scprintf' : format string expected in argument 1 is not a string literal
+    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571 /wd4774")
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS}" )
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS}" )
 endif()

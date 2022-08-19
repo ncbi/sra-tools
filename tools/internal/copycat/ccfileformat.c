@@ -93,6 +93,7 @@ static const char magictable [] =
     "Zip archive data\tWinZip\n"
     "gzip compressed data\tGnuZip\n"
     "Hierarchical Data Format (version 5) data\tHD5\n"
+    "Binary Alignment Map\tBinaryAlignmentMap\n"
 };
 static const char exttable [] =
 {

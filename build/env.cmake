@@ -143,7 +143,8 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # warning C4571: Informational: catch(...) semantics changed since Visual C++ 7.1; structured exceptions (SEH) are no longer caught
     # warning C4774: '_scprintf' : format string expected in argument 1 is not a string literal
     # warning C4255: 'XXX': no function prototype given: converting '()' to '(void)'
-    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571 /wd4774 /wd4255")    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS}" )
+    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571 /wd4774 /wd4255")
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS}" )
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS}" )
 endif()
 

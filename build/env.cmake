@@ -146,7 +146,9 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # warning C4774: '_scprintf' : format string expected in argument 1 is not a string literal
     # warning C4255: 'XXX': no function prototype given: converting '()' to '(void)'
     # warning C4710: 'XXX': function not inlined
-    set( DISABLED_WARNINGS_C "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710")
+    # warning C5031: #pragma warning(pop): likely mismatch, popping warning state pushed in different file
+	# warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
+    set( DISABLED_WARNINGS_C "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710 /wd5031 /wd5032")
     set( DISABLED_WARNINGS_CXX "/wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571")
     set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS_C}" )
     set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS_C} ${DISABLED_WARNINGS_CXX}" )

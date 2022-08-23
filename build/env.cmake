@@ -129,7 +129,9 @@ add_definitions( -Wall )
 if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
 elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
 elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    #
     # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
+    #
     # Warning C4820: 'XXX': 'N' bytes padding added after data member 'YYY'
     # Warning C5045 Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
     # Warning C4668	'XXX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
@@ -143,9 +145,11 @@ elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
     # warning C4571: Informational: catch(...) semantics changed since Visual C++ 7.1; structured exceptions (SEH) are no longer caught
     # warning C4774: '_scprintf' : format string expected in argument 1 is not a string literal
     # warning C4255: 'XXX': no function prototype given: converting '()' to '(void)'
-    set( DISABLED_WARNINGS "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571 /wd4774 /wd4255")
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS}" )
-    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS}" )
+    # warning C4710: 'XXX': function not inlined
+    set( DISABLED_WARNINGS_C "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710")
+    set( DISABLED_WARNINGS_CXX "/wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571")
+    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS_C}" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS_C} ${DISABLED_WARNINGS_CXX}" )
 endif()
 
 # assume debug build by default

@@ -337,6 +337,16 @@ std::string apply_cigar_to_ref_and_generate_read( const std::string &cigar,
     return res;
 }
 
+uint32_t len_of_special_cigar( const std::string &cigar ) {
+    uint32_t res = 0;
+    struct cigar_t * cigar_struct = make_cigar_t( cigar.c_str() );
+    if ( cigar_struct != NULL ) {
+        res = cigar_t_reflen( cigar_struct );
+        free_cigar_t( cigar_struct );        
+    }
+    return res;
+}
+
 /* -----------------------------------------------------------------
  * helper - functions
  * ----------------------------------------------------------------- */
@@ -382,7 +392,30 @@ static std::string bases_charset = "ACGTN";
 std::string random_bases( int length ) { return random_chars( length, bases_charset ); }
 
 static std::string qual_charset = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+static char min_qual_char = '!';
+static char max_qual_char = '~';
+
 std::string random_quality( int length ) { return random_chars( length, qual_charset ); }
+
+std::string random_div_quality( int length, int max_div ) {
+    std::string res;
+    if ( length > 0 ) {
+        res = random_chars( 1, qual_charset );
+        if ( length > 1 ) {
+            for ( int i = 1; i < length; i++  ) {
+                int diff = random_int( -max_div, max_div );
+                char c = res[ i - 1 ] + diff;
+                if ( c < min_qual_char ) {
+                    c = min_qual_char;
+                } else if ( c > max_qual_char ) {
+                    c = max_qual_char;
+                }
+                res += c;
+            }
+        }
+    }
+    return res;
+}
 
 static std::string string_charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 std::string random_string( int length ) { return random_chars( length, string_charset ); }
@@ -487,6 +520,7 @@ class t_progline {
         bool is_sam_out( void ) const { return cmd == "sam-out"; }
         bool is_dflt_cigar( void ) const { return cmd == "dflt-cigar"; }
         bool is_dflt_mapq( void ) const { return cmd == "dflt-mapq"; }
+        bool is_dflt_qdiv( void ) const { return cmd == "dflt-qdiv"; }
         bool is_config( void ) const { return cmd == "config"; }
         bool is_prim( void ) const { return cmd == "prim" || cmd == "p"; }
         bool is_sec( void ) const { return cmd == "sec" || cmd == "s"; }
@@ -767,35 +801,41 @@ class t_alignment {
         // ctor for PRIM/SEC alignments
         t_alignment( const std::string &a_name, int a_flags, const t_reference_ptr a_ref, int a_pos,
                    int a_mapq, const std::string &a_cigar, int a_tlen, const std::string &a_qual,
-                   const std::string &a_opts, const std::string &a_ins_bases )
+                   const std::string &a_opts, const std::string &a_ins_bases, int qual_div )
             : name( a_name ), flags( a_flags ), ref( a_ref ), ref_pos( a_pos ), mapq( a_mapq ),
               special_cigar( a_cigar ), pure_cigar( purify_cigar( a_cigar ) ),
               mate( nullptr ), tlen( a_tlen ),
               seq( "" ), qual( a_qual ), opts( a_opts ), ins_bases( a_ins_bases ){
             if ( ref_pos == 0 ) { 
                 ref_pos = random_int( 1, ref -> length() );
+                uint32_t l = len_of_special_cigar( special_cigar );
+                if ( ref_pos + l >= ref -> length() ) {
+                    ref_pos = ref -> length() - ( l + 1 );
+                }
             }
-            if ( ref != nullptr ) {
-                seq = apply_cigar_to_ref_and_generate_read( special_cigar, ref_pos, ref -> get_bases(), ins_bases );
-            }
-            set_quality();
+            seq = apply_cigar_to_ref_and_generate_read( special_cigar, ref_pos, ref -> get_bases(), ins_bases );
+            set_quality( qual_div );
         }
 
         // ctor for UNALIGNED alignments
         t_alignment( const std::string &a_name, int a_flags, const std::string &a_seq,
-                   const std::string &a_qual, const std::string &a_opts )
+                   const std::string &a_qual, const std::string &a_opts, int qual_div )
             : name( a_name ), flags( a_flags ), ref( nullptr ), ref_pos( 0 ), mapq( 0 ),
               special_cigar( "" ), pure_cigar( "*" ), mate( nullptr ),
               tlen( 0 ), seq( a_seq ), qual( a_qual ), opts( a_opts ), ins_bases( "" ) {
-            set_quality();        
+            set_quality( qual_div );
         }
 
-        void set_quality( void ) {
+        void set_quality( int qual_div ) {
             size_t seq_len = seq.length();
             size_t qual_len = qual.length();
             if ( 0 == qual_len ) {
                 // if no quality given: generate random quality the same length as seq
-                qual = random_quality( seq_len );
+                if ( 0 == qual_div ) {
+                    qual = random_quality( seq_len );
+                } else {
+                    qual = random_div_quality( seq_len, 10 );
+                }
             } else if ( "*" == qual || qual_len == seq_len ) {
                 // if qual is "*" or the same length as seq : do nothing - keep it
             } else {
@@ -819,13 +859,14 @@ class t_alignment {
     public :
         static t_alignment_ptr make( const std::string &name, int flags, const t_reference_ptr ref, int pos,
                     int mapq, const std::string &cigar, int tlen, const std::string &qual,
-                    const std::string &opts, const std::string &ins_bases ) {
-            return t_alignment_ptr( new t_alignment( name, flags, ref, pos, mapq, cigar, tlen, qual, opts, ins_bases ) );
+                    const std::string &opts, const std::string &ins_bases, int qual_div ) {
+            return t_alignment_ptr( new t_alignment( name, flags, ref, pos, mapq, cigar,
+                                                     tlen, qual, opts, ins_bases, qual_div ) );
         }
         
         static t_alignment_ptr make( const std::string &name, int flags, const std::string &seq,
-                                   const std::string &qual, const std::string &opts ) {
-            return t_alignment_ptr( new t_alignment( name, flags, seq, qual, opts ) );            
+                                   const std::string &qual, const std::string &opts, int qual_div ) {
+            return t_alignment_ptr( new t_alignment( name, flags, seq, qual, opts, qual_div ) );
         }
         
         bool operator<( const t_alignment& other ) const { return ref_pos < other . ref_pos; }
@@ -997,6 +1038,7 @@ class t_settings {
         std::string dflt_alias;
         std::string dflt_cigar;
         int dflt_mapq;
+        int dflt_qdiv;
         bool sort_alignments;
         
         void set_string( const t_progline_ptr pl, const char * msg, std::string *out,
@@ -1011,7 +1053,7 @@ class t_settings {
         
     public :
         t_settings( const t_proglines& proglines, t_errors & errors ) 
-            : dflt_cigar( "30M" ), dflt_mapq( 20 ), sort_alignments( true ) {
+            : dflt_cigar( "30M" ), dflt_mapq( 20 ), dflt_qdiv( 0 ), sort_alignments( true ) {
             for ( const t_progline_ptr pl : proglines ) {
                 if ( pl -> is_ref_out() ) {
                     set_string( pl, "missing ref-file-name in: ", &ref_out, errors );
@@ -1021,6 +1063,8 @@ class t_settings {
                     set_string( pl, "missing config-file-name in: ", &config, errors );
                 } else if ( pl -> is_dflt_mapq() ) {
                     dflt_mapq = pl -> get_int( dflt_mapq );
+                } else if ( pl -> is_dflt_qdiv() ) {
+                    dflt_qdiv = pl -> get_int( dflt_qdiv );                    
                 } else if ( pl -> is_dflt_cigar() ) {
                     set_string( pl, "missing value in: ", &dflt_cigar, errors );
                 } else if ( pl -> is_sort_alignments() ) {
@@ -1036,6 +1080,7 @@ class t_settings {
         void set_dflt_alias( std::string alias ) { dflt_alias = alias; }
         const std::string& get_dflt_cigar( void ) const { return dflt_cigar; }
         int get_dflt_mapq( void ) { return dflt_mapq; }
+        int get_dflt_qdiv( void ) { return dflt_qdiv; }
         bool get_sort_alignments( void ) { return sort_alignments; }
 };
 
@@ -1087,7 +1132,7 @@ class t_factory {
         }
 
         void generate_single_align( const t_progline_ptr pl, const std::string &name,
-                                 const t_reference_ptr ref, int flags ) {
+                                 const t_reference_ptr ref, int flags, int qual_div ) {
             t_alignment_group::insert_alignment(
                 t_alignment::make( name,
                                 flags,
@@ -1098,12 +1143,13 @@ class t_factory {
                                 pl -> get_int_key( "tlen", 0 ),
                                 pl -> get_string_key( "qual", "" ),
                                 pl -> get_string_key( "opts", "" ),
-                                pl -> get_string_key( "ins", "" ) ),
+                                pl -> get_string_key( "ins", "" ),
+                                qual_div ),
                 alignment_groups );
         }
 
         void generate_multiple_align( const t_progline_ptr pl, const std::string &base_name,
-                                      const t_reference_ptr ref, int flags, int repeat ) {
+                                      const t_reference_ptr ref, int flags, int repeat, int qual_div ) {
             int pos = pl -> get_int_key( "pos", 0 );
             int mapq = pl -> get_int_key( "mapq", settings.get_dflt_mapq() );
             const std::string& cigar = pl -> get_string_key( "cigar", settings.get_dflt_cigar() );
@@ -1115,7 +1161,8 @@ class t_factory {
                 std::ostringstream os;
                 os << base_name << "_" << i;
                 t_alignment_group::insert_alignment(
-                    t_alignment::make( os.str(), flags, ref, pos, mapq, cigar, tlen, qual, opts, ins_bases ),
+                    t_alignment::make( os.str(), flags, ref, pos, mapq, cigar, tlen, qual,
+                                       opts, ins_bases, qual_div ),
                     alignment_groups );
             }
         }
@@ -1131,10 +1178,11 @@ class t_factory {
                     errors . msg( "cannot find reference: ", pl -> get_org() );                    
                 } else {
                     int repeat = pl -> get_int_key( "repeat", 0 );
+                    int qual_div = pl -> get_int_key( "qdiv", settings.get_dflt_qdiv() );
                     if ( repeat == 0 ) {
-                        generate_single_align( pl, name, ref, get_flags( pl, type_flags ) );
+                        generate_single_align( pl, name, ref, get_flags( pl, type_flags ), qual_div );
                     } else {
-                        generate_multiple_align( pl, name, ref, get_flags( pl, type_flags ), repeat );
+                        generate_multiple_align( pl, name, ref, get_flags( pl, type_flags ), repeat, qual_div );
                     }
                 }
             }
@@ -1146,6 +1194,7 @@ class t_factory {
                 errors . msg( "missing name in: ", pl -> get_org() );
             } else {
                 int flags = pl -> get_int_key( "flags", 0 ) | FLAG_UNMAPPED;
+                int qual_div = pl -> get_int_key( "qdiv", settings.get_dflt_qdiv() );
                 std::string seq = pl -> get_string_key( "seq", "" ); // not const ref, because we may overwrite it
                 if ( seq.empty() ) {
                     int len = pl -> get_int_key( "len", 0 );
@@ -1157,7 +1206,7 @@ class t_factory {
                 }
                 t_alignment_group::insert_alignment(
                     t_alignment::make( name, flags, seq, pl -> get_string_key( "qual", "" ),
-                                        pl -> get_string_key( "opts", "" ) ),
+                                        pl -> get_string_key( "opts", "" ), qual_div ),
                     alignment_groups );
             }
         }

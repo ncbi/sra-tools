@@ -1243,6 +1243,22 @@ class t_factory {
             for ( const auto &a : without_ref ) { a -> print_SAM( out ); }
         }
 
+        void print_all( std::ostream &out ) {
+            out << "@HD" << "\t" <<	"VN:1.0" << "\t" <<	"SO:coordinate" << std::endl;
+            for ( const auto &ref : refs ) {
+                ref . second -> print_HDR( out );
+            }
+            out << "@RG\tID:default" << std::endl;
+
+            if ( settings.get_sort_alignments() ) {
+                sort_and_print( out );
+            } else {
+                for( const auto &ag : alignment_groups ) {
+                    ag . second -> print_SAM( out );
+                }
+            }
+        }
+
         bool phase3( void ) {
             // set flags / next_ref / next_pos
             for( auto ag : alignment_groups ) { ag . second -> finish_alignments(); }
@@ -1252,25 +1268,11 @@ class t_factory {
                 // if sam-out-filename is given, create that file and write SAM into it,
                 // otherwise write SAM to stdout
                 const std::string& sam_out = settings.get_sam_out();
-                std::unique_ptr<std::ostream> stream( 
-                    sam_out.empty()
-                        ? std::make_unique<std::ostream>( std::cout.rdbuf() )
-                        : std::make_unique<std::ofstream>( sam_out )
-                );
-                
-                // produce the header's
-                *stream << "@HD" << "\t" <<	"VN:1.0" << "\t" <<	"SO:coordinate" << std::endl;
-                for ( const auto &ref : refs ) {
-                    ref . second -> print_HDR( *stream );
-                }
-                *stream << "@RG\tID:default" << std::endl;
-                
-                if ( settings.get_sort_alignments() ) {
-                    sort_and_print( *stream );
+                if ( sam_out . empty() ) {
+                    print_all( std::cout );
                 } else {
-                    for( const auto &ag : alignment_groups ) {
-                        ag . second -> print_SAM( *stream );
-                    }
+                    std::ofstream out( sam_out );
+                    print_all( out );
                 }
             }
             return errors . empty();

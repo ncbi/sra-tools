@@ -39,7 +39,7 @@ if [[ -f "$CSRA" ]]; then
 fi
 
 #perform the packing via kar
-kar -c $CSRA -d $CSRA_DIR
+$KAR -c $CSRA -d $CSRA_DIR
 
 #check if the cSRA-object has been produced
 if [[ ! -f "$CSRA" ]]; then

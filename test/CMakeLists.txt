@@ -46,6 +46,8 @@ endif()
 # endif()
 add_subdirectory( ngs )
 
+add_subdirectory( sam-dump )
+
 add_subdirectory(test_sanitizers)
 
 add_subdirectory(align)

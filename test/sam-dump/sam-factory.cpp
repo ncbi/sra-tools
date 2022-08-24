@@ -138,8 +138,7 @@ void free_cigar_t( struct cigar_t * c ) {
 int cigar_t_reflen( const struct cigar_t * c ) {
     int res = 0;
     if ( c != NULL ) {
-        int i;
-        for ( i = 0; i < c -> length; ++i ) {
+        for ( size_t i = 0; i < c -> length; ++i ) {
             switch( c -> op[ i ] ) {
                 case 'A'    : res += c -> count[ i ]; break;
                 case 'C'    : res += c -> count[ i ]; break;
@@ -157,8 +156,7 @@ int cigar_t_reflen( const struct cigar_t * c ) {
 int cigar_t_readlen( const struct cigar_t * c ) {
     int res = 0;
     if ( c != NULL ) {
-        int i;
-        for ( i = 0; i < c -> length; ++i ) {
+        for ( size_t i = 0; i < c -> length; ++i ) {
             if ( c -> op[ i ] != 'D' ) {
                 res += c->count[ i ];
             }
@@ -170,8 +168,7 @@ int cigar_t_readlen( const struct cigar_t * c ) {
 int cigar_t_inslen( const struct cigar_t * c ) {
     int res = 0;
     if ( c != NULL ) {
-        int i;
-        for ( i = 0; i < c -> length; ++i ) {
+        for ( size_t i = 0; i < c -> length; ++i ) {
             if ( c -> op[ i ] == 'I' ) {
                 res += c -> count[ i ];
             }
@@ -183,8 +180,7 @@ int cigar_t_inslen( const struct cigar_t * c ) {
 size_t cigar_t_string( char * buffer, size_t buf_len, const struct cigar_t * c ) {
     size_t res = 0;
     if ( buffer != NULL && buf_len > 0 && c != NULL && c -> length > 0 ) {
-        int i;
-        for ( i = 0; i < c->length && res < buf_len; ++i ) {
+        for ( size_t i = 0; i < c->length && res < buf_len; ++i ) {
             int num_writ = snprintf( &buffer[ res ], buf_len - res, "%d%c", c->count[ i ], c->op[ i ] );
             res += num_writ;
         }
@@ -210,9 +206,9 @@ struct cigar_t * merge_cigar_t( const struct cigar_t * c ) {
         if ( res != NULL ) {
             init_cigar_t( res, c -> size );
             if ( res -> size == c -> size ) {
-                int i, last;
+                size_t last;
                 append_to_cigar_t( res, c -> op[ 0 ], c -> count[ 0 ] );
-                for ( i = 1; i < c -> length; ++i ) {
+                for ( size_t i = 1; i < c -> length; ++i ) {
                     last = res -> length - 1;
                     if ( can_merge( c -> op[ i ], res -> op[ last ] ) ) {
                         res -> count[ last ] += c -> count[ i ];
@@ -258,8 +254,7 @@ size_t cigar_t_2_read( char * buffer, size_t buf_len,
                 if ( available_ins_bases >= needed_ins_bases ) {
                     int ref_idx = 0;
                     int ins_idx = 0;
-                    int cigar_idx;
-                    for ( cigar_idx = 0; cigar_idx < c->length; ++cigar_idx ) {
+                    for ( size_t cigar_idx = 0; cigar_idx < c->length; ++cigar_idx ) {
                         int count = c -> count[ cigar_idx ];
                         switch ( c -> op[ cigar_idx ] )
                         {
@@ -502,7 +497,8 @@ class t_progline {
         t_params_ptr kv;
         
         t_progline( const std::string &line, const char * a_file_name, int a_line_nr )
-            : org( line ), kv( t_params::make( line ) ), filename( a_file_name ), line_nr( a_line_nr ) {
+            : filename( a_file_name ), line_nr( a_line_nr ), org( line ), 
+              cmd(), kv( t_params::make( line ) ) {
             int colon_pos = line.find( ':' );
             if ( colon_pos != -1 ) {
                 cmd = line.substr( 0, colon_pos );
@@ -808,9 +804,10 @@ class t_alignment {
               seq( "" ), qual( a_qual ), opts( a_opts ), ins_bases( a_ins_bases ){
             if ( ref_pos == 0 ) { 
                 ref_pos = random_int( 1, ref -> length() );
-                uint32_t l = len_of_special_cigar( special_cigar );
-                if ( ref_pos + l >= ref -> length() ) {
-                    ref_pos = ref -> length() - ( l + 1 );
+                size_t spec_cig_len = len_of_special_cigar( special_cigar );
+                size_t rlen = ref -> length();
+                if ( ref_pos + spec_cig_len >= rlen ) {
+                    ref_pos = ref -> length() - ( spec_cig_len + 1 );
                 }
             }
             seq = apply_cigar_to_ref_and_generate_read( special_cigar, ref_pos, ref -> get_bases(), ins_bases );

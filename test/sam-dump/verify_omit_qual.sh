@@ -9,57 +9,16 @@
 # the test also uses the sam-factory-tool to produce a random cSRA-object
 # to be used in this test ( no dependecies on production-runs ! )
 #
-# the test also depends on the bam-load-tool to produce a cSRA-object
+# the test also depends on the bam-load-tool and kar-tool to produce a cSRA-object
 #
 
-BINDIR="$1"
-SAMDUMP="${BINDIR}/sam-dump"
-BAMLOAD="${BINDIR}/bam-load"
+set -e
 
 echo "testing the omit-qual - option for sam-dump"
 echo "-------------------------------------------"
 
-set -e
-
-#------------------------------------------------------------
-# let us check if the tools we depend on do exist
-if [[ ! -x "$SAMDUMP" ]]; then
-    echo "$SAMDUMP - executable not found"
-	exit 3
-fi
-
-if [[ ! -x "$BAMLOAD" ]]; then
-    echo "$BAMLOAD - executable not found"
-	exit 3
-fi
-
-echo "sam-dump and bam-load executables found!"
-
-#------------------------------------------------------------
-#produce ( compile ) the sam-factory-tool:
-
-SAMFACTORY="./sam-factory"
-SAMFACTORYSRC="./$SAMFACTORY.cpp"
-
-#check if we have to source-code for the sam-factory tool
-if [[ ! -f "$SAMFACTORYSRC" ]]; then
-    echo "$SAMFACTORYSRC not found"
-    exit 3
-fi
-
-#if the sam-factory tool alread exists, remove it
-if [[ -f "$SAMFACTORY" ]]; then
-    rm -f "$SAMFACTORY"
-fi
-
-#build the sam-factory tool
-g++ $SAMFACTORYSRC -o $SAMFACTORY
-if [[ ! -x "$SAMFACTORY" ]]; then
-    echo "$SAMFACTOR could not be build"
-    exit 3
-fi
-
-echo "sam-factory-tool produced!"
+source ./check_bin_tools.sh $1
+source ./build_sam_factory.sh
 
 #------------------------------------------------------------
 #produce a random sam-file
@@ -79,12 +38,12 @@ fi
 
 #with the help of HEREDOC we pipe the configuration into
 # the sam-factory-tool via stdin to produce 20 alignment-pairs
-cat << EOF | $SAMFACTORY
+$SAMFACTORY << EOF
 r:type=random,name=R1,length=6000
 ref-out:$RNDREF
 sam-out:$RNDSAM
-p:name=A,repeat=20
-p:name=A,repeat=20
+p:name=A,repeat=2000
+p:name=A,repeat=2000
 EOF
 
 #check if the random sam-file has been produced
@@ -104,28 +63,8 @@ echo "random SAM-file produced!"
 #we do not need the sam-factory-tool any more...
 rm $SAMFACTORY
 
-#------------------------------------------------------------
-#load the random SAM-file with bam-load into a cSRA-object
-
 RNDCSRA="rnd_csra"
-
-#if the random cSRA-object alread exists, remove it
-if [[ -d "$RNDCSRA" ]]; then
-    chmod +wr "$RNDCSRA"
-    rm -rf "$RNDCSRA"
-fi
-
-$BAMLOAD $RNDSAM --ref-file $RNDREF --output $RNDCSRA
-
-#check if the random cSRA-object has been produced
-if [[ ! -d "$RNDCSRA" ]]; then
-    echo "$RNDCSRA not produced"
-    exit 3
-fi
-
-echo "random cSRA-object produced!"
-
-#we do not need the random SAM-file and the random ref-file any more
+source ./sam_to_csra.sh $RNDSAM $RNDREF $RNDCSRA
 rm $RNDSAM $RNDREF
 
 #------------------------------------------------------------
@@ -201,8 +140,7 @@ fi
 rm $SAM_O
 
 #we also do not need the random cSRA-object any more ...
-chmod +wr "$RNDCSRA"
-rm -rf "$RNDCSRA"
+rm "$RNDCSRA"
 
 echo "success!"
 echo -e "--------\n"

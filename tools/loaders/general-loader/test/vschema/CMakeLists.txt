@@ -72,7 +72,6 @@ if ( NOT WIN32)
 
     add_executable ( idx-text-checklookup idx-text/checklookup )
     target_link_libraries ( idx-text-checklookup
-        ncbi-vdb-static
         ${COMMON_LIBS_READ}
     )
 

@@ -14,11 +14,10 @@
 
 set -e
 
-echo "testing the omit-qual - option for sam-dump"
-echo "-------------------------------------------"
+source ./check_bin_tools.sh $1 $2 $3
 
-source ./check_bin_tools.sh $1
-source ./build_sam_factory.sh
+print_verbose "testing the omit-qual - option for sam-dump"
+print_verbose "-------------------------------------------"
 
 #------------------------------------------------------------
 #produce a random sam-file
@@ -58,10 +57,7 @@ if [[ ! -f "$RNDREF" ]]; then
     exit 3
 fi
 
-echo "random SAM-file produced!"
-
-#we do not need the sam-factory-tool any more...
-rm $SAMFACTORY
+print_verbose "random SAM-file produced!"
 
 RNDCSRA="rnd_csra"
 source ./sam_to_csra.sh $RNDSAM $RNDREF $RNDCSRA
@@ -81,22 +77,24 @@ $SAMDUMP $RNDCSRA > $SAM_W
 
 #now use the python-script to count the lines with qualities
 COUNTS_W=`cat $SAM_W | ./count_qual.py`
-echo "counting lines in output of sam-dump with qualities (default):"
-echo "  count of lines with qualities, needs to be > 0"
+print_verbose "counting lines in output of sam-dump with qualities (default):"
 WQ_F1=`echo "$COUNTS_W" | cut -f1`
 if [[ ! "$WQ_F1" -gt "0" ]]; then
-    echo "  but it is not, it is >$WQ_F1<"
+    echo "T1:count of lines with qualities, needs to be > 0"
+    echo "T1:but it is not, it is >$WQ_F1<"
     exit 3
 else
-    echo "  ...and it is!"
+    print_verbose "count of lines with qualities, needs to be > 0"
+    print_verbose "...and it is!"
 fi
-echo "  count of lines without qualities, needs to be == 0"
 WQ_F2=`echo "$COUNTS_W" | cut -f2`
 if [[ ! "$WQ_F2" -eq "0" ]]; then
-    echo "  but it is not, it is >$WQ_F2<"
+    echo "T1:count of lines without qualities, needs to be == 0"
+    echo "T1:but it is not, it is >$WQ_F2<"
     exit 3
 else
-    echo "  ...and it is!"
+    print_verbose "count of lines without qualities, needs to be == 0"
+    print_verbose "...and it is!"
 fi
 
 #we do not need the SAM-file with qualities any more...
@@ -118,22 +116,24 @@ fi
 $SAMDUMP $RNDCSRA --omit-quality > $SAM_O
 
 COUNTS_O=`cat $SAM_O | ./count_qual.py`
-echo "counting lines in output of sam-dump without qualities ( --omit-quality ):"
-echo "  count of lines with qualities, needs to be == 0"
+print_verbose "counting lines in output of sam-dump without qualities ( --omit-quality ):"
 NQ_F1=`echo "$COUNTS_O" | cut -f1`
 if [[ ! "$NQ_F1" -eq "0" ]]; then
-    echo " but it is not, it is >$NQ_F1<"
+    echo "T2:count of lines with qualities, needs to be == 0"
+    echo "T2:but it is not, it is >$NQ_F1<"
     exit 3
 else
-    echo "  ...and it is!"
+    print_verbose "count of lines with qualities, needs to be == 0"
+    print_verbose "...and it is!"
 fi
-echo "  count of lines without qualities, needs to be > 0"
 NQ_F2=`echo "$COUNTS_O" | cut -f2`
 if [[ ! "$NQ_F2" -gt "0" ]]; then
-    echo "  but it is not, it is >$NQ_F2<"
+    echo "T2:count of lines without qualities, needs to be > 0"
+    echo "T2:but it is not, it is >$NQ_F2<"
     exit 3
 else
-    echo "  ...and it is!"
+    print_verbose "count of lines without qualities, needs to be > 0"
+    print_verbose "...and it is!"
 fi
 
 #we do not need the SAM-file without qualities any more ...
@@ -142,5 +142,5 @@ rm $SAM_O
 #we also do not need the random cSRA-object any more ...
 rm "$RNDCSRA"
 
-echo "success!"
-echo -e "--------\n"
+print_verbose "success!"
+print_verbose -e "--------\n"

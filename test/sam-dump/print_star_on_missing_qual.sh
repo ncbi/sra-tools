@@ -15,11 +15,10 @@
 
 set -e
 
-echo "testing for '*' in the output of sam-dump if input has not quality"
-echo "-------------------------------------------"
+source ./check_bin_tools.sh $1 $2
 
-source ./check_bin_tools.sh $1
-source ./build_sam_factory.sh
+print_verbose "testing for '*' in the output of sam-dump if input has not quality"
+print_verbose "-------------------------------------------"
 
 #------------------------------------------------------------
 #produce a random sam-file
@@ -61,10 +60,7 @@ if [[ ! -f "$RNDREF" ]]; then
     exit 3
 fi
 
-echo "random SAM-file produced!"
-
-#we do not need the sam-factory-tool any more...
-rm $SAMFACTORY
+print_verbose "random SAM-file produced!"
 
 RNDCSRA="rnd_csra"
 source ./sam_to_csra.sh $RNDSAM $RNDREF $RNDCSRA
@@ -84,27 +80,29 @@ $SAMDUMP -u $RNDCSRA > $SAM_DUMP_OUT
 
 #now use the python-script to count the lines with and without qualities
 COUNTS=`cat $SAM_DUMP_OUT | ./count_qual.py`
-echo "counting lines in output of sam-dump:"
-echo "  count of lines with qualities, needs to be == 0"
+print_verbose "counting lines in output of sam-dump:"
 WQ_F1=`echo "$COUNTS" | cut -f1`
 if [[ "$WQ_F1" -gt "0" ]]; then
-    echo "  but it is not, it is >$WQ_F1<"
+    echo "count of lines with qualities, needs to be == 0"
+    echo "but it is not, it is >$WQ_F1<"
     exit 3
 else
-    echo "  ...and it is!"
+    print_verbose "count of lines with qualities, needs to be == 0"
+    print_verbose "...and it is!"
 fi
-echo "  count of lines without qualities, needs to be > 0"
 WQ_F2=`echo "$COUNTS" | cut -f2`
 if [[ "$WQ_F2" -eq "0" ]]; then
-    echo "  but it is not, it is >$WQ_F2<"
+    echo "count of lines without qualities, needs to be > 0"
+    echo "but it is not, it is >$WQ_F2<"
     exit 3
 else
-    echo "  ...and it is! ( value = $WQ_F2 )"
+    print_verbose "count of lines without qualities, needs to be > 0"
+    print_verbose "...and it is! ( value = $WQ_F2 )"
 fi
 
 #we do not need the SAM-file with qualities any more...
 #we also do not need the random cSRA-object any more ...
 rm "$SAM_DUMP_OUT" "$RNDCSRA"
 
-echo "success!"
-echo -e "--------\n"
+print_verbose "success!"
+print_verbose -e "--------\n"

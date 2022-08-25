@@ -5,25 +5,30 @@
 #
 
 BINDIR="$1"
+TESTBINDIR="$2"
+VERBOSE="$3"
 SAMDUMP="${BINDIR}/sam-dump"
 BAMLOAD="${BINDIR}/bam-load"
 KAR="${BINDIR}/kar"
+SAMFACTORY="${TESTBINDIR}/sam-factory"
+
+#------------------------------------------------------------
+# function to print message if $VERBOSE is not empty
 
 #------------------------------------------------------------
 # let us check if the tools we depend on do exist
-if [[ ! -x "$SAMDUMP" ]]; then
-    echo "$SAMDUMP - executable not found"
-	exit 3
-fi
+function print_verbose {
+    if [ -n "$VERBOSE" ]; then
+        echo "$1"
+    fi
+}
 
-if [[ ! -x "$BAMLOAD" ]]; then
-    echo "$BAMLOAD - executable not found"
-	exit 3
-fi
+for TOOL in $SAMDUMP $BAMLOAD $KAR $SAMFACTORY
+do
+    if [[ ! -x "$TOOL" ]]; then
+        echo "$TOOL - executable not found"
+        exit 3
+    fi
+done
 
-if [[ ! -x "$KAR" ]]; then
-    echo "$KAR - executable not found"
-	exit 3
-fi
-
-echo "sam-dump, bam-load, and kar executables found!"
+print_verbose "sam-dump, bam-load, kar, and sam-factory executables found!"

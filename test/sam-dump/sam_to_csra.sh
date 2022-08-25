@@ -28,7 +28,7 @@ if [[ ! -d "$CSRA_DIR" ]]; then
     exit 3
 fi
 
-echo "cSRA-object ( directory ) produced!"
+print_verbose "cSRA-object ( directory ) produced!"
 
 #------------------------------------------------------------
 #package the cSRA-directory into single file
@@ -50,3 +50,5 @@ fi
 #we do not need the cSRA-directory object any more
 chmod +wr "$CSRA_DIR"
 rm -rf $CSRA_DIR
+
+print_verbose "cSRA-object ( single-file ) produced!"

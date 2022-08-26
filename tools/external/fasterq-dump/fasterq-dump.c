@@ -256,7 +256,8 @@ rc_t CC UsageSummary( const char * progname ) {
     return KOutMsg( "\n"
                      "Usage:\n"
                      "  %s <path> [options]\n"
-                     "\n", progname );
+                     "  %s <accession> [options]\n"                     
+                     "\n", progname, progname );
 }
 
 /* ----------------------------------------------------------------------------------- */

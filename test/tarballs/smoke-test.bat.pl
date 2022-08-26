@@ -82,11 +82,15 @@ foreach ( @_ ) {
     push @TOOLS, $_
 }
 
+open (F,'>tmp.mkfg') or die "cannot create tmp.mkfg";
+print F '/LIBS/GUID = "8badf00d-1111-4444-8888-deaddeadbeef"';
+close F or die "cannot close tmp.mkfg";
+$ENV{NCBI_SETTINGS} = "tmp.mkfg";
+
 print "Smoke testing $VERSION toolkit tarball ...\n\n";
 
 foreach ( @TOOLS ) {
-    my $cmd = "$BIN_DIR\\$_ -h";
-    print "\n>$cmd<\n\n";
+    my $cmd = "$_ -h";
     $FAILED .= " $cmd" if ( RunTool ( $cmd ) );
 }
 print "\n";
@@ -103,7 +107,6 @@ foreach ( @TOOLS ) {
     {
         $VERSION_OPTION = '-version';
     }
-    print `dir $_`;
     $_ .= " $VERSION_OPTION";
     print "$_\n";
     `$_`;
@@ -118,15 +121,19 @@ foreach ( @TOOLS ) {
 print "\n";
 
 # run some key tools, check return codes
-my $cmd;
-$cmd = 'prefetch SRR002749'            ; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'sam-dump SRR002749'            ; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'fastq-dump SRR002749 -fasta -Z'; $FAILED .= " $cmd" if RunTool ( $cmd );
+
+my $cmd = 'prefetch SRR002749'            ; $FAILED .= " $cmd" if RunTool($cmd);
+`rmdir /s /q        SRR002749`;
+
+$cmd = 'sam-dump SRR002749'               ; $FAILED .= " $cmd" if RunTool($cmd);
+$cmd = 'fastq-dump SRR002749 --fasta 0 -Z'; $FAILED .= " $cmd" if RunTool($cmd);
 $VERBOSE = 0; # shut up ; to much words will follow
-$cmd = 'vdb-dump SRR000001 -R 1'       ; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'vdb-config'                    ; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'test-sra'                      ; $FAILED .= " $cmd" if RunTool ( $cmd );
-$cmd = 'sra-pileup SRR619505 --quiet'  ; $FAILED .= " $cmd" if RunTool ( $cmd );
+$cmd = 'vdb-dump SRR000001 -R 1'          ; $FAILED .= " $cmd" if RunTool($cmd);
+$cmd = 'vdb-config'                       ; $FAILED .= " $cmd" if RunTool($cmd);
+$cmd = 'test-sra'                         ; $FAILED .= " $cmd" if RunTool($cmd);
+$cmd = 'sra-pileup SRR619505'             ; $FAILED .= " $cmd" if RunTool($cmd);
+
+unlink "tmp.mkfg";
 
 if ( $FAILED ) {
     print "Failed: $FAILED\n";

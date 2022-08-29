@@ -24,7 +24,7 @@
 
 default: runtests
 
-TOP ?= $(abspath ../..)
-MODULE = test/sam-dump
+TOP ?= $(abspath ../../..)
+MODULE = test/external/sam-dump
 
 include $(TOP)/build/Makefile.env

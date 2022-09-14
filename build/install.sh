@@ -45,7 +45,9 @@ SCRIPT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 if [ "$EUID" -eq 0 ]; then
     $SCRIPT_DIR/install-kfg.sh default.kfg  $SRC_DIR      $KONFIG_DIR_ROOT $SRC_DIR/kfgsums
     $SCRIPT_DIR/install-kfg.sh certs.kfg    $SRC_DIR      $KONFIG_DIR_ROOT $SRC_DIR/kfgsums
-    $SCRIPT_DIR/install-kfg.sh vdb-copy.kfg $SRC_DIR_COPY $KONFIG_DIR_ROOT $KFGSUMS_FILE
+    if [ "$SRC_DIR_COPY" != "" ]; then
+        $SCRIPT_DIR/install-kfg.sh vdb-copy.kfg $SRC_DIR_COPY $KONFIG_DIR_ROOT $KFGSUMS_FILE
+    fi
 
 PROFILE_FILE=/etc/profile.d/sra-tools
 

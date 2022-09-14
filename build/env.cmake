@@ -123,7 +123,36 @@ if ( ${OS}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-GNU"  )
 endif()
 
 add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
+
+# global compiler warnings settings
 add_definitions( -Wall )
+if ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}")
+elseif ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" )
+elseif ( "MSVC" STREQUAL "${CMAKE_C_COMPILER_ID}")
+    #
+    # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
+    #
+    # Warning C4820: 'XXX': 'N' bytes padding added after data member 'YYY'
+    # Warning C5045 Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    # Warning C4668	'XXX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+    # Warning C5105	macro expansion producing 'defined' has undefined behavior
+    # Warning C4514: 'XXX': unreferenced inline function has been removed
+    # warning C4623: 'XXX': default constructor was implicitly defined as deleted
+    # warning C4625: 'XXX': copy constructor was implicitly defined as deleted
+    # warning C4626: 'XXX': assignment operator was implicitly defined as deleted
+    # warning C5026: 'XXX': move constructor was implicitly defined as deleted
+    # warning C5027: 'XXX': move assignment operator was implicitly defined as deleted
+    # warning C4571: Informational: catch(...) semantics changed since Visual C++ 7.1; structured exceptions (SEH) are no longer caught
+    # warning C4774: '_scprintf' : format string expected in argument 1 is not a string literal
+    # warning C4255: 'XXX': no function prototype given: converting '()' to '(void)'
+    # warning C4710: 'XXX': function not inlined
+    # warning C5031: #pragma warning(pop): likely mismatch, popping warning state pushed in different file
+	# warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
+    set( DISABLED_WARNINGS_C "/wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710 /wd5031 /wd5032")
+    set( DISABLED_WARNINGS_CXX "/wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571")
+    set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${DISABLED_WARNINGS_C}" )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${DISABLED_WARNINGS_C} ${DISABLED_WARNINGS_CXX}" )
+endif()
 
 # assume debug build by default
 if ( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
@@ -348,6 +377,15 @@ endif()
 # Common functions for creation of build artefacts
 #
 
+# provide ability to override installation directories
+if ( NOT CMAKE_INSTALL_BINDIR )
+    set( CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_PREFIX}/bin )
+endif()
+
+if ( NOT CMAKE_INSTALL_LIBDIR )
+    set( CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib64 )
+endif()
+
 function( ExportStatic name install )
     # the output goes to .../lib
     if( SINGLE_CONFIG )
@@ -375,7 +413,7 @@ function( ExportStatic name install )
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a.${MAJVERS}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.a
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}-static.a
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
             )
          endif()
     else()
@@ -384,7 +422,7 @@ function( ExportStatic name install )
         set_target_properties( ${name} PROPERTIES
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
-            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64 )
+            install( TARGETS ${name} DESTINATION ${CMAKE_INSTALL_LIBDIR} )
         endif()
     endif()
 endfunction()
@@ -421,7 +459,7 @@ function(MakeLinksShared target name install)
             install( PROGRAMS  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${LIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}${MAJLIBSUFFIX}
                             ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/lib${name}.${SHLX}
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib64
+                    DESTINATION ${CMAKE_INSTALL_LIBDIR}
         )
         endif()
     else()
@@ -431,13 +469,13 @@ function(MakeLinksShared target name install)
             ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE})
         if ( ${install} )
             install( TARGETS ${target}
-                     ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-                     RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                     ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR}
+                     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
             )
         endif()
 
         if (WIN32)
-            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+            install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
         endif()
 
     endif()
@@ -471,15 +509,51 @@ function(MakeLinksExe target install_via_driver)
 
     if( SINGLE_CONFIG )
 
-        add_custom_command(TARGET ${target}
-            POST_BUILD
-            COMMAND rm -f ${target}.${VERSION}
-            COMMAND mv ${target} ${target}.${VERSION}
-            COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
-            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
-            COMMAND ln -f -s sratools.${VERSION} ${target}-driver
-            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-        )
+        if ( install_via_driver )
+
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                COMMAND ln -f -s sratools.${VERSION} ${target}-driver
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
+            install(
+                PROGRAMS
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+            install(
+                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
+                RENAME ${target}-orig.${VERSION}
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+            install(
+                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver
+                RENAME ${target}.${VERSION}
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+
+        else()
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
+            install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
+                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
+                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
+                    DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+        endif()
 
         set_property(
             TARGET    ${target}
@@ -487,42 +561,17 @@ function(MakeLinksExe target install_via_driver)
             PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
         )
 
-        if ( install_via_driver )
-            install(
-                PROGRAMS
-                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
-                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-            )
-            install(
-                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
-                RENAME ${target}-orig.${VERSION}
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-            )
-            install(
-                PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver
-                RENAME ${target}.${VERSION}
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-            )
-
-        else()
-            install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
-                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
-                              ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
-                    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-            )
-        endif()
     else()
 
         if ( install_via_driver )
                 # on Windows/XCode, ${target}-orig file names have no version attached
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}${EXE}
                          RENAME ${target}-orig${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
                 install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sratools${EXE}
                          RENAME ${target}${EXE}
-                         DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+                         DESTINATION ${CMAKE_INSTALL_BINDIR}
                 )
 
                 if (WIN32)
@@ -534,19 +583,19 @@ function(MakeLinksExe target install_via_driver)
                     # on install, copy/rename the .pdb files if any
                     install(FILES $<TARGET_PDB_FILE:${target}>
                             RENAME ${target}-orig.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                     # add the driver-tool's .pdb
                     install(FILES $<TARGET_PDB_FILE:sratools>
                             RENAME ${target}.pdb
-                            DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                            DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
                 endif()
 
         else()
 
-            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_PREFIX}/bin )
+            install( TARGETS ${target} DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
             if (WIN32) # copy the .pdb files if any
-                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_PREFIX}/bin OPTIONAL)
+                install(FILES $<TARGET_PDB_FILE:${target}> DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
             endif()
 
         endif()
@@ -575,15 +624,18 @@ endif()
 
 if ( SINGLE_CONFIG )
     # standard kfg files
+    if ( BUILD_TOOLS_INTERNAL )
+        set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
+    endif()
     install( SCRIPT CODE
         "execute_process( COMMAND /bin/bash -c \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
-                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
-                ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
+                '${VDB_COPY_DIR}'  \
+                ${CMAKE_INSTALL_BINDIR}/ncbi              \
                 /etc/ncbi                           \
-                ${CMAKE_INSTALL_PREFIX}/bin         \
-                ${CMAKE_INSTALL_PREFIX}/lib64       \
+                ${CMAKE_INSTALL_BINDIR}                   \
+                ${CMAKE_INSTALL_LIBDIR}                   \
                 ${CMAKE_SOURCE_DIR}/shared/kfgsums  \
             \" )"
     )

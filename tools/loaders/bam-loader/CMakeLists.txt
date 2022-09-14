@@ -39,31 +39,34 @@ if( NOT WIN32)
 		set(OPENSSL_CRYPTO_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib CACHE FILEPATH "" FORCE)
 		set(OPENSSL_SSL_LIBRARY ${OPENSSL_ROOT_DIR}/lib/libssl.dylib CACHE FILEPATH "" FORCE)
 	endif()
-	find_package(OpenSSL REQUIRED)
+	find_package(OpenSSL)
+
+	if (OpenSSL_FOUND)
+		set( SRC
+			bam-loader
+			bam
+			sam
+			alignment-writer
+			reference-writer
+			sequence-writer
+			loader-imp
+			mem-bank
+			low-match-count
+		)
+		set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
+		set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
+
+		GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
+		set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
+		target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
+		target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
+		target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
+
+		MakeLinksExe( bam-load false )
+	endif()
 
 	# Internal
 	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 	MakeLinksExe( samview false )
 
-	set( SRC
-		bam-loader
-		bam
-		sam
-		alignment-writer
-		reference-writer
-		sequence-writer
-		loader-imp
-		mem-bank
-		low-match-count
-    )
-    set_source_files_properties(bam-loader.c PROPERTIES LANGUAGE CXX )
-    set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
-
-	GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-    set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
-    target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
-    target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
-    target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
-
-	MakeLinksExe( bam-load false )
 endif()

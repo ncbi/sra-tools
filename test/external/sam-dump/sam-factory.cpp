@@ -8,6 +8,10 @@
 #include <memory>
 #include <cstring>
 
+const std::string empty_string( "" );
+const std::string star_string( "*" );
+const std::string tab_string( "\t" );
+
 /* -----------------------------------------------------------------
  * a tool to create SAM output from input-files( s ) or stdin
  * SAM output will be produced on stdout
@@ -29,318 +33,152 @@ const int FLAG_PCR = 0x0400;
  * cigar - functions
  * ----------------------------------------------------------------- */
 
-struct cigar_t
-{
-    char * op;
-    int * count;
-    size_t size, length;
-};
-
-static void init_cigar_t( struct cigar_t * c, size_t size )
-{
-    if ( c != NULL ) {
-        c -> size = 0;
-        c -> length = 0;
-        c -> op = ( char * )malloc( sizeof( c -> op[ 0 ] ) * size );
-        if ( c -> op != NULL ) {
-            c -> count = ( int * )malloc( sizeof( c -> count[ 0 ] ) * size );
-            if ( c -> count != NULL ) {
-                c -> size = size;
-            } else {
-                free( ( void * ) c -> op );
-            }
-        }
-    }
-}
-
-static void resize_cigar_t( struct cigar_t * c, size_t new_size )
-{
-    if ( c != NULL ) {
-        if ( c -> size == 0 ) {
-            init_cigar_t( c, new_size );
-        } else if ( c->size < new_size ) {
-            char * temp_op = c -> op;
-            c -> op = ( char * )realloc( c -> op, sizeof( c -> op[ 0 ] ) * new_size );
-            if ( c -> op != NULL ) {
-                int * temp_count = c -> count;
-                c -> count = ( int * )realloc( c -> count, sizeof( c -> count[ 0 ] ) * new_size );
-                if ( c -> count != NULL ) {
-                    c -> size = new_size;
-                } else {
-                    c->count = temp_count;
-                }
-            } else {
-                c -> op = temp_op;
-            }
-        }
-    }
-}
-
-static void append_to_cigar_t( struct cigar_t * c, char op, int count )
-{
-    if ( c -> length < c -> size ) {
-        c->op[ c -> length ] = op;
-        c->count[ c -> length ++ ] = count;
-    }
-}
-
-void parse_cigar_t( struct cigar_t * c, const char * cigar_str )
-{
-    if ( c != NULL && cigar_str != NULL && cigar_str[ 0 ] != 0 ) {
-        resize_cigar_t( c, strlen( cigar_str ) );
-        if ( c -> size > 0 ) {
-            int count = 0;
-            while ( *cigar_str != 0 && c -> length < c -> size ) {
-                if ( isdigit( *cigar_str ) ) {
-                    count = ( count * 10 ) + ( *cigar_str - '0' );
+class cigar_t {
+    public :
+        cigar_t( const std::string &s ) { // ctor
+            uint32_t count = 0;
+            for( const char& c : s ) {
+                if ( isdigit( c ) ) {
+                    count = ( count * 10 ) + ( c - '0' );
                 } else {
                     if ( count == 0 ) count = 1;
-                    append_to_cigar_t( c, *cigar_str, count );
+                    append( c, count );
                     count = 0;
                 }
-                cigar_str++;
             }
         }
-    }
-}
 
-struct cigar_t * make_cigar_t( const char * cigar_str ) {
-    struct cigar_t * res = ( struct cigar_t * )malloc( sizeof * res );
-    if ( res != NULL ) {
-        size_t size;
-        if ( cigar_str != NULL && cigar_str[ 0 ] != 0 ) {
-            size = strlen( cigar_str );
-        } else {
-            size = 1024;
-        }
-        init_cigar_t( res, size );
-        if ( res -> size == size ) {
-            parse_cigar_t( res, cigar_str );
-        }
-    }
-    return res;
-}
-
-void free_cigar_t( struct cigar_t * c ) {
-    if ( c != NULL ) {
-        if ( c -> op != NULL ) {
-            free( ( void * ) c -> op );
-            c -> op = NULL;
-        }
-        if ( c -> count != NULL ) {
-            free( ( void * ) c -> count );
-            c -> count = NULL;
-        }
-        free( ( void * ) c );
-    }
-}
-
-int cigar_t_reflen( const struct cigar_t * c ) {
-    int res = 0;
-    if ( c != NULL ) {
-        for ( size_t i = 0; i < c -> length; ++i ) {
-            switch( c -> op[ i ] ) {
-                case 'A'    : res += c -> count[ i ]; break;
-                case 'C'    : res += c -> count[ i ]; break;
-                case 'G'    : res += c -> count[ i ]; break;
-                case 'T'    : res += c -> count[ i ]; break;
-
-                case 'D'    : res += c -> count[ i ]; break;
-                case 'M'    : res += c -> count[ i ]; break;            
+        std::string to_string( void ) const {
+            std::string res;
+            for( const cigar_opt_t &opt : operations ) {
+                std::stringstream ss;
+                ss << opt . count << opt . op;
+                res . append( ss . str() );
             }
+            return res;
         }
-    }
-    return res;
-}
 
-int cigar_t_readlen( const struct cigar_t * c ) {
-    int res = 0;
-    if ( c != NULL ) {
-        for ( size_t i = 0; i < c -> length; ++i ) {
-            if ( c -> op[ i ] != 'D' ) {
-                res += c->count[ i ];
-            }
-        }
-    }
-    return res;
-}
-
-int cigar_t_inslen( const struct cigar_t * c ) {
-    int res = 0;
-    if ( c != NULL ) {
-        for ( size_t i = 0; i < c -> length; ++i ) {
-            if ( c -> op[ i ] == 'I' ) {
-                res += c -> count[ i ];
-            }
-        }
-    }
-    return res;
-}
-
-size_t cigar_t_string( char * buffer, size_t buf_len, const struct cigar_t * c ) {
-    size_t res = 0;
-    if ( buffer != NULL && buf_len > 0 && c != NULL && c -> length > 0 ) {
-        for ( size_t i = 0; i < c->length && res < buf_len; ++i ) {
-            int num_writ = snprintf( &buffer[ res ], buf_len - res, "%d%c", c->count[ i ], c->op[ i ] );
-            res += num_writ;
-        }
-        if ( res < buf_len ) {
-            buffer[ res ] = 0;
-        }
-    }
-    return res;
-}
-
-static int can_merge( char op1, char op2 ) {
-    char mop1 = op1;
-    char mop2 = op2;
-    if ( mop1 == 'A' || mop1 == 'C' || mop1 == 'G' || mop1 == 'T' ) { mop1 = 'M'; }
-    if ( mop2 == 'A' || mop2 == 'C' || mop2 == 'G' || mop2 == 'T' ) { mop2 = 'M'; }
-    return ( mop1 == mop2 );
-}
-
-struct cigar_t * merge_cigar_t( const struct cigar_t * c ) {
-    struct cigar_t * res = NULL;
-    if ( c != NULL && c -> length > 0 ) {
-        res = ( cigar_t * )malloc( sizeof * res );
-        if ( res != NULL ) {
-            init_cigar_t( res, c -> size );
-            if ( res -> size == c -> size ) {
-                size_t last;
-                append_to_cigar_t( res, c -> op[ 0 ], c -> count[ 0 ] );
-                for ( size_t i = 1; i < c -> length; ++i ) {
-                    last = res -> length - 1;
-                    if ( can_merge( c -> op[ i ], res -> op[ last ] ) ) {
-                        res -> count[ last ] += c -> count[ i ];
-                        res -> op[ last ] = 'M';
-                    } else {
-                        append_to_cigar_t( res, c -> op[ i ], c -> count[ i ] );
-                    }
-                }
-            }
-        }
-    }
-    return res;
-}
-
-static void append_base( char * buffer, size_t buf_len, size_t * buf_idx, int count, char c ) {
-    int i;
-    for ( i = 0; i < count && *buf_idx < buf_len; ++i ) {
-        buffer[ (*buf_idx)++ ] = c;
-    }
-}
-
-static void append_bases( char * buffer, size_t buf_len, size_t * buf_idx, int count,
-                          const char * src, int src_len, int *src_idx )
-{
-    int i;
-    for ( i = 0; i < count && *buf_idx < buf_len && *src_idx < src_len; ++i ) {
-        buffer[ (*buf_idx)++ ] = src[ (*src_idx)++ ];
-    }
-}
-
-size_t cigar_t_2_read( char * buffer, size_t buf_len,
-                       const struct cigar_t * c, const char * ref_bases, const char * ins_bases )
-{
-    size_t res = 0;
-    if ( buffer != NULL && buf_len > 0 && c != NULL ) {
-        int readlen = cigar_t_readlen( c );
-        if ( readlen > 0 ) {
-            int needed_ref_bases = cigar_t_reflen( c );
-            int available_ref_bases = ref_bases != NULL ? strlen( ref_bases ) : 0;
-            if ( available_ref_bases >= needed_ref_bases ) {
-                int needed_ins_bases = cigar_t_inslen( c );
-                int available_ins_bases = ins_bases != NULL ? strlen( ins_bases ) : 0;    
-                if ( available_ins_bases >= needed_ins_bases ) {
-                    int ref_idx = 0;
-                    int ins_idx = 0;
-                    for ( size_t cigar_idx = 0; cigar_idx < c->length; ++cigar_idx ) {
-                        int count = c -> count[ cigar_idx ];
-                        switch ( c -> op[ cigar_idx ] )
-                        {
-                            case 'A' : append_base( buffer, buf_len, &res, count, 'A' );
-                                       ref_idx += count;
+        std::string to_read( const std::string &ref_bases, const std::string &ins_bases ) const {
+            std::string res;
+            if ( readlen() > 0 ) {
+                if ( ref_bases . length() >= reflen() && ins_bases . length() >= inslen() ) {
+                    uint32_t ref_idx = 0;
+                    uint32_t ins_idx = 0;
+                    for( const cigar_opt_t &opt : operations ) {
+                        switch ( opt . op ) {
+                            case 'A' :
+                            case 'C' :
+                            case 'G' :
+                            case 'T' : for ( int i = 0; i < opt . count; ++i ) { res += opt . op; }
+                            case 'D' : ref_idx += opt . count;
                                        break;
-
-                            case 'C' : append_base( buffer, buf_len, &res, count, 'C' );
-                                       ref_idx += count;
+                            case 'I' : res += ins_bases . substr ( ins_idx, opt . count );
+                                       ins_idx += opt . count;
                                        break;
-
-                            case 'G' : append_base( buffer, buf_len, &res, count, 'G' );
-                                       ref_idx += count;                                                
-                                       break;
-
-                            case 'T' : append_base( buffer, buf_len, &res, count, 'T' );
-                                       ref_idx += count;                                                
-                                       break;
-
-                            case 'D' : ref_idx += count;
-                                       break;
-                            
-                            case 'I' : append_bases( buffer, buf_len, &res, count,
-                                                     ins_bases, available_ins_bases, &ins_idx );
-                                       break;
-
-                            case 'M' : append_bases( buffer, buf_len, &res, count,
-                                                     ref_bases, available_ref_bases, &ref_idx );
+                            case 'M' : res += ref_bases . substr ( ref_idx, opt . count );
+                                       ref_idx += opt . count;                            
                                        break;
                         }
                     }
-                    if ( res < buf_len ) { buffer[ res ] = 0; }
                 }
             }
+            return res;
         }
-    }
-    return res;
-}
 
-std::string purify_cigar( const std::string &cigar ) {
-    std::string res;
-    struct cigar_t * cigar_struct = make_cigar_t( cigar.c_str() );
-    if ( cigar_struct != NULL )
-    {
-        char buffer[ 4096 ];
-        struct cigar_t * merged_cigar = merge_cigar_t( cigar_struct );
-        cigar_t_string( buffer, sizeof buffer, merged_cigar );
-        res = buffer;
-        free_cigar_t( merged_cigar );
-        free_cigar_t( cigar_struct );
-    }
-    return res;
-}
+        static std::string read_at( const std::string &cigar_str,
+                                    int refpos,
+                                    const std::string &ref_bases,
+                                    const std::string &ins_bases ) {
+            cigar_t cigar( cigar_str );
+            uint32_t reflen = cigar . reflen();
+            const std::string &ref_slice = ref_bases.substr( refpos - 1, reflen );
+            return cigar.to_read( ref_slice, ins_bases );
+        }
 
-std::string apply_cigar_to_ref_and_generate_read( const std::string &cigar,
-                                                  int refpos,
-                                                  const std::string &ref_bases,
-                                                  const std::string &ins_bases ) {
-    std::string res;
-    struct cigar_t * cigar_struct = make_cigar_t( cigar.c_str() );
-    if ( cigar_struct != NULL ) {
-        uint32_t reflen = cigar_t_reflen( cigar_struct );
-        std::string ref_slice = ref_bases.substr( refpos - 1, reflen );
-        if ( !ref_slice.empty() ) {
-            int read_len = cigar_t_readlen( cigar_struct );
-            char * buffer = ( char * )malloc( read_len + 1 );
-            if ( buffer != NULL ) {
-                cigar_t_2_read( buffer, read_len + 1, cigar_struct, ref_slice.c_str(), ins_bases.c_str() );
-                res = buffer;
-                free( buffer );
+        static std::string purify( const std::string& cigar_str ) {
+            cigar_t cigar( cigar_str );
+            cigar_t merged = cigar . merge();
+            return merged . to_string();
+        }
+
+        uint32_t reflen( void ) const {
+            uint32_t res = 0;
+            for( const cigar_opt_t &opt : operations ) {
+                switch( opt . op ) {
+                    case 'A'    : res += opt . count; break;
+                    case 'C'    : res += opt . count; break;
+                    case 'G'    : res += opt . count; break;
+                    case 'T'    : res += opt . count; break;
+                    case 'D'    : res += opt . count; break;
+                    case 'M'    : res += opt . count; break;
+                }
             }
+            return res;
         }
-        free_cigar_t( cigar_struct );
-    }
-    return res;
-}
 
-uint32_t len_of_special_cigar( const std::string &cigar ) {
-    uint32_t res = 0;
-    struct cigar_t * cigar_struct = make_cigar_t( cigar.c_str() );
-    if ( cigar_struct != NULL ) {
-        res = cigar_t_reflen( cigar_struct );
-        free_cigar_t( cigar_struct );        
-    }
-    return res;
-}
+        static uint32_t reflen_of( const std::string &cigar_str ) {
+            cigar_t cigar( cigar_str );
+            return cigar . reflen();
+        }
+
+    private :
+        struct cigar_opt_t {
+            char op;
+            uint32_t count;
+        };
+
+        std::vector< cigar_opt_t > operations;
+
+        void append( char c, uint32_t count ) {
+            cigar_opt_t op{ c, count };
+            operations . push_back( op );
+        }
+
+        uint32_t readlen( void ) const {
+            uint32_t res = 0;
+            for( const cigar_opt_t &opt : operations ) {
+                if ( opt . op != 'D' ) { res += opt . count; }
+            }
+            return res;
+        }
+
+        uint32_t inslen( void ) const {
+            uint32_t res = 0;
+            for( const cigar_opt_t &opt : operations ) {
+                if ( opt . op == 'I' ) { res += opt . count; }
+            }
+            return res;
+        }
+
+        static bool can_merge( char op1, char op2 ) {
+            char mop1 = op1;
+            char mop2 = op2;
+            if ( mop1 == 'A' || mop1 == 'C' || mop1 == 'G' || mop1 == 'T' ) { mop1 = 'M'; }
+            if ( mop2 == 'A' || mop2 == 'C' || mop2 == 'G' || mop2 == 'T' ) { mop2 = 'M'; }
+            return ( mop1 == mop2 );
+        }
+
+        cigar_t merge( void ) const {
+            cigar_t res( empty_string );
+            uint32_t idx = 0;
+            for( const cigar_opt_t &opt : operations ) {
+                if ( idx == 0  ) {
+                    res . append( opt . op, opt . count );
+                } else {
+                    cigar_opt_t last_op = res . operations[ idx - 1 ];
+                    if ( can_merge( opt . op, last_op . op ) ) {
+                        last_op . count += opt . count;
+                        last_op . op = 'M';
+                        res . operations[ idx - 1 ] = last_op;
+                    } else {
+                        res . append( opt . op, opt . count );
+                    }
+                }
+                idx++;
+            }
+            return res;
+        }
+};
 
 /* -----------------------------------------------------------------
  * helper - functions
@@ -364,7 +202,7 @@ int str_to_int( const std::string &s, int dflt ) {
 
 bool str_to_bool( const std::string &s ) {
     return( strcasecmp ( s.c_str (), "true" ) == 0 ||
-            strcasecmp ( s.c_str (), "yes" ) == 0 ||                  
+            strcasecmp ( s.c_str (), "yes" ) == 0 ||
             atoi( s.c_str() ) != 0 );
 }
 
@@ -439,12 +277,13 @@ class t_params {
                 std::string key = kv.substr( 0, eq_pos );
                 std::transform( key.begin(), key.end(), key.begin(), ::tolower);
                 std::string value = kv.substr( eq_pos + 1, kv.length() );
-                values.insert( { key, value } );                
+                values.insert( { key, value } );
             } else {
-                values.insert( { kv, "" } );
+                values.insert( { kv, empty_string } );
             }
         }
 
+    public :
         t_params( const std::string &line ) : values( {} ) {
             int colon_pos = line.find( ':' );
             if ( colon_pos != -1 ) {
@@ -458,13 +297,12 @@ class t_params {
                     end = rem.find( ',', start );
                 }
                 std::string param = rem.substr( start, end - start );
-                split_kv( param );                
+                split_kv( param );
             }
         }
 
-    public :
         static t_params_ptr make( const std::string &line ) {
-            return t_params_ptr( new t_params( line ) );
+            return std::make_shared< t_params >( t_params( line ) );
         }
 
         const std::string& get_string( const std::string& dflt ) {
@@ -495,7 +333,8 @@ class t_progline {
         std::string org;
         std::string cmd;
         t_params_ptr kv;
-        
+
+    public :
         t_progline( const std::string &line, const char * a_file_name, int a_line_nr )
             : filename( a_file_name ), line_nr( a_line_nr ), org( line ), 
               cmd(), kv( t_params::make( line ) ) {
@@ -506,9 +345,8 @@ class t_progline {
             }
         }
 
-    public :
         static t_progline_ptr make( const std::string &line, const char * filename, int line_nr ) {
-            return t_progline_ptr( new t_progline( line, filename, line_nr ) );
+            return std::make_shared< t_progline>( t_progline( line, filename, line_nr ) );
         }
         
         bool is_ref( void ) const { return cmd == "ref" || cmd == "r"; }
@@ -520,7 +358,7 @@ class t_progline {
         bool is_config( void ) const { return cmd == "config"; }
         bool is_prim( void ) const { return cmd == "prim" || cmd == "p"; }
         bool is_sec( void ) const { return cmd == "sec" || cmd == "s"; }
-        bool is_unaligned( void ) const { return cmd == "unalig" || cmd == "u"; }        
+        bool is_unaligned( void ) const { return cmd == "unalig" || cmd == "u"; }
         bool is_link( void ) const { return cmd == "lnk" || cmd == "l"; }
         bool is_sort_alignments( void ) const { return cmd == "sort"; }
 
@@ -528,7 +366,6 @@ class t_progline {
             std::stringstream ss;
             ss << filename << "#" << line_nr << " : " << org;
             return ss.str();
-            
         }
 
         const std::string& get_string( const std::string& dflt ) {
@@ -536,13 +373,13 @@ class t_progline {
         }
 
         int get_int( int dflt ) {
-            auto value = kv -> get_string( "" );
-            if ( value == "" ) { return dflt; }
+            auto value = kv -> get_string( empty_string );
+            if ( value . empty() ) { return dflt; }
             return str_to_int( value, dflt );
         }
 
         int get_bool( bool dflt ) {
-            auto value = kv -> get_string( "" );
+            auto value = kv -> get_string( empty_string );
             if ( value . empty() ) { return dflt; }
             return str_to_bool( value );
         }
@@ -551,15 +388,19 @@ class t_progline {
             return kv -> get_string_key( key, dflt );
         }
 
+        const std::string& get_string_key( const std::string& key ) const {
+            return get_string_key( key, empty_string );
+        }
+
         bool get_bool_key( const std::string& key, bool dflt ) const {
-            auto value = kv -> get_string_key( key, "" );
+            auto value = kv -> get_string_key( key, empty_string );
             if ( value . empty() ) { return dflt; }
             return str_to_bool( value );
         }
         
         int get_int_key( const std::string& key, int dflt ) const {
-            auto value = kv -> get_string_key( key, "" );
-            if ( value == "" ) { return dflt; }
+            auto value = kv -> get_string_key( key, empty_string );
+            if ( value . empty() ) { return dflt; }
             return str_to_int( value, dflt );
         }
         
@@ -630,22 +471,22 @@ class t_reference {
         std::string alias;
         std::string bases;
 
+    public :
         t_reference ( const std::string &a_name, const std::string &a_alias ) 
             : name( a_name ), alias( a_alias ) { }
         
-    public :
         static t_reference_ptr make( const std::string &a_name, const std::string &a_alias ) {
-            return t_reference_ptr( new t_reference( a_name, a_alias ) );
+            return std::make_shared< t_reference >( t_reference( a_name, a_alias ) ); 
         }
 
         static t_reference_ptr make( const std::string &a_name ) {
-            return t_reference_ptr( new t_reference( a_name, a_name ) );
+            return std::make_shared< t_reference >( t_reference( a_name, a_name ) ); 
         }
 
         void make_random( int length ) { bases = random_bases( length ); }
         void from_string( const std::string &a_bases ) { bases = a_bases; }
         void write_fasta( std::ofstream &out ) const { out << ">" << name << std::endl << bases << std::endl; }
-        void write_config( std::ofstream &out ) const { out << alias << "\t" << name << std::endl; }
+        void write_config( std::ofstream &out ) const { out << alias << tab_string << name << std::endl; }
         int length( void ) const { return bases.length(); }
         const std::string& get_bases( void ) const { return bases; }
         const std::string& get_alias( void ) const { return alias; }
@@ -653,7 +494,7 @@ class t_reference {
         
         void print_HDR( std::ostream &out ) const {
             int l = length();
-            out << "@SQ\tSN:" << name << "\tAS:n/a" << "\tLN:" << l << "\t";
+            out << "@SQ\tSN:" << name << "\tAS:n/a" << "\tLN:" << l << tab_string;
             out << "UR:file:rand_ref.fasta";
             out << std::endl;
         }
@@ -669,9 +510,9 @@ class t_reference {
         }
 
         static void random_ref( const t_progline_ptr pl, t_reference_map& refs, t_errors& errors ) {
-            const std::string& name = pl -> get_string_key( "name", "" );
+            const std::string& name = pl -> get_string_key( "name" );
             if ( name . empty() ) {
-                errors . msg( "name missing in: ", pl -> get_org() );                
+                errors . msg( "name missing in: ", pl -> get_org() );
             } else {
                 int length = pl -> get_int_key( "length", 10000 );
                 auto ref = t_reference::make( name );
@@ -691,7 +532,7 @@ class t_reference {
         }
 
         static void fasta_ref( const t_progline_ptr pl, t_reference_map& refs, t_errors& errors ) {
-            const std::string& file_name = pl -> get_string_key( "file", "" );
+            const std::string& file_name = pl -> get_string_key( "file" );
             if ( file_name . empty() ) {
                 errors . msg( "file_name missing in: ", pl -> get_org() );
             } else {
@@ -704,7 +545,7 @@ class t_reference {
                         if ( line[ 0 ] == '>' ) {
                             t_reference::insert_name_and_bases( ref_name, bases, refs, errors );
                             ref_name = line.substr( 1, line.length() - 1 );
-                            bases = "";
+                            bases = empty_string;
                         } else {
                             bases += line;
                         }
@@ -712,7 +553,7 @@ class t_reference {
                     insert_name_and_bases( ref_name, bases, refs, errors );
                     input.close();
                 } else {
-                    errors . msg( "cannot open: ", pl -> get_org() );                    
+                    errors . msg( "cannot open: ", pl -> get_org() );
                 }
             }
         }
@@ -723,7 +564,7 @@ class t_reference {
 
         static std::string get_first_ref_alias( const t_reference_map& refs ) {
             auto ref0 = refs.begin();
-            if ( ref0 == refs.end() ) { return ""; }
+            if ( ref0 == refs.end() ) { return empty_string; }
             return ref0 -> first;
         }
 
@@ -791,37 +632,8 @@ class t_alignment {
         int tlen;
         std::string seq;
         std::string qual;
-        std::string opts;
+        const std::string opts;
         std::string ins_bases;
-
-        // ctor for PRIM/SEC alignments
-        t_alignment( const std::string &a_name, int a_flags, const t_reference_ptr a_ref, int a_pos,
-                   int a_mapq, const std::string &a_cigar, int a_tlen, const std::string &a_qual,
-                   const std::string &a_opts, const std::string &a_ins_bases, int qual_div )
-            : name( a_name ), flags( a_flags ), ref( a_ref ), ref_pos( a_pos ), mapq( a_mapq ),
-              special_cigar( a_cigar ), pure_cigar( purify_cigar( a_cigar ) ),
-              mate( nullptr ), tlen( a_tlen ),
-              seq( "" ), qual( a_qual ), opts( a_opts ), ins_bases( a_ins_bases ){
-            if ( ref_pos == 0 ) { 
-                ref_pos = random_int( 1, ref -> length() );
-                size_t spec_cig_len = len_of_special_cigar( special_cigar );
-                size_t rlen = ref -> length();
-                if ( ref_pos + spec_cig_len >= rlen ) {
-                    ref_pos = ref -> length() - ( spec_cig_len + 1 );
-                }
-            }
-            seq = apply_cigar_to_ref_and_generate_read( special_cigar, ref_pos, ref -> get_bases(), ins_bases );
-            set_quality( qual_div );
-        }
-
-        // ctor for UNALIGNED alignments
-        t_alignment( const std::string &a_name, int a_flags, const std::string &a_seq,
-                   const std::string &a_qual, const std::string &a_opts, int qual_div )
-            : name( a_name ), flags( a_flags ), ref( nullptr ), ref_pos( 0 ), mapq( 0 ),
-              special_cigar( "" ), pure_cigar( "*" ), mate( nullptr ),
-              tlen( 0 ), seq( a_seq ), qual( a_qual ), opts( a_opts ), ins_bases( "" ) {
-            set_quality( qual_div );
-        }
 
         void set_quality( int qual_div ) {
             size_t seq_len = seq.length();
@@ -833,7 +645,7 @@ class t_alignment {
                 } else {
                     qual = random_div_quality( seq_len, 10 );
                 }
-            } else if ( "*" == qual || qual_len == seq_len ) {
+            } else if ( star_string == qual || qual_len == seq_len ) {
                 // if qual is "*" or the same length as seq : do nothing - keep it
             } else {
                 // generate qual by repeating the pattern given until seq_len is reached
@@ -848,57 +660,85 @@ class t_alignment {
                 // trim white-space
                 elem . erase( std::remove( elem . begin(), elem.end(), ' ' ), elem.end() );
                 if ( !elem.empty() ) {
-                    out << "\t" << elem;
+                    out << tab_string << elem;
                 }
             }
         }
-        
+
     public :
+        // ctor for PRIM/SEC alignments
+        t_alignment( const std::string &a_name, int a_flags, const t_reference_ptr a_ref, int a_pos,
+                   int a_mapq, const std::string &a_cigar, int a_tlen, const std::string &a_qual,
+                   const std::string &a_opts, const std::string &a_ins_bases, int qual_div ) 
+                   : name( a_name ), flags( a_flags ), ref( a_ref ), ref_pos( a_pos ), mapq( a_mapq ), 
+                     special_cigar( a_cigar ), pure_cigar( cigar_t::purify( a_cigar ) ), tlen( a_tlen ),
+                     qual( a_qual ), opts( a_opts ), ins_bases( a_ins_bases )  {
+            if ( ref_pos == 0 ) { 
+                ref_pos = random_int( 1, ref -> length() );
+                size_t spec_cig_len = cigar_t::reflen_of( special_cigar );
+                size_t rlen = ref -> length();
+                if ( ref_pos + spec_cig_len >= rlen ) {
+                    ref_pos = ref -> length() - ( spec_cig_len + 1 );
+                }
+            }
+            seq = cigar_t::read_at( special_cigar, ref_pos, ref -> get_bases(), ins_bases );
+            set_quality( qual_div );
+        }
+
+        // ctor for UNALIGNED alignments
+        t_alignment( const std::string &a_name, int a_flags, const std::string &a_seq,
+                   const std::string &a_qual, const std::string &a_opts, int qual_div )
+            : name( a_name ), flags( a_flags ), ref( nullptr ), ref_pos( 0 ), mapq( 0 ),
+              special_cigar( empty_string ), pure_cigar( star_string ), mate( nullptr ),
+              tlen( 0 ), seq( a_seq ), qual( a_qual ), opts( a_opts ), ins_bases( empty_string ) {
+            set_quality( qual_div );
+        }
+
         static t_alignment_ptr make( const std::string &name, int flags, const t_reference_ptr ref, int pos,
                     int mapq, const std::string &cigar, int tlen, const std::string &qual,
                     const std::string &opts, const std::string &ins_bases, int qual_div ) {
-            return t_alignment_ptr( new t_alignment( name, flags, ref, pos, mapq, cigar,
-                                                     tlen, qual, opts, ins_bases, qual_div ) );
+            return std::make_shared< t_alignment >( t_alignment( name, flags, ref, pos, mapq, cigar,
+                                       tlen, qual, opts, ins_bases, qual_div ) );
         }
         
         static t_alignment_ptr make( const std::string &name, int flags, const std::string &seq,
                                    const std::string &qual, const std::string &opts, int qual_div ) {
-            return t_alignment_ptr( new t_alignment( name, flags, seq, qual, opts, qual_div ) );
+            return std::make_shared< t_alignment > ( t_alignment( name, flags, seq, qual, opts, qual_div ) );
         }
-        
+
         bool operator<( const t_alignment& other ) const { return ref_pos < other . ref_pos; }
 
         std::string refname( void ) const {
-            if ( ref != nullptr ) { return ref -> get_alias(); } else { return "*"; }
+            if ( ref != nullptr ) { return ref -> get_alias(); } else { return star_string; }
         }
-        
+
         void print_SAM( std::ostream &out ) const {
-            out << name << "\t" << flags << "\t" << refname() << "\t";
-            out << ref_pos << "\t" << mapq << "\t" << pure_cigar << "\t";
+            out << name << tab_string << flags << tab_string << refname() << tab_string;
+            out << ref_pos << tab_string << mapq << tab_string << pure_cigar << tab_string;
             if ( mate != nullptr ) {
-                out << mate -> refname() << "\t" << mate -> ref_pos << "\t";
+                out << mate -> refname() << tab_string << mate -> ref_pos << tab_string;
             } else {
                 out << "*\t0\t";
             }
-            out << tlen << "\t";
-            out << ( ( seq.length() > 0 ) ? seq : "*" );
-            out << "\t";
-            out << ( ( qual.length() > 0 ) ? qual : "*" );
+            out << tlen << tab_string;
+            out << ( ( seq.length() > 0 ) ? seq : star_string );
+            out << tab_string;
+            out << ( ( qual.length() > 0 ) ? qual : star_string );
             if ( opts.length() > 0 ) { print_opts( out ); }
             out << std::endl;
         }
-        
+
         bool has_flag( int mask ) const { return ( flags & mask ) == mask; }
         bool has_ref( void ) const { return ref != nullptr; }
         const std::string& get_name( void ) const { return name; }
-        
+
         void set_mate( t_alignment_ptr a_mate ) {
             mate = a_mate;
             set_flag( FLAG_NEXT_UNMAPPED, mate -> has_flag( FLAG_UNMAPPED ) );
             set_flag( FLAG_NEXT_REVERSED, mate -> has_flag( FLAG_REVERSED ) );
             set_flag( FLAG_MULTI, true );
         }
-        
+
         void set_flag( int flagbit, bool state ) {
             if ( state ) {
                 flags |= flagbit;
@@ -923,19 +763,19 @@ class t_alignment_comparer {
 class t_alignment_group;
 typedef std::shared_ptr< t_alignment_group > t_alignment_group_ptr;
 typedef std::map< std::string, t_alignment_group_ptr > t_alignment_group_map;
-        
+
 class t_alignment_group {
     private :
         std::string name;
         t_alignment_vec prim_alignments;
         t_alignment_vec sec_alignments;
         t_alignment_vec unaligned;
-        
-        t_alignment_group( std::string a_name ) : name( a_name ) {}
 
     public :
+        t_alignment_group( std::string a_name ) : name( a_name ) {}
+
         static t_alignment_group_ptr make( t_alignment_ptr a ) { 
-            t_alignment_group_ptr ag( new t_alignment_group( a -> get_name() ) );
+            t_alignment_group_ptr ag = std::make_shared< t_alignment_group >( t_alignment_group( a -> get_name() ) );
             ag -> add( a );
             return ag;
         }
@@ -953,7 +793,7 @@ class t_alignment_group {
         void print_SAM( std::ostream &out ) const {
             for ( const t_alignment_ptr a : prim_alignments ) { a -> print_SAM( out ); }
             for ( const t_alignment_ptr a : sec_alignments ) { a -> print_SAM( out ); }
-            for ( const t_alignment_ptr a : unaligned ) { a -> print_SAM( out ); }            
+            for ( const t_alignment_ptr a : unaligned ) { a -> print_SAM( out ); }
         }
 
         static void finish_alignmnet_vector( t_alignment_vec& v ) {
@@ -1007,13 +847,13 @@ class t_alignment_group {
                 without_ref . push_back( a );
             }
         }
-        
+
         void bin_by_refname( t_alignment_bins &by_ref, t_alignment_vec &without_ref ) {
             for ( const auto a : prim_alignments ) { bin_alignment_by_ref( a, by_ref, without_ref ); }
             for ( const auto a : sec_alignments ) { bin_alignment_by_ref( a, by_ref, without_ref ); }
             for ( const auto a : unaligned ) { without_ref . push_back( a ); }
         }
-        
+
         static void insert_alignment( t_alignment_ptr a, t_alignment_group_map& alignment_groups ) {
             const std::string& name = a -> get_name();
             auto found = alignment_groups . find( name );
@@ -1037,7 +877,7 @@ class t_settings {
         int dflt_mapq;
         int dflt_qdiv;
         bool sort_alignments;
-        
+
         void set_string( const t_progline_ptr pl, const char * msg, std::string *out,
                          t_errors & errors ) {
             const std::string& fn = pl -> get_string( "name" );
@@ -1047,7 +887,7 @@ class t_settings {
                 *out = fn;
             }
         }
-        
+
     public :
         t_settings( const t_proglines& proglines, t_errors & errors ) 
             : dflt_cigar( "30M" ), dflt_mapq( 20 ), dflt_qdiv( 0 ), sort_alignments( true ) {
@@ -1061,7 +901,7 @@ class t_settings {
                 } else if ( pl -> is_dflt_mapq() ) {
                     dflt_mapq = pl -> get_int( dflt_mapq );
                 } else if ( pl -> is_dflt_qdiv() ) {
-                    dflt_qdiv = pl -> get_int( dflt_qdiv );                    
+                    dflt_qdiv = pl -> get_int( dflt_qdiv );
                 } else if ( pl -> is_dflt_cigar() ) {
                     set_string( pl, "missing value in: ", &dflt_cigar, errors );
                 } else if ( pl -> is_sort_alignments() ) {
@@ -1088,12 +928,12 @@ class t_factory {
         t_errors& errors;
         t_settings settings;
         t_alignment_group_map alignment_groups;
-        
+
         bool phase1( void ) {
             // populate references...
             for ( const t_progline_ptr pl : proglines ) {
                 if ( pl -> is_ref() ) {
-                    const std::string& t = pl -> get_string_key( "type", "" );
+                    const std::string& t = pl -> get_string_key( "type" );
                     if ( t == "random" ) { 
                         t_reference::random_ref( pl, refs, errors );
                     } else if ( t == "fasta" ) {
@@ -1107,7 +947,7 @@ class t_factory {
             }
 
             // generate error if we do not have any references at this point
-            if ( refs . empty() ) { errors . msg( "no references found!", "" ); }
+            if ( refs . empty() ) { errors . msg( "no references found!", empty_string ); }
             
             // write a reference-fasta-file ( if requested )
             if ( errors . empty() ) {
@@ -1138,9 +978,9 @@ class t_factory {
                                 pl -> get_int_key( "mapq", settings.get_dflt_mapq() ),
                                 pl -> get_string_key( "cigar", settings.get_dflt_cigar() ),
                                 pl -> get_int_key( "tlen", 0 ),
-                                pl -> get_string_key( "qual", "" ),
-                                pl -> get_string_key( "opts", "" ),
-                                pl -> get_string_key( "ins", "" ),
+                                pl -> get_string_key( "qual" ),
+                                pl -> get_string_key( "opts" ),
+                                pl -> get_string_key( "ins" ),
                                 qual_div ),
                 alignment_groups );
         }
@@ -1151,28 +991,26 @@ class t_factory {
             int mapq = pl -> get_int_key( "mapq", settings.get_dflt_mapq() );
             const std::string& cigar = pl -> get_string_key( "cigar", settings.get_dflt_cigar() );
             int tlen = pl -> get_int_key( "tlen", 0 );
-            const std::string& qual = pl -> get_string_key( "qual", "" );
-            const std::string& opts = pl -> get_string_key( "opts", "" );
-            const std::string& ins_bases = pl -> get_string_key( "ins", "" );
+            const std::string& qual = pl -> get_string_key( "qual" );
+            const std::string& opts = pl -> get_string_key( "opts" );
+            const std::string& ins_bases = pl -> get_string_key( "ins" );
             for ( int i = 0; i < repeat; i++ ) {
                 std::ostringstream os;
                 os << base_name << "_" << i;
-                t_alignment_group::insert_alignment(
-                    t_alignment::make( os.str(), flags, ref, pos, mapq, cigar, tlen, qual,
-                                       opts, ins_bases, qual_div ),
-                    alignment_groups );
+                t_alignment_ptr ap = t_alignment::make( os.str(), flags, ref, pos, mapq, cigar, tlen, qual, opts, ins_bases, qual_div );
+                t_alignment_group::insert_alignment( ap, alignment_groups );
             }
         }
 
         void generate_align( const t_progline_ptr pl, int type_flags ) {
-            const std::string& name = pl -> get_string_key( "name", "" );
+            const std::string& name = pl -> get_string_key( "name" );
             if ( name.empty() ) {
                 errors . msg( "missing name in: ", pl -> get_org() );
             } else {
                 const std::string& ref_alias = pl -> get_string_key( "ref", settings.get_dflt_alias() );
                 const t_reference_ptr ref = t_reference::lookup( ref_alias, refs );
                 if ( ref == nullptr ) {
-                    errors . msg( "cannot find reference: ", pl -> get_org() );                    
+                    errors . msg( "cannot find reference: ", pl -> get_org() );
                 } else {
                     int repeat = pl -> get_int_key( "repeat", 0 );
                     int qual_div = pl -> get_int_key( "qdiv", settings.get_dflt_qdiv() );
@@ -1186,13 +1024,13 @@ class t_factory {
         }
 
         void generate_unaligned( const t_progline_ptr pl ) {
-            const std::string& name = pl -> get_string_key( "name", "" );
+            const std::string& name = pl -> get_string_key( "name" );
             if ( name . empty() ) {
                 errors . msg( "missing name in: ", pl -> get_org() );
             } else {
                 int flags = pl -> get_int_key( "flags", 0 ) | FLAG_UNMAPPED;
                 int qual_div = pl -> get_int_key( "qdiv", settings.get_dflt_qdiv() );
-                std::string seq = pl -> get_string_key( "seq", "" ); // not const ref, because we may overwrite it
+                std::string seq = pl -> get_string_key( "seq" ); // not const ref, because we may overwrite it
                 if ( seq.empty() ) {
                     int len = pl -> get_int_key( "len", 0 );
                     if ( len == 0 ) {
@@ -1202,8 +1040,8 @@ class t_factory {
                     }
                 }
                 t_alignment_group::insert_alignment(
-                    t_alignment::make( name, flags, seq, pl -> get_string_key( "qual", "" ),
-                                        pl -> get_string_key( "opts", "" ), qual_div ),
+                    t_alignment::make( name, flags, seq, pl -> get_string_key( "qual" ),
+                                        pl -> get_string_key( "opts" ), qual_div ),
                     alignment_groups );
             }
         }
@@ -1244,7 +1082,7 @@ class t_factory {
         }
 
         void print_all( std::ostream &out ) {
-            out << "@HD" << "\t" <<	"VN:1.0" << "\t" <<	"SO:coordinate" << std::endl;
+            out << "@HD" << tab_string <<	"VN:1.0" << tab_string <<	"SO:coordinate" << std::endl;
             for ( const auto &ref : refs ) {
                 ref . second -> print_HDR( out );
             }
@@ -1262,7 +1100,7 @@ class t_factory {
         bool phase3( void ) {
             // set flags / next_ref / next_pos
             for( auto ag : alignment_groups ) { ag . second -> finish_alignments(); }
-            
+
             // finally produce SAM-output
             if ( errors.empty() ) {
                 // if sam-out-filename is given, create that file and write SAM into it,
@@ -1296,14 +1134,18 @@ class t_factory {
 
 int main( int argc, char *argv[] ) {
     int res = 3;
+    try {
     t_proglines proglines;
-
-    t_progline::consume_lines( argc, argv, proglines );
-    if ( !proglines.empty() ) {
-        t_errors errors;
-        t_factory factory( proglines, errors );
-        res = factory . produce();
-        errors . print();
+        t_progline::consume_lines( argc, argv, proglines );
+        if ( !proglines.empty() ) {
+            t_errors errors;
+            t_factory factory( proglines, errors );
+            res = factory . produce();
+            errors . print();
+        }
+    } catch ( std::bad_alloc &e ) {
+        std::cerr << "error: " << e.what() << std::endl;
     }
     return res;
 }
+

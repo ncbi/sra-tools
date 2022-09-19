@@ -1,10 +1,9 @@
 #pragma once
 
-#include "../cuda_flow.hpp"
-#include "../cuda_capturer.hpp"
+#include "../cudaflow.hpp"
 
-/** 
-@file cuda_transform.hpp
+/**
+@file taskflow/cuda/algorithm/transform.hpp
 @brief cuda parallel-transform algorithms include file
 */
 
@@ -19,7 +18,7 @@ namespace detail {
 /** @private */
 template <typename P, typename I, typename O, typename C>
 void cuda_transform_loop(P&& p, I first, unsigned count, O output, C op) {
-  
+
   using E = std::decay_t<P>;
 
   unsigned B = (count + E::nv - 1) / E::nv;
@@ -38,7 +37,7 @@ template <typename P, typename I1, typename I2, typename O, typename C>
 void cuda_transform_loop(
   P&& p, I1 first1, I2 first2, unsigned count, O output, C op
 ) {
-  
+
   using E = std::decay_t<P>;
 
   unsigned B = (count + E::nv - 1) / E::nv;
@@ -71,7 +70,7 @@ void cuda_transform_loop(
 @param last iterator to the end of the range
 @param output iterator to the beginning of the output range
 @param op unary operator to apply to transform each item
-    
+
 This method is equivalent to the parallel execution of the following loop on a GPU:
 
 @code{.cpp}
@@ -83,9 +82,9 @@ while (first != last) {
 */
 template <typename P, typename I, typename O, typename C>
 void cuda_transform(P&& p, I first, I last, O output, C op) {
-  
+
   unsigned count = std::distance(first, last);
-  
+
   if(count == 0) {
     return;
   }
@@ -121,9 +120,9 @@ template <typename P, typename I1, typename I2, typename O, typename C>
 void cuda_transform(
   P&& p, I1 first1, I1 last1, I2 first2, O output, C op
 ) {
-  
+
   unsigned count = std::distance(first1, last1);
-  
+
   if(count == 0) {
     return;
   }

@@ -22,16 +22,9 @@
 #
 # ===========================================================================
 
-add_subdirectory( align-info )
-add_subdirectory( driver-tool )
-add_subdirectory( fasterq-dump )
-add_subdirectory( kdbmeta )
-add_subdirectory( ngs-pileup )
-add_subdirectory( prefetch )
-add_subdirectory( sam-dump )
-add_subdirectory( srapath )
-add_subdirectory( sra-pileup )
-add_subdirectory( sra-stat )
-add_subdirectory( vdb-config )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
+default: runtests
+
+TOP ?= $(abspath ../../..)
+MODULE = test/external/sam-dump
+
+include $(TOP)/build/Makefile.env

@@ -4,22 +4,22 @@
 #include "algorithm/critical.hpp"
 #include "algorithm/for_each.hpp"
 
-/** 
+/**
 @dir taskflow
 @brief root taskflow include dir
 */
 
-/** 
+/**
 @dir taskflow/core
 @brief taskflow core include dir
 */
 
-/** 
+/**
 @dir taskflow/algorithm
 @brief taskflow algorithms include dir
 */
 
-/** 
+/**
 @dir taskflow/cuda
 @brief taskflow CUDA include dir
 */
@@ -33,8 +33,8 @@
 // TF_VERSION / 100 % 1000 is the minor version
 // TF_VERSION / 100000 is the major version
 
-// current version: 3.3.0
-#define TF_VERSION 300300
+// current version: 3.4.0
+#define TF_VERSION 300400
 
 #define TF_MAJOR_VERSION TF_VERSION/100000
 #define TF_MINOR_VERSION TF_VERSION/100%1000
@@ -55,7 +55,7 @@ namespace detail { }
 @brief queries the version information in a string format @c major.minor.patch
 */
 constexpr const char* version() {
-  return "3.3.0";
+  return "3.4.0";
 }
 
 

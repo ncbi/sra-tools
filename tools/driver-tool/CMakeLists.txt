@@ -78,12 +78,10 @@ else()
         util.posix.hpp
 	)
 endif()
-target_link_libraries( sratools
-    ncbi-vdb
-)
 if(WIN32)
     target_compile_definitions(sratools PRIVATE USE_WIDE_API=1)
     target_link_libraries(sratools PRIVATE
+        ncbi-vdb
         libcmt$<$<CONFIG:Debug>:d>
         libcpmt$<$<CONFIG:Debug>:d>
         libucrt$<$<CONFIG:Debug>:d>
@@ -91,7 +89,9 @@ if(WIN32)
 		Ws2_32 Crypt32 ShLwApi Pathcch
     )
 elseif(LINUX)
-    target_link_libraries(sratools PRIVATE m)
+    target_link_libraries(sratools PRIVATE ncbi-vdb m)
+elseif()
+    target_link_libraries(sratools PRIVATE ncbi-vdb)
 endif()
 MakeLinksExe( sratools false )
 GenerateSanitizerTests( sratools )

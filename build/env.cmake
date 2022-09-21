@@ -706,10 +706,8 @@ function( GenerateSanitizerTest test from_target to_target )
 endfunction()
 
 function( GenerateSanitizerTests for_target )
-    if( RUN_SANITIZER_TESTS )
-        GenerateSanitizerTest( address for_target "${for_target}-asan" )
-        GenerateSanitizerTest( thread for_target "${for_target}-tsan" )
-    endif()
+    GenerateSanitizerTest( address for_target "${for_target}-asan" )
+    GenerateSanitizerTest( thread for_target "${for_target}-tsan" )
 endfunction()
 
 function( GenerateExecutableWithDefs target_name sources compile_defs include_dirs link_libs )

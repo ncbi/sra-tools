@@ -40,6 +40,7 @@
 #include <map>
 
 #include "util.win32.hpp"
+#include "file-path.hpp"
 #include "proc.hpp"
 #include "proc.win32.hpp"
 #include "wide-char.hpp"
@@ -48,7 +49,7 @@
 #if USE_WIDE_API
 
 static
-DWORD runAndWait(::FilePath const &toolpath, std::string const &toolname, wchar_t const *const *const argv, Dictionary const &env)
+DWORD runAndWait(FilePath const &toolpath, std::string const &toolname, wchar_t const *const *const argv, Dictionary const &env)
 {
     auto const wcmdline = Win32Support::CmdLineString<wchar_t>(argv);
     auto const cmdline = Win32Support::makeUnwide(wcmdline.get());
@@ -66,7 +67,7 @@ DWORD runAndWait(::FilePath const &toolpath, std::string const &toolname, wchar_
         si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
         si.dwFlags |= STARTF_USESTDHANDLES;
 
-        if (!CreateProcessW(toolpath.implementation().wget(), (LPWSTR)wcmdline.get(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
+        if (!CreateProcessW(std::wstring(toolpath).c_str(), (LPWSTR)wcmdline.get(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
         {
             throw_system_error("CreateProcess");
         }
@@ -86,7 +87,7 @@ DWORD runAndWait(::FilePath const &toolpath, std::string const &toolname, wchar_
 #endif
 
 static
-DWORD runAndWait(::FilePath const &toolpath, std::string const &toolname, char const *const *const argv, Dictionary const &env)
+DWORD runAndWait(FilePath const &toolpath, std::string const &toolname, char const *const *const argv, Dictionary const &env)
 {
     auto const cmdline = Win32Support::CmdLineString<char>(argv);
     auto const dpr = debugPrintDryRun(toolpath, toolname, cmdline.get());
@@ -103,7 +104,7 @@ DWORD runAndWait(::FilePath const &toolpath, std::string const &toolname, char c
         si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
         si.dwFlags |= STARTF_USESTDHANDLES;
 
-        if (!CreateProcessA(toolpath.implementation().get(), (LPSTR)cmdline.get(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
+        if (!CreateProcessA(std::string(toolpath).c_str(), (LPSTR)cmdline.get(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL, &si, &pi))
         {
             throw_system_error("CreateProcess");
         }

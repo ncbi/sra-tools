@@ -41,10 +41,6 @@ if( NOT WIN32)
 	endif()
 	find_package(OpenSSL REQUIRED)
 
-	# Internal
-	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
-	MakeLinksExe( samview false )
-
 	set( SRC
 		bam-loader
 		bam
@@ -60,10 +56,17 @@ if( NOT WIN32)
     set_source_files_properties(loader-imp.c PROPERTIES LANGUAGE CXX )
 
 	GenerateExecutableWithDefs( bam-load "${SRC}" "" "${CMAKE_SOURCE_DIR}/libs/inc" "loader;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_WRITE}" )
-    set_property(TARGET bam-load PROPERTY CXX_STANDARD 17)
-    target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
+	target_compile_features(bam-load PUBLIC cxx_std_17)
+	if (COMPILER_OPTION_SSE42_SUPPORTED)
+        target_compile_options( bam-load PUBLIC -msse4.2 -DBMSSE42OPT)
+    endif()
     target_include_directories( bam-load PRIVATE ${CMAKE_SOURCE_DIR}/libs/inc)
     target_link_libraries( bam-load  loader OpenSSL::SSL ${COMMON_LINK_LIBRARIES}  ${COMMON_LIBS_WRITE})
 
 	MakeLinksExe( bam-load false )
+
+	# Internal
+	GenerateExecutableWithDefs( samview "bam;sam;samview" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
+	MakeLinksExe( samview false )
+
 endif()

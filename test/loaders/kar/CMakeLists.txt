@@ -23,6 +23,7 @@
 # ===========================================================================
 
 if ( NOT WIN32 )
+if ( EXISTS "${DIRTOTEST}/kar${EXE}" )
 
     add_test( NAME Test_Kar
         COMMAND
@@ -43,6 +44,10 @@ if ( NOT WIN32 )
                 bash -c "./kar-ntest.sh ${DIRTOTEST}/kar-tsan ${DIRTOTEST}/prefetch"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
+
+else()
+    message(WARNING "${DIRTOTEST}/kar${EXE} is not found. The corresponding tests are skipped." )
+endif()
 
 else()
 #TODO: make run on Windows

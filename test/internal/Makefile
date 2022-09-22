@@ -22,7 +22,10 @@
 #
 # ===========================================================================
 
+default: runtests
+
 TOP ?= $(abspath ../..)
 MODULE = test/internal
 
+BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

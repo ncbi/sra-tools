@@ -25,4 +25,5 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/test-tools/md5cp
 
+BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

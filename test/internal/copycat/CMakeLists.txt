@@ -24,7 +24,8 @@
 
 add_compile_definitions( __mod__="test/internal/copycat" )
 
-if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/copycat )
+if ( ${OS} STREQUAL "linux"  )
+if(EXISTS "${DIRTOTEST}/copycat${EXE}")
 
     if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
 
@@ -65,6 +66,9 @@ if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/copycat )
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
     endif()
+else()
+    message(WARNING "${DIRTOTEST}/copycat${EXE} is not found. The corresponding tests are skipped." )
+endif()
 else()
 #TODO: make run on Windows
 endif()

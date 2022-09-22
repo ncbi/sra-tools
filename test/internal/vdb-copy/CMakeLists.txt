@@ -25,6 +25,8 @@
 add_compile_definitions( __mod__="test/internal/vdb-copy" )
 
 if( Python3_EXECUTABLE )
+if ( EXISTS "${DIRTOTEST}/vdb-copy${EXE}" )
+
 	add_test( NAME Test_VDB_Copy_Check_exit_code
 		COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy${EXE}
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -36,4 +38,8 @@ if( Python3_EXECUTABLE )
 			COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build/check-exit-code.py ${DIRTOTEST}/vdb-copy-tsan${EXE}
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
+
+else()
+    message(WARNING "${DIRTOTEST}/vdb-copy${EXE} is not found. The corresponding tests are skipped." )
+endif()
 endif()

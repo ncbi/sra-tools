@@ -25,4 +25,5 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/loaders/sra-load
 
+BUILD_TOOLS_LOADERS = ON
 include $(TOP)/build/Makefile.env

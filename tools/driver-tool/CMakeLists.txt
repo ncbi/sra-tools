@@ -88,9 +88,7 @@ if(WIN32)
         libvcruntime$<$<CONFIG:Debug>:d>
 		Ws2_32 Crypt32 ShLwApi Pathcch
     )
-elseif(LINUX)
-    target_link_libraries(sratools PRIVATE ncbi-vdb m)
-elseif()
+else()
     target_link_libraries(sratools PRIVATE ncbi-vdb)
 endif()
 MakeLinksExe( sratools false )

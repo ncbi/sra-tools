@@ -603,23 +603,43 @@ function(MakeLinksExe target install_via_driver)
     endif()
 endfunction()
 
+include(CheckIncludeFileCXX)
+unset(HAVE_MBEDTLS_H CACHE) # TODO: remove
+unset(HAVE_MBEDTLS_F CACHE) # TODO: remove
+check_include_file_cxx(mbedtls/md.h HAVE_MBEDTLS_H)
+if ( HAVE_MBEDTLS_H )
+	set( MBEDTLS_LIBS mbedx509 mbedtls mbedcrypto )
+	set(CMAKE_REQUIRED_LIBRARIES ${MBEDTLS_LIBS})
+	include(CheckCXXSourceRuns)
+	check_cxx_source_runs("
+#include <stdio.h>
+#include \"mbedtls/md.h\"
+#include \"mbedtls/sha256.h\"
+int main(int argc, char *argv[]) {
+	mbedtls_md_context_t ctx;
+	mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+	mbedtls_md_init(&ctx);
+	printf(\"test p: %p\", ctx.md_ctx);
+}
+" HAVE_MBEDTLS_F)
+endif()
 
 if( NOT SINGLE_CONFIG )
     set( COMMON_LINK_LIBRARIES kapp tk-version )
-    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} )
-    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} )
+    set( COMMON_LIBS_READ  $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-vdb.${STLX} ${MBEDTLS_LIBS} )
+    set( COMMON_LIBS_WRITE $<$<CONFIG:Debug>:${NCBI_VDB_LIBDIR_DEBUG}>$<$<CONFIG:Release>:${NCBI_VDB_LIBDIR_RELEASE}>/${LIBPFX}ncbi-wvdb.${STLX} ${MBEDTLS_LIBS} )
 else()
     # single-config generators need full path to ncbi-vdb libraries in order to handle the dependency correctly
     set( COMMON_LINK_LIBRARIES ${NCBI_VDB_LIBDIR}/libkapp.${STLX} tk-version )
-    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m )
-    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m )
+    set( COMMON_LIBS_READ   ${NCBI_VDB_LIBDIR}/libncbi-vdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
+    set( COMMON_LIBS_WRITE  ${NCBI_VDB_LIBDIR}/libncbi-wvdb.${STLX} pthread dl m ${MBEDTLS_LIBS} )
 endif()
 
 if( WIN32 )
     add_compile_definitions( UNICODE _UNICODE )
     set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup" )
     set( CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
-    set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 )
+    set( COMMON_LINK_LIBRARIES  ${COMMON_LINK_LIBRARIES} Ws2_32 Crypt32 ${MBEDTLS_LIBS} )
 endif()
 
 if ( SINGLE_CONFIG )

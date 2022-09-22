@@ -27,15 +27,19 @@
 #ifndef _h_ref_walker_
 #define _h_ref_walker_
 
-#include <klib/container.h>
-#include <insdc/sra.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct ref_walker;
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
 
+#ifndef _h_insdc_insdc_
+#include <insdc/insdc.h>
+#endif
+
+struct ref_walker;
 
 /* create the ref-walker ( not ref-counted ) */
 rc_t ref_walker_create( struct ref_walker ** self );

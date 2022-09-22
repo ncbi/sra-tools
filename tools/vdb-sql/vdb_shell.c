@@ -12,6 +12,9 @@
 ** This file contains code to implement the "sqlite" command line
 ** utility for accessing SQLite databases.
 */
+
+#include <kapp/main.h> /* KAppVersion */
+
 #if (defined(_WIN32) || defined(WIN32)) && !defined(_CRT_SECURE_NO_WARNINGS)
 /* This needs to come before any includes for MSVC compiler */
 #define _CRT_SECURE_NO_WARNINGS
@@ -5827,7 +5830,7 @@ static void usage(int showDetail){
   }else{
     raw_printf(stderr, "Use the -help option for additional information\n");
   }
-  exit(1);
+  exit(0);
 }
 
 /*
@@ -5892,12 +5895,17 @@ static char *cmdline_option_value( int argc, char **argv, int i )
 #endif
 
 #if SQLITE_SHELL_IS_UTF8
-int SQLITE_CDECL main( int argc, char **argv )
+int SQLITE_CDECL smain( int argc, char **argv )
 {
 #else
+int SQLITE_CDECL smain( int argc, char **argv )
+/*
 int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
+*/
 {
+/*
   char **argv;
+*/
 #endif
   char *zErrMsg = NULL;
   ShellState data;
@@ -5930,6 +5938,7 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   }
 #endif
   main_init( &data );
+/*
 #if !SQLITE_SHELL_IS_UTF8
   sqlite3_initialize();
   argv = sqlite3_malloc64( sizeof( argv[0] ) * argc );
@@ -5948,6 +5957,7 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
     }
   }
 #endif
+*/
   assert( argc >= 1 && argv && argv[ 0 ] );
   Argv0 = argv[ 0 ];
 
@@ -6256,6 +6266,10 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
       printf( "%s %s\n", sqlite3_libversion(), sqlite3_sourceid() );
       return 0;
     }
+    else if ( strcmp( z, "-V" ) == 0 ) {
+      HelpVersion ( UsageDefaultName, KAppVersion () );
+      return 0;
+    }
     else if ( strcmp( z, "-interactive" ) == 0 )
     {
       stdin_is_interactive = 1;
@@ -6320,7 +6334,8 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
     {
       i+=2;
     }
-    else if ( strcmp( z, "-help" ) == 0 )
+    else if ( strcmp( z, "-help" ) == 0
+           || strcmp( z, "-h"    ) == 0 )
     {
       usage( 1 );
     }
@@ -6500,4 +6515,12 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   sqlite3_free( argv );
 #endif
   return rc;
+}
+
+const char UsageDefaultName[] = "vdb-sql";
+rc_t CC UsageSummary (const char * progname) { return 0; }
+rc_t CC Usage(const Args* args) { return 0; }
+rc_t CC KMain ( int argc, char *argv [] ) {
+ int i = smain( argc, argv );
+ return i;
 }

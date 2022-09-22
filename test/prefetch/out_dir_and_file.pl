@@ -24,7 +24,7 @@
 
 use Cwd qw(abs_path);
 
-($DIRTOTEST, $BINDIR) = @ARGV;
+($DIRTOTEST, $BINDIR, $PREFETCH) = @ARGV;
 $DIRTOTEST = abs_path($DIRTOTEST);
 $BINDIR    = abs_path($BINDIR   );
 
@@ -53,7 +53,7 @@ $SRAC = 'SRR053325';
 print "PREFETCH ACCESSION TO SINGLE OUT-FILE\n";
 `rm -f tmp-file`; die if $?;
 $CMD = "NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch $SRAC -o tmp-file";
+       "$DIRTOTEST/$PREFETCH $SRAC -o tmp-file";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die 'Is there DIRTOTEST?' if $?;
 `rm tmp-file`; die if $?;
@@ -61,19 +61,22 @@ print "$CMD\n" if $VERBOSE;
 print "PREFETCH ACCESSION TO OUT-FILE INSIDE OF DIR\n";
 `rm -f tmp3/dir/file`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch $SRAC -O / -o tmp3/dir/file";
+       "$DIRTOTEST/$PREFETCH $SRAC -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
 
-$SRR = `NCBI_SETTINGS=/ $BINDIR/srapath $SRAC`;
+`echo '/libs/cloud/report_instance_identity = "false"' > tmp.mkfg`;
+die if $?;
+
+$SRR = `NCBI_SETTINGS=tmp.mkfg $BINDIR/srapath $SRAC`;
 die 'Is there BINDIR?' if $?;
 chomp $SRR;
 
 print "PREFETCH SRR HTTP URL TO OUT-FILE\n";
 `rm -f tmp3/dir/file`; die if $?;
 $CMD = "NCBI_SETTINGS=/ NCBI_VDB_RELIABLE=y VDB_CONFIG=$CWD/tmp " .
-	   "$DIRTOTEST/prefetch $SRR -O / -o tmp3/dir/file";
+	   "$DIRTOTEST/$PREFETCH $SRR -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
@@ -81,7 +84,7 @@ print "$CMD\n" if $VERBOSE;
 print "PREFETCH HTTP DIRECTORY URL TO OUT-FILE\n";
 `rm -f tmp3/dir/file`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch https://github.com/ncbi/ -O / -o tmp3/dir/file";
+       "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
@@ -89,7 +92,7 @@ print "$CMD\n" if $VERBOSE;
 print "PREFETCH HTTP FILE URL TO OUT-FILE\n";
 `rm -f tmp3/dir/file`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-   "$DIRTOTEST/prefetch https://github.com/ncbi/ngs/wiki -O / -o tmp3/dir/file";
+   "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ngs/wiki -O / -o tmp3/dir/file";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/file` ; die if $?;
@@ -106,7 +109,7 @@ if ($HAVE_NCBI_ASCP) {
     print "PREFETCH FASP URL TO OUT-FILE\n";
     `rm -f tmp3/dir/file`; die if $?;
     $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-           "$DIRTOTEST/prefetch $REFSEQF -O / -o tmp3/dir/file";
+           "$DIRTOTEST/$PREFETCH $REFSEQF -O / -o tmp3/dir/file";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`     ; die if $?;
     `rm tmp3/dir/file`; die if $?;
@@ -114,21 +117,21 @@ if ($HAVE_NCBI_ASCP) {
 
 print "downloading multiple items to file\n";
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch SRR045450 $SRAC -o tmp/o";
+       "$DIRTOTEST/$PREFETCH SRR045450 $SRAC -o tmp/o";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die unless $?;
 
 print "PREFETCH MULTIPLE ITEMS\n";
 `rm -fr SRR0* tmp/sra`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch SRR045450 $SRAC";
+       "$DIRTOTEST/$PREFETCH SRR045450 $SRAC";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`                         ; die if $?;
 `rm tmp/sra/SRR045450.sra tmp/sra/$SRAC.sra`; die if $?;
 
 print "PREFETCH SRR HTTP URL\n";
 `rm -fr tmp/sra/$SRAC.sra`; die if $?;
-$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $SRR";
+$CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $SRR";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`   ; die if $?;
 `rm tmp/sra/$SRAC.sra`; die if $?;
@@ -137,7 +140,7 @@ print "PREFETCH HTTP DIRECTORY URL\n";
 chdir 'tmp2'     or die;
 `rm -f index.html`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch https://github.com/ncbi/";
+       "$DIRTOTEST/$PREFETCH https://github.com/ncbi/";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm index.html`    ; die if $?;
@@ -147,7 +150,7 @@ print "PREFETCH HTTP FILE URL\n";
 chdir 'tmp2'     or die;
 `rm -f wiki`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch https://github.com/ncbi/ngs/wiki";
+       "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ngs/wiki";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm wiki`          ; die if $?;
@@ -157,7 +160,7 @@ if ($HAVE_NCBI_ASCP) {
     print "PREFETCH FASP URL / DEFAULT\n";
     chdir 'tmp2'   or die;
     `rm -f $REFSEQC`; die if $?;
-    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/prefetch $REFSEQF";
+    $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp $DIRTOTEST/$PREFETCH $REFSEQF";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`; die if $?;
     `rm $REFSEQC`      ; die if $?;
@@ -167,7 +170,7 @@ if ($HAVE_NCBI_ASCP) {
 print "PREFETCH ACCESSION TO OUT-DIR\n";
 `rm -f tmp3/dir/$SRAC/$SRAC.sra`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch $SRAC -O tmp3/dir";
+       "$DIRTOTEST/$PREFETCH $SRAC -O tmp3/dir";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`          ; die if $?;
 `rm tmp3/dir/$SRAC/$SRAC.sra`; die if $?;
@@ -175,7 +178,7 @@ print "$CMD\n" if $VERBOSE;
 print "PREFETCH SRR HTTP URL TO OUT-DIR\n";
 `rm -f tmp3/dir/$SRAC/$SRAC.sra`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch $SRR -O tmp3/dir";
+       "$DIRTOTEST/$PREFETCH $SRR -O tmp3/dir";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`          ; die if $?;
 `rm tmp3/dir/$SRAC/$SRAC.sra`; die if $?;
@@ -183,7 +186,7 @@ print "$CMD\n" if $VERBOSE;
 print "PREFETCH HTTP DIRECTORY URL TO OUT-DIR\n";
 `rm -f index.html tmp3/dir/index.html`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch https://github.com/ncbi/ -O tmp3/dir";
+       "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ -O tmp3/dir";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`     ; die if $?;
 `rm tmp3/dir/index.html`; die if $?;
@@ -191,7 +194,7 @@ print "$CMD\n" if $VERBOSE;
 print "PREFETCH HTTP FILE URL TO OUT-DIR\n";
 `rm -f wiki tmp3/dir/wiki`; die if $?;
 $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch https://github.com/ncbi/ngs/wiki -O tmp3/dir";
+       "$DIRTOTEST/$PREFETCH https://github.com/ncbi/ngs/wiki -O tmp3/dir";
 print "$CMD\n" if $VERBOSE;
 `$CMD 2> /dev/null`; die if $?;
 `rm tmp3/dir/wiki` ; die if $?;
@@ -200,7 +203,7 @@ if ($HAVE_NCBI_ASCP) {
     print "PREFETCH FASP URL TO OUT-DIR\n";
     `rm -f tmp3/dir/$REFSEQC`; die if $?;
     $CMD = "NCBI_SETTINGS=/ VDB_CONFIG=$CWD/tmp " .
-       "$DIRTOTEST/prefetch $REFSEQF -O tmp3/dir";
+       "$DIRTOTEST/$PREFETCH $REFSEQF -O tmp3/dir";
     print "$CMD\n" if $VERBOSE;
     `$CMD 2> /dev/null`; die if $?;
     `rm tmp3/dir/$REFSEQC` ; die if $?;

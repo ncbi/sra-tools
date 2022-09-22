@@ -35,11 +35,12 @@
 #include <kfs/file.h>
 
 #include <kapp/main.h>
-#include <kapp/progressbar.h>
 
 #include <kproc/queue.h>
 #include <kproc/thread.h>
 #include <kproc/timeout.h>
+
+#include <loader/progressbar.h>
 
 #include "common-reader-priv.h"
 #include "spot-assembler.h"
@@ -626,7 +627,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
                 &self->reccount
             );
 
-        while ( Quitting() == 0 )
+        while ( Quitting() == 0  && rr->type != rr_fileDone )
         {
             timeout_t tm;
             TimeoutInit(&tm, 10000);

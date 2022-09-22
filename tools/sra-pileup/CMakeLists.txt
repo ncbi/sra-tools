@@ -25,7 +25,7 @@
 add_compile_definitions( __mod__="tools/sra-pileup" )
 
 # External
-add_executable( sra-pileup
+set( SRA_PILEUP_SRC
 	dyn_string
 	cmdline_cmn
 	out_redir
@@ -46,10 +46,10 @@ add_executable( sra-pileup
 	pileup_v2
 	sra-pileup
 )
-target_link_libraries( sra-pileup ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( sra-pileup "${SRA_PILEUP_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( sra-pileup true )
 
-add_executable( sam-dump
+set( SAM_DUMP_SRC
 	inputfiles
 	perf_log
 	rna_splice_log
@@ -65,6 +65,7 @@ add_executable( sam-dump
 	cg_tools
 	sam-dump
 	sam-dump3
+	dyn_string
 )
-target_link_libraries( sam-dump ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} )
+GenerateExecutableWithDefs( sam-dump "${SAM_DUMP_SRC}" "" "" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" )
 MakeLinksExe( sam-dump true )

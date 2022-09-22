@@ -175,6 +175,8 @@ struct ParamDefinitions_Common {
     Container container;
     ShortIndex shortIndex;
 
+    virtual ~ParamDefinitions_Common() {}
+    
     ParamDefinitions_Common(size_t count, ParameterDefinition const *defs)
     : container(count)
     {
@@ -423,7 +425,7 @@ struct ParamDefinitions_FQD final : public ParamDefinitions_Common
                                 result->emplace_back(Argument({&ParameterDefinition::unknownParameter(), arg, iter.index()}));
                                 return true;
                             }
-                            index = iterDistance(container.begin(), f.first);
+                            index = (int)iterDistance(container.begin(), f.first);
                         }
                         else {
                             auto const f = shortIndex.find(arg[1]);

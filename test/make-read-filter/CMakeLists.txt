@@ -46,9 +46,27 @@ if( SINGLE_CONFIG )
         ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
         ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
         ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
-        ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR}
+        ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR} ""
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_MakeReadFilter-asan
+            COMMAND
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
+            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
+            ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
+            ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR} "-asan"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        add_test( NAME Test_MakeReadFilter-tsan
+            COMMAND
+            ${CMAKE_COMMAND} -E env VDB_CONFIG=${TEMPDIR}
+            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=${TEMPDIR}/tmp.mkfg
+            ${CMAKE_COMMAND} -E env VDB_LIBRARY_PATH=${NCBI_VDB_LIBDIR}
+            ./runtest.sh ${BINDIR} ${NCBI_VDB_LIBDIR} ${TEMPDIR} "-tsan"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+    endif()
 else()
 #TODO: make work on Windows/XCode
 endif()

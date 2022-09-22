@@ -32,26 +32,40 @@
 
 static const char * DSD_FASTQ_USE_NAME_RDID = "@$ac.$si/$ri $sn length=$rl";
 static const char * DSD_FASTQ_SYN_NAME_RDID = "@$ac.$si/$ri $si length=$rl";
+static const char * DSD_FASTQ_NO_NAME_RDID  = "@$ac.$si/$ri length=$rl";
+
 static const char * DSD_FASTA_USE_NAME_RDID = ">$ac.$si/$ri $sn length=$rl";
 static const char * DSD_FASTA_SYN_NAME_RDID = ">$ac.$si/$ri $si length=$rl";
+static const char * DSD_FASTA_NO_NAME_RDID  = ">$ac.$si/$ri length=$rl";
 
 static const char * DSD_FASTQ_USE_NAME = "@$ac.$si $sn length=$rl";
 static const char * DSD_FASTQ_SYN_NAME = "@$ac.$si $si length=$rl";
+static const char * DSD_FASTQ_NO_NAME  = "@$ac.$si length=$rl";
+
 static const char * DSD_FASTA_USE_NAME = ">$ac.$si $sn length=$rl";
 static const char * DSD_FASTA_SYN_NAME = ">$ac.$si $si length=$rl";
+static const char * DSD_FASTA_NO_NAME  = ">$ac.$si length=$rl";
 
-const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta ) {
-    if ( use_read_id ) {
-        if ( fasta ) {
-            return use_name ? DSD_FASTA_USE_NAME_RDID : DSD_FASTA_SYN_NAME_RDID;
+const char * dflt_seq_defline( bool has_name, bool use_name, bool use_read_id, bool fasta ) {
+    if ( has_name ) {
+        if ( use_read_id ) {
+            if ( fasta ) {
+                return use_name ? DSD_FASTA_USE_NAME_RDID : DSD_FASTA_SYN_NAME_RDID;
+            } else {
+                return use_name ? DSD_FASTQ_USE_NAME_RDID : DSD_FASTQ_SYN_NAME_RDID;
+            }
         } else {
-            return use_name ? DSD_FASTQ_USE_NAME_RDID : DSD_FASTQ_SYN_NAME_RDID;
+            if ( fasta ) {
+                return use_name ? DSD_FASTA_USE_NAME : DSD_FASTA_SYN_NAME;
+            } else {
+                return use_name ? DSD_FASTQ_USE_NAME : DSD_FASTQ_SYN_NAME;
+            }
         }
     } else {
         if ( fasta ) {
-            return use_name ? DSD_FASTA_USE_NAME : DSD_FASTA_SYN_NAME;
+            return use_read_id ? DSD_FASTA_NO_NAME_RDID : DSD_FASTA_NO_NAME;
         } else {
-            return use_name ? DSD_FASTQ_USE_NAME : DSD_FASTQ_SYN_NAME;
+            return use_read_id ? DSD_FASTQ_NO_NAME_RDID : DSD_FASTQ_NO_NAME;            
         }
     }
     return NULL;
@@ -59,15 +73,21 @@ const char * dflt_seq_defline( bool use_name, bool use_read_id, bool fasta ) {
 
 static const char * DQD_USE_NAME_RDID = "+$ac.$si/$ri $sn length=$rl";
 static const char * DQD_SYN_NAME_RDID = "+$ac.$si/$ri $si length=$rl";
+static const char * DQD_NO_NAME_RDID  = "+$ac.$si/$ri length=$rl";
 
 static const char * DQD_USE_NAME = "+$ac.$si $sn length=$rl";
 static const char * DQD_SYN_NAME = "+$ac.$si $si length=$rl";
+static const char * DQD_NO_NAME  = "+$ac.$si length=$rl";
 
-const char * dflt_qual_defline( bool use_name, bool use_read_id ) {
-    if ( use_read_id ) {
-        return use_name ? DQD_USE_NAME_RDID : DQD_SYN_NAME_RDID;
+const char * dflt_qual_defline( bool has_name, bool use_name, bool use_read_id ) {
+    if ( has_name ) {
+        if ( use_read_id ) {
+            return use_name ? DQD_USE_NAME_RDID : DQD_SYN_NAME_RDID;
+        } else {
+            return use_name ? DQD_USE_NAME : DQD_SYN_NAME;
+        }
     } else {
-        return use_name ? DQD_USE_NAME : DQD_SYN_NAME;
+        return use_read_id ? DQD_NO_NAME_RDID : DQD_NO_NAME;
     }
     return NULL;
 }

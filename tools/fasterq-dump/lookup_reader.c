@@ -339,7 +339,7 @@ static rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool revers
     }
     if ( 0 == rc ) {
         uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
-        uint32_t dst_idx;
+        int32_t dst_idx;
         uint32_t i;
 
         /* use the complement-lookup-table in case of reverse */
@@ -347,7 +347,7 @@ static rc_t unpack_4na( const String * packed, SBuffer_t * unpacked, bool revers
 
         dst_idx = reverse ? dna_len - 1 : 0;
 
-        for ( i = 2; i < packed -> len; ++i ) {
+        for ( i = 2; dst_idx >= 0 && i < packed -> len; ++i ) {
             /* get the packed byte out of the packed input */
             uint8_t packed_byte = src[ i ];
 
@@ -378,46 +378,56 @@ rc_t lookup_bases( struct lookup_reader_t * self, int64_t row_id, uint32_t read_
     int64_t found_row_id;
     uint32_t found_read_id;
     uint64_t key;
-
-    rc_t rc = lookup_reader_get( self, &key, &self -> buf );
+    rc_t rc = 0;
+    if ( NULL == self || NULL == B ) {
+        rc = RC( rcRuntime, rcData, rcAccessing, rcMemory, rcNull );
+    } else if ( NULL == B -> S . addr ) {
+        rc = RC( rcRuntime, rcData, rcAccessing, rcMemory, rcNull );        
+    }
+    
     if ( 0 == rc ) {
-        found_row_id = key >> 1;
-        found_read_id = key & 1 ? 2 : 1;
+        rc = lookup_reader_get( self, &key, &self -> buf );
+        if ( 0 == rc ) {
+            found_row_id = key >> 1;
+            found_read_id = key & 1 ? 2 : 1;
 
-        if ( found_row_id == row_id && found_read_id == read_id ) {
-            rc = unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
-        } else {
-            /* in case the reader is not pointed to the right position, we try to seek again */
-            rc_t rc1;
-            uint64_t key_found;
-            uint64_t key_to_find = row_id;
-
-            key_to_find <<= 1;
-            if ( 1 == read_id ) {
-                key_to_find &= 0xFFFFFFFFFFFFFFFE;
+            if ( found_row_id == row_id && found_read_id == read_id ) {
+                rc = unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
             } else {
-                key_to_find |= 1;
-            }
+                /* in case the reader is not pointed to the right position, we try to seek again */
+                rc_t rc1;
+                uint64_t key_found;
+                uint64_t key_to_find = row_id;
 
-            rc1 = seek_lookup_reader( self, key_to_find, &key_found, true );
-            if ( 0 == rc1 ) {
-                rc = lookup_reader_get( self, &key, &self -> buf );
-                if ( 0 == rc ) {
-                    found_row_id = key >> 1;
-                    found_read_id = key & 1 ? 2 : 1;
-
-                    if ( found_row_id == row_id && found_read_id == read_id ) {
-                        rc = unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
-                    } else {
-                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
-                        ErrMsg( "lookup_bases #2( %lu.%u ) ---> found %lu.%u (at pos=%lu)",
-                                    row_id, read_id, found_row_id, found_read_id, self -> pos );
-                    }
+                key_to_find <<= 1;
+                if ( 1 == read_id ) {
+                    key_to_find &= 0xFFFFFFFFFFFFFFFE;
+                } else {
+                    key_to_find |= 1;
                 }
-            } else {
-                rc = rc1;
-                ErrMsg( "lookup_bases( %lu.%u ) ---> seek failed ---> %R", row_id, read_id, rc );
+
+                rc1 = seek_lookup_reader( self, key_to_find, &key_found, true );
+                if ( 0 == rc1 ) {
+                    rc = lookup_reader_get( self, &key, &self -> buf );
+                    if ( 0 == rc ) {
+                        found_row_id = key >> 1;
+                        found_read_id = key & 1 ? 2 : 1;
+
+                        if ( found_row_id == row_id && found_read_id == read_id ) {
+                            rc = unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
+                        } else {
+                            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
+                            ErrMsg( "lookup_bases #2( %lu.%u ) ---> found %lu.%u (at pos=%lu)",
+                                        row_id, read_id, found_row_id, found_read_id, self -> pos );
+                        }
+                    }
+                } else {
+                    rc = rc1;
+                    ErrMsg( "lookup_bases( %lu.%u ) ---> seek failed ---> %R", row_id, read_id, rc );
+                }
             }
+        } else {
+            ErrMsg( "lookup_bases( %lu.%u ) failed ---> %R", row_id, read_id, rc );
         }
     } else {
         ErrMsg( "lookup_bases( %lu.%u ) failed ---> %R", row_id, read_id, rc );

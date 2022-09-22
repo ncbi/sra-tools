@@ -1,0 +1,6 @@
+latf-load warn: data inconsistent while reading file within application support module - Spot 'm180206_022314_42208_c101407522550000001823289503161857_s1_p0', which was first seen with mate info, now has no mate info
+latf-load warn: data inconsistent while reading file within application support module - Spot 'm180206_022314_42208_c101407522550000001823289503161857_s1_p0', which was first seen with mate info, now has no mate info
+latf-load warn: data inconsistent while reading file within application support module - Spot 'm180206_022314_42208_c101407522550000001823289503161857_s1_p0', which was first seen with mate info, now has no mate info
+latf-load err: error excessive while reading file within alignment module - Number of errors 3 exceeds limit of 2: Exiting
+latf-load err: error excessive while reading file within alignment module - accession="obj" errors="3" status="failure"
+latf-load err: error excessive while reading file within alignment module - load failed

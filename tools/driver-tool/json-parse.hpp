@@ -533,7 +533,7 @@ private:
     bool haveObject = false;
 
     void collect() {
-        collection.emplace_back(rcvr.get(collection.size() + 1));
+        collection.emplace_back(rcvr.get((int)(collection.size() + 1)));
         rcvr.unset();
     }
 

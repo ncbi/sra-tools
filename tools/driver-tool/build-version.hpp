@@ -81,8 +81,8 @@ struct Version {
     unsigned minor() const noexcept { return (packed >> 16) & 0xFF; }
     unsigned revision() const noexcept { return packed & 0xFFFF; }
 
-    Version nextMinor() const noexcept { return Version(major(), minor() + 1, 0); }
-    Version nextMajor() const noexcept { return Version(major() + 1, 0, 0); }
+    Version nextMinor() const noexcept { return Version(uint8_t(major()), uint8_t(minor() + 1), 0); }
+    Version nextMajor() const noexcept { return Version(uint8_t(major() + 1), 0, 0); }
 
     /// \brief Scan the name for a version string; if found, remove it.
     /// \Returns The found version or `Version()`.

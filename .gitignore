@@ -30,3 +30,5 @@ tmp.kfg
 (null)
 a.out
 a.out.dSYM
+/test/**/actual/
+core

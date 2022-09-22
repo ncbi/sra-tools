@@ -128,12 +128,9 @@ CommandLine::CommandLine(int argc, char **argv, char **envp, char **extra)
     {
         auto const p = fullPathToExe.split();
         fullPath = p.first;
-        realName = p.second;
+        realName.assign(p.second);
     }
-    {
-        auto const p = pathForArgument(0).split();
-        baseName = argv[0] + (p.first.empty() ? 0 : (p.first.size() + 1));
-    }
+    baseName = FilePath::baseName(argv[0]);
 #if WINDOWS
 #else
     versionFromName = Version::fromName(realName);

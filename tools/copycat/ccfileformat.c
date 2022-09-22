@@ -34,9 +34,9 @@
 #include <klib/text.h>
 #include <klib/printf.h>
 #include <kfs/file.h>
-#include <kfs/fileformat.h>
-#include <kfs/ffext.h>
-#include <kfs/ffmagic.h>
+#include <kff/fileformat.h>
+#include <kff/ffext.h>
+#include <kff/ffmagic.h>
 #include <krypto/wgaencrypt.h>
 #include <kfg/config.h>
 #include <atomic32.h>
@@ -78,7 +78,7 @@ struct CCFileFormat
     atomic32_t	  refcount;
 };
 
-static const char magictable [] = 
+static const char magictable [] =
 {
     "Generic Format for Sequence Data (SRF)\tSequenceReadFormat\n"
     "GNU tar archive\tTapeArchive\n"
@@ -87,12 +87,14 @@ static const char magictable [] =
     "Standard Flowgram Format (SFF)\tStandardFlowgramFormat\n"
     "NCBI kar sequence read archive\tSequenceReadArchive\n"
     "tar archive\tTapeArchive\n"
-    "XML document text\tExtensibleMarkupLanguage\n"
+    "XML document\tExtensibleMarkupLanguage\n"
+    "XML 1.0 document\tExtensibleMarkupLanguage\n"
     "bzip2 compressed data\tBzip\n"
     "Zip archive data\tWinZip\n"
     "gzip compressed data\tGnuZip\n"
+    "Hierarchical Data Format (version 5) data\tHD5\n"
 };
-static const char exttable [] = 
+static const char exttable [] =
 {
     "Unknown\tUnknown\n"
     "bam\tBinaryAlignmentMap\n"
@@ -105,17 +107,18 @@ static const char exttable [] =
     "tar\tTapeArchive\n"
     "xml\tExtensibleMarkupLanguage\n"
     "h5\tHD5\n"
+    "pbi\tPacBioBAMIndex\n"
 };
 
-static const char classtable [] = 
+static const char classtable [] =
 {
     "Archive\n"
     "Cached\n"
     "Compressed\n"
     "Read\n"
 };
-    
-static const char formattable [] = 
+
+static const char formattable [] =
 {
     "BinaryAlignmentMap\tRead\n"
     "Bzip\tCompressed\n"
@@ -126,10 +129,9 @@ static const char formattable [] =
     "SequenceReadArchive\tArchive\n"
     "StandardFlowgramFormat\tRead\n"
     "TapeArchive\tArchive\n"
-    "HD5\tArchive\n"
+    "HD5\tRead\n"
+    "PacBioBAMIndex\tRead\n"
 };
-
-static const char magicpath [] = "/usr/share/misc/magic";
 
 rc_t CCFileFormatAddRef (const CCFileFormat * self)
 {
@@ -179,40 +181,20 @@ rc_t CCFileFormatMake (CCFileFormat ** p)
     }
     else
     {
-        /* magic file has to be located next to the executable */
-        KConfig* kfg;
-        rc = KConfigMake ( &kfg, NULL );
-        if ( rc == 0 )
+        rc = KExtFileFormatMake (&self->ext, exttable, sizeof (exttable) - 1,
+                                    formattable, sizeof (formattable) - 1);
+        if (rc == 0)
         {
-            String* bindir;
-            rc = KConfigReadString ( kfg, "vdb/lib/paths/kfg", &bindir );
-            KConfigRelease ( kfg );
-            if ( rc == 0 )
+            rc = KMagicFileFormatMake (&self->magic, magictable,
+                                        sizeof (magictable) - 1,
+                                        formattable, sizeof (formattable) - 1);
+            if (rc == 0)
             {
-                char magicpath[1024];
-                size_t num_writ;
-                rc = string_printf ( magicpath, sizeof ( magicpath ), &num_writ, "%S/magic", bindir );
-                StringWhack ( bindir );
-                if ( rc == 0 )
-                {
-                    rc = KExtFileFormatMake (&self->ext, exttable, sizeof (exttable) - 1,
-                                             formattable, sizeof (formattable) - 1);
-                    if (rc == 0)
-                    {
-                        rc = KMagicFileFormatMake (&self->magic, magicpath, magictable,
-                                                   sizeof (magictable) - 1, 
-                                                   formattable, sizeof (formattable) - 1);
-                        if (rc == 0)
-                        {
-                            atomic32_set (&self->refcount , 1);
-                            *p = self;
-                            return 0;
-                        }
-                    }
-                }
+                atomic32_set (&self->refcount , 1);
+                *p = self;
+                return 0;
             }
         }
-        LOGMSG(klogErr, "magic file has to be located next to the executable");
         free (self);
     }
     *p = NULL;
@@ -267,7 +249,7 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
             strncpy (buffer, "Encoded/NCBI", buffsize);
             return 0;
         }
-        /* Sorta kinda hack to see if the file is WGA encrypted 
+        /* Sorta kinda hack to see if the file is WGA encrypted
          * We short cut the other stuff if it is WGA encoded
          */
         if (KFileIsWGAEnc (preread, num_read) == 0)
@@ -277,14 +259,14 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
             strncpy (buffer, "Encoded/WGA", buffsize);
             return 0;
         }
-        
+
 
         rc = KFileFormatGetTypePath (self->ext, NULL, path, &etype, &eclass,
                                  etypebuf, sizeof (etypebuf), &etz);
         if (rc == 0)
         {
 
-            rc = KFileFormatGetTypeBuff (self->magic, preread, num_read, &mtype, 
+            rc = KFileFormatGetTypeBuff (self->magic, preread, num_read, &mtype,
                                          &mclass, mtypebuf, sizeof (mtypebuf), &mtz);
             if (rc == 0)
             {
@@ -302,13 +284,21 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
                             (strcmp("GnuZip", etypebuf) == 0))
                         {
                             /* we've gotten in too many Zip files with extension gz */
-                            PLOGMSG (klogWarn, 
+                            PLOGMSG (klogWarn,
                                      (klogWarn, "File '$(path)' is in unzupported winzip/pkzip format",
                                       "path=%s", path));
                         }
-                        else if (!strcmp("BinaryAlignmentMap", etypebuf) && !strcmp ("GnuZip", mtypebuf))
+                        else if (strcmp("BinaryAlignmentMap", etypebuf) == 0 && strcmp ("GnuZip", mtypebuf) == 0)
                         {
                             /* bam files have gnuzip magic, we need to treat them as data files ***/
+                            strcpy (mclassbuf, eclassbuf );
+                            strcpy (mtypebuf, etypebuf);
+                            mtype = etype;
+                            mclass = eclass;
+                        }
+                        else if (strcmp("PacBioBAMIndex", etypebuf) == 0 && strcmp("GnuZip", mtypebuf) == 0)
+                        {
+                            /* pbi files have gnuzip magic, we need to treat them as data files ***/
                             strcpy (mclassbuf, eclassbuf );
                             strcpy (mtypebuf, etypebuf);
                             mtype = etype;
@@ -340,7 +330,7 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
                          * class and type as the extensions could be wrong and can
                          * cause failures */
                         if (strcmp ("Archive", mclassbuf) == 0)
-                        {       
+                        {
                             *pclass = ccffcArchive;
                             if (strcmp ("TapeArchive", mtypebuf) == 0)
                                 *ptype = ccfftaTar;
@@ -380,7 +370,7 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
                             ret = buffsize-1;
                             buffer[buffsize-1] = '\0';
                         }
-                        
+
 #else
                         ecz = strlen (eclassbuf);
                         num_read = (ecz < buffsize) ? ecz : buffsize;
@@ -390,7 +380,7 @@ rc_t CCFileFormatGetType (const CCFileFormat * self, const KFile * file,
                         else
                         {
                             buffer [num_read++] = '/';
-                            strncpy (buffer+num_read, etypebuf, 
+                            strncpy (buffer+num_read, etypebuf,
                                      buffsize - num_read);
                         }
                         buffer[buffsize-1] = '\0';

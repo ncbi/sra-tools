@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
 
 struct perf_log;
 

@@ -27,7 +27,7 @@ include_directories( ${SOURCEDIR} )
 
 AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "" )
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "" )
-AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" """ )
+AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "" )
 AddExecutableTest( Test_Drivertool_Sratools "test-sratools.cpp;${SOURCEDIR}/config.cpp;${SOURCEDIR}/tool-args.cpp;${SOURCEDIR}/service.cpp;${SOURCEDIR}/run-source.cpp;${SOURCEDIR}/proc.posix.cpp;${SOURCEDIR}/file-path.posix.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/SDL-response.cpp;${SOURCEDIR}/proc.cpp;${SOURCEDIR}/json-parse.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
@@ -134,12 +134,12 @@ else ()
 	add_test( NAME Test_Drivertool_2_accessions
 		COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# 	if( RUN_SANITIZER_TESTS )
-# 		add_test( NAME Test_Drivertool_2_accessions-asan
-# 			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-asan
-# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# 		add_test( NAME Test_Drivertool_2_accessions-tsan
-# 			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
-# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-# 	endif()
+	if( RUN_SANITIZER_TESTS )
+		add_test( NAME Test_Drivertool_2_accessions-asan
+			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-asan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+		add_test( NAME Test_Drivertool_2_accessions-tsan
+			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
+			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	endif()
 endif()

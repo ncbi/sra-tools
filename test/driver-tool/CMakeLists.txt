@@ -134,12 +134,12 @@ else ()
 	add_test( NAME Test_Drivertool_2_accessions
 		COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	if( RUN_SANITIZER_TESTS )
-		add_test( NAME Test_Drivertool_2_accessions-asan
-			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-asan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-		add_test( NAME Test_Drivertool_2_accessions-tsan
-			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
-			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-	endif()
+# 	if( RUN_SANITIZER_TESTS )
+# 		add_test( NAME Test_Drivertool_2_accessions-asan
+# 			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-asan
+# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# 		add_test( NAME Test_Drivertool_2_accessions-tsan
+# 			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
+# 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+# 	endif()
 endif()

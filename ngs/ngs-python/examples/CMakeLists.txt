@@ -36,7 +36,7 @@ if( Python3_EXECUTABLE )
         macro( RunAndDiff TestName TestParams )
             add_test( NAME Test_NgsPythonExamples_${TestName}
                 COMMAND
-                bash -c "${Python3_EXECUTABLE} ${TestName}.py ${TestParams}  > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
+                bash -c "NCBI_VDB_QUALITY=R ${Python3_EXECUTABLE} ${TestName}.py ${TestParams}  > actual/${TestName} && diff expected/${TestName} actual/${TestName}"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             )
             set_tests_properties( Test_NgsPythonExamples_${TestName}

@@ -142,6 +142,4 @@ else ()
 			COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
-
-endif()
 endif()

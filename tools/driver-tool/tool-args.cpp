@@ -89,7 +89,7 @@ ParameterDefinition const &ParameterDefinition::unknownParameter() {
 }
 
 ParameterDefinition const &ParameterDefinition::argument() {
-    static auto const y = ParameterDefinition(TOOL_ARG("", nullptr, true, {}));
+    static auto const y = ParameterDefinition(TOOL_ARG(nullptr, nullptr, true, {}));
     return y;
 }
 

@@ -349,8 +349,6 @@ static int main(CommandLine const &argv)
     auto const sessionID = uuid();
     EnvironmentVariables::set(ENV_VAR_SESSION_ID, sessionID);
 
-//    test(); ///< needs to be outside of any try/catch; it needs to be able to go BANG!!!
-
 #if DEBUG || _DEBUGGING
     if (argv.toolName == "sratools") {
         if (argv.argc > 1 && std::string(argv.argv[1]) == "help") {
@@ -427,7 +425,7 @@ static int main(CommandLine const &argv)
         }
 
         // MARK: Look for tool arguments in the file system or ask SDL about them.
-        auto const all_sources = data_sources::preload(argv, parsed);
+        auto const &all_sources = data_sources::preload(argv, parsed);
 
         perm = ngc = location = nullptr;
         parsed.each("perm", [](Argument const &arg) { arg.reason = "used"; });
@@ -630,37 +628,41 @@ std::vector<std::pair<unsigned, unsigned>> Accession::allExtensions() const
 
 } // namespace sratools
 
-#if ( ! defined(NOMAIN) )
+#if NOMAIN
+// just testing
+#else
 
-    #if MAC
-    int main(int argc, char *argv[], char *envp[], char *apple[])
-    {
-        auto const invocation = CommandLine(argc, argv, envp, apple);
-        return sratools::main(invocation);
-    }
-    #endif
-    #if LINUX
-    int main(int argc, char *argv[], char *envp[])
-    {
-        auto const invocation = CommandLine(argc, argv, envp, nullptr);
-        return sratools::main(invocation);
-    }
-    #endif
-    #if WINDOWS
-    #if USE_WIDE_API
-    int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
-    {
-        auto const invocation = CommandLine(argc, argv, envp, nullptr);
-        return sratools::main(invocation);
-    }
-    #else
-    int main(int argc, char *argv[], char *envp[])
-    {
-        auto const invocation = CommandLine(argc, argv, envp, nullptr);
-        return sratools::main(invocation);
-    }
-    #endif
-    #endif
+#if MAC
+int main(int argc, char *argv[], char *envp[], char *apple[])
+{
+    auto const invocation = CommandLine(argc, argv, envp, apple);
+    return sratools::main(invocation);
+}
+#endif
+
+#if LINUX
+int main(int argc, char *argv[], char *envp[])
+{
+    auto const invocation = CommandLine(argc, argv, envp, nullptr);
+    return sratools::main(invocation);
+}
+#endif
+
+#if WINDOWS
+#if USE_WIDE_API
+int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
+{
+    auto const invocation = CommandLine(argc, argv, envp, nullptr);
+    return sratools::main(invocation);
+}
+#else
+int main(int argc, char *argv[], char *envp[])
+{
+    auto const invocation = CommandLine(argc, argv, envp, nullptr);
+    return sratools::main(invocation);
+}
+#endif
+#endif
 
 #endif
 

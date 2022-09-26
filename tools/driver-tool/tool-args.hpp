@@ -66,7 +66,7 @@ struct ParameterDefinition {
     }
 
     bool isArgument() const {
-        return name == nullptr && hasArgument;
+        return this == &argument() || (name == nullptr && hasArgument);
     }
 
     bool operator== (ParameterDefinition const &other) const {

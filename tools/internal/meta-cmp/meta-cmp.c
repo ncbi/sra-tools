@@ -199,7 +199,7 @@ static rc_t compare_tbl( const struct cmp_ctx * ctx, const VTable * tbl1, const 
     return rc;
 }
 
-static rc_t compare_tbl_in_db( const struct cmp_ctx * ctx,
+static rc_t compare_one_tbl_in_db( const struct cmp_ctx * ctx,
             const VDatabase * db1, const VDatabase * db2, const char * tbl_name ) {
     const VTable * tbl1;
     rc_t rc = VDatabaseOpenTableRead( db1, &tbl1, tbl_name );
@@ -222,31 +222,42 @@ static rc_t compare_tbl_in_db( const struct cmp_ctx * ctx,
 }
 
 static rc_t compare_all_tables_in_db( const struct cmp_ctx * ctx,
-            const VDatabase * db1, const VDatabase * db2) {
-    KNamelist * tables;
-    rc_t rc = VDatabaseListTbl( db1, &tables );
+            const VDatabase * db1, const VDatabase * db2 ) {
+    KNamelist * tables_1;
+    rc_t rc = VDatabaseListTbl( db1, &tables_1 );
     if ( 0 != rc ) {
         PLOGERR( klogInt, ( klogInt, rc, "cannot enumerate tables for database $(acc)",
-                            "acc=%s", ctx ->src1 ) );
+                            "acc=%s", ctx -> src1 ) );
     } else {
-        uint32_t count;
-        rc = KNamelistCount( tables, &count );
+        KNamelist * tables_2;
+        rc = VDatabaseListTbl( db2, &tables_2 );
         if ( 0 != rc ) {
-            PLOGERR( klogInt, ( klogInt, rc, "cannot get count of tables in database $(acc)",
-                                "acc=%s", ctx ->src1 ) );
+            PLOGERR( klogInt, ( klogInt, rc, "cannot enumerate tables for database $(acc)",
+                                "acc=%s", ctx -> src2 ) );
         } else {
-            uint32_t idx;
-            for ( idx = 0; 0 == rc && idx < count; ++idx ) { 
-                const char * tbl_name;
-                rc = KNamelistGet( tables, idx, &tbl_name );
-                if ( 0 != rc ) {
-                    PLOGERR( klogInt, ( klogInt, rc, "cannot get table-name #$(rn) from database $(acc)",
-                                        "nr=%u,acc=%s", idx, ctx ->src1 ) );
-                } else {
-                    rc = compare_tbl_in_db( ctx, db1, db2, tbl_name );
+            uint32_t count;
+            rc = KNamelistCount( tables_1, &count );
+            if ( 0 != rc ) {
+                PLOGERR( klogInt, ( klogInt, rc, "cannot get count of tables in database $(acc)",
+                                    "acc=%s", ctx -> src1 ) );
+            } else {
+                uint32_t idx;
+                for ( idx = 0; 0 == rc && idx < count; ++idx ) { 
+                    const char * tbl_name;
+                    rc = KNamelistGet( tables_1, idx, &tbl_name );
+                    if ( 0 != rc ) {
+                        PLOGERR( klogInt, ( klogInt, rc, "cannot get table-name #$(rn) from database $(acc)",
+                                            "nr=%u,acc=%s", idx, ctx -> src1 ) );
+                    } else {
+                        if ( KNamelistContains( tables_2, tbl_name ) ) {
+                            rc = compare_one_tbl_in_db( ctx, db1, db2, tbl_name );
+                        }
+                    }
                 }
             }
+            KNamelistRelease( tables_2 );
         }
+        KNamelistRelease( tables_1 );
     }
     return rc;
 }
@@ -262,7 +273,7 @@ static rc_t compare_db( const struct cmp_ctx * ctx, const VDatabase * db1, const
         } else {
             rc = KOutMsg( "for table '%s'\n", ctx -> table );
             if ( 0 == rc ) {
-                rc = compare_tbl_in_db( ctx, db1, db2, ctx -> table );
+                rc = compare_one_tbl_in_db( ctx, db1, db2, ctx -> table );
             }
         }
     }
@@ -278,7 +289,7 @@ static rc_t compare( const struct cmp_ctx * ctx )
         LOGERR ( klogInt, rc, "KDirectoryNativeDir() failed" );
     } else {
         const VDBManager * mgr;
-        rc = VDBManagerMakeRead ( &mgr, dir );
+        rc = VDBManagerMakeRead( &mgr, dir );
         if ( rc != 0 ) {
             LOGERR ( klogInt, rc, "VDBManagerMakeRead() failed" );
         } else {

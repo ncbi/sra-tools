@@ -122,23 +122,3 @@ DebugPrintResult debugPrintDryRun(FilePath const &toolPath, std::string const &t
         return dpr_Continue;
     }
 }
-
-DebugPrintResult debugPrintDryRun(FilePath const &toolPath, std::string const &toolName, char const *const args)
-{
-    switch (logging_state::testing_level()) {
-    case 5:
-        testing_5();
-        return dpr_Exit;
-    case 4:
-        testing_4(toolPath, args);
-        return dpr_ExitIfChild;
-    case 3:
-        testing_3(toolPath, nullptr, args);
-        return dpr_ExitIfChild;
-    case 2:
-        testing_2(toolName, args);
-        return dpr_ExitIfChild;
-    default:
-        return dpr_Continue;
-    }
-}

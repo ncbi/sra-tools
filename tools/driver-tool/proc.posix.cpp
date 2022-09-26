@@ -127,7 +127,7 @@ static void exec_really [[noreturn]] (FilePath const &toolPath, std::string cons
 /// @param argv argv
 ///
 /// @throw system_error if exec fails
-static void exec [[noreturn]] (FilePath const &toolPath, std::string const &toolName, char const *const *argv)
+static void exec [[noreturn]] (FilePath const &toolPath, std::string const &toolName, char const *const *const argv)
 {
 #if USE_DEBUGGER
     auto const envar = getenv("SRATOOLS_DEBUG_CMD");

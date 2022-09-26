@@ -446,7 +446,7 @@ static int main(CommandLine const &argv)
             if (!arg.isArgument()) continue;
 
             auto const &acc = arg.argument;
-            auto const sources = all_sources[acc];
+            auto const &sources = all_sources[acc];
             auto success = false;
 
             for (auto src : sources) {
@@ -456,7 +456,7 @@ static int main(CommandLine const &argv)
                     std::cerr << acc << " is an SRA " << name << " file with " << desc << ".\n";
                 }
                 // MARK: Run the driven tool
-                auto const result = Process::runTool(argv, parsed.keep(acc), src.environment);
+                auto const result = Process::runTool(argv, parsed.keep(arg), src.environment);
                 if (result.didExitNormally()) {
                     success = true;
                     LOG(2) << "Processed " << acc << " with data from " << src.service << std::endl;

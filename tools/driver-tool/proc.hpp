@@ -161,11 +161,10 @@ public:
         args.push_back(cmd.runAs());
         
         for (auto i = 1; i < cmd.argc; ++i) {
-            if (j != skip.end() && i == *j) {
+            if (j == skip.end() || i != *j)
+                args.push_back(srcArgs[i]);
+            else
                 ++j;
-                continue;
-            }
-            args.push_back(srcArgs[i]);
         }
         args.push_back(nullptr);
         

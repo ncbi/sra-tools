@@ -115,9 +115,15 @@ struct Argument {
     int argind;
     mutable Ignore reason;
 
+    bool isArgument() const { return def->isArgument(); }
+    bool ignore() const { return !isArgument() && reason != nullptr; }
     bool operator ==(ParameterDefinition const &other) const { return def->operator==(other); }
     bool operator ==(char const *name) const { return def->operator==(name); }
-    bool isArgument() const { return def->isArgument(); }
+    bool operator ==(Argument const &other) const {
+        return this == &other
+            || (isArgument() && other.isArgument() && strcmp(argument, other.argument) == 0)
+            || (!isArgument() && !other.isArgument() && (def == other.def || def->operator==(*other.def)));
+    }
 
     friend std::ostream &operator <<(std::ostream &out, Argument const &arg);
 };
@@ -211,23 +217,20 @@ public:
         return false;
     }
     /// \returns the indices in argv to skip, excluding the one.
-    UniqueOrderedList<int> keep(char const *keep) const
+    UniqueOrderedList<int> keep(Argument const &keep) const
     {
-        auto result = UniqueOrderedList<int>(arguments - 1);
+        UniqueOrderedList<int> ignored(arguments - 1);
 
         for (auto & arg : container) {
             if (arg.isArgument()) {
-                if (arg.argument == keep || strcmp(arg.argument, keep) == 0)
+                if (arg == keep)
                     continue;
-                result.insert(arg.argind);
+                ignored.insert(arg.argind);
             }
-            else {
-                if (arg.reason == nullptr)
-                    continue;
-                result.insert(arg.argind);
-            }
+            else if (arg.ignore())
+                ignored.insert(arg.argind);
         }
-        return result;
+        return ignored;
     }
 };
 

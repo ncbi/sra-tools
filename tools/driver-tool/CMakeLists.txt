@@ -22,10 +22,9 @@
 #
 # ===========================================================================
 
-add_executable(sratools)
-target_compile_definitions( sratools PRIVATE __mod__="tools/driver-tool" )
+set( compile_defs __mod__="tools/driver-tool" )
 
-target_sources(sratools PRIVATE
+set( sources
     sratools.cpp
     sratools.hpp
     config.cpp
@@ -59,7 +58,7 @@ target_sources(sratools PRIVATE
     fastq-dump-arguments.h
 )
 if(WIN32)
-	target_sources(sratools PRIVATE
+    list(APPEND sources
         file-path.win32.cpp
         file-path.win32.hpp
         proc.win32.cpp
@@ -68,28 +67,29 @@ if(WIN32)
         wide-char.hpp
         win32-cmdline.hpp
         win32-cmdline.cpp
-	)
+    )
 else()
-	target_sources(sratools PRIVATE
+    list(APPEND sources
         file-path.posix.cpp
         file-path.posix.hpp
         proc.posix.cpp
         proc.posix.hpp
         util.posix.hpp
-	)
+    )
 endif()
+
+set(link_libs ncbi-vdb)
 if(WIN32)
-    target_compile_definitions(sratools PRIVATE USE_WIDE_API=1)
-    target_link_libraries(sratools PRIVATE
-        ncbi-vdb
+    list(APPEND compile_defs USE_WIDE_API=1 )
+    list(APPEND link_libs
         libcmt$<$<CONFIG:Debug>:d>
         libcpmt$<$<CONFIG:Debug>:d>
         libucrt$<$<CONFIG:Debug>:d>
         libvcruntime$<$<CONFIG:Debug>:d>
-		Ws2_32 Crypt32 ShLwApi Pathcch
+        Ws2_32 Crypt32 ShLwApi Pathcch
     )
-else()
-    target_link_libraries(sratools PRIVATE ncbi-vdb)
+elseif(LINUX)
+    list(APPEND link_libs m)
 endif()
+GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
 MakeLinksExe( sratools false )
-GenerateSanitizerTests( sratools )

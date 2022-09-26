@@ -32,8 +32,6 @@ if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
     cmake_policy(SET CMP0115 OLD)
 endif()
 
-option( RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF )
-
 set( VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shared/toolkit.vers")
 file( READ ${VERSION_FILE} VERSION )
 string( STRIP ${VERSION} VERSION )
@@ -123,11 +121,32 @@ if ( ${OS}-${CMAKE_CXX_COMPILER_ID} STREQUAL "linux-GNU"  )
 endif()
 
 add_compile_definitions( _ARCH_BITS=${BITS} ${ARCH} ) # TODO ARCH ?
-if ( ${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC" )
-    add_definitions( -W4 )
-else ()
-    add_definitions( -Wall )
-endif ()
+# global compiler warnings settings
+if (MSVC)
+    #
+    # Unhelpful warnings, generated in particular by MSVC and Windows SDK header files
+    #
+    # Warning C4820: 'XXX': 'N' bytes padding added after data member 'YYY'
+    # Warning C5045: Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+    # Warning C4668: 'XXX' is not defined as a preprocessor macro, replacing with '0' for '#if/#elif'
+    # Warning C5105: macro expansion producing 'defined' has undefined behavior
+    # Warning C4514: 'XXX': unreferenced inline function has been removed
+    # warning C4623: 'XXX': default constructor was implicitly defined as deleted
+    # warning C4625: 'XXX': copy constructor was implicitly defined as deleted
+    # warning C4626: 'XXX': assignment operator was implicitly defined as deleted
+    # warning C5026: 'XXX': move constructor was implicitly defined as deleted
+    # warning C5027: 'XXX': move assignment operator was implicitly defined as deleted
+    # warning C4571: Informational: catch(...) semantics changed since Visual C++ 7.1; structured exceptions (SEH) are no longer caught
+    # warning C4774: '_scprintf' : format string expected in argument 1 is not a string literal
+    # warning C4255: 'XXX': no function prototype given: converting '()' to '(void)'
+    # warning C4710: 'XXX': function not inlined
+    # warning C5031: #pragma warning(pop): likely mismatch, popping warning state pushed in different file
+    # warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
+    # add_compile_options(/Wall /wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710 /wd5031 /wd5032 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall)
+endif()
 
 # assume debug build by default
 if ( "${CMAKE_BUILD_TYPE}" STREQUAL "" )
@@ -483,23 +502,18 @@ function(MakeLinksExe target install_via_driver)
 
     if( SINGLE_CONFIG )
 
-        add_custom_command(TARGET ${target}
-            POST_BUILD
-            COMMAND rm -f ${target}.${VERSION}
-            COMMAND mv ${target} ${target}.${VERSION}
-            COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
-            COMMAND ln -f -s ${target}.${MAJVERS} ${target}
-            COMMAND ln -f -s sratools.${VERSION} ${target}-driver
-            WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-        )
-
-        set_property(
-            TARGET    ${target}
-            APPEND
-            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
-        )
-
         if ( install_via_driver )
+
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                COMMAND ln -f -s sratools.${VERSION} ${target}-driver
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
             install(
                 PROGRAMS
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
@@ -518,12 +532,28 @@ function(MakeLinksExe target install_via_driver)
             )
 
         else()
+            add_custom_command(TARGET ${target}
+                POST_BUILD
+                COMMAND rm -f ${target}.${VERSION}
+                COMMAND mv ${target} ${target}.${VERSION}
+                COMMAND ln -f -s ${target}.${VERSION} ${target}.${MAJVERS}
+                COMMAND ln -f -s ${target}.${MAJVERS} ${target}
+                WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            )
+
             install( PROGRAMS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS}
                               ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}
                     DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
             )
         endif()
+
+        set_property(
+            TARGET    ${target}
+            APPEND
+            PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${VERSION};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}.${MAJVERS};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target};${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target}-driver"
+        )
+
     else()
 
         if ( install_via_driver )
@@ -587,11 +617,14 @@ endif()
 
 if ( SINGLE_CONFIG )
     # standard kfg files
+    if ( BUILD_TOOLS_INTERNAL )
+        set( VDB_COPY_DIR ${CMAKE_SOURCE_DIR}/tools/internal/vdb-copy )
+    endif()
     install( SCRIPT CODE
         "execute_process( COMMAND /bin/bash -c \
             \"${CMAKE_SOURCE_DIR}/build/install.sh  \
                 ${VDB_INCDIR}/kfg/ncbi              \
-                ${CMAKE_SOURCE_DIR}/tools/vdb-copy  \
+                '${VDB_COPY_DIR}'                   \
                 ${CMAKE_INSTALL_PREFIX}/bin/ncbi    \
                 /etc/ncbi                           \
                 ${CMAKE_INSTALL_PREFIX}/bin         \
@@ -665,103 +698,38 @@ function( GenerateStaticLibs target_name sources )
     GenerateStaticLibsWithDefs( ${target_name} "${sources}" "" "" )
 endfunction()
 
-function( CopyCompileDefinitions from_target to_target )
-    get_target_property( VALUE from_target COMPILE_DEFINITIONS )
-    if( NOT VALUE STREQUAL "" AND NOT VALUE STREQUAL "VALUE-NOTFOUND" )
-        target_compile_definitions( to_target PRIVATE VALUE )
-    endif()
-endfunction()
-
-function( CopyCompileOptions from_target to_target )
-    get_target_property( VALUE from_target COMPILE_OPTIONS )
-    if( NOT VALUE STREQUAL "" AND NOT VALUE STREQUAL "VALUE-NOTFOUND" )
-        target_compile_options( to_target PRIVATE VALUE )
-    endif()
-endfunction()
-
-function( CopyIncludeDirectories from_target to_target )
-    get_target_property( VALUE from_target INCLUDE_DIRECTORIES )
-    if( NOT VALUE STREQUAL "" AND NOT VALUE STREQUAL "VALUE-NOTFOUND" )
-        target_include_directories( to_target PRIVATE VALUE )
-    endif()
-endfunction()
-
-function( CopyLinkOptions from_target to_target )
-    get_target_property( VALUE from_target LINK_OPTIONS )
-    if( NOT VALUE STREQUAL "" AND NOT VALUE STREQUAL "VALUE-NOTFOUND" )
-        target_link_options( to_target PRIVATE VALUE )
-    endif()
-endfunction()
-
-function( CopyLinkLibraries from_target to_target )
-    get_target_property( VALUE from_target LINK_OPTIONS )
-    if( NOT VALUE STREQUAL "" AND NOT VALUE STREQUAL "VALUE-NOTFOUND" )
-        target_link_libraries( to_target PRIVATE VALUE )
-    endif()
-endfunction()
-
-function( GenerateSanitizerTest test from_target to_target )
-    if( RUN_SANITIZER_TESTS )
-        add_executable( to_target )
-        CopyCompileDefinitions( from_target to_target )
-        CopyIncludeDirectories( from_target to_target )
-        CopyCompileOptions( from_target to_target )
-        CopyLinkOptions( from_target to_target )
-        CopyLinkLibraries( from_target to_target )
-        target_compile_options( to_target PRIVATE "-fsanitize=${test}" )
-        target_link_options( to_target PRIVATE "-fsanitize=${test}" )
-    endif()
-endfunction()
-
-function( GenerateSanitizerTests for_target )
-    GenerateSanitizerTest( address for_target "${for_target}-asan" )
-    GenerateSanitizerTest( thread for_target "${for_target}-tsan" )
-endfunction()
-
 function( GenerateExecutableWithDefs target_name sources compile_defs include_dirs link_libs )
     add_executable( ${target_name} ${sources} )
     if( NOT "" STREQUAL "${compile_defs}" )
-        target_compile_definitions( ${target_name} PRIVATE ${compile_defs} )
+        target_compile_definitions( ${target_name} PRIVATE "${compile_defs}" )
     endif()
     if( NOT "" STREQUAL "${include_dirs}" )
-        target_include_directories( ${target_name} PUBLIC "${include_dirs}" )
+        target_include_directories( ${target_name} PRIVATE "${include_dirs}" )
     endif()
     if( NOT "" STREQUAL "${link_libs}" )
         target_link_libraries( ${target_name} "${link_libs}" )
     endif()
 
-    GenerateSanitizerTests( target_name )
-#     if( RUN_SANITIZER_TESTS )
-#         set( asan_defs "-fsanitize=address" )
-#         add_executable( "${target_name}-asan" ${sources} )
-#         if( NOT "" STREQUAL "${compile_defs}" )
-#             target_compile_definitions( "${target_name}-asan" PRIVATE ${compile_defs} )
-#         endif()
-#         if( NOT "" STREQUAL "${include_dirs}" )
-#             target_include_directories( "${target_name}-asan" PUBLIC "${include_dirs}" )
-#         endif()
-#         target_compile_options( "${target_name}-asan" PRIVATE ${asan_defs} )
-#         target_link_options( "${target_name}-asan" PRIVATE ${asan_defs} )
-#
-#         if( NOT "" STREQUAL "${link_libs}" )
-#             target_link_libraries( "${target_name}-asan" "${link_libs}" )
-#         endif()
-#
-#         set( tsan_defs "-fsanitize=thread" )
-#         add_executable( "${target_name}-tsan" ${sources} )
-#         if( NOT "" STREQUAL "${compile_defs}" )
-#             target_compile_definitions( "${target_name}-tsan" PRIVATE ${compile_defs} )
-#         endif()
-#         if( NOT "" STREQUAL "${include_dirs}" )
-#             target_include_directories( "${target_name}-tsan" PUBLIC "${include_dirs}" )
-#         endif()
-#         target_compile_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
-#         target_link_options( "${target_name}-tsan" PRIVATE ${tsan_defs} )
-#
-#         if( NOT "" STREQUAL "${link_libs}" )
-#             target_link_libraries( "${target_name}-tsan" "${link_libs}" )
-#         endif()
-#     endif()
+    if (RUN_SANITIZER_TESTS)
+        add_executable( "${target_name}-asan" ${sources} )
+        add_executable( "${target_name}-tsan" ${sources} )
+        if( NOT "" STREQUAL "${compile_defs}" )
+            target_compile_definitions( "${target_name}-asan" PRIVATE "${compile_defs}" )
+            target_compile_definitions( "${target_name}-tsan" PRIVATE "${compile_defs}" )
+        endif()
+        if( NOT "" STREQUAL "${include_dirs}" )
+            target_include_directories( "${target_name}-asan" PRIVATE "${include_dirs}" )
+            target_include_directories( "${target_name}-tsan" PRIVATE "${include_dirs}" )
+        endif()
+        if( NOT "" STREQUAL "${link_libs}" )
+            target_link_libraries( "${target_name}-asan" "${link_libs}" )
+            target_link_libraries( "${target_name}-tsan" "${link_libs}" )
+        endif()
+        target_compile_definitions( "${target_name}-asan" PRIVATE "-fsanitize=address")
+        target_compile_definitions( "${target_name}-tsan" PRIVATE "-fsanitize=thread" )
+        target_link_libraries( "${target_name}-asan" "-fsanitize=address" )
+        target_link_libraries( "${target_name}-tsan" "-fsanitize=thread" )
+    endif()
 endfunction()
 
 function( AddExecutableTest test_name sources libraries include_dirs )

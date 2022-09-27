@@ -81,15 +81,22 @@ struct CommandLine {
     uint32_t versionFromName, runAsVersion;
 #endif
 
-    FilePath pathForArgument(int index) const {
+    FilePath pathForArgument(int index, int offset = 0) const {
 #if USE_WIDE_API
-        return FilePath(wargv[index]);
+        return FilePath(wargv[index] + offset);
 #else
-        return FilePath(argv[index]);
+        return FilePath(argv[index] + offset);
 #endif
     }
     FilePath pathForArgument(Argument const &arg) const {
-        return pathForArgument(arg.argind);
+        if (arg.isArgument())
+            return pathForArgument(arg.argind);
+        if (arg.argument == nullptr)
+            return FilePath();
+        if (arg.argument == argv[arg.argind + 1])
+            return pathForArgument(arg.argind + 1);
+        else
+            return pathForArgument(arg.argind, int(arg.argument - argv[arg.argind]));
     }
 
     /// Used by normal main

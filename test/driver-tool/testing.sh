@@ -20,7 +20,7 @@ echo 'Checking that test modes allow bad inputs.'
 
 env NCBI_SETTINGS="${SETTINGS_FILE}" \
     SRATOOLS_TESTING=2 \
-    SRATOOLS_IMPERSONATE=prefetch \
+    SRATOOLS_IMPERSONATE=fastq-dump \
     "${SRATOOLS}" --perm foo.jwt --cart foo.cart --ngc foo.ngc DRX000001 2>actual/testing.stderr
 
 rm -rf "${SETTINGS_FILE}"

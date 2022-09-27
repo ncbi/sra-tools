@@ -484,9 +484,9 @@ static int main(CommandLine const &argv)
 
         perm = ngc = nullptr;
         location = nullptr;
-        parsed.each("perm", [](Argument const &arg) { arg.reason = "used"; });
-        parsed.each("ngc", [](Argument const &arg) { arg.reason = "used"; });
-        parsed.each("cart", [](Argument const &arg) { arg.reason = "used"; });
+//        parsed.each("perm", [](Argument const &arg) { arg.reason = "used"; });
+//        parsed.each("ngc", [](Argument const &arg) { arg.reason = "used"; });
+//        parsed.each("cart", [](Argument const &arg) { arg.reason = "used"; });
         parsed.each("location", [](Argument const &arg) { arg.reason = "used"; });
 
         all_sources.set_ce_token_env_var();

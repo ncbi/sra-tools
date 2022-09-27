@@ -217,21 +217,7 @@ public:
         return false;
     }
     /// \returns the indices in argv to skip, excluding the one.
-    UniqueOrderedList<int> keep(Argument const &keep) const
-    {
-        UniqueOrderedList<int> ignored(arguments - 1);
-
-        for (auto & arg : container) {
-            if (arg.isArgument()) {
-                if (arg == keep)
-                    continue;
-                ignored.insert(arg.argind);
-            }
-            else if (arg.ignore())
-                ignored.insert(arg.argind);
-        }
-        return ignored;
-    }
+    UniqueOrderedList<int> keep(Argument const &keep) const;
 };
 
 struct UnknownToolException {};

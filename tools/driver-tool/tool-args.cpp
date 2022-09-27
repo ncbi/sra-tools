@@ -513,3 +513,33 @@ void printParameterBitmasks(std::ostream &out) {
     SRA_PILEUP::parser.printParameterBitmasks(SRA_PILEUP::toolName, out);
     VDB_DUMP::parser.printParameterBitmasks(VDB_DUMP::toolName, out);
 }
+
+UniqueOrderedList<int> Arguments::keep(Argument const &keep) const {
+    int max_argind = 0;
+    for (auto & arg : container) {
+        if (max_argind < arg.argind)
+            max_argind = arg.argind;
+    }
+
+    std::vector< bool > used(max_argind + 1, false);
+    for (auto & arg : container)
+        used[arg.argind] = true;
+    
+    UniqueOrderedList< int > ignored(container.size());
+
+    for (auto & arg : container) {
+        auto const argind = arg.argind;
+        if (arg.isArgument()) {
+            if (arg == keep)
+                continue;
+            ignored.insert(argind);
+        }
+        else if (arg.ignore()) {
+            bool const next_is_used = used[argind + 1];
+            ignored.insert(argind);
+            if (!next_is_used)
+                ignored.insert(argind + 1);
+        }
+    }
+    return ignored;
+}

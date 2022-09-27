@@ -472,7 +472,7 @@ static int main(CommandLine const &argv)
         for (auto const &arg : parsed) {
             if (!arg.isArgument()) continue;
 
-            auto const &acc = arg.argument;
+            auto const acc = arg.argument;
             auto const &sources = all_sources[acc];
             auto success = false;
 

@@ -628,7 +628,7 @@ std::vector<std::pair<unsigned, unsigned>> Accession::allExtensions() const
 
 } // namespace sratools
 
-#if NOMAIN
+#ifdef NOMAIN
 // just testing
 #else
 

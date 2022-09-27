@@ -91,19 +91,17 @@ static void enableLogging(char const *argv0)
 #endif
 }
 
-static void handleFileArgument(Argument const &arg, int *const count, char const **const value)
+static void handleFileArgument(Argument const &arg, FilePath const &filePath, int *const count, char const **const value)
 {
-    auto const filePath = FilePath(arg.argument);
-
     ++*count;
     if (!filePath.exists()) {
         arg.reason = Argument::notFound;
-        std::cerr << "--" << arg << " not found." << std::endl;
+        std::cerr << "--" << arg << "\nFile not found." << std::endl;
         return;
     }
     if (!filePath.readable()) {
         arg.reason = Argument::unreadable;
-        std::cerr << "--" << arg << " not readable." << std::endl;
+        std::cerr << "--" << arg << "\nFile not readable." << std::endl;
         return;
     }
     if (*value == nullptr)
@@ -120,7 +118,7 @@ static void handleFileArgument(Argument const &arg, int *const count, char const
         *value = arg.argument;
 };
 
-static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::string *gNGC, unsigned const containers)
+static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, std::string *gPerm, std::string *gNGC, unsigned const containers)
 {
     auto problems = 0;
     auto permCount = 0;
@@ -132,15 +130,15 @@ static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::s
 
     args.each([&](Argument const &arg) {
         if (arg == "perm") {
-            handleFileArgument(arg, &permCount, &lperm);
+            handleFileArgument(arg, argv.pathForArgument(arg), &permCount, &lperm);
             return;
         }
         if (arg == "ngc") {
-            handleFileArgument(arg, &ngcCount, &lngc);
+            handleFileArgument(arg, argv.pathForArgument(arg), &ngcCount, &lngc);
             return;
         }
         if (arg == "cart") {
-            handleFileArgument(arg, &cartCount, &lcart);
+            handleFileArgument(arg, argv.pathForArgument(arg), &cartCount, &lcart);
             return;
         }
     });
@@ -427,7 +425,7 @@ static int main(CommandLine const &argv)
             Process::execVersion(argv);
 
         // MARK: Validate parameter arguments that will get passed to SDL.
-        if (!checkCommonOptions(parsed, &auto_perm, &auto_ngc, checkForContainers(argv, parsed)))
+        if (!checkCommonOptions(argv, parsed, &auto_perm, &auto_ngc, checkForContainers(argv, parsed)))
             return EX_USAGE;
 
         if (!auto_perm.empty())

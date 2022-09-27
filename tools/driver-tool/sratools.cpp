@@ -120,7 +120,7 @@ static void handleFileArgument(Argument const &arg, int *const count, char const
         *value = arg.argument;
 };
 
-static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::string *gNGC)
+static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::string *gNGC, unsigned const containers)
 {
     auto problems = 0;
     auto permCount = 0;
@@ -186,22 +186,53 @@ static bool checkCommonOptions(Arguments const &args, std::string *gPerm, std::s
         std::cerr << "--perm requires a cloud instance identity, please run vdb-config and" \
                      " enable the option to report cloud instance identity." << std::endl;
     }
+    
+    if (containers > 0) {
+        std::cerr << "Automatic expansion of container accessions is not currently available. " \
+                     "See the above link(s) for information about the accessions." << std::endl;
+        ++problems;
+    }
+    
+    if (problems == 0) {
+        if (lperm)
+            gPerm->assign(lperm);
 
-    if (lperm)
-        gPerm->assign(lperm);
+        if (lngc)
+            gNGC->assign(lngc);
 
-    if (lngc)
-        gNGC->assign(lngc);
-
-    if (problems == 0)
         return true;
-
+    }
     if (logging_state::is_dry_run()) {
         std::cerr << "Problems allowed for testing purposes!" << std::endl;
         return true;
     }
-
     return false;
+}
+
+static unsigned checkForContainers(CommandLine const &argv, Arguments const &args)
+{
+    unsigned result = 0;
+    
+    args.eachArgument([&](Argument const &arg) {
+        auto const &dir_base = argv.pathForArgument(arg).split();
+        if (dir_base.first) // ignore if it looks like a path
+            return;
+        
+        auto const &accession = Accession(dir_base.second);
+        
+        switch (accession.type()) {
+        case unknown:
+            LOG(3) << arg.argument << " doesn't look like an SRA accession." << std::endl;
+            break;
+        case run:
+            break;
+        default:
+            LOG(2) << arg.argument << " is a container accession." << std::endl;
+            ++result;
+            break;
+        }
+    });
+    return result;
 }
 
 /// \brief Identifiers are ([A-Za-z_][A-Za-z0-9_]*)
@@ -396,7 +427,7 @@ static int main(CommandLine const &argv)
             Process::execVersion(argv);
 
         // MARK: Validate parameter arguments that will get passed to SDL.
-        if (!checkCommonOptions(parsed, &auto_perm, &auto_ngc))
+        if (!checkCommonOptions(parsed, &auto_perm, &auto_ngc, checkForContainers(argv, parsed)))
             return EX_USAGE;
 
         if (!auto_perm.empty())

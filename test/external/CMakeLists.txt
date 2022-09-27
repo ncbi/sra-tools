@@ -22,6 +22,7 @@
 #
 # ===========================================================================
 
+add_subdirectory( ngs )
 add_subdirectory( align-info )
 add_subdirectory( driver-tool )
 add_subdirectory( fasterq-dump )

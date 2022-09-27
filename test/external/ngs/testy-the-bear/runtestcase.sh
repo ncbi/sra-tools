@@ -1,7 +1,8 @@
+#!/bin/bash
 # ===========================================================================
 #
-#							PUBLIC DOMAIN NOTICE
-#			   National Center for Biotechnology Information
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
 #
 #  This software/database is a "United States Government Work" under the
 #  terms of the United States Copyright Act.  It was written as part of
@@ -21,10 +22,33 @@
 #  Please cite the author in any work or product based on this material.
 #
 # ===========================================================================
+#echo "$0 $*"
 
-default: runtests
+TEST_CMD=$1
+CASEID=$2
+RC=$3
 
-TOP ?= $(abspath ../..)
-MODULE = test/align
+mkdir -p actual
 
-include $(TOP)/build/Makefile.env
+CMD="$TEST_CMD > \"actual/$CASEID\" 2>&1"
+echo $CMD
+eval $CMD
+rc="$?"
+
+if [ "$rc" != "$RC" ] ; then
+    echo "command \"$TEST_CMD\" returned $rc, expected $RC"
+    echo "command executed:"
+    echo $CMD
+
+	echo "command output:"
+    cat actual/$CASEID
+    exit 2
+fi
+
+diff expected/$CASEID actual/$CASEID
+rc="$?"
+
+if [ "$rc" != "0" ] ; then
+    exit 3
+fi
+

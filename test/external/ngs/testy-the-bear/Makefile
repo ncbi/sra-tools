@@ -22,8 +22,7 @@
 #
 # ===========================================================================
 
-if( NOT WIN32 )
-	GenerateExecutableWithDefs( testy-the-bear "testy-the-bear" "__mod__=\"test/ngs/testy-the-bear\"" "" "${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" )
-	#add_compile_definitions( __mod__="test/ngs/testy-the-bear" )
-	#AddExecutableTest( testy-the-bear "testy-the-bear" "${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" "" )
-endif()
+TOP ?= $(abspath ../../../..)
+MODULE = test/external/ngs/testy-the-bear
+
+include $(TOP)/build/Makefile.env

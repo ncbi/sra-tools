@@ -32,6 +32,11 @@ endif()
 
 link_libraries( ncbi-ngs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} ${MBEDTLS_LIBS} )
 
+# this is where test executables will be created
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
+
 add_executable( FragTest FragTest.cpp )
 add_executable( AlignTest AlignTest.cpp )
 add_executable( AlignSliceTest AlignSliceTest.cpp )

@@ -24,7 +24,7 @@
 
 default: runtests
 
-TOP ?= $(abspath ../..)
-MODULE = test/test_sanitizers
+TOP ?= $(abspath ../../..)
+MODULE = libs/general-writer/test
 
 include $(TOP)/build/Makefile.env

@@ -178,7 +178,7 @@ public:
     template <typename F>
     void each(char const *matching, F && call) const {
         for (auto & arg : container)
-            if (arg.reason == nullptr && arg == matching)
+            if (arg == matching)
                 call(arg);
     }
     template <typename F>

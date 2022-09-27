@@ -37,23 +37,13 @@
 
 #include "config.hpp"
 
+class FilePath;
+
 namespace sratools {
-#if 0
-
-// MARK: extracted from argv[0] or SRATOOLS_IMPERSONATE
-extern std::string const *argv0; ///< full value from argv[0] or overridden value
-extern std::string const *selfpath; ///< parsed from command line, may be empty
-extern std::string const *basename;
-extern std::string const *version_string; ///< as parsed or same as version of this tool if not parsed
-
-extern std::vector<std::string> const *args; ///< original command line arguments, with argv[0] removed
-extern std::map<std::string, std::string> const *parameters;
-
-#endif
 
 extern std::string const *location; ///< may be null
-extern std::string const *perm; ///< may be null
-extern std::string const *ngc; ///< may be null
+extern FilePath const *perm; ///< may be null
+extern FilePath const *ngc; ///< may be null
 
 extern Config const *config;
 

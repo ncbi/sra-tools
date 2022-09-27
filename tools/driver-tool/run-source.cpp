@@ -67,15 +67,17 @@ static std::string config_or_default(char const *const config_node, char const *
     return from_config ? from_config.value() : default_value;
 }
 
-static Service::Response get_SDL_response(Service const &query, std::vector<std::string> const &runs, bool const haveCE)
+static Service::Response get_SDL_response(std::vector<std::string> const &runs, bool const haveCE)
 {
     if (runs.empty())
         throw std::domain_error("No query");
-    
+ 
     auto const &version_string = config_or_default("/repository/remote/version", resolver::version());
     auto const &url_string = config_or_default("/repository/remote/main/SDL.2/resolver-cgi", resolver::url());
 
     assert(!runs.empty());
+    
+    auto const query = Service::make();
     query.add(runs);
 
     if (location)
@@ -471,7 +473,6 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
     if (have_ce_token) ce_token_ = ceToken;
 
     if (withSDL) {
-        auto const service = Service::make();
         std::vector<std::string> terms;
 
         for (auto const &i : queryInfo) {
@@ -482,7 +483,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
         if (terms.empty())
             return;
         try {
-            auto const response = get_SDL_response(service, terms, have_ce_token);
+            auto const response = get_SDL_response(terms, have_ce_token);
             LOG(8) << "SDL response:\n" << response << std::endl;
             
             auto const parsed = Response2::makeFrom(response.responseText());

@@ -71,8 +71,8 @@
 namespace sratools {
 
 std::string const *location = NULL;
-std::string const *perm = NULL;
-std::string const *ngc = NULL;
+FilePath const *perm = NULL;
+FilePath const *ngc = NULL;
 
 Config const *config = NULL;
 
@@ -91,57 +91,77 @@ static void enableLogging(char const *argv0)
 #endif
 }
 
-static void handleFileArgument(Argument const &arg, FilePath const &filePath, int *const count, char const **const value)
+static void handleFileArgument(Argument const &arg, FilePath const &filePath, std::set< std::string > *param_args, int *count)
 {
-    ++*count;
-    if (!filePath.exists()) {
-        arg.reason = Argument::notFound;
-        std::cerr << "--" << arg << "\nFile not found." << std::endl;
-        return;
-    }
-    if (!filePath.readable()) {
-        arg.reason = Argument::unreadable;
-        std::cerr << "--" << arg << "\nFile not readable." << std::endl;
-        return;
-    }
-    if (*value == nullptr)
-        *count = 0;
-
-    if (++*count > 1) {
-        LOG(1) << "--" << arg.def->name << " given more than once";
-        if (strcmp(*value, arg.argument) == 0) {
-            arg.reason = Argument::duplicate;
-            --*count;
-        }
+    if (param_args->insert(std::string(arg.argument)).second) {
+        if (!filePath.exists())
+            arg.reason = Argument::notFound;
+        else if (!filePath.readable())
+            arg.reason = Argument::unreadable;
+        else
+            ++*count;
     }
     else
-        *value = arg.argument;
+        arg.reason = Argument::duplicate;
 };
 
-static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, std::string *gPerm, std::string *gNGC, unsigned const containers)
+static unsigned handleFileArgumentErrors(char const *const argName, Arguments const &args, int *out)
 {
-    auto problems = 0;
-    auto permCount = 0;
-    auto ngcCount = 0;
-    auto cartCount = 0;
-    char const *lperm = nullptr;
-    char const *lngc = nullptr;
-    char const *lcart = nullptr;
+    unsigned problems = 0;
+    
+    args.each(argName, [&](Argument const &arg) {
+        if (arg.ignore()) {
+            if (arg.reason == Argument::notFound) {
+                ++problems;
+                std::cerr << "--" << argName << " " << arg.argument << "\nFile not found." << std::endl;
+                return;
+            }
+            if (arg.reason == Argument::unreadable) {
+                ++problems;
+                std::cerr << "--" << argName << " " << arg.argument << " permission denied." << std::endl;
+                return;
+            }
+            if (arg.reason == Argument::duplicate) {
+                LOG(1) << "--" << argName << " " << arg.argument << " duplicate parameter." << std::endl;
+                return;
+            }
+        }
+        else
+            *out = arg.argind;
+    });
+    return problems;
+}
+
+static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, FilePath *sPerm, FilePath *sNGC, unsigned const containers)
+{
+    int problems = 0;
+    int permCount = 0;
+    int ngcCount = 0;
+    int cartCount = 0;
+    auto havePerm = false;
+    auto haveNGC = false;
+    auto haveCart = false;
+    std::set<std::string> param_args;
 
     args.each([&](Argument const &arg) {
-        if (arg == "perm") {
-            handleFileArgument(arg, argv.pathForArgument(arg), &permCount, &lperm);
-            return;
-        }
-        if (arg == "ngc") {
-            handleFileArgument(arg, argv.pathForArgument(arg), &ngcCount, &lngc);
-            return;
-        }
-        if (arg == "cart") {
-            handleFileArgument(arg, argv.pathForArgument(arg), &cartCount, &lcart);
-            return;
-        }
+        if (arg == "perm")
+            handleFileArgument(arg, argv.pathForArgument(arg), &param_args, &permCount);
     });
+    havePerm = !param_args.empty();
+    
+    param_args.clear();
+    args.each([&](Argument const &arg) {
+        if (arg == "ngc")
+            handleFileArgument(arg, argv.pathForArgument(arg), &param_args, &ngcCount);
+    });
+    haveNGC = !param_args.empty();
+
+    param_args.clear();
+    args.each([&](Argument const &arg) {
+        if (arg == "cart")
+            handleFileArgument(arg, argv.pathForArgument(arg), &param_args, &cartCount);
+    });
+    haveCart = !param_args.empty();
 
     if (permCount > 1) {
         ++problems;
@@ -155,51 +175,54 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, s
         ++problems;
         std::cerr << "Only one --cart file can be used at a time." << std::endl;
     }
-    if (permCount > 0 && lperm == nullptr) {
-        ++problems;
-        permCount = 0;
+
+    if (havePerm) {
+        int argind = 0;
+        
+        if (ngcCount > 0) {
+            ++problems;
+            std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
+        }
+        problems += handleFileArgumentErrors("perm", args, &argind);
+        if (!vdb::Service::haveCloudProvider()) {
+            ++problems;
+            std::cerr
+                << "Currently, --perm can only be used from inside a cloud computing environment.\n" \
+                   "Please run inside of a supported cloud computing environment, or get an ngc file" \
+                   " from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>."
+                << std::endl;
+        }
+        else if (!config->canSendCEToken()) {
+            ++problems;
+            std::cerr << "--perm requires a cloud instance identity, please run vdb-config and" \
+                         " enable the option to report cloud instance identity." << std::endl;
+        }
+        else if (argind)
+            *sPerm = argv.pathForArgument(argind);
     }
-    if (ngcCount > 0 && lngc == nullptr) {
-        ++problems;
-        ngcCount = 0;
+    if (haveNGC) {
+        int argind = 0;
+        
+        problems += handleFileArgumentErrors("ngc", args, &argind);
+        if (argind)
+            *sNGC = argv.pathForArgument(argind);
     }
-    if (cartCount > 0 && lcart == nullptr) {
-        ++problems;
-        cartCount = 0;
+    if (haveCart) {
+        int argind = 0;
+
+        problems += handleFileArgumentErrors("cart", args, &argind);
+        if (argind)
+            ; // do nothing
     }
-    if (permCount > 0 && ngcCount > 0) {
-        ++problems;
-        std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
-    }
-    if (permCount > 0 && !vdb::Service::haveCloudProvider()) {
-        ++problems;
-        std::cerr
-            << "Currently, --perm can only be used from inside a cloud computing environment.\n" \
-               "Please run inside of a supported cloud computing environment, or get an ngc file" \
-               " from dbGaP and reissue the command with --ngc <ngc file> instead of --perm <perm file>."
-            << std::endl;
-    }
-    else if (permCount > 0 && !config->canSendCEToken()) {
-        ++problems;
-        std::cerr << "--perm requires a cloud instance identity, please run vdb-config and" \
-                     " enable the option to report cloud instance identity." << std::endl;
-    }
-    
     if (containers > 0) {
         std::cerr << "Automatic expansion of container accessions is not currently available. " \
                      "See the above link(s) for information about the accessions." << std::endl;
         ++problems;
     }
     
-    if (problems == 0) {
-        if (lperm)
-            gPerm->assign(lperm);
-
-        if (lngc)
-            gNGC->assign(lngc);
-
+    if (problems == 0)
         return true;
-    }
+    
     if (logging_state::is_dry_run()) {
         std::cerr << "Problems allowed for testing purposes!" << std::endl;
         return true;
@@ -376,7 +399,8 @@ static int main(CommandLine const &argv)
     config = new Config();
     struct Defer { ~Defer() { delete config; config = nullptr; } } freeConfig;
 
-    std::string auto_perm, auto_ngc, auto_location;
+    FilePath auto_perm, auto_ngc;
+    std::string auto_location;
     auto const sessionID = uuid();
     EnvironmentVariables::set(ENV_VAR_SESSION_ID, sessionID);
 
@@ -458,7 +482,8 @@ static int main(CommandLine const &argv)
         // MARK: Look for tool arguments in the file system or ask SDL about them.
         auto const &all_sources = data_sources::preload(argv, parsed);
 
-        perm = ngc = location = nullptr;
+        perm = ngc = nullptr;
+        location = nullptr;
         parsed.each("perm", [](Argument const &arg) { arg.reason = "used"; });
         parsed.each("ngc", [](Argument const &arg) { arg.reason = "used"; });
         parsed.each("cart", [](Argument const &arg) { arg.reason = "used"; });

@@ -309,19 +309,19 @@ std::pair< FilePath, FilePath > FilePath::split() const {
 }
 
 bool FilePath::exists() const {
-    return access(path.c_str(), F_OK);
+    return access(path.c_str(), F_OK) == 0;
 }
 
 bool FilePath::exists(std::string const &path) {
-    return access(path.c_str(), F_OK);
+    return access(path.c_str(), F_OK)== 0;
 }
 
 bool FilePath::executable() const {
-    return access(path.c_str(), X_OK);
+    return access(path.c_str(), X_OK) == 0;
 }
 
 bool FilePath::readable() const {
-    return access(path.c_str(), R_OK);
+    return access(path.c_str(), R_OK) == 0;
 }
 
 FilePath FilePath::append(FilePath const &element) const {

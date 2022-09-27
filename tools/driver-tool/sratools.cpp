@@ -327,6 +327,8 @@ static bool shouldPreferLiteFormat(bool isSet, bool isFull, std::string const &t
     return false;
 }
 
+#ifndef NOMAIN
+
 static auto constexpr error_continues_message = "If this continues to happen, please contact the SRA Toolkit at https://trace.ncbi.nlm.nih.gov/Traces/sra/";
 static auto constexpr fullQualityName = "Normalized Format";
 static auto constexpr zeroQualityName = "Lite";
@@ -492,6 +494,8 @@ static int main(CommandLine const &argv)
 
     exit(EXIT_FAILURE);
 }
+
+#endif // ndef NOMAIN
 
 Accession::Accession(std::string const &value)
 : value(value)

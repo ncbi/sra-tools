@@ -26,6 +26,8 @@ default: runtests
 
 TOP ?= $(abspath ../../../..)
 MODULE = tools/loaders/general-loader/test
+
+BUILD_TOOLS_LOADERS = ON
 include $(TOP)/build/Makefile.env
 
 

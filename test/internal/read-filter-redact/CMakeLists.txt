@@ -25,7 +25,7 @@
 add_compile_definitions( __mod__="test/internal/read-filter-redact" )
 
 if( Python3_EXECUTABLE AND BUILD_TOOLS_LOADERS )
-if ( EXISTS "${DIRTOTEST}/unlock${EXE}" )
+if ( EXISTS "${DIRTOTEST}/vdb-unlock${EXE}" )
 
 	add_test( NAME Test_Read_filter_redact_Check_exit_code
         COMMAND
@@ -37,7 +37,7 @@ if ( EXISTS "${DIRTOTEST}/unlock${EXE}" )
     )
 
 else()
-    message(WARNING "${DIRTOTEST}/unlock${EXE} is not found. The corresponding tests are skipped." )
+    message(WARNING "${DIRTOTEST}/vdb-unlock${EXE} is not found. The corresponding tests are skipped." )
 endif()
 endif()
 

@@ -25,7 +25,9 @@
 add_subdirectory( adapter )
 add_subdirectory( dispatch )
 add_subdirectory( language )
-add_subdirectory( examples )
+if ( NOT TOOLS_ONLY )
+    add_subdirectory( examples )
+endif()
 
 set( NGS_CPP_TARGETS
     ngs-bind-c++
@@ -63,7 +65,3 @@ install( DIRECTORY ngs
          DESTINATION ${CMAKE_INSTALL_PREFIX}/include
 )
 
-#TODO:
-# if ( NOT TOOLS_ONLY )
-#     add_subdirectory( test )
-# endif()

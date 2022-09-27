@@ -22,6 +22,8 @@
 #
 # ===========================================================================
 
+add_subdirectory( test_sanitizers )
+add_subdirectory( align )
 add_subdirectory( align-cache )
 add_subdirectory( copycat )
 add_subdirectory( make-read-filter )

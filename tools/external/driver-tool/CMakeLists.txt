@@ -60,7 +60,7 @@ else()
 	set( ADDITIONAL_LIBS m )
 endif()
 
-set( link_libs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} )
+set( link_libs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} ${MBEDTLS_LIBS} )
 
 GenerateExecutableWithDefs( sratools "${SRATOOLS_SRC}" "__mod__=\"tools/driver-tool\"" "inc" "${link_libs}" )
 MakeLinksExe( sratools false )

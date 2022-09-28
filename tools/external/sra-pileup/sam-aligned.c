@@ -894,15 +894,21 @@ static rc_t cg_cigar_treatments( enum cigar_treatment what_treatment,
     return rc;
 }
 
+static bool invalid_qual_value( const unsigned char c ) {
+    return ( ( c == 255 ) || ( c == 32 ) );
+}
+
 static rc_t print_quality_or_star( const samdump_opts * const opts,
                                    const char * const q,
                                    uint32_t q_len,
                                    uint32_t r_len ) {
     rc_t rc;
+    // this type-cast is now neccessary, because ( q[ 0 ] == 255 ) would always be false
+    const unsigned char * const qu = ( const unsigned char * const ) q;
     bool star_qual = ( q_len == 0 || q_len != r_len );
-    if ( !star_qual && q[ 0 ] == 255 ) {
+    if ( !star_qual && invalid_qual_value( qu[ 0 ] ) ) {
         uint32_t i = 0;
-        while ( i < q_len && q[ i ] == 255 ) { i++; }
+        while ( i < q_len && ( invalid_qual_value( qu[ i ] ) ) ) { i++; }
         star_qual = ( i == q_len );
     }
     if ( star_qual ) {

@@ -22,16 +22,14 @@
 #
 # ===========================================================================
 
-add_subdirectory( align-info )
-add_subdirectory( driver-tool )
-add_subdirectory( fasterq-dump )
-add_subdirectory( kdbmeta )
-add_subdirectory( ngs-pileup )
-add_subdirectory( prefetch )
-add_subdirectory( sam-dump )
-add_subdirectory( srapath )
-add_subdirectory( sra-pileup )
-add_subdirectory( sra-stat )
-add_subdirectory( vdb-config )
-add_subdirectory( vdb-dump )
-add_subdirectory( vdb-validate )
+if ( "linux" STREQUAL ${OS} )
+
+	add_executable( sam-factory sam-factory.cpp )
+	
+    add_test( NAME Test_sam_dump_verify_omit
+        COMMAND ./verify_omit_qual.sh ${BINDIR} ${TESTBINDIR} 
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    add_test( NAME Test_sam_dump_star_quality
+        COMMAND ./print_star_on_missing_qual.sh ${BINDIR} ${TESTBINDIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+endif()

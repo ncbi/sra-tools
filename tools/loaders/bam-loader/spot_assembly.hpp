@@ -393,7 +393,7 @@ void spot_assembly::pack_batch()
         taskflow.sort(sss.begin(), sss.end(), [](const char* s1, const char* s2) {
             return strcmp(s1, s2) < 0;
         });
-        m_executor.run(taskflow).wait();
+        m_executor.run_and_wait(taskflow);
         if (m_stop_packing)
             return;
         spdlog::info("{} Batch sort: {:.3}", batch_idx, sw); 
@@ -444,7 +444,7 @@ void spot_assembly::pack_batch()
         new_batch.m_scanner->bind(*new_batch.m_data, true);
         new_batch.m_data_ready = true;
         spdlog::info("{} Batch done in : {:.3}", batch_idx, sw1); 
-
+        
     });
 } 
 

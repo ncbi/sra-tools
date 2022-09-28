@@ -105,8 +105,8 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
         ### Not needed any longer ###
         # DriverToolTestNoScriptParams( split_3 )
         # DriverToolTestNoScriptParams( split_e )
+        # DriverToolTestNoScriptParams( fasta_missing_param )
 
-        DriverToolTestNoScriptParams( fasta_missing_param )
         DriverToolTestNoScriptParams( fasta_default )
         DriverToolTestNoScriptParams( fasta_0 )
         DriverToolTestNoScriptParams( fasta_number )

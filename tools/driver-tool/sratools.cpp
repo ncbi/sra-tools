@@ -111,17 +111,22 @@ static unsigned handleFileArgumentErrors(char const *const argName, Arguments co
     
     args.each(argName, [&](Argument const &arg) {
         if (arg.ignore()) {
-            if (arg.reason == Argument::notFound) {
+            auto const reason = arg.reason;
+            
+            if (logging_state::is_dry_run()) // allow bad argument for testing
+                arg.reason = nullptr;
+            
+            if (reason == Argument::notFound) {
                 ++problems;
                 std::cerr << "--" << argName << " " << arg.argument << "\nFile not found." << std::endl;
                 return;
             }
-            if (arg.reason == Argument::unreadable) {
+            if (reason == Argument::unreadable) {
                 ++problems;
                 std::cerr << "--" << argName << " " << arg.argument << " permission denied." << std::endl;
                 return;
             }
-            if (arg.reason == Argument::duplicate) {
+            if (reason == Argument::duplicate) {
                 LOG(1) << "--" << argName << " " << arg.argument << " duplicate parameter." << std::endl;
                 return;
             }

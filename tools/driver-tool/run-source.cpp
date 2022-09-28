@@ -137,6 +137,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
 {
     auto const &info = *pinfo;
     auto const &names = env_var::names();
+    auto constexpr useSize = false;
 
     if (index == 0) {
         auto const filePath = info.find(LocalKey::filePath);
@@ -164,12 +165,11 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
         auto const service = info.find(key.service);
         auto const region = info.find(key.region);
         auto const project = info.find(key.project);
-        
         auto const cachePath = info.find(key.cachePath);
 
         if (filePath != info.end())
             environment[names[env_var::REMOTE_URL]] = filePath->second;
-        if (fileSize != info.end())
+        if (useSize && fileSize != info.end())
             environment[names[env_var::SIZE_URL]] = fileSize->second;
         if (CER != info.end())
             environment[names[env_var::REMOTE_NEED_CE]] = "1";
@@ -182,7 +182,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
             auto const cachePayR = info.find(key.cachePayR);
             
             environment[names[env_var::REMOTE_VDBCACHE]] = cachePath->second;
-            if (cacheSize != info.end())
+            if (useSize && cacheSize != info.end())
                 environment[names[env_var::SIZE_VDBCACHE]] = cacheSize->second;
             if (cacheCER != info.end())
                 environment[names[env_var::CACHE_NEED_CE]] = "1";

@@ -39,8 +39,26 @@
 static inline void debugPrintEnvVar(char const *const name, bool const continueline = false)
 {
     auto const value = EnvironmentVariables::get(name);
-    if (value)
-        std::cerr << name << "='" << value << "'" << (continueline ? " \\\n" : "\n");
+    if (value) {
+        std::string const &in = value;
+        std::string str;
+        
+        str.reserve(in.size());
+        for (auto & ch : in) {
+            switch (ch) {
+            case '\'':
+                str.append("\\'");
+                break;
+            case '\\':
+                str.append("\\\\");
+                break;
+            default:
+                str.append(1, ch);
+                break;
+            }
+        }
+        std::cerr << name << "='" << str << "'" << (continueline ? " \\\n" : "\n");
+    }
 }
 
 /// @brief Print names and values of our set environment variables.

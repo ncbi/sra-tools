@@ -542,6 +542,8 @@ static int main(CommandLine const &argv)
         return 0;
     }
     catch (UnknownToolException) {
+        std::cerr << "An error occured: unrecognized tool " << argv.runAs() << std::endl << error_continues_message << std::endl;
+        return EXIT_FAILURE;
     }
     catch (std::exception const &e) {
         std::cerr << "An error occured: " << e.what() << std::endl << error_continues_message << std::endl;
@@ -551,8 +553,6 @@ static int main(CommandLine const &argv)
         std::cerr << "An unexpected error occured." << std::endl << error_continues_message << std::endl;
         return EX_TEMPFAIL;
     }
-
-    exit(EXIT_FAILURE);
 }
 
 #endif // ndef NOMAIN

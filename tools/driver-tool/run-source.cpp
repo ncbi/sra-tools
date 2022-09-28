@@ -137,7 +137,7 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
 {
     auto const &info = *pinfo;
     auto const &names = env_var::names();
-    auto constexpr useSize = false;
+    auto constexpr useSize = false; // old version didn't use this
 
     if (index == 0) {
         auto const filePath = info.find(LocalKey::filePath);

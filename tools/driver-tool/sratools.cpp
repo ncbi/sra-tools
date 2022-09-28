@@ -137,7 +137,33 @@ static unsigned handleFileArgumentErrors(char const *const argName, Arguments co
     return problems;
 }
 
-static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, FilePath *sPerm, FilePath *sNGC, unsigned const containers)
+static unsigned checkForContainers(CommandLine const &argv, Arguments const &args)
+{
+    unsigned result = 0;
+    
+    args.eachArgument([&](Argument const &arg) {
+        auto const &dir_base = argv.pathForArgument(arg).split();
+        if (dir_base.first) // ignore if it looks like a path
+            return;
+        
+        auto const &accession = Accession(dir_base.second);
+        
+        switch (accession.type()) {
+        case unknown:
+            LOG(3) << arg.argument << " doesn't look like an SRA accession." << std::endl;
+            break;
+        case run:
+            break;
+        default:
+            std::cerr << arg.argument << " is not a run accession. For more information, see https://www.ncbi.nlm.nih.gov/sra/?term=" << arg.argument << std::endl;
+            ++result;
+            break;
+        }
+    });
+    return result;
+}
+
+static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, FilePath *sPerm, FilePath *sNGC)
 {
     int problems = 0;
     int permCount = 0;
@@ -219,10 +245,11 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
         if (argind)
             ; // do nothing
     }
+    auto const containers = checkForContainers(argv, args);
     if (containers > 0) {
         std::cerr << "Automatic expansion of container accessions is not currently available. " \
                      "See the above link(s) for information about the accessions." << std::endl;
-        ++problems;
+        problems += containers;
     }
     
     if (problems == 0)
@@ -233,32 +260,6 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
         return true;
     }
     return false;
-}
-
-static unsigned checkForContainers(CommandLine const &argv, Arguments const &args)
-{
-    unsigned result = 0;
-    
-    args.eachArgument([&](Argument const &arg) {
-        auto const &dir_base = argv.pathForArgument(arg).split();
-        if (dir_base.first) // ignore if it looks like a path
-            return;
-        
-        auto const &accession = Accession(dir_base.second);
-        
-        switch (accession.type()) {
-        case unknown:
-            LOG(3) << arg.argument << " doesn't look like an SRA accession." << std::endl;
-            break;
-        case run:
-            break;
-        default:
-            LOG(2) << arg.argument << " is a container accession." << std::endl;
-            ++result;
-            break;
-        }
-    });
-    return result;
 }
 
 /// \brief Identifiers are ([A-Za-z_][A-Za-z0-9_]*)
@@ -454,7 +455,7 @@ static int main(CommandLine const &argv)
             Process::execVersion(argv);
 
         // MARK: Validate parameter arguments that will get passed to SDL.
-        if (!checkCommonOptions(argv, parsed, &auto_perm, &auto_ngc, checkForContainers(argv, parsed)))
+        if (!checkCommonOptions(argv, parsed, &auto_perm, &auto_ngc))
             return EX_USAGE;
 
         if (!auto_perm.empty())

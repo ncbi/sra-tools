@@ -143,13 +143,16 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
         auto const qualityType = info.find(LocalKey::qualityType);
         auto const cachePath = info.find(LocalKey::cachePath);
         
-        assert(filePath != info.end());
-        environment[names[env_var::LOCAL_URL]] = filePath->second;
+        if (filePath != info.end())
+            environment[names[env_var::LOCAL_URL]] = filePath->second;
         if (cachePath != info.end())
             environment[names[env_var::LOCAL_VDBCACHE]] = cachePath->second;
         if (qualityType != info.end())
             this->qualityType = qualityType->second;
-        service = filePath->second;
+        if (filePath != info.end())
+            service = filePath->second;
+        else
+            service = "(none)";
     }
     else {
         auto const key = RemoteKey(index);
@@ -164,10 +167,10 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
         
         auto const cachePath = info.find(key.cachePath);
 
-        assert(filePath != info.end());
-        environment[names[env_var::REMOTE_URL]] = filePath->second;
+        if (filePath != info.end())
+            environment[names[env_var::REMOTE_URL]] = filePath->second;
         if (fileSize != info.end())
-            environment[names[env_var::SIZE_URL]] = filePath->second;
+            environment[names[env_var::SIZE_URL]] = fileSize->second;
         if (CER != info.end())
             environment[names[env_var::REMOTE_NEED_CE]] = "1";
         if (payR != info.end())
@@ -187,9 +190,10 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
                 environment[names[env_var::CACHE_NEED_PMT]] = "1";
         }
         
-        assert(service != info.end());
-        assert(region != info.end());
-        this->service = service->second + "." + region->second;
+        if (service != info.end() && region != info.end())
+            this->service = service->second + "." + region->second;
+        else
+            this->service = "(none)";
 
         if (qualityType != info.end())
             this->qualityType = qualityType->second;

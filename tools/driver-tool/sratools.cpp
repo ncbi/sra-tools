@@ -210,7 +210,7 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
     if (havePerm) {
         int argind = 0;
         
-        if (ngcCount > 0) {
+        if (haveNGC > 0) {
             ++problems;
             std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
         }

@@ -28,14 +28,30 @@ include_directories( ${SOURCEDIR} )
 AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "" )
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "" )
 AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "" )
-AddExecutableTest( Test_Drivertool_Sratools "test-sratools.cpp;${SOURCEDIR}/config.cpp;${SOURCEDIR}/tool-args.cpp;${SOURCEDIR}/service.cpp;${SOURCEDIR}/run-source.cpp;${SOURCEDIR}/proc.posix.cpp;${SOURCEDIR}/file-path.posix.cpp;${SOURCEDIR}/build-version.cpp;${SOURCEDIR}/SDL-response.cpp;${SOURCEDIR}/proc.cpp;${SOURCEDIR}/json-parse.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+
+set(test_sratools_sources
+    test-sratools.cpp
+    ${SOURCEDIR}/config.cpp
+    ${SOURCEDIR}/tool-args.cpp
+    ${SOURCEDIR}/service.cpp
+    ${SOURCEDIR}/run-source.cpp
+    ${SOURCEDIR}/proc.posix.cpp
+    ${SOURCEDIR}/file-path.posix.cpp
+    ${SOURCEDIR}/build-version.cpp
+    ${SOURCEDIR}/SDL-response.cpp
+    ${SOURCEDIR}/proc.cpp
+    ${SOURCEDIR}/json-parse.cpp
+)
+AddExecutableTest( Test_Drivertool_Sratools "${test_sratools_sources}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     if ( WIN32 )
+        AddExecutableTest( Test_Drivertool_FilePath "test-filepath.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};ShLwApi;Pathcch" "")
+        target_compile_definitions(Test_Drivertool_FilePath PRIVATE USE_WIDE_API=1)
+
         add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )
         add_test( NAME Test_Drivertool_Win32_Args_Parsing COMMAND Drivertool_Win32_Args_Parsing_Test )
     else ()
-        # GOOD
         function( DriverToolGoodTest test_name tool_name )
             add_test( NAME ${test_name}
                 COMMAND good_test.sh ${tool_name} "${DIRTOTEST}" sratools

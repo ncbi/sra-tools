@@ -25,4 +25,5 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/internal/vdb-diff
 
+BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

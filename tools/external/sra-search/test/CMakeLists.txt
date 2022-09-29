@@ -1,3 +1,33 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+# this is where test executables will be created
+# to access tools themselves, use ${BINDIR}
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
+
 include_directories ("..")
 
 # test-sra-search
@@ -47,7 +77,8 @@ add_test ( NAME SlowTest_SraSearchWhiteBox COMMAND test-sra-search-slow )
 
 # command line tests
 if ( NOT WIN32)
-	set ( SRA_SEARCH  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sra-search )
+set ( SRA_SEARCH  ${DIRTOTEST}/sra-search${EXE} )
+if ( EXISTS "${SRA_SEARCH}" )
 
     # NB. Slow (run time > 1m) tests should names that start with "SlowTest_"; run without: "ctest -E SlowTest_", run only: "ctest -R SlowTest_"
 
@@ -181,5 +212,9 @@ if ( NOT WIN32)
     # unaligned reads only
 	add_test ( NAME SlowTest_SraSearch-10.0-unaligned WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 10.0-unaligned --args "AGCTAGCTAGCT SRR600099 --unaligned" )
+
+else()
+	message(WARNING "${SRA_SEARCH} is not found. The corresponding tests are skipped." )
+endif()
 
 endif ()

@@ -23,6 +23,7 @@
 # ===========================================================================
 
 if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
+if(EXISTS "${DIRTOTEST}/make-read-filter${EXE}")
 
     if ( ${OS} STREQUAL  "Linux" )
         ADD_CUSTOM_COMMAND(
@@ -67,6 +68,10 @@ if( SINGLE_CONFIG AND BUILD_TOOLS_LOADERS )
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endif()
+else()
+    message(WARNING "${DIRTOTEST}/make-read-filter${EXE} is not found. The corresponding tests are skipped." )
+endif()
+
 else()
 #TODO: make work on Windows/XCode
 endif()

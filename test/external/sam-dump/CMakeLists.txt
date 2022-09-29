@@ -23,13 +23,18 @@
 # ===========================================================================
 
 if ( "linux" STREQUAL ${OS} )
+if ( EXISTS "${DIRTOTEST}/sam-dump${EXE}" )
 
 	add_executable( sam-factory sam-factory.cpp )
-	
+
     add_test( NAME Test_sam_dump_verify_omit
-        COMMAND ./verify_omit_qual.sh ${BINDIR} ${TESTBINDIR} 
+        COMMAND ./verify_omit_qual.sh ${DIRTOTEST} ${TESTBINDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     add_test( NAME Test_sam_dump_star_quality
-        COMMAND ./print_star_on_missing_qual.sh ${BINDIR} ${TESTBINDIR}
+        COMMAND ./print_star_on_missing_qual.sh ${DIRTOTEST} ${TESTBINDIR}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+
+else()
+    message(WARNING "${DIRTOTEST}/sam-dump${EXE} is not found. The corresponding tests are skipped." )
+endif()
 endif()

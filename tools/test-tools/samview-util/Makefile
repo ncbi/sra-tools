@@ -25,4 +25,6 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/test-tools/samview-util
 
+BUILD_TOOLS_TEST_TOOLS = ON
+
 include $(TOP)/build/Makefile.env

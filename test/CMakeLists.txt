@@ -41,18 +41,13 @@ endif()
 if( BUILD_TOOLS_INTERNAL )
 	add_subdirectory( internal )
 endif()
-# if( BUILD_TOOLS_TEST_TOOLS )
-	# add_subdirectory( test-tools )
-# endif()
-add_subdirectory( ngs )
 
-add_subdirectory(test_sanitizers)
+#add_subdirectory( ngs ) # moved to test/external
+#add_subdirectory( align ) # moved to test/internal
+#add_subdirectory( test_sanitizers ) # move to test/internal
 
-add_subdirectory(align)
-# # add_subdirectory(samline) # command line tool; needs arguments to become a test?
-add_subdirectory(scripts)
-# # add_subdirectory(tarballs) # called directly from TeamCity, do not invoke from CMake?
-# # add_subdirectory(tui-example) # command line demos
-# add_subdirectory(network-test) # broken now
-# add_subdirectory(pileup-stats) # moved to ngs-tools, delete
-# add_subdirectory(kget) VDB-4809 moved to ncbi-vdb, then retired (branch VDB-4809-preserving-vdb-get-aka-kget)
+add_subdirectory( scripts ) # mobe to test/internal
+
+# add_subdirectory(samline) # command line tool; move to tools/internal
+
+# add_subdirectory(tarballs) # called directly from TeamCity

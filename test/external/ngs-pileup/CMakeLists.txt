@@ -33,6 +33,7 @@ set( NGS_PILEUP_LIBS
 AddExecutableTest( Test_Ngs_Pileup "test-ngs-pileup.cpp" "${NGS_PILEUP_LIBS}" "" )
 
 if( NOT WIN32 )
+if ( EXISTS "${DIRTOTEST}/ngs-pileup${EXE}" )
 
     #TODO: fix
     # add_test( NAME Test_Ngs_Pileup_1
@@ -132,5 +133,7 @@ if( NOT WIN32 )
                 COMMAND ./runtestcase.sh ${BINDIR} "-tsan" ${CMAKE_CURRENT_SOURCE_DIR} 9.0 SRR341578 -r NC_011752.1
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
-
+else()
+    message(WARNING "${DIRTOTEST}/ngs-pileup${EXE} is not found. The corresponding tests are skipped." )
+endif()
 endif()

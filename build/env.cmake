@@ -32,7 +32,18 @@ if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
     cmake_policy(SET CMP0115 OLD)
 endif()
 
+# ===========================================================================
+# set of build targets
+
+# external tools are always included
+set(BUILD_TOOLS_INTERNAL "OFF" CACHE STRING "If set to ON, build internal tools")
+set(BUILD_TOOLS_LOADERS "OFF" CACHE STRING "If set to ON, build loaders")
+set(BUILD_TOOLS_TEST_TOOLS "OFF" CACHE STRING "If set to ON, build test tools")
+set(TOOLS_ONLY "OFF" CACHE STRING  "If set to ON, generate tools targets only")
+
 option( RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF )
+
+# ===========================================================================
 
 set( VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shared/toolkit.vers")
 file( READ ${VERSION_FILE} VERSION )

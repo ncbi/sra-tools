@@ -23,40 +23,42 @@
 # ===========================================================================
 
 if( NOT WIN32 )
+if ( EXISTS "${DIRTOTEST}/bam-load${EXE}" )
 
-    if (TARGET bam-load)
-        # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
-        add_test(NAME BamTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-        set_tests_properties(BamTestSetup PROPERTIES FIXTURES_SETUP BamTest)
+    # specify the location of schema files in a local .kfg file, to be used by the tests here as needed
+    add_test(NAME BamTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-bamfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+    set_tests_properties(BamTestSetup PROPERTIES FIXTURES_SETUP BamTest)
 
-        add_test( NAME Test_BamLoader_1
+    add_test( NAME Test_BamLoader_1
+            COMMAND
+                ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                bash -c "${BINDIR}/bam-load -o out.sra test.sam"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
+
+    if( RUN_SANITIZER_TESTS )
+        add_test( NAME Test_BamLoader_1_asan
                 COMMAND
                     ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                     ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                    bash -c "${BINDIR}/bam-load -o out.sra test.sam"
+                    bash -c "${BINDIR}/bam-load-asan -o out.sra test.sam"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
-        set_tests_properties( Test_BamLoader_1 PROPERTIES FIXTURES_REQUIRED BamTest )
+        set_tests_properties( Test_BamLoader_1_asan PROPERTIES FIXTURES_REQUIRED BamTest )
 
-        if( RUN_SANITIZER_TESTS )
-            add_test( NAME Test_BamLoader_1_asan
-                    COMMAND
-                        ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
-                        ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                        bash -c "${BINDIR}/bam-load-asan -o out.sra test.sam"
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-            )
-            set_tests_properties( Test_BamLoader_1_asan PROPERTIES FIXTURES_REQUIRED BamTest )
-
-            add_test( NAME Test_BamLoader_1_tsan
-                    COMMAND
-                        ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
-                        ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-                        bash -c "${BINDIR}/bam-load-tsan -o out.sra test.sam"
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-            )
-            set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
-        endif()
+        add_test( NAME Test_BamLoader_1_tsan
+                COMMAND
+                    ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+                    ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+                    bash -c "${BINDIR}/bam-load-tsan -o out.sra test.sam"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+        set_tests_properties( Test_BamLoader_1_tsan PROPERTIES FIXTURES_REQUIRED BamTest )
     endif()
 
+else()
+    message(WARNING "${DIRTOTEST}/bam-load${EXE} is not found. The corresponding tests are skipped." )
+endif()
 endif()

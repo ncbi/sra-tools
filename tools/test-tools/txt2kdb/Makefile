@@ -25,4 +25,6 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/internal/txt2kdb
 
+BUILD_TOOLS_TEST_TOOLS = ON
+
 include $(TOP)/build/Makefile.env

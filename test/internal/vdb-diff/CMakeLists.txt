@@ -25,6 +25,7 @@
 add_compile_definitions( __mod__="test/vdb-diff" )
 
 set( ACCESSION SRR000001 )
+if ( EXISTS "${DIRTOTEST}/vdb-diff${EXE}" )
 
 if( Python3_EXECUTABLE )
 	add_test( NAME Test_VDB_Diff_Check_exit_code
@@ -64,4 +65,8 @@ if( NOT WIN32 )
 			COMMAND test_failure.sh "${DIRTOTEST}" ${ACCESSION} vdb-diff-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
+endif()
+
+else()
+    message(WARNING "${DIRTOTEST}/vdb-diff${EXE} is not found. The corresponding tests are skipped." )
 endif()

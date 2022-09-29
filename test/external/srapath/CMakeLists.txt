@@ -24,6 +24,8 @@
 
 add_compile_definitions( __mod__="test/external/srapath" )
 
+if ( EXISTS "${DIRTOTEST}/srapath${EXE}" )
+
 if( Python3_EXECUTABLE )
     add_test( NAME Test_Srapath_Check_exit_code
         COMMAND
@@ -52,4 +54,8 @@ if ( NOT WIN32 )
                 bash -c "./test-srapath.sh ${DIRTOTEST} srapath-tsan"
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     endif()
+endif()
+
+else()
+	message(WARNING "${DIRTOTEST}/srapath${EXE} is not found. The corresponding tests are skipped." )
 endif()

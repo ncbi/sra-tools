@@ -22,7 +22,21 @@
 #
 # ===========================================================================
 
-TOP ?= $(abspath ../..)
-MODULE = test/ngs
+add_compile_definitions( __mod__="test/internal/test_sanitizers" )
 
-include $(TOP)/build/Makefile.env
+if ( NOT WIN32 )
+	add_executable(asan asan.cpp)
+	set(asan_defs "-fsanitize=address")
+	target_compile_options( asan PRIVATE ${asan_defs} )
+	target_link_options( asan PRIVATE ${asan_defs} )
+
+	add_executable(asan_disabled asan.cpp)
+
+	add_test( NAME Test_Sanitizers
+		COMMAND
+			bash -c "./runtests.sh ${TESTBINDIR}"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	)
+
+endif()
+

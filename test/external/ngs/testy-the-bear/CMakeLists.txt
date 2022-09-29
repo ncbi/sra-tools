@@ -22,12 +22,10 @@
 #
 # ===========================================================================
 
-add_compile_definitions( __mod__="test/align" )
-
 if( NOT WIN32 )
-    AddExecutableTest( Test_Align_samextract "test-samextract" "sam-extract;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+	GenerateExecutableWithDefs( testy-the-bear "testy-the-bear" "__mod__=\"test/ngs/testy-the-bear\"" "" "${COMMON_LINK_LIBRARIES};ncbi-ngs-c++;ncbi-ngs" )
+	add_compile_definitions( __mod__="test/ngs/testy-the-bear" )
+	add_test( NAME SlowTest_testy-the-bear
+		COMMAND runtestcase.sh "${TESTBINDIR}/testy-the-bear" "1" "0"
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()
-
-include_directories( ${VDB_INTERFACES_DIR}/ext/ ) # zlib.h
-include_directories( ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/ext/ )
-AddExecutableTest( SlowTest_Align_estimator "pileup_estimator" "ncbi-ngs-c++;ngs-c++;${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )

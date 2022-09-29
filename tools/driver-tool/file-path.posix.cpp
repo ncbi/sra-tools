@@ -220,7 +220,7 @@ FilePath FilePath::fullPathToExecutable(char const *const *const argv, char cons
         result = FilePath(findThisExecutable(argv[0], extra)).canonical();
     }
     catch (std::system_error const &e) {
-        DT_LOG(2) << "unable to get full path to executable " << argv[0] << std::endl;
+        LOG_OUT(2) << "unable to get full path to executable " << argv[0] << std::endl;
     }
     return result;
 }

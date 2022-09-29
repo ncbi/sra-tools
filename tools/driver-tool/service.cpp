@@ -243,11 +243,11 @@ namespace vdb {
         catch (exception const &e) {
             switch (e.resultCode()) {
             case 3017889624:
-                DT_LOG(2) << "No cloud token, not in a cloud." << std::endl;
+                LOG_OUT(2) << "No cloud token, not in a cloud." << std::endl;
                 break;
             default:
-                DT_LOG(1) << "Failed to get cloud token" << std::endl;
-                DT_LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+                LOG_OUT(1) << "Failed to get cloud token" << std::endl;
+                LOG_OUT(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
                 break;
             }
             return "";

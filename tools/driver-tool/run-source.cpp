@@ -350,14 +350,14 @@ static bool getLocalFilePath(Dictionary &result, FilePath const &cwd, std::strin
     auto const accession = Accession(filename.c_str());
     auto const exts = accession.sraExtensions();
 
-    DT_LOG(9) << name << " is " << filename << " in directory" << (std::string)cwd << "." << std::endl;
+    LOG_OUT(9) << name << " is " << filename << " in directory" << (std::string)cwd << "." << std::endl;
     if (exts.size() == 1) {
         result[LocalKey::filePath] = result["path"] = cwd.append(filename);
         result[LocalKey::qualityType] = exts.front().first > 0 ? Accession::qualityTypeForLite : Accession::qualityTypeForFull;
         lookForCacheFileIn(cwd, result, wantFullQuality, accession);
         return true;
     }
-    DT_LOG(3) << name << " does not look like an SRA file." << std::endl;
+    LOG_OUT(3) << name << " does not look like an SRA file." << std::endl;
     return false;
 }
 
@@ -372,12 +372,12 @@ static void getADInfo(Dictionary &result, FilePath const &cwd, Accession const &
             result[LocalKey::filePath] = cwd.append(withExt);
             result[LocalKey::qualityType] = qualityType;
 
-            DT_LOG(9) << result["name"] << " looks like an SRA Accession Directory, found file " << withExt << " with " << qualityType << " quality scores." << std::endl;
+            LOG_OUT(9) << result["name"] << " looks like an SRA Accession Directory, found file " << withExt << " with " << qualityType << " quality scores." << std::endl;
             lookForCacheFileIn(cwd, result, wantFullQuality, accession);
             return;
         }
     }
-    DT_LOG(2) << result["name"] << " looks like an SRA Accession Directory?" << std::endl;
+    LOG_OUT(2) << result["name"] << " looks like an SRA Accession Directory?" << std::endl;
 }
 
 static
@@ -405,7 +405,7 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
             path.makeCurrentDirectory(cwd);
 
             i.second["local"] = name;
-            DT_LOG(9) << name << " is a directory." << std::endl;
+            LOG_OUT(9) << name << " is a directory." << std::endl;
 
             auto const path = FilePath::cwd(); // canonical path
             i.second["path"] = path;
@@ -413,7 +413,7 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
             if (isaRun && accession.extension().empty()) // accession directories don't have extensions
                 getADInfo(i.second, path, accession, wantFullQuality);
             else
-                DT_LOG(3) << name << " is a directory, but doesn't look like an SRA Accession Directory." << std::endl;
+                LOG_OUT(3) << name << " is a directory, but doesn't look like an SRA Accession Directory." << std::endl;
 
             cwd.makeCurrentDirectory(path);
             return;
@@ -422,15 +422,15 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
             auto const what = std::string(e.what());
             if (what.find("chdir") == std::string::npos || what.find(name) == std::string::npos)
                 throw;
-            DT_LOG(9) << "can't chdir to " << (std::string)path << " but that's okay."<< std::endl;
+            LOG_OUT(9) << "can't chdir to " << (std::string)path << " but that's okay."<< std::endl;
         }
 
         if (!isaRun) {
-            DT_LOG(3) << name << " does not look like an SRA file or directory." << std::endl;
+            LOG_OUT(3) << name << " does not look like an SRA file or directory." << std::endl;
             return;
         }
         if (hasDirName) {
-            DT_LOG(9) << name << " has a directory '" << std::string(dir_base.first) << "'." << std::endl;
+            LOG_OUT(9) << name << " has a directory '" << std::string(dir_base.first) << "'." << std::endl;
             try {
                 auto const dir = dir_base.first.copy();
 
@@ -443,7 +443,7 @@ std::map<std::string, Dictionary> getLocalFileInfo(CommandLine const &cmdline, A
                 cwd.makeCurrentDirectory(dir);
             }
             catch (std::system_error const &e) {
-                DT_LOG(1) << std::string(dir_base.first) << " is a directory, but can't chdir to it: " << e.what() << std::endl;
+                LOG_OUT(1) << std::string(dir_base.first) << " is a directory, but can't chdir to it: " << e.what() << std::endl;
             }
             return;
         }
@@ -483,16 +483,16 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
             return;
         try {
             auto const response = get_SDL_response(service, terms, have_ce_token);
-            DT_LOG(8) << "SDL response:\n" << response << std::endl;
+            LOG_OUT(8) << "SDL response:\n" << response << std::endl;
 
             auto const parsed = Response2::makeFrom(response.responseText());
-            DT_LOG(7) << "Parsed SDL Response" << std::endl;
+            LOG_OUT(7) << "Parsed SDL Response" << std::endl;
 
             for (auto const &sdl_result : parsed.results) {
                 auto const &query = sdl_result.query;
                 auto &info = queryInfo[query];
 
-                DT_LOG(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
+                LOG_OUT(6) << "Query " << query << " " << sdl_result.status << " " << sdl_result.message << std::endl;
                 info["accession"] = query;
                 info["SDL/status"] = sdl_result.status;
                 info["SDL/message"] = sdl_result.message;
@@ -572,7 +572,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
                 }
                 else if (sdl_result.status == "404") {
                     // use the local data (see below)
-                    DT_LOG(5) << "Query '" << query << "' 404 " << sdl_result.message << std::endl;
+                    LOG_OUT(5) << "Query '" << query << "' 404 " << sdl_result.message << std::endl;
                 }
                 else {
                     std::cerr << "Query " << query << ": Error " << sdl_result.status << " " << sdl_result.message << std::endl;
@@ -580,7 +580,7 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
             }
         }
         catch (Response2::DecodingError const &err) {
-            DT_LOG(1) << err << std::endl;
+            LOG_OUT(1) << err << std::endl;
         }
         catch (std::domain_error const &de) {
             if (de.what() && strcmp(de.what(), "No query") == 0)
@@ -589,8 +589,8 @@ data_sources::data_sources(CommandLine const &cmdline, Arguments const &args, bo
                 throw de;
         }
         catch (vdb::exception const &e) {
-            DT_LOG(1) << "Failed to talk to SDL" << std::endl;
-            DT_LOG(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
+            LOG_OUT(1) << "Failed to talk to SDL" << std::endl;
+            LOG_OUT(2) << e.failedCall() << " returned " << e.resultCode() << std::endl;
 
             std::cerr << e.msg << "." << std::endl;
             exit(EX_USAGE);

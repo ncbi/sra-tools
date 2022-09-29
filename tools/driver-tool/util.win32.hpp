@@ -78,25 +78,37 @@ static inline std::error_code error_code_from_errno()
 
 namespace Win32 {
 struct EnvironmentVariables {
-#if USE_WIDE_API
     static opt_string get(char const *name) {
         opt_string result;
+#if USE_WIDE_API
         wchar_t wdummy[4];
         auto const wname = Win32Support::makeWide(name);
         assert(wname);
 
         auto const wvaluelen = GetEnvironmentVariableW(wname.get(), wdummy, 0);
         if (wvaluelen > 0) {
-            auto const wbuffer = Win32Support::auto_free_wide_ptr((wchar_t *)malloc(sizeof(wchar_t) * (wvaluelen + 1)));
+            auto const wbuffer = Win32Support::auto_free_wide_ptr((wchar_t *)malloc(sizeof(wchar_t) * wvaluelen)));
             if (!wbuffer)
                 throw std::bad_alloc();
-            GetEnvironmentVariableW(wname.get(), wbuffer.get(), 0);
+            GetEnvironmentVariableW(wname.get(), wbuffer.get(), wvaluelen);
 
             result = Win32Support::makeUnwideString(wbuffer.get());
         }
+#else
+        char dummy[4];
+        auto const valuelen = GetEnvironmentVariableA(name, dummy, 0);
+        if (valuelen > 0) {
+            auto const buffer = Win32Support::auto_free_char_ptr((char *)malloc(sizeof(char) * valuelen));
+            if (!buffer)
+                throw std::bad_alloc();
+            GetEnvironmentVariableA(name, buffer.get(), valuelen + 1);
+            result = std::string(buffer);
+        }
+#endif
         return result;
     }
     static void set(char const *name, char const *value) {
+#if USE_WIDE_API
         auto const wname = Win32Support::makeWide(name);
         if (value) {
             auto const wvalue = Win32Support::makeWide(value);
@@ -104,24 +116,10 @@ struct EnvironmentVariables {
         }
         else
             SetEnvironmentVariableW(wname.get(), NULL);
-    }
 #else
-    static opt_string get(char const *name) {
-        opt_string result;
-        char dummy[4];
-        auto const valuelen = GetEnvironmentVariableA(name.c_str(), dummy, 0);
-        if (valuelen > 0) {
-            auto value = std::string(valuelen + 1, '\0');
-            GetEnvironmentVariableA(name.c_str(), value.data(), 0);
-            value.resize(valuelen);
-            result = value;
-        }
-        return result;
-    }
-    static void set(char const *name, char const *value) {
         SetEnvironmentVariableA(name, value);
-    }
 #endif
+    }
 };
 }
 

@@ -91,7 +91,6 @@ static void throw_system_error [[noreturn]] (HRESULT hr, char const *function) {
     throw std::system_error(std::error_code(int(hr & 0xFFFF), std::system_category()), function);
 }
 
-
 template < typename T >
 static Win32Support::auto_free_ptr< T > newAutoFree(size_t count)
 {
@@ -311,7 +310,7 @@ static wchar_t *canonicalPathW(NativeString const &path)
     auto const dupp = dup.get();
     pathCleanUpSeperators(dupp);
 #endif
-    
+
     return pathCanonicalize(dupp);
 }
 
@@ -405,7 +404,7 @@ std::pair< FilePath, FilePath > FilePath::split() const
     auto const cpath = canonicalPath(path);
     auto const isRoot = pathIsRoot(cpath.c_str());
     auto const &parts = pathParts(cpath);
-    
+
     switch (parts.size()) {
     case 0:
         return std::make_pair(FilePath(), FilePath());
@@ -420,7 +419,7 @@ std::pair< FilePath, FilePath > FilePath::split() const
     auto const last = parts.front() - parts.back();
     auto const &basename = trimPath(cpath.substr(last));
     auto const &dirname = trimPath(cpath.substr(0, last), !isRoot || parts.size() > 2);
-    
+
     return std::make_pair(FilePath(dirname), FilePath(basename));
 }
 
@@ -447,7 +446,7 @@ bool FilePath::executable() const
 bool FilePath::readable() const
 {
     DWORD flagsAndAttributes = 0;
-    
+
     if (pathFileExists(path.c_str()))
         flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
     else if (pathDirExists(path.c_str()))

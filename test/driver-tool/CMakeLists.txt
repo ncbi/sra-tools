@@ -50,15 +50,6 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             endif()
         endfunction()
 
-        DriverToolGoodTest( Test_Drivertool_Fastq_dump fastq-dump )
-        DriverToolGoodTest( Test_Drivertool_Fasterq_dump fasterq-dump )
-        DriverToolGoodTest( Test_Drivertool_Sam_dump sam-dump )
-        DriverToolGoodTest( Test_Drivertool_Sra_pileup sra-pileup )
-        DriverToolGoodTest( Test_Drivertool_Vdb_dump vdb-dump )
-        DriverToolGoodTest( Test_Drivertool_Prefetch prefetch )
-        DriverToolGoodTest( Test_Drivertool_Srapath srapath )
-
-        # CONTAINER
         function( DriverToolContainerTest acc )
             add_test( NAME Test_Drivertool_Container_${acc}
                 COMMAND container_test.sh ${acc} "${DIRTOTEST}" sratools
@@ -73,14 +64,6 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             endif()
         endfunction()
 
-        DriverToolContainerTest( SRP000001 )
-        DriverToolContainerTest( SRX000001 )
-        DriverToolContainerTest( SRS000001 )
-        DriverToolContainerTest( SRA000001 )
-        DriverToolContainerTest( ERP000001 )
-        DriverToolContainerTest( DRX000001 )
-
-        # NO_SDL
         function( DriverToolTestNoScriptParams script_name )
             add_test( NAME Test_Drivertool_${script_name}
                 COMMAND ${script_name}.sh "${DIRTOTEST}" sratools
@@ -95,43 +78,25 @@ if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
             endif()
         endfunction()
 
-        DriverToolTestNoScriptParams( no_sdl )
+        DriverToolGoodTest( Test_Drivertool_Fastq_dump fastq-dump )
+        DriverToolGoodTest( Test_Drivertool_Fasterq_dump fasterq-dump )
+        DriverToolGoodTest( Test_Drivertool_Sam_dump sam-dump )
+        DriverToolGoodTest( Test_Drivertool_Sra_pileup sra-pileup )
+        DriverToolGoodTest( Test_Drivertool_Vdb_dump vdb-dump )
+        DriverToolGoodTest( Test_Drivertool_Prefetch prefetch )
+        DriverToolGoodTest( Test_Drivertool_Srapath srapath )
 
-        # bogus
+        DriverToolContainerTest( SRP000001 )
+        DriverToolContainerTest( SRX000001 )
+        DriverToolContainerTest( SRS000001 )
+        DriverToolContainerTest( SRA000001 )
+        DriverToolContainerTest( ERP000001 )
+        DriverToolContainerTest( DRX000001 )
+
+        DriverToolTestNoScriptParams( no_sdl )
         DriverToolTestNoScriptParams( bogus )
         DriverToolTestNoScriptParams( testing )
         DriverToolTestNoScriptParams( vdbcache )
-
-        ### Not needed any longer ###
-        # DriverToolTestNoScriptParams( split_3 )
-        # DriverToolTestNoScriptParams( split_e )
-        # DriverToolTestNoScriptParams( fasta_missing_param )
-        # DriverToolTestNoScriptParams( fasta_default )
-        # DriverToolTestNoScriptParams( fasta_0 )
-        # DriverToolTestNoScriptParams( fasta_number )
-        # DriverToolTestNoScriptParams( fasta_neg_number )
-        # DriverToolTestNoScriptParams( help_srapath )
-        # DriverToolTestNoScriptParams( help_prefetch )
-        # DriverToolTestNoScriptParams( help_fasterq-dump )
-        # DriverToolTestNoScriptParams( help_fastq-dump )
-
-        function( DriverToolTestScript2Params script_name p1 p2 )
-            add_test( NAME Test_Drivertool_${script_name}_${p1}
-                COMMAND ${script_name}.sh "${DIRTOTEST}" "${p1}" "${p2}" sratools
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            if( RUN_SANITIZER_TESTS )
-                add_test( NAME Test_Drivertool_${script_name}_${p1}-asan
-                    COMMAND ${script_name}.sh "${DIRTOTEST}" "${p1}" "${p2}" sratools-asan
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-                add_test( NAME Test_Drivertool_${script_name}_${p1}-tsan
-                    COMMAND ${script_name}.sh "${DIRTOTEST}" "${p1}" "${p2}" sratools-tsan
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-            endif()
-        endfunction()
-
-        DriverToolTestScript2Params( fasta_er no_fasta_er "" )
-        DriverToolTestScript2Params( fasta_er "fasta_er" "--fasta" )
-        DriverToolTestScript2Params( fasta_er "fasta_er_unsorted" "--fasta-unsorted" )
 
         add_test( NAME Test_Drivertool_2_accessions
             COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools

@@ -60,18 +60,15 @@ set( sources
 if(WIN32)
     list(APPEND sources
         file-path.win32.cpp
-        file-path.win32.hpp
         proc.win32.cpp
         proc.win32.hpp
         util.win32.hpp
         wide-char.hpp
         win32-cmdline.hpp
-        win32-cmdline.cpp
     )
 else()
     list(APPEND sources
         file-path.posix.cpp
-        file-path.posix.hpp
         proc.posix.cpp
         proc.posix.hpp
         util.posix.hpp

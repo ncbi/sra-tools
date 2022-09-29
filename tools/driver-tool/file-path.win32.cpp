@@ -280,6 +280,17 @@ static void pathCleanUpSeperators(wchar_t *path, wchar_t const *inpath)
     }
 }
 
+static void pathToPOSIX(wchar_t *path)
+{
+    for ( ; ; ++path) {
+        auto const ch = *path;
+        if (ch == L'\0')
+            return;
+        if (ch == SEP_W)
+            *path = SEP_POSIX_W;
+    }
+}
+
 /// Canonicalized a path. There is no narrow version of this call.
 ///
 /// NB. Must canonicalize the path seperators **first**!
@@ -346,7 +357,10 @@ static inline wchar_t *pathCombineW(wchar_t *left, wchar_t *right)
 
 static NativeString pathCombine(NativeString const &left, NativeString const &right)
 {
-    auto const wresult = pathCombineW(canonicalPathW(left), canonicalPathW(right));
+    assert(!(left.empty() && right.empty()));
+    auto const wresult = left.empty() ? canonicalPathW(right)
+                       : right.empty() ? canonicalPathW(left)
+                       : pathCombineW(canonicalPathW(left), canonicalPathW(right));
     auto const &result = NativeString(
 #if USE_WIDE_API
                                       wresult
@@ -361,21 +375,24 @@ static NativeString pathCombine(NativeString const &left, NativeString const &ri
 
 FilePath::operator std::string() const
 {
-#if USE_WIDE_API
-    return std::string(Win32Support::makeUnwide(path.c_str()).get());
-#else
-    return path;
-#endif
+    wchar_t *const wcpath = canonicalPathW(path);
+    pathToPOSIX(wcpath);
+
+    auto const &result = Win32Support::makeUnwide(wcpath);
+    LocalFree(wcpath);
+
+    return std::string(result.get());
 }
 
 #if USE_WIDE_API
 FilePath::operator std::wstring() const
 {
-#if USE_WIDE_API
-    return path;
-#else
-    return std::wstring(Win32Support::makeWide(path.c_str()).get());
-#endif
+    auto const temp = canonicalPath(path);
+    pathToPOSIX(temp);
+
+    auto const &result = std::wstring(temp);
+    LocalFree(temp);
+    return result;
 }
 #endif
 
@@ -467,7 +484,7 @@ bool FilePath::readable() const
 
 FilePath FilePath::append(FilePath const &element) const
 {
-    return FilePath(pathCombine(path, element.path));
+    return (!path.empty() || !element.path.empty()) ? FilePath(pathCombine(path, element.path)) : FilePath();
 }
 
 FilePath::FilePath(NativeString const &in)
@@ -482,7 +499,7 @@ FilePath::FilePath(std::string const &in)
 
 bool FilePath::removeSuffix(size_t const count)
 {
-    if (count > 0 && path.size() >= count) {
+    if (count > 0 && baseName().size() >= count) {
         path.resize(path.size() - count);
         return true;
     }

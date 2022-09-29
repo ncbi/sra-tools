@@ -50,66 +50,53 @@ TEST_SUITE(FilePathSuite);
 
 TEST_CASE( DefaultConstruct )
 {
-    FilePath_<PlatformFilePath> fp;
+    FilePath fp;
     REQUIRE( fp.empty() );
     REQUIRE_EQ( (size_t)0, fp.size() );
     REQUIRE_EQ( string(), (string)fp );
-    REQUIRE( ! fp.implementation().getOwns() );
 }
 
 TEST_CASE( Construct_Cstring )
 {
     const char * path = A_B_C_Filename_Ext;
-    FilePath_<PlatformFilePath> fp( path );
+    FilePath fp( path );
     REQUIRE( ! fp.empty() );
     REQUIRE_EQ( string(Posix_A_B_C_Filename_Ext), (string)fp ); //NB: on Windows, conversion to string also converts separators to Posix
     REQUIRE_EQ( strlen( path ), fp.size() );
-    REQUIRE( ! fp.implementation().getOwns() );
-}
-
-TEST_CASE( Construct_Cstring_Null )
-{
-    FilePath_<PlatformFilePath> fp( (const char*)nullptr );
-    REQUIRE( fp.empty() );
-    REQUIRE_EQ( (size_t)0, fp.size() );
-    REQUIRE_EQ( string(), (string)fp );
-    REQUIRE( ! fp.implementation().getOwns() );
 }
 
 TEST_CASE( Construct_String )
 {
     string path = A_B_C_Filename_Ext;
-    FilePath_<PlatformFilePath> fp( path );
+    FilePath fp( path );
     REQUIRE( ! fp.empty() );
     REQUIRE_EQ(string(Posix_A_B_C_Filename_Ext), (string)fp );
     REQUIRE_EQ( path.size(), fp.size() );
-    REQUIRE( ! fp.implementation().getOwns() );
 }
 
 TEST_CASE( CopyConstruct_Empty )
 {
-    FilePath_<PlatformFilePath> fp0;
-    FilePath_<PlatformFilePath> fp( fp0 );
+    FilePath fp0;
+    FilePath fp( fp0 );
     REQUIRE( fp.empty() );
 }
 
 TEST_CASE( CopyConstruct )
 {
     string path = A_B_C_Filename_Ext;
-    FilePath_<PlatformFilePath> fp0( path );
+    FilePath fp0( path );
 
-    FilePath_<PlatformFilePath> fp( fp0 );
+    FilePath fp( fp0 );
 
     REQUIRE( ! fp.empty() );
     REQUIRE_EQ(string(Posix_A_B_C_Filename_Ext), (string)fp );
     REQUIRE_EQ( path.size(), fp.size() );
-    REQUIRE( ! fp.implementation().getOwns() );
 }
 
 TEST_CASE( Assign_Empty )
 {
-    FilePath_<PlatformFilePath> fp0;
-    FilePath_<PlatformFilePath> fp;
+    FilePath fp0;
+    FilePath fp;
     fp = fp0;
     REQUIRE( fp.empty() );
 }
@@ -117,45 +104,30 @@ TEST_CASE( Assign_Empty )
 TEST_CASE( Assign )
 {
     string path = A_B_C_Filename_Ext;
-    FilePath_<PlatformFilePath> fp0( path );
+    FilePath fp0( path );
 
-    FilePath_<PlatformFilePath> fp( string("qq") );
+    FilePath fp( string("qq") );
     fp = fp0;
 
     REQUIRE( ! fp.empty() );
     REQUIRE_EQ(string(Posix_A_B_C_Filename_Ext), (string)fp );
     REQUIRE_EQ( path.size(), fp.size() );
-    REQUIRE( ! fp.implementation().getOwns() );
 }
 
 TEST_CASE( Copy )
 {
     string path = A_B_C_Filename_Ext;
-    FilePath_<PlatformFilePath> fp0( path );
+    FilePath fp0( path );
 
-    FilePath_<PlatformFilePath> fp = fp0.copy();
+    FilePath fp = fp0.copy();
 
     REQUIRE_EQ(string(Posix_A_B_C_Filename_Ext), (string)fp );
     // copy() creates an owning object
-    REQUIRE( fp.implementation().getOwns() );
-}
-
-TEST_CASE( Canonical_empty )
-{
-    REQUIRE_THROW( FilePath_<PlatformFilePath>().canonical() );
-}
-
-TEST_CASE( Canonical )
-{
-    // canonical() creates an owning object; the ownership should be transferred by the copy constructor
-    FilePath_<PlatformFilePath> fp = FilePath_<PlatformFilePath>(".").canonical();
-    REQUIRE_NE( string("."), (string)fp ); //TODO: what else can we verify?
-    REQUIRE( fp.implementation().getOwns() );
 }
 
 TEST_CASE( Split )
 {
-    FilePath_<PlatformFilePath> fp(A_B_C_Filename_Ext);
+    FilePath fp(A_B_C_Filename_Ext);
     auto p = fp.split();
     REQUIRE_EQ( (string)p.first, string("/a/b/c") );
     REQUIRE_EQ( (string)p.second, string("filename.ext") );
@@ -163,151 +135,109 @@ TEST_CASE( Split )
 
 TEST_CASE( BaseName )
 {
-    FilePath_<PlatformFilePath> fp(A_B_C_Filename_Ext);
+    FilePath fp(A_B_C_Filename_Ext);
     REQUIRE_EQ( string("filename.ext"), (string)fp.baseName() );
 }
 
 TEST_CASE( Append )
 {
-    FilePath_<PlatformFilePath> fp0( "/a/b" );
-    FilePath_<PlatformFilePath> fp1( "c/filename.ext" );
+    FilePath fp0( "/a/b" );
+    FilePath fp1( "c/filename.ext" );
     REQUIRE_EQ( string(Posix_A_B_C_Filename_Ext), (string) ( fp0.append( fp1 ) ) );
-}
-
-TEST_CASE( RemoveSuffix_NotOwned )
-{
-    FilePath_<PlatformFilePath> fp(A_B_C_Filename_Ext);
-    // removeSuffix requires ownership
-    REQUIRE( ! fp.removeSuffix( 3 ) );
 }
 
 TEST_CASE( RemoveSuffix_0 )
 {
-    FilePath_<PlatformFilePath> fp0(A_B_C_Filename_Ext);
-    FilePath_<PlatformFilePath> fp = fp0.copy(); // creates an owning copy
-    REQUIRE( ! fp.removeSuffix( 0 ) );
+    FilePath fp(A_B_C_Filename_Ext);
+    REQUIRE( fp.removeSuffix( 0 ) );
 }
 
 TEST_CASE( RemoveSuffix )
 {
-    FilePath_<PlatformFilePath> fp0(A_B_C_Filename_Ext);
-    FilePath_<PlatformFilePath> fp = fp0.copy();
+    FilePath fp0(A_B_C_Filename_Ext);
+    FilePath fp = fp0.copy();
     REQUIRE( fp.removeSuffix( 4 ) );
     REQUIRE_EQ( string(Posix_A_B_C_Filename), (string)fp );
 }
 
 TEST_CASE( RemoveSuffix_Oversized )
 {
-    FilePath_<PlatformFilePath> fp0(A_B_C_Filename_Ext);
-    FilePath_<PlatformFilePath> fp = fp0.copy();
-    REQUIRE( ! fp.removeSuffix( 1 + strlen("filename.ext") ) );
-}
-
-TEST_CASE( RemoveSuffixExact_NotOwned )
-{
-    FilePath_<PlatformFilePath> fp( A_B_C_Filename_Ext );
-    // removeSuffix requires ownership
-    REQUIRE( ! fp.removeSuffix( "ext", 3 ) );
-}
-
-TEST_CASE( RemoveSuffixExact_NotFound )
-{
-    FilePath_<PlatformFilePath> fp0( A_B_C_Filename_Ext );
-    FilePath_<PlatformFilePath> fp = fp0.copy();
-    REQUIRE( ! fp.removeSuffix( "oxt", 3 ) );
-}
-
-TEST_CASE( RemoveSuffixExact )
-{
-    FilePath_<PlatformFilePath> fp0( A_B_C_Filename_Ext );
-    FilePath_<PlatformFilePath> fp = fp0.copy();
-    REQUIRE( fp.removeSuffix( ".ext", 4 ) );
-    REQUIRE_EQ( string(Posix_A_B_C_Filename), (string)fp );
-}
-
-TEST_CASE( RemoveSuffixString )
-{
-    FilePath_<PlatformFilePath> fp0( A_B_C_Filename_Ext );
-    FilePath_<PlatformFilePath> fp = fp0.copy();
-    REQUIRE( fp.removeSuffix( string(".ext") ) );
-    REQUIRE_EQ( string(Posix_A_B_C_Filename), (string)fp );
-}
-TEST_CASE( RemoveSuffixFilePath )
-{
-    FilePath_<PlatformFilePath> fp0( A_B_C_Filename_Ext );
-    FilePath_<PlatformFilePath> fp = fp0.copy();
-    FilePath_<PlatformFilePath> fp_suff ( ".ext" );
-    REQUIRE( fp.removeSuffix( fp_suff ) );
-    REQUIRE_EQ( string(Posix_A_B_C_Filename), (string)fp );
+    FilePath fp(A_B_C_Filename_Ext);
+    REQUIRE( ! fp.removeSuffix( 1 + fp.baseName().size() ) );
 }
 
 TEST_CASE( CWD )
 {
-    FilePath_<PlatformFilePath> fp = FilePath_<PlatformFilePath>::cwd();
-    REQUIRE( fp.readable() );
-    REQUIRE( fp.implementation().getOwns() );
+    FilePath wd = FilePath::cwd();
+    REQUIRE( wd.readable() );
 }
 
 TEST_CASE( Exists )
 {
-    FilePath_<PlatformFilePath> fp = FilePath_<PlatformFilePath>::cwd();
+    FilePath fp = FilePath::cwd();
     REQUIRE( fp.exists() );
-    FilePath_<PlatformFilePath> fp1( "notafileatall" );
-    FilePath_<PlatformFilePath> fp2 = fp.append( fp1 );
+    FilePath fp1( "notafileatall" );
+    FilePath fp2 = fp.append( fp1 );
     REQUIRE( ! fp2.exists() );
     REQUIRE( ! fp2.readable() );
 }
+
 TEST_CASE(CWD_Append)
 {   // CWD can be wide on Windows
-    FilePath_<PlatformFilePath> fp = FilePath_<PlatformFilePath>::cwd();
-    FilePath_<PlatformFilePath> fp1("CMakeLists.txt");
-    FilePath_<PlatformFilePath> fp2 = fp.append(fp1);
+    FilePath fp = FilePath::cwd();
+    FilePath fp1("CMakeLists.txt");
+    FilePath fp2 = fp.append(fp1);
     REQUIRE(fp2.exists());
 }
 
 TEST_CASE( Exists_Static )
 {
-    FilePath_<PlatformFilePath> fp ( "CMakeLists.txt" );
-    REQUIRE( FilePath_<PlatformFilePath>::exists( fp ) );
+    REQUIRE( FilePath::exists( "CMakeLists.txt" ) );
 }
 
 TEST_CASE( Readable )
 {
-    FilePath_<PlatformFilePath> fp = FilePath_<PlatformFilePath>::cwd();
-    FilePath_<PlatformFilePath> fp1 ( "CMakeLists.txt" );
-    FilePath_<PlatformFilePath> fp2 = fp.append( fp1 );
+    FilePath fp = FilePath::cwd();
+    FilePath fp1 ( "CMakeLists.txt" );
+    FilePath fp2 = fp.append( fp1 );
     REQUIRE( fp2.exists() );
     REQUIRE( fp2.readable() );
     REQUIRE(!fp2.executable());
 }
 
-static string this_executable;
+#if WIN32
+static wchar_t **s_argv;
+#else
+static char **s_argv;
+#endif
+
+TEST_CASE(Current_Executable)
+{
+    FilePath fp = FilePath::fullPathToExecutable(s_argv, nullptr, nullptr);
+    FilePath fp1(s_argv[0]);
+    REQUIRE_EQ((string)fp.baseName(), (string)fp1.baseName());
+}
 
 TEST_CASE(Executable_Yes)
 {
-    FilePath_<PlatformFilePath> fp(this_executable);
+    FilePath fp(argv[0]);
     REQUIRE(fp.exists());
     REQUIRE(fp.executable());
 }
 
 #if WIN32
-#include <codecvt>
 int wmain(int argc, wchar_t* argv[])
-{
-    try {
-        this_executable = std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(argv[0]);
 #else
 int main(int argc, char* argv[])
-{
-    try {
-        this_executable = string(argv[0]);
 #endif
+{
+    argv = argv;
+    try {
         return FilePathSuite(argc, (char**)argv);
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
         return 3;
     }
-    return 0;
 }
 

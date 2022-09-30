@@ -334,6 +334,48 @@ void open_tbl ( const ctx_t *ctx, const VTable **tblp )
     ERROR ( rc, "unimplemented function" );
 }
 
+/* Sep. 2022 : to make sure that the column-oriented mode of sra-sort does not
+ * invalidate the STATS-metadata-node in all tables of the output database it was
+ * requested to unconditionaly copy the STATS-metadata-node of all tables of the
+ * src-database into the dst-database
+ * 
+ * This function only succeeds if the dst-database has been closed!
+ * 
+ */
+static void copy_stats_metadata( const ctx_t *ctx, 
+                                 VDBManager * mgr, const VDatabase * src,
+                                 const char * dst_path ) {
+    FUNC_ENTRY ( ctx );
+
+    VDatabase * dst;
+    rc_t rc = VDBManagerOpenDBUpdate ( mgr, & dst, NULL, "%s", dst_path );
+    if ( 0 != rc ) {
+        ERROR ( rc, "VDBManagerOpenDBUpdate failed to open '%s'", dst_path );
+    } else {
+        bool equal;
+        rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
+        if ( 0 != rc ) {
+            ERROR ( rc, "VDatabaseMetaCompare failed to compare the STATS-node(s) before attempting to copy them" );
+        } else {
+            if ( !equal ) {
+                WARN ( "The STATS-metadata-node(s) differ between source and destination" );
+                rc = VDatabaseMetaCopy( dst, src, "STATS", NULL );
+                if ( 0 != rc ) {
+                    ERROR ( rc, "VDatabaseMetaCopy failed to copy the STATS-node(s)" );
+                } else {
+                    rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
+                    if ( 0 != rc ) {
+                        ERROR ( rc, "VDatabaseMetaCompare failed after copying the STATS-node(s)" );
+                    } else if ( !equal ) {
+                        ERROR ( rc, "VDatabaseMetaCompare detected differences in the STATS-node(s) after copying" );
+                    }
+                }
+            }
+        }
+        VDatabaseRelease ( dst );
+    }
+}
+
 /* run
  *  called from KMain
  *  determines the type of object being copied/sorted
@@ -351,7 +393,10 @@ void run ( const ctx_t *ctx )
     rc_t rc = VDBManagerOpenDBRead ( mgr, & db, NULL, "%s", tp -> src_path );
     if ( rc == 0 )
     {
-        open_db ( ctx, & db );
+        open_db ( ctx, & db );  /* <--- the meat!!! */
+        
+        copy_stats_metadata( ctx, mgr, db, tp -> dst_path );    /* see above! */
+        
         VDatabaseRelease ( db );
     }
     else

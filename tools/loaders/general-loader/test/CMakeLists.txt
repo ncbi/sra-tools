@@ -1,3 +1,33 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+# this is where test executables will be created
+# to access tools themselves, use ${BINDIR}
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TESTBINDIR} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${TESTBINDIR_DEBUG} )
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${TESTBINDIR_RELEASE} )
+
 include_directories (".." )
 
 add_executable ( test-general-loader
@@ -41,7 +71,7 @@ target_link_libraries ( makeinputs
 
 if ( NOT WIN32)
     #TODO: simplify
-    set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vdb-dump ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
+    set ( CMD runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/vdb-dump ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
     file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
                 "/vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"\n")
@@ -117,7 +147,7 @@ if ( NOT WIN32)
 
     # tests depending on kdbmeta
     #TODO: simplify
-    set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/kdbmeta  {CMAKE_RUNTIME_OUTPUT_DIRECTORY}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
+    set ( CMD runtestcase.sh ${DIRTOTEST} ${DIRTOTEST}/kdbmeta  ${DIRTOTEST}/vdb-config ${CMAKE_CURRENT_SOURCE_DIR} )
 
     add_test ( NAME GeneralLoader-6.0-SoftwareName-Unpacked
             COMMAND ${CMD} 6 0 "-L=info -I${VDB_INCDIR}" SOFTWARE/formatter

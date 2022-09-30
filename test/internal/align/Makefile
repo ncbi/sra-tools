@@ -1,7 +1,7 @@
 # ===========================================================================
 #
-#                            PUBLIC DOMAIN NOTICE
-#               National Center for Biotechnology Information
+#							PUBLIC DOMAIN NOTICE
+#			   National Center for Biotechnology Information
 #
 #  This software/database is a "United States Government Work" under the
 #  terms of the United States Copyright Act.  It was written as part of
@@ -24,8 +24,7 @@
 
 default: runtests
 
-TOP ?= $(abspath ../..)
-MODULE = test/internal
+TOP ?= $(abspath ../../..)
+MODULE = test/internal/align
 
-BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

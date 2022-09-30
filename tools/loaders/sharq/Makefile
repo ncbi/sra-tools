@@ -25,6 +25,7 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/loaders/sharq
 
+BUILD_TOOLS_LOADERS = ON
 include $(TOP)/build/Makefile.env
 
 

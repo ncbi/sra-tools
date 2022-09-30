@@ -25,4 +25,6 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/test-tools/pacbio-correct
 
+BUILD_TOOLS_TEST_TOOLS = ON
+
 include $(TOP)/build/Makefile.env

@@ -565,7 +565,10 @@ void BufferedPairColWriterWriteUnmapped ( BufferedPairColWriter *self, const ctx
 		rc_t rc;
 		bool wasInserted;
 		uint64_t tmp_id=self -> vocab_cnt;
-		if( self -> vocab_cnt < sizeof(self -> vocab_id2val)/sizeof(self -> vocab_id2val[0])){
+                // klib/btree.c is not reliable with longer keys (VDB-5026),
+                // so will only feed it shorter keys
+                const size_t MAX_ROW_BYTES = 1024;
+		if( row_bytes <= MAX_ROW_BYTES && self -> vocab_cnt < sizeof(self -> vocab_id2val)/sizeof(self -> vocab_id2val[0])){
 			rc = KBTreeEntry(self -> vocab_key2id, &tmp_id, &wasInserted, data, row_bytes);
 		} else {
 			rc = KBTreeFind (self -> vocab_key2id, &tmp_id, data, row_bytes);

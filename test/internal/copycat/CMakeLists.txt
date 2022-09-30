@@ -24,9 +24,9 @@
 
 add_compile_definitions( __mod__="test/internal/copycat" )
 
-if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/copycat )
-
-    if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
+if ( ${OS} STREQUAL "linux"  )
+if ( NOT HAVE_MAGIC STREQUAL "HAVE_MAGIC-NOTFOUND" )
+if(EXISTS "${DIRTOTEST}/copycat${EXE}")
 
         set( SRC_DIR ${CMAKE_SOURCE_DIR}/tools/internal/copycat)
         set( KFF_SRC
@@ -64,7 +64,10 @@ if ( ${OS} STREQUAL "linux" AND EXISTS ${DIRTOTEST}/copycat )
                 COMMAND ./test-copy.sh ${DIRTOTEST} copycat-tsan
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
-    endif()
+else()
+    message(WARNING "${DIRTOTEST}/copycat${EXE} is not found. The corresponding tests are skipped." )
+endif()
+endif()
 else()
 #TODO: make run on Windows
 endif()

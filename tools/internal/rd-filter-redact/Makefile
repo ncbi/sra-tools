@@ -25,4 +25,5 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/internal/rd-filter-redact
 
+BUILD_TOOLS_INTERNAL = ON
 include $(TOP)/build/Makefile.env

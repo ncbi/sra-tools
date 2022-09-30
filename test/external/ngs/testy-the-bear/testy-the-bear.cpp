@@ -23,12 +23,12 @@ namespace ngs
     void run ()
     {
 #if 1
-        ReadCollection run = ncbi :: NGS :: openReadCollection ( "SRR000001" );
+        ReadCollection run = ncbi :: NGS :: openReadCollection ( "SRR000123" );
 #elif 1
         ReadCollection run = ncbi :: NGS :: openReadCollection ( "SRR1063272" );
 #endif
         ReadIterator it = run . getReads ( Read :: all );
-        
+
         String run_name = run . getName ();
 
         int i;
@@ -42,8 +42,8 @@ namespace ngs
             StringRef bases = it . getReadBases ();
             StringRef qual = it . getReadQualities ();
 
-            
-            std :: cout 
+
+            std :: cout
                 << '@'
                 << run_name
                 << '.'
@@ -249,7 +249,7 @@ extern "C"
         return 0;
     }
 
-    const char UsageDefaultName[] = "testy-the-ngs-bear";    
+    const char UsageDefaultName[] = "testy-the-ngs-bear";
 
     rc_t KMain ( int argc, char * argv [] )
     {
@@ -270,7 +270,7 @@ extern "C"
                 << "unknown error"
                 << std :: endl;
         }
-        
+
         return 0;
     }
 }

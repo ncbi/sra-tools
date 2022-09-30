@@ -24,6 +24,7 @@
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
 if ( NOT WIN32 )
+if ( EXISTS "${DIRTOTEST}/sratools${EXE}" )
 
 	# GOOD
 	function( DriverToolGoodTest test_name tool_name )
@@ -133,5 +134,8 @@ if ( NOT WIN32 )
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
 
+else()
+	message(WARNING "${DIRTOTEST}/sratools${EXE} is not found. The corresponding tests are skipped." )
+endif()
 endif()
 endif()

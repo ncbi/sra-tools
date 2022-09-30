@@ -23,6 +23,8 @@
 # ===========================================================================
 
 if ( NOT WIN32 )
+if ( EXISTS "${DIRTOTEST}/vdb-validate${EXE}" )
+
 	add_test( NAME Test_Vdb_validate
 		COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -34,4 +36,8 @@ if ( NOT WIN32 )
 			COMMAND vdb_validate.sh "${DIRTOTEST}" vdb-validate-tsan
 			WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 	endif()
+
+else()
+	message(WARNING "${DIRTOTEST}/vdb-validate${EXE} is not found. The corresponding tests are skipped." )
+endif()
 endif()

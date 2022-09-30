@@ -25,4 +25,6 @@
 TOP ?= $(abspath ../../..)
 MODULE = tools/test-tools/crc32sum
 
+BUILD_TOOLS_TEST_TOOLS = ON
+
 include $(TOP)/build/Makefile.env

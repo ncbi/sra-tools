@@ -17,9 +17,13 @@ using data in the INSDC Sequence Read Archives.
 
 ### ANNOUNCEMENT:
 
-February 10, 2022
+August 4, 2022 : Security Update
 
-NCBI's SRA changed the source build system to use CMake in toolkit release 3.0.0 (February 07, 2022). This change is an important step to improve developers' productivity as it provides unified cross platform access to support multiple build systems. This change affects developers building NCBI SRA tools from source. Old makefiles and build systems are longer be supported.
+Due to updated security at NCBI, versions of the SRA Toolkit 2.9.6 and older will no longer be able to connect to the NCBI data location service. We advise impacted users to update to the [latest version](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit) of the SRA Toolkit.
+
+February 10, 2022 : SRA Toolkit 3.0.0
+
+NCBI's SRA changed the source build system to use CMake in toolkit release 3.0.0. This change is an important step to improve developers' productivity as it provides unified cross platform access to support multiple build systems. This change affects developers building NCBI SRA tools from source. Old makefiles and build systems are no longer supported.
 
 This change also includes the structure of GitHub repositories, which underwent consolidation to provide an easier environment for building tools and libraries (NGS libs and dependencies are consolidated). Consolidation of NGS libraries and dependencies provides better usage scope isolation and makes building more straightforward.
 

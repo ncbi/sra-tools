@@ -450,7 +450,6 @@ struct ParamDefinitions_FQD final : public ParamDefinitions_Common
                 break;
             }
         }
-        return false;
     }
 };
 

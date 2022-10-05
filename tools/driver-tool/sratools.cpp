@@ -210,7 +210,7 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
     if (havePerm) {
         int argind = 0;
         
-        if (haveNGC > 0) {
+        if (haveNGC) {
             ++problems;
             std::cerr << "--perm and --ngc are mutually exclusive. Please use only one." << std::endl;
         }
@@ -243,7 +243,7 @@ static bool checkCommonOptions(CommandLine const &argv, Arguments const &args, F
 
         problems += handleFileArgumentErrors("cart", args, &argind);
         if (argind)
-            ; // do nothing
+            (void)0; // do nothing
     }
     auto const containers = checkForContainers(argv, args);
     if (containers > 0) {

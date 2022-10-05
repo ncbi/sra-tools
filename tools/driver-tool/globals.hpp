@@ -37,7 +37,7 @@
 
 #include "config.hpp"
 
-class FilePath;
+struct FilePath;
 
 namespace sratools {
 

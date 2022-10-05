@@ -48,9 +48,7 @@ public:
     auto static constexpr count = (BITS * COUNT + bits - 1) / bits;
 
     RandomValues() {
-        std::random_device devRandom;
-        for (auto i = 0; i < count; ++i)
-            value[i] = devRandom();
+        fill(value);
     }
     RandomValue next() {
         if (b == 0) {
@@ -66,6 +64,12 @@ public:
 private:
     unsigned i = 0, b = bits;
     RandomValue value[count];
+    
+    static void fill(RandomValue *value) {
+        std::random_device devRandom;
+        for (auto i = 0; i < count; ++i)
+            value[i] = devRandom();
+    }
 };
 
 /// @brief generate a type 4 version 1 uuid

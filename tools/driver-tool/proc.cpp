@@ -82,6 +82,7 @@ static void printCommandLine(char const *const argv0, char const *const *const a
 static void printCommandLine(char const *const argv0, char const *const cmdline)
 {
     std::cerr << cmdline << std::endl;
+    (void)argv0; // more CL garbage
 }
 
 /// @brief Print the names of the environment variables that were set.
@@ -135,6 +136,26 @@ DebugPrintResult debugPrintDryRun(FilePath const &toolPath, std::string const &t
         return dpr_ExitIfChild;
     case 2:
         testing_2(toolName, argv);
+        return dpr_ExitIfChild;
+    default:
+        return dpr_Continue;
+    }
+}
+
+DebugPrintResult debugPrintDryRun(FilePath const &toolPath, std::string const &toolName, char const *cmdline)
+{
+    switch (logging_state::testing_level()) {
+    case 5:
+        testing_5();
+        return dpr_Exit;
+    case 4:
+        testing_4(toolPath, cmdline);
+        return dpr_ExitIfChild;
+    case 3:
+        testing_3(toolPath, toolName.c_str(), cmdline);
+        return dpr_ExitIfChild;
+    case 2:
+        testing_2(toolName, cmdline);
         return dpr_ExitIfChild;
     default:
         return dpr_Continue;

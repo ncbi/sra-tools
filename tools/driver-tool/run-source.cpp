@@ -139,6 +139,12 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
     auto const &names = env_var::names();
     auto constexpr useSize = false; // old version didn't use this
 
+#if MS_Visual_C
+    /// WTH! CL thinks it is a warning if a constant expression is in a control statement!
+#pragma warning (push)
+#pragma warning (disable: 4127)
+// #pragma warning (disable: 4390)
+#endif
     if (index == 0) {
         auto const filePath = info.find(LocalKey::filePath);
         auto const qualityType = info.find(LocalKey::qualityType);
@@ -201,6 +207,9 @@ data_sources::accession::info::info(Dictionary const *pinfo, unsigned index)
         if (project != info.end())
             this->project = project->second;
     }
+#if MS_Visual_C
+#pragma warning (pop)
+#endif
 }
 
 data_sources::accession::accession(Dictionary const &p_queryInfo)

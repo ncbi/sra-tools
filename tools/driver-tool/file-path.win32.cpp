@@ -55,22 +55,23 @@
 #define CAST_N(X) (reinterpret_cast<char *>(X))
 
 #if USE_WIDE_API
-using API_CHAR = wchar_t;
-#define API_IS_WIDE (true)
-#define API_NUL NUL_W
-#define API_SEP SEP_W
-#define API_DOT DOT_W
-#define SELF_DIR L"."
-#define API_SEP_POSIX (L'/')
+    using API_CHAR = wchar_t;
+    #define API_IS_WIDE (true)
+    #define API_NUL NUL_W
+    #define API_SEP SEP_W
+    #define API_DOT DOT_W
+    #define SELF_DIR L"."
+    #define API_SEP_POSIX (L'/')
 #else
-using API_CHAR = char;
-#define API_IS_WIDE (false)
-#define API_NUL NUL_N
-#define API_SEP SEP_N
-#define API_DOT DOT_N
-#define SELF_DIR "."
-#define API_SEP_POSIX ('/')
-#endif
+    using API_CHAR = char;
+    #define API_IS_WIDE (false)
+    #define API_NUL NUL_N
+    #define API_SEP SEP_N
+    #define API_DOT DOT_N
+    #define SELF_DIR "."
+    #define API_SEP_POSIX ('/')
+#endif // USE_WIDE_API
+
 using API_CONST_STRING = API_CHAR const *;
 using API_STRING = API_CHAR *;
 
@@ -280,40 +281,46 @@ static void pathCleanUpSeperators(wchar_t *path, wchar_t const *inpath)
     }
 }
 
-static void pathToPOSIX(wchar_t *path)
-{
-    for ( ; ; ++path) {
-        auto const ch = *path;
-        if (ch == L'\0')
-            return;
-        if (ch == SEP_W)
-            *path = SEP_POSIX_W;
+struct local_free {
+    template< typename T >
+    void operator()(T *ptr) const {
+        LocalFree(reinterpret_cast< void * >(ptr));
     }
-}
+};
+
+template< typename T >
+using local_free_ptr = std::unique_ptr< T, local_free >;
 
 /// Canonicalized a path. There is no narrow version of this call.
 ///
-/// NB. Must canonicalize the path seperators **first**!
-///
-/// The returned pointer needs to be free'd with `LocalFree`.
-static inline wchar_t *pathCanonicalize(wchar_t const *path)
+/// NB. Should canonicalize the path seperators **first**!
+static inline local_free_ptr< wchar_t > pathCanonicalize(wchar_t const *path)
 {
     wchar_t *result = nullptr;
     auto const rc = PathAllocCanonicalize(path, PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS|PATHCCH_ALLOW_LONG_PATHS, &result);
     if (rc != S_OK)
         throw_system_error(rc
                            , "PathAllocCanonicalize");
-    return result;
+    return local_free_ptr< wchar_t >(result);
+}
+
+/// Combine two paths. There is no narrow version of this call.
+static inline local_free_ptr< wchar_t > pathCombineW(local_free_ptr< wchar_t > const &left, local_free_ptr< wchar_t > const &right)
+{
+    wchar_t *result = nullptr;
+    auto const rc = PathAllocCombine(left.get(), right.get(), PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS|PATHCCH_ALLOW_LONG_PATHS, &result);
+    if (rc != S_OK)
+        throw_system_error(rc
+                           , "PathAllocCombine");
+    return local_free_ptr< wchar_t >(result);
 }
 
 /// Canonicalize a path (and path seperators).
-///
-/// The returned pointer needs to be free'd with `LocalFree`.
-static wchar_t *canonicalPathW(NativeString const &path)
+static local_free_ptr< wchar_t > canonicalPathW(NativeString const &path)
 {
     // must make an editable copy in order to clean up path seperators
 #if USE_WIDE_API
-    auto dup = std::vector<wchar_t>(path.size() + 1, L'\0');
+    auto dup = std::vector< wchar_t >(path.size() + 1, L'\0');
     auto const dupp = &dup[0];
     pathCleanUpSeperators(dupp, path.c_str());
 #else
@@ -328,71 +335,66 @@ static wchar_t *canonicalPathW(NativeString const &path)
 /// The canonicalized path, in the same representation as the input path.
 static NativeString canonicalPath(NativeString const &path)
 {
-    auto const cpath = canonicalPathW(path);
+    auto const &cpath = canonicalPathW(path);
     auto const &result = NativeString(
 #if USE_WIDE_API
-                                      cpath
+                                      cpath.get()
 #else
-                                      Win32Support::makeUnwide(cpath).get()
+                                      Win32Support::makeUnwide(cpath.get()).get()
 #endif
                                       );
-    LocalFree(cpath);
     return result;
 }
 
-/// Combine two paths. There is no narrow version of this call.
-///
-/// The returned pointer needs to be free'd with `LocalFree`.
-static inline wchar_t *pathCombineW(wchar_t *left, wchar_t *right)
+static void pathToPOSIX(wchar_t *path)
 {
-    wchar_t *result = nullptr;
-    auto const rc = PathAllocCombine(left, right, PATHCCH_FORCE_ENABLE_LONG_NAME_PROCESS|PATHCCH_ALLOW_LONG_PATHS, &result);
-    LocalFree(right);
-    LocalFree(left);
-    if (rc != S_OK)
-        throw_system_error(rc
-                           , "PathAllocCombine");
-    return result;
+    for ( ; ; ++path) {
+        auto const ch = *path;
+        if (ch == L'\0')
+            return;
+        if (ch == SEP_W)
+            *path = SEP_POSIX_W;
+    }
+}
+
+static local_free_ptr< wchar_t > canonicalPathPOSIX(NativeString const &path)
+{
+    auto temp = canonicalPathW(path);
+    pathToPOSIX(temp.get());
+    return temp;
 }
 
 static NativeString pathCombine(NativeString const &left, NativeString const &right)
 {
-    assert(!(left.empty() && right.empty()));
-    auto const wresult = left.empty() ? canonicalPathW(right)
-                       : right.empty() ? canonicalPathW(left)
-                       : pathCombineW(canonicalPathW(left), canonicalPathW(right));
-    auto const &result = NativeString(
-#if USE_WIDE_API
-                                      wresult
-#else
-                                      Win32Support::makeUnwide(wresult.c_str()).get()
-#endif
-                                      );
-    LocalFree(wresult);
+    local_free_ptr< wchar_t > wresult;
+    
+    if (!(left.empty() || right.empty()))
+        wresult = std::move(pathCombineW(canonicalPathW(left), canonicalPathW(right)));
+    else if (!left.empty())
+        wresult = std::move(canonicalPathW(left));
+    else if (!right.empty())
+        wresult = std::move(canonicalPathW(right));
+    else
+        assert(!(left.empty() && right.empty()));
 
-    return result;
+    return NativeString(
+#if USE_WIDE_API
+                        wresult.get()
+#else
+                        Win32Support::makeUnwide(wresult.get()).get()
+#endif
+                        );
 }
 
 FilePath::operator std::string() const
 {
-    wchar_t *const wcpath = canonicalPathW(path);
-    pathToPOSIX(wcpath);
-
-    auto const &result = Win32Support::makeUnwide(wcpath);
-    LocalFree(wcpath);
-
-    return std::string(result.get());
+    return std::string(Win32Support::makeUnwide(canonicalPathPOSIX(path).get()).get());
 }
 
 #if USE_WIDE_API
 FilePath::operator std::wstring() const
 {
-    auto const temp = canonicalPath(path);
-    pathToPOSIX(temp);
-
-    auto const &result = std::wstring(temp);
-    LocalFree(temp);
-    return result;
+    return std::wstring(canonicalPathPOSIX(path).get());
 }
 #endif
 
@@ -499,7 +501,7 @@ FilePath::FilePath(std::string const &in)
 
 bool FilePath::removeSuffix(size_t const count)
 {
-    if (count > 0 && baseName().size() >= count) {
+    if (count > 0 && baseName().path.size() >= count) {
         path.resize(path.size() - count);
         return true;
     }

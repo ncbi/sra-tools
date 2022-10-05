@@ -143,13 +143,13 @@ std::pair< Version, T > Version::make(T begin, T endp, unsigned *parts) noexcept
                     auto const s3 = parse_int(s2 + 1, endp, &rev);
                     if (0 <= rev && rev < 0x10000) {
                         *parts = 3;
-                        return { Version(maj, mnr, rev), s3 };
+                        return { Version((uint8_t)maj, (uint8_t)mnr, (uint16_t)rev), s3 };
                     }
                 }
-                return { Version(maj, mnr, 0), s2 };
+                return { Version((uint8_t)maj, (uint8_t)mnr, 0), s2 };
             }
         }
-        return { Version(maj, 0, 0), s1 };
+        return { Version((uint8_t)maj, 0, 0), s1 };
     }
     return { Version(), begin };
 }

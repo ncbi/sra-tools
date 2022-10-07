@@ -37,6 +37,9 @@
 
 #include "wide-char.hpp"
 
+#pragma warning (push)
+#pragma warning (disable: 4505)
+
 namespace Win32Support {
 
     namespace {
@@ -105,7 +108,8 @@ namespace Win32Support {
     }
 
 
-/** \brief Builds command line string according to MS C command line parsing string rules.
+/**
+ \brief Builds command line string according to MS C command line parsing string rules.
 
  \returns A string appropriate for use with CreateProcess.
 
@@ -152,11 +156,11 @@ private:
         struct Arg {
             U const* value;
             bool isarg0;
-            unsigned incount;
-            unsigned outcount;
-            unsigned quotes;
-            unsigned slashes;
-            unsigned whiteSpaces;
+            size_t incount;
+            size_t outcount;
+            size_t quotes;
+            size_t slashes;
+            size_t whiteSpaces;
 
             Arg(U const* const arg, bool is_arg0 = false)
                 : value(arg)
@@ -251,7 +255,7 @@ private:
         for (auto argp = argv; *argp != nullptr; ++argp)
             ++argc;
 
-        unsigned outsize = 0;
+        size_t outsize = 0;
         std::vector<Arg> args;
         args.reserve(argc);
 
@@ -282,5 +286,7 @@ private:
 };
 
 }
+
+#pragma warning (pop)
 
 #endif /* _H_WIN32_CMDLINE_HPP_ */

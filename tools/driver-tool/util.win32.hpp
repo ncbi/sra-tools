@@ -87,7 +87,7 @@ struct EnvironmentVariables {
 
         auto const wvaluelen = GetEnvironmentVariableW(wname.get(), wdummy, 0);
         if (wvaluelen > 0) {
-            auto const wbuffer = Win32Support::auto_free_wide_ptr((wchar_t *)malloc(sizeof(wchar_t) * wvaluelen)));
+            auto const wbuffer = Win32Support::auto_free_wide_ptr((wchar_t *)malloc(sizeof(wchar_t) * wvaluelen));
             if (!wbuffer)
                 throw std::bad_alloc();
             GetEnvironmentVariableW(wname.get(), wbuffer.get(), wvaluelen);
@@ -102,7 +102,7 @@ struct EnvironmentVariables {
             if (!buffer)
                 throw std::bad_alloc();
             GetEnvironmentVariableA(name, buffer.get(), valuelen + 1);
-            result = std::string(buffer);
+            result = std::string(buffer.get());
         }
 #endif
         return result;

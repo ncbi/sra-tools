@@ -30,7 +30,7 @@
  *
  */
 
-#include "build-version.cpp"
+#include "../../tools/driver-tool/build-version.cpp"
 
 struct Test_Version {
     using Version = sratools::Version;
@@ -112,7 +112,9 @@ struct Test_Version {
         auto const versString = (std::string)vers;
         if (!(versString == "1.2.3")) throw __FUNCTION__;
     }
-    Test_Version() {
+    Test_Version()
+    : is_good(false)
+    {
         try {
             test_exe_win();
             test_exe_lin();
@@ -127,6 +129,7 @@ struct Test_Version {
             test_so_4();
             test_to_string();
             std::cerr << __FUNCTION__ << " passed." << std::endl;
+            is_good = true;
         }
         catch (char const *func) {
             std::cerr << func << " failed!" << std::endl;
@@ -135,16 +138,26 @@ struct Test_Version {
             std::cerr << __FUNCTION__ << " failed: unknown exception!" << std::endl;
         }
     }
+    
+    bool is_good;
 };
 
-int main ( int argc, char *argv [] )
+#include <cassert>
+
+#if WINDOWS
+int wmain ( int argc, wchar_t *argv[], wchar_t *envp[] )
+#else
+int main ( int argc, char *argv[], char *envp[] )
+#endif
 {
     try {
         Test_Version const test_Version;
+        assert(test_Version.is_good);
     }
     catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
         return 3;
     }
     return 0;
+    (void)argc, (void)argv, (void)envp;
 }

@@ -37,6 +37,8 @@ set( sources
     proc.hpp
     uuid.cpp
     uuid.hpp
+    accession.cpp
+    accession.hpp
     service.cpp
     service.hpp
     json-parse.cpp

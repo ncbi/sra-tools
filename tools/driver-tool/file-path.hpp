@@ -71,7 +71,7 @@ public:
     operator std::wstring() const;
 #endif
 
-    unsigned size() const;
+    size_t size() const;
     bool empty() const { return path.empty(); }
     operator bool() const { return !empty(); }
     

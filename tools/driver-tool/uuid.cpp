@@ -33,8 +33,8 @@
 #include <string>
 #include <random>
 #include <limits>
+#include <cassert> 
 #include "uuid.hpp"
-#include <cassert>
 
 template <int COUNT, int BITS>
 class RandomValues

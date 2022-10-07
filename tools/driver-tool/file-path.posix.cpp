@@ -67,8 +67,8 @@ FilePath::operator std::string() const {
     return path;
 }
 
-unsigned FilePath::size() const {
-    return (unsigned)trimPath(path).size();
+size_t FilePath::size() const {
+    return trimPath(path).size();
 }
 
 std::pair< FilePath, FilePath > FilePath::split() const {

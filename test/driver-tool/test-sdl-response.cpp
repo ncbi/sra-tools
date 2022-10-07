@@ -30,10 +30,13 @@
 *
 */
 
+#if WINDOWS
+#pragma warning(disable: 4100)
+#pragma warning(disable: 4101)
+#endif
+
 #include "json-parse.cpp"
 #include "SDL-response.cpp"
-
-#if !WINDOWS
 
 template <typename IMPL, typename RESPONSE = typename IMPL::Base, typename DELEGATE = typename IMPL::Delegate>
 static RESPONSE makeFrom(char const *json)
@@ -935,9 +938,12 @@ void Response2::test_vdbcache() {
 
     LOG(8) << "vdbcache location matching passed." << std::endl;
 }
-#endif
 
-int main ( int argc, char *argv [] )
+#if WINDOWS
+int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
+#else
+int main ( int argc, char *argv[], char *envp[])
+#endif
 {
     try {
         Response2::test();

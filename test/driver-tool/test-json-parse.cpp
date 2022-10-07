@@ -30,10 +30,15 @@
 *
 */
 
+#if WINDOWS
+#pragma warning(disable: 4100)
+#pragma warning(disable: 4101)
+#endif
+
 #include "json-parse.cpp"
 
-#if ( !WINDOWS )
-// MARK: Tests start here.
+#if !WINDOWS
+#define HAVE_RANDOMS
 #include <cstdio>
 
 struct Randoms {
@@ -49,6 +54,7 @@ struct Randoms {
         }
     }
 };
+#endif
 
 struct JSONParserTests {
     char const *failed = nullptr;
@@ -154,6 +160,7 @@ struct JSONParserTests {
             LOG(9) << __FUNCTION__ << " successful, got: JSONParser::ExpectationFailure" << std::endl;
         }
     }
+#if HAVE_RANDOMS
     void testTortureJSON_1(unsigned &smallest, unsigned &biggest) const {
         std::string torture = "";
         std::string torture2 = "";
@@ -197,6 +204,7 @@ struct JSONParserTests {
         }
         throw __FUNCTION__;
     }
+#endif
     void testEmpty() {
         try {
             parsed("");
@@ -220,7 +228,9 @@ struct JSONParserTests {
             testBadJSON2_5();
             testBadJSON2_6();
             testBadJSON3();
+#if HAVE_RANDOMS
             testNestedStructs();
+#endif
             testEmpty();
         }
         catch (char const *function) {
@@ -929,9 +939,11 @@ void JSONNull::runTests() {
     LOG(8) << "All JSON null tests passed." << std::endl;
 }
 
+#if WINDOWS
+int wmain ( int argc, wchar_t *argv[], wchar_t *envp[])
+#else
+int main ( int argc, char *argv[], char *envp[])
 #endif
-
-int main ( int argc, char *argv [] )
 {
     try {
         JSONBool::runTests();

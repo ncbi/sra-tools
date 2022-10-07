@@ -205,7 +205,7 @@ TEST_CASE( Readable )
     REQUIRE(!fp2.executable());
 }
 
-#if WIN32
+#if WINDOWS
 static wchar_t **s_argv;
 #else
 static char **s_argv;
@@ -220,18 +220,18 @@ TEST_CASE(Current_Executable)
 
 TEST_CASE(Executable_Yes)
 {
-    FilePath fp(argv[0]);
+    FilePath fp(s_argv[0]);
     REQUIRE(fp.exists());
     REQUIRE(fp.executable());
 }
 
-#if WIN32
-int wmain(int argc, wchar_t* argv[])
+#if WINDOWS
+int wmain(int argc, wchar_t* argv[], wchar_t* envp[])
 #else
-int main(int argc, char* argv[])
+int main(int argc, char* argv[], char *envp[])
 #endif
 {
-    argv = argv;
+    s_argv = argv;
     try {
         return FilePathSuite(argc, (char**)argv);
     }
@@ -239,5 +239,6 @@ int main(int argc, char* argv[])
         std::cerr << e.what() << std::endl;
         return 3;
     }
+    (void)envp;
 }
 

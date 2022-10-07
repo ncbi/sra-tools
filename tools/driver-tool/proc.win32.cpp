@@ -51,8 +51,8 @@
 static
 DWORD runAndWait(FilePath const &toolpath, std::string const &toolname, wchar_t const *const *const argv, Dictionary const &env)
 {
-    auto const wcmdline = Win32Support::CmdLineString<wchar_t>(argv);
-    auto const cmdline = Win32Support::makeUnwide(wcmdline.get());
+    auto const &wcmdline = Win32Support::CmdLineString<wchar_t>(argv);
+    auto const &cmdline = Win32Support::makeUnwide(wcmdline.get());
     auto const dpr = debugPrintDryRun(toolpath, toolname, cmdline.get());
 
     if (dpr == dpr_Continue) {

@@ -329,6 +329,12 @@ static local_free_ptr< wchar_t > canonicalPathW(NativeString const &path)
     pathCleanUpSeperators(dupp);
 #endif
 
+    if (!pathIsRoot(dupp)) {
+        // remove trailing path seperators
+        auto size = measure(dupp);
+        while (size > 1 && isDirSeperator(dupp[size - 1]))
+            dupp[--size] = API_NUL;
+    }
     return pathCanonicalize(dupp);
 }
 
@@ -364,10 +370,21 @@ static local_free_ptr< wchar_t > canonicalPathPOSIX(NativeString const &path)
     return temp;
 }
 
-static NativeString pathCombine(NativeString const &left, NativeString const &right)
+static NativeString rtrimSeperators(NativeString const &in)
+{
+    std::string::size_type trim = 0;
+    
+    while (in.size() > trim && isDirSeperator(in[trim]))
+        ++trim;
+    
+    return in.substr(trim);
+}
+
+static NativeString pathCombine(NativeString const &left, NativeString const &in_right)
 {
     local_free_ptr< wchar_t > wresult;
-    
+    auto const &right = rtrimSeperators(in_right);
+
     if (!(left.empty() || right.empty()))
         wresult = std::move(pathCombineW(canonicalPathW(left), canonicalPathW(right)));
     else if (!left.empty())
@@ -396,6 +413,13 @@ FilePath::operator std::wstring() const
 {
     return std::wstring(canonicalPathPOSIX(path).get());
 }
+
+size_t FilePath::size() const
+{
+    auto const &asString = this->operator std::wstring();
+    return asString.size();
+}
+#else
 #endif
 
 static NativeString trimPath(NativeString const &path, bool canTrim = true)

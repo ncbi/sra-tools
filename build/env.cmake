@@ -143,7 +143,7 @@ if (MSVC)
     # warning C5031: #pragma warning(pop): likely mismatch, popping warning state pushed in different file
     # warning C5032: detected #pragma warning(push) with no corresponding #pragma warning(pop)
     # add_compile_options(/Wall /wd4820 /wd5045 /wd4668 /wd5105 /wd4514 /wd4774 /wd4255 /wd4710 /wd5031 /wd5032 /wd4623 /wd4625 /wd4626 /wd5026 /wd5027 /wd4571)
-    add_compile_options(/W4 /WX)
+    add_compile_options(/W4)
 else()
     add_compile_options(-Wall)
 endif()

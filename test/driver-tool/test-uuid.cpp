@@ -26,7 +26,7 @@
  *  sratools command line tool
  *
  * Purpose:
- *  Unit tests for accession pattern tests
+ *  Unit tests for random UUID generation
  *
  */
 
@@ -35,38 +35,10 @@
 #pragma warning(disable: 4101)
 #endif
 
-// C main is at the end of the file
-
-#define TESTING 1
-#include "sratools.cpp"
-#include "uuid.cpp"
-
-using namespace sratools;
-
-static AccessionType accessionType(std::string const &accession)
-{
-    return Accession(accession).type();
-}
-
-static void testAccessionType() {
-    // asserts because these are all hard-coded values
-    assert(accessionType("SRR000000") == run);
-    assert(accessionType("ERR000000") == run);
-    assert(accessionType("DRR000000") == run);
-    assert(accessionType("srr000000") == run);
-
-    assert(accessionType("SRA000000") == submitter);
-    assert(accessionType("SRP000000") == project);
-    assert(accessionType("SRS000000") == study);
-    assert(accessionType("SRX000000") == experiment);
-
-    assert(accessionType("SRR000000.2") == run); // not certain of this one
-
-    assert(accessionType("SRR00000") == unknown); // too short
-    assert(accessionType("SRF000000") == unknown); // bad type
-    assert(accessionType("ZRR000000") == unknown); // bad issuer
-    assert(accessionType("SRRR00000") == unknown); // not digits
-}
+#include <iostream>
+#include <string> 
+#include <cassert>
+#include "../../tools/driver-tool/uuid.cpp"
 
 static bool uuid_is_valid(std::string const &buffer)
 {
@@ -148,7 +120,6 @@ int main ( int argc, char *argv[], char *envp[])
 #endif
 {
     try {
-        testAccessionType();
         uuid_test();
     }
     catch (std::exception& e) {

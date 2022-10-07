@@ -29,20 +29,8 @@ AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "" )
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "" )
 AddExecutableTest( Test_Drivertool_BuildVersion "test-build-version.cpp" "" "" )
 
-set(test_sratools_sources
-    test-sratools.cpp
-    ${SOURCEDIR}/config.cpp
-    ${SOURCEDIR}/tool-args.cpp
-    ${SOURCEDIR}/service.cpp
-    ${SOURCEDIR}/run-source.cpp
-    ${SOURCEDIR}/proc.posix.cpp
-    ${SOURCEDIR}/file-path.posix.cpp
-    ${SOURCEDIR}/build-version.cpp
-    ${SOURCEDIR}/SDL-response.cpp
-    ${SOURCEDIR}/proc.cpp
-    ${SOURCEDIR}/json-parse.cpp
-)
-AddExecutableTest( Test_Drivertool_Sratools "${test_sratools_sources}" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ}" "" )
+AddExecutableTest( Test_Drivertool_Accession "test-accession.cpp" "" "" )
+AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "" )
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
     if ( WIN32 )

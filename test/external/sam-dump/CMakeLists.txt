@@ -31,13 +31,13 @@ if ( EXISTS "${DIRTOTEST}/sam-dump${EXE}" )
     add_test(NAME SamDumpTestSetup COMMAND bash -c "echo 'vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID=\"8test002-6ab7-41b2-bfd0-latfload\"' > tmp.kfg" WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
     set_tests_properties(SamDumpTestSetup PROPERTIES FIXTURES_SETUP SamDumpTest)
 
-    add_test( NAME Test_sam_dump_verify_omit
-        COMMAND
-            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
-            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
-            ./verify_omit_qual.sh ${DIRTOTEST} ${TESTBINDIR}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
-    set_tests_properties( Test_sam_dump_verify_omit PROPERTIES FIXTURES_REQUIRED SamDumpTest )
+#    add_test( NAME Test_sam_dump_verify_omit
+#        COMMAND
+#            ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
+#            ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
+#            ./verify_omit_qual.sh ${DIRTOTEST} ${TESTBINDIR}
+#        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+#    set_tests_properties( Test_sam_dump_verify_omit PROPERTIES FIXTURES_REQUIRED SamDumpTest )
 
     add_test( NAME Test_sam_dump_star_quality
         COMMAND

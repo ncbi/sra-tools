@@ -40,7 +40,7 @@ if ( NOT WIN32 )
             add_executable( sam-factory-1 sam-factory.cpp )
 
             add_test( NAME Test_sra_sort_meta_copy
-                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} ${TESTBINDIR}
+                COMMAND ./sra_sort_meta_copy.sh ${DIRTOTEST} ${TESTBINDIR} ${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         else()

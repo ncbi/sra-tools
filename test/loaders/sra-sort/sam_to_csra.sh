@@ -20,7 +20,7 @@ if [[ -d "$CSRA_DIR" ]]; then
     rm -rf "$CSRA_DIR"
 fi
 
-$BAMLOAD $SAM_SRC --ref-file $REF_FILE --output $CSRA_DIR
+VDB_CONFIG=`pwd` $BAMLOAD $SAM_SRC --ref-file $REF_FILE --output $CSRA_DIR
 
 #check if the random cSRA-object has been produced
 if [[ ! -d "$CSRA_DIR" ]]; then

@@ -14,10 +14,19 @@
 
 set -e
 
-source ./check_bin_tools.sh $1 $2 $3
+source ./check_bin_tools.sh $1 $2 $4
+
+VDB_INCDIR="$3"
 
 print_verbose "testing sra-sort with post-sort metadata-copy"
 print_verbose "---------------------------------------------"
+
+#------------------------------------------------------------
+#create a tempp. config-file
+cat << EOF > tmp.kfg
+/vdb/schema/paths = "${VDB_INCDIR}"
+/LIBS/GUID = "8test002-6abf-47b2-bfd0-bamfload"
+EOF
 
 #------------------------------------------------------------
 #produce a random sam-file

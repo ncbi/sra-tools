@@ -366,7 +366,7 @@ rc_t copy_stats_metadata( const char * src_path, const char * dst_path ) {
                     equal = false;
                     if ( !equal ) {
                         LogErr( klogInfo, rc, "STATS metadata on databases differ" );
-                        rc = VDatabaseMetaCopy( dst, src, "STATS", NULL );
+                        rc = VDatabaseMetaCopy( dst, src, "STATS", NULL, false );
                         if ( 0 != rc ) {
                             LogErr( klogErr, rc, "cannot copy metadata for databases" );
                         } else {

@@ -342,38 +342,52 @@ void open_tbl ( const ctx_t *ctx, const VTable **tblp )
  * This function only succeeds if the dst-database has been closed!
  * 
  */
-static void copy_stats_metadata( const ctx_t *ctx, 
-                                 VDBManager * mgr, const VDatabase * src,
-                                 const char * dst_path ) {
-    FUNC_ENTRY ( ctx );
-
-    VDatabase * dst;
-    rc_t rc = VDBManagerOpenDBUpdate ( mgr, & dst, NULL, "%s", dst_path );
+rc_t copy_stats_metadata( const char * src_path, const char * dst_path ) {
+    VDBManager * mgr;
+    rc_t rc = VDBManagerMakeUpdate( &mgr, NULL );
     if ( 0 != rc ) {
-        ERROR ( rc, "VDBManagerOpenDBUpdate failed to open '%s'", dst_path );
+        LogErr( klogErr, rc, "cannot create VDB-update-manager" );
     } else {
-        bool equal;
-        rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
+        const VDatabase * src;
+        rc = VDBManagerOpenDBRead( mgr, &src, NULL, "%s", src_path );
         if ( 0 != rc ) {
-            ERROR ( rc, "VDatabaseMetaCompare failed to compare the STATS-node(s) before attempting to copy them" );
+            pLogErr( klogErr, rc, "cannot open source-database: $(db)", "db=%s", src_path );
         } else {
-            if ( !equal ) {
-                WARN ( "The STATS-metadata-node(s) differ between source and destination" );
-                rc = VDatabaseMetaCopy( dst, src, "STATS", NULL );
+            VDatabase * dst;
+            rc_t rc = VDBManagerOpenDBUpdate( mgr, & dst, NULL, "%s", dst_path );
+            if ( 0 != rc ) {
+                LogErr( klogErr, rc, "cannot open dst-database" );
+            } else {
+                bool equal;
+                rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
                 if ( 0 != rc ) {
-                    ERROR ( rc, "VDatabaseMetaCopy failed to copy the STATS-node(s)" );
+                    LogErr( klogErr, rc, "cannot compare metadata on databases" );
                 } else {
-                    rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
-                    if ( 0 != rc ) {
-                        ERROR ( rc, "VDatabaseMetaCompare failed after copying the STATS-node(s)" );
-                    } else if ( !equal ) {
-                        ERROR ( rc, "VDatabaseMetaCompare detected differences in the STATS-node(s) after copying" );
+                    equal = false;
+                    if ( !equal ) {
+                        LogErr( klogInfo, rc, "STATS metadata on databases differ" );
+                        rc = VDatabaseMetaCopy( dst, src, "STATS", NULL );
+                        if ( 0 != rc ) {
+                            LogErr( klogErr, rc, "cannot copy metadata for databases" );
+                        } else {
+                            rc = VDatabaseMetaCompare( src, dst, "STATS", NULL, &equal );
+                            if ( 0 != rc ) {
+                                LogErr( klogErr, rc, "cannot compare metadata on databases after copy" );
+                            } else if ( !equal ) {
+                                LogErr( klogErr, rc, "metadata for databases still not equal, even after copy" );
+                            } else {
+                                LogErr( klogInfo, rc, "STATS metadata successfully copied" );
+                            }
+                        }
                     }
                 }
+                VDatabaseRelease ( dst );
             }
+            VDatabaseRelease( src );
         }
-        VDatabaseRelease ( dst );
+        VDBManagerRelease( mgr );
     }
+    return rc;
 }
 
 /* run
@@ -394,9 +408,6 @@ void run ( const ctx_t *ctx )
     if ( rc == 0 )
     {
         open_db ( ctx, & db );  /* <--- the meat!!! */
-        
-        copy_stats_metadata( ctx, mgr, db, tp -> dst_path );    /* see above! */
-        
         VDatabaseRelease ( db );
     }
     else

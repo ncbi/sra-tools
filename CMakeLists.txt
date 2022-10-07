@@ -33,6 +33,7 @@ endif()
 
 option(TOOLS_ONLY "Generate tools targets only" ON)
 option(RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF)
+option(NO_JAVA "Do not generate any targets that need Java" OFF)
 
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 

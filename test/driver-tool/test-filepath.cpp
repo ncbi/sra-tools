@@ -163,7 +163,9 @@ TEST_CASE( RemoveSuffix )
 TEST_CASE( RemoveSuffix_Oversized )
 {
     FilePath fp(A_B_C_Filename_Ext);
+    FilePath fp1 = fp.copy();
     REQUIRE( ! fp.removeSuffix( 1 + fp.baseName().size() ) );
+    REQUIRE_EQ(fp, fp1);
 }
 
 TEST_CASE( CWD )
@@ -215,7 +217,7 @@ TEST_CASE(Current_Executable)
 {
     FilePath fp = FilePath::fullPathToExecutable(s_argv, nullptr, nullptr);
     FilePath fp1(s_argv[0]);
-    REQUIRE_EQ((string)fp.baseName(), (string)fp1.baseName());
+    REQUIRE_EQ(fp.baseName(), fp1.baseName());
 }
 
 TEST_CASE(Executable_Yes)

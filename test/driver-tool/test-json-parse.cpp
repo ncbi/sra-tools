@@ -487,7 +487,7 @@ struct JSONStringTests {
     }
     void testDecodeUTF8_UTF16() {
         try {
-            std::string const s1 = make("\"\u20AC\"");
+            std::string const s1 = make(u8"\"\u20AC\"");
             std::string const s2 = make("\"\xE2\x82\xAC\"");
             assert(s1 == s2);
             LOG(9) << __FUNCTION__ << " successful." << std::endl;
@@ -498,7 +498,7 @@ struct JSONStringTests {
     }
     void testDecode16String1() {
         try {
-            std::string s = make("\"\\\"\\\\\\/\\b\\f\\n\\r\\t\\u20AC\"");
+            std::string s = make(u8"\"\\\"\\\\\\/\\b\\f\\n\\r\\t\\u20AC\"");
             assert(s == "\"\\/\b\f\n\r\t\xE2\x82\xAC");
             LOG(9) << __FUNCTION__ << " successful." << std::endl;
         }
@@ -508,7 +508,7 @@ struct JSONStringTests {
     }
     void testDecode16String2() {
         try {
-            std::string const s = make("\"\\uD801\\uDC37\"");
+            std::string const s = make(u8"\"\\uD801\\uDC37\"");
             assert(s == "\xF0\x90\x90\xB7");
             LOG(9) << __FUNCTION__ << " successful." << std::endl;
         }

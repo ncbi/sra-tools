@@ -341,6 +341,9 @@ static local_free_ptr< wchar_t > canonicalPathW(NativeString const &path)
 /// The canonicalized path, in the same representation as the input path.
 static NativeString canonicalPath(NativeString const &path)
 {
+    if (path.empty())
+        return path;
+    
     auto const &cpath = canonicalPathW(path);
     auto const &result = NativeString(
 #if USE_WIDE_API
@@ -405,13 +408,17 @@ static NativeString pathCombine(NativeString const &left, NativeString const &in
 
 FilePath::operator std::string() const
 {
-    return std::string(Win32Support::makeUnwide(canonicalPathPOSIX(path).get()).get());
+#if USE_WIDE_API
+    return path.empty() ? std::string() : std::string(Win32Support::makeUnwide(canonicalPathPOSIX(path).get()).get());
+#else
+    return path.empty() ? std::string() : std::string(canonicalPathPOSIX(path).get());
+#endif
 }
 
 #if USE_WIDE_API
 FilePath::operator std::wstring() const
 {
-    return std::wstring(canonicalPathPOSIX(path).get());
+    return path.empty() ? path : std::wstring(canonicalPathPOSIX(path).get());
 }
 
 size_t FilePath::size() const
@@ -425,7 +432,7 @@ size_t FilePath::size() const
 static NativeString trimPath(NativeString const &path, bool canTrim = true)
 {
     auto const trimLen = (canTrim && path.size() > 1 && path.back() == API_SEP) ? 1 : 0;
-    return path.substr(0, trimLen);
+    return path.substr(0, path.size() - trimLen);
 }
 
 /// Locate all the parts of a path, as defined by Windows.
@@ -459,7 +466,7 @@ std::pair< FilePath, FilePath > FilePath::split() const
     default:
         break;
     }
-    auto const last = parts.front() - parts.back();
+    auto const last = parts.back() - parts.front();
     auto const &basename = trimPath(cpath.substr(last));
     auto const &dirname = trimPath(cpath.substr(0, last), !isRoot || parts.size() > 2);
 
@@ -490,10 +497,10 @@ bool FilePath::readable() const
 {
     DWORD flagsAndAttributes = 0;
 
-    if (pathFileExists(path.c_str()))
-        flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
-    else if (pathDirExists(path.c_str()))
+    if (pathDirExists(path.c_str()))
         flagsAndAttributes = FILE_FLAG_BACKUP_SEMANTICS;
+    else if (pathFileExists(path.c_str()))
+        flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
     else
         return false;
 

@@ -96,4 +96,4 @@ diff -s before.xml after.xml
 #rm -rf "$ORG_CSRA" $SORTED_CSRA
 
 #we also do not need the xml-output(s) of sra-stat any more ...
-rm before.txt after.txt
+rm before.txt after.txt tmp.kfg

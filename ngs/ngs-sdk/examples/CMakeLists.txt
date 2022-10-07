@@ -47,7 +47,7 @@ add_executable( DumpReferenceFASTA DumpReferenceFASTA.cpp )
 #TODO: FastqTableDump
 
 if ( NOT WIN32 )
-	add_test( NAME SlowTest_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${BINDIR} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
+	add_test( NAME SlowTest_NGS_Run_and_diff COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.sh ${TESTBINDIR} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 endif()
 
 if ( SINGLE_CONFIG )

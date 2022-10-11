@@ -36,9 +36,9 @@
 #endif
 
 #include <iostream>
-#include <string> 
+#include <string>
 #include <cassert>
-#include "../../tools/driver-tool/uuid.cpp"
+#include "uuid.cpp"
 
 static bool uuid_is_valid(std::string const &buffer)
 {

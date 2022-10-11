@@ -11,7 +11,7 @@
 #include <initializer_list>
 #include <vector>
 #include <cassert>
-#include "../../tools/driver-tool/win32-cmdline.hpp"
+#include "win32-cmdline.hpp"
 
 using namespace Win32Support;
 
@@ -88,7 +88,7 @@ int wmain(int argc, wchar_t *argv[], wchar_t *envp[])
 
     std::cout << "All tests passed" << std::endl;
     return 0;
-    
+
     (void)argc, (void)argv, (void)envp;
 }
 #else // !WINDOWS

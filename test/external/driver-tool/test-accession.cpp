@@ -37,7 +37,7 @@
 
 #include <string>
 #include <cassert>
-#include "../../tools/driver-tool/accession.cpp"
+#include "accession.cpp"
 
 using namespace sratools;
 

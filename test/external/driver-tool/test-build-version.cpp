@@ -30,7 +30,7 @@
  *
  */
 
-#include "../../tools/driver-tool/build-version.cpp"
+#include "build-version.cpp"
 
 struct Test_Version {
     using Version = sratools::Version;
@@ -138,7 +138,7 @@ struct Test_Version {
             std::cerr << __FUNCTION__ << " failed: unknown exception!" << std::endl;
         }
     }
-    
+
     bool is_good;
 };
 

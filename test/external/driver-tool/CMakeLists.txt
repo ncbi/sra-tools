@@ -22,7 +22,7 @@
 #
 # ===========================================================================
 
-set( SOURCEDIR ${CMAKE_CURRENT_SOURCE_DIR}/../../tools/external/driver-tool )
+set( SOURCEDIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../tools/external/driver-tool )
 
 AddExecutableTest( Test_Drivertool_JsonParsing "test-json-parse.cpp" "" "${SOURCEDIR}" )
 AddExecutableTest( Test_Drivertool_SDLResponse "test-sdl-response.cpp" "" "${SOURCEDIR}" )

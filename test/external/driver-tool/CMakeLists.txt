@@ -33,14 +33,9 @@ AddExecutableTest( Test_Drivertool_Accession "test-accession.cpp" "" "" )
 AddExecutableTest( Test_Drivertool_UUID "test-uuid.cpp" "" "" )
 
 if ( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-<<<<<<< HEAD:test/external/driver-tool/CMakeLists.txt
-if ( NOT WIN32 )
-if ( EXISTS "${DIRTOTEST}/sratools${EXE}" )
-=======
     if ( WIN32 )
         AddExecutableTest( Test_Drivertool_FilePath "test-filepath.cpp" "${COMMON_LINK_LIBRARIES};${COMMON_LIBS_READ};ShLwApi;Pathcch" "")
         target_compile_definitions(Test_Drivertool_FilePath PRIVATE USE_WIDE_API=1)
->>>>>>> VDB-4674:test/driver-tool/CMakeLists.txt
 
         add_executable( Drivertool_Win32_Args_Parsing_Test win32-cmdline-test.cpp )
         add_test( NAME Test_Drivertool_Win32_Args_Parsing COMMAND Drivertool_Win32_Args_Parsing_Test )
@@ -107,12 +102,6 @@ if ( EXISTS "${DIRTOTEST}/sratools${EXE}" )
         DriverToolTestNoScriptParams( testing )
         DriverToolTestNoScriptParams( vdbcache )
 
-<<<<<<< HEAD:test/external/driver-tool/CMakeLists.txt
-else()
-	message(WARNING "${DIRTOTEST}/sratools${EXE} is not found. The corresponding tests are skipped." )
-endif()
-endif()
-=======
         add_test( NAME Test_Drivertool_2_accessions
             COMMAND two_accessions.sh "${DIRTOTEST}" "two_accessions" sratools
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
@@ -125,5 +114,4 @@ endif()
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
         endif()
     endif()
->>>>>>> VDB-4674:test/driver-tool/CMakeLists.txt
 endif()

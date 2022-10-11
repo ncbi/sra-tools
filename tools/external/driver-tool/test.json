@@ -1,0 +1,72 @@
+{
+    "version": "unstable",
+    "result": [
+        {
+            "bundle": "SRR850901",
+            "status": 200,
+            "msg": "ok",
+            "files": [
+                {
+                    "object": "srapub_files|SRR850901",
+                    "type": "reference_fasta",
+                    "name": "SRR850901.contigs.fasta",
+                    "size": 5417080,
+                    "md5": "e0572326534bbf310c0ac744bd51c1ec",
+                    "locations": [
+                        {
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra7/SRZ/000850/SRR850901/SRR850901.contigs.fasta",
+                            "service": "sra-ncbi",
+                            "region": "public"
+                        }
+                    ],
+                    "modificationDate": "2016-11-19T08:00:46Z"
+                },
+                {
+                    "object": "srapub_files|SRR850901",
+                    "type": "sra",
+                    "name": "SRR850901.pileup",
+                    "size": 842809,
+                    "md5": "323d0b76f741ae0b71aeec0176645301",
+                    "modificationDate": "2016-11-20T07:38:19Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra14/SRZ/000850/SRR850901/SRR850901.pileup",
+                            "service": "sra-ncbi",
+                            "region": "public"
+                        }
+                    ]
+                },
+                {
+                    "object": "srapub|SRR850901",
+                    "type": "sra",
+                    "name": "SRR850901",
+                    "size": 323741972,
+                    "md5": "5e213b2319bd1af17c47120ee8b16dbc",
+                    "modificationDate": "2016-11-19T07:35:20Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos/sra-pub-run-2/SRR850901/SRR850901.2",
+                            "service": "ncbi",
+                            "region": "be-md"
+                        }
+                    ]
+                },
+                {
+                    "object": "srapub|SRR850901",
+                    "type": "vdbcache",
+                    "name": "SRR850901.vdbcache",
+                    "size": 17615526,
+                    "md5": "2eb204cedf5eefe45819c228817ee466",
+                    "modificationDate": "2016-02-08T16:31:35Z",
+                    "locations": [
+                        {
+                            "link": "https://sra-download.ncbi.nlm.nih.gov/traces/sra11/SRR/000830/SRR850901.vdbcache",
+                            "service": "sra-ncbi",
+                            "region": "public"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

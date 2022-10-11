@@ -22,45 +22,73 @@
 #
 # ===========================================================================
 
-#add_compile_definitions( __mod__="tools/driver-tool" )
+set( compile_defs __mod__="tools/driver-tool" )
 
-add_subdirectory( json )
-add_subdirectory( secure )
-add_subdirectory( utf8proc )
-
-#include_directories( inc )
-
-set( SRATOOLS_SRC
-	sratools
-	sratools2
-	imp_fasterq_dump
-	imp_fastq_dump
-	imp_prefetch
-	imp_sam_dump
-	imp_sra_pileup
-	imp_srapath
-	imp_vdb_dump
-	cmdline
-	config
-	proc
-	run-source
-	uuid
-	service
-    support2
+set( sources
+    sratools.cpp
+    sratools.hpp
+    config.cpp
+    config.hpp
+    command-line.cpp
+    command-line.hpp
+    run-source.cpp
+    run-source.hpp
+    proc.cpp
+    proc.hpp
+    uuid.cpp
+    uuid.hpp
+    accession.cpp
+    accession.hpp
+    service.cpp
+    service.hpp
+    json-parse.cpp
+    json-parse.hpp
+    SDL-response.cpp
+    SDL-response.hpp
+    tool-args.cpp
+    tool-args.hpp
+    build-version.cpp
+    build-version.hpp
+    globals.hpp
+    constants.hpp
+    debug.hpp
+    utf8-16.hpp
+    util.hpp
+    file-path.hpp
+    opt_string.hpp
+    tool-arguments.h
+    fastq-dump-arguments.h
 )
-
-if( WIN32 )
-    set( ADDITIONAL_LIBS
-            libcmt$<$<CONFIG:Debug>:d>
-            libcpmt$<$<CONFIG:Debug>:d>
-            libucrt$<$<CONFIG:Debug>:d>
-            libvcruntime$<$<CONFIG:Debug>:d>
+if(WIN32)
+    list(APPEND sources
+        file-path.win32.cpp
+        proc.win32.cpp
+        proc.win32.hpp
+        util.win32.hpp
+        wide-char.hpp
+        win32-cmdline.hpp
     )
 else()
-	set( ADDITIONAL_LIBS m )
+    list(APPEND sources
+        file-path.posix.cpp
+        proc.posix.cpp
+        proc.posix.hpp
+        util.posix.hpp
+    )
 endif()
 
-set( link_libs ${COMMON_LINK_LIBRARIES} ${COMMON_LIBS_READ} json secure utf8proc ${ADDITIONAL_LIBS} ${MBEDTLS_LIBS} )
-
-GenerateExecutableWithDefs( sratools "${SRATOOLS_SRC}" "__mod__=\"tools/driver-tool\"" "inc" "${link_libs}" )
+set(link_libs ncbi-vdb)
+if(WIN32)
+    list(APPEND compile_defs USE_WIDE_API=1 )
+    list(APPEND link_libs
+        libcmt$<$<CONFIG:Debug>:d>
+        libcpmt$<$<CONFIG:Debug>:d>
+        libucrt$<$<CONFIG:Debug>:d>
+        libvcruntime$<$<CONFIG:Debug>:d>
+        Ws2_32 Crypt32 ShLwApi Pathcch
+    )
+elseif(LINUX)
+    list(APPEND link_libs m)
+endif()
+GenerateExecutableWithDefs(sratools "${sources}" "${compile_defs}" "" "${link_libs}")
 MakeLinksExe( sratools false )

@@ -1,2 +1,5 @@
 ld.linux.exe_cmd.sh
 Makefile.config*
+.cmake
+CMakeCache.txt
+CMakeFiles

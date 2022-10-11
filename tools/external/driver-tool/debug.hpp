@@ -63,39 +63,44 @@ struct logging_state {
     }
 private:
     logging_state() = delete;
-    static bool is_falsy(char const *const str) {
-        return (str == NULL || str[0] == '\0' || (str[0] == '0' && str[1] == '\0'));
+    static bool is_falsy(opt_string const &str) {
+        return (!str.has_value() || (*str)[0] == '\0' || ((*str)[0] == '0' && (*str)[1] == '\0'));
     }
     static bool get_debug_value() {
-        auto const value = EnvironmentVariables::get("SRATOOLS_DEBUG");
-        return value ? !is_falsy(value.c_str()) : false;
+        return !is_falsy(EnvironmentVariables::get("SRATOOLS_DEBUG"));
     }
     static bool get_trace_value() {
-        auto const value = EnvironmentVariables::get("SRATOOLS_TRACE");
-        return value ? !is_falsy(value.c_str()) : false;
+        return !is_falsy(EnvironmentVariables::get("SRATOOLS_TRACE"));
     }
     static int get_verbose_value() {
         auto const str = EnvironmentVariables::get("SRATOOLS_VERBOSE");
-        if (str && str[0] && str[1] == '\0') {
-            return std::atoi(str.c_str());
+        if (str.has_value() && (*str)[0] && (*str)[1] == '\0') {
+            return std::atoi((*str).c_str());
         }
         return 0;
     }
     static bool get_dry_run() {
-        auto const value = EnvironmentVariables::get("SRATOOLS_DRY_RUN");
-        return value ? !is_falsy(value.c_str()) : false;
+        return !is_falsy(EnvironmentVariables::get("SRATOOLS_DRY_RUN"));
     }
     static int get_testing_value() {
         auto const str = EnvironmentVariables::get("SRATOOLS_TESTING");
-        if (str && str[0]) {
-            return std::atoi(str.c_str());
+        if (str && (*str)[0]) {
+            return std::atoi((*str).c_str());
         }
         return get_dry_run() ? 3 : 0;
     }
 };
 
-#define TRACE(X) do { if (logging_state::is_trace()) { std::cerr << "TRACE: " << __FILE__ << ':' << __LINE__ << " - " << __FUNCTION__ << ": " << #X << " = \n" << (X) << std::endl; } } while(0)
+#ifndef STRINGIFY
+#define STRINGIFY_(X) #X
+#define STRINGIFY(X) STRINGIFY_(X)
+#endif
 
-#define DEBUG_OUT if (!logging_state::is_debug()) {} else std::cerr
+#if DEBUG || _DEBUGGING
+#define TRACE(X) do { if (logging_state::is_trace()) { std::cerr << "TRACE: " << __FUNCTION__ << ":" << __LINE__ << ": " << #X << " =\n" << (X) << std::endl; } } while(0)
+#else
+#define TRACE(X) ((void)X)
+#endif
 
-#define LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr
+#define DEBUG_OUT if (!logging_state::is_debug()) {} else std::cerr << "DEBUG: "
+#define LOG(LEVEL) if (!logging_state::is_verbose(LEVEL)) {} else std::cerr << "LOG(" STRINGIFY(LEVEL) "): "

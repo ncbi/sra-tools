@@ -31,6 +31,10 @@ endif()
 # set( CMAKE_DISABLE_SOURCE_CHANGES ON ) # Cannot use with bison
 # set( CMAKE_DISABLE_IN_SOURCE_BUILD ON )
 
+option(TOOLS_ONLY "Generate tools targets only" ON)
+option(RUN_SANITIZER_TESTS "Run ASAN and TSAN tests" OFF)
+option(NO_JAVA "Do not generate any targets that need Java" OFF)
+
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 
 #set( CMAKE_VERBOSE_MAKEFILE ON )
@@ -50,6 +54,8 @@ set(CMAKE_MODULE_PATH
 set( VDB_BINDIR "${CMAKE_BINARY_DIR}/../ncbi-vdb" CACHE PATH "Location of NCBI VDB build directory" )
 set( VDB_INCDIR "${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces" CACHE PATH "Location of NCBI VDB include directory" )
 
+include(CTest)
+enable_testing()
 include( build/env.cmake NO_POLICY_SCOPE )
 
 add_subdirectory( shared )

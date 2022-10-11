@@ -31,99 +31,89 @@
  */
 
 #pragma once
-#include <string>
-#include <vector>
-#include <map>
+#if WINDOWS
 
-#include "parse_args.hpp"
-#include "util.hpp"
+/// source: https://github.com/openbsd/src/blob/master/include/sysexits.h
+#define EX_USAGE    64    /* command line usage error */
+#define EX_NOINPUT    66    /* cannot open input */
+#define EX_SOFTWARE    70    /* internal software error */
+#define EX_TEMPFAIL    75    /* temp failure; user is invited to retry */
+#define EX_CONFIG    78    /* configuration error */
 
 typedef int pid_t;
 
-namespace sratools {
+namespace Win32 {
 
-struct process {
-    pid_t pid;
-
-    bool is_self() const { return pid == 0; }
-    pid_t get_pid() const { return pid; }
-    
+struct Process {
     /// @brief the result of wait if child did terminate in some way
-    struct exit_status {
+    struct ExitStatus {
         /// @brief does nothing; not really applicable to Windows; child processes always only exit
         ///
         /// @return true
-        bool exited() const {
+        bool didExit() const {
             return true;
         }
         /// @brief child exit code
-        int exit_code() const {
-            assert(exited());
+        int exitCode() const {
             return value;
         }
-
         /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return false
-        bool signaled() const {
+        bool wasSignaled() const {
             return false;
         }
         /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return 0
-        int termsig() const {
-            assert(signaled());
+        int signal() const {
             return 0;
         }
         /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return nullptr
-        char const *termsigname() const {
-            assert(signaled());
-            return nullptr;
+        char const *signalName() const {
+            return "UNKNOWN";
         }
         /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return false
-        bool coredump() const {
-            assert(signaled());
+        bool didCoreDump() const {
             return false;
         }
-
         /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
-        bool stopped() const {
+        bool isStopped() const {
             return false;
         }
         /// @brief does nothing; not applicable to Windows; only for API compatibility with POSIX
         ///
         /// @return 0
-        int stopsig() const {
-            assert(stopped());
+        int stopSignal() const {
             return 0;
         }
 
-        /// @brief did child exit(0)
-        bool normal() const {
-            return exited() && exit_code() == 0;
-        }
-        operator bool() const {
-            return normal();
-        }
-
-        exit_status(exit_status const &other) : value(other.value) {}
-        exit_status &operator =(exit_status const &other) {
-            value = other.value;
-            return *this;
-        }
+        ExitStatus(ExitStatus const &) = default;
+        ExitStatus &operator =(ExitStatus const &);
+        ExitStatus(ExitStatus &&) = default;
+        ExitStatus &operator =(ExitStatus &&);
     private:
         int value;
-        friend struct process;
-        exit_status(int status) : value(status) {}
+        friend struct Process;
+        ExitStatus(int status) : value(status) {}
     };
 
-    static void run_child(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env = {});
-    static exit_status run_child_and_wait(char const *toolpath, char const *toolname, char const **argv, Dictionary const &env = {});
-    static exit_status run_child_and_get_stdout(std::string *out, char const *toolpath, char const *toolname, char const **argv, bool const for_real = false, Dictionary const &env = {});
+    static void runChild [[noreturn]] (::FilePath const &toolPath, std::string const &toolName, char const *const *argv, Dictionary const &env);
+    static ExitStatus runChildAndWait(::FilePath const &toolPath, std::string const &toolName, char const *const *argv, Dictionary const &env);
+
+#if USE_WIDE_API
+    static void runChild [[noreturn]] (::FilePath const &toolPath, std::string const &toolName, wchar_t const *const *argv, Dictionary const &env);
+    static ExitStatus runChildAndWait(::FilePath const &toolPath, std::string const &toolName, wchar_t const *const *argv, Dictionary const &env);
+#endif
 };
 
-} // namespace sratools
+} // namespace Win32
+
+using PlatformProcess = Win32::Process;
+
+#else // WINDOWS
+#endif // WINDOWS
